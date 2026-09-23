@@ -49,6 +49,17 @@ openchami_config:
     - "tokensmith"
   pods:
     - "openchami-pod"
+  data_volume_services:
+    - "boot-service-data-volume.service"
+    - "metadata-service-data-volume.service"
+    - "postgres-data-volume.service"
+  data_volumes:
+    - "boot-service-data"
+    - "metadata-service-data"
+    - "postgres-data"
+  packages:
+    - "openchami"
+    - "ochami"
   config_dirs:
     - "/etc/openchami"
     - "/etc/ochami"

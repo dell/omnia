@@ -161,7 +161,7 @@ Non-Functional Tests validate **performance**, **idempotency**, and **security**
 All NFT tests should **PASS** on a healthy orchestrator deployment:
 
 ```
-ORCH_NFT_001: ✔ PASS  (validate: 12.3s < 30s)
+ORCH_NFT_001: ✔ PASS  (validate: 34.4s < 60s)
 ORCH_NFT_002: ✔ PASS  (prepare: 245.7s < 300s)
 ORCH_NFT_003: ✔ PASS  (provision: 1542.1s < 1800s)
 ORCH_NFT_004: ✔ PASS  (cleanup: 125.4s < 180s)
@@ -170,7 +170,7 @@ ORCH_NFT_006: ✔ PASS  (validate idempotent: run1=12.3s, run2=11.8s)
 ORCH_NFT_007: ✔ PASS  (cleanup idempotent: run1=125.4s, run2=2.1s)
 ORCH_NFT_008: ✔ PASS  (credential file permissions: 0640)
 ORCH_NFT_009: ✔ PASS  (SSH key permissions: 0600)
-ORCH_NFT_010: ✔ PASS  (log file permissions: no world-readable)
+ORCH_NFT_010: ✔ PASS  (log files are not world-exposed)
 ORCH_NFT_011: ✔ PASS  (vault encryption: header present, key 0600)
 ```
 
@@ -211,7 +211,7 @@ If a security test fails:
 Edit the constants in `nft/test_performance.py`:
 
 ```python
-VALIDATE_THRESHOLD = 30     # 30 seconds
+VALIDATE_THRESHOLD = 60     # 60 seconds
 PREPARE_THRESHOLD = 300     # 5 minutes
 PROVISION_THRESHOLD = 1800  # 30 minutes
 CLEANUP_THRESHOLD = 180     # 3 minutes

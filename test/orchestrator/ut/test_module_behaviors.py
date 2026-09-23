@@ -369,9 +369,13 @@ def test_dataset_sync_overlays_a_complete_source_input(monkeypatch, tmp_path):
         },
     )
     monkeypatch.setattr(host_func, "sync_files", fake_sync_files)
+    monkeypatch.setattr(
+        host_func, "resolve_target_input_project_path",
+        lambda _host: "/srv/omnia/orchestrator/input/project_default",
+    )
 
     result = host_func.sync_orchestrator_input(
-        object(), {"dataset": "selected", "project_name": "project_default"}
+        object(), {"dataset": "selected"}
     )
     assert result["success"]
     assert captured == {

@@ -1,0 +1,1044 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ---------------------------------------------------------------------------
+# Omnia Utils Pipeline
+# ---------------------------------------------------------------------------
+# Triggered by the parent pipeline (.gitlab-ci.yml) when UTILS_ENABLE=true
+# Executes utils domain operations: log collection, install_os, etc.
+#
+# Stages:
+#   1. initialization           -> Load cluster config, validate connectivity
+#   2. setup_environment        -> Clone repo, copy omnia.env, setup venv
+#   3. install_os              -> Run utils.yml with --tags install_os
+#   4. log_collection_cluster   -> Run utils.yml with --tags collect
+#   5. log_collection_oim       -> Run utils.yml with --tags backup_oim_logs
+#   6. test_utils              -> Run utils validation tests
+#   7. summary                 -> Pipeline report + email
+#
+# Cluster connection details come from CI/CD variables:
+#   <CLUSTER_PREFIX>_TARGET_IP, <CLUSTER_PREFIX>_TARGET_USER,
+#   <CLUSTER_PREFIX>_TARGET_PASS
+#
+# Repository and installation paths come from CI/CD variables:
+#   <CLUSTER_PREFIX>_OMNIA_REPO, <CLUSTER_PREFIX>_OMNIA_BRANCH,
+#   <CLUSTER_PREFIX>_OMNIA_INSTALL_PATH
+#
+# Pipeline control variables:
+#   CLUSTER              -> Cluster name (e.g., cluster1)
+#   OMNIA_REPO           -> Omnia repository URL
+#   OMNIA_BRANCH         -> Omnia branch to clone
+#   OMNIA_INSTALL_PATH   -> Path where omnia is installed on target
+#   VERBOSE              -> Enable verbose output (true/false)
+#   DRY_RUN              -> Log commands without executing (true/false)
+#   UTILS_ENABLE         -> Enable utils pipeline (must be "true")
+#   UTILS_MODE           -> Which utils operations to run (default_logs, install_os, collect, backup_oim_logs)
+#                           - default_logs: run log collection (cluster + OIM)
+#                           - install_os: run install_os only
+#                           - collect: run cluster log collection only
+#                           - backup_oim_logs: run OIM log backup only
+# ---------------------------------------------------------------------------
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
+      when: always
+
+variables:
+  SSH_CONNECT_TIMEOUT: "30"
+  PIPELINE_VERSION: "3.0"
+  UTILS_MODE: "default_logs"
+  TEST_UTILS_CMD: "./run_validation.sh fvt_utils verify"
+  TEST_MODE: "false"
+  DRY_RUN: "false"
+  VERBOSE: "false"
+
+stages:
+  - initialization
+  - setup_environment
+  - install_os
+  - log_collection_cluster
+  - log_collection_oim
+  - test_utils
+  - summary
+
+# ---------------------------------------------------------------------------
+# Default configuration for all jobs
+# ---------------------------------------------------------------------------
+default:
+  after_script:
+    - mkdir -p "pipeline_job_status/$CI_PIPELINE_ID"
+    - printf '{"name":"%s","status":"%s"}\n' "$CI_JOB_NAME" "$CI_JOB_STATUS" > "pipeline_job_status/$CI_PIPELINE_ID/$CI_JOB_NAME.json"
+  artifacts:
+    paths:
+      - target.env
+      - pipeline_time.env
+      - pipeline_job_status/
+      - pipeline_reports/
+    when: always
+    expire_in: 30 days
+
+# ========================  HELPER FUNCTIONS  ================================
+# OpenBao/Vault credential management
+# ---------------------------------------------------------------------------
+.fetch_openbao_secret: &fetch_openbao_secret |
+  # Define OpenBao/Vault secret fetch function (used by deploy stages)
+  # Usage: fetch_openbao_secret <secret_name> <output_file>
+  #   secret_name: e.g. "utils"
+  #   output_file: local path to write the credential file
+  fetch_openbao_secret() {
+    local secret_name="$1"
+    local output_file="$2"
+    if [ -z "$BAO_SERVER_URL" ]; then
+      echo "ERROR: BAO_SERVER_URL is not set."
+      echo "  OpenBao is required for domain credential management."
+      echo "  Set BAO_SERVER_URL in GitLab CI/CD variables."
+      return 1
+    fi
+    echo "  Authenticating with OpenBao..."
+    local auth_response
+    auth_response=$(curl -sk --request POST \
+      "${BAO_SERVER_URL}/v1/auth/jwt/login" \
+      --data "{\"jwt\": \"${VAULT_ID_TOKEN}\", \"role\": \"${BAO_AUTH_ROLE}\"}" 2>/dev/null)
+
+    local bao_token
+    bao_token=$(echo "$auth_response" | python3 -c \
+      "import sys,json;print(json.load(sys.stdin)['auth']['client_token'])" 2>/dev/null)
+
+    if [ -z "$bao_token" ]; then
+      echo "ERROR: OpenBao authentication failed"
+      # Extract error message without exposing sensitive data
+      echo "$auth_response" | python3 -c \
+        "import sys,json;r=json.load(sys.stdin);errs=r.get('errors',[]);[print(f'  {e}') for e in errs]" 2>/dev/null || true
+      return 1
+    fi
+    echo "  OpenBao authentication successful"
+
+    echo "  Fetching secret: ${secret_name}"
+    local secret_response
+    secret_response=$(curl -sk --header "X-Vault-Token: ${bao_token}" \
+      "${BAO_SERVER_URL}/v1/${BAO_DATA_PATH}/${secret_name}" 2>/dev/null)
+    # Extract secret data (handles both KV v1 and KV v2 response formats)
+    # Format all values as quoted strings (JSON format) for YAML compatibility
+    python3 -c \
+      "import sys,json;\
+  r=json.loads('''$secret_response''');\
+  d=r.get('data',{});\
+  s=d['data'] if 'data' in d and isinstance(d.get('data'),dict) else d;\
+  s={k:v for k,v in s.items() if k!='metadata'};\
+  vals=list(s.values());\
+  [print(json.dumps(vals[0])) if len(s)==1 and isinstance(vals[0],str) else None];\
+  [print(f'{k}: {json.dumps(v)}') for k,v in s.items()] if len(s)>1 else None" \
+      > "$output_file" 2>/dev/null
+    if [ -s "$output_file" ]; then
+      echo "  Secret fetched successfully from OpenBao"
+      return 0
+    else
+      echo "  ERROR: Failed to fetch secret from OpenBao"
+      rm -f "$output_file"
+      return 1
+    fi
+  }
+
+# ========================  INITIALIZATION  ================================
+# Loads cluster config, validates SSH connectivity, writes target.env
+# ---------------------------------------------------------------------------
+initialization:
+  stage: initialization
+  rules:
+    - if: '$CLUSTER'
+      when: on_success
+  allow_failure: false
+  timeout: 3h
+  before_script: []
+  script:
+    - |
+      echo "========================================================"
+      echo "  Omnia Utils Log Collection — cluster $CLUSTER"
+      echo "========================================================"
+      echo "Pipeline version: $PIPELINE_VERSION"
+      echo "Cluster: $CLUSTER"
+      echo "Omnia Repo: $OMNIA_REPO"
+      echo "Omnia Branch: $OMNIA_BRANCH"
+      echo "Install Path: $OMNIA_INSTALL_PATH"
+      echo ""
+      echo "Loading cluster configuration from CI/CD variables"
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      TARGET_IP_VAR="${CLUSTER_PREFIX}_TARGET_IP"
+      TARGET_USER_VAR="${CLUSTER_PREFIX}_TARGET_USER"
+      TARGET_PASS_VAR="${CLUSTER_PREFIX}_TARGET_PASS"
+      TARGET_IP=$(eval echo "\$$TARGET_IP_VAR")
+      TARGET_USER=$(eval echo "\$$TARGET_USER_VAR")
+      TARGET_PASS=$(eval echo "\$$TARGET_PASS_VAR")
+      if [ -z "$TARGET_IP" ] || [ -z "$TARGET_USER" ] || [ -z "$TARGET_PASS" ]; then
+        echo "ERROR: Missing cluster connection variables"
+        echo "  Required: ${TARGET_IP_VAR}, ${TARGET_USER_VAR}, ${TARGET_PASS_VAR}"
+        exit 1
+      fi
+      CLUSTER_NAME="${CLUSTER}"
+      echo "Cluster Name  - $CLUSTER_NAME"
+      echo "Target IP     - $TARGET_IP"
+      echo "Target User   - $TARGET_USER"
+      echo "Omnia Repo    - $OMNIA_REPO"
+      echo "Omnia Branch  - $OMNIA_BRANCH"
+      echo "Install Path  - $OMNIA_INSTALL_PATH"
+      echo "Testing SSH connectivity to $TARGET_IP"
+      export SSHPASS="$TARGET_PASS"
+      SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+      rm -f ~/.ssh/known_hosts
+      ssh-keygen -R $TARGET_IP || true
+      $SSH_CMD -o ConnectTimeout=$SSH_CONNECT_TIMEOUT $TARGET_USER@$TARGET_IP "echo SSH connection successful"
+      echo "Writing target.env for downstream stages"
+      echo "TARGET_IP=$TARGET_IP" > target.env
+      echo "TARGET_USER=$TARGET_USER" >> target.env
+      echo "TARGET_PASS=$TARGET_PASS" >> target.env
+      echo "CLUSTER_NAME=$CLUSTER_NAME" >> target.env
+      echo "OMNIA_INSTALL_PATH=$OMNIA_INSTALL_PATH" >> target.env
+      echo "OMNIA_REPO=$OMNIA_REPO" >> target.env
+      echo "OMNIA_BRANCH=$OMNIA_BRANCH" >> target.env
+
+      # Validate OpenBao server reachability (if configured)
+      echo "Validating OpenBao server configuration"
+      if [ -z "$BAO_SERVER_URL" ]; then
+        echo "  WARNING: BAO_SERVER_URL not configured"
+        echo "  OpenBao credential management will be skipped"
+      else
+        echo "  Checking OpenBao server reachability: $BAO_SERVER_URL"
+        # Extract host and port from URL (handle https://host:port format)
+        VAULT_HOST=$(echo "$BAO_SERVER_URL" | sed -E 's|https?://([^:/]+).*|\1|')
+        VAULT_PORT=$(echo "$BAO_SERVER_URL" | sed -E 's|.*:([0-9]+)/?$|\1|; s|.*||')
+        VAULT_PORT="${VAULT_PORT:-8200}"
+
+        # Test connectivity with curl (skip certificate verification for self-signed certs)
+        if curl -sk --connect-timeout 10 --max-time 15 "$BAO_SERVER_URL/v1/sys/health" > /dev/null 2>&1; then
+          echo "  ✓ OpenBao server is reachable at $BAO_SERVER_URL"
+        else
+          echo "  ✗ ERROR: OpenBao server is NOT reachable"
+          echo "    URL: $BAO_SERVER_URL"
+          echo "    Host: $VAULT_HOST"
+          echo "    Port: $VAULT_PORT"
+          echo ""
+          echo "  Troubleshooting steps:"
+          echo "    1. Verify BAO_SERVER_URL is correct in CI/CD variables"
+          echo "    2. Check if OpenBao server is running"
+          echo "    3. Verify network connectivity to the OpenBao server"
+          echo "    4. Check firewall rules allow access to port $VAULT_PORT"
+          echo "    5. If using self-signed certificates, ensure curl can reach the server"
+          exit 1
+        fi
+      fi
+
+      python3 -c "from datetime import datetime; open('pipeline_time.env', 'w').write(
+        f'PIPELINE_TRIGGER_TIME={datetime.now().strftime(\"%Y-%m-%d_%H-%M-%S\")}\n')"
+      cat target.env
+      cat pipeline_time.env
+      echo "Initialization complete"
+  artifacts:
+    paths:
+      - target.env
+      - pipeline_time.env
+      - pipeline_job_status/
+    when: always
+    expire_in: 30 days
+
+# ========================  SETUP ENVIRONMENT  =============================
+# Clones omnia repo, copies omnia.env, sets up Python venv
+# ---------------------------------------------------------------------------
+setup_environment:
+  stage: setup_environment
+  timeout: 3h
+  before_script: []
+  rules:
+    - if: '$CLUSTER'
+      when: on_success
+  needs:
+    - job: initialization
+      artifacts: true
+  artifacts:
+    paths:
+      - actual_commit_sha.txt
+      - pipeline_job_status/
+    when: always
+  script:
+    - echo "========================================================"
+    - echo "  Setting up Omnia environment on cluster $CLUSTER"
+    - echo "  Mode — ${PIPELINE_MODE}"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+
+    # Step 1: Verify SSH connectivity
+    - echo "Step 1 - Testing SSH connectivity"
+    - rm -f ~/.ssh/known_hosts
+    - ssh-keygen -R $TARGET_IP || true
+    - $SSH_CMD -o ConnectTimeout=$SSH_CONNECT_TIMEOUT $TARGET "echo SSH connection successful"
+
+    # Step 2: Ensure git is installed on target
+    - echo "Step 2 - Checking if git is installed on target server"
+    - $SSH_CMD $TARGET "command -v git || (dnf install -y git || yum install -y git || apt-get install -y git)"
+
+    # Step 3: Remove any existing omnia repo on target
+    - echo "Step 3 - Removing any existing omnia repo at $OMNIA_INSTALL_PATH"
+    - $SSH_CMD $TARGET "if [ -d $OMNIA_INSTALL_PATH ]; then rm -rf $OMNIA_INSTALL_PATH; fi"
+
+    # Step 4: Clone the omnia repo on the target server
+    - echo "Step 4 - Cloning omnia repo on target server"
+    - echo "  Repo   - $OMNIA_REPO"
+    - echo "  Branch - $OMNIA_BRANCH"
+    - echo "  Path   - $OMNIA_INSTALL_PATH"
+    - $SSH_CMD $TARGET "cd $(dirname $OMNIA_INSTALL_PATH) && git clone -b $OMNIA_BRANCH $OMNIA_REPO $(basename $OMNIA_INSTALL_PATH)"
+
+    # Step 4a: Capture the actual commit SHA from the cloned repo
+    - echo "Step 4a - Capturing actual commit SHA from cloned repo"
+    - |
+      ACTUAL_COMMIT_SHA=$($SSH_CMD $TARGET "cd $OMNIA_INSTALL_PATH && git rev-parse HEAD" | tail -1)
+      echo "  Actual Commit SHA: $ACTUAL_COMMIT_SHA"
+      echo "$ACTUAL_COMMIT_SHA" > actual_commit_sha.txt
+
+    # Step 5: Copy cluster-specific omnia.env to the cloned repo (if it exists)
+    - echo "Step 5 - Copying cluster-specific omnia.env to target omnia repo"
+    - |
+      OMNIA_ENV_PATH="$CI_PROJECT_DIR/clusters/$CLUSTER/inputs/omnia.env"
+      if [ -f "$OMNIA_ENV_PATH" ]; then
+        $SCP_CMD "$OMNIA_ENV_PATH" $TARGET:$OMNIA_INSTALL_PATH/src/main/omnia.env
+        echo "  Verifying omnia.env on target"
+        $SSH_CMD $TARGET "ls -la $OMNIA_INSTALL_PATH/src/main/omnia.env"
+      else
+        echo "  WARNING: omnia.env not found at $OMNIA_ENV_PATH"
+        echo "  Using default omnia.env from cloned repo"
+      fi
+
+    # Step 6: Run omnia.sh --setup-venv to create venv and install deps
+    - echo "Step 6 - Running omnia.sh -s (setup venv)"
+    - $SSH_CMD $TARGET "cd $OMNIA_INSTALL_PATH/src/main && chmod +x omnia.sh && ./omnia.sh -s"
+
+    # Step 7: Resolve OMNIA_DATA_PATH and activate venv
+    - echo "Step 7 - Resolving OMNIA_DATA_PATH and verifying omnia venv"
+    - |
+      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "
+        grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2
+      " | tail -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
+      $SSH_CMD $TARGET "
+        source $OMNIA_DATA_PATH/activate-omnia.sh && \
+        echo 'Omnia venv activated successfully' && \
+        python3 --version && \
+        pip list --format=columns | head -20 && \
+        echo 'Ansible version:' && \
+        ansible --version | head -1
+      "
+
+    # Step 8: Copy cluster-specific catalog (deploy/default mode only)
+    - |
+      echo "Step 8 - Checking if catalog copy is needed"
+      echo "  PIPELINE_MODE = $PIPELINE_MODE"
+      if [ "$PIPELINE_MODE" = "deploy" ] || [ "$PIPELINE_MODE" = "default" ]; then
+        echo "Step 8 - Copying catalog file to OMNIA_DATA_PATH/catalog/"
+        OMNIA_DATA_PATH=$($SSH_CMD $TARGET "
+          grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2
+        " | tail -1)
+        OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+        echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
+        if [ -z "$OMNIA_DATA_PATH" ]; then
+          echo "ERROR: Could not determine OMNIA_DATA_PATH from target"
+          exit 1
+        fi
+        # Create catalog directory on target
+        $SSH_CMD $TARGET "mkdir -p $OMNIA_DATA_PATH/catalog"
+        # Copy catalog file if it exists in the pipeline
+        CATALOG_PATH="$CI_PROJECT_DIR/clusters/$CLUSTER/catalogs/catalog_rhel.json"
+        echo "  Looking for catalog at: $CATALOG_PATH"
+        if [ -f "$CATALOG_PATH" ]; then
+          echo "  Found catalog file, copying..."
+          # Remove old catalog file first to ensure fresh copy
+          $SSH_CMD $TARGET "rm -f $OMNIA_DATA_PATH/catalog/catalog_rhel.json"
+          # Copy new catalog file
+          $SCP_CMD "$CATALOG_PATH" $TARGET:$OMNIA_DATA_PATH/catalog/catalog_rhel.json || {
+            echo "ERROR: Failed to copy catalog file"
+            exit 1
+          }
+          echo "  Catalog copied to $OMNIA_DATA_PATH/catalog/catalog_rhel.json (overwritten)"
+          $SSH_CMD $TARGET "ls -la $OMNIA_DATA_PATH/catalog/"
+        else
+          echo "  WARNING: No catalog file found at $CATALOG_PATH"
+          echo "  Available files:"
+          ls -la "$CI_PROJECT_DIR/clusters/$CLUSTER/catalogs/" || echo "  catalogs directory not found"
+        fi
+      else
+        echo "Step 8 - Skipping catalog copy (cleanup mode)"
+      fi
+
+    - echo "========================================================"
+    - echo "  Environment setup completed for cluster $CLUSTER"
+    - echo "========================================================"
+
+# ========================  INSTALL OS  ======================================
+# Runs utils.yml with --tags install_os to install OS on target nodes
+# ---------------------------------------------------------------------------
+install_os:
+  stage: install_os
+  timeout: 3h
+  allow_failure: false
+  before_script: []
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $BAO_SERVER_URL
+  rules:
+    - if: '$UTILS_ENABLE == "true" && $UTILS_MODE == "install_os"'
+      when: on_success
+  needs:
+    - job: setup_environment
+      artifacts: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Utils Install OS — cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+    - *fetch_openbao_secret
+
+    # Step 1: Resolve OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from target
+    - echo "Step 1 - Resolving OMNIA_DATA_PATH and OMNIA_PROJECT_NAME"
+    - |
+      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      ENV_VARS=$($SSH_CMD $TARGET "
+        source $OMNIA_DATA_PATH/activate-omnia.sh
+        echo \$OMNIA_DATA_PATH
+        echo \$OMNIA_PROJECT_NAME
+      ")
+      OMNIA_DATA_PATH=$(echo "$ENV_VARS" | tail -2 | head -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      OMNIA_PROJECT_NAME=$(echo "$ENV_VARS" | tail -1)
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME%/}"
+      INPUT_DIR="$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME"
+      echo "  OMNIA_DATA_PATH    = $OMNIA_DATA_PATH"
+      echo "  OMNIA_PROJECT_NAME = $OMNIA_PROJECT_NAME"
+      echo "  INPUT_DIR          = $INPUT_DIR"
+
+    # Step 2: Create input directory and copy utils input files
+    - echo "Step 2 - Copying utils input files to target"
+    - |
+      $SSH_CMD $TARGET "mkdir -p $INPUT_DIR"
+      if [ -d "$CI_PROJECT_DIR/clusters/$CLUSTER/inputs/utils" ]; then
+        $SCP_CMD -r $CI_PROJECT_DIR/clusters/$CLUSTER/inputs/utils/. $TARGET:$INPUT_DIR/
+        echo "  Copied utils input files to $INPUT_DIR/"
+        $SSH_CMD $TARGET "ls -la $INPUT_DIR/"
+      else
+        echo "  WARNING: clusters/$CLUSTER/inputs/utils/ not found — using defaults"
+      fi
+
+    # Step 3: Fetch credential file from OpenBao
+    - echo "Step 3 - Fetching utils credentials from OpenBao"
+    - |
+      CRED_FILE="/tmp/utils_creds_$$.yml"
+      if ! fetch_openbao_secret "utils" "$CRED_FILE"; then
+        echo "ERROR: Failed to fetch utils credentials from OpenBao"
+        exit 1
+      fi
+      $SCP_CMD "$CRED_FILE" $TARGET:$INPUT_DIR/install_os_credentials.yml 2>/dev/null
+      rm -f "$CRED_FILE"
+      echo "  Credential file copied to target"
+
+    # Step 4: Encrypt install_os_credentials.yml with ansible-vault
+    - echo "Step 4 - Encrypting install_os_credentials.yml"
+    - |
+      $SSH_CMD $TARGET "
+        source $OMNIA_DATA_PATH/activate-omnia.sh
+        VAULT_KEY='$INPUT_DIR/.install_os_credentials_key'
+        CRED_FILE='$INPUT_DIR/install_os_credentials.yml'
+        if [ -f \"\$CRED_FILE\" ]; then
+          # Check if already encrypted
+          if head -n1 \"\$CRED_FILE\" | grep -q '\$ANSIBLE_VAULT;'; then
+            echo 'Credential file is already encrypted'
+          else
+            # Generate vault key if it does not exist
+            if [ ! -f \"\$VAULT_KEY\" ]; then
+              openssl rand -base64 32 > \"\$VAULT_KEY\"
+              chmod 600 \"\$VAULT_KEY\"
+              echo 'Generated vault key'
+            fi
+            ansible-vault encrypt --vault-password-file=\"\$VAULT_KEY\" \"\$CRED_FILE\"
+            echo 'Credential file encrypted successfully'
+          fi
+        else
+          echo 'WARNING: install_os_credentials.yml not found — skipping encryption'
+        fi
+      "
+
+    # Step 5: Run utils install_os
+    - echo "Step 5 - Running utils install_os"
+    - 'echo "  Tags: install_os"'
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute utils.yml --tags install_os on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source $OMNIA_DATA_PATH/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/utils/playbooks/
+          ansible-playbook utils.yml --tags install_os $ANSIBLE_VERBOSITY
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  Install OS completed for cluster $CLUSTER"
+    - echo "========================================================"
+  artifacts:
+    paths:
+      - target.env
+      - pipeline_time.env
+      - pipeline_job_status/
+    when: always
+    expire_in: 30 days
+
+# ========================  LOG COLLECTION: CLUSTER  ==========================
+# Runs utils.yml with --tags collect to gather logs from all domains
+# ---------------------------------------------------------------------------
+log_collection_cluster:
+  stage: log_collection_cluster
+  timeout: 3h
+  allow_failure: false
+  before_script: []
+  rules:
+    - if: '$UTILS_ENABLE == "true" && ($UTILS_MODE == "default_logs" || $UTILS_MODE == "collect")'
+      when: on_success
+  needs:
+    - job: setup_environment
+      artifacts: true
+    - job: initialization
+      artifacts: true
+    - job: install_os
+      artifacts: true
+      optional: true
+  script:
+    - echo "========================================================"
+    - echo "  Utils Log Collection (Cluster) — cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    # Step 1: Resolve OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from target
+    - echo "Step 1 - Resolving OMNIA_DATA_PATH and OMNIA_PROJECT_NAME"
+    - |
+      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      ENV_VARS=$($SSH_CMD $TARGET "
+        source $OMNIA_DATA_PATH/activate-omnia.sh
+        echo \$OMNIA_DATA_PATH
+        echo \$OMNIA_PROJECT_NAME
+      ")
+      OMNIA_DATA_PATH=$(echo "$ENV_VARS" | tail -2 | head -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      OMNIA_PROJECT_NAME=$(echo "$ENV_VARS" | tail -1)
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME%/}"
+      INPUT_DIR="$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME"
+      echo "  OMNIA_DATA_PATH    = $OMNIA_DATA_PATH"
+      echo "  OMNIA_PROJECT_NAME = $OMNIA_PROJECT_NAME"
+      echo "  INPUT_DIR          = $INPUT_DIR"
+
+    # Step 2: Create input directory and copy utils input files
+    - echo "Step 2 - Copying utils input files to target"
+    - |
+      $SSH_CMD $TARGET "mkdir -p $INPUT_DIR"
+      if [ -d "$CI_PROJECT_DIR/clusters/$CLUSTER/inputs/utils" ]; then
+        $SCP_CMD -r $CI_PROJECT_DIR/clusters/$CLUSTER/inputs/utils/. $TARGET:$INPUT_DIR/
+        echo "  Copied utils input files to $INPUT_DIR/"
+        $SSH_CMD $TARGET "ls -la $INPUT_DIR/"
+      else
+        echo "  WARNING: clusters/$CLUSTER/inputs/utils/ not found — using defaults"
+      fi
+
+    # Step 3: Run utils log collection
+    - echo "Step 3 - Running utils log collection for cluster"
+    - 'echo "  Tags: collect"'
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute utils.yml --tags collect on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source $OMNIA_DATA_PATH/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/utils/playbooks/
+          ansible-playbook utils.yml --tags collect $ANSIBLE_VERBOSITY
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  Cluster log collection completed for cluster $CLUSTER"
+    - echo "========================================================"
+  artifacts:
+    paths:
+      - target.env
+      - pipeline_time.env
+      - pipeline_job_status/
+    when: always
+    expire_in: 30 days
+
+# ========================  LOG COLLECTION: OIM  =============================
+# Runs utils.yml with --tags backup_oim_logs to backup OIM domain logs
+# ---------------------------------------------------------------------------
+log_collection_oim:
+  stage: log_collection_oim
+  timeout: 3h
+  allow_failure: false
+  before_script: []
+  rules:
+    - if: '$UTILS_ENABLE == "true" && ($UTILS_MODE == "default_logs" || $UTILS_MODE == "backup_oim_logs")'
+      when: on_success
+  needs:
+    - job: setup_environment
+      artifacts: true
+    - job: initialization
+      artifacts: true
+    - job: log_collection_cluster
+      artifacts: true
+      optional: true
+  script:
+    - echo "========================================================"
+    - echo "  Utils Log Collection (OIM) — cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    # Step 1: Resolve OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from target
+    - echo "Step 1 - Resolving OMNIA_DATA_PATH and OMNIA_PROJECT_NAME"
+    - |
+      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      ENV_VARS=$($SSH_CMD $TARGET "
+        source $OMNIA_DATA_PATH/activate-omnia.sh
+        echo \$OMNIA_DATA_PATH
+        echo \$OMNIA_PROJECT_NAME
+      ")
+      OMNIA_DATA_PATH=$(echo "$ENV_VARS" | tail -2 | head -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      OMNIA_PROJECT_NAME=$(echo "$ENV_VARS" | tail -1)
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME%/}"
+      INPUT_DIR="$OMNIA_DATA_PATH/utils/input/$OMNIA_PROJECT_NAME"
+      echo "  OMNIA_DATA_PATH    = $OMNIA_DATA_PATH"
+      echo "  OMNIA_PROJECT_NAME = $OMNIA_PROJECT_NAME"
+      echo "  INPUT_DIR          = $INPUT_DIR"
+
+    # Step 2: Create input directory and copy utils input files (if not already copied)
+    - echo "Step 2 - Ensuring utils input files are available on target"
+    - |
+      $SSH_CMD $TARGET "mkdir -p $INPUT_DIR"
+      if [ -d "$CI_PROJECT_DIR/clusters/$CLUSTER/inputs/utils" ]; then
+        $SCP_CMD -r $CI_PROJECT_DIR/clusters/$CLUSTER/inputs/utils/. $TARGET:$INPUT_DIR/
+        echo "  Copied utils input files to $INPUT_DIR/"
+        $SSH_CMD $TARGET "ls -la $INPUT_DIR/"
+      else
+        echo "  WARNING: clusters/$CLUSTER/inputs/utils/ not found — using defaults"
+      fi
+
+    # Step 3: Run utils OIM log collection
+    - echo "Step 3 - Running utils log collection for OIM"
+    - 'echo "  Tags: backup_oim_logs"'
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute utils.yml --tags backup_oim_logs on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source $OMNIA_DATA_PATH/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/utils/playbooks/
+          ansible-playbook utils.yml --tags backup_oim_logs $ANSIBLE_VERBOSITY
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  OIM log collection completed for cluster $CLUSTER"
+    - echo "========================================================"
+  artifacts:
+    paths:
+      - target.env
+      - pipeline_time.env
+      - pipeline_job_status/
+    when: always
+    expire_in: 30 days
+
+# ========================  TEST: UTILS  ====================================
+# Runs utils validation tests from test/utils/.
+# Executes after log collection stages to validate utils functionality.
+# ---------------------------------------------------------------------------
+test_utils:
+  stage: test_utils
+  timeout: 3h
+  allow_failure: true
+  before_script: []
+  rules:
+    - if: '$UTILS_ENABLE == "true" && $TEST_MODE == "true"'
+      when: on_success
+  needs:
+    - job: setup_environment
+      artifacts: true
+      optional: true
+    - job: install_os
+      artifacts: true
+      optional: true
+    - job: log_collection_cluster
+      artifacts: true
+      optional: true
+    - job: log_collection_oim
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Testing utils on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+
+    # Step 1: Copy test input files to target
+    - echo "Step 1 - Copying utils test input files to target"
+    - |
+      TEST_SRC="$CI_PROJECT_DIR/clusters/$CLUSTER/inputs/test/utils"
+      TEST_DST="$OMNIA_INSTALL_PATH/test/utils"
+
+      # Create test directory on target
+      $SSH_CMD $TARGET "mkdir -p $TEST_DST"
+
+      # Copy test configuration files
+      for f in test_config.yml test_run_config.yml; do
+        if [ -f "$TEST_SRC/$f" ]; then
+          $SCP_CMD "$TEST_SRC/$f" $TARGET:$TEST_DST/$f
+          echo "  Copied $f to $TEST_DST/"
+        else
+          echo "  WARNING: $f not found in pipeline — using defaults"
+        fi
+      done
+
+      # Copy entire test input directory if it exists (for additional test data)
+      if [ -d "$TEST_SRC" ]; then
+        # Copy all files recursively, excluding config files already copied
+        $SCP_CMD -r "$TEST_SRC/." $TARGET:$TEST_DST/ 2>/dev/null || true
+        echo "  Copied all test input files to $TEST_DST/"
+        $SSH_CMD $TARGET "ls -la $TEST_DST/"
+      else
+        echo "  INFO: clusters/$CLUSTER/inputs/test/utils/ not found — using defaults"
+      fi
+
+      # Copy test credentials from CI/CD File Variable (if configured)
+      CLUSTER_PREFIX=$(echo "$CLUSTER" | tr '[:lower:]' '[:upper:]')
+      CRED_VAR="${CLUSTER_PREFIX}_TEST_CREDS"
+      CRED_PATH=$(eval echo "\$$CRED_VAR")
+      if [ -n "$CRED_PATH" ] && [ -f "$CRED_PATH" ]; then
+        $SCP_CMD "$CRED_PATH" $TARGET:$TEST_DST/test_creds.yml 2>/dev/null
+        echo "  test_creds.yml copied to target"
+      else
+        echo "  INFO: CI/CD File Variable $CRED_VAR not set — using defaults"
+      fi
+
+    # Step 2: Install the test venv
+    - echo "Step 2 - Installing utils test venv"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would install utils test venv on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/utils
+          if [ -f setup_env.sh ]; then
+            bash setup_env.sh --venv
+          else
+            echo 'WARNING: setup_env.sh not found — skipping test venv setup'
+          fi
+        "
+      fi
+
+    # Step 3: Run utils validation tests
+    - echo "Step 3 - Running utils validation tests"
+    - |
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute utils tests on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          export CI_PIPELINE_ID=$CI_PIPELINE_ID
+
+          cd $OMNIA_INSTALL_PATH/test/utils
+          if [ -f run_validation.sh ]; then
+            source .venv/bin/activate 2>/dev/null || true
+            $TEST_UTILS_CMD
+          else
+            echo 'WARNING: run_validation.sh not found — skipping tests'
+          fi
+        "
+      fi
+
+    - echo "========================================================"
+    - echo "  utils tests completed for cluster $CLUSTER"
+    - echo "========================================================"
+  artifacts:
+    paths:
+      - target.env
+      - pipeline_time.env
+      - pipeline_job_status/
+    when: always
+    expire_in: 30 days
+
+# ========================  SUMMARY  =======================================
+# Pipeline summary, test report collection, and email notification
+# Collects test reports from target and sends via email
+# ---------------------------------------------------------------------------
+summary:
+  stage: summary
+  timeout: 1h
+  allow_failure: true
+  before_script: []
+  rules:
+    - if: '$CLUSTER'
+      when: always
+  needs:
+    - job: initialization
+      artifacts: true
+    - job: setup_environment
+      artifacts: true
+    - job: install_os
+      artifacts: true
+      optional: true
+    - job: log_collection_cluster
+      artifacts: true
+      optional: true
+    - job: log_collection_oim
+      artifacts: true
+      optional: true
+    - job: test_utils
+      artifacts: true
+      optional: true
+  script:
+    - echo "========================================================"
+    - echo "  Pipeline Summary — cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - source pipeline_time.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - SCP_CMD="sshpass -e scp -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - mkdir -p pipeline_reports
+
+    # Read the actual commit SHA from the cloned repo
+    - |
+      if [ ! -f actual_commit_sha.txt ]; then
+        echo "WARNING: actual_commit_sha.txt not found - using CI_COMMIT_SHA"
+        ACTUAL_COMMIT_SHA="$CI_COMMIT_SHA"
+      else
+        ACTUAL_COMMIT_SHA=$(cat actual_commit_sha.txt)
+      fi
+      echo "Using commit SHA: $ACTUAL_COMMIT_SHA"
+
+    # Generate summary report
+    - |
+      cat > pipeline_reports/pipeline_summary.txt << EOF
+      ========================================
+      Omnia Utils Pipeline Execution Summary
+      ========================================
+      Cluster Name:     $CLUSTER
+      Cluster IP:       $TARGET_IP
+      Pipeline ID:      $CI_PIPELINE_ID
+      Pipeline URL:     $CI_PIPELINE_URL
+      Project:          $CI_PROJECT_NAME
+      Branch:           $CI_COMMIT_REF_NAME
+      Commit SHA:       $ACTUAL_COMMIT_SHA
+      Trigger Time:     $PIPELINE_TRIGGER_TIME
+      UTILS_MODE:       $UTILS_MODE
+      VERBOSE:          $VERBOSE
+      DRY_RUN:          $DRY_RUN
+
+      Stages Executed (conditional):
+      - initialization
+      - setup_environment
+      - install_os (if UTILS_MODE matches)
+      - log_collection_cluster (if UTILS_MODE matches)
+      - log_collection_oim (if UTILS_MODE matches)
+      - test_utils
+      - summary
+
+      Status: COMPLETED
+      ========================================
+      EOF
+
+    - echo "Pipeline summary report generated"
+
+    # Collect job statuses
+    - |
+      echo "Collecting pipeline job statuses..."
+      python3 - <<'PY'
+      import glob
+      import json
+      import os
+
+      jobs = []
+      for path in glob.glob(
+          f"pipeline_job_status/{os.environ['CI_PIPELINE_ID']}/*.json"
+      ):
+          with open(path, encoding="utf-8") as status_file:
+              jobs.append(json.load(status_file))
+      jobs.append({"name": "summary", "status": "running"})
+      with open("pipeline_reports/job_statuses.json", "w", encoding="utf-8") as output:
+          json.dump(jobs, output)
+      print(f"Collected {len(jobs)} job status records")
+      PY
+
+    # Extract report paths and names from test_config.yml
+    - |
+      echo "Extracting report paths and names from utils test_config.yml..."
+      python3 - <<'PY'
+      import json
+      import os
+      import yaml
+
+      cluster = os.environ.get("CLUSTER", "cluster1")
+
+      # Default report_name for utils
+      default_report_names = {
+        "utils": "utils_test_report",
+      }
+
+      report_paths = {}
+      report_names = {}
+
+      config_path = f"clusters/{cluster}/inputs/test/utils/test_config.yml"
+      try:
+        with open(config_path, encoding="utf-8") as f:
+          cfg = yaml.safe_load(f)
+        if cfg:
+          path = cfg.get("report_path", "/opt/omnia/reports")
+          name = cfg.get("report_name", default_report_names.get("utils", "utils_test_report"))
+          report_paths["utils"] = path
+          report_names["utils"] = name
+          print(f"  utils: path={path}, name={name}")
+        else:
+          report_paths["utils"] = "/opt/omnia/reports"
+          report_names["utils"] = default_report_names.get("utils", "utils_test_report")
+          print(f"  utils: (default) /opt/omnia/reports, name={report_names['utils']}")
+      except FileNotFoundError:
+        report_paths["utils"] = "/opt/omnia/reports"
+        report_names["utils"] = default_report_names.get("utils", "utils_test_report")
+        print(f"  utils: (not found, using default) /opt/omnia/reports, name={report_names['utils']}")
+      except Exception as e:
+        report_paths["utils"] = "/opt/omnia/reports"
+        report_names["utils"] = default_report_names.get("utils", "utils_test_report")
+        print(f"  utils: (error: {e}, using default) /opt/omnia/reports, name={report_names['utils']}")
+
+      with open("pipeline_reports/report_paths.json", "w", encoding="utf-8") as f:
+        json.dump(report_paths, f)
+      with open("pipeline_reports/report_names.json", "w", encoding="utf-8") as f:
+        json.dump(report_names, f)
+      print("Report paths and names saved to pipeline_reports/")
+      PY
+
+    # Copy test reports from remote target to CI runner
+    - |
+      echo "Fetching test reports from target..."
+      LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
+      mkdir -p "$LOCAL_REPORTS_PATH"
+
+      REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/report_paths.json')).get('utils', '/opt/omnia/reports'))")
+      REPORT_BASE_NAME=$(python3 -c "import json; d=json.load(open('pipeline_reports/report_names.json')); print(d.get('utils','utils_test_report'))")
+      echo "  Domain: utils, Remote path: $REMOTE_PATH, Report name: $REPORT_BASE_NAME"
+
+      # Debug: list all report files in the remote directory
+      echo "  Available report files in $REMOTE_PATH:"
+      $SSH_CMD $TARGET "ls -1t $REMOTE_PATH/*.json 2>/dev/null | head -20" || true
+
+      # Search for reports using exact name from test_config.yml
+      LATEST_JSON=""
+      # Pattern 1: <pipeline_id>_<report_name>.json (CI naming: exact match)
+      REPORT_GLOB="${CI_PIPELINE_ID}_${REPORT_BASE_NAME}.json"
+      echo "  Trying pattern 1: $REPORT_GLOB"
+      LATEST_JSON=$($SSH_CMD $TARGET \
+        "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+
+      # Pattern 2: <report_name>.json (CLI naming: no pipeline prefix)
+      if [ -z "$LATEST_JSON" ]; then
+        REPORT_GLOB="${REPORT_BASE_NAME}.json"
+        echo "  Trying pattern 2: $REPORT_GLOB"
+        LATEST_JSON=$($SSH_CMD $TARGET \
+          "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+      fi
+
+      # Pattern 3: *<pipeline_id>*<report_name>*.json (broad fallback)
+      if [ -z "$LATEST_JSON" ]; then
+        REPORT_GLOB="*${CI_PIPELINE_ID}*${REPORT_BASE_NAME}*.json"
+        echo "  Trying pattern 3: $REPORT_GLOB"
+        LATEST_JSON=$($SSH_CMD $TARGET \
+          "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+      fi
+
+      if [ -n "$LATEST_JSON" ]; then
+        echo "  Found JSON: $LATEST_JSON"
+        $SCP_CMD "$TARGET:$LATEST_JSON" "$LOCAL_REPORTS_PATH/" || true
+        # Look for matching HTML report
+        LATEST_HTML="${LATEST_JSON%.json}.html"
+        if $SSH_CMD $TARGET "test -f $LATEST_HTML"; then
+          echo "  Found HTML: $LATEST_HTML"
+          $SCP_CMD "$TARGET:$LATEST_HTML" "$LOCAL_REPORTS_PATH/" || true
+        fi
+      else
+        echo "  WARNING: No report found for utils (test stage may not have executed)"
+      fi
+      echo "  Reports copied to $LOCAL_REPORTS_PATH/"
+      ls -la "$LOCAL_REPORTS_PATH/" 2>/dev/null || true
+
+    # Send email notification with test reports
+    - export TEST_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
+    - export CLUSTER="${CLUSTER}"
+    - export CLUSTER_NAME="${CLUSTER}"
+    - export TARGET_IP="${TARGET_IP}"
+    - export TARGET_USER="${TARGET_USER}"
+    - export TARGET_PASS="${TARGET_PASS}"
+    - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
+    - export UTILS_ENABLE="${UTILS_ENABLE}"
+    - export UTILS_MODE="${UTILS_MODE}"
+    - echo "Sending email notification with test reports..."
+    - python3 send_email.py || echo "Email notification failed (non-fatal)"
+
+    - echo "========================================================"
+    - echo "  Pipeline summary completed for cluster $CLUSTER"
+    - echo "========================================================"
+  artifacts:
+    paths:
+      - pipeline_job_status/
+      - pipeline_reports/
+    when: always
+    expire_in: 30 days

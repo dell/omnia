@@ -39,7 +39,7 @@ from library.messages.ufm_msgs import (
     UFM_DETAIL_MSGS as DETAIL_MSGS,
     UFM_LOG_MSGS as LOG_MSGS,
 )
-from library.functions.telemetry_func import is_source_enabled
+from library.functions.telemetry_func import is_source_enabled, is_sink_enabled_for_source
 from library.functions.ufm_func import (
     verify_ufm_external_service,
     verify_ufm_vmscrape,
@@ -192,6 +192,10 @@ def test_ufm_credentials_secret(host):
 def test_ufm_metrics_in_vm(host):
     """TEL_FVT_DEPLOY_V063: Verify UFM InfiniBand metrics in VictoriaMetrics."""
     _skip_if_ufm_disabled(host)
+    # Skip if UFM does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "ufm", "victoria_metrics"):
+        pytest.skip("UFM source does not target VictoriaMetrics sink")
+    
     tc = TC["ufm_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])
 

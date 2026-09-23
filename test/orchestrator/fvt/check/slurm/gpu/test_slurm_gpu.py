@@ -21,7 +21,12 @@ from library.functions.slurm_func import (
 )
 
 
-pytestmark = [pytest.mark.slurm, pytest.mark.gpu, pytest.mark.functional]
+pytestmark = [
+    pytest.mark.slurm,
+    pytest.mark.gpu,
+    pytest.mark.functional,
+    pytest.mark.buildstream,
+]
 
 
 def _gpu_nodes(host):
@@ -76,7 +81,7 @@ def test_slurm_gres_matches_detected_gpus(host):
 def test_dcgm_active_when_enabled(host):
     """ORCH_FVT_GPU_V003: DCGM is active on GPU nodes when configured."""
     config_path = posixpath.join(
-        target_paths()["input"], "orchestrator_config.yml"
+        target_paths(host)["input"], "orchestrator_config.yml"
     )
     config = read_remote_yaml(host, config_path)
     if not config.get("dcgm_enabled", True):

@@ -27,6 +27,7 @@ import unittest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OMNIA_CLI = REPO_ROOT / "src" / "main" / "omnia-cli"
+OMNIA_SH = REPO_ROOT / "src" / "main" / "omnia.sh"
 OMNIA_COMPLETION = REPO_ROOT / "src" / "main" / "omnia-bash-completion"
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -163,10 +164,13 @@ printf '%s\n' "${{COMPREPLY[@]}}"
 
     def test_edit_and_logs_have_command_specific_help(self):
         edit_help = self.run_cli("edit", "--help")
+        output_help = self.run_cli("output", "--help")
         logs_help = self.run_cli("logs", "--help")
 
         self.assertIn("Guided domain input editor", edit_help)
         self.assertIn("omnia-cli edit <domain> [file]", edit_help)
+        self.assertIn("Domain output browser", output_help)
+        self.assertIn("omnia-cli output <domain> [file]", output_help)
         self.assertIn("Domain log browser", logs_help)
         self.assertIn("De-duplicates and sorts all results", logs_help)
 
@@ -279,6 +283,17 @@ printf '%s\n' "${{COMPREPLY[@]}}"
 
         self.assertNotIn("utils_config.yml", output)
         self.assertIn("No issues found.", output)
+
+    def test_utils_guide_only_lists_utils_owned_slurm_input(self):
+        self.runtime_dir("utils", "input")
+
+        output = self.run_cli("edit", "utils")
+
+        self.assertIn("[optional] slurm_config_util_config.yml", output)
+        self.assertNotIn("[conditional] omnia_config.yml", output)
+        self.assertNotIn("[conditional] storage_config.yml", output)
+        self.assertNotIn("[conditional] nodes_slurm.yaml", output)
+        self.assertNotIn("[conditional] pxe_mapping_file.csv", output)
 
     def test_edit_guidance_marks_storage_required_without_ready_or_credential_tag(self):
         self.runtime_dir("orchestrator", "input")
@@ -435,7 +450,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
 
     def test_orchestrator_inventory_can_exist_before_provisioning_status(self):
         output_dir = self.runtime_dir("orchestrator", "output")
-        (output_dir / "orchestrator_inventory.yaml").write_text(
+        (output_dir / "orchestrator_inventory.yml").write_text(
             "---\nall: {}\n", encoding="utf-8"
         )
         (output_dir / "bmc_group_data.csv").write_text(
@@ -445,7 +460,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         output = self.run_cli("orchestrator")
 
         self.assertIn("Provisioning/PXE has not produced orchestrator_status.yml", output)
-        self.assertIn("orchestrator_inventory.yaml", output)
+        self.assertIn("orchestrator_inventory.yml", output)
         self.assertIn("bmc_group_data.csv", output)
 
     def test_successful_discovery_requires_its_generated_csv_artifacts(self):
@@ -568,6 +583,301 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("[runtime] project_default/newest.log", output)
         self.assertIn("[output] nested/recent.log", output)
         self.assertNotIn("old.log", output)
+
+    def test_output_command_lists_and_prints_text_artifact(self):
+        output_dir = self.runtime_dir("telemetry", "output")
+        status_file = output_dir / "telemetry_status.yml"
+        status_file.write_text(
+            "---\noverall_status: success\ntype: deploy\n", encoding="utf-8"
+        )
+
+        output = self.run_cli(
+            "output", "telemetry", "telemetry_status.yml"
+        )
+
+        self.assertIn("telemetry Output Files", output)
+        self.assertIn("overall_status: success", output)
+        self.assertIn("type: deploy", output)
+
+    def test_output_command_honors_domain_data_path_override(self):
+        telemetry_root = self.data_path / "custom-telemetry"
+        output_dir = telemetry_root / "output" / "project_default"
+        output_dir.mkdir(parents=True)
+        (output_dir / "telemetry_status.yml").write_text(
+            "---\noverall_status: success\n", encoding="utf-8"
+        )
+
+        output = self.run_cli(
+            "output",
+            "telemetry",
+            "telemetry_status.yml",
+            env_overrides={"TELEMETRY_DATA_PATH": str(telemetry_root)},
+        )
+
+        self.assertIn(str(output_dir), output)
+        self.assertIn("overall_status: success", output)
+
+    def test_project_completion_honors_domain_data_path_override(self):
+        telemetry_root = self.data_path / "custom-telemetry"
+        (telemetry_root / "output" / "custom-project").mkdir(parents=True)
+        completion_script = f'''
+source "{OMNIA_COMPLETION}"
+OMNIA_DATA_PATH="{self.data_path}"
+TELEMETRY_DATA_PATH="{telemetry_root}"
+COMP_WORDS=(omnia-cli status --project custom)
+COMP_CWORD=3
+_omnia_cli_completions
+printf '%s\n' "${{COMPREPLY[@]}}"
+'''
+
+        result = subprocess.run(
+            ["bash", "-c", completion_script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "custom-project")
+
+    def test_stage_order_warning_honors_domain_data_path_override(self):
+        repo_manager_root = self.data_path / "custom-repo-manager"
+        status_dir = repo_manager_root / "output" / "project_default"
+        status_dir.mkdir(parents=True)
+        (status_dir / "repo_status.yml").write_text(
+            "---\noverall_status: success\n", encoding="utf-8"
+        )
+        env = os.environ.copy()
+        env.update(
+            {
+                "OMNIA_DATA_PATH": str(self.data_path),
+                "OMNIA_PROJECT_NAME": "project_default",
+                "REPO_MANAGER_DATA_PATH": str(repo_manager_root),
+            }
+        )
+        script = f'source "{OMNIA_SH}"; warn_stage_order image_build_manager'
+
+        result = subprocess.run(
+            ["bash", "-c", script],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("WARNING", result.stdout)
+
+    def test_output_command_rejects_symlink_outside_domain_output(self):
+        output_dir = self.runtime_dir("telemetry", "output")
+        outside_file = self.data_path / "outside.yml"
+        outside_file.write_text("secret: value\n", encoding="utf-8")
+        (output_dir / "outside.yml").symlink_to(outside_file)
+
+        result, output = self.invoke_cli(
+            "output", "telemetry", "outside.yml"
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Refusing to open an output link outside", output)
+        self.assertNotIn("secret: value", output)
+
+    def test_output_completion_lists_nested_artifact(self):
+        output_dir = self.runtime_dir("utils", "output") / "collect"
+        output_dir.mkdir()
+        (output_dir / "metadata.json").write_text("{}\n", encoding="utf-8")
+
+        completion_script = f'''
+source "{OMNIA_COMPLETION}"
+OMNIA_DATA_PATH="{self.data_path}"
+OMNIA_PROJECT_NAME="project_default"
+COMP_WORDS=(omnia-cli output utils coll)
+COMP_CWORD=3
+_omnia_cli_completions
+printf '%s\n' "${{COMPREPLY[@]}}"
+'''
+        result = subprocess.run(
+            ["bash", "-c", completion_script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "collect/metadata.json")
+
+    def test_omnia_sh_completion_supports_telemetry_extra_vars_and_utils_tags(self):
+        completion_script = f'''
+source "{OMNIA_COMPLETION}"
+COMP_WORDS=(omnia.sh -r telemetry --tags cleanup -e delete)
+COMP_CWORD=6
+_omnia_sh_completions
+printf 'telemetry:%s\n' "${{COMPREPLY[@]}}"
+COMP_WORDS=(omnia.sh -r utils --tags slurm_)
+COMP_CWORD=4
+_omnia_sh_completions
+printf 'utils:%s\n' "${{COMPREPLY[@]}}"
+'''
+        result = subprocess.run(
+            ["bash", "-c", completion_script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("telemetry:delete_sinks_volume=true", result.stdout)
+        self.assertIn("telemetry:delete_sinks_volume=false", result.stdout)
+        self.assertIn("utils:slurm_config_backup", result.stdout)
+        self.assertIn("utils:slurm_config_cleanup", result.stdout)
+        self.assertIn("utils:slurm_config_rollback", result.stdout)
+
+    def test_catalog_selection_copies_variant_and_setup_preserves_it(self):
+        catalog_target = self.data_path / "catalog" / "catalog_rhel.json"
+        selected_source = (
+            REPO_ROOT
+            / "src/main/samples/catalogs/10.0/slurm_x86_64_no_vast.json"
+        )
+        env = os.environ.copy()
+        env.update(
+            {
+                "OMNIA_DATA_PATH": str(self.data_path),
+                "CATALOG_FILE_PATH": str(catalog_target),
+            }
+        )
+        script = (
+            f'source "{OMNIA_SH}"; '
+            "select_catalog 10.0/slurm_x86_64_no_vast.json; copy_catalog"
+        )
+
+        result = subprocess.run(
+            ["bash", "-c", script],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(catalog_target.read_bytes(), selected_source.read_bytes())
+        self.assertIn("Catalog selected and activated successfully", result.stdout)
+        self.assertIn("Preserving existing active catalog", result.stdout)
+        self.assertIn(
+            "Name:        Omnia Slurm Catalog - RHEL 10.0 x86_64 (No VAST)",
+            result.stdout,
+        )
+        self.assertIn(
+            "Description: Slurm HPC catalog for RHEL 10.0 x86_64",
+            result.stdout,
+        )
+        self.assertIn("Workloads: Slurm", result.stdout)
+        self.assertIn("Architectures: x86_64", result.stdout)
+        self.assertIn("VAST client: not included", result.stdout)
+        self.assertIn("Functional layers: 4", result.stdout)
+
+    def test_select_catalog_public_option_activates_exact_selector(self):
+        catalog_target = self.data_path / "catalog" / "catalog_rhel.json"
+        selected_source = (
+            REPO_ROOT
+            / "src/main/samples/catalogs/10.2/service_k8s_x86_64.json"
+        )
+        env = os.environ.copy()
+        env.update(
+            {
+                "OMNIA_DATA_PATH": str(self.data_path),
+                "CATALOG_FILE_PATH": str(catalog_target),
+            }
+        )
+
+        script = (
+            f'source "{OMNIA_SH}"; '
+            "source_omnia_env() { :; }; "
+            'main "$@"'
+        )
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                script,
+                "omnia.sh",
+                "--select-catalog",
+                "10.2/service_k8s_x86_64.json",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(catalog_target.read_bytes(), selected_source.read_bytes())
+        output = ANSI_ESCAPE.sub("", result.stdout)
+        self.assertIn("Selected catalog: 10.2/service_k8s_x86_64.json", output)
+        self.assertIn("Workloads: service Kubernetes", output)
+
+    def test_catalog_list_describes_and_analyzes_each_variant(self):
+        script = f'source "{OMNIA_SH}"; list_catalogs'
+
+        result = subprocess.run(
+            ["bash", "-c", script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        catalog_sources = [REPO_ROOT / "src/main/samples/catalog_rhel.json"]
+        catalog_sources.extend(
+            sorted((REPO_ROOT / "src/main/samples/catalogs").rglob("*.json"))
+        )
+        self.assertEqual(
+            result.stdout.count("Description:"), len(catalog_sources)
+        )
+        self.assertEqual(result.stdout.count("Analysis:"), len(catalog_sources))
+        self.assertNotIn("unavailable", result.stdout.lower())
+        self.assertIn("1) default", result.stdout)
+        self.assertIn(
+            "Description: Full mixed deployment catalog for RHEL 10.0",
+            result.stdout,
+        )
+        self.assertIn("RHEL 10.0", result.stdout)
+        self.assertIn("Workloads: Slurm + service Kubernetes", result.stdout)
+        self.assertIn("Architectures: x86_64 + aarch64", result.stdout)
+        self.assertIn("VAST client: not included", result.stdout)
+        self.assertIn("10.2/slurm_x86_64.json", result.stdout)
+        self.assertIn("VAST client: included", result.stdout)
+
+    def test_catalog_replacement_requires_confirmation_and_keeps_backup(self):
+        catalog_target = self.data_path / "catalog" / "catalog_rhel.json"
+        catalog_target.parent.mkdir()
+        original_catalog = b'{"catalog": "original"}\n'
+        catalog_target.write_bytes(original_catalog)
+        env = os.environ.copy()
+        env.update(
+            {
+                "OMNIA_DATA_PATH": str(self.data_path),
+                "CATALOG_FILE_PATH": str(catalog_target),
+            }
+        )
+        script = (
+            f'source "{OMNIA_SH}"; '
+            "select_catalog 10.0/slurm_x86_64_no_vast.json"
+        )
+
+        result = subprocess.run(
+            ["bash", "-c", script],
+            input="yes\n",
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        backups = list(catalog_target.parent.glob("catalog_rhel.json.backup.*"))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_bytes(), original_catalog)
+        self.assertNotEqual(catalog_target.read_bytes(), original_catalog)
 
 
 if __name__ == "__main__":

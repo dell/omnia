@@ -45,6 +45,7 @@ def _skip_if_slurm_disabled(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_all_pxe_nodes_in_slurm_cluster(host):
     """ORCH_FVT_SLURM_V013: All nodes from PXE mapping are joined to Slurm cluster."""
@@ -66,6 +67,7 @@ def test_all_pxe_nodes_in_slurm_cluster(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_slurm_nodes_idle(host):
     """ORCH_FVT_SLURM_V014: All slurm compute nodes in idle state (sinfo)."""
@@ -87,6 +89,7 @@ def test_slurm_nodes_idle(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_login_nodes_idle(host):
     """ORCH_FVT_SLURM_V015: All login and login compiler nodes in idle state (scontrol)."""

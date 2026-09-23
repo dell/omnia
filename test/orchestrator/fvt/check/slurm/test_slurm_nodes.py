@@ -89,6 +89,7 @@ def test_slurm_partitions_exist(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_slurm_job_submission(host):
     """ORCH_FVT_SLURM_V012: Verify basic Slurm job submission works."""

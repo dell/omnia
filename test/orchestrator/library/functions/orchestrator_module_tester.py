@@ -25,7 +25,8 @@ import json
 import yaml
 from typing import Any, Dict
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import run_on_host
+from .project_func import resolve_target_input_project_path
 from ..vars.common_vars import SRC_ORCHESTRATOR_DIR
 
 
@@ -73,7 +74,7 @@ def validate_orchestrator_config_module(host, test_config: Dict[str, Any]) -> Di
     Returns:
         Dict with keys: success, details, error
     """
-    input_project_dir = test_config.get("input_project_dir", "/opt/omnia/orchestrator/input/project_default")
+    input_project_dir = resolve_target_input_project_path(host)
 
     # Run the module using ansible-doc or direct Python import
     cmd = ("cd {} && python3 -c "

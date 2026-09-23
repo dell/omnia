@@ -19,6 +19,7 @@ from fvt.check.feature_helpers import (
 pytestmark = [
     pytest.mark.additional_cloud_init,
     pytest.mark.functional,
+    pytest.mark.buildstream,
 ]
 
 ALLOWED_SECTION_KEYS = {"write_files", "runcmd"}
@@ -26,7 +27,7 @@ PROHIBITED_KEYS = {"bootcmd", "network", "network-config", "packages"}
 
 
 def _feature_config(host):
-    paths = target_paths()
+    paths = target_paths(host)
     orchestrator_config = read_remote_yaml(
         host, posixpath.join(paths["input"], "orchestrator_config.yml")
     )
