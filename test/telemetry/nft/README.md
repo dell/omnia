@@ -103,6 +103,14 @@ without errors:
 DELETE_VOLUME=true ./run_validation.sh nft_telemetry test --marker idempotency
 ```
 
+## Final Cluster State After NFT Execution
+
+**Important**: After running the full NFT test suite (`./run_validation.sh nft_telemetry test`), the cluster is left in a **cleaned-up state** with no telemetry pods running. The final state depends on the `DELETE_VOLUME` environment variable:
+
+- **`DELETE_VOLUME=true`**: All PVCs (including Kafka, VictoriaMetrics, VictoriaLogs) have been deleted. Historical metric and log data is lost. Full re-deploy required: `ansible-playbook telemetry.yml --tags execute`
+
+- **`DELETE_VOLUME` unset/false (default)**: Sink PVCs (Kafka, VictoriaMetrics, VictoriaLogs) are preserved with historical data intact. Source PVCs (iDRAC, LDMS, etc.) have been removed. Re-deploy will reattach existing volumes: `ansible-playbook telemetry.yml --tags execute`
+
 ## Test Flow
 
 ### Performance Test Flow
