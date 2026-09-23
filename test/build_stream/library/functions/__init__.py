@@ -184,6 +184,11 @@ from library.functions.validation_func import (
     ConfigValidationError,
 )
 
+# --- Non-functional security (file permissions / ownership) ---
+from library.functions.security_func import (
+    check_file_permissions,
+)
+
 # --- Non-functional resilience and security ---
 from library.functions.nft_func import (
     artifact_path_absent,
@@ -363,4 +368,6 @@ __all__ = [
     "validate_test_config",
     "validate_all",
     "ConfigValidationError",
+    # NFT security (file permissions / ownership)
+    "check_file_permissions",
 ]

@@ -21,6 +21,7 @@ from library.functions import (
     TestLogger,
     artifact_path_absent,
     bsm_request,
+    check_file_permissions,
     create_disposable_job,
     forbidden_upload_absent,
     get_bsm_context,
@@ -32,6 +33,12 @@ from library.functions import (
     upload_oversized_file,
 )
 from library.vars import TEST_CASES as TC
+
+
+POSTGRES_QUADLET_PATH = "/etc/containers/systemd/omnia_postgres.container"
+BUILD_STREAM_QUADLET_PATH = (
+    "/etc/containers/systemd/omnia_build_stream.container"
+)
 
 
 def _case(name):
@@ -168,3 +175,44 @@ def test_secret_redaction_in_logs_and_responses(host):
     assert canary not in response.get("body", ""), "Client secret was echoed in response"
     assert secret_absent_from_bsm_logs(host, canary), "Client secret was written to BSM logs"
     logger.passed("Invalid OAuth secret was absent from API response and container logs")
+
+
+@pytest.mark.nft
+@pytest.mark.security
+@pytest.mark.order(15)
+def test_postgres_quadlet_permissions(host):
+    """omnia_postgres quadlet must be 0600 root:root (embeds DB superuser password)."""
+    logger = _case("postgres_quadlet_permissions")
+    result = check_file_permissions(
+        host, POSTGRES_QUADLET_PATH,
+        expected_mode="0600",
+        expected_owner="root",
+        expected_group="root",
+    )
+    if result["success"]:
+        logger.passed(result["details"])
+    else:
+        logger.failed(result["details"])
+    assert result["success"], result["details"]
+
+
+@pytest.mark.nft
+@pytest.mark.security
+@pytest.mark.order(16)
+def test_build_stream_quadlet_permissions(host):
+    """omnia_build_stream quadlet must be 0600 root:root (holds Postgres/MinIO creds)."""
+    logger = _case("build_stream_quadlet_permissions")
+    result = check_file_permissions(
+        host, BUILD_STREAM_QUADLET_PATH,
+        expected_mode="0600",
+        expected_owner="root",
+        expected_group="root",
+    )
+    if result["success"]:
+        logger.passed(result["details"])
+    else:
+        logger.failed(result["details"])
+    assert result["success"], result["details"]
+
+
+
