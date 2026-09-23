@@ -2,6 +2,7 @@
   "catalog": {
     "name": "Omnia Slurm Catalog - RHEL 10.2 x86_64",
     "version": "1.0",
+    "schema_version": 2,
     "identifier": "omnia-slurm-rhel-10-2-x86_64",
     "description": "Slurm HPC catalog for RHEL 10.2 x86_64 with all Slurm functional layers (control, node, login, login-compiler)",
     "functionallayer": [

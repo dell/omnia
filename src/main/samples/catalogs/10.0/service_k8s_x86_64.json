@@ -2,6 +2,7 @@
   "catalog": {
     "name": "Omnia Kubernetes Catalog - RHEL 10.0 x86_64",
     "version": "1.0",
+    "schema_version": 2,
     "identifier": "omnia-k8s-rhel-10-0-x86_64",
     "description": "Kubernetes catalog for RHEL 10.0 x86_64 with control plane and worker node functional layers",
     "functionallayer": [

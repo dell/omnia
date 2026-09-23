@@ -177,6 +177,48 @@ def require_scope(required_scope: str):
 require_catalog_read = require_scope("catalog:read")
 require_catalog_write = require_scope("catalog:write")
 require_job_write = require_scope("job:write")
+require_admin = require_scope("admin")
+
+
+def require_any_scope(*required_scopes: str):
+    """Create a dependency that requires at least one of the specified scopes.
+
+    Args:
+        required_scopes: Accepted scopes (e.g., "job:write", "admin").
+
+    Returns:
+        Dependency function that validates at least one scope is present.
+    """
+    def scope_dependency(
+        token_data: Annotated[dict, Depends(verify_token)]
+    ) -> dict:
+        for scope in required_scopes:
+            if scope in token_data["scopes"]:
+                return token_data
+
+        scopes_str = ", ".join(required_scopes)
+        client_short = token_data["client_id"][:8] + "..."
+        log_secure_info(
+            'warning',
+            f'Access denied - missing all required scopes: {scopes_str} '
+            f'(client: {client_short})'
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "insufficient_scope",
+                "error_description": (
+                    f"One of the following scopes is required: {scopes_str}"
+                ),
+            },
+        )
+
+    return scope_dependency
+
+
+# Admin-or-write combined scope checks
+require_admin_or_job_write = require_any_scope("admin", "job:write")
+require_admin_or_catalog_write = require_any_scope("admin", "catalog:write")
 
 
 # ------------------------------------------------------------------

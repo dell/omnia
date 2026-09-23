@@ -18,12 +18,18 @@ Loads and validates a catalog JSON file against CatalogSchema.json and
 materializes it into model objects.
 """
 
-import json
-from api.logging_utils import log_secure_info
 import os
+
+from api.logging_utils import log_secure_info
 from jsonschema import validate, ValidationError
+from .exceptions import UnsupportedSchemaVersionError
 from .models import Catalog, FunctionalPackage, OsPackage, InfrastructurePackage, Driver
 from .utils import load_json_file
+
+# Supported catalog schema versions for this release.
+# Version 1: Legacy catalogs (Omnia <2.3, no SchemaVersion field).
+# Version 2: Omnia 2.3+ catalogs with explicit SchemaVersion.
+SUPPORTED_SCHEMA_VERSIONS = {1, 2}
 
 
 _BASE_DIR = os.path.dirname(__file__)
@@ -51,6 +57,26 @@ def ParseCatalog(file_path: str, schema_path: str = _DEFAULT_SCHEMA_PATH) -> Cat
         log_secure_info('error', f"Catalog validation failed for {file_path}")
         raise
     data = catalog_json["Catalog"]
+
+    # Extract schema_version. Legacy catalogs (Omnia <2.3) may lack this
+    # field; default to 1 for backward compatibility but log a warning.
+    schema_version = data.get("SchemaVersion", data.get("schema_version"))
+    if schema_version is None:
+        schema_version = 1
+        log_secure_info(
+            'warning',
+            f"Catalog missing 'SchemaVersion' field in {file_path}; "
+            f"defaulting to schema_version=1 (legacy)"
+        )
+
+    # Validate schema version is in the supported set (ER-BSM-002).
+    if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+        raise UnsupportedSchemaVersionError(
+            schema_version=schema_version,
+            supported=SUPPORTED_SCHEMA_VERSIONS,
+        )
+
+    identifier = data.get("Identifier", "")
 
     functional_packages = [
         FunctionalPackage(
@@ -114,6 +140,8 @@ def ParseCatalog(file_path: str, schema_path: str = _DEFAULT_SCHEMA_PATH) -> Cat
     catalog = Catalog(
         name=data["Name"],
         version=data["Version"],
+        schema_version=schema_version,
+        identifier=identifier,
         functional_layer=data["FunctionalLayer"],
         base_os=data["BaseOS"],
         infrastructure=data["Infrastructure"],
@@ -125,6 +153,13 @@ def ParseCatalog(file_path: str, schema_path: str = _DEFAULT_SCHEMA_PATH) -> Cat
         miscellaneous=data.get("Miscellaneous", []),
     )
 
-    log_secure_info('info', f"Parsed catalog {catalog.name} v{catalog.version}: {len(functional_packages)} functional, {len(os_packages)} OS, {len(infrastructure_packages)} infrastructure, {len(drivers)} drivers")
+    log_secure_info(
+        'info',
+        f"Parsed catalog {catalog.name} v{catalog.version} "
+        f"(schema_version={catalog.schema_version}, "
+        f"composite_id={catalog.composite_id}): "
+        f"{len(functional_packages)} functional, {len(os_packages)} OS, "
+        f"{len(infrastructure_packages)} infrastructure, {len(drivers)} drivers"
+    )
 
     return catalog
