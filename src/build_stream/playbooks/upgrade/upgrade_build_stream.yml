@@ -13,14 +13,11 @@
 # limitations under the License.
 
 ---
-# upgrade_build_stream.yml — Placeholder for build_stream upgrade flow.
-# Full implementation deferred to a future release.
-
-- name: BuildStream upgrade placeholder
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Upgrade not implemented
-      ansible.builtin.debug:
-        msg: "build_stream upgrade flow is not implemented yet — reserved for future release"
+# Reuse the idempotent prepare path so an existing deployment receives the
+# protected S3 environment, hardened initializer, CA mount, and updated
+# Quadlet. Run the image_build_manager upgrade first so its CA and authenticated
+# MinIO endpoint are available.
+- name: Reconcile secure Build Stream infrastructure during upgrade
+  ansible.builtin.import_playbook: ../prepare/prepare_build_stream.yml
+  tags:
+    - upgrade

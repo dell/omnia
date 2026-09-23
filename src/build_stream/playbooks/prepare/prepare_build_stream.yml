@@ -30,6 +30,8 @@
   vars:
     bs_cred_file: "{{ input_project_dir | default(playbook_dir ~ '/../../input') }}/build_stream_credentials.yml"
     bs_vault_file: "{{ input_project_dir | default(playbook_dir ~ '/../../input') }}/.build_stream_credentials_key"
+    ib_cred_file: "{{ omnia_data_path }}/image_build_manager/input/{{ project_name }}/image_build_credentials.yml"
+    ib_vault_file: "{{ omnia_data_path }}/image_build_manager/input/{{ project_name }}/.image_build_credentials_key"
   tasks:
     - name: Load build_stream configuration
       ansible.builtin.include_vars:
@@ -115,6 +117,76 @@
           postgres_user and postgres_password must be set in build_stream credentials.
           Re-run the credential utility to provide these values.
 
+    - name: Load image-build credentials for authenticated MinIO access
+      block:
+        - name: Check image-build credential files
+          ansible.builtin.stat:
+            path: "{{ item }}"
+          loop:
+            - "{{ ib_cred_file }}"
+            - "{{ ib_vault_file }}"
+          register: ib_credential_files
+
+        - name: Require image-build credentials and Vault key
+          ansible.builtin.assert:
+            that:
+              - ib_credential_files.results | map(attribute='stat.exists') | min
+            fail_msg: >-
+              Image-build credentials are required for Build Stream MinIO access.
+              Run the image_build_manager credential workflow first.
+
+        - name: Check whether image-build credentials are encrypted
+          ansible.builtin.shell: >-
+            set -o pipefail && head -n1 "{{ ib_cred_file }}" | grep -q '\$ANSIBLE_VAULT;'
+          args:
+            executable: /bin/bash
+          register: ib_cred_encrypted
+          changed_when: false
+          failed_when: false
+
+        - name: Decrypt image-build credentials
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ ib_cred_file }}"
+            --vault-password-file "{{ ib_vault_file }}"
+          when: ib_cred_encrypted.rc == 0
+          changed_when: false
+          no_log: true
+
+        - name: Read image-build credentials
+          ansible.builtin.include_vars:
+            file: "{{ ib_cred_file }}"
+            name: image_build_credentials
+          no_log: true
+
+        - name: Re-encrypt image-build credentials
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ ib_cred_file }}"
+            --vault-password-file "{{ ib_vault_file }}"
+          when: ib_cred_encrypted.rc == 0
+          changed_when: false
+          no_log: true
+
+        - name: Validate MinIO credentials for Build Stream
+          ansible.builtin.assert:
+            that:
+              - image_build_credentials.s3_access_id | default('') | length > 0
+              - image_build_credentials.s3_secret_key | default('') | length >= 8
+            fail_msg: "Valid S3 credentials are required for Build Stream."
+            quiet: true
+      rescue:
+        - name: Re-encrypt image-build credentials after load failure
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ ib_cred_file }}"
+            --vault-password-file "{{ ib_vault_file }}"
+          when: ib_cred_encrypted.rc | default(1) == 0
+          changed_when: false
+          failed_when: false
+          no_log: true
+
+        - name: Fail when image-build credentials cannot be loaded
+          ansible.builtin.fail:
+            msg: "Failed to load image-build credentials required by Build Stream."
+
     - name: Set SELinux option
       ansible.builtin.set_fact:
         selinux_option: ":z"
@@ -145,6 +217,14 @@
     - name: Deploy Postgres
       ansible.builtin.include_role:
         name: postgres
+        apply:
+          tags:
+            - prepare
+            - build
+            - upgrade
+      tags:
+        - prepare
+        - build
       when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
 
 - name: Deploy BuildStream Manager (BSM) container and watcher service
@@ -154,6 +234,14 @@
     - name: Deploy BSM
       ansible.builtin.include_role:
         name: deploy_bsm
+        apply:
+          tags:
+            - prepare
+            - build
+            - upgrade
+      tags:
+        - prepare
+        - build
       when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
 
 - name: Write BuildStream status

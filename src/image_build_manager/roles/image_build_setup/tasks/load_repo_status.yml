@@ -98,7 +98,7 @@
     s3_endpoint: >-
       {{ s3_configurations.endpoint_url
          if s3_configurations.endpoint_url | default('') | length > 0
-         else ('http://' + admin_nic_ip + ':9000'
+         else ('https://' + admin_nic_ip + ':9000'
                if s3_configurations.provider | default('minio') == 'minio'
                else '') }}
     cacheable: true

@@ -89,7 +89,7 @@ sasl_nocanon_regxp: "SASL_NOCANON\ton"
 sasl_nacanon_replace1: "SASL_NOCANON\ton\nBASE\t{{ hostvars['localhost']['ldap_search_base'] }}"
 sasl_nacanon_replace2: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars['localhost']['ldap_server_ip'] }}"
 sasl_nacanon_replace3: "SASL_NOCANON\ton\nTLS_CACERT\t{{ tls_cert_path }}"
-sasl_nacanon_replace4: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars['localhost']['ldap_server_ip'] }}:636"
+sasl_nacanon_replace4: "SASL_NOCANON\ton\nURI\tldaps://{{ hostvars['localhost']['ldap_server_ip'] }}:636"
 
 # Boot-service params
 boot_svc_params_metadata_svc: 'cloud-init=enabled ds=nocloud;s=http://{{ cluster_boot_ip }}:8081/metadata-service/'

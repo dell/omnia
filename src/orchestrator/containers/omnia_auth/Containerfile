@@ -42,7 +42,9 @@ VOLUME /var/lib/openldap/openldap-data
 EXPOSE 389 636
 
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD ldapwhoami -x -H ldap://localhost || exit 1
+  CMD test -n "$LDAP_HEALTH_HOST" && \
+      LDAPTLS_CACERT=/etc/openldap/certs/ldapserver.crt \
+      ldapwhoami -x -ZZ -H "ldap://${LDAP_HEALTH_HOST}" || exit 1
 
 CMD ["/bin/sh", "-c", "\
   mkdir -p /var/lib/openldap/openldap-data /run/openldap && \

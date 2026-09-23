@@ -68,3 +68,10 @@ openchami_config:
   inventory_dirs:
     - "{{ omnia_data_path }}/openchami/inventory"
   output_dir: "{{ orchestrator_output_dir }}"
+  firewall_zone: "omnia-openchami"
+  podman_interfaces:
+    - podman0
+    - podman1
+    - podman2
+    - podman3
+    - podman4

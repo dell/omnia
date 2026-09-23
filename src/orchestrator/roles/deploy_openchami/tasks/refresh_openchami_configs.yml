@@ -81,6 +81,9 @@
     dns_forwarders: "{{ network_data.admin_network.dns }}"
   when: (network_data.admin_network.dns | default([])) | length > 0
 
+- name: Reconcile restricted OpenCHAMI firewall policy
+  ansible.builtin.include_tasks: configs/firewall.yml
+
 - name: Refresh coredhcp config file
   ansible.builtin.template:
     src: coredhcp/coredhcp.yaml.j2

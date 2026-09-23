@@ -42,7 +42,7 @@ ansible-playbook image_build_manager.yml --tags build           # Build images o
 ansible-playbook image_build_manager.yml --tags execute         # Build images (alias for build)
 ansible-playbook image_build_manager.yml --tags cleanup         # Remove all infrastructure
 ansible-playbook image_build_manager.yml --tags cleanup_images  # Delete built images only
-ansible-playbook image_build_manager.yml --tags upgrade         # Placeholder; no action yet
+ansible-playbook image_build_manager.yml --tags upgrade         # Reconcile secure service configuration
 ansible-playbook image_build_manager.yml --tags rollback        # Placeholder; no action yet
 ```
 
@@ -62,7 +62,8 @@ top-level architecture selectors.
 | `build` / `execute` | Yes | Yes | Yes | build x86_64/aarch64 + write_status | Yes |
 | `cleanup` | Yes | **No** | **No** | cleanup_image_build_manager | No |
 | `cleanup_images` | Yes | **No** | **No** | cleanup_images | No |
-| `upgrade` / `rollback` | Yes | Yes | Yes | placeholder only | No |
+| `upgrade` | Yes | Yes | Yes | reconcile PKI, MinIO, registry, and client authentication | No |
+| `rollback` | Yes | Yes | Yes | placeholder only | No |
 
 ### Invalid Tag Combinations
 
@@ -100,7 +101,7 @@ at startup with a clear error message.
 
 ### Step 2: Credentials (tag: always, skipped for validate/cleanup/cleanup_images/precheck)
 
-- Prompt for the S3 secret key and, for PowerScale, the access ID (Ansible Vault encrypted)
+- Prompt for the S3 access ID and secret key for every provider (Ansible Vault encrypted)
 - Prompt for aarch64 SSH password (if ARM host configured)
 - Output: `input/<project>/image_build_credentials.yml` (vault-encrypted)
 
@@ -116,8 +117,9 @@ at startup with a clear error message.
 
 - Deploy MinIO S3 via Podman Quadlet (if provider=minio)
 - Deploy local OCI container registry via Podman Quadlet
-- Install `regctl` when absent and configure that new installation for the
-  local HTTP registry
+- Generate an internal image-build CA and service certificates
+- Configure MinIO and the local registry for verified HTTPS; require registry authentication
+- Install `regctl` when absent and configure authenticated, verified registry access
 - For local MinIO, create S3 buckets `boot-images` and `efi`
 
 The Quadlets expose 9000/9001 for MinIO and 5000 for the registry. These roles
@@ -187,7 +189,7 @@ overall_status: "success"
 image_build_type: "image-thrillhouse"
 
 s3_configurations:
-  endpoint_url: "http://10.20.0.1:9000"
+  endpoint_url: "https://10.20.0.1:9000"
   bucket: "boot-images"
 
 functional_group_images:
@@ -233,7 +235,7 @@ boot-images/<functional_group>/<image_name>-imgth/<release>/
 | Service | Ports | Purpose |
 |---------|-------|---------|
 | MinIO S3 (Podman Quadlet) | 9000 (API), 9001 (Console) | Boot image storage |
-| OCI Registry (Podman Quadlet) | 5000 (HTTP) | Image verification |
+| OCI Registry (Podman Quadlet) | 5000 (HTTPS + authentication) | Image verification |
 
 ---
 

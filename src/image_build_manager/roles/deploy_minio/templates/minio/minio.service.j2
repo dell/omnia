@@ -8,17 +8,19 @@ ContainerName=minio-server
 Image={{ minio_image }}:{{ minio_release_tag }}
 # Volumes
 Volume={{ data_s3_dir }}:/data:Z
+Volume={{ minio_tls_cert }}:/certs/public.crt:ro,Z
+Volume={{ minio_tls_key }}:/certs/private.key:ro,Z
 
 # Ports
 PublishPort=9000:9000
 PublishPort=9001:9001
 
-# Environemnt Variables
-Environment=MINIO_ROOT_USER={{ s3_access_id }}
-Environment=MINIO_ROOT_PASSWORD={{ s3_secret_key }}
+# Root credentials are loaded from a root-only host file. They must not be
+# embedded in this world-readable Quadlet unit.
+EnvironmentFile={{ minio_environment_file }}
 
 # Command to run in container
-Exec=server /data --console-address :9001
+Exec=server --certs-dir /certs --console-address :9001 /data
 
 [Service]
 Restart=always

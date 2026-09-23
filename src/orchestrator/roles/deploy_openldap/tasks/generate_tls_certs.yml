@@ -20,8 +20,67 @@
     path: "{{ auth_certs_dir }}/{{ tls_cert_file }}"
   register: tls_cert_stat
 
+- name: Check if TLS private key already exists
+  ansible.builtin.stat:
+    path: "{{ auth_certs_dir }}/{{ tls_key_file }}"
+  register: tls_key_stat
+
+- name: Check whether existing TLS certificate covers the LDAP service IP
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -in
+      - "{{ auth_certs_dir }}/{{ tls_cert_file }}"
+      - -noout
+      - -checkip
+      - "{{ ldap_server_ip }}"
+  register: tls_cert_ip_check
+  changed_when: false
+  failed_when: false
+  when:
+    - tls_cert_stat.stat.exists
+    - tls_key_stat.stat.exists
+
+- name: Check whether existing TLS certificate covers the LDAP service name
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -in
+      - "{{ auth_certs_dir }}/{{ tls_cert_file }}"
+      - -noout
+      - -checkhost
+      - "{{ domain_name }}"
+  register: tls_cert_domain_check
+  changed_when: false
+  failed_when: false
+  when:
+    - tls_cert_stat.stat.exists
+    - tls_key_stat.stat.exists
+
+# Provisioned nodes trust the deployed self-signed leaf certificate directly.
+# Rotating it here would break LDAP on those nodes before trust can be
+# redistributed, so identity changes fail explicitly instead of rotating.
+- name: Validate reusable TLS certificate identities
+  ansible.builtin.assert:
+    that:
+      - tls_cert_ip_check.rc == 0
+      - tls_cert_domain_check.rc == 0
+    fail_msg: >-
+      The existing OpenLDAP certificate does not cover the configured admin
+      IP and domain name. It was not rotated automatically because provisioned
+      nodes pin this certificate. Redistribute a replacement trust certificate
+      to all nodes before replacing {{ auth_certs_dir }}/{{ tls_cert_file }}.
+    quiet: true
+  when:
+    - tls_cert_stat.stat.exists
+    - tls_key_stat.stat.exists
+
 - name: Generate self-signed TLS certificate
-  when: not tls_cert_stat.stat.exists
+  when: >-
+    not tls_cert_stat.stat.exists or
+    not tls_key_stat.stat.exists
   block:
     - name: Generate private key and self-signed certificate
       ansible.builtin.command:
@@ -32,7 +91,7 @@
           -keyout {{ auth_certs_dir }}/{{ tls_key_file }}
           -out {{ auth_certs_dir }}/{{ tls_cert_file }}
           -subj "/CN={{ ldap_server_ip }}/O=Omnia/OU=HPC"
-          -addext "subjectAltName=IP:{{ ldap_server_ip }},DNS:{{ domain_name }}"
+          -addext "subjectAltName=IP:{{ ldap_server_ip }},IP:127.0.0.1,DNS:{{ domain_name }},DNS:localhost"
       changed_when: true
 
     - name: Set certificate file permissions
@@ -45,13 +104,16 @@
         - { name: "{{ tls_cert_file }}", mode: "0644" }
         - { name: "{{ tls_key_file }}", mode: "0600" }
 
-    - name: Copy TLS certificate to system trust store
-      ansible.builtin.copy:
-        src: "{{ auth_certs_dir }}/{{ tls_cert_file }}"
-        dest: "/etc/pki/ca-trust/source/anchors/{{ tls_cert_file }}"
-        remote_src: true
-        mode: "0644"
+- name: Copy TLS certificate to system trust store
+  ansible.builtin.copy:
+    src: "{{ auth_certs_dir }}/{{ tls_cert_file }}"
+    dest: "/etc/pki/ca-trust/source/anchors/{{ tls_cert_file }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  register: openldap_trust_anchor
+  notify: Refresh OpenLDAP CA trust
 
-    - name: Update system CA trust
-      ansible.builtin.command: update-ca-trust
-      changed_when: true
+- name: Apply OpenLDAP CA trust before the container health check
+  ansible.builtin.meta: flush_handlers

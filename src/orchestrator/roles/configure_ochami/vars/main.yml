@@ -85,7 +85,7 @@ sasl_nocanon_regxp: "SASL_NOCANON\ton"
 sasl_nacanon_replace1: "SASL_NOCANON\ton\nBASE\t{{ hostvars['localhost']['ldap_search_base'] }}"
 sasl_nacanon_replace2: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars['localhost']['ldap_server_ip'] }}"
 sasl_nacanon_replace3: "SASL_NOCANON\ton\nTLS_CACERT\t{{ tls_cert_path }}"
-sasl_nacanon_replace4: "SASL_NOCANON\ton\nURI\tldap://{{ hostvars['localhost']['ldap_server_ip'] }}:636"
+sasl_nacanon_replace4: "SASL_NOCANON\ton\nURI\tldaps://{{ hostvars['localhost']['ldap_server_ip'] }}:636"
 file_mode: "0644"
 ldap_starttls_port: 389
 ldap_ssl_port: 636

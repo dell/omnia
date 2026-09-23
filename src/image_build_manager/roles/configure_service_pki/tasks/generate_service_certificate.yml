@@ -1,0 +1,95 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+---
+
+- name: "Create TLS directory for {{ service_certificate.name }}"
+  ansible.builtin.file:
+    path: "{{ image_build_pki_dir }}/{{ service_certificate.name }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: "Generate private key for {{ service_certificate.name }}"
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - genrsa
+      - -out
+      - "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.key"
+      - "4096"
+    creates: "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.key"
+  no_log: true
+
+- name: "Create certificate extension file for {{ service_certificate.name }}"
+  ansible.builtin.copy:
+    dest: "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.ext"
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      authorityKeyIdentifier=keyid,issuer
+      basicConstraints=critical,CA:FALSE
+      keyUsage=critical,digitalSignature,keyEncipherment
+      extendedKeyUsage=serverAuth
+      subjectAltName=@alt_names
+      [alt_names]
+      IP.1={{ hostvars['localhost']['admin_nic_ip'] }}
+      IP.2=127.0.0.1
+      DNS.1={{ hostvars['localhost']['host_name'] }}
+      DNS.2={{ hostvars['localhost']['host_name'] }}.{{ hostvars['localhost']['domain_name'] }}
+      DNS.3=localhost
+
+- name: "Generate certificate request for {{ service_certificate.name }}"
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -new
+      - -key
+      - "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.key"
+      - -out
+      - "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.csr"
+      - -subj
+      - "/CN={{ service_certificate.common_name }}/O=Omnia/OU=Image Build"
+    creates: "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.csr"
+
+- name: "Sign certificate for {{ service_certificate.name }}"
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -req
+      - -in
+      - "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.csr"
+      - -CA
+      - "{{ image_build_ca_cert }}"
+      - -CAkey
+      - "{{ image_build_ca_key }}"
+      - -CAserial
+      - "{{ image_build_ca_serial }}"
+      - -CAcreateserial
+      - -out
+      - "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.crt"
+      - -days
+      - "{{ image_build_service_cert_days }}"
+      - -sha256
+      - -extfile
+      - "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.ext"
+    creates: "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.crt"
+
+- name: "Protect TLS material for {{ service_certificate.name }}"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.key"
+      mode: "0600"
+    - path: "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.crt"
+      mode: "0644"
+    - path: "{{ image_build_pki_dir }}/{{ service_certificate.name }}/tls.csr"
+      mode: "0600"

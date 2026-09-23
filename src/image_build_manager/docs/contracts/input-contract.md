@@ -20,7 +20,7 @@ when the domain-specific path is unset.
 | Field | Type | Required | Shipped value | Description |
 |-------|------|----------|---------------|-------------|
 | `s3_configurations.provider` | string | Yes | `"minio"` | `minio` (local) or `powerscale` (external) |
-| `s3_configurations.endpoint_url` | string | Yes | `""` | Must be empty for MinIO and an HTTP(S) URL for PowerScale |
+| `s3_configurations.endpoint_url` | string | Yes | `""` | Must be empty for MinIO and an HTTPS URL for PowerScale; its CA must be installed in the OIM and builder trust stores |
 | `repo_manager_output_path` | string | Yes | Project path placeholder | Full path to upstream `repo_status.yml`; placeholders are resolved while staging |
 | `image_build_type` | string | Yes | `"image-thrillhouse"` | `image-builder` or `image-thrillhouse` |
 | `functional_groups_source` | string | Yes | `"catalog"` | `config` uses `package_groups.yml`; `catalog` uses `CATALOG_FILE_PATH` |
@@ -49,7 +49,7 @@ marked required must be present in the staged input.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `s3_access_id` | string | PowerScale only | PowerScale S3 access key ID; MinIO uses `admin` when empty |
+| `s3_access_id` | string | Yes | S3 access key ID; local MinIO rejects the well-known `admin` and `minioadmin` identities |
 | `s3_secret_key` | string | Yes | MinIO root password or PowerScale S3 secret key; minimum 8 characters |
 | `aarch64_ssh_password` | string | When ARM is enabled | Password used to install the controller's SSH public key |
 

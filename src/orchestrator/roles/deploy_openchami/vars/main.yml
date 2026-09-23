@@ -132,6 +132,9 @@ podman_interfaces:
   - podman2
   - podman3
   - podman4
+openchami_firewall_zone: omnia-openchami
+openchami_container_tcp_ports: "{{ tcp_ports + [5000, 9000] }}"
+openchami_container_udp_ports: "{{ udp_ports }}"
 
 # Retry / timeout settings
 wait_time: 30
@@ -141,6 +144,9 @@ max_retries: 10
 # regctl
 regctl_url: https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64
 regctl_dest: /usr/local/bin/regctl
+registry_auth_dir: /etc/omnia/image_build_manager/registry
+registry_password_file: "{{ registry_auth_dir }}/registry.password"
+registry_username: omnia-registry
 
 # DNS forwarders for CoreDNS
 dns_forwarders:

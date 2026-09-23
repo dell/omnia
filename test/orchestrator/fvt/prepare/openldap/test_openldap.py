@@ -97,13 +97,20 @@ def test_openldap_configuration_and_secret_modes(host):
 
 
 @pytest.mark.order(11)
-def test_openldap_accepts_anonymous_health_request(host):
-    """ORCH_FVT_PREPARE_V011: OpenLDAP answers the same LDAP health request used by Quadlet."""
+def test_openldap_requires_starttls_for_health_request(host):
+    """ORCH_FVT_PREPARE_V011: LDAP health succeeds only over verified STARTTLS."""
     _require_openldap(host)
     result = host.run(
-        "podman exec omnia_auth ldapwhoami -x -H ldap://127.0.0.1:389"
+        "podman exec -e LDAPTLS_CACERT=/etc/openldap/certs/ldapserver.crt "
+        "omnia_auth ldapwhoami -x -ZZ -H ldap://127.0.0.1:389"
     )
     assert result.rc == 0, result.stderr
+
+    cleartext = host.run(
+        "podman exec omnia_auth ldapsearch -x -H ldap://127.0.0.1:389 "
+        "-b '' -s base namingContexts"
+    )
+    assert cleartext.rc != 0, "OpenLDAP unexpectedly allowed a cleartext query"
 
 
 @pytest.mark.order(12)

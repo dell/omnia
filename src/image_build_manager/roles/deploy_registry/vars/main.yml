@@ -24,6 +24,23 @@ registry_storage_dir: "{{ shared_path }}/registry/data"
 registry_image: "docker.io/library/registry"
 registry_tag: "3.1.1"
 
+# Internal TLS and authentication
+image_build_pki_dir: "/etc/omnia/image_build_manager/pki"
+image_build_ca_cert: "{{ image_build_pki_dir }}/ca.crt"
+registry_tls_dir: "{{ image_build_pki_dir }}/registry"
+registry_tls_cert: "{{ registry_tls_dir }}/tls.crt"
+registry_tls_key: "{{ registry_tls_dir }}/tls.key"
+registry_auth_dir: "/etc/omnia/image_build_manager/registry"
+registry_password_file: "{{ registry_auth_dir }}/registry.password"
+registry_htpasswd_file: "{{ registry_auth_dir }}/htpasswd"
+registry_client_auth_file: "{{ registry_auth_dir }}/client-auth.json"
+registry_username: "omnia-registry"
+registry_fqdn: "{{ hostvars['localhost']['host_name'] }}.{{ hostvars['localhost']['domain_name'] }}"
+registry_endpoints:
+  - "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ registry_port }}"
+  - "{{ hostvars['localhost']['host_name'] }}:{{ registry_port }}"
+  - "{{ registry_fqdn }}:{{ registry_port }}"
+
 # Retry and delay settings
 max_retries: 10
 delay_count: 5

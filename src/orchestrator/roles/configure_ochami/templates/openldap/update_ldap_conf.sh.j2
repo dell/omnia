@@ -9,5 +9,6 @@ if [[ "$TYPE" == "tls" ]]; then
   sed -i "s|SASL_NOCANON[[:space:]]*on|SASL_NOCANON on\nURI     ldap://{{ ldap_server_ip }}|" "$FILE"
   sed -i "s|SASL_NOCANON[[:space:]]*on|SASL_NOCANON on\nTLS_CACERT {{ tls_cert_path }}|" "$FILE"
 elif [[ "$TYPE" == "ssl" ]]; then
-  sed -i "s|SASL_NOCANON[[:space:]]*on|SASL_NOCANON on\nURI     ldap://{{ ldap_server_ip }}:636|" "$FILE"
+  sed -i "s|SASL_NOCANON[[:space:]]*on|SASL_NOCANON on\nURI     ldaps://{{ ldap_server_ip }}:636|" "$FILE"
+  sed -i "s|SASL_NOCANON[[:space:]]*on|SASL_NOCANON on\nTLS_CACERT {{ tls_cert_path }}|" "$FILE"
 fi

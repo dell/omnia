@@ -21,7 +21,7 @@ overall_status: "success"
 image_build_type: "image-builder"
 
 s3_configurations:
-  endpoint_url: "http://192.0.2.10:9000"
+  endpoint_url: "https://192.0.2.10:9000"
   bucket: "boot-images"
 
 functional_group_images:

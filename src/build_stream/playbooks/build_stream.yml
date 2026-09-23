@@ -25,7 +25,7 @@
 #   ansible-playbook build_stream.yml --tags execute         # Deploy GitLab + CI/CD only
 #   ansible-playbook build_stream.yml --tags build           # prepare + execute
 #   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup, including credentials
-#   ansible-playbook build_stream.yml --tags upgrade         # Upgrade flow (placeholder)
+#   ansible-playbook build_stream.yml --tags upgrade         # Reconcile secure infrastructure
 #   ansible-playbook build_stream.yml --tags rollback        # Rollback flow (placeholder)
 #
 # Tags (mutually exclusive — pick ONE):
@@ -37,7 +37,7 @@
 #   execute      — Deploy GitLab CE + CI/CD configuration (with credentials)
 #   build        — Alias: runs prepare + execute (full deploy, with credentials)
 #   cleanup      — Full domain cleanup: GitLab + BSM + Postgres + credentials
-#   upgrade      — Upgrade flow (placeholder — future release)
+#   upgrade      — Reconcile protected S3 configuration and BSM deployment
 #   rollback     — Rollback flow (placeholder — future release)
 #
 # Internal steps (always):
@@ -80,6 +80,11 @@
     - name: Run credential utility
       ansible.builtin.include_role:
         name: credential_utility
+        apply:
+          tags:
+            - always
+      tags:
+        - always
       when: not (skip_build_stream_credentials | default(false) | bool)
 
 # =========================================================================
@@ -134,7 +139,7 @@
     - cleanup
 
 # =========================================================================
-# FLOW: upgrade — Upgrade flow placeholder (opt-in only)
+# FLOW: upgrade — Reconcile hardened BSM configuration (opt-in only)
 # =========================================================================
 - name: Upgrade build_stream
   ansible.builtin.import_playbook: upgrade/upgrade_build_stream.yml

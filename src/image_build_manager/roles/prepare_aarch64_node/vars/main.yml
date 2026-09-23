@@ -42,6 +42,13 @@ repo_file_path: "/etc/yum.repos.d/repo_manager.repo"
 repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
 anchors_path: "/etc/pki/ca-trust/source/anchors/{{ repo_cert_path | basename | default('pulp_webserver.crt', true) }}"
 regctl_bin_path: "/usr/local/bin/regctl"
+image_build_pki_dir: "/etc/omnia/image_build_manager/pki"
+image_build_ca_cert: "{{ image_build_pki_dir }}/ca.crt"
+image_build_ca_anchor: "/etc/pki/ca-trust/source/anchors/omnia-image-build-ca.crt"
+registry_auth_dir: "/etc/omnia/image_build_manager/registry"
+registry_password_file: "{{ registry_auth_dir }}/registry.password"
+registry_client_auth_file: "{{ registry_auth_dir }}/client-auth.json"
+registry_username: "omnia-registry"
 
 # regctl for aarch64 — downloaded on OIM first, then SCP'd to aarch64 node
 regctl_download_url: "https://github.com/regclient/regclient/releases/latest/download/regctl-linux-arm64"
@@ -51,6 +58,7 @@ regctl_oim_staging_path: "{{ regctl_oim_staging_dir }}/regctl-linux-arm64"
 # Permissions constants
 dir_permissions_755: "0755"
 file_permissions_644: "0644"
+file_permissions_600: "0600"
 
 # ---------------------------------------------------------------------------
 # Error / status messages

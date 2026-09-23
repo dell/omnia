@@ -44,7 +44,7 @@
     dest: /root/.s3cfg
     owner: root
     group: root
-    mode: "{{ file_perm_rw }}"
+    mode: "0600"
 
 # === S3 Bucket Creation ===
 

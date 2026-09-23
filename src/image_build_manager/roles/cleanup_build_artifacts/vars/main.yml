@@ -102,6 +102,39 @@ image_build_log_base: "/var/log/omnia/image_build_manager"
 s3cmd_config: "/root/.s3cfg"
 
 # ---------------------------------------------------------------------------
+# Internal service security material cleanup
+# ---------------------------------------------------------------------------
+minio_security_directories:
+  - "/etc/omnia/image_build_manager/pki/minio"
+minio_security_files:
+  - "/etc/omnia/image_build_manager/minio.env"
+registry_security_directories:
+  - "/etc/omnia/image_build_manager/pki/registry"
+  - "/etc/omnia/image_build_manager/registry"
+shared_security_directories:
+  - "/etc/omnia/image_build_manager/pki"
+shared_security_files:
+  - "/etc/pki/ca-trust/source/anchors/omnia-image-build-ca.crt"
+
+# The CA is shared by MinIO and the registry. Remove it only for a complete
+# cleanup (the default run) or when both service tags were explicitly selected.
+# A skipped service must retain the trust anchor used by its live endpoint.
+cleanup_shared_service_security: >-
+  {{
+    (
+      'all' in (ansible_run_tags | default(['all']))
+      or 'cleanup' in (ansible_run_tags | default([]))
+      or
+      (
+        'minio' in (ansible_run_tags | default([]))
+        and 'registry' in (ansible_run_tags | default([]))
+      )
+    )
+    and 'minio' not in (ansible_skip_tags | default([]))
+    and 'registry' not in (ansible_skip_tags | default([]))
+  }}
+
+# ---------------------------------------------------------------------------
 # Image cleanup (cleanup_images tag)
 # ---------------------------------------------------------------------------
 # Pattern to match images for deletion.

@@ -34,6 +34,37 @@
   ansible.builtin.import_tasks: cleanup_s3cmd.yml
   tags: s3cmd
 
+- name: Remove MinIO security material
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ minio_security_directories + minio_security_files }}"
+  tags: minio
+
+- name: Remove registry security material
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ registry_security_directories }}"
+  tags: registry
+
+# The CA is shared by MinIO and the registry. The `always` tag lets the guard
+# evaluate even during tagged runs; the guard removes it only when both
+# services are being cleaned.
+- name: Remove shared internal CA material during full cleanup
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ shared_security_directories + shared_security_files }}"
+  notify: Refresh system trust after internal CA cleanup
+  when: cleanup_shared_service_security | bool
+  tags: always
+
+- name: Apply system trust cleanup
+  ansible.builtin.meta: flush_handlers
+  when: cleanup_shared_service_security | bool
+  tags: always
+
 - name: Cleanup image_build_manager credentials
   ansible.builtin.import_tasks: cleanup_credentials.yml
   tags: cleanup_credentials

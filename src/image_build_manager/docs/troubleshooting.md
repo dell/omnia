@@ -115,9 +115,13 @@ package entry in the catalog. The requested RPM is not in any configured repo:
 http: server gave HTTP response to HTTPS client
 ```
 
-**Fix**: The local registry uses HTTP. If `regctl` defaults to HTTPS:
+**Fix**: The local registry requires verified HTTPS and basic authentication.
+Do not disable TLS. Re-run the Image Build Manager prepare workflow to restore
+the managed CA trust, registry certificate, and protected client configuration.
+Then verify the endpoint with the managed `regctl` configuration:
 ```bash
-/usr/local/bin/regctl registry set --tls disabled <registry_ip>:5000
+/usr/local/bin/regctl registry set --tls enabled <registry_ip>:5000
+/usr/local/bin/regctl repo ls <registry_ip>:5000
 ```
 
 ---

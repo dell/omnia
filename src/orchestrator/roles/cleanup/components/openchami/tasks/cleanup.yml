@@ -323,6 +323,32 @@
   loop: "{{ openchami_config.config_dirs }}"
   tags: openchami
 
+- name: Detach Podman interfaces from the OpenCHAMI firewall zone
+  ansible.posix.firewalld:
+    interface: "{{ item }}"
+    zone: "{{ openchami_config.firewall_zone }}"
+    permanent: true
+    immediate: true
+    state: disabled
+  loop: "{{ openchami_config.podman_interfaces }}"
+  failed_when: false
+  tags: openchami
+
+- name: Remove the OpenCHAMI firewall zone
+  ansible.posix.firewalld:
+    zone: "{{ openchami_config.firewall_zone }}"
+    permanent: true
+    immediate: true
+    state: absent
+  failed_when: false
+  tags: openchami
+
+- name: Reload firewalld after removing the OpenCHAMI zone
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true
+  failed_when: false
+  tags: openchami
+
 - name: Remove OpenCHAMI workdir
   ansible.builtin.file:
     path: "{{ openchami_config.workdir }}"

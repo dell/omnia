@@ -30,6 +30,11 @@ validate_s3_bucket_fail_msg: >
   S3 bucket name is invalid. NOTE: bucket names are FIXED constants
   (boot-images and efi-images) and cannot be changed by the user.
 
+powerscale_validation_fail_msg: >-
+  PowerScale requires a non-empty HTTPS endpoint and S3 credentials. The
+  endpoint certificate must chain to a CA installed in the OIM and builder
+  system trust stores.
+
 validate_fg_config_fail_msg: >
   No functional groups found for the target architecture.
   Config mode: Ensure package_groups.yml in {{ input_project_dir }}

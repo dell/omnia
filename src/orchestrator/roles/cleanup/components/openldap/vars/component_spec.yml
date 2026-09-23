@@ -58,6 +58,7 @@ openldap_config:
   container_name: "omnia_auth"
   base_dir: "{{ omnia_data_path }}/auth"
   quadlet_file: "/etc/containers/systemd/omnia_auth.container"
+  trust_anchor: "/etc/pki/ca-trust/source/anchors/ldapserver.crt"
 
   cleanup_operations:
     - stop_service
@@ -65,3 +66,4 @@ openldap_config:
     - remove_quadlet
     - reload_systemd
     - remove_data
+    - remove_trust_anchor

@@ -1,0 +1,19 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+---
+
+image_build_pki_dir: "/etc/omnia/image_build_manager/pki"
+image_build_ca_key: "{{ image_build_pki_dir }}/ca.key"
+image_build_ca_cert: "{{ image_build_pki_dir }}/ca.crt"
+image_build_ca_serial: "{{ image_build_pki_dir }}/ca.srl"
+image_build_ca_anchor: "/etc/pki/ca-trust/source/anchors/omnia-image-build-ca.crt"
+image_build_ca_days: 3650
+image_build_service_cert_days: 825
+
+image_build_service_certificates:
+  - name: registry
+    common_name: "{{ hostvars['localhost']['host_name'] }}.{{ hostvars['localhost']['domain_name'] }}"
+  - name: minio
+    common_name: "{{ hostvars['localhost']['admin_nic_ip'] }}"

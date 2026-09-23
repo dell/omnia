@@ -1,0 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+---
+
+- name: Create image-build PKI directory
+  ansible.builtin.file:
+    path: "{{ image_build_pki_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Generate image-build CA private key
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - genrsa
+      - -out
+      - "{{ image_build_ca_key }}"
+      - "4096"
+    creates: "{{ image_build_ca_key }}"
+  no_log: true
+
+- name: Generate image-build CA certificate
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -x509
+      - -new
+      - -key
+      - "{{ image_build_ca_key }}"
+      - -sha256
+      - -days
+      - "{{ image_build_ca_days }}"
+      - -out
+      - "{{ image_build_ca_cert }}"
+      - -subj
+      - "/CN=Omnia Image Build Internal CA/O=Omnia/OU=Infrastructure"
+    creates: "{{ image_build_ca_cert }}"
+
+- name: Protect image-build CA material
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ image_build_ca_key }}"
+      mode: "0600"
+    - path: "{{ image_build_ca_cert }}"
+      mode: "0644"
+
+- name: Generate service certificates
+  ansible.builtin.include_tasks: generate_service_certificate.yml
+  loop: "{{ image_build_service_certificates }}"
+  loop_control:
+    loop_var: service_certificate
+    label: "{{ service_certificate.name }}"
+
+- name: Install image-build CA in the OIM trust store
+  ansible.builtin.copy:
+    src: "{{ image_build_ca_cert }}"
+    dest: "{{ image_build_ca_anchor }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  register: image_build_ca_install
+  notify: Refresh the OIM CA trust store
+
+- name: Apply image-build CA trust before service health checks
+  ansible.builtin.meta: flush_handlers

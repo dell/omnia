@@ -114,9 +114,28 @@
                   {{ auth_image }}:{{ auth_target_tag }}.
                 quiet: true
 
+            - name: Reconcile secure OpenLDAP configuration after image replacement
+              ansible.builtin.include_role:
+                name: deploy_openldap
+                apply:
+                  tags:
+                    - upgrade
+              tags:
+                - upgrade
+
             - name: Verify LDAP service responds
-              ansible.builtin.command: >
-                podman exec {{ auth_container_name }} ldapsearch -x -H ldap://localhost -b "" -s base namingContexts
+              ansible.builtin.command:
+                argv:
+                  - podman
+                  - exec
+                  - --env
+                  - LDAPTLS_CACERT=/etc/openldap/certs/ldapserver.crt
+                  - "{{ auth_container_name }}"
+                  - ldapwhoami
+                  - -x
+                  - -ZZ
+                  - -H
+                  - "ldap://{{ domain_name }}"
               register: ldap_verify
               retries: 5
               delay: 5
@@ -138,3 +157,13 @@
                 msg: >-
                   OpenLDAP (omnia_auth) successfully upgraded from Fedora-based
                   to Wolfi-based image ({{ auth_image }}:{{ auth_target_tag }}).
+
+        - name: Reconcile secure OpenLDAP configuration on an existing target image
+          ansible.builtin.include_role:
+            name: deploy_openldap
+            apply:
+              tags:
+                - upgrade
+          tags:
+            - upgrade
+          when: auth_target_tag in auth_current_image

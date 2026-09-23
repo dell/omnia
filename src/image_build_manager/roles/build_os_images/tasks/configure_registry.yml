@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# configure_registry.yml — Compute registry host and verify regctl is installed.
-# TLS configuration is handled by the deploy_registry role.
+# configure_registry.yml — Compute registry host and require verified TLS.
 #
 # Inputs (must be set before including):
 #   host_name     — OIM short hostname
@@ -40,7 +39,13 @@
     msg: "{{ regctl_not_found_fail_msg }}"
   when: not _regctl_stat.stat.exists
 
-- name: Ensure regctl TLS disabled for registry_host
+- name: Require verified TLS for registry_host
   ansible.builtin.command:
-    cmd: "/usr/local/bin/regctl registry set --tls disabled {{ registry_host }}:5000"
-  changed_when: false
+    argv:
+      - /usr/local/bin/regctl
+      - registry
+      - set
+      - --tls
+      - enabled
+      - "{{ registry_host }}:5000"
+  changed_when: true

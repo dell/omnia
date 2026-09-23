@@ -8,9 +8,16 @@ ContainerName=registry
 HostName=registry
 Image={{ registry_image }}:{{ registry_tag }}
 Volume={{ data_oci_dir }}:/var/lib/registry:Z
+Volume={{ registry_tls_dir }}:/certs:ro,Z
+Volume={{ registry_htpasswd_file }}:/auth/htpasswd:ro,Z
 PublishPort=5000:5000
 
 Environment=REGISTRY_STORAGE_DELETE_ENABLED=true
+Environment=REGISTRY_HTTP_TLS_CERTIFICATE=/certs/tls.crt
+Environment=REGISTRY_HTTP_TLS_KEY=/certs/tls.key
+Environment=REGISTRY_AUTH=htpasswd
+Environment="REGISTRY_AUTH_HTPASSWD_REALM=Omnia Registry"
+Environment=REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd
 
 [Service]
 TimeoutStartSec=0

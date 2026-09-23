@@ -42,22 +42,60 @@
     - 53/tcp
     - 53/udp
 
-- name: Disable masquerading on trusted zone
+- name: Create restricted OpenCHAMI container firewall zone
   ansible.posix.firewalld:
-    zone: trusted
-    masquerade: true
+    zone: "{{ openchami_firewall_zone }}"
     permanent: true
-    immediate: true
-    state: disabled
+    state: present
+  notify: Reload firewalld
 
-- name: Add Podman interfaces to trusted zone
+- name: Activate the restricted zone before assigning interfaces
+  ansible.builtin.meta: flush_handlers
+
+- name: Remove Podman interfaces from the unrestricted trusted zone
   ansible.posix.firewalld:
     interface: "{{ item }}"
     zone: trusted
     permanent: true
+    immediate: true
+    state: disabled
+  loop: "{{ podman_interfaces }}"
+  failed_when: false
+
+- name: Bind Podman interfaces to the restricted OpenCHAMI zone
+  ansible.posix.firewalld:
+    interface: "{{ item }}"
+    zone: "{{ openchami_firewall_zone }}"
+    permanent: true
+    immediate: true
     state: enabled
   loop: "{{ podman_interfaces }}"
 
-- name: Reload firewalld to apply changes
-  ansible.builtin.command: firewall-cmd --reload
-  changed_when: true
+- name: Allow required TCP services from OpenCHAMI containers
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    zone: "{{ openchami_firewall_zone }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ openchami_container_tcp_ports | unique }}"
+
+- name: Allow required UDP services from OpenCHAMI containers
+  ansible.posix.firewalld:
+    port: "{{ item }}/udp"
+    zone: "{{ openchami_firewall_zone }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ openchami_container_udp_ports | unique }}"
+
+- name: Allow DNS from OpenCHAMI containers
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    zone: "{{ openchami_firewall_zone }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - 53/tcp
+    - 53/udp

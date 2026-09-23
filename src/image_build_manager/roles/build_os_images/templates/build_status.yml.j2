@@ -33,7 +33,7 @@ overall_status: "success"
 image_build_type: "{{ status_image_build_type }}"
 
 s3_configurations:
-  endpoint_url: "{{ s3_endpoint | default('http://' + admin_nic_ip + ':9000') }}"
+  endpoint_url: "{{ s3_endpoint | default('https://' + admin_nic_ip + ':9000') }}"
   bucket: "{{ s3_configurations.bucket | default('boot-images') }}"
 
 functional_group_images:

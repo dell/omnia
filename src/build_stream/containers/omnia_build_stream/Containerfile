@@ -85,7 +85,7 @@ ENV SSL_KEYFILE=/etc/ssl/omnia/bs_key.pem
 ENV SSL_CERTFILE=/etc/ssl/omnia/bs_cert.pem
 
 # MinIO S3 configuration — do NOT set defaults here; pass credentials
-# exclusively at runtime via Quadlet Environment directives or --env flags.
+# exclusively at runtime via a root-only Quadlet environment file.
 # ENV values are visible in image metadata (podman inspect / docker history).
 
 EXPOSE 8443
@@ -94,4 +94,4 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD curl -fsk https://localhost:${PORT:-8443}/health || exit 1
 
 # ── Entrypoint ───────────────────────────────────────────────
-ENTRYPOINT ["/bin/bash", "-c", "/usr/local/bin/init_s3cfg.sh || echo 'WARNING: S3 config init failed' >&2; exec python3 -Xfrozen_modules=off -m uvicorn main:app --host \"${HOST:?HOST env required}\" --port \"${PORT:?PORT env required}\" --ssl-keyfile \"${SSL_KEYFILE}\" --ssl-certfile \"${SSL_CERTFILE}\""]
+ENTRYPOINT ["/bin/bash", "-c", "/usr/local/bin/init_s3cfg.sh && exec python3 -Xfrozen_modules=off -m uvicorn main:app --host \"${HOST:?HOST env required}\" --port \"${PORT:?PORT env required}\" --ssl-keyfile \"${SSL_KEYFILE}\" --ssl-certfile \"${SSL_CERTFILE}\""]

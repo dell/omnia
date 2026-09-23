@@ -12,77 +12,189 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# deploy_registry/tasks/main.yml — Deploy local container registry as a Quadlet service.
-# Extracted from prepare_oim/roles/deploy_containers/openchami/tasks/configs/registry.yml
+# deploy_registry/tasks/main.yml — Deploy an authenticated TLS registry.
 
-- name: Check if registry is already running
-  ansible.builtin.systemd:
+- name: Create registry storage and authentication directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ registry_storage_dir }}"
+      mode: "0755"
+    - path: "{{ data_oci_dir }}"
+      mode: "0755"
+    - path: "{{ registry_auth_dir }}"
+      mode: "0700"
+
+- name: Install htpasswd tooling for registry authentication
+  ansible.builtin.dnf:
+    name: httpd-tools
+    state: present
+
+- name: Check for an existing registry client password
+  ansible.builtin.stat:
+    path: "{{ registry_password_file }}"
+  register: registry_password_file_status
+
+- name: Generate registry client password in memory
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - rand
+      - -base64
+      - "48"
+  register: generated_registry_password
+  changed_when: true
+  when: not registry_password_file_status.stat.exists
+  no_log: true
+
+- name: Persist registry client password with safe permissions
+  ansible.builtin.copy:
+    content: "{{ generated_registry_password.stdout }}\n"
+    dest: "{{ registry_password_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: not registry_password_file_status.stat.exists
+  no_log: true
+
+- name: Read registry password for protected client configuration
+  ansible.builtin.slurp:
+    src: "{{ registry_password_file }}"
+  register: registry_password_data
+  no_log: true
+
+- name: Set registry password fact
+  ansible.builtin.set_fact:
+    registry_password: "{{ registry_password_data.content | b64decode | trim }}"
+  no_log: true
+
+- name: Validate persisted registry password
+  ansible.builtin.assert:
+    that:
+      - registry_password | length >= 32
+    fail_msg: >-
+      The managed registry password is missing or invalid. Remove
+      {{ registry_password_file }} and rerun the prepare workflow to regenerate it.
+    quiet: true
+  no_log: true
+
+- name: Check for an existing registry password database
+  ansible.builtin.stat:
+    path: "{{ registry_htpasswd_file }}"
+  register: registry_htpasswd_file_status
+
+- name: Generate bcrypt registry password entry in memory
+  ansible.builtin.command:
+    argv:
+      - htpasswd
+      - -Bni
+      - "{{ registry_username }}"
+    stdin: "{{ registry_password }}"
+  register: generated_registry_htpasswd
+  changed_when: true
+  when: >-
+    not registry_htpasswd_file_status.stat.exists or
+    not registry_password_file_status.stat.exists
+  no_log: true
+
+- name: Persist registry password database with safe permissions
+  ansible.builtin.copy:
+    content: "{{ generated_registry_htpasswd.stdout }}\n"
+    dest: "{{ registry_htpasswd_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: >-
+    not registry_htpasswd_file_status.stat.exists or
+    not registry_password_file_status.stat.exists
+  no_log: true
+
+- name: Render registry Quadlet service file
+  ansible.builtin.template:
+    src: registry/registry.service.j2
+    dest: /etc/containers/systemd/registry.container
+    mode: "0644"
+  notify: Reload systemd daemon
+
+- name: Flush handlers to reload systemd
+  ansible.builtin.meta: flush_handlers
+
+- name: Pre-pull registry image to avoid Quadlet pull timeout
+  containers.podman.podman_image:
+    name: "{{ registry_image }}"
+    tag: "{{ registry_tag }}"
+    state: present
+  register: registry_image_pull
+  retries: "{{ image_pull_retries }}"
+  delay: "{{ image_pull_delay }}"
+  until: registry_image_pull is succeeded
+
+- name: Enable and restart authenticated registry
+  ansible.builtin.systemd_service:
     name: registry
-  register: registry_service_status
-  failed_when: false
+    state: restarted
+    enabled: true
 
-- name: Skip registry deploy if already running
-  ansible.builtin.debug:
-    msg: "Registry service is already running on port {{ registry_port }} — skipping deploy (idempotent)"
-  when: registry_service_status.status.ActiveState | default('') == 'active'
+- name: Verify registry container is running
+  containers.podman.podman_container_info:
+    name: registry
+  register: registry_container_status
+  retries: "{{ max_retries }}"
+  delay: "{{ delay_count }}"
+  until:
+    - registry_container_status.containers | length > 0
+    - registry_container_status.containers[0].State.Status == 'running'
 
-- name: Deploy registry Quadlet service
-  when: registry_service_status.status.ActiveState | default('') != 'active'
-  block:
-    - name: Create registry storage directories
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        mode: "0755"
-      loop:
-        - "{{ registry_storage_dir }}"
-        - "{{ data_oci_dir }}"
+- name: Wait for authenticated registry HTTPS endpoint
+  ansible.builtin.uri:
+    url: "https://{{ hostvars['localhost']['admin_nic_ip'] }}:{{ registry_port }}/v2/"
+    method: GET
+    url_username: "{{ registry_username }}"
+    url_password: "{{ registry_password }}"
+    force_basic_auth: true
+    validate_certs: true
+    status_code: 200
+  register: registry_health
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_delay }}"
+  until: registry_health.status == 200
+  no_log: true
 
-    - name: Render registry Quadlet service file
-      ansible.builtin.template:
-        src: registry/registry.service.j2
-        dest: /etc/containers/systemd/registry.container
-        mode: "0644"
-      notify: Reload systemd daemon
+- name: Create registry client-auth parent directory
+  ansible.builtin.file:
+    path: "{{ registry_client_auth_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
 
-    - name: Flush handlers to reload systemd
-      ansible.builtin.meta: flush_handlers
+- name: Authenticate local registry clients for every supported endpoint
+  ansible.builtin.command:
+    argv:
+      - podman
+      - login
+      - --authfile
+      - "{{ registry_client_auth_file }}"
+      - --username
+      - "{{ registry_username }}"
+      - --password-stdin
+      - --tls-verify=true
+      - "{{ item }}"
+    stdin: "{{ registry_password }}"
+  loop: "{{ registry_endpoints | unique }}"
+  no_log: true
+  changed_when: false
 
-    - name: Pre-pull registry image to avoid quadlet pull timeout
-      containers.podman.podman_image:
-        name: "{{ registry_image }}"
-        tag: "{{ registry_tag }}"
-        state: present
-      register: registry_image_pull
-      retries: "{{ image_pull_retries }}"
-      delay: "{{ image_pull_delay }}"
-      until: registry_image_pull is succeeded
-
-    - name: Enable and start registry service
-      ansible.builtin.systemd_service:
-        name: registry
-        state: started
-        enabled: true
-
-    - name: Verify registry container is running
-      containers.podman.podman_container_info:
-        name: registry
-      register: registry_container_status
-      retries: "{{ max_retries }}"
-      delay: "{{ delay_count }}"
-      until:
-        - registry_container_status.containers | length > 0
-        - registry_container_status.containers[0].State.Status == 'running'
-
-    - name: Wait for registry health endpoint to be ready
-      ansible.builtin.uri:
-        url: "http://localhost:{{ registry_port }}/v2/"
-        method: GET
-        status_code: 200
-      register: registry_health
-      retries: "{{ health_check_retries }}"
-      delay: "{{ health_check_delay }}"
-      until: registry_health.status == 200
+- name: Protect registry client authentication file
+  ansible.builtin.file:
+    path: "{{ registry_client_auth_file }}"
+    owner: root
+    group: root
+    mode: "0600"
 
 # --- regctl installation and configuration ---
 - name: Check if regctl binary is already installed
@@ -104,20 +216,36 @@
       delay: "{{ download_delay }}"
       until: regctl_download is succeeded
 
-    - name: Configure regctl to use HTTP for local registry
-      ansible.builtin.command:
-        cmd: >-
-          /usr/local/bin/regctl registry set --tls disabled
-          {{ hostvars['localhost']['admin_nic_ip'] }}:{{ registry_port }}
-      changed_when: true
+- name: Require verified TLS in regctl for every supported endpoint
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/regctl
+      - registry
+      - set
+      - --tls
+      - enabled
+      - "{{ item }}"
+  loop: "{{ registry_endpoints | unique }}"
+  changed_when: true
 
-    - name: Verify regctl config
-      ansible.builtin.command:
-        cmd: cat ~/.regctl/config.json
-      changed_when: false
-      register: regctl_config
+- name: Authenticate regctl for every supported endpoint
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/regctl
+      - registry
+      - login
+      - "{{ item }}"
+      - --user
+      - "{{ registry_username }}"
+      - --pass-stdin
+    stdin: "{{ registry_password }}"
+  loop: "{{ registry_endpoints | unique }}"
+  no_log: true
+  changed_when: false
 
-    - name: Display regctl config
-      ansible.builtin.debug:
-        msg: "{{ regctl_config.stdout_lines }}"
-        verbosity: 1
+- name: Protect regctl registry configuration
+  ansible.builtin.file:
+    path: /root/.regctl/config.json
+    owner: root
+    group: root
+    mode: "0600"

@@ -81,7 +81,7 @@
             state: directory
             owner: root
             group: root
-            mode: "0755"
+            mode: "0700"
           loop:
             - "{{ auth_base_dir }}"
             - "{{ auth_config_dir }}"
@@ -109,7 +109,8 @@
             dest: "{{ auth_init_dir }}/bootstrap.ldif"
             owner: root
             group: root
-            mode: "0644"
+            mode: "0600"
+          no_log: true
 
         - name: Prepare OpenLDAP completed
           ansible.builtin.debug:

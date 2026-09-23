@@ -16,7 +16,7 @@ Image build credentials validator.
 
 This module validates image_build_credentials.yml against
 image_build_config.yml for cross-file consistency:
-- S3 access credentials when provider is 'powerscale'
+- S3 access credentials for the configured storage backend
 - aarch64 SSH password when aarch64 host IP is configured
 """
 from ansible.module_utils.input_validation.messages import (  # pylint: disable=E0401
@@ -41,12 +41,19 @@ def validate(cred_data, config_data, logger=None):
     s3 = config_data.get("s3_configurations", {})
     provider = s3.get("provider", "")
 
-    if provider == "powerscale":
+    if provider in {"minio", "powerscale"}:
         s3_access_id = cred_data.get("s3_access_id", "")
         if not s3_access_id or not s3_access_id.strip():
             errors.append(msg.S3_ACCESS_ID_REQUIRED_MSG)
             if logger:
                 logger.error(msg.S3_ACCESS_ID_REQUIRED_MSG)
+        elif (
+            provider == "minio"
+            and s3_access_id.strip().lower() in {"admin", "minioadmin"}
+        ):
+            errors.append(msg.S3_ACCESS_ID_RESERVED_MINIO_MSG)
+            if logger:
+                logger.error(msg.S3_ACCESS_ID_RESERVED_MINIO_MSG)
 
     aarch64_ip = config_data.get("aarch64_inventory_host_ip", "")
     if aarch64_ip and aarch64_ip.strip():

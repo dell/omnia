@@ -3,7 +3,7 @@ meta:
   tags:
     - '{{ rhel_tag }}'
   from: '{{ registry_host }}:5000/{{ oim_node_name }}/{{ rhel_arch_base_image_name }}:{{ rhel_tag }}'
-  from-tls-verify: false
+  from-tls-verify: true
 
 layer:
   manager:
@@ -52,7 +52,7 @@ layer:
 publish:
   - type: registry
     url: '{{ registry_host }}:5000/{{ oim_node_name }}'
-    tls-verify: false
+    tls-verify: true
   - type: s3
     url: '{{ s3_endpoint }}'
     bucket: boot-images

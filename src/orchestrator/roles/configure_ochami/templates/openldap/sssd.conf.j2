@@ -24,7 +24,7 @@
       ldap_tls_cacert = /etc/openldap/certs/ldapserver.crt
       ldap_tls_cacertdir = /etc/openldap/certs
       cache_credentials = True
-      ldap_tls_reqcert = allow
+      ldap_tls_reqcert = demand
 
 {% else %}
 
@@ -37,6 +37,7 @@
       ldap_chpass_uri = ldaps://{{ ldap_server_ip }}:636
       ldap_search_base = {{ ldap_search_base }}
       ldap_id_use_start_tls = False
+      ldap_tls_cacert = /etc/openldap/certs/ldapserver.crt
       ldap_tls_cacertdir = /etc/openldap/certs
       cache_credentials = True
       ldap_tls_reqcert = demand

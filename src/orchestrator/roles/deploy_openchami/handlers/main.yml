@@ -16,3 +16,7 @@
 - name: Reload systemd
   ansible.builtin.systemd_service:
     daemon_reload: true
+
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true

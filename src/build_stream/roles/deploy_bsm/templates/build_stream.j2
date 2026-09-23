@@ -38,11 +38,8 @@ Environment=SSL_CERTFILE=/etc/ssl/omnia/bs_cert.pem
 # Database configuration
 Environment=DATABASE_URL=postgresql://{{ postgres_user }}:{{ postgres_password }}@localhost:5432/{{ postgres_db_name }}
 
-# MinIO S3 configuration for s3cmd
-Environment=MINIO_ACCESS_KEY={{ minio_s3_username }}
-Environment=MINIO_SECRET_KEY={{ minio_s3_password }}
-Environment=MINIO_HOST={{ admin_nic_ip }}:9000
-Environment=MINIO_USE_HTTPS=False
+# MinIO credentials are held in a root-only environment file.
+EnvironmentFile={{ build_stream_s3_environment_file }}
 
 # Authentication and OAuth configuration
 Environment=OMNIA_DATA_PATH={{ build_stream_container_omnia_path }}
@@ -63,6 +60,8 @@ Volume={{ omnia_path }}:{{ build_stream_container_omnia_path }}{{ selinux_option
 Volume={{ build_stream_queue_auth_key }}:{{ build_stream_container_queue_auth_key }}:ro{{ selinux_option | regex_replace('^:', ',') }}
 Volume={{ build_stream_queue_api_state_dir }}:{{ build_stream_container_queue_api_state_dir }}:rw{{ selinux_option | regex_replace('^:', ',') }}
 Volume={{ build_stream_ssl_dir }}:/etc/ssl/omnia:ro{{ selinux_option | regex_replace('^:', ',') }}
+Volume={{ image_build_ca_cert }}:{{ build_stream_container_image_build_ca }}:ro{{ selinux_option | regex_replace('^:', ',') }}
+Volume={{ build_stream_s3_init_script }}:{{ build_stream_container_s3_init_script }}:ro{{ selinux_option | regex_replace('^:', ',') }}
 
 [Service]
 Restart=always

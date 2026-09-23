@@ -111,6 +111,14 @@
       when: "'remove_data' in openldap_config.cleanup_operations"
       tags: openldap
 
+- name: Remove OpenLDAP trust anchor
+  ansible.builtin.file:
+    path: "{{ openldap_config.trust_anchor }}"
+    state: absent
+  notify: Refresh system CA trust
+  when: "'remove_trust_anchor' in openldap_config.cleanup_operations"
+  tags: openldap
+
 - name: Display OpenLDAP cleanup completion
   ansible.builtin.debug:
     msg: |
@@ -120,4 +128,5 @@
       - Quadlet removed: {{ 'remove_quadlet' in openldap_config.cleanup_operations }}
       - Systemd reloaded: {{ 'reload_systemd' in openldap_config.cleanup_operations }}
       - Data removed: {{ 'remove_data' in openldap_config.cleanup_operations }}
+      - Trust anchor removed: {{ 'remove_trust_anchor' in openldap_config.cleanup_operations }}
   tags: openldap

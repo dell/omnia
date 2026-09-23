@@ -24,17 +24,40 @@
   delay: 10
   until: regctl_download is succeeded
 
-- name: Configure regctl  # noqa: command-instead-of-shell
-  ansible.builtin.shell: |
-    /usr/local/bin/regctl registry set --tls disabled {{ cluster_name }}.{{ cluster_domain }}:5000
+- name: Require verified TLS for the image registry
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/regctl
+      - registry
+      - set
+      - --tls
+      - enabled
+      - "{{ cluster_name }}.{{ cluster_domain }}:5000"
   changed_when: true
 
-- name: Verify regctl configs  # noqa: command-instead-of-shell
-  ansible.builtin.shell: |
-    cat ~/.regctl/config.json
-  changed_when: false
-  register: regctl_config
+- name: Load generated registry password
+  ansible.builtin.slurp:
+    src: "{{ registry_password_file }}"
+  register: _registry_password_data
+  no_log: true
 
-- name: Verify regctl config output
-  ansible.builtin.debug:
-    msg: "{{ regctl_config.stdout_lines }}"
+- name: Authenticate regctl to the image registry
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/regctl
+      - registry
+      - login
+      - "{{ cluster_name }}.{{ cluster_domain }}:5000"
+      - --user
+      - "{{ registry_username }}"
+      - --pass-stdin
+    stdin: "{{ _registry_password_data.content | b64decode | trim }}"
+  no_log: true
+  changed_when: false
+
+- name: Protect regctl registry configuration
+  ansible.builtin.file:
+    path: /root/.regctl/config.json
+    owner: root
+    group: root
+    mode: "0600"

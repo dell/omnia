@@ -288,6 +288,24 @@
         seconds: 30
         prompt: "Waiting for OpenCHAMI services to stabilize after upgrade..."
 
+# Security reconciliation runs for both a migrated installation and an
+# installation that was already on the target RPM. Version-only early exits in
+# the migration plays must not preserve the legacy trusted-zone assignment.
+- name: Reconcile OpenCHAMI container firewall policy
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Apply restricted OpenCHAMI firewall zone during upgrade
+      ansible.builtin.include_role:
+        name: deploy_openchami
+        tasks_from: configs/firewall.yml
+        apply:
+          tags:
+            - upgrade
+      tags:
+        - upgrade
+
 # Post-upgrade verification
 - name: Verify OpenCHAMI health post-upgrade
   hosts: oim

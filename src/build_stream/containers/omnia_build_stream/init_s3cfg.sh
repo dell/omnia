@@ -16,15 +16,20 @@
 set -euo pipefail
 
 S3CFG_FILE="${S3CFG_FILE:-/root/.s3cfg}"
-MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-admin}"
-MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-}"
+MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}"
+MINIO_SECRET_KEY="${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}"
 MINIO_HOST="${MINIO_HOST:-localhost:9000}"
-MINIO_USE_HTTPS="${MINIO_USE_HTTPS:-False}"
+MINIO_USE_HTTPS="${MINIO_USE_HTTPS:-True}"
+MINIO_CA_CERT_FILE="${MINIO_CA_CERT_FILE:-/etc/ssl/omnia-image-build-ca.crt}"
 
-if [ -z "$MINIO_SECRET_KEY" ]; then
-    echo "WARNING: MINIO_SECRET_KEY not set. s3cmd will not work without valid credentials."
-    echo "Please set MINIO_SECRET_KEY environment variable or mount a valid .s3cfg file."
-    exit 0
+if [ "$MINIO_USE_HTTPS" != "True" ]; then
+    echo "ERROR: Build Stream requires verified HTTPS for MinIO." >&2
+    exit 1
+fi
+
+if [ ! -r "$MINIO_CA_CERT_FILE" ]; then
+    echo "ERROR: MinIO CA certificate is missing or unreadable." >&2
+    exit 1
 fi
 
 cat > "$S3CFG_FILE" <<EOF
@@ -35,8 +40,9 @@ host_base = ${MINIO_HOST}
 host_bucket = ${MINIO_HOST}
 use_https = ${MINIO_USE_HTTPS}
 signature_v2 = False
-check_ssl_certificate = False
-check_ssl_hostname = False
+check_ssl_certificate = True
+check_ssl_hostname = True
+ca_certs_file = ${MINIO_CA_CERT_FILE}
 EOF
 
 chmod 600 "$S3CFG_FILE"

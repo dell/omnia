@@ -128,6 +128,29 @@
   changed_when: false
   when: repo_cert_path | default('') | length > 0
 
+- name: Create image-build PKI directory on aarch64 node
+  ansible.builtin.file:
+    path: "{{ image_build_pki_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  become: true
+
+- name: Copy image-build CA to aarch64 node
+  ansible.builtin.copy:
+    src: "{{ image_build_ca_cert }}"
+    dest: "{{ image_build_ca_anchor }}"
+    owner: root
+    group: root
+    mode: "{{ file_permissions_644 }}"
+  become: true
+  register: _image_build_ca_copy
+  notify: Refresh CA trust for image-build services on aarch64 node
+
+- name: Apply image-build CA trust on aarch64 node
+  ansible.builtin.meta: flush_handlers
+
 # =========================================================================
 # Phase 5: Pull builder container image (Pulp first, DockerHub fallback)
 # =========================================================================
@@ -325,8 +348,77 @@
          if hostvars['localhost']['standalone_mode'] | default(false) | bool
          else hostvars['localhost']['oim_hostname'] }}
 
-- name: Configure regctl to use HTTP for local registry
-  ansible.builtin.command: "{{ regctl_bin_path }} registry set --tls disabled {{ _aarch64_registry_host }}:5000"
+- name: Load generated registry password from the OIM
+  ansible.builtin.set_fact:
+    _registry_password: "{{ lookup('ansible.builtin.file', registry_password_file) | trim }}"
+  no_log: true
+
+- name: Create protected registry client directory on aarch64 node
+  ansible.builtin.file:
+    path: "{{ registry_auth_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  become: true
+
+- name: Authenticate Podman to the registry on aarch64 node
+  ansible.builtin.command:
+    argv:
+      - podman
+      - login
+      - --authfile
+      - "{{ registry_client_auth_file }}"
+      - --username
+      - "{{ registry_username }}"
+      - --password-stdin
+      - --tls-verify=true
+      - "{{ _aarch64_registry_host }}:5000"
+    stdin: "{{ _registry_password }}"
+  become: true
+  no_log: true
+  changed_when: false
+
+- name: Protect registry client authentication on aarch64 node
+  ansible.builtin.file:
+    path: "{{ registry_client_auth_file }}"
+    owner: root
+    group: root
+    mode: "{{ file_permissions_600 }}"
+  become: true
+
+- name: Configure regctl to require verified registry TLS
+  ansible.builtin.command:
+    argv:
+      - "{{ regctl_bin_path }}"
+      - registry
+      - set
+      - --tls
+      - enabled
+      - "{{ _aarch64_registry_host }}:5000"
   register: regctl_result
   changed_when: regctl_result.rc == 0
+  become: true
+
+- name: Authenticate regctl to the registry on aarch64 node
+  ansible.builtin.command:
+    argv:
+      - "{{ regctl_bin_path }}"
+      - registry
+      - login
+      - "{{ _aarch64_registry_host }}:5000"
+      - --user
+      - "{{ registry_username }}"
+      - --pass-stdin
+    stdin: "{{ _registry_password }}"
+  become: true
+  no_log: true
+  changed_when: false
+
+- name: Protect regctl registry configuration on aarch64 node
+  ansible.builtin.file:
+    path: /root/.regctl/config.json
+    owner: root
+    group: root
+    mode: "0600"
   become: true

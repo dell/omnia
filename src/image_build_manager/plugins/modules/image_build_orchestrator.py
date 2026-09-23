@@ -49,6 +49,8 @@ options:
         - name: functional group name (e.g., slurm_node_x86_64)
         - cmd: full podman run command string
         - log_path: path to the build log file
+        - environment: optional sensitive environment values passed directly
+          to the child process. Only S3_ACCESS and S3_SECRET are accepted.
     type: list
     elements: dict
     required: true
@@ -126,6 +128,7 @@ summary:
 
 
 LOG_TAIL_LINES = 20
+ALLOWED_BUILD_ENVIRONMENT_KEYS = frozenset({"S3_ACCESS", "S3_SECRET"})
 
 
 def _read_log_tail(log_path: str, lines: int = LOG_TAIL_LINES) -> str:
@@ -139,11 +142,35 @@ def _read_log_tail(log_path: str, lines: int = LOG_TAIL_LINES) -> str:
         return "(log file not readable)"
 
 
+def _prepare_child_environment(
+    environment: dict[str, str] | None,
+) -> dict[str, str]:
+    """Return a child environment containing only approved caller values."""
+    build_environment = environment or {}
+    unsupported_keys = set(build_environment) - ALLOWED_BUILD_ENVIRONMENT_KEYS
+    if unsupported_keys:
+        unsupported = ", ".join(sorted(unsupported_keys))
+        raise ValueError(f"Unsupported build environment key(s): {unsupported}")
+
+    for key, value in build_environment.items():
+        if not isinstance(value, str):
+            raise ValueError(f"Build environment value for {key} must be a string")
+        if any(character in value for character in ("\x00", "\r", "\n")):
+            raise ValueError(
+                f"Build environment value for {key} contains a forbidden character"
+            )
+
+    child_environment = os.environ.copy()
+    child_environment.update(build_environment)
+    return child_environment
+
+
 def _run_build(
     name: str,
     cmd: str,
     log_path: str,
     timeout: int,
+    environment: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Execute a single image build and return structured result."""
     start_time = time.monotonic()
@@ -169,6 +196,7 @@ def _run_build(
         # instead of treated as literal argument text (command/argument
         # injection).
         argv = shlex.split(cmd)
+        child_environment = _prepare_child_environment(environment)
         with open(log_path, "w", encoding="utf-8") as log_file:
             proc = subprocess.run(
                 argv,
@@ -177,6 +205,7 @@ def _run_build(
                 timeout=timeout,
                 check=False,
                 shell=False,
+                env=child_environment,
             )
             result["return_code"] = proc.returncode
             if proc.returncode == 0:
@@ -201,7 +230,7 @@ def _run_build(
             f"--- Last {LOG_TAIL_LINES} lines ---\n{log_tail}"
         )
     except ValueError as exc:
-        # Raised by shlex.split() on malformed quoting in cmd.
+        # Raised for malformed command quoting or rejected environment values.
         result["status"] = "failed"
         result["error"] = f"Failed to parse build command for '{name}': {exc}"
     except OSError as exc:
@@ -222,6 +251,7 @@ def main() -> None:
                     name=dict(type="str", required=True),
                     cmd=dict(type="str", required=True),
                     log_path=dict(type="str", required=True),
+                    environment=dict(type="dict", default={}, no_log=True),
                 ),
             ),
             max_parallel=dict(type="int", default=0),
@@ -230,7 +260,7 @@ def main() -> None:
         supports_check_mode=True,
     )
 
-    build_commands: list[dict[str, str]] = module.params["build_commands"]
+    build_commands: list[dict[str, Any]] = module.params["build_commands"]
     max_parallel: int = module.params["max_parallel"]
     timeout: int = module.params["timeout"]
 
@@ -264,6 +294,7 @@ def main() -> None:
                 cmd=build["cmd"],
                 log_path=build["log_path"],
                 timeout=timeout,
+                environment=build.get("environment", {}),
             )
             futures_map[future] = build["name"]
 

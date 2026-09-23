@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# upgrade_image_build_manager.yml — Placeholder for image_build_manager upgrade flow.
-# Full implementation deferred to a future release.
-
-- name: Image build manager upgrade placeholder
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Upgrade not implemented
-      ansible.builtin.debug:
-        msg: "image_build_manager upgrade flow is not implemented yet — reserved for future release"
+# Reuse the idempotent prepare path so existing deployments receive the same
+# PKI, authentication, protected credential files, and verified-TLS settings
+# as fresh installations. The top-level entry point performs setup, input
+# validation, and credential loading before importing this playbook.
+- name: Reconcile secure image-build infrastructure during upgrade
+  ansible.builtin.import_playbook: ../prepare/prepare_image_build_manager.yml
+  tags:
+    - upgrade

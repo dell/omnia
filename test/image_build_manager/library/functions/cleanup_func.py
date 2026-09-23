@@ -14,7 +14,6 @@
 
 """Cleanup verification — confirm artifacts are removed after cleanup tag."""
 
-import json
 import os
 from typing import Dict, Any
 
@@ -496,10 +495,13 @@ def check_registry_cleaned(
         Dict with 'success', 'registry_reachable', 'repos',
         'repos_with_tags', 'details'.
     """
-    cmd = host.run(
-        CMDS["curl_registry_catalog_http"].format(port=REGISTRY_PORT)
+    hostname_cmd = host.run(CMDS["hostname_fqdn"])
+    registry_name = (
+        hostname_cmd.stdout.strip() if hostname_cmd.rc == 0 else "localhost"
     )
-    if cmd.rc != 0 or "repositories" not in cmd.stdout:
+    registry_url = f"{registry_name}:{REGISTRY_PORT}"
+    cmd = host.run(CMDS["regctl_repo_ls"].format(registry=registry_url))
+    if cmd.rc != 0:
         storage_path = os.path.join(
             _get_shared_path(host), "registry", "data",
         )
@@ -551,38 +553,22 @@ def check_registry_cleaned(
             "error": details if require_available else None,
         }
 
-    try:
-        data = json.loads(cmd.stdout)
-        repos = data.get("repositories", [])
-    except (json.JSONDecodeError, ValueError) as exc:
-        return {
-            "success": False,
-            "registry_reachable": True,
-            "repos": [],
-            "repos_with_tags": [],
-            "query_errors": [],
-            "details": f"Registry catalog returned invalid JSON: {exc}",
-            "error": f"Registry catalog returned invalid JSON: {exc}",
-        }
+    repos = [line.strip() for line in cmd.stdout.splitlines() if line.strip()]
 
     # Check each repo for remaining tags
     repos_with_tags = []
     query_errors = []
     for repo in repos:
         tags_cmd = host.run(
-            CMDS["curl_registry_catalog_http"].format(
-                port=REGISTRY_PORT
-            ).replace("/v2/_catalog", f"/v2/{repo}/tags/list")
+            CMDS["regctl_tag_ls"].format(
+                registry=registry_url,
+                repo=repo,
+            )
         )
         if tags_cmd.rc != 0:
             query_errors.append(f"{repo}: tag query rc={tags_cmd.rc}")
             continue
-        try:
-            tag_data = json.loads(tags_cmd.stdout)
-        except (json.JSONDecodeError, ValueError) as exc:
-            query_errors.append(f"{repo}: invalid tag JSON ({exc})")
-            continue
-        tags = tag_data.get("tags") or []
+        tags = [line.strip() for line in tags_cmd.stdout.splitlines() if line.strip()]
         if tags:
             repos_with_tags.append(
                 f"{repo} ({len(tags)} tags)"

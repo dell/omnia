@@ -31,7 +31,7 @@ def _validate_s3_config(config_data, errors, logger=None):
     Validate S3 configuration logic.
 
     Rules:
-    - If provider is 'powerscale', endpoint_url is required and must not be empty.
+    - If provider is 'powerscale', endpoint_url is required and must use HTTPS.
     - If provider is 'minio', endpoint_url should not be set (auto-managed).
     """
     s3 = config_data.get("s3_configurations", {})
@@ -43,6 +43,10 @@ def _validate_s3_config(config_data, errors, logger=None):
             errors.append(msg.S3_ENDPOINT_REQUIRED_POWERSCALE_MSG)
             if logger:
                 logger.error(msg.S3_ENDPOINT_REQUIRED_POWERSCALE_MSG)
+        elif not endpoint_url.strip().lower().startswith("https://"):
+            errors.append(msg.S3_ENDPOINT_HTTPS_REQUIRED_POWERSCALE_MSG)
+            if logger:
+                logger.error(msg.S3_ENDPOINT_HTTPS_REQUIRED_POWERSCALE_MSG)
 
     if provider == "minio" and endpoint_url:
         if logger:

@@ -28,6 +28,12 @@ S3_ENDPOINT_REQUIRED_POWERSCALE_MSG = (
     "when provider is 'powerscale'."
 )
 
+S3_ENDPOINT_HTTPS_REQUIRED_POWERSCALE_MSG = (
+    "image_build_config: s3_configurations.endpoint_url must use HTTPS "
+    "when provider is 'powerscale'. Install the endpoint CA in the system "
+    "trust store before running image builds."
+)
+
 S3_ENDPOINT_NOT_SET_MINIO_MSG = (
     "image_build_config: s3_configurations.endpoint_url should not be set "
     "when provider is 'minio' (auto-managed by deploy_minio role)."
@@ -90,8 +96,13 @@ FUNCTIONAL_GROUPS_IGNORED_MSG = (
 # =============================================================================
 
 S3_ACCESS_ID_REQUIRED_MSG = (
-    "image_build_credentials: s3_access_id is required when "
-    "s3_configurations.provider is 'powerscale'."
+    "image_build_credentials: s3_access_id is required for the configured "
+    "S3 provider."
+)
+
+S3_ACCESS_ID_RESERVED_MINIO_MSG = (
+    "image_build_credentials: s3_access_id must not use a well-known MinIO "
+    "administrator identity ('admin' or 'minioadmin')."
 )
 
 AARCH64_SSH_PASSWORD_REQUIRED_MSG = (

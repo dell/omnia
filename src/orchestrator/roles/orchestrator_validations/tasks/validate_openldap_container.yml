@@ -42,11 +42,14 @@
         argv:
           - podman
           - exec
+          - --env
+          - LDAPTLS_CACERT=/etc/openldap/certs/ldapserver.crt
           - omnia_auth
           - ldapwhoami
           - -x
+          - -ZZ
           - -H
-          - ldap://127.0.0.1:389
+          - "ldap://{{ hostvars['localhost']['domain_name'] }}:389"
       register: openldap_health_check
       changed_when: false
       failed_when: false
@@ -67,7 +70,7 @@
 
     - name: Report OpenLDAP health
       ansible.builtin.debug:
-        msg: "OpenLDAP container is running and accepts LDAP requests."
+        msg: "OpenLDAP container is running and accepts verified STARTTLS requests."
       when:
         - not openldap_container_missing | bool
         - openldap_health_check.rc | default(1) == 0

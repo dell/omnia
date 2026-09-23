@@ -34,7 +34,15 @@ data_s3_dir: "{{ shared_path }}/s3/data"
 s3_work_dir: "{{ shared_path }}/s3"
 
 # File permissions
-file_perm_rw: "0644"
+file_perm_rw: "0600"
+
+# Internal TLS and protected runtime environment
+image_build_pki_dir: "/etc/omnia/image_build_manager/pki"
+image_build_ca_cert: "{{ image_build_pki_dir }}/ca.crt"
+minio_tls_dir: "{{ image_build_pki_dir }}/minio"
+minio_tls_cert: "{{ minio_tls_dir }}/tls.crt"
+minio_tls_key: "{{ minio_tls_dir }}/tls.key"
+minio_environment_file: "/etc/omnia/image_build_manager/minio.env"
 
 # MinIO container settings
 minio_port: 9000
@@ -47,6 +55,16 @@ s3_secret_key_empty_fail_msg: >-
   S3 secret key (s3_secret_key) is empty. This credential is mandatory.
   Re-run the playbook to be prompted for credentials, or edit
   {{ hostvars['localhost']['input_project_dir'] }}/image_build_credentials.yml directly.
+s3_access_id_empty_fail_msg: >-
+  S3 access ID (s3_access_id) is empty. Local MinIO no longer falls back to
+  the well-known admin account. Re-run the credential collection workflow.
+minio_reserved_access_ids:
+  - admin
+  - minioadmin
+minio_reserved_access_id_fail_msg: >-
+  Local MinIO must not use the well-known administrator identities 'admin'
+  or 'minioadmin'. Re-run the credential collection workflow with a unique
+  access ID.
 
 # EPEL repository for s3cmd installation
 epel10_url: https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm

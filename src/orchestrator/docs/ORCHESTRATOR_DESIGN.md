@@ -287,7 +287,7 @@ grep -c 'playbooks/utils' src/orchestrator/**/*.yml            # expect: 0
 overall_status: "success"
 image_build_type: "image-builder"
 s3_configurations:
-  endpoint_url: "http://10.20.0.1:9000"
+  endpoint_url: "https://10.20.0.1:9000"
   bucket: "boot-images"
 functional_group_images:
   - x86_64:

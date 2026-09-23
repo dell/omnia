@@ -31,7 +31,7 @@ overall_status: "success"
 image_build_type: "image-thrillhouse"
 
 s3_configurations:
-  endpoint_url: "http://10.20.0.1:9000"
+  endpoint_url: "https://10.20.0.1:9000"
   bucket: "boot-images"
 
 functional_group_images:
@@ -76,7 +76,7 @@ bucket or S3 scheme.
 |-------|------|-------------|
 | `overall_status` | string | Currently always `"success"`; a failed build does not produce a failed-status manifest |
 | `image_build_type` | string | Producing engine: `"image-builder"` or `"image-thrillhouse"` |
-| `s3_configurations.endpoint_url` | string | S3 HTTP(S) endpoint URL, without the artifact path |
+| `s3_configurations.endpoint_url` | string | S3 HTTPS endpoint URL, without the artifact path |
 | `s3_configurations.bucket` | string | Artifact bucket; currently `"boot-images"` |
 | `functional_group_images[].<architecture>[].functional_group` | string | Group name with architecture suffix |
 | `functional_group_images[].<architecture>[].kernel` | string | Exact endpoint-relative kernel object path (`vmlinuz*`) |
@@ -101,7 +101,7 @@ engine.
 
 | Provider | Behavior |
 |----------|----------|
-| MinIO | Auto-detected: `http://<admin_nic_ip>:9000` |
+| MinIO | Auto-detected: `https://<admin_nic_ip>:9000` with the Omnia-managed CA |
 | PowerScale | Uses `endpoint_url` from config |
 
 ---

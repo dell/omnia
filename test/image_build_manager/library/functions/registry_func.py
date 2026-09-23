@@ -14,7 +14,6 @@
 
 """OCI registry image verification functions."""
 
-import json
 from typing import Dict, Any
 
 from ._config_helpers import get_configured_functional_groups
@@ -30,8 +29,7 @@ def check_registry_images(
 ) -> Dict[str, Any]:
     """Verify base and compute images exist in the local registry.
 
-    Queries the registry catalog via HTTP/HTTPS curl. Falls back
-    to regctl if curl is unavailable.
+    Queries the authenticated, TLS-verified registry using regctl.
 
     Args:
         host: testinfra host object
@@ -70,34 +68,16 @@ def check_registry_images(
     for fg in groups:
         expected.append(f"rhel-{fg}")
 
-    # Query registry catalog via curl (try HTTP first, then HTTPS)
+    regctl_cmd = host.run(
+        CMDS["regctl_repo_ls"].format(registry=registry_url)
+    )
     catalog_repos = []
-    for scheme in ("http", "https"):
-        curl_cmd = host.run(
-            CMDS["curl_registry_catalog_scheme"].format(
-                scheme=scheme, port=REGISTRY_PORT,
-            )
-        )
-        if curl_cmd.rc == 0 and "repositories" in curl_cmd.stdout:
-            try:
-                data = json.loads(curl_cmd.stdout)
-                catalog_repos = data.get("repositories", [])
-            except (json.JSONDecodeError, ValueError):
-                catalog_repos = []
-            if catalog_repos:
-                break
-
-    if not catalog_repos:
-        # Fallback to regctl
-        regctl_cmd = host.run(
-            CMDS["regctl_repo_ls"].format(registry=registry_url)
-        )
-        if regctl_cmd.rc == 0:
-            catalog_repos = [
-                r.strip()
-                for r in regctl_cmd.stdout.strip().split("\n")
-                if r.strip()
-            ]
+    if regctl_cmd.rc == 0:
+        catalog_repos = [
+            line.strip()
+            for line in regctl_cmd.stdout.splitlines()
+            if line.strip()
+        ]
 
     if not catalog_repos:
         return {

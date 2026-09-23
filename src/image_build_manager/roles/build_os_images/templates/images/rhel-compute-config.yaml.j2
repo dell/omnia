@@ -5,13 +5,13 @@ options:
   pkg_manager: dnf
   parent: '{{ registry_host }}:5000/{{ oim_node_name }}/{{ rhel_arch_base_image_name }}:{{ rhel_tag }}'
   registry_opts_pull:
-    - '--tls-verify={{ registry_tls_verify | default(false) | lower }}'
+    - '--tls-verify={{ registry_tls_verify | default(true) | lower }}'
   publish_s3: '{{ s3_endpoint }}'
   s3_prefix: '{{ group_name }}/{{ rhel_base_compute_image_name }}/'
   s3_bucket: 'boot-images'
   publish_registry: '{{ registry_host }}:5000/{{ oim_node_name }}'
   registry_opts_push:
-    - '--tls-verify={{ registry_tls_verify | default(false) | lower }}'
+    - '--tls-verify={{ registry_tls_verify | default(true) | lower }}'
 
 {% set _ssl = '1' if (repo_ssl_verify | default(true) | bool) else '0' %}
 repos:

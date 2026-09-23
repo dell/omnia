@@ -220,7 +220,7 @@ Figure: build_stream.yml orchestration flow
 | `prepare` | Steps 0–1 only (deploy infra) |
 | `gitlab` | Steps 0 + 2 (GitLab deployment) |
 | `cleanup` | Cleanup BuildStream + GitLab + Postgres |
-| `upgrade` | Upgrade flow (placeholder) |
+| `upgrade` | Reconcile protected S3 configuration and the BSM deployment |
 | `rollback` | Rollback flow (placeholder) |
 
 ---

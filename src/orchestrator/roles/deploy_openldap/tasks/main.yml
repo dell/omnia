@@ -19,16 +19,7 @@
 - name: Deploy OpenLDAP container
   when: hostvars['localhost']['openldap_support'] | default(false) | bool
   block:
-    - name: Check if omnia_auth container is already running
-      containers.podman.podman_container_info:
-        name: "{{ omnia_auth_container_name }}"
-      register: auth_container_check
-      failed_when: false
-
-    - name: Deploy OpenLDAP when container is not running
-      when: >-
-        (auth_container_check.containers | default([]) | length == 0) or
-        (auth_container_check.containers[0].State.Status | default('') != 'running')
+    - name: Reconcile OpenLDAP secure configuration and container
       block:
         - name: Load OpenLDAP credentials
           ansible.builtin.include_role:
@@ -61,7 +52,7 @@
             state: directory
             owner: root
             group: root
-            mode: "0755"
+            mode: "0700"
           loop:
             - "{{ auth_base_dir }}"
             - "{{ auth_config_dir }}"
@@ -87,11 +78,15 @@
             dest: "{{ auth_init_dir }}/bootstrap.ldif"
             owner: root
             group: root
-            mode: "0644"
+            mode: "0600"
+          no_log: true
 
         - name: Pull omnia_auth container image
           ansible.builtin.command:
-            cmd: "podman pull {{ omnia_auth_image }}:{{ omnia_auth_tag }}"
+            argv:
+              - podman
+              - pull
+              - "{{ omnia_auth_image }}:{{ omnia_auth_tag }}"
           register: pull_result
           retries: "{{ pull_retries }}"
           delay: "{{ pull_delay }}"
@@ -118,10 +113,10 @@
           ansible.builtin.systemd:
             daemon_reload: true
 
-        - name: Start omnia_auth service
+        - name: Restart omnia_auth service with reconciled configuration
           ansible.builtin.systemd:
             name: omnia_auth
-            state: started
+            state: restarted
             enabled: true
 
         - name: Wait for omnia_auth container to be healthy
@@ -137,13 +132,6 @@
         - name: Display OpenLDAP deployment status
           ansible.builtin.debug:
             msg: "OpenLDAP (omnia_auth) container deployed successfully on {{ ldap_server_ip }}"
-
-    - name: Display skip message when container is already running
-      ansible.builtin.debug:
-        msg: "OpenLDAP (omnia_auth) container is already running. Skipping deployment."
-      when: >-
-        (auth_container_check.containers | default([]) | length > 0) and
-        (auth_container_check.containers[0].State.Status | default('') == 'running')
 
   rescue:
     - name: OpenLDAP deployment failed

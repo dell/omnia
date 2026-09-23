@@ -31,7 +31,7 @@
 #     -e cleanup_image_pattern="rhel-slurm_*"                      # Delete by pattern
 #   ansible-playbook image_build_manager.yml --tags cleanup_images \
 #     -e skip_approval=true                                        # Skip approval (automation)
-#   ansible-playbook image_build_manager.yml --tags upgrade         # Upgrade flow (placeholder)
+#   ansible-playbook image_build_manager.yml --tags upgrade         # Reconcile secure infrastructure
 #   ansible-playbook image_build_manager.yml --tags rollback        # Rollback flow (placeholder)
 #
 # Tags (mutually exclusive — pick ONE):
@@ -44,7 +44,7 @@
 #   build        — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
 #   cleanup      — Remove MinIO, registry, build artifacts, logs, and credentials
 #   cleanup_images — Delete built images from S3 + registry (by pattern or all)
-#   upgrade      — Upgrade flow (placeholder — future release)
+#   upgrade      — Reconcile secure MinIO, registry, and internal PKI configuration
 #   rollback     — Rollback flow (placeholder — future release)
 #
 # Tag Validation:
@@ -165,7 +165,7 @@
     - cleanup_images
 
 # =========================================================================
-# FLOW: upgrade — Upgrade flow placeholder (opt-in only)
+# FLOW: upgrade — Reconcile hardened service configuration (opt-in only)
 # =========================================================================
 - name: Upgrade image_build_manager
   ansible.builtin.import_playbook: upgrade/upgrade_image_build_manager.yml

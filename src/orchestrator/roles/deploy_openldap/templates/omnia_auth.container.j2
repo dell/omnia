@@ -15,8 +15,10 @@ Volume={{ auth_config_dir }}/slapd.conf:/etc/openldap/slapd.conf:ro,Z
 Volume={{ auth_init_dir }}/bootstrap.ldif:/container-init/bootstrap.ldif:ro,Z
 Volume={{ auth_certs_dir }}:/etc/openldap/certs:ro,Z
 Volume={{ auth_data_dir }}:/var/lib/openldap/openldap-data:Z
+AddHost={{ domain_name }}:127.0.0.1
+Environment=LDAP_HEALTH_HOST={{ domain_name }}
 AutoUpdate=registry
-HealthCmd=ldapwhoami -x -H ldap://127.0.0.1:389
+HealthCmd=/bin/sh -c 'LDAPTLS_CACERT=/etc/openldap/certs/{{ tls_cert_file }} ldapwhoami -x -ZZ -H ldap://$LDAP_HEALTH_HOST:389'
 HealthInterval=30s
 HealthTimeout=5s
 HealthRetries=3

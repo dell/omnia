@@ -4,15 +4,17 @@ secret_key = {{ s3_secret_key }}
 {% if storage_backend  == 'powerscale' %}
 host_base = {{ s3_configurations.endpoint_url | regex_replace('^https?://', '') }}
 host_bucket = {{ s3_configurations.endpoint_url | regex_replace('^https?://', '') }}
-use_https = {{ 'True' if s3_configurations.endpoint_url.startswith('https') else 'False' }}
-check_ssl_certificate = False
-check_ssl_hostname = False
+use_https = True
+check_ssl_certificate = True
+check_ssl_hostname = True
+ca_certs_file = /etc/pki/tls/certs/ca-bundle.crt
 {% else %}
 host_base = {{ admin_nic_ip }}:9000
 host_bucket = {{ admin_nic_ip }}:9000
-use_https = False
-check_ssl_certificate = False
-check_ssl_hostname = False
+use_https = True
+check_ssl_certificate = True
+check_ssl_hostname = True
+ca_certs_file = /etc/pki/tls/certs/ca-bundle.crt
 {% endif %}
 signature_v2 = False
 bucket_location = us-east-1

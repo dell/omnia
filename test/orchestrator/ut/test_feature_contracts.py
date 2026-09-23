@@ -232,11 +232,47 @@ def test_openldap_credentials_tls_and_health_are_fail_closed():
     assert "no_log: true" in deploy
     assert 'mode: "0600"' in deploy
     assert '{ name: "{{ tls_key_file }}", mode: "0600" }' in certs
-    assert "HealthCmd=ldapwhoami" in quadlet
+    assert "ldapwhoami -x -ZZ" in quadlet
     assert "PublishPort={{ ldap_port }}:389" in quadlet
     assert "PublishPort={{ ldaps_port }}:636" in quadlet
     assert "ldapwhoami" in validation and "failed_when: false" in validation
     assert "Fail if OpenLDAP does not accept LDAP requests" in validation
+
+
+def test_openldap_rejects_cleartext_directory_operations():
+    """ORCH_UT_SEC_001: LDAP binds and reads require a protected transport."""
+    slapd = _read(
+        ORCHESTRATOR_ROOT / "roles/deploy_openldap/templates/slapd.conf.j2"
+    )
+    sssd = _read(
+        ORCHESTRATOR_ROOT
+        / "roles/configure_ochami/templates/openldap/sssd.conf.j2"
+    )
+    validation = _read(
+        ORCHESTRATOR_ROOT
+        / "roles/orchestrator_validations/tasks/validate_openldap_container.yml"
+    )
+    assert "security ssf=1 update_ssf=128 simple_bind=128" in slapd
+    assert "by users read" in slapd and "by * none" in slapd
+    assert "ldap_tls_reqcert = demand" in sssd
+    assert sssd.count("ldap_tls_cacert = /etc/openldap/certs/ldapserver.crt") == 2
+    assert "- -ZZ" in validation
+    assert "LDAPTLS_CACERT=/etc/openldap/certs/ldapserver.crt" in validation
+
+
+def test_openchami_podman_interfaces_use_restricted_firewall_zone():
+    """ORCH_UT_SEC_002: Podman bridges are not assigned to the trusted zone."""
+    firewall = _read(
+        ORCHESTRATOR_ROOT / "roles/deploy_openchami/tasks/configs/firewall.yml"
+    )
+    variables = yaml.safe_load(
+        _read(ORCHESTRATOR_ROOT / "roles/deploy_openchami/vars/main.yml")
+    )
+    assert variables["openchami_firewall_zone"] == "omnia-openchami"
+    assert "restricted OpenCHAMI container firewall zone" in firewall
+    assert "Remove Podman interfaces from the unrestricted trusted zone" in firewall
+    assert 'zone: "{{ openchami_firewall_zone }}"' in firewall
+    assert "Bind Podman interfaces to the restricted OpenCHAMI zone" in firewall
 
 
 def test_functional_group_classification_has_ordered_custom_fallback():
@@ -307,10 +343,14 @@ def test_upgrade_has_lock_backup_and_post_migration_verification():
     assert "upgrade_in_progress.lock" in openchami
     assert "backup" in openchami.lower()
     assert "Verify" in openchami
+    assert "Reconcile OpenCHAMI container firewall policy" in openchami
+    assert "tasks_from: configs/firewall.yml" in openchami
     assert "Update OpenLDAP Quadlet to the target image" in openldap
     assert "backup: true" in openldap
     assert "auth_target_tag in" in openldap
     assert "Fail when upgraded LDAP endpoint is not ready" in openldap
+    assert openldap.count("apply:") >= 2
+    assert openldap.count("- upgrade") >= 4
 
 
 @pytest.mark.recovery

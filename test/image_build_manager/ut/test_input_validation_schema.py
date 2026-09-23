@@ -47,6 +47,11 @@ REPO_VALIDATOR_PATH = (
     / "src/image_build_manager/plugins/module_utils/input_validation/validators"
     / "repo_status_validator.py"
 )
+CREDENTIAL_VALIDATOR_PATH = (
+    REPO_ROOT
+    / "src/image_build_manager/plugins/module_utils/input_validation/validators"
+    / "image_build_credentials_validator.py"
+)
 
 
 def _load_module(name, path):
@@ -59,6 +64,9 @@ def _load_module(name, path):
 
 ENGINE = _load_module("image_build_validation_engine", ENGINE_PATH)
 REPO_VALIDATOR = _load_module("repo_status_validator", REPO_VALIDATOR_PATH)
+CREDENTIAL_VALIDATOR = _load_module(
+    "image_build_credentials_validator", CREDENTIAL_VALIDATOR_PATH
+)
 LOGGER = logging.getLogger(__name__)
 
 
@@ -70,6 +78,33 @@ def _validate(data, schema_name, label="input.yml"):
     errors = []
     ENGINE.schema(data, _schema(schema_name), label, errors, LOGGER)
     return errors
+
+
+@pytest.mark.parametrize("access_id", ["admin", "minioadmin", "MiNiOaDmIn"])
+def test_local_minio_rejects_well_known_administrator_ids(access_id):
+    credentials = {"s3_access_id": access_id, "s3_secret_key": "unique-secret"}
+    config = {"s3_configurations": {"provider": "minio"}}
+
+    errors = CREDENTIAL_VALIDATOR.validate(credentials, config, LOGGER)
+
+    assert any("well-known MinIO" in error for error in errors)
+
+
+def test_local_minio_accepts_unique_access_id():
+    credentials = {
+        "s3_access_id": "omnia-image-service",
+        "s3_secret_key": "unique-secret",
+    }
+    config = {"s3_configurations": {"provider": "minio"}}
+
+    assert not CREDENTIAL_VALIDATOR.validate(credentials, config, LOGGER)
+
+
+def test_powerscale_keeps_provider_managed_access_id_compatibility():
+    credentials = {"s3_access_id": "admin", "s3_secret_key": "provider-secret"}
+    config = {"s3_configurations": {"provider": "powerscale"}}
+
+    assert not CREDENTIAL_VALIDATOR.validate(credentials, config, LOGGER)
 
 
 @pytest.fixture
@@ -179,6 +214,15 @@ def test_powerscale_accepts_valid_endpoint(valid_config):
         "endpoint_url": "https://powerscale.example.com:9021",
     }
     assert not _validate(valid_config, "image_build_config.json")
+
+
+def test_powerscale_rejects_plain_http_endpoint(valid_config):
+    valid_config["s3_configurations"] = {
+        "provider": "powerscale",
+        "endpoint_url": "http://powerscale.example.com:9021",
+    }
+
+    assert _validate(valid_config, "image_build_config.json")
 
 
 def test_arm_host_requires_nonempty_ssh_user(valid_config):

@@ -97,9 +97,23 @@ _privilege_opts: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_privilege_o
 # Cert mount (only when repo_cert_path is set)
 _cert_opts: "{{ ([_cert_mount] if (repo_cert_path | default('') | length > 0) else []) }}"
 
+# Trust and authentication shared by both image builders. The host CA bundle
+# includes the Omnia image-build CA installed by configure_service_pki.
+image_build_pki_dir: "/etc/omnia/image_build_manager/pki"
+registry_client_auth_file: "/etc/omnia/image_build_manager/registry/client-auth.json"
+_trusted_ca_bundle_host: "/etc/pki/tls/certs/ca-bundle.crt"
+_trusted_ca_bundle_container: "/etc/ssl/certs/omnia-ca-bundle.crt"
+_registry_auth_container: "/run/omnia/registry-auth.json"
+_infrastructure_security_opts:
+  - "-e SSL_CERT_FILE={{ _trusted_ca_bundle_container }}"
+  - "-e AWS_CA_BUNDLE={{ _trusted_ca_bundle_container }}"
+  - "-e REGISTRY_AUTH_FILE={{ _registry_auth_container }}"
+  - "-v {{ _trusted_ca_bundle_host }}:{{ _trusted_ca_bundle_container }}:ro"
+  - "-v {{ registry_client_auth_file }}:{{ _registry_auth_container }}:ro"
+
 # Base image mounts (static — rhel_arch_base_image_name is known at role load time)
 ochami_mounts: >-
-  {{ _privilege_opts + _cert_opts
+  {{ _privilege_opts + _cert_opts + _infrastructure_security_opts
      + ['-v ' + openchami_work_dir + '/images/' + rhel_arch_base_image_name + '-' + rhel_tag + '.yaml:' + _config_mount_path + ':z'] }}
 
 # Container image reference + entrypoint

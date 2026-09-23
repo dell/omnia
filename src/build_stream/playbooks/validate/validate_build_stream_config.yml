@@ -34,3 +34,8 @@
     - name: Run BuildStream input validation
       ansible.builtin.include_role:
         name: validate_build_stream_input
+        apply:
+          tags:
+            - always
+      tags:
+        - always

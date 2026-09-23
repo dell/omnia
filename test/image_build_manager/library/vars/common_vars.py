@@ -232,14 +232,6 @@ CMDS = {
     "s3cmd_ls": "s3cmd ls 2>/dev/null",
     "s3cmd_ls_bucket": "s3cmd ls -Hr {bucket} 2>/dev/null",
     "s3cmd_cfg_check": "test -f {path} && echo exists",
-    # --- Registry ---
-    "curl_registry_catalog": (
-        "curl -sk https://{registry}:{port}/v2/_catalog 2>/dev/null"
-    ),
-    "curl_registry_tags": (
-        "curl -sk https://{registry}:{port}/v2/{repo}/tags/list"
-        " 2>/dev/null"
-    ),
     # --- Files ---
     "file_exists": "test -f {path} && echo exists",
     "dir_exists": "test -d {path} && echo exists",
@@ -273,11 +265,6 @@ CMDS = {
     # --- Ports ---
     "ss_listen_port": (
         "ss -tlnp 'sport = :{port}' 2>/dev/null"
-    ),
-    # --- Registry (HTTP) ---
-    "curl_registry_catalog_http": (
-        "curl -sk http://localhost:{port}/v2/_catalog"
-        " 2>/dev/null"
     ),
     # --- Git ---
     "git_remote_url": "git -C {path} remote get-url origin 2>/dev/null",
@@ -320,11 +307,6 @@ CMDS = {
     # --- S3 (recursive list) ---
     "s3cmd_ls_recursive": (
         "s3cmd ls -Hr {bucket} 2>/dev/null"
-    ),
-    # --- Registry (curl, scheme-agnostic) ---
-    "curl_registry_catalog_scheme": (
-        "curl -sk {scheme}://localhost:{port}/v2/_catalog"
-        " 2>/dev/null"
     ),
     # --- Connectivity / Precheck ---
     "echo_test": "echo connectivity_ok 2>/dev/null",

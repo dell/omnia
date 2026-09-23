@@ -48,7 +48,8 @@ and does not honor `IMAGE_BUILD_MANAGER_DATA_PATH`.
    - Try copying the staged ARM binary from
      `<OMNIA_DATA_PATH>/image_build_manager/aarch64/regctl-linux-arm64` on OIM
    - Fall back to downloading from GitHub releases if copy fails
-7. **Registry configuration** — Configures regctl to use HTTP for the local OCI registry.
+7. **Registry configuration** — Installs the Omnia image-build CA and configures
+   authenticated Podman and regctl access with verified HTTPS.
 
 ## Requirements
 

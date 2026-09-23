@@ -36,6 +36,36 @@
     state: stopped
   failed_when: false
 
+- name: Ensure Build Stream private configuration directory exists
+  ansible.builtin.file:
+    path: "{{ build_stream_s3_environment_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write protected Build Stream MinIO environment
+  ansible.builtin.copy:
+    dest: "{{ build_stream_s3_environment_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+    content: |
+      MINIO_ACCESS_KEY={{ minio_s3_username | to_json }}
+      MINIO_SECRET_KEY={{ minio_s3_password | to_json }}
+      MINIO_HOST={{ (minio_s3_host ~ ':9000') | to_json }}
+      MINIO_USE_HTTPS=True
+      MINIO_CA_CERT_FILE={{ build_stream_container_image_build_ca | to_json }}
+  no_log: true
+
+- name: Install hardened Build Stream S3 initializer
+  ansible.builtin.copy:
+    src: "{{ build_stream_s3_init_script_source }}"
+    dest: "{{ build_stream_s3_init_script }}"
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Provision playbook watcher service
   ansible.builtin.include_tasks: enable_watcher_service.yml
 

@@ -14,7 +14,6 @@
 
 """Prepare / validate / precheck verification functions."""
 
-import json
 import os
 from typing import Dict, Any
 
@@ -229,8 +228,8 @@ def check_registry_reachable(host) -> Dict[str, Any]:
     fqdn = hostname_cmd.stdout.strip() if hostname_cmd.rc == 0 else "localhost"
     registry_url = f"{fqdn}:{REGISTRY_PORT}"
 
-    cmd = host.run(CMDS["curl_registry_catalog_http"].format(port=REGISTRY_PORT))
-    if cmd.rc != 0 or "repositories" not in cmd.stdout:
+    cmd = host.run(CMDS["regctl_repo_ls"].format(registry=registry_url))
+    if cmd.rc != 0:
         return {
             "success": False,
             "registry_url": registry_url,
@@ -239,14 +238,10 @@ def check_registry_reachable(host) -> Dict[str, Any]:
             "details": f"  Registry NOT reachable at {registry_url}",
         }
 
-    try:
-        data = json.loads(cmd.stdout)
-        repos = data.get("repositories", [])
-    except (json.JSONDecodeError, ValueError):
-        repos = []
+    repos = [line.strip() for line in cmd.stdout.splitlines() if line.strip()]
 
     details_lines = [
-        f"  URL: http://{registry_url}",
+        f"  URL: https://{registry_url}",
         f"  Repositories: {len(repos)}",
     ]
     for repo in repos:

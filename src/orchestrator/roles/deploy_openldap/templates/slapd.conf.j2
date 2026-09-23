@@ -25,6 +25,11 @@ TLSCertificateFile    /etc/openldap/certs/{{ tls_cert_file }}
 TLSCertificateKeyFile /etc/openldap/certs/{{ tls_key_file }}
 {% endif %}
 
+# Reject unprotected binds and directory operations. STARTTLS on 389 and
+# LDAPS on 636 remain supported for compatibility, but clear LDAP sessions
+# cannot read directory data or submit credentials.
+security ssf=1 update_ssf=128 simple_bind=128
+
 # MDB backend
 database    mdb
 maxsize     1073741824
@@ -50,4 +55,5 @@ access to attrs=userPassword
 
 access to *
     by self write
-    by * read
+    by users read
+    by * none

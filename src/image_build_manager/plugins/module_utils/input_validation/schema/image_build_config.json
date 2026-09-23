@@ -15,7 +15,7 @@
                 },
                 "endpoint_url": {
                     "type": "string",
-                    "description": "S3 endpoint URL. Must be empty for 'minio' and a valid HTTP(S) URL for 'powerscale'."
+                    "description": "S3 endpoint URL. Must be empty for 'minio' and a valid HTTPS URL for 'powerscale'."
                 }
             },
             "required": ["provider", "endpoint_url"],
@@ -141,7 +141,7 @@
                             "endpoint_url": {
                                 "type": "string",
                                 "minLength": 1,
-                                "pattern": "^https?://\\S+$",
+                                "pattern": "^https://\\S+$",
                                 "format": "uri"
                             }
                         }

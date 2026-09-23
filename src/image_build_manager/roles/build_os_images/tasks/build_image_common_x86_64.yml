@@ -71,7 +71,7 @@
     s3_access: >-
       {{ hostvars['localhost']['image_build_creds']['s3_access_id']
       | default(hostvars['localhost']['s3_access_id'], true)
-      | default('admin', true) }}
+      | mandatory }}
     s3_secret: >-
       {{ hostvars['localhost']['image_build_creds']['s3_secret_key']
       | default(hostvars['localhost']['s3_secret_key'], true)
@@ -83,7 +83,7 @@
     s3_endpoint: >-
       {{ s3_configurations.endpoint_url
          if s3_configurations.provider == 'powerscale'
-         else 'http://' + hostvars['localhost']['admin_nic_ip'] + ':9000' }}
+         else 'https://' + hostvars['localhost']['admin_nic_ip'] + ':9000' }}
 
 - name: Set AWS checksum env vars for PowerScale S3 provider
   ansible.builtin.set_fact:

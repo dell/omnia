@@ -184,21 +184,25 @@
     - name: Build orchestrator command list (only groups needing rebuild)
       ansible.builtin.set_fact:
         _orchestrator_cmds: "{{ _orchestrator_cmds + [_current_cmd] }}"
+      no_log: true
       vars:
         _current_cmd:
           name: "{{ item.key }}"
           cmd: >-
             podman run --rm --device /dev/fuse --network host
-            -e S3_ACCESS={{ s3_access }}
-            -e S3_SECRET={{ s3_secret }}
+            -e S3_ACCESS -e S3_SECRET
             {{ aws_checksum_env }}
             {{ _privilege_opts | join(' ') }}
             {{ _cert_opts | join(' ') }}
+            {{ _infrastructure_security_opts | join(' ') }}
             -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{
             item.value.os_version | default(rhel_tag, true) }}.yaml:{{ _config_mount_path }}:z
             {{ ochami_image | join(' ') }}
             {{ ochami_base_command | join(' ') }}
           log_path: "{{ image_build_log_dir }}/{{ item.key }}{{ compute_image_suffix }}{{ _build_type_suffix }}_compute_image.log"
+          environment:
+            S3_ACCESS: "{{ s3_access }}"
+            S3_SECRET: "{{ s3_secret }}"
       loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
       loop_control:
         loop_var: item
@@ -225,6 +229,7 @@
         timeout: "{{ build_timeout | int }}"
       register: orchestrator_result
       when: (_orchestrator_cmds | length) > 0
+      no_log: true
 
     - name: Display x86_64 compute build summary
       ansible.builtin.debug:

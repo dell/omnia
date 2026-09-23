@@ -26,7 +26,6 @@ Naming rules (enforced by roles/build_os_images/vars/main.yml):
 Test metadata is resolved from the centralized test-case registry.
 """
 
-import json
 from collections import Counter
 from typing import List
 
@@ -121,23 +120,8 @@ def _get_registry_repos(host) -> List[str]:
     fqdn = hostname_cmd.stdout.strip() if hostname_cmd.rc == 0 else "localhost"
     registry_url = f"{fqdn}:{REGISTRY_PORT}"
 
-    # Try curl (HTTP, then HTTPS) — same as check_registry_images
-    for scheme in ("http", "https"):
-        curl_cmd = host.run(
-            CMDS["curl_registry_catalog_scheme"].format(
-                scheme=scheme, port=REGISTRY_PORT,
-            )
-        )
-        if curl_cmd.rc == 0 and "repositories" in curl_cmd.stdout:
-            try:
-                data = json.loads(curl_cmd.stdout)
-                repos = data.get("repositories", [])
-                if repos:
-                    return repos
-            except (json.JSONDecodeError, ValueError):
-                pass
-
-    # Fallback to regctl
+    # regctl uses the authenticated, TLS-verified client configuration
+    # installed by the image-build prepare workflow.
     regctl_cmd = host.run(CMDS["regctl_repo_ls"].format(registry=registry_url))
     if regctl_cmd.rc == 0:
         return [r.strip() for r in regctl_cmd.stdout.strip().split("\n") if r.strip()]
