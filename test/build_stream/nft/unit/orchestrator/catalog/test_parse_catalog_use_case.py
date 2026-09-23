@@ -210,7 +210,7 @@ class TestUniquenessCheck:
         result = use_case.execute(cmd)
 
         assert result.stage_state == "COMPLETED"
-        assert result.image_group_id == "new-group-id"
+        assert result.image_group_id == "new-group-id-v1.0"
         assert stage_repo.find_by_job_and_name(
             jid, StageName(StageType.PARSE_CATALOG.value)
         ).stage_state.value == "COMPLETED"
@@ -237,7 +237,7 @@ class TestUniquenessCheck:
             artifact_store=artifact_store,
             artifact_metadata_repo=artifact_metadata_repo,
             image_group_repo=FakeImageGroupRepo(
-                existing_ids={"omnia-services-rhel-10-0-slurm-test"}
+                existing_ids={"omnia-services-rhel-10-0-slurm-test-v1.0"}
             ),
         )
         cmd = ParseCatalogCommand(job_id=jid, client_id=client, correlation_id=_correlation_id())
@@ -298,7 +298,7 @@ class TestUniquenessCheck:
         cmd = ParseCatalogCommand(job_id=jid, client_id=client, correlation_id=_correlation_id())
 
         result = use_case.execute(cmd)
-        assert result.image_group_id == "lowercase-group-id"
+        assert result.image_group_id == "lowercase-group-id-v1.0"
 
 
 # ---------------------------------------------------------------------------
@@ -505,7 +505,7 @@ class TestStageGuards:
 
         result = use_case.execute(cmd)
         assert result.stage_state == "COMPLETED"
-        assert result.image_group_id == "retry-group"
+        assert result.image_group_id == "retry-group-v1.0"
 
 
 # ---------------------------------------------------------------------------
@@ -567,8 +567,8 @@ class TestSchemaVersionValidation:
 
         # Assert
         assert result.stage_state == "COMPLETED"
-        assert result.image_group_id == "omnia-slurm-rhel-10-0-x86-64-aarch64"
-        
+        assert result.image_group_id == "omnia-slurm-rhel-10-0-x86-64-aarch64-v1.0"
+
         # Verify schema_version recorded in Job entity
         job = job_repo.find_by_id(jid)
         assert job.catalog_schema_version == 2
@@ -718,8 +718,8 @@ class TestSchemaVersionValidation:
 
         # Assert
         assert result.stage_state == "COMPLETED"
-        assert result.image_group_id == "omnia-slurm-rhel-10-0-x86-64-aarch64"
-        
+        assert result.image_group_id == "omnia-slurm-rhel-10-0-x86-64-aarch64-v1.2"
+
         # Verify Job entity has correct catalog metadata
         job = job_repo.find_by_id(jid)
         assert job.catalog_identifier == "omnia-slurm-rhel-10-0-x86-64-aarch64"
