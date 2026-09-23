@@ -44,7 +44,8 @@
     dest: /root/.s3cfg
     owner: root
     group: root
-    mode: "{{ file_perm_rw }}"
+    mode: "{{ s3cfg_permissions }}"
+  no_log: true
 
 # === S3 Bucket Creation ===
 

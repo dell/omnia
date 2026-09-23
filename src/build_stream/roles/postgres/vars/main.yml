@@ -35,7 +35,9 @@ postgres_dir_mode: "0750"
 
 # Quadlet service file path
 postgres_quadlet_path: "/etc/containers/systemd/{{ postgres_container_name }}.container"
-postgres_quadlet_file_mode: "0644"
+# Quadlet file embeds the Postgres superuser password. Restrict to root-only to
+# close CWE-732 / CWE-522 (world-readable credential exposure on the OIM).
+postgres_quadlet_file_mode: "0600"
 
 # Wait for PostgreSQL to be ready
 postgres_ready_wait_seconds: 10
