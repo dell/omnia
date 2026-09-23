@@ -12,7 +12,7 @@ import re
 import pytest
 import yaml
 
-from library.functions import load_test_config
+from library.functions import resolve_target_input_project_path
 
 
 ADMIN_REQUIRED = {
@@ -21,12 +21,8 @@ ADMIN_REQUIRED = {
 }
 
 
-def _input_path():
-    config = load_test_config()
-    shared = config.get("shared_path", "/opt/omnia/orchestrator").rstrip("/")
-    return posixpath.join(
-        shared, "input", config.get("project_name", "project_default")
-    )
+def _input_path(host):
+    return resolve_target_input_project_path(host)
 
 
 def _read(host, path):
@@ -36,7 +32,7 @@ def _read(host, path):
 
 
 def _network_spec(host):
-    path = posixpath.join(_input_path(), "network_spec.yml")
+    path = posixpath.join(_input_path(host), "network_spec.yml")
     try:
         data = yaml.safe_load(_read(host, path))
     except yaml.YAMLError as exc:
@@ -72,10 +68,11 @@ def _network(config):
 @pytest.mark.order(1)
 def test_network_spec_exists(host):
     """ORCH_FVT_NETWORK_V001: network_spec.yml exists on the selected target."""
-    assert host.file(posixpath.join(_input_path(), "network_spec.yml")).is_file
+    assert host.file(posixpath.join(_input_path(host), "network_spec.yml")).is_file
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_network_spec_valid_yaml(host):
     """ORCH_FVT_NETWORK_V002: network_spec.yml is a non-empty Networks mapping."""
@@ -83,6 +80,7 @@ def test_network_spec_valid_yaml(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_admin_network_required_fields(host):
     """ORCH_FVT_NETWORK_V003: admin_network contains every required field."""
@@ -91,6 +89,7 @@ def test_admin_network_required_fields(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_ip_address_format_validation(host):
     """ORCH_FVT_NETWORK_V004: All configured network addresses are valid IPv4 values."""
@@ -102,6 +101,7 @@ def test_ip_address_format_validation(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_dynamic_range_format_validation(host):
     """ORCH_FVT_NETWORK_V005: Primary DHCP range uses ordered start-end addresses."""
@@ -109,6 +109,7 @@ def test_dynamic_range_format_validation(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_netmask_bits_validation(host):
     """ORCH_FVT_NETWORK_V006: Every network uses a valid IPv4 prefix length."""
@@ -118,6 +119,7 @@ def test_netmask_bits_validation(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(7)
 def test_additional_subnets_validation(host):
     """ORCH_FVT_NETWORK_V007: Additional DHCP subnets have complete contained ranges."""
@@ -132,6 +134,7 @@ def test_additional_subnets_validation(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(8)
 def test_dns_configuration_validation(host):
     """ORCH_FVT_NETWORK_V008: DNS server entries contain only IPv4 addresses."""
@@ -142,6 +145,7 @@ def test_dns_configuration_validation(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(9)
 def test_ntp_servers_validation(host):
     """ORCH_FVT_NETWORK_V009: NTP servers have supported type and address values."""
@@ -158,6 +162,7 @@ def test_ntp_servers_validation(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(10)
 def test_ib_network_validation(host):
     """ORCH_FVT_NETWORK_V010: Optional InfiniBand network has a valid IPv4 CIDR."""
@@ -171,6 +176,7 @@ def test_ib_network_validation(host):
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(11)
 def test_coredhcp_config_exists(host):
     """ORCH_FVT_NETWORK_V011: Prepared OpenCHAMI deployment has CoreDHCP configuration."""
@@ -179,6 +185,7 @@ def test_coredhcp_config_exists(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(12)
 def test_coredhcp_multi_subnet_rules(host):
     """ORCH_FVT_NETWORK_V012: CoreDHCP contains a relay rule for each additional subnet."""
@@ -190,6 +197,7 @@ def test_coredhcp_multi_subnet_rules(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(13)
 def test_subnet_containment_check(host):
     """ORCH_FVT_NETWORK_V013: OIM, router, and DHCP range stay inside each subnet."""
@@ -202,6 +210,7 @@ def test_subnet_containment_check(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(14)
 def test_static_routes_table_validation(host):
     """ORCH_FVT_NETWORK_V014: Target routing table covers every configured admin subnet."""
@@ -216,6 +225,7 @@ def test_static_routes_table_validation(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(15)
 def test_coredhcp_pool_configuration_validation(host):
     """ORCH_FVT_NETWORK_V015: CoreDHCP advertises every configured DHCP range."""
@@ -229,6 +239,7 @@ def test_coredhcp_pool_configuration_validation(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(16)
 def test_network_interface_configuration_validation(host):
     """ORCH_FVT_NETWORK_V016: Configured OIM administration interface exists and is up."""
@@ -242,6 +253,7 @@ def test_network_interface_configuration_validation(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(17)
 def test_dns_forwarder_configuration_validation(host):
     """ORCH_FVT_NETWORK_V017: CoreDNS has a non-empty forwarder configuration."""
@@ -255,6 +267,7 @@ def test_dns_forwarder_configuration_validation(host):
 
 
 @pytest.mark.sanity
+@pytest.mark.buildstream
 @pytest.mark.order(18)
 def test_routing_table_validation(host):
     """ORCH_FVT_NETWORK_V018: Target has a default route and device-backed IPv4 routes."""

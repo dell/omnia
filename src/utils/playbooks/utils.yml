@@ -222,7 +222,7 @@
         msg: "Utils rollback - not implemented yet"
 
 # =========================================================================
-# Step 9: Write domain status file (runs after all flows)
+# Step 9: Write domain status file (runs after all flows, except cleanup)
 # =========================================================================
 - name: Write utils domain status
   hosts: localhost
@@ -238,6 +238,7 @@
     - name: Write execution status
       ansible.builtin.include_role:
         name: utils_status_writer
+      when: not ansible_run_tags | intersect(['cleanup']) | list
       vars:
         utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
         utils_playbook_name: "utils.yml"

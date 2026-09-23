@@ -1,3 +1,17 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
 name: PR Hygiene Check
 on:
   pull_request:
@@ -45,7 +59,8 @@ jobs:
 
           if [ "$BEHIND" -gt "$BEHIND_LIMIT" ]; then
             echo "❌ FAILED: Branch is ${BEHIND} commits behind '${BASE_REF}' (limit: ${BEHIND_LIMIT})."
-            echo "Please rebase onto latest '${BASE_REF}'."
+            echo "Create a replacement PR from a clean branch based on the latest '${BASE_REF}'."
+            echo "See the replacement-PR instructions in the final summary below."
             FAILED=true
           else
             echo "✅ PASSED: Branch is reasonably up-to-date"
@@ -62,15 +77,12 @@ jobs:
 
           if [ "$TOTAL_COMMITS" -gt "$COMMIT_LIMIT" ]; then
             echo "❌ FAILED: PR contains ${TOTAL_COMMITS} commits (limit: ${COMMIT_LIMIT})."
-            echo "Please squash your commits."
-            echo ""
-            echo "Suggested:"
-            echo "  git fetch origin"
-            echo "  git rebase -i origin/${BASE_REF}"
+            echo "Create a replacement PR containing only the intended changes."
+            echo "See the replacement-PR instructions in the final summary below."
             FAILED=true
           elif [ "$TOTAL_COMMITS" -gt "$WARN_LIMIT" ]; then
             echo "⚠️  WARNING: ${TOTAL_COMMITS} commits approaching limit of ${COMMIT_LIMIT}."
-            echo "Consider squashing related commits together."
+            echo "If more commits are needed, prepare a clean replacement branch before the limit is exceeded."
           else
             echo "✅ PASSED: Commit count is within limit"
           fi
@@ -87,8 +99,8 @@ jobs:
             echo "⚠️  WARNING: Found ${DUP_COUNT} commit(s) that appear already present in base branch:"
             echo "$DUPLICATES"
             echo ""
-            echo "These commits may have been cherry-picked, squashed, or already merged into '${BASE_REF}'."
-            echo "Consider rebasing your branch to remove them."
+            echo "These commits may have been copied or already merged into '${BASE_REF}'."
+            echo "If a clean history is required, create a replacement PR containing only the intended changes."
           else
             echo "✅ PASSED: No duplicate commits found"
           fi
@@ -101,29 +113,14 @@ jobs:
           if [ "$FAILED" = true ]; then
             echo "❌ PR HYGIENE CHECK FAILED"
             echo ""
-            echo "╔═════════════════════════════════════════════════╗"
-            echo "║           HOW TO FIX YOUR BRANCH               ║"
-            echo "╠═════════════════════════════════════════════════╣"
-            echo "║                                                 ║"
-            echo "║  # Step 1: Fetch latest base branch             ║"
-            echo "║  git fetch origin                               ║"
-            echo "║                                                 ║"
-            echo "║  # Step 2: Rebase onto base (NOT merge!)        ║"
-            echo "║  git rebase origin/${BASE_REF}                  ║"
-            echo "║                                                 ║"
-            echo "║  # Step 3: Squash commits if too many           ║"
-            echo "║  git rebase -i origin/${BASE_REF}               ║"
-            echo "║                                                 ║"
-            echo "║  # Step 4: If conflicts arise:                  ║"
-            echo "║  git add .                                      ║"
-            echo "║  git rebase --continue                          ║"
-            echo "║                                                 ║"
-            echo "║  # Step 5: Force push cleaned branch            ║"
-            echo "║  git push --force-with-lease                    ║"
-            echo "║                                                 ║"
-            echo "║  Your PR will auto-update with ONLY             ║"
-            echo "║  your actual work commits.                      ║"
-            echo "╚═════════════════════════════════════════════════╝"
+            echo "HOW TO CREATE A REPLACEMENT PR"
+            echo "  1. Create a new branch from the latest '${BASE_REF}'."
+            echo "  2. Apply only the intended file changes; do not carry over the old"
+            echo "     branch's commit history."
+            echo "  3. Open a new PR from the clean branch, verify its checks, and then"
+            echo "     close this PR."
+            echo ""
+            echo "Do not rewrite the history of this existing PR branch."
             exit 1
           fi
 

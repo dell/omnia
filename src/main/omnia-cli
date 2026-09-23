@@ -28,6 +28,7 @@
 #   ./omnia-cli status [--project <name>]
 #   ./omnia-cli check [--project <name>]
 #   ./omnia-cli edit <domain> [file] [--project <name>]
+#   ./omnia-cli output <domain> [file] [--project <name>]
 #   ./omnia-cli logs <domain> [--project <name>] [--limit <n>]
 #   ./omnia-cli repo_manager [--project <name>]
 #   ./omnia-cli image_build_manager [--project <name>]
@@ -110,7 +111,7 @@ declare -A DOMAIN_GUIDE_FILES=(
     [discovery]="discovery_config.yml network_spec.yml discovery_credentials.yml"
     [telemetry]="telemetry_config.yml telemetry_storage_config.yml telemetry_packages.yml bmc_group_data.csv telemetry_credentials.yml"
     [build_stream]="build_stream_config.yml build_stream_credentials.yml"
-    [utils]="collect_pxe.yml install_os_config.yml backup_oim_logs_config.yml install_os_credentials.yml"
+    [utils]="collect_pxe.yml install_os_config.yml backup_oim_logs_config.yml slurm_config_util_config.yml install_os_credentials.yml"
 )
 
 declare -A INPUT_FILE_LEVEL=(
@@ -143,6 +144,7 @@ declare -A INPUT_FILE_LEVEL=(
     [utils/collect_pxe.yml]="conditional"
     [utils/install_os_config.yml]="conditional"
     [utils/backup_oim_logs_config.yml]="optional"
+    [utils/slurm_config_util_config.yml]="optional"
     [utils/install_os_credentials.yml]="generated"
 )
 
@@ -176,6 +178,7 @@ declare -A INPUT_FILE_DESCRIPTIONS=(
     [utils/collect_pxe.yml]="Required only for the collect flow; provide customer admin-network IPs for each Kubernetes, Slurm, or login group."
     [utils/install_os_config.yml]="Required only for install_os; review ISO paths, target BMC/admin network, architecture, disk, Kickstart, and SSH settings."
     [utils/backup_oim_logs_config.yml]="Optional for backup_oim_logs; review canonical domain names and the local or NFS destination."
+    [utils/slurm_config_util_config.yml]="Optional Slurm utility settings and paths to producer-owned Orchestrator/OpenCHAMI artifacts, NFS storage, backup destination, and rollback selection."
     [utils/install_os_credentials.yml]="Created and Vault-encrypted by the install_os run for BMC and operating-system passwords."
 )
 
@@ -357,7 +360,7 @@ _show_expected_domain_outputs() {
         orchestrator)
             echo -e "    ${DIM}orchestrator_state.yml — generated downstream run state${NC}"
             echo -e "    ${DIM}.data/functional_groups_config.yml — generated functional groups${NC}"
-            echo -e "    ${DIM}orchestrator_inventory.yaml and bmc_group_data.csv — generated inventories${NC}"
+            echo -e "    ${DIM}orchestrator_inventory.yml and bmc_group_data.csv — generated inventories${NC}"
             echo -e "    ${DIM}provisioning_report.yml — provision flow report${NC}"
             echo -e "    ${DIM}pxeboot_status.yml and failed_nodes.json — PXE flow reports${NC}"
             echo -e "    ${DIM}orchestrator_status.yml — latest aggregate provision/PXE status${NC}"
@@ -379,6 +382,7 @@ _show_expected_domain_outputs() {
             echo -e "    ${DIM}install_os_status.yml — install_os result${NC}"
             echo -e "    ${DIM}collect/omnia_logs_<timestamp>/ — collected-log archive and metadata${NC}"
             echo -e "    ${DIM}backup_oim_logs/omnia_oim_logs_<timestamp>/ — default OIM backup artifacts${NC}"
+            echo -e "    ${DIM}slurm_config_util/<name>_<timestamp>/ — Slurm configuration backup and metadata${NC}"
             ;;
     esac
 }
@@ -460,7 +464,8 @@ _input_level_marker() {
 _show_domain_input_notes() {
     local domain="$1" input_dir="$2"
     local project="${input_dir##*/}"
-    local base="${OMNIA_DATA_PATH:-/opt/omnia}"
+    local discovery_root
+    discovery_root=$(_resolve_domain_root "discovery")
 
     echo -e "  ${BOLD}After reviewing the inputs:${NC}"
     case "$domain" in
@@ -476,7 +481,7 @@ _show_domain_input_notes() {
             echo "      The domain run creates or updates encrypted credentials when required."
             ;;
         orchestrator)
-            echo "    - Review, then copy ${base}/discovery/output/${project}/bmc_pxe_mapping_file.csv"
+            echo "    - Review, then copy ${discovery_root}/output/${project}/bmc_pxe_mapping_file.csv"
             echo "      to ${input_dir}/pxe_mapping_file.csv"
             if [ -n "${SYSTEM_ADMIN_NIC_IPV4:-}" ]; then
                 echo "    - Set network_spec.yml primary_oim_admin_ip to SYSTEM_ADMIN_NIC_IPV4=${SYSTEM_ADMIN_NIC_IPV4}."
@@ -514,7 +519,9 @@ _show_domain_input_notes() {
             ;;
         utils)
             echo "    - Utils workflows are independent; review only the input for the selected flow."
-            echo "    - Run: omnia.sh --run utils --tags <collect|install_os|backup_oim_logs>"
+            echo "    - For Slurm config utilities, point slurm_config_util_config.yml at the"
+            echo "      required producer-owned Orchestrator/OpenCHAMI artifacts."
+            echo "    - Run: omnia.sh --run utils --tags <utility-tag>"
             echo "      The install_os flow creates encrypted credentials when required."
             ;;
     esac
@@ -549,22 +556,33 @@ _show_input_guide() {
     _show_domain_input_notes "$domain" "$input_dir"
 }
 
-_resolve_output_dir() {
-    local domain="$1" project="$2"
+_resolve_domain_root() {
+    local domain="$1"
     local base="${OMNIA_DATA_PATH:-/opt/omnia}"
 
-    # repo_manager uses a different path convention
-    if [ "$domain" = "repo_manager" ]; then
-        echo "${base}/repo_manager/output/${project}"
-    else
-        echo "${base}/${domain}/output/${project}"
-    fi
+    case "$domain" in
+        repo_manager)         echo "${REPO_MANAGER_DATA_PATH:-${base}/repo_manager}" ;;
+        image_build_manager) echo "${IMAGE_BUILD_MANAGER_DATA_PATH:-${base}/image_build_manager}" ;;
+        discovery)            echo "${DISCOVERY_DATA_PATH:-${base}/discovery}" ;;
+        orchestrator)         echo "${ORCHESTRATOR_DATA_PATH:-${base}/orchestrator}" ;;
+        telemetry)            echo "${TELEMETRY_DATA_PATH:-${base}/telemetry}" ;;
+        build_stream)         echo "${BUILD_STREAM_DATA_PATH:-${base}/build_stream}" ;;
+        utils)                echo "${base}/utils" ;;
+    esac
+}
+
+_resolve_output_dir() {
+    local domain="$1" project="$2"
+    local domain_root
+    domain_root=$(_resolve_domain_root "$domain")
+    echo "${domain_root}/output/${project}"
 }
 
 _resolve_input_dir() {
     local domain="$1" project="$2"
-    local base="${OMNIA_DATA_PATH:-/opt/omnia}"
-    echo "${base}/${domain}/input/${project}"
+    local domain_root
+    domain_root=$(_resolve_domain_root "$domain")
+    echo "${domain_root}/input/${project}"
 }
 
 _last_modified() {
@@ -948,7 +966,8 @@ cmd_image_build_manager() {
     fi
 
     # Show log file if exists (logs are under shared_path/log/<project>, not output_dir)
-    local image_build_base="${OMNIA_DATA_PATH:-/opt/omnia}/image_build_manager"
+    local image_build_base
+    image_build_base=$(_resolve_domain_root "image_build_manager")
     local log_dir="${image_build_base}/log/${project}"
     if [ -d "$log_dir" ]; then
         local latest_log
@@ -1128,7 +1147,6 @@ _edit_file() {
 cmd_edit() {
     local domain="$1" project="$2" requested_file="${3:-}"
     local edit_status=0
-    local base="${OMNIA_DATA_PATH:-/opt/omnia}"
     local input_dir
     input_dir=$(_resolve_input_dir "$domain" "$project")
 
@@ -1271,13 +1289,183 @@ cmd_edit() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Command: output — List and view domain output artifacts
+# ─────────────────────────────────────────────────────────────────────────────
+_output_is_text() {
+    local target="$1"
+    local lower_target="${target,,}"
+
+    case "$lower_target" in
+        *.yml|*.yaml|*.json|*.csv|*.txt|*.log|*.md|*.cfg|*.conf|*.ini|*.toml|*.xml)
+            return 0
+            ;;
+    esac
+
+    if command -v file >/dev/null 2>&1; then
+        local mime_type
+        mime_type=$(file --brief --mime-type -- "$target" 2>/dev/null || true)
+        case "$mime_type" in
+            text/*|application/json|application/xml|application/x-yaml)
+                return 0
+                ;;
+        esac
+    fi
+
+    return 1
+}
+
+_view_output_file() {
+    local target="$1" output_dir="$2"
+    local resolved_root resolved_target
+    resolved_root=$(readlink -f -- "$output_dir" 2>/dev/null || true)
+    resolved_target=$(readlink -f -- "$target" 2>/dev/null || true)
+
+    if [ -z "$resolved_root" ] || [ -z "$resolved_target" ] || [ ! -f "$resolved_target" ]; then
+        echo -e "  ${FAIL} ${RED}Output file is missing or unreadable: ${target}${NC}"
+        return 1
+    fi
+
+    case "$resolved_target" in
+        "${resolved_root}/"*) ;;
+        *)
+            echo -e "  ${FAIL} ${RED}Refusing to open an output link outside ${output_dir}${NC}"
+            return 1
+            ;;
+    esac
+
+    if ! _output_is_text "$resolved_target"; then
+        local file_size mime_type="binary or unknown"
+        file_size=$(stat -c '%s' "$resolved_target" 2>/dev/null || echo "?")
+        if command -v file >/dev/null 2>&1; then
+            mime_type=$(file --brief --mime-type -- "$resolved_target" 2>/dev/null || echo "$mime_type")
+        fi
+        echo -e "  ${WARN} ${YELLOW}Binary output is not displayed.${NC}"
+        echo -e "  Path: ${resolved_target}"
+        echo -e "  Type: ${mime_type}"
+        echo -e "  Size: ${file_size} bytes"
+        return 0
+    fi
+
+    if [ -t 0 ] && [ -t 1 ]; then
+        local pager="${PAGER:-less}"
+        if ! command -v "$pager" >/dev/null 2>&1; then
+            echo -e "  ${FAIL} ${RED}Pager not found: ${pager}${NC}"
+            return 1
+        fi
+        echo -e "  Opening ${target} in ${pager}..."
+        "$pager" "$resolved_target"
+    else
+        cat -- "$resolved_target"
+    fi
+}
+
+cmd_output() {
+    local domain="$1" project="$2" requested_file="${3:-}"
+    local view_status=0
+    local output_dir
+    output_dir=$(_resolve_output_dir "$domain" "$project")
+
+    echo ""
+    echo -e "${BOLD}${BLUE}${domain} Output Files${NC}  ${DIM}(project: ${project})${NC}"
+    echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+    echo ""
+    echo -e "  Output dir: ${DIM}${output_dir}${NC}"
+    echo ""
+
+    if [ ! -d "$output_dir" ]; then
+        echo -e "  ${SKIP} No ${domain} output directory found."
+        _show_expected_domain_outputs "$domain"
+        echo ""
+        return 0
+    fi
+
+    local files
+    files=$(_find_output_files "$output_dir")
+    if [ -z "$files" ]; then
+        echo -e "  ${SKIP} No output files found."
+        _show_expected_domain_outputs "$domain"
+        echo ""
+        return 0
+    fi
+
+    echo -e "  ${BOLD}Output files:${NC}"
+    echo ""
+    local idx=0
+    local file_arr=()
+    local output_file
+    while IFS= read -r output_file; do
+        idx=$((idx + 1))
+        local relative_path file_size link_target=""
+        relative_path="${output_file#"$output_dir/"}"
+        file_size=$(stat -c '%s' "$output_file" 2>/dev/null || echo "?")
+        if [ -L "$output_file" ]; then
+            link_target=" -> $(readlink "$output_file" 2>/dev/null || true)"
+        fi
+        echo -e "    ${CYAN}${idx})${NC} ${relative_path}${link_target}  ${DIM}(${file_size} bytes)${NC}"
+        file_arr+=("$output_file")
+    done <<< "$files"
+    echo ""
+
+    local selected_file=""
+    if [ -n "$requested_file" ]; then
+        local match_count=0
+        for output_file in "${file_arr[@]}"; do
+            local candidate_rel="${output_file#"$output_dir/"}"
+            if [ "$candidate_rel" = "$requested_file" ] || \
+               [ "$(basename "$output_file")" = "$requested_file" ]; then
+                selected_file="$output_file"
+                match_count=$((match_count + 1))
+            fi
+        done
+
+        if [ "$match_count" -eq 0 ]; then
+            echo -e "  ${FAIL} ${RED}Output file is not available: ${requested_file}${NC}"
+            echo -e "  ${DIM}Choose one of the files listed above.${NC}"
+            return 1
+        elif [ "$match_count" -gt 1 ]; then
+            echo -e "  ${FAIL} ${RED}Output file name is ambiguous: ${requested_file}${NC}"
+            echo -e "  ${DIM}Use the relative path shown in the list.${NC}"
+            return 1
+        fi
+    elif [ -t 0 ] && [ -t 1 ]; then
+        echo -e "  ${DIM}Enter file number to view (or 'q' to quit):${NC}"
+        echo -n "  > "
+        local choice
+        read -r choice
+        case "$choice" in
+            q|Q|"")
+                echo -e "  ${DIM}No output opened.${NC}"
+                ;;
+            *)
+                if [[ "$choice" =~ ^[0-9]+$ ]] && \
+                   [ "$choice" -ge 1 ] && [ "$choice" -le "${#file_arr[@]}" ]; then
+                    selected_file="${file_arr[$((choice - 1))]}"
+                else
+                    echo -e "  ${RED}Invalid selection: ${choice}${NC}"
+                    return 1
+                fi
+                ;;
+        esac
+    else
+        echo -e "  ${DIM}Pass a relative filename to print a text output.${NC}"
+        echo -e "  ${DIM}Example: omnia-cli output ${domain} ${DOMAIN_STATUS_FILES[$domain]}${NC}"
+    fi
+
+    if [ -n "$selected_file" ]; then
+        echo -e "  ${BOLD}${selected_file#"$output_dir/"}${NC}"
+        echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
+        _view_output_file "$selected_file" "$output_dir" || view_status=$?
+    fi
+    echo ""
+    return "$view_status"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Command: logs — View domain execution logs or ansible logs
 # ─────────────────────────────────────────────────────────────────────────────
 cmd_logs() {
     local domain="$1" project="$2" limit="$3"
     local view_status=0
-    local base="${OMNIA_DATA_PATH:-/opt/omnia}"
-
     # Use provided limit or default
     local log_limit="${limit:-$DEFAULT_LOG_LIMIT}"
 
@@ -1286,7 +1474,9 @@ cmd_logs() {
     echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
     echo ""
 
-    local runtime_log_dir="${base}/${domain}/log"
+    local domain_root
+    domain_root=$(_resolve_domain_root "$domain")
+    local runtime_log_dir="${domain_root}/log"
     local ansible_domain_log_dir="${ANSIBLE_LOG_DEFAULT}/${domain}"
     local output_dir
     output_dir=$(_resolve_output_dir "$domain" "$project")
@@ -1456,7 +1646,7 @@ USAGE:
   omnia-cli repo_manager [--project <name>]
 
 CHECKS:
-  - Output directory exists at \${OMNIA_DATA_PATH}/repo_manager/output/<project>/
+  - Output directory exists below the configured repo_manager data root
   - repo_status.yml exists and overall_status == "success"
   - Certificate file exists when server_crt is set in repo_status.yml
   - Execution contexts and repository URLs are present
@@ -1464,6 +1654,7 @@ CHECKS:
 
 ENVIRONMENT:
   OMNIA_DATA_PATH       Root data directory (default: /opt/omnia)
+  REPO_MANAGER_DATA_PATH Optional repo_manager data-root override
   OMNIA_PROJECT_NAME    Project name (default: project_default)
 EOF
             ;;
@@ -1483,6 +1674,7 @@ CHECKS:
 
 ENVIRONMENT:
   OMNIA_DATA_PATH       Root data directory (default: /opt/omnia)
+  IMAGE_BUILD_MANAGER_DATA_PATH Optional image_build_manager data-root override
   OMNIA_PROJECT_NAME    Project name (default: project_default)
 EOF
             ;;
@@ -1493,18 +1685,24 @@ ${BOLD}omnia-cli ${domain}${NC} — ${DOMAIN_DESCRIPTIONS[$domain]:-$domain stat
 USAGE:
   omnia-cli ${domain} [--project <name>]
   omnia-cli edit ${domain} [file] [--project <name>]
+  omnia-cli output ${domain} [file] [--project <name>]
   omnia-cli logs ${domain} [--project <name>]
 
 CHECKS:
-  - Output directory exists at \${OMNIA_DATA_PATH}/${domain}/output/<project>/
+  - Output directory exists below the configured ${domain} data root
   - Status file: ${DOMAIN_STATUS_FILES[$domain]:-<domain>_status.yml}
   - overall_status validation
 
 EDIT:
   Shows required, conditional, optional, and generated input guidance.
-  Lists input files in \${OMNIA_DATA_PATH}/${domain}/input/<project>/
+  Lists files below the configured ${domain} input directory.
   Opens a selected file in \$EDITOR (default: vi).
   A file can be opened directly: omnia-cli edit ${domain} <file>
+
+OUTPUT:
+  Lists files in the domain output directory recursively.
+  Opens a selected text file or prints it when a relative filename is supplied.
+  A file can be viewed directly: omnia-cli output ${domain} ${DOMAIN_STATUS_FILES[$domain]:-<status-file>}
 
 LOGS:
   Combines runtime, output, and Ansible logs and sorts them newest first.
@@ -1531,6 +1729,7 @@ COMMANDS:
   ${BOLD}status${NC}              Show all domain statuses for a project
   ${BOLD}check${NC}               Validate input files and output existence for all domains
   ${BOLD}edit${NC} <domain> [file] Show input requirements and edit a domain input file
+  ${BOLD}output${NC} <domain> [file] List output artifacts and view a text output file
   ${BOLD}logs${NC} <domain>        View domain execution logs and ansible logs (default: 30, use --limit <n>)
   ${BOLD}repo_manager${NC}        Detailed repo_manager diagnostics
   ${BOLD}image_build_manager${NC} Detailed image_build_manager diagnostics
@@ -1553,6 +1752,7 @@ ENVIRONMENT:
     SYSTEM_ADMIN_NIC_IPV4  Admin NIC IPv4 (used by some domain checks)
     OMNIA_VENV_PATH        Python venv path (default: /opt/omnia/venv)
     OMNIA_ANSIBLE_LOG_PATH Ansible log root (default: /var/log/omnia)
+    *_DATA_PATH            Optional per-domain data-root overrides from omnia.env
 
 EXAMPLES:
   omnia-cli status                          # All domains, default project
@@ -1562,6 +1762,7 @@ EXAMPLES:
   omnia-cli image_build_manager --project prod # Image build status for 'prod'
   omnia-cli edit repo_manager               # Show input guide and choose a file
   omnia-cli edit orchestrator pxe_mapping_file.csv # Open a known file directly
+  omnia-cli output telemetry telemetry_status.yml # Print a known output file
   omnia-cli logs image_build_manager        # View image_build_manager logs
   omnia-cli logs orchestrator --project prod # View orchestrator logs for 'prod'
   omnia-cli logs repo_manager --limit 50     # Show up to 50 logs
@@ -1588,6 +1789,25 @@ BEHAVIOR:
 
 EXAMPLE:
   EDITOR=vim omnia-cli edit orchestrator pxe_mapping_file.csv
+EOF
+}
+
+show_output_help() {
+    cat <<EOF
+${BOLD}omnia-cli output${NC} — Domain output browser
+
+USAGE:
+  omnia-cli output <domain> [file] [--project <name>]
+
+BEHAVIOR:
+  - Lists all files and links below the selected domain output directory.
+  - Opens a numbered text file with \$PAGER in an interactive terminal.
+  - Prints a named text file when used non-interactively.
+  - Shows metadata instead of printing binary artifacts.
+  - Refuses links that resolve outside the domain output directory.
+
+EXAMPLE:
+  omnia-cli output telemetry telemetry_status.yml
 EOF
 }
 
@@ -1667,7 +1887,7 @@ main() {
         exit 1
     fi
 
-    # Dispatch: edit/logs use first positional as domain; others ignore positional args
+    # Dispatch: edit/output/logs use the first positional argument as a domain.
     case "$command" in
         status)
             cmd_status "$project" || true
@@ -1706,6 +1926,31 @@ main() {
             fi
             cmd_edit "$domain" "$project" "${positional_args[1]:-}"
             ;;
+        output|outputs)
+            if [ "${positional_args[0]:-}" = "--help" ] || \
+               [ "${positional_args[0]:-}" = "-h" ]; then
+                show_output_help
+                return 0
+            fi
+            if [ "${#positional_args[@]}" -eq 0 ]; then
+                echo -e "${RED}output requires a domain argument${NC}"
+                echo -e "Usage: omnia-cli output <domain> [file] [--project <name>]"
+                echo -e "Domains: repo_manager, image_build_manager, orchestrator, discovery, telemetry, build_stream, utils"
+                exit 1
+            fi
+            local domain
+            domain=$(_domain_from_arg "${positional_args[0]}")
+            if [ -z "$domain" ]; then
+                echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
+                exit 1
+            fi
+            if [ "${positional_args[1]:-}" = "--help" ] || \
+               [ "${positional_args[1]:-}" = "-h" ]; then
+                show_output_help
+                return 0
+            fi
+            cmd_output "$domain" "$project" "${positional_args[1]:-}"
+            ;;
         logs|log)
             if [ "${positional_args[0]:-}" = "--help" ] || \
                [ "${positional_args[0]:-}" = "-h" ]; then
@@ -1736,14 +1981,21 @@ main() {
             ;;
         help|--help|-h)
             if [ "${#positional_args[@]}" -gt 0 ]; then
-                local domain
-                domain=$(_domain_from_arg "${positional_args[0]}")
-                if [ -n "$domain" ]; then
-                    show_domain_help "$domain"
-                else
-                    echo -e "${RED}Unknown domain: ${positional_args[0]}${NC}"
-                    show_help
-                fi
+                case "${positional_args[0]}" in
+                    edit) show_edit_help ;;
+                    output|outputs) show_output_help ;;
+                    logs|log) show_logs_help ;;
+                    *)
+                        local domain
+                        domain=$(_domain_from_arg "${positional_args[0]}")
+                        if [ -n "$domain" ]; then
+                            show_domain_help "$domain"
+                        else
+                            echo -e "${RED}Unknown command or domain: ${positional_args[0]}${NC}"
+                            show_help
+                        fi
+                        ;;
+                esac
             else
                 show_help
             fi

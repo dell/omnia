@@ -94,6 +94,7 @@ def test_role_tasks():
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_role_metadata():
     """ORCH_FVT_ROLES_V003: Test orchestrator_setup role metadata."""
@@ -121,6 +122,7 @@ def test_role_metadata():
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_role_syntax():
     """ORCH_FVT_ROLES_V004: Test orchestrator_setup role syntax."""

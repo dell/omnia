@@ -50,13 +50,6 @@
         state: mounted
         fstype: "{{ fs_type }}"
 
-    - name: Mount current share explicitly for immediate availability # noqa: command-instead-of-module
-      ansible.builtin.command: >
-        mount -t {{ fs_type }} -o {{ mnt_opts }} {{ source }} {{ mount_point }}
-      register: oim_mount_result
-      changed_when: oim_mount_result.rc == 0
-      failed_when: oim_mount_result.rc != 0
-
   rescue:
     - name: Remove from fstab on failure
       ansible.posix.mount:

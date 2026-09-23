@@ -13,7 +13,12 @@ import posixpath
 import pytest
 import yaml
 
-from library.functions import load_test_config, run_ssh_command
+from library.functions import (
+    resolve_target_input_project_path,
+    resolve_target_omnia_data_path,
+    resolve_target_output_project_path,
+    run_ssh_command,
+)
 from library.functions.slurm_func import (
     get_login_compiler_nodes,
     get_login_nodes,
@@ -23,16 +28,12 @@ from library.functions.slurm_func import (
 )
 
 
-def target_paths():
-    """Return selected input, output, and Omnia data paths."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    shared_path = config.get("shared_path", "/opt/omnia/orchestrator")
-    data_path = posixpath.dirname(shared_path.rstrip("/"))
+def target_paths(host):
+    """Return target paths from the installed Omnia environment."""
     return {
-        "input": posixpath.join(shared_path, "input", project),
-        "output": posixpath.join(shared_path, "output", project),
-        "data": data_path,
+        "input": resolve_target_input_project_path(host),
+        "output": resolve_target_output_project_path(host),
+        "data": resolve_target_omnia_data_path(host),
     }
 
 
@@ -56,7 +57,7 @@ def read_remote_yaml(host, path):
 
 def load_storage_inputs(host):
     """Return the active storage and Omnia configuration mappings."""
-    paths = target_paths()
+    paths = target_paths(host)
     storage = read_remote_yaml(
         host, posixpath.join(paths["input"], "storage_config.yml")
     )
@@ -68,7 +69,7 @@ def load_storage_inputs(host):
 
 def pxe_mapping_rows(host):
     """Return normalized rows from the active PXE mapping file."""
-    paths = target_paths()
+    paths = target_paths(host)
     orchestrator_config = read_remote_yaml(
         host, posixpath.join(paths["input"], "orchestrator_config.yml")
     )

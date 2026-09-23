@@ -21,13 +21,7 @@
 
 - name: Resolve cluster inventory file path
   ansible.builtin.set_fact:
-    cluster_inventory_path: >-
-      {%- set inv_path = hostvars['localhost']['telemetry_config'].cluster_inventory -%}
-      {%- if inv_path.startswith('/') -%}
-        {{ inv_path }}
-      {%- else -%}
-        {{ playbook_dir | dirname }}/input/{{ inv_path }}
-      {%- endif -%}
+    cluster_inventory_path: "{{ hostvars['localhost']['cluster_inventory_path'] | default('') }}"
   delegate_to: localhost
   run_once: true
 

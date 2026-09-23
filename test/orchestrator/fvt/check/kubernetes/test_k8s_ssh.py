@@ -43,6 +43,7 @@ def _skip_if_k8s_disabled(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_ssh_control_plane_to_worker(host):
     """TC_K8_016: Passwordless SSH from control plane to worker nodes."""
@@ -73,6 +74,7 @@ def test_ssh_control_plane_to_worker(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_ssh_worker_to_control_plane(host):
     """TC_K8_017: Passwordless SSH from worker to control plane nodes."""
@@ -103,6 +105,7 @@ def test_ssh_worker_to_control_plane(host):
 
 @pytest.mark.kubernetes
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.order(3)
 def test_ssh_worker_to_worker(host):
     """TC_K8_018: Passwordless SSH between worker nodes."""

@@ -23,7 +23,12 @@ Validates target host environment is ready for orchestrator deployment:
 
 import pytest
 
-from library.functions import TestLogger
+from library.functions import (
+    TestLogger,
+    resolve_target_input_project_path,
+    resolve_target_omnia_data_path,
+    resolve_target_shared_path,
+)
 
 
 @pytest.mark.sanity
@@ -46,8 +51,8 @@ def test_orchestrator_directories_exist(host):
     tl = TestLogger(tc["title"], tc["id"])
 
     required_dirs = [
-        "/opt/omnia",
-        "/opt/omnia/orchestrator",
+        resolve_target_omnia_data_path(host),
+        resolve_target_shared_path(host),
     ]
 
     missing_dirs = []
@@ -70,9 +75,7 @@ def test_input_directory_structure(host):
     tc = {"title": "Input Directory Structure", "id": "ORCH_FVT_PRECHECK_V003"}
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Check if input directory exists for the project
-    project = "project_default"
-    input_path = f"/opt/omnia/orchestrator/input/{project}"
+    input_path = resolve_target_input_project_path(host)
 
     result = host.run(f"test -d {input_path} && echo 'EXISTS' || echo 'MISSING'")
     if "EXISTS" in result.stdout:

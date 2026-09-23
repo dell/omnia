@@ -32,6 +32,8 @@ import pytest
 import yaml
 
 from library.functions import (
+    resolve_input_project_path,
+    resolve_output_project_path,
     TestLogger,
     load_test_config,
 )
@@ -44,8 +46,7 @@ def test_orchestrator_config_exists():
     """ORCH_FVT_PXEBOOT_V001: Verify orchestrator_config.yml exists."""
     tl = TestLogger("Orchestrator Config Exists", "ORCH_FVT_PXEBOOT_V001")
     test_config = load_test_config()
-    input_dir = test_config.get("input_project_dir",
-                                    "/opt/omnia/orchestrator/input/project_default")
+    input_dir = resolve_input_project_path(test_config)
     orchestrator_config_path = input_dir + "/orchestrator_config.yml"
 
     if Path(orchestrator_config_path).exists():
@@ -63,8 +64,7 @@ def test_pxe_boot_flag_validation():
     """ORCH_FVT_PXEBOOT_V002: Verify PXE boot is enabled via mapping file presence."""
     tl = TestLogger("PXE Boot Flag Validation", "ORCH_FVT_PXEBOOT_V002")
     test_config = load_test_config()
-    input_dir = test_config.get("input_project_dir",
-                                    "/opt/omnia/orchestrator/input/project_default")
+    input_dir = resolve_input_project_path(test_config)
     pxe_mapping_file_path = input_dir + "/pxe_mapping_file.csv"
 
     # PXE boot is considered enabled if pxe_mapping_file.csv exists
@@ -83,8 +83,7 @@ def test_pxe_mapping_file_exists():
     """ORCH_FVT_PXEBOOT_V003: Verify pxe_mapping_file.csv exists."""
     tl = TestLogger("PXE Mapping File Exists", "ORCH_FVT_PXEBOOT_V003")
     test_config = load_test_config()
-    input_dir = test_config.get("input_project_dir",
-                                    "/opt/omnia/orchestrator/input/project_default")
+    input_dir = resolve_input_project_path(test_config)
     pxe_mapping_file_path = input_dir + "/pxe_mapping_file.csv"
 
     if Path(pxe_mapping_file_path).exists():
@@ -101,8 +100,7 @@ def test_pxe_mapping_file_format():
     """ORCH_FVT_PXEBOOT_V004: Validate pxe_mapping_file.csv format."""
     tl = TestLogger("PXE Mapping File Format", "ORCH_FVT_PXEBOOT_V004")
     test_config = load_test_config()
-    input_dir = test_config.get("input_project_dir",
-                                    "/opt/omnia/orchestrator/input/project_default")
+    input_dir = resolve_input_project_path(test_config)
     pxe_mapping_file_path = input_dir + "/pxe_mapping_file.csv"
 
     if not Path(pxe_mapping_file_path).exists():
@@ -155,8 +153,7 @@ def test_set_pxe_boot_config_exists():
     """ORCH_FVT_PXEBOOT_V005: Verify set_pxe_boot_config.yml exists."""
     tl = TestLogger("Set PXE Boot Config Exists", "ORCH_FVT_PXEBOOT_V005")
     test_config = load_test_config()
-    input_dir = test_config.get("input_project_dir",
-                                    "/opt/omnia/orchestrator/input/project_default")
+    input_dir = resolve_input_project_path(test_config)
     set_pxe_boot_config_path = input_dir + "/set_pxe_boot_config.yml"
 
     if Path(set_pxe_boot_config_path).exists():
@@ -173,8 +170,7 @@ def test_set_pxe_boot_config_validation():
     """ORCH_FVT_PXEBOOT_V006: Validate set_pxe_boot_config.yml parameters."""
     tl = TestLogger("Set PXE Boot Config Validation", "ORCH_FVT_PXEBOOT_V006")
     test_config = load_test_config()
-    input_dir = test_config.get("input_project_dir",
-                                    "/opt/omnia/orchestrator/input/project_default")
+    input_dir = resolve_input_project_path(test_config)
     set_pxe_boot_config_path = input_dir + "/set_pxe_boot_config.yml"
 
     if not Path(set_pxe_boot_config_path).exists():
@@ -248,8 +244,7 @@ def test_bmc_credentials_file_exists():
     """ORCH_FVT_PXEBOOT_V007: Verify orchestrator_credentials.yml exists."""
     tl = TestLogger("BMC Credentials File Exists", "ORCH_FVT_PXEBOOT_V007")
     test_config = load_test_config()
-    input_dir = test_config.get("input_project_dir",
-                                    "/opt/omnia/orchestrator/input/project_default")
+    input_dir = resolve_input_project_path(test_config)
     credentials_file_path = input_dir + "/orchestrator_credentials.yml"
 
     if Path(credentials_file_path).exists():
@@ -266,8 +261,7 @@ def test_bmc_credentials_validation():
     """ORCH_FVT_PXEBOOT_V008: Validate BMC credentials are available."""
     tl = TestLogger("BMC Credentials Validation", "ORCH_FVT_PXEBOOT_V008")
     test_config = load_test_config()
-    input_dir = test_config.get("input_project_dir",
-                                    "/opt/omnia/orchestrator/input/project_default")
+    input_dir = resolve_input_project_path(test_config)
     credentials_file_path = input_dir + "/orchestrator_credentials.yml"
 
     if not Path(credentials_file_path).exists():
@@ -320,8 +314,7 @@ def test_pxe_boot_skip_when_disabled():
     """ORCH_FVT_PXEBOOT_V009: Verify PXE boot is properly skipped when disabled."""
     tl = TestLogger("PXE Boot Skip When Disabled", "ORCH_FVT_PXEBOOT_V009")
     test_config = load_test_config()
-    input_dir = test_config.get("input_project_dir",
-                                    "/opt/omnia/orchestrator/input/project_default")
+    input_dir = resolve_input_project_path(test_config)
     pxe_mapping_file_path = input_dir + "/pxe_mapping_file.csv"
 
     # PXE boot is considered disabled if pxe_mapping_file.csv does not exist
@@ -338,7 +331,7 @@ def test_failed_nodes_output_exists():
     """ORCH_FVT_PXEBOOT_V010: Verify failed_nodes.json output file exists after PXE boot."""
     tl = TestLogger("Failed Nodes Output Exists", "ORCH_FVT_PXEBOOT_V010")
     test_config = load_test_config()
-    orchestrator_output_dir = test_config.get("orchestrator_output_dir", "/opt/omnia/orchestrator/output/project_default")
+    orchestrator_output_dir = resolve_output_project_path(test_config)
     failed_nodes_path = Path(orchestrator_output_dir) / "failed_nodes.json"
 
     if failed_nodes_path.exists():
@@ -355,7 +348,7 @@ def test_failed_nodes_output_format():
     """ORCH_FVT_PXEBOOT_V011: Validate failed_nodes.json format and structure."""
     tl = TestLogger("Failed Nodes Output Format", "ORCH_FVT_PXEBOOT_V011")
     test_config = load_test_config()
-    orchestrator_output_dir = test_config.get("orchestrator_output_dir", "/opt/omnia/orchestrator/output/project_default")
+    orchestrator_output_dir = resolve_output_project_path(test_config)
     failed_nodes_path = Path(orchestrator_output_dir) / "failed_nodes.json"
 
     if not failed_nodes_path.exists():
@@ -417,7 +410,7 @@ def test_orchestrator_status_output_exists():
     """ORCH_FVT_PXEBOOT_V012: Verify orchestrator_status.yml output file exists."""
     tl = TestLogger("Orchestrator Status Output Exists", "ORCH_FVT_PXEBOOT_V012")
     test_config = load_test_config()
-    orchestrator_output_dir = test_config.get("orchestrator_output_dir", "/opt/omnia/orchestrator/output/project_default")
+    orchestrator_output_dir = resolve_output_project_path(test_config)
     status_path = Path(orchestrator_output_dir) / "orchestrator_status.yml"
 
     if status_path.exists():
@@ -434,7 +427,7 @@ def test_orchestrator_status_output_format():
     """ORCH_FVT_PXEBOOT_V013: Validate orchestrator_status.yml format and structure."""
     tl = TestLogger("Orchestrator Status Output Format", "ORCH_FVT_PXEBOOT_V013")
     test_config = load_test_config()
-    orchestrator_output_dir = test_config.get("orchestrator_output_dir", "/opt/omnia/orchestrator/output/project_default")
+    orchestrator_output_dir = resolve_output_project_path(test_config)
     status_path = Path(orchestrator_output_dir) / "orchestrator_status.yml"
 
     if not status_path.exists():

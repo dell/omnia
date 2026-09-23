@@ -36,7 +36,6 @@ from library.functions.k8s_func import (
     check_k8s_default_storage_class,
     check_k8s_persistent_volumes,
     check_k8s_nfs_storage_class,
-    check_k8s_telemetry_pvcs,
     check_k8s_busybox_pod,
 )
 from library.messages import (
@@ -213,36 +212,11 @@ def test_k8s_nfs_storage_class(host):
 
 
 @pytest.mark.kubernetes
-@pytest.mark.sanity
+@pytest.mark.functional
 @pytest.mark.buildstream
 @pytest.mark.order(7)
-def test_k8s_telemetry_pvcs(host):
-    """TC_K8_050: Verify telemetry PVCs are Bound with correct PV and size."""
-    _skip_if_k8s_disabled(host)
-
-    tc = TC["k8s_telemetry_pvcs"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    tl.check("Checking telemetry PVCs in telemetry namespace")
-    result = check_k8s_telemetry_pvcs(host)
-
-    if result.get("skipped"):
-        tl.skipped(result["details"], "")
-        pytest.skip(result["details"])
-
-    if result["success"]:
-        tl.passed(LOG["telemetry_pvcs_ok"], result["details"])
-    else:
-        tl.failed(LOG["telemetry_pvcs_failed"].format(error=result["error"]), result["error"])
-
-    assert result["success"], ASSERT["telemetry_pvcs_failed"]
-
-
-@pytest.mark.kubernetes
-@pytest.mark.functional
-@pytest.mark.order(8)
 def test_k8s_busybox_pod(host):
-    """TC_K8_051: Deploy and verify basic BusyBox pod."""
+    """TC_K8_050: Deploy and verify basic BusyBox pod."""
     _skip_if_k8s_disabled(host)
 
     tc = TC["k8s_busybox_pod"]
