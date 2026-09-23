@@ -211,7 +211,7 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
     if not gitlab_host:
         return {"success": False, "stdout": "", "error": "gitlab_host not configured"}
 
-    ssh_password = load_server_credentials(host).get("gitlab_ssh_password", "")
+    ssh_password = load_server_credentials(host).get("gitlab_ssh_password", "")  # gitleaks:allow - credentials loaded from secure test config file
     if not ssh_password:
         return {
             "success": False,
