@@ -63,6 +63,10 @@
     _cleanup_kube_vip_unavailable: false
     _cleanup_delete_sinks_volume: >-
       {{ Delete_sinks_volume | default(delete_sinks_volume | default(false)) | bool }}
+    _cleanup_preserve_credentials: >-
+      {{ not (cleanup_credentials | default(true) | bool) }}
+    _cleanup_preserve_logs: >-
+      {{ not (cleanup_logs | default(true) | bool) }}
 
 - name: Validate persistent volume cleanup option
   vars:
@@ -107,14 +111,57 @@
         )
     fail_msg: "{{ cleanup_granular_sink_volume_option_fail_msg }}"
 
+- name: Validate cleanup_credentials option
+  ansible.builtin.assert:
+    that:
+      - >-
+        cleanup_credentials is not defined
+        or (cleanup_credentials | string | trim | lower) in ['true', 'false']
+    fail_msg: "{{ cleanup_credentials_invalid_msg }}"
+
+- name: Validate cleanup_logs option
+  ansible.builtin.assert:
+    that:
+      - >-
+        cleanup_logs is not defined
+        or (cleanup_logs | string | trim | lower) in ['true', 'false']
+    fail_msg: "{{ cleanup_logs_invalid_msg }}"
+
+- name: Display warning for cleanup with volume when preservation flags are set
+  ansible.builtin.pause:
+    prompt: |
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      [WARNING] Cleanup with volume (Delete_sinks_volume=true) is enabled.
+      In cleanup with volume mode, credentials and logs are NOT preserved
+      and WILL be deleted regardless of cleanup_credentials or cleanup_logs
+      flags.
+
+      If credentials or logs are required, take a backup before proceeding
+      with this execution.
+
+      Execution will continue in 30 seconds...
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    seconds: 30
+  when:
+    - _cleanup_all | bool
+    - _cleanup_delete_sinks_volume | bool
+    - _cleanup_preserve_credentials | bool or _cleanup_preserve_logs | bool
+
 - name: Prepare telemetry cleanup
   block:
     # Remove local credentials after local option validation but before a
     # configuration or remote prerequisite can fail. Component cleanup uses
     # deployed Kubernetes resources, not this stored credential file.
+    # Honour cleanup_credentials=false to preserve credentials during
+    # cleanup without volume. When Delete_sinks_volume=true the flag is
+    # overridden and credentials are always removed.
     - name: Cleanup credentials for complete cleanup
       ansible.builtin.include_tasks: cleanup_credentials.yml
-      when: _cleanup_all | bool
+      when:
+        - _cleanup_all | bool
+        - >-
+          not (_cleanup_preserve_credentials | bool)
+          or (_cleanup_delete_sinks_volume | bool)
 
     - name: Load telemetry configuration
       ansible.builtin.include_role:

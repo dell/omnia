@@ -24,11 +24,19 @@
 #   # Delete PVCs as well (PVCs are preserved by default)
 #   ansible-playbook telemetry.yml --tags cleanup -e Delete_volume=true
 #
+#   # Preserve credentials for redeployment
+#   ansible-playbook telemetry.yml --tags cleanup -e cleanup_credentials=false
+#   # Preserve both credentials and logs
+#   ansible-playbook telemetry.yml --tags cleanup -e cleanup_credentials=false -e cleanup_logs=false
+#
 #   # Cleanup specific sources only
 #   ansible-playbook telemetry.yml --tags cleanup_powerscale
 #   ansible-playbook telemetry.yml --tags cleanup_ome
 #   ansible-playbook telemetry.yml --tags cleanup_idrac
 #   ansible-playbook telemetry.yml --tags cleanup_ldms
+#
+#   # Granular cleanup preserving credentials
+#   ansible-playbook telemetry.yml --tags cleanup_idrac -e cleanup_credentials=false
 #
 #   # Cleanup multiple sources
 #   ansible-playbook telemetry.yml --tags cleanup_ome,cleanup_powerscale

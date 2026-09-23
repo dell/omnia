@@ -187,8 +187,8 @@ DELETE_VOLUME=true ./run_validation.sh nft_telemetry test --marker idempotency
    +-- Assert: All pods Running after reboot
 
 8. TEL_NFT_013: Full lifecycle
-   |-- Run cleanup playbook (teardown)
-   |-- Run deploy playbook (redeploy)
+   |-- Run cleanup playbook (teardown, -e cleanup_credentials=false)
+   |-- Run deploy playbook (redeploy, reuses preserved credentials)
    |-- Verify all pods Running
    +-- Assert: Complete cycle succeeds
 

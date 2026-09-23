@@ -140,6 +140,30 @@
           {% else %}
           preserved
           {% endif %}
+        _credentials_status_display: >-
+          {% if not (_cleanup_all | default(false) | bool) %}
+          {% if _cleanup_preserve_credentials | default(false) | bool %}
+          preserved (cleanup_credentials=false)
+          {% else %}
+          blanked for cleaned component
+          {% endif %}
+          {% elif _cleanup_preserve_credentials | default(false) | bool
+                  and not (_cleanup_delete_sinks_volume | default(false) | bool) %}
+          preserved (cleanup_credentials=false)
+          {% else %}
+          deleted
+          {% endif %}
+        _logs_status_display: >-
+          {% if not (_cleanup_all | default(false) | bool) %}
+          preserved (granular cleanup)
+          {% elif _cleanup_preserve_logs | default(false) | bool
+                  and not (_cleanup_delete_sinks_volume | default(false) | bool) %}
+          preserved (cleanup_logs=false)
+          {% elif _cleanup_delete_sinks_volume | default(false) | bool %}
+          deleted
+          {% else %}
+          deleted
+          {% endif %}
       ansible.builtin.debug:
         msg:
           - "======================================================"
@@ -151,6 +175,8 @@
           - "Namespace PVCs: {{ _pvc_count }}"
           - "Selected component volumes: {{ _pvc_status_display }}"
           - "Shared sink volumes: {{ _sink_volume_status_display | trim }}"
+          - "Credentials: {{ _credentials_status_display | trim }}"
+          - "Logs: {{ _logs_status_display | trim }}"
           - "Remaining services: {{ _svc_count }}"
           - "Remaining workloads: {{ _workload_count }}"
           - "Remaining Helm releases: {{ _helm_release_display }}"
@@ -190,10 +216,14 @@
       when: _cleanup_status == 'failed'
 
     # -----------------------------------------------------------------------
-    # Remove telemetry log, input, and output directories only after a full
-    # cleanup when delete_sinks_volume is true. These tasks run only after a
-    # successful cleanup. If cleanup failed above, execution stops at the fail
-    # task and directories are preserved so the user can inspect input values.
+    # Remove telemetry log, input, and output directories after a successful
+    # full cleanup. Log directory and stray artifacts honour cleanup_logs:
+    #   - cleanup_logs=false preserves logs during cleanup without volume
+    #   - Delete_sinks_volume=true overrides cleanup_logs and deletes all
+    # Input and output directories are only removed during cleanup with
+    # volume (Delete_sinks_volume=true).
+    # If cleanup failed above, execution stops at the fail task and
+    # directories are preserved so the user can inspect input values.
     # -----------------------------------------------------------------------
     - name: Set telemetry data path for directory cleanup
       ansible.builtin.set_fact:
@@ -201,12 +231,24 @@
           {{ telemetry_data_path
              | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}
 
-    - name: Remove telemetry log, input, and output directories
+    # Log directory cleanup honours the cleanup_logs flag. When
+    # cleanup_logs=false the log directory is preserved during cleanup
+    # without volume. Delete_sinks_volume=true overrides the flag.
+    - name: Remove telemetry log directory
+      ansible.builtin.file:
+        path: "{{ _cleanup_telemetry_data_path }}/log"
+        state: absent
+      when:
+        - _cleanup_all | default(false) | bool
+        - >-
+          not (_cleanup_preserve_logs | default(false) | bool)
+          or (_cleanup_delete_sinks_volume | default(false) | bool)
+
+    - name: Remove telemetry input and output directories
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
       loop:
-        - "{{ _cleanup_telemetry_data_path }}/log"
         - "{{ _cleanup_telemetry_data_path }}/input"
         - "{{ _cleanup_telemetry_data_path }}/output"
       when:
@@ -219,4 +261,8 @@
         state: absent
       loop:
         - "{{ _cleanup_telemetry_data_path }}/idrac_telemetry_report.yml"
-      when: _cleanup_all | default(false) | bool
+      when:
+        - _cleanup_all | default(false) | bool
+        - >-
+          not (_cleanup_preserve_logs | default(false) | bool)
+          or (_cleanup_delete_sinks_volume | default(false) | bool)
