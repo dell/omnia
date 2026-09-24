@@ -245,7 +245,9 @@
         conf_merge_dict | default({})
         | combine({
             existing_conf_set.item.1: (
-              ([existing_conf_set.stat.path] if existing_conf_set.stat.exists else [])
+              ([existing_conf_set.stat.path]
+               if existing_conf_set.stat.exists and existing_conf_set.item.1 != 'slurm'
+               else [])
               + [apply_config[existing_conf_set.item.1]]
               + ([parsed_configs_input.get(existing_conf_set.item.1)]
                if parsed_configs_input is defined and parsed_configs_input.get(existing_conf_set.item.1) else [])
@@ -299,96 +301,6 @@
 
 - name: Validate path parameters are absolute
   ansible.builtin.include_tasks: validate_path_overrides.yml
-
-- name: Get nodes from normal partition and compare with cmpt_list
-  ansible.builtin.set_fact:
-    normal_partition: "{{ slurm_conf_dict.PartitionName | default([]) | selectattr('PartitionName', 'equalto', slurm_partition_name) | first | default({}) }}"
-  when: "'slurm' in conf_merge_dict"
-
-- name: Parse normal partition nodes and compare
-  ansible.builtin.set_fact:
-    normal_partition_nodes: "{{ (normal_partition.Nodes | default('ALL')).split(',') | map('trim') | reject('equalto', 'ALL') | list }}"
-    nodes_in_normal_not_in_cmpt: "{{ (normal_partition.Nodes | default('ALL')).split(',')
-     | map('trim') | reject('equalto', 'ALL') | list | difference(cmpt_list) }}"
-  when:
-    - "'slurm' in conf_merge_dict"
-    - normal_partition is defined
-    - normal_partition | length > 0
-
-- name: Detect busy nodes
-  ansible.builtin.include_tasks: detect_busy_nodes.yml
-  loop: "{{ nodes_in_normal_not_in_cmpt }}"
-  loop_control:
-    loop_var: node_to_remove
-  when:
-    - not force_scancel_node
-    - "'slurm' in conf_merge_dict"
-    - nodes_in_normal_not_in_cmpt is defined
-    - nodes_in_normal_not_in_cmpt | length > 0
-
-- name: Prompt for user input when jobs are running
-  ansible.builtin.pause:
-    prompt: |
-      ================================================================================
-      WARNING: ACTIVE JOBS DETECTED ON THE FOLLOWING NODES
-      ================================================================================
-
-      Busy Nodes:
-      {% for node, jobs in busy_nodes.items() %}
-        - {{ node }}: {{ jobs }} running job(s)
-      {% endfor %}
-
-      These nodes has active running jobs.
-      All other nodes without jobs will be removed.
-
-      To view job details, run:
-      {% for node in busy_nodes.keys() %}
-        squeue -w {{ node }}
-      {% endfor %}
-
-      Available Options:
-        A. ABORT (Recommended)
-            - Remove the IDLE nodes from the cluster and abort this playbook
-            - Manually cancel jobs or wait for them to complete
-            - Then re-run this playbook to remove these nodes
-
-        F. FORCE REMOVAL (Destructive)
-            - All running jobs will be forcefully terminated
-            - Users will lose any unsaved work
-
-      ================================================================================
-      Enter 'A' to abort, or 'F' to force remove:
-  register: user_input
-  until: user_input.user_input | default('') | trim | upper in ['A', 'F']
-  retries: 10
-  delay: 1
-  when:
-    - busy_nodes is defined
-    - busy_nodes | length > 0
-    - not force_scancel_node
-
-- name: Remove busy_nodes from nodes_in_normal_not_in_cmpt
-  ansible.builtin.set_fact:
-    nodes_in_normal_not_in_cmpt: "{{ nodes_in_normal_not_in_cmpt | difference(busy_nodes.keys() | list) }}"
-  when:
-    - busy_nodes is defined
-    - busy_nodes | length > 0
-    - user_input.user_input | default('') | trim | upper == 'A'
-
-- name: Empty Busy nodes for Force removal
-  ansible.builtin.set_fact:
-    busy_nodes: {}
-  when:
-    - busy_nodes is defined
-    - busy_nodes | length > 0
-    - user_input.user_input | default('') | trim | upper == 'F'
-
-- name: Remove nodes
-  ansible.builtin.include_tasks: remove_node.yml
-  when:
-    - "'slurm' in conf_merge_dict"
-    - nodes_in_normal_not_in_cmpt is defined
-    - nodes_in_normal_not_in_cmpt | length > 0
 
 - name: Create directories from conf values (NFS server-side always uses defaults)
   ansible.builtin.include_tasks: exist_dir.yml
@@ -444,21 +356,3 @@
   loop_control:
     loop_var: ctld
 
-- name: Handle user choice - ABORT
-  ansible.builtin.fail:
-    msg:
-      - "==============================================================================="
-      - "PLAYBOOK ABORTED BY USER"
-      - "==============================================================================="
-      - "You chose to abort the playbook (Option A)."
-      - "Next Steps:"
-      - "1. Cancel running jobs manually: 'scancel -w <node_name>'"
-      - "2. Or wait for jobs to complete naturally"
-      - "3. Re-run this playbook to remove the nodes"
-      - "Idle nodes (if any) have already been removed from the cluster."
-      - "==============================================================================="
-  when:
-    - busy_nodes is defined
-    - busy_nodes | length > 0
-    - not force_scancel_node
-    - user_input.user_input | default('') | trim | upper in ['A']
