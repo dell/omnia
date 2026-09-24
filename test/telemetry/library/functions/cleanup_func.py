@@ -649,8 +649,8 @@ def verify_credentials_preserved(host) -> Dict[str, Any]:
     )
 
     # Get environment variables from the host
-    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
-    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME, "project_default")
+    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH) or "/opt/omnia"
+    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME) or "project_default"
 
     input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
     cred_file = f"{input_dir}/telemetry_credentials.yml"
@@ -729,8 +729,8 @@ def verify_credentials_deleted(host) -> Dict[str, Any]:
     )
 
     # Get environment variables from the host
-    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
-    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME, "project_default")
+    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH) or "/opt/omnia"
+    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME) or "project_default"
 
     input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
     cred_file = f"{input_dir}/telemetry_credentials.yml"
@@ -805,8 +805,8 @@ def verify_logs_preserved(host) -> Dict[str, Any]:
     )
 
     # Get environment variables from the host
-    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
-    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME, "project_default")
+    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH) or "/opt/omnia"
+    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME) or "project_default"
 
     log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
 
@@ -864,8 +864,8 @@ def verify_logs_deleted(host) -> Dict[str, Any]:
     )
 
     # Get environment variables from the host
-    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
-    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME, "project_default")
+    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH) or "/opt/omnia"
+    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME) or "project_default"
 
     log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
 
