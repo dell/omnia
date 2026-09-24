@@ -282,6 +282,12 @@ def load_pipeline_config(config_path):
     if email_cfg.get("smtp_port"):
         variables["SMTP_PORT"] = email_cfg["smtp_port"]
 
+    # -- Global utils configuration
+    if global_cfg.get("utils_enable") is not None:
+        variables["UTILS_ENABLE"] = str(global_cfg["utils_enable"])
+    if global_cfg.get("utils_mode") is not None:
+        variables["UTILS_MODE"] = str(global_cfg["utils_mode"])
+
     for cluster in cluster_names:
         cluster_cfg = cfg.get(cluster)
         if not cluster_cfg:
@@ -352,6 +358,7 @@ def load_pipeline_config(config_path):
             "image_build_manager": "TEST_IMAGE_BUILD_MANAGER_CMD",
             "orchestrator": "TEST_ORCHESTRATOR_CMD",
             "telemetry": "TEST_TELEMETRY_CMD",
+            "utils": "TEST_UTILS_CMD",
         }
         for cfg_key, var_suffix in test_cmd_map.items():
             val = test_cmds.get(cfg_key)
@@ -717,6 +724,7 @@ def collect_pipeline_files():
     for name, repo_name in [
         (".gitlab-ci.yml", ".gitlab-ci.yml"),
         (".gitlab-ci-cluster.yml", ".gitlab-ci-cluster.yml"),
+        (".gitlab-ci-utils.yml", ".gitlab-ci-utils.yml"),
         ("send_email.py", "send_email.py"),
         ("pipeline_config.yml", "pipeline_config.yml"),
     ]:
@@ -766,7 +774,40 @@ def generate_cluster_trigger_job(cluster_name):
     SKIP_STAGES: "${{{upper_prefix}_SKIP_STAGES}}"
   allow_failure: true
   rules:
+    - if: '$UTILS_ENABLE == "true"'
+      when: never
     - if: '$CLUSTERS =~ /{prefix}/'
+      when: on_success
+"""
+
+
+def generate_cluster_utils_trigger_job(cluster_name):
+    """Generate a utils trigger job for a cluster in .gitlab-ci.yml format."""
+    prefix = cluster_name.lower()
+    upper_prefix = cluster_name.upper()
+    return f"""trigger_cluster_{prefix}_utils:
+  stage: trigger
+  trigger:
+    include:
+      - local: .gitlab-ci-utils.yml
+    strategy: depend
+  variables:
+    CLUSTER: "{prefix}"
+    OMNIA_REPO: "${{{upper_prefix}_OMNIA_REPO}}"
+    OMNIA_BRANCH: "${{{upper_prefix}_OMNIA_BRANCH}}"
+    OMNIA_INSTALL_PATH: "${{{upper_prefix}_OMNIA_INSTALL_PATH}}"
+    BAO_SERVER_URL: "${{{upper_prefix}_BAO_SERVER_URL}}"
+    BAO_AUTH_ROLE: "${{{upper_prefix}_BAO_AUTH_ROLE}}"
+    BAO_DATA_PATH: "${{{upper_prefix}_BAO_DATA_PATH}}"
+    UTILS_MODE: "$UTILS_MODE"
+    UTILS_ENABLE: "$UTILS_ENABLE"
+    TEST_UTILS_CMD: "${{{upper_prefix}_TEST_UTILS_CMD}}"
+    TEST_MODE: "${{{upper_prefix}_TEST_MODE}}"
+    VERBOSE: "${{{upper_prefix}_VERBOSE}}"
+    DRY_RUN: "${{{upper_prefix}_DRY_RUN}}"
+  allow_failure: true
+  rules:
+    - if: '$UTILS_ENABLE == "true" && $CLUSTERS =~ /{prefix}/'
       when: on_success
 """
 
@@ -777,6 +818,9 @@ def generate_cluster_variables(cluster_name):
     return f"""  {upper_prefix}_OMNIA_REPO: ""
   {upper_prefix}_OMNIA_BRANCH: ""
   {upper_prefix}_OMNIA_INSTALL_PATH: ""
+  {upper_prefix}_TARGET_IP: ""
+  {upper_prefix}_TARGET_USER: ""
+  {upper_prefix}_TARGET_PASS: ""
   {upper_prefix}_BAO_SERVER_URL: ""
   {upper_prefix}_BAO_AUTH_ROLE: ""
   {upper_prefix}_BAO_DATA_PATH: ""
@@ -795,53 +839,91 @@ def generate_cluster_variables(cluster_name):
   {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   {upper_prefix}_TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
   {upper_prefix}_TEST_TELEMETRY_CMD: "./run_validation.sh fvt_telemetry verify"
+  {upper_prefix}_TEST_UTILS_CMD: "./run_validation.sh fvt_utils verify"
   {upper_prefix}_SKIP_STAGES: ""
 """
 
 
 def update_gitlab_ci_yml_with_clusters(clusters):
-    """Update .gitlab-ci.yml to add trigger jobs for additional clusters.
-    
-    Keeps cluster1 in YAML, adds cluster2+ dynamically.
+    """Replace the trigger jobs section in .gitlab-ci.yml with jobs for the specified clusters.
+
+    Generates trigger jobs for ONLY the clusters in the list.
+    Replaces the entire trigger section — no hardcoded cluster1,
+    no appending, no duplicates.
     """
     script_dir = Path(__file__).resolve().parent
     gitlab_ci_path = script_dir / ".gitlab-ci.yml"
-    
+
     if not gitlab_ci_path.exists():
         print(f"WARNING: {gitlab_ci_path} not found. Skipping YAML update.")
         return False
-    
+
     with open(gitlab_ci_path, 'r') as f:
         content = f.read()
-    
-    # Find the insertion point (after cluster1 trigger job)
-    marker = "trigger_cluster_cluster1:"
-    if marker not in content:
-        print("WARNING: Could not find trigger_cluster_cluster1 in .gitlab-ci.yml")
-        return False
-    
-    # Find the end of cluster1 trigger job (look for next section or EOF)
-    cluster1_start = content.find(marker)
-    cluster1_end = content.find("\n\n", cluster1_start)
-    if cluster1_end == -1:
-        cluster1_end = len(content)
-    
-    # Generate trigger jobs for additional clusters (cluster2+)
-    additional_jobs = ""
+
+    # Find the start of the trigger jobs section.
+    # Look for the comment block that precedes the first trigger job.
+    trigger_marker = "# Child pipeline trigger"
+    marker_pos = content.find(trigger_marker)
+    if marker_pos != -1:
+        # Back up to the start of the comment block (the "# ---..." line above)
+        line_start = content.rfind("\n", 0, marker_pos)
+        # Find the separator line before the comment
+        separator = content.rfind("# ------", 0, marker_pos)
+        if separator != -1:
+            # Include the blank line before the separator
+            cut_pos = content.rfind("\n", 0, separator)
+            if cut_pos != -1:
+                cut_pos += 1  # keep the newline, cut after it
+            else:
+                cut_pos = separator
+        else:
+            cut_pos = line_start + 1 if line_start != -1 else marker_pos
+    else:
+        # Fallback: find the first trigger_cluster_ job definition
+        first_trigger = content.find("\ntrigger_cluster_")
+        if first_trigger != -1:
+            cut_pos = first_trigger + 1  # skip the leading newline
+        else:
+            # No trigger section found — append at end
+            cut_pos = len(content)
+
+    # Keep everything before the trigger section
+    header = content[:cut_pos].rstrip("\n") + "\n\n"
+
+    # Generate cluster deployment trigger jobs
+    cluster_jobs = (
+        "# ---------------------------------------------------------------------------\n"
+        "# Child pipeline trigger — one per cluster.\n"
+        "# Each cluster triggers its own pipeline completely independently.\n"
+        "# If one cluster fails, it does NOT affect the others.\n"
+        "#\n"
+        f"# Auto-generated by setup_gitlab_project.py for clusters: {', '.join(clusters)}\n"
+        "# ---------------------------------------------------------------------------\n"
+    )
     for cluster in clusters:
-        if cluster.lower() != "cluster1":
-            additional_jobs += "\n" + generate_cluster_trigger_job(cluster)
-    
-    if additional_jobs:
-        # Insert after cluster1 job
-        new_content = content[:cluster1_end] + additional_jobs + content[cluster1_end:]
-        
-        with open(gitlab_ci_path, 'w') as f:
-            f.write(new_content)
-        
-        print(f"  Updated .gitlab-ci.yml with trigger jobs for: {', '.join([c for c in clusters if c.lower() != 'cluster1'])}")
-        return True
-    
+        cluster_jobs += generate_cluster_trigger_job(cluster)
+
+    # Generate utils trigger jobs
+    utils_jobs = (
+        "\n# ---------------------------------------------------------------------------\n"
+        "# Utils Pipeline — Multi-Cluster Support\n"
+        "# ---------------------------------------------------------------------------\n"
+        "# Triggered when UTILS_ENABLE=true to run utils operations\n"
+        "# (log collection, install_os, etc.).\n"
+        "# Each cluster runs its own utils pipeline independently.\n"
+        "# If UTILS_ENABLE=true, the cluster pipeline is skipped.\n"
+        "# ---------------------------------------------------------------------------\n"
+    )
+    for cluster in clusters:
+        utils_jobs += generate_cluster_utils_trigger_job(cluster)
+
+    # Write the updated file
+    new_content = header + cluster_jobs + utils_jobs
+    with open(gitlab_ci_path, 'w') as f:
+        f.write(new_content)
+
+    print(f"  Generated trigger jobs for clusters: {', '.join(clusters)}")
     return True
 
 
@@ -920,6 +1002,11 @@ def cmd_create(args, client):
 
     project_id = project["id"]
 
+    # Update .gitlab-ci.yml with trigger jobs for the specified clusters BEFORE committing.
+    # This replaces the entire trigger section so only the requested clusters are present.
+    print("\nUpdating .gitlab-ci.yml with cluster trigger jobs...")
+    update_gitlab_ci_yml_with_clusters(cluster_names)
+
     # Collect files
     print("\nCollecting files...")
     pipeline_files = collect_pipeline_files()
@@ -976,11 +1063,6 @@ def cmd_create(args, client):
     if len(file_list) > 20:
         print(f"    ... and {len(file_list) - 20} more")
 
-    # Update .gitlab-ci.yml with additional cluster trigger jobs
-    if len(cluster_names) > 1:
-        print("\nUpdating .gitlab-ci.yml with additional cluster jobs...")
-        update_gitlab_ci_yml_with_clusters(cluster_names)
-
     # Configure CI/CD variables
     print("\n" + "=" * 60)
     print("Configuring CI/CD Variables")
@@ -1029,6 +1111,8 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("UTILS_ENABLE", "false"),
+            ("UTILS_MODE", "default_logs"),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1036,9 +1120,15 @@ def cmd_create(args, client):
 
         # Cluster-level configuration variables
         per_cluster_keys = [
+            ("OMNIA_REPO", ""),
+            ("OMNIA_BRANCH", ""),
+            ("OMNIA_INSTALL_PATH", ""),
             ("TARGET_IP", ""),
             ("TARGET_USER", "root"),
             ("TARGET_PASS", ""),
+            ("BAO_SERVER_URL", ""),
+            ("BAO_AUTH_ROLE", ""),
+            ("BAO_DATA_PATH", ""),
             ("PIPELINE_MODE", "default"),
             ("DOMAINS", "default"),
             ("ENABLE_SETUP", "false"),
@@ -1054,6 +1144,7 @@ def cmd_create(args, client):
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
             ("TEST_TELEMETRY_CMD", "./run_validation.sh fvt_telemetry verify"),
+            ("TEST_UTILS_CMD", "./run_validation.sh fvt_utils verify"),
             ("SKIP_STAGES", ""),
         ]
         for cluster in cluster_names:
@@ -1149,13 +1240,6 @@ def cmd_update(args, client):
                 actions.append(client.build_file_action(project_id, local_path, repo_path))
             print(f"  Test files refreshed for clusters: {', '.join(cluster_names)} ({len(test_files)} files)")
 
-    print(f"  Committing {len(actions)} file updates...")
-    client.commit_files(
-        project_id, actions,
-        "Update pipeline and input files\n\nAuto-committed by setup_gitlab_project.py --update"
-    )
-    print(f"  {len(actions)} files updated successfully")
-
     # Get cluster names for variable updates
     update_clusters = cluster_names if cluster_names else []
     if not update_clusters:
@@ -1168,10 +1252,23 @@ def cmd_update(args, client):
         except Exception:
             pass
 
-    # Update .gitlab-ci.yml if clusters changed
-    if update_clusters and len(update_clusters) > 1:
+    # Update .gitlab-ci.yml with trigger jobs for the specified clusters BEFORE committing.
+    # This replaces the entire trigger section so only the requested clusters are present.
+    if update_clusters:
         print("\nUpdating .gitlab-ci.yml with cluster trigger jobs...")
         update_gitlab_ci_yml_with_clusters(update_clusters)
+        # Add the updated .gitlab-ci.yml to the commit actions
+        gitlab_ci_path = Path(__file__).resolve().parent / ".gitlab-ci.yml"
+        if gitlab_ci_path.exists():
+            actions.append(client.build_file_action(project_id, str(gitlab_ci_path), ".gitlab-ci.yml"))
+            print(f"  Updated .gitlab-ci.yml will be committed")
+
+    print(f"  Committing {len(actions)} file updates...")
+    client.commit_files(
+        project_id, actions,
+        "Update pipeline and input files\n\nAuto-committed by setup_gitlab_project.py --update"
+    )
+    print(f"  {len(actions)} files updated successfully")
 
     # Apply CI/CD variables from config file or --update-vars
     if args.config:
@@ -1188,6 +1285,8 @@ def cmd_update(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("UTILS_ENABLE", "false"),
+            ("UTILS_MODE", "default_logs"),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1195,9 +1294,15 @@ def cmd_update(args, client):
 
         # Cluster-level configuration variables
         per_cluster_keys = [
+            ("OMNIA_REPO", ""),
+            ("OMNIA_BRANCH", ""),
+            ("OMNIA_INSTALL_PATH", ""),
             ("TARGET_IP", ""),
             ("TARGET_USER", "root"),
             ("TARGET_PASS", ""),
+            ("BAO_SERVER_URL", ""),
+            ("BAO_AUTH_ROLE", ""),
+            ("BAO_DATA_PATH", ""),
             ("PIPELINE_MODE", "default"),
             ("DOMAINS", "default"),
             ("ENABLE_SETUP", "false"),
@@ -1213,6 +1318,7 @@ def cmd_update(args, client):
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
             ("TEST_TELEMETRY_CMD", "./run_validation.sh fvt_telemetry verify"),
+            ("TEST_UTILS_CMD", "./run_validation.sh fvt_utils verify"),
             ("SKIP_STAGES", ""),
         ]
         for cluster in update_clusters:

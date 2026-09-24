@@ -57,7 +57,7 @@ ansible-galaxy collection install omnia.orchestrator
 | `omnia.orchestrator.validate_credentials` | Validate credential input against rules |
 | `omnia.orchestrator.fetch_credential_rule` | Fetch validation rules for a credential field |
 | `omnia.orchestrator.generate_functional_groups` | Generate functional groups from PXE mapping CSV |
-| `omnia.orchestrator.generate_xname_in_mapping_file` | Generate xnames in mapping file |
+| `omnia.orchestrator.openchami_reconcile` | Resolve persistent SMD identities and reconcile OpenCHAMI state through verified APIs |
 | `omnia.orchestrator.slurm_conf` | Parse, merge, and render Slurm configuration |
 | `omnia.orchestrator.generate_argon2_password` | Generate Argon2 password hashes |
 | `omnia.orchestrator.validate_system_environment` | Validate the OIM system environment |

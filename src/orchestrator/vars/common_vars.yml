@@ -24,3 +24,4 @@ file_permissions_600: "0600"
 file_permissions_400: "0400"
 job_retry: "240"
 job_delay: "30"
+openchami_ca_cert_path: /etc/pki/ca-trust/source/anchors/openchami.pem

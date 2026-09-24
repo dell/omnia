@@ -71,35 +71,24 @@
   ansible.builtin.set_fact:
     _target_all_xnames: "{{ _target_node_xnames + _target_bmc_xnames }}"
 
-# ── SMD component endpoints (scoped to target xnames) ─────────────────
+# ── SMD discovery artifacts (scoped to target identities) ─────────────
 
-- name: Delete target category component endpoints from SMD
-  ansible.builtin.command: >
-    /usr/bin/ochami smd compep delete --no-confirm
-    {{ _target_all_xnames | join(' ') }}
-  changed_when: true
-  failed_when: false
-  when: _target_all_xnames | length > 0
-
-# ── SMD redfish endpoints (scoped to target BMC xnames) ───────────────
-
-- name: Delete target category redfish endpoints from SMD
-  ansible.builtin.command: >
-    /usr/bin/ochami smd rfe delete --no-confirm
-    {{ _target_bmc_xnames | join(' ') }}
-  changed_when: true
-  failed_when: false
-  when: _target_bmc_xnames | length > 0
-
-# ── SMD interfaces (scoped to target MACs) ────────────────────────────
-
-- name: Delete target category interfaces from SMD
-  ansible.builtin.command: >
-    /usr/bin/ochami smd iface delete --no-confirm
-    {{ _target_all_macs | join(' ') }}
-  changed_when: true
-  failed_when: false
-  when: _target_all_macs | length > 0
+- name: Reconcile target category SMD discovery artifacts
+  openchami_reconcile:
+    action: cleanup_smd
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    component_endpoint_xnames: "{{ _target_all_xnames }}"
+    redfish_endpoint_xnames: "{{ _target_bmc_xnames }}"
+    interface_macs: "{{ _target_all_macs }}"
+  register: _smd_cleanup_result
+  no_log: true
+  when: >-
+    _target_all_xnames | length > 0
+    or _target_bmc_xnames | length > 0
+    or _target_all_macs | length > 0
 
 # ── Boot-service configurations (scoped to target FGs) ────────────────
 # Boot-service deletion is also performed (properly scoped) in
@@ -113,7 +102,7 @@
       }}:8443/boot-service/bootconfigurations
     method: GET
     headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200]
     validate_certs: false
     return_content: true
@@ -127,7 +116,7 @@
       }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}
     method: DELETE
     headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200, 204, 404]
     validate_certs: false
   loop: >-
@@ -170,7 +159,7 @@
       }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}
     method: DELETE
     headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200, 204, 404]
     validate_certs: false
   loop: "{{ _stale_boot_configs | default([]) }}"
@@ -188,39 +177,19 @@
 # Common groups (ssh, chrony, phone_home) are shared across all categories
 # and must NOT be modified here.
 
-- name: Find stale SMD group memberships to remove
-  ansible.builtin.shell: |
-    set -o pipefail
-    /usr/bin/ochami smd group get 2>/dev/null | python3 -c "
-    import sys, json
-    target_fgs = set({{ target_fg_names | to_json }})
-    target_xnames = set({{ _target_node_xnames | to_json }})
-    common_groups = {'ssh', 'chrony', 'phone_home'}
-    skip = target_fgs | common_groups
-    for grp in json.load(sys.stdin):
-        label = grp['label']
-        if label in skip:
-            continue
-        for xname in grp.get('members', {}).get('ids', []):
-            if xname in target_xnames:
-                print(f'{label} {xname}')
-    "
-  args:
-    executable: /bin/bash
-  changed_when: false
-  failed_when: false
-  register: _stale_smd_pairs
+- name: Remove stale SMD group memberships through the API
+  openchami_reconcile:
+    action: remove_group_memberships
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    target_xnames: "{{ _target_node_xnames }}"
+    protected_group_labels: >-
+      {{ (target_fg_names + ['ssh', 'chrony', 'phone_home']) | unique | list }}
+  register: _stale_smd_membership_cleanup
+  no_log: true
   when: _target_node_xnames | length > 0
-
-- name: Remove target node xnames from stale SMD groups
-  ansible.builtin.command: >
-    /usr/bin/ochami smd group member delete --no-confirm {{ item.split()[0] }} {{ item.split()[1] }}
-  changed_when: true
-  failed_when: false
-  loop: "{{ _stale_smd_pairs.stdout_lines | default([]) }}"
-  loop_control:
-    label: "{{ item }} (stale membership)"
-  when: _stale_smd_pairs.stdout_lines | default([]) | length > 0
 
 # ── Metadata-service instanceinfos (scoped to target xnames) ──────────
 
@@ -231,7 +200,7 @@
       }}:8443/metadata-service/instanceinfos
     method: GET
     headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200]
     validate_certs: false
     return_content: true
@@ -245,7 +214,7 @@
       }}:8443/metadata-service/instanceinfos/{{ item.metadata.uid }}
     method: DELETE
     headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200, 204, 404]
     validate_certs: false
   loop: >-
@@ -270,7 +239,7 @@
           }}:8443/metadata-service/groups
         method: GET
         headers:
-          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
         status_code: [200]
         validate_certs: false
         return_content: true
@@ -288,7 +257,7 @@
       }}:8443/metadata-service/groups/{{ item.metadata.uid }}
     method: DELETE
     headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200, 204, 404]
     validate_certs: false
   loop: >-
@@ -315,7 +284,7 @@
           }}:8443/metadata-service/clusterdefaultss
         method: GET
         headers:
-          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
         status_code: [200]
         validate_certs: false
         return_content: true
@@ -329,7 +298,7 @@
           }}:8443/metadata-service/clusterdefaultss/{{ item.metadata.uid }}
         method: DELETE
         headers:
-          Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
         status_code: [200, 204, 404]
         validate_certs: false
       loop: "{{ existing_clusterdefaults.json | default([]) }}"

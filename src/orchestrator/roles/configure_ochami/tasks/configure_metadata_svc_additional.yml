@@ -79,7 +79,7 @@
     url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
     method: POST
     headers:
-      Authorization: "Bearer {{ ochami_env[(oim_node_name | upper) + '_ACCESS_TOKEN'] }}"
+      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
       Content-Type: "application/json"
     body_format: json
     body: "{{ item }}"

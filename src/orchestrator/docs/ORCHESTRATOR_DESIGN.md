@@ -254,7 +254,6 @@ All modules, module_utils, callback plugins, and roles are local.
 |-----------------|-----------|-----|
 | `common/callback_plugins/omnia_default.py` | `plugins/callback/omnia_default.py` | Stdout callback — needed by ansible.cfg |
 | `common/library/modules/generate_functional_groups.py` | `plugins/modules/generate_functional_groups.py` | Used by `orchestrator_functional_groups` role |
-| `common/library/modules/generate_xname_in_mapping_file.py` | `plugins/modules/generate_xname_in_mapping_file.py` | Used by `orchestrator_validations` role |
 | `common/library/modules/slurm_conf.py` | `plugins/modules/slurm_conf.py` | Used by `slurm_config` role |
 | `common/library/modules/fetch_credential_rule.py` | `plugins/modules/fetch_credential_rule.py` | Used by credential prompting |
 | `common/library/modules/validate_credentials.py` | `plugins/modules/validate_credentials.py` | Used by credential validation |
@@ -263,6 +262,8 @@ All modules, module_utils, callback plugins, and roles are local.
 | `common/vars/common_vars.yml` | `vars/common_vars.yml` | Shared constants |
 | `common/vars/openchami_vars.yml` | `vars/openchami_vars.yml` | OpenCHAMI auth constants |
 | *(new)* | `plugins/modules/validate_orchestrator_config.py` | Domain-specific validation module (L1+L2) |
+| *(new)* | `plugins/modules/openchami_reconcile.py` | Declarative SMD identity and OpenCHAMI reconciliation entry point |
+| *(new)* | `plugins/module_utils/openchami/` | HTTPS clients, Service Tag identity resolution, static discovery, and reconciliation logic |
 | *(new)* | `plugins/module_utils/orchestrator_validation/core/validation_engine.py` | L1/L2 validation dispatch |
 | *(new)* | `plugins/module_utils/orchestrator_validation/validators/` | Per-input L2 validation logic |
 

@@ -22,6 +22,14 @@ Shared OpenCHAMI provisioning data is reset once by
 Slurm, OS-only, and custom nodes, interfaces, groups, and Boot Service
 configurations coexist after a complete provision run.
 
+The PXE mapping does not supply XNAME. During registration,
+`openchami_reconcile` resolves each Service Tag from SMD Hardware Inventory.
+Existing mappings are reused; legacy nodes may be bootstrapped from consistent
+admin/BMC MAC evidence; and a genuinely new server receives the first free
+Node/NodeBMC XNAME pair. The new Service Tag-to-XNAME relationship is written
+to SMD before discovery and then published to every downstream task. CSV row
+position never controls persistent identity.
+
 Kubernetes and Slurm Metadata Service templates resolve NFS and VAST paths only
 from storage names declared in `omnia_config.yml` and matching entries in
 `storage_config.yml`. Provisioning fails before publishing cloud-init when a
