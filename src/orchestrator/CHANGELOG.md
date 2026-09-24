@@ -26,11 +26,15 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - OS-versioned FG names (e.g. `slurm_control_node_rhel_10_0_x86_64`) fail metadata-service template lookup — normalize template path.
 
 ### Added
+- Added persistent Service Tag-to-XNAME identity resolution through native SMD
+  Hardware Inventory and a CA-verified `openchami_reconcile` Ansible module.
 - Custom inventory (`-i`) support for `pxeboot.yml` playbook for build_stream retry/resume (#432).
 - Boot freshness check via `/proc/uptime` in phone-home verification.
 - Race-free PXE failure collection using localhost loop over BMC hostvars.
 
 ### Changed
+- Removed temporary row-position XNAME generation; provision, validation, and
+  PXE workflows now consume only SMD-resolved identities.
 - Galaxy version set to 2.3.0.
 - Renamed `phone_home` timing and verification controls to `node_registration` throughout PXE provisioning workflow to avoid confusion with Dell Phone Home functionality.
   - Role: `verify_phone_home` → `verify_node_registration`

@@ -568,18 +568,10 @@ def _wait_import_unreferenced(client, import_id):
     return False
 
 
-def _restore_target(client, old_row, remote_write_id, new_import_id):
-    """Restore or remove the target after a failed configuration."""
+def _restore_target(client, old_row):
+    """Restore the previous target after a failed configuration."""
     id_field = SFM_API_RESPONSE_KEYS["remote_write_id"]
     if old_row is None:
-        target_id = remote_write_id
-        if not target_id:
-            row = _target_row(_remote_write_rows(client.remote_writes()))
-            import_field = SFM_API_REQUEST_FIELDS["certificate_import_id"]
-            if row and str(row.get(import_field, "")) == new_import_id:
-                target_id = str(row.get(id_field, ""))
-        if target_id:
-            client.delete_remote_write(target_id)
         return
 
     old_id = _required_id(old_row, id_field)
@@ -604,17 +596,15 @@ def _restore_target(client, old_row, remote_write_id, new_import_id):
 def _rollback(
     client,
     old_row,
-    remote_write_id,
     new_import_id,
     target_mutation_attempted,
+    prepare_health=None,
 ):
-    """Rollback the target before deleting an unreferenced new import."""
+    """Restore the previous target while retaining certificate imports."""
     try:
-        if target_mutation_attempted:
-            _restore_target(
-                client, old_row, remote_write_id, new_import_id,
-            )
-        if new_import_id and not _wait_import_unreferenced(
+        if target_mutation_attempted and old_row is not None:
+            _restore_target(client, old_row)
+        if old_row is not None and new_import_id and not _wait_import_unreferenced(
             client, new_import_id,
         ):
             raise SfmApiError(
@@ -622,15 +612,20 @@ def _rollback(
                     import_id=new_import_id,
                 )
             )
+        if old_row is not None and prepare_health is not None:
+            health = _poll_remote_write_health(client, prepare_health)
+            if not health.get("healthy", False):
+                reason = health.get("error") or SFM_DETAIL_MSGS[
+                    "health_reason"
+                ].format(**health)
+                raise SfmApiError(
+                    SFM_ERROR_MSGS["remote_write_unhealthy"].format(
+                        attempts=SFM_HEALTH_POLL_ATTEMPTS,
+                        reason=reason,
+                    )
+                )
     except SfmApiError as exc:
         return SFM_DETAIL_MSGS["rollback_import_retained"].format(error=exc)
-
-    if not new_import_id:
-        return ""
-    try:
-        client.delete_import(new_import_id)
-    except SfmApiError as exc:
-        return SFM_DETAIL_MSGS["rollback_cleanup_failed"].format(error=exc)
     return ""
 
 
@@ -764,14 +759,25 @@ def _rotate_configuration(
         rollback_error = _rollback(
             client,
             old_row,
-            state["remote_write_id"],
             state["new_import_id"],
             state["target_mutation_attempted"],
+            prepare_health,
         )
         if rollback_error:
             raise SfmApiError(
                 SFM_ERROR_MSGS["api_rollback_failed"].format(
-                    error=rollback_error,
+                    primary_error=exc,
+                    rollback_error=rollback_error,
+                    import_id=state["new_import_id"],
+                )
+            ) from exc
+        if state["new_import_id"]:
+            raise SfmApiError(
+                SFM_ERROR_MSGS[
+                    "api_configuration_failed_import_retained"
+                ].format(
+                    error=exc,
+                    import_id=state["new_import_id"],
                 )
             ) from exc
         raise

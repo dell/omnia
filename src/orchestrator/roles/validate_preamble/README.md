@@ -11,7 +11,8 @@ have been established by earlier deployment or provisioning plays.
 - Load and normalize the project network specification when network facts are
   not already available.
 - Ensure the OpenCHAMI cluster hostname is present in `/etc/hosts`.
-- Normalize the PXE mapping data and generate missing xnames for validation.
+- Normalize the PXE mapping data without generating row-based XNAMEs. The
+  validation play resolves permanent XNAMEs from SMD Hardware Inventory.
 - Load the generated functional-group configuration.
 - On the OIM host, load persisted OpenCHAMI configuration and establish the
   authentication and S3 facts used by readiness validation.

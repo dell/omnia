@@ -350,12 +350,17 @@ src/orchestrator/
 │   ├── modules/
 │   │   ├── generate_functional_groups.py
 │   │   ├── validate_orchestrator_config.py
-│   │   ├── generate_xname_in_mapping_file.py
+│   │   ├── openchami_reconcile.py
 │   │   ├── slurm_conf.py
 │   │   ├── fetch_credential_rule.py
 │   │   ├── validate_credentials.py
 │   │   ├── generate_argon2_password.py
 │   ├── module_utils/
+│   │   ├── openchami/
+│   │   │   ├── client.py
+│   │   │   ├── discovery.py
+│   │   │   ├── identity.py
+│   │   │   └── reconciler.py
 │   │   ├── orchestrator_validation/
 │   │   │   ├── core/
 │   │   │   │   └── validation_engine.py

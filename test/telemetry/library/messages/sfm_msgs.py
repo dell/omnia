@@ -145,7 +145,16 @@ SFM_ERROR_MSGS: dict[str, str] = {
     "api_import_still_referenced": (
         "Certificate import {import_id} is still referenced after target rollback"
     ),
-    "api_rollback_failed": "SFM configuration failed and rollback was incomplete: {error}",
+    "api_rollback_failed": (
+        "SFM configuration failed: {primary_error}. Target rollback or "
+        "service validation was incomplete: {rollback_error}. Certificate "
+        "import {import_id} was retained to preserve the SFM-managed secret"
+    ),
+    "api_configuration_failed_import_retained": (
+        "SFM configuration failed: {error}. Certificate import {import_id} "
+        "and any partially applied target were retained to preserve the "
+        "SFM-managed secret; reconcile them manually"
+    ),
     "api_rollback_readback_failed": (
         "SFM target rollback could not be verified by API readback"
     ),
@@ -226,13 +235,13 @@ SFM_DETAIL_MSGS: dict[str, str] = {
         "\nCA identity note: SFM exposes only the filename; exact target "
         "configuration and end-to-end health were verified"
     ),
-    "old_import_retained": "\nRollback certificate import retained: {import_id}",
+    "old_import_retained": (
+        "\nPrevious certificate import retained for safe manual reconciliation: "
+        "{import_id}"
+    ),
     "rollback_import_retained": (
         "Target rollback was not proven; the new certificate import was "
         "retained to avoid breaking an active target: {error}"
-    ),
-    "rollback_cleanup_failed": (
-        "Target rollback succeeded, but new import cleanup failed: {error}"
     ),
     "metrics_ready": (
         "VictoriaMetrics: {vmselect_ip}:{vmselect_port}\n"

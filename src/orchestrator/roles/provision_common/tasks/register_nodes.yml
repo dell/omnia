@@ -80,14 +80,79 @@
   ansible.builtin.set_fact:
     target_fg_names: "{{ target_functional_groups | map(attribute='name') | list }}"
 
+- name: Refresh access token before OpenCHAMI reconciliation
+  ansible.builtin.command: sudo bash -lc 'gen_access_token'
+  register: refreshed_token_result
+  changed_when: false
+  retries: 3
+  delay: 5
+  until: >-
+    refreshed_token_result.rc == 0
+    and refreshed_token_result.stdout not in ["", "null"]
+  no_log: true
+
+- name: Update OpenCHAMI authentication with refreshed token
+  ansible.builtin.set_fact:
+    ochami_env: >-
+      {{ {cluster_env_key:
+          refreshed_token_result.stdout} }}
+  no_log: true
+
+- name: Verify OpenCHAMI APIs with JWT and CA trust
+  openchami_reconcile:
+    action: check_apis
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+  no_log: true
+
 - name: Compute filtered nodes for {{ target_category }}
   ansible.builtin.set_fact:
     _category_nodes: >-
       {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
          | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
          | map(attribute='value')
-         | sort(attribute='XNAME')
+         | sort(attribute='SERVICE_TAG')
          | list }}
+
+- name: Resolve persistent OpenCHAMI identities for {{ target_category }}
+  openchami_reconcile:
+    action: resolve_identities
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    nodes: "{{ _category_nodes }}"
+  register: _resolved_openchami_identities
+  no_log: true
+
+- name: Use internally resolved XNAMEs for {{ target_category }}
+  ansible.builtin.set_fact:
+    _category_nodes: "{{ _resolved_openchami_identities.nodes }}"
+
+- name: Index internally resolved nodes by ADMIN_MAC
+  ansible.builtin.set_fact:
+    _resolved_category_nodes_by_mac: >-
+      {% set resolved = {} -%}
+      {% for node in _category_nodes -%}
+      {% set _ = resolved.update({node.ADMIN_MAC: node}) -%}
+      {% endfor -%}
+      {{ resolved }}
+
+# SMD-group and later provisioning tasks read the mapping from localhost.
+# Publish the resolved XNAMEs there so all downstream tasks consume only the
+# permanent Service Tag identity resolved from SMD Hardware Inventory.
+- name: Publish internally resolved XNAMEs to the provisioning mapping
+  ansible.builtin.set_fact:
+    read_mapping_file: >-
+      {{ hostvars['localhost']['read_mapping_file']
+         | combine({
+             'dict': hostvars['localhost']['read_mapping_file']['dict']
+                     | combine(_resolved_category_nodes_by_mac)
+           }) }}
+  delegate_to: localhost
+  delegate_facts: true
 
 - name: Reset stale OpenCHAMI data for {{ target_category }}
   ansible.builtin.include_tasks: delete_smd_endpoints.yml
@@ -136,7 +201,8 @@
     url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
     method: GET
     status_code: 200
-    validate_certs: false
+    ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    validate_certs: true
   register: metadata_svc_health_status
   retries: "{{ service_retries }}"
   delay: "{{ service_retry_interval }}"
@@ -149,7 +215,8 @@
         url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
         method: GET
         status_code: 200
-        validate_certs: false
+        ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        validate_certs: true
       register: metadata_svc_final_check
   rescue:
     - name: Restart openchami.target to recover container networking
@@ -172,7 +239,8 @@
         url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
         method: GET
         status_code: 200
-        validate_certs: false
+        ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        validate_certs: true
       register: metadata_svc_health_status
       retries: "{{ service_retries }}"
       delay: "{{ service_retry_interval }}"
@@ -200,30 +268,15 @@
     - openchami_target_status is defined
     - openchami_target_status is not success
 
-- name: Refresh access token before SMD discovery
-  ansible.builtin.command: sudo bash -lc 'gen_access_token'
-  register: refreshed_token_result
-  changed_when: false
-  failed_when: false
-  retries: 3
-  delay: 5
-  until: refreshed_token_result.rc == 0 and refreshed_token_result.stdout not in ["", "null"]
-
-- name: Update ochami_env with refreshed token
-  ansible.builtin.set_fact:
-    ochami_env: "{{ {cluster_env_key: refreshed_token_result.stdout} }}"
-  when: refreshed_token_result.rc == 0
-
-- name: Remove obsolete node-registration SMD group
-  ansible.builtin.uri:
-    url: >-
-      https://{{ cluster_name }}.{{ cluster_domain
-      }}:8443/hsm/v2/groups/node_registration
-    method: DELETE
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-    status_code: [200, 404]
-    validate_certs: false
+- name: Remove obsolete node-registration SMD group through the API
+  openchami_reconcile:
+    action: delete_groups
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    group_labels:
+      - node_registration
   no_log: true
   when:
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
@@ -232,13 +285,17 @@
 - name: Discover nodes in SMD (upsert with --overwrite)
   block:
     - name: Register nodes in SMD for target category
-      ansible.builtin.command: >
-        /usr/bin/ochami discover static --overwrite -f yaml
-        -d @"{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
-      environment: "{{ ochami_env }}"
+      openchami_reconcile:
+        action: discover_static
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: >-
+          {{ ochami_env[cluster_env_key] }}
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        nodes_file: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+        token_env_key: "{{ cluster_env_key }}"
+        expected_xnames: "{{ _category_nodes | map(attribute='XNAME') | list }}"
       register: openchami_orchestration
-      changed_when: openchami_orchestration.rc == 0
-      failed_when: openchami_orchestration.rc != 0
+      no_log: true
   rescue:
     - name: Verify SMD service is running
       ansible.builtin.service:
@@ -257,12 +314,17 @@
         - smd_service_status is not success
 
     - name: Wait for SMD API to be ready
-      ansible.builtin.command: /usr/bin/ochami smd service status
+      openchami_reconcile:
+        action: check_apis
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: >-
+          {{ ochami_env[cluster_env_key] }}
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
       register: smd_api_ready
       retries: "{{ service_retries }}"
       delay: "{{ service_retry_interval }}"
-      until: smd_api_ready.rc == 0
-      changed_when: false
+      until: smd_api_ready is success
+      no_log: true
 
     - name: Refresh access token before retry
       ansible.builtin.command: sudo bash -lc 'gen_access_token'
@@ -279,41 +341,38 @@
       when: retry_token_result.rc == 0
 
     - name: Retry SMD node discovery
-      ansible.builtin.command: >
-        /usr/bin/ochami discover static --overwrite -f yaml
-        -d @"{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
-      environment: "{{ ochami_env }}"
+      openchami_reconcile:
+        action: discover_static
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: >-
+          {{ ochami_env[cluster_env_key] }}
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        nodes_file: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+        token_env_key: "{{ cluster_env_key }}"
+        expected_xnames: "{{ _category_nodes | map(attribute='XNAME') | list }}"
       register: openchami_orchestration
-      changed_when: openchami_orchestration.rc == 0
-      failed_when: openchami_orchestration.rc != 0
       retries: 2
       delay: "{{ service_retry_interval }}"
-      until: openchami_orchestration.rc == 0
-
-    - name: Fail if SMD discovery still unsuccessful
-      ansible.builtin.fail:
-        msg: "{{ ochami_discovery_failed_msg }}"
-      when: openchami_orchestration.rc != 0
+      until: openchami_orchestration is success
+      no_log: true
 
 - name: Wait until target nodes are registered in SMD
-  ansible.builtin.shell: |
-    set -o pipefail && \
-    /usr/bin/ochami smd component get \
-    | jq -r '.Components[] | select(.Type == "Node") | .ID'
-  changed_when: false
+  openchami_reconcile:
+    action: verify_components
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    expected_xnames: "{{ _category_nodes | map(attribute='XNAME') | list }}"
   register: openchami_smd_status
   retries: "{{ service_retries }}"
   delay: "{{ service_retry_interval }}"
-  until:
-    - openchami_smd_status.rc == 0
-    - >-
-      _category_nodes | map(attribute='XNAME') | list
-      | difference(openchami_smd_status.stdout_lines | default([]))
-      | length == 0
+  until: openchami_smd_status is success
+  no_log: true
 
 - name: Display SMD status
   ansible.builtin.debug:
-    msg: "{{ openchami_smd_status.stdout_lines }}"
+    msg: "{{ openchami_smd_status.verification.expected }}"
     verbosity: 2
 
 - name: Generate per-category hostname YAML
@@ -333,26 +392,28 @@
   ansible.builtin.set_fact:
     hostname_entries: "{{ hostname_yaml_raw.content | b64decode | from_yaml }}"
 
-- name: Configure hostnames in metadata-service
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-      Content-Type: "application/json"
-    body_format: json
-    body:
-      metadata:
-        name: "{{ item.id }}"
-      spec:
-        instance_id: "{{ item.id }}"
-        hostname: "{{ item['local-hostname'] }}"
-        local_hostname: "{{ item['local-hostname'] }}"
-    status_code: [200, 201, 409]
-    validate_certs: false
-  loop: "{{ hostname_entries }}"
-  loop_control:
-    label: "{{ item.id }}"
+- name: Build desired per-node Metadata Service identities
+  ansible.builtin.set_fact:
+    _desired_instance_infos: >-
+      {% set result = [] -%}
+      {% for item in hostname_entries -%}
+      {% set _ = result.append({
+           'instance_id': item.id,
+           'hostname': item['local-hostname']
+         }) -%}
+      {% endfor -%}
+      {{ result }}
+
+- name: Reconcile hostnames in Metadata Service
+  openchami_reconcile:
+    action: reconcile_instanceinfos
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    instance_infos: "{{ _desired_instance_infos }}"
+  register: _metadata_instanceinfo_reconcile
+  no_log: true
 
 - name: Create metadata-service groups dict for target FGs
   ansible.builtin.set_fact:

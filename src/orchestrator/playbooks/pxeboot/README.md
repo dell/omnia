@@ -101,12 +101,17 @@ slurm_node_x86_64,grp1,ABCD34,,node2,aa:bb:cc:dd:ee:gg,172.16.1.11,xx:yy:zz:aa:b
 `HOSTNAME`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, `BMC_IP`, `IB_NIC_NAME`,
 `IB_IP`.
 
-All headers must be present even when an optional field, such as
-`SERVICE_TAG`, `PARENT_SERVICE_TAG`, `BMC_MAC`, `IB_NIC_NAME`, or `IB_IP`, is
-empty for a row.
+All headers must be present. `PARENT_SERVICE_TAG`, `IB_NIC_NAME`, and `IB_IP`
+may be empty. `SERVICE_TAG`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, and `BMC_IP`
+must be populated and unique.
 
 The parser follows CSV quoting rules. Invalid or duplicate BMC/admin addresses
 fail before any Redfish operation is attempted.
+
+The mapping does not contain an XNAME column. Before any Redfish operation,
+the play resolves each Service Tag to its permanent XNAME in SMD Hardware
+Inventory using the TokenSmith JWT and configured OpenCHAMI CA certificate.
+Missing identities fail closed with an instruction to run provision first.
 
 ## Output
 
