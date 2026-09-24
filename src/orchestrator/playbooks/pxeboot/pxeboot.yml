@@ -300,6 +300,8 @@
           loop:
             - BMC_IP
             - ADMIN_IP
+            - BMC_MAC
+            - ADMIN_MAC
             - HOSTNAME
             - SERVICE_TAG
 
@@ -328,6 +330,38 @@
               PXE inventory {{ pxeboot_inventory_source }} contains duplicate
               BMC_IP or ADMIN_IP values. Every node must have unique addresses.
 
+        - name: Generate access token for SMD identity lookup
+          ansible.builtin.command: sudo bash -lc 'gen_access_token'
+          register: _pxeboot_identity_token
+          changed_when: false
+          retries: 3
+          delay: 5
+          until: >-
+            _pxeboot_identity_token.rc == 0
+            and _pxeboot_identity_token.stdout not in ['', 'null']
+          no_log: true
+
+        - name: Resolve PXE identities from SMD Hardware Inventory
+          openchami_reconcile:
+            action: resolve_identities
+            cluster_uri: >-
+              https://{{ oim_node_name }}.{{ domain_name }}:8443
+            access_token: "{{ _pxeboot_identity_token.stdout }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            nodes: "{{ _pxeboot_csv.list }}"
+          check_mode: true
+          register: _pxeboot_identity_result
+          no_log: true
+
+        - name: Require provisioned SMD Service Tag identities for PXE boot
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_identity_result.planned_inventory_xnames | length == 0
+            fail_msg: >-
+              SMD Hardware Inventory is missing Service Tag identities for:
+              {{ _pxeboot_identity_result.planned_inventory_xnames | join(', ') }}.
+              Run the provision phase before PXE boot.
+
         - name: Build BMC host group from named CSV fields
           ansible.builtin.add_host:
             hostname: "{{ item.BMC_IP | trim }}"
@@ -336,7 +370,7 @@
             xname: "{{ item.XNAME | default('') | trim }}"
             hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
             service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
-          loop: "{{ _pxeboot_csv.list }}"
+          loop: "{{ _pxeboot_identity_result.nodes }}"
           loop_control:
             label: "{{ item.BMC_IP | trim }}"
 
@@ -348,7 +382,7 @@
             xname: "{{ item.XNAME | default('') | trim }}"
             hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
             service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
-          loop: "{{ _pxeboot_csv.list }}"
+          loop: "{{ _pxeboot_identity_result.nodes }}"
           loop_control:
             label: "{{ item.ADMIN_IP | trim }}"
 
@@ -367,7 +401,9 @@
 
         - name: Build target admin IPs for node-registration verification
           ansible.builtin.set_fact:
-            target_node_admin_ips: "{{ _pxeboot_csv.list | map(attribute='ADMIN_IP') | map('trim') | list }}"
+            target_node_admin_ips: >-
+              {{ _pxeboot_identity_result.nodes
+                 | map(attribute='ADMIN_IP') | map('trim') | list }}
             cacheable: true
           when: enable_node_registration | default(true) | bool
 

@@ -26,6 +26,13 @@ Bug Fixes
 - Added custom inventory support for ``pxeboot.yml`` (#432).
 - Galaxy version set to 2.3.0 across all domains (#449).
 
+Features
+--------
+
+- Added persistent Service Tag-to-XNAME identity resolution through native SMD Hardware Inventory.
+- Added the CA-verified ``openchami_reconcile`` Ansible module for SMD and OpenCHAMI reconciliation.
+- Removed temporary row-position XNAME generation from provision, validation, and PXE workflows.
+
 Breaking Changes
 ---------------
 

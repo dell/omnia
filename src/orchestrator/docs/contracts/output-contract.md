@@ -188,9 +188,11 @@ PXE phase failed. A provisioning report is retained only when its
 a matching provisioning report, the provisioning phase is `not_run` and
 per-node provisioning state is `unknown` rather than being inferred.
 
-For custom PXE inventories that do not contain XNAME values, PXE results are
-still reported by BMC and administrative address, while provisioning
-correlation remains `unknown`.
+PXE inventories do not supply XNAME values. Before rebooting any server, the
+PXE workflow resolves each Service Tag through SMD Hardware Inventory and uses
+the resulting permanent XNAME for report correlation. If an identity is
+missing, PXE fails before Redfish operations and directs the operator to run
+the provision phase first.
 
 ---
 

@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +11,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
 
-clone_retry: "5"
-clone_delay: "10"
-fail_retry: "5"
-fail_delay: "10"
-dir_permissions_755: "0755"
-file_permissions_755: "0755"
-file_permissions_644: "0644"
-file_permissions_600: "0600"
-file_permissions_400: "0400"
-job_retry: "240"
-job_delay: "30"
-openchami_ca_cert_path: /etc/pki/ca-trust/source/anchors/openchami.pem
+"""Reusable OpenCHAMI integration helpers for Omnia Ansible modules."""

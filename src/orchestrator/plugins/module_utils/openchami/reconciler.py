@@ -1,0 +1,369 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# pylint: disable=missing-function-docstring,too-many-branches,too-many-locals
+"""Idempotent OpenCHAMI reconciliation operations used by Ansible."""
+
+from collections.abc import Iterable
+from typing import Any
+
+from .client import BootServiceClient, MetadataClient, OpenChamiClient, SMDClient
+from .discovery import StaticDiscovery
+from .identity import SMDIdentityResolver, normalize_mac
+
+
+class OpenChamiReconciler:
+    """Coordinate identity, SMD, and Metadata Service operations."""
+
+    def __init__(self, base_url, token, ca_cert=None, timeout=15, retries=3):
+        client = OpenChamiClient(
+            base_url=base_url,
+            token=token,
+            ca_cert=ca_cert,
+            timeout=timeout,
+            retries=retries,
+        )
+        self.smd = SMDClient(client)
+        self.metadata = MetadataClient(client)
+        self.boot = BootServiceClient(client)
+        self.client = client
+
+    def check_apis(self):
+        """Validate TLS, JWT authentication, and the required read APIs."""
+        checks = {}
+        endpoints = {
+            "smd_health": ("/hsm/v2/service/ready", dict),
+            "smd_components": ("/hsm/v2/State/Components", (dict, list)),
+            "smd_interfaces": (
+                "/hsm/v2/Inventory/EthernetInterfaces",
+                list,
+            ),
+            "smd_hardware_inventory": (
+                "/hsm/v2/Inventory/Hardware",
+                list,
+            ),
+            "smd_groups": ("/hsm/v2/groups", list),
+            "metadata_health": ("/metadata-service/health", dict),
+            "metadata_instanceinfos": (
+                "/metadata-service/instanceinfos",
+                list,
+            ),
+            "metadata_groups": ("/metadata-service/groups", list),
+            "metadata_cluster_defaults": (
+                "/metadata-service/clusterdefaultss",
+                list,
+            ),
+            "boot_health": ("/boot-service/health", dict),
+            "boot_configurations": (
+                "/boot-service/bootconfigurations",
+                list,
+            ),
+            "boot_nodes": ("/boot-service/nodes", list),
+            "tokensmith_jwks": ("/tokensmith/.well-known/jwks.json", dict),
+        }
+        for name, (path, expected_type) in endpoints.items():
+            response = self.client.request_json("GET", path)
+            if not isinstance(response.body, expected_type):
+                raise TypeError(
+                    f"{path} returned unexpected payload type "
+                    f"{type(response.body).__name__}"
+                )
+            checks[name] = {"status": response.status, "path": path}
+        return {"changed": False, "checks": checks}
+
+    def resolve_identities(
+        self,
+        nodes,
+        check_mode=False,
+    ):
+        """Resolve XNAMEs from native SMD Service Tag FRU records."""
+        return SMDIdentityResolver(self.smd).resolve_nodes(
+            nodes=nodes,
+            check_mode=check_mode,
+        )
+
+    def reconcile_groups(self, desired: Iterable[dict[str, Any]], check_mode=False):
+        """Create missing SMD groups and atomically reconcile their members."""
+        existing_by_label = {}
+        for group in self.smd.groups():
+            label = str(group.get("label", "")).strip()
+            if not label:
+                continue
+            if label in existing_by_label:
+                raise ValueError(f"SMD returned duplicate group label {label!r}")
+            existing_by_label[label] = group
+
+        created = []
+        updated = []
+        unchanged = []
+        seen = set()
+        for requested in desired:
+            if not isinstance(requested, dict):
+                raise TypeError("Each desired SMD group must be a mapping")
+            label = str(requested.get("label", "")).strip()
+            if not label:
+                raise ValueError("Each desired SMD group requires a label")
+            if label in seen:
+                raise ValueError(f"Duplicate desired SMD group {label!r}")
+            seen.add(label)
+            members_block = requested.get("members") or {}
+            if not isinstance(members_block, dict):
+                raise TypeError(
+                    f"Desired SMD group {label!r} members must be a mapping"
+                )
+            requested_members = members_block.get("ids", [])
+            if not isinstance(requested_members, list):
+                raise TypeError(
+                    f"Desired SMD group {label!r} members.ids must be a list"
+                )
+            members = self._unique(requested_members)
+            if len(members) != len(requested_members):
+                raise ValueError(
+                    f"Desired SMD group {label!r} contains duplicate members"
+                )
+
+            current = existing_by_label.get(label)
+            if current is None:
+                payload = dict(requested)
+                payload["label"] = label
+                payload["members"] = {"ids": members}
+                if not check_mode:
+                    self.smd.create_group(payload)
+                created.append(label)
+                continue
+
+            current_members = self._unique(
+                (current.get("members") or {}).get("ids", [])
+            )
+            if set(current_members) == set(members):
+                unchanged.append(label)
+                continue
+            if not check_mode:
+                self.smd.set_group_members(label, members)
+            updated.append(label)
+
+        return {
+            "changed": bool(created or updated),
+            "created": created,
+            "updated": updated,
+            "unchanged": unchanged,
+        }
+
+    def remove_group_memberships(
+        self,
+        target_xnames: Iterable[str],
+        protected_labels: Iterable[str],
+        check_mode=False,
+    ):
+        """Remove target nodes from every non-protected SMD group."""
+        targets = set(self._unique(target_xnames))
+        protected = set(self._unique(protected_labels))
+        removals = []
+        for group in self.smd.groups():
+            label = str(group.get("label", "")).strip()
+            if not label or label in protected:
+                continue
+            members = (group.get("members") or {}).get("ids", []) or []
+            for xname in sorted(targets.intersection(members)):
+                removals.append({"label": label, "xname": xname})
+
+        if not check_mode:
+            for removal in removals:
+                self.smd.delete_group_member(
+                    removal["label"], removal["xname"]
+                )
+        return {"changed": bool(removals), "removed": removals}
+
+    def delete_groups(self, labels: Iterable[str], check_mode=False):
+        """Delete explicitly named SMD groups without failing on absence."""
+        requested = self._unique(labels)
+        existing = {
+            str(group.get("label", "")).strip()
+            for group in self.smd.groups()
+            if group.get("label")
+        }
+        present = [label for label in requested if label in existing]
+        if not check_mode:
+            for label in present:
+                self.smd.delete_group(label)
+        return {
+            "changed": bool(present),
+            "deleted": present,
+            "missing": [label for label in requested if label not in existing],
+        }
+
+    def cleanup_smd(
+        self,
+        component_endpoint_xnames: Iterable[str],
+        redfish_endpoint_xnames: Iterable[str],
+        interface_macs: Iterable[str],
+        check_mode=False,
+    ):
+        """Delete category-scoped discovery artifacts, treating absence as success."""
+        component_targets = self._unique(component_endpoint_xnames)
+        interface_targets = {
+            normalize_mac(value) for value in interface_macs if value
+        }
+        # Delete every interface owned by a target Node/NodeBMC before static
+        # discovery. This removes an old MAC after a NIC or BMC replacement;
+        # deleting only the new PXE MAC would leave the stale record behind.
+        for interface in self.smd.interfaces():
+            if str(interface.get("ComponentID", "")).strip() not in component_targets:
+                continue
+            identifier = interface.get("ID") or interface.get("MACAddress")
+            if identifier:
+                interface_targets.add(normalize_mac(identifier))
+
+        targets = {
+            "component_endpoints": component_targets,
+            "redfish_endpoints": self._unique(redfish_endpoint_xnames),
+            "interfaces": sorted(interface_targets),
+        }
+        if check_mode:
+            return {
+                "changed": any(targets.values()),
+                "planned": targets,
+                "results": {},
+            }
+        results = {
+            "component_endpoints": self.smd.delete_component_endpoints(
+                targets["component_endpoints"]
+            ),
+            "redfish_endpoints": self.smd.delete_redfish_endpoints(
+                targets["redfish_endpoints"]
+            ),
+            "interfaces": self.smd.delete_interfaces(targets["interfaces"]),
+        }
+        changed = any(value["deleted"] for value in results.values())
+        return {"changed": changed, "planned": targets, "results": results}
+
+    def discover_static(
+        self,
+        nodes_file,
+        access_token,
+        token_env_key,
+        expected_xnames,
+        check_mode=False,
+    ):
+        """Run static discovery and verify all requested components exist."""
+        expected = set(self._unique(expected_xnames))
+        if check_mode:
+            return {"changed": True, "planned_xnames": sorted(expected)}
+        result = StaticDiscovery().run(
+            nodes_file,
+            access_token,
+            token_env_key,
+            self.client.base_url,
+            self.client.ca_cert,
+        )
+        verification = self.verify_components(expected)
+        result.update({"changed": True, "verification": verification})
+        return result
+
+    def verify_components(self, expected_xnames: Iterable[str]):
+        expected = set(self._unique(expected_xnames))
+        actual = {
+            component.get("ID")
+            for component in self.smd.components()
+            if component.get("Type") == "Node"
+        }
+        missing = sorted(expected - actual)
+        if missing:
+            raise ValueError(
+                "SMD registration verification failed; missing node XNAMEs: "
+                + ", ".join(missing)
+            )
+        return {"expected": sorted(expected), "missing": []}
+
+    def reconcile_instance_infos(self, desired: Iterable[dict[str, Any]], check_mode=False):
+        """Create/update one InstanceInfo per XNAME and remove duplicates."""
+        existing = self.metadata.instance_infos()
+        by_instance_id = {}
+        for resource in existing:
+            instance_id = str(resource.get("spec", {}).get("instance_id", "")).strip()
+            if instance_id:
+                by_instance_id.setdefault(instance_id, []).append(resource)
+
+        created = []
+        updated = []
+        deleted_duplicates = []
+        unchanged = []
+        seen = set()
+        for item in desired:
+            instance_id = str(item.get("instance_id", item.get("id", ""))).strip()
+            hostname = str(item.get("hostname", "")).strip()
+            if not instance_id or not hostname:
+                raise ValueError("Each InstanceInfo requires instance_id and hostname")
+            if instance_id in seen:
+                raise ValueError(f"Duplicate desired InstanceInfo for {instance_id}")
+            seen.add(instance_id)
+            matches = sorted(
+                by_instance_id.get(instance_id, []),
+                key=lambda resource: str(
+                    resource.get("metadata", {}).get("updatedAt", "")
+                ),
+                reverse=True,
+            )
+            desired_spec = {
+                "instance_id": instance_id,
+                "hostname": hostname,
+                "local_hostname": hostname,
+            }
+            if not matches:
+                if not check_mode:
+                    self.metadata.create_instance_info(
+                        {"metadata": {"name": instance_id}, "spec": desired_spec}
+                    )
+                created.append(instance_id)
+                continue
+
+            canonical = matches[0]
+            canonical_uid = canonical.get("metadata", {}).get("uid")
+            if not canonical_uid:
+                raise ValueError(f"InstanceInfo for {instance_id} has no metadata.uid")
+            current_spec = dict(canonical.get("spec", {}))
+            merged_spec = dict(current_spec)
+            merged_spec.update(desired_spec)
+            current_name = canonical.get("metadata", {}).get("name", "")
+            if current_spec != merged_spec or current_name != instance_id:
+                if not check_mode:
+                    self.metadata.update_instance_info(
+                        canonical_uid,
+                        {"metadata": {"name": instance_id}, "spec": merged_spec},
+                    )
+                updated.append(instance_id)
+            else:
+                unchanged.append(instance_id)
+
+            for duplicate in matches[1:]:
+                duplicate_uid = duplicate.get("metadata", {}).get("uid")
+                if not duplicate_uid:
+                    raise ValueError(
+                        f"Duplicate InstanceInfo for {instance_id} has no metadata.uid"
+                    )
+                if not check_mode:
+                    self.metadata.delete_instance_info(duplicate_uid)
+                deleted_duplicates.append(duplicate_uid)
+
+        return {
+            "changed": bool(created or updated or deleted_duplicates),
+            "created": created,
+            "updated": updated,
+            "unchanged": unchanged,
+            "deleted_duplicate_uids": deleted_duplicates,
+        }
+
+    @staticmethod
+    def _unique(values) -> list[str]:
+        return list(dict.fromkeys(str(value).strip() for value in values if value))

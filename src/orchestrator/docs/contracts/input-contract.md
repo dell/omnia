@@ -62,21 +62,24 @@ determine which credentials are mandatory.
 |--------|------|----------|-------------|
 | `FUNCTIONAL_GROUP_NAME` | string | Yes | Node role (for example, `slurm_node_rhel_10_0_aarch64`) |
 | `GROUP_NAME` | string | Yes | Scalable Unit / logical group |
-| `SERVICE_TAG` | string | No | Dell server service tag; validated when supplied |
+| `SERVICE_TAG` | string | Yes | Unique physical-server identity persisted against its permanent XNAME in SMD Hardware Inventory |
 | `PARENT_SERVICE_TAG` | string | No | Parent service tag used by associated-node workflows; Discovery populates it for Slurm compute nodes when a service worker is available |
 | `HOSTNAME` | string | Yes | Assigned hostname |
 | `ADMIN_MAC` | string | Yes | Unique admin NIC MAC address |
 | `ADMIN_IP` | string | Yes | Admin network IP |
-| `BMC_MAC` | string | No | BMC/iDRAC MAC address |
-| `BMC_IP` | string | No | BMC/iDRAC IP address |
+| `BMC_MAC` | string | Yes | Unique BMC/iDRAC MAC address used for safe legacy identity bootstrap and discovery |
+| `BMC_IP` | string | Yes | Unique BMC/iDRAC IP address |
 | `IB_NIC_NAME` | string | No | InfiniBand NIC FQDD |
 | `IB_IP` | string | No | InfiniBand IP |
 
 The header must contain these exact 11 uppercase column names in the order
 shown, including `IB_NIC_NAME` and `IB_IP`. Optional values remain present as
-empty CSV cells. `SERVICE_TAG` and `PARENT_SERVICE_TAG` values are optional.
-Both legacy mappings and Discovery-generated mappings are accepted; Discovery
-may place a `service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
+empty CSV cells. `PARENT_SERVICE_TAG`, `IB_NIC_NAME`, and `IB_IP` values are
+optional. `SERVICE_TAG`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, and `BMC_IP` must
+be populated and unique. Users do not supply XNAME; Omnia resolves the
+permanent Service Tag-to-XNAME mapping from SMD Hardware Inventory. Both legacy
+mappings and Discovery-generated mappings are accepted; Discovery may place a
+`service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
 
 ---
 
