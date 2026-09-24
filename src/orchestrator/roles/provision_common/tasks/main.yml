@@ -56,16 +56,18 @@
                ) }}
 
     - name: Create SMD group for additional_metadata_svc common
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_common.yml"
-      loop:
-        - "{{ additional_metadata_svc_common_group_name }}"
+      ansible.builtin.include_tasks: create_smd_group_common.yml
+      vars:
+        common_group_name: "{{ additional_metadata_svc_common_group_name }}"
       when: additional_metadata_svc_common_enabled | default(false) | bool
 
     # The input may configure groups owned by later provisioning categories.
     # Publish only groups whose category has completed SMD registration.
     - name: Create SMD groups for per-FG additional metadata-service
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_additional_fg.yml"
-      with_items: "{{ additional_metadata_svc_effective_fg_names }}"
+      ansible.builtin.include_tasks: create_smd_group_additional.yml
+      loop: "{{ additional_metadata_svc_effective_fg_names }}"
+      loop_control:
+        loop_var: additional_group_fg_name
       when: additional_metadata_svc_groups_enabled | default(false) | bool
 
     - name: Fetch existing boot configurations for cleanup
@@ -237,39 +239,6 @@
       loop: "{{ target_functional_groups | map(attribute='name') | list }}"
       loop_control:
         loop_var: fg_name
-
-    - name: Load hostname YAML for re-apply
-      ansible.builtin.slurp:
-        src: "{{ nodes_dir }}/hostname_{{ target_category }}.yaml"
-      register: reapply_hostname_raw
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-    - name: Parse hostname entries for re-apply
-      ansible.builtin.set_fact:
-        reapply_hostname_entries: "{{ reapply_hostname_raw.content | b64decode | from_yaml }}"
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-    - name: Re-apply per-node hostname data into metadata-service
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/instanceinfos"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-          Content-Type: "application/json"
-        body_format: json
-        body:
-          metadata:
-            name: "{{ item.id }}"
-          spec:
-            instance_id: "{{ item.id }}"
-            hostname: "{{ item['local-hostname'] }}"
-            local_hostname: "{{ item['local-hostname'] }}"
-        status_code: [200, 201, 409]
-        validate_certs: false
-      loop: "{{ reapply_hostname_entries | default([]) }}"
-      loop_control:
-        label: "{{ item.id }}"
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Configure additional metadata-service
       ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/configure_metadata_svc_additional.yml"
