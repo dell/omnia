@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Writes build_status.yml to {{ output_project_dir }}/ for config mode. Catalog
-# mode additionally writes the authoritative contract below the composite
-# catalog identity while retaining the project-level latest file during the
-# cross-domain contract migration.
+# Every successful build writes the latest build_status.yml to
+# {{ output_project_dir }}/, regardless of input mode. Catalog mode additionally
+# writes the same status below the composite catalog identity. Config mode has
+# no catalog identity and therefore writes only the project-level contract.
 # This output file is consumed by the provision domain for BSS template
 # rendering (S3 paths for kernel, initrd, image per functional group).
 #
@@ -71,7 +71,7 @@
     - "{{ _output_base }}"
     - "{{ _output_domain }}"
 
-- name: Write project-level build_status.yml compatibility copy
+- name: Write latest project-level build_status.yml
   ansible.builtin.template:
     src: "{{ role_path }}/templates/build_status.yml.j2"
     dest: "{{ _output_base }}/build_status.yml"
@@ -112,7 +112,7 @@
 - name: Display build status output locations
   ansible.builtin.debug:
     msg:
-      - "Latest compatibility copy: {{ _output_base }}/build_status.yml"
+      - "Latest build contract: {{ _output_base }}/build_status.yml"
       - >-
         {{ 'Catalog contract: ' ~ _output_domain ~ '/build_status.yml'
            if (_catalog_status_output | bool)
