@@ -79,18 +79,6 @@ boot_source_override_enabled: continuous  # or: once, disabled
 boot_source_override_target: pxe         # or: uefi_http, hdd, etc.
 ```
 
-### Supported variable aliases
-
-The `phone_home_*` timing names are accepted temporarily for upgrade
-compatibility and emit a deprecation warning. New configuration must use:
-
-| Accepted alias | Current variable |
-|----------------|------------------|
-| `enable_phone_home` | `enable_node_registration` |
-| `phone_home_pause_minutes` | `node_registration_pause_minutes` |
-| `phone_home_retries` | `node_registration_retries` |
-| `phone_home_delay` | `node_registration_delay` |
-
 `continuous` preserves the established Omnia behavior, but it also makes later
 restarts select PXE until the iDRAC override is changed. Use `once` when only
 the current provisioning boot should use PXE.

@@ -226,6 +226,21 @@ modes prompt for `yes`; trusted automation can add `--skip-approval`. Detailed
 component cleanup behavior is documented in
 [`playbooks/cleanup/README.md`](playbooks/cleanup/README.md).
 
+## Omnia 2.2 to 2.3
+
+For deployments moving from Omnia 2.2:
+
+- Service Tag is now persisted against a permanent XNAME in SMD Hardware
+  Inventory; CSV row order no longer controls node identity.
+- Metadata Service resources are reconciled in place with project ownership,
+  and changed nodes remain `reprovision_required` until a verified fresh boot.
+- PXE completion uses the `node_registration_*` controls and verifies SSH boot
+  freshness plus structured cloud-init state.
+- Lifecycle automation should consume `provisioning_report.yml`,
+  `pxeboot_status.yml`, and the aggregate `orchestrator_status.yml`.
+- The OpenCHAMI `0.1.7-1` to `0.2.0-1` upgrade is one-way in this release;
+  take a full system backup because the `rollback` tag is not operational.
+
 ## Documentation
 
 | Document | Description |
