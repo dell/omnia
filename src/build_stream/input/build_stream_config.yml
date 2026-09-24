@@ -92,3 +92,56 @@ gitlab_puma_workers: 2
 # Sidekiq background job concurrency
 # Default: 10
 gitlab_sidekiq_concurrency: 10
+
+# ==========================================================================
+# Section 3 — Cadence Polling Configuration (Operational Parameters Only)
+#   ER Reference: ER-BSM-002 — AC-008, AC-009, AC-015, AC-016
+#
+#   NOTE: Only the following parameters are configurable (user-facing):
+#         - enable_cadence_polling
+#         - cadence_polling_interval_seconds
+#         - cadence_catalog_filename
+#         - cadence_gitlab_repo_path
+#         - cadence_playbook_name
+#         - cadence_sync_timeout_seconds
+#         - cadence_sync_poll_interval_seconds
+#
+#   Fixed/internal parameters (not user-configurable):
+#         - Auto version bumping strategy (hardcoded: "patch")
+#         - Git author metadata (hardcoded: "BuildStream Cadence")
+#         - Audit event emission (hardcoded: enabled)
+#         - Log level (hardcoded: "info")
+# ==========================================================================
+
+# Enable or disable cadence polling for periodic package synchronization
+# Accepted values: true | false
+# Default: false
+enable_cadence_polling: false
+
+# Polling interval for cadence syncs in seconds
+# Accepted values: integer >= 3600 (1 hour minimum)
+# Default: 86400 (24 hours)
+cadence_polling_interval_seconds: 86400
+
+# Cadence catalog filename in the GitLab repository
+# This file is version-bumped after successful package sync
+# Default: "cadence_catalog_rhel.json"
+cadence_catalog_filename: "cadence_catalog_rhel.json"
+
+# Path to the local GitLab repository clone on the OIM host
+# Used for git operations (commit and push of updated catalog)
+# REQUIRED when enable_cadence_polling is true
+# Default: ""
+cadence_gitlab_repo_path: ""
+
+# Package sync playbook name to invoke during cadence cycles
+# Default: "repo_sync.yml"
+cadence_playbook_name: "repo_sync.yml"
+
+# Timeout for repo sync playbook execution in seconds
+# Default: 3600 (1 hour)
+cadence_sync_timeout_seconds: 3600
+
+# Poll interval while waiting for sync result in seconds
+# Default: 10
+cadence_sync_poll_interval_seconds: 10

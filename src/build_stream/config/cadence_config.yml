@@ -1,0 +1,96 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================================
+# DEPRECATED: Cadence Configuration — Use build_stream_config.yml Instead
+# ============================================================================
+#
+# This file is DEPRECATED as of ER-BSM-002 Phase 1.
+# All cadence configuration has been consolidated into:
+#   ${OMNIA_DATA_PATH}/build_stream/build_stream_config.yml
+#
+# This file is still supported for backward compatibility, but will be
+# removed in a future release. Please migrate your configuration to
+# build_stream_config.yml at your earliest convenience.
+#
+# Migration Guide:
+#   See: CADENCE_CONFIG_MIGRATION_PROPOSAL.md
+#   Or contact: [Build Stream team]
+#
+# Loading Behavior:
+#   1. If build_stream_config.yml exists, it takes priority
+#   2. If only this file (cadence_config.yml) exists, it will be loaded
+#      with a deprecation warning in the logs
+#   3. If neither file exists, built-in defaults are used
+#
+# For support on migrating from this file, see the migration proposal.
+# ============================================================================
+
+cadence:
+  # =========================================================================
+  # CONFIGURABLE: CADENCE POLLING CONTROL
+  # =========================================================================
+
+  # Enable or disable cadence polling (default: false)
+  # Set to true to activate periodic builds
+  enabled: false
+
+  # Polling interval in seconds (default: 86400 = 24 hours)
+  # Minimum: 3600 (1 hour)
+  interval_seconds: 86400
+
+  # =========================================================================
+  # CONFIGURABLE: CADENCE CATALOG CONFIGURATION
+  # =========================================================================
+
+  # Name of the cadence catalog file in the GitLab repository
+  catalog_filename: "cadence_catalog_rhel.json"
+
+  # Path to the local GitLab repository clone
+  gitlab_repo_path: ""
+
+  # =========================================================================
+  # CONFIGURABLE: PACKAGE SYNC TIMING
+  # =========================================================================
+
+  # Name of the package sync playbook to invoke
+  playbook_name: "repo_sync.yml"
+
+  # Timeout for repo sync playbook execution (seconds)
+  sync_timeout_seconds: 3600
+
+  # Poll interval while waiting for sync result (seconds)
+  sync_poll_interval_seconds: 10
+
+  # =========================================================================
+  # FIXED (NOT CONFIGURABLE) - Change only in code if needed
+  # =========================================================================
+
+  # Auto-bump catalog version after successful sync (fixed: true)
+  # Change only in cadence_manager.py if different behavior needed
+  auto_bump_version: true
+
+  # Version bump strategy (fixed: patch)
+  # Options: patch (1.0 -> 1.1), minor (1.0 -> 2.0)
+  version_bump_strategy: "patch"
+
+  # Git commit author for cadence syncs (fixed, do not change)
+  git_author_name: "BuildStream Cadence"
+  git_author_email: "buildstream@omnia.local"
+
+  # Emit CADENCE_SYNC_COMPLETED audit event (fixed: true)
+  emit_audit_events: true
+
+  # Log level for cadence operations (fixed: info)
+  log_level: "info"
