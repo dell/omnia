@@ -81,11 +81,8 @@ def node_bmc_xname(node_xname: str) -> str:
 class SMDIdentityResolver:
     """Use SMD's FRU inventory as the persistent Service Tag registry."""
 
-    def __init__(self, smd_client, manufacturer="Dell"):
+    def __init__(self, smd_client):
         self.smd = smd_client
-        self.manufacturer = str(manufacturer or "").strip()
-        if not self.manufacturer:
-            raise IdentityError("Hardware manufacturer is required")
 
     def resolve_nodes(
         self,
@@ -446,7 +443,6 @@ class SMDIdentityResolver:
             },
             "PopulatedFRU": {
                 "NodeFRUInfo": {
-                    "Manufacturer": self.manufacturer,
                     "SerialNumber": tag,
                 }
             },

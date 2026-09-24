@@ -124,7 +124,6 @@
       {{ ochami_env[cluster_env_key] }}
     ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
     nodes: "{{ _category_nodes }}"
-    hardware_manufacturer: "{{ openchami_identity_manufacturer }}"
   register: _resolved_openchami_identities
   no_log: true
 

@@ -85,14 +85,10 @@ class OpenChamiReconciler:
     def resolve_identities(
         self,
         nodes,
-        manufacturer="Dell",
         check_mode=False,
     ):
         """Resolve XNAMEs from native SMD Service Tag FRU records."""
-        return SMDIdentityResolver(
-            self.smd,
-            manufacturer=manufacturer,
-        ).resolve_nodes(
+        return SMDIdentityResolver(self.smd).resolve_nodes(
             nodes=nodes,
             check_mode=check_mode,
         )

@@ -62,10 +62,6 @@ options:
     type: list
     elements: dict
     default: []
-  hardware_manufacturer:
-    description: Manufacturer value used when SMD creates a Node FRUID.
-    type: str
-    default: Dell
   smd_groups:
     description: Desired SMD groups and their complete member sets.
     type: list
@@ -144,7 +140,6 @@ EXAMPLES = r'''
     access_token: "{{ openchami_access_token }}"
     ca_cert: "{{ openchami_ca_cert_path }}"
     nodes: "{{ mapping_nodes }}"
-    hardware_manufacturer: Dell
   register: resolved_identities
 
 - name: Reconcile per-node hostnames without duplicate InstanceInfo records
@@ -193,7 +188,6 @@ def main():
             "access_token": {"type": "str", "required": True, "no_log": True},
             "ca_cert": {"type": "path", "required": True},
             "nodes": {"type": "list", "elements": "dict", "default": []},
-            "hardware_manufacturer": {"type": "str", "default": "Dell"},
             "smd_groups": {
                 "type": "list",
                 "elements": "dict",
@@ -261,7 +255,6 @@ def main():
         elif action == "resolve_identities":
             result = reconciler.resolve_identities(
                 nodes=_required(module, "nodes"),
-                manufacturer=module.params["hardware_manufacturer"],
                 check_mode=module.check_mode,
             )
         elif action == "reconcile_groups":
