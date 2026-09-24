@@ -89,7 +89,7 @@
       ansible.builtin.set_fact:
         _s3_object_paths: >-
           {{ _s3_listing.stdout_lines | default([])
-             | map('regex_replace', '^.*\s+(s3://\S+)$', '\1')
+             | map('regex_replace', '^.*\\s+(s3://\\S+)$', '\\1')
              | select('match', '^s3://boot-images/')
              | select('search', cleanup_image_s3_regex)
              | list }}

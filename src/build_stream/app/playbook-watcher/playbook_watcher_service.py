@@ -1231,11 +1231,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "timestamp": completed_at.isoformat(),
         }
 
-        if (
-            stage_name
-            in {"build-image", "build-image-x86_64", "build-image-aarch64"}
-            and log_file_path.exists()
-        ):
+        if stage_name == "build-image" and log_file_path.exists():
             dictionary_hits = extract_dictionary_hits(log_file_path)
             if dictionary_hits:
                 result_data["dictionary_hits"] = dictionary_hits
