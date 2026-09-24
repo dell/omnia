@@ -253,11 +253,41 @@ inferred unambiguously from `-imgbld` or `-imgth` artifact directories.
 ./run_validation.sh fvt_image_build_manager build verify --suite naming --marker x86_64+sanity
 ```
 
+#### Catalog dictionary reuse scenarios (within `build` tag)
+
+The `catalog_reuse` suite owns its execution lifecycle and runs ten ordered
+catalog dictionary scenarios. Each scenario performs its required state change
+and immediately validates the result. Run all ten scenarios with either:
+
+```bash
+# Execute all ten scenario actions and assertions
+./run_validation.sh fvt_image_build_manager build exec \
+  --suite catalog_reuse
+
+# Execute the same ten scenarios, followed by the runner's verification phase
+./run_validation.sh fvt_image_build_manager build test \
+  --suite catalog_reuse
+```
+
+All ten tests are deploy-marked. Consequently, standalone `verify` selects
+only `not deploy` tests and has no catalog-reuse cases to execute. Do not use
+the following command to validate a previous catalog-reuse run:
+
+```bash
+./run_validation.sh fvt_image_build_manager build verify \
+  --suite catalog_reuse
+```
+
+The suite covers the first build, dictionary reuse, selective package and
+repository rebuilds, forced rebuild, missing S3 artifact recovery, switching
+between Image Builder and Image Thrillhouse, catalog-versioned status output,
+and config-mode isolation.
+
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `--suite <name>` | FVT only: filter by an existing tag subfolder (`connectivity`, `status`, `container`, `s3`, `registry`, `naming`, `aarch64`, `image_verification`, `cleanup`, or `cleanup_images`) |
+| `--suite <name>` | FVT only: filter by an existing tag subfolder (`connectivity`, `status`, `container`, `s3`, `registry`, `naming`, `aarch64`, `image_verification`, `catalog_reuse`, `cleanup`, or `cleanup_images`) |
 | `--marker <expr>` | Filter by pytest marker expression |
 | `-v, --verbose` | Increase pytest verbosity |
 | `--debug` | Full debug output (pytest `-vvs`) |

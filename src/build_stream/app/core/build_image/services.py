@@ -14,18 +14,15 @@
 
 """Domain services for Build Image module."""
 
-from api.logging_utils import log_secure_info
 from typing import Optional
 
+from api.logging_utils import log_secure_info
 from core.build_image.entities import BuildImageRequest
 from core.build_image.exceptions import InventoryHostMissingError
 from core.build_image.repositories import BuildStreamConfigRepository
 from core.build_image.value_objects import Architecture, InventoryHost
 from core.jobs.value_objects import CorrelationId
-
-
-
-class BuildImageConfigService:
+class BuildImageConfigService:  # pylint: disable=too-few-public-methods
     """Service for build image configuration operations."""
 
     def __init__(self, config_repo: BuildStreamConfigRepository):
@@ -60,14 +57,19 @@ class BuildImageConfigService:
         return inventory_host
 
 
-class BuildImageQueueService:
+
+class BuildImageQueueService:  # pylint: disable=too-few-public-methods
     """Service for build image queue operations."""
 
     def __init__(self, queue_repo):
         """Initialize service with PlaybookQueueRequestRepository."""
         self._queue_repo = queue_repo
 
-    def submit_request(self, request: BuildImageRequest, correlation_id: CorrelationId):
+    def submit_request(
+        self,
+        request: BuildImageRequest,
+        correlation_id: CorrelationId,
+    ):
         """Submit build image request to queue.
 
         Args:
@@ -77,7 +79,15 @@ class BuildImageQueueService:
         Raises:
             QueueUnavailableError: If queue is not accessible.
         """
-        log_secure_info('info', f"Submitting build image request to queue: job_id={request.job_id}, correlation_id={correlation_id}")
+        log_secure_info(
+            "info",
+            "Submitting build image request to queue: "
+            f"job_id={request.job_id}, correlation_id={correlation_id}",
+        )
         self._queue_repo.write_request(request)
-        log_secure_info('info', f"Build image request submitted successfully: job_id={request.job_id}, "
-            "request_id={request.request_id}, correlation_id={correlation_id}")
+        log_secure_info(
+            "info",
+            "Build image request submitted successfully: "
+            f"job_id={request.job_id}, request_id={request.request_id}, "
+            f"correlation_id={correlation_id}",
+        )

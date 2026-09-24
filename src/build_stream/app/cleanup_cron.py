@@ -20,17 +20,18 @@ Run from inside the BuildStream container, scheduled every 24 hours
 status ``FAILED`` it:
 
 1. Resolves the associated job_id (1:1 mapping).
-2. Reads each row from the ``images`` table to obtain the complete
-   S3 path (the column stores the full ``s3://boot-images/...``
-   prefix written at build-image completion time).
-3. Calls ``s3cmd del --recursive --force <image_path>`` for each.
-4. Removes the per-Job NFS artifact directory.
-5. Transitions the ImageGroup and Job to ``CLEANED`` and records an
-   audit event.
+2. Submits the Image Build Manager ``cleanup_images`` playbook through
+   the shared playbook queue. That playbook removes S3/registry artifacts
+   and prunes the global image dictionary for the image group.
+3. Removes the per-Job NFS artifact directory.
+4. Transitions the ImageGroup to ``CLEANING``. The result poller moves it
+   to ``CLEANED`` and tombstones the Job after the playbook succeeds.
+5. Records an audit event for the cleanup request.
 
-Failures for one ImageGroup are logged and do NOT halt processing of
-the remaining FAILED ImageGroups; the cron retries any leftovers on
-the next cycle.
+Submission errors for one ImageGroup are logged and do NOT halt processing
+of the remaining FAILED ImageGroups. Groups that remain ``FAILED`` are retried
+on the next cycle; asynchronous playbook failures are recorded separately as
+``CLEANUP_FAILED`` by the result poller.
 
 Usage::
 
@@ -50,7 +51,10 @@ if _THIS_DIR not in sys.path:
 # pylint: disable=wrong-import-position
 from api.logging_utils import log_secure_info  # noqa: E402
 from core.image_group.value_objects import ImageGroupStatus  # noqa: E402
-from infra.s3.s3cmd_cleanup import S3CmdCleanupService  # noqa: E402
+from core.localrepo.services import PlaybookQueueRequestService  # noqa: E402
+from infra.repositories import (  # noqa: E402
+    NfsPlaybookQueueRequestRepository,
+)
 from orchestrator.cleanup.use_cases.cleanup_job import (  # noqa: E402
     CleanupJobUseCase,
 )
@@ -69,14 +73,17 @@ def _build_use_case(session) -> CleanupJobUseCase:
         UUIDv4Generator,
     )
 
+    queue_service = PlaybookQueueRequestService(
+        request_repo=NfsPlaybookQueueRequestRepository()
+    )
     return CleanupJobUseCase(
         job_repo=SqlJobRepository(session=session),
         stage_repo=SqlStageRepository(session=session),
         audit_repo=SqlAuditEventRepository(session=session),
         image_group_repo=SqlImageGroupRepository(session=session),
         image_repo=SqlImageRepository(session=session),
-        s3_cleanup_service=S3CmdCleanupService(),
         uuid_generator=UUIDv4Generator(),
+        queue_service=queue_service,
     )
 
 
