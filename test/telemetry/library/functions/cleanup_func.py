@@ -643,9 +643,16 @@ def verify_credentials_preserved(host) -> Dict[str, Any]:
             }
         }
     """
-    from library.vars.common_vars import OMNIA_DATA_PATH, OMNIA_PROJECT_NAME
+    from library.vars.common_vars import (
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+    )
 
-    input_dir = f"{OMNIA_DATA_PATH}/telemetry/input/{OMNIA_PROJECT_NAME}"
+    # Get environment variables from the host
+    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
+    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME, "project_default")
+
+    input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
     cred_file = f"{input_dir}/telemetry_credentials.yml"
     vault_key_file = f"{input_dir}/.telemetry_credentials_key"
 
@@ -716,9 +723,16 @@ def verify_credentials_deleted(host) -> Dict[str, Any]:
             }
         }
     """
-    from library.vars.common_vars import OMNIA_DATA_PATH, OMNIA_PROJECT_NAME
+    from library.vars.common_vars import (
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+    )
 
-    input_dir = f"{OMNIA_DATA_PATH}/telemetry/input/{OMNIA_PROJECT_NAME}"
+    # Get environment variables from the host
+    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
+    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME, "project_default")
+
+    input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
     cred_file = f"{input_dir}/telemetry_credentials.yml"
     vault_key_file = f"{input_dir}/.telemetry_credentials_key"
 
@@ -785,9 +799,16 @@ def verify_logs_preserved(host) -> Dict[str, Any]:
             "log_dir_exists": bool
         }
     """
-    from library.vars.common_vars import OMNIA_DATA_PATH, OMNIA_PROJECT_NAME
+    from library.vars.common_vars import (
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+    )
 
-    log_dir = f"{OMNIA_DATA_PATH}/telemetry/log/{OMNIA_PROJECT_NAME}"
+    # Get environment variables from the host
+    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
+    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME, "project_default")
+
+    log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
 
     result = {
         "success": False,
@@ -837,9 +858,16 @@ def verify_logs_deleted(host) -> Dict[str, Any]:
             "log_dir_exists": bool
         }
     """
-    from library.vars.common_vars import OMNIA_DATA_PATH, OMNIA_PROJECT_NAME
+    from library.vars.common_vars import (
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+    )
 
-    log_dir = f"{OMNIA_DATA_PATH}/telemetry/log/{OMNIA_PROJECT_NAME}"
+    # Get environment variables from the host
+    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
+    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME, "project_default")
+
+    log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
 
     result = {
         "success": False,
