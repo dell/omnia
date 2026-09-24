@@ -26,6 +26,8 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - OS-versioned FG names (e.g. `slurm_control_node_rhel_10_0_x86_64`) fail metadata-service template lookup — normalize template path.
 
 ### Added
+- Added ownership-aware Metadata Service reconciliation and persistent
+  per-node metadata application status in `orchestrator_status.yml`.
 - Added persistent Service Tag-to-XNAME identity resolution through native SMD
   Hardware Inventory and a CA-verified `openchami_reconcile` Ansible module.
 - Custom inventory (`-i`) support for `pxeboot.yml` playbook for build_stream retry/resume (#432).
@@ -33,6 +35,12 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - Race-free PXE failure collection using localhost loop over BMC hostvars.
 
 ### Changed
+- Metadata Service InstanceInfo, Group, and ClusterDefaults resources are now
+  updated in place with CA verification; stale Omnia-owned groups are removed
+  only when they have no SMD members.
+- Provisioning-password hashes now use a stable project-and-cluster salt so
+  unchanged cloud-init stays idempotent; plaintext is supplied to OpenSSL over
+  standard input rather than a process argument.
 - Removed temporary row-position XNAME generation; provision, validation, and
   PXE workflows now consume only SMD-resolved identities.
 - Galaxy version set to 2.3.0.

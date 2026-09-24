@@ -171,7 +171,7 @@
       ansible.builtin.file:
         path: "{{ metadata_svc_dir }}"
         state: directory
-        mode: "{{ dir_permissions_755 }}"
+        mode: "0700"
 
     - name: Read SSH public key
       ansible.builtin.command: cat {{ ssh_key_path }}
@@ -185,8 +185,24 @@
       register: read_ssh_private_key
       no_log: true
 
+    - name: Derive stable project-specific password salt
+      ansible.builtin.set_fact:
+        metadata_password_salt: >-
+          {{ ((hostvars['localhost']['project_name'] ~ ':'
+               ~ cluster_name ~ ':' ~ cluster_domain) | hash('sha256'))[:16] }}
+      no_log: true
+
     - name: Hash the provision password
-      ansible.builtin.command: openssl passwd -6 "{{ hostvars['localhost']['provision_password'] }}"
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - passwd
+          - "-6"
+          - "-salt"
+          - "{{ metadata_password_salt }}"
+          - "-stdin"
+        stdin: "{{ hostvars['localhost']['provision_password'] }}"
+        stdin_add_newline: true
       changed_when: false
       register: hashed_password_output
       no_log: true
@@ -195,28 +211,29 @@
       ansible.builtin.template:
         src: "{{ ms_defaults_template }}"
         dest: "{{ ms_defaults_dest }}"
-        mode: "{{ file_permissions_644 }}"
+        mode: "0600"
 
     - name: Load rendered metadata-service defaults
       ansible.builtin.slurp:
         src: "{{ ms_defaults_dest }}"
       register: ms_defaults_raw
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      no_log: true
 
     - name: Parse metadata-service defaults YAML
       ansible.builtin.set_fact:
         ms_defaults_data: "{{ ms_defaults_raw.content | b64decode | from_yaml }}"
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      no_log: true
 
-    - name: Set metadata-service defaults via metadata-service API
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/clusterdefaultss"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-          Content-Type: "application/json"
-        body_format: json
-        body:
+    - name: Reconcile metadata-service cluster defaults
+      openchami_reconcile:
+        action: reconcile_cluster_defaults
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: "{{ ochami_env[cluster_env_key] }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        project_name: "{{ hostvars['localhost']['project_name'] }}"
+        cluster_defaults:
           metadata:
             name: "{{ cluster_name }}-defaults"
           spec:
@@ -227,9 +244,18 @@
             nid_length: "{{ ms_defaults_data['nid_length'] | default(cluster_nidlength) | int }}"
             public_keys: "{{ ms_defaults_data['public_keys'] | default([]) }}"
             cloud_provider: "OpenCHAMI"
-        status_code: [200, 201, 409]
-        validate_certs: false
+      register: _metadata_cluster_defaults_reconcile
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      no_log: true
+
+    - name: Mark global metadata change for cluster defaults
+      ansible.builtin.set_fact:
+        omnia_metadata_global_changed: true
+      when:
+        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+        - >-
+          ((_metadata_cluster_defaults_reconcile.created | default([]))
+           + (_metadata_cluster_defaults_reconcile.updated | default([]))) | length > 0
 
     - name: Configure metadata-service common group
       ansible.builtin.include_tasks: configure_metadata_svc_common.yml

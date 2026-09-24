@@ -29,9 +29,12 @@ Bug Fixes
 Features
 --------
 
+- Added ownership-aware Metadata Service reconciliation and persistent per-node metadata application status.
 - Added persistent Service Tag-to-XNAME identity resolution through native SMD Hardware Inventory.
 - Added the CA-verified ``openchami_reconcile`` Ansible module for SMD and OpenCHAMI reconciliation.
 - Removed temporary row-position XNAME generation from provision, validation, and PXE workflows.
+- Metadata Service resources are updated in place through CA-verified APIs, with safe stale-group cleanup.
+- Provisioning-password hashes are stable for each project and cluster, with plaintext supplied to OpenSSL over standard input.
 
 Breaking Changes
 ---------------

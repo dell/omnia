@@ -130,6 +130,10 @@
 - name: Use internally resolved XNAMEs for {{ target_category }}
   ansible.builtin.set_fact:
     _category_nodes: "{{ _resolved_openchami_identities.nodes }}"
+    omnia_identity_created_xnames: >-
+      {{ ((omnia_identity_created_xnames | default([]))
+          + (_resolved_openchami_identities.created_inventory_xnames | default([])))
+         | unique | list }}
 
 - name: Index internally resolved nodes by ADMIN_MAC
   ansible.builtin.set_fact:
@@ -412,8 +416,17 @@
       {{ ochami_env[cluster_env_key] }}
     ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
     instance_infos: "{{ _desired_instance_infos }}"
+    project_name: "{{ hostvars['localhost']['project_name'] }}"
   register: _metadata_instanceinfo_reconcile
   no_log: true
+
+- name: Track nodes with changed Metadata Service InstanceInfo
+  ansible.builtin.set_fact:
+    omnia_metadata_changed_xnames: >-
+      {{ ((omnia_metadata_changed_xnames | default([]))
+          + (_metadata_instanceinfo_reconcile.created | default([]))
+          + (_metadata_instanceinfo_reconcile.updated | default([])))
+         | unique | list }}
 
 - name: Create metadata-service groups dict for target FGs
   ansible.builtin.set_fact:

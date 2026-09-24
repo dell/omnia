@@ -30,6 +30,20 @@ Node/NodeBMC XNAME pair. The new Service Tag-to-XNAME relationship is written
 to SMD before discovery and then published to every downstream task. CSV row
 position never controls persistent identity.
 
+Metadata Service resources are reconciled in place through the same
+CA-verified API client. Omnia labels the InstanceInfo, Group, and
+ClusterDefaults resources it owns, updates existing resources by UID, and
+reduces duplicate legacy ClusterDefaults records to one verified canonical
+UID. It
+deletes a stale owned group only when it is absent from the complete desired
+configuration and has no SMD members. Provisioning records nodes whose
+metadata changed as `reprovision_required`; only successful PXE and cloud-init
+verification clears that state. Rendered cloud-init files are restricted to
+the root account because they may contain credentials or private keys. The
+provisioning-password hash uses a stable project-and-cluster salt and receives
+the plaintext through standard input, preventing unchanged runs from creating
+false metadata drift or exposing the password in a process argument.
+
 Kubernetes and Slurm Metadata Service templates resolve NFS and VAST paths only
 from storage names declared in `omnia_config.yml` and matching entries in
 `storage_config.yml`. Provisioning fails before publishing cloud-init when a

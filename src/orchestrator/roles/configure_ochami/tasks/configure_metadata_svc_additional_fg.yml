@@ -26,7 +26,7 @@
   ansible.builtin.template:
     src: "{{ ms_group_additional_template }}"
     dest: "{{ _ms_fg_dest }}"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+    mode: "0600"
   vars:
     ms_additional_group_name: "{{ _ms_fg_group_name }}"
     ms_additional_data: "{{ _ms_fg_data }}"
@@ -35,6 +35,7 @@
   ansible.builtin.slurp:
     src: "{{ _ms_fg_dest }}"
   register: ms_fg_additional_raw
+  no_log: true
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Parse per-FG additional group entries
@@ -68,19 +69,38 @@
     loop_var: entry
     label: "{{ entry.name }}"
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
 
-- name: Set metadata-service group configuration for per-FG group (via metadata-service API)  # noqa: name[template]
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-      Content-Type: "application/json"
-    body_format: json
-    body: "{{ item }}"
-    status_code: [200, 201, 409]
-    validate_certs: false
-  loop: "{{ _ms_fg_additional_bodies | default([]) }}"
-  loop_control:
-    label: "{{ item.metadata.name }}"
+- name: Reconcile additional metadata-service group for {{ _ms_fg_name }}
+  openchami_reconcile:
+    action: reconcile_metadata_groups
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: "{{ ochami_env[cluster_env_key] }}"
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    project_name: "{{ hostvars['localhost']['project_name'] }}"
+    metadata_groups: "{{ _ms_fg_additional_bodies | default([]) }}"
+  register: _metadata_additional_fg_reconcile
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
+
+- name: Track desired additional metadata-service group for {{ _ms_fg_name }}
+  ansible.builtin.set_fact:
+    omnia_metadata_desired_group_names: >-
+      {{ ((omnia_metadata_desired_group_names | default([]))
+          + (_ms_fg_additional_bodies | default([]) | map(attribute='metadata.name') | list))
+         | unique | list }}
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Track nodes affected by additional metadata changes for {{ _ms_fg_name }}
+  ansible.builtin.set_fact:
+    omnia_metadata_changed_xnames: >-
+      {{ ((omnia_metadata_changed_xnames | default([]))
+          + (_category_nodes
+             | selectattr('FUNCTIONAL_GROUP_NAME', 'equalto', _ms_fg_name)
+             | map(attribute='XNAME') | list))
+         | unique | list }}
+  when:
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - >-
+      ((_metadata_additional_fg_reconcile.created | default([]))
+       + (_metadata_additional_fg_reconcile.updated | default([]))) | length > 0
