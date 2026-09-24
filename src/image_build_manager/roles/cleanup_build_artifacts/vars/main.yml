@@ -116,6 +116,15 @@ cleanup_image_s3_regex: "{{ cleanup_image_pattern | replace('*', '.*') | replace
 # Registry regex derived from glob pattern (for Jinja match filter)
 cleanup_image_registry_regex: "{{ cleanup_image_pattern | replace('*', '.*') | replace('?', '.') }}"
 
+# The BuildStream cleanup pipeline supplies an exact image-group identifier.
+# Direct CLI glob cleanup leaves this empty unless explicitly provided.
+dictionary_cleanup_image_group_id: >-
+  {{ cleanup_image_group_id
+     | default(cleanup_image_pattern
+               if '*' not in cleanup_image_pattern and '?' not in cleanup_image_pattern
+               else '', true) }}
+image_group_dictionary_path: "{{ output_project_dir }}/image_group_dictionary.json"
+
 # ---------------------------------------------------------------------------
 # Retry settings
 # ---------------------------------------------------------------------------
@@ -158,3 +167,5 @@ cleanup_images_registry_done_msg: "Registry image cleanup complete (pattern: '{{
 cleanup_images_registry_skip_msg: "regctl not available — skipping registry image cleanup."
 cleanup_images_registry_not_initialized_msg: >-
   Registry image cleanup is not applicable because managed registry state is absent.
+dictionary_cleanup_warning_msg: >-
+  Image cleanup completed, but the global image dictionary could not be updated.

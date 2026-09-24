@@ -253,6 +253,38 @@ UT_TEST_CASE_IDS = {
             114: "test_rhel_10_2_catalog_resolves_for_supported_architectures",
         },
     ),
+    **_module_cases(
+        "test_image_group_dictionary.py",
+        {
+            115: "test_dictionary_missing_file_returns_empty_document",
+            116: "test_dictionary_upsert_persists_complete_entry",
+            117: "test_dictionary_lookup_returns_hit_and_touches_last_used",
+            118: "test_dictionary_key_isolates_group_and_architecture",
+            119: "test_dictionary_rejects_incomplete_entries",
+            120: "test_dictionary_rejects_incomplete_s3_paths",
+            121: "test_dictionary_update_retains_valid_backup",
+            122: "test_dictionary_recovers_from_valid_backup",
+            123: "test_dictionary_invalid_primary_and_backup_return_empty",
+            124: "test_dictionary_migrates_legacy_hash_key_on_lookup",
+            125: "test_dictionary_prune_removes_only_requested_image_group",
+            126: "test_dictionary_empty_upsert_is_noop",
+        },
+    ),
+    **_module_cases(
+        "test_catalog_rebuild_contract.py",
+        {
+            127: "test_compute_hash_includes_repository_and_engine",
+            128: "test_dictionary_lookup_is_catalog_only_and_force_aware",
+            129: "test_previous_hash_cache_is_config_mode_only",
+            130: "test_s3_previous_backup_is_config_mode_only",
+            131: "test_catalog_status_uses_composite_identity_directory",
+            132: "test_successful_catalog_build_upserts_dictionary",
+            133: "test_dictionary_hits_require_complete_s3_artifacts",
+            134: "test_force_rebuild_is_the_only_rebuild_control",
+            135: "test_latest_project_status_is_written_for_every_mode",
+            136: "test_catalog_status_copy_is_catalog_mode_only",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

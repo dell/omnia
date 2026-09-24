@@ -101,6 +101,14 @@ catalog_identifier:
   description: Catalog identifier string from catalog JSON.
   returned: always
   type: str
+catalog_version:
+  description: Catalog version string from catalog JSON.
+  returned: always
+  type: str
+catalog_schema_version:
+  description: Optional integer catalog schema version from catalog JSON.
+  returned: always
+  type: int
 cluster_os_version:
   description:
     - Primary OS version extracted from the first base_os group.
@@ -171,7 +179,15 @@ def _load_catalog(catalog_file: str) -> dict:
         raise ValueError(
             f"Catalog JSON missing 'catalog' root key in {catalog_file}"
         )
-    return raw["catalog"]
+    catalog = raw["catalog"]
+    if not isinstance(catalog, dict):
+        raise ValueError(
+            f"Catalog JSON 'catalog' value must be an object in {catalog_file}"
+        )
+    for schema_key in ("schema_version", "schemaVersion"):
+        if schema_key not in catalog and schema_key in raw:
+            catalog[schema_key] = raw[schema_key]
+    return catalog
 
 
 def _filter_layers_by_arch(
@@ -421,11 +437,15 @@ def resolve_catalog(
         baseos_prefix: Prefix for base OS group detection.
 
     Returns:
-        Dict with catalog_identifier, base_image_packages,
+        Dict with catalog_identifier, catalog_version, base_image_packages,
         compute_images_dict, cluster_os_version(s), layer_count.
     """
     catalog = _load_catalog(catalog_file)
     identifier = catalog.get("identifier", "")
+    catalog_version = catalog.get("version", "")
+    catalog_schema_version = catalog.get(
+        "schema_version", catalog.get("schemaVersion")
+    )
 
     # Collect top-level driver groups (siblings of groups/packages).
     # These are hardware-specific driver stacks that must NOT be baked
@@ -491,6 +511,8 @@ def resolve_catalog(
 
     return {
         "catalog_identifier": identifier,
+        "catalog_version": catalog_version,
+        "catalog_schema_version": catalog_schema_version,
         "cluster_os_type": os_type,
         "cluster_os_version": all_os_versions[0] if all_os_versions else "",
         "cluster_os_versions": all_os_versions,
