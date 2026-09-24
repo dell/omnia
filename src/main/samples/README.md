@@ -12,6 +12,7 @@ sample in the source tree.
 | File | Description |
 |------|-------------|
 | `catalog_rhel.json` | Default RHEL 10.0 catalog — mixed Slurm + service_k8s (x86_64 mgmt/service_k8s, aarch64 compute) without VAST |
+| `cadence_catalog_rhel.json` | Catalog watched by the BuildStream cadence pipeline for periodic package syncs (ER-BSM-002) |
 
 ### Modular Catalogs (catalogs/ directory)
 

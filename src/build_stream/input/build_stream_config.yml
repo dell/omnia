@@ -92,3 +92,52 @@ gitlab_puma_workers: 2
 # Sidekiq background job concurrency
 # Default: 10
 gitlab_sidekiq_concurrency: 10
+
+# ==========================================================================
+# Section 3 — Cadence Polling Configuration (Operational Parameters Only)
+#   ER Reference: ER-BSM-002 — AC-008, AC-009, AC-015, AC-016
+#
+#   This is the single source of truth for cadence configuration. All
+#   cadence settings live under the "cadence" group below.
+#
+#   Fixed/internal parameters (not user-configurable):
+#         - Auto version bumping strategy (hardcoded: "patch")
+#         - Git author metadata (hardcoded: "BuildStream Cadence")
+#         - Audit event emission (hardcoded: enabled)
+#         - Log level (hardcoded: "info")
+# ==========================================================================
+
+cadence:
+
+  # Enable or disable cadence polling for periodic package synchronization
+  # Accepted values: true | false
+  # Default: false
+  enabled: false
+
+  # Polling interval for cadence syncs in seconds
+  # Accepted values: integer >= 3600 (1 hour minimum)
+  # Default: 86400 (24 hours)
+  interval_seconds: 86400
+
+  # Cadence catalog filename in the GitLab repository
+  # This file is version-bumped after successful package sync
+  # Default: "cadence_catalog_rhel.json"
+  catalog_filename: "cadence_catalog_rhel.json"
+
+  # Path to the local GitLab repository clone on the OIM host
+  # Used for git operations (commit and push of updated catalog)
+  # REQUIRED when cadence.enabled is true
+  # Default: ""
+  gitlab_repo_path: ""
+
+  # Package sync playbook name to invoke during cadence cycles
+  # Default: "repo_sync.yml"
+  playbook_name: "repo_sync.yml"
+
+  # Timeout for repo sync playbook execution in seconds
+  # Default: 3600 (1 hour)
+  sync_timeout_seconds: 3600
+
+  # Poll interval while waiting for sync result in seconds
+  # Default: 10
+  sync_poll_interval_seconds: 10

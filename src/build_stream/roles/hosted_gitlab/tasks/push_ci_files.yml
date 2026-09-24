@@ -22,6 +22,10 @@
   ansible.builtin.set_fact:
     gitlab_hosted_catalog_path: "{{ gitlab_hosted_catalog_path | default(gitlab_hosted_payload_dir + '/' + gitlab_catalog_repo_path) }}"
 
+- name: Set cadence catalog payload path
+  ansible.builtin.set_fact:
+    gitlab_hosted_cadence_catalog_path: "{{ gitlab_hosted_cadence_catalog_path | default(gitlab_hosted_payload_dir + '/' + gitlab_cadence_catalog_repo_path) }}"  # noqa: yaml[line-length]
+
 - name: Check if catalog JSON exists in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path | urlencode }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
@@ -31,6 +35,17 @@
     status_code: [200, 404]
     validate_certs: false
   register: catalog_file_check
+  no_log: true
+
+- name: Check if cadence catalog JSON exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_cadence_catalog_repo_path | urlencode }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: cadence_catalog_file_check
   no_log: true
 
 - name: Check if .gitlab-ci.yml exists in repository
@@ -162,6 +177,35 @@
         status_code: [200, 201]
         validate_certs: false
 
+- name: Create cadence catalog JSON when missing
+  when: cadence_catalog_file_check.status == 404
+  block:
+    - name: Copy cadence catalog JSON to GitLab host
+      ansible.builtin.copy:
+        src: "{{ gitlab_cadence_catalog_json_source }}"
+        dest: "{{ gitlab_hosted_cadence_catalog_path }}"
+        mode: '0644'
+
+    - name: Read cadence catalog JSON from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_cadence_catalog_path }}"
+      register: hosted_cadence_catalog_json_content
+
+    - name: Create cadence catalog JSON in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_cadence_catalog_repo_path | urlencode }}"  # noqa: yaml[line-length]
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_cadence_catalog_json_content.content }}"
+          commit_message: "Add cadence_catalog_rhel.json"
+        status_code: [200, 201]
+        validate_certs: false
+
 - name: Create or update .gitlab-ci.yml
   block:
     - name: Copy .gitlab-ci.yml to GitLab host
@@ -263,6 +307,64 @@
           encoding: base64
           content: "{{ hosted_ci_build_file_content.content }}"
           commit_message: "Update Build Pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
+- name: Check if .gitlab-ci-cadence.yml exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cadence.yml?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: ci_cadence_file_check
+  no_log: true
+
+- name: Create or update .gitlab-ci-cadence.yml
+  block:
+    - name: Copy .gitlab-ci-cadence.yml to GitLab host
+      ansible.builtin.copy:
+        src: "{{ role_path }}/files/.gitlab-ci-cadence.yml"
+        dest: "{{ gitlab_hosted_payload_dir }}/.gitlab-ci-cadence.yml"
+        mode: '0644'
+
+    - name: Read .gitlab-ci-cadence.yml from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_payload_dir }}/.gitlab-ci-cadence.yml"
+      register: hosted_ci_cadence_file_content
+
+    - name: Create .gitlab-ci-cadence.yml in repository
+      when: ci_cadence_file_check.status == 404
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cadence.yml"  # noqa: yaml[line-length]
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_cadence_file_content.content }}"
+          commit_message: "Add Cadence Pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
+    - name: Update .gitlab-ci-cadence.yml in repository
+      when: ci_cadence_file_check.status == 200
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cadence.yml"  # noqa: yaml[line-length]
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_cadence_file_content.content }}"
+          commit_message: "Update Cadence Pipeline configuration"
         status_code: [200, 201]
         validate_certs: false
       no_log: true
