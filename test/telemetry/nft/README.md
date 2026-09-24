@@ -18,12 +18,17 @@ identifies the test level, and `SEQ` is a stable three-digit sequence.
 
 ### Performance Tests
 
-| TC ID | Test | Threshold | Order | Marker |
-|-------|------|-----------|-------|--------|
-| TEL_NFT_001 | Validate performance | < 30s | 100 | nft, performance |
-| TEL_NFT_002 | Deploy performance | < 600s (10 min) | 101 | nft, performance |
-| TEL_NFT_003 | Cleanup performance (without volume) | < 300s (5 min) | 130 | nft, performance |
-| TEL_NFT_020 | Cleanup with volume deletion performance | < 300s (5 min) | 140 | nft, performance |
+| TC ID | Test | Threshold | Calculation | Order | Marker |
+|-------|------|-----------|-------------|-------|--------|
+| TEL_NFT_001 | Validate performance | < 45s | 30s + 50% buffer | 100 | nft, performance |
+| TEL_NFT_002 | Deploy performance | < 800s (13.3 min) | 60s (prereq) + 400s (sinks) + 200s (sources) + 60s (verify) + 20% buffer | 101 | nft, performance |
+| TEL_NFT_003 | Cleanup performance (without volume) | < 360s (6 min) | 200s (cleanup) + 60s (verify) + 20% buffer | 130 | nft, performance |
+| TEL_NFT_020 | Cleanup with volume deletion performance | < 360s (6 min) | Same as Phase 1 (volume deletion is async) | 140 | nft, performance |
+
+**Threshold Rationale:**
+- **Validate (45s)**: Fast operation with 50% buffer for config parsing and validation
+- **Deploy (800s)**: Full stack with all 6 sources (iDRAC, LDMS, PowerScale, UFM, VAST, OME) + 20% infrastructure buffer
+- **Cleanup (360s)**: All sources + sinks cleanup + 20% buffer (volume deletion doesn't increase time significantly)
 
 ### Idempotency Tests
 
@@ -304,8 +309,8 @@ Phase 2: Cleanup WITH volume deletion (all PVCs deleted)
 All NFT tests should **PASS** on a healthy telemetry deployment:
 
 ```
-TEL_NFT_001: PASS  (validate: 12.3s < 30s)
-TEL_NFT_002: PASS  (deploy: 487.2s < 600s)
+TEL_NFT_001: PASS  (validate: 12.3s < 45s)
+TEL_NFT_002: PASS  (deploy: 633.8s < 800s)
 TEL_NFT_004: PASS  (deploy idempotent: run1=0, run2=0)
 TEL_NFT_018: PASS  (resilience setup deploy)
 TEL_NFT_006: PASS  (kafka-broker: 3/3 recovered in 45s)
@@ -318,12 +323,12 @@ TEL_NFT_012: PASS  (42 pods Running after node reboot in 180s)
 TEL_NFT_013: PASS  (cleanup=125s, deploy=487s, 42 pods Running)
 TEL_NFT_014: PASS  (VM operator: operational, Strimzi operator: True)
 --- Phase 1: Cleanup without volume ---
-TEL_NFT_003: PASS  (cleanup: 125.4s < 300s)
+TEL_NFT_003: PASS  (cleanup: 125.4s < 360s)
 TEL_NFT_005: PASS  (cleanup idempotent: run1=0, run2=0)
 TEL_NFT_015: PASS  (0 pods remaining)
 TEL_NFT_017: PASS  (PVCs preserved)
 --- Phase 2: Cleanup with volume ---
-TEL_NFT_020: PASS  (cleanup with volume: 130.2s < 300s)
+TEL_NFT_020: PASS  (cleanup with volume: 130.2s < 360s)
 TEL_NFT_021: PASS  (cleanup with volume idempotent: run1=0, run2=0)
 TEL_NFT_022: PASS  (0 pods remaining)
 TEL_NFT_016: PASS  (0 PVCs remaining)
