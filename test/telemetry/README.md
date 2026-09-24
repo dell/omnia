@@ -117,8 +117,23 @@ DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test
 When `DELETE_VOLUME=true`, the corresponding PVC-deletion test
 (`test_no_pvcs_after_full_cleanup`) runs and the playbook is invoked
 with `-e Delete_volume=true`. Otherwise, `test_pvcs_preserved_after_cleanup`
-runs instead to confirm PVCs were retained. See `fvt/README.md` for the
-full cleanup test case registry.
+runs instead to confirm PVCs were retained.
+
+**Credential and Log Preservation Tests:**
+The FVT cleanup suite also includes tests for `cleanup_credentials` and `cleanup_logs` flags:
+
+```bash
+# FVT: Cleanup with credential and log preservation
+./run_validation.sh fvt_telemetry cleanup test
+```
+
+This runs additional verification tests:
+- **TEL_FVT_CLEANUP_V015**: Verify credentials preserved (cleanup_credentials=false)
+- **TEL_FVT_CLEANUP_V016**: Verify credentials deleted (cleanup_credentials=true)
+- **TEL_FVT_CLEANUP_V017**: Verify logs preserved (cleanup_logs=false)
+- **TEL_FVT_CLEANUP_V018**: Verify logs deleted (cleanup_logs=true)
+
+See `fvt/README.md` for the full cleanup test case registry.
 
 ### NFT: Consolidated Test Execution
 

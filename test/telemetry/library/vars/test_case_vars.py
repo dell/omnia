@@ -499,6 +499,22 @@ TEST_CASES = {
         "id": "TEL_FVT_CLEANUP_V014",
         "title": "Verify PVCs preserved after cleanup (Delete_volume=false)",
     },
+    "cleanup_credentials_preserved": {
+        "id": "TEL_FVT_CLEANUP_V015",
+        "title": "Verify credentials preserved after cleanup (cleanup_credentials=false)",
+    },
+    "cleanup_credentials_deleted": {
+        "id": "TEL_FVT_CLEANUP_V016",
+        "title": "Verify credentials deleted after cleanup (cleanup_credentials=true)",
+    },
+    "cleanup_logs_preserved": {
+        "id": "TEL_FVT_CLEANUP_V017",
+        "title": "Verify logs preserved after cleanup (cleanup_logs=false)",
+    },
+    "cleanup_logs_deleted": {
+        "id": "TEL_FVT_CLEANUP_V018",
+        "title": "Verify logs deleted after cleanup (cleanup_logs=true)",
+    },
     # -- NFT: Performance ---------------------------------------------------
     "nft_validate_perf": {
         "id": "TEL_NFT_001",

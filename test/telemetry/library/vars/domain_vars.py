@@ -70,7 +70,7 @@ SUITES: Dict[str, List[str]] = {
     "precheck": ["cluster"],
     "validate": ["input"],
     "deploy": ["sinks", "sources"],
-    "cleanup": ["cleanup"],
+    "cleanup": ["cleanup", "preservation"],
 }
 
 # =====================================================================
