@@ -100,10 +100,10 @@ def _validate_catalog_filename(filename: str) -> bool:
 
 
 def load_cadence_config(config_path: Optional[str] = None) -> Dict[str, Any]:
-    """Load cadence polling configuration from YAML file.
+    """Load cadence polling configuration from build_stream_config.yml.
 
-    Attempts to load from unified build_stream_config.yml first (modern),
-    then falls back to legacy cadence_config.yml (deprecated).
+    build_stream_config.yml is the single source of truth for cadence
+    configuration; all settings are read from its "cadence" group.
 
     Args:
         config_path: Path to config file. If None, uses environment
@@ -116,7 +116,6 @@ def load_cadence_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         ValueError: If required configuration is missing or invalid.
     """
     if config_path is None:
-        # Try unified config first
         config_path = os.getenv(
             "BUILD_STREAM_CONFIG_PATH",
             os.path.join(
@@ -124,15 +123,6 @@ def load_cadence_config(config_path: Optional[str] = None) -> Dict[str, Any]:
                 "build_stream", "build_stream_config.yml"
             ),
         )
-        legacy_path = os.getenv(
-            "CADENCE_CONFIG_PATH",
-            os.path.join(
-                os.getenv("OMNIA_DATA_PATH", "/opt/omnia"),
-                "build_stream", "cadence_config.yml"
-            ),
-        )
-    else:
-        legacy_path = None
 
     # Default configuration with operational parameters only
     config = {
@@ -156,22 +146,12 @@ def load_cadence_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         "log_level": "info",
     }
 
-    # Try unified config first
     if Path(config_path).exists():
         return _load_unified_config(config_path, config)
 
-    # Fall back to legacy config
-    if legacy_path and Path(legacy_path).exists():
-        log_secure_info(
-            "warning",
-            "Using deprecated cadence_config.yml; "
-            "recommend migrating to build_stream_config.yml"
-        )
-        return _load_legacy_config(legacy_path, config)
-
     log_secure_info(
         "info",
-        "No cadence config file found, using defaults"
+        "No build_stream_config.yml found, using cadence defaults"
     )
     return config
 
@@ -180,7 +160,7 @@ def _load_unified_config(
     config_path: str,
     defaults: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Load cadence config from unified build_stream_config.yml.
+    """Load cadence config from the "cadence" group of build_stream_config.yml.
 
     Args:
         config_path: Path to build_stream_config.yml
@@ -199,34 +179,50 @@ def _load_unified_config(
             log_secure_info("warning", "Config is not a dictionary")
             return config
 
-        # Look for cadence settings at top level (only configurable parameters)
-        cadence_keys = {
-            "enable_cadence_polling": "enabled",
-            "cadence_polling_interval_seconds": "interval_seconds",
-            "cadence_catalog_filename": "catalog_filename",
-            "cadence_gitlab_repo_path": "gitlab_repo_path",
-            "cadence_playbook_name": "playbook_name",
-            "cadence_sync_timeout_seconds": "sync_timeout_seconds",
-            "cadence_sync_poll_interval_seconds": "sync_poll_interval_seconds",
-        }
+        cadence_section = data.get("cadence")
+        if cadence_section is None:
+            log_secure_info(
+                "info",
+                "No 'cadence' group in build_stream_config.yml, using defaults"
+            )
+            return config
+        if not isinstance(cadence_section, dict):
+            log_secure_info(
+                "warning", "'cadence' group is not a mapping, using defaults"
+            )
+            return config
 
-        for yaml_key, cfg_key in cadence_keys.items():
-            if yaml_key in data:
-                if cfg_key == "enabled":
-                    config[cfg_key] = bool(data[yaml_key])
-                elif cfg_key in ("interval_seconds", "sync_timeout_seconds",
-                                 "sync_poll_interval_seconds"):
-                    value = int(data[yaml_key])
-                    # Validate interval bounds
-                    if cfg_key == "interval_seconds" and value < 3600:
-                        log_secure_info(
-                            "warning",
-                            f"Cadence interval {value}s < 1 hour; using minimum"
-                        )
-                        value = 3600
-                    config[cfg_key] = value
-                else:
-                    config[cfg_key] = str(data[yaml_key])
+        # Only these parameters are user-configurable; the rest stay fixed
+        bool_keys = ("enabled",)
+        int_keys = (
+            "interval_seconds",
+            "sync_timeout_seconds",
+            "sync_poll_interval_seconds",
+        )
+        str_keys = (
+            "catalog_filename",
+            "gitlab_repo_path",
+            "playbook_name",
+        )
+
+        for key in bool_keys:
+            if key in cadence_section:
+                config[key] = bool(cadence_section[key])
+
+        for key in int_keys:
+            if key in cadence_section:
+                value = int(cadence_section[key])
+                if key == "interval_seconds" and value < 3600:
+                    log_secure_info(
+                        "warning",
+                        f"Cadence interval {value}s < 1 hour; using minimum"
+                    )
+                    value = 3600
+                config[key] = value
+
+        for key in str_keys:
+            if key in cadence_section:
+                config[key] = str(cadence_section[key])
 
         # Validate catalog filename
         if not _validate_catalog_filename(config["catalog_filename"]):
@@ -243,84 +239,10 @@ def _load_unified_config(
     except (OSError, ValueError, ImportError):
         log_secure_info(
             "error",
-            "Failed to load unified cadence config, using defaults",
+            "Failed to load cadence config, using defaults",
             exc_info=True,
         )
-
-    return config
-
-
-def _load_legacy_config(
-    config_path: str,
-    defaults: Dict[str, Any],
-) -> Dict[str, Any]:
-    """Load cadence config from legacy cadence_config.yml (deprecated).
-
-    Args:
-        config_path: Path to cadence_config.yml
-        defaults: Default configuration to merge with
-
-    Returns:
-        Merged configuration dictionary.
-    """
-    config = dict(defaults)
-    try:
-        import yaml  # pylint: disable=import-outside-toplevel
-        with open(config_path, "r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh)
-
-        if not isinstance(data, dict):
-            log_secure_info("warning", "Cadence config is not a dictionary")
-            return config
-
-        cadence_section = data.get("cadence", data)
-
-        config["enabled"] = bool(cadence_section.get("enabled", False))
-
-        # Validate and apply interval
-        interval = int(cadence_section.get("interval_seconds",
-                                           DEFAULT_CADENCE_INTERVAL_SECONDS))
-        if interval < 3600:
-            log_secure_info(
-                "warning",
-                f"Cadence interval {interval}s < 1 hour; using minimum"
-            )
-            interval = 3600
-        config["interval_seconds"] = interval
-
-        # Validate catalog filename
-        catalog_filename = str(cadence_section.get(
-            "catalog_filename", DEFAULT_CADENCE_CATALOG_FILENAME
-        ))
-        if not _validate_catalog_filename(catalog_filename):
-            raise ValueError(f"Invalid catalog_filename: {catalog_filename}")
-        config["catalog_filename"] = catalog_filename
-
-        config["gitlab_repo_path"] = str(cadence_section.get(
-            "gitlab_repo_path", ""
-        ))
-        config["playbook_name"] = str(cadence_section.get(
-            "playbook_name", "repo_sync.yml"
-        ))
-        config["sync_timeout_seconds"] = int(cadence_section.get(
-            "sync_timeout_seconds", 3600
-        ))
-        config["sync_poll_interval_seconds"] = int(cadence_section.get(
-            "sync_poll_interval_seconds", 10
-        ))
-
-        log_secure_info(
-            "info",
-            f"Cadence config loaded from cadence_config.yml (deprecated): "
-            f"enabled={config['enabled']}, "
-            f"interval={config['interval_seconds']}s"
-        )
-    except (OSError, ValueError, ImportError):
-        log_secure_info(
-            "error",
-            "Failed to load legacy cadence config, using defaults",
-            exc_info=True,
-        )
+        return dict(defaults)
 
     return config
 

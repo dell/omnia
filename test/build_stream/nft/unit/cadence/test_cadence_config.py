@@ -27,7 +27,6 @@ from cadence_manager import (
     load_cadence_config,
     _validate_catalog_filename,
     _load_unified_config,
-    _load_legacy_config,
 )
 
 
@@ -65,19 +64,20 @@ class TestCatalogFilenameValidation:
 
 
 class TestUnifiedConfigLoading:
-    """UT-001-001: Load unified config from build_stream_config.yml."""
+    """UT-001-001: Load config from the cadence group of build_stream_config.yml."""
 
     def test_load_unified_config_success(self, temp_dir, sample_cadence_config):
         """TC-UT-001-001: Load unified config from build_stream_config.yml."""
         config_file = temp_dir / "build_stream_config.yml"
-        config_file.write_text(f"""
-enable_cadence_polling: true
-cadence_polling_interval_seconds: 43200
-cadence_catalog_filename: "cadence_catalog_rhel.json"
-cadence_gitlab_repo_path: "/tmp/test_repo"
-cadence_playbook_name: "repo_sync.yml"
-cadence_sync_timeout_seconds: 1800
-cadence_sync_poll_interval_seconds: 5
+        config_file.write_text("""
+cadence:
+  enabled: true
+  interval_seconds: 43200
+  catalog_filename: "cadence_catalog_rhel.json"
+  gitlab_repo_path: "/tmp/test_repo"
+  playbook_name: "repo_sync.yml"
+  sync_timeout_seconds: 1800
+  sync_poll_interval_seconds: 5
 """)
 
         defaults = {"enabled": False, "interval_seconds": 86400}
@@ -95,8 +95,9 @@ cadence_sync_poll_interval_seconds: 5
         """TC-UT-001-006: Merge partial config with defaults."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text("""
-enable_cadence_polling: true
-cadence_polling_interval_seconds: 7200
+cadence:
+  enabled: true
+  interval_seconds: 7200
 """)
 
         defaults = {
@@ -119,9 +120,10 @@ cadence_polling_interval_seconds: 7200
         """TC-UT-001-005: Enforce minimum polling interval (3600 seconds)."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text("""
-enable_cadence_polling: true
-cadence_polling_interval_seconds: 1800
-cadence_catalog_filename: "cadence_catalog_rhel.json"
+cadence:
+  enabled: true
+  interval_seconds: 1800
+  catalog_filename: "cadence_catalog_rhel.json"
 """)
 
         defaults = {
@@ -137,9 +139,10 @@ cadence_catalog_filename: "cadence_catalog_rhel.json"
         """TC-UT-001-004: Validate catalog filename pattern."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text("""
-enable_cadence_polling: true
-cadence_catalog_filename: "../../../etc/passwd"
-cadence_polling_interval_seconds: 86400
+cadence:
+  enabled: true
+  catalog_filename: "../../../etc/passwd"
+  interval_seconds: 86400
 """)
 
         defaults = {
@@ -148,13 +151,10 @@ cadence_polling_interval_seconds: 86400
             "interval_seconds": 86400
         }
 
-        # The function catches the ValueError and returns the config with partial values
-        # The validation happens after loading, so it returns the loaded config
+        # An invalid filename aborts the load; defaults are returned untouched
         result = _load_unified_config(str(config_file), defaults)
-        # The invalid filename is loaded but the function doesn't reset it on error
-        # This is a known issue - the test documents current behavior
-        assert result["enabled"] is True  # Loaded from config
-        assert result["catalog_filename"] == "../../../etc/passwd"  # Invalid but loaded
+        assert result == defaults
+        assert result["catalog_filename"] == "cadence_catalog_rhel.json"
 
     def test_load_unified_config_missing_file(self, temp_dir):
         """TC-UT-001-003: Handle missing config file."""
@@ -165,55 +165,54 @@ cadence_polling_interval_seconds: 86400
         assert result == defaults
 
 
-class TestLegacyConfigLoading:
-    """UT-001-002: Load legacy config from cadence_config.yml (deprecated)."""
-
-    def test_load_legacy_config_success(self, temp_dir):
-        """TC-UT-001-002: Load legacy config from cadence_config.yml."""
-        config_file = temp_dir / "cadence_config.yml"
+    def test_load_unified_config_no_cadence_group(self, temp_dir):
+        """TC-UT-001-007: Fall back to defaults when the cadence group is absent."""
+        config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text("""
-cadence:
-  enabled: true
-  interval_seconds: 7200
-  catalog_filename: "cadence_catalog_rhel.json"
-  gitlab_repo_path: "/tmp/test_repo"
-  playbook_name: "repo_sync.yml"
-  sync_timeout_seconds: 1800
-  sync_poll_interval_seconds: 5
+enable_build_stream: true
+gitlab_host: "10.0.0.1"
 """)
 
-        defaults = {"enabled": False, "interval_seconds": 86400}
-        result = _load_legacy_config(str(config_file), defaults)
-
-        assert result["enabled"] is True
-        assert result["interval_seconds"] == 7200
-        assert result["catalog_filename"] == "cadence_catalog_rhel.json"
-
-    def test_load_legacy_config_missing_file(self, temp_dir):
-        """TC-UT-001-003: Handle missing legacy config."""
-        config_file = temp_dir / "nonexistent.yml"
-        defaults = {"enabled": False, "interval_seconds": 86400}
-        
-        result = _load_legacy_config(str(config_file), defaults)
+        defaults = {
+            "enabled": False,
+            "interval_seconds": 86400,
+            "catalog_filename": "cadence_catalog_rhel.json",
+        }
+        result = _load_unified_config(str(config_file), defaults)
         assert result == defaults
+
+    def test_load_unified_config_ignores_top_level_keys(self, temp_dir):
+        """TC-UT-001-008: Cadence keys outside the cadence group are ignored."""
+        config_file = temp_dir / "build_stream_config.yml"
+        config_file.write_text("""
+enable_cadence_polling: true
+cadence_polling_interval_seconds: 43200
+cadence:
+  enabled: false
+  interval_seconds: 7200
+""")
+
+        defaults = {
+            "enabled": False,
+            "interval_seconds": 86400,
+            "catalog_filename": "cadence_catalog_rhel.json",
+        }
+        result = _load_unified_config(str(config_file), defaults)
+
+        assert result["enabled"] is False
+        assert result["interval_seconds"] == 7200
 
 
 class TestConfigLoadingPriority:
-    """UT-001-001 through UT-001-003: Configuration loading priority."""
+    """UT-001-001 through UT-001-003: Configuration loading resolution."""
 
-    def test_load_config_unified_priority(self, temp_dir, mock_log_secure_info):
-        """TC-UT-001-001: Unified config takes priority over legacy."""
+    def test_load_config_from_explicit_path(self, temp_dir, mock_log_secure_info):
+        """TC-UT-001-001: Load cadence group from an explicit config path."""
         unified_file = temp_dir / "build_stream_config.yml"
         unified_file.write_text("""
-enable_cadence_polling: true
-cadence_polling_interval_seconds: 43200
-""")
-
-        legacy_file = temp_dir / "cadence_config.yml"
-        legacy_file.write_text("""
 cadence:
-  enabled: false
-  interval_seconds: 86400
+  enabled: true
+  interval_seconds: 43200
 """)
 
         with patch.dict(os.environ, {"OMNIA_DATA_PATH": str(temp_dir)}):
@@ -221,37 +220,6 @@ cadence:
 
         assert result["enabled"] is True
         assert result["interval_seconds"] == 43200
-
-    def test_load_config_fallback_to_legacy(self, temp_dir, mock_log_secure_info):
-        """TC-UT-001-002: Fallback to legacy config when unified missing."""
-        # Create legacy config
-        legacy_file = temp_dir / "cadence_config.yml"
-        legacy_file.write_text("""
-cadence:
-  enabled: true
-  interval_seconds: 7200
-  catalog_filename: "cadence_catalog_rhel.json"
-  gitlab_repo_path: ""
-  playbook_name: "repo_sync.yml"
-  sync_timeout_seconds: 3600
-  sync_poll_interval_seconds: 10
-  auto_bump_version: true
-  version_bump_strategy: "patch"
-  git_author_name: "BuildStream Cadence"
-  git_author_email: "buildstream@omnia.local"
-  emit_audit_events: true
-  log_level: "info"
-""")
-
-        # Test loading legacy config directly
-        result = _load_legacy_config(str(legacy_file), {
-            "enabled": False,
-            "interval_seconds": 86400,
-            "catalog_filename": "cadence_catalog_rhel.json"
-        })
-
-        assert result["enabled"] is True
-        assert result["interval_seconds"] == 7200
 
     def test_load_config_defaults_when_missing(self, temp_dir, mock_log_secure_info):
         """TC-UT-001-003: Use defaults when no config file exists."""
@@ -266,8 +234,9 @@ cadence:
         """TC-UT-001-001: BUILD_STREAM_CONFIG_PATH env var override."""
         custom_file = temp_dir / "custom_config.yml"
         custom_file.write_text("""
-enable_cadence_polling: true
-cadence_polling_interval_seconds: 10800
+cadence:
+  enabled: true
+  interval_seconds: 10800
 """)
 
         with patch.dict(os.environ, {"BUILD_STREAM_CONFIG_PATH": str(custom_file)}):
