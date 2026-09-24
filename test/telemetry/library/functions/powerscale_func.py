@@ -580,40 +580,30 @@ def verify_health_metrics(host):
         for m in POWERSCALE_CSI_EXPORTER_METRICS
         if m not in POWERSCALE_CSI_EVENT_CONDITIONED_METRICS
     ]
-    stable_result = verify_powerscale_metrics(host, stable_metrics)
-    all_found = list(stable_result["found"])
-    all_missing = list(stable_result["missing"])
+    required_metrics = list(stable_metrics)
+    for metric, reason in POWERSCALE_CSI_EVENT_CONDITIONED_METRICS.items():
+        if _k8s_event_exists(host, reason):
+            required_metrics.append(metric)
 
-    required_event_metrics = [
-        metric
-        for metric, reason in POWERSCALE_CSI_EVENT_CONDITIONED_METRICS.items()
-        if _k8s_event_exists(host, reason)
-    ]
+    result = verify_powerscale_metrics(host, required_metrics)
+    details = f"Found {len(result['found'])}/{len(required_metrics)} CSI health metrics"
 
-    if required_event_metrics:
-        event_result = verify_powerscale_metrics(host, required_event_metrics)
-        all_found.extend(event_result["found"])
-        all_missing.extend(event_result["missing"])
-
-    total_expected = len(stable_metrics) + len(required_event_metrics)
-    details = f"Found {len(all_found)}/{total_expected} CSI health metrics"
-
-    if all_missing:
+    if result["missing"]:
         return {
             "success": False,
             "skipped": False,
             "skip_reason": "",
-            "metrics_found": all_found,
-            "missing_metrics": all_missing,
-            "details": f"CSI health metrics verification failed. Missing: {all_missing}",
-            "error": f"CSI volume exporter not collecting required metrics: {all_missing}",
+            "metrics_found": result["found"],
+            "missing_metrics": result["missing"],
+            "details": f"CSI health metrics verification failed. Missing: {result['missing']}",
+            "error": f"CSI volume exporter not collecting required metrics: {result['missing']}",
         }
 
     return {
         "success": True,
         "skipped": False,
         "skip_reason": "",
-        "metrics_found": all_found,
+        "metrics_found": result["found"],
         "missing_metrics": [],
         "details": details,
         "error": "",
