@@ -1,6 +1,6 @@
-# Orchestrator — Input Contract
+# Orchestrator -- Input Contract
 
-> **Last Updated**: Sep 9, 2026 | **Domain**: `orchestrator`
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 24, 2026
 
 This document defines all input files consumed by the `orchestrator` domain.
 
@@ -67,7 +67,7 @@ determine which credentials are mandatory.
 | `HOSTNAME` | string | Yes | Assigned hostname |
 | `ADMIN_MAC` | string | Yes | Unique admin NIC MAC address |
 | `ADMIN_IP` | string | Yes | Admin network IP |
-| `BMC_MAC` | string | Yes | Unique BMC/iDRAC MAC address used for safe legacy identity bootstrap and discovery |
+| `BMC_MAC` | string | Yes | Unique BMC/iDRAC MAC address used for existing-node identity evidence and discovery |
 | `BMC_IP` | string | Yes | Unique BMC/iDRAC IP address |
 | `IB_NIC_NAME` | string | No | InfiniBand NIC FQDD |
 | `IB_IP` | string | No | InfiniBand IP |
@@ -77,8 +77,8 @@ shown, including `IB_NIC_NAME` and `IB_IP`. Optional values remain present as
 empty CSV cells. `PARENT_SERVICE_TAG`, `IB_NIC_NAME`, and `IB_IP` values are
 optional. `SERVICE_TAG`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, and `BMC_IP` must
 be populated and unique. Users do not supply XNAME; Omnia resolves the
-permanent Service Tag-to-XNAME mapping from SMD Hardware Inventory. Both legacy
-mappings and Discovery-generated mappings are accepted; Discovery may place a
+permanent Service Tag-to-XNAME mapping from SMD Hardware Inventory. User-owned
+and Discovery-generated mappings are accepted; Discovery may place a
 `service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
 
 ---

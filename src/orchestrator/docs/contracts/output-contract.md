@@ -1,6 +1,6 @@
-# Orchestrator — Output Contract
+# Orchestrator -- Output Contract
 
-> **Last Updated**: Sep 8, 2026 | **Domain**: `orchestrator`
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 24, 2026
 
 This document defines all output artifacts produced by the `orchestrator` domain.
 
@@ -63,8 +63,8 @@ host. These flows reuse templates and task files housed under
 ### 2.1 Boot Service Parameters
 
 **Location**: Configured through the OpenCHAMI Boot Service API (not file-based).
-Some compatibility paths in the `ochami` client still expose these operations
-under the `ochami bss` command group; this does not represent a separately
+The `ochami` client exposes some of these operations under the `ochami bss`
+command group; this does not represent a separately
 deployed BSS service.
 
 | Parameter | Source | Description |
@@ -118,12 +118,12 @@ Provisioning and PXE boot publish versioned, phase-specific reports under:
 |------|----------|----------|
 | `provisioning_report.yml` | Provision validation | SMD, Boot Service, Metadata Service, interface, and hostname registration results |
 | `pxeboot_status.yml` | PXE boot | PXE initiation and optional fresh-boot/cloud-init verification for every selected node |
-| `failed_nodes.json` | PXE boot | Compatibility failure-only view of the PXE report; written even when no node fails |
+| `failed_nodes.json` | PXE boot | Failure-only view of the PXE report; written even when no node fails |
 | `orchestrator_status.yml` | Provision and PXE boot | Stable aggregate view containing the latest provisioning and PXE phase states |
 
 `provisioning_report.yml`, `pxeboot_status.yml`, and
 `orchestrator_status.yml` use `schema_version: "1.1"` for metadata application
-tracking. The failure-only compatibility report remains at schema 1.0. A later
+tracking. The failure-only report uses schema 1.0. A later
 phase does not replace the aggregate report with a different shape. Instead, it updates
 `last_completed_phase`, retains the provisioning result when available, and
 adds the PXE result.
@@ -141,7 +141,7 @@ Important fields include `overall_status`, `total_expected_nodes`,
 `metadata_changed_nodes`, `reprovision_required_nodes`,
 `stale_metadata_groups_deleted`, `inventory_source`, and `timestamp`.
 
-### 4.2 PXE status and failed-node compatibility report
+### 4.2 PXE status and failed-node report
 
 `pxeboot_status.yml` is always written. Its `nodes` list includes every node
 selected for PXE boot. When node verification is enabled, each entry records
@@ -168,10 +168,10 @@ nodes:
       recoverable_errors: {}
 ```
 
-`failed_nodes.json` retains the existing failure-only interface and legacy
-flat fields, while adding the same schema, run, inventory, verification, and
-structured cloud-init data. Consumers that only inspect `failed_nodes` remain
-compatible.
+`failed_nodes.json` provides the failure-only interface and flat node fields
+alongside schema, run, inventory, verification, and structured cloud-init
+data. Consumers may inspect only the `failed_nodes` array when summary fields
+are not required.
 
 When verification is disabled, successful iDRAC requests are recorded as
 `pxe_initiated_unverified`; they are not reported as verified operating-system
@@ -180,10 +180,10 @@ boots.
 ### 4.3 Aggregate Orchestrator status
 
 `orchestrator_status.yml` has one stable schema across phases. Its top-level
-node fields, including the provisioning `failure_reason`, remain available for
-compatibility, and each node also contains phase-specific `provisioning` and
-`pxeboot` objects. The `phases` map records the status, counts, timestamp, and
-report filename for each lifecycle phase.
+node fields include the provisioning `failure_reason`, and each node also
+contains phase-specific `provisioning` and `pxeboot` objects. The `phases` map
+records the status, counts, timestamp, and report filename for each lifecycle
+phase.
 
 After provisioning, the PXE phase is `not_run`. After PXE boot, the aggregate
 status is failed when either the retained provisioning phase or the current

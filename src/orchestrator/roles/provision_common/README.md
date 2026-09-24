@@ -24,8 +24,9 @@ configurations coexist after a complete provision run.
 
 The PXE mapping does not supply XNAME. During registration,
 `openchami_reconcile` resolves each Service Tag from SMD Hardware Inventory.
-Existing mappings are reused; legacy nodes may be bootstrapped from consistent
-admin/BMC MAC evidence; and a genuinely new server receives the first free
+Existing mappings are reused; an existing SMD node without a Service Tag
+binding may be resolved from consistent admin/BMC MAC evidence; and a new
+server receives the first free
 Node/NodeBMC XNAME pair. The new Service Tag-to-XNAME relationship is written
 to SMD before discovery and then published to every downstream task. CSV row
 position never controls persistent identity.
@@ -33,9 +34,8 @@ position never controls persistent identity.
 Metadata Service resources are reconciled in place through the same
 CA-verified API client. Omnia labels the InstanceInfo, Group, and
 ClusterDefaults resources it owns, updates existing resources by UID, and
-reduces duplicate legacy ClusterDefaults records to one verified canonical
-UID. It
-deletes a stale owned group only when it is absent from the complete desired
+reduces duplicate ClusterDefaults records to one verified canonical
+UID. It deletes a stale owned group only when it is absent from the complete desired
 configuration and has no SMD members. Provisioning records nodes whose
 metadata changed as `reprovision_required`; only successful PXE and cloud-init
 verification clears that state. Rendered cloud-init files are restricted to
@@ -58,6 +58,30 @@ fallback is used.
 ## Role Variables
 
 See `vars/main.yml` for configurable paths, retry settings, and defaults.
+
+Key caller variables are `target_category`, `target_functional_groups`,
+`target_fg_names`, and `provision_common_registration_complete`.
+
+## Dependencies
+
+No automatic dependency is declared in `meta/main.yml`. The provision preamble
+must establish project inputs, credentials, OpenCHAMI authentication, S3
+configuration, functional groups, and the OIM inventory host.
+
+## Example
+
+```yaml
+- hosts: oim
+  roles:
+    - role: provision_common
+      vars:
+        target_category: os
+        target_functional_groups: "{{ os_functional_groups }}"
+        target_fg_names: "{{ os_functional_groups | map(attribute='name') | list }}"
+```
+
+Category playbooks are the supported callers; use
+`orchestrator.yml --tags provision` for the complete flow.
 
 ## License
 
