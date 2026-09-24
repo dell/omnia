@@ -321,6 +321,9 @@
     conf_server: "--conf-server {{ ctld_list | map('regex_replace', '$', ':' ~ (slurm_conf_dict.get('SlurmctldPort', '6817') | string)) | join(',') }}"
   when: slurm_conf_dict is defined
 
+- name: Backup Slurm configuration files before writing new config
+  ansible.builtin.include_tasks: backup_conf.yml
+
 - name: Write merged .conf
   ansible.builtin.copy:
     content: "{{ item.ini_lines | join('\n') }}\n"
@@ -344,9 +347,6 @@
   loop_control:
     loop_var: extra_conf
 
-- name: Backup Slurm configuration files when changed
-  ansible.builtin.include_tasks: backup_conf.yml
-
 - name: Check if cluster running
   ansible.builtin.include_tasks: check_ctld_running.yml
   when:
@@ -355,4 +355,3 @@
   loop: "{{ ctld_list }}"
   loop_control:
     loop_var: ctld
-
