@@ -316,7 +316,9 @@ configure-local-repository:
           -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
           --cacert "${BSM_CERT_FILE}")
 
-        REPO_STATUS=$(jq -r '.stages[] | select(.name == "configure-local-repository") | .status // "pending"' status_response.json 2>/dev/null || echo "pending")
+        REPO_STATUS=$(jq -r \
+          '.stages[] | select(.name == "configure-local-repository") | .status // "pending"' \
+          status_response.json 2>/dev/null || echo "pending")
 
         if [ "$REPO_STATUS" = "completed" ] || [ "$REPO_STATUS" = "success" ]; then
           echo "  [OK] Local repository configured"
@@ -378,7 +380,9 @@ build-images:
           -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
           --cacert "${BSM_CERT_FILE}")
 
-        BUILD_STATUS=$(jq -r '.stages[] | select(.name == "build-images" or .name == "build-image") | .status // "pending"' status_response.json 2>/dev/null || echo "pending")
+        BUILD_STATUS=$(jq -r \
+          '.stages[] | select(.name == "build-images" or .name == "build-image") | .status // "pending"' \
+          status_response.json 2>/dev/null || echo "pending")
 
         if [ "$BUILD_STATUS" = "completed" ] || [ "$BUILD_STATUS" = "success" ]; then
           echo "  [OK] Build completed successfully"

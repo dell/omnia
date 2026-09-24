@@ -77,7 +77,7 @@ class TestPipelineIdleCheck:
             # Let's just verify the function doesn't crash
 
         # Restore permissions for cleanup
-        os.chmod(processing_dir, 0o755)
+        os.chmod(processing_dir, 0o755)  # nosec B103
 
 
 class TestCatalogCopy:

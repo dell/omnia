@@ -86,7 +86,7 @@ cadence_sync_poll_interval_seconds: 5
         assert result["enabled"] is True
         assert result["interval_seconds"] == 43200
         assert result["catalog_filename"] == "cadence_catalog_rhel.json"
-        assert result["gitlab_repo_path"] == "/tmp/test_repo"
+        assert result["gitlab_repo_path"] == "/tmp/test_repo"  # nosec B108
         assert result["playbook_name"] == "repo_sync.yml"
         assert result["sync_timeout_seconds"] == 1800
         assert result["sync_poll_interval_seconds"] == 5

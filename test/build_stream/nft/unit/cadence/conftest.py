@@ -16,22 +16,26 @@
 Pytest configuration and fixtures for cadence unit tests.
 """
 
+import importlib.util
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 
 # Add source directory to path
-SRC_DIR = Path(__file__).parent.parent.parent.parent.parent.parent / "src" / "build_stream"
+SRC_DIR = (
+    Path(__file__).parent.parent.parent.parent.parent.parent
+    / "src"
+    / "build_stream"
+)
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 # Import cadence_manager module directly since playbook-watcher is not a package
-import importlib.util
 spec = importlib.util.spec_from_file_location(
     "cadence_manager",
     SRC_DIR / "app" / "playbook-watcher" / "cadence_manager.py"
@@ -42,10 +46,16 @@ sys.modules["cadence_manager"] = cadence_manager_module
 
 
 @pytest.fixture
-def temp_dir():
+def tmp_path():
     """Create a temporary directory for test files."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
+
+
+@pytest.fixture
+def temp_dir(tmp_path):  # pylint: disable=redefined-outer-name
+    """Alias for tmp_path for backward compatibility."""
+    return tmp_path
 
 
 @pytest.fixture
@@ -63,13 +73,13 @@ def sample_catalog_json():
 
 
 @pytest.fixture
-def sample_cadence_config():
+def sample_cadence_config(tmp_path):  # pylint: disable=redefined-outer-name
     """Sample cadence configuration."""
     return {
         "enabled": True,
         "interval_seconds": 3600,
         "catalog_filename": "cadence_catalog_rhel.json",
-        "gitlab_repo_path": "/tmp/test_repo",
+        "gitlab_repo_path": str(tmp_path / "test_repo"),
         "playbook_name": "repo_sync.yml",
         "sync_timeout_seconds": 1800,
         "sync_poll_interval_seconds": 5,
@@ -83,11 +93,11 @@ def sample_cadence_config():
 
 
 @pytest.fixture
-def mock_omnia_data_path(temp_dir):
+def mock_omnia_data_path(tmp_path):  # pylint: disable=redefined-outer-name
     """Mock OMNIA_DATA_PATH environment variable."""
     original = os.environ.get("OMNIA_DATA_PATH")
-    os.environ["OMNIA_DATA_PATH"] = str(temp_dir)
-    yield temp_dir
+    os.environ["OMNIA_DATA_PATH"] = str(tmp_path)
+    yield tmp_path
     if original:
         os.environ["OMNIA_DATA_PATH"] = original
     else:
@@ -95,23 +105,37 @@ def mock_omnia_data_path(temp_dir):
 
 
 @pytest.fixture
-def mock_queue_dirs(temp_dir):
+def mock_queue_dirs(tmp_path):  # pylint: disable=redefined-outer-name
     """Create mock queue directory structure."""
-    queue_dir = temp_dir / "build_stream" / "cadence_queue"
+    queue_dir = tmp_path / "build_stream" / "cadence_queue"
     for subdir in ["pending", "processing", "completed", "failed"]:
         (queue_dir / subdir).mkdir(parents=True, exist_ok=True)
     return queue_dir
 
 
 @pytest.fixture
-def mock_git_repo(temp_dir):
+def mock_git_repo(tmp_path):  # pylint: disable=redefined-outer-name
     """Create a mock Git repository."""
-    import subprocess
-    repo_dir = temp_dir / "test_repo"
+    repo_dir = tmp_path / "test_repo"
     repo_dir.mkdir()
-    subprocess.run(["git", "init"], cwd=repo_dir, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_dir, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_dir, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init"],
+        cwd=repo_dir,
+        check=True,
+        capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo_dir,
+        check=True,
+        capture_output=True
+    )
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo_dir,
+        check=True,
+        capture_output=True
+    )
     return repo_dir
 
 
