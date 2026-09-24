@@ -45,3 +45,7 @@
 - name: Cleanup image_build_manager logs
   ansible.builtin.import_tasks: cleanup_logs.yml
   tags: logs
+
+- name: Cleanup package hash cache files
+  ansible.builtin.import_tasks: cleanup_hash_cache.yml
+  tags: cache

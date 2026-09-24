@@ -57,7 +57,10 @@
       vars:
         _layer_rhel_tag: "{{ item.value.os_version | default(rhel_tag, true) }}"
         rhel_base_compute_image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix }}{{ _build_type_suffix }}"
-        rhel_tag: "{{ _layer_rhel_tag }}"
+        _render_rhel_tag: "{{ item.value.os_version | default(rhel_tag, true) }}"
+        _render_arch_repos: >-
+          {{ rhel_arch_repos_by_version[(item.value.os_version | default(rhel_tag, true)) | string]
+             | default(rhel_arch_repos) }}
         group_name: "{{ item.key }}"
         compute_packages: "{{ item.value.packages }}"
         functional_group: "{{ item.value.functional_group }}"
@@ -75,8 +78,11 @@
         _compute_pkg_hashes: >-
           {% set result = {} -%}
           {% for fg_name, fg_data in compute_images_dict.items() -%}
+            {% set ver = fg_data.os_version | default(rhel_tag) | string -%}
+            {% set ver_repo_hash = _repo_config_hash_by_version.get(ver,
+                                     _repo_config_hash) -%}
             {% set cache_input = (fg_data.packages | sort | join(','))
-              ~ '|repos:' ~ _repo_config_hash
+              ~ '|repos:' ~ ver_repo_hash
               ~ '|image_build_type:' ~ _image_build_type -%}
             {% set _ = result.update({
               fg_name: cache_input | hash('sha256')

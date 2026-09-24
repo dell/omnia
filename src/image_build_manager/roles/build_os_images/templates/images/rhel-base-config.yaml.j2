@@ -1,7 +1,10 @@
+{% set _tag = _render_rhel_tag | default(rhel_tag) %}
+{% set _repos = _render_arch_repos | default(rhel_arch_repos) %}
+{% set _base_pkgs = _render_base_packages | default(base_image_packages) %}
 options:
   layer_type: 'base'
   name: '{{ rhel_arch_base_image_name }}'
-  publish_tags: '{{ rhel_tag }}'
+  publish_tags: '{{ _tag }}'
   pkg_manager: 'dnf'
   parent: 'scratch'
   publish_registry: '{{ registry_host }}:5000/{{ oim_node_name }}'
@@ -10,7 +13,7 @@ options:
 
 {% set _ssl = '1' if (repo_ssl_verify | default(true) | bool) else '0' %}
 repos:
-{% for repo in rhel_arch_repos %}
+{% for repo in _repos %}
 {% if repo.base_url | length > 1 %}
   - alias: '{{ repo.name }}'
     url: '{{ repo.base_url }}'
@@ -27,7 +30,7 @@ package_groups:
   - 'Minimal Install'
   - 'Development Tools'
 packages:
-{% for pkg in base_image_packages %}
+{% for pkg in _base_pkgs %}
   - {{ pkg }}
 {% endfor %}
 

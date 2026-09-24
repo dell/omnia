@@ -24,11 +24,16 @@
     host_name: "{{ hostvars['localhost']['host_name'] }}"
     domain_name: "{{ hostvars['localhost']['domain_name'] }}"
     rhel_arch_repos: "{{ hostvars['localhost']['rhel_arch_repos'] }}"
+    rhel_arch_repos_by_version: "{{ hostvars['localhost']['rhel_arch_repos_by_version'] | default({}) }}"
     base_image_packages: "{{ hostvars['localhost']['base_image_packages'] }}"
+    base_image_packages_by_version: "{{ hostvars['localhost']['base_image_packages_by_version'] | default({}) }}"
     compute_images_dict: "{{ hostvars['localhost']['compute_images_dict'] }}"
+    cluster_os_versions: "{{ hostvars['localhost']['cluster_os_versions'] | default([]) }}"
 
 # Compute a hash of the repo configuration (URLs, priorities, names) so the
 # build cache is invalidated when repo settings change — not just packages.
+# When multiple OS versions are present, compute a per-version hash so each
+# base image tracks its own repo fingerprint independently.
 - name: Compute repo configuration hash
   ansible.builtin.set_fact:
     _repo_config_hash: >-
@@ -38,6 +43,14 @@
          | sort
          | join('|')
          | hash('sha256') }}
+    _repo_config_hash_by_version: >-
+      {% set result = {} -%}
+      {% for ver, repos in (rhel_arch_repos_by_version | default({})).items() -%}
+        {% set h = repos | map('dictsort') | map('join', '=')
+                         | sort | join('|') | hash('sha256') -%}
+        {% set _ = result.update({ver: h}) -%}
+      {% endfor -%}
+      {{ result }}
 
 - name: Configure registry host and regctl TLS
   ansible.builtin.include_tasks: configure_registry.yml

@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# cleanup_hash_cache.yml — Remove package hash cache files.
+#
+# Package hash files are created during builds to cache package list hashes
+# for each functional group and RHEL version. These files accumulate over
+# time and can be safely removed to reclaim space.
+#
+# Files cleaned:
+#   - .compute_pkg_hash_* (compute image package hashes)
+#   - .base_image_pkg_hash_* (base image package hashes per version)
+
+- name: Determine hash cache directory
+  ansible.builtin.set_fact:
+    _hash_cache_dir: "{{ image_build_log_base }}"
+
+- name: Check if hash cache directory exists
+  ansible.builtin.stat:
+    path: "{{ _hash_cache_dir }}"
+  register: _hash_cache_dir_stat
+  delegate_to: localhost
+  connection: local
+
+- name: Find package hash cache files
+  ansible.builtin.find:
+    paths: "{{ _hash_cache_dir }}"
+    patterns:
+      - ".compute_pkg_hash_*"
+      - ".base_image_pkg_hash_*"
+    file_type: file
+  register: _hash_cache_files
+  when: _hash_cache_dir_stat.stat.exists | default(false)
+  delegate_to: localhost
+  connection: local
+
+- name: Remove package hash cache files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ _hash_cache_files.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  delegate_to: localhost
+  connection: local
+  when: _hash_cache_files.files is defined and (_hash_cache_files.files | length) > 0
+
+- name: Display hash cache cleanup result
+  ansible.builtin.debug:
+    msg: >-
+      Removed {{ _hash_cache_files.files | default([]) | length }} package hash cache file(s)
+      from {{ _hash_cache_dir }}
+  when: _hash_cache_files.files is defined
