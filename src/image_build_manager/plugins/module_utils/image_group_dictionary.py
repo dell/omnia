@@ -244,7 +244,7 @@ class ImageGroupDictionaryRepository:
     def upsert(
         self,
         new_entries: Iterable[Mapping[str, Any]],
-        catalog_schema_version: str | None = None,
+        catalog_schema_version: int | None = None,
     ) -> int:
         """Insert or replace reusable image entries and return their count."""
         materialized = [dict(entry) for entry in new_entries]

@@ -289,9 +289,8 @@ builds. A hit is reused only when its recorded kernel, initrd, and rootfs S3
 objects still exist. Missing artifacts turn the hit into a rebuild. A successful
 catalog build atomically updates `image_group_dictionary.json`; `force_rebuild`
 bypasses lookup and replaces the matching dictionary entries after validation.
-For BuildStream runs, `build_execution_mode: differential` supplies
-`force_rebuild: false`, while `lockstep` supplies `force_rebuild: true` for the
-same catalog flow. Direct catalog runs continue to use `build_image.force_rebuild`.
+`build_image.force_rebuild` in `image_build_config.yml` is the single rebuild
+control for both direct and BuildStream-triggered catalog builds.
 
 ---
 

@@ -26,7 +26,7 @@ when the domain-specific path is unset.
 | `functional_groups_source` | string | Yes | `"catalog"` | `config` uses `package_groups.yml`; `catalog` uses `CATALOG_FILE_PATH` |
 | `build_image.max_parallel` | int | Yes | `0` | Concurrent compute builds; 0 means all at once |
 | `build_image.build_timeout` | int | Yes | `7200` | Per-build timeout in seconds; range 600-86400 |
-| `build_image.force_rebuild` | bool | Yes | `false` | Bypass the package-hash cache |
+| `build_image.force_rebuild` | bool | Yes | `false` | Single rebuild control for direct and BuildStream-triggered runs; bypasses config cache and catalog dictionary reuse |
 | `build_image.backup_s3_images` | bool | Yes | `false` | In config mode, copy rebuilt compute artifacts to a `_prev` prefix; catalog mode uses the global dictionary and does not create `_prev` |
 | `build_image.repo_ssl_verify` | bool | Yes | `true` | Enable TLS certificate and repository GPG verification |
 | `aarch64_inventory_host_ip` | string | No | `""` | ARM host IPv4 address; empty disables aarch64 builds |

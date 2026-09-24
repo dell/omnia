@@ -106,9 +106,9 @@ catalog_version:
   returned: always
   type: str
 catalog_schema_version:
-  description: Optional catalog schema version from catalog JSON.
+  description: Optional integer catalog schema version from catalog JSON.
   returned: always
-  type: str
+  type: int
 cluster_os_version:
   description:
     - Primary OS version extracted from the first base_os group.

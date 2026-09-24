@@ -57,7 +57,7 @@ options:
     default: ""
   catalog_schema_version:
     description: Catalog schema version recorded with dictionary updates.
-    type: str
+    type: int
 author:
   - Dell Omnia Team
 """
@@ -110,7 +110,7 @@ def main() -> None:
             "candidates": {"type": "list", "elements": "dict", "default": []},
             "entries": {"type": "list", "elements": "dict", "default": []},
             "image_group_id": {"type": "str", "default": ""},
-            "catalog_schema_version": {"type": "str", "required": False},
+            "catalog_schema_version": {"type": "int", "required": False},
         },
         supports_check_mode=False,
     )

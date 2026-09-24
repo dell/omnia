@@ -60,13 +60,6 @@
          if (_catalog_version | length) > 0 else '') }}
   when: _pkg_source == 'catalog'
 
-- name: Report catalog build execution strategy
-  ansible.builtin.debug:
-    msg: >-
-      Catalog build execution mode={{ build_execution_mode | default('direct') }};
-      force_rebuild={{ force_rebuild | bool }}.
-  when: _pkg_source == 'catalog'
-
 - name: Build image tag suffix
   ansible.builtin.set_fact:
     _image_tag_suffix: >-
