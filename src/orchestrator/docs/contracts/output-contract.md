@@ -128,6 +128,10 @@ phase does not replace the aggregate report with a different shape. Instead, it 
 `last_completed_phase`, retains the provisioning result when available, and
 adds the PXE result.
 
+`failed_nodes.json` remains at schema 1.0 as a supported compatibility
+contract for consumers that read the `failed_nodes` array. New integrations
+should prefer `pxeboot_status.yml` or the aggregate `orchestrator_status.yml`.
+
 ### 4.1 Provisioning report
 
 `provisioning_report.yml` reports whether the expected nodes, administrative

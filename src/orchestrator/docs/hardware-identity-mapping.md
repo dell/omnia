@@ -166,6 +166,13 @@ API client instead of deleting and recreating every resource.
   complete desired configuration and has no SMD members.
 - Unmanaged metadata groups are retained.
 
+For upgrade compatibility, the pruning operation also recognizes the reserved
+Omnia group names `ssh`, `chrony`, `node_registration`, and
+`additional_metadata_svc`, plus the `service_kube_`, `slurm_`, and `login_`
+prefixes. An unlabelled group in that set is deleted only when it is absent
+from desired state and has no SMD members. This exception does not grant
+ownership of arbitrary third-party groups.
+
 The ownership boundary prevents one project from garbage-collecting resources
 that it does not manage.
 
