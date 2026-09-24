@@ -22,11 +22,15 @@ from the telemetry namespace.
 
 from typing import Dict, Any, List
 
+from omnia_auto import read_remote_env
+
 from .telemetry_func import run_on_kube_vip
 
 from library.vars.common_vars import (
     CMDS,
     TELEMETRY_NAMESPACE,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
     IDRAC_POD_PREFIX,
     IDRAC_STS_NAME,
     LDMS_AGG_STS_NAME,
@@ -643,14 +647,13 @@ def verify_credentials_preserved(host) -> Dict[str, Any]:
             }
         }
     """
-    from library.vars.common_vars import (
-        ENV_OMNIA_DATA_PATH,
-        ENV_OMNIA_PROJECT_NAME,
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
     )
-
-    # Get environment variables from the host
-    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH) or "/opt/omnia"
-    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME) or "project_default"
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
 
     input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
     cred_file = f"{input_dir}/telemetry_credentials.yml"
@@ -723,14 +726,13 @@ def verify_credentials_deleted(host) -> Dict[str, Any]:
             }
         }
     """
-    from library.vars.common_vars import (
-        ENV_OMNIA_DATA_PATH,
-        ENV_OMNIA_PROJECT_NAME,
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
     )
-
-    # Get environment variables from the host
-    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH) or "/opt/omnia"
-    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME) or "project_default"
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
 
     input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
     cred_file = f"{input_dir}/telemetry_credentials.yml"
@@ -799,14 +801,13 @@ def verify_logs_preserved(host) -> Dict[str, Any]:
             "log_dir_exists": bool
         }
     """
-    from library.vars.common_vars import (
-        ENV_OMNIA_DATA_PATH,
-        ENV_OMNIA_PROJECT_NAME,
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
     )
-
-    # Get environment variables from the host
-    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH) or "/opt/omnia"
-    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME) or "project_default"
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
 
     log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
 
@@ -858,14 +859,13 @@ def verify_logs_deleted(host) -> Dict[str, Any]:
             "log_dir_exists": bool
         }
     """
-    from library.vars.common_vars import (
-        ENV_OMNIA_DATA_PATH,
-        ENV_OMNIA_PROJECT_NAME,
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
     )
-
-    # Get environment variables from the host
-    omnia_data_path = host.environment.get(ENV_OMNIA_DATA_PATH) or "/opt/omnia"
-    omnia_project_name = host.environment.get(ENV_OMNIA_PROJECT_NAME) or "project_default"
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
 
     log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
 
