@@ -34,6 +34,8 @@ EnvironmentFile=-/etc/omnia/omnia.env
 
 # Environment variables (override omnia.env defaults for watcher-specific settings)
 Environment="PLAYBOOK_QUEUE_BASE={{ build_stream_watcher_playbook_queue_base }}"
+Environment="PLAYBOOK_QUEUE_AUTH_KEY_FILE={{ build_stream_queue_auth_key }}"
+Environment="PLAYBOOK_QUEUE_REPLAY_DIR={{ build_stream_queue_replay_dir }}"
 Environment="NFS_SHARE_PATH={{ oim_shared_path }}"
 Environment="NFS_ARTIFACT_BASE={{ build_stream_root_dir }}"
 Environment="POLL_INTERVAL_SECONDS={{ watcher_poll_interval_seconds }}"

@@ -44,7 +44,20 @@ watcher_private_tmp: true
 watcher_limit_nofile: 4096
 watcher_memory_max: "512M"
 watcher_cpu_quota: "50%"
-build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/playbook_queue"
+build_stream_queue_base: "{{ omnia_path }}/playbook_queue"
+build_stream_container_queue_base: >-
+  {{ build_stream_container_omnia_path }}/playbook_queue
+build_stream_queue_auth_dir: "/etc/omnia/build_stream"
+build_stream_queue_auth_key: >-
+  {{ build_stream_queue_auth_dir }}/playbook_queue.key
+build_stream_container_queue_auth_key: "/run/secrets/omnia-playbook-queue.key"
+build_stream_queue_replay_dir: >-
+  /var/lib/omnia/build_stream/playbook_queue/consumed
+build_stream_queue_api_state_dir: >-
+  /var/lib/omnia/build_stream/playbook_queue/api
+build_stream_container_queue_api_state_dir: >-
+  /var/lib/omnia/build_stream/playbook_queue/api
+build_stream_watcher_playbook_queue_base: "{{ build_stream_queue_base }}"
 watcher_poll_interval_seconds: 2
 watcher_max_concurrent_jobs: 1
 watcher_default_timeout_minutes: 150
@@ -53,6 +66,9 @@ watcher_log_level: "INFO"
 # Directory & File Modes
 build_stream_file_mode: "0644"
 build_stream_dir_mode: "0755"
+build_stream_queue_dir_mode: "0755"
+build_stream_private_dir_mode: "0700"
+build_stream_secret_file_mode: "0600"
 build_stream_jwt_script_mode: "0755"
 
 # SSL certificate configuration for build_stream

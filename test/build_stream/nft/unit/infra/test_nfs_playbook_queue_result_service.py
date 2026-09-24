@@ -134,3 +134,18 @@ class TestPlaybookQueueResultService:
         assert count == 0  # No files processed due to error
         callback.assert_not_called()
         mock_result_repo.archive_result.assert_not_called()
+        mock_result_repo.quarantine_result.assert_not_called()
+
+    def test_poll_results_quarantines_untrusted_result(
+        self, result_service, mock_result_repo
+    ):
+        """Authentication and schema failures leave the live poll set."""
+        result_path = Path("/queue/forged.json")
+        mock_result_repo.is_available.return_value = True
+        mock_result_repo.get_unprocessed_results.return_value = [result_path]
+        mock_result_repo.read_result.side_effect = ValueError("untrusted")
+
+        count = result_service.poll_results(callback=MagicMock())
+
+        assert count == 0
+        mock_result_repo.quarantine_result.assert_called_once_with(result_path)

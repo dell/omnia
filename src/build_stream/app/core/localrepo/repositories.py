@@ -39,7 +39,6 @@ class PlaybookQueueRequestRepository(Protocol):
         Raises:
             QueueUnavailableError: If the queue directory is not accessible.
         """
-        ...
 
     def is_available(self) -> bool:
         """Check if the request queue directory is accessible.
@@ -47,7 +46,6 @@ class PlaybookQueueRequestRepository(Protocol):
         Returns:
             True if the queue directory exists and is writable.
         """
-        ...
 
 
 class PlaybookQueueResultRepository(Protocol):
@@ -59,7 +57,6 @@ class PlaybookQueueResultRepository(Protocol):
         Returns:
             List of paths to unprocessed result JSON files.
         """
-        ...
 
     def read_result(self, result_path: Path) -> PlaybookResult:
         """Read and parse a result file.
@@ -73,7 +70,6 @@ class PlaybookQueueResultRepository(Protocol):
         Raises:
             ValueError: If the result file is malformed.
         """
-        ...
 
     def archive_result(self, result_path: Path) -> None:
         """Move a processed result file to the archive directory.
@@ -81,7 +77,13 @@ class PlaybookQueueResultRepository(Protocol):
         Args:
             result_path: Path to the result file to archive.
         """
-        ...
+
+    def quarantine_result(self, result_path: Path) -> None:
+        """Move an invalid result out of the live queue.
+
+        Args:
+            result_path: Path to the rejected result file.
+        """
 
     def is_available(self) -> bool:
         """Check if the result queue directory is accessible.
@@ -89,7 +91,6 @@ class PlaybookQueueResultRepository(Protocol):
         Returns:
             True if the queue directory exists and is readable.
         """
-        ...
 
 
 class InputDirectoryRepository(Protocol):
@@ -104,7 +105,6 @@ class InputDirectoryRepository(Protocol):
         Returns:
             Path like <build_stream_root>/artifacts/{job_id}/input/
         """
-        ...
 
     def get_destination_input_repository_path(self) -> Path:
         """Get destination input directory path expected by playbook.
@@ -112,7 +112,6 @@ class InputDirectoryRepository(Protocol):
         Returns:
             Path like /opt/omnia/input/project_build_stream/
         """
-        ...
 
     def validate_input_directory(self, path: Path) -> bool:
         """Validate that input directory exists and contains required files.
@@ -123,4 +122,3 @@ class InputDirectoryRepository(Protocol):
         Returns:
             True if directory is valid and contains required files.
         """
-        ...

@@ -14,12 +14,14 @@
 
 """Unit tests for NFS repository implementations."""
 
-import json
+import shutil
 from pathlib import Path
 
 import pytest
 
-from core.localrepo.entities import PlaybookRequest, PlaybookResult
+from common.queue_auth import read_signed_payload, write_signed_payload
+from common.queue_state import PendingRequestStore
+from core.localrepo.entities import PlaybookRequest
 from core.localrepo.exceptions import QueueUnavailableError
 from core.localrepo.value_objects import (
     ExecutionTimeout,
@@ -35,6 +37,20 @@ from infra.repositories.nfs_playbook_queue_request_repository import (
 from infra.repositories.nfs_playbook_queue_result_repository import (
     NfsPlaybookQueueResultRepository,
 )
+
+KEY = b"q" * 32
+
+
+@pytest.fixture(autouse=True)
+def queue_auth_key(monkeypatch, tmp_path):
+    """Provide the same protected key used by both queue adapters."""
+    key_path = tmp_path / "queue-auth.key"
+    key_path.write_bytes(KEY)
+    key_path.chmod(0o600)
+    monkeypatch.setenv("PLAYBOOK_QUEUE_AUTH_KEY_FILE", str(key_path))
+    monkeypatch.setenv(
+        "PLAYBOOK_QUEUE_API_STATE_DIR", str(tmp_path / "queue-state")
+    )
 
 
 class TestNfsPlaybookQueueRequestRepository:
@@ -64,10 +80,11 @@ class TestNfsPlaybookQueueRequestRepository:
         file_path = repo.write_request(request)
 
         assert file_path.exists()
-        with open(file_path, "r", encoding="utf-8") as fobj:
-            data = json.load(fobj)
+        data = read_signed_payload(file_path, KEY, purpose="request")
         assert data["job_id"] == "018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a11"
         assert data["stage_name"] == "create-local-repository"
+        assert data["command_type"] == "ansible-playbook"
+        assert len(list((tmp_path / "queue-state" / "pending").iterdir())) == 1
 
     def test_is_available_true(self, tmp_path):
         """is_available should return True when directory exists."""
@@ -114,9 +131,12 @@ class TestNfsPlaybookQueueResultRepository:
 
     def _write_result_file(self, results_dir, filename, data):
         """Helper to write a result JSON file."""
+        data = dict(data)
+        data.setdefault("request_id", f"request-{filename}")
+        if data.get("job_id") and data.get("stage_name"):
+            PendingRequestStore(KEY).register_request(data)
         file_path = results_dir / filename
-        with open(file_path, "w", encoding="utf-8") as fobj:
-            json.dump(data, fobj)
+        write_signed_payload(file_path, data, KEY, purpose="result")
         return file_path
 
     def test_get_unprocessed_results(self, tmp_path):
@@ -170,8 +190,37 @@ class TestNfsPlaybookQueueResultRepository:
         bad_file = results_dir / "bad.json"
         bad_file.write_text("not json")
 
-        with pytest.raises(ValueError, match="Invalid JSON"):
+        with pytest.raises(ValueError, match="Untrusted result"):
             repo.read_result(bad_file)
+
+        repo.quarantine_result(bad_file)
+        assert not bad_file.exists()
+        assert len(list((tmp_path / "archive" / "rejected-results").iterdir())) == 1
+
+    def test_read_result_rejects_tampered_signed_data(self, tmp_path):
+        """A queue writer cannot alter a watcher-authenticated result."""
+        repo = NfsPlaybookQueueResultRepository(
+            queue_base_path=str(tmp_path)
+        )
+        repo.ensure_directories()
+
+        result_path = self._write_result_file(
+            tmp_path / "results",
+            "tampered.json",
+            {
+                "job_id": "job-1",
+                "stage_name": "deploy",
+                "status": "failed",
+            },
+        )
+        contents = result_path.read_text(encoding="utf-8")
+        result_path.write_text(
+            contents.replace('"failed"', '"success"'),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="Untrusted result"):
+            repo.read_result(result_path)
 
     def test_read_result_missing_fields(self, tmp_path):
         """Should raise ValueError for missing required fields."""
@@ -204,6 +253,7 @@ class TestNfsPlaybookQueueResultRepository:
             {"job_id": "job-1", "stage_name": "test", "status": "success"},
         )
 
+        repo.read_result(file_path)
         repo.archive_result(file_path)
 
         assert not file_path.exists()
@@ -238,11 +288,50 @@ class TestNfsPlaybookQueueResultRepository:
             "result.json",
             {"job_id": "job-1", "stage_name": "test", "status": "success"},
         )
+        repo.read_result(file_path)
         repo.archive_result(file_path)
         assert "result.json" in repo._processed_files
 
         repo.clear_processed_cache()
         assert len(repo._processed_files) == 0
+
+    def test_archived_result_cannot_be_replayed_for_a_new_retry(self, tmp_path):
+        """A stale signed result must not affect a later request attempt."""
+        repo = NfsPlaybookQueueResultRepository(
+            queue_base_path=str(tmp_path)
+        )
+        repo.ensure_directories()
+        old_result_path = self._write_result_file(
+            tmp_path / "results",
+            "old.json",
+            {
+                "job_id": "job-1",
+                "stage_name": "deploy",
+                "request_id": "request-old",
+                "status": "success",
+            },
+        )
+        repo.read_result(old_result_path)
+        repo.archive_result(old_result_path)
+
+        PendingRequestStore(KEY).register_request(
+            {
+                "job_id": "job-1",
+                "stage_name": "deploy",
+                "request_id": "request-new",
+            }
+        )
+        replay_path = tmp_path / "results" / "replayed.json"
+        shutil.copy2(
+            tmp_path / "archive" / "results" / "old.json",
+            replay_path,
+        )
+        restarted_repo = NfsPlaybookQueueResultRepository(
+            queue_base_path=str(tmp_path)
+        )
+
+        with pytest.raises(ValueError, match="already consumed"):
+            restarted_repo.read_result(replay_path)
 
 
 class TestNfsInputRepository:

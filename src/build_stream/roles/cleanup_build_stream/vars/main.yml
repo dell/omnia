@@ -32,10 +32,13 @@ omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] }}"
 build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream/log"
   - "{{ omnia_nfs_share }}/build_stream/playbook_queue"
+  - "{{ omnia_nfs_share }}/playbook_queue"
   - "{{ omnia_nfs_share }}/build_stream_ssl"
   - "{{ omnia_nfs_share }}/build_stream_root"
   - "{{ omnia_nfs_share }}/build_stream_inv"
   - "{{ omnia_nfs_share }}/build_stream_enabled"
+  - "/var/lib/omnia/build_stream"
+  - "/etc/omnia/build_stream"
 
 # ── Postgres cleanup ───────────────────────────────────────────────
 postgres_cleanup_directory:

@@ -24,10 +24,27 @@
     state: directory
     mode: "{{ build_stream_dir_mode }}"
 
-- name: Enable playbook watcher service
+- name: Stop Build Stream producer during queue authentication transition
+  ansible.builtin.systemd_service:
+    name: "{{ build_stream_service }}"
+    state: stopped
+  failed_when: false
+
+- name: Stop playbook watcher during queue authentication transition
+  ansible.builtin.systemd_service:
+    name: "{{ watcher_service_name }}"
+    state: stopped
+  failed_when: false
+
+- name: Provision playbook watcher service
   ansible.builtin.include_tasks: enable_watcher_service.yml
 
 - name: Deploy omnia_build_stream container
   ansible.builtin.include_tasks: deploy_build_stream.yml
+  tags:
+    - build_stream
+
+- name: Start playbook watcher after authenticated producer deployment
+  ansible.builtin.include_tasks: start_watcher_service.yml
   tags:
     - build_stream

@@ -23,6 +23,7 @@ Architecture:
 - Writes structured results to /opt/omnia/build_stream/playbook_queue/results/
 - Supports max 5 concurrent playbook executions
 """
+import hashlib
 import json
 import logging
 import os
@@ -37,6 +38,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Thread, Semaphore
 from typing import Dict, Optional, Any, List
+
+BUILD_STREAM_APP_DIR = Path(__file__).resolve().parent.parent
+if str(BUILD_STREAM_APP_DIR) not in sys.path:
+    sys.path.insert(0, str(BUILD_STREAM_APP_DIR))
+
+from common.queue_auth import (  # pylint: disable=wrong-import-position
+    DEFAULT_TTL_SECONDS,
+    QueueAuthenticationError,
+    load_auth_key,
+    read_signed_payload,
+    write_signed_payload,
+)
 
 
 def _resolve_omnia_env():
@@ -120,6 +133,12 @@ REQUESTS_DIR = QUEUE_BASE / "requests"
 RESULTS_DIR = QUEUE_BASE / "results"
 PROCESSING_DIR = QUEUE_BASE / "processing"
 ARCHIVE_DIR = QUEUE_BASE / "archive"
+REPLAY_STATE_DIR = Path(
+    os.getenv(
+        "PLAYBOOK_QUEUE_REPLAY_DIR",
+        "/var/lib/omnia/build_stream/playbook_queue/consumed",
+    )
+)
 
 # Environment configuration (sourced from omnia.env)
 OMNIA_DATA_PATH = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
@@ -225,6 +244,71 @@ def _load_playbook_paths(config_path: Path) -> dict:
 
 PLAYBOOK_NAME_TO_PATH = _load_playbook_paths(PLAYBOOK_PATHS_CONFIG)
 
+# Every root-executed playbook request must match one current API workflow.
+# Tags are part of the contract because multiple stages share a playbook.
+ANSIBLE_REQUEST_CONTRACTS = {
+    "create-local-repository": {
+        "playbook": "repo_manager.yml",
+        "tags": "execute",
+        "extra_vars": frozenset({"job_id", "attempt"}),
+    },
+    "build-image": {
+        "playbook": "image_build_manager.yml",
+        "tags": "execute",
+        "extra_vars": frozenset({"job_id"}),
+    },
+    "deploy": {
+        "playbook": "orchestrator.yml",
+        "tags": "provision",
+        "extra_vars": frozenset(
+            {"job_id", "image_key", "image_group_id", "attempt"}
+        ),
+    },
+    "restart": {
+        "playbook": "orchestrator.yml",
+        "tags": "pxeboot",
+        "extra_vars": frozenset(
+            {"job_id", "image_group_id", "attempt", "enable_build_stream"}
+        ),
+    },
+    "cleanup": {
+        "playbook": "image_build_manager.yml",
+        "tags": "cleanup_images",
+        "extra_vars": frozenset({"cleanup_image_pattern", "skip_approval"}),
+    },
+}
+ANSIBLE_REQUEST_FIELDS = frozenset(
+    {
+        "request_id",
+        "job_id",
+        "stage_name",
+        "command_type",
+        "playbook_path",
+        "extra_vars",
+        "correlation_id",
+        "timeout_minutes",
+        "submitted_at",
+        "tags",
+    }
+)
+TEST_AUTOMATION_REQUEST_FIELDS = frozenset(
+    {
+        "request_id",
+        "job_id",
+        "stage_type",
+        "command_type",
+        "scenario_names",
+        "test_suite",
+        "timeout_minutes",
+        "artifact_dir",
+        "config_path",
+        "correlation_id",
+        "submitted_at",
+        "attempt",
+    }
+)
+MAX_ATTEMPT = 1000
+
 # Logging configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(
@@ -238,6 +322,15 @@ logging.basicConfig(
 # Global state
 SHUTDOWN_REQUESTED = False
 job_semaphore = Semaphore(MAX_CONCURRENT_JOBS)
+_QUEUE_AUTH_KEY = None
+
+
+def get_queue_auth_key() -> bytes:
+    """Load the host-managed queue key once and fail closed if unavailable."""
+    global _QUEUE_AUTH_KEY
+    if _QUEUE_AUTH_KEY is None:
+        _QUEUE_AUTH_KEY = load_auth_key()
+    return _QUEUE_AUTH_KEY
 
 
 def signal_handler(signum, _):
@@ -260,11 +353,14 @@ def ensure_directories():
         ARCHIVE_DIR,
         ARCHIVE_DIR / "requests",
         ARCHIVE_DIR / "results",
+        REPLAY_STATE_DIR,
         HOST_LOG_BASE_DIR,  # NFS log directory
     ]
     for directory in directories:
         try:
             directory.mkdir(parents=True, exist_ok=True)
+            if directory == REPLAY_STATE_DIR:
+                os.chmod(directory, 0o700)
             log_secure_info(
                 "debug",
                 "Ensured directory exists"
@@ -275,6 +371,37 @@ def ensure_directories():
                 "Failed to create directory"
             )
             raise
+
+
+def prune_consumed_request_ids() -> None:
+    """Retain replay markers until every matching envelope has expired."""
+    cutoff = time.time() - DEFAULT_TTL_SECONDS - 60
+    try:
+        for marker in REPLAY_STATE_DIR.iterdir():
+            try:
+                if marker.is_file() and marker.stat().st_mtime < cutoff:
+                    marker.unlink()
+            except OSError:
+                log_secure_info("warning", "Unable to prune replay marker")
+    except OSError:
+        log_secure_info("warning", "Unable to scan replay markers")
+
+
+def claim_request_id(request_id: str) -> bool:
+    """Persistently claim an authenticated request ID before execution."""
+    marker_name = hashlib.sha256(request_id.encode("utf-8")).hexdigest()
+    marker_path = REPLAY_STATE_DIR / marker_name
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    try:
+        descriptor = os.open(marker_path, flags, 0o600)
+    except FileExistsError:
+        return False
+    try:
+        os.write(descriptor, request_id.encode("utf-8"))
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    return True
 
 
 def validate_playbook_name(playbook_name: str) -> bool:
@@ -334,7 +461,10 @@ def validate_job_id(job_id: str) -> bool:
     # Allow UUID format or alphanumeric with hyphens/underscores
     uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     alnum_pattern = r'^[a-zA-Z0-9_-]+$'
-    return bool(re.match(uuid_pattern, job_id) or re.match(alnum_pattern, job_id))
+    return bool(
+        re.fullmatch(uuid_pattern, job_id)
+        or re.fullmatch(alnum_pattern, job_id)
+    )
 
 
 def validate_stage_name(stage_name: str) -> bool:
@@ -593,7 +723,6 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     ALLOWED_EXTRA_ARGS = [
         "-v",
         "--extra-vars",
-        "--inventory",
         "--tags",
     ]
 
@@ -650,7 +779,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
         i = min_required_length
         while i < len(cmd):
             arg = cmd[i]
-            if arg in ["--inventory", "--extra-vars", "--tags"] and i + 1 < len(cmd):
+            if arg in ["--extra-vars", "--tags"] and i + 1 < len(cmd):
                 i += 2
             elif arg == "-v" or arg.startswith("-v"):
                 i += 1
@@ -673,7 +802,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     SKIP_POSITIONS = [1]  # Position of playbook_path
     i = min_required_length
     while i < len(cmd):
-        if cmd[i] in ("--extra-vars", "--inventory", "--tags") and i + 1 < len(cmd):
+        if cmd[i] in ("--extra-vars", "--tags") and i + 1 < len(cmd):
             SKIP_POSITIONS.append(i + 1)
             i += 2
         else:
@@ -716,14 +845,8 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
 
 
 def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
-    """Parse and validate request file.
-    Args:
-        request_path: Path to the request JSON file
-    Returns:
-        Parsed request dictionary or None if invalid
-    """
+    """Authenticate and validate a queue request before dispatch."""
     try:
-        # Validate file path to prevent directory traversal
         request_path_str = str(request_path)
         if '..' in request_path_str or not request_path_str.startswith('/'):
             log_secure_info(
@@ -733,27 +856,20 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             )
             return None
 
-        # Ensure file exists and is a regular file
-        if not os.path.isfile(request_path):
+        try:
+            request_data = read_signed_payload(
+                request_path,
+                get_queue_auth_key(),
+                purpose="request",
+            )
+        except QueueAuthenticationError:
             log_secure_info(
                 "error",
-                "Request path is not a regular file",
-                request_path_str[:8]
+                "Request authentication failed",
+                request_path.name[:8],
             )
             return None
 
-        with open(request_path, 'r', encoding='utf-8') as f:
-            try:
-                request_data = json.JSONDecoder().decode(f.read())
-            except (json.JSONDecodeError, ValueError):
-                log_secure_info(
-                    "error",
-                    "Invalid JSON in request file",
-                    request_path_str[:8]
-                )
-                return None
-
-        # Validate data type
         if not isinstance(request_data, dict):
             log_secure_info(
                 "error",
@@ -762,15 +878,33 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             )
             return None
 
-        # Validate required fields - different for molecule vs ansible-playbook
-        command_type = request_data.get("command_type", "ansible-playbook")
+        command_type = request_data.get("command_type")
+        if command_type not in {"ansible-playbook", "test_automation"}:
+            log_secure_info("error", "Invalid command_type in request")
+            return None
+
         if command_type == "test_automation":
-            required_fields = [
-                "job_id", "stage_type", "command_type",
-                "scenario_names", "config_path"
-            ]
+            required_fields = {
+                "request_id",
+                "job_id",
+                "stage_type",
+                "command_type",
+                "scenario_names",
+                "config_path",
+                "attempt",
+            }
+            allowed_fields = TEST_AUTOMATION_REQUEST_FIELDS
         else:
-            required_fields = ["job_id", "stage_name", "playbook_path"]
+            required_fields = {
+                "request_id",
+                "job_id",
+                "stage_name",
+                "command_type",
+                "playbook_path",
+                "extra_vars",
+                "tags",
+            }
+            allowed_fields = ANSIBLE_REQUEST_FIELDS
 
         missing_fields = [
             field for field in required_fields if field not in request_data
@@ -782,26 +916,38 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             )
             return None
 
-        # Validate inputs to prevent injection
+        unexpected_fields = set(request_data) - allowed_fields
+        if unexpected_fields:
+            log_secure_info("error", "Request contains unexpected fields")
+            return None
+
         job_id = str(request_data["job_id"])
         if not validate_job_id(job_id):
             log_secure_info("error", "Invalid job_id format in request", job_id[:8])
             return None
 
+        request_id = request_data["request_id"]
+        if (
+            not isinstance(request_id, str)
+            or not request_id
+            or len(request_id) > 200
+            or not re.fullmatch(r"[A-Za-z0-9_-]+", request_id)
+        ):
+            log_secure_info("error", "Invalid request_id format", job_id[:8])
+            return None
+
         if command_type == "test_automation":
-            # Validate molecule-specific fields
             stage_type = str(request_data["stage_type"])
             scenario_names = request_data["scenario_names"]
             config_path = str(request_data["config_path"])
 
-            if not validate_stage_name(stage_type):
+            if stage_type != "validate":
                 log_secure_info(
-                    "error", "Invalid stage_type format in request",
+                    "error", "Invalid test automation stage",
                     stage_type[:8]
                 )
                 return None
 
-            # Validate scenario names
             if not isinstance(scenario_names, list) or not scenario_names:
                 log_secure_info(
                     "error", "scenario_names must be a non-empty list",
@@ -816,7 +962,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                     )
                     return None
 
-            # Normalize the API container path to the host-side Omnia root.
             try:
                 request_data["config_path"] = normalize_validate_config_path(
                     config_path
@@ -824,15 +969,38 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             except ValueError:
                 log_secure_info("error", "Invalid config_path", config_path[:8])
                 return None
+
+            attempt = request_data["attempt"]
+            if (
+                isinstance(attempt, bool)
+                or not isinstance(attempt, int)
+                or not 1 <= attempt <= MAX_ATTEMPT
+            ):
+                log_secure_info("error", "Invalid validation attempt", job_id[:8])
+                return None
         else:
-            # Original ansible-playbook validation
             stage_name = str(request_data["stage_name"])
             playbook_name = str(request_data["playbook_path"])
 
-            if not validate_stage_name(stage_name):
+            contract = ANSIBLE_REQUEST_CONTRACTS.get(stage_name)
+            if contract is None:
                 log_secure_info(
-                    "error", "Invalid stage_name format in request",
+                    "error", "Unsupported stage in request",
                     stage_name[:8]
+                )
+                return None
+
+            if contract["playbook"] != playbook_name:
+                log_secure_info(
+                    "error", "Playbook is not valid for requested stage",
+                    job_id[:8]
+                )
+                return None
+
+            if request_data["tags"] != contract["tags"]:
+                log_secure_info(
+                    "error", "Tags are not valid for requested stage",
+                    job_id[:8]
                 )
                 return None
 
@@ -845,50 +1013,38 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                 )
                 return None
 
-            # Store both the original playbook name and the mapped full path
-            request_data["playbook_name"] = playbook_name
-            request_data["full_playbook_path"] = full_playbook_path
-
-        # Set defaults
-        request_data.setdefault("correlation_id", job_id)
-
-        # Check for inventory_file_path
-        if "inventory_file_path" in request_data:
-            inventory_file_path = str(request_data["inventory_file_path"])
-            if not inventory_file_path.startswith("/") or ".." in inventory_file_path:
-                log_secure_info(
-                    "error",
-                    "Invalid inventory file path: possible directory traversal",
-                    job_id[:8]
-                )
-                return None
-            log_secure_info(
-                "info",
-                "Found inventory file path in request",
-                job_id[:8]
-            )
-
-        # Check for extra_vars field
-        if "extra_vars" in request_data:
-            if not isinstance(request_data["extra_vars"], dict):
+            extra_vars = request_data["extra_vars"]
+            if not isinstance(extra_vars, dict):
                 log_secure_info(
                     "error", "extra_vars must be a dictionary", job_id[:8]
                 )
                 return None
-            log_secure_info(
-                "info",
-                "Found extra_vars in request",
-                job_id[:8]
-            )
+            if set(extra_vars) != contract["extra_vars"]:
+                log_secure_info(
+                    "error", "extra_vars do not match the stage contract",
+                    job_id[:8]
+                )
+                return None
+            if "job_id" in extra_vars and str(extra_vars["job_id"]) != job_id:
+                log_secure_info(
+                    "error", "extra_vars job_id does not match request",
+                    job_id[:8]
+                )
+                return None
+            if "attempt" in extra_vars:
+                attempt = extra_vars["attempt"]
+                if (
+                    isinstance(attempt, bool)
+                    or not isinstance(attempt, int)
+                    or not 1 <= attempt <= MAX_ATTEMPT
+                ):
+                    log_secure_info("error", "Invalid attempt", job_id[:8])
+                    return None
 
-        # We're no longer using extra_args, so remove it if present
-        if "extra_args" in request_data:
-            log_secure_info(
-                "info",
-                "Found extra_args in request but ignoring it",
-                job_id[:8]
-            )
-            del request_data["extra_args"]
+            request_data["playbook_name"] = playbook_name
+            request_data["full_playbook_path"] = full_playbook_path
+
+        request_data.setdefault("correlation_id", job_id)
 
         log_secure_info(
             "info",
@@ -897,12 +1053,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         )
         return request_data
 
-    except json.JSONDecodeError:
-        log_secure_info(
-            "error",
-            "Invalid JSON in request file"
-        )
-        return None
     except (KeyError, TypeError, ValueError):
         log_secure_info(
             "error",
@@ -1053,14 +1203,6 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     except ValueError:
         request_id_safe = job_id
 
-    # Sanitize inventory_file_path if present
-    inventory_file_path = None
-    if "inventory_file_path" in request_data:
-        inventory_file_path = sanitize_path(
-            str(request_data["inventory_file_path"]),
-            "/"  # Allow any absolute path but rebuild from safe alphabet
-        )
-
     # Sanitize extra_vars
     raw_extra_vars = request_data.get("extra_vars", {})
     extra_vars = sanitize_extra_vars(raw_extra_vars, job_id)
@@ -1112,14 +1254,6 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         ansible_playbook_bin,
         playbook_path,  # Validated against strict whitelist
     ]
-
-    # Add inventory file path if present (already sanitized above)
-    if inventory_file_path is not None:
-        cmd.extend(["--inventory", inventory_file_path])
-        log_secure_info(
-            "info", "Using inventory file for playbook",
-            inventory_file_path[:8]
-        )
 
     # Add extra_vars (already sanitized above)
     extra_vars_json = json.dumps(extra_vars)
@@ -1966,8 +2100,12 @@ def write_result_file(
         result_filename = original_filename
         result_path = RESULTS_DIR / result_filename
 
-        with open(result_path, 'w', encoding='utf-8') as f:
-            json.dump(result_data, f, indent=2)
+        write_signed_payload(
+            result_path,
+            result_data,
+            get_queue_auth_key(),
+            purpose="result",
+        )
 
         log_secure_info(
             "info",
@@ -1975,7 +2113,7 @@ def write_result_file(
             job_id
         )
         return True
-    except (OSError, IOError):
+    except (OSError, ValueError):
         log_secure_info(
             "error",
             "Failed to write result file for job",
@@ -2057,6 +2195,15 @@ def process_request(request_path: Path) -> None:
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
                 write_result_file(error_result, request_filename)
+                archive_request_file(processing_path)
+                return
+
+            if not claim_request_id(request_data["request_id"]):
+                log_secure_info(
+                    "error",
+                    "Rejected replayed queue request",
+                    request_data["request_id"],
+                )
                 archive_request_file(processing_path)
                 return
 
@@ -2163,6 +2310,14 @@ def run_watcher_loop():
         f"Default timeout: {DEFAULT_TIMEOUT_MINUTES}m"
     )
 
+    try:
+        get_queue_auth_key()
+    except QueueAuthenticationError:
+        log_secure_info(
+            "critical", "Unable to load playbook queue authentication key"
+        )
+        sys.exit(1)
+
     # Ensure directories exist
     try:
         ensure_directories()
@@ -2172,6 +2327,8 @@ def run_watcher_loop():
             "Failed to initialize directories"
         )
         sys.exit(1)
+
+    prune_consumed_request_ids()
 
     # Main loop
     iteration = 0
