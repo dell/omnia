@@ -334,20 +334,18 @@ mode) — so 14 run when `DELETE_VOLUME=true`, 13 run otherwise.
 
 | Area | TCs | Marker |
 |------|-----|--------|
-| Performance | 3 | nft + performance |
-| Idempotency | 5* | nft + idempotency |
+| Performance | 4 | nft + performance |
+| Idempotency | 7 | nft + idempotency |
 | Resilience | 9 | nft + resilience |
-| **NFT Total** | **17** | |
+| **NFT Total** | **20** | |
 
-\* Same PVC skip behavior as FVT cleanup: only one of
-`test_cleanup_idempotency_no_pvcs`'s two PVC assertions runs per
-invocation, based on `DELETE_VOLUME` — 4 run in any single invocation.
+NFT cleanup tests run in two phases: Phase 1 (without volume deletion,
+PVCs preserved) and Phase 2 (with volume deletion, all PVCs deleted).
+All 20 tests execute in a single `./run_validation.sh nft_telemetry test` run.
 
-### Grand Total: **130 reportable IDs across 127 test functions**
+### Grand Total
 
-The difference comes from one full-versus-tagged deploy function and the
-mode-dependent FVT/NFT PVC checks, each of which can emit one of two stable
-IDs. Optional-source configuration and `DELETE_VOLUME` determine which cases
+Optional-source configuration determines which source-related cases
 run or skip in a particular environment.
 
 ## Output Format

@@ -18,37 +18,31 @@ identifies the test level, and `SEQ` is a stable three-digit sequence.
 
 ### Performance Tests
 
-| TC ID | Test | Threshold | Marker |
-|-------|------|-----------|--------|
-| TEL_NFT_001 | Validate performance | < 30s | nft, performance |
-| TEL_NFT_002 | Deploy performance | < 600s (10 min) | nft, performance |
-| TEL_NFT_003 | Cleanup performance | < 300s (5 min) | nft, performance |
-
-**Performance thresholds** ensure that telemetry operations complete in
-reasonable timeframes:
-- **Validate**: Configuration validation should be fast (< 30 seconds)
-- **Deploy**: Full stack deployment (sinks + sources) should complete in under 10 minutes
-- **Cleanup**: Full cleanup should complete in under 5 minutes
+| TC ID | Test | Threshold | Order | Marker |
+|-------|------|-----------|-------|--------|
+| TEL_NFT_001 | Validate performance | < 30s | 100 | nft, performance |
+| TEL_NFT_002 | Deploy performance | < 600s (10 min) | 101 | nft, performance |
+| TEL_NFT_003 | Cleanup performance (without volume) | < 300s (5 min) | 130 | nft, performance |
+| TEL_NFT_020 | Cleanup with volume deletion performance | < 300s (5 min) | 140 | nft, performance |
 
 ### Idempotency Tests
 
-| TC ID | Test | Marker | Condition |
-|-------|------|--------|-----------|
-| TEL_NFT_004 | Deploy idempotency (second run exits 0) | nft, idempotency | always |
-| TEL_NFT_005 | Cleanup idempotency (second run exits 0) | nft, idempotency | always |
-| TEL_NFT_015 | Verify no pods after idempotent cleanup | nft, idempotency | always |
-| TEL_NFT_016 | Verify no PVCs after idempotent cleanup | nft, idempotency | `DELETE_VOLUME=true` |
-| TEL_NFT_017 | Verify PVCs preserved after idempotent cleanup | nft, idempotency | `DELETE_VOLUME` unset/`false` (default) |
+| TC ID | Test | Order | Phase | Marker |
+|-------|------|-------|-------|--------|
+| TEL_NFT_004 | Deploy idempotency (second run exits 0) | 105 | Pre-cleanup | nft, idempotency |
+| TEL_NFT_005 | Cleanup idempotency without volume (second run exits 0) | 131 | Phase 1 | nft, idempotency |
+| TEL_NFT_015 | Verify no pods after cleanup | 132 | Phase 1 | nft, idempotency |
+| TEL_NFT_017 | Verify PVCs preserved after cleanup | 133 | Phase 1 | nft, idempotency |
+| TEL_NFT_021 | Cleanup with volume idempotency (second run exits 0) | 141 | Phase 2 | nft, idempotency |
+| TEL_NFT_022 | Verify no pods after cleanup with volume | 142 | Phase 2 | nft, idempotency |
+| TEL_NFT_016 | Verify no PVCs after cleanup with volume | 143 | Phase 2 | nft, idempotency |
 
-**Idempotency tests** verify that playbooks can be run multiple times
-without errors:
-- **Deploy idempotency**: Running deploy twice should succeed (rc=0) both times
-- **Cleanup idempotency**: Running cleanup twice should succeed (rc=0) both times.
-  Both runs use the same `Delete_volume` value, resolved from the
-  `DELETE_VOLUME` environment variable (default: `false`).
-- **Resource verification**: After idempotent cleanup, pods are always
-  gone; PVCs are deleted only when `DELETE_VOLUME=true`, otherwise they
-  must be preserved.
+**Cleanup test execution is split into two phases:**
+- **Phase 1** (orders 130-133): Cleanup WITHOUT volume deletion — PVCs are preserved
+- **Phase 2** (orders 140-143): Cleanup WITH volume deletion — all PVCs are deleted
+
+This ensures each verification test runs immediately after its corresponding
+cleanup phase, producing correct results.
 
 ### Resilience Tests
 
@@ -85,13 +79,23 @@ without errors:
 ./run_validation.sh nft_telemetry test
 ```
 
-**What this executes:**
-1. **Phase 1 (DELETE_VOLUME=false, default)**: Performance, idempotency, and resilience tests with PVC preservation
-   - TEL_NFT_001 through TEL_NFT_014: Deploy, resilience, and cleanup without volume deletion
-   - TEL_NFT_017: Verify sink PVCs are preserved after cleanup
-2. **Phase 2 (DELETE_VOLUME=true)**: Cleanup-with-volume deletion tests
-   - Re-runs cleanup tests with `Delete_sinks_volume=true` to verify all PVCs are deleted
-   - TEL_NFT_016: Verify no PVCs remain after cleanup with volume deletion
+**What this executes (in order):**
+
+| Order | TC ID | Phase | Description |
+|-------|-------|-------|-------------|
+| 100 | TEL_NFT_001 | Pre-cleanup | Validate performance |
+| 101 | TEL_NFT_002 | Pre-cleanup | Deploy performance |
+| 105 | TEL_NFT_004 | Pre-cleanup | Deploy idempotency |
+| 110 | TEL_NFT_018 | Resilience | Resilience setup deploy |
+| 111-120 | TEL_NFT_006-014 | Resilience | Pod recovery, node reboot, lifecycle, operator tests |
+| 130 | TEL_NFT_003 | Phase 1 | Cleanup performance (PVCs preserved) |
+| 131 | TEL_NFT_005 | Phase 1 | Cleanup idempotency (PVCs preserved) |
+| 132 | TEL_NFT_015 | Phase 1 | Verify no pods after cleanup |
+| 133 | TEL_NFT_017 | Phase 1 | Verify PVCs preserved |
+| 140 | TEL_NFT_020 | Phase 2 | Cleanup with volume performance (PVCs deleted) |
+| 141 | TEL_NFT_021 | Phase 2 | Cleanup with volume idempotency (PVCs deleted) |
+| 142 | TEL_NFT_022 | Phase 2 | Verify no pods after cleanup with volume |
+| 143 | TEL_NFT_016 | Phase 2 | Verify no PVCs remain |
 
 This consolidated approach eliminates the need to run the NFT suite twice with different flags.
 
@@ -176,7 +180,11 @@ cp -r src/telemetry/input/* <OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAM
    |-- Assert: rc=0 (playbook succeeded)
    +-- Assert: duration < 600s
 
-3. TEL_NFT_003: Run cleanup playbook, measure duration
+3. TEL_NFT_003: Run cleanup playbook (without volume), measure duration
+   |-- Assert: rc=0 (playbook succeeded)
+   +-- Assert: duration < 300s
+
+4. TEL_NFT_020: Run cleanup playbook (with volume), measure duration
    |-- Assert: rc=0 (playbook succeeded)
    +-- Assert: duration < 300s
 ```
@@ -184,24 +192,36 @@ cp -r src/telemetry/input/* <OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAM
 ### Idempotency Test Flow
 
 ```
+Phase 1: Cleanup WITHOUT volume deletion (PVCs preserved)
+----------------------------------------------------------
 1. TEL_NFT_004: Deploy idempotency
    |-- Run 1: Deploy playbook (initial deployment)
    |-- Run 2: Deploy playbook (idempotent re-run)
    +-- Assert: Both runs exit 0
 
-2. TEL_NFT_005: Cleanup idempotency
-   |-- Run 1: Cleanup playbook (initial cleanup; -e Delete_volume=true if DELETE_VOLUME=true)
-   |-- Run 2: Cleanup playbook (idempotent re-run; same Delete_volume value)
+2. TEL_NFT_005: Cleanup idempotency (without volume)
+   |-- Run 1: Cleanup playbook (no Delete_sinks_volume)
+   |-- Run 2: Cleanup playbook (idempotent re-run)
    +-- Assert: Both runs exit 0
 
 3. TEL_NFT_015: Verify no pods remain
    +-- Assert: kubectl get pods -n telemetry returns 0 pods
 
-4a. TEL_NFT_016 (DELETE_VOLUME=true): Verify no PVCs remain
-    +-- Assert: kubectl get pvc -n telemetry returns 0 PVCs
+4. TEL_NFT_017: Verify PVCs preserved
+   +-- Assert: Source PVCs deleted, sink PVCs preserved
 
-4b. TEL_NFT_017 (DELETE_VOLUME unset/false, default): Verify PVCs preserved
-    +-- Assert: kubectl get pvc -n telemetry returns > 0 PVCs
+Phase 2: Cleanup WITH volume deletion (all PVCs deleted)
+----------------------------------------------------------
+5. TEL_NFT_021: Cleanup with volume idempotency
+   |-- Run 1: Cleanup playbook (-e Delete_sinks_volume=true)
+   |-- Run 2: Cleanup playbook (idempotent re-run)
+   +-- Assert: Both runs exit 0
+
+6. TEL_NFT_022: Verify no pods remain
+   +-- Assert: kubectl get pods -n telemetry returns 0 pods
+
+7. TEL_NFT_016: Verify no PVCs remain
+   +-- Assert: kubectl get pvc -n telemetry returns 0 PVCs
 ```
 
 ### Resilience Test Flow
@@ -286,11 +306,8 @@ All NFT tests should **PASS** on a healthy telemetry deployment:
 ```
 TEL_NFT_001: PASS  (validate: 12.3s < 30s)
 TEL_NFT_002: PASS  (deploy: 487.2s < 600s)
-TEL_NFT_003: PASS  (cleanup: 125.4s < 300s)
 TEL_NFT_004: PASS  (deploy idempotent: run1=0, run2=0)
-TEL_NFT_005: PASS  (cleanup idempotent: run1=0, run2=0)
-TEL_NFT_015: PASS  (0 pods remaining)
-TEL_NFT_017: PASS  (PVCs preserved, DELETE_VOLUME unset/false)
+TEL_NFT_018: PASS  (resilience setup deploy)
 TEL_NFT_006: PASS  (kafka-broker: 3/3 recovered in 45s)
 TEL_NFT_007: PASS  (idrac-telemetry: 1/1 recovered in 30s)
 TEL_NFT_008: PASS  (vmstorage: 3/3, vlstorage: 3/3 recovered)
@@ -300,13 +317,16 @@ TEL_NFT_011: PASS  (query 'up' returned 12 results)
 TEL_NFT_012: PASS  (42 pods Running after node reboot in 180s)
 TEL_NFT_013: PASS  (cleanup=125s, deploy=487s, 42 pods Running)
 TEL_NFT_014: PASS  (VM operator: operational, Strimzi operator: True)
-```
-
-With `DELETE_VOLUME=true`, `TEL_NFT_016` runs (and asserts 0 PVCs)
-instead of `TEL_NFT_017`:
-
-```
-TEL_NFT_016: PASS  (0 PVCs remaining, DELETE_VOLUME=true)
+--- Phase 1: Cleanup without volume ---
+TEL_NFT_003: PASS  (cleanup: 125.4s < 300s)
+TEL_NFT_005: PASS  (cleanup idempotent: run1=0, run2=0)
+TEL_NFT_015: PASS  (0 pods remaining)
+TEL_NFT_017: PASS  (PVCs preserved)
+--- Phase 2: Cleanup with volume ---
+TEL_NFT_020: PASS  (cleanup with volume: 130.2s < 300s)
+TEL_NFT_021: PASS  (cleanup with volume idempotent: run1=0, run2=0)
+TEL_NFT_022: PASS  (0 pods remaining)
+TEL_NFT_016: PASS  (0 PVCs remaining)
 ```
 
 ## Troubleshooting

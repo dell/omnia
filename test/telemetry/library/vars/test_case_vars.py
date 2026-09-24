@@ -533,6 +533,19 @@ TEST_CASES = {
         "id": "TEL_NFT_017",
         "title": "Verify PVCs preserved after idempotent cleanup",
     },
+    # -- NFT: Cleanup with volume deletion (Phase 2) -------------------------
+    "nft_cleanup_vol_perf": {
+        "id": "TEL_NFT_020",
+        "title": "Cleanup with volume deletion performance (< 300s)",
+    },
+    "nft_cleanup_vol_idempotent": {
+        "id": "TEL_NFT_021",
+        "title": "Cleanup with volume deletion idempotency (second run exits 0)",
+    },
+    "nft_cleanup_vol_no_pods": {
+        "id": "TEL_NFT_022",
+        "title": "Verify no pods after cleanup with volume deletion",
+    },
     # -- NFT: Resilience -----------------------------------------------------
     "nft_resilience_setup": {
         "id": "TEL_NFT_018",
