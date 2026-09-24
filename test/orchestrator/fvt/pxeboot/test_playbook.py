@@ -12,34 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Orchestrator PXE Boot — Playbook Execution.
-
-ORCH_FVT_PXEBOOT_E001: Deploy orchestrator.yml --tags pxeboot
-"""
+"""Execute the Orchestrator PXE boot lifecycle once."""
 
 import pytest
-
 from library.functions import TestLogger, run_playbook
+from library.messages import PXEBOOT_TEST_ASSERT_MSGS as ASSERT
+from library.messages import PXEBOOT_TEST_LOG_MSGS as LOG
+from library.vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(0)
+@pytest.mark.order(200)
 def test_deploy_pxeboot(host):
-    """ORCH_FVT_PXEBOOT_E001: Deploy orchestrator.yml --tags pxeboot."""
-    tl = TestLogger(
-        "Deploy Playbook (pxeboot)",
-        "ORCH_FVT_PXEBOOT_E001"
-    )
+    """Run ``orchestrator.yml --tags pxeboot``."""
+    tc = TC["deploy_pxeboot"]
+    test_log = TestLogger(tc["title"], tc["id"])
     result = run_playbook(tag="pxeboot")
-
+    fields = [
+        ("Return code", result["rc"]),
+        ("Duration seconds", f"{result['duration']:.1f}"),
+    ]
     if result["success"]:
-        tl.passed(f"Playbook execution succeeded in {result['duration']}s")
+        test_log.passed_fields(LOG["playbook_success"], fields)
     else:
-        tl.failed(
-            f"Playbook execution failed with RC {result['rc']}",
-            result.get("error", "See playbook output above"),
+        test_log.failed_fields(
+            LOG["playbook_failed"],
+            [*fields, ("Error", result.get("error", "See playbook output"))],
         )
-
-    assert result["success"], f"Playbook execution failed: RC {result['rc']}"
+    assert result["success"], ASSERT["playbook_failed"].format(
+        rc=result["rc"], duration=result["duration"]
+    )
