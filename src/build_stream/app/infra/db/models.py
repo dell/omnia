@@ -18,6 +18,8 @@ ORM models are infrastructure-only and never exposed outside this layer.
 Domain ↔ ORM conversion is handled by mappers in mappers.py.
 """
 
+# pylint: disable=line-too-long
+
 # Third-party imports
 from sqlalchemy import (
     Boolean,
@@ -37,7 +39,7 @@ from sqlalchemy.orm import declarative_base, relationship
 Base = declarative_base()
 
 
-class JobModel(Base):
+class JobModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for jobs table.
 
     Maps to Job domain entity via JobMapper.
@@ -53,6 +55,12 @@ class JobModel(Base):
     request_client_id = Column(String(128), nullable=False)
     client_name = Column(String(128), nullable=True)
     job_state = Column(String(20), nullable=False, index=True)
+
+    # Catalog versioning (ER-BSM-002)
+    composite_image_group_id = Column(String(256), nullable=True, index=True)
+    catalog_identifier = Column(String(128), nullable=True)
+    catalog_version = Column(String(20), nullable=True)
+    catalog_schema_version = Column(Integer, nullable=True)
 
     # Pipeline phase (nullable — NULL for direct invocation)
     pipeline_phase = Column(String(10), nullable=True)
@@ -91,7 +99,7 @@ class JobModel(Base):
     )
 
 
-class StageModel(Base):
+class StageModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for job_stages table.
 
     Maps to Stage domain entity via StageMapper.
@@ -140,7 +148,7 @@ class StageModel(Base):
     )
 
 
-class IdempotencyKeyModel(Base):
+class IdempotencyKeyModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for idempotency_keys table.
 
     Maps to IdempotencyRecord domain entity via IdempotencyRecordMapper.
@@ -167,7 +175,7 @@ class IdempotencyKeyModel(Base):
     )
 
 
-class AuditEventModel(Base):
+class AuditEventModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for audit_events table.
 
     Maps to AuditEvent domain entity via AuditEventMapper.
@@ -211,7 +219,12 @@ class ArtifactMetadata(Base):
     id = Column(String(36), primary_key=True, nullable=False)
 
     # Foreign key to jobs table
-    job_id = Column(String(36), ForeignKey("jobs.job_id", ondelete="CASCADE"), nullable=False, index=True)
+    job_id = Column(
+        String(36),
+        ForeignKey("jobs.job_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     # Business attributes
     stage_name = Column(String(50), nullable=False)
@@ -222,7 +235,11 @@ class ArtifactMetadata(Base):
     tags = Column(JSONB, nullable=True)
 
     # Timestamp
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),  # pylint: disable=not-callable
+        nullable=False,
+    )
 
     # Composite indexes
     __table_args__ = (
@@ -231,21 +248,20 @@ class ArtifactMetadata(Base):
     )
 
 
-class ImageGroupModel(Base):
+class ImageGroupModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for image_groups table.
 
     Tracks the lifecycle of built images independently of transient Job states.
     Enforces a 1:1 mapping between Job and ImageGroup via UNIQUE constraint on job_id.
 
-    The primary key 'id' is the ImageGroupID extracted from the catalog JSON
-    during parse-catalog (not a UUID — it is a human-readable identifier like
-    'omnia-cluster-v1.2').
+    The primary key 'id' is the composite ImageGroupID: ``identifier-vVersion``
+    (e.g. 'omnia-slurm-rhel-10-0-x86-64-aarch64-v1.0').
     """
 
     __tablename__ = "image_groups"
 
-    # Primary key — ImageGroupID from catalog (NOT a UUID)
-    id = Column(String(128), primary_key=True, nullable=False)
+    # Primary key — composite ImageGroupID from catalog (NOT a UUID)
+    id = Column(String(256), primary_key=True, nullable=False)
 
     # Foreign key to jobs table — UNIQUE enforces 1:1 mapping
     job_id = Column(
@@ -256,16 +272,30 @@ class ImageGroupModel(Base):
         index=True,
     )
 
+    # Catalog versioning (ER-BSM-002)
+    catalog_identifier = Column(String(128), nullable=True)
+    catalog_version = Column(String(20), nullable=True)
+    catalog_schema_version = Column(Integer, nullable=True)
+
     # Business attributes
     status = Column(String(20), nullable=False, default="BUILT", index=True)
 
+    # Retention fields (ER-BSM-002 — used by Story 4)
+    deploy_count = Column(Integer, nullable=False, default=0)
+    is_protected = Column(Boolean, nullable=False, default=False)
+
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),  # pylint: disable=not-callable
+        nullable=False,
     )
     updated_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),  # pylint: disable=not-callable
+        nullable=False,
     )
+    last_deployed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     job = relationship("JobModel", back_populates="image_group", uselist=False)
@@ -280,15 +310,17 @@ class ImageGroupModel(Base):
     __table_args__ = (
         Index("idx_image_groups_job_id", "job_id", unique=True),
         Index("idx_image_groups_status", "status"),
+        Index("idx_image_groups_catalog_identifier", "catalog_identifier"),
         CheckConstraint(
             "status IN ('BUILT', 'DEPLOYING', 'DEPLOYED', 'RESTARTING', "
-            "'RESTARTED', 'VALIDATING', 'PASSED', 'FAILED', 'CLEANED')",
+            "'RESTARTED', 'VALIDATING', 'PASSED', 'FAILED', 'CLEANING', "
+            "'CLEANED', 'CLEANUP_FAILED')",
             name="ck_image_groups_status",
         ),
     )
 
 
-class ImageModel(Base):
+class ImageModel(Base):  # pylint: disable=too-few-public-methods
     """ORM model for images table.
 
     Stores constituent images within an Image Group, identified by
@@ -314,10 +346,13 @@ class ImageModel(Base):
     # Business attributes
     role = Column(String(128), nullable=False)
     image_name = Column(String(512), nullable=False)
+    manifest_path = Column(String(512), nullable=True)
 
     # Timestamps
     created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),  # pylint: disable=not-callable
+        nullable=False,
     )
 
     # Relationships

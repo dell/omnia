@@ -1136,6 +1136,7 @@ def _verify_victoria_metric_topic(host, test_log, topic):
     _skip_if_ome_bridge_disabled(host, "metrics", test_log=tl)
     _skip_if_configure_ome_false(tl)
     _skip_if_certs_not_uploaded(tl)
+    # Note: Sink enablement check is done in verify_ome_metrics_in_victoria()
 
     tl.check(
         OME_LOG_MSGS["ome_vm_data_verifying"].format(
@@ -1219,6 +1220,7 @@ def _verify_victoria_log_topic(host, test_log, topic):
     _skip_if_ome_bridge_disabled(host, "logs", test_log=tl)
     _skip_if_configure_ome_false(tl)
     _skip_if_certs_not_uploaded(tl)
+    # Note: Sink enablement check is done in verify_ome_logs_in_victoria()
 
     tl.check(
         OME_LOG_MSGS["ome_vl_data_verifying"].format(

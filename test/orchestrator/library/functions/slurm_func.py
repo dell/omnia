@@ -1390,7 +1390,7 @@ def _target_password_file(host, password):
 def _ldap_credentials_or_result(username_override=None):
     """Return credentials or a standard skipped/failed result."""
     try:
-        username, password = _load_ldap_test_credentials()
+        username, password = _load_ldap_test_credentials()  # gitleaks:allow - credentials loaded from secure test config file
     except ValueError as exc:
         return None, None, {
             "success": False,
