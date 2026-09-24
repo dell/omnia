@@ -150,25 +150,27 @@ def test_deploy_performance(host):
 @pytest.mark.nft
 @pytest.mark.performance
 @pytest.mark.order(130)
-def test_cleanup_performance(host, delete_sinks_volume):
+@pytest.mark.parametrize("cleanup_volume_mode", [False, True], ids=["preserve_pvcs", "delete_pvcs"])
+def test_cleanup_performance(host, cleanup_volume_mode):
     """TEL_NFT_003: Verify cleanup completes within 300s (5 min) threshold.
 
     Runs the cleanup phase and asserts that full cleanup completes in under
-    5 minutes.
+    5 minutes. This test is parametrized to run twice:
+      1. First run (order 130): cleanup_volume_mode=False (PVCs preserved)
+      2. Second run (order 130b): cleanup_volume_mode=True (PVCs deleted)
 
     Ordered AFTER all resilience tests because cleanup deletes credentials
     from the src flow — any subsequent deploy would fail with missing
     creds.  This test is the first in the cleanup phase that tears
     down the deployed stack.
 
-    The ``delete_sinks_volume`` fixture controls whether
-    ``Delete_sinks_volume=true`` is passed, matching the production cleanup
-    invocation.
+    The ``cleanup_volume_mode`` parameter controls whether
+    ``Delete_sinks_volume=true`` is passed.
     """
     tc = TC["nft_cleanup_perf"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    extra_vars = {"Delete_sinks_volume": "true"} if delete_sinks_volume else None
+    extra_vars = {"Delete_sinks_volume": "true"} if cleanup_volume_mode else None
 
     tl.check(f"Running cleanup playbook (threshold: {CLEANUP_THRESHOLD}s)")
     result = run_playbook(

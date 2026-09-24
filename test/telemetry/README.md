@@ -93,7 +93,7 @@ Run from inside the `test/telemetry/` directory:
 | `-v, --verbose` | Increase pytest verbosity |
 | `--debug` | Full debug output (pytest `-vvs`) |
 
-### Cleanup: `Delete_volume` Flag
+### Cleanup: `Delete_volume` Flag (FVT Only)
 
 The `cleanup` tag supports an optional `Delete_volume` flag that controls
 whether PersistentVolumeClaims (PVCs) are deleted along with pods,
@@ -107,10 +107,10 @@ shell's environment to pytest:
 | `true` | `-e Delete_volume=true` | PVCs are **deleted** |
 
 ```bash
-# Default: cleanup preserves PVCs (Delete_volume=false)
+# FVT: Default cleanup preserves PVCs (Delete_volume=false)
 ./run_validation.sh fvt_telemetry cleanup test
 
-# Cleanup + delete PVCs/volumes (Delete_volume=true)
+# FVT: Cleanup + delete PVCs/volumes (Delete_volume=true)
 DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test
 ```
 
@@ -119,6 +119,39 @@ When `DELETE_VOLUME=true`, the corresponding PVC-deletion test
 with `-e Delete_volume=true`. Otherwise, `test_pvcs_preserved_after_cleanup`
 runs instead to confirm PVCs were retained. See `fvt/README.md` for the
 full cleanup test case registry.
+
+### NFT: Consolidated Test Execution
+
+**Recommended approach**: Run the full NFT suite with a single command:
+
+```bash
+# Comprehensive NFT execution (both DELETE_VOLUME=false and DELETE_VOLUME=true scenarios)
+./run_validation.sh nft_telemetry test
+```
+
+This consolidated execution automatically runs:
+1. **Phase 1**: All performance, idempotency, and resilience tests with `DELETE_VOLUME=false` (PVCs preserved)
+2. **Phase 2**: Cleanup-with-volume deletion tests with `DELETE_VOLUME=true` (all PVCs deleted)
+
+This eliminates the need to run the NFT suite twice with different flags.
+
+**⚠️ IMPORTANT - Data Loss Warning:**
+After NFT completion, the cluster is left in a **fully cleaned-up state** with:
+- All PVCs deleted (Kafka, VictoriaMetrics, VictoriaLogs)
+- Input files deleted (`telemetry_config.yml`, etc.)
+- Log files deleted
+- Credential files deleted
+
+**Before running NFT, back up any data you need to preserve:**
+```bash
+# Backup input files
+cp -r <OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME> /path/to/backup/
+
+# Backup logs
+cp -r <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME> /path/to/backup/
+```
+
+See `nft/README.md` for detailed test case descriptions and recovery instructions.
 
 ### Marker Expressions
 

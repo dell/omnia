@@ -77,10 +77,27 @@ without errors:
 
 ## Execution
 
-```bash
-# Run all NFT tests
-./run_validation.sh nft_telemetry test
+### Full NFT Test Suite (Recommended)
 
+```bash
+# Run all NFT tests (includes both DELETE_VOLUME=false and DELETE_VOLUME=true scenarios)
+# This is the comprehensive test run that validates all cleanup modes in a single execution
+./run_validation.sh nft_telemetry test
+```
+
+**What this executes:**
+1. **Phase 1 (DELETE_VOLUME=false, default)**: Performance, idempotency, and resilience tests with PVC preservation
+   - TEL_NFT_001 through TEL_NFT_014: Deploy, resilience, and cleanup without volume deletion
+   - TEL_NFT_017: Verify sink PVCs are preserved after cleanup
+2. **Phase 2 (DELETE_VOLUME=true)**: Cleanup-with-volume deletion tests
+   - Re-runs cleanup tests with `Delete_sinks_volume=true` to verify all PVCs are deleted
+   - TEL_NFT_016: Verify no PVCs remain after cleanup with volume deletion
+
+This consolidated approach eliminates the need to run the NFT suite twice with different flags.
+
+### Selective Test Execution
+
+```bash
 # Run only performance tests
 ./run_validation.sh nft_telemetry test --marker performance
 
@@ -98,18 +115,53 @@ without errors:
 
 # Run with debug output
 ./run_validation.sh nft_telemetry test --debug
-
-# Idempotency with PVC deletion (Delete_volume=true both runs)
-DELETE_VOLUME=true ./run_validation.sh nft_telemetry test --marker idempotency
 ```
 
 ## Final Cluster State After NFT Execution
 
-**Important**: After running the full NFT test suite (`./run_validation.sh nft_telemetry test`), the cluster is left in a **cleaned-up state** with no telemetry pods running. The final state depends on the `DELETE_VOLUME` environment variable:
+**CRITICAL**: After running the full NFT test suite (`./run_validation.sh nft_telemetry test`), the cluster is left in a **fully cleaned-up state** with:
+- ❌ No telemetry pods running
+- ❌ All PVCs deleted (including Kafka, VictoriaMetrics, VictoriaLogs)
+- ❌ **Input files deleted** (`<OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME>/`)
+- ❌ **Log files deleted** (`<OMNIA_DATA_PATH>/telemetry/log/`)
+- ❌ **Credential files deleted** (`telemetry_credentials.yml`, `.telemetry_credentials_key`)
 
-- **`DELETE_VOLUME=true`**: All PVCs (including Kafka, VictoriaMetrics, VictoriaLogs) have been deleted. Historical metric and log data is lost. Full re-deploy required: `ansible-playbook telemetry.yml --tags execute`
+### Why Everything is Deleted
 
-- **`DELETE_VOLUME` unset/false (default)**: Sink PVCs (Kafka, VictoriaMetrics, VictoriaLogs) are preserved with historical data intact. Source PVCs (iDRAC, LDMS, etc.) have been removed. Re-deploy will reattach existing volumes: `ansible-playbook telemetry.yml --tags execute`
+The consolidated NFT execution includes both test phases:
+1. **Phase 1** (default): Tests with `DELETE_VOLUME=false` — sink PVCs are preserved
+2. **Phase 2** (final): Cleanup-with-volume deletion tests with `DELETE_VOLUME=true` — **all PVCs, input files, logs, and credentials are deleted**
+
+This ensures comprehensive coverage of both cleanup modes in a single run. The final cleanup phase (Phase 2) performs a complete cleanup with volume deletion, removing all data and configuration files.
+
+### Before Running NFT: Backup Important Data
+
+If you need to preserve any of the following, **take backups BEFORE running NFT**:
+- **Input configuration files**: `<OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME>/`
+  - `telemetry_config.yml`
+  - `telemetry_storage_config.yml`
+  - `telemetry_packages.yml`
+- **Historical logs**: `<OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME>/`
+- **Credentials**: `<OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME>/`
+  - `telemetry_credentials.yml`
+  - `.telemetry_credentials_key`
+
+### After NFT Completion: Restore Telemetry
+
+To redeploy telemetry after NFT completion:
+
+```bash
+# 1. Restore input files from backup (if needed)
+cp -r /path/to/backup/input/* <OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME>/
+
+# 2. Redeploy telemetry stack
+ansible-playbook telemetry.yml --tags execute
+```
+
+**Note**: If you did not back up input files, you must restore them from the source domain directory before running deploy:
+```bash
+cp -r src/telemetry/input/* <OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME>/
+```
 
 ## Test Flow
 

@@ -128,7 +128,8 @@ def test_deploy_idempotency(host):
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.order(131)
-def test_cleanup_idempotency(host, delete_sinks_volume):
+@pytest.mark.parametrize("cleanup_volume_mode", [False, True], ids=["preserve_pvcs", "delete_pvcs"])
+def test_cleanup_idempotency(host, cleanup_volume_mode):
     """TEL_NFT_005: Cleanup idempotency — second run exits 0.
 
     Runs the full cleanup playbook twice in sequence:
@@ -138,18 +139,21 @@ def test_cleanup_idempotency(host, delete_sinks_volume):
     This validates that all cleanup tasks handle missing resources
     gracefully (--ignore-not-found, failed_when: false, helm guards).
 
+    This test is parametrized to run twice:
+      1. First run (order 131): cleanup_volume_mode=False (PVCs preserved)
+      2. Second run (order 131b): cleanup_volume_mode=True (PVCs deleted)
+
     Ordered AFTER cleanup performance (order 130) and AFTER all
     resilience tests, because cleanup deletes credentials from the
     src flow — any subsequent deploy would fail with missing creds.
 
-    The ``delete_sinks_volume`` fixture controls whether
-    ``Delete_sinks_volume=true`` is passed, matching the production cleanup
-    invocation.
+    The ``cleanup_volume_mode`` parameter controls whether
+    ``Delete_sinks_volume=true`` is passed.
     """
     tc = TC["nft_cleanup_idempotent"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    extra_vars = {"Delete_sinks_volume": "true"} if delete_sinks_volume else None
+    extra_vars = {"Delete_sinks_volume": "true"} if cleanup_volume_mode else None
 
     # -- Run 1: Initial cleanup -------------------------------------------
     tl.check("Running first cleanup (initial cleanup)")
@@ -235,17 +239,22 @@ def test_cleanup_idempotency_no_pods(host):
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.order(133)
-def test_cleanup_idempotency_no_pvcs(host, delete_sinks_volume):
+@pytest.mark.parametrize("cleanup_volume_mode", [False, True], ids=["preserve_pvcs", "delete_pvcs"])
+def test_cleanup_idempotency_no_pvcs(host, cleanup_volume_mode):
     """TEL_NFT_016/TEL_NFT_017: Verify PVC state after idempotent cleanup.
 
     After two cleanup runs:
-      - With delete_sinks_volume=true: zero PVCs must remain (all deleted).
-      - With delete_sinks_volume=false: sink PVCs must be preserved and
+      - With cleanup_volume_mode=true: zero PVCs must remain (all deleted).
+      - With cleanup_volume_mode=false: sink PVCs must be preserved and
         source PVCs must be deleted.
+
+    This test is parametrized to run twice:
+      1. First run (order 133): cleanup_volume_mode=False (TEL_NFT_017)
+      2. Second run (order 133b): cleanup_volume_mode=True (TEL_NFT_016)
     """
     case_key = (
         "nft_cleanup_no_pvcs"
-        if delete_sinks_volume
+        if cleanup_volume_mode
         else "nft_cleanup_pvcs_preserved"
     )
     tc = TC[case_key]
@@ -262,7 +271,7 @@ def test_cleanup_idempotency_no_pvcs(host, delete_sinks_volume):
         f"Source PVCs were not deleted: {result_source['error']}"
     )
 
-    if delete_sinks_volume:
+    if cleanup_volume_mode:
         tl.check("Verifying sink PVCs were deleted after idempotent cleanup")
         result_sink = verify_sink_pvcs_deleted(host)
         if result_sink["success"]:
