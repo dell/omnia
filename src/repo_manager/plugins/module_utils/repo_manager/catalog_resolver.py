@@ -633,58 +633,6 @@ def build_global_package_index(catalogs, logger, catalog_context=None):
 
 
 # ---------------------------------------------------------------------------
-# Task List Generation from Global Index
-# ---------------------------------------------------------------------------
-
-def build_tasklist_from_index(global_index, arch, logger):
-    """Build a task list from the global package index for a given architecture.
-
-    Groups packages by their group_name and returns a dict suitable for
-    consumption by transform_package_dict and the parallel execution framework.
-
-    Args:
-        global_index (dict): Output from build_global_package_index.
-        arch (str): Architecture to build tasks for.
-        logger: Logger instance.
-
-    Returns:
-        dict: group_name -> list of task dicts (package entries with type, package, etc.)
-    """
-    if arch not in global_index:
-        logger.info("No packages found in global index for arch %s", arch)
-        return {}
-
-    tasks_by_group = {}
-    for _hash, info in global_index[arch].items():
-        group_name = info["group_name"]
-        pkg_def = dict(info["definition"])
-
-        # Normalize field names to lowercase for parallel_tasks compatibility
-        if "type" not in pkg_def:
-            pkg_def["type"] = pkg_def.get("packagetype", "rpm")
-        if "package" not in pkg_def:
-            pkg_def["package"] = pkg_def.get("name", info["package_name"])
-        if "version" not in pkg_def:
-            pkg_def["version"] = pkg_def.get("tag", "")
-        # For container images, normalize tag
-        if "tag" not in pkg_def and "tag" in info.get("definition", {}):
-            pkg_def["tag"] = info["definition"]["tag"]
-
-        # Ensure catalog_name is attached for status tracking
-        pkg_def["catalog_name"] = info["catalog_name"]
-        pkg_def["catalogs"] = info["catalogs"]
-
-        if group_name not in tasks_by_group:
-            tasks_by_group[group_name] = []
-        tasks_by_group[group_name].append(pkg_def)
-
-    logger.info("Built task list for arch %s: %d groups, %d total packages",
-                arch, len(tasks_by_group),
-                sum(len(v) for v in tasks_by_group.values()))
-    return tasks_by_group
-
-
-# ---------------------------------------------------------------------------
 # Repo URL Extraction from New Config Format
 # ---------------------------------------------------------------------------
 
@@ -886,25 +834,6 @@ def parse_user_repos_from_config(config_data, os_version, arch,
 
     logger.info("Parsed %d user repo entries for arch %s", len(parsed), arch)
     return parsed
-
-
-def parse_registries_from_config(config_data, logger):
-    """Parse container registry configurations from repo_manager_config.yml.
-
-    Args:
-        config_data (dict): Loaded repo_manager_config.yml data.
-        logger: Logger instance.
-
-    Returns:
-        dict: registry_name -> registry config dict.
-    """
-    registries = config_data.get("registries", {})
-    if not registries:
-        logger.info("No registries configured")
-        return {}
-
-    logger.info("Parsed %d registry entries", len(registries))
-    return registries
 
 
 # ---------------------------------------------------------------------------

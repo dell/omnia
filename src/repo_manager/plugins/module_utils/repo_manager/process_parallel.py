@@ -198,7 +198,7 @@ def log_table_output(table_output, log_file):
         raise RuntimeError("Failed to write task results to the log file.") from error
 
 
-def setup_logger(log_dir, log_file_path):
+def setup_logger(log_file_path):
     """
     Sets up and configures a logger to write logs to a specified file.
     Args:
@@ -341,7 +341,7 @@ def worker_process(task, determine_function, user_data, version_variables, arc, 
                   state_lock, resource_lock, dnf_semaphore):
     """Execute one task and return exactly one result to the parent process."""
     thread_log_path = os.path.join(log_dir, f"package_status_{os.getpid()}.log")
-    logger = setup_logger(log_dir, thread_log_path)
+    logger = setup_logger(thread_log_path)
     try:
         # Artifact modules historically supplied separate module-local locks to
         # the common status writer. Replace those locks with one manager-backed

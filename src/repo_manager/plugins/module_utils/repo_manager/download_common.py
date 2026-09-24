@@ -29,7 +29,6 @@ import logging
 import os
 import shutil
 import subprocess
-import tarfile
 import time
 from multiprocessing import Lock
 from urllib.parse import quote, urlsplit
@@ -39,6 +38,7 @@ from ansible.module_utils.repo_manager.parse_and_download import write_status_to
 from ansible.module_utils.repo_manager.rest_client import RestClient
 from ansible.module_utils.repo_manager.common_functions import load_pulp_config
 from ansible.module_utils.repo_manager.config import (
+    ARCH_SUFFIXES,
     REPO_MANAGER_RUNTIME_DIR,
     CLI_FILE_PATH,
     ISO_TIMEOUT_MIN,
@@ -55,7 +55,28 @@ from ansible.module_utils.repo_manager.config import (
 from ansible.module_utils.repo_manager.pulp_commands import (
     pulp_file_commands,
     pulp_python_commands,
-    pulp_rpm_commands,
+)
+from ansible.module_utils.repo_manager.pulp_file_python_manager import (
+    ensure_pulp_object,
+    reconcile_file_content,
+    reconcile_pulp_distribution,
+    reconcile_python_content,
+)
+from ansible.module_utils.repo_manager.python_artifact_processor import (
+    artifacts_are_platform_independent,
+    build_pip_platform_args,
+    download_python_artifacts,
+)
+from ansible.module_utils.repo_manager.git_artifact_processor import (
+    create_git_tarball,
+    resolve_git_ref,
+)
+from ansible.module_utils.repo_manager.shared_artifact_state import (
+    SharedArtifactCache,
+    SharedArtifactStateError,
+    build_source_key,
+    file_sha256,
+    probe_http_validator,
 )
 from ansible.module_utils.repo_manager.software_utils import build_repo_name
 from ansible.module_utils.repo_manager.security_utils import (
@@ -75,6 +96,66 @@ file_lock = Lock()
 _repository_locks = {}
 _distribution_locks = {}
 _locks_lock = Lock()
+
+
+def _shared_artifact_cache(content_base_dir, logger):
+    """Return the optional verified cache for this configured data root."""
+    try:
+        return SharedArtifactCache.from_content_base_dir(
+            content_base_dir, PULP_DISTRIBUTION_ROOT, logger
+        )
+    except SharedArtifactStateError:
+        logger.info(
+            "Shared artifact cache is unavailable for this content path; "
+            "normal processing will continue"
+        )
+        return None
+
+
+def _content_architecture(content_base_dir):
+    """Return the architecture encoded in a managed content path."""
+    path_parts = os.path.normpath(content_base_dir).split(os.sep)
+    root_parts = list(PULP_DISTRIBUTION_ROOT_PARTS)
+    for index in range(len(path_parts) - len(root_parts) + 1):
+        if path_parts[index:index + len(root_parts)] != root_parts:
+            continue
+        architecture_index = index + len(root_parts)
+        if architecture_index < len(path_parts):
+            architecture = path_parts[architecture_index]
+            if architecture in ARCH_SUFFIXES:
+                return architecture
+    return None
+
+
+def _ensure_pulp_object(show_command, create_command, object_label, logger):
+    """Compatibility facade for the shared File/Python lifecycle helper."""
+    return ensure_pulp_object(
+        show_command, create_command, object_label, logger, execute_command
+    )
+
+
+def _reconcile_pulp_distribution(
+        show_command, create_command, update_command, object_label, logger,
+        repository_show_command=None):
+    """Compatibility facade for fail-closed distribution reconciliation."""
+    return reconcile_pulp_distribution(
+        show_command, create_command, update_command, object_label,
+        logger, execute_command, repository_show_command,
+    )
+
+
+def _reconcile_file_content(repository_name, file_path, relative_path, logger):
+    """Compatibility facade for exact File content reconciliation."""
+    return reconcile_file_content(
+        repository_name, file_path, relative_path, logger, execute_command
+    )
+
+
+def _reconcile_python_content(repository_name, file_path, logger):
+    """Compatibility facade for exact Python content reconciliation."""
+    return reconcile_python_content(
+        repository_name, file_path, logger, execute_command
+    )
 
 
 def get_repository_lock(repo_name):
@@ -400,33 +481,22 @@ def handle_file_upload(repository_name, relative_path, file_url, timeout_minutes
     Returns:
         str: "Success" if operation completes successfully, "Failed" otherwise.
     """
-    # Check if repository exists
     repository_name = validate_repository_id(repository_name)
     file_url = validate_artifact_url(file_url)
-    result = execute_command(
-        pulp_file_commands["show_repository"] % repository_name, logger
-    )
-    if not result:
-        logger.info(f"Repository {repository_name} does not exist. Creating it...")
-        if not execute_command(
-                pulp_file_commands["create_repository"] % repository_name,
-                logger):
-            logger.error(f"Failed to create repository: {repository_name}")
-            return "Failed"
-    else:
-        logger.info(f"Repository {repository_name} already exists.")
-
-    # Fetch repository info with JSON parsing
-    result = execute_command(
-        pulp_file_commands["show_repository"] % repository_name,
-        logger, type_json=True,
-    )
-    if not result:
-        logger.error(f"Failed to fetch repository info for: {repository_name}")
+    repo_lock = get_repository_lock(repository_name)
+    with repo_lock:
+        ensured, repo_info = _ensure_pulp_object(
+            pulp_file_commands["show_repository"] % repository_name,
+            pulp_file_commands["create_repository"] % repository_name,
+            f"File repository {repository_name}",
+            logger,
+        )
+    if not ensured or not isinstance(repo_info, dict):
         return "Failed"
-
-    repo_info = result["stdout"]
     pulp_href = repo_info.get("pulp_href")
+    if not pulp_href:
+        logger.error("File repository response has no Pulp href")
+        return "Failed"
 
     # Load config for authentication and base_url
     config = load_pulp_config(CLI_FILE_PATH)
@@ -482,23 +552,6 @@ def handle_post_request(repository_name, relative_path, base_path, file_url, tim
     """
     repository_name = validate_repository_id(repository_name)
 
-    # Get lock for this specific repository
-    repo_lock = get_repository_lock(repository_name)
-
-    with repo_lock:
-        # Check if repository exists (idempotency)
-        if not execute_command(
-                pulp_file_commands["show_repository"] % repository_name,
-                logger):
-            logger.info(f"Repository {repository_name} does not exist. Creating it...")
-            if not execute_command(
-                    pulp_file_commands["create_repository"] % repository_name,
-                    logger):
-                logger.error(f"Failed to create repository: {repository_name}")
-                return "Failed"
-        else:
-            logger.info(f"Repository {repository_name} already exists. Skipping creation.")
-
     result = handle_file_upload(repository_name, relative_path, file_url, timeout_minutes, logger)
     if result == "Success":
         distribution_name = repository_name
@@ -507,31 +560,26 @@ def handle_post_request(repository_name, relative_path, base_path, file_url, tim
                 pulp_file_commands["publication_create"] % repository_name,
                 logger):
             logger.error(f"Failed to create publication for repository: {repository_name}")
-            result = "Failed"
+            return "Failed"
 
         # Get lock for this specific distribution
         dist_lock = get_distribution_lock(distribution_name)
 
         with dist_lock:
             logger.info("Checking distribution...")
-            if not execute_command(
+            if not _reconcile_pulp_distribution(
                     pulp_file_commands["show_distribution"] % distribution_name,
-                    logger):
-                logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
-                if not execute_command(
-                        pulp_file_commands["distribution_create"] % (
-                            distribution_name, base_path, repository_name,
-                        ), logger):
-                    logger.error(f"Failed to create distribution: {distribution_name}")
-                    result = "Failed"
-            else:
-                logger.info(f"Distribution {distribution_name} already exists. Updating it...")
-                if not execute_command(
-                        pulp_file_commands["distribution_update"] % (
-                            distribution_name, base_path, repository_name,
-                        ), logger):
-                    logger.error(f"Failed to update distribution: {distribution_name}")
-                    result = "Failed"
+                    pulp_file_commands["distribution_create"] % (
+                        distribution_name, base_path, repository_name,
+                    ),
+                    pulp_file_commands["distribution_update"] % (
+                        distribution_name, base_path, repository_name,
+                    ),
+                    f"File distribution {distribution_name}",
+                    logger,
+                    pulp_file_commands["show_repository"] % repository_name,
+            ):
+                result = "Failed"
     return result
 
 
@@ -578,24 +626,22 @@ def process_file(repository_name, _output_file, relative_path,
         repo_lock = get_repository_lock(repository_name)
 
         with repo_lock:
-            if not execute_command(
-                    pulp_file_commands["show_repository"] % repository_name,
-                    logger):
-                logger.info(f"Repository {repository_name} does not exist. Creating it...")
-                if not execute_command(
-                        pulp_file_commands["create_repository"] % repository_name,
-                        logger):
-                    logger.error(f"Failed to create repository: {repository_name}")
-                    return "Failed"
-            else:
-                logger.info(f"Repository {repository_name} already exists.")
+            ensured, _details = _ensure_pulp_object(
+                pulp_file_commands["show_repository"] % repository_name,
+                pulp_file_commands["create_repository"] % repository_name,
+                f"File repository {repository_name}",
+                logger,
+            )
+            if not ensured:
+                return "Failed"
         # Step 3: Upload the content to the repository
         logger.info("Step 3: Uploading content...")
-        if not execute_command(
-                pulp_file_commands["content_upload"] % (
-                    repository_name, file_path, relative_path,
-                ), logger):
-            logger.error(f"Failed to upload content to repository: {repository_name}")
+        if not _reconcile_file_content(
+                repository_name, file_path, relative_path, logger):
+            logger.error(
+                "Failed to reconcile content in repository: %s",
+                repository_name,
+            )
             return "Failed"
         # Step 4: Create a publication
         logger.info("Step 4: Creating publication...")
@@ -611,24 +657,19 @@ def process_file(repository_name, _output_file, relative_path,
         dist_lock = get_distribution_lock(distribution_name)
 
         with dist_lock:
-            if not execute_command(
+            if not _reconcile_pulp_distribution(
                     pulp_file_commands["show_distribution"] % distribution_name,
-                    logger):
-                logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
-                if not execute_command(
-                        pulp_file_commands["distribution_create"] % (
-                            distribution_name, base_path, repository_name,
-                        ), logger):
-                    logger.error(f"Failed to create distribution: {distribution_name}")
-                    return "Failed"
-            else:
-                logger.info(f"Distribution {distribution_name} already exists. Updating it...")
-                if not execute_command(
-                        pulp_file_commands["distribution_update"] % (
-                            distribution_name, base_path, repository_name,
-                        ), logger):
-                    logger.error(f"Failed to update distribution: {distribution_name}")
-                    return "Failed"
+                    pulp_file_commands["distribution_create"] % (
+                        distribution_name, base_path, repository_name,
+                    ),
+                    pulp_file_commands["distribution_update"] % (
+                        distribution_name, base_path, repository_name,
+                    ),
+                    f"File distribution {distribution_name}",
+                    logger,
+                    pulp_file_commands["show_repository"] % repository_name,
+            ):
+                return "Failed"
         logger.info(f"Processing for file {url} completed successfully!")
         return status
     except (subprocess.CalledProcessError, requests.exceptions.RequestException, IOError, OSError):
@@ -667,25 +708,23 @@ def process_file_without_download(repository_name, _output_file, relative_path,
         with repo_lock:
             # Step 1: Check if the repository exists; create if not
             logger.info("Step 1: Checking repository...")
-            if not execute_command(
-                    pulp_file_commands["show_repository"] % repository_name,
-                    logger):
-                logger.info(f"Repository {repository_name} does not exist. Creating it...")
-                if not execute_command(
-                        pulp_file_commands["create_repository"] % repository_name,
-                        logger):
-                    logger.error(f"Failed to create repository: {repository_name}")
-                    return "Failed"
-            else:
-                logger.info(f"Repository {repository_name} already exists.")
+            ensured, _details = _ensure_pulp_object(
+                pulp_file_commands["show_repository"] % repository_name,
+                pulp_file_commands["create_repository"] % repository_name,
+                f"File repository {repository_name}",
+                logger,
+            )
+            if not ensured:
+                return "Failed"
 
         # Step 2: Upload the content to the repository
         logger.info("Step 2: Uploading content...")
-        if not execute_command(
-                pulp_file_commands["content_upload"] % (
-                    repository_name, file_path, relative_path,
-                ), logger):
-            logger.error(f"Failed to upload content to repository: {repository_name}")
+        if not _reconcile_file_content(
+                repository_name, file_path, relative_path, logger):
+            logger.error(
+                "Failed to reconcile content in repository: %s",
+                repository_name,
+            )
             return "Failed"
 
         # Step 3: Create a publication
@@ -702,24 +741,19 @@ def process_file_without_download(repository_name, _output_file, relative_path,
         with dist_lock:
             # Step 4: Check if the distribution exists
             logger.info("Step 4: Checking distribution...")
-            if not execute_command(
+            if not _reconcile_pulp_distribution(
                     pulp_file_commands["show_distribution"] % distribution_name,
-                    logger):
-                logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
-                if not execute_command(
-                        pulp_file_commands["distribution_create"] % (
-                            distribution_name, base_path, repository_name,
-                        ), logger):
-                    logger.error(f"Failed to create distribution: {distribution_name}")
-                    return "Failed"
-            else:
-                logger.info(f"Distribution {distribution_name} already exists. Updating it...")
-                if not execute_command(
-                        pulp_file_commands["distribution_update"] % (
-                            distribution_name, base_path, repository_name,
-                        ), logger):
-                    logger.error(f"Failed to update distribution: {distribution_name}")
-                    return "Failed"
+                    pulp_file_commands["distribution_create"] % (
+                        distribution_name, base_path, repository_name,
+                    ),
+                    pulp_file_commands["distribution_update"] % (
+                        distribution_name, base_path, repository_name,
+                    ),
+                    f"File distribution {distribution_name}",
+                    logger,
+                    pulp_file_commands["show_repository"] % repository_name,
+            ):
+                return "Failed"
         logger.info(f"Processing for file {_url} completed successfully!")
         return status
 
@@ -746,35 +780,70 @@ def process_manifest(file, status_file_path, content_base_dir, repo_name, logger
     """
     logger.info("#" * 30 + " %s start " + "#" * 30, process_manifest.__name__)  # Start of function
     package_type = None  # Initialize to avoid E0601 error
+    package_name = "unknown"
+    status = "Failed"
     try:
-        # Extract file details
         package_name = validate_artifact_identifier(file["package"])
-        url = file.get('url', None)
-        url = validate_artifact_url(url)
-        repo_name = validate_repository_id(repo_name)
+        url = validate_artifact_url(file.get('url', None))
+        repository_name = validate_repository_id(repo_name)
         package_type = file["type"]
 
-        # Using wget to check if the URL exists (returns 0 for success, non-zero for failure)
-        subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
-
-        # Ensure the manifest directory exists
         manifest_directory = os.path.join(content_base_dir, "manifest", package_name)
-        repository_name = repo_name
         output_file = package_name + ".yml"
         relative_path = output_file
         base_path = get_pulp_base_path(manifest_directory)
-        status = handle_post_request(repository_name, relative_path,
-                                     base_path, url, FILE_TIMEOUT_MIN, logger)
+        manifest_path = os.path.join(manifest_directory, output_file)
+        source_validator = probe_http_validator(url, logger)
+        cache = _shared_artifact_cache(content_base_dir, logger)
+        source_key = build_source_key(
+            "manifest", url, compatibility="any"
+        ) if source_validator else None
+        restored = cache.restore(
+            source_key,
+            manifest_directory,
+            repository_name,
+            source_validator,
+        ) if cache and source_key else []
+
+        if restored:
+            logger.info("Reusing verified manifest source bytes")
+            status = process_file_without_download(
+                repository_name, output_file, relative_path, base_path,
+                repository_name, url, restored[0], logger,
+            )
+        else:
+            subprocess.run(
+                ['wget', '-q', '--spider', '--tries=1', url], check=True
+            )
+            status = handle_post_request(
+                repository_name, relative_path, base_path, url,
+                FILE_TIMEOUT_MIN, logger,
+            )
+            if status == "Success":
+                os.makedirs(manifest_directory, exist_ok=True)
+                status = download_file_distribution(
+                    repository_name, manifest_directory, relative_path, logger
+                )
+                if status == "Success" and cache and source_key:
+                    final_validator = probe_http_validator(url, logger)
+                    if final_validator == source_validator:
+                        cache.record(
+                            source_key,
+                            "manifest",
+                            [manifest_path],
+                            repository_name,
+                            source_validator,
+                        )
+                    else:
+                        logger.info(
+                            "Manifest source changed during transfer; "
+                            "cross-context reuse was not recorded"
+                        )
     except (subprocess.CalledProcessError, requests.exceptions.RequestException,
             IOError, OSError, ValueError):
         logger.error("Error processing manifest")
         status = "Failed"
     finally:
-        # Write the status to the file
-        if status == "Success":
-            os.makedirs(manifest_directory, exist_ok=True)
-            status = download_file_distribution(repository_name, manifest_directory,
-                                                relative_path, logger)
         if package_type is not None:
             write_status_to_file(status_file_path, package_name, package_type,
                                  status, logger, file_lock)
@@ -799,53 +868,52 @@ def process_git(file, status_file_path, content_base_dir, repo_name, logger):
     """
     logger.info("#" * 30 + " %s start " + "#" * 30, process_git.__name__)  # Start of function
     package_type = None  # Initialize to avoid E0601 error
+    package_name = "unknown"
+    status = "Failed"
     try:
         package_name = validate_artifact_identifier(file['package'])
 
-        url = file.get('url', None)
-        url = validate_artifact_url(url)
+        url = validate_artifact_url(file.get('url', None))
         version = file.get('version', None)
-        if (
-                not isinstance(version, str)
-                or any(ord(character) < 32 for character in version)
-        ):
-            raise ValueError("Git version contains unsupported characters")
-
+        repository_name = validate_repository_id(repo_name)
         package_type = file['type']
         logger.info(f"Processing Git Package: {package_name}, URL: {url}, Version: {version}")
 
-        # Assuming you have a specific path to store Git packages
         git_modules_directory = os.path.join(content_base_dir, 'git', package_name)
-        os.makedirs(git_modules_directory, exist_ok=True)  # Ensure the directory exists
-
-        clone_directory = os.path.join(git_modules_directory, package_name)
+        os.makedirs(git_modules_directory, exist_ok=True)
         tarball_path = os.path.join(git_modules_directory, f'{package_name}.tar.gz')
-        repository_name = repo_name
         output_file = package_name + ".tar.gz"
         relative_path = output_file
         base_path = get_pulp_base_path(git_modules_directory)
         distribution_name = repository_name
 
-        # Step 1: Clone the repository and create a tarball
-        logger.info("Step 1: Cloning repository and creating tarball...")
-        if not os.path.exists(clone_directory):
-            clone_command = ['git', 'clone', '--branch', version, url, clone_directory]
-            subprocess.run(clone_command, check=True)
-
-            # Create a tarball of the cloned repository in the same directory
-            with tarfile.open(tarball_path, 'w:gz') as tar:
-                tar.add(clone_directory, arcname=package_name)
-
+        logger.info("Step 1: Resolving immutable Git source identity...")
+        object_id = resolve_git_ref(url, version)
+        source_key = build_source_key(
+            "git", url, version=object_id, compatibility="any"
+        )
+        cache = _shared_artifact_cache(content_base_dir, logger)
+        restored = cache.restore(
+            source_key, git_modules_directory, repository_name
+        ) if cache else []
+        if restored:
+            tarball_path = restored[0]
+            logger.info("Reusing verified Git archive for object %s", object_id)
         else:
-            logger.info(f"Git repository {file['package']} already cloned. Skipping clone.")
+            logger.info("Creating Git archive for object %s", object_id)
+            create_git_tarball(
+                url, version, object_id, package_name, tarball_path
+            )
+            if cache:
+                cache.record(
+                    source_key, "git", [tarball_path], repository_name
+                )
 
-        # Step 2: Process the downloaded git tarball file using Pulp commands
         logger.info("Step 2: Processing git tarball with Pulp...")
-        status = "Success"
         status = process_file_without_download(repository_name, output_file, relative_path,
                                                base_path, distribution_name, url, tarball_path, logger)
 
-    except subprocess.CalledProcessError:
+    except subprocess.SubprocessError:
         logger.error("Error executing Git commands")
         status = "Failed"
     except (requests.exceptions.RequestException, IOError, OSError, KeyError,
@@ -866,153 +934,152 @@ def process_git(file, status_file_path, content_base_dir, repo_name, logger):
 
 
 def process_shell(file, status_file_path, content_base_dir, repo_name, logger):
-    """
-    Process a shell package.
-
-    Args:
-        file (dict): A dictionary containing the package information.
-        status_file_path (str): The path to the status file.
-        content_base_dir (str): Pre-built base directory for offline content.
-        repo_name (str): Pre-built Pulp repository name.
-        logger (logging.Logger): The logger instance.
-
-    Returns:
-        str: The status of the shell package processing.
-
-    Raises:
-        Exception: If an error occurs while processing the shell package.
-    """
-    logger.info("#" * 30 + " %s start " + "#" * 30, process_shell.__name__)  # Start of function
-    package_type = None  # Initialize to avoid E0601 error
+    """Process and safely reuse one verified shell artifact."""
+    logger.info("#" * 30 + " %s start " + "#" * 30, process_shell.__name__)
+    package_name = "unknown"
+    package_type = None
+    status = "Failed"
     try:
         package_name = validate_artifact_identifier(file['package'])
         url = validate_artifact_url(file.get('url', None))
         package_type = file['type']
-        logger.info(f"Processing sh Package: {package_name}, URL: {url}")
+        repository_name = validate_repository_id(repo_name)
+        logger.info("Processing shell package: %s", package_name)
 
-        # Creating the local path to save the sh file
         sh_directory = os.path.join(content_base_dir, 'shell', package_name)
-        os.makedirs(sh_directory, exist_ok=True)  # Ensure the directory exists
-
+        os.makedirs(sh_directory, exist_ok=True)
         sh_path = os.path.join(sh_directory, f"{package_name}.sh")
-        repository_name = repo_name
         output_file = package_name + ".sh"
         relative_path = output_file
         base_path = get_pulp_base_path(sh_directory)
-        distribution_name = repository_name
-        status = "Success"
-        status = process_file(repository_name, output_file, relative_path,
-                              base_path, distribution_name, url, sh_path, logger)
+        source_validator = probe_http_validator(url, logger)
+        cache = _shared_artifact_cache(content_base_dir, logger)
+        source_key = build_source_key(
+            "shell", url, compatibility="any"
+        ) if source_validator else None
+        restored = cache.restore(
+            source_key, sh_directory, repository_name, source_validator
+        ) if cache and source_key else []
+
+        if restored:
+            logger.info("Reusing verified shell source bytes")
+            status = process_file_without_download(
+                repository_name, output_file, relative_path, base_path,
+                repository_name, url, restored[0], logger,
+            )
+        else:
+            had_existing_file = os.path.isfile(sh_path)
+            status = process_file(
+                repository_name, output_file, relative_path, base_path,
+                repository_name, url, sh_path, logger,
+            )
+            if (
+                    status == "Success" and not had_existing_file
+                    and cache and source_key):
+                final_validator = probe_http_validator(url, logger)
+                if final_validator == source_validator:
+                    cache.record(
+                        source_key, "shell", [sh_path], repository_name,
+                        source_validator,
+                    )
+                else:
+                    logger.info(
+                        "Shell source changed during transfer; "
+                        "cross-context reuse was not recorded"
+                    )
     except (subprocess.CalledProcessError, requests.exceptions.RequestException,
-            IOError, OSError, KeyError, ValueError):
+            IOError, OSError, KeyError, TypeError, ValueError):
         logger.error("Error processing shell")
         status = "Failed"
-
     finally:
-        # Write the status to the file
         if package_type is not None:
-            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
-        logger.info("#" * 30 + " %s end " + "#" * 30, process_shell.__name__)  # End of function
+            write_status_to_file(
+                status_file_path, package_name, package_type, status,
+                logger, file_lock,
+            )
+        logger.info("#" * 30 + " %s end " + "#" * 30, process_shell.__name__)
     return status
 
 
-def process_ansible_galaxy_collection(file, status_file_path, content_base_dir, repo_name, logger):
-    """
-    Process an Ansible Galaxy Collection.
-
-    Args:
-        file (dict): A dictionary containing the package information.
-        status_file_path (str): The path to the status file.
-        content_base_dir (str): Pre-built base directory for offline content.
-        repo_name (str): Pre-built Pulp repository name.
-        logger (logging.Logger): The logger instance.
-    Returns:
-        str: The status of the Ansible Galaxy Collection processing.
-    Raises:
-        subprocess.CalledProcessError: If an error occurs while executing ansible-galaxy commands.
-        Exception: If an error occurs while processing the Ansible Galaxy Collection.
-    """
-    logger.info("#" * 30 + " %s start " + "#" * 30, process_ansible_galaxy_collection.__name__)
-    package_type = None  # Initialize to avoid E0601 error
+def process_ansible_galaxy_collection(
+        file, status_file_path, content_base_dir, repo_name, logger):
+    """Process one pinned Galaxy collection with verified byte reuse."""
+    logger.info(
+        "#" * 30 + " %s start " + "#" * 30,
+        process_ansible_galaxy_collection.__name__,
+    )
+    package_name = "unknown"
+    package_type = None
+    status = "Failed"
     try:
-        package_name = file['package']
-        version = file.get('version', None)
-
-        package_name = validate_artifact_identifier(package_name)
-        version = validate_python_package_version(version)
-
+        package_name = validate_artifact_identifier(file['package'])
+        version = validate_python_package_version(file.get('version', None))
+        repository_name = validate_repository_id(repo_name)
         package_type = file['type']
         logger.info(
-            f"Processing Ansible Galaxy Collection Package: {package_name}, Version: {version}"
+            "Processing Ansible Galaxy collection: %s:%s",
+            package_name,
+            version,
         )
 
-        # Assuming you have a specific path to store Ansible Galaxy Collections
-        galaxy_collections_directory = os.path.join(content_base_dir, 'ansible_galaxy_collection', package_name)
-        os.makedirs(galaxy_collections_directory, exist_ok=True)  # Ensure the directory exists
-        collections_tarball_path = os.path.join(
-            galaxy_collections_directory, f'{
-                package_name.replace(
-                    ".", "-")}-{version}.tar.gz')
-        repository_name = repo_name
-        output_file = f"{file['package'].replace('.', '-')}-{file['version']}.tar.gz"
-        relative_path = output_file
-        base_path = get_pulp_base_path(galaxy_collections_directory)
-        distribution_name = repository_name
+        galaxy_directory = os.path.join(
+            content_base_dir, 'ansible_galaxy_collection', package_name
+        )
+        os.makedirs(galaxy_directory, exist_ok=True)
+        output_file = f"{package_name.replace('.', '-')}-{version}.tar.gz"
+        collection_path = os.path.join(galaxy_directory, output_file)
+        base_path = get_pulp_base_path(galaxy_directory)
+        cache = _shared_artifact_cache(content_base_dir, logger)
+        source_key = build_source_key(
+            "ansible_galaxy_collection",
+            package_name,
+            version=version,
+            compatibility="any",
+        )
+        restored = cache.restore(
+            source_key, galaxy_directory, repository_name
+        ) if cache else []
+        downloaded_now = False
 
-        logger.info(f"Processing Ansible Galaxy Collection: {file['package']}")
-
-        # Check if the tarball already exists
-
-        if os.path.exists(collections_tarball_path):
-            logger.info(
-                f"Ansible Galaxy Collection {package_name}:{version} already exists at {collections_tarball_path}. Skipping download."
-            )
-            logger.info("Processing the Ansible Galaxy collection tarball with Pulp...")
-            status = "Success"
-            status = process_file_without_download(repository_name, output_file, relative_path,
-                                                   base_path, distribution_name, file["package"], collections_tarball_path, logger)
-        else:
-            # Example: Using subprocess.run with ansible-galaxy command to download the collection
-            download_command = [
-                'ansible-galaxy',
-                'collection',
-                'download',
+        if restored:
+            collection_path = restored[0]
+            logger.info("Reusing verified Galaxy collection archive")
+        elif not os.path.isfile(collection_path):
+            subprocess.run([
+                'ansible-galaxy', 'collection', 'download',
                 f'{package_name}:{version}',
-                f'--download-path={galaxy_collections_directory}']
-            try:
-                subprocess.run(download_command, check=True)
-                logger.info(
-                    f"Ansible Galaxy Collection {package_name}:{version} downloaded successfully."
-                )
-                # Process the downloaded tarball file using Pulp commands
-                logger.info("Processing the Ansible Galaxy collection tarball with Pulp...")
-                status = "Success"
-                status = process_file_without_download(repository_name, output_file, relative_path,
-                                                       base_path, distribution_name, file["package"], collections_tarball_path, logger)
+                f'--download-path={galaxy_directory}',
+            ], check=True)
+            downloaded_now = True
 
-            except subprocess.CalledProcessError:
-                logger.error(
-                    f"Error: Unable to download Ansible Galaxy Collection {package_name}:{version}"
-                )
-                status = "Failed"
-            except (requests.exceptions.RequestException, IOError, OSError, KeyError):
-                logger.error("Error processing ansible-galaxy-collection")
-                status = "Failed"
+        if not os.path.isfile(collection_path) or os.path.islink(collection_path):
+            raise OSError("Galaxy collection archive was not created")
+        if downloaded_now and cache:
+            cache.record(
+                source_key,
+                "ansible_galaxy_collection",
+                [collection_path],
+                repository_name,
+            )
 
-    except subprocess.CalledProcessError:
-        logger.error("Error executing ansible-galaxy commands")
-        status = "Failed"
+        status = process_file_without_download(
+            repository_name, output_file, output_file, base_path,
+            repository_name, package_name, collection_path, logger,
+        )
     except (requests.exceptions.RequestException, IOError, OSError, KeyError,
-            ValueError):
+            TypeError, ValueError, subprocess.CalledProcessError):
         logger.error("Error processing Ansible Galaxy collection")
         status = "Failed"
-
     finally:
-        # Write the status to the file
         if package_type is not None:
-            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
-
-        logger.info("#" * 30 + " %s end " + "#" * 30, process_ansible_galaxy_collection.__name__)
+            write_status_to_file(
+                status_file_path, package_name, package_type, status,
+                logger, file_lock,
+            )
+        logger.info(
+            "#" * 30 + " %s end " + "#" * 30,
+            process_ansible_galaxy_collection.__name__,
+        )
     return status
 
 
@@ -1033,208 +1100,255 @@ def process_tarball(package, status_file_path, version_variables, content_base_d
     """
     logger.info("#" * 30 + " %s start " + "#" * 30, process_tarball.__name__)  # Start of function
 
-    path = None
-    url = None
-    path_support = False
-    url_support = True
-    package_name = validate_artifact_identifier(
-        render_catalog_placeholders(
-            package.get('package'), version_variables, "tarball package name"
+    package_name = "unknown"
+    package_type = package.get('type')
+    status = "Failed"
+    try:
+        package_name = validate_artifact_identifier(
+            render_catalog_placeholders(
+                package.get('package'), version_variables,
+                "tarball package name",
+            )
         )
-    )
-    package_type = package['type']
-    if 'url' in package:
-        url = render_catalog_placeholders(
-            package.get('url'), version_variables, "tarball URL"
+        repository_name = validate_repository_id(repo_name)
+        url = None
+        if package.get('url') is not None:
+            url = validate_artifact_url(render_catalog_placeholders(
+                package.get('url'), version_variables, "tarball URL"
+            ))
+        path = package.get('path')
+
+        logger.info(
+            "Processing Tarball Package: %s, URL: %s, Path: %s",
+            package_name, url, path,
         )
-    if 'path' in package:
-        path = package['path']
+        tarball_directory = os.path.join(
+            content_base_dir, 'tarball', package_name
+        )
+        tarball_path = os.path.join(
+            tarball_directory, f"{package_name}.tar.gz"
+        )
+        output_file = package_name + ".tar.gz"
+        relative_path = output_file
+        base_path = get_pulp_base_path(tarball_directory)
+        cache = _shared_artifact_cache(content_base_dir, logger)
+        compatibility = _content_architecture(content_base_dir)
 
-    logger.info(f"Processing Tarball Package: {package_name}, URL: {url}, Path: {path}")
-    if url is not None:
-        url = validate_artifact_url(url)
-
-    if path is not None and len(path) > 1:
-        if os.path.isfile(path):
-            path_support = True
-            url_support = False
-
-    # Creating the local path to save the tarball
-    tarball_directory = os.path.join(content_base_dir, 'tarball', package_name)
-
-    logger.info(f"Processing tarball to directory: {tarball_directory}")
-
-    # Use the package name for the tarball filename
-    tarball_path = os.path.join(tarball_directory, f"{package_name}.tar.gz")
-
-    repository_name = repo_name
-    output_file = package_name + ".tar.gz"
-    relative_path = output_file
-    base_path = get_pulp_base_path(tarball_directory)
-    distribution_name = repository_name
-    # This just makes the request look like a real browser request,
-    # preventing some servers from blocking it
-    agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
-
-    if path_support is False and url_support is True:
-        try:
-            # Using wget to check if the URL exists (returns 0 for success, non-zero for failure)
-            subprocess.run(['wget', '-q', '--spider', '--tries=1', '--user-agent', agent, url], check=True)
-            if url:
-                try:
-                    status = handle_post_request(repository_name, relative_path,
-                                                 base_path, url, TAR_TIMEOUT_MIN, logger)
-                except (subprocess.CalledProcessError, requests.exceptions.RequestException, IOError, OSError):
-                    logger.error("Error processing tarball")
-                    status = "Failed"
-                finally:
-                    # Write the status to the file
-                    if status == "Success":
-                        os.makedirs(tarball_directory, exist_ok=True)
-                        status = download_file_distribution(distribution_name, tarball_directory, relative_path, logger)
-                    write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
-                    logger.info("#" * 30 + " %s end " + "#" * 30, process_tarball.__name__)  # End of function
-
-                return status
-            status = "No URL provided"
-        except subprocess.CalledProcessError:
-            logger.error(f"Error: Package {package_name} not found at {url}")
-            status = "Failed"
-        finally:
-            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
-            logger.info("#" * 30 + " %s end " + "#" * 30, process_tarball.__name__)  # End of function
-
-        return status
-    elif path_support is True and url_support is False:
-        try:
-            shutil.copy(path, tarball_path)
-            status = "Success"
-            status = process_file_without_download(repository_name, output_file, relative_path,
-                                                   base_path, distribution_name, package_name, tarball_path, logger)
-        except subprocess.CalledProcessError:
-            logger.error("Error executing tarball commands")
-            status = "Failed"
-        except (requests.exceptions.RequestException, IOError, OSError, KeyError):
-            logger.error("Error processing tarball")
-            status = "Failed"
-        finally:
-            # Write the status to the file
-            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
-            logger.info("#" * 30 + " %s end " + "#" * 30, process_tarball.__name__)  # End of function
-
-        return status
-
-    return None
+        if path and os.path.isfile(path) and not os.path.islink(path):
+            source_digest = file_sha256(path)
+            source_key = build_source_key(
+                "tarball", os.path.realpath(path), version=source_digest,
+                compatibility=compatibility,
+            ) if compatibility else None
+            restored = cache.restore(
+                source_key, tarball_directory, repository_name
+            ) if cache and source_key else []
+            if restored:
+                tarball_path = restored[0]
+                logger.info("Reusing verified local tarball bytes")
+            else:
+                os.makedirs(tarball_directory, exist_ok=True)
+                if os.path.realpath(path) != os.path.realpath(tarball_path):
+                    shutil.copy2(path, tarball_path)
+                if cache and source_key:
+                    cache.record(
+                        source_key, "tarball", [tarball_path], repository_name
+                    )
+            status = process_file_without_download(
+                repository_name, output_file, relative_path, base_path,
+                repository_name, package_name, tarball_path, logger,
+            )
+        elif url:
+            source_validator = probe_http_validator(url, logger)
+            source_key = build_source_key(
+                "tarball", url, compatibility=compatibility
+            ) if source_validator and compatibility else None
+            restored = cache.restore(
+                source_key,
+                tarball_directory,
+                repository_name,
+                source_validator,
+            ) if cache and source_key else []
+            if restored:
+                logger.info("Reusing verified remote tarball bytes")
+                status = process_file_without_download(
+                    repository_name, output_file, relative_path, base_path,
+                    repository_name, url, restored[0], logger,
+                )
+            else:
+                agent = (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/132.0.0.0 Safari/537.36"
+                )
+                subprocess.run([
+                    'wget', '-q', '--spider', '--tries=1',
+                    '--user-agent', agent, url,
+                ], check=True)
+                status = handle_post_request(
+                    repository_name, relative_path, base_path, url,
+                    TAR_TIMEOUT_MIN, logger,
+                )
+                if status == "Success":
+                    os.makedirs(tarball_directory, exist_ok=True)
+                    status = download_file_distribution(
+                        repository_name, tarball_directory,
+                        relative_path, logger,
+                    )
+                    if status == "Success" and cache and source_key:
+                        final_validator = probe_http_validator(url, logger)
+                        if final_validator == source_validator:
+                            cache.record(
+                                source_key,
+                                "tarball",
+                                [tarball_path],
+                                repository_name,
+                                source_validator,
+                            )
+                        else:
+                            logger.info(
+                                "Tarball source changed during transfer; "
+                                "cross-context reuse was not recorded"
+                            )
+        else:
+            logger.error("Tarball requires a valid URL or regular local file")
+    except (subprocess.CalledProcessError, requests.RequestException,
+            IOError, OSError, KeyError, TypeError, ValueError,
+            SharedArtifactStateError):
+        logger.error("Error processing tarball")
+        status = "Failed"
+    finally:
+        if package_type is not None:
+            write_status_to_file(
+                status_file_path, package_name, package_type,
+                status, logger, file_lock,
+            )
+        logger.info(
+            "#" * 30 + " %s end " + "#" * 30,
+            process_tarball.__name__,
+        )
+    return status
 
 
 def process_iso(package, status_file_path,
                 version_variables, content_base_dir, repo_name, logger):
-    """
-    Process an ISO package.
-
-    Args:
-        package (dict): A dictionary containing the package information.
-        status_file_path (str): The path to the status file.
-        version_variables (dict): A dictionary of version variables.
-        content_base_dir (str): Pre-built base directory for offline content.
-        repo_name (str): Pre-built Pulp repository name.
-        logger (logging.Logger): The logger instance.
-
-    Returns:
-        str: The status of the ISO package processing.
-
-    Raises:
-        subprocess.CalledProcessError: If an error occurs while executing iso commands.
-        Exception: If an error occurs while processing the ISO package.
-    """
-    logger.info("#" * 30 + " %s start " + "#" * 30, process_iso.__name__)  # Start of function
-    path = None
-    url = None
-    path_support = False
-    url_support = True
-    package_name = validate_artifact_identifier(package['package'])
-    package_type = package['type']
-    repository_name = repo_name
-
-    distribution_name = repository_name
-    if 'url' in package:
-        url = validate_artifact_url(
-            render_catalog_placeholders(
+    """Process an ISO and reuse bytes only within the same architecture."""
+    logger.info("#" * 30 + " %s start " + "#" * 30, process_iso.__name__)
+    package_name = "unknown"
+    package_type = None
+    status = "Failed"
+    try:
+        package_name = validate_artifact_identifier(package['package'])
+        package_type = package['type']
+        repository_name = validate_repository_id(repo_name)
+        configured_path = package.get('path')
+        url = None
+        if package.get('url') is not None:
+            url = validate_artifact_url(render_catalog_placeholders(
                 package.get('url'), version_variables, "ISO URL"
+            ))
+
+        iso_directory = os.path.join(content_base_dir, 'iso', package_name)
+        os.makedirs(iso_directory, exist_ok=True)
+        base_path = get_pulp_base_path(iso_directory)
+        compatibility = _content_architecture(content_base_dir)
+        cache = _shared_artifact_cache(content_base_dir, logger)
+
+        if (
+                configured_path and os.path.isfile(configured_path)
+                and not os.path.islink(configured_path)):
+            output_file = validate_artifact_identifier(
+                os.path.basename(configured_path)
             )
-        )
-    if 'path' in package:
-        path = package['path']
-
-    logger.info(f"Processing iso Package: {package_name}, URL: {url}, Path: {path}")
-
-    if path is not None and len(path) > 1:
-        if os.path.isfile(path):
-            path_support = True
-            url_support = False
-
-    iso_directory = os.path.join(content_base_dir, 'iso', package_name)
-    base_path = get_pulp_base_path(iso_directory)
-    logger.info(f"Processing iso Package to directory: {iso_directory}")
-
-    if path_support is False and url_support is True:
-        try:
-            download_file_name = url.split('/')
-            logger.info(f"Download file name: {download_file_name[-1]}")
-            iso_file_path = os.path.join(iso_directory, download_file_name[-1])
-            output_file = download_file_name[-1]
-            relative_path = output_file
-            # Check if the file already exists
-            if os.path.exists(iso_file_path):
-                logger.info(f"ISO Package {package_name} already exists at {iso_directory}")
-                status = "Success"
+            iso_file_path = os.path.join(iso_directory, output_file)
+            source_digest = file_sha256(configured_path)
+            source_key = build_source_key(
+                "iso",
+                os.path.realpath(configured_path),
+                version=source_digest,
+                compatibility=compatibility,
+            ) if compatibility else None
+            restored = cache.restore(
+                source_key, iso_directory, repository_name
+            ) if cache and source_key else []
+            if restored:
+                iso_file_path = restored[0]
+                logger.info("Reusing verified local ISO bytes")
             else:
-                # Using wget to check if the URL exists (returns 0 for success,
-                # non-zero for failure)
-                subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
-                status = handle_post_request(repository_name, relative_path,
-                                             base_path, url, ISO_TIMEOUT_MIN, logger)
-        except subprocess.CalledProcessError:
-            logger.error("Error executing iso commands")
-            status = "Failed"
-        except (requests.exceptions.RequestException, IOError, OSError, KeyError):
-            logger.error("Error processing iso")
-            status = "Failed"
-        finally:
-            if status == "Success":
-                os.makedirs(iso_directory, exist_ok=True)
-                status = download_file_distribution(distribution_name, iso_directory,
-                                                    relative_path, logger)
-            # Write the status to the file
-            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
-            logger.info("#" * 30 + " %s end " + "#" * 30, process_iso.__name__)  # End of function
-        return status
-
-    elif path_support is True and url_support is False:
-        try:
-            shutil.copy(path, iso_directory)
-            download_file_name = path.split('/')
-            iso_file_path = os.path.join(iso_directory, download_file_name[-1])
-            output_file = download_file_name[-1]
-            relative_path = output_file
-            # Process the iso file using Pulp commands
-            logger.info("Processing iso with Pulp...")
-            status = "Success"
-            status = process_file_without_download(repository_name, output_file, relative_path,
-                                                   base_path, distribution_name, package_name, iso_file_path, logger)
-        except subprocess.CalledProcessError:
-            logger.error("Error executing iso commands")
-            status = "Failed"
-        except (requests.exceptions.RequestException, IOError, OSError, KeyError):
-            logger.error("Error processing iso")
-            status = "Failed"
-        finally:
-            # Write the status to the file
-            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
-            logger.info("#" * 30 + " %s end " + "#" * 30, process_iso.__name__)  # End of function
-        return status
-
-    return None
+                if os.path.realpath(configured_path) != os.path.realpath(
+                        iso_file_path):
+                    shutil.copy2(configured_path, iso_file_path)
+                if cache and source_key:
+                    cache.record(
+                        source_key, "iso", [iso_file_path], repository_name
+                    )
+            status = process_file_without_download(
+                repository_name, output_file, output_file, base_path,
+                repository_name, package_name, iso_file_path, logger,
+            )
+        elif url:
+            output_file = validate_artifact_identifier(
+                os.path.basename(urlsplit(url).path)
+            )
+            iso_file_path = os.path.join(iso_directory, output_file)
+            source_validator = probe_http_validator(url, logger)
+            source_key = build_source_key(
+                "iso", url, compatibility=compatibility
+            ) if source_validator and compatibility else None
+            restored = cache.restore(
+                source_key,
+                iso_directory,
+                repository_name,
+                source_validator,
+            ) if cache and source_key else []
+            if restored:
+                logger.info("Reusing verified remote ISO bytes")
+                status = process_file_without_download(
+                    repository_name, output_file, output_file, base_path,
+                    repository_name, url, restored[0], logger,
+                )
+            else:
+                subprocess.run(
+                    ['wget', '-q', '--spider', '--tries=1', url], check=True
+                )
+                status = handle_post_request(
+                    repository_name, output_file, base_path, url,
+                    ISO_TIMEOUT_MIN, logger,
+                )
+                if status == "Success":
+                    status = download_file_distribution(
+                        repository_name, iso_directory, output_file, logger
+                    )
+                if status == "Success" and cache and source_key:
+                    final_validator = probe_http_validator(url, logger)
+                    if final_validator == source_validator:
+                        cache.record(
+                            source_key,
+                            "iso",
+                            [iso_file_path],
+                            repository_name,
+                            source_validator,
+                        )
+                    else:
+                        logger.info(
+                            "ISO source changed during transfer; "
+                            "cross-context reuse was not recorded"
+                        )
+        else:
+            logger.error("ISO requires a valid URL or regular local file")
+    except (subprocess.CalledProcessError, requests.exceptions.RequestException,
+            IOError, OSError, KeyError, TypeError, ValueError,
+            SharedArtifactStateError):
+        logger.error("Error processing ISO")
+        status = "Failed"
+    finally:
+        if package_type is not None:
+            write_status_to_file(
+                status_file_path, package_name, package_type, status,
+                logger, file_lock,
+            )
+        logger.info("#" * 30 + " %s end " + "#" * 30, process_iso.__name__)
+    return status
 
 
 def _get_target_python_version(cluster_os_type, cluster_os_version, logger):
@@ -1267,22 +1381,9 @@ def _build_pip_platform_args(target_python, arc, logger):
     Returns:
         list: Extra CLI arguments for pip download.
     """
-    if not target_python:
-        return []
-
-    abi = "cp" + target_python.replace(".", "")
-    platforms = ARCH_PIP_PLATFORMS.get(arc, [])
-    parts = [
-        "--python-version", target_python,
-        "--implementation", "cp",
-        "--abi", abi,
-        "--only-binary=:all:",
-    ]
-    for plat in platforms:
-        parts.extend(["--platform", plat])
-
-    logger.info("Pip target-platform arguments prepared for %s/%s", arc, target_python)
-    return parts
+    return build_pip_platform_args(
+        target_python, arc, ARCH_PIP_PLATFORMS, logger
+    )
 
 
 def process_pip(package, status_file_path, content_base_dir, repo_name,
@@ -1333,59 +1434,103 @@ def process_pip(package, status_file_path, content_base_dir, repo_name,
         # cannot be installed on cp312 nodes (e.g. cffi, cryptography).
         logger.info("Step 1: Downloading package...")
         target_python = _get_target_python_version(cluster_os_type, cluster_os_version, logger)
-        platform_args = _build_pip_platform_args(target_python, arc, logger)
-
         pkg_spec = (
             f"{requirement_name}=={version}" if version else requirement_name
         )
+        if not target_python:
+            status = "Failed"
+            logger.error(
+                "No target Python mapping exists for %s %s",
+                cluster_os_type,
+                cluster_os_version,
+            )
+            return status
 
-        download_ok = False
-        if platform_args:
-            download_command = [
-                "pip", "download", "-d", pip_package_directory,
-                *platform_args, pkg_spec,
-            ]
-            download_ok = execute_command(download_command, logger)
-            if not download_ok:
-                logger.warning(
-                    f"Platform-aware download failed for {pkg_spec}; "
-                    "retrying without platform flags (source fallback)."
+        cache = _shared_artifact_cache(content_base_dir, logger)
+        architecture_key = None
+        portable_key = None
+        downloaded_artifacts = []
+        if version:
+            architecture_key = build_source_key(
+                "pip_module",
+                pkg_spec,
+                version=target_python,
+                compatibility=arc,
+            )
+            portable_key = build_source_key(
+                "pip_module",
+                pkg_spec,
+                version=target_python,
+                compatibility="any",
+            )
+            if cache:
+                downloaded_artifacts = cache.restore(
+                    portable_key, pip_package_directory, pip_repo
                 )
+                if not downloaded_artifacts:
+                    downloaded_artifacts = cache.restore(
+                        architecture_key, pip_package_directory, pip_repo
+                    )
+                if downloaded_artifacts:
+                    logger.info(
+                        "Reusing verified Python distributions for %s",
+                        pkg_spec,
+                    )
 
-        if not download_ok:
-            download_command = [
-                "pip", "download", "-d", pip_package_directory, pkg_spec,
-            ]
-            if not execute_command(download_command, logger):
-                status = "Failed"
-                logger.error(f"Failed to download {pkg_spec}. Aborting process.")
-                return status  # Stop further steps
+        if not downloaded_artifacts:
+            downloaded_artifacts = download_python_artifacts(
+                pkg_spec,
+                pip_package_directory,
+                target_python,
+                arc,
+                ARCH_PIP_PLATFORMS,
+                execute_command,
+                logger,
+            )
+        if not downloaded_artifacts:
+            status = "Failed"
+            logger.error("No target-compatible Python artifact was downloaded")
+            return status
+        if cache and architecture_key:
+            cache.record(
+                architecture_key,
+                "pip_module",
+                downloaded_artifacts,
+                pip_repo,
+            )
+            if artifacts_are_platform_independent(downloaded_artifacts):
+                cache.record(
+                    portable_key,
+                    "pip_module",
+                    downloaded_artifacts,
+                    pip_repo,
+                )
 
         # Step 2: Create the Pulp repository if it does not exist
         logger.info("Step 2: Checking repository existence...")
-        if not execute_command(
-                pulp_python_commands["show_repository"] % pip_repo, logger):
-            logger.info(f"Repository {pip_repo} does not exist. Creating it...")
-            if not execute_command(
-                    pulp_python_commands["create_repository"] % pip_repo,
-                    logger):
-                status = "Failed"
-                logger.error(f"Failed to create repository {pip_repo}. Aborting process.")
-                return status  # Stop further steps
+        repo_lock = get_repository_lock(pip_repo)
+        with repo_lock:
+            ensured, _details = _ensure_pulp_object(
+                pulp_python_commands["show_repository"] % pip_repo,
+                pulp_python_commands["create_repository"] % pip_repo,
+                f"Python repository {pip_repo}",
+                logger,
+            )
+        if not ensured:
+            status = "Failed"
+            return status
 
         # Step 3: Upload the package(s) to Pulp
         logger.info("Step 3: Uploading package to Pulp...")
-        for whl_file in os.listdir(pip_package_directory):
-            whl_path = os.path.join(pip_package_directory, whl_file)
-            if whl_file.endswith(".whl"):
-                relative_path = whl_file  # Keep the filename as-is
-                upload_command = pulp_python_commands["content_upload"] % (
-                    pip_repo, whl_path, relative_path,
+        for artifact_path in downloaded_artifacts:
+            if not _reconcile_python_content(
+                    pip_repo, artifact_path, logger):
+                status = "Failed"
+                logger.error(
+                    "Failed to upload Python distribution to %s",
+                    pip_repo,
                 )
-                if not execute_command(upload_command, logger):
-                    status = "Failed"
-                    logger.error(f"Failed to upload {whl_file} to {pip_repo}. Aborting process.")
-                    return status  # Stop further steps
+                return status
 
         # Step 4: Publish the repository
         logger.info("Step 4: Publishing the repository...")
@@ -1398,30 +1543,22 @@ def process_pip(package, status_file_path, content_base_dir, repo_name,
 
         # Step 5: Create or update the distribution
         logger.info("Step 5: Configuring distribution...")
-        if not execute_command(
-                pulp_python_commands["show_distribution"] % distribution_name,
-                logger):
-            logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
-            if not execute_command(
+        dist_lock = get_distribution_lock(distribution_name)
+        with dist_lock:
+            if not _reconcile_pulp_distribution(
+                    pulp_python_commands["show_distribution"] % distribution_name,
                     pulp_python_commands["distribution_create"] % (
                         distribution_name, pip_repo, base_package_directory,
-                    ), logger):
-                status = "Failed"
-                logger.error(
-                    f"Failed to create distribution {distribution_name}. Aborting process."
-                )
-                return status  # Stop further steps
-        else:
-            logger.info("Updating existing distribution...")
-            if not execute_command(
+                    ),
                     pulp_python_commands["distribution_update"] % (
                         distribution_name, pip_repo, base_package_directory,
-                    ), logger):
+                    ),
+                    f"Python distribution {distribution_name}",
+                    logger,
+                    pulp_python_commands["show_repository"] % pip_repo,
+            ):
                 status = "Failed"
-                logger.error(
-                    f"Failed to update distribution {distribution_name}. Aborting process."
-                )
-                return status  # Stop further steps
+                return status
 
         logger.info(f"Package {package_name} processed successfully!")
 
@@ -1442,177 +1579,14 @@ def process_pip(package, status_file_path, content_base_dir, repo_name,
     return status
 
 
-def process_rpm_file(package, status_file_path, content_base_dir, repo_name_arg, logger):
-    """
-    Process an RPM file package by downloading it and setting up a Pulp RPM repository.
-
-    Args:
-        package (dict): A dictionary containing the package information.
-        status_file_path (str): The path to the status file.
-        content_base_dir (str): Pre-built base directory for offline content.
-        repo_name_arg (str): Pre-built Pulp repository name.
-        logger (logging.Logger): The logger instance.
-
-    Returns:
-        str: The status of the RPM file package processing.
-    """
-    logger.info("#" * 30 + " %s start " + "#" * 30, process_rpm_file.__name__)
-    package_name = "unknown"
-    package_type = None
-    repo_name = repo_name_arg
-    status = "Failed"
-
-    try:
-        package_name = validate_artifact_identifier(package['package'])
-        url = package.get('url', None)
-        package_type = package['type']
-        repo_name = repo_name_arg
-
-        if not url:
-            logger.error(f"No URL provided for RPM file package: {package_name}")
-            status = "Failed"
-            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
-            return status
-
-        url = validate_artifact_url(url)
-        repo_name = validate_repository_id(repo_name)
-        logger.info(f"Processing RPM File Package: {package_name}, URL: {url}")
-
-        # Create rpm_file directory structure
-        rpm_file_directory = os.path.join(
-            content_base_dir, "rpm_file", package_name
-        )
-        os.makedirs(rpm_file_directory, exist_ok=True)
-
-        # Extract filename from URL
-        download_file_name = os.path.basename(urlsplit(url).path)
-        if not download_file_name:
-            raise ValueError("RPM artifact URL path does not contain a filename")
-        rpm_file_path = os.path.join(rpm_file_directory, download_file_name)
-
-        # Step 1: Download the RPM file
-        logger.info("Step 1: Downloading RPM file...")
-        if os.path.exists(rpm_file_path):
-            logger.info(f"RPM file already exists: {rpm_file_path}")
-        else:
-            # Verify URL exists
-            subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
-
-            # Download the file
-            download_command = ["wget", "-O", rpm_file_path, url]
-            if not execute_command(download_command, logger):
-                logger.error(f"Failed to download RPM file from: {url}")
-                status = "Failed"
-                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
-                return status
-
-        # Step 2: CREATE A NEW RPM REPOSITORY IN PULP (if it doesn't exist)
-        logger.info("Step 2: Creating RPM repository in Pulp...")
-        # Check if repository already exists
-        if execute_command(
-                pulp_rpm_commands["show_repository"] % repo_name, logger):
-            logger.info(f"RPM repository {repo_name} already exists. Skipping creation.")
-        else:
-            logger.info(f"Creating RPM repository: {repo_name}")
-            if not execute_command(
-                    pulp_rpm_commands["create_repository"] % repo_name,
-                    logger):
-                logger.error(f"Failed to create RPM repository: {repo_name}")
-                status = "Failed"
-                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
-                return status
-
-        # Step 3: UPLOAD THE RPM INTO THE REPO
-        logger.info("Step 3: Uploading RPM to repository...")
-        upload_command = pulp_rpm_commands["upload_content"] % (
-            repo_name, rpm_file_path,
-        )
-        if not execute_command(upload_command, logger):
-            logger.error(f"Failed to upload RPM to repository: {repo_name}")
-            status = "Failed"
-            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
-            return status
-
-        # Step 4: PUBLISH THE REPOSITORY
-        logger.info("Step 4: Publishing repository...")
-        if not execute_command(
-                pulp_rpm_commands["publish_repository"] % repo_name, logger):
-            logger.error(f"Failed to publish repository: {repo_name}")
-            status = "Failed"
-            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
-            return status
-
-        # Step 5: CREATE A DISTRIBUTION FOR THE REPO (if it doesn't exist)
-        logger.info("Step 5: Creating distribution...")
-
-        # Check if distribution already exists
-        if execute_command(
-                pulp_rpm_commands["check_distribution"] % repo_name, logger):
-            logger.info(f"Distribution {repo_name} already exists. Skipping creation.")
-        else:
-            logger.info(f"Creating distribution: {repo_name}")
-            # Get the publication href
-            pub_result = execute_command(
-                pulp_rpm_commands["list_all_publications"],
-                logger, type_json=True,
-            )
-            if not pub_result or not pub_result.get("stdout"):
-                logger.error("Failed to get publication list")
-                status = "Failed"
-                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
-                return status
-
-            publications = pub_result["stdout"]
-            if not publications:
-                logger.error("No publications found")
-                status = "Failed"
-                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
-                return status
-
-            latest_publication = publications[0]
-            publication_href = latest_publication.get("pulp_href")
-
-            if not publication_href:
-                logger.error("No publication href found")
-                status = "Failed"
-                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
-                return status
-
-            base_path = get_pulp_base_path(os.path.join(content_base_dir, "rpms", repo_name))
-            dist_create_command = pulp_rpm_commands["distribute_repository"] % (
-                repo_name, base_path, repo_name,
-            )
-            if not execute_command(dist_create_command, logger):
-                logger.error(f"Failed to create distribution: {repo_name}")
-                status = "Failed"
-                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
-                return status
-
-        # Step 6: ENABLE AUTO-GENERATION OF .repo FILES
-        logger.info("Step 6: Enabling auto-generation of .repo files...")
-        update_command = (
-            pulp_rpm_commands["update_distribution_repo_config"] % repo_name
-        )
-        if not execute_command(update_command, logger):
-            logger.warning(f"Failed to enable repo config generation for: {repo_name}")
-            # Not a critical failure, continue
-
-        logger.info(f"RPM file package {package_name} processed successfully!")
-        status = "Success"
-
-    except subprocess.CalledProcessError:
-        logger.error("Error executing RPM file commands")
-        status = "Failed"
-    except (requests.exceptions.RequestException, IOError, OSError, KeyError,
-            ValueError):
-        logger.error("Error processing RPM file package")
-        status = "Failed"
-
-    finally:
-        if package_type is not None:
-            write_status_to_file(
-                status_file_path, package_name, package_type, status, logger,
-                file_lock, repo_name
-            )
-        logger.info("#" * 30 + " %s end " + "#" * 30, process_rpm_file.__name__)
-    return status
+def process_rpm_file(
+        package, status_file_path, content_base_dir, repo_name_arg, logger):
+    """Compatibility facade for repository-bound direct RPM processing."""
+    # Imported lazily because the focused processor reuses Pulp lifecycle
+    # primitives defined in this module.
+    from ansible.module_utils.repo_manager.rpm_file_artifact_processor import (  # pylint: disable=import-outside-toplevel
+        process_rpm_file as process_rpm_file_impl,
+    )
+    return process_rpm_file_impl(
+        package, status_file_path, content_base_dir, repo_name_arg, logger
+    )

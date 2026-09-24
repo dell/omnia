@@ -57,6 +57,8 @@ from ansible.module_utils.repo_manager.config import (
     RPM_CLI_QUERY_RETRY_DELAY,
     RPM_API_UNAVAILABLE_TIMEOUT,
     ARCH_SUFFIXES,
+    MIRROR_STATUS_DIR,
+    MIRROR_INDEX_FILENAME,
 )
 from ansible.module_utils.repo_manager.pulp_commands import (
     build_pulp_task_list_command,
@@ -78,6 +80,12 @@ from ansible.module_utils.repo_manager.pulp_rpm_repository_manager import (
 from ansible.module_utils.repo_manager.repo_file_utils import (
     atomic_write_repo_file,
     repo_file_error_message,
+)
+from ansible.module_utils.repo_manager.mirror_status import (
+    load_mirror_index,
+    repositories_requiring_retry,
+    save_mirror_index,
+    update_repository_sync_state,
 )
 from ansible.module_utils.repo_manager.security_utils import (
     mask_sensitive_data,
@@ -1613,23 +1621,6 @@ def _get_publication_state(repo_name, log, repository_version_href=None):
         return None, None
 
 
-def check_publication_exists(repo_name, log, repository_version_href=None):
-    """Return tri-state publication readiness for an optional exact version."""
-    state, _ = _get_publication_state(
-        repo_name, log, repository_version_href
-    )
-    if state is True:
-        _log(
-            log, "debug", repo_name,
-            "Matching publication exists",
-        )
-        return True
-    if state is None:
-        return None
-    _log(log, "debug", repo_name, "No matching publication")
-    return False
-
-
 def get_distribution_details(repo_name, log):
     """Return distribution JSON, False if missing, or None on query failure."""
     command = pulp_rpm_commands["check_distribution"] % repo_name
@@ -1693,14 +1684,13 @@ def get_latest_publication_href(repo_name, log, repository_version_href=None):
         return None
 
 
-def create_publication(repo, log, resync_repos=None):
+def create_publication(repo, log):
     """
     Create a publication for an RPM repository.
 
     Args:
         repo (dict): A dictionary containing the package information.
         log (logging.Logger): Logger instance for logging the process and errors.
-        resync_repos (str/list, optional): Controls which repos to process.
     Returns:
         bool: True if the publication was created successfully, False otherwise.
     """
@@ -1786,8 +1776,7 @@ def create_publication(repo, log, resync_repos=None):
         return False, repo.get("package", "unknown")
 
 
-def create_distribution(repo, log, cluster_os_type, cluster_os_version,
-                        resync_repos=None):
+def create_distribution(repo, log, cluster_os_type, cluster_os_version):
     """
     Create or update a distribution for an RPM repository.
 
@@ -1796,7 +1785,6 @@ def create_distribution(repo, log, cluster_os_type, cluster_os_version,
         log (logging.Logger): Logger instance for logging the process and errors.
         cluster_os_type (str): The cluster OS type (for example, 'rhel').
         cluster_os_version (str): The cluster OS version (for example, '10.0').
-        resync_repos (str/list, optional): Controls which repos to process.
     Returns:
         bool: True if the distribution was created or updated successfully, False otherwise.
     """
@@ -2250,6 +2238,72 @@ def validate_resync_repos(resync_repos, rpm_config, log):
     return True, ""
 
 
+def _requested_repository_names(resync_repos, rpm_config):
+    """Return exact repository names explicitly selected for resync."""
+    configured_names = {
+        _configured_repository_name(repo) for repo in rpm_config
+    }
+    if resync_repos == "all":
+        return configured_names
+    if isinstance(resync_repos, str):
+        return {
+            value.strip() for value in resync_repos.split(",")
+            if value.strip()
+        }
+    if isinstance(resync_repos, list):
+        return set(resync_repos)
+    return set()
+
+
+def _load_repository_retry_state(mirror_index_path, log):
+    """Load exact repositories that require sync recovery."""
+    if not mirror_index_path:
+        return set()
+    mirror_data = load_mirror_index(mirror_index_path, log)
+    return {
+        validate_repository_id(repo_name)
+        for repo_name in repositories_requiring_retry(mirror_data)
+    }
+
+
+def _persist_repository_checkpoints(
+        mirror_index_path, rpm_config, status_by_repository, log):
+    """Atomically persist repository lifecycle checkpoints."""
+    if not mirror_index_path or not status_by_repository:
+        return True
+    try:
+        mirror_data = load_mirror_index(mirror_index_path, log)
+        policy_by_repository = {
+            _configured_repository_name(repo): repo.get("policy", "")
+            for repo in rpm_config
+        }
+        for repo_name, status in status_by_repository.items():
+            version_href = None
+            if status == "ready":
+                version_href = get_repository_latest_version_href(
+                    repo_name, log
+                )
+                if not version_href:
+                    _log(
+                        log, "error", repo_name,
+                        "Repository version is unavailable; ready state was "
+                        "not persisted",
+                    )
+                    return False
+            update_repository_sync_state(
+                mirror_data,
+                repo_name,
+                status,
+                version_href=version_href,
+                policy=policy_by_repository.get(repo_name, ""),
+            )
+        save_mirror_index(mirror_index_path, mirror_data, log)
+        return True
+    except (OSError, ValueError):
+        log.error("Unable to persist RPM repository recovery state")
+        return False
+
+
 def process_sync_results(sync_results, rpm_config, _resync_repos, log):
     """
     Process sync results and determine which repos need publication/distribution.
@@ -2696,12 +2750,11 @@ def manage_aggregated_repos(
     """
     Manage aggregated repositories for additional_repos_* entries.
     This function handles the complete workflow:
-    1. Delete existing aggregated repo (always recreate for clean state)
-    2. Create new aggregated repository
-    3. Create remotes for each repo entry
-    4. Sync each remote to the aggregated repository
-    5. Create publication
-    6. Create/update distribution
+    1. Reconcile the aggregated repository without deleting serving state
+    2. Create or update remotes for each repo entry
+    3. Sync each remote to the aggregated repository
+    4. Create a publication for the completed repository version
+    5. Create or update the distribution only after publication succeeds
 
     Args:
         additional_repos_config (dict): Dictionary with arch as key and list of repo configs as value.
@@ -2724,17 +2777,15 @@ def manage_aggregated_repos(
 
         log.info(f"Processing aggregated repos for arch '{arch}': {len(repos)} repos")
 
-        # Step 1: Delete existing aggregated repo for clean state
-        log.info(f"Step 1: Deleting existing aggregated repo for {arch}")
-        delete_aggregated_repo(repo_name, log)
-
-        # Step 2: Create aggregated repository
-        log.info(f"Step 2: Creating aggregated repository for {arch}")
+        # Preserve the last-known-good repository/publication/distribution
+        # while remotes and replacement content are reconciled. Deleting the
+        # active chain here makes a transient upstream failure an outage.
+        log.info(f"Step 1: Reconciling aggregated repository for {arch}")
         success, _ = create_aggregated_repository(repo_name, log)
         if not success:
             return False, f"Failed to create aggregated repository for {arch}"
 
-        # Step 3 & 4: Create remotes and sync (only if there are repos)
+        # Step 2 & 3: Create remotes and sync (only if there are repos)
         if repos:
             sync_failures = []
 
@@ -2747,13 +2798,13 @@ def manage_aggregated_repos(
                     repo_entry["name"] = repo_name_entry  # Update the entry
 
                 # Create remote
-                log.info(f"Step 3: Creating remote for '{repo_entry['name']}'")
+                log.info(f"Step 2: Creating remote for '{repo_entry['name']}'")
                 success, remote_name = create_aggregated_remote(repo_entry, repo_name, log)
                 if not success:
                     return False, f"Failed to create remote for {repo_entry['name']}"
 
                 # Sync to aggregated repo
-                log.info(f"Step 4: Syncing remote '{remote_name}' to aggregated repo")
+                log.info(f"Step 3: Syncing remote '{remote_name}' to aggregated repo")
                 success, _ = sync_aggregated_repository(repo_name, remote_name, log)
                 if not success:
                     sync_failures.append(repo_entry['name'])
@@ -2762,14 +2813,16 @@ def manage_aggregated_repos(
             if sync_failures:
                 return False, f"Failed to sync repos for {arch}: {', '.join(sync_failures)}"
 
-        # Step 5: Create publication
-        log.info(f"Step 5: Creating publication for {arch}")
+        # Step 4: Create a replacement publication. The current distribution
+        # remains available if remote reconciliation or synchronization failed.
+        log.info(f"Step 4: Creating publication for {arch}")
         success, pub_href = create_aggregated_publication(repo_name, log)
         if not success:
             return False, f"Failed to create publication for aggregated repo {arch}"
 
-        # Step 6: Create/update distribution
-        log.info(f"Step 6: Creating/updating distribution for {arch}")
+        # Step 5: Switch the distribution only after replacement publication
+        # creation and verification have succeeded.
+        log.info(f"Step 5: Creating/updating distribution for {arch}")
         success, _ = create_aggregated_distribution(repo_name, base_path, pub_href, log)
         if not success:
             return False, f"Failed to create distribution for aggregated repo {arch}"
@@ -2786,7 +2839,8 @@ def manage_rpm_repositories_multiprocess(
         continue_on_failure=True,
         thread_pool_size=RPM_THREAD_POOL_SIZE,
         pulp_base_url=None,
-        repo_file_path=None):
+        repo_file_path=None,
+        mirror_index_path=None):
     """
     Manage RPM repositories using multiprocessing.
 
@@ -2804,6 +2858,7 @@ def manage_rpm_repositories_multiprocess(
         thread_pool_size (int): Maximum worker processes used by every RPM stage.
         pulp_base_url (str): Trusted public Pulp HTTPS origin.
         repo_file_path (str): Destination path for the generated DNF file.
+        mirror_index_path (str): Per-version mirror state used for sync recovery.
     Returns:
         tuple: (bool, str) indicating success and a message
     """
@@ -2821,10 +2876,28 @@ def manage_rpm_repositories_multiprocess(
         log.info("No repositories to process after filtering")
         return True, "No repositories to process"
 
+    configured_repository_names = {
+        _configured_repository_name(repo) for repo in rpm_config
+    }
+    try:
+        retry_repositories = _load_repository_retry_state(
+            mirror_index_path, log
+        ) & configured_repository_names
+    except (OSError, ValueError):
+        return False, "RPM repository recovery state is unavailable"
+    if retry_repositories:
+        log.info(
+            "Retrying %d repository synchronization checkpoint(s): %s",
+            len(retry_repositories), sorted(retry_repositories),
+        )
+
     # The sequential catalog dispatcher uses an empty list when a targeted
     # resync belongs to another OS-version context. Do not reinterpret that as
     # the default "sync every stale repository" behavior.
-    if isinstance(resync_repos, list) and not resync_repos:
+    if (
+            isinstance(resync_repos, list)
+            and not resync_repos
+            and not retry_repositories):
         log.info("No targeted repositories belong to this execution context")
         repositories_ready, readiness_failures = (
             validate_repository_readiness(rpm_config, log)
@@ -2852,6 +2925,22 @@ def manage_rpm_repositories_multiprocess(
     if not is_valid:
         return False, error_msg
 
+    requested_repositories = _requested_repository_names(
+        resync_repos, rpm_config
+    )
+    requested_or_recovery_repositories = (
+        requested_repositories | retry_repositories
+    )
+    if not _persist_repository_checkpoints(
+            mirror_index_path,
+            rpm_config,
+            {
+                name: "pending"
+                for name in requested_or_recovery_repositories
+            },
+            log):
+        return False, "Failed to persist repository synchronization checkpoint"
+
     process = _effective_worker_count(thread_pool_size, len(rpm_config))
     log.info(f"Configured RPM worker processes = {thread_pool_size}")
     log.info(f"Effective processes for lightweight operations = {process}")
@@ -2866,7 +2955,9 @@ def manage_rpm_repositories_multiprocess(
             resync_list = [r.strip() for r in resync_repos.split(",")]
         else:
             resync_list = resync_repos
-        repos_to_process_count = len(resync_list)
+        repos_to_process_count = len(
+            set(resync_list) | retry_repositories
+        )
 
     log.info(f"Repos to actually process (based on resync_repos): {repos_to_process_count}")
 
@@ -2907,6 +2998,16 @@ def manage_rpm_repositories_multiprocess(
         if success and changed
     }
 
+    forced_repositories = (
+        changed_remotes | requested_or_recovery_repositories
+    )
+    if not _persist_repository_checkpoints(
+            mirror_index_path,
+            rpm_config,
+            {name: "pending" for name in forced_repositories},
+            log):
+        return False, "Failed to persist repository synchronization checkpoint"
+
     # Step 3: Concurrent synchronization
     log.info("Step 3: Starting concurrent RPM repository synchronization")
     with multiprocessing.Pool(processes=pulp_process) as pool:
@@ -2914,8 +3015,25 @@ def manage_rpm_repositories_multiprocess(
             sync_rpm_repository_with_monitoring,
             log=log,
             resync_repos=resync_repos,
-            force_sync_repos=changed_remotes,
+            force_sync_repos=forced_repositories,
         ), rpm_config)
+
+    synchronization_checkpoints = {
+        name: "pending"
+        for success, name, actually_synced, _version_changed in sync_results
+        if success and actually_synced
+    }
+    synchronization_checkpoints.update({
+        name: "failed"
+        for success, name, _actually_synced, _version_changed in sync_results
+        if not success
+    })
+    if not _persist_repository_checkpoints(
+            mirror_index_path,
+            rpm_config,
+            synchronization_checkpoints,
+            log):
+        return False, "Failed to persist repository synchronization result"
 
     sync_failed = [name for success, name, _, _ in sync_results if not success]
     if sync_failed:
@@ -2943,7 +3061,7 @@ def manage_rpm_repositories_multiprocess(
             thread_pool_size, len(repos_for_pub_dist)
         )
         with multiprocessing.Pool(processes=publication_processes) as pool:
-            result = pool.map(partial(create_publication, log=log, resync_repos=resync_repos), repos_for_pub_dist)
+            result = pool.map(partial(create_publication, log=log), repos_for_pub_dist)
 
         pub_failed = [name for success, name in result if not success]
         if pub_failed:
@@ -2969,7 +3087,6 @@ def manage_rpm_repositories_multiprocess(
             result = pool.map(partial(
                 create_distribution,
                 log=log,
-                resync_repos=resync_repos,
                 cluster_os_type=cluster_os_type,
                 cluster_os_version=cluster_os_version,
             ), repos_for_pub_dist)
@@ -3027,6 +3144,13 @@ def manage_rpm_repositories_multiprocess(
     if not repo_file_created:
         return False, "Failed to atomically create the DNF repository file"
     log.info("Successfully created/updated pulp.repo file with fetched base URLs.")
+
+    if not _persist_repository_checkpoints(
+            mirror_index_path,
+            rpm_config,
+            {name: "ready" for name in configured_repository_names},
+            log):
+        return False, "Failed to persist ready repository state"
 
     # Final summary
     _log_summary(log, sync_results, all_failures, total_start_time)
@@ -3099,6 +3223,9 @@ def main():
 
     log = setup_standard_logger(log_dir)
     standard_log_path = os.path.join(log_dir, "standard.log")
+    mirror_index_path = os.path.join(
+        log_dir, MIRROR_STATUS_DIR, MIRROR_INDEX_FILENAME
+    )
 
     # Convert user_repos_config to rpm_config format and merge
     if user_repos_config:
@@ -3179,6 +3306,7 @@ def main():
         thread_pool_size=configured_thread_pool_size,
         pulp_base_url=pulp_base_url,
         repo_file_path=repo_file_path,
+        mirror_index_path=mirror_index_path,
     )
 
     if result is False:

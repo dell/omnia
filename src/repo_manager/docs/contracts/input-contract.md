@@ -348,4 +348,4 @@ RHEL subscription ------->|      +--> repo_status.yml
 | Private registry mapping missing | Report registry and affected images |
 | Basic auth has no Vault mapping | Credential validation failure |
 | Repository priority outside 1--100 | Schema validation failure |
-| `rpm_repo` resolves to streamed content | Policy validation failure |
+| `rpm_repo` explicitly declares repository `policy: never` | Policy validation failure |

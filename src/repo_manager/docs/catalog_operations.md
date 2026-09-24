@@ -95,8 +95,9 @@ Trailing overrides supported on package lines:
 - `os=rhel`
 - `os_version=10.0`
 
-`rpm_repo` downloads the named package and its dependencies through DNF. The
-mapped repository must retain content and therefore cannot use streamed policy.
+`rpm_repo` downloads the named package and its dependencies through DNF when
+its effective Pulp policy is retained. Explicit `policy: never` is rejected;
+other combinations that map to `streamed` use validation-only handling.
 
 ---
 
