@@ -584,12 +584,13 @@ def test_full_lifecycle(host):
     tc = TC["nft_full_lifecycle"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Step 1: Cleanup
-    tl.check("Running cleanup playbook")
+    # Step 1: Cleanup (preserve credentials so redeploy can reuse them)
+    tl.check("Running cleanup playbook with credential preservation")
     cleanup = run_playbook(
         playbook=PLAYBOOK_ENTRY_POINT,
         playbook_workdir=PLAYBOOK_WORKDIR,
         tag="cleanup",
+        extra_vars={"cleanup_credentials": "false"},
         timeout=300,
     )
 

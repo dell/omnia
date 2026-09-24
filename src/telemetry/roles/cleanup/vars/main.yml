@@ -37,6 +37,18 @@ cleanup_granular_sink_volume_option_fail_msg: >-
 cleanup_invalid_sink_volume_option_msg: >-
   delete_sinks_volumes is not a supported telemetry variable. Use the singular
   name delete_sinks_volume with --tags cleanup.
+
+# --- Credential and log preservation settings ---
+# Use -e cleanup_credentials=false to preserve credentials during cleanup
+# without volume. Use -e cleanup_logs=false to preserve logs during cleanup
+# without volume. When Delete_sinks_volume=true these flags are overridden
+# and credentials and logs are always removed.
+cleanup_credentials_invalid_msg: >-
+  cleanup_credentials accepts only true or false. Use
+  -e cleanup_credentials=false to preserve credentials during cleanup.
+cleanup_logs_invalid_msg: >-
+  cleanup_logs accepts only true or false. Use
+  -e cleanup_logs=false to preserve logs during cleanup.
 cleanup_resource_grace_period: 0
 cleanup_post_delete_pause: 5
 cleanup_helm_timeout: "5m"
