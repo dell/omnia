@@ -149,15 +149,14 @@ def test_deploy_performance(host):
 
 @pytest.mark.nft
 @pytest.mark.performance
-@pytest.mark.order(130)
 @pytest.mark.parametrize("cleanup_volume_mode", [False, True], ids=["preserve_pvcs", "delete_pvcs"])
-def test_cleanup_performance(host, cleanup_volume_mode):
+def test_cleanup_performance(host, cleanup_volume_mode, request):
     """TEL_NFT_003: Verify cleanup completes within 300s (5 min) threshold.
 
     Runs the cleanup phase and asserts that full cleanup completes in under
     5 minutes. This test is parametrized to run twice:
       1. First run (order 130): cleanup_volume_mode=False (PVCs preserved)
-      2. Second run (order 130b): cleanup_volume_mode=True (PVCs deleted)
+      2. Second run (order 140): cleanup_volume_mode=True (PVCs deleted)
 
     Ordered AFTER all resilience tests because cleanup deletes credentials
     from the src flow — any subsequent deploy would fail with missing
@@ -167,6 +166,11 @@ def test_cleanup_performance(host, cleanup_volume_mode):
     The ``cleanup_volume_mode`` parameter controls whether
     ``Delete_sinks_volume=true`` is passed.
     """
+    # Dynamic ordering: preserve_pvcs at 130, delete_pvcs at 140
+    if cleanup_volume_mode:
+        request.node.add_marker(pytest.mark.order(140))
+    else:
+        request.node.add_marker(pytest.mark.order(130))
     tc = TC["nft_cleanup_perf"]
     tl = TestLogger(tc["title"], tc["id"])
 

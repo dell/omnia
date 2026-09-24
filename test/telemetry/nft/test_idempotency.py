@@ -127,9 +127,8 @@ def test_deploy_idempotency(host):
 
 @pytest.mark.nft
 @pytest.mark.idempotency
-@pytest.mark.order(131)
 @pytest.mark.parametrize("cleanup_volume_mode", [False, True], ids=["preserve_pvcs", "delete_pvcs"])
-def test_cleanup_idempotency(host, cleanup_volume_mode):
+def test_cleanup_idempotency(host, cleanup_volume_mode, request):
     """TEL_NFT_005: Cleanup idempotency — second run exits 0.
 
     Runs the full cleanup playbook twice in sequence:
@@ -141,15 +140,20 @@ def test_cleanup_idempotency(host, cleanup_volume_mode):
 
     This test is parametrized to run twice:
       1. First run (order 131): cleanup_volume_mode=False (PVCs preserved)
-      2. Second run (order 131b): cleanup_volume_mode=True (PVCs deleted)
+      2. Second run (order 141): cleanup_volume_mode=True (PVCs deleted)
 
-    Ordered AFTER cleanup performance (order 130) and AFTER all
+    Ordered AFTER cleanup performance (order 130/140) and AFTER all
     resilience tests, because cleanup deletes credentials from the
     src flow — any subsequent deploy would fail with missing creds.
 
     The ``cleanup_volume_mode`` parameter controls whether
     ``Delete_sinks_volume=true`` is passed.
     """
+    # Dynamic ordering: preserve_pvcs at 131, delete_pvcs at 141
+    if cleanup_volume_mode:
+        request.node.add_marker(pytest.mark.order(141))
+    else:
+        request.node.add_marker(pytest.mark.order(131))
     tc = TC["nft_cleanup_idempotent"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -238,9 +242,8 @@ def test_cleanup_idempotency_no_pods(host):
 
 @pytest.mark.nft
 @pytest.mark.idempotency
-@pytest.mark.order(133)
 @pytest.mark.parametrize("cleanup_volume_mode", [False, True], ids=["preserve_pvcs", "delete_pvcs"])
-def test_cleanup_idempotency_no_pvcs(host, cleanup_volume_mode):
+def test_cleanup_idempotency_no_pvcs(host, cleanup_volume_mode, request):
     """TEL_NFT_016/TEL_NFT_017: Verify PVC state after idempotent cleanup.
 
     After two cleanup runs:
@@ -250,8 +253,13 @@ def test_cleanup_idempotency_no_pvcs(host, cleanup_volume_mode):
 
     This test is parametrized to run twice:
       1. First run (order 133): cleanup_volume_mode=False (TEL_NFT_017)
-      2. Second run (order 133b): cleanup_volume_mode=True (TEL_NFT_016)
+      2. Second run (order 143): cleanup_volume_mode=True (TEL_NFT_016)
     """
+    # Dynamic ordering: preserve_pvcs at 133, delete_pvcs at 143
+    if cleanup_volume_mode:
+        request.node.add_marker(pytest.mark.order(143))
+    else:
+        request.node.add_marker(pytest.mark.order(133))
     case_key = (
         "nft_cleanup_no_pvcs"
         if cleanup_volume_mode
