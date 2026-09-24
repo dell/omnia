@@ -71,13 +71,18 @@ def get_config_value(config_key, default_value, env_var=None):
     if env_var and env_var in os.environ:
         value = os.environ[env_var]
         # Convert to appropriate type
+        if isinstance(default_value, bool):
+            normalized = value.strip().casefold()
+            if normalized in ('true', '1', 'yes'):
+                return True
+            if normalized in ('false', '0', 'no'):
+                return False
+            raise ValueError(f"{env_var} must be a boolean value")
         if isinstance(default_value, int):
             try:
                 return int(value)
-            except ValueError:
-                pass
-        elif isinstance(default_value, bool):
-            return value.lower() in ('true', '1', 'yes')
+            except ValueError as error:
+                raise ValueError(f"{env_var} must be an integer") from error
         return value
 
     # Try YAML config

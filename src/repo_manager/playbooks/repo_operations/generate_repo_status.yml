@@ -165,6 +165,9 @@
       ansible.builtin.fail:
         # yamllint disable-line rule:line-length
         msg: "{{ generate_repo_status_fail_when_catalog_required_rpm_repositories_are_unavailable_msg }}"
+      vars:
+        incomplete_status_contexts: >-
+          {{ status_generation_result.missing_rpm_repositories | default({}) }}
       when: not (status_generation_result.repository_ready | default(false) | bool)
 
     - name: Display generation result

@@ -27,9 +27,14 @@ execution_contexts:
     os_type: "rhel"
     os_version: "10.0"
     architectures: ["x86_64", "aarch64"]
+  - context_id: "rhel_10.2"
+    os_type: "rhel"
+    os_version: "10.2"
+    architectures: ["x86_64"]
 
 overall_status_by_version:
   "10.0": "success"
+  "10.2": "success"
 
 repo_manager:
   port: 2225
@@ -46,6 +51,10 @@ repositories:
         url: "https://192.0.2.10:2225/pulp/content/.../slurm_custom/"
         priority: 100
     aarch64: {}
+  "10.2":
+    x86_64:
+      baseos:
+        url: "https://192.0.2.10:2225/pulp/content/.../baseos/"
 
 registries:
   private_registry:
@@ -56,12 +65,19 @@ registries:
       insecure: false
 
 file_repos:
-  x86_64:
-    tarball:
-      helm-v3_20_1-amd64: "https://192.0.2.10:2225/pulp/content/.../"
-    pip_module:
-      cffi_1_17_1: "https://192.0.2.10:2225/pypi/.../"
-  aarch64: {}
+  "10.0":
+    x86_64:
+      tarball:
+        helm-v3_20_1-amd64: "https://192.0.2.10:2225/pulp/content/.../rhel/10.0/tarball/helm-v3.20.1-amd64/"
+      pip_module:
+        cffi_1_17_1: "https://192.0.2.10:2225/pypi/.../rhel/10.0/pip_module/cffi==1.17.1/"
+    aarch64: {}
+  "10.2":
+    x86_64:
+      tarball:
+        helm-v3_20_1-amd64: "https://192.0.2.10:2225/pulp/content/.../rhel/10.2/tarball/helm-v3.20.1-amd64/"
+      pip_module:
+        cffi_1_17_1: "https://192.0.2.10:2225/pypi/.../rhel/10.2/pip_module/cffi==1.17.1/"
 
 offline_tarball_path: "https://192.0.2.10:2225/pulp/content/.../tarball/"
 offline_pip_module_path: "https://192.0.2.10:2225/pypi/.../pip_module/"
@@ -85,9 +101,9 @@ offline_pip_module_path: "https://192.0.2.10:2225/pypi/.../pip_module/"
 | `registries.<name>.port` | integer | Configured private-registry port |
 | `registries.<name>.host` | string | Canonical OCI `host[:port]` authority |
 | `registries.<name>.tls` | object | Non-secret TLS settings used by downstream consumers |
-| `file_repos.<arch>.<type>.<artifact>` | string | File or Python distribution URL |
-| `*_base_url` | string | Base URL for a content type when available |
-| `offline_*_path` | string | Backward-compatible type URL |
+| `file_repos.<version>.<arch>.<type>.<artifact>` | string | Version-qualified File or Python distribution URL |
+| `*_base_url` | string | Backward-compatible primary-context base URL for a content type when available |
+| `offline_*_path` | string | Backward-compatible primary-context type URL |
 
 During a multi-version download, `overall_status` is `in_progress` while later
 contexts remain pending. It becomes `success` only after every selected context
@@ -98,6 +114,10 @@ maps are valid only when the catalog did not reference an RPM repository for
 that architecture. If required repositories are missing, the affected version
 and aggregate status are `failed`; the generating Ansible module returns the
 missing names to the calling playbook for its failure report.
+`file_repos` uses the same version-first organization as `repositories`, so a
+multi-version catalog publishes every ready File and Python distribution under
+its exact OS minor version. The legacy type-level URL fields continue to use
+the first ordered execution context.
 Registry authentication references, usernames, passwords and tokens are never
 written to `repo_status.yml`.
 
@@ -149,7 +169,7 @@ under `offline_repo` are staging content, not the downstream contract.
 | `<arch>/groups_status.csv` | Overall state for every resolved group |
 | `<arch>/<group>_task_results.log` | Final worker results for a group |
 | `mirror_status/global_package_index.json` | Catalog package identities and ownership |
-| `mirror_status/pulp_mirror_index.json` | Mirrored, failed and pending Pulp identities |
+| `mirror_status/pulp_mirror_index.json` | Mirrored, failed and pending package identities plus internal RPM repository recovery checkpoints |
 | `standard.log` | Download execution and progress heartbeat |
 
 The OS-level file `<REPO_MANAGER_DATA_PATH>/log/<os>/catalog_execution_summary.yml`
@@ -169,6 +189,10 @@ the playbook returns the failure.
 
 Status and mirror files use atomic replacement. They are operational state used
 for idempotent reruns; downstream components should consume `repo_status.yml`.
+The internal mirror index records exact RPM repository states (`pending`,
+`ready` or `failed`), the last confirmed repository-version HREF and effective
+Pulp policy. These additive recovery fields do not change `status.csv`,
+`groups_status.csv` or `repo_status.yml`.
 
 ---
 

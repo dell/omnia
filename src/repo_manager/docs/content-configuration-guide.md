@@ -104,6 +104,44 @@ Python packages may use either `name: "cffi==1.17.1"` or the equivalent
 `cffi==1.17.1` for download, Pulp identity, status tracking and selective
 cleanup. When both forms provide a version, the values must match.
 
+Python downloads always target the selected node context. For RHEL 10 this
+means CPython 3.12 (`cp312`) plus the selected `x86_64` or `aarch64` manylinux
+platforms. If no compatible wheel exists, Repo Manager permits only an
+explicit source-distribution download with dependency resolution disabled; it
+never retries using the OIM host interpreter or architecture.
+
+## Verified cross-version artifact reuse
+
+Public Pulp repositories, distributions, base paths, status rows, and log paths
+remain OS-version qualified. Internally, Repo Manager can avoid a second source
+transfer when the prior bytes are still provably identical:
+
+| Type | Reuse proof and compatibility boundary |
+|------|----------------------------------------|
+| `manifest` | Matching strong HTTP validator and SHA-256; OS-version and architecture independent |
+| URL `tarball` | Matching strong HTTP validator and SHA-256; reusable only for the same architecture |
+| Local `tarball` | Exact source digest and SHA-256; reusable only for the same architecture |
+| `git` | Exact remote branch/tag resolved to an immutable commit, plus archive SHA-256; OS-version and architecture independent |
+| `shell` | Matching strong HTTP validator and SHA-256; OS-version and architecture independent |
+| `ansible_galaxy_collection` | Exact collection and version plus SHA-256; OS-version and architecture independent |
+| `iso` | Exact local digest or matching strong HTTP validator plus SHA-256; reusable only for the same architecture |
+| `pip_module` | Exact pinned requirement, target Python ABI compatibility, wheel-platform compatibility, and SHA-256 |
+| `image` | One Pulp container repository and layer set per image source; readiness is verified for every requested architecture |
+| `rpm`, `rpm_repo`, `rpm_file` | Not shared across OS-version or architecture repository contexts |
+
+Universal `none-any` wheels and source distributions may be reused across
+architectures for the same target Python. Compiled wheels remain isolated by
+architecture. Unpinned Python requirements are always downloaded normally.
+Missing, corrupt, stale, or unverifiable cache state disables reuse and cannot
+make a Pulp endpoint ready; the normal processor path is used instead.
+When an exact File or Python content digest already exists in Pulp, Repo Manager
+associates that content with the new version-qualified repository instead of
+uploading the same bytes again. The repositories, distributions, and endpoint
+URLs remain separate; only Pulp's immutable content blob is shared.
+For containers, every catalog context retains its own status row, but a second
+compatible context reuses the already synchronized tag and distribution instead
+of downloading the image layers again.
+
 ### rpm and rpm_repo
 
 | Type | Behavior |
@@ -111,8 +149,9 @@ cleanup. When both forms provide a version, the values must match.
 | `rpm` | Validate or synchronize the named RPM according to repository policy |
 | `rpm_repo` | Use DNF to download the named package plus dependencies, then make them available through Pulp |
 
-`rpm_repo` requires retained Pulp content. Its mapped repository must not resolve
-to the `streamed` policy.
+An `rpm_repo` item may not explicitly declare `policy: never`. Other
+policy/caching combinations follow the effective-policy table; a `streamed`
+result selects validation-only handling.
 
 ### Multiple Tags for One Image
 
@@ -126,6 +165,12 @@ docker.io/victoriametrics/operator:config-reloader-v0.68.3
 Both tags use one Pulp container repository but remain separate catalog, status
 and mirror identities. Synchronizing or cleaning one tag does not remove its
 sibling tag.
+
+Before a tag or digest is treated as ready, Repo Manager reads its Pulp OCI
+manifest metadata. A direct manifest must match the selected architecture
+(`amd64` for `x86_64`, `arm64` for `aarch64`); a multiarch index must contain a
+matching Linux child. Missing, incompatible, or unreadable platform metadata
+cannot make the context successful.
 
 ---
 
@@ -394,8 +439,8 @@ These controls are independent:
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `parallel_config.default_nthreads` | `3` | General catalog package worker processes |
-| `rpm_repo_config.thread_pool_size` | `3` | RPM repositories processed in each Pulp stage |
+| `parallel_config.default_nthreads` | `4` | General catalog package worker processes |
+| `rpm_repo_config.thread_pool_size` | `2` | RPM repositories processed in each Pulp stage |
 | `dnf_config.max_concurrent_commands` | `1` | Maximum simultaneous DNF commands |
 
 Increasing general workers does not increase DNF concurrency. Keep DNF at one;
@@ -415,5 +460,5 @@ constrained.
 - Every non-public registry exists in `registries`.
 - Every basic-auth registry has a matching Vault credential entry.
 - Repository priority is between 1 and 100.
-- `rpm_repo` does not resolve to streamed content.
+- `rpm_repo` does not explicitly declare repository `policy: never`.
 - Both architectures are configured when selected by the catalog.

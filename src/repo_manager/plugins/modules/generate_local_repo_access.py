@@ -67,6 +67,7 @@ short_description: Generate repo_status.yml with repository URLs
 description:
     - Queries the Pulp CLI to get all available distributions
     - Generates YAML with repository URLs in the required format
+    - Publishes File and Python URLs by OS version and architecture
     - Marks status failed when catalog-required RPM distributions are missing
 options:
     pulp_server_ip:
@@ -629,6 +630,23 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
 
         return file_repos
 
+    def parse_file_distributions_by_version(self):
+        """Return File and Python distributions by version and architecture."""
+        return {
+            str(context['os_version']): self.parse_file_distributions(context)
+            for context in self.execution_contexts
+        }
+
+    @staticmethod
+    def _has_file_distribution(file_repos):
+        """Return whether a version-qualified file-repository map has content."""
+        return any(
+            artifacts
+            for architecture_repos in file_repos.values()
+            for content_types in architecture_repos.values()
+            for artifacts in content_types.values()
+        )
+
     def _legacy_type_url(self, file_repos, content_type, os_version=None,
                          architectures=None):
         """Return the primary-context type-level URL for compatibility."""
@@ -767,12 +785,22 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             data, Dumper=QuotedValueDumper, sort_keys=False, default_flow_style=False
         )
 
-    def generate_failed_yaml_content(self):
-        """Generate a fail-closed status without publishing repository URLs."""
+    def generate_failed_yaml_content(self, live_inspection_complete=False):
+        """Generate a fail-closed status without repository URLs.
+
+        A completed live inspection can identify the exact versions with
+        missing required RPM distributions. Preserve successful status for
+        every unaffected version while the aggregate document remains failed.
+        Collection errors and failed download runs continue to fail every
+        context for which no explicit execution result is available.
+        """
+        requested_status = (
+            'success' if live_inspection_complete else 'failed'
+        )
         status_by_version, _aggregate_status = build_terminal_context_status(
             self.execution_contexts,
             self.execution_results,
-            'failed',
+            requested_status,
         )
         for version in self.missing_rpm_repositories_by_version:
             status_by_version[str(version)] = 'failed'
@@ -813,7 +841,9 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         )
         self.missing_rpm_repositories_by_version = missing_by_version
         if missing_by_version:
-            return self.generate_failed_yaml_content()
+            return self.generate_failed_yaml_content(
+                live_inspection_complete=True
+            )
 
         status_by_version, aggregate_status = build_terminal_context_status(
             self.execution_contexts,
@@ -824,15 +854,16 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
             return self.generate_failed_yaml_content()
 
         primary_context = self.execution_contexts[0]
-        primary_file_repos = self.parse_file_distributions(primary_context)
+        file_repos = self.parse_file_distributions_by_version()
+        primary_file_repos = file_repos[str(primary_context['os_version'])]
         registries = self.load_user_registries()
         data = self._build_status_data(
             aggregate_status, status_by_version, repositories
         )
         if registries:
             data['registries'] = registries
-        if primary_file_repos and any(primary_file_repos.values()):
-            data['file_repos'] = primary_file_repos
+        if self._has_file_distribution(file_repos):
+            data['file_repos'] = file_repos
 
         legacy_url_args = (
             str(primary_context['os_version']),

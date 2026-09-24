@@ -245,6 +245,15 @@ Repo Manager state together.
 | Remove all Pulp content of selected categories | Use the matching `cleanup_repos=all`, `cleanup_containers=all` or `cleanup_files=all` value with `-e "force=true"` |
 | Remove the complete Pulp deployment | `ansible-playbook repo_manager.yml --tags cleanup_pulp` |
 
+An ordinary `download` rerun processes only new, changed, failed or pending
+catalog packages. A targeted RPM resync processes packages mapped to that exact
+repository; `resync_repos=all` processes every catalog `rpm` and `rpm_repo`
+package in each ordered execution context. Effective `immediate` and
+`on_demand` policies use `dnf download --resolve --alldeps`; `streamed` uses
+metadata-only `dnf info`. A failed repository synchronization is checkpointed,
+retried before DNF on the next run, and never makes an incomplete repository
+available to package workers.
+
 To add permanent content, update the catalog and Repo Manager input mapping,
 then run:
 

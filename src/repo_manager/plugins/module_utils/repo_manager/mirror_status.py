@@ -29,7 +29,8 @@ import json
 import tempfile
 from datetime import datetime, timezone
 
-MIRROR_INDEX_SCHEMA_VERSION = 2
+MIRROR_INDEX_SCHEMA_VERSION = 3
+REPOSITORY_SYNC_STATES = frozenset(("pending", "ready", "failed"))
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +49,8 @@ def _empty_mirror_index():
                 "failed": 0,
                 "pending": 0
             },
-            "packages": {}
+            "packages": {},
+            "repositories": {}
         }
     }
 
@@ -67,10 +69,12 @@ def migrate_mirror_index(mirror_data, global_index, logger):
     """
     mirror_root = mirror_data.setdefault("MirrorIndex", {})
     packages = mirror_root.setdefault("packages", {})
+    mirror_root.setdefault("repositories", {})
     schema_version = mirror_root.get("schema_version", 1)
 
     already_current = (
         schema_version == MIRROR_INDEX_SCHEMA_VERSION
+        and isinstance(mirror_root["repositories"], dict)
         and all(key == entry.get("hash") and entry.get("package_name")
                 for key, entry in packages.items())
     )
@@ -128,7 +132,11 @@ def load_mirror_index(mirror_index_path, logger):
         logger: Logger instance.
 
     Returns:
-        dict: Mirror index data, or empty structure if file doesn't exist or is corrupted.
+        dict: Mirror index data, or an empty structure when the file is absent.
+
+    Raises:
+        ValueError: The existing state is corrupt or structurally invalid.
+        OSError: The existing state cannot be read.
     """
     if not os.path.isfile(mirror_index_path):
         logger.info("Mirror index not found at %s, starting fresh", mirror_index_path)
@@ -138,18 +146,38 @@ def load_mirror_index(mirror_index_path, logger):
         with open(mirror_index_path, 'r', encoding='utf-8') as fh:
             data = json.load(fh)
 
+        mirror_root = data.get("MirrorIndex") if isinstance(data, dict) else None
+        repository_states = (
+            mirror_root.get("repositories", {})
+            if isinstance(mirror_root, dict) else {}
+        )
+        if (
+                not isinstance(data, dict)
+                or not isinstance(mirror_root, dict)
+                or not isinstance(
+                    mirror_root.get("packages", {}), dict
+                )
+                or not isinstance(
+                    repository_states, dict
+                )
+                or any(
+                    not isinstance(repo_name, str)
+                    or not isinstance(state, dict)
+                    or state.get("status") not in REPOSITORY_SYNC_STATES
+                    for repo_name, state in repository_states.items()
+                )):
+            raise ValueError("Mirror index has an invalid structure")
+        mirror_root.setdefault("repositories", {})
         logger.info("Loaded mirror index from %s with %d packages",
                     mirror_index_path,
-                    len(data.get("MirrorIndex", {}).get("packages", {})))
+                    len(data["MirrorIndex"].get("packages", {})))
         return data
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as error:
         logger.error("Mirror index file is corrupted")
-        logger.info("Starting fresh with empty mirror index")
-        return _empty_mirror_index()
-    except Exception:
+        raise ValueError("Mirror index file is corrupted") from error
+    except OSError:
         logger.error("Unable to load the mirror index")
-        logger.info("Starting fresh with empty mirror index")
-        return _empty_mirror_index()
+        raise
 
 
 def save_mirror_index(mirror_index_path, mirror_data, logger):
@@ -177,16 +205,95 @@ def save_mirror_index(mirror_index_path, mirror_data, logger):
     }
     mirror_data["MirrorIndex"]["summary"] = summary
 
-    # Atomic write: write to temp file then replace
-    # Use unique temp filename per process to avoid race conditions in parallel execution
-    temp_path = f"{mirror_index_path}.tmp.{os.getpid()}"
-    with open(temp_path, 'w', encoding='utf-8') as fh:
-        json.dump(mirror_data, fh, indent=2)
-    os.replace(temp_path, mirror_index_path)
+    descriptor, temp_path = tempfile.mkstemp(
+        prefix=f".{os.path.basename(mirror_index_path)}.",
+        suffix=".tmp",
+        dir=os.path.dirname(mirror_index_path),
+    )
+    try:
+        with os.fdopen(descriptor, 'w', encoding='utf-8') as fh:
+            json.dump(mirror_data, fh, indent=2)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(temp_path, mirror_index_path)
+    finally:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
 
     logger.info("Saved mirror index to %s: %d packages (mirrored=%d, failed=%d, pending=%d)",
                 mirror_index_path, summary["total_unique"],
                 summary["mirrored"], summary["failed"], summary["pending"])
+
+
+def repositories_requiring_retry(mirror_data):
+    """Return repositories whose interrupted or failed sync must be retried."""
+    repositories = mirror_data.get("MirrorIndex", {}).get("repositories", {})
+    if not isinstance(repositories, dict):
+        raise ValueError("Mirror index repository state is invalid")
+    return {
+        repo_name
+        for repo_name, state in repositories.items()
+        if isinstance(state, dict)
+        and state.get("status") in ("pending", "failed")
+    }
+
+
+def update_repository_sync_state(
+        mirror_data, repo_name, status, version_href=None, policy=None):
+    """Update one exact repository checkpoint in the mirror index.
+
+    The last confirmed version is retained while a new sync is pending or has
+    failed.  Raw Pulp errors are deliberately not persisted in this shared
+    state file.
+    """
+    if status not in REPOSITORY_SYNC_STATES:
+        raise ValueError("Unsupported repository synchronization state")
+    if not isinstance(repo_name, str) or not repo_name:
+        raise ValueError("Repository name is required")
+
+    mirror_root = mirror_data.setdefault("MirrorIndex", {})
+    repositories = mirror_root.setdefault("repositories", {})
+    entry = repositories.setdefault(repo_name, {})
+    entry["status"] = status
+    entry["retry_required"] = status in ("pending", "failed")
+    if version_href is not None:
+        entry["version_href"] = version_href
+    else:
+        entry.setdefault("version_href", "")
+    if policy is not None:
+        entry["policy"] = policy
+    else:
+        entry.setdefault("policy", "")
+    if status == "ready":
+        entry["last_successful_sync"] = datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+    else:
+        entry.setdefault("last_successful_sync", "")
+
+
+def remove_repository_sync_state(mirror_data, repo_name):
+    """Remove one repository checkpoint and report whether it existed."""
+    repositories = mirror_data.get("MirrorIndex", {}).get("repositories", {})
+    if not isinstance(repositories, dict):
+        raise ValueError("Mirror index repository state is invalid")
+    return repositories.pop(repo_name, None) is not None
+
+
+def mark_package_entries_pending(mirror_data, composite_hashes):
+    """Mark existing exact package identities pending and return the count."""
+    packages = mirror_data.get("MirrorIndex", {}).get("packages", {})
+    if not isinstance(packages, dict):
+        raise ValueError("Mirror index package state is invalid")
+    updated = 0
+    for composite_hash in set(composite_hashes):
+        entry = packages.get(composite_hash)
+        if not isinstance(entry, dict):
+            continue
+        entry["status"] = "pending"
+        entry["error"] = ""
+        updated += 1
+    return updated
 
 
 def save_global_package_index(global_index_path, global_index, logger):
