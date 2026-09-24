@@ -134,8 +134,6 @@ Per-domain configuration. Key sections:
 - **`enable_build_stream`** — Enable/disable the domain (`true`/`false`)
 - **`build_stream_host_ip`** — API server host IP
 - **`build_stream_port`** — API server port (default: `8010`)
-- **`build_execution_mode`** — `differential` uses catalog dictionary hits;
-  `lockstep` forces all functional groups to rebuild
 - **`gitlab_host`** — Target host for GitLab deployment
 - **`gitlab_project_name`** — GitLab project name (default: `omnia-catalog`)
 

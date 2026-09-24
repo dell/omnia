@@ -280,7 +280,7 @@ UT_TEST_CASE_IDS = {
             131: "test_catalog_status_uses_composite_identity_directory",
             132: "test_successful_catalog_build_upserts_dictionary",
             133: "test_dictionary_hits_require_complete_s3_artifacts",
-            134: "test_image_build_type_is_not_controlled_by_build_execution_mode",
+            134: "test_force_rebuild_is_the_only_rebuild_control",
             135: "test_latest_project_status_is_written_for_every_mode",
             136: "test_catalog_status_copy_is_catalog_mode_only",
         },

@@ -23,7 +23,6 @@ must be supplied before running `build_stream.yml`.
 | `enable_build_stream` | bool | **Mandatory** | `false` | Master switch — when `false` the entire domain is skipped. |
 | `build_stream_host_ip` | string (IP) | **Mandatory** | `""` | Public or admin IP of the OIM server hosting the BSM API. |
 | `build_stream_port` | int (1-65535) | **Mandatory** | `8010` | TCP port the BSM FastAPI server listens on. |
-| `build_execution_mode` | enum | Optional | `"differential"` | `differential` reuses global dictionary hits; `lockstep` rebuilds every catalog functional group. The setting applies uniformly to all BuildStream trigger types. |
 
 ### 1.2  GitLab Settings
 

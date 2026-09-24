@@ -94,9 +94,11 @@ def test_dictionary_hits_require_complete_s3_artifacts():
     assert "invalid_groups" in content
 
 
-def test_image_build_type_is_not_controlled_by_build_execution_mode():
+def test_force_rebuild_is_the_only_rebuild_control():
     source = "\n".join(
         path.read_text(encoding="utf-8")
-        for path in (REPO_ROOT / "src/image_build_manager").rglob("*.yml")
+        for domain in ("image_build_manager", "build_stream")
+        for path in (REPO_ROOT / "src" / domain).rglob("*")
+        if path.suffix in {".py", ".yml", ".yaml", ".json", ".md"}
     )
     assert "build_execution_mode" not in source

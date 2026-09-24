@@ -156,29 +156,6 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
             log_secure_info('error', f"Unexpected error reading build_stream_config.yml for job {job_id}")
             return None
 
-    def get_build_execution_mode(self, job_id: str) -> str:
-        """Read the uniform catalog build strategy from BuildStream config."""
-        try:
-            with self._config_file_path.open("r", encoding="utf-8") as stream:
-                config = yaml.safe_load(stream) or {}
-        except (OSError, yaml.YAMLError):
-            log_secure_info(
-                "warning",
-                "Unable to read build_execution_mode; using differential",
-                job_id=job_id,
-            )
-            return "differential"
-
-        mode = str(config.get("build_execution_mode", "differential")).lower()
-        if mode not in {"differential", "lockstep"}:
-            log_secure_info(
-                "warning",
-                "Invalid build_execution_mode; using differential",
-                job_id=job_id,
-            )
-            return "differential"
-        return mode
-
     # === Inventory File Methods ===
 
     def create_inventory_file(self, inventory_host: InventoryHost, job_id: str) -> Path:

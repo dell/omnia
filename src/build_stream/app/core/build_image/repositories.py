@@ -39,16 +39,6 @@ class BuildStreamConfigRepository(ABC):
         """
         raise NotImplementedError
 
-    def get_build_execution_mode(self, job_id: str) -> str:
-        """Return the configured catalog build strategy.
-
-        The concrete repository overrides this method. Keeping a safe default
-        preserves compatibility for alternate repository implementations.
-        """
-        del job_id
-        return "differential"
-
-
 class BuildImageInventoryRepository(ABC):  # pylint: disable=too-few-public-methods
     """Repository for creating and managing inventory files for aarch64 builds."""
 
