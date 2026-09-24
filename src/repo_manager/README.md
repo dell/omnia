@@ -1,6 +1,6 @@
 # Repo Manager
 
-**Collection**: `omnia.repo_manager` v3.0.0
+**Collection**: `omnia.repo_manager` v2.3.0
 
 Deploys an HTTPS Pulp content server and synchronizes catalog content for
 offline Omnia clusters. Supports RPM repositories and packages, container
@@ -163,7 +163,7 @@ Credential files are Ansible Vault protected, root-owned and mode `0600`.
 
 | Output | Location | Purpose |
 |--------|----------|---------|
-| `repo_status.yml` | `output/<project>/` | Pulp URLs, repositories, file content and certificate paths for consumers |
+| `repo_status.yml` | `output/<project>/` | Version-qualified Pulp RPM/File/Python URLs and certificate paths for consumers |
 | Package/group state | `log/<os>/<version>/<arch>/` | Per-group CSV and worker results |
 | Mirror indexes | `log/<os>/<version>/mirror_status/` | Composite catalog and Pulp mirror state |
 
@@ -216,8 +216,9 @@ Per-repository `policy` and `caching` fields override the global values.
 | `never` | either | `streamed` |
 
 Container synchronization uses its independent configured policy and defaults
-to `immediate`. A catalog `rpm_repo` item must use retained content and cannot
-resolve to `streamed`.
+to `immediate`. An `rpm_repo` item may not explicitly declare `policy: never`.
+When another policy/caching combination maps to `streamed`, Repo Manager uses
+validation-only handling for that item.
 
 ### RHEL Subscription Repositories
 
@@ -258,8 +259,8 @@ configuration entry.
 
 | Setting | Default | Scope |
 |---------|---------|-------|
-| `parallel_config.default_nthreads` | `3` | General catalog worker processes |
-| `rpm_repo_config.thread_pool_size` | `3` | RPM repository synchronization |
+| `parallel_config.default_nthreads` | `4` | General catalog worker processes |
+| `rpm_repo_config.thread_pool_size` | `2` | RPM repository synchronization |
 | `dnf_config.max_concurrent_commands` | `1` | DNF commands and shared metadata cache |
 
 Keep DNF concurrency at one. Reduce either parallel setting when Pulp, network,
@@ -312,6 +313,7 @@ Full Pulp cleanup removes runtime logs by default. Use
 | [Input Contract](docs/contracts/input-contract.md) | Environment and input schemas |
 | [Output Contract](docs/contracts/output-contract.md) | `repo_status.yml`, state and logs |
 | [Design](docs/design/repo-manager-design.md) | Developer implementation boundaries and invariants |
+| [Pulp Administration](docs/pulp-administration.md) | Pulp lifecycle, storage, health and recovery |
 
 ---
 

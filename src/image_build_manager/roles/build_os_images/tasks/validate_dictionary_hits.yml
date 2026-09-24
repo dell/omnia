@@ -1,0 +1,62 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Build dictionary S3 artifact validation list
+  ansible.builtin.set_fact:
+    _dictionary_artifact_candidates: >-
+      {% set result = [] -%}
+      {% for fg_name, entry in (_dictionary_hits | default({})).items() -%}
+        {% for artifact_name, artifact_path in entry.s3_paths.items() -%}
+          {% set _ = result.append({
+            'functional_group': fg_name,
+            'artifact_name': artifact_name,
+            'artifact_path': artifact_path
+          }) -%}
+        {% endfor -%}
+      {% endfor -%}
+      {{ result }}
+
+- name: Verify dictionary S3 artifacts still exist
+  ansible.builtin.command:
+    argv:
+      - s3cmd
+      - info
+      - >-
+        {{ item.artifact_path
+           if item.artifact_path.startswith('s3://')
+           else 's3://' ~ item.artifact_path }}
+  register: _dictionary_artifact_checks
+  changed_when: false
+  failed_when: false
+  loop: "{{ _dictionary_artifact_candidates }}"
+  loop_control:
+    label: "{{ item.functional_group }}:{{ item.artifact_name }}"
+
+- name: Keep only dictionary hits with complete S3 artifacts
+  ansible.builtin.set_fact:
+    _dictionary_hits: >-
+      {% set invalid_groups = [] -%}
+      {% for check in _dictionary_artifact_checks.results | default([]) -%}
+        {% if check.rc | default(1) != 0 -%}
+          {% set _ = invalid_groups.append(check.item.functional_group) -%}
+        {% endif -%}
+      {% endfor -%}
+      {% set result = {} -%}
+      {% for fg_name, entry in (_dictionary_hits | default({})).items() -%}
+        {% if fg_name not in invalid_groups -%}
+          {% set _ = result.update({fg_name: entry}) -%}
+        {% endif -%}
+      {% endfor -%}
+      {{ result }}

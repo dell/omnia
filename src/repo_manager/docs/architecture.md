@@ -114,6 +114,25 @@ when explicitly selected. Do not combine cleanup tags with the standard workflow
 7. Synchronize RPM, OCI image, File and Python content to Pulp.
 8. Update group status CSVs and the mirror index.
 
+Selected OS minor versions execute sequentially in configured numeric order.
+All work for the active version finishes before the next version starts.
+Architectures may use separate workers inside that version stage, but public
+repository names and paths always include their exact OS version and
+architecture where the existing content contract requires it.
+
+For non-RPM artifacts, a private digest index at
+`<REPO_MANAGER_DATA_PATH>/.data/shared_artifact_index.json` can reuse verified
+source bytes across compatible contexts. It is an optimization hint only:
+endpoint readiness continues to come from successful Pulp reconciliation and
+the existing status workflow. The index never appears in `repo_status.yml`.
+Manifest, immutable Git archive, verified shell, and pinned Galaxy collection
+bytes can cross OS-version and architecture contexts. Tarballs and ISOs are
+limited to the same architecture. Python content is limited by the target
+Python ABI and wheel platform; universal wheels and source distributions can
+cross architectures. RPM content remains isolated by OS version and
+architecture. Container images use one source-image Pulp repository while
+platform verification ensures the requested architecture is actually present.
+
 General catalog workers, RPM-repository workers and DNF command concurrency are
 separate controls. DNF command concurrency defaults to one to protect its shared
 metadata cache.
@@ -124,6 +143,11 @@ metadata cache.
 - Read actual Pulp distributions.
 - Generate `<REPO_MANAGER_DATA_PATH>/output/<project>/repo_status.yml`.
 - Include HTTPS repository URLs, file-content URLs and certificate paths.
+
+Both RPM `repositories` and File/Python `file_repos` use the hierarchy
+`<version> -> <architecture> -> ...`, so every selected OS minor version
+publishes its exact ready Pulp endpoints. The legacy type-level and
+`offline_*` URLs continue to identify the first ordered execution context.
 
 The status file is generated only when the `status` tag runs. Selective cleanup
 removes the stale file; run `download,status` to restore deleted catalog content
@@ -191,6 +215,7 @@ mapping and policy behavior.
 | Pulp settings and data | `<REPO_MANAGER_DATA_PATH>/pulp_config/` |
 | RHEL entitlement copy | `<REPO_MANAGER_DATA_PATH>/rhel_repo_certs/` |
 | Local content staging | `<REPO_MANAGER_DATA_PATH>/offline_repo/` |
+| Private verified-artifact index | `<REPO_MANAGER_DATA_PATH>/.data/shared_artifact_index.json` |
 | Top-level Ansible log | `/var/log/omnia/repo_manager/repo_manager.log` |
 
 `REPO_MANAGER_DATA_PATH` defaults to `<OMNIA_DATA_PATH>/repo_manager`.

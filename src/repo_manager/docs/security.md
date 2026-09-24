@@ -111,6 +111,9 @@ not embedded in distribution URLs.
 | Cleanup path validation | Refuse broad system and parent-directory targets |
 | Atomic status/mirror writes | Avoid partially written tracking state |
 | Pulp post-delete verification | Update local state only after confirmed deletion |
+| Target-qualified Python downloads | Prevent OIM interpreter/CPU wheels from entering node repositories |
+| OCI manifest platform verification | Prevent an amd64-only image from satisfying an aarch64 context, or the reverse |
+| SHA-256 artifact reuse checks | Reject changed or tampered cross-context source bytes |
 
 Digest-based container cleanup is rejected. Tagged cleanup addresses exactly one
 tag; untagged cleanup intentionally removes the complete image repository.
@@ -124,6 +127,7 @@ tag; untagged cleanup intentionally removes the complete image repository.
 | Runtime directories | `0755` |
 | Public configuration and generated status | `0644` |
 | Credentials, Vault key and private keys | `0600` |
+| Shared artifact index and lock | `0600` below a `0700` private state directory |
 
 Do not relax credential or private-key permissions to solve container access.
 Correct SELinux labels and mounts instead.

@@ -196,6 +196,19 @@ pulp_file_commands = {
         "file", "content", "upload", "--repository", "%s",
         "--file", "%s", "--relative-path", "%s",
     ),
+    "content_add": _template(
+        "file", "repository", "content", "modify", "--repository", "%s",
+        "--add-content", "%s",
+    ),
+    "list_content_exact": _template(
+        "file", "content", "list", "--sha256", "%s",
+        "--relative-path", "%s", "--limit", "2",
+    ),
+    "list_repository_content_exact": _template(
+        "file", "content", "list", "--sha256", "%s",
+        "--relative-path", "%s", "--repository-version", "%s",
+        "--limit", "2",
+    ),
     "publication_create": _template(
         "file", "publication", "create", "--repository", "%s",
     ),
@@ -245,6 +258,17 @@ pulp_python_commands = {
     "content_upload": _template(
         "python", "content", "upload", "--repository", "%s",
         "--file", "%s", "--relative-path", "%s",
+    ),
+    "content_add": _template(
+        "python", "repository", "content", "modify",
+        "--repository", "%s", "--add-content", "%s",
+    ),
+    "list_content_sha256": _template(
+        "python", "content", "list", "--sha256", "%s", "--limit", "2",
+    ),
+    "list_repository_content_sha256": _template(
+        "python", "content", "list", "--sha256", "%s",
+        "--repository-version", "%s", "--limit", "2",
     ),
     "distribution_create": _template(
         "python", "distribution", "create", "--name", "%s",
@@ -358,6 +382,10 @@ pulp_container_commands = {
         "container", "repository", "content", "-t", "tag", "list",
         "--repository", "%s", "--limit", "%s", "--offset", "%s",
     ),
+    "list_manifest_digest": _template(
+        "container", "content", "--type", "manifest", "list",
+        "--digest", "%s", "--repository-version", "%s", "--limit", "2",
+    ),
     "untag_repository": _template(
         "container", "repository", "untag", "--name", "%s", "--tag", "%s",
     ),
@@ -422,7 +450,6 @@ pulp_rpm_commands = {
     "list_publications": _template(
         "rpm", "publication", "list", "--repository", "%s", "--limit", "1000",
     ),
-    "list_all_publications": _template("rpm", "publication", "list", "--limit", "1000"),
     "delete_publication": _template("rpm", "publication", "destroy", "--href", "%s"),
     "get_repo_version": _template("rpm", "repository", "show", "--name", "%s"),
     "repository_version_destroy": _template(
