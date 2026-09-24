@@ -1,0 +1,171 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# CADENCE REPOSITORY SYNC PLAYBOOK
+# =============================================================================
+# Synchronizes packages from Pulp repository based on the cadence catalog.
+#
+# PHASE 1 (CURRENT): Stub implementation - returns success
+# This is a placeholder for the complete repo sync implementation.
+# Phase 2 will include actual package sync, validation, and service restart.
+#
+# Workflow:
+#   1. Catalog Copy: Verify catalog is present at CATALOG_FILE_PATH
+#   2. Sync Execution: Placeholder for package sync from Pulp (returns success)
+#   3. API Validation: Call validate API to confirm sync state
+#   4. Service Restart: Restart affected services for new packages
+#   5. Completion: Return success status
+#
+# Environment Variables:
+#   CATALOG_FILE_PATH: Path to catalog file (set by cadence_manager before playbook)
+#   OMNIA_DATA_PATH: Base Omnia data directory
+#   PLAYBOOK_WATCHER_API_URL: API endpoint for restart/validate operations
+#
+# Called by: cadence_manager.py CadenceTimerThread
+# ER Reference: ER-BSM-002 — AC-008, AC-009, AC-015, AC-020 through AC-030
+# =============================================================================
+
+- name: Cadence Repository Sync
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omnia_data_path + '/catalog/catalog_rhel.json', true) }}"
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    watcher_api_url: "{{ lookup('env', 'PLAYBOOK_WATCHER_API_URL') | default('http://localhost:8080', true) }}"
+  tasks:
+    - name: "[Phase 1] Display catalog file location"
+      ansible.builtin.debug:
+        msg: "Catalog file path: {{ catalog_file_path }}"
+
+    - name: "[Phase 1] Verify catalog file exists"
+      ansible.builtin.stat:
+        path: "{{ catalog_file_path }}"
+      register: catalog_stat
+      failed_when: not catalog_stat.stat.exists
+      changed_when: false
+
+    - name: "[Phase 1] Load catalog content (verification)"
+      ansible.builtin.slurp:
+        src: "{{ catalog_file_path }}"
+      register: catalog_content
+
+    - name: "[Phase 1] Parse catalog JSON"
+      ansible.builtin.set_fact:
+        catalog_data: "{{ catalog_content['content'] | b64decode | from_json }}"
+
+    - name: "[Phase 1] Log catalog metadata"
+      ansible.builtin.debug:
+        msg: |
+          Cadence Repository Sync - Phase 1 (Stub)
+          ==========================================
+          Catalog File: {{ catalog_file_path }}
+          Catalog Version: {{ catalog_data.get('catalog', {}).get('version', 'unknown') }}
+          Omnia Data Path: {{ omnia_data_path }}
+          Watcher API URL: {{ watcher_api_url }}
+          Status: PLACEHOLDER - Actual sync implementation coming in Phase 2
+
+    # =========================================================================
+    # PHASE 1: Package Sync Placeholder
+    # In Phase 2, this will be replaced with actual Pulp sync logic
+    # =========================================================================
+    - name: "[Phase 1] Dummy sync operation (placeholder for Phase 2)"
+      ansible.builtin.debug:
+        msg: "PLACEHOLDER: Sync packages from Pulp using catalog metadata (Phase 2 implementation)"
+      register: sync_result
+
+    - name: "[Phase 1] Set sync result to success"
+      ansible.builtin.set_fact:
+        sync_succeeded: true
+        sync_timestamp: "{{ ansible_date_time.iso8601 }}"
+
+    # =========================================================================
+    # API Validation: Call validate API via playbook-watcher
+    # =========================================================================
+    - name: "[Phase 1] Call validate API to confirm sync state"
+      ansible.builtin.uri:
+        url: "{{ watcher_api_url }}/api/validate"
+        method: POST
+        body_format: json
+        body:
+          action: "validate_cadence_sync"
+          catalog_version: "{{ catalog_data.get('catalog', {}).get('version', 'unknown') }}"
+          timestamp: "{{ sync_timestamp }}"
+        timeout: 30
+        status_code: [200, 201, 202]
+      register: validate_response
+      ignore_errors: true
+
+    - name: "[Phase 1] Log validate API response"
+      ansible.builtin.debug:
+        msg: "Validate API response: {{ validate_response.status | default('no response') }}"
+      when: validate_response is defined
+
+    # =========================================================================
+    # Service Restart: Restart affected services for new packages
+    # =========================================================================
+    - name: "[Phase 1] Call restart API to restart services"
+      ansible.builtin.uri:
+        url: "{{ watcher_api_url }}/api/restart"
+        method: POST
+        body_format: json
+        body:
+          action: "restart_services_after_sync"
+          services:
+            - name: "pulp"
+              reason: "New packages synchronized"
+            - name: "playbook_watcher"
+              reason: "Sync operation complete"
+          timestamp: "{{ sync_timestamp }}"
+        timeout: 60
+        status_code: [200, 201, 202]
+      register: restart_response
+      ignore_errors: true
+
+    - name: "[Phase 1] Log restart API response"
+      ansible.builtin.debug:
+        msg: "Restart API response: {{ restart_response.status | default('no response') }}"
+      when: restart_response is defined
+
+    # =========================================================================
+    # Completion: Return success status
+    # =========================================================================
+    - name: "[Phase 1] Cadence sync completed successfully"
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Cadence Repository Sync - Status: SUCCESS
+          ========================================
+          Catalog: {{ catalog_file_path }}
+          Version: {{ catalog_data.get('catalog', {}).get('version', 'unknown') }}
+          Sync Result: {{ sync_succeeded }}
+          Timestamp: {{ sync_timestamp }}
+          Validate API: {{ validate_response.status | default('skipped') }}
+          Restart API: {{ restart_response.status | default('skipped') }}
+
+          PHASE 1 COMPLETE:
+          - Catalog verified at CATALOG_FILE_PATH
+          - Dummy sync operation completed (returns success)
+          - Validate API called (Phase 2: full validation)
+          - Restart API called (Phase 2: actual service restart)
+
+          PHASE 2 (Upcoming):
+          - Implement actual Pulp package sync logic
+          - Add comprehensive validation checks
+          - Implement actual service restart procedures
+          - Add error handling and retry logic
+          - Add metrics and observability
+          ========================================
+      changed_when: sync_succeeded

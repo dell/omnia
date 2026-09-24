@@ -138,6 +138,10 @@ gitlab_trigger_description: "Omnia Software Catalog Webhook"
 gitlab_catalog_repo_path: "catalog_rhel.json"
 # Use catalogs from src/main/samples directory instead of removed examples/catalog
 gitlab_catalog_json_source: "{{ (role_path | realpath) ~ '/../../../main/samples/catalog_rhel.json' }}"
+
+# Cadence catalog — watched by the cadence pipeline (ER-BSM-002: AC-015)
+gitlab_cadence_catalog_repo_path: "cadence_catalog_rhel.json"
+gitlab_cadence_catalog_json_source: "{{ (role_path | realpath) ~ '/../../../main/samples/cadence_catalog_rhel.json' }}"  # noqa: yaml[line-length]
 gitlab_input_repo_dir: "input"
 
 # --- Domain-segregated input layout (Omnia 2.3+) ---

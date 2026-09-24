@@ -2140,6 +2140,51 @@ def scan_and_process_requests() -> int:
         return 0
 
 
+def _start_cadence_timer():
+    """Start the cadence polling timer thread if enabled.
+
+    Reads cadence configuration and starts CadenceTimerThread as a
+    daemon thread that periodically triggers repo_manager syncs
+    for the cadence catalog.
+
+    Returns:
+        CadenceTimerThread instance if started, None otherwise.
+    """
+    try:
+        from cadence_manager import (  # pylint: disable=import-outside-toplevel
+            load_cadence_config,
+            CadenceTimerThread,
+        )
+    except ImportError:
+        log_secure_info(
+            "warning",
+            "cadence_manager module not available — cadence polling disabled"
+        )
+        return None
+
+    config = load_cadence_config()
+    if not config.get("enabled", False):
+        log_secure_info(
+            "info",
+            "Cadence polling is disabled in configuration"
+        )
+        return None
+
+    cadence_thread = CadenceTimerThread(
+        config=config,
+        requests_dir=REQUESTS_DIR,
+        results_dir=RESULTS_DIR,
+        processing_dir=PROCESSING_DIR,
+    )
+    cadence_thread.start()
+    log_secure_info(
+        "info",
+        f"Cadence timer started: "
+        f"interval={config.get('interval_seconds', 86400)}s"
+    )
+    return cadence_thread
+
+
 def run_watcher_loop():
     """Main watcher loop that continuously polls for requests."""
     log_secure_info(
@@ -2173,6 +2218,9 @@ def run_watcher_loop():
         )
         sys.exit(1)
 
+    # Start cadence polling timer (ER-BSM-002: AC-008)
+    cadence_thread = _start_cadence_timer()
+
     # Main loop
     iteration = 0
     while not SHUTDOWN_REQUESTED:
@@ -2194,6 +2242,12 @@ def run_watcher_loop():
 
         # Sleep before next poll
         time.sleep(POLL_INTERVAL_SECONDS)
+
+    # Stop cadence timer on shutdown
+    if cadence_thread is not None:
+        cadence_thread.stop()
+        cadence_thread.join(timeout=5)
+        log_secure_info("info", "Cadence timer stopped")
 
     log_secure_info(
         "info",
