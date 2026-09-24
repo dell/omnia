@@ -24,12 +24,14 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
 from ansible.module_utils.repo_manager.security_utils import (
     redact_sensitive_value,
+    validate_repository_id,
     validate_no_url_credentials,
 )
 from ansible.module_utils.repo_manager.software_utils import (
     transform_package_dict,
     remove_duplicates_from_trans,
     build_repo_name,
+    normalize_repo_name,
     resolve_pulp_policy,
     resolve_repository_pulp_policy,
 )
@@ -53,6 +55,8 @@ from ansible.module_utils.repo_manager.mirror_status import (
     migrate_mirror_index,
     detect_package_changes,
     filter_tasks_for_processing,
+    mark_package_entries_pending,
+    repositories_requiring_retry,
 )
 from ansible.module_utils.repo_manager.config import (
     LOG_DIR_DEFAULT,
@@ -60,7 +64,6 @@ from ansible.module_utils.repo_manager.config import (
     MIRROR_STATUS_DIR,
     REPO_MANAGER_CONFIG_PATH_DEFAULT,
 )
-
 DOCUMENTATION = r"""
 ---
 module: prepare_tasklist
@@ -102,11 +105,52 @@ task_count:
   returned: success
 """
 
+def normalize_resync_selection(
+        resync_repos, retry_repositories=None,
+        policy_changed_repositories=None):
+    """Return all-selection flag and exact repositories requiring RPM work."""
+    if resync_repos in (None, ""):
+        all_selected = False
+        values = []
+    elif resync_repos == "all":
+        all_selected = True
+        values = []
+    elif isinstance(resync_repos, str):
+        all_selected = False
+        values = [value.strip() for value in resync_repos.split(",")]
+    elif isinstance(resync_repos, list):
+        all_selected = False
+        values = resync_repos
+    else:
+        raise ValueError("resync_repos must be a repository list or 'all'")
+    selected_repositories = {
+        validate_repository_id(value)
+        for value in values
+        if value
+    }
+    selected_repositories.update({
+        validate_repository_id(repo_name)
+        for repo_name in (retry_repositories or set())
+    })
+    selected_repositories.update({
+        validate_repository_id(repo_name)
+        for repo_name in (policy_changed_repositories or set())
+    })
+    return all_selected, selected_repositories
+
+
 def packages_requiring_reconciliation(
-        change_results, configured_registry_names, rpm_policy_by_repo=None):
-    """Return mirrored packages whose external Pulp state must be revalidated."""
+        change_results, configured_registry_names, repository_context,
+        resync_all=False, selected_repositories=None):
+    """Return mirrored packages selected by explicit or recovery work.
+
+    Ordinary successful RPMs stay skipped.  An explicit resync, a persisted
+    repository failure, or an effective-policy transition selects only the
+    packages mapped to the exact repository and execution context.
+    """
     reconciliation_packages = []
-    rpm_policy_by_repo = rpm_policy_by_repo or {}
+    selected_repositories = selected_repositories or set()
+    arch, os_type, os_version = repository_context
     for package_info in change_results.get("skip", []):
         package_type = package_info.get("type")
         if package_type in ("rpm", "rpm_repo"):
@@ -114,9 +158,12 @@ def packages_requiring_reconciliation(
                 package_info.get("repo_name")
                 or package_info.get("definition", {}).get("repo_name", "")
             )
-            if rpm_policy_by_repo.get(repo_name) == "on_demand":
-                # Reissue the DNF request so catalog-selected payloads remain
-                # retained after a policy transition or interrupted Pulp run.
+            if not repo_name:
+                continue
+            full_repo_name = validate_repository_id(normalize_repo_name(
+                repo_name, arch, os_type, os_version
+            ))
+            if resync_all or full_repo_name in selected_repositories:
                 reconciliation_packages.append(package_info)
             continue
 
@@ -150,6 +197,7 @@ def main():
         "referenced_repositories": {
             "type": "dict", "required": False, "default": None
         },
+        "resync_repos": {"type": "raw", "required": False, "default": None},
     }
 
     module = AnsibleModule(argument_spec=module_args)
@@ -160,6 +208,7 @@ def main():
     cluster_os_version = module.params["cluster_os_version"]
     selected_architectures = module.params["architectures"]
     referenced_repositories = module.params["referenced_repositories"]
+    resync_repos = module.params["resync_repos"]
     logger = setup_standard_logger(log_dir)
     start_time = datetime.now().strftime("%I:%M:%S %p")
     logger.info(f"Start execution time: {start_time}")
@@ -215,11 +264,16 @@ def main():
         mirror_index_dir = os.path.join(log_dir, MIRROR_STATUS_DIR)
         mirror_index_path = os.path.join(mirror_index_dir, MIRROR_INDEX_FILENAME)
         mirror_data = load_mirror_index(mirror_index_path, logger)
+        source_schema_version = mirror_data.get(
+            "MirrorIndex", {}
+        ).get("schema_version", 1)
         mirror_index_migrated = migrate_mirror_index(
             mirror_data, global_index, logger
         )
         if mirror_index_migrated and os.path.isfile(mirror_index_path):
-            backup_path = f"{mirror_index_path}.schema-v1.bak"
+            backup_path = (
+                f"{mirror_index_path}.schema-v{source_schema_version}.bak"
+            )
             if not os.path.exists(backup_path):
                 shutil.copy2(mirror_index_path, backup_path)
                 logger.info("Backed up legacy mirror index to %s", backup_path)
@@ -231,6 +285,8 @@ def main():
         # Build task list per architecture with change detection
         final_tasks_dict = {}
         sw_archs = []
+        rpm_reconciliation_hashes = set()
+        retry_repositories = repositories_requiring_retry(mirror_data)
 
         for arch in selected_architectures:
             if arch not in global_index or not global_index[arch]:
@@ -249,10 +305,32 @@ def main():
                 )
                 for repo_name in referenced_repositories.get(arch, [])
             }
+            repository_states = mirror_data.get(
+                "MirrorIndex", {}
+            ).get("repositories", {})
+            policy_changed_repositories = set()
+            for repo_name, policy in rpm_policy_by_repo.items():
+                full_repo_name = validate_repository_id(normalize_repo_name(
+                    repo_name, arch, cluster_os_type, cluster_os_version
+                ))
+                stored_policy = repository_states.get(
+                    full_repo_name, {}
+                ).get("policy")
+                if stored_policy and stored_policy != policy:
+                    policy_changed_repositories.add(full_repo_name)
 
             configured_registry_names = set((config_data.get("registries") or {}).keys())
+            resync_all, selected_repositories = normalize_resync_selection(
+                resync_repos,
+                retry_repositories=retry_repositories,
+                policy_changed_repositories=policy_changed_repositories,
+            )
             reconciliation_packages = packages_requiring_reconciliation(
-                change_results, configured_registry_names, rpm_policy_by_repo
+                change_results,
+                configured_registry_names,
+                (arch, cluster_os_type, cluster_os_version),
+                resync_all=resync_all,
+                selected_repositories=selected_repositories,
             )
             if reconciliation_packages:
                 logger.info(
@@ -260,6 +338,11 @@ def main():
                     len(reconciliation_packages)
                 )
                 packages_to_process.extend(reconciliation_packages)
+                rpm_reconciliation_hashes.update(
+                    package_info["hash"]
+                    for package_info in reconciliation_packages
+                    if package_info.get("type") in ("rpm", "rpm_repo")
+                )
 
             if not packages_to_process:
                 logger.info("No packages to process for arch %s (all up-to-date)", arch)
@@ -308,7 +391,14 @@ def main():
             logger.info("Catalog-based tasklist for arch %s: %s", arch, list(trans.keys()))
             final_tasks_dict.update(trans)
 
-        # Save updated mirror index (mark new packages as pending)
+        # Save updated mirror index. RPMs selected for resync/recovery become
+        # pending before Pulp work starts, so an interruption before DNF cannot
+        # incorrectly preserve their previous successful state.
+        mark_package_entries_pending(
+            mirror_data, rpm_reconciliation_hashes
+        )
+
+        # Mark new packages as pending.
         for arch in sw_archs:
             arch_index = global_index.get(arch, {})
             for composite_hash, pkg_info in arch_index.items():

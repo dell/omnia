@@ -37,7 +37,11 @@ from ansible.module_utils.repo_manager.config import (
     MIRROR_STATUS_DIR,
     PULP_DISTRIBUTION_ROOT_PARTS,
 )
-from ansible.module_utils.repo_manager.mirror_status import save_mirror_index
+from ansible.module_utils.repo_manager.mirror_status import (
+    load_mirror_index,
+    remove_repository_sync_state,
+    save_mirror_index,
+)
 from ansible.module_utils.repo_manager.path_resolver import (
     validate_cleanup_child,
     validate_cleanup_root,
@@ -48,6 +52,9 @@ from ansible.module_utils.repo_manager.registry_utils import (
 from ansible.module_utils.repo_manager.security_utils import (
     parse_python_requirement,
     validate_python_repository_id,
+)
+from ansible.module_utils.repo_manager.shared_artifact_state import (
+    SharedArtifactCache,
 )
 from ansible.module_utils.repo_manager.pulp_commands import (
     build_pulp_entity_command,
@@ -851,7 +858,7 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
     """Cleanup a single RPM repository."""
     result = {
         "name": name, "type": "repository", "status": "Failed",
-        "message": "", "changed": False,
+        "message": "", "changed": False, "pulp_changed": False,
     }
     valid, validation_message = _validate_pulp_name(name, "RPM repository name")
     if not valid:
@@ -869,6 +876,7 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
             "rpm", "distribution", name, logger
         )
         result["changed"] = result["changed"] or object_changed
+        result["pulp_changed"] = result["pulp_changed"] or object_changed
         messages.append(message)
         if not ok:
             result["message"] = "; ".join(messages)
@@ -879,6 +887,9 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
                 "rpm", name, logger
             )
             result["changed"] = result["changed"] or publication_changed
+            result["pulp_changed"] = (
+                result["pulp_changed"] or publication_changed
+            )
             messages.extend(publication_messages)
             if not ok:
                 result["message"] = "; ".join(messages)
@@ -890,6 +901,7 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
             "rpm", "remote", name, logger, required=False
         )
         result["changed"] = result["changed"] or object_changed
+        result["pulp_changed"] = result["pulp_changed"] or object_changed
         messages.append(message)
         if not ok:
             result["message"] = "; ".join(messages)
@@ -899,6 +911,7 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
             "rpm", "repository", name, logger
         )
         result["changed"] = result["changed"] or object_changed
+        result["pulp_changed"] = result["pulp_changed"] or object_changed
         messages.append(message)
         if not ok:
             result["message"] = "; ".join(messages)
@@ -953,7 +966,7 @@ def cleanup_container(user_input: str, base_path: str, logger,
     """
     result = {
         "name": user_input, "type": "container", "status": "Failed",
-        "message": "", "changed": False,
+        "message": "", "changed": False, "pulp_changed": False,
     }
     tag = None
 
@@ -988,6 +1001,7 @@ def cleanup_container(user_input: str, base_path: str, logger,
                 pulp_name, tag, logger
             )
             result["changed"] = tag_changed
+            result["pulp_changed"] = tag_changed
             if not ok:
                 result["message"] = message
                 return result
@@ -1011,6 +1025,7 @@ def cleanup_container(user_input: str, base_path: str, logger,
             "container", "distribution", pulp_name, logger
         )
         result["changed"] = result["changed"] or object_changed
+        result["pulp_changed"] = result["pulp_changed"] or object_changed
         messages.append(message)
         if not ok:
             result["message"] = "; ".join(messages)
@@ -1027,6 +1042,7 @@ def cleanup_container(user_input: str, base_path: str, logger,
                 "container", "remote", remote_name, logger, required=False
             )
             result["changed"] = result["changed"] or object_changed
+            result["pulp_changed"] = result["pulp_changed"] or object_changed
             messages.append(message)
             if not ok:
                 result["message"] = "; ".join(messages)
@@ -1036,6 +1052,7 @@ def cleanup_container(user_input: str, base_path: str, logger,
             "container", "repository", pulp_name, logger
         )
         result["changed"] = result["changed"] or object_changed
+        result["pulp_changed"] = result["pulp_changed"] or object_changed
         messages.append(message)
         if not ok:
             result["message"] = "; ".join(messages)
@@ -1048,7 +1065,7 @@ def cleanup_container(user_input: str, base_path: str, logger,
             affected = remove_from_status_files(user_input, 'image', base_path, logger)
         else:
             affected = remove_container_repo_from_status_files(
-                pulp_name, base_path, logger
+                pulp_name, base_path, logger, registries
             )
         result["changed"] = result["changed"] or bool(affected)
         mark_software_partial(affected, base_path, logger, 'image')
@@ -1083,7 +1100,7 @@ def cleanup_pip_module(name: str, base_path: str, repo_store_path: str, logger,
     """
     result = {
         "name": name, "type": "pip_module", "status": "Failed",
-        "message": "", "changed": False,
+        "message": "", "changed": False, "pulp_changed": False,
     }
     messages = []
     pulp_clean = pulp_repo_name is None
@@ -1100,10 +1117,23 @@ def cleanup_pip_module(name: str, base_path: str, repo_store_path: str, logger,
                 "python", pulp_repo_name, logger
             )
             result["changed"] = pulp_changed
+            result["pulp_changed"] = pulp_changed
             messages.extend(pulp_messages)
             if not pulp_clean:
                 result["message"] = "; ".join(messages)
                 return result
+            owner_result = SharedArtifactCache(
+                repo_store_path, logger
+            ).remove_owner_result(pulp_repo_name)
+            if not owner_result["success"]:
+                messages.append(
+                    "Shared artifact ownership could not be updated"
+                )
+                result["message"] = "; ".join(messages)
+                return result
+            result["changed"] = (
+                result["changed"] or owner_result["changed"]
+            )
             result["pulp_absent"] = True
         else:
             messages.append("No matching Python repository; local state cleanup only")
@@ -1175,7 +1205,7 @@ def cleanup_file_repository(name: str, file_type: str, base_path: str,
     """
     result = {
         "name": name, "type": file_type, "status": "Failed",
-        "message": "", "changed": False,
+        "message": "", "changed": False, "pulp_changed": False,
     }
     messages = []
     pulp_clean = pulp_repo_name is None
@@ -1197,10 +1227,23 @@ def cleanup_file_repository(name: str, file_type: str, base_path: str,
                 "file", pulp_repo_name, logger
             )
             result["changed"] = pulp_changed
+            result["pulp_changed"] = pulp_changed
             messages.extend(pulp_messages)
             if not pulp_clean:
                 result["message"] = "; ".join(messages)
                 return result
+            owner_result = SharedArtifactCache(
+                repo_store_path, logger
+            ).remove_owner_result(pulp_repo_name)
+            if not owner_result["success"]:
+                messages.append(
+                    "Shared artifact ownership could not be updated"
+                )
+                result["message"] = "; ".join(messages)
+                return result
+            result["changed"] = (
+                result["changed"] or owner_result["changed"]
+            )
             result["pulp_absent"] = True
         else:
             messages.append("No matching File repository; local state cleanup only")
@@ -1859,8 +1902,23 @@ def remove_repo_from_mirror_index(repo_name: str, base_path: str,
         base_path, cluster_os_type, repository_version, logger,
         match_fn=match_by_repo
     )
-    logger.info("Removed %d packages from mirror index for repo '%s'", removed, repo_name)
-    return removed
+    mirror_index_path = _get_mirror_index_path(
+        base_path, cluster_os_type, repository_version
+    )
+    repository_state_removed = False
+    if os.path.isfile(mirror_index_path):
+        mirror_data = load_mirror_index(mirror_index_path, logger)
+        repository_state_removed = remove_repository_sync_state(
+            mirror_data, repo_name
+        )
+        if repository_state_removed:
+            save_mirror_index(mirror_index_path, mirror_data, logger)
+    total_removed = removed + int(repository_state_removed)
+    logger.info(
+        "Removed %d mirror entries for repo '%s'",
+        total_removed, repo_name,
+    )
+    return total_removed
 
 
 def remove_artifact_from_mirror_index(artifact_name: str, artifact_type: str,
@@ -1906,17 +1964,19 @@ def remove_artifact_from_mirror_index(artifact_name: str, artifact_type: str,
     return removed
 
 
-def remove_container_repo_from_mirror_index(pulp_repo_name: str, base_path: str,
-                                            cluster_os_type: str,
-                                            cluster_os_version: str,
-                                            logger) -> int:
+def remove_container_repo_from_mirror_index(
+        pulp_repo_name: str, base_path: str, cluster_os_type: str,
+        cluster_os_version: str, logger,
+        registries: Optional[Dict[str, Any]] = None) -> int:
     """Remove every tag/architecture identity stored in one container repo."""
     def match_container_repo(_identity_key, entry):
+        internal_reference = configured_container_reference_for_cleanup(
+            entry.get("package_name", ""), registries or {}
+        )
         return (
             entry.get("type") == "image"
-            and container_repo_name_for_reference(
-                entry.get("package_name", "")
-            ) == pulp_repo_name
+            and container_repo_name_for_reference(internal_reference)
+            == pulp_repo_name
         )
 
     return remove_from_mirror_index(
@@ -1940,7 +2000,7 @@ def remove_all_type_from_mirror_index(artifact_type: str, base_path: str,
     Returns:
         int: Number of entries removed
     """
-    def match_by_type(pkg_name, entry):
+    def match_by_type(_pkg_name, entry):
         return entry.get("type", "") == artifact_type
 
     removed = remove_from_mirror_index(
@@ -2153,8 +2213,9 @@ def remove_from_status_files(artifact_name: str, artifact_type: str,
         raise
 
 
-def remove_container_repo_from_status_files(pulp_repo_name: str, base_path: str,
-                                            logger) -> Dict[Any, List[str]]:
+def remove_container_repo_from_status_files(
+        pulp_repo_name: str, base_path: str, logger,
+        registries: Optional[Dict[str, Any]] = None) -> Dict[Any, List[str]]:
     """Remove all status rows whose image belongs to one Pulp repository."""
     affected_software = {}
     try:
@@ -2167,10 +2228,15 @@ def remove_container_repo_from_status_files(pulp_repo_name: str, base_path: str,
                     rows = []
                     removed = False
                     for row in reader:
+                        internal_reference = (
+                            configured_container_reference_for_cleanup(
+                                row.get("name", ""), registries or {}
+                            )
+                        )
                         should_remove = (
                             row.get("type") == "image"
                             and container_repo_name_for_reference(
-                                row.get("name", "")
+                                internal_reference
                             ) == pulp_repo_name
                         )
                         if should_remove:
@@ -2688,6 +2754,7 @@ def run_module():
 
     all_results = list(resolution_errors)
     state_changed = False
+    verified_pulp_changed = False
 
     # Process repositories
     repo_results = []
@@ -2696,6 +2763,9 @@ def run_module():
         all_results.append(result)
         repo_results.append(result)
         state_changed = state_changed or result.get("changed", False)
+        verified_pulp_changed = (
+            verified_pulp_changed or result.get("pulp_changed", False)
+        )
         if result['status'] == 'Success' or result.get('pulp_absent'):
             try:
                 removed = remove_repo_from_mirror_index(
@@ -2761,12 +2831,15 @@ def run_module():
         all_results.append(result)
         container_results.append(result)
         state_changed = state_changed or result.get("changed", False)
+        verified_pulp_changed = (
+            verified_pulp_changed or result.get("pulp_changed", False)
+        )
         if result['status'] == 'Success' or result.get('pulp_absent'):
             try:
                 if container.startswith("container_repo_"):
                     removed = remove_container_repo_from_mirror_index(
                         container, base_path, cluster_os_type,
-                        cluster_os_version, logger
+                        cluster_os_version, logger, registries
                     )
                 else:
                     removed = remove_artifact_from_mirror_index(
@@ -2811,6 +2884,9 @@ def run_module():
         all_results.append(result)
         file_results.append(result)
         state_changed = state_changed or result.get("changed", False)
+        verified_pulp_changed = (
+            verified_pulp_changed or result.get("pulp_changed", False)
+        )
         if result['status'] == 'Success' or result.get('pulp_absent'):
             try:
                 file_type = result.get('type', 'file')
@@ -2836,6 +2912,14 @@ def run_module():
     )
     if file_all_complete:
         try:
+            cache_result = SharedArtifactCache(
+                repo_store_path, logger
+            ).remove_artifact_types(CLEANUP_FILE_TYPES)
+            if not cache_result["success"]:
+                raise RuntimeError(
+                    "Shared artifact cache reconciliation failed"
+                )
+            state_changed = state_changed or cache_result["changed"]
             affected_by_context: Dict[Any, List[str]] = {}
             for ftype in CLEANUP_FILE_TYPES:
                 affected = remove_all_from_status_files(
@@ -2908,7 +2992,7 @@ def run_module():
             })
 
     # Run orphan cleanup once after all deletions to reclaim disk space
-    if state_changed:
+    if verified_pulp_changed:
         logger.info("Running global orphan cleanup to reclaim disk space...")
         orphan_result = run_pulp(
             pulp_common_commands["orphan_cleanup"], logger,
@@ -2922,8 +3006,7 @@ def run_module():
                 "type": "orphan_cleanup",
                 "status": "Failed",
                 "message": (
-                    "Logical objects were deleted, but orphan cleanup failed: "
-                    f"{orphan_result.get('stderr', '').strip()}"
+                    "Logical objects were deleted, but orphan cleanup failed"
                 ),
             }
             all_results.append(orphan_failure)

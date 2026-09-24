@@ -42,7 +42,7 @@ from ansible.module_utils.repo_manager.security_utils import (
 
 
 def validate_tag_via_pulp_sync(image_name, tag, logger,
-                                pulp_container_commands, execute_command,
+                                execute_command,
                                 create_container_repository,
                                 get_repo_url_and_content,
                                 registry_context=None,
@@ -171,7 +171,7 @@ def validate_tag_via_pulp_sync(image_name, tag, logger,
     finally:
         _cleanup_temp_resources(
             temp_remote_name, temp_repo_name,
-            pulp_container_commands, execute_command, logger
+            execute_command, logger
         )
 
 
@@ -250,7 +250,7 @@ def _extract_task_href(sync_result):
 
 
 def _cleanup_temp_resources(temp_remote_name, temp_repo_name,
-                             pulp_container_commands, execute_command, logger):
+                             execute_command, logger):
     """Clean up temporary validation resources. Always called."""
     try:
         temp_repo_name = validate_repository_id(temp_repo_name)

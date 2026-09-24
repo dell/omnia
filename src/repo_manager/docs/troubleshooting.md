@@ -230,7 +230,9 @@ reports them together by architecture.
 1. The catalog `reponame` exactly matches the configured repository key.
 2. The catalog version and architecture exist under `repositories`.
 3. The repository URL and GPG key are reachable.
-4. A catalog item with `packagetype: rpm_repo` does not resolve to `streamed`.
+4. For a catalog item with `packagetype: rpm_repo`, confirm the repository
+   policy is `always` or `partial`. Effective `streamed` mappings are
+   validation-only.
 5. The detailed group log contains the failing package and repository.
 
 `rpm` downloads selected packages and dependencies. `rpm_repo` synchronizes the
@@ -336,7 +338,10 @@ pulp task list --state running --state failed
 
 Resolve the storage, registry, certificate, or source-repository failure before
 rerunning `download`. Successful composite mirror identities are reused, so a
-rerun does not intentionally download every completed artifact again.
+normal rerun selects only new, changed, failed or pending packages. Successful
+RPMs are intentionally selected again only for an exact targeted resync,
+`resync_repos=all`, a recovered repository synchronization, or an effective
+Pulp-policy transition.
 
 ---
 

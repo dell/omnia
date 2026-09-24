@@ -19,3 +19,17 @@ An unchanged rerun preserves the certificate, secret, and administrator
 password and does not restart the service. Configuration, port, image, or
 certificate changes, including a changed timeout snippet, trigger a controlled
 restart.
+
+## Storage paths
+
+`pulp_storage_paths.user_provided` can override individual host directories for
+settings, PostgreSQL data, content, container working data, service logs, and
+the managed CLI configuration. Values must be absolute, existing, writable
+directories prepared by the administrator. Repo Manager does not create or
+format filesystems, mount NFS, attach volumes, configure LVM, or migrate
+existing Pulp data.
+
+Use dedicated subdirectories below storage mount points rather than a mount
+root. Full Pulp cleanup removes data from the resolved directories. Unspecified
+keys retain the defaults under the Repo Manager runtime directory; container
+mount destinations remain fixed by `pulp_deployment_defaults.container_mounts`.

@@ -15,6 +15,7 @@
 
 from ansible.module_utils.repo_manager.container_repo_utils import extract_existing_tags
 from ansible.module_utils.repo_manager.parse_and_download import execute_command
+from ansible.module_utils.repo_manager.pulp_object_state import query_pulp_object
 from ansible.module_utils.repo_manager.pulp_commands import (
     build_container_remote_command,
     pulp_container_commands,
@@ -76,15 +77,23 @@ def create_or_update_configured_remote(
     policy_type = validate_container_policy(policy_type)
     if tag is not None:
         tag = validate_container_tag(tag)
-    remote_exists = execute_command(
-        pulp_container_commands["show_remote"] % remote_name, logger
+    remote_exists, _remote_details = query_pulp_object(
+        pulp_container_commands["show_remote"] % remote_name,
+        logger,
+        execute_command,
     )
+    if remote_exists is None:
+        logger.error(
+            "Unable to determine configured registry remote state for '%s'.",
+            remote_name,
+        )
+        return False
 
     tags = None if tag is None else list(dict.fromkeys(
         extract_existing_tags(remote_name, logger) + [tag]
-        if remote_exists else [tag]
+        if remote_exists is True else [tag]
     ))
-    action = "update" if remote_exists else "create"
+    action = "update" if remote_exists is True else "create"
     command = _build_remote_command(
         action, remote_name, registry_context, image_path, policy_type, tags
     )
