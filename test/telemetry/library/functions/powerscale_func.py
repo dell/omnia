@@ -46,6 +46,11 @@ from ..vars.common_vars import (
     POWERSCALE_CSI_EXPORTER_METRICS,
     SVC_VLAGENT,
 )
+
+POWERSCALE_CSI_EVENT_CONDITIONED_METRICS = {
+    "powerscale_volume_abnormal_events_total": "VolumeConditionAbnormal",
+    "powerscale_node_failure_events_total": "NodeFailure",
+}
 from .telemetry_func import (
     load_telemetry_config_from_target,
     run_on_kube_vip,
@@ -508,32 +513,107 @@ def verify_feature_flags(host):
     }
 
 
+def _k8s_event_exists(host, reason):
+    """Check if any Kubernetes event with the given reason exists."""
+    cmd = (
+        f"kubectl get events --all-namespaces "
+        f"--field-selector reason={reason} "
+        f"-o jsonpath='{{.items[*].reason}}'"
+    )
+    result = run_on_kube_vip(host, cmd)
+    if result.rc != 0:
+        return False
+    return reason in result.stdout.strip().split()
+
+
 def verify_health_metrics(host):
     """Verify PowerScale CSI volume exporter health metrics are being collected.
 
+    Distinguishes continuously available state/resource metrics from
+    event-conditioned metrics. Skips verification when the CSI volume exporter
+    is intentionally not deployed because the external-health-monitor
+    prerequisite is unavailable.
+
     Returns:
-        dict with keys: success, metrics_found, missing_metrics, details, error.
+        dict with keys: success, skipped, skip_reason, metrics_found,
+        missing_metrics, details, error.
     """
-    # All CSI Volume Exporter health monitor metrics must be collected
-    # If any of these metrics are missing, the verification fails
-    health_metrics = POWERSCALE_CSI_EXPORTER_METRICS
+    dependency = verify_csi_exporter_skipped_without_health_monitor(host)
+    exporter_deployed = dependency["exporter_deployed"]
+    health_monitor_available = dependency["health_monitor_available"]
 
-    result = verify_powerscale_metrics(host, health_metrics)
-    details = f"Found {len(result['found'])}/{len(health_metrics)} CSI health metrics"
-
-    # Fail if any metrics are missing - CSI volume exporter must be working
-    if len(result["missing"]) > 0:
+    if not exporter_deployed:
+        if not health_monitor_available:
+            return {
+                "success": True,
+                "skipped": True,
+                "skip_reason": (
+                    "CSI volume exporter not deployed: "
+                    "external-health-monitor-controller is unavailable"
+                ),
+                "metrics_found": [],
+                "missing_metrics": [],
+                "details": (
+                    "CSI volume exporter skipped because "
+                    "external-health-monitor-controller is unavailable"
+                ),
+                "error": "",
+            }
         return {
             "success": False,
-            "metrics_found": result["found"],
-            "missing_metrics": result["missing"],
-            "details": f"CSI health metrics verification failed. Missing: {result['missing']}",
-            "error": f"CSI volume exporter not collecting required metrics: {result['missing']}",
+            "skipped": False,
+            "skip_reason": "",
+            "metrics_found": [],
+            "missing_metrics": [],
+            "details": (
+                "CSI volume exporter not deployed but "
+                "external-health-monitor-controller is available"
+            ),
+            "error": (
+                "CSI volume exporter expected but not found; "
+                "health monitor is available"
+            ),
+        }
+
+    stable_metrics = [
+        m
+        for m in POWERSCALE_CSI_EXPORTER_METRICS
+        if m not in POWERSCALE_CSI_EVENT_CONDITIONED_METRICS
+    ]
+    stable_result = verify_powerscale_metrics(host, stable_metrics)
+    all_found = list(stable_result["found"])
+    all_missing = list(stable_result["missing"])
+
+    required_event_metrics = [
+        metric
+        for metric, reason in POWERSCALE_CSI_EVENT_CONDITIONED_METRICS.items()
+        if _k8s_event_exists(host, reason)
+    ]
+
+    if required_event_metrics:
+        event_result = verify_powerscale_metrics(host, required_event_metrics)
+        all_found.extend(event_result["found"])
+        all_missing.extend(event_result["missing"])
+
+    total_expected = len(stable_metrics) + len(required_event_metrics)
+    details = f"Found {len(all_found)}/{total_expected} CSI health metrics"
+
+    if all_missing:
+        return {
+            "success": False,
+            "skipped": False,
+            "skip_reason": "",
+            "metrics_found": all_found,
+            "missing_metrics": all_missing,
+            "details": f"CSI health metrics verification failed. Missing: {all_missing}",
+            "error": f"CSI volume exporter not collecting required metrics: {all_missing}",
         }
 
     return {
         "success": True,
-        "metrics_found": result["found"],
+        "skipped": False,
+        "skip_reason": "",
+        "metrics_found": all_found,
         "missing_metrics": [],
         "details": details,
         "error": "",
