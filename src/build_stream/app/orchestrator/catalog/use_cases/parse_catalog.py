@@ -46,7 +46,12 @@ from api.logging_utils import log_secure_info
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
 from core.artifacts.value_objects import ArtifactKind, StoreHint
-from core.catalog.exceptions import CatalogNotUploadedError, InvalidCatalogFormatError
+from core.catalog.exceptions import (
+    CatalogNotUploadedError,
+    InvalidCatalogFormatError,
+    UnsupportedSchemaVersionError,
+)
+from core.catalog.parser import SUPPORTED_SCHEMA_VERSIONS
 from core.image_group.exceptions import DuplicateImageGroupError
 from core.image_group.repositories import ImageGroupRepository
 from core.image_group.value_objects import ImageGroupId
@@ -122,15 +127,25 @@ class ParseCatalogUseCase:
             self._mark_stage_started(job, stage, command)
 
             catalog_data = self._load_uploaded_catalog(command.job_id)
-            image_group_id = self._extract_image_group_id(catalog_data)
-            self._check_image_group_uniqueness(image_group_id)
-            
-            # Persist catalog metadata for build-image stage
+
+            # Extract catalog metadata first so the composite ID is
+            # available for the uniqueness check (ER-BSM-002).
             catalog_metadata = self._extract_catalog_metadata(catalog_data)
+
+            # Duplicate detection must use the composite ID because
+            # image_groups.id stores ``identifier-vVersion``.
+            composite_id = ImageGroupId(
+                catalog_metadata["composite_image_group_id"]
+            )
+            self._check_image_group_uniqueness(composite_id)
+
             self._persist_catalog_metadata(command.job_id, catalog_metadata)
 
+            # Populate job with catalog versioning data (ER-BSM-002)
+            self._update_job_catalog_metadata(job, catalog_metadata)
+
             self._mark_stage_completed(stage, command)
-            return self._build_success_result(command, image_group_id)
+            return self._build_success_result(command, composite_id)
         except Exception as exc:
             self._mark_stage_failed(stage, command, exc)
             raise
@@ -258,7 +273,12 @@ class ParseCatalogUseCase:
             ) from exc
 
     def _extract_image_group_id(self, catalog_data: dict) -> ImageGroupId:
-        """Extract ImageGroupID from the Catalog.Identifier field.
+        """Extract raw Identifier from catalog for validation purposes.
+
+        NOTE: This returns the *raw* identifier, not the composite ID.
+        For uniqueness checks, use the composite ID from
+        ``_extract_catalog_metadata`` instead, since ``image_groups.id``
+        stores ``identifier-vVersion``.
 
         Supports both PascalCase (``Catalog``/``Identifier``) and lowercase
         (``catalog``/``identifier``) keys for consistency with how
@@ -274,9 +294,23 @@ class ParseCatalogUseCase:
                 "Catalog JSON missing required 'Catalog' top-level key"
             )
 
-        raw_id = catalog_obj.get("Identifier", catalog_obj.get("identifier", ""))
+        raw_identifier = catalog_obj.get(
+            "Identifier", catalog_obj.get("identifier", "")
+        )
+        if not raw_identifier or not raw_identifier.strip():
+            raise InvalidCatalogFormatError(
+                "Catalog 'Identifier' is missing or empty"
+            )
+
+        identifier = raw_identifier.strip()
+        if len(identifier) > 128:
+            raise InvalidCatalogFormatError(
+                f"Catalog 'Identifier' cannot exceed 128 characters "
+                f"(got {len(identifier)})"
+            )
+
         try:
-            return ImageGroupId(raw_id)
+            return ImageGroupId(identifier)
         except ValueError as exc:
             raise InvalidCatalogFormatError(
                 f"Catalog 'Identifier' is invalid: {exc}"
@@ -314,7 +348,9 @@ class ParseCatalogUseCase:
             catalog_data: Parsed catalog JSON.
 
         Returns:
-            Dict with image_group_id, roles, role_images, name, version, parsed_at.
+            Dict with image_group_id (composite), catalog_identifier,
+            catalog_version, schema_version, roles, role_images, name,
+            version, parsed_at.
         """
         cat = catalog_data.get("Catalog", catalog_data.get("catalog"))
         if not cat or not isinstance(cat, dict):
@@ -322,11 +358,25 @@ class ParseCatalogUseCase:
                 "Catalog JSON missing required 'Catalog' top-level key"
             )
 
-        raw_id = cat.get("Identifier", cat.get("identifier", ""))
-        if not raw_id:
+        raw_identifier = cat.get("Identifier", cat.get("identifier", ""))
+        if not raw_identifier:
             raise InvalidCatalogFormatError(
                 "Catalog 'Identifier' is missing or empty"
             )
+
+        catalog_version = cat.get("Version", cat.get("version", "1.0"))
+        schema_version = cat.get(
+            "SchemaVersion", cat.get("schema_version", 1)
+        )
+
+        # Validate schema version against supported set (ER-BSM-002).
+        if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+            raise UnsupportedSchemaVersionError(
+                schema_version=schema_version,
+                supported=SUPPORTED_SCHEMA_VERSIONS,
+            )
+
+        composite_id = f"{raw_identifier}-v{catalog_version}"
 
         layers = cat.get("FunctionalLayer", cat.get("functionallayer", []))
 
@@ -350,11 +400,15 @@ class ParseCatalogUseCase:
             roles.sort()
 
         return {
-            "image_group_id": raw_id,
+            "image_group_id": raw_identifier,
+            "composite_image_group_id": composite_id,
+            "catalog_identifier": raw_identifier,
+            "catalog_version": catalog_version,
+            "schema_version": schema_version,
             "roles": roles,
             "role_images": role_images,
             "name": cat.get("Name", cat.get("name", "")),
-            "version": cat.get("Version", cat.get("version", "")),
+            "version": catalog_version,
             "parsed_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -403,6 +457,44 @@ class ParseCatalogUseCase:
             f"image_group_id={catalog_metadata.get('image_group_id')}, "
             f"roles={catalog_metadata.get('roles')}",
             job_id=str(job_id),
+        )
+
+    def _update_job_catalog_metadata(
+        self, job, catalog_metadata: dict
+    ) -> None:
+        """Populate the Job entity with catalog versioning fields.
+
+        Called after successful parse-catalog so that downstream stages
+        (build-image, deploy, cleanup) can access composite identity
+        from the Job itself.
+
+        NOTE: The actual ImageGroup record (with composite ID and catalog
+        fields) is created by the ResultPoller when the build-image
+        playbook completes successfully. This use case only stores the
+        metadata on the Job so it is available before the build finishes.
+        ResultPoller changes are maintained separately from this PR.
+
+        Uses setattr for safety since these fields were added in ER-BSM-002
+        and may not exist on all Job subclasses.
+        """
+        field_map = {
+            "composite_image_group_id": catalog_metadata.get("composite_image_group_id"),
+            "catalog_identifier": catalog_metadata.get("catalog_identifier"),
+            "catalog_version": catalog_metadata.get("catalog_version"),
+            "catalog_schema_version": catalog_metadata.get("schema_version"),
+        }
+        for attr, value in field_map.items():
+            if hasattr(job, attr):
+                setattr(job, attr, value)
+
+        self._job_repo.save(job)
+
+        log_secure_info(
+            "info",
+            f"Updated job catalog metadata: "
+            f"composite_id={field_map.get('composite_image_group_id')}, "
+            f"schema_version={field_map.get('catalog_schema_version')}",
+            job_id=str(job.job_id),
         )
 
     # ------------------------------------------------------------------
