@@ -34,7 +34,12 @@ data_s3_dir: "{{ shared_path }}/s3/data"
 s3_work_dir: "{{ shared_path }}/s3"
 
 # File permissions
+# Non-secret files (bucket-policy JSON, etc.) — safe to keep world-readable.
 file_perm_rw: "0644"
+# Secret-bearing files (MinIO quadlet, /root/.s3cfg) — root-only to close
+# CWE-732 / CWE-522 (world-readable credential exposure on the OIM).
+minio_quadlet_permissions: "0600"
+s3cfg_permissions: "0600"
 
 # MinIO container settings
 minio_port: 9000

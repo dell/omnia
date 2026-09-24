@@ -23,6 +23,9 @@ identifies the test level, and `SEQ` is a stable three-digit sequence.
 | IMGBM_NFT_002 | `test_build_performance` | Performance | Build completes within threshold |
 | IMGBM_NFT_003 | `test_cleanup_performance` | Performance | Cleanup completes within threshold |
 | IMGBM_NFT_004 | `test_prepare_idempotent` | Idempotency | Prepare succeeds twice and required services remain available |
+| IMGBM_NFT_SECURITY_001 | `test_minio_quadlet_permissions` | Security | `/etc/containers/systemd/minio.container` is `0600 root:root` |
+| IMGBM_NFT_SECURITY_002 | `test_s3cfg_permissions` | Security | `/root/.s3cfg` is `0600 root:root` |
+
 
 ---
 
@@ -106,9 +109,20 @@ nft/
 │   ├── test_build_performance      (order=2)
 │   └── test_cleanup_performance    (order=3)
 │
-└── test_idempotency.py    ← IMGBM_NFT_004
-    └── test_prepare_idempotent     (order=1)
+├── test_idempotency.py    ← IMGBM_NFT_004
+│   └── test_prepare_idempotent     (order=1)
+│
+└── test_security.py       ← IMGBM_NFT_SECURITY_001-002
+    ├── test_minio_quadlet_permissions              (order=10)
+    └── test_s3cfg_permissions                      (order=11)
 ```
+
+Security cases carry both `@pytest.mark.nft` and `@pytest.mark.security` so they
+can be filtered independently, e.g.
+`./run_validation.sh nft_image_build_manager test --marker security`. They are
+regression guards for the CWE-732 / CWE-522 hardening that restricts
+credential-bearing quadlet and s3cmd files to root-only access; a future
+accidental revert to a world-readable mode will fail one of these cases.
 
 Tests use `@pytest.mark.nft` and `@pytest.mark.order(n)` markers. Within the
 performance tests, the markers enforce prepare -> build -> cleanup. IMGBM_NFT_004 is

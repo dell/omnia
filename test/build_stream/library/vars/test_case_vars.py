@@ -546,5 +546,13 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "BSM_NFT_SECURITY_005",
         "title": "Verify authentication secrets are absent from logs",
     },
+    "postgres_quadlet_permissions": {
+        "id": "BSM_NFT_SECURITY_006",
+        "title": "Verify omnia_postgres quadlet is 0600 root:root",
+    },
+    "build_stream_quadlet_permissions": {
+        "id": "BSM_NFT_SECURITY_007",
+        "title": "Verify omnia_build_stream quadlet is 0600 root:root",
+    },
 
 }

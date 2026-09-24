@@ -262,4 +262,13 @@ TEST_CASES = {
         "id": "IMGBM_NFT_004",
         "title": "NFT: Prepare idempotency",
     },
+    # ── Non-functional security (file permissions / ownership) ──────────
+    "minio_quadlet_permissions": {
+        "id": "IMGBM_NFT_SECURITY_001",
+        "title": "NFT: MinIO quadlet is 0600 root:root",
+    },
+    "s3cfg_permissions": {
+        "id": "IMGBM_NFT_SECURITY_002",
+        "title": "NFT: /root/.s3cfg is 0600 root:root",
+    },
 }

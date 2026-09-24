@@ -72,7 +72,9 @@ build_stream_root_dir: "{{ omnia_path }}/build_stream_root"
 # Quadlet
 quadlet_dir: "/etc/containers/systemd"
 build_stream_quadlet_path: "{{ quadlet_dir }}/{{ build_stream_container_name }}.container"
-build_stream_quadlet_file_mode: "0644"
+# Quadlet file holds plaintext service credentials (Postgres, MinIO). Restrict to
+# root-only to close CWE-732 / CWE-522 (world-readable credential exposure on the OIM).
+build_stream_quadlet_file_mode: "0600"
 
 # PostgreSQL configuration — passed as host vars from prepare_build_stream.yml
 postgres_db_name: "build_stream_db"
