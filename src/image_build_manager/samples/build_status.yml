@@ -20,7 +20,11 @@
 # image_build_manager after a successful build.
 #
 # Runtime location (created by image_build_manager):
-#   /opt/omnia/image_build_manager/output/<project_name>/build_status.yml
+#   Catalog mode:
+#     /opt/omnia/image_build_manager/output/<project_name>/
+#       <catalog-id>-v<catalog-version>/build_status.yml
+#   Config mode:
+#     /opt/omnia/image_build_manager/output/<project_name>/build_status.yml
 #
 # Producer: image_build_manager domain (build_os_images role)
 # Consumer: provisioning workflow (image validation and BSS template rendering)

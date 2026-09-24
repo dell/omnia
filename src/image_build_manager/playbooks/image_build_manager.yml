@@ -136,7 +136,8 @@
     - execute
 
 # Step 8: Write build_status.yml output
-# Output: {{ output_project_dir }}/build_status.yml (NFS-shared)
+# Catalog: {{ output_project_dir }}/<catalog-id>-v<version>/build_status.yml
+# Config:  {{ output_project_dir }}/build_status.yml
 # Includes per-functional-group image details with S3 paths for kernel, initrd, image.
 - name: Write build_status.yml output
   ansible.builtin.import_playbook: build/write_build_status.yml

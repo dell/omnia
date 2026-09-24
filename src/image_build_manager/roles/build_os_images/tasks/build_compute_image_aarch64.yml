@@ -13,6 +13,12 @@
 #  limitations under the License.
 ---
 
+- name: Initialize aarch64 compute image build selection
+  ansible.builtin.set_fact:
+    _compute_rebuild_dict: {}
+    _compute_skipped_groups: []
+    _dictionary_hits: {}
+
 - name: Skip aarch64 compute image build (no groups defined)
   ansible.builtin.debug:
     msg: "No compute image groups resolved for aarch64 — skipping compute builds"
@@ -79,6 +85,44 @@
           {% endfor -%}
           {{ result }}
 
+    - name: Lookup compute groups in global image dictionary
+      manage_image_group_dictionary:
+        dictionary_path: "{{ output_project_dir }}/image_group_dictionary.json"
+        operation: lookup
+        candidates: >-
+          {% set result = [] -%}
+          {% for fg_name in compute_images_dict.keys() -%}
+            {% set _ = result.append({
+              'package_hash': _compute_pkg_hashes[fg_name],
+              'functional_group': fg_name,
+              'architecture': build_arch
+            }) -%}
+          {% endfor -%}
+          {{ result }}
+      register: _dictionary_lookup
+      when:
+        - _pkg_source == 'catalog'
+        - not (force_rebuild | default(false) | bool)
+
+    - name: Set global image dictionary hits
+      ansible.builtin.set_fact:
+        _dictionary_hits: "{{ _dictionary_lookup.hits | default({}) }}"
+      when: _dictionary_lookup is not skipped
+
+    - name: Validate global image dictionary S3 artifacts
+      ansible.builtin.include_tasks: validate_dictionary_hits.yml
+      when: (_dictionary_hits | length) > 0
+
+    - name: Report global image dictionary hits
+      ansible.builtin.debug:
+        msg: >-
+          DICTIONARY_HIT functional_group={{ item.key }}
+          image_group_id={{ item.value.image_group_id }}
+          packages unchanged — reusing image group.
+      loop: "{{ _dictionary_hits | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
     - name: Check previous compute image package hashes
       ansible.builtin.slurp:
         src: "{{ image_build_log_dir }}/.compute_pkg_hash_{{ item.key }}"
@@ -88,21 +132,26 @@
       loop_control:
         loop_var: item
         label: "{{ item.key }}"
+      when: _pkg_source == 'config'
 
     - name: Determine which compute groups need rebuild
       ansible.builtin.set_fact:
         _compute_rebuild_dict: >-
           {% set result = {} -%}
           {% set prev_map = {} -%}
-          {% for r in _prev_compute_hashes.results -%}
+          {% for r in _prev_compute_hashes.results | default([]) -%}
             {% if r is not failed and r.content is defined -%}
               {% set _ = prev_map.update({r.item.key: (r.content | b64decode | trim)}) -%}
             {% endif -%}
           {% endfor -%}
           {% for fg_name, fg_data in compute_images_dict.items() -%}
             {% set cur_hash = _compute_pkg_hashes[fg_name] -%}
-            {% set prev_hash = prev_map.get(fg_name, '') -%}
-            {% if (force_rebuild | default(false) | bool) or prev_hash != cur_hash -%}
+            {% set needs_rebuild = (
+              (force_rebuild | default(false) | bool)
+              or (_pkg_source == 'catalog' and fg_name not in _dictionary_hits)
+              or (_pkg_source == 'config' and prev_map.get(fg_name, '') != cur_hash)
+            ) -%}
+            {% if needs_rebuild -%}
               {% set _ = result.update({fg_name: fg_data}) -%}
             {% endif -%}
           {% endfor -%}
@@ -110,15 +159,20 @@
         _compute_skipped_groups: >-
           {% set skipped = [] -%}
           {% set prev_map = {} -%}
-          {% for r in _prev_compute_hashes.results -%}
+          {% for r in _prev_compute_hashes.results | default([]) -%}
             {% if r is not failed and r.content is defined -%}
               {% set _ = prev_map.update({r.item.key: (r.content | b64decode | trim)}) -%}
             {% endif -%}
           {% endfor -%}
           {% for fg_name in compute_images_dict.keys() -%}
-            {% set cur_hash = _compute_pkg_hashes[fg_name] -%}
-            {% set prev_hash = prev_map.get(fg_name, '') -%}
-            {% if not (force_rebuild | default(false) | bool) and prev_hash == cur_hash -%}
+            {% set is_cached = (
+              not (force_rebuild | default(false) | bool)
+              and (
+                (_pkg_source == 'catalog' and fg_name in _dictionary_hits)
+                or (_pkg_source == 'config' and prev_map.get(fg_name, '') == _compute_pkg_hashes[fg_name])
+              )
+            ) -%}
+            {% if is_cached -%}
               {% set _ = skipped.append(fg_name) -%}
             {% endif -%}
           {% endfor -%}
@@ -151,7 +205,9 @@
       loop_control:
         loop_var: item
         label: "{{ item.key }}"
-      when: backup_s3_images | default(false) | bool
+      when:
+        - _pkg_source == 'config'
+        - backup_s3_images | default(false) | bool
 
     # Backup kernel+initrd (efi-images/{group}/{image_name}/)
     - name: Backup aarch64 compute EFI images in S3
@@ -171,7 +227,9 @@
       loop_control:
         loop_var: item
         label: "{{ item.key }}"
-      when: backup_s3_images | default(false) | bool
+      when:
+        - _pkg_source == 'config'
+        - backup_s3_images | default(false) | bool
 
     # --- Build via Python orchestrator ---
     # NOTE: delegate_to sends the module to the aarch64 host for execution.
@@ -242,7 +300,10 @@
       loop_control:
         loop_var: item
         label: "{{ item.key }}"
-      when: orchestrator_result is defined and (orchestrator_result.summary.failed | default(0) | int) == 0
+      when:
+        - _pkg_source == 'config'
+        - orchestrator_result is defined
+        - (orchestrator_result.summary.failed | default(0) | int) == 0
 
     # --- Registry verification ---
     - name: List aarch64 compute osimages in registry
