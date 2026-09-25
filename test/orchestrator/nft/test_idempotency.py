@@ -12,275 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Orchestrator — Non-Functional Idempotency Tests.
-
-Verifies that running orchestrator playbooks multiple times produces no side effects:
-  - Prepare is idempotent (OpenCHAMI containers not recreated unnecessarily)
-  - Validate is idempotent (config validation safe to re-run)
-  - Cleanup is idempotent (safe to cleanup twice)
-
-Test cases:
-    ORCH_NFT_005: Prepare idempotency (OpenCHAMI containers stable)
-    ORCH_NFT_006: Validate idempotency (config validation safe to re-run)
-    ORCH_NFT_007: Cleanup idempotency (safe to cleanup twice)
-"""
-
-import re
+"""Orchestrator repeat-execution contracts."""
 
 import pytest
-
 from library.functions import (
-    TestLogger,
-    run_playbook,
-    check_openchami_containers,
-    check_containers_removed,
-    check_services_removed,
-)
-from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
-
-
-_NON_PERSISTENT_CHANGE_PREFIXES = (
-    "orchestrator_setup : Create OIM host group",
+    check_cleanup_idempotency,
+    check_precheck_idempotency,
+    check_prepare_idempotency,
 )
 
+from nft.result import verify_nft
 
-def _persistent_changed_count(result):
-    """Return recap changes excluding allowlisted in-memory inventory updates."""
-    output = result.get("output", "")
-    counts = [int(value) for value in re.findall(
-        r"\bchanged=(\d+)\b", output
-    )]
-    assert counts, "Ansible output did not contain a changed= recap"
-
-    non_persistent_changes = 0
-    current_task = ""
-    for line in output.splitlines():
-        task_match = re.search(r"TASK \[(.+?)\]", line)
-        if task_match:
-            current_task = task_match.group(1)
-            continue
-        if (
-            re.search(r"\bchanged: \[[^]]+\]", line)
-            and any(
-                current_task.startswith(prefix)
-                for prefix in _NON_PERSISTENT_CHANGE_PREFIXES
-            )
-        ):
-            non_persistent_changes += 1
-
-    total_changes = sum(counts)
-    assert non_persistent_changes <= total_changes
-    return total_changes - non_persistent_changes
+pytestmark = [pytest.mark.nft, pytest.mark.idempotency]
 
 
-@pytest.mark.nft
-@pytest.mark.idempotency
 @pytest.mark.destructive
-@pytest.mark.order(1)
-def test_prepare_idempotent(host):
-    """ORCH_NFT_005: Verify running prepare twice does not recreate containers unnecessarily.
-
-    Runs prepare playbook twice and verifies that:
-    1. Both runs complete successfully (rc=0)
-    2. OpenCHAMI containers remain running after second run
-    3. OpenCHAMI services remain active after second run
-    """
-    tl = TestLogger("NFT: Prepare idempotency", "ORCH_NFT_005")
-
-    # First run
-    tl.check("First prepare run")
-    result1 = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        playbook_workdir=PLAYBOOK_WORKDIR,
-        tag="prepare",
-    )
-
-    if not result1["success"]:
-        tl.failed(f"First prepare failed (rc={result1['rc']})")
-        pytest.fail(f"First prepare failed (rc={result1['rc']})")
-
-    # Check containers after first run
-    containers1 = check_openchami_containers(host)
-
-    # Second run
-    tl.check("Second prepare run (idempotency check)")
-    result2 = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        playbook_workdir=PLAYBOOK_WORKDIR,
-        tag="prepare",
-    )
-
-    # Check containers after second run
-    containers2 = check_openchami_containers(host)
-
-    all_ok = (
-        result2["success"]
-        and containers2["success"]
-    )
-
-    if all_ok:
-        tl.passed(
-            f"Prepare idempotent: "
-            f"run1={result1['duration']:.1f}s, "
-            f"run2={result2['duration']:.1f}s. "
-            f"OpenCHAMI containers stable.",
-            f"First run: {result1['duration']:.1f}s, rc={result1['rc']}\n"
-            f"Second run: {result2['duration']:.1f}s, rc={result2['rc']}\n"
-            f"Containers after run1: {containers1['details']}\n"
-            f"Containers after run2: {containers2['details']}",
-        )
-    else:
-        tl.failed(
-            f"Prepare not idempotent. "
-            f"rc={result2.get('rc')}, "
-            f"containers={containers2['success']}",
-            f"First run: {result1['duration']:.1f}s, rc={result1['rc']}\n"
-            f"Second run: {result2['duration']:.1f}s, rc={result2.get('rc')}\n"
-            f"Containers after run2: {containers2.get('error', 'Unknown error')}",
-        )
-
-    assert result2["success"], (
-        f"Second prepare run failed (rc={result2['rc']})"
-    )
-    assert _persistent_changed_count(result2) == 0, (
-        "Second prepare run reported changed tasks"
-    )
-    assert containers2["success"], "OpenCHAMI containers not running after second run"
+@pytest.mark.order(30)
+def test_prepare_idempotency(host):
+    """Require repeated prepare to preserve runtime identity and readiness."""
+    verify_nft(host, "prepare_idempotency", check_prepare_idempotency)
 
 
-@pytest.mark.nft
-@pytest.mark.idempotency
-@pytest.mark.order(2)
-def test_validate_idempotent(host):
-    """ORCH_NFT_006: Verify validate can be run multiple times safely.
-
-    Runs validate playbook twice and verifies that:
-    1. Both runs complete successfully (rc=0)
-    2. No errors occur on subsequent runs
-    """
-    tl = TestLogger("NFT: Validate idempotency", "ORCH_NFT_006")
-
-    # First run
-    tl.check("First validate run")
-    result1 = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        playbook_workdir=PLAYBOOK_WORKDIR,
-        tag="validate",
-    )
-
-    if not result1["success"]:
-        tl.failed(f"First validate failed (rc={result1['rc']})")
-        pytest.fail(f"First validate failed (rc={result1['rc']})")
-
-    # Second run
-    tl.check("Second validate run (idempotency check)")
-    result2 = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        playbook_workdir=PLAYBOOK_WORKDIR,
-        tag="validate",
-    )
-
-    if result2["success"]:
-        tl.passed(
-            f"Validate idempotent: "
-            f"run1={result1['duration']:.1f}s, "
-            f"run2={result2['duration']:.1f}s",
-            f"First run: {result1['duration']:.1f}s, rc={result1['rc']}\n"
-            f"Second run: {result2['duration']:.1f}s, rc={result2['rc']}",
-        )
-    else:
-        tl.failed(
-            f"Validate not idempotent (rc={result2['rc']})",
-            f"First run: {result1['duration']:.1f}s, rc={result1['rc']}\n"
-            f"Second run: {result2['duration']:.1f}s, rc={result2['rc']}\n"
-            f"Error: {result2.get('error', 'Unknown error')}",
-        )
-
-    assert result2["success"], (
-        f"Second validate run failed (rc={result2['rc']})"
-    )
-    assert _persistent_changed_count(result2) == 0, (
-        "Second validate run reported changed tasks"
-    )
+@pytest.mark.order(50)
+def test_precheck_idempotency(host):
+    """Require repeated precheck to remain read-only."""
+    verify_nft(host, "precheck_idempotency", check_precheck_idempotency)
 
 
-@pytest.mark.nft
-@pytest.mark.idempotency
 @pytest.mark.destructive
-@pytest.mark.order(3)
-def test_cleanup_idempotent(host):
-    """ORCH_NFT_007: Verify cleanup can be run multiple times safely.
-
-    Runs cleanup playbook twice and verifies that:
-    1. Both runs complete successfully (rc=0)
-    2. Containers remain removed after second run
-    3. Services remain stopped after second run
-    """
-    tl = TestLogger("NFT: Cleanup idempotency", "ORCH_NFT_007")
-
-    # First run
-    tl.check("First cleanup run")
-    result1 = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        playbook_workdir=PLAYBOOK_WORKDIR,
-        tag="cleanup",
-    )
-
-    if not result1["success"]:
-        tl.failed(f"First cleanup failed (rc={result1['rc']})")
-        pytest.fail(f"First cleanup failed (rc={result1['rc']})")
-
-    # Check state after first run
-    containers1 = check_containers_removed(host)
-    services1 = check_services_removed(host)
-
-    # Second run
-    tl.check("Second cleanup run (idempotency check)")
-    result2 = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        playbook_workdir=PLAYBOOK_WORKDIR,
-        tag="cleanup",
-    )
-
-    # Check state after second run
-    containers2 = check_containers_removed(host)
-    services2 = check_services_removed(host)
-
-    all_ok = (
-        result2["success"]
-        and containers2["success"]
-        and services2["success"]
-    )
-
-    if all_ok:
-        tl.passed(
-            f"Cleanup idempotent: "
-            f"run1={result1['duration']:.1f}s, "
-            f"run2={result2['duration']:.1f}s. "
-            f"Containers and services remain cleaned.",
-            f"First run: {result1['duration']:.1f}s, rc={result1['rc']}\n"
-            f"Second run: {result2['duration']:.1f}s, rc={result2['rc']}\n"
-            f"Containers after run2: {containers2['details']}\n"
-            f"Services after run2: {services2['details']}",
-        )
-    else:
-        tl.failed(
-            f"Cleanup not idempotent. "
-            f"rc={result2.get('rc')}, "
-            f"containers={containers2['success']}, "
-            f"services={services2['success']}",
-            f"First run: {result1['duration']:.1f}s, rc={result1['rc']}\n"
-            f"Second run: {result2['duration']:.1f}s, rc={result2.get('rc')}\n"
-            f"Containers: {containers2.get('error', 'Unknown')}\n"
-            f"Services: {services2.get('error', 'Unknown')}",
-        )
-
-    assert result2["success"], (
-        f"Second cleanup run failed (rc={result2['rc']})"
-    )
-    assert _persistent_changed_count(result2) == 0, (
-        "Second cleanup run reported changed tasks"
-    )
-    assert containers2["success"], "Containers not removed after second run"
-    assert services2["success"], "Services not stopped after second run"
+@pytest.mark.order(91)
+def test_cleanup_idempotency(host):
+    """Require repeated full cleanup to remain successful and unchanged."""
+    verify_nft(host, "cleanup_idempotency", check_cleanup_idempotency)

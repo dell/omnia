@@ -14,7 +14,7 @@
 
 ---
 # =============================================================================
-# k8s_and_slurm.yml — Combined Kubernetes + Slurm profile for orchestrator dataset generation
+# k8s_and_slurm.yml — Combined Kubernetes + Slurm dataset profile
 # =============================================================================
 # Extends defaults.yml with combined Kubernetes and Slurm configuration values
 # =============================================================================

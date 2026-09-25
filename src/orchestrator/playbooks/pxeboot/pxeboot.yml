@@ -378,6 +378,10 @@
           ansible.builtin.add_host:
             hostname: "{{ item.ADMIN_IP | trim }}"
             groups: node_registration_targets
+            ansible_user: root
+            ansible_python_interpreter: /usr/bin/python3
+            ansible_ssh_timeout: 5
+            ansible_ssh_retries: 0
             bmc_ip: "{{ item.BMC_IP | trim }}"
             xname: "{{ item.XNAME | default('') | trim }}"
             hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
@@ -514,7 +518,7 @@
 # ─────────────────────────────────────────────────────────────────────────
 - name: Verify cloud-init node-registration
   hosts: node_registration_targets
-  connection: local
+  connection: ssh
   gather_facts: false
   tags: [pxeboot]
   pre_tasks:
@@ -573,6 +577,32 @@
                  and pxeboot_provisioning_report_candidate.inventory_source | default('')
                      == pxeboot_inventory_source
                  else {} }}
+
+        - name: Check for the existing aggregate orchestrator status
+          ansible.builtin.stat:
+            path: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+          register: pxeboot_orchestrator_status_stat
+
+        - name: Load the existing aggregate orchestrator status
+          ansible.builtin.slurp:
+            src: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+          register: pxeboot_orchestrator_status_raw
+          when: pxeboot_orchestrator_status_stat.stat.exists
+
+        - name: Index existing per-node metadata state by XNAME
+          ansible.builtin.set_fact:
+            pxeboot_previous_node_status_by_xname: >-
+              {% set result = {} -%}
+              {% set previous = ((pxeboot_orchestrator_status_raw.content
+                                  | b64decode | from_yaml)
+                                 if pxeboot_orchestrator_status_stat.stat.exists
+                                 else {}) -%}
+              {% for node in previous.nodes | default([]) -%}
+              {% if node.xname | default('') | length > 0 -%}
+              {% set _ = result.update({node.xname: node}) -%}
+              {% endif -%}
+              {% endfor -%}
+              {{ result }}
 
         - name: Collect structured node-registration results
           ansible.builtin.set_fact:
@@ -697,6 +727,8 @@
             _hostname: "{{ hostvars[item].hostname_node | default('N/A') }}"
             _svc_tag: "{{ hostvars[item].service_tag | default('N/A') }}"
             _registration_result: "{{ node_registration_results_by_bmc.get(item, {}) }}"
+            _previous_node_state: >-
+              {{ pxeboot_previous_node_status_by_xname.get(_xname, {}) }}
             _pxe_status: >-
               {{ 'failed'
                  if item in (pxe_boot_failed_bmc_ips | default([]))
@@ -720,12 +752,27 @@
                  else (_registration_result.get('detail', '')
                        if enable_node_registration | bool
                        else 'PXE boot was initiated; operating-system boot and cloud-init were not verified') }}
+            _metadata_applied: >-
+              {{ (_pxe_status == 'success')
+                 and (enable_node_registration | bool)
+                 and (_registration_result.get('status', '') == 'success') }}
             node_entry:
               bmc_ip: "{{ item }}"
               admin_ip: "{{ _admin_ip }}"
               xname: "{{ _xname }}"
               hostname: "{{ _hostname }}"
               service_tag: "{{ _svc_tag }}"
+              identity_changed: >-
+                {{ _previous_node_state.identity_changed | default(false) | bool }}
+              metadata_changed: >-
+                {{ false
+                   if _metadata_applied | bool
+                   else _previous_node_state.metadata_changed | default(false) | bool }}
+              running_state_updated: "{{ _metadata_applied | bool }}"
+              reprovision_required: >-
+                {{ false
+                   if _metadata_applied | bool
+                   else _previous_node_state.reprovision_required | default(false) | bool }}
               status: "{{ _pxe_status }}"
               failure_reason: >-
                 {{ 'not registered in SMD'
@@ -776,7 +823,7 @@
         - name: Build PXE phase status report
           ansible.builtin.set_fact:
             pxeboot_status_report:
-              schema_version: "1.0"
+              schema_version: "1.1"
               phase: pxeboot
               run_id: "{{ ansible_date_time.epoch }}"
               overall_status: "{{ orchestrator_overall_status }}"
@@ -801,7 +848,7 @@
         - name: Build aggregate orchestrator status report
           ansible.builtin.set_fact:
             orchestrator_status_report:
-              schema_version: "1.0"
+              schema_version: "1.1"
               run_id: "{{ ansible_date_time.epoch }}"
               overall_status: >-
                 {{ 'failed'

@@ -19,12 +19,13 @@
   ansible.builtin.template:
     src: "{{ ms_group_common_template }}"
     dest: "{{ ms_group_common_dest }}"
-    mode: "{{ file_permissions_644 }}"
+    mode: "0600"
 
 - name: Load rendered common group YAML
   ansible.builtin.slurp:
     src: "{{ ms_group_common_dest }}"
   register: ms_group_common_raw
+  no_log: true
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Parse common group entries
@@ -58,61 +59,33 @@
     loop_var: entry
     label: "{{ entry.name }}"
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
 
-- name: Fetch existing metadata-service groups for delete-before-set - common
-  block:
-    - name: Fetch existing metadata-service groups
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200]
-        validate_certs: false
-        return_content: true
-      register: _existing_common_groups
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-      no_log: true
-  rescue:
-    - name: Fail with metadata-service API error
-      ansible.builtin.fail:
-        msg: "{{ metadata_service_api_fail_msg }}"
+- name: Reconcile metadata-service common groups
+  openchami_reconcile:
+    action: reconcile_metadata_groups
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: "{{ ochami_env[cluster_env_key] }}"
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    project_name: "{{ hostvars['localhost']['project_name'] }}"
+    metadata_groups: "{{ _ms_group_bodies | default([]) }}"
+  register: _metadata_common_reconcile
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
 
-- name: Delete existing metadata-service common group entries
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups/{{ item.metadata.uid }}"
-    method: DELETE
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-    status_code: [200, 204, 404]
-    validate_certs: false
-  loop: >-
-    {{ _existing_common_groups.json | default([])
-       | selectattr(
-           'metadata.name',
-           'in',
-           (_ms_group_bodies | default([]) | map(attribute='metadata.name') | list)
-           + ['node_registration']
-         )
-       | list }}
-  loop_control:
-    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+- name: Track desired common metadata-service groups
+  ansible.builtin.set_fact:
+    omnia_metadata_desired_group_names: >-
+      {{ ((omnia_metadata_desired_group_names | default([]))
+          + (_ms_group_bodies | default([]) | map(attribute='metadata.name') | list))
+         | unique | list }}
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Mark global metadata change for common group content
+  ansible.builtin.set_fact:
+    omnia_metadata_global_changed: true
   when:
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-    - _existing_common_groups.json | default([]) | length > 0
-
-- name: Set metadata-service group configuration - common (via metadata-service API)
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-      Content-Type: "application/json"
-    body_format: json
-    body: "{{ item }}"
-    status_code: [200, 201]
-    validate_certs: false
-  loop: "{{ _ms_group_bodies | default([]) }}"
-  loop_control:
-    label: "{{ item.metadata.name }}"
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - >-
+      ((_metadata_common_reconcile.created | default([]))
+       + (_metadata_common_reconcile.updated | default([]))) | length > 0
