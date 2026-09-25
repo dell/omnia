@@ -395,7 +395,7 @@ class TestBuildImageSuccess:
         stage_repo = MockStageRepo()
         stage = Stage(
             job_id=job_id,
-            stage_name=StageName("build-image-x86_64"),
+            stage_name=StageName("build-image"),
             stage_state=StageState.IN_PROGRESS,
             attempt=1,
         )
@@ -434,7 +434,7 @@ class TestBuildImageSuccess:
 
         result = PlaybookResult(
             job_id=str(job_id),
-            stage_name="build-image-x86_64",
+            stage_name="build-image",
             request_id=str(uuid.uuid4()),
             status="success",
             exit_code=0,
@@ -467,7 +467,7 @@ class TestBuildImageSuccess:
         stage_repo = MockStageRepo()
         stage = Stage(
             job_id=job_id,
-            stage_name=StageName("build-image-x86_64"),
+            stage_name=StageName("build-image"),
             stage_state=StageState.IN_PROGRESS,
             attempt=1,
         )
@@ -492,7 +492,7 @@ class TestBuildImageSuccess:
 
         result = PlaybookResult(
             job_id=str(job_id),
-            stage_name="build-image-x86_64",
+            stage_name="build-image",
             request_id=str(uuid.uuid4()),
             status="success",
             exit_code=0,
@@ -503,7 +503,7 @@ class TestBuildImageSuccess:
 
         # Stage should still be COMPLETED
         saved = stage_repo.find_by_job_and_name(
-            str(job_id), StageName("build-image-x86_64")
+            str(job_id), StageName("build-image")
         )
         assert saved.stage_state == StageState.COMPLETED
 
@@ -531,7 +531,7 @@ class TestBuildImageSuccess:
         stage_repo = MockStageRepo()
         stage = Stage(
             job_id=job_id,
-            stage_name=StageName("build-image-x86_64"),
+            stage_name=StageName("build-image"),
             stage_state=StageState.IN_PROGRESS,
             attempt=1,
         )
@@ -568,7 +568,7 @@ class TestBuildImageSuccess:
 
         result = PlaybookResult(
             job_id=str(job_id),
-            stage_name="build-image-x86_64",
+            stage_name="build-image",
             request_id=str(uuid.uuid4()),
             status="success",
             exit_code=0,

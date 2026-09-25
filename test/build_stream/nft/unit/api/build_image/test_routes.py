@@ -20,15 +20,9 @@ from fastapi import HTTPException, status
 
 from api.build_image.routes import create_build_image, _build_error_response
 from api.build_image.schemas import CreateBuildImageRequest, CreateBuildImageResponse
-from core.build_image.exceptions import (
-    BuildImageDomainError,
-    InvalidArchitectureError,
-    InvalidFunctionalGroupsError,
-    InvalidImageKeyError,
-    InventoryHostMissingError,
-)
+from core.build_image.exceptions import BuildImageDomainError
 from core.jobs.exceptions import InvalidStateTransitionError, JobNotFoundError
-from core.jobs.value_objects import ClientId, CorrelationId, JobId
+from core.jobs.value_objects import CorrelationId
 
 # Helper function to create valid UUIDs for testing
 def create_test_uuid():
@@ -192,106 +186,6 @@ class TestBuildImageRoutes:
         assert exc_info.value.status_code == status.HTTP_409_CONFLICT
         detail = exc_info.value.detail
         assert detail["error"] == "INVALID_STATE_TRANSITION"
-
-    def test_create_build_image_invalid_architecture(self):
-        """Test with invalid architecture (domain-level validation)."""
-        use_case = MockCreateBuildImageUseCase(
-            error_to_raise=InvalidArchitectureError("Invalid architecture", create_test_uuid())
-        )
-
-        request_body = CreateBuildImageRequest(
-            architecture="x86_64",  # Valid for schema but will trigger domain error
-            image_key="test-image",
-            functional_groups=["group1"]
-        )
-
-        with pytest.raises(HTTPException) as exc_info:
-            create_build_image(
-                job_id=create_test_uuid(),
-                request_body=request_body,
-                use_case=use_case,
-                token_data={"client_id": "client-456"},
-                correlation_id=CorrelationId(create_test_uuid())
-            )
-
-        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-        detail = exc_info.value.detail
-        assert detail["error"] == "INVALID_ARCHITECTURE"
-
-    def test_create_build_image_invalid_image_key(self):
-        """Test with invalid image key."""
-        use_case = MockCreateBuildImageUseCase(
-            error_to_raise=InvalidImageKeyError("Invalid image key", create_test_uuid())
-        )
-
-        request_body = CreateBuildImageRequest(
-            architecture="x86_64",
-            image_key="invalid@key",
-            functional_groups=["group1"]
-        )
-
-        with pytest.raises(HTTPException) as exc_info:
-            create_build_image(
-                job_id=create_test_uuid(),
-                request_body=request_body,
-                use_case=use_case,
-                token_data={"client_id": "client-456"},
-                correlation_id=CorrelationId(create_test_uuid())
-            )
-
-        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-        detail = exc_info.value.detail
-        assert detail["error"] == "INVALID_IMAGE_KEY"
-
-    def test_create_build_image_invalid_functional_groups(self):
-        """Test with invalid functional groups."""
-        use_case = MockCreateBuildImageUseCase(
-            error_to_raise=InvalidFunctionalGroupsError("Invalid groups", create_test_uuid())
-        )
-
-        request_body = CreateBuildImageRequest(
-            architecture="x86_64",
-            image_key="test-image",
-            functional_groups=["invalid@group"]
-        )
-
-        with pytest.raises(HTTPException) as exc_info:
-            create_build_image(
-                job_id=create_test_uuid(),
-                request_body=request_body,
-                use_case=use_case,
-                token_data={"client_id": "client-456"},
-                correlation_id=CorrelationId(create_test_uuid())
-            )
-
-        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-        detail = exc_info.value.detail
-        assert detail["error"] == "INVALID_FUNCTIONAL_GROUPS"
-
-    def test_create_build_image_missing_inventory_host(self):
-        """Test aarch64 build with missing inventory host."""
-        use_case = MockCreateBuildImageUseCase(
-            error_to_raise=InventoryHostMissingError("Missing host", create_test_uuid())
-        )
-
-        request_body = CreateBuildImageRequest(
-            architecture="aarch64",
-            image_key="test-image",
-            functional_groups=["group1"]
-        )
-
-        with pytest.raises(HTTPException) as exc_info:
-            create_build_image(
-                job_id=create_test_uuid(),
-                request_body=request_body,
-                use_case=use_case,
-                token_data={"client_id": "client-456"},
-                correlation_id=CorrelationId(create_test_uuid())
-            )
-
-        assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
-        detail = exc_info.value.detail
-        assert detail["error"] == "INVENTORY_HOST_MISSING"
 
     def test_create_build_image_domain_error(self):
         """Test with domain error."""

@@ -233,10 +233,10 @@ class UploadFilesUseCase:
         self._emit_upload_files_audit_event(command, uploaded_files)
 
         # Copy software_config.json from job artifacts to shared input directory.
-        # During build pipeline, generate-input-files has not run yet so the
-        # file won't exist — the copy is safely skipped.
-        # During deploy pipeline, the file was generated during the prior build
-        # and must be synced so the deploy uses the correct software config.
+        # NOTE (Omnia 2.3+): the generate-input-files stage that produced this
+        # file has been retired, so no stage writes it any more and this call
+        # is a no-op on current pipelines. Retained only to keep pre-2.3 job
+        # artifacts working; safe to drop once those are aged out.
         self._copy_software_config_from_artifacts(str(command.job_id))
 
         # Build result
@@ -651,14 +651,15 @@ class UploadFilesUseCase:
     def _copy_software_config_from_artifacts(self, job_id: str) -> None:
         """Copy software_config.json from job artifacts to shared input directory.
 
-        The generate-input-files stage produces software_config.json in the
-        job-specific artifacts directory (artifacts/{job_id}/input/).
-        This method copies it to the shared playbook input directory so that
-        the deploy pipeline uses the software config matching the catalog
-        that was used to build the image.
+        Historically the generate-input-files stage produced
+        software_config.json in the job-specific artifacts directory
+        (artifacts/{job_id}/input/), and this method copied it to the shared
+        playbook input directory so the deploy pipeline used the software
+        config matching the catalog the image was built from.
 
-        If the file does not exist (e.g. upload called from the build pipeline
-        before generate-input-files has run), the copy is silently skipped.
+        That stage was retired in Omnia 2.3 and nothing writes the file today,
+        so for jobs created on 2.3+ the source never exists and the copy is
+        silently skipped.
 
         Args:
             job_id: Job identifier.
