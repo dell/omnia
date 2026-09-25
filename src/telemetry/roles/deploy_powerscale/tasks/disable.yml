@@ -16,38 +16,167 @@
 # =============================================================================
 # deploy_powerscale — Disable PowerScale telemetry
 # =============================================================================
-# Scales down PowerScale telemetry resources when no telemetry sources
-# require PowerScale.
+# Scales down PowerScale-owned telemetry resources when both metrics_enabled
+# and logs_enabled are false.
 #
-# This stops PowerScale telemetry but preserves PVCs for future re-enablement.
+# WHAT THIS DOES:
+#   - Scales down karavi-metrics-powerscale deployment to 0 replicas
+#   - Scales down otel-collector deployment to 0 replicas
+#   - Scales down csi-volume-exporter deployment to 0 replicas
+#   - Deletes VMServiceScrape for OTEL Collector (if exists)
+#
+# WHAT THIS PRESERVES (for re-enablement):
+#   - PVCs (otel-collector-data)
+#   - Secrets (isilon-creds, cert-manager certificates)
+#   - Helm release state (karavi-observability)
+#   - ConfigMaps (karavi-metrics-powerscale-configmap)
+#   - Services (for future re-enablement)
+#   - ServiceAccounts, ClusterRoles, ClusterRoleBindings
+#
+# WHAT THIS NEVER TOUCHES (shared infrastructure):
+#   - VictoriaMetrics cluster (vmstorage, vmselect, vminsert)
+#   - VictoriaLogs cluster (vlstorage, vlselect, vlinsert)
+#   - vmagent (shared scraper for all sources)
+#   - vlagent (shared syslog receiver for all sources)
+#   - vlagent-config ConfigMap (managed by deploy_victoria role)
+#   - Kafka cluster (shared message bus)
+#   - Victoria Metrics Operator
+#
+# LOGS CONFIGURATION:
+#   - VLAgent syslog configuration is managed by deploy_victoria role
+#   - The vlagent-config ConfigMap is regenerated on every telemetry.yml run
+#   - PowerScale entry is conditionally included based on logs_enabled flag
+#   - This role does NOT manage vlagent-config
 # =============================================================================
 
 - name: Load telemetry configuration
   ansible.builtin.include_role:
     name: common
     tasks_from: load_telemetry_config
+  when: telemetry_config is not defined
 
-- name: Check if PowerScale resources exist
+- name: Set PowerScale namespace
+  ansible.builtin.set_fact:
+    ps_namespace: "{{ telemetry_namespace }}"
+
+- name: Display PowerScale disable operation
+  ansible.builtin.debug:
+    msg: "Disabling PowerScale telemetry - scaling down PowerScale-owned components (preserving shared infrastructure)"
+    verbosity: 1
+
+# =============================================================================
+# Scale Down Metrics Components (PowerScale-owned)
+# =============================================================================
+
+- name: Check if karavi-metrics-powerscale deployment exists
   ansible.builtin.command: >
-    kubectl get deployment csm-metrics-powerscale -n {{ telemetry_namespace }}
-  register: powerscale_check
+    kubectl get deployment karavi-metrics-powerscale -n {{ ps_namespace }} -o name
+  register: karavi_metrics_check
   changed_when: false
   failed_when: false
 
-- name: Scale down PowerScale resources
+- name: Scale down karavi-metrics-powerscale deployment
   ansible.builtin.command: >
-    kubectl scale deployment csm-metrics-powerscale
-    -n {{ telemetry_namespace }} --replicas=0
-  register: scale_down_result
-  changed_when: "'scaled' in scale_down_result.stdout"
-  when: powerscale_check.rc == 0
+    kubectl scale deployment karavi-metrics-powerscale -n {{ ps_namespace }} --replicas=0
+  register: karavi_scale_result
+  changed_when: "'scaled' in karavi_scale_result.stdout or karavi_scale_result.rc == 0"
+  when: karavi_metrics_check.rc == 0
 
-- name: Display scale down result
+- name: Display karavi-metrics-powerscale scale down status
   ansible.builtin.debug:
-    msg: "Scaling down PowerScale telemetry to 0 replicas"
-  when: powerscale_check.rc == 0
+    msg: "Scaled down karavi-metrics-powerscale deployment to 0 replicas"
+  when: karavi_metrics_check.rc == 0
 
-- name: PowerScale resources not found
+- name: Check if otel-collector deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment otel-collector -n {{ ps_namespace }} -o name
+  register: otel_collector_check
+  changed_when: false
+  failed_when: false
+
+- name: Scale down otel-collector deployment
+  ansible.builtin.command: >
+    kubectl scale deployment otel-collector -n {{ ps_namespace }} --replicas=0
+  register: otel_scale_result
+  changed_when: "'scaled' in otel_scale_result.stdout or otel_scale_result.rc == 0"
+  when: otel_collector_check.rc == 0
+
+- name: Display otel-collector scale down status
   ansible.builtin.debug:
-    msg: "PowerScale telemetry resources not found, nothing to scale down"
-  when: powerscale_check.rc != 0
+    msg: "Scaled down otel-collector deployment to 0 replicas"
+  when: otel_collector_check.rc == 0
+
+- name: Check if csi-volume-exporter deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment csi-volume-exporter -n {{ ps_namespace }} -o name
+  register: csi_exporter_check
+  changed_when: false
+  failed_when: false
+
+- name: Scale down csi-volume-exporter deployment
+  ansible.builtin.command: >
+    kubectl scale deployment csi-volume-exporter -n {{ ps_namespace }} --replicas=0
+  register: csi_scale_result
+  changed_when: "'scaled' in csi_scale_result.stdout or csi_scale_result.rc == 0"
+  when: csi_exporter_check.rc == 0
+
+- name: Display csi-volume-exporter scale down status
+  ansible.builtin.debug:
+    msg: "Scaled down csi-volume-exporter deployment to 0 replicas"
+  when: csi_exporter_check.rc == 0
+
+# =============================================================================
+# Remove VMServiceScrape for OTEL Collector (if exists)
+# =============================================================================
+# VMServiceScrape tells vmagent to scrape the OTEL Collector.
+# When PowerScale metrics are disabled, we should remove this to prevent
+# vmagent from attempting to scrape a scaled-down service.
+# =============================================================================
+
+- name: Check if VMServiceScrape for otel-collector exists
+  ansible.builtin.command: >
+    kubectl get vmservicescrape -n {{ ps_namespace }} -l app.kubernetes.io/name=otel-collector -o name
+  register: vmservicescrape_check
+  changed_when: false
+  failed_when: false
+
+- name: Delete VMServiceScrape for otel-collector
+  ansible.builtin.command: >
+    kubectl delete vmservicescrape -n {{ ps_namespace }} -l app.kubernetes.io/name=otel-collector --ignore-not-found=true
+  register: vmservicescrape_delete_result
+  changed_when: true
+  when: vmservicescrape_check.rc == 0
+
+- name: Display VMServiceScrape deletion status
+  ansible.builtin.debug:
+    msg: "Deleted VMServiceScrape for otel-collector"
+  when: vmservicescrape_check.rc == 0
+
+# =============================================================================
+# Display Summary
+# =============================================================================
+
+- name: Display PowerScale disable summary
+  ansible.builtin.debug:
+    msg: |
+      PowerScale telemetry disabled successfully.
+
+      Scaled down components:
+        - karavi-metrics-powerscale: {{ 'Yes' if karavi_metrics_check.rc == 0 else 'Not found' }}
+        - otel-collector: {{ 'Yes' if otel_collector_check.rc == 0 else 'Not found' }}
+        - csi-volume-exporter: {{ 'Yes' if csi_exporter_check.rc == 0 else 'Not found' }}
+
+      Preserved for re-enablement:
+        - PVCs (otel-collector-data)
+        - Secrets (isilon-creds, certificates)
+        - Helm release state (karavi-observability)
+        - ConfigMaps, Services, RBAC resources
+
+      Shared infrastructure (unchanged):
+        - VictoriaMetrics cluster: Running (for other sources)
+        - VictoriaLogs cluster: Running (for other sources)
+        - vmagent: Running (for other sources)
+        - vlagent: Running (for other sources)
+        - Kafka: Running (for other sources)
+
+      Note: VLAgent syslog configuration is managed by deploy_victoria role.
