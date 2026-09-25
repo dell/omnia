@@ -912,10 +912,7 @@ class ValidationRunner:
                 count = _count_test_files(self.nft_dir)
                 _yellow("NFT Tests:")
                 _green("  nft", end="")
-                print(
-                    f"  ({count} test files"
-                    " — performance, idempotency)"
-                )
+                print(f"  ({count} non-functional test files)")
             else:
                 _warn("NFT directory not found")
         elif category == "ut":

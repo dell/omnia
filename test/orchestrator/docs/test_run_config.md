@@ -1,57 +1,90 @@
-# Orchestrator `test_run_config.yml` reference
+# test_run_config.yml — Batch Execution Reference
 
-`./run_validation.sh --config` processes FVT scenarios in YAML order, followed
-by NFT and unit categories.
-
-Each FVT scenario supports:
-
-| Field | Type | Purpose |
-|---|---|---|
-| `run` | boolean | Enable this scenario |
-| `command` | `exec`, `verify`, or `test` | Execute, verify, or execute then verify |
-| `suite` | string | Immediate suite folder below the selected tag |
-| `marker` | string | Single, comma-OR, or plus-AND marker expression |
-| `dataset` | string | Per-scenario generated dataset override |
-| `sync_input` | boolean | Override input synchronization |
-| `sync_output` | boolean | Override Repo Manager handoff synchronization |
-| `sync_image_output` | boolean | Override Image Build Manager handoff synchronization |
-
-Global `dataset_override`, `sync_input_override`, `sync_output_override`, and
-`sync_image_output_override` take precedence over per-scenario values when
-uncommented. All booleans must be unquoted YAML `true` or `false`.
-
-The checked-in Slurm preset mirrors PR #5220’s Kubernetes workflow:
-
-```yaml
-fvt_orchestrator:
-  provision:
-    run: false
-    command: exec
-    suite: slurm
-    marker: ""
-    dataset: slurm_only
-    sync_input: true
-    sync_output: true
-    sync_image_output: true
-
-  check:
-    run: false
-    command: verify
-    suite: slurm
-    marker: sanity,functional
-    dataset: slurm_only
-    sync_input: false
-    sync_output: false
-    sync_image_output: false
-```
-
-Generate `datasets/slurm_only` first, set the desired `run` fields to `true`,
-and execute:
+`test_run_config.yml` controls explicit batch runs started with:
 
 ```bash
 ./run_validation.sh --config
 ```
 
-`skip_on_failure: true` stops after the first failed scenario. Destructive
-flows still require their explicit destructive marker even when enabled in
-the batch file.
+It selects operations; it never contains credentials. Every tracked entry is
+disabled by default.
+
+## Lifecycle order
+
+Enabled FVT entries run in their YAML order:
+
+1. `precheck`
+2. `prepare`
+3. `provision`
+4. `pxeboot`
+5. `cleanup`
+
+`cleanup` is destructive, excluded from implicit full runs, and must be
+enabled explicitly after reviewing cleanup policy in `test_config.yml`.
+The flat `nft_orchestrator` entry runs after FVT entries when enabled.
+
+## Entry fields
+
+| Field | Type | Purpose |
+|---|---|---|
+| `run` | Boolean | Enable this entry. |
+| `command` | String | `exec`, `verify`, or `test`. |
+| `suite` | String | Optional registered suite beneath the tag. |
+| `marker` | String | Single marker, AND (`+`), or OR (`,`) expression. |
+| `dataset` | String | Optional dataset override. |
+| `sync_input` | Boolean | Override Orchestrator input synchronization. |
+| `sync_output` | Boolean | Override Repo Manager output synchronization. |
+| `sync_image_output` | Boolean | Override Image Build Manager output synchronization. |
+
+`test` runs `exec` followed by `verify` only when execution succeeds.
+`skip_on_failure: false` attempts later enabled batch entries and reports a
+non-zero aggregate result; set it to `true` to stop after the first failure.
+
+## Registered tags and suites
+
+| Tag | Suites |
+|---|---|
+| `precheck` | `environment`, `storage`, `dependencies`, `inputs` |
+| `prepare` | `openchami`, `network`, `openldap` |
+| `provision` | `openchami` |
+| `pxeboot` | `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer` |
+| `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
+
+Discover the live catalog before editing the batch file:
+
+```bash
+./run_validation.sh fvt_orchestrator list
+```
+
+## Markers
+
+Registered markers include `sanity`, `functional`, `openldap`, `connectivity`,
+`cloudinit`, `kubernetes`, `slurm`, `apptainer`, `image_download`, `negative`,
+`non_disruptive`, `disruptive`, `reboot`, `scheduler_state`, and `destructive`.
+
+Examples:
+
+```yaml
+marker: "sanity"                 # one marker
+marker: "sanity,functional"      # OR
+marker: "slurm+non_disruptive"   # AND
+```
+
+Unknown tags, suites, markers, commands, or incompatible fields fail before
+execution. Review every enabled entry before running a batch.
+
+## NFT entry
+
+NFT uses one flat top-level entry rather than lifecycle subentries:
+
+```yaml
+nft_orchestrator:
+  run: false
+  command: "test"
+  marker: ""
+```
+
+An empty marker runs all 11 NFT contracts. `performance`, `idempotency`, and
+`security` select one quality area. The complete suite, performance, and
+idempotency selections mutate the target; the complete suite finishes with
+full cleanup. Do not enable NFT and FVT cleanup in the same unattended batch.

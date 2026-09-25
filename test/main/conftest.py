@@ -231,7 +231,6 @@ def pytest_sessionstart(session):
     base_name = str(config.get("report_name", "test_report"))
     report_name = build_report_name(
         base_name=base_name,
-        report_id=report_id,
     )
     report = TestReport(
         module_name=module_name,
