@@ -20,7 +20,7 @@ import json
 import logging
 from types import SimpleNamespace
 import unittest
-from unittest.mock import call, patch
+from unittest.mock import MagicMock, call, patch
 
 import source_loader  # noqa: F401  # pylint: disable=unused-import
 
@@ -141,6 +141,64 @@ class ExactMirrorCommandTests(unittest.TestCase):
         )
         self.assertNotIn("--sync-policy", normal)
         self.assertEqual(exact[-2:], ["--sync-policy", "mirror_content_only"])
+
+    @patch.object(process_rpm_config, "urlopen")
+    @patch.object(
+        process_rpm_config,
+        "normalize_pulp_distribution_url",
+        return_value="file:///etc",
+    )
+    @patch.object(
+        process_rpm_config,
+        "get_distribution_details",
+        return_value={"base_url": "file:///etc"},
+    )
+    def test_repomd_validation_rejects_non_https_origin(
+        self, _distribution, _normalize, open_url
+    ):
+        """Publication validation never follows local or custom URL schemes."""
+        valid, error = process_rpm_config._validate_served_repomd(
+            REPOSITORY_NAME, "https://pulp.example", LOGGER
+        )
+        self.assertFalse(valid)
+        self.assertIn("secure HTTPS origin", error)
+        open_url.assert_not_called()
+
+    @patch.object(process_rpm_config.ssl, "create_default_context")
+    @patch.object(process_rpm_config.os.path, "isfile", return_value=True)
+    @patch.object(process_rpm_config, "urlopen")
+    @patch.object(
+        process_rpm_config,
+        "normalize_pulp_distribution_url",
+        return_value="https://pulp.example/pulp/content/repository",
+    )
+    @patch.object(
+        process_rpm_config,
+        "get_distribution_details",
+        return_value={"base_url": "https://pulp.example/repository"},
+    )
+    def test_repomd_validation_rejects_xml_entities(
+        self,
+        _distribution,
+        _normalize,
+        open_url,
+        _isfile,
+        _ssl_context,
+    ):
+        """Untrusted repository metadata cannot expand XML entities."""
+        response = MagicMock()
+        response.status = 200
+        response.read.return_value = (
+            b'<!DOCTYPE repomd [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
+            b"<repomd>&xxe;</repomd>"
+        )
+        open_url.return_value.__enter__.return_value = response
+
+        valid, error = process_rpm_config._validate_served_repomd(
+            REPOSITORY_NAME, "https://pulp.example", LOGGER
+        )
+        self.assertFalse(valid)
+        self.assertIn("EntitiesForbidden", error)
 
 
 class ExactMirrorSafetyTests(unittest.TestCase):

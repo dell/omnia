@@ -39,8 +39,11 @@ from functools import partial
 import time
 import uuid
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
-from xml.etree import ElementTree
+
+from defusedxml import ElementTree
+from defusedxml.common import DefusedXmlException
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager.standard_logger import setup_standard_logger
@@ -127,6 +130,8 @@ _PULP_TASK_HREF_PATTERN = re.compile(
     r"(/pulp/api/v\d+/tasks/[a-f0-9-]{36}/)"
 )
 _ACTIVE_PULP_TASK_STATES = ("waiting", "running", "canceling")
+_MAX_REPOMD_BYTES = 1024 * 1024
+
 
 def _log(log, level, repo_name, msg):
     """All repo logs go through here — grep-friendly."""
@@ -2944,21 +2949,41 @@ def _validate_served_repomd(repo_name, pulp_base_url, log):
             distribution.get("base_url"), pulp_base_url
         )
         metadata_url = f"{base_url.rstrip('/')}/repodata/repomd.xml"
+        parsed_url = urlsplit(metadata_url)
+        if (
+            parsed_url.scheme != "https"
+            or not parsed_url.hostname
+            or parsed_url.username is not None
+            or parsed_url.password is not None
+            or parsed_url.query
+            or parsed_url.fragment
+        ):
+            return False, "Published metadata URL must be a secure HTTPS origin"
         ca_bundle = os.environ.get("PULP_CA_BUNDLE") or PULP_SSL_CA_CERT
         if not ca_bundle or not os.path.isfile(ca_bundle):
             return False, "Pulp CA certificate is unavailable"
         request = Request(metadata_url, method="GET")
         context = ssl.create_default_context(cafile=ca_bundle)
-        with urlopen(request, context=context, timeout=60) as response:
+        with urlopen(  # nosec B310 - HTTPS origin is validated above
+            request, context=context, timeout=60
+        ) as response:
             if response.status != 200:
                 return False, f"repomd.xml returned HTTP {response.status}"
-            document = response.read()
+            document = response.read(_MAX_REPOMD_BYTES + 1)
+        if len(document) > _MAX_REPOMD_BYTES:
+            return False, "Published repomd.xml exceeds the validation limit"
         root = ElementTree.fromstring(document)
         if not root.tag.rsplit("}", maxsplit=1)[-1] == "repomd":
             return False, "Published metadata is not a repomd document"
         return True, "Published repomd.xml is valid"
-    except (HTTPError, URLError, OSError, ValueError,
-            ElementTree.ParseError) as error:
+    except (
+        HTTPError,
+        URLError,
+        OSError,
+        ValueError,
+        ElementTree.ParseError,
+        DefusedXmlException,
+    ) as error:
         _log(log, "error", repo_name, "Published repomd.xml validation failed")
         return False, str(error)
 
