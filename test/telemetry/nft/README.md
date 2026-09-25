@@ -79,7 +79,7 @@ cleanup phase, producing correct results.
 ### Full NFT Test Suite (Recommended)
 
 ```bash
-# Run all NFT tests (includes both DELETE_VOLUME=false and DELETE_VOLUME=true scenarios)
+# Run all NFT tests (includes both DELETE_SINKS_VOLUME=false and DELETE_SINKS_VOLUME=true scenarios)
 # This is the comprehensive test run that validates all cleanup modes in a single execution
 ./run_validation.sh nft_telemetry test
 ```
@@ -138,8 +138,8 @@ This consolidated approach eliminates the need to run the NFT suite twice with d
 ### Why Everything is Deleted
 
 The consolidated NFT execution includes both test phases:
-1. **Phase 1** (default): Tests with `DELETE_VOLUME=false` — sink PVCs are preserved
-2. **Phase 2** (final): Cleanup-with-volume deletion tests with `DELETE_VOLUME=true` — **all PVCs, input files, logs, and credentials are deleted**
+1. **Phase 1** (default): Tests with `DELETE_SINKS_VOLUME=false` — sink PVCs are preserved
+2. **Phase 2** (final): Cleanup-with-volume deletion tests with `DELETE_SINKS_VOLUME=true` — **all PVCs, input files, logs, and credentials are deleted**
 
 This ensures comprehensive coverage of both cleanup modes in a single run. The final cleanup phase (Phase 2) performs a complete cleanup with volume deletion, removing all data and configuration files.
 

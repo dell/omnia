@@ -93,30 +93,30 @@ Run from inside the `test/telemetry/` directory:
 | `-v, --verbose` | Increase pytest verbosity |
 | `--debug` | Full debug output (pytest `-vvs`) |
 
-### Cleanup: `Delete_volume` Flag (FVT Only)
+### Cleanup: `Delete_sinks_volume` Flag (FVT Only)
 
-The `cleanup` tag supports an optional `Delete_volume` flag that controls
+The `cleanup` tag supports an optional `Delete_sinks_volume` flag that controls
 whether PersistentVolumeClaims (PVCs) are deleted along with pods,
-services, and workloads. It is exposed via the `DELETE_VOLUME`
+services, and workloads. It is exposed via the `DELETE_SINKS_VOLUME`
 environment variable, since `run_validation.sh` forwards the calling
-shell's environment to pytest:
+shell's environment to pytest. (Legacy alias `DELETE_VOLUME` is also supported.)
 
-| `DELETE_VOLUME` | Playbook flag passed | PVC behavior |
+| `DELETE_SINKS_VOLUME` | Playbook flag passed | PVC behavior |
 |-----------------|----------------------|---------------|
-| unset / `false` (default) | *(none — `Delete_volume` defaults to false)* | PVCs are **preserved** |
-| `true` | `-e Delete_volume=true` | PVCs are **deleted** |
+| unset / `false` (default) | *(none — `Delete_sinks_volume` defaults to false)* | PVCs are **preserved** |
+| `true` | `-e Delete_sinks_volume=true` | PVCs are **deleted** |
 
 ```bash
-# FVT: Default cleanup preserves PVCs (Delete_volume=false)
+# FVT: Default cleanup preserves PVCs (Delete_sinks_volume=false)
 ./run_validation.sh fvt_telemetry cleanup test
 
-# FVT: Cleanup + delete PVCs/volumes (Delete_volume=true)
-DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test
+# FVT: Cleanup + delete PVCs/volumes (Delete_sinks_volume=true)
+DELETE_SINKS_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test
 ```
 
-When `DELETE_VOLUME=true`, the corresponding PVC-deletion test
+When `DELETE_SINKS_VOLUME=true`, the corresponding PVC-deletion test
 (`test_no_pvcs_after_full_cleanup`) runs and the playbook is invoked
-with `-e Delete_volume=true`. Otherwise, `test_pvcs_preserved_after_cleanup`
+with `-e Delete_sinks_volume=true`. Otherwise, `test_pvcs_preserved_after_cleanup`
 runs instead to confirm PVCs were retained.
 
 **Credential and Log Preservation Tests:**
@@ -140,13 +140,13 @@ See `fvt/README.md` for the full cleanup test case registry.
 **Recommended approach**: Run the full NFT suite with a single command:
 
 ```bash
-# Comprehensive NFT execution (both DELETE_VOLUME=false and DELETE_VOLUME=true scenarios)
+# Comprehensive NFT execution (both DELETE_SINKS_VOLUME=false and DELETE_SINKS_VOLUME=true scenarios)
 ./run_validation.sh nft_telemetry test
 ```
 
 This consolidated execution automatically runs:
-1. **Phase 1**: All performance, idempotency, and resilience tests with `DELETE_VOLUME=false` (PVCs preserved)
-2. **Phase 2**: Cleanup-with-volume deletion tests with `DELETE_VOLUME=true` (all PVCs deleted)
+1. **Phase 1**: All performance, idempotency, and resilience tests with `DELETE_SINKS_VOLUME=false` (PVCs preserved)
+2. **Phase 2**: Cleanup-with-volume deletion tests with `DELETE_SINKS_VOLUME=true` (all PVCs deleted)
 
 This eliminates the need to run the NFT suite twice with different flags.
 
@@ -173,13 +173,13 @@ See `nft/README.md` for detailed test case descriptions and recovery instruction
 **Recommended approach**: Run the full NFT suite with a single command:
 
 ```bash
-# Comprehensive NFT execution (both DELETE_VOLUME=false and DELETE_VOLUME=true scenarios)
+# Comprehensive NFT execution (both DELETE_SINKS_VOLUME=false and DELETE_SINKS_VOLUME=true scenarios)
 ./run_validation.sh nft_telemetry test
 ```
 
 This consolidated execution automatically runs:
-1. **Phase 1**: All performance, idempotency, and resilience tests with `DELETE_VOLUME=false` (PVCs preserved)
-2. **Phase 2**: Cleanup-with-volume deletion tests with `DELETE_VOLUME=true` (all PVCs deleted)
+1. **Phase 1**: All performance, idempotency, and resilience tests with `DELETE_SINKS_VOLUME=false` (PVCs preserved)
+2. **Phase 2**: Cleanup-with-volume deletion tests with `DELETE_SINKS_VOLUME=true` (all PVCs deleted)
 
 This eliminates the need to run the NFT suite twice with different flags.
 
@@ -220,8 +220,8 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
 ./run_validation.sh fvt_telemetry deploy test --marker sanity
 ./run_validation.sh fvt_telemetry deploy verify --suite sources
 ./run_validation.sh fvt_telemetry deploy verify --suite sinks
-./run_validation.sh fvt_telemetry cleanup test                              # Delete_volume=false (default): PVCs preserved
-DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test           # Delete_volume=true: PVCs deleted
+./run_validation.sh fvt_telemetry cleanup test                              # Delete_sinks_volume=false (default): PVCs preserved
+DELETE_SINKS_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test           # Delete_sinks_volume=true: PVCs deleted
 
 # SFM integration only (requires configure_sfm: true and SFM credentials)
 ./run_validation.sh fvt_telemetry deploy verify --suite sources --marker sfm
@@ -239,7 +239,7 @@ DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test           # De
 ./run_validation.sh nft_telemetry test --marker performance     # Performance only
 ./run_validation.sh nft_telemetry test --marker idempotency     # Idempotency only
 ./run_validation.sh nft_telemetry test --marker resilience      # Resilience only
-DELETE_VOLUME=true ./run_validation.sh nft_telemetry test --marker idempotency  # Idempotency with PVC deletion
+DELETE_SINKS_VOLUME=true ./run_validation.sh nft_telemetry test --marker idempotency  # Idempotency with PVC deletion
 
 # Config-driven batch
 ./run_validation.sh --config
@@ -253,7 +253,7 @@ DELETE_VOLUME=true ./run_validation.sh nft_telemetry test --marker idempotency  
 ./run_validation.sh fvt_telemetry deploy test --marker sanity        # 3. Deploy + verify sanity
 ./run_validation.sh fvt_telemetry verify --marker sanity              # 4. Full sanity verification
 ./run_validation.sh fvt_telemetry cleanup test                       # 5. Cleanup + verify (PVCs preserved)
-DELETE_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test    # 5b. Full cleanup incl. PVCs (optional)
+DELETE_SINKS_VOLUME=true ./run_validation.sh fvt_telemetry cleanup test    # 5b. Full cleanup incl. PVCs (optional)
 ```
 
 ### SFM Prometheus Remote Write
@@ -373,10 +373,10 @@ test/telemetry/
 | **FVT Total** | **113 reportable IDs / 111 test functions** | |
 
 \* The two final-state PVC IDs are mode-dependent branches of
-`test_no_pvcs_after_full_cleanup`; only the ID matching `DELETE_VOLUME` is
+`test_no_pvcs_after_full_cleanup`; only the ID matching `DELETE_SINKS_VOLUME` is
 reported. `test_cleanup_topics_removed` also skips when
-`DELETE_VOLUME` is unset/`false` (KafkaTopic CRDs are preserved in that
-mode) — so 14 run when `DELETE_VOLUME=true`, 13 run otherwise.
+`DELETE_SINKS_VOLUME` is unset/`false` (KafkaTopic CRDs are preserved in that
+mode) — so 14 run when `DELETE_SINKS_VOLUME=true`, 13 run otherwise.
 
 ### NFT (Non-Functional Tests)
 
