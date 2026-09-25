@@ -12,71 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# cleanup_build_output.yml — Remove build_status.yml output files.
-#
-# Cleanup scope for build outputs:
-#   "current"  (default) — remove only the current build's output files
-#              In catalog mode: removes the versioned subdirectory + latest copy
-#              In config mode: removes only the latest build_status.yml
-#   "all"      — DESTRUCTIVE: remove entire output_project_dir (all versions)
-#
-# Usage: ansible-playbook image_build_manager.yml --tags cleanup \
-#          -e cleanup_build_output_scope=all
+# cleanup_build_output.yml — Remove all build_status.yml output files.
 
-- name: Determine cleanup scope
-  ansible.builtin.set_fact:
-    _cleanup_output_scope: "{{ cleanup_build_output_scope | default('current') }}"
-    _catalog_version_dir: >-
-      {{ output_project_dir }}/{{ hostvars['localhost']['catalog_identifier'] | default('') }}-v{{ hostvars['localhost']['catalog_version'] | default('') }}
-      if (hostvars['localhost']['catalog_identifier'] | default('') | length > 0
-          and hostvars['localhost']['catalog_version'] | default('') | length > 0)
-      else ''
-
-- name: Display cleanup scope
-  ansible.builtin.debug:
-    msg: >-
-      Build output cleanup scope: {{ _cleanup_output_scope }}
-      {% if _cleanup_output_scope == 'current' and _catalog_version_dir | length > 0 %}
-      (will remove catalog-versioned directory: {{ _catalog_version_dir }})
-      {% elif _cleanup_output_scope == 'all' %}
-      (DESTRUCTIVE: will remove entire {{ output_project_dir }})
-      {% endif %}
-
-# ── Current build cleanup (default, safe) ────────────────────────────────
-
-- name: Remove latest build_status.yml (current build)
-  ansible.builtin.file:
-    path: "{{ build_status_latest }}"
-    state: absent
-  delegate_to: localhost
-  connection: local
-  when: _cleanup_output_scope == 'current'
-
-- name: Remove catalog-versioned build_status directory (current build)
-  ansible.builtin.file:
-    path: "{{ _catalog_version_dir }}"
-    state: absent
-  delegate_to: localhost
-  connection: local
-  when:
-    - _cleanup_output_scope == 'current'
-    - _catalog_version_dir | length > 0
-
-# ── All builds cleanup (destructive, requires explicit opt-in) ────────────
-
-- name: Warn before removing all build outputs
-  ansible.builtin.debug:
-    msg:
-      - "WARNING: cleanup_build_output_scope=all will PERMANENTLY DELETE:"
-      - "  - All versioned build_status.yml files"
-      - "  - All historical build outputs"
-      - "  - Directory: {{ output_project_dir }}"
-  when: _cleanup_output_scope == 'all'
-
-- name: Remove all build outputs (destructive)
+- name: Remove all build output files
   ansible.builtin.file:
     path: "{{ output_project_dir }}"
     state: absent
   delegate_to: localhost
   connection: local
-  when: _cleanup_output_scope == 'all'

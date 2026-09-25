@@ -61,15 +61,6 @@ output_project_dir: "{{ hostvars['localhost']['output_project_dir'] }}"
 build_status_latest: "{{ output_project_dir }}/build_status.yml"
 build_status_versioned_dir: "{{ output_project_dir }}"
 
-# Cleanup scope for build outputs:
-#   "current"  (default) — remove only the current build's output files
-#              In catalog mode: removes the versioned subdirectory + latest copy
-#              In config mode: removes only the latest build_status.yml
-#   "all"      — DESTRUCTIVE: remove entire output_project_dir (all versions)
-#
-# Usage: ansible-playbook image_build_manager.yml --tags cleanup \
-#          -e cleanup_build_output_scope=all
-
 # ---------------------------------------------------------------------------
 # Credential cleanup
 # ---------------------------------------------------------------------------
