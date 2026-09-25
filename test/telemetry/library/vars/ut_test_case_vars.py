@@ -77,6 +77,14 @@ UT_TEST_CASE_IDS = {
             36: "test_idrac_kafka_probe_sends_valid_consumer_json",
         },
     ),
+    **_module_cases(
+        "test_sink_enablement.py",
+        {
+            37: "test_sink_enablement_keeps_direct_source_targets",
+            38: "test_vector_ome_bridge_derives_required_sinks",
+            39: "test_vector_ldms_bridge_requires_enabled_ldms_source",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):
