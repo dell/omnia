@@ -14,13 +14,14 @@
 ---
 # cleanup_build_output.yml — Remove build_status.yml output files.
 #
-# Supports selective cleanup of versioned builds:
-#   cleanup_build_output_scope: "current"  (default) — remove only current build's outputs
-#   cleanup_build_output_scope: "all"      — remove ALL build outputs (destructive)
+# Cleanup scope for build outputs:
+#   "current"  (default) — remove only the current build's output files
+#              In catalog mode: removes the versioned subdirectory + latest copy
+#              In config mode: removes only the latest build_status.yml
+#   "all"      — DESTRUCTIVE: remove entire output_project_dir (all versions)
 #
-# In catalog mode, "current" removes the catalog-versioned directory and latest copy.
-# In config mode, "current" removes only the latest build_status.yml.
-# "all" removes the entire output_project_dir (destructive).
+# Usage: ansible-playbook image_build_manager.yml --tags cleanup \
+#          -e cleanup_build_output_scope=all
 
 - name: Determine cleanup scope
   ansible.builtin.set_fact:

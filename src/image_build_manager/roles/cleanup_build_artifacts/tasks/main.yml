@@ -20,32 +20,24 @@
 
 - name: Cleanup MinIO container and data
   ansible.builtin.import_tasks: cleanup_minio.yml
-  tags: minio
 
 - name: Cleanup registry container and data
   ansible.builtin.import_tasks: cleanup_registry.yml
-  tags: registry
 
 - name: Cleanup build output files
   ansible.builtin.import_tasks: cleanup_build_output.yml
-  tags: output
 
 - name: Cleanup s3cmd configuration
   ansible.builtin.import_tasks: cleanup_s3cmd.yml
-  tags: s3cmd
 
 - name: Cleanup image_build_manager credentials
   ansible.builtin.import_tasks: cleanup_credentials.yml
-  tags: cleanup_credentials
 
 - name: Cleanup domain data directories
   ansible.builtin.import_tasks: cleanup_domain_data.yml
-  tags: data
 
 - name: Cleanup image_build_manager logs
   ansible.builtin.import_tasks: cleanup_logs.yml
-  tags: logs
 
 - name: Cleanup package hash cache files
   ansible.builtin.import_tasks: cleanup_hash_cache.yml
-  tags: cache
