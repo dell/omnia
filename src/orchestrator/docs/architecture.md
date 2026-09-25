@@ -56,6 +56,25 @@ Orchestrator deliberately does not:
 - continuously monitor Kubernetes, Slurm, CSI, or application health; or
 - provide an in-place rollback for the v2.3 one-way OpenCHAMI upgrade.
 
+## Architectural Principles
+
+The implementation follows these rules across lifecycle phases:
+
+| Principle | Architectural consequence |
+|-----------|---------------------------|
+| Thin public entry point | `orchestrator.yml` routes tags to focused phase playbooks instead of embedding the complete lifecycle in one play. |
+| Persistent physical identity | Service Tag-to-XNAME bindings live in SMD Hardware Inventory; mutable CSV values do not redefine an existing server. |
+| Desired state is not applied state | OpenCHAMI publication and successful node application are reported separately. Only a verified fresh boot proves that a running node consumed new metadata. |
+| Reconcile before mutation | Clients read and normalize current service state, compare it with desired state, and write only when required. |
+| Functional groups are data | PXE mapping and classification data select category workflows; individual hostnames and CSV row positions do not select code paths. |
+| Prepare before publication | Category bolt-ons generate mounts, packages, and cloud-init fragments before final Boot Service and Metadata Service publication. |
+| Explicit ownership boundaries | Category, project, and component ownership limit cleanup and prevent one workflow from deleting another workflow's state. |
+| Node-scoped failure reporting | A failed BMC or node verification does not hide the result of other selected nodes, and pending application state is retained for retry. |
+
+These principles make independently selected tags repeatable while preserving
+the distinction between controller intent, OpenCHAMI desired state, and the
+configuration currently running on a physical server.
+
 ## Runtime Topology
 
 ```text
@@ -469,14 +488,54 @@ See [`contracts/input-contract.md`](contracts/input-contract.md) and
 [`contracts/output-contract.md`](contracts/output-contract.md) for complete
 field-level contracts.
 
-## Validation Boundaries
+## Validation Architecture
 
-- Input validation checks structure and cross-file consistency before mutation.
-- Service validation checks OpenCHAMI and OpenLDAP readiness.
-- Provision validation checks desired registration and configuration state.
-- PXE verification proves a fresh boot and acceptable cloud-init completion.
-- Orchestrator does not continuously monitor Kubernetes, Slurm, CSI, or
-  application health after the lifecycle finishes.
+Validation is layered so configuration errors stop before service mutation,
+while external and applied-state checks run only when their prerequisites
+exist:
+
+```text
+project YAML and CSV
+        |
+        v
+L1 schema validation
+        |
+        v
+L2 cross-field and cross-file validation
+        |
+        v
+environment and artifact prechecks
+        |
+        v
+deployed-service readiness checks
+        |
+        v
+post-provision OpenCHAMI readback
+        |
+        v
+post-PXE SSH freshness and cloud-init verification
+```
+
+| Layer | Owner | What it proves | Mutation allowed |
+|-------|-------|----------------|------------------|
+| L1 structure | `validate_orchestrator_config` and domain schemas | Required properties, types, formats, enums, and file structure are valid | No |
+| L2 relationships | Orchestrator validation engine and per-input validators | Cross-field and cross-file relationships such as selected workloads, networks, storage, and mapping uniqueness are consistent | No |
+| Runtime precheck | `orchestrator_validations` and component precheck plays | Referenced images, repositories, storage, networking, and OIM prerequisites are available | No service deployment |
+| Service readiness | OpenCHAMI and OpenLDAP validation plays | Required containers, endpoints, authentication, and service health are ready | Read-only service checks |
+| Desired-state readback | `validate_provisioning` | Expected SMD, Boot Service, Metadata Service, interface, group, and hostname state was published | Reports only |
+| Applied-state verification | `verify_node_registration` and `node_boot_status` | The observed boot is newer than the PXE request and cloud-init reached an acceptable terminal state | Reports only |
+
+L1 and L2 validation are intentionally separate from runtime prechecks. A
+structurally valid configuration may still reference an unavailable external
+service, while a reachable service cannot make an internally inconsistent
+configuration safe. See the
+[`validate_orchestrator_input` role](../roles/validate_orchestrator_input/README.md)
+and [`orchestrator_validations` role](../roles/orchestrator_validations/README.md)
+for their maintained task-level boundaries.
+
+PXE verification establishes boot-time application only. Orchestrator does
+not continuously monitor Kubernetes, Slurm, CSI, or application health after
+the lifecycle finishes.
 
 ## Idempotency and Mutation Rules
 
@@ -536,6 +595,31 @@ continue from a known desired-state input.
 `configure_ochami` owns reusable templates and focused service tasks.
 `provision_common` coordinates those resources through the category
 provisioning workflow; it is the supported lifecycle entry point.
+
+### Ansible Plugin and Dependency Boundaries
+
+Orchestrator owns its domain-specific roles, modules, module utilities, action
+plugins, callback plugin, schemas, and variables under `src/orchestrator/`.
+The domain-level and phase-level `ansible.cfg` files resolve those resources
+through paths relative to their own execution directory. This is why the
+documented top-level invocation starts in `src/orchestrator/playbooks`; a
+direct phase invocation must use that phase's configuration and satisfy its
+persisted-state prerequisites.
+
+Domain ownership does not mean that Orchestrator has zero runtime
+dependencies. Its declared Galaxy dependencies include `ansible.posix`,
+`ansible.utils`, `community.general`, and `dellemc.openmanage`, and selected
+playbook configurations also expose Build Stream roles used by shared node
+workflows. Python dependencies and Galaxy collections are installed from the
+domain `requirements.txt` and `requirements.yml` by `domain-init.sh`.
+
+The boundary is therefore:
+
+- Orchestrator-specific behavior remains in this collection;
+- reusable cross-domain roles are referenced explicitly rather than copied;
+- third-party collections remain versioned installation dependencies; and
+- OpenCHAMI integration logic belongs in the shared domain client and
+  reconciler, not in ad hoc shell commands.
 
 ## Extension Rules
 
