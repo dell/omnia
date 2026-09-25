@@ -55,6 +55,9 @@ def test_deploy_cleanup_with_preservation_flags(host):
     Runs cleanup with:
       - cleanup_credentials=false (preserve credentials)
       - cleanup_logs=false (preserve logs)
+    
+    Ordered FIRST (order 0) to run preservation cleanup before default cleanup.
+    This ensures credentials and logs are preserved for verification.
     """
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -94,13 +97,15 @@ def test_deploy_cleanup_with_preservation_flags(host):
 # =============================================================================
 
 @pytest.mark.functional
-@pytest.mark.order(63)
+@pytest.mark.order(1)
 def test_cleanup_credentials_preserved(host):
     """TEL_FVT_CLEANUP_V015: Verify credentials preserved after cleanup.
     
     After cleanup with cleanup_credentials=false:
       - telemetry_credentials.yml must exist
       - .telemetry_credentials_key must exist
+    
+    Ordered AFTER preservation cleanup deployment (order 1).
     """
     tc = TC["cleanup_credentials_preserved"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -122,7 +127,7 @@ def test_cleanup_credentials_preserved(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(64)
+@pytest.mark.order(2)
 def test_cleanup_credentials_deleted(host):
     """TEL_FVT_CLEANUP_V016: Verify credentials deleted after cleanup.
     
@@ -133,6 +138,8 @@ def test_cleanup_credentials_deleted(host):
     Note: This test is informational. It checks the current state of
     credential files after a default cleanup run. Run this test after
     a cleanup without the cleanup_credentials=false flag.
+    
+    Ordered AFTER credentials preserved test (order 2).
     """
     tc = TC["cleanup_credentials_deleted"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -163,12 +170,14 @@ def test_cleanup_credentials_deleted(host):
 # =============================================================================
 
 @pytest.mark.functional
-@pytest.mark.order(65)
+@pytest.mark.order(3)
 def test_cleanup_logs_preserved(host):
     """TEL_FVT_CLEANUP_V017: Verify logs preserved after cleanup.
     
     After cleanup with cleanup_logs=false:
       - <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME>/ must exist
+    
+    Ordered AFTER credentials deleted test (order 3).
     """
     tc = TC["cleanup_logs_preserved"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -190,7 +199,7 @@ def test_cleanup_logs_preserved(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(66)
+@pytest.mark.order(4)
 def test_cleanup_logs_deleted(host):
     """TEL_FVT_CLEANUP_V018: Verify logs deleted after cleanup.
     
@@ -200,6 +209,8 @@ def test_cleanup_logs_deleted(host):
     Note: This test is informational. It checks the current state of
     log directory after a default cleanup run. Run this test after
     a cleanup without the cleanup_logs=false flag.
+    
+    Ordered LAST in preservation phase (order 4) to complete preservation verification.
     """
     tc = TC["cleanup_logs_deleted"]
     tl = TestLogger(tc["title"], tc["id"])

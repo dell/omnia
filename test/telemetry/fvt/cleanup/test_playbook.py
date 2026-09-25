@@ -33,9 +33,12 @@ from library.functions import run_playbook
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(0)
+@pytest.mark.order(5)
 def test_deploy_cleanup(host, delete_sinks_volume):
-    """TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup)."""
+    """TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup).
+    
+    Ordered AFTER preservation cleanup and verification (order 5).
+    """
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 
