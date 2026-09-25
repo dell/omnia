@@ -1,0 +1,87 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Publish active catalog context
+  ansible.builtin.set_fact:
+    catalog_context: "{{ execution_context }}"
+    cluster_os_type: "{{ execution_context.os_type }}"
+    cluster_os_version: "{{ execution_context.os_version }}"
+    selected_architectures: "{{ execution_context.architectures }}"
+    sub_final_repo_urls: {}
+    repo_sync_run_orphan_cleanup: >-
+      {{ context_index == (catalog_execution_contexts | length - 1) }}
+
+- name: Resolve repository URLs for the active catalog context
+  ansible.builtin.include_role:
+    name: ../../roles/repository_access
+    tasks_from: resolve_context_repository_urls.yml
+
+- name: Build the catalog-referenced RPM worklist
+  prepare_tasklist:
+    local_repo_config_path: "{{ repo_manager_config_file }}"
+    log_dir: "{{ repo_manager_log_dir }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
+    sub_urls: "{{ sub_final_repo_urls | default({}) }}"
+    cluster_os_type: "{{ cluster_os_type }}"
+    cluster_os_version: "{{ cluster_os_version }}"
+    architectures: "{{ selected_architectures }}"
+    referenced_repositories: "{{ catalog_context.referenced_repositories }}"
+  environment:
+    REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
+    REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
+    OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+    OMNIA_DATA_PATH: "{{ omnia_data_path }}"
+    REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
+    PULP_CLI_CONFIG_PATH: "{{ pulp_system_cli_config_file }}"
+    PULP_CLI_EXECUTABLE: "{{ pulp_cli_executable }}"
+    PULP_REPO_FILE_PATH: "{{ pulp_repo_file_path }}"
+    CATALOG_FILE_PATH: "{{ catalog_file }}"
+  register: repo_sync_tasklist
+  no_log: true
+
+- name: Reconcile referenced RPM repositories exactly
+  process_rpm_config:
+    local_config: "{{ repo_sync_tasklist.local_config }}"
+    log_dir: "{{ repo_manager_log_dir }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
+    additional_repos_config: >-
+      {{ repo_sync_tasklist.additional_repos_config | default(omit) }}
+    user_repos_config: >-
+      {{ repo_sync_tasklist.user_repos_config | default(omit) }}
+    thread_pool_size: "{{ rpm_repo_config.thread_pool_size | int }}"
+    sw_archs: "{{ selected_architectures }}"
+    exact_mirror: true
+    run_orphan_cleanup: "{{ repo_sync_run_orphan_cleanup }}"
+    cluster_os_type: "{{ cluster_os_type }}"
+    cluster_os_version: "{{ cluster_os_version }}"
+    pulp_base_url: "https://{{ pulp_server_ip }}:{{ pulp_server_port }}"
+    repo_file_path: "{{ pulp_repo_file_path }}"
+  environment:
+    REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
+    REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
+    OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+    OMNIA_DATA_PATH: "{{ omnia_data_path }}"
+    REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
+    PULP_CLI_CONFIG_PATH: "{{ pulp_system_cli_config_file }}"
+    PULP_CLI_EXECUTABLE: "{{ pulp_cli_executable }}"
+    PULP_REPO_FILE_PATH: "{{ pulp_repo_file_path }}"
+    PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
+  register: repo_sync_result
+
+- name: Accumulate exact-mirror repository results
+  ansible.builtin.set_fact:
+    repo_resync_repositories: >-
+      {{ repo_resync_repositories |
+         combine(repo_sync_result.result.repositories, recursive=true) }}
+    repo_resync_orphan_cleanup: >-
+      {{ repo_sync_result.result.orphan_cleanup |
+         default(repo_resync_orphan_cleanup) }}

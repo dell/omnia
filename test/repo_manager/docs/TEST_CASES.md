@@ -17,6 +17,7 @@
 | Precheck | `RM_FVT_PRECHECK_` | Input and environment validation tests |
 | Prepare | `RM_FVT_PREPARE_` | Pulp deployment tests |
 | Execute | `RM_FVT_EXECUTE_` | Repository download/sync tests |
+| Catalog exact mirror | `RM_FVT_REPO_SYNC_` | Standalone active-catalog RPM reconciliation tests |
 | Status | `RM_FVT_STATUS_` | repo_status.yml generation tests |
 | Cleanup | `RM_FVT_CLEANUP_` | Cleanup verification tests |
 | Selective cleanup | `RM_FVT_CLEANUP_REPOS_` | Exact repository cleanup tests |
@@ -79,6 +80,21 @@
 | RM_FVT_EXECUTE_V012 | `test_file_repos_synced` | Verify file repos synced | functional, positive |
 | RM_FVT_EXECUTE_V013 | `test_pulp_content_accessible` | Verify Pulp content accessible | sanity, positive |
 | RM_FVT_EXECUTE_V014 | `test_software_packages_in_pulp` | Verify software packages in Pulp | sanity, positive |
+
+---
+
+## Catalog Exact-Mirror Scenario (`fvt/repo_sync/`)
+
+| TC ID | Test Function | Description | Marker |
+|-------|---------------|-------------|--------|
+| RM_FVT_REPO_SYNC_E001 | `test_repo_sync_playbook_reconciles_only_catalog_repositories` | Run standalone sync and prove unreferenced repositories are unchanged | deploy, repo_resync |
+| RM_FVT_REPO_SYNC_V001 | `test_repo_sync_status_is_successful` | Verify aggregate and orphan-cleanup success | repo_resync, positive |
+| RM_FVT_REPO_SYNC_V002 | `test_repo_sync_result_matches_catalog_scope` | Verify result scope exactly matches catalog RPM references | repo_resync, positive |
+| RM_FVT_REPO_SYNC_V003 | `test_repo_sync_repositories_have_zero_stale_packages` | Verify successful cleanup and zero stale packages | repo_resync, positive |
+| RM_FVT_REPO_SYNC_V004 | `test_repo_sync_package_deltas_are_valid` | Verify version and package-delta fields | repo_resync, positive |
+| RM_FVT_REPO_SYNC_V005 | `test_repo_sync_keeps_one_current_publication_and_version` | Verify superseded Pulp state was pruned | repo_resync, positive |
+| RM_FVT_REPO_SYNC_V006 | `test_repo_sync_distributions_publish_valid_metadata` | Verify publication binding and served repomd.xml | repo_resync, positive |
+| RM_FVT_REPO_SYNC_V007 | `test_repo_sync_slurm_user_repository_matches_input` | Verify Slurm user-repo URL and policy are preserved | repo_resync, positive |
 
 ---
 

@@ -194,6 +194,17 @@ The internal mirror index records exact RPM repository states (`pending`,
 Pulp policy. These additive recovery fields do not change `status.csv`,
 `groups_status.csv` or `repo_status.yml`.
 
+### repo_resync_status.yml
+
+The independently executed `playbooks/repo_operations/repo_sync.yml` writes
+`output/<project>/repo_resync_status.yml`. It contains `overall_status`, the
+single aggregate `orphan_cleanup` state, and one entry per catalog-referenced
+RPM repository with old/new versions, package additions/removals,
+`stale_packages_remaining`, publication-switch state, and cleanup status.
+`overall_status: success` is emitted only after every selected repository
+serves valid replacement metadata with zero stale packages and the final Pulp
+orphan cleanup succeeds.
+
 ---
 
 ## 4. Cleanup Results

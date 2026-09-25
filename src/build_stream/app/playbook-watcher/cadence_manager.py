@@ -54,6 +54,32 @@ DEFAULT_CADENCE_ENABLED = False
 CADENCE_SYNC_COMPLETED = "CADENCE_SYNC_COMPLETED"
 
 
+def _default_build_stream_config_path() -> Path:
+    """Return the project-scoped BuildStream configuration path."""
+    omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
+    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    return (
+        omnia_data_path
+        / "build_stream"
+        / "input"
+        / project_name
+        / "build_stream_config.yml"
+    )
+
+
+def _repo_resync_status_path() -> Path:
+    """Return the project-scoped Repo Manager resync result path."""
+    omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
+    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    return (
+        omnia_data_path
+        / "repo_manager"
+        / "output"
+        / project_name
+        / "repo_resync_status.yml"
+    )
+
+
 def log_secure_info(
     level: str,
     message: str,
@@ -118,10 +144,7 @@ def load_cadence_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     if config_path is None:
         config_path = os.getenv(
             "BUILD_STREAM_CONFIG_PATH",
-            os.path.join(
-                os.getenv("OMNIA_DATA_PATH", "/opt/omnia"),
-                "build_stream", "build_stream_config.yml"
-            ),
+            str(_default_build_stream_config_path()),
         )
 
     # Default configuration with operational parameters only
@@ -502,9 +525,9 @@ def git_commit_and_push(
 
 def copy_cadence_catalog_to_default_path(
     cadence_catalog_path: Path,
-    default_catalog_path: Path,
+    catalog_path: Path,
 ) -> bool:
-    """Copy cadence catalog to the default CATALOG_FILE_PATH.
+    """Copy the cadence catalog to the configured CATALOG_FILE_PATH.
 
     The repo_sync.yml playbook uses CATALOG_FILE_PATH to determine which
     packages to sync. This function ensures the cadence catalog is available
@@ -512,7 +535,7 @@ def copy_cadence_catalog_to_default_path(
 
     Args:
         cadence_catalog_path: Path to the cadence_catalog_rhel.json file.
-        default_catalog_path: Path to ${OMNIA_DATA_PATH}/catalog/catalog_rhel.json.
+        catalog_path: Path selected by the CATALOG_FILE_PATH environment variable.
 
     Returns:
         True if copy succeeded, False otherwise.
@@ -526,13 +549,13 @@ def copy_cadence_catalog_to_default_path(
             return False
 
         # Ensure target directory exists
-        default_catalog_path.parent.mkdir(parents=True, exist_ok=True)
+        catalog_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Copy cadence catalog to default path
+        # Copy cadence catalog to the configured path
         with open(cadence_catalog_path, "r", encoding="utf-8") as src:
             catalog_data = json.load(src)
 
-        with open(default_catalog_path, "w", encoding="utf-8") as dst:
+        with open(catalog_path, "w", encoding="utf-8") as dst:
             json.dump(catalog_data, dst, indent=2)
             dst.write("\n")
 
@@ -545,7 +568,7 @@ def copy_cadence_catalog_to_default_path(
     except (OSError, json.JSONDecodeError):
         log_secure_info(
             "error",
-            "Failed to copy cadence catalog to default path",
+            "Failed to copy cadence catalog to CATALOG_FILE_PATH",
             exc_info=True,
         )
         return False
@@ -623,11 +646,18 @@ def wait_for_sync_result(
         The result data dictionary if found, None on timeout.
     """
     request_filename = f"cadence-sync-{job_id}.json"
-    result_path = results_dir / request_filename
+    result_paths = (
+        results_dir / request_filename,
+        results_dir.parent / "archive" / "results" / request_filename,
+    )
     start_time = time.monotonic()
 
     while (time.monotonic() - start_time) < timeout_seconds:
-        if result_path.exists():
+        result_path = next(
+            (path for path in result_paths if path.exists()),
+            None,
+        )
+        if result_path is not None:
             try:
                 with open(result_path, "r", encoding="utf-8") as fh:
                     result_data = json.load(fh)
@@ -654,6 +684,81 @@ def wait_for_sync_result(
         job_id,
     )
     return None
+
+
+def load_repo_resync_status(status_path: Path) -> Optional[Dict[str, Any]]:
+    """Load and validate the Repo Manager exact-mirror result contract."""
+    try:
+        import yaml  # pylint: disable=import-outside-toplevel
+
+        with open(status_path, "r", encoding="utf-8") as status_file:
+            status = yaml.safe_load(status_file)
+    except (OSError, ImportError, yaml.YAMLError):
+        log_secure_info(
+            "error",
+            f"Failed to read Repo Manager resync status: {status_path}",
+            exc_info=True,
+        )
+        return None
+
+    if not isinstance(status, dict):
+        log_secure_info("error", "Repo Manager resync status is not a mapping")
+        return None
+
+    repositories = status.get("repositories")
+    if (
+        status.get("overall_status") != "success"
+        or status.get("orphan_cleanup") != "success"
+        or not isinstance(repositories, dict)
+        or not repositories
+    ):
+        log_secure_info(
+            "error",
+            "Repo Manager resync status does not report aggregate success",
+        )
+        return None
+
+    for repository_name, repository_result in repositories.items():
+        if not isinstance(repository_result, dict):
+            log_secure_info(
+                "error",
+                f"Invalid resync result for repository {repository_name}",
+            )
+            return None
+        if (
+            repository_result.get("sync_status") != "success"
+            or repository_result.get("cleanup_status") != "success"
+            or repository_result.get("stale_packages_remaining") != 0
+        ):
+            log_secure_info(
+                "error",
+                f"Repository reconciliation is incomplete: {repository_name}",
+            )
+            return None
+        for metric in ("packages_added", "packages_removed"):
+            metric_value = repository_result.get(metric)
+            if (
+                not isinstance(metric_value, int)
+                or isinstance(metric_value, bool)
+                or metric_value < 0
+            ):
+                log_secure_info(
+                    "error",
+                    f"Invalid {metric} value for repository {repository_name}",
+                )
+                return None
+
+    return status
+
+
+def repo_resync_has_package_updates(status: Dict[str, Any]) -> bool:
+    """Return whether the exact-mirror result added or removed RPM packages."""
+    repositories = status.get("repositories", {})
+    return any(
+        int(result.get("packages_added", 0)) > 0
+        or int(result.get("packages_removed", 0)) > 0
+        for result in repositories.values()
+    )
 
 
 def emit_audit_event(
@@ -775,14 +880,28 @@ class CadenceTimerThread(Thread):
             return
 
         # Step 2-3: Sync packages via repo_manager
-        job_id = self._sync_packages()
-        if job_id is None:
+        sync_result = self._sync_packages()
+        if sync_result is None:
+            return
+
+        job_id = str(sync_result["job_id"])
+        if not sync_result["updates_detected"]:
+            log_secure_info("info", "No package updates for cadence catalog")
+            emit_audit_event(
+                CADENCE_SYNC_COMPLETED,
+                {
+                    "job_id": job_id,
+                    "catalog_filename": self.catalog_filename,
+                    "sync_status": "success",
+                    "updates_detected": False,
+                },
+            )
             return
 
         # Step 4-6: Bump version, push, and emit audit event
         self._bump_and_push(job_id)
 
-    def _sync_packages(self) -> Optional[str]:
+    def _sync_packages(self) -> Optional[Dict[str, Any]]:
         """Submit repo sync and wait for completion.
 
         Steps:
@@ -791,17 +910,22 @@ class CadenceTimerThread(Thread):
         3. Wait for sync completion
 
         Returns:
-            The job_id string on success, None on failure.
+            Sync outcome on success, None on failure.
         """
         job_id = f"cadence-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
 
-        # Step 1: Copy cadence catalog to default CATALOG_FILE_PATH
+        # Step 1: Copy cadence catalog to the configured CATALOG_FILE_PATH
         omnia_data_path = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
-        default_catalog_path = Path(omnia_data_path) / "catalog" / "catalog_rhel.json"
+        catalog_path = Path(
+            os.getenv(
+                "CATALOG_FILE_PATH",
+                str(Path(omnia_data_path) / "catalog" / "catalog_rhel.json"),
+            )
+        )
         cadence_catalog_path = Path(self.gitlab_repo_path) / self.catalog_filename
 
         if not copy_cadence_catalog_to_default_path(
-            cadence_catalog_path, default_catalog_path
+            cadence_catalog_path, catalog_path
         ):
             log_secure_info(
                 "error",
@@ -811,13 +935,24 @@ class CadenceTimerThread(Thread):
 
         # Step 2: Submit repo_sync.yml playbook request
         if not submit_repo_sync_request(
-            self.requests_dir, job_id, playbook_name="repo_sync.yml"
+            self.requests_dir,
+            job_id,
+            playbook_name=self.config.get("playbook_name", "repo_sync.yml"),
         ):
             log_secure_info("error", "Failed to submit repo sync request")
             return None
 
         # Step 3: Wait for sync completion
-        result = wait_for_sync_result(self.results_dir, job_id)
+        result = wait_for_sync_result(
+            self.results_dir,
+            job_id,
+            timeout_seconds=int(
+                self.config.get("sync_timeout_seconds", 3600)
+            ),
+            poll_interval=int(
+                self.config.get("sync_poll_interval_seconds", 10)
+            ),
+        )
         if result is None:
             log_secure_info("error", "Repo sync did not complete in time")
             return None
@@ -830,7 +965,19 @@ class CadenceTimerThread(Thread):
             )
             return None
 
-        return job_id
+        repo_resync_status = load_repo_resync_status(
+            _repo_resync_status_path()
+        )
+        if repo_resync_status is None:
+            return None
+
+        return {
+            "job_id": job_id,
+            "updates_detected": repo_resync_has_package_updates(
+                repo_resync_status
+            ),
+            "repo_resync_status": repo_resync_status,
+        }
 
     def _bump_and_push(self, job_id: str) -> None:
         """Bump catalog version, push to GitLab, and emit audit event.
