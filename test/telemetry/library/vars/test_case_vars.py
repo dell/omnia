@@ -49,6 +49,10 @@ TEST_CASES = {
         "id": "TEL_FVT_CLEANUP_E001",
         "title": "Deploy telemetry (--tags cleanup)",
     },
+    "deploy_cleanup_with_preservation_flags": {
+        "id": "TEL_FVT_CLEANUP_E002",
+        "title": "Deploy cleanup with credential and log preservation",
+    },
     # -- Precheck -----------------------------------------------------------
     "env_vars_present": {
         "id": "TEL_FVT_PRECHECK_V001",
@@ -498,6 +502,22 @@ TEST_CASES = {
     "pvcs_preserved_after_cleanup": {
         "id": "TEL_FVT_CLEANUP_V014",
         "title": "Verify PVCs preserved after cleanup (Delete_volume=false)",
+    },
+    "cleanup_credentials_preserved": {
+        "id": "TEL_FVT_CLEANUP_V015",
+        "title": "Verify credentials preserved after cleanup (cleanup_credentials=false)",
+    },
+    "cleanup_credentials_deleted": {
+        "id": "TEL_FVT_CLEANUP_V016",
+        "title": "Verify credentials deleted after cleanup (cleanup_credentials=true)",
+    },
+    "cleanup_logs_preserved": {
+        "id": "TEL_FVT_CLEANUP_V017",
+        "title": "Verify logs preserved after cleanup (cleanup_logs=false)",
+    },
+    "cleanup_logs_deleted": {
+        "id": "TEL_FVT_CLEANUP_V018",
+        "title": "Verify logs deleted after cleanup (cleanup_logs=true)",
     },
     # -- NFT: Performance ---------------------------------------------------
     "nft_validate_perf": {
