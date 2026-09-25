@@ -22,7 +22,7 @@ Execution order:
     Order 0: E002  — Deploy cleanup with preservation flags
     Order 1: V015  — Verify credentials preserved
     Order 2: V017  — Verify logs preserved
-    Order 3: E001  — Deploy default cleanup (in test_playbook.py)
+    Order 3: E001  — Deploy default cleanup
     Order 4: V016  — Verify credentials deleted
     Order 5: V018  — Verify logs deleted
     Order 6+:       — Remaining verification tests (in status/ files)
