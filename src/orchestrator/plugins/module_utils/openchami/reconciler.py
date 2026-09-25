@@ -26,7 +26,7 @@ from .identity import SMDIdentityResolver, normalize_mac
 class OpenChamiReconciler:
     """Coordinate identity, SMD, and Metadata Service operations."""
 
-    MANAGED_BY_LABEL = "app.kubernetes.io/managed-by"
+    MANAGED_BY_LABEL = "omnia.dell.com/managed-by"
     PROJECT_LABEL = "omnia.dell.com/project"
     MANAGED_BY_VALUE = "omnia"
 
