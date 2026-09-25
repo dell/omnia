@@ -123,7 +123,7 @@ _omnia_tags_for_domain() {
             printf '%s' "precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate"
             ;;
         telemetry)
-            printf '%s' "precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
+            printf '%s' "precheck validate validation prepare credentials execute deploy deploy_sinks cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
             ;;
         utils)
             printf '%s' "precheck setup collect install_os backup_oim_logs slurm_config_backup slurm_config_cleanup slurm_config_rollback cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs cleanup_slurm_config_backups upgrade rollback"
@@ -136,7 +136,7 @@ _omnia_extra_vars_for_domain() {
 
     case "$domain" in
         telemetry)
-            printf '%s' "delete_sinks_volume=true delete_sinks_volume=false"
+            printf '%s' "kafka victoria_metrics victoria_logs delete_sinks_volume=true delete_sinks_volume=false"
             ;;
     esac
 }

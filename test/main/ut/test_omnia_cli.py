@@ -19,6 +19,7 @@
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -29,6 +30,16 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 OMNIA_CLI = REPO_ROOT / "src" / "main" / "omnia-cli"
 OMNIA_SH = REPO_ROOT / "src" / "main" / "omnia.sh"
 OMNIA_COMPLETION = REPO_ROOT / "src" / "main" / "omnia-bash-completion"
+TELEMETRY_PLAYBOOK = REPO_ROOT / "src" / "telemetry" / "playbooks" / "telemetry.yml"
+DEPLOY_SINKS_PLAYBOOK = (
+    REPO_ROOT
+    / "src"
+    / "telemetry"
+    / "playbooks"
+    / "deploy"
+    / "sinks"
+    / "deploy_sinks.yml"
+)
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 
 DOMAIN_STATUS_FILES = {
@@ -71,6 +82,38 @@ class OmniaCliTest(unittest.TestCase):
         )
         output = ANSI_ESCAPE.sub("", result.stdout + result.stderr)
         return result, output
+
+    def invoke_omnia_run_domain(self, *args):
+        """Run run_domain with Ansible mocked and return its forwarded arguments."""
+        venv_dir = self.data_path / "venv"
+        activate_file = venv_dir / "bin" / "activate"
+        activate_file.parent.mkdir(parents=True, exist_ok=True)
+        activate_file.write_text("# Test activation shim\n", encoding="utf-8")
+
+        quoted_args = " ".join(shlex.quote(arg) for arg in args)
+        shell_script = f'''
+source {shlex.quote(str(OMNIA_SH))}
+ansible-playbook() {{ printf 'ANSIBLE_ARG=%s\\n' "$@"; }}
+OMNIA_VENV_PATH={shlex.quote(str(venv_dir))}
+run_domain telemetry {quoted_args}
+'''
+        env = os.environ.copy()
+        env["OMNIA_DATA_PATH"] = str(self.data_path)
+        env["OMNIA_PROJECT_NAME"] = "project_default"
+        result = subprocess.run(
+            ["bash", "-c", shell_script],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        output = ANSI_ESCAPE.sub("", result.stdout + result.stderr)
+        forwarded_args = [
+            line.removeprefix("ANSIBLE_ARG=")
+            for line in output.splitlines()
+            if line.startswith("ANSIBLE_ARG=")
+        ]
+        return result, output, forwarded_args
 
     def runtime_dir(self, domain, area):
         path = self.data_path / domain / area / "project_default"
@@ -731,6 +774,103 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("utils:slurm_config_backup", result.stdout)
         self.assertIn("utils:slurm_config_cleanup", result.stdout)
         self.assertIn("utils:slurm_config_rollback", result.stdout)
+
+    def test_omnia_sh_completion_supports_telemetry_deploy_sinks(self):
+        completion_script = f'''
+source "{OMNIA_COMPLETION}"
+COMP_WORDS=(omnia.sh -r telemetry --tags deploy_sinks -e v)
+COMP_CWORD=6
+_omnia_sh_completions
+printf '%s\n' "${{COMPREPLY[@]}}"
+'''
+        result = subprocess.run(
+            ["bash", "-c", completion_script],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        self.assertIn("victoria_metrics", result.stdout)
+        self.assertIn("victoria_logs", result.stdout)
+
+    def test_telemetry_playbook_exposes_deploy_sinks_tag_with_all_defaults(self):
+        entrypoint = TELEMETRY_PLAYBOOK.read_text(encoding="utf-8")
+        deploy_sinks = DEPLOY_SINKS_PLAYBOOK.read_text(encoding="utf-8")
+
+        self.assertRegex(
+            entrypoint,
+            r"import_playbook: deploy/sinks/deploy_sinks\.yml\s+tags:\s+- never\s+- deploy_sinks",
+        )
+        self.assertRegex(
+            deploy_sinks,
+            r"sinks_default:\s+- kafka\s+- victoria_metrics\s+- victoria_logs",
+        )
+
+    def test_deploy_sinks_without_selector_forwards_no_sink_override(self):
+        result, output, forwarded = self.invoke_omnia_run_domain(
+            "--tags", "deploy_sinks"
+        )
+
+        self.assertEqual(result.returncode, 0, output)
+        self.assertEqual(forwarded[1:], ["--tags", "deploy_sinks"])
+
+    def test_deploy_sinks_single_selector_is_normalized(self):
+        result, output, forwarded = self.invoke_omnia_run_domain(
+            "--tags", "deploy_sinks", "-e", "kafka"
+        )
+
+        self.assertEqual(result.returncode, 0, output)
+        self.assertEqual(forwarded[-2:], ["-e", 'sinks=["kafka"]'])
+
+    def test_deploy_sinks_csv_selector_is_normalized(self):
+        result, output, forwarded = self.invoke_omnia_run_domain(
+            "--tags",
+            "deploy_sinks",
+            "-e",
+            "kafka,victoria_metrics,victoria_logs",
+        )
+
+        self.assertEqual(result.returncode, 0, output)
+        self.assertEqual(
+            forwarded[-2:],
+            ["-e", 'sinks=["kafka","victoria_metrics","victoria_logs"]'],
+        )
+
+    def test_deploy_sinks_repeated_selectors_are_merged_and_deduplicated(self):
+        result, output, forwarded = self.invoke_omnia_run_domain(
+            "--tags",
+            "deploy_sinks",
+            "-e",
+            "kafka,victoria_logs",
+            "-e",
+            "kafka",
+        )
+
+        self.assertEqual(result.returncode, 0, output)
+        self.assertEqual(
+            forwarded[-2:], ["-e", 'sinks=["kafka","victoria_logs"]']
+        )
+
+    def test_deploy_sinks_preserves_standard_extra_vars(self):
+        result, output, forwarded = self.invoke_omnia_run_domain(
+            "--tags", "deploy_sinks", "-e", "project_name=test_project", "-e", "kafka"
+        )
+
+        self.assertEqual(result.returncode, 0, output)
+        self.assertEqual(
+            forwarded[-4:],
+            ["-e", "project_name=test_project", "-e", 'sinks=["kafka"]'],
+        )
+
+    def test_deploy_sinks_rejects_invalid_selector(self):
+        result, output, forwarded = self.invoke_omnia_run_domain(
+            "--tags", "deploy_sinks", "-e", "not_a_sink"
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(forwarded, [])
+        self.assertIn("Invalid telemetry sink 'not_a_sink'", output)
+        self.assertIn("kafka, victoria_metrics, victoria_logs", output)
 
     def test_catalog_selection_copies_variant_and_setup_preserves_it(self):
         catalog_target = self.data_path / "catalog" / "catalog_rhel.json"

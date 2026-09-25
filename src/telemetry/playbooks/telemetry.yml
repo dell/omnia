@@ -28,6 +28,8 @@
 #   prepare     — Input validation + collect credentials (alias: validate)
 #   credentials — Collect telemetry credentials only (opt-in only)
 #   execute     — Deploy all enabled telemetry (alias: deploy)
+#   deploy_sinks — Deploy selected sink infrastructure only; pass sink names
+#                  with -e (kafka, victoria_metrics, victoria_logs)
 #   cleanup     — Cleanup all telemetry components and stored credentials
 #   upgrade     — Upgrade telemetry components (placeholder)
 #   rollback    — Rollback telemetry components (placeholder)
@@ -53,7 +55,8 @@
 #
 # Configuration:
 #   telemetry_config.yml → kube_vip, sources, sinks, credentials
-#   Only sources with metrics_enabled: true are deployed.
+#   Enabled sources are deployed. iDRAC is always reconciled so a configured
+#   false value scales down an existing StatefulSet without deleting data.
 #   All K8s tasks execute on the kube_vip host via SSH.
 # =============================================================================
 
@@ -107,6 +110,15 @@
 - name: "Execute | Deploy all telemetry sources"
   ansible.builtin.import_playbook: deploy/deploy.yml
   tags: [execute, deploy]
+
+# =========================================================================
+# FLOW: deploy_sinks — Deploy selected sink infrastructure (opt-in only)
+# =========================================================================
+- name: "Deploy Sinks | Deploy selected telemetry sinks"
+  ansible.builtin.import_playbook: deploy/sinks/deploy_sinks.yml
+  tags:
+    - never
+    - deploy_sinks
 
 # =========================================================================
 # FLOW: cleanup — Remove telemetry components (opt-in only)
