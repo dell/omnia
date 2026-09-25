@@ -19,6 +19,22 @@
     rhel_base_image_name: "{{ rhel_arch_base_image_name }}{{ _image_tag_suffix | default('', true) }}"
   when: (_image_tag_suffix | default('', true) | length) > 0
 
+# --- Collect unique OS versions that need a base image ---
+- name: Collect unique OS versions from compute images
+  ansible.builtin.set_fact:
+    _base_image_versions: >-
+      {% set versions = [] -%}
+      {% for fg_name, fg_data in (compute_images_dict | default({})).items() -%}
+        {% set ver = fg_data.os_version | default(rhel_tag) | string -%}
+        {% if ver not in versions -%}
+          {% set _ = versions.append(ver) -%}
+        {% endif -%}
+      {% endfor -%}
+      {% if versions | length == 0 -%}
+        {% set _ = versions.append(rhel_tag | string) -%}
+      {% endif -%}
+      {{ versions }}
+
 # --- Pre-build setup ---
 - name: Create ochami images directory
   ansible.builtin.file:
@@ -32,74 +48,137 @@
     state: directory
     mode: "{{ dir_permissions_755 }}"
 
-- name: Render x86_64 base image build config
+# Render a base image config per OS version.  Each version uses its own repo
+# set (rhel_arch_repos_by_version) and releasever so that the correct RPM
+# content is installed.
+- name: Render x86_64 base image build config per OS version
   ansible.builtin.template:
     src: "{{ openchami_base_image_config_template }}"
-    dest: "{{ openchami_work_dir }}/images/{{ rhel_arch_base_image_name }}-{{ rhel_tag }}.yaml"
+    dest: "{{ openchami_work_dir }}/images/{{ rhel_arch_base_image_name }}-{{ _ver }}.yaml"
     mode: "{{ dir_permissions_644 }}"
+  vars:
+    _render_rhel_tag: "{{ _ver }}"
+    _render_arch_repos: >-
+      {{ rhel_arch_repos_by_version[_ver | string]
+         | default(rhel_arch_repos) }}
+    _render_base_packages: >-
+      {{ base_image_packages_by_version[_ver | string]
+         | default(base_image_packages) }}
+  loop: "{{ _base_image_versions }}"
+  loop_control:
+    loop_var: _ver
 
-# --- Base image cache check ---
-# Compute a hash of base_image_packages + repo config + build engine.
-# If the hash matches the previous build, skip the rebuild. Including the
-# engine ensures switching between image-builder and image-thrillhouse triggers
-# the required base-image rebuild.
-- name: Compute base image package hash
+# --- Base image cache check (per-version) ---
+# Compute a per-version hash of base_image_packages + repo config + build
+# engine.  When a version's hash matches the previous build, skip the
+# rebuild.  Including the engine ensures switching between image-builder and
+# image-thrillhouse triggers the required base-image rebuild.
+- name: Compute per-version base image package hashes
   ansible.builtin.set_fact:
-    _base_pkg_hash: >-
-      {{ ((base_image_packages | sort | join(','))
-         ~ '|repos:' ~ _repo_config_hash
-         ~ '|image_build_type:' ~ _image_build_type)
-         | hash('sha256') }}
+    _base_pkg_hashes: >-
+      {% set result = {} -%}
+      {% for ver in _base_image_versions -%}
+        {% set ver_repo_hash = _repo_config_hash_by_version.get(ver | string,
+                                 _repo_config_hash) -%}
+        {% set ver_pkgs = base_image_packages_by_version.get(ver | string,
+                            base_image_packages) -%}
+        {% set h = ((ver_pkgs | sort | join(','))
+                   ~ '|repos:' ~ ver_repo_hash
+                   ~ '|image_build_type:' ~ _image_build_type)
+                   | hash('sha256') -%}
+        {% set _ = result.update({ver: h}) -%}
+      {% endfor -%}
+      {{ result }}
 
-- name: Set base image hash file path
-  ansible.builtin.set_fact:
-    _base_hash_file: "{{ image_build_log_dir }}/.base_image_pkg_hash_{{ build_arch }}"
-
-- name: Check previous base image package hash
+- name: Check previous base image package hashes (per version)
   ansible.builtin.slurp:
-    src: "{{ _base_hash_file }}"
-  register: _prev_base_hash
+    src: "{{ image_build_log_dir }}/.base_image_pkg_hash_{{ build_arch }}_{{ item }}"
+  register: _prev_base_hashes
   failed_when: false
+  loop: "{{ _base_image_versions }}"
 
-- name: Determine if base image rebuild is needed
+- name: Determine which base image versions need rebuild
   ansible.builtin.set_fact:
-    _base_rebuild_needed: >-
-      {{ (force_rebuild | default(false) | bool)
-         or _prev_base_hash is failed
-         or (_prev_base_hash.content | default('') | b64decode | trim) != _base_pkg_hash }}
+    _base_versions_to_build: >-
+      {% set result = [] -%}
+      {% set prev_map = {} -%}
+      {% for r in _prev_base_hashes.results | default([]) -%}
+        {% if r is not failed and r.content is defined -%}
+          {% set _ = prev_map.update({r.item: (r.content | b64decode | trim)}) -%}
+        {% endif -%}
+      {% endfor -%}
+      {% for ver in _base_image_versions -%}
+        {% set cur_hash = _base_pkg_hashes[ver] -%}
+        {% set prev_hash = prev_map.get(ver, '') -%}
+        {% if (force_rebuild | default(false) | bool) or prev_hash != cur_hash -%}
+          {% set _ = result.append(ver) -%}
+        {% endif -%}
+      {% endfor -%}
+      {{ result }}
+    _base_versions_cached: >-
+      {% set cached = [] -%}
+      {% set prev_map = {} -%}
+      {% for r in _prev_base_hashes.results | default([]) -%}
+        {% if r is not failed and r.content is defined -%}
+          {% set _ = prev_map.update({r.item: (r.content | b64decode | trim)}) -%}
+        {% endif -%}
+      {% endfor -%}
+      {% for ver in _base_image_versions -%}
+        {% set cur_hash = _base_pkg_hashes[ver] -%}
+        {% set prev_hash = prev_map.get(ver, '') -%}
+        {% if not (force_rebuild | default(false) | bool) and prev_hash == cur_hash -%}
+          {% set _ = cached.append(ver) -%}
+        {% endif -%}
+      {% endfor -%}
+      {{ cached }}
 
-- name: Skip base image build (packages unchanged)
+- name: Skip base image builds (versions unchanged)
   ansible.builtin.debug:
     msg: >-
-      Skipping x86_64 base image build — package list unchanged
-      (hash={{ _base_pkg_hash[:12] }}...).
-      Delete {{ _base_hash_file }} to force rebuild.
-  when: not (_base_rebuild_needed | bool)
+      Skipping x86_64 base image build for version(s) {{ _base_versions_cached | join(', ') }}
+      — package list unchanged.
+  when: (_base_versions_cached | length) > 0
 
 # --- Build via Python orchestrator ---
-- name: Build x86_64 base image
-  when: _base_rebuild_needed | bool
+# Build all needed base image versions.  The orchestrator runs them
+# sequentially (max_parallel=1) because base images are independent.
+- name: Build x86_64 base images
+  when: (_base_versions_to_build | length) > 0
   block:
-    - name: "[BUILD] x86_64 base image — {{ rhel_arch_base_image_name }}"
+    - name: "[BUILD] x86_64 base image(s) — {{ _base_versions_to_build | join(', ') }}"
       ansible.builtin.debug:
         msg: >-
-          Starting base image build:
+          Starting base image builds:
+          versions={{ _base_versions_to_build | join(', ') }},
           image={{ rhel_arch_base_image_name }},
           packages={{ base_image_packages | length }},
-          log={{ image_build__base_image_log_path }},
           timeout={{ build_timeout }}s
 
-    - name: Run x86_64 base image build via orchestrator
+    - name: Build orchestrator command list for base image versions
+      ansible.builtin.set_fact:
+        _base_orchestrator_cmds: >-
+          {% set cmds = [] -%}
+          {% for ver in _base_versions_to_build -%}
+            {% set config_path = openchami_work_dir + '/images/'
+               + rhel_arch_base_image_name + '-' + ver + '.yaml' -%}
+            {% set mounts = ochami_common_mounts
+               + ['-v ' + config_path + ':' + _config_mount_path + ':z'] -%}
+            {% set _ = cmds.append({
+              'name': 'base_' + rhel_arch_base_image_name + '_' + ver,
+              'cmd': 'podman run --rm --device /dev/fuse --network host '
+                     + mounts | join(' ') + ' '
+                     + ochami_image | join(' ') + ' '
+                     + ochami_base_command | join(' '),
+              'log_path': image_build_log_dir + '/' + build_arch
+                          + '_base_image_' + ver + _build_type_suffix + '.log'
+            }) -%}
+          {% endfor -%}
+          {{ cmds }}
+
+    - name: Run x86_64 base image builds via orchestrator
       image_build_orchestrator:
-        build_commands:
-          - name: "base_{{ rhel_arch_base_image_name }}"
-            cmd: >-
-              podman run --rm --device /dev/fuse --network host
-              {{ ochami_mounts | join(' ') }}
-              {{ ochami_image | join(' ') }}
-              {{ ochami_base_command | join(' ') }}
-            log_path: "{{ image_build__base_image_log_path }}"
-        max_parallel: 1
+        build_commands: "{{ _base_orchestrator_cmds }}"
+        max_parallel: "{{ max_parallel | int }}"
         timeout: "{{ build_timeout | int }}"
       register: base_orchestrator_result
 
@@ -107,11 +186,12 @@
       ansible.builtin.debug:
         msg: "Base image build: {{ base_orchestrator_result.summary }}"
 
-    - name: Save base image package hash
+    - name: Save base image package hashes (per version)
       ansible.builtin.copy:
-        content: "{{ _base_pkg_hash }}"
-        dest: "{{ _base_hash_file }}"
+        content: "{{ _base_pkg_hashes[item] }}"
+        dest: "{{ image_build_log_dir }}/.base_image_pkg_hash_{{ build_arch }}_{{ item }}"
         mode: "{{ dir_permissions_644 }}"
+      loop: "{{ _base_versions_to_build }}"
 
 # --- Registry verification ---
 - name: Verify the x86_64 base osimage in registry
@@ -124,10 +204,10 @@
   ansible.builtin.fail:
     msg: >-
       Failed to build base osimage {{ host_name }}/{{ rhel_arch_base_image_name }}.
-      Check log: {{ image_build__base_image_log_path }}
+      Check log: {{ image_build_log_dir }}/{{ build_arch }}_base_image_*{{ _build_type_suffix }}.log
   when: (host_name + '/' + rhel_arch_base_image_name) not in verify_base_osimage.stdout_lines
 
-- name: Verify x86_64 base image has tags in registry
+- name: Verify x86_64 base image has tags for each OS version
   ansible.builtin.shell: |
     /usr/local/bin/regctl tag ls \
       {{ registry_host }}:5000/{{ host_name }}/{{ rhel_arch_base_image_name }} \
@@ -136,12 +216,16 @@
   failed_when: false
   register: _base_tag_check
 
-- name: Fail if x86_64 base image has no tags
+- name: Fail if x86_64 base image is missing a required version tag
   ansible.builtin.fail:
     msg: >-
-      Base image {{ host_name }}/{{ rhel_arch_base_image_name }} exists in registry
-      but has no tags. Check log: {{ image_build__base_image_log_path }}
-  when: _base_tag_check.stdout_lines | default([]) | length == 0
+      Base image {{ host_name }}/{{ rhel_arch_base_image_name }} is missing
+      tag '{{ item }}' in registry. Expected tags for versions:
+      {{ _base_image_versions | join(', ') }}.
+      Available tags: {{ _base_tag_check.stdout_lines | default([]) | join(', ') }}.
+      Check logs: {{ image_build_log_dir }}/{{ build_arch }}_base_image_*{{ _build_type_suffix }}.log
+  when: item not in (_base_tag_check.stdout_lines | default([]))
+  loop: "{{ _base_image_versions }}"
 
 - name: Display verified x86_64 base osimage
   ansible.builtin.debug:

@@ -33,6 +33,7 @@
     catalog_version: "{{ _catalog_result.catalog_version | default('') }}"
     catalog_schema_version: "{{ _catalog_result.catalog_schema_version | default('') }}"
     base_image_packages: "{{ _catalog_result.base_image_packages }}"
+    base_image_packages_by_version: "{{ _catalog_result.base_image_packages_by_version | default({}) }}"
     compute_images_dict: "{{ _catalog_result.compute_images_dict }}"
     cluster_os_versions: "{{ _catalog_result.cluster_os_versions }}"
     cacheable: true
