@@ -16,7 +16,7 @@ IDs use `RM_FVT_<PHASE>_<TYPE><SEQ>`:
 |---------|---------|-------------------|
 | `RM` | Repo Manager domain | Fixed domain code |
 | `FVT` | Functional Verification Test level | Fixed test-level code |
-| `PHASE` | Lifecycle phase | `PRECHECK`, `PREPARE`, `EXECUTE`, `STATUS`, `CLEANUP`, `CLEANUP_REPOS`, `POLICY`, `NEG`, `USER_REGISTRY`, `CATALOG_GENERATE`, `CATALOG_ADD`, `CATALOG_DELETE`, `CATALOG_VALIDATE`, or `CATALOG_NEG` |
+| `PHASE` | Lifecycle phase | `PRECHECK`, `PREPARE`, `EXECUTE`, `REPO_SYNC`, `STATUS`, `CLEANUP`, `CLEANUP_REPOS`, `POLICY`, `NEG`, `USER_REGISTRY`, `CATALOG_GENERATE`, `CATALOG_ADD`, `CATALOG_DELETE`, `CATALOG_VALIDATE`, or `CATALOG_NEG` |
 | `TYPE` | Whether the case changes or inspects state | `E` runs a playbook; `V` verifies postconditions |
 | `SEQ` | Stable sequence appended to the type | Three digits, starting at `001` |
 
@@ -30,7 +30,7 @@ first by lifecycle phase, then by suite, and finally by
 
 An untagged `test` runs `precheck`, `prepare`, `execute`, and `status` in
 order, then verifies the non-destructive scenarios. Cleanup, negative, and
-catalog operations require explicit selection. Policy, negative, and user
+catalog and exact-mirror operations require explicit selection. Policy, negative, and user
 registry scenarios are verification-only.
 
 | Phase | Suite order |
@@ -93,6 +93,23 @@ the `execute` flow.
 | 12 | RM_FVT_EXECUTE_V012 | `test_file_repos_synced` | functional, positive | Verifies all file repositories (tarball, git, etc.) are synced. | File repositories are synced. |
 | 13 | RM_FVT_EXECUTE_V013 | `test_pulp_content_accessible` | sanity, positive | Verifies RPM content is reachable via HTTPS (`repomd.xml` check). | Pulp-served RPM content is accessible. |
 | 14 | RM_FVT_EXECUTE_V014 | `test_software_packages_in_pulp` | sanity, positive | Verifies all RPM packages from `software_config.json` are present in Pulp. | All expected software packages are in Pulp. |
+
+## Catalog exact-mirror test cases
+
+These cases are explicitly selected with the `repo_resync` marker. They are
+not part of the normal sanity lifecycle because the playbook deliberately
+reconciles selected repositories with their current upstream contents.
+
+| Sequence | TC ID | Test | Markers | Validation | Pass criteria |
+|----------|-------|------|---------|------------|---------------|
+| 0 | RM_FVT_REPO_SYNC_E001 | `test_repo_sync_playbook_reconciles_only_catalog_repositories` | deploy, repo_resync | Snapshots unreferenced Pulp repositories, runs standalone `repo_sync.yml`, and compares the snapshot. | Playbook succeeds and no unreferenced repository changes or disappears. |
+| 1 | RM_FVT_REPO_SYNC_V001 | `test_repo_sync_status_is_successful` | repo_resync, positive | Reads `repo_resync_status.yml`. | Overall reconciliation and orphan cleanup report success. |
+| 2 | RM_FVT_REPO_SYNC_V002 | `test_repo_sync_result_matches_catalog_scope` | repo_resync, positive | Resolves RPM sources used by active functional layers. | Result repository identities exactly match active-catalog references. |
+| 3 | RM_FVT_REPO_SYNC_V003 | `test_repo_sync_repositories_have_zero_stale_packages` | repo_resync, positive | Checks every per-repository result. | Sync and cleanup succeed with zero stale packages. |
+| 4 | RM_FVT_REPO_SYNC_V004 | `test_repo_sync_package_deltas_are_valid` | repo_resync, positive | Validates old/new versions and package counters. | Version and delta fields are complete, integer, and nonnegative. |
+| 5 | RM_FVT_REPO_SYNC_V005 | `test_repo_sync_keeps_one_current_publication_and_version` | repo_resync, positive | Queries Pulp versions and publications. | Only Pulp's empty v0 plus one current nonzero version and one publication remain. |
+| 6 | RM_FVT_REPO_SYNC_V006 | `test_repo_sync_distributions_publish_valid_metadata` | repo_resync, positive | Checks distribution publication binding and downloads `repomd.xml` with the managed CA. | Every distribution references a publication and serves valid repository metadata. |
+| 7 | RM_FVT_REPO_SYNC_V007 | `test_repo_sync_slurm_user_repository_matches_input` | repo_resync, positive | Compares Slurm Pulp remote with Repo Manager input. | Script-produced Slurm URL and configured remote policy are preserved. |
 
 ## Status test cases
 

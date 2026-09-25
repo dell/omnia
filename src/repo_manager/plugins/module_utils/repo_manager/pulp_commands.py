@@ -420,6 +420,10 @@ pulp_rpm_commands = {
     "sync_repository": _template(
         "rpm", "repository", "sync", "--name", "%s", "--remote", "%s",
     ),
+    "sync_repository_exact_mirror": _template(
+        "rpm", "repository", "sync", "--name", "%s", "--remote", "%s",
+        "--sync-policy", "mirror_content_only",
+    ),
     "publish_repository": _template(
         "rpm", "publication", "create", "--repository", "%s",
     ),
@@ -454,6 +458,14 @@ pulp_rpm_commands = {
     "get_repo_version": _template("rpm", "repository", "show", "--name", "%s"),
     "repository_version_destroy": _template(
         "rpm", "repository", "version", "destroy", "--repository", "%s", "--version", "%s",
+    ),
+    "show_repository_version": _template(
+        "rpm", "repository", "version", "show", "--repository", "%s",
+        "--version", "%s",
+    ),
+    "list_repository_versions": _template(
+        "rpm", "repository", "version", "list", "--repository", "%s",
+        "--limit", "1000",
     ),
     "list_repositories": _template("rpm", "repository", "list", "--limit", "1000"),
     "list_remotes": _template("rpm", "remote", "list", "--limit", "1000"),

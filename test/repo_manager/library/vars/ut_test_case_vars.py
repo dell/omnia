@@ -254,6 +254,29 @@ UT_TEST_CASE_IDS = {
             125: "test_removed_file_repos_by_version_field_is_not_reintroduced",
         },
     ),
+    **_class_cases(
+        "test_exact_mirror_reconciliation.py",
+        "ExactMirrorCommandTests",
+        {
+            144: "test_exact_and_normal_sync_commands_remain_separate",
+            145: "test_exact_sync_uses_mirror_content_only",
+            146: "test_nested_content_summary_reports_package_delta",
+            147: "test_normal_sync_does_not_change_policy",
+        },
+    ),
+    **_class_cases(
+        "test_exact_mirror_reconciliation.py",
+        "ExactMirrorSafetyTests",
+        {
+            148: "test_duplicate_catalog_repository_identity_fails_closed",
+            149: "test_empty_catalog_repository_list_fails_closed",
+            150: "test_failed_metadata_validation_restores_old_publication",
+            151: "test_orphan_cleanup_runs_only_after_every_repo_succeeds",
+            152: "test_pruning_occurs_after_replacement_validation",
+            153: "test_pruning_preserves_empty_and_current_versions",
+            154: "test_repository_failure_blocks_orphan_cleanup_and_later_repos",
+        },
+    ),
 }
 
 

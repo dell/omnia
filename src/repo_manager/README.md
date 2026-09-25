@@ -63,6 +63,24 @@ Running the playbook without `--tags` executes the standard non-cleanup
 workflow. Cleanup and catalog operations use `never` and must be selected
 explicitly.
 
+### Catalog RPM Exact-Mirror Reconciliation
+
+BuildStream cadence uses a separate Repo Manager operation; it is not part of
+the normal download workflow:
+
+```bash
+cd src/repo_manager/playbooks/repo_operations
+ansible-playbook repo_sync.yml
+```
+
+`repo_sync.yml` reads `CATALOG_FILE_PATH`, selects only RPM repositories
+referenced by that catalog, and force-synchronizes them with Pulp's
+`mirror_content_only` policy. It preserves each remote's configured download
+policy. Replacement metadata is published, served, and validated before older
+publications and versions are removed. The result is written atomically to
+`<REPO_MANAGER_DATA_PATH>/output/<project>/repo_resync_status.yml`; any failed
+repository makes the playbook fail and prevents global orphan cleanup.
+
 ---
 
 ## Tags
@@ -164,6 +182,7 @@ Credential files are Ansible Vault protected, root-owned and mode `0600`.
 | Output | Location | Purpose |
 |--------|----------|---------|
 | `repo_status.yml` | `output/<project>/` | Version-qualified Pulp RPM/File/Python URLs and certificate paths for consumers |
+| `repo_resync_status.yml` | `output/<project>/` | Per-repository exact-mirror, publication, and cleanup result |
 | Package/group state | `log/<os>/<version>/<arch>/` | Per-group CSV and worker results |
 | Mirror indexes | `log/<os>/<version>/mirror_status/` | Composite catalog and Pulp mirror state |
 

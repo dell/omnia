@@ -26,6 +26,8 @@ from datetime import datetime, timezone
 import pytest
 
 from cadence_manager import (
+    _default_build_stream_config_path,
+    _repo_resync_status_path,
     is_pipeline_busy,
     copy_cadence_catalog_to_default_path,
     bump_catalog_version,
@@ -33,6 +35,8 @@ from cadence_manager import (
     submit_repo_sync_request,
     wait_for_sync_result,
     emit_audit_event,
+    load_repo_resync_status,
+    repo_resync_has_package_updates,
     CadenceTimerThread,
 )
 
@@ -343,6 +347,21 @@ class TestSyncResultPolling:
         assert result is not None
         assert result["status"] == "success"
 
+    def test_poll_for_sync_result_after_bsm_archives_it(self, temp_dir):
+        """TC-UT-008-005: Read a result already archived by BSM."""
+        results_dir = temp_dir / "results"
+        archive_dir = temp_dir / "archive" / "results"
+        results_dir.mkdir()
+        archive_dir.mkdir(parents=True)
+        job_id = "cadence-20260924120000"
+        result_file = archive_dir / f"cadence-sync-{job_id}.json"
+        result_file.write_text(json.dumps({"status": "success"}))
+
+        result = wait_for_sync_result(results_dir, job_id)
+
+        assert result is not None
+        assert result["status"] == "success"
+
     def test_poll_timeout(self, temp_dir):
         """TC-UT-008-002: Poll timeout after max attempts."""
         results_dir = temp_dir / "results"
@@ -432,6 +451,166 @@ class TestAuditEvents:
         call_args = mock_log_secure_info.call_args
         assert "job_id" in str(call_args)
         assert "new_version" in str(call_args)
+
+
+class TestRepoResyncContract:
+    """UT-010: Exact-mirror result and project-scoped path contracts."""
+
+    @staticmethod
+    def _status(added=0, removed=0):
+        return {
+            "overall_status": "success",
+            "orphan_cleanup": "success",
+            "repositories": {
+                "x86_64_rhel_10.0_baseos": {
+                    "sync_status": "success",
+                    "cleanup_status": "success",
+                    "stale_packages_remaining": 0,
+                    "packages_added": added,
+                    "packages_removed": removed,
+                }
+            },
+        }
+
+    def test_runtime_paths_use_data_path_and_project(self, temp_dir):
+        """TC-UT-010-001: Resolve BuildStream and Repo Manager project paths."""
+        with patch.dict(
+            os.environ,
+            {
+                "OMNIA_DATA_PATH": str(temp_dir),
+                "OMNIA_PROJECT_NAME": "cadence_project",
+            },
+        ):
+            assert _default_build_stream_config_path() == (
+                temp_dir
+                / "build_stream"
+                / "input"
+                / "cadence_project"
+                / "build_stream_config.yml"
+            )
+            assert _repo_resync_status_path() == (
+                temp_dir
+                / "repo_manager"
+                / "output"
+                / "cadence_project"
+                / "repo_resync_status.yml"
+            )
+
+    def test_load_successful_exact_mirror_status(self, temp_dir):
+        """TC-UT-010-002: Accept complete zero-stale exact-mirror output."""
+        status_path = temp_dir / "repo_resync_status.yml"
+        import yaml  # pylint: disable=import-outside-toplevel
+        status_path.write_text(yaml.safe_dump(self._status(15, 8)))
+        assert load_repo_resync_status(status_path) == self._status(15, 8)
+
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("sync_status", "failed"),
+            ("cleanup_status", "not_run"),
+            ("stale_packages_remaining", 1),
+            ("packages_added", "15"),
+            ("packages_removed", -1),
+        ],
+    )
+    def test_reject_incomplete_exact_mirror_status(
+        self, temp_dir, field, value
+    ):
+        """TC-UT-010-003: Reject incomplete or malformed repo results."""
+        status = self._status()
+        status["repositories"]["x86_64_rhel_10.0_baseos"][field] = value
+        status_path = temp_dir / "repo_resync_status.yml"
+        import yaml  # pylint: disable=import-outside-toplevel
+        status_path.write_text(yaml.safe_dump(status))
+        assert load_repo_resync_status(status_path) is None
+
+    def test_package_change_detection_covers_additions_and_removals(self):
+        """TC-UT-010-004: Detect upstream additions or stale-package removals."""
+        assert repo_resync_has_package_updates(self._status(1, 0)) is True
+        assert repo_resync_has_package_updates(self._status(0, 1)) is True
+        assert repo_resync_has_package_updates(self._status(0, 0)) is False
+
+
+class TestCadenceExactMirrorFlow:
+    """UT-011: Cadence consumes exact-mirror state before catalog mutation."""
+
+    def _thread(self, sample_cadence_config, temp_dir):
+        return CadenceTimerThread(
+            sample_cadence_config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+
+    def test_no_package_change_does_not_bump_or_push(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-011-001: Successful no-op sync ends without Git mutation."""
+        thread = self._thread(sample_cadence_config, temp_dir)
+        outcome = {
+            "job_id": "cadence-1",
+            "updates_detected": False,
+            "repo_resync_status": {},
+        }
+        with patch("cadence_manager.is_pipeline_busy", return_value=False), patch.object(
+            thread, "_sync_packages", return_value=outcome
+        ), patch.object(thread, "_bump_and_push") as bump, patch(
+            "cadence_manager.emit_audit_event"
+        ) as audit, patch("cadence_manager.log_secure_info") as log:
+            thread._execute_cadence_cycle()  # pylint: disable=protected-access
+        bump.assert_not_called()
+        audit.assert_called_once()
+        assert audit.call_args.args[1]["updates_detected"] is False
+        log.assert_any_call("info", "No package updates for cadence catalog")
+
+    def test_package_change_bumps_existing_catalog(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-011-002: Package delta advances the unified cadence pipeline."""
+        thread = self._thread(sample_cadence_config, temp_dir)
+        outcome = {
+            "job_id": "cadence-2",
+            "updates_detected": True,
+            "repo_resync_status": {},
+        }
+        with patch("cadence_manager.is_pipeline_busy", return_value=False), patch.object(
+            thread, "_sync_packages", return_value=outcome
+        ), patch.object(thread, "_bump_and_push") as bump:
+            thread._execute_cadence_cycle()  # pylint: disable=protected-access
+        bump.assert_called_once_with("cadence-2")
+
+    def test_sync_uses_configured_playbook_and_polling_contract(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-011-003: Queue request and polling honor cadence settings."""
+        config = dict(sample_cadence_config)
+        config.update(
+            {
+                "playbook_name": "repo_sync.yml",
+                "sync_timeout_seconds": 1234,
+                "sync_poll_interval_seconds": 17,
+            }
+        )
+        thread = self._thread(config, temp_dir)
+        status = TestRepoResyncContract._status(2, 1)
+        with patch(
+            "cadence_manager.copy_cadence_catalog_to_default_path",
+            return_value=True,
+        ), patch(
+            "cadence_manager.submit_repo_sync_request", return_value=True
+        ) as submit, patch(
+            "cadence_manager.wait_for_sync_result",
+            return_value={"status": "success"},
+        ) as wait, patch(
+            "cadence_manager.load_repo_resync_status", return_value=status
+        ):
+            outcome = thread._sync_packages()  # pylint: disable=protected-access
+        assert outcome["updates_detected"] is True
+        assert submit.call_args.kwargs["playbook_name"] == "repo_sync.yml"
+        assert wait.call_args.kwargs == {
+            "timeout_seconds": 1234,
+            "poll_interval": 17,
+        }
 
 
 class TestCadenceTimerThread:

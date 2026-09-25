@@ -279,6 +279,22 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_142 | `test_sync_staging_copies_only_public_input_allowlist` | Defense in depth prevents extra files from entering sync staging. |
 | RM_UT_143 | `test_named_dataset_reaches_remote_sync_staging` | The selected dataset supplies the exact files sent to the target. |
 
+### Exact-mirror reconciliation (`test_exact_mirror_reconciliation.py`) -- 11 tests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_144 | `test_exact_and_normal_sync_commands_remain_separate` | Exact mirror remains an explicit operation and cannot alter normal synchronization. |
+| RM_UT_145 | `test_exact_sync_uses_mirror_content_only` | Exact synchronization passes Pulp's `mirror_content_only` policy. |
+| RM_UT_146 | `test_nested_content_summary_reports_package_delta` | Current Pulp response data yields accurate RPM additions and removals. |
+| RM_UT_147 | `test_normal_sync_does_not_change_policy` | Existing Repo Manager downloads keep their established additive command. |
+| RM_UT_148 | `test_duplicate_catalog_repository_identity_fails_closed` | Duplicate selected repository identities are rejected before mutation. |
+| RM_UT_149 | `test_empty_catalog_repository_list_fails_closed` | Empty selection cannot broaden to all Pulp repositories. |
+| RM_UT_150 | `test_failed_metadata_validation_restores_old_publication` | Failed replacement metadata restores the last-known-good publication. |
+| RM_UT_151 | `test_orphan_cleanup_runs_only_after_every_repo_succeeds` | Orphan cleanup follows successful repository reconciliation. |
+| RM_UT_152 | `test_pruning_occurs_after_replacement_validation` | Superseded state is pruned only after replacement metadata is validated. |
+| RM_UT_153 | `test_pruning_preserves_empty_and_current_versions` | Cleanup preserves Pulp v0 and the current repository version. |
+| RM_UT_154 | `test_repository_failure_blocks_orphan_cleanup_and_later_repos` | One failure stops pending repositories and aggregate cleanup. |
+
 ## Registry summary
 
 | Suite | Count | Coverage |
@@ -296,4 +312,5 @@ explicitly excluded from aggregate FVT execution.
 | `test_repo_file_state.py` | 3 | Atomic, read-only and symlink-safe DNF repo files |
 | `test_repo_settings.py` | 7 | Configuration precedence and typed environment values |
 | `test_status_contract.py` | 8 | Multi-version aggregation and fail-closed publication |
-| **Total** | **141** | |
+| `test_exact_mirror_reconciliation.py` | 11 | Exact sync policy, metrics, failure safety, rollback and cleanup gating |
+| **Total** | **152** | |
