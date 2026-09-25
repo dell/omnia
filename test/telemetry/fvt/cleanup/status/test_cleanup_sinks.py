@@ -35,12 +35,10 @@ from library.vars.test_case_vars import TEST_CASES as TC
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
-)
 from library.functions.cleanup_func import (
     verify_kafka_cleaned,
     verify_victoria_metrics_cleaned,
     verify_victoria_logs_cleaned,
-)
 
 
 @pytest.mark.functional
@@ -52,9 +50,7 @@ def test_cleanup_kafka(host):
     Checks that Kafka brokers, controllers, bridge, and Strimzi operator
     pods have been removed from the telemetry namespace.
     
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-        )
     
     tc = TC["cleanup_kafka"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -78,9 +74,7 @@ def test_cleanup_victoria_metrics(host):
     Checks that vmstorage, vminsert, vmselect, vmagent, and the
     victoria-metrics-operator pods have been removed.
     
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-        )
     
     tc = TC["cleanup_victoria_metrics"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -104,9 +98,7 @@ def test_cleanup_victoria_logs(host):
     Checks that vlstorage, vlinsert, vlselect, and vlagent pods have
     been removed from the telemetry namespace.
     
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-        )
     
     tc = TC["cleanup_victoria_logs"]
     tl = TestLogger(tc["title"], tc["id"])

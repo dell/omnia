@@ -35,15 +35,12 @@ from library.vars.test_case_vars import TEST_CASES as TC
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
-)
 from library.messages.sfm_msgs import (
     SFM_ASSERT_MSGS,
     SFM_LOG_MSGS,
-)
 from library.messages.ufm_msgs import (
     UFM_ASSERT_MSGS,
     UFM_LOG_MSGS,
-)
 from library.functions.cleanup_func import (
     verify_idrac_cleaned,
     verify_ldms_cleaned,
@@ -51,7 +48,6 @@ from library.functions.cleanup_func import (
     verify_ufm_cleaned,
     verify_vast_cleaned,
     verify_sfm_cleaned,
-)
 
 
 @pytest.mark.functional
@@ -59,9 +55,7 @@ from library.functions.cleanup_func import (
 def test_cleanup_idrac(host):
     """TEL_FVT_CLEANUP_V006: Verify iDRAC telemetry resources removed after cleanup.
     
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-        )
     
     tc = TC["cleanup_idrac"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -81,9 +75,7 @@ def test_cleanup_idrac(host):
 def test_cleanup_ldms(host):
     """TEL_FVT_CLEANUP_V007: Verify LDMS + Vector-LDMS resources removed after cleanup.
     
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-        )
     
     tc = TC["cleanup_ldms"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -103,9 +95,7 @@ def test_cleanup_ldms(host):
 def test_cleanup_ome(host):
     """TEL_FVT_CLEANUP_V008: Verify OME + Vector-OME resources removed after cleanup.
     
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-        )
     
     tc = TC["cleanup_ome"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -125,9 +115,7 @@ def test_cleanup_ome(host):
 def test_cleanup_ufm(host):
     """TEL_FVT_CLEANUP_V009: Verify UFM telemetry resources removed after cleanup.
     
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-        )
     
     tc = TC["cleanup_ufm"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -147,9 +135,7 @@ def test_cleanup_ufm(host):
 def test_cleanup_vast(host):
     """TEL_FVT_CLEANUP_V010: Verify VAST telemetry resources removed after cleanup.
     
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-        )
     
     tc = TC["cleanup_vast"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -169,9 +155,7 @@ def test_cleanup_vast(host):
 def test_cleanup_sfm(host):
     """TEL_FVT_CLEANUP_V011: Verify SFM telemetry resources removed after cleanup.
     
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-        )
     
     tc = TC["cleanup_sfm"]
     tl = TestLogger(tc["title"], tc["id"])
