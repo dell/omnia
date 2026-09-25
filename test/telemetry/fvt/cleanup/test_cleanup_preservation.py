@@ -49,7 +49,7 @@ from library.functions.cleanup_func import (
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_cleanup_with_preservation_flags(host, delete_sinks_volume):
+def test_deploy_cleanup_with_preservation_flags(host):
     """TEL_FVT_CLEANUP_E002: Deploy cleanup with preservation flags.
     
     Runs cleanup with:
@@ -58,16 +58,7 @@ def test_deploy_cleanup_with_preservation_flags(host, delete_sinks_volume):
     
     Ordered FIRST (order 0) to run preservation cleanup before default cleanup.
     This ensures credentials and logs are preserved for verification.
-    
-    Skipped when delete_sinks_volume=true (preservation cleanup only runs
-    when PVCs are preserved).
     """
-    if delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=true — preservation cleanup is skipped "
-            "when cleanup with volume deletion is enabled"
-        )
-    
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -107,7 +98,7 @@ def test_deploy_cleanup_with_preservation_flags(host, delete_sinks_volume):
 
 @pytest.mark.functional
 @pytest.mark.order(1)
-def test_cleanup_credentials_preserved(host, delete_sinks_volume):
+def test_cleanup_credentials_preserved(host):
     """TEL_FVT_CLEANUP_V015: Verify credentials preserved after cleanup.
     
     After cleanup with cleanup_credentials=false:
@@ -115,15 +106,7 @@ def test_cleanup_credentials_preserved(host, delete_sinks_volume):
       - .telemetry_credentials_key must exist
     
     Ordered AFTER preservation cleanup deployment (order 1).
-    
-    Skipped when delete_sinks_volume=true (preservation tests only run
-    when PVCs are preserved).
     """
-    if delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=true — preservation tests are skipped "
-            "when cleanup with volume deletion is enabled"
-        )
     
     tc = TC["cleanup_credentials_preserved"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -146,7 +129,7 @@ def test_cleanup_credentials_preserved(host, delete_sinks_volume):
 
 @pytest.mark.functional
 @pytest.mark.order(2)
-def test_cleanup_credentials_deleted(host, delete_sinks_volume):
+def test_cleanup_credentials_deleted(host):
     """TEL_FVT_CLEANUP_V016: Verify credentials deleted after cleanup.
     
     After cleanup with cleanup_credentials=true (default):
@@ -158,15 +141,7 @@ def test_cleanup_credentials_deleted(host, delete_sinks_volume):
     a cleanup without the cleanup_credentials=false flag.
     
     Ordered AFTER credentials preserved test (order 2).
-    
-    Skipped when delete_sinks_volume=true (preservation tests only run
-    when PVCs are preserved).
     """
-    if delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=true — preservation tests are skipped "
-            "when cleanup with volume deletion is enabled"
-        )
     
     tc = TC["cleanup_credentials_deleted"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -198,22 +173,14 @@ def test_cleanup_credentials_deleted(host, delete_sinks_volume):
 
 @pytest.mark.functional
 @pytest.mark.order(3)
-def test_cleanup_logs_preserved(host, delete_sinks_volume):
+def test_cleanup_logs_preserved(host):
     """TEL_FVT_CLEANUP_V017: Verify logs preserved after cleanup.
     
     After cleanup with cleanup_logs=false:
       - <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME>/ must exist
     
     Ordered AFTER credentials deleted test (order 3).
-    
-    Skipped when delete_sinks_volume=true (preservation tests only run
-    when PVCs are preserved).
     """
-    if delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=true — preservation tests are skipped "
-            "when cleanup with volume deletion is enabled"
-        )
     
     tc = TC["cleanup_logs_preserved"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -236,7 +203,7 @@ def test_cleanup_logs_preserved(host, delete_sinks_volume):
 
 @pytest.mark.functional
 @pytest.mark.order(4)
-def test_cleanup_logs_deleted(host, delete_sinks_volume):
+def test_cleanup_logs_deleted(host):
     """TEL_FVT_CLEANUP_V018: Verify logs deleted after cleanup.
     
     After cleanup with cleanup_logs=true (default):
@@ -247,15 +214,7 @@ def test_cleanup_logs_deleted(host, delete_sinks_volume):
     a cleanup without the cleanup_logs=false flag.
     
     Ordered LAST in preservation phase (order 4) to complete preservation verification.
-    
-    Skipped when delete_sinks_volume=true (preservation tests only run
-    when PVCs are preserved).
     """
-    if delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=true — preservation tests are skipped "
-            "when cleanup with volume deletion is enabled"
-        )
     
     tc = TC["cleanup_logs_deleted"]
     tl = TestLogger(tc["title"], tc["id"])

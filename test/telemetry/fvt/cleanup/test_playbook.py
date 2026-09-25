@@ -34,26 +34,18 @@ from library.functions import run_playbook
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(5)
-def test_deploy_cleanup(host, delete_sinks_volume):
+def test_deploy_cleanup(host):
     """TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup).
     
+    Runs cleanup with default flags (credentials and logs are deleted).
+    
     Ordered AFTER preservation cleanup and verification (order 5).
-    
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
-    Only runs when delete_sinks_volume=true (cleanup with volume deletion).
     """
-    if not delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=false — default cleanup is skipped "
-            "because preservation cleanup already ran"
-        )
-    
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    extra_vars = {"Delete_sinks_volume": "true"} if delete_sinks_volume else None
-    tl.check("Running telemetry playbook --tags cleanup")
-    result = run_playbook(tag="cleanup", extra_vars=extra_vars)
+    tl.check("Running telemetry playbook --tags cleanup (default: delete credentials and logs)")
+    result = run_playbook(tag="cleanup")
 
     if result["success"]:
         tl.passed(

@@ -43,7 +43,7 @@ from library.functions.cleanup_func import (
 
 @pytest.mark.sanity
 @pytest.mark.order(66)
-def test_no_pods_after_full_cleanup(host, delete_sinks_volume):
+def test_no_pods_after_full_cleanup(host):
     """TEL_FVT_CLEANUP_V012: Verify no pods remain in telemetry namespace.
 
     After a full cleanup (--tags cleanup), the telemetry namespace
@@ -51,10 +51,6 @@ def test_no_pods_after_full_cleanup(host, delete_sinks_volume):
     
     Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-    if not delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=false — default cleanup verification is skipped "
-            "because preservation cleanup already ran"
         )
     
     tc = TC["no_pods_after_full_cleanup"]
@@ -77,7 +73,7 @@ def test_no_pods_after_full_cleanup(host, delete_sinks_volume):
 
 @pytest.mark.sanity
 @pytest.mark.order(67)
-def test_no_pvcs_after_full_cleanup(host, delete_sinks_volume):
+def test_no_pvcs_after_full_cleanup(host):
     """TEL_FVT_CLEANUP_V013/TEL_FVT_CLEANUP_V014: Verify cleanup PVC state.
 
     After a full cleanup (--tags cleanup):
@@ -87,10 +83,6 @@ def test_no_pvcs_after_full_cleanup(host, delete_sinks_volume):
     
     Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-    if not delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=false — default cleanup verification is skipped "
-            "because preservation cleanup already ran"
         )
     
     case_key = (

@@ -46,7 +46,7 @@ from library.functions.cleanup_func import (
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(63)
-def test_cleanup_kafka(host, delete_sinks_volume):
+def test_cleanup_kafka(host):
     """TEL_FVT_CLEANUP_V003: Verify Kafka resources removed after full cleanup.
 
     Checks that Kafka brokers, controllers, bridge, and Strimzi operator
@@ -54,10 +54,6 @@ def test_cleanup_kafka(host, delete_sinks_volume):
     
     Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-    if not delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=false — default cleanup verification is skipped "
-            "because preservation cleanup already ran"
         )
     
     tc = TC["cleanup_kafka"]
@@ -76,7 +72,7 @@ def test_cleanup_kafka(host, delete_sinks_volume):
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(64)
-def test_cleanup_victoria_metrics(host, delete_sinks_volume):
+def test_cleanup_victoria_metrics(host):
     """TEL_FVT_CLEANUP_V004: Verify VictoriaMetrics resources removed after full cleanup.
 
     Checks that vmstorage, vminsert, vmselect, vmagent, and the
@@ -84,10 +80,6 @@ def test_cleanup_victoria_metrics(host, delete_sinks_volume):
     
     Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-    if not delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=false — default cleanup verification is skipped "
-            "because preservation cleanup already ran"
         )
     
     tc = TC["cleanup_victoria_metrics"]
@@ -106,7 +98,7 @@ def test_cleanup_victoria_metrics(host, delete_sinks_volume):
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(65)
-def test_cleanup_victoria_logs(host, delete_sinks_volume):
+def test_cleanup_victoria_logs(host):
     """TEL_FVT_CLEANUP_V005: Verify VictoriaLogs resources removed after full cleanup.
 
     Checks that vlstorage, vlinsert, vlselect, and vlagent pods have
@@ -114,10 +106,6 @@ def test_cleanup_victoria_logs(host, delete_sinks_volume):
     
     Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-    if not delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=false — default cleanup verification is skipped "
-            "because preservation cleanup already ran"
         )
     
     tc = TC["cleanup_victoria_logs"]

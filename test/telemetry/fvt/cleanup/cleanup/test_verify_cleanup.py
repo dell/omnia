@@ -43,19 +43,11 @@ from library.vars.common_vars import CMDS
 
 @pytest.mark.sanity
 @pytest.mark.order(6)
-def test_cleanup_pods_removed(host, delete_sinks_volume):
+def test_cleanup_pods_removed(host):
     """TEL_FVT_CLEANUP_V001: Verify telemetry pods removed after cleanup.
     
     Ordered AFTER default cleanup playbook (order 6).
-    
-    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
-    if not delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=false — default cleanup verification is skipped "
-            "because preservation cleanup already ran"
-        )
-    
     tc = TC["cleanup_pods_removed"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -88,19 +80,11 @@ def test_cleanup_pods_removed(host, delete_sinks_volume):
 
 @pytest.mark.sanity
 @pytest.mark.order(7)
-def test_cleanup_topics_removed(host, delete_sinks_volume):
+def test_cleanup_topics_removed(host):
     """TEL_FVT_CLEANUP_V002: Verify topics removed when sink deletion is on.
 
-    Skipped when ``delete_sinks_volume=false`` (default) because KafkaTopic
-    CRDs are intentionally preserved alongside retained Kafka PVCs.
-    
     Ordered AFTER pods removed test (order 7).
     """
-    if not delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=false — KafkaTopic CRDs are preserved "
-            "alongside retained PVCs; skipping topic deletion check"
-        )
 
     tc = TC["cleanup_topics_removed"]
     tl = TestLogger(tc["title"], tc["id"])
