@@ -22,11 +22,15 @@ from the telemetry namespace.
 
 from typing import Dict, Any, List
 
+from omnia_auto import read_remote_env
+
 from .telemetry_func import run_on_kube_vip
 
 from library.vars.common_vars import (
     CMDS,
     TELEMETRY_NAMESPACE,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
     IDRAC_POD_PREFIX,
     IDRAC_STS_NAME,
     LDMS_AGG_STS_NAME,
@@ -616,3 +620,281 @@ def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
             ),
             "count": sink_pvc_count,
         }
+
+
+# =============================================================================
+# CREDENTIAL AND LOG PRESERVATION VERIFICATION
+# =============================================================================
+
+def verify_credentials_preserved(host) -> Dict[str, Any]:
+    """Verify credential files are preserved after cleanup with cleanup_credentials=false.
+
+    Checks for:
+      - telemetry_credentials.yml
+      - .telemetry_credentials_key
+
+    Args:
+        host: testinfra host fixture.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "details": str,
+            "error": str or None,
+            "files": {
+                "credentials": bool,
+                "vault_key": bool
+            }
+        }
+    """
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
+    )
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
+
+    input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
+    cred_file = f"{input_dir}/telemetry_credentials.yml"
+    vault_key_file = f"{input_dir}/.telemetry_credentials_key"
+
+    result = {
+        "success": False,
+        "details": "",
+        "error": None,
+        "files": {
+            "credentials": False,
+            "vault_key": False,
+        },
+    }
+
+    try:
+        # Check credentials file
+        cred_exists = host.file(cred_file).exists
+        result["files"]["credentials"] = cred_exists
+
+        # Check vault key file
+        key_exists = host.file(vault_key_file).exists
+        result["files"]["vault_key"] = key_exists
+
+        if cred_exists and key_exists:
+            result["success"] = True
+            result["details"] = (
+                f"Credential files preserved:\n"
+                f"  - {cred_file}: exists\n"
+                f"  - {vault_key_file}: exists"
+            )
+        else:
+            missing = []
+            if not cred_exists:
+                missing.append(cred_file)
+            if not key_exists:
+                missing.append(vault_key_file)
+            result["error"] = f"Credential files not preserved: {', '.join(missing)}"
+            result["details"] = (
+                f"Expected credential files to be preserved (cleanup_credentials=false):\n"
+                f"  - {cred_file}: {'exists' if cred_exists else 'MISSING'}\n"
+                f"  - {vault_key_file}: {'exists' if key_exists else 'MISSING'}"
+            )
+
+    except Exception as e:
+        result["error"] = str(e)
+        result["details"] = f"Error checking credential files: {str(e)}"
+
+    return result
+
+
+def verify_credentials_deleted(host) -> Dict[str, Any]:
+    """Verify credential files are deleted after cleanup with cleanup_credentials=true (default).
+
+    Checks that both credential files are removed:
+      - telemetry_credentials.yml
+      - .telemetry_credentials_key
+
+    Args:
+        host: testinfra host fixture.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "details": str,
+            "error": str or None,
+            "files": {
+                "credentials": bool,
+                "vault_key": bool
+            }
+        }
+    """
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
+    )
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
+
+    input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
+    cred_file = f"{input_dir}/telemetry_credentials.yml"
+    vault_key_file = f"{input_dir}/.telemetry_credentials_key"
+
+    result = {
+        "success": False,
+        "details": "",
+        "error": None,
+        "files": {
+            "credentials": False,
+            "vault_key": False,
+        },
+    }
+
+    try:
+        # Check credentials file
+        cred_exists = host.file(cred_file).exists
+        result["files"]["credentials"] = cred_exists
+
+        # Check vault key file
+        key_exists = host.file(vault_key_file).exists
+        result["files"]["vault_key"] = key_exists
+
+        if not cred_exists and not key_exists:
+            result["success"] = True
+            result["details"] = (
+                f"Credential files deleted:\n"
+                f"  - {cred_file}: deleted\n"
+                f"  - {vault_key_file}: deleted"
+            )
+        else:
+            remaining = []
+            if cred_exists:
+                remaining.append(cred_file)
+            if key_exists:
+                remaining.append(vault_key_file)
+            result["error"] = f"Credential files not deleted: {', '.join(remaining)}"
+            result["details"] = (
+                f"Expected credential files to be deleted (cleanup_credentials=true):\n"
+                f"  - {cred_file}: {'exists' if cred_exists else 'deleted'}\n"
+                f"  - {vault_key_file}: {'exists' if key_exists else 'deleted'}"
+            )
+
+    except Exception as e:
+        result["error"] = str(e)
+        result["details"] = f"Error checking credential files: {str(e)}"
+
+    return result
+
+
+def verify_logs_preserved(host) -> Dict[str, Any]:
+    """Verify log directory is preserved after cleanup with cleanup_logs=false.
+
+    Checks for:
+      - <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME>/
+
+    Args:
+        host: testinfra host fixture.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "details": str,
+            "error": str or None,
+            "log_dir_exists": bool
+        }
+    """
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
+    )
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
+
+    log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
+
+    result = {
+        "success": False,
+        "details": "",
+        "error": None,
+        "log_dir_exists": False,
+    }
+
+    try:
+        log_dir_exists = host.file(log_dir).is_directory
+        result["log_dir_exists"] = log_dir_exists
+
+        if log_dir_exists:
+            result["success"] = True
+            result["details"] = (
+                f"Log directory preserved:\n"
+                f"  - {log_dir}: exists"
+            )
+        else:
+            result["error"] = f"Log directory not preserved: {log_dir}"
+            result["details"] = (
+                f"Expected log directory to be preserved (cleanup_logs=false):\n"
+                f"  - {log_dir}: MISSING"
+            )
+
+    except Exception as e:
+        result["error"] = str(e)
+        result["details"] = f"Error checking log directory: {str(e)}"
+
+    return result
+
+
+def verify_logs_deleted(host) -> Dict[str, Any]:
+    """Verify log directory is deleted after cleanup with cleanup_logs=true (default).
+
+    Checks that the log directory is removed:
+      - <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME>/
+
+    Args:
+        host: testinfra host fixture.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "details": str,
+            "error": str or None,
+            "log_dir_exists": bool
+        }
+    """
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
+    )
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
+
+    log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
+
+    result = {
+        "success": False,
+        "details": "",
+        "error": None,
+        "log_dir_exists": False,
+    }
+
+    try:
+        log_dir_exists = host.file(log_dir).is_directory
+        result["log_dir_exists"] = log_dir_exists
+
+        if not log_dir_exists:
+            result["success"] = True
+            result["details"] = (
+                f"Log directory deleted:\n"
+                f"  - {log_dir}: deleted"
+            )
+        else:
+            result["error"] = f"Log directory not deleted: {log_dir}"
+            result["details"] = (
+                f"Expected log directory to be deleted (cleanup_logs=true):\n"
+                f"  - {log_dir}: still exists"
+            )
+
+    except Exception as e:
+        result["error"] = str(e)
+        result["details"] = f"Error checking log directory: {str(e)}"
+
+    return result

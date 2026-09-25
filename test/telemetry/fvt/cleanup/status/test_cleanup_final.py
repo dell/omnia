@@ -42,7 +42,7 @@ from library.functions.cleanup_func import (
 
 
 @pytest.mark.sanity
-@pytest.mark.order(61)
+@pytest.mark.order(66)
 def test_no_pods_after_full_cleanup(host):
     """TEL_FVT_CLEANUP_V012: Verify no pods remain in telemetry namespace.
 
@@ -68,7 +68,7 @@ def test_no_pods_after_full_cleanup(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(62)
+@pytest.mark.order(67)
 def test_no_pvcs_after_full_cleanup(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_V013/TEL_FVT_CLEANUP_V014: Verify cleanup PVC state.
 

@@ -110,15 +110,33 @@ When invoking Ansible directly, use the `sinks` variable, for example:
 
 ### Credential and Global Cleanup
 
-Full `cleanup` deletes `telemetry_credentials.yml` and its vault key. A granular
-source cleanup blanks only that source's stored credential fields and preserves
-credentials for components that remain deployed. Run the full domain cleanup
-before an Omnia-wide reset:
+Full `cleanup` deletes `telemetry_credentials.yml` and its vault key by default.
+Use `-e cleanup_credentials=false` to preserve credentials during cleanup, which
+is useful when redeploying immediately after cleanup. Use `-e cleanup_logs=false`
+to preserve telemetry log directories and artifacts during cleanup.
+
+When `Delete_sinks_volume=true` is combined with either `cleanup_credentials=false`
+or `cleanup_logs=false`, a warning is displayed and execution pauses for 30 seconds.
+In cleanup with volume mode, credentials and logs are always deleted regardless of
+these flags.
+
+A granular source cleanup blanks only that source's stored credential fields and
+preserves credentials for components that remain deployed. Use
+`-e cleanup_credentials=false` with granular tags to skip field blanking as well:
 
 ```bash
 cd src/main
 sudo ./omnia.sh --run telemetry --tags cleanup
 sudo ./omnia.sh --cleanup --all
+
+# Preserve credentials for redeployment
+sudo ./omnia.sh --run telemetry --tags cleanup -e cleanup_credentials=false
+
+# Preserve both credentials and logs
+sudo ./omnia.sh --run telemetry --tags cleanup -e cleanup_credentials=false -e cleanup_logs=false
+
+# Granular cleanup preserving credentials
+sudo ./omnia.sh --run telemetry --tags cleanup_idrac -e cleanup_credentials=false
 ```
 
 `src/telemetry/domain-init.sh --cleanup` is non-interactive and removes only
