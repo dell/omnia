@@ -168,6 +168,39 @@ cp -r <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME> /path/to/backup/
 
 See `nft/README.md` for detailed test case descriptions and recovery instructions.
 
+### NFT: Consolidated Test Execution
+
+**Recommended approach**: Run the full NFT suite with a single command:
+
+```bash
+# Comprehensive NFT execution (both DELETE_VOLUME=false and DELETE_VOLUME=true scenarios)
+./run_validation.sh nft_telemetry test
+```
+
+This consolidated execution automatically runs:
+1. **Phase 1**: All performance, idempotency, and resilience tests with `DELETE_VOLUME=false` (PVCs preserved)
+2. **Phase 2**: Cleanup-with-volume deletion tests with `DELETE_VOLUME=true` (all PVCs deleted)
+
+This eliminates the need to run the NFT suite twice with different flags.
+
+**⚠️ IMPORTANT - Data Loss Warning:**
+After NFT completion, the cluster is left in a **fully cleaned-up state** with:
+- All PVCs deleted (Kafka, VictoriaMetrics, VictoriaLogs)
+- Input files deleted (`telemetry_config.yml`, etc.)
+- Log files deleted
+- Credential files deleted
+
+**Before running NFT, back up any data you need to preserve:**
+```bash
+# Backup input files
+cp -r <OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME> /path/to/backup/
+
+# Backup logs
+cp -r <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME> /path/to/backup/
+```
+
+See `nft/README.md` for detailed test case descriptions and recovery instructions.
+
 ### Marker Expressions
 
 | Syntax | Example | Meaning |
