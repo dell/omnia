@@ -46,7 +46,7 @@ from library.vars.common_vars import CMDS
 def test_cleanup_pods_removed(host):
     """TEL_FVT_CLEANUP_V001: Verify telemetry pods removed after cleanup.
 
-    Ordered AFTER default cleanup playbook (order 6).
+    Ordered AFTER deletion verification tests (order 6).
     """
     tc = TC["cleanup_pods_removed"]
     tl = TestLogger(tc["title"], tc["id"])

@@ -13,19 +13,19 @@
 # limitations under the License.
 
 """
-Telemetry Cleanup — Preservation Flags (credentials and logs) Tests.
+Telemetry Cleanup — Preservation and Deletion Verification Tests.
 
 Tests for cleanup_credentials and cleanup_logs flags to verify that
 credential files and log directories are preserved or deleted as expected.
 
 Execution order:
-    Phase 1 — Preservation cleanup runs FIRST (orders 0-4).
-    The preservation playbook runs cleanup with cleanup_credentials=false
-    and cleanup_logs=false, then verifies that credentials and logs are
-    still present on disk.
-
-    Phase 2 — Default cleanup runs SECOND (orders 5+, in test_playbook.py
-    and the status/ subdirectory tests).
+    Order 0: E002  — Deploy cleanup with preservation flags
+    Order 1: V015  — Verify credentials preserved
+    Order 2: V017  — Verify logs preserved
+    Order 3: E001  — Deploy default cleanup (in test_playbook.py)
+    Order 4: V016  — Verify credentials deleted
+    Order 5: V018  — Verify logs deleted
+    Order 6+:       — Remaining verification tests (in status/ files)
 
 Variable interactions (from Ansible source):
     - cleanup_credentials=false  → preserves credential files
@@ -39,9 +39,9 @@ because the Ansible role ignores preservation flags in that mode.
 Test cases:
     TEL_FVT_CLEANUP_E002: Deploy cleanup with preservation flags
     TEL_FVT_CLEANUP_V015: Verify credentials preserved (cleanup_credentials=false)
-    TEL_FVT_CLEANUP_V016: Verify credentials deleted (cleanup_credentials=true)
+    TEL_FVT_CLEANUP_V016: Verify credentials deleted after default cleanup
     TEL_FVT_CLEANUP_V017: Verify logs preserved (cleanup_logs=false)
-    TEL_FVT_CLEANUP_V018: Verify logs deleted (cleanup_logs=true)
+    TEL_FVT_CLEANUP_V018: Verify logs deleted after default cleanup
 """
 
 import pytest
@@ -61,7 +61,7 @@ from library.functions.cleanup_func import (
 
 
 # =============================================================================
-# PLAYBOOK EXECUTION — PRESERVATION CLEANUP
+# PHASE 1: PRESERVATION CLEANUP + VERIFICATION (orders 0-2)
 # =============================================================================
 
 @pytest.mark.deploy
@@ -121,10 +121,6 @@ def test_deploy_cleanup_with_preservation_flags(host, delete_sinks_volume):
     )
 
 
-# =============================================================================
-# CREDENTIAL PRESERVATION VERIFICATION
-# =============================================================================
-
 @pytest.mark.functional
 @pytest.mark.order(1)
 def test_cleanup_credentials_preserved(host, delete_sinks_volume):
@@ -158,45 +154,6 @@ def test_cleanup_credentials_preserved(host, delete_sinks_volume):
 
 @pytest.mark.functional
 @pytest.mark.order(2)
-def test_cleanup_credentials_deleted(host, delete_sinks_volume):
-    """TEL_FVT_CLEANUP_V016: Verify credentials state after preservation cleanup.
-
-    Informational test — after the preservation cleanup, credential files
-    should still exist (they were preserved).  This test always passes.
-
-    Depends on: test_deploy_cleanup_with_preservation_flags (order 0).
-    Skipped when delete_sinks_volume=true (preservation not applicable).
-    """
-    if delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=true — preservation flags are overridden; "
-            "credentials are always deleted in this mode"
-        )
-
-    tc = TC["cleanup_credentials_deleted"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    result = verify_credentials_deleted(host)
-
-    if result["success"]:
-        tl.passed("Credential files deleted", result["details"])
-    else:
-        tl.info(
-            "Credential files still exist (expected after preservation cleanup)",
-            result["details"],
-        )
-        tl.passed("Credential cleanup verification completed")
-
-    # Always pass — informational test
-    assert True, "Credential cleanup verification completed"
-
-
-# =============================================================================
-# LOG PRESERVATION VERIFICATION
-# =============================================================================
-
-@pytest.mark.functional
-@pytest.mark.order(3)
 def test_cleanup_logs_preserved(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_V017: Verify logs preserved after cleanup.
 
@@ -225,15 +182,57 @@ def test_cleanup_logs_preserved(host, delete_sinks_volume):
     assert result["success"], result["error"]
 
 
+# =============================================================================
+# PHASE 2: DEFAULT CLEANUP RUNS AT ORDER 3 (in test_playbook.py)
+# =============================================================================
+
+
+# =============================================================================
+# PHASE 3: DELETION VERIFICATION (orders 4-5)
+# These run AFTER the default cleanup (E001) to verify that credentials
+# and logs were actually deleted by the default cleanup.
+# =============================================================================
+
 @pytest.mark.functional
 @pytest.mark.order(4)
+def test_cleanup_credentials_deleted(host, delete_sinks_volume):
+    """TEL_FVT_CLEANUP_V016: Verify credentials deleted after default cleanup.
+
+    After the default cleanup (cleanup_credentials=true by default):
+      - telemetry_credentials.yml must be deleted
+      - .telemetry_credentials_key must be deleted
+
+    Depends on: test_deploy_cleanup (order 3 in test_playbook.py).
+    Skipped when delete_sinks_volume=true (preservation not applicable).
+    """
+    if delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=true — preservation flags are overridden; "
+            "credentials are always deleted in this mode"
+        )
+
+    tc = TC["cleanup_credentials_deleted"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    result = verify_credentials_deleted(host)
+
+    if result["success"]:
+        tl.passed("Credential files deleted", result["details"])
+    else:
+        tl.failed("Credential files not deleted", result["details"])
+
+    assert result["success"], result["error"]
+
+
+@pytest.mark.functional
+@pytest.mark.order(5)
 def test_cleanup_logs_deleted(host, delete_sinks_volume):
-    """TEL_FVT_CLEANUP_V018: Verify logs state after preservation cleanup.
+    """TEL_FVT_CLEANUP_V018: Verify logs deleted after default cleanup.
 
-    Informational test — after the preservation cleanup, the log directory
-    should still exist (it was preserved).  This test always passes.
+    After the default cleanup (cleanup_logs=true by default):
+      - <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME>/ must be deleted
 
-    Depends on: test_deploy_cleanup_with_preservation_flags (order 0).
+    Depends on: test_deploy_cleanup (order 3 in test_playbook.py).
     Skipped when delete_sinks_volume=true (preservation not applicable).
     """
     if delete_sinks_volume:
@@ -250,11 +249,6 @@ def test_cleanup_logs_deleted(host, delete_sinks_volume):
     if result["success"]:
         tl.passed("Log directory deleted", result["details"])
     else:
-        tl.info(
-            "Log directory still exists (expected after preservation cleanup)",
-            result["details"],
-        )
-        tl.passed("Log cleanup verification completed")
+        tl.failed("Log directory not deleted", result["details"])
 
-    # Always pass — informational test
-    assert True, "Log cleanup verification completed"
+    assert result["success"], result["error"]

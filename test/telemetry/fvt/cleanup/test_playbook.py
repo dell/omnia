@@ -47,14 +47,15 @@ from library.functions import run_playbook
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(5)
+@pytest.mark.order(3)
 def test_deploy_cleanup(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup).
 
     Runs the default cleanup playbook.  When delete_sinks_volume=true,
     passes -e Delete_sinks_volume=true to also delete sink PVCs.
 
-    Ordered AFTER preservation cleanup and verification (order 5).
+    Ordered AFTER preservation verification (order 3).
+    Deletion verification tests (V016, V018) run after this at orders 4-5.
     """
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
