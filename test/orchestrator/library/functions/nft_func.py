@@ -127,7 +127,14 @@ def persistent_changed_count(output: str) -> int:
 
 def _playbook_failure(tag: str, result: dict[str, Any]) -> str:
     """Return a concise playbook failure suitable for reports."""
-    return str(result.get("error") or f"{tag} exited with rc={result.get('rc')}")
+    raw = str(result.get("error") or "")
+    rc = result.get("rc", "unknown")
+    # Extract only the first meaningful line; drop generic HOW TO FIX blocks
+    # that are aimed at interactive runner output, not test reports.
+    if raw:
+        first_line = raw.split("\n")[0].strip()
+        return f"{tag} failed (rc={rc}): {first_line}"
+    return f"{tag} exited with rc={rc}"
 
 
 def _run_lifecycle(tag: str, **kwargs) -> dict[str, Any]:
@@ -545,4 +552,158 @@ def check_vault_encryption(host) -> dict[str, Any]:
         "Credential encryption and vault-key protection are valid",
         fields,
         "; ".join(failures),
+    )
+
+
+# -----------------------------------------------------------------
+# Lifecycle — clean-baseline and fresh-install contracts
+# -----------------------------------------------------------------
+
+
+def _lifecycle_cleanup_postconditions(
+    host,
+) -> tuple[list[tuple[str, object]], list[str]]:
+    """Reuse cleanup FVT postconditions, excluding credentials.
+
+    The lifecycle baseline preserves credentials so the subsequent
+    fresh-install can proceed without interactive prompts.
+    """
+    checks: tuple[tuple[str, Callable], ...] = (
+        ("OpenCHAMI", check_cleanup_openchami),
+        ("OpenLDAP", check_cleanup_openldap),
+        ("Slurm", check_cleanup_slurm),
+        ("Kubernetes", check_cleanup_kubernetes),
+        ("Artifacts", check_cleanup_artifacts),
+    )
+    fields = []
+    failures = []
+    for label, checker in checks:
+        result = checker(host)
+        fields.append(
+            (f"{label} postcondition", "passed" if result["success"] else "FAILED")
+        )
+        if not result["success"]:
+            failures.append(f"{label}: {result['error']}")
+    fields.append(("Credentials postcondition", "skipped (preserved for lifecycle)"))
+    return fields, failures
+
+
+def check_clean_baseline(host) -> dict[str, Any]:
+    """Run cleanup and verify all postconditions to prove a clean OIM state.
+
+    Credentials are preserved (``cleanup_credentials=false``) so the
+    subsequent fresh-install lifecycle can run without interactive
+    password prompts.
+    """
+    try:
+        extra_vars = cleanup_extra_vars()
+    except (TypeError, ValueError) as exc:
+        return _result(False, "Cleanup configuration is invalid", [], str(exc))
+
+    # Preserve credentials so prepare does not prompt for manual input.
+    extra_vars["cleanup_credentials"] = "false"
+
+    result = _run_lifecycle("cleanup", extra_vars=extra_vars)
+    if not result.get("success"):
+        return _result(
+            False,
+            "Baseline cleanup execution failed",
+            [
+                ("Lifecycle", "cleanup"),
+                ("Return code", result.get("rc", "unknown")),
+                ("Duration seconds", f"{float(result.get('duration', 0)):.1f}"),
+            ],
+            _playbook_failure("cleanup", result),
+        )
+
+    postcondition_fields, postcondition_failures = (
+        _lifecycle_cleanup_postconditions(host)
+    )
+    fields = [
+        ("Cleanup duration seconds", f"{float(result.get('duration', 0)):.1f}"),
+        ("Credentials policy", "preserved for lifecycle"),
+        *postcondition_fields,
+    ]
+    return _result(
+        not postcondition_failures,
+        "OIM baseline is clean — all cleanup postconditions passed",
+        fields,
+        "; ".join(postcondition_failures),
+    )
+
+
+def check_lifecycle_fresh_install(host) -> dict[str, Any]:
+    """Run precheck, prepare, and provision from a proven-clean baseline."""
+    lifecycles = ("precheck", "prepare", "provision")
+    durations: dict[str, float] = {}
+    for lifecycle in lifecycles:
+        result = _run_lifecycle(lifecycle)
+        durations[lifecycle] = float(result.get("duration", 0))
+        if not result.get("success"):
+            completed = [
+                lc for lc in lifecycles if lc in durations and lc != lifecycle
+            ]
+            fields = [
+                ("Failed lifecycle", lifecycle),
+                ("Return code", result.get("rc", "unknown")),
+                ("Completed phases", ", ".join(completed) if completed else "none"),
+                *(
+                    (f"{lc} duration seconds", f"{durations[lc]:.1f}")
+                    for lc in lifecycles
+                    if lc in durations
+                ),
+            ]
+            return _result(
+                False,
+                f"Fresh install failed at {lifecycle} phase",
+                fields,
+                _playbook_failure(lifecycle, result),
+            )
+
+    # Verify prepare postconditions
+    readiness_fields, readiness_failures = _prepare_readiness(host)
+
+    # Verify provision postconditions by importing checkers directly
+    from .smd_provision_func import check_smd_identity, check_smd_groups
+    from .boot_service_provision_func import (
+        check_boot_configurations,
+        check_boot_nodes,
+    )
+    from .metadata_service_provision_func import (
+        check_metadata_groups,
+        check_metadata_instances,
+    )
+
+    provision_checks: tuple[tuple[str, Callable], ...] = (
+        ("SMD identity", check_smd_identity),
+        ("SMD functional groups", check_smd_groups),
+        ("Boot configurations", check_boot_configurations),
+        ("Boot node identity", check_boot_nodes),
+        ("Metadata groups", check_metadata_groups),
+        ("Metadata instances", check_metadata_instances),
+    )
+    provision_fields: list[tuple[str, object]] = []
+    provision_failures: list[str] = []
+    for label, checker in provision_checks:
+        check_result = checker(host)
+        provision_fields.append(
+            (label, "passed" if check_result["success"] else "FAILED")
+        )
+        if not check_result["success"]:
+            provision_failures.append(f"{label}: {check_result['error']}")
+
+    all_failures = [*readiness_failures, *provision_failures]
+    fields = [
+        *(
+            (f"{lc} duration seconds", f"{durations[lc]:.1f}")
+            for lc in lifecycles
+        ),
+        *readiness_fields,
+        *provision_fields,
+    ]
+    return _result(
+        not all_failures,
+        "Fresh-install lifecycle completed and all postconditions passed",
+        fields,
+        "; ".join(all_failures),
     )

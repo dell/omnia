@@ -248,6 +248,7 @@ def pytest_configure(config):
         "performance": "Lifecycle duration checks",
         "idempotency": "Repeated lifecycle execution checks",
         "security": "Credential, key, log, and vault protection checks",
+        "lifecycle": "Clean-baseline and fresh-install lifecycle checks",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

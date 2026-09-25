@@ -715,6 +715,14 @@ NFT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_NFT_011",
         "title": "Verify Orchestrator vault encryption",
     },
+    "clean_baseline": {
+        "id": "ORCH_NFT_012",
+        "title": "Verify clean OIM baseline before fresh install",
+    },
+    "lifecycle_fresh_install": {
+        "id": "ORCH_NFT_013",
+        "title": "Verify complete fresh-install lifecycle from clean baseline",
+    },
 }
 
 TEST_CASES: dict[str, dict[str, str]] = {
