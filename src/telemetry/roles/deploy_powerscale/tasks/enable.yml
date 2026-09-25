@@ -13,24 +13,37 @@
 # limitations under the License.
 ---
 
-# Deploy PowerScale Telemetry (Metrics)
-# Gated by: telemetry_sources.powerscale.metrics_enabled
+# Deploy PowerScale Telemetry (Metrics and/or Logs)
+# Gated by: telemetry_sources.powerscale.metrics_enabled OR logs_enabled
 #
-# DATA PIPELINE:
-#   PowerScale CSI Driver → CSM Metrics PowerScale → vmagent(shared) → victoria_metrics
+# DATA PIPELINES:
+#   Metrics: PowerScale CSI Driver → CSM Metrics PowerScale → vmagent(shared) → victoria_metrics
+#   Logs:    PowerScale → syslog → vlagent(shared) → victoria_logs
 #
 # What Omnia does:
 #   - Validates CSI driver PowerScale is configured
-#   - Validates user-provided Helm values file
+#   - Validates user-provided Helm values file (metrics only)
 #   - Detects authentication mode (Direct vs Karavi Authorization)
 #   - Loads CSI PowerScale credentials from vault
 #   - Downloads offline dependencies (karavi-observability, cert-manager) from Pulp
 #   - Copies user-provided values file to NFS share
-#   - Installs karavi-observability Helm chart (CSM Metrics + OTEL Collector)
+#   - Installs karavi-observability Helm chart (CSM Metrics + OTEL Collector) if metrics enabled
 #   - Patches OTEL Collector service for vmagent scrape discovery
+#   - VLAgent syslog configuration is managed by deploy_victoria role (not here)
 #
 # What Omnia does NOT do:
 #   - Omnia does NOT deploy or configure PowerScale itself
+#   - Omnia does NOT manage VLAgent configuration (handled by deploy_victoria)
+
+- name: Set PowerScale channel states
+  ansible.builtin.set_fact:
+    ps_metrics_enabled: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}"
+    ps_logs_enabled: "{{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
+
+- name: Display PowerScale channel states
+  ansible.builtin.debug:
+    msg: "PowerScale telemetry channels - Metrics: {{ ps_metrics_enabled }}, Logs: {{ ps_logs_enabled }}"
+    verbosity: 1
 
 - name: Set PowerScale configuration facts
   ansible.builtin.set_fact:
@@ -42,21 +55,27 @@
     that:
       - ps_helm_values_file | length > 0
     fail_msg: "{{ ps_helm_values_path_missing_msg }}"
+  when: ps_metrics_enabled | bool
 
 - name: Verify user-provided Helm values file exists
   ansible.builtin.stat:
     path: "{{ ps_helm_values_file }}"
   register: helm_values_stat
   delegate_to: localhost
+  when: ps_metrics_enabled | bool
 
 - name: Fail if user-provided Helm values file does not exist
   ansible.builtin.fail:
     msg: "{{ ps_helm_values_file_not_found_msg }}"
-  when: not helm_values_stat.stat.exists
+  when:
+    - ps_metrics_enabled | bool
+    - not helm_values_stat.stat.exists
 
 # --- Read user values file to detect auth mode for secret copying ---
+# Only needed when metrics are enabled (Helm chart deployment)
 
 - name: Load user-provided Helm values to detect auth mode
+  when: ps_metrics_enabled | bool
   block:
     - name: Read user Helm values file
       ansible.builtin.include_vars:
@@ -72,11 +91,13 @@
   ansible.builtin.set_fact:
     karavi_enabled: >-
       {{ user_helm_values.karaviMetricsPowerscale.authorization.enabled | default(false) | bool }}
+  when: ps_metrics_enabled | bool
 
 - name: Display authentication mode
   ansible.builtin.debug:
     msg: "{% if karavi_enabled | bool %}{{ ps_auth_mode_karavi_msg }}{% else %}{{ ps_auth_mode_direct_msg }}{% endif %}"
     verbosity: 2
+  when: ps_metrics_enabled | bool
 
 # --- Validate cert-manager is enabled (required for TLS) ---
 
@@ -85,6 +106,7 @@
     that:
       - user_helm_values['cert-manager']['enabled'] | default(false) | bool
     fail_msg: "{{ ps_cert_manager_disabled_msg }}"
+  when: ps_metrics_enabled | bool
 
 # --- Load CSI PowerScale credentials from vault ---
 
@@ -92,38 +114,185 @@
   ansible.builtin.debug:
     msg: "{{ ps_clusters_found_msg }}"
     verbosity: 2
+  when: ps_metrics_enabled | bool
 
 # --- Copy user-provided values file to NFS share ---
+# Only needed when metrics are enabled (Helm chart deployment)
 
 - name: Create karavi-observability directory on NFS share
   ansible.builtin.file:
     path: "{{ telemetry_deploy_dir }}/karavi-observability"
     state: directory
     mode: '0755'
+  when: ps_metrics_enabled | bool
 
 - name: Copy user-provided Helm values file to NFS share
   ansible.builtin.copy:
     src: "{{ ps_helm_values_file }}"
     dest: "{{ telemetry_deploy_dir }}/karavi-observability/csm_metrics_values.yaml"
     mode: '0600'
+  when: ps_metrics_enabled | bool
 
 - name: Display PowerScale telemetry preparation status
   ansible.builtin.debug:
     msg: "{{ ps_telemetry_prepared_msg }}"
     verbosity: 2
+  when: ps_metrics_enabled | bool
 
 # --- Download offline dependencies from Pulp ---
+# Only needed when metrics are enabled (Helm chart deployment)
 
 - name: Download karavi-observability offline dependencies
   ansible.builtin.include_tasks: get_powerscale_telemetry_dependencies.yml
+  when: ps_metrics_enabled | bool
 
 # --- Deploy karavi-observability Helm chart ---
+# Only deploy when metrics are enabled
 
 - name: Deploy karavi-observability via Helm
   ansible.builtin.include_tasks: helm_install_karavi.yml
+  when: ps_metrics_enabled | bool
 
 # --- Generate PowerScale deployment manifests ---
+# CSI volume exporter is only deployed when metrics are enabled
 
 - name: Generate PowerScale kustomization manifests
   ansible.builtin.include_tasks: generate_manifests.yml
-  when: telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+  when: ps_metrics_enabled | bool
+
+# --- Scale down metrics components when metrics are disabled but logs are enabled ---
+# This handles the transition from metrics-enabled to logs-only mode
+
+- name: Check if karavi-metrics-powerscale deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment karavi-metrics-powerscale -n {{ csm_observability_namespace }} -o name
+  register: karavi_metrics_check
+  changed_when: false
+  failed_when: false
+  when:
+    - not (ps_metrics_enabled | bool)
+    - ps_logs_enabled | bool
+
+- name: Scale down karavi-metrics-powerscale deployment
+  ansible.builtin.command: >
+    kubectl scale deployment karavi-metrics-powerscale -n {{ csm_observability_namespace }} --replicas=0
+  register: karavi_scale_result
+  changed_when: "'scaled' in karavi_scale_result.stdout or karavi_scale_result.rc == 0"
+  when:
+    - not (ps_metrics_enabled | bool)
+    - ps_logs_enabled | bool
+    - karavi_metrics_check.rc == 0
+
+- name: Check if otel-collector deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment otel-collector -n {{ csm_observability_namespace }} -o name
+  register: otel_collector_check
+  changed_when: false
+  failed_when: false
+  when:
+    - not (ps_metrics_enabled | bool)
+    - ps_logs_enabled | bool
+
+- name: Scale down otel-collector deployment
+  ansible.builtin.command: >
+    kubectl scale deployment otel-collector -n {{ csm_observability_namespace }} --replicas=0
+  register: otel_scale_result
+  changed_when: "'scaled' in otel_scale_result.stdout or otel_scale_result.rc == 0"
+  when:
+    - not (ps_metrics_enabled | bool)
+    - ps_logs_enabled | bool
+    - otel_collector_check.rc == 0
+
+- name: Check if csi-volume-exporter deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment csi-volume-exporter -n {{ csm_observability_namespace }} -o name
+  register: csi_exporter_check
+  changed_when: false
+  failed_when: false
+  when:
+    - not (ps_metrics_enabled | bool)
+    - ps_logs_enabled | bool
+
+- name: Scale down csi-volume-exporter deployment
+  ansible.builtin.command: >
+    kubectl scale deployment csi-volume-exporter -n {{ csm_observability_namespace }} --replicas=0
+  register: csi_scale_result
+  changed_when: "'scaled' in csi_scale_result.stdout or csi_scale_result.rc == 0"
+  when:
+    - not (ps_metrics_enabled | bool)
+    - ps_logs_enabled | bool
+    - csi_exporter_check.rc == 0
+
+- name: Display PowerScale metrics scaled down message
+  ansible.builtin.debug:
+    msg: "PowerScale metrics components scaled down (logs-only mode)."
+  when:
+    - not (ps_metrics_enabled | bool)
+    - ps_logs_enabled | bool
+
+# --- Remove PowerScale from vlagent-config when logs are disabled ---
+# This handles the case where logs_enabled changes from true to false
+
+- name: Check if vlagent-config exists
+  ansible.builtin.command: >
+    kubectl get cm vlagent-config -n {{ telemetry_namespace }} -o name
+  register: vlagent_config_check
+  changed_when: false
+  failed_when: false
+  when: not (ps_logs_enabled | bool)
+
+- name: Remove PowerScale from vlagent-config when logs are disabled
+  ansible.builtin.command:
+    cmd: >-
+      kubectl patch cm vlagent-config -n {{ telemetry_namespace }} --type=json
+      -p='[{"op":"replace","path":"/data/sources","value":"# No log sources enabled — VLAgent deployed for future use\nplaceholder: \"no-sources-enabled\"\n"}]'
+  register: vlagent_remove_result
+  changed_when: "'configured' in vlagent_remove_result.stdout or 'patched' in vlagent_remove_result.stdout"
+  failed_when: false
+  when:
+    - not (ps_logs_enabled | bool)
+    - vlagent_config_check.rc == 0
+
+- name: Display PowerScale logs disabled message
+  ansible.builtin.debug:
+    msg: "PowerScale logs disabled. Removed PowerScale from vlagent-config."
+  when:
+    - not (ps_logs_enabled | bool)
+
+# --- Display deployment summary ---
+
+- name: Display PowerScale logs-only mode message
+  ansible.builtin.debug:
+    msg: "PowerScale logs collection enabled. VLAgent syslog configuration is managed by deploy_victoria role."
+  when:
+    - ps_logs_enabled | bool
+    - not (ps_metrics_enabled | bool)
+
+# --- Add PowerScale to vlagent-config when logs are enabled ---
+# This handles the case where logs_enabled changes from false to true
+
+- name: Check if vlagent-config exists
+  ansible.builtin.command: >
+    kubectl get cm vlagent-config -n {{ telemetry_namespace }} -o name
+  register: vlagent_config_check
+  changed_when: false
+  failed_when: false
+  when: ps_logs_enabled | bool
+
+- name: Add PowerScale to vlagent-config when logs are enabled
+  ansible.builtin.command:
+    cmd: >-
+      kubectl patch cm vlagent-config -n {{ telemetry_namespace }} --type=json
+      -p='[{"op":"replace","path":"/data/sources","value":"powerscale: \"powerscale-syslog\"\n"}]'
+  register: vlagent_add_result
+  changed_when: true
+  failed_when: false
+  when:
+    - ps_logs_enabled | bool
+    - vlagent_config_check.rc == 0
+
+- name: Display PowerScale logs enabled message
+  ansible.builtin.debug:
+    msg: "PowerScale logs enabled. Added PowerScale to vlagent-config."
+  when:
+    - ps_logs_enabled | bool
