@@ -75,7 +75,7 @@ deploy_unreachable_nodes:
 | `packages.install_mode` | string | `"offline"` or `"online"` |
 | `packages.repo_url` | string | Pulp base URL (offline mode) |
 | `sinks.<name>` | string | `"deployed"`, `"failed"`, or `"skipped"` |
-| `sources.<name>.metrics` | string | Metrics outcome: `"deployed"`, `"failed"`, or `"skipped"` |
+| `sources.<name>.metrics` | string | Metrics outcome: `"deployed"`, `"failed"`, or `"skipped"`; iDRAC also reports `"disabled"` when successfully reconciled off |
 | `sources.<name>.logs` | string | Logs outcome when supported: `"deployed"`, `"failed"`, or `"skipped"` |
 | `bridges.<name>` | string | `"deployed"`, `"failed"`, or `"skipped"` |
 | `deploy_unreachable_nodes.ldms` | list | LDMS nodes skipped because Ansible could not reach them |

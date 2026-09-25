@@ -42,36 +42,111 @@
     tasks_from: derive_sink_support_flags
   when: kafka_support is not defined
 
+- name: Check whether the telemetry namespace exists before enable
+  ansible.builtin.command: >
+    kubectl get namespace {{ telemetry_namespace }} --ignore-not-found
+    -o jsonpath='{.metadata.name}'
+  register: idrac_enable_namespace_check
+  changed_when: false
+  failed_when: false
+
+- name: Check for a previously disabled iDRAC StatefulSet
+  ansible.builtin.command: >
+    kubectl get statefulset {{ idrac_telemetry_k8s_name }}
+    -n {{ telemetry_namespace }} --ignore-not-found
+    -o jsonpath='{.spec.replicas} {.metadata.annotations.telemetry\.omnia\.dell\.com/desired-replicas}'
+  register: idrac_enable_sts_check
+  changed_when: false
+  failed_when: false
+  when:
+    - idrac_enable_namespace_check.rc == 0
+    - idrac_enable_namespace_check.stdout | trim | length > 0
+
+- name: Set iDRAC re-enable state
+  vars:
+    _idrac_enable_sts_values: "{{ idrac_enable_sts_check.stdout | default('') | trim | split }}"
+  ansible.builtin.set_fact:
+    idrac_is_reenable: >-
+      {{ idrac_enable_sts_check is not skipped
+         and idrac_enable_sts_check.rc | default(1) == 0
+         and (_idrac_enable_sts_values | length) > 0
+         and (_idrac_enable_sts_values[0] | int) == 0 }}
+    idrac_replica_count: >-
+      {{ _idrac_enable_sts_values[1]
+         if (_idrac_enable_sts_values | length) > 1
+         and (_idrac_enable_sts_values[1] | int) > 0
+         else omit }}
+
+- name: Record iDRAC re-enable discovery failure
+  ansible.builtin.set_fact:
+    idrac_reconcile_failed: true
+    idrac_reconcile_error: >-
+      Failed to discover the {{ idrac_telemetry_k8s_name }} StatefulSet before enable:
+      {{ idrac_enable_namespace_check.stderr
+         if idrac_enable_namespace_check.rc != 0
+         else idrac_enable_sts_check.stderr | default('unknown kubectl error') }}
+  when: >-
+    idrac_enable_namespace_check.rc != 0 or
+    (idrac_enable_sts_check is not skipped
+     and idrac_enable_sts_check.rc | default(0) != 0)
+
 - name: Install Python dependencies for iDRAC telemetry on kube_vip host
   ansible.builtin.include_role:
     name: common
     tasks_from: install_python_dependencies
   vars:
     component: idrac
+  when:
+    - not (idrac_is_reenable | default(false) | bool)
+    - not (idrac_reconcile_failed | bool)
 
 - name: Prepare BMC inventory and iDRAC pod layout
   ansible.builtin.include_tasks: prepare_bmc_inventory.yml
   when:
+    - not (idrac_reconcile_failed | bool)
+    - not (idrac_is_reenable | default(false) | bool) or idrac_replica_count is not defined
     - hostvars['localhost']['bmc_group_data_path'] is defined
     - hostvars['localhost']['bmc_group_data_path'] | length > 0
 
+- name: Use one iDRAC replica when no retained count or BMC inventory is available
+  ansible.builtin.set_fact:
+    idrac_replica_count: 1
+  when: idrac_replica_count is not defined
+
 - name: Generate iDRAC telemetry manifests
   ansible.builtin.include_tasks: generate_manifests.yml
+  when:
+    - not (idrac_is_reenable | default(false) | bool)
+    - not (idrac_reconcile_failed | bool)
 
 - name: Deploy iDRAC telemetry
   ansible.builtin.include_tasks: deploy_idrac_telemetry.yml
+  when:
+    - not (idrac_is_reenable | default(false) | bool)
+    - not (idrac_reconcile_failed | bool)
+
+- name: Restore previously disabled iDRAC telemetry
+  ansible.builtin.include_tasks: restore.yml
+  when:
+    - idrac_is_reenable | default(false) | bool
+    - not (idrac_reconcile_failed | bool)
 
 - name: Verify iDRAC telemetry
   ansible.builtin.include_tasks: verify_idrac_telemetry.yml
+  when: not (idrac_reconcile_failed | bool)
 
 - name: Initiate telemetry service cluster (sync BMC inventory with MySQL DB)
   ansible.builtin.include_tasks: initiate_telemetry_service_cluster.yml
   when:
+    - not (idrac_is_reenable | default(false) | bool)
+    - not (idrac_reconcile_failed | bool)
     - hostvars['localhost']['bmc_group_data_path'] is defined
     - hostvars['localhost']['bmc_group_data_path'] | length > 0
 
 - name: Generate telemetry collection report
   when:
+    - not (idrac_is_reenable | default(false) | bool)
+    - not (idrac_reconcile_failed | bool)
     - hostvars['localhost']['bmc_group_data_path'] is defined
     - hostvars['localhost']['bmc_group_data_path'] | length > 0
   block:

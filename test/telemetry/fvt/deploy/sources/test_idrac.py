@@ -30,7 +30,7 @@ Test cases:
     TEL_FVT_DEPLOY_V012: Verify all iDRAC containers running
     TEL_FVT_DEPLOY_V013: Verify MySQL data in iDRAC telemetry pods
     TEL_FVT_DEPLOY_V014: Verify iDRAC receiver is collecting metrics
-    TEL_FVT_DEPLOY_V015: Verify iDRAC Kafka topic exists
+    TEL_FVT_DEPLOY_V015: Verify fresh iDRAC metrics flow to Kafka
     TEL_FVT_DEPLOY_V016: Verify iDRAC VictoriaPump metrics endpoint
     TEL_FVT_DEPLOY_V017: Verify iDRAC telemetry service exists
     TEL_FVT_DEPLOY_V018: Verify iDRAC telemetry data in VictoriaMetrics
@@ -69,6 +69,7 @@ from library.functions.telemetry_func import (
     get_idrac_service_tags,
 )
 from library.functions.idrac_func import (
+    probe_fresh_idrac_kafka_records,
     verify_idrac_pod_count,
     verify_mysql_data_in_pods,
     verify_receiver_collecting,
@@ -382,14 +383,14 @@ def test_idrac_receiver_collecting(host):
 
 
 # =========================================================================
-# TEL_FVT_DEPLOY_V015: Verify iDRAC Kafka topic exists
+# TEL_FVT_DEPLOY_V015: Verify fresh iDRAC metrics flow to Kafka
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(45)
 def test_idrac_kafka_topic(host):
-    """TEL_FVT_DEPLOY_V015: Verify iDRAC Kafka topic exists."""
+    """TEL_FVT_DEPLOY_V015: Verify fresh iDRAC metrics flow to Kafka."""
     _skip_if_idrac_disabled(host)
     # Skip if iDRAC does not target Kafka sink
     if not is_sink_enabled_for_source(host, "idrac", "kafka"):
@@ -401,19 +402,38 @@ def test_idrac_kafka_topic(host):
     tl.check(f"Checking Kafka topic '{IDRAC_KAFKA_TOPIC}'")
     result = verify_kafka_topic_ready(host, IDRAC_KAFKA_TOPIC)
 
-    if result["success"]:
-        tl.passed(
-            LOG_MSGS["topic_exists"].format(topic=IDRAC_KAFKA_TOPIC),
-            f"Status: {result['status']}",
-        )
-    else:
+    if not result["success"]:
         tl.failed(
             LOG_MSGS["topic_missing"].format(topic=IDRAC_KAFKA_TOPIC),
             "",
         )
-
     assert result["success"], ASSERT_MSGS["topic_missing"].format(
         topic=IDRAC_KAFKA_TOPIC,
+    )
+
+    tl.check(f"Waiting for a fresh record on Kafka topic '{IDRAC_KAFKA_TOPIC}'")
+    fresh = probe_fresh_idrac_kafka_records(host, timeout_seconds=90)
+    if fresh["success"]:
+        record = fresh["records"][0]
+        tl.passed(
+            f"Fresh iDRAC metrics are flowing to Kafka topic '{IDRAC_KAFKA_TOPIC}'",
+            (
+                f"Status: {result['status']}\n"
+                f"Partition: {record['partition']}\n"
+                f"Offset: {record['offset']}\n"
+                f"Timestamp: {record['timestamp']}\n"
+                f"Value bytes: {record['value_bytes']}"
+            ),
+        )
+    else:
+        tl.failed(
+            f"No fresh iDRAC metrics received from Kafka topic '{IDRAC_KAFKA_TOPIC}'",
+            fresh.get("error", ""),
+        )
+
+    assert fresh["success"], (
+        f"No fresh iDRAC metrics received from Kafka topic '{IDRAC_KAFKA_TOPIC}': "
+        f"{fresh.get('error', '')}"
     )
 
 

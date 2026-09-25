@@ -64,6 +64,27 @@ UT_TEST_CASE_IDS = {
             28: "test_extract_log_fields_returns_readable_key_values",
         },
     ),
+    **_module_cases(
+        "test_idrac_lifecycle.py",
+        {
+            29: "test_idrac_role_selects_enable_and_disable_paths",
+            30: "test_full_deploy_always_invokes_idrac_reconciliation",
+            31: "test_idrac_disable_is_noop_safe_and_idempotent",
+            32: "test_idrac_disable_is_non_destructive_and_isolated",
+            33: "test_idrac_reenable_restores_retained_state",
+            34: "test_idrac_status_supports_deployed_disabled_and_failed",
+            35: "test_idrac_kafka_fvt_requires_a_fresh_record",
+            36: "test_idrac_kafka_probe_sends_valid_consumer_json",
+        },
+    ),
+    **_module_cases(
+        "test_sink_enablement.py",
+        {
+            37: "test_sink_enablement_keeps_direct_source_targets",
+            38: "test_vector_ome_bridge_derives_required_sinks",
+            39: "test_vector_ldms_bridge_requires_enabled_ldms_source",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

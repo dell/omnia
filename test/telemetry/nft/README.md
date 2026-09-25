@@ -60,6 +60,7 @@ cleanup phase, producing correct results.
 | TEL_NFT_010 | Service endpoint availability after pod restart | N/A | nft, resilience |
 | TEL_NFT_011 | Data ingestion after sink restart | N/A | nft, resilience |
 | TEL_NFT_012 | Node reboot recovery (all pods Running) | 600s | nft, resilience |
+| TEL_NFT_020 | iDRAC enable/disable/re-enable data lifecycle | 1200s | nft, resilience |
 | TEL_NFT_013 | Full lifecycle (cleanup -> redeploy -> verify) | 720s | nft, resilience |
 | TEL_NFT_014 | Operator pod recovery (VM/Strimzi operators) | 300s | nft, resilience |
 
@@ -69,6 +70,7 @@ cleanup phase, producing correct results.
 - **Service endpoints**: Services must regain active endpoints after pod recreation
 - **Data continuity**: VictoriaMetrics must retain queryable data after storage pod restart
 - **Node reboot**: All pods must return to Running state after node reboot
+- **iDRAC data lifecycle**: Fresh Kafka and VictoriaMetrics data stops while disabled, resumes after re-enable, and StatefulSet/PVC/PV identities plus historical metrics are preserved
 - **Full lifecycle**: Complete cleanup and redeployment must produce a healthy stack
 - **Operator recovery**: Operator pods must be recreated and CRs must reconcile.
   VMCluster health is verified via `.status.updateStatus` (expected: `operational`);
@@ -271,13 +273,24 @@ Phase 2: Cleanup WITH volume deletion (all PVCs deleted)
    |-- Wait for all telemetry pods to reach Running (600s timeout)
    +-- Assert: All pods Running after reboot
 
+8. TEL_NFT_020: iDRAC data lifecycle
+   |-- Capture StatefulSet UID and iDRAC PVC UID/PV bindings
+   |-- Require fresh Kafka and raw VictoriaMetrics samples while enabled
+   |-- Disable iDRAC and assert replicas=0, no pods, same storage identity
+   |-- Require no fresh Kafka or VictoriaMetrics data during the quiet window
+   |-- Re-enable and assert the original StatefulSet/PVC/PVs are reused
+   +-- Require fresh data plus queryable pre-disable VictoriaMetrics history
+
+9. TEL_NFT_013: Full lifecycle
+   |-- Run cleanup playbook (teardown)
+   |-- Run deploy playbook (redeploy)
 8. TEL_NFT_013: Full lifecycle
    |-- Run cleanup playbook (teardown, -e cleanup_credentials=false)
    |-- Run deploy playbook (redeploy, reuses preserved credentials)
    |-- Verify all pods Running
    +-- Assert: Complete cycle succeeds
 
-9. TEL_NFT_014: Operator pod recovery
+10. TEL_NFT_014: Operator pod recovery
    |-- Delete victoria-metrics-operator pod
    |-- Wait for recreation, check VMCluster CR .status.updateStatus = operational
    |-- Delete strimzi-cluster-operator pod

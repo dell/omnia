@@ -1,0 +1,60 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Restore only the existing StatefulSet. Kubernetes reuses its retained
+# volumeClaimTemplates, Secrets, ConfigMaps, Services, and stable PVC names.
+
+- name: Restore iDRAC telemetry StatefulSet replicas
+  ansible.builtin.command: >
+    kubectl scale statefulset {{ idrac_telemetry_k8s_name }}
+    -n {{ telemetry_namespace }} --replicas={{ idrac_replica_count }}
+  register: idrac_restore_scale
+  changed_when: "'scaled' in idrac_restore_scale.stdout"
+  failed_when: false
+
+- name: Wait for restored iDRAC telemetry StatefulSet rollout
+  ansible.builtin.command: >
+    kubectl rollout status statefulset/{{ idrac_telemetry_k8s_name }}
+    -n {{ telemetry_namespace }} --timeout={{ idrac_deploy_timeout }}
+  register: idrac_restore_rollout
+  changed_when: false
+  failed_when: false
+  when: idrac_restore_scale.rc == 0
+
+- name: Record iDRAC restoration failure
+  ansible.builtin.set_fact:
+    idrac_reconcile_failed: true
+    idrac_reconcile_error: >-
+      {% if idrac_restore_scale.rc != 0 %}
+      Failed to restore {{ idrac_telemetry_k8s_name }} to
+      {{ idrac_replica_count }} replicas:
+      {{ idrac_restore_scale.stderr | default('unknown kubectl error') }}
+      {% else %}
+      Timed out waiting for restored {{ idrac_telemetry_k8s_name }} pods:
+      {{ idrac_restore_rollout.stderr | default('unknown kubectl error') }}
+      {% endif %}
+  when: >-
+    idrac_restore_scale.rc != 0
+    or idrac_restore_rollout.rc | default(0) != 0
+
+- name: Display iDRAC restoration result
+  ansible.builtin.debug:
+    msg: >-
+      {% if idrac_reconcile_failed | bool %}
+      {{ idrac_reconcile_error }}
+      {% else %}
+      Restored {{ idrac_telemetry_k8s_name }} to
+      {{ idrac_replica_count }} replicas using retained resources and data.
+      {% endif %}
