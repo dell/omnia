@@ -12,225 +12,317 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Orchestrator — Functions
+"""Public helper surface used by Orchestrator verification modules."""
 
-Common utilities come from the omnia_auto package.
-Module-specific functions remain here.
-"""
+from omnia_auto import TestLogger
+from omnia_auto import run_playbook as _run_playbook
 
-# --- Common (from omnia_auto package) ---
-from omnia_auto import (
-    Colors,
-    Symbols,
-    log,
-    set_debug_mode,
-    TestLogger,
-    get_test_output,
-    get_testinfra_host,
-    load_test_config,
-    load_test_credentials,
-    get_module_root,
-    run_on_host,
-    run_ssh_command,
-    is_local_execution,
-    TestReport,
-    get_current_report,
-    set_current_report,
-    build_report_name,
-    record_playbook_failure,
-    run_playbook as _run_playbook,
-)
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
-
-# --- Project selection and runtime paths ---
-from .project_func import (
-    resolve_input_project_path,
-    resolve_output_project_path,
-    resolve_project_name,
-    resolve_shared_path,
-    resolve_target_input_project_path,
-    resolve_target_omnia_data_path,
-    resolve_target_output_project_path,
-    resolve_target_project_name,
-    resolve_target_shared_path,
+from .apptainer_accelerator_pxeboot_func import (
+    check_apptainer_cuda_workload,
+    check_apptainer_gpu_access,
+    check_apptainer_gpu_count,
+    check_apptainer_gpu_memory,
+    check_apptainer_infiniband,
 )
-
-# --- Orchestrator verification ---
-from .orchestrator_func import (
-    check_input_config_exists,
-    check_omnia_config_exists,
-    check_network_spec_exists,
-    check_credentials_present,
-    check_repo_status_exists,
-    check_container_running,
-    check_openchami_containers,
-    check_services_active,
-    check_openchami_api_reachable,
-    check_containers_removed,
-    check_services_removed,
-    check_firewall_ports_closed,
-    check_clone_status,
+from .apptainer_jobs_pxeboot_func import (
+    check_apptainer_concurrent_jobs,
+    check_apptainer_failure_cleanup,
+    check_apptainer_invalid_sif,
+    check_apptainer_job_array,
+    check_apptainer_ldap_job,
+    check_apptainer_multi_node_job,
+    check_apptainer_nfs_visibility,
+    check_apptainer_restricted_sif,
+    check_apptainer_single_node_job,
+    check_apptainer_slurm_environment,
 )
-
-# --- Validation ---
-from .validation_func import (
-    validate_test_config,
-    validate_all,
-    ConfigValidationError,
+from .apptainer_recovery_pxeboot_func import (
+    check_apptainer_reboot_artifacts,
+    check_apptainer_reboot_job,
+    check_apptainer_reboot_storage,
 )
-
-# --- Slurm verification ---
-from .slurm_func import (
-    # Basic SLURM functions (for old tests)
-    check_slurm_enabled,
-    check_slurm_service_running,
-    check_slurm_services_running,
-    check_slurm_directories_exist,
-    check_slurm_config_files_exist,
-    check_slurm_config_integrity,
-    check_slurm_nodes_registered,
-    check_slurm_partitions_exist,
-    check_munge_service_running,
-    check_slurmctld_responding,
-    check_slurm_job_submission,
-    check_all_pxe_nodes_in_slurm_cluster,
-    check_slurm_nodes_idle,
-    check_login_nodes_idle,
-    check_passwordless_ssh,
-    # Enhanced SLURM functions (from automation-v2.2.0.0)
-    get_nodes_by_functional_group,
-    get_slurm_control_nodes,
-    get_slurm_compute_nodes,
-    get_login_nodes,
-    get_login_compiler_nodes,
-    get_node_ip_from_pxe_mapping,
-    check_slurmctld_on_control_nodes,
-    check_slurmd_on_compute_nodes,
-    check_munge_on_required_nodes,
-    check_srun_execution,
-    check_sbatch_job_submission,
-    check_job_queueing,
-    check_drain_undrain_nodes,
-    check_ldap_user_login,
-    check_ldap_job_submission,
-    check_gpu_available,
-    check_gpu_job_execution,
-    check_infiniband_available,
-    check_mpi_available,
-    check_mpi_job_execution,
+from .apptainer_runtime_pxeboot_func import (
+    check_apptainer_download,
+    check_apptainer_download_idempotency,
+    check_apptainer_download_memory,
+    check_apptainer_image_inventory,
+    check_apptainer_ldap_readability,
+    check_apptainer_missing_image_contract,
+    check_apptainer_non_root_execution,
+    check_apptainer_pulp_policy,
+    check_apptainer_runtime,
+    check_apptainer_shared_artifacts,
+    check_apptainer_shared_storage,
+    check_apptainer_sif_format,
+    check_apptainer_sif_integrity,
+    check_apptainer_sif_permissions,
 )
-
-# --- Kubernetes verification ---
-from .k8s_func import (
-    # Node discovery
-    get_k8s_nodes_from_pxe,
-    get_k8s_control_plane_nodes,
-    get_k8s_worker_nodes,
-    get_k8s_all_nodes,
-    get_node_ip_from_pxe,
-    # K8s enabled check
-    check_k8s_enabled,
-    # Node status checks
-    check_k8s_nodes_ready,
-    check_k8s_control_plane_nodes,
-    check_k8s_worker_nodes,
-    # Service checks
-    check_kubelet_running,
-    check_containerd_running,
-    # Pod and component checks
-    check_k8s_system_pods,
-    check_k8s_apiserver_responding,
-    check_k8s_etcd_healthy,
-    check_k8s_coredns_running,
-    check_k8s_kube_proxy_running,
-    check_k8s_static_pod,
-    check_k8s_cluster_info,
-    # Directory/file checks
-    check_k8s_directories_exist,
-    check_k8s_config_files_exist,
-    check_k8s_pki_certs_exist,
-    check_k8s_nfs_config_exists,
-    # SSH checks
-    check_k8s_ssh,
-    # Workload tests
-    check_k8s_pod_create,
-    check_k8s_dns_resolution,
-    check_k8s_service_create,
-    # Node metadata
-    check_k8s_node_labels,
-    check_k8s_node_taints,
-    # SMD/Metadata checks
-    check_k8s_smd_groups,
-    check_k8s_metadata_configured,
-    # LDAP integration
-    check_k8s_ldap_integration,
+from .boot_service_provision_func import check_boot_configurations, check_boot_nodes
+from .cleanup_func import (
+    check_cleanup_artifacts,
+    check_cleanup_credentials,
+    check_cleanup_kubernetes,
+    check_cleanup_openchami,
+    check_cleanup_openldap,
+    check_cleanup_slurm,
+    cleanup_extra_vars,
+    cleanup_selection_fields,
 )
-
-# --- OpenCHAMI configuration verification ---
-from .openchami_config_func import (
-    check_openchami_config_files,
-    check_tokensmith_config,
-    check_postgres_init_script,
-    check_rpm_file_integrity,
+from .kubernetes_etcd_pxeboot_func import (
+    check_kubernetes_etcd_health,
+    check_kubernetes_etcd_topology,
 )
-
-# --- Orchestrator testing utilities ---
-from .orchestrator_module_tester import (
-    validate_module_structure,
-    validate_orchestrator_config_module,
-    validate_generate_functional_groups_module,
-    validate_slurm_conf_module,
-    validate_module_schema,
-    check_module_dependencies,
+from .kubernetes_pxeboot_func import (
+    check_kubernetes_control_plane,
+    check_kubernetes_local_etcd,
+    check_kubernetes_node_services,
+    check_kubernetes_nodes,
+    check_kubernetes_storage,
+    check_kubernetes_system_pods,
+    check_kubernetes_virtual_ip,
 )
-
-from .orchestrator_role_tester import (
-    check_role_structure,
-    check_role_tasks,
-    check_role_vars,
-    check_role_defaults,
-    check_role_metadata,
-    test_role_dependencies,
-    validate_role_syntax,
+from .kubernetes_recovery_pxeboot_func import (
+    check_kubernetes_control_plane_recovery,
+    check_kubernetes_local_etcd_recovery,
 )
-
-from .orchestrator_playbook_tester import (
-    check_playbook_exists,
-    check_playbook_syntax,
-    get_playbook_tags,
-    deploy_playbook_tag,
-    verify_playbook_execution,
-    check_playbook_dependencies,
-    test_playbook_dry_run,
-    measure_playbook_execution_time,
+from .kubernetes_runtime_pxeboot_func import (
+    check_kubernetes_local_etcd_integrity,
+    check_kubernetes_version_compatibility,
 )
+from .kubernetes_storage_pxeboot_func import (
+    check_kubernetes_csi_dynamic_provisioning,
+    check_kubernetes_default_storage_class,
+    check_kubernetes_nfs_dynamic_provisioning,
+    check_kubernetes_snapshot_controller,
+    check_kubernetes_workload_scheduling,
+)
+from .metadata_service_provision_func import (
+    check_metadata_groups,
+    check_metadata_instances,
+)
+from .network_inventory_func import check_network_inventory
+from .nft_func import (
+    check_cleanup_idempotency,
+    check_credential_file_permissions,
+    check_lifecycle_performance,
+    check_log_file_permissions,
+    check_precheck_idempotency,
+    check_prepare_idempotency,
+    check_ssh_private_key_permissions,
+    check_vault_encryption,
+    persistent_changed_count,
+    resolve_nft_thresholds,
+)
+from .postgres_prepare_func import check_prepare_postgresql_readiness
+from .precheck_func import (
+    check_precheck_admin_ipv4,
+    check_precheck_dependencies,
+    check_precheck_hostname_domain,
+    check_precheck_inputs,
+    check_precheck_nfs_servers,
+    check_precheck_repositories,
+    check_precheck_s3_artifacts,
+)
+from .provision_status_func import check_provision_reports
+from .pxeboot_func import (
+    check_node_cloud_init,
+    check_node_hostname_ssh,
+    check_node_ping,
+    check_node_ssh,
+)
+from .slurm_auth_pxeboot_func import (
+    check_slurm_compiler_ldap_authentication,
+    check_slurm_compiler_ldap_invalid_password,
+    check_slurm_compiler_ldap_jobs,
+    check_slurm_compiler_pam_job_access,
+    check_slurm_control_ldap_authentication,
+    check_slurm_control_ldap_invalid_password,
+    check_slurm_control_ldap_jobs,
+    check_slurm_control_pam_job_access,
+    check_slurm_invalid_ldap_identity,
+    check_slurm_login_ldap_authentication,
+    check_slurm_login_ldap_invalid_password,
+    check_slurm_login_ldap_jobs,
+    check_slurm_login_pam_job_access,
+    check_slurm_pam_no_job_access,
+)
+from .slurm_configuration_pxeboot_func import (
+    check_slurm_configless_mode,
+    check_slurm_configuration_consistency,
+    check_slurm_custom_configuration,
+    check_slurm_reconfigure,
+)
+from .slurm_discovery_pxeboot_func import check_slurm_hardware_discovery
+from .slurm_fabric_pxeboot_func import (
+    check_slurm_gpu_inventory,
+    check_slurm_infiniband_configuration,
+    check_slurm_infiniband_connectivity,
+    check_slurm_ucx_transport,
+)
+from .slurm_jobs_pxeboot_func import (
+    check_slurm_compiler_node_jobs,
+    check_slurm_concurrent_jobs,
+    check_slurm_control_node_jobs,
+    check_slurm_drain_queue_recovery,
+    check_slurm_gpu_job,
+    check_slurm_gpu_memory_stress,
+    check_slurm_insufficient_resources,
+    check_slurm_job_queueing,
+    check_slurm_login_node_jobs,
+    check_slurm_openmpi_job,
+)
+from .slurm_pxeboot_func import (
+    check_slurm_cross_node_ssh,
+    check_slurm_membership,
+    check_slurm_openmpi_installation,
+    check_slurm_pam_policy,
+    check_slurm_scheduler,
+    check_slurm_services,
+)
+from .slurm_recovery_pxeboot_func import check_slurm_cluster_recovery
+from .smd_provision_func import check_smd_groups, check_smd_identity
 
 
-_NONINTERACTIVE_PXE_TAGS = {"execute", "pxeboot"}
-
-
-def run_playbook(tag=None, **kwargs):
-    """Inject Orchestrator defaults and disable its TTY-only PXE delay.
-
-    Automated pytest execution streams Ansible through pipes, so the timed
-    ``ansible.builtin.pause`` cannot safely access a controlling terminal.
-    Starting the existing bounded node-registration polling immediately keeps
-    the same verification contract without requiring interactive input.
-    """
-    tag_values = set(tag) if isinstance(tag, list) else {tag}
-    extra_vars = kwargs.pop("extra_vars", None)
-    if tag_values & _NONINTERACTIVE_PXE_TAGS and (
-        extra_vars is None or isinstance(extra_vars, dict)
-    ):
-        resolved_extra_vars = dict(extra_vars or {})
-        resolved_extra_vars["node_registration_pause_minutes"] = 0
-        kwargs["extra_vars"] = resolved_extra_vars
-    elif extra_vars is not None:
-        kwargs["extra_vars"] = extra_vars
+def run_playbook(tag: str | None = None, **kwargs):
+    """Run the canonical Orchestrator playbook for the requested lifecycle tag."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
         playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
         tag=tag,
         **kwargs,
     )
+
+
+__all__ = [
+    "TestLogger",
+    "check_apptainer_concurrent_jobs",
+    "check_apptainer_cuda_workload",
+    "check_apptainer_download",
+    "check_apptainer_download_idempotency",
+    "check_apptainer_download_memory",
+    "check_apptainer_failure_cleanup",
+    "check_apptainer_gpu_access",
+    "check_apptainer_gpu_count",
+    "check_apptainer_gpu_memory",
+    "check_apptainer_image_inventory",
+    "check_apptainer_infiniband",
+    "check_apptainer_invalid_sif",
+    "check_apptainer_job_array",
+    "check_apptainer_ldap_job",
+    "check_apptainer_ldap_readability",
+    "check_apptainer_missing_image_contract",
+    "check_apptainer_multi_node_job",
+    "check_apptainer_nfs_visibility",
+    "check_apptainer_non_root_execution",
+    "check_apptainer_pulp_policy",
+    "check_apptainer_reboot_artifacts",
+    "check_apptainer_reboot_job",
+    "check_apptainer_reboot_storage",
+    "check_apptainer_restricted_sif",
+    "check_apptainer_runtime",
+    "check_apptainer_shared_artifacts",
+    "check_apptainer_shared_storage",
+    "check_apptainer_sif_format",
+    "check_apptainer_sif_integrity",
+    "check_apptainer_sif_permissions",
+    "check_apptainer_single_node_job",
+    "check_apptainer_slurm_environment",
+    "check_boot_configurations",
+    "check_boot_nodes",
+    "check_cleanup_artifacts",
+    "check_cleanup_credentials",
+    "check_cleanup_idempotency",
+    "check_cleanup_kubernetes",
+    "check_cleanup_openchami",
+    "check_cleanup_openldap",
+    "check_cleanup_slurm",
+    "check_credential_file_permissions",
+    "check_kubernetes_control_plane",
+    "check_kubernetes_control_plane_recovery",
+    "check_kubernetes_csi_dynamic_provisioning",
+    "check_kubernetes_default_storage_class",
+    "check_kubernetes_etcd_health",
+    "check_kubernetes_etcd_topology",
+    "check_kubernetes_local_etcd",
+    "check_kubernetes_local_etcd_integrity",
+    "check_kubernetes_local_etcd_recovery",
+    "check_kubernetes_nfs_dynamic_provisioning",
+    "check_kubernetes_node_services",
+    "check_kubernetes_nodes",
+    "check_kubernetes_snapshot_controller",
+    "check_kubernetes_storage",
+    "check_kubernetes_system_pods",
+    "check_kubernetes_version_compatibility",
+    "check_kubernetes_virtual_ip",
+    "check_kubernetes_workload_scheduling",
+    "check_lifecycle_performance",
+    "check_log_file_permissions",
+    "check_metadata_groups",
+    "check_metadata_instances",
+    "check_network_inventory",
+    "check_node_cloud_init",
+    "check_node_hostname_ssh",
+    "check_node_ping",
+    "check_node_ssh",
+    "check_precheck_admin_ipv4",
+    "check_precheck_dependencies",
+    "check_precheck_hostname_domain",
+    "check_precheck_idempotency",
+    "check_precheck_inputs",
+    "check_precheck_nfs_servers",
+    "check_precheck_repositories",
+    "check_precheck_s3_artifacts",
+    "check_prepare_idempotency",
+    "check_prepare_postgresql_readiness",
+    "check_provision_reports",
+    "check_slurm_cluster_recovery",
+    "check_slurm_compiler_ldap_authentication",
+    "check_slurm_compiler_ldap_invalid_password",
+    "check_slurm_compiler_ldap_jobs",
+    "check_slurm_compiler_node_jobs",
+    "check_slurm_compiler_pam_job_access",
+    "check_slurm_concurrent_jobs",
+    "check_slurm_configless_mode",
+    "check_slurm_configuration_consistency",
+    "check_slurm_control_ldap_authentication",
+    "check_slurm_control_ldap_invalid_password",
+    "check_slurm_control_ldap_jobs",
+    "check_slurm_control_node_jobs",
+    "check_slurm_control_pam_job_access",
+    "check_slurm_cross_node_ssh",
+    "check_slurm_custom_configuration",
+    "check_slurm_drain_queue_recovery",
+    "check_slurm_gpu_inventory",
+    "check_slurm_gpu_job",
+    "check_slurm_gpu_memory_stress",
+    "check_slurm_hardware_discovery",
+    "check_slurm_infiniband_configuration",
+    "check_slurm_infiniband_connectivity",
+    "check_slurm_insufficient_resources",
+    "check_slurm_invalid_ldap_identity",
+    "check_slurm_job_queueing",
+    "check_slurm_login_ldap_authentication",
+    "check_slurm_login_ldap_invalid_password",
+    "check_slurm_login_ldap_jobs",
+    "check_slurm_login_node_jobs",
+    "check_slurm_login_pam_job_access",
+    "check_slurm_membership",
+    "check_slurm_openmpi_installation",
+    "check_slurm_openmpi_job",
+    "check_slurm_pam_no_job_access",
+    "check_slurm_pam_policy",
+    "check_slurm_reconfigure",
+    "check_slurm_scheduler",
+    "check_slurm_services",
+    "check_slurm_ucx_transport",
+    "check_smd_groups",
+    "check_smd_identity",
+    "check_ssh_private_key_permissions",
+    "check_vault_encryption",
+    "cleanup_extra_vars",
+    "cleanup_selection_fields",
+    "persistent_changed_count",
+    "resolve_nft_thresholds",
+    "run_playbook",
+]
