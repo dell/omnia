@@ -48,7 +48,7 @@ def check_kubernetes_nodes(host):
     try:
         _runtime, rows, control, _config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Kubernetes nodes are mapped")
         payload = remote_json(host, control, PXEBOOT_COMMANDS["kubernetes_nodes"])
         items = payload.get("items", []) if isinstance(payload, dict) else []
         actual = {
@@ -157,7 +157,7 @@ def check_kubernetes_node_services(host):
     try:
         _runtime, rows, _control, _config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Kubernetes nodes are mapped")
         outcomes = {}
         for row in rows:
             states = {}
@@ -211,7 +211,7 @@ def check_kubernetes_control_plane(host):
     try:
         _runtime, rows, control, _config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Kubernetes nodes are mapped")
         readyz = remote_command(host, control, PXEBOOT_COMMANDS["kubernetes_readyz"])
         pods = remote_json(host, control, PXEBOOT_COMMANDS["kubernetes_pods"])
         pod_items = pods.get("items", []) if isinstance(pods, dict) else []
@@ -250,7 +250,7 @@ def check_kubernetes_system_pods(host):
     try:
         context, rows, control, config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Kubernetes nodes are mapped")
         payload = remote_json(host, control, PXEBOOT_COMMANDS["kubernetes_pods"])
         items = payload.get("items", []) if isinstance(payload, dict) else []
         cni = str(config.get("k8s_cni", "calico")).lower()
@@ -378,7 +378,7 @@ def check_kubernetes_virtual_ip(host):
     try:
         context, rows, _control, config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Kubernetes nodes are mapped")
         cluster_name = str(config.get("cluster_name", ""))
         entries = context["high_availability_config"].get("service_k8s_cluster_ha", [])
         matches = [
@@ -390,7 +390,7 @@ def check_kubernetes_virtual_ip(host):
             raise ValueError("Kubernetes HA configuration is missing or ambiguous")
         ha = matches[0]
         if not bool(ha.get("enable_k8s_ha", False)):
-            return _skip(summary)
+            return _skip(summary, "Kubernetes HA is disabled")
         vip = str(ipaddress.ip_address(str(ha.get("virtual_ip_address", ""))))
         owners = []
         fields = [("Virtual IP", vip)]
@@ -431,7 +431,7 @@ def check_kubernetes_storage(host):
     try:
         _runtime, rows, control, config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Kubernetes nodes are mapped")
         payload = remote_json(host, control, PXEBOOT_COMMANDS["kubernetes_storage"])
         items = payload.get("items", []) if isinstance(payload, dict) else []
         storage_classes = [item for item in items if item.get("kind") == "StorageClass"]

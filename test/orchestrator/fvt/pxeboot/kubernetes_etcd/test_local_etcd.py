@@ -25,7 +25,7 @@ from fvt.result import verify_pxeboot
 
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(216)
+@pytest.mark.order(214)
 def test_kubernetes_local_etcd(host):
     """Verify each control plane has the configured etcd mount."""
     verify_pxeboot(host, "kubernetes_local_etcd", check_kubernetes_local_etcd)
@@ -33,7 +33,7 @@ def test_kubernetes_local_etcd(host):
 
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(217)
+@pytest.mark.order(215)
 def test_kubernetes_local_etcd_integrity(host):
     """Verify disk selection, ext4 label, UUID fstab, and boot persistence."""
     verify_pxeboot(

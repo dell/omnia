@@ -33,31 +33,31 @@ pytestmark = [
 ]
 
 
-@pytest.mark.order(290)
+@pytest.mark.order(287)
 def test_apptainer_gpu_access(host):
     """Verify scheduler-declared GPU nodes expose GPUs in the container."""
     verify_pxeboot(host, "apptainer_gpu_access", check_apptainer_gpu_access)
 
 
-@pytest.mark.order(291)
+@pytest.mark.order(288)
 def test_apptainer_gpu_count(host):
     """Verify each container sees the same GPU count as its host."""
     verify_pxeboot(host, "apptainer_gpu_count", check_apptainer_gpu_count)
 
 
-@pytest.mark.order(292)
+@pytest.mark.order(289)
 def test_apptainer_cuda_workload(host):
     """Execute a bounded NVIDIA device query in each GPU container."""
     verify_pxeboot(host, "apptainer_cuda_workload", check_apptainer_cuda_workload)
 
 
-@pytest.mark.order(293)
+@pytest.mark.order(290)
 def test_apptainer_gpu_memory(host):
     """Verify the GPU query leaves no material device-memory allocation."""
     verify_pxeboot(host, "apptainer_gpu_memory", check_apptainer_gpu_memory)
 
 
-@pytest.mark.order(294)
+@pytest.mark.order(291)
 def test_apptainer_infiniband(host):
     """Verify mapped compute nodes expose InfiniBand devices in containers."""
     verify_pxeboot(host, "apptainer_infiniband", check_apptainer_infiniband)

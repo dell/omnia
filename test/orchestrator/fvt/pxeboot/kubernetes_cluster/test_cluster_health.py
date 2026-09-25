@@ -17,8 +17,6 @@
 import pytest
 from library.functions import (
     check_kubernetes_control_plane,
-    check_kubernetes_etcd_health,
-    check_kubernetes_etcd_topology,
     check_kubernetes_node_services,
     check_kubernetes_nodes,
     check_kubernetes_system_pods,
@@ -65,15 +63,3 @@ def test_kubernetes_system_pods(host):
 def test_kubernetes_virtual_ip(host):
     """Verify exactly one owner for the configured Kubernetes VIP."""
     verify_pxeboot(host, "kubernetes_virtual_ip", check_kubernetes_virtual_ip)
-
-
-@pytest.mark.order(211)
-def test_kubernetes_etcd_health(host):
-    """Verify health for all etcd endpoints."""
-    verify_pxeboot(host, "kubernetes_etcd_health", check_kubernetes_etcd_health)
-
-
-@pytest.mark.order(212)
-def test_kubernetes_etcd_topology(host):
-    """Verify etcd membership, leader election, and raft consistency."""
-    verify_pxeboot(host, "kubernetes_etcd_topology", check_kubernetes_etcd_topology)

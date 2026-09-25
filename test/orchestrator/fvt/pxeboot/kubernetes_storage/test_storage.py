@@ -21,7 +21,6 @@ from library.functions import (
     check_kubernetes_nfs_dynamic_provisioning,
     check_kubernetes_snapshot_controller,
     check_kubernetes_storage,
-    check_kubernetes_workload_scheduling,
 )
 
 from fvt.result import verify_pxeboot
@@ -29,7 +28,7 @@ from fvt.result import verify_pxeboot
 
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(213)
+@pytest.mark.order(216)
 def test_kubernetes_storage(host):
     """Verify configured NFS and PowerScale storage objects."""
     verify_pxeboot(host, "kubernetes_storage", check_kubernetes_storage)
@@ -37,7 +36,7 @@ def test_kubernetes_storage(host):
 
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(214)
+@pytest.mark.order(217)
 def test_kubernetes_default_storage_class(host):
     """Verify exactly one expected default StorageClass."""
     verify_pxeboot(
@@ -47,21 +46,12 @@ def test_kubernetes_default_storage_class(host):
 
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(215)
+@pytest.mark.order(218)
 def test_kubernetes_snapshot_controller(host):
     """Verify PowerScale snapshot components when configured."""
     verify_pxeboot(
         host, "kubernetes_snapshot_controller", check_kubernetes_snapshot_controller
     )
-
-
-@pytest.mark.functional
-@pytest.mark.sanity
-@pytest.mark.kubernetes
-@pytest.mark.order(218)
-def test_kubernetes_workload_scheduling(host):
-    """Create, verify, and remove an isolated scheduling probe."""
-    verify_pxeboot(host, "kubernetes_workload", check_kubernetes_workload_scheduling)
 
 
 @pytest.mark.functional

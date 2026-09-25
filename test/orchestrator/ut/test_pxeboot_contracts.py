@@ -21,6 +21,8 @@ import pytest
 from library.functions import _apptainer_helpers as apptainer
 from library.functions import _pxeboot_helpers as helpers
 from library.functions import _workload_helpers as workload
+from library.functions import apptainer_runtime_pxeboot_func as apptainer_runtime
+from library.functions import kubernetes_pxeboot_func as kubernetes
 from library.functions import kubernetes_runtime_pxeboot_func as kubernetes_runtime
 from library.functions import slurm_auth_pxeboot_func as slurm_auth
 from library.functions import slurm_configuration_pxeboot_func as slurm_config
@@ -395,3 +397,198 @@ def test_mapped_node_host_key_policy_is_limited_to_one_target():
     assert client.get_host_keys().lookup("192.0.2.10")["ssh-ed25519"] is key
     with pytest.raises(slurm_auth.paramiko.SSHException, match="mapped node target"):
         policy.missing_host_key(client, "192.0.2.11", key)
+
+
+def _row(hostname, group):
+    """Return one minimal desired-node row for workload-selection contracts."""
+    return {
+        "HOSTNAME": hostname,
+        "ADMIN_IP": "192.0.2.10",
+        "EXPECTED_FUNCTIONAL_GROUP": group,
+    }
+
+
+@pytest.mark.parametrize(
+    ("module", "checker", "reason"),
+    [
+        (
+            kubernetes,
+            kubernetes.check_kubernetes_nodes,
+            "No Kubernetes nodes are mapped",
+        ),
+        (slurm, slurm.check_slurm_membership, "No Slurm nodes are mapped"),
+    ],
+)
+def test_absent_workload_returns_canonical_skip_before_remote_probe(
+    monkeypatch,
+    module,
+    checker,
+    reason,
+):
+    """ORCH_UT_035: Unmapped Kubernetes and Slurm checks skip safely."""
+    monkeypatch.setattr(module, "_context", lambda _host: ({}, [], None, None))
+
+    def unexpected_remote_command(*_args, **_kwargs):
+        raise AssertionError("unmapped workload issued a remote command")
+
+    monkeypatch.setattr(module, "remote_command", unexpected_remote_command)
+
+    result = checker(object())
+
+    assert result["success"]
+    assert result["skipped"]
+    fields = dict(result["details"]["fields"])
+    assert fields["Reason"] == reason
+
+
+@pytest.mark.parametrize(
+    ("context_loader", "foreign_row"),
+    [
+        (
+            workload.kubernetes_context,
+            _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64"),
+        ),
+        (
+            workload.slurm_context,
+            _row(
+                "kube-control",
+                "service_kube_control_plane_first_rhel_10_0_x86_64",
+            ),
+        ),
+    ],
+)
+def test_absent_workload_skips_before_loading_workload_inputs(
+    monkeypatch,
+    context_loader,
+    foreign_row,
+):
+    """ORCH_UT_036: Single-workload mappings avoid unrelated configuration."""
+    mapped_context = {"rows": [foreign_row]}
+    monkeypatch.setattr(
+        workload,
+        "load_context",
+        lambda _host: mapped_context,
+    )
+
+    def unexpected_workload_load(_host, _context):
+        raise AssertionError("unmapped workload loaded unrelated inputs")
+
+    monkeypatch.setattr(workload, "load_workload_context", unexpected_workload_load)
+
+    context, rows, control, config = context_loader(object())
+
+    assert context is mapped_context
+    assert rows == []
+    assert control is None
+    assert config is None
+
+
+@pytest.mark.parametrize(
+    ("context_loader", "mapped_row", "selected_config"),
+    [
+        (
+            workload.kubernetes_context,
+            _row(
+                "kube-control",
+                "service_kube_control_plane_first_rhel_10_0_x86_64",
+            ),
+            {"name": "kubernetes"},
+        ),
+        (
+            workload.slurm_context,
+            _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64"),
+            {"name": "slurm"},
+        ),
+    ],
+)
+def test_mapped_workload_loads_extended_context_once(
+    monkeypatch,
+    context_loader,
+    mapped_row,
+    selected_config,
+):
+    """ORCH_UT_037: Mapped Kubernetes-only and Slurm-only inputs are loaded."""
+    mapped_context = {"rows": [mapped_row]}
+    extended_context = {"rows": [mapped_row], "extended": True}
+    loads = []
+    monkeypatch.setattr(
+        workload,
+        "load_context",
+        lambda _host: mapped_context,
+    )
+
+    def extend_context(_host, context):
+        loads.append(context)
+        return extended_context
+
+    monkeypatch.setattr(workload, "load_workload_context", extend_context)
+    if context_loader is workload.kubernetes_context:
+        monkeypatch.setattr(
+            workload,
+            "selected_kubernetes_config",
+            lambda context: selected_config,
+        )
+    else:
+        monkeypatch.setattr(
+            workload,
+            "selected_slurm_config",
+            lambda context: selected_config,
+        )
+
+    context, rows, control, config = context_loader(object())
+
+    assert loads == [mapped_context]
+    assert context is extended_context
+    assert rows == [mapped_row]
+    assert control == mapped_row
+    assert config == selected_config
+
+
+def test_slurm_control_without_compute_skips_before_scheduler_probe(monkeypatch):
+    """ORCH_UT_038: Slurm checks skip when no compute role is mapped."""
+    control = _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64")
+    monkeypatch.setattr(
+        slurm,
+        "_context",
+        lambda _host: ({}, [control], control, {}),
+    )
+
+    def unexpected_remote_command(*_args, **_kwargs):
+        raise AssertionError("scheduler was queried without a mapped compute")
+
+    monkeypatch.setattr(slurm, "remote_command", unexpected_remote_command)
+
+    result = slurm.check_slurm_membership(object())
+
+    assert result["success"]
+    assert result["skipped"]
+    assert dict(result["details"]["fields"])["Reason"] == (
+        "No Slurm compute nodes are mapped"
+    )
+
+
+def test_apptainer_without_slurm_compute_skips_before_node_probe(monkeypatch):
+    """ORCH_UT_039: Apptainer skips when no Slurm compute role is mapped."""
+    control = _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64")
+    monkeypatch.setattr(
+        apptainer_runtime,
+        "apptainer_context",
+        lambda _host: ({}, [control], control, [], {}),
+    )
+
+    def unexpected_remote_command(*_args, **_kwargs):
+        raise AssertionError("Apptainer probed a node without mapped computes")
+
+    monkeypatch.setattr(
+        apptainer_runtime,
+        "remote_command",
+        unexpected_remote_command,
+    )
+
+    result = apptainer_runtime.check_apptainer_runtime(object())
+
+    assert result["success"]
+    assert result["skipped"]
+    assert dict(result["details"]["fields"])["Reason"] == (
+        "No Slurm compute nodes are mapped"
+    )

@@ -12,31 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Slurm configuration source, distribution, and configless contracts."""
+"""Slurm OpenMPI installation and workload contracts."""
 
 import pytest
 from library.functions import (
-    check_slurm_custom_configuration,
-    check_slurm_reconfigure,
+    check_slurm_openmpi_installation,
+    check_slurm_openmpi_job,
 )
 
 from fvt.result import verify_pxeboot
 
-pytestmark = pytest.mark.non_disruptive
+pytestmark = [
+    pytest.mark.sanity,
+    pytest.mark.slurm,
+    pytest.mark.non_disruptive,
+]
+
+
+@pytest.mark.order(257)
+def test_slurm_openmpi_installation(host):
+    """Verify OpenMPI discovery and version on every compute node."""
+    verify_pxeboot(host, "slurm_openmpi_installation", check_slurm_openmpi_installation)
 
 
 @pytest.mark.functional
-@pytest.mark.sanity
-@pytest.mark.slurm
-@pytest.mark.order(256)
-def test_slurm_reconfigure(host):
-    """Reconfigure Slurm and verify membership remains healthy."""
-    verify_pxeboot(host, "slurm_reconfigure", check_slurm_reconfigure)
-
-
-@pytest.mark.sanity
-@pytest.mark.slurm
 @pytest.mark.order(258)
-def test_slurm_custom_configuration(host):
-    """Verify custom values, NFS delivery, and effective visibility."""
-    verify_pxeboot(host, "slurm_custom_configuration", check_slurm_custom_configuration)
+def test_slurm_openmpi_job(host):
+    """Run an OpenMPI-backed job when OpenMPI is configured."""
+    verify_pxeboot(host, "slurm_openmpi_job", check_slurm_openmpi_job)

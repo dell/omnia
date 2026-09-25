@@ -12,18 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Slurm homogeneous and heterogeneous hardware-discovery contracts."""
+"""Kubernetes etcd endpoint and topology contracts."""
 
 import pytest
-from library.functions import check_slurm_hardware_discovery
+from library.functions import (
+    check_kubernetes_etcd_health,
+    check_kubernetes_etcd_topology,
+)
 
 from fvt.result import verify_pxeboot
 
+pytestmark = [pytest.mark.sanity, pytest.mark.kubernetes]
 
-@pytest.mark.sanity
-@pytest.mark.slurm
-@pytest.mark.non_disruptive
-@pytest.mark.order(257)
-def test_slurm_hardware_discovery(host):
-    """Verify runtime hardware matches the configured discovery strategy."""
-    verify_pxeboot(host, "slurm_hardware_discovery", check_slurm_hardware_discovery)
+
+@pytest.mark.order(212)
+def test_kubernetes_etcd_health(host):
+    """Verify health for all etcd endpoints."""
+    verify_pxeboot(host, "kubernetes_etcd_health", check_kubernetes_etcd_health)
+
+
+@pytest.mark.order(213)
+def test_kubernetes_etcd_topology(host):
+    """Verify etcd membership, leader election, and raft consistency."""
+    verify_pxeboot(host, "kubernetes_etcd_topology", check_kubernetes_etcd_topology)

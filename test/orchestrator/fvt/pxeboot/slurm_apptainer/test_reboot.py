@@ -30,19 +30,19 @@ pytestmark = [
 ]
 
 
-@pytest.mark.order(295)
+@pytest.mark.order(292)
 def test_apptainer_reboot_storage(host):
     """Reboot one compute and verify the shared mount and SIF checksum."""
     verify_pxeboot(host, "apptainer_reboot_storage", check_apptainer_reboot_storage)
 
 
-@pytest.mark.order(296)
+@pytest.mark.order(293)
 def test_apptainer_reboot_job(host):
     """Run an exact-node container job after the authorized reboot."""
     verify_pxeboot(host, "apptainer_reboot_job", check_apptainer_reboot_job)
 
 
-@pytest.mark.order(297)
+@pytest.mark.order(294)
 def test_apptainer_reboot_artifacts(host):
     """Verify downloader artifacts and policy after the authorized reboot."""
     verify_pxeboot(host, "apptainer_reboot_artifacts", check_apptainer_reboot_artifacts)

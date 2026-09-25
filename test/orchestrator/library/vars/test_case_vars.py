@@ -177,15 +177,15 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify passwordless node SSH from the OIM",
         "component": "OIM-to-node SSH",
     },
-    "node_cloud_init": {
-        "id": "ORCH_FVT_PXEBOOT_V004",
-        "title": "Verify fresh boot and cloud-init completion",
-        "component": "Cloud-init",
-    },
     "node_hostname_ssh": {
         "id": "ORCH_FVT_PXEBOOT_V003",
         "title": "Verify node hostname resolution and SSH from the OIM",
         "component": "OIM hostname resolution and SSH",
+    },
+    "node_cloud_init": {
+        "id": "ORCH_FVT_PXEBOOT_V004",
+        "title": "Verify fresh boot and cloud-init completion",
+        "component": "Cloud-init",
     },
     "kubernetes_nodes": {
         "id": "ORCH_FVT_PXEBOOT_V005",
@@ -196,6 +196,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V006",
         "title": "Verify Kubernetes node services",
         "component": "Kubernetes services",
+    },
+    "kubernetes_versions": {
+        "id": "ORCH_FVT_PXEBOOT_V007",
+        "title": "Verify Kubernetes component version compatibility",
+        "component": "Kubernetes version compatibility",
     },
     "kubernetes_control_plane": {
         "id": "ORCH_FVT_PXEBOOT_V008",
@@ -212,55 +217,45 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Kubernetes virtual IP ownership",
         "component": "Kubernetes virtual IP",
     },
-    "kubernetes_storage": {
-        "id": "ORCH_FVT_PXEBOOT_V013",
-        "title": "Verify Kubernetes NFS and CSI storage",
-        "component": "Kubernetes storage",
-    },
-    "kubernetes_local_etcd": {
-        "id": "ORCH_FVT_PXEBOOT_V016",
-        "title": "Verify Kubernetes local-disk etcd",
-        "component": "Kubernetes local etcd",
-    },
-    "kubernetes_versions": {
-        "id": "ORCH_FVT_PXEBOOT_V007",
-        "title": "Verify Kubernetes component version compatibility",
-        "component": "Kubernetes version compatibility",
-    },
-    "kubernetes_local_etcd_integrity": {
-        "id": "ORCH_FVT_PXEBOOT_V017",
-        "title": "Verify Kubernetes local-etcd disk integrity",
-        "component": "Kubernetes local-etcd disk integrity",
-    },
-    "kubernetes_local_etcd_recovery": {
-        "id": "ORCH_FVT_PXEBOOT_V021",
-        "title": "Verify Kubernetes local-etcd reboot persistence",
-        "component": "Kubernetes local-etcd reboot persistence",
+    "kubernetes_workload": {
+        "id": "ORCH_FVT_PXEBOOT_V011",
+        "title": "Verify Kubernetes workload scheduling",
+        "component": "Kubernetes workload scheduling",
     },
     "kubernetes_etcd_health": {
-        "id": "ORCH_FVT_PXEBOOT_V011",
+        "id": "ORCH_FVT_PXEBOOT_V012",
         "title": "Verify Kubernetes etcd endpoint health",
         "component": "Kubernetes etcd endpoint health",
     },
     "kubernetes_etcd_topology": {
-        "id": "ORCH_FVT_PXEBOOT_V012",
+        "id": "ORCH_FVT_PXEBOOT_V013",
         "title": "Verify Kubernetes etcd membership and consistency",
         "component": "Kubernetes etcd topology",
     },
-    "kubernetes_default_storage": {
+    "kubernetes_local_etcd": {
         "id": "ORCH_FVT_PXEBOOT_V014",
+        "title": "Verify Kubernetes local-disk etcd",
+        "component": "Kubernetes local etcd",
+    },
+    "kubernetes_local_etcd_integrity": {
+        "id": "ORCH_FVT_PXEBOOT_V015",
+        "title": "Verify Kubernetes local-etcd disk integrity",
+        "component": "Kubernetes local-etcd disk integrity",
+    },
+    "kubernetes_storage": {
+        "id": "ORCH_FVT_PXEBOOT_V016",
+        "title": "Verify Kubernetes NFS and CSI storage",
+        "component": "Kubernetes storage",
+    },
+    "kubernetes_default_storage": {
+        "id": "ORCH_FVT_PXEBOOT_V017",
         "title": "Verify Kubernetes default StorageClass",
         "component": "Kubernetes default storage",
     },
     "kubernetes_snapshot_controller": {
-        "id": "ORCH_FVT_PXEBOOT_V015",
+        "id": "ORCH_FVT_PXEBOOT_V018",
         "title": "Verify Kubernetes PowerScale snapshot components",
         "component": "Kubernetes snapshot components",
-    },
-    "kubernetes_workload": {
-        "id": "ORCH_FVT_PXEBOOT_V018",
-        "title": "Verify Kubernetes workload scheduling",
-        "component": "Kubernetes workload scheduling",
     },
     "kubernetes_nfs_dynamic": {
         "id": "ORCH_FVT_PXEBOOT_V019",
@@ -272,6 +267,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Kubernetes PowerScale dynamic provisioning",
         "component": "Kubernetes PowerScale provisioning",
     },
+    "kubernetes_local_etcd_recovery": {
+        "id": "ORCH_FVT_PXEBOOT_V021",
+        "title": "Verify Kubernetes local-etcd reboot persistence",
+        "component": "Kubernetes local-etcd reboot persistence",
+    },
     "kubernetes_recovery": {
         "id": "ORCH_FVT_PXEBOOT_V022",
         "title": "Verify Kubernetes control-plane reboot recovery",
@@ -282,200 +282,200 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Slurm membership and discovered hardware",
         "component": "Slurm membership",
     },
+    "slurm_scheduler": {
+        "id": "ORCH_FVT_PXEBOOT_V024",
+        "title": "Verify Slurm compute partition readiness",
+        "component": "Slurm partitions",
+    },
     "slurm_services": {
         "id": "ORCH_FVT_PXEBOOT_V025",
         "title": "Verify Slurm services by node role",
         "component": "Slurm services",
     },
     "slurm_cross_ssh": {
-        "id": "ORCH_FVT_PXEBOOT_V027",
+        "id": "ORCH_FVT_PXEBOOT_V026",
         "title": "Verify Slurm cross-node passwordless SSH",
         "component": "Slurm cross-node SSH",
     },
-    "slurm_scheduler": {
-        "id": "ORCH_FVT_PXEBOOT_V024",
-        "title": "Verify Slurm compute partition readiness",
-        "component": "Slurm partitions",
+    "slurm_configless": {
+        "id": "ORCH_FVT_PXEBOOT_V027",
+        "title": "Verify Slurm configless access and cluster identity",
+        "component": "Slurm configless cluster identity",
     },
-    "slurm_control_ldap_auth": {
-        "id": "ORCH_FVT_PXEBOOT_V033",
-        "title": "Verify Slurm control-node valid LDAP authentication",
-        "component": "Slurm control-node valid LDAP authentication",
+    "slurm_config_consistency": {
+        "id": "ORCH_FVT_PXEBOOT_V028",
+        "title": "Verify Slurm configuration consistency",
+        "component": "Slurm configuration consistency",
     },
-    "slurm_control_ldap_invalid_password": {
-        "id": "ORCH_FVT_PXEBOOT_V034",
-        "title": "Verify Slurm control-node invalid LDAP password rejection",
-        "component": "Slurm control-node invalid LDAP password",
+    "slurm_reconfigure": {
+        "id": "ORCH_FVT_PXEBOOT_V029",
+        "title": "Verify Slurm configuration reconfigure",
+        "component": "Slurm reconfigure",
     },
-    "slurm_login_ldap_auth": {
-        "id": "ORCH_FVT_PXEBOOT_V035",
-        "title": "Verify Slurm login-node valid LDAP authentication",
-        "component": "Slurm login-node valid LDAP authentication",
+    "slurm_hardware_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V030",
+        "title": "Verify Slurm hardware discovery policy",
+        "component": "Slurm hardware discovery",
     },
-    "slurm_login_ldap_invalid_password": {
-        "id": "ORCH_FVT_PXEBOOT_V036",
-        "title": "Verify Slurm login-node invalid LDAP password rejection",
-        "component": "Slurm login-node invalid LDAP password",
-    },
-    "slurm_compiler_ldap_auth": {
-        "id": "ORCH_FVT_PXEBOOT_V037",
-        "title": "Verify Slurm login-compiler valid LDAP authentication",
-        "component": "Slurm login-compiler valid LDAP authentication",
-    },
-    "slurm_compiler_ldap_invalid_password": {
-        "id": "ORCH_FVT_PXEBOOT_V038",
-        "title": "Verify Slurm login-compiler invalid LDAP password rejection",
-        "component": "Slurm login-compiler invalid LDAP password",
-    },
-    "slurm_pam": {
-        "id": "ORCH_FVT_PXEBOOT_V026",
-        "title": "Verify Slurm pam_slurm_adopt integration",
-        "component": "Slurm pam_slurm_adopt integration",
-    },
-    "slurm_openmpi_installation": {
-        "id": "ORCH_FVT_PXEBOOT_V047",
-        "title": "Verify Slurm OpenMPI installation",
-        "component": "Slurm OpenMPI installation",
-    },
-    "slurm_gpu_inventory": {
-        "id": "ORCH_FVT_PXEBOOT_V048",
-        "title": "Verify Slurm NVIDIA GPU inventory",
-        "component": "Slurm NVIDIA GPU inventory",
+    "slurm_custom_configuration": {
+        "id": "ORCH_FVT_PXEBOOT_V031",
+        "title": "Verify custom Slurm configuration end to end",
+        "component": "Slurm custom configuration",
     },
     "slurm_basic_jobs": {
-        "id": "ORCH_FVT_PXEBOOT_V030",
+        "id": "ORCH_FVT_PXEBOOT_V032",
         "title": "Verify Slurm control-node job submission",
         "component": "Slurm control-node jobs",
     },
     "slurm_login_jobs": {
-        "id": "ORCH_FVT_PXEBOOT_V031",
+        "id": "ORCH_FVT_PXEBOOT_V033",
         "title": "Verify Slurm login-node job submission",
         "component": "Slurm login-node jobs",
     },
+    "slurm_compiler_jobs": {
+        "id": "ORCH_FVT_PXEBOOT_V034",
+        "title": "Verify Slurm login-compiler job submission",
+        "component": "Slurm login-compiler jobs",
+    },
     "slurm_concurrent_jobs": {
-        "id": "ORCH_FVT_PXEBOOT_V049",
+        "id": "ORCH_FVT_PXEBOOT_V035",
         "title": "Verify Slurm concurrent batch jobs",
         "component": "Slurm concurrent jobs",
     },
     "slurm_insufficient_resources": {
-        "id": "ORCH_FVT_PXEBOOT_V050",
+        "id": "ORCH_FVT_PXEBOOT_V036",
         "title": "Verify Slurm insufficient-resource handling",
         "component": "Slurm resource rejection",
     },
+    "slurm_job_queueing": {
+        "id": "ORCH_FVT_PXEBOOT_V037",
+        "title": "Verify Slurm full-capacity job queueing",
+        "component": "Slurm job queueing",
+    },
     "slurm_drain_queue": {
-        "id": "ORCH_FVT_PXEBOOT_V061",
+        "id": "ORCH_FVT_PXEBOOT_V038",
         "title": "Verify Slurm drain queue and resume behavior",
         "component": "Slurm drain and queue",
     },
-    "slurm_invalid_ldap": {
+    "slurm_pam": {
+        "id": "ORCH_FVT_PXEBOOT_V039",
+        "title": "Verify Slurm pam_slurm_adopt integration",
+        "component": "Slurm pam_slurm_adopt integration",
+    },
+    "slurm_control_ldap_auth": {
+        "id": "ORCH_FVT_PXEBOOT_V040",
+        "title": "Verify Slurm control-node valid LDAP authentication",
+        "component": "Slurm control-node valid LDAP authentication",
+    },
+    "slurm_control_ldap_invalid_password": {
+        "id": "ORCH_FVT_PXEBOOT_V041",
+        "title": "Verify Slurm control-node invalid LDAP password rejection",
+        "component": "Slurm control-node invalid LDAP password",
+    },
+    "slurm_login_ldap_auth": {
+        "id": "ORCH_FVT_PXEBOOT_V042",
+        "title": "Verify Slurm login-node valid LDAP authentication",
+        "component": "Slurm login-node valid LDAP authentication",
+    },
+    "slurm_login_ldap_invalid_password": {
+        "id": "ORCH_FVT_PXEBOOT_V043",
+        "title": "Verify Slurm login-node invalid LDAP password rejection",
+        "component": "Slurm login-node invalid LDAP password",
+    },
+    "slurm_compiler_ldap_auth": {
+        "id": "ORCH_FVT_PXEBOOT_V044",
+        "title": "Verify Slurm login-compiler valid LDAP authentication",
+        "component": "Slurm login-compiler valid LDAP authentication",
+    },
+    "slurm_compiler_ldap_invalid_password": {
+        "id": "ORCH_FVT_PXEBOOT_V045",
+        "title": "Verify Slurm login-compiler invalid LDAP password rejection",
+        "component": "Slurm login-compiler invalid LDAP password",
+    },
+    "slurm_pam_no_job": {
         "id": "ORCH_FVT_PXEBOOT_V046",
+        "title": "Verify Slurm PAM denial without an active job",
+        "component": "Slurm PAM no-job access",
+    },
+    "slurm_invalid_ldap": {
+        "id": "ORCH_FVT_PXEBOOT_V047",
         "title": "Verify Slurm invalid LDAP identity rejection",
         "component": "Slurm LDAP rejection",
     },
     "slurm_control_ldap_jobs": {
-        "id": "ORCH_FVT_PXEBOOT_V040",
+        "id": "ORCH_FVT_PXEBOOT_V048",
         "title": "Verify Slurm control-node LDAP job submission",
         "component": "Slurm control-node LDAP jobs",
     },
+    "slurm_control_pam_job_access": {
+        "id": "ORCH_FVT_PXEBOOT_V049",
+        "title": "Verify Slurm control-node PAM job-access lifecycle",
+        "component": "Slurm control-node PAM access",
+    },
     "slurm_login_ldap_jobs": {
-        "id": "ORCH_FVT_PXEBOOT_V042",
+        "id": "ORCH_FVT_PXEBOOT_V050",
         "title": "Verify Slurm login-node LDAP job submission",
         "component": "Slurm login-node LDAP jobs",
     },
+    "slurm_login_pam_job_access": {
+        "id": "ORCH_FVT_PXEBOOT_V051",
+        "title": "Verify Slurm login-node PAM job-access lifecycle",
+        "component": "Slurm login-node PAM access",
+    },
     "slurm_compiler_ldap_jobs": {
-        "id": "ORCH_FVT_PXEBOOT_V044",
+        "id": "ORCH_FVT_PXEBOOT_V052",
         "title": "Verify Slurm login-compiler LDAP job submission",
         "component": "Slurm login-compiler LDAP jobs",
     },
-    "slurm_openmpi_job": {
-        "id": "ORCH_FVT_PXEBOOT_V051",
-        "title": "Verify Slurm OpenMPI job",
-        "component": "Slurm OpenMPI job",
+    "slurm_compiler_pam_job_access": {
+        "id": "ORCH_FVT_PXEBOOT_V053",
+        "title": "Verify Slurm login-compiler PAM job-access lifecycle",
+        "component": "Slurm login-compiler PAM access",
+    },
+    "slurm_gpu_inventory": {
+        "id": "ORCH_FVT_PXEBOOT_V054",
+        "title": "Verify Slurm NVIDIA GPU inventory",
+        "component": "Slurm NVIDIA GPU inventory",
     },
     "slurm_gpu_job": {
-        "id": "ORCH_FVT_PXEBOOT_V052",
+        "id": "ORCH_FVT_PXEBOOT_V055",
         "title": "Verify Slurm GPU allocation",
         "component": "Slurm GPU allocation",
     },
+    "slurm_gpu_memory": {
+        "id": "ORCH_FVT_PXEBOOT_V056",
+        "title": "Verify Slurm GPU memory workload",
+        "component": "Slurm GPU memory workload",
+    },
+    "slurm_openmpi_installation": {
+        "id": "ORCH_FVT_PXEBOOT_V057",
+        "title": "Verify Slurm OpenMPI installation",
+        "component": "Slurm OpenMPI installation",
+    },
+    "slurm_openmpi_job": {
+        "id": "ORCH_FVT_PXEBOOT_V058",
+        "title": "Verify Slurm OpenMPI job",
+        "component": "Slurm OpenMPI job",
+    },
+    "slurm_ucx_transport": {
+        "id": "ORCH_FVT_PXEBOOT_V059",
+        "title": "Verify Slurm UCX InfiniBand transport",
+        "component": "Slurm UCX transport",
+    },
     "slurm_ib_configuration": {
-        "id": "ORCH_FVT_PXEBOOT_V053",
+        "id": "ORCH_FVT_PXEBOOT_V060",
         "title": "Verify Slurm InfiniBand configuration",
         "component": "Slurm InfiniBand configuration",
     },
     "slurm_ib_connectivity": {
-        "id": "ORCH_FVT_PXEBOOT_V054",
+        "id": "ORCH_FVT_PXEBOOT_V061",
         "title": "Verify Slurm InfiniBand peer connectivity",
         "component": "Slurm InfiniBand connectivity",
-    },
-    "slurm_ucx_transport": {
-        "id": "ORCH_FVT_PXEBOOT_V055",
-        "title": "Verify Slurm UCX InfiniBand transport",
-        "component": "Slurm UCX transport",
-    },
-    "slurm_config_consistency": {
-        "id": "ORCH_FVT_PXEBOOT_V029",
-        "title": "Verify Slurm configuration consistency",
-        "component": "Slurm configuration consistency",
-    },
-    "slurm_configless": {
-        "id": "ORCH_FVT_PXEBOOT_V028",
-        "title": "Verify Slurm configless access and cluster identity",
-        "component": "Slurm configless cluster identity",
-    },
-    "slurm_reconfigure": {
-        "id": "ORCH_FVT_PXEBOOT_V056",
-        "title": "Verify Slurm configuration reconfigure",
-        "component": "Slurm reconfigure",
     },
     "slurm_recovery": {
         "id": "ORCH_FVT_PXEBOOT_V062",
         "title": "Verify Slurm cluster reboot recovery",
         "component": "Slurm cluster recovery",
-    },
-    "slurm_hardware_discovery": {
-        "id": "ORCH_FVT_PXEBOOT_V057",
-        "title": "Verify Slurm hardware discovery policy",
-        "component": "Slurm hardware discovery",
-    },
-    "slurm_custom_configuration": {
-        "id": "ORCH_FVT_PXEBOOT_V058",
-        "title": "Verify custom Slurm configuration end to end",
-        "component": "Slurm custom configuration",
-    },
-    "slurm_pam_no_job": {
-        "id": "ORCH_FVT_PXEBOOT_V039",
-        "title": "Verify Slurm PAM denial without an active job",
-        "component": "Slurm PAM no-job access",
-    },
-    "slurm_control_pam_job_access": {
-        "id": "ORCH_FVT_PXEBOOT_V041",
-        "title": "Verify Slurm control-node PAM job-access lifecycle",
-        "component": "Slurm control-node PAM access",
-    },
-    "slurm_login_pam_job_access": {
-        "id": "ORCH_FVT_PXEBOOT_V043",
-        "title": "Verify Slurm login-node PAM job-access lifecycle",
-        "component": "Slurm login-node PAM access",
-    },
-    "slurm_compiler_pam_job_access": {
-        "id": "ORCH_FVT_PXEBOOT_V045",
-        "title": "Verify Slurm login-compiler PAM job-access lifecycle",
-        "component": "Slurm login-compiler PAM access",
-    },
-    "slurm_gpu_memory": {
-        "id": "ORCH_FVT_PXEBOOT_V059",
-        "title": "Verify Slurm GPU memory workload",
-        "component": "Slurm GPU memory workload",
-    },
-    "slurm_job_queueing": {
-        "id": "ORCH_FVT_PXEBOOT_V060",
-        "title": "Verify Slurm full-capacity job queueing",
-        "component": "Slurm job queueing",
-    },
-    "slurm_compiler_jobs": {
-        "id": "ORCH_FVT_PXEBOOT_V032",
-        "title": "Verify Slurm login-compiler job submission",
-        "component": "Slurm login-compiler jobs",
     },
     "apptainer_runtime": {
         "id": "ORCH_FVT_PXEBOOT_V063",
@@ -496,6 +496,21 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V066",
         "title": "Verify Apptainer shared storage",
         "component": "Apptainer shared storage",
+    },
+    "apptainer_download": {
+        "id": "ORCH_FVT_PXEBOOT_V067",
+        "title": "Verify Apptainer image download",
+        "component": "Apptainer image download",
+    },
+    "apptainer_download_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V068",
+        "title": "Verify Apptainer image download idempotency",
+        "component": "Apptainer image download idempotency",
+    },
+    "apptainer_download_memory": {
+        "id": "ORCH_FVT_PXEBOOT_V069",
+        "title": "Verify Apptainer download memory use",
+        "component": "Apptainer download memory",
     },
     "apptainer_image_inventory": {
         "id": "ORCH_FVT_PXEBOOT_V070",
@@ -526,21 +541,6 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V075",
         "title": "Verify unprivileged Apptainer execution",
         "component": "Apptainer unprivileged execution",
-    },
-    "apptainer_download": {
-        "id": "ORCH_FVT_PXEBOOT_V067",
-        "title": "Verify Apptainer image download",
-        "component": "Apptainer image download",
-    },
-    "apptainer_download_idempotency": {
-        "id": "ORCH_FVT_PXEBOOT_V068",
-        "title": "Verify Apptainer image download idempotency",
-        "component": "Apptainer image download idempotency",
-    },
-    "apptainer_download_memory": {
-        "id": "ORCH_FVT_PXEBOOT_V069",
-        "title": "Verify Apptainer download memory use",
-        "component": "Apptainer download memory",
     },
     "apptainer_missing_image_contract": {
         "id": "ORCH_FVT_PXEBOOT_V076",

@@ -26,8 +26,9 @@ Usage (via run_validation.sh or run_validation CLI)::
     python3 _run.py fvt_orchestrator provision test --marker sanity
     python3 _run.py fvt_orchestrator provision verify --suite openchami
     python3 _run.py fvt_orchestrator pxeboot test --marker sanity
-    python3 _run.py fvt_orchestrator pxeboot verify --suite kubernetes
-    python3 _run.py fvt_orchestrator pxeboot verify --suite slurm
+    python3 _run.py fvt_orchestrator pxeboot verify --suite kubernetes_cluster
+    python3 _run.py fvt_orchestrator pxeboot verify --suite slurm_cluster
+    python3 _run.py fvt_orchestrator pxeboot verify --suite slurm_ldap
     python3 _run.py fvt_orchestrator list
     python3 _run.py nft_orchestrator test
     python3 _run.py nft_orchestrator test --marker security

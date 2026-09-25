@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Apptainer post-PXE functional verification suite."""
+"""Kubernetes storage post-boot tests."""

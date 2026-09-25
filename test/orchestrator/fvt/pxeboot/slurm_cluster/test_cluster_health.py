@@ -20,7 +20,6 @@ from library.functions import (
     check_slurm_configuration_consistency,
     check_slurm_cross_node_ssh,
     check_slurm_membership,
-    check_slurm_pam_policy,
     check_slurm_scheduler,
     check_slurm_services,
 )
@@ -52,26 +51,19 @@ def test_slurm_services(host):
     verify_pxeboot(host, "slurm_services", check_slurm_services)
 
 
-@pytest.mark.openldap
 @pytest.mark.order(226)
-def test_slurm_pam_policy(host):
-    """Verify SSHD, the PAM module, and pam_slurm_adopt account policy."""
-    verify_pxeboot(host, "slurm_pam", check_slurm_pam_policy)
-
-
-@pytest.mark.order(227)
 def test_slurm_cross_node_ssh(host):
     """Verify every mapped Slurm role can reach every peer over root SSH."""
     verify_pxeboot(host, "slurm_cross_ssh", check_slurm_cross_node_ssh)
 
 
-@pytest.mark.order(228)
+@pytest.mark.order(227)
 def test_slurm_configless_mode(host):
     """Verify configless controller access and expected cluster identity."""
     verify_pxeboot(host, "slurm_configless", check_slurm_configless_mode)
 
 
-@pytest.mark.order(229)
+@pytest.mark.order(228)
 def test_slurm_configuration_consistency(host):
     """Compare authoritative Slurm files with every configless client cache."""
     verify_pxeboot(

@@ -107,7 +107,7 @@ After the standalone directory is ready:
 ```bash
 ./run_validation.sh fvt_orchestrator prepare verify --suite openldap
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --suite slurm --marker openldap
+  --suite slurm_ldap --marker openldap
 ```
 
 ## Credential handling

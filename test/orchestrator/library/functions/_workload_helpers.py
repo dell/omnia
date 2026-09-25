@@ -27,6 +27,7 @@ from ..vars.pxeboot_vars import (
     SLURM_PREFIXES,
     SLURM_SUBMISSION_PREFIXES,
 )
+from ._provision_helpers import load_context
 from ._pxeboot_helpers import (
     first_row,
     load_workload_context,
@@ -43,10 +44,11 @@ _GPU_GRES_RE = re.compile(r"(?:^|,)gpu(?::[^,:()]+)?:(\d+)(?:\(|,|$)")
 
 def kubernetes_context(host):
     """Return runtime context, mapped Kubernetes rows, primary, and config."""
-    context = load_workload_context(host)
+    context = load_context(host)
     rows = rows_matching(context, (KUBERNETES_PREFIX,))
     if not rows:
         return context, rows, None, None
+    context = load_workload_context(host, context)
     control = first_row(rows, KUBERNETES_PRIMARY_CONTROL_PLANE_PREFIX)
     if control is None:
         raise ValueError("No primary Kubernetes control-plane node was generated")
@@ -55,10 +57,11 @@ def kubernetes_context(host):
 
 def slurm_context(host):
     """Return runtime context, mapped Slurm rows, controller, and config."""
-    context = load_workload_context(host)
+    context = load_context(host)
     rows = rows_matching(context, SLURM_PREFIXES)
     if not rows:
         return context, rows, None, None
+    context = load_workload_context(host, context)
     control = first_row(rows, SLURM_CONTROL_PREFIX)
     if control is None:
         raise ValueError("No Slurm control node is present in the desired mapping")

@@ -32,7 +32,7 @@ pytestmark = [
 ]
 
 
-@pytest.mark.order(279)
+@pytest.mark.order(276)
 def test_apptainer_missing_image_contract(host):
     """Verify the downloader records pull failures and exits non-zero."""
     verify_pxeboot(
@@ -42,19 +42,19 @@ def test_apptainer_missing_image_contract(host):
     )
 
 
-@pytest.mark.order(284)
+@pytest.mark.order(281)
 def test_apptainer_invalid_sif(host):
     """Verify a nonexistent SIF fails through the Slurm execution path."""
     verify_pxeboot(host, "apptainer_invalid_sif", check_apptainer_invalid_sif)
 
 
-@pytest.mark.order(285)
+@pytest.mark.order(282)
 def test_apptainer_restricted_sif(host):
     """Verify an unprivileged identity cannot execute a mode-0600 SIF."""
     verify_pxeboot(host, "apptainer_restricted_sif", check_apptainer_restricted_sif)
 
 
-@pytest.mark.order(289)
+@pytest.mark.order(286)
 def test_apptainer_failure_cleanup(host):
     """Verify a failed image launch leaves no matching runtime process."""
     verify_pxeboot(host, "apptainer_failure_cleanup", check_apptainer_failure_cleanup)

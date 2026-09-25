@@ -113,9 +113,12 @@ def _catalog_feature_tokens(
     return tokens
 
 
-def load_workload_context(host) -> dict[str, Any]:
-    """Add workload inputs and catalog feature flags to PXE context."""
-    context = load_runtime_context(host)
+def load_workload_context(
+    host,
+    mapped_context: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Add workload inputs and catalog features to a mapped runtime context."""
+    context = dict(mapped_context) if mapped_context is not None else load_context(host)
     input_dir = os.path.dirname(context["mapping_path"])
     context["omnia_config"] = read_yaml_mapping(
         host,

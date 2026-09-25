@@ -307,9 +307,12 @@ PXE verification defaults to `sanity` when no marker is supplied:
 ./run_validation.sh fvt_orchestrator pxeboot verify
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite connectivity
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite cloudinit
-./run_validation.sh fvt_orchestrator pxeboot verify --suite kubernetes
-./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm
-./run_validation.sh fvt_orchestrator pxeboot verify --suite apptainer
+./run_validation.sh fvt_orchestrator pxeboot verify --suite kubernetes_cluster
+./run_validation.sh fvt_orchestrator pxeboot verify --suite kubernetes_etcd
+./run_validation.sh fvt_orchestrator pxeboot verify --suite kubernetes_storage
+./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_cluster
+./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_ldap
+./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_apptainer
 ```
 
 Focused workload and image examples:
@@ -320,15 +323,15 @@ Focused workload and image examples:
 
 # Slurm health, jobs, LDAP, and PAM without drain/reboot cases.
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --suite slurm --marker slurm+non_disruptive
+  --marker slurm+non_disruptive
 
 # Apptainer workload cases after an image is already present.
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --suite apptainer --marker apptainer+functional
+  --suite slurm_apptainer --marker apptainer+functional
 
 # Authorize the shared-image downloader explicitly.
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --suite apptainer --marker functional+image_download
+  --suite slurm_apptainer --marker functional+image_download
 ```
 
 Run disruptive checks only in an approved maintenance window:
@@ -337,7 +340,7 @@ Run disruptive checks only in an approved maintenance window:
 ./run_validation.sh fvt_orchestrator pxeboot verify \
   --marker disruptive+reboot
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --suite slurm --marker disruptive+scheduler_state
+  --suite slurm_jobs --marker disruptive+scheduler_state
 ```
 
 The authorization checks are enforced even when pytest is invoked directly.

@@ -47,7 +47,7 @@ def check_slurm_membership(host):
     try:
         _runtime, rows, control, config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Slurm nodes are mapped")
         compute_rows = [
             row
             for row in rows
@@ -152,7 +152,7 @@ def check_slurm_services(host):
     try:
         context, rows, _control, _config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Slurm nodes are mapped")
         node_results = []
         for row in rows:
             states = {}
@@ -212,7 +212,7 @@ def check_slurm_cross_node_ssh(host):
     try:
         _runtime, rows, _control, _config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Slurm nodes are mapped")
         source_results = []
         failures = []
         checked = 0
@@ -285,14 +285,14 @@ def check_slurm_scheduler(host):
     try:
         _runtime, rows, control, _config = _context(host)
         if not rows:
-            return _skip(summary)
+            return _skip(summary, "No Slurm nodes are mapped")
         compute_rows = [
             row
             for row in rows
             if row["EXPECTED_FUNCTIONAL_GROUP"].startswith(SLURM_COMPUTE_PREFIX)
         ]
         if not compute_rows:
-            return _skip(summary)
+            return _skip(summary, "No Slurm compute nodes are mapped")
         result = remote_command(host, control, PXEBOOT_COMMANDS["slurm_partitions"])
         if result.rc != 0:
             raise RuntimeError("sinfo could not read Slurm partition state")
@@ -406,15 +406,17 @@ def check_slurm_pam_policy(host):
     summary = "Slurm pam_slurm_adopt integration"
     try:
         context, rows, _control, _config = _context(host)
-        if not rows or not context["features"].get("openldap", False):
-            return _skip(summary)
+        if not rows:
+            return _skip(summary, "No Slurm nodes are mapped")
+        if not context["features"].get("openldap", False):
+            return _skip(summary, "OpenLDAP is not enabled")
         compute_rows = [
             row
             for row in rows
             if row["EXPECTED_FUNCTIONAL_GROUP"].startswith(SLURM_COMPUTE_PREFIX)
         ]
         if not compute_rows:
-            return _skip(summary)
+            return _skip(summary, "No Slurm compute nodes are mapped")
         node_results = []
         for row in compute_rows:
             result = remote_command(

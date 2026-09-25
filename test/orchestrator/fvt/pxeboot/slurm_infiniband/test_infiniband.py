@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Read-only HPC software, InfiniBand, and UCX fabric verification."""
+"""Slurm InfiniBand configuration and peer-connectivity contracts."""
 
 import pytest
 from library.functions import (
-    check_slurm_gpu_inventory,
     check_slurm_infiniband_configuration,
     check_slurm_infiniband_connectivity,
-    check_slurm_openmpi_installation,
-    check_slurm_ucx_transport,
 )
 
 from fvt.result import verify_pxeboot
@@ -32,31 +29,13 @@ pytestmark = [
 ]
 
 
-@pytest.mark.order(247)
-def test_slurm_openmpi_installation(host):
-    """Verify OpenMPI discovery and version on every compute node."""
-    verify_pxeboot(host, "slurm_openmpi_installation", check_slurm_openmpi_installation)
-
-
-@pytest.mark.order(248)
-def test_slurm_gpu_inventory(host):
-    """Verify NVIDIA runtime state on scheduler-declared GPU nodes."""
-    verify_pxeboot(host, "slurm_gpu_inventory", check_slurm_gpu_inventory)
-
-
-@pytest.mark.order(253)
+@pytest.mark.order(260)
 def test_slurm_infiniband_configuration(host):
     """Verify mapped IB interface, address, prefix, link, MTU, and OFED."""
     verify_pxeboot(host, "slurm_ib_configuration", check_slurm_infiniband_configuration)
 
 
-@pytest.mark.order(254)
+@pytest.mark.order(261)
 def test_slurm_infiniband_connectivity(host):
     """Verify every mapped IB endpoint can reach every mapped peer."""
     verify_pxeboot(host, "slurm_ib_connectivity", check_slurm_infiniband_connectivity)
-
-
-@pytest.mark.order(255)
-def test_slurm_ucx_transport(host):
-    """Verify UCX exposes an InfiniBand-capable transport."""
-    verify_pxeboot(host, "slurm_ucx_transport", check_slurm_ucx_transport)
