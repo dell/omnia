@@ -16,39 +16,37 @@
 
 import json
 import os
-from pathlib import Path
 import re
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any
 
-from jsonschema import Draft7Validator
 import yaml
-
+from jsonschema import Draft7Validator
 from omnia_auto import get_project_name, load_test_config
-from .external_ldap_func import load_external_ldap_settings
+
 from ..vars.common_vars import (
     DATASET_NAME_PATTERN,
     DATASETS_DIR,
-    REQUIRED_IMAGE_BUILD_OUTPUT_FILES,
     REQUIRED_DATASET_INPUT_FILES,
+    REQUIRED_IMAGE_BUILD_OUTPUT_FILES,
     REQUIRED_REPO_OUTPUT_FILES,
     SCHEMA_DIR,
     SRC_IMAGE_BUILD_OUTPUT_DIR,
     SRC_INPUT_DIR,
     SRC_REPO_OUTPUT_DIR,
 )
+from .external_ldap_func import load_external_ldap_settings
 
 
 class ConfigValidationError(Exception):
     """Raised when test configuration is invalid."""
 
 
-def _selected_dataset(config: Dict[str, Any]) -> str:
+def _selected_dataset(config: dict[str, Any]) -> str:
     """Return the environment override or configured dataset name."""
-    value = os.environ.get("OMNIA_DATASET_OVERRIDE", "") or config.get(
-        "dataset", ""
-    )
+    value = os.environ.get("OMNIA_DATASET_OVERRIDE", "") or config.get("dataset", "")
     if not isinstance(value, str):
-        raise ValueError("dataset must be a directory name string")
+        raise TypeError("dataset must be a directory name string")
     return value.strip()
 
 
@@ -64,10 +62,11 @@ def _boolean_override(name: str):
 
 def _dataset_root(dataset: str) -> Path:
     """Resolve a named dataset without permitting traversal or symlinks."""
-    if (
-        not DATASET_NAME_PATTERN.fullmatch(dataset)
-        or dataset in {".", "..", "generator"}
-    ):
+    if not DATASET_NAME_PATTERN.fullmatch(dataset) or dataset in {
+        ".",
+        "..",
+        "generator",
+    }:
         raise ValueError(f"Unsafe dataset name: {dataset!r}")
     datasets_root = Path(DATASETS_DIR).resolve()
     candidate = datasets_root / dataset
@@ -79,7 +78,7 @@ def _dataset_root(dataset: str) -> Path:
     return resolved
 
 
-def _reject_nested_symlinks(directory: Path) -> List[str]:
+def _reject_nested_symlinks(directory: Path) -> list[str]:
     errors = []
     if not directory.is_dir():
         return errors
@@ -89,7 +88,7 @@ def _reject_nested_symlinks(directory: Path) -> List[str]:
     return errors
 
 
-def _required_files(directory: Path, names: List[str], label: str) -> List[str]:
+def _required_files(directory: Path, names: list[str], label: str) -> list[str]:
     errors = []
     if not directory.is_dir():
         return [f"Required {label} directory not found: {directory}"]
@@ -100,7 +99,7 @@ def _required_files(directory: Path, names: List[str], label: str) -> List[str]:
     return errors
 
 
-def _validate_yaml_schema(data_path: Path, schema_name: str) -> List[str]:
+def _validate_yaml_schema(data_path: Path, schema_name: str) -> list[str]:
     """Validate one YAML input against its source JSON schema."""
     schema_path = Path(SCHEMA_DIR) / schema_name
     try:
@@ -119,7 +118,7 @@ def _validate_yaml_schema(data_path: Path, schema_name: str) -> List[str]:
     ]
 
 
-def _validate_repo_status(path: Path) -> List[str]:
+def _validate_repo_status(path: Path) -> list[str]:
     """Validate the core Repo Manager handoff needed by Orchestrator."""
     try:
         value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -144,7 +143,7 @@ def _validate_repo_status(path: Path) -> List[str]:
     return errors
 
 
-def _validate_build_status(path: Path) -> List[str]:
+def _validate_build_status(path: Path) -> list[str]:
     """Validate the image-builder handoff consumed during provisioning."""
     try:
         value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -168,9 +167,9 @@ def _validate_build_status(path: Path) -> List[str]:
     return errors
 
 
-def _validate_dataset(config: Dict[str, Any]) -> List[str]:
+def _validate_dataset(config: dict[str, Any]) -> list[str]:
     """Validate source fallbacks or the selected generated dataset."""
-    errors: List[str] = []
+    errors: list[str] = []
     try:
         dataset = _selected_dataset(config)
         dataset_root = _dataset_root(dataset) if dataset else None
@@ -180,9 +179,7 @@ def _validate_dataset(config: Dict[str, Any]) -> List[str]:
     try:
         _boolean_override("OMNIA_SYNC_INPUT_OVERRIDE")
         output_override = _boolean_override("OMNIA_SYNC_OUTPUT_OVERRIDE")
-        image_output_override = _boolean_override(
-            "OMNIA_SYNC_IMAGE_OUTPUT_OVERRIDE"
-        )
+        image_output_override = _boolean_override("OMNIA_SYNC_IMAGE_OUTPUT_OVERRIDE")
     except ValueError as exc:
         return [str(exc)]
 
@@ -218,9 +215,7 @@ def _validate_dataset(config: Dict[str, Any]) -> List[str]:
             )
         )
         errors.extend(
-            _validate_yaml_schema(
-                input_dir / "network_spec.yml", "network_spec.json"
-            )
+            _validate_yaml_schema(input_dir / "network_spec.yml", "network_spec.json")
         )
 
     output_requested = (
@@ -253,17 +248,15 @@ def _validate_dataset(config: Dict[str, Any]) -> List[str]:
         errors.extend(image_errors)
         errors.extend(_reject_nested_symlinks(image_output_dir))
         if not image_errors:
-            errors.extend(
-                _validate_build_status(image_output_dir / "build_status.yml")
-            )
+            errors.extend(_validate_build_status(image_output_dir / "build_status.yml"))
     return errors
 
 
-def validate_test_config() -> Dict[str, Any]:
+def validate_test_config() -> dict[str, Any]:
     """Validate runner configuration and selected dataset contracts."""
     config = load_test_config()
-    errors: List[str] = []
-    warnings: List[str] = []
+    errors: list[str] = []
+    warnings: list[str] = []
 
     for field in ("clone_path", "report_path", "report_name"):
         value = config.get(field)
@@ -291,6 +284,9 @@ def validate_test_config() -> Dict[str, Any]:
         "sync_orchestrator_input",
         "sync_repo_manager_output",
         "sync_image_build_manager_output",
+        "cleanup_credentials",
+        "cleanup_slurm",
+        "cleanup_k8s",
     ):
         if field in config and not isinstance(config[field], bool):
             errors.append(f"'{field}' must be true or false")
@@ -313,7 +309,7 @@ def validate_test_config() -> Dict[str, Any]:
     }
 
 
-def validate_all() -> Dict[str, Any]:
+def validate_all() -> dict[str, Any]:
     """Validate all contracts and raise a consolidated error on failure."""
     result = validate_test_config()
     if not result["valid"]:

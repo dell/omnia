@@ -1,1 +1,0 @@
-"""VAST storage functional verification."""

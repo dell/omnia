@@ -3,16 +3,14 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 
-"""External OpenLDAP test-environment provisioning and verification helpers.
+"""External LDAP proxy configuration and verification helpers.
 
-The implementation follows the ``omnia-containers`` automation-v2.2.0.0
-workflow: a Bitnami directory provides POSIX identities and ``omnia_auth``
-proxies the local Omnia naming context to that directory through a generated
-``slapd.conf``.  Secrets remain in the encrypted test credential store and are
-passed to LDAP clients through mode-0600 files.
+The OpenLDAP prepare verification may reconcile ``omnia_auth`` only when
+explicitly enabled in ``test_config.yml``. External-directory operations stay
+read-only. Secrets are loaded from the encrypted test credential store and are
+transferred only through protected temporary files.
 """
 
-from contextlib import contextmanager
 import ipaddress
 import os
 import posixpath
@@ -20,7 +18,9 @@ import re
 import secrets
 import tempfile
 import time
-from typing import Any, Dict, Iterator, Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from typing import Any
 
 from omnia_auto import (
     connection_params,
@@ -29,11 +29,20 @@ from omnia_auto import (
     read_remote_env,
     run_on_host,
     sync_files,
+    vault_decrypt_to_dict,
 )
 
+from ..vars.openldap_vars import (
+    LDAP_DEFAULT_PORT,
+    LDAP_PROXY_CONTAINER,
+    LDAP_PROXY_SERVICE,
+    LDAP_PROXY_SLAPD_TEMPLATE,
+    LDAP_READY_DELAY_SECONDS,
+    LDAP_READY_RETRIES,
+)
+from .project_func import resolve_target_input_project_path
 
 _SAFE_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
-_SAFE_CONTAINER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 _DOMAIN = re.compile(
     r"^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}"
     r"[A-Za-z0-9])?)(?:\.(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}"
@@ -51,7 +60,7 @@ def _ldap_host(value: str) -> str:
         parsed = ipaddress.ip_address(address)
     except ValueError:
         if not _HOSTNAME.fullmatch(address) or ".." in address:
-            raise ValueError("external_ldap.server_ip is invalid") from None
+            raise ValueError("external_ldap_server_ip is invalid") from None
         return address
     return f"[{address}]" if parsed.version == 6 else address
 
@@ -60,289 +69,277 @@ def domain_to_dn(domain: str) -> str:
     """Convert a validated DNS domain into an LDAP base DN."""
     value = str(domain).strip().lower()
     if not _DOMAIN.fullmatch(value):
-        raise ValueError(
-            "external_ldap.domain must be a multi-label DNS name"
-        )
+        raise ValueError("external_ldap_domain must be a multi-label DNS name")
     return ",".join(f"dc={label}" for label in value.split("."))
 
 
 def _integer(value: Any, field: str, minimum: int, maximum: int) -> int:
     """Return a bounded integer while rejecting booleans."""
     if isinstance(value, bool):
-        raise ValueError(f"external_ldap.{field} must be an integer")
+        raise ValueError(  # noqa: TRY004 - public config validation error
+            f"{field} must be an integer"
+        )
     try:
         parsed = int(value)
     except (TypeError, ValueError) as exc:
-        raise ValueError(
-            f"external_ldap.{field} must be an integer"
-        ) from exc
+        raise ValueError(f"{field} must be an integer") from exc
     if not minimum <= parsed <= maximum:
-        raise ValueError(
-            f"external_ldap.{field} must be between {minimum} and {maximum}"
-        )
+        raise ValueError(f"{field} must be between {minimum} and {maximum}")
     return parsed
 
 
 def load_external_ldap_settings(
     config: Mapping[str, Any] | None = None,
-) -> Dict[str, Any]:
-    """Load and validate the non-sensitive external LDAP test settings."""
+) -> dict[str, Any]:
+    """Load and validate the explicit external LDAP proxy settings."""
     source = dict(config if config is not None else load_test_config())
-    raw = source.get("external_ldap", {})
-    if not isinstance(raw, dict):
-        raise ValueError("external_ldap must be a mapping")
+    if "external_ldap" in source:
+        raise ValueError(
+            "external_ldap is not a supported mapping; use "
+            "validate_external_ldap, configure_external_ldap, "
+            "external_ldap_server_ip, "
+            "external_ldap_server_port, external_ldap_domain, and "
+            "external_ldap_bind_username"
+        )
 
-    enabled = raw.get("enabled", False)
-    managed = raw.get("manage_container", False)
-    configure_proxy = raw.get("configure_proxy", True)
-    for field, value in (
-        ("enabled", enabled),
-        ("manage_container", managed),
-        ("configure_proxy", configure_proxy),
-    ):
-        if not isinstance(value, bool):
-            raise ValueError(f"external_ldap.{field} must be true or false")
+    validation_enabled = source.get("validate_external_ldap", False)
+    if not isinstance(validation_enabled, bool):
+        raise ValueError(  # noqa: TRY004 - public config validation error
+            "validate_external_ldap must be true or false"
+        )
+    configuration_enabled = source.get("configure_external_ldap", False)
+    if not isinstance(configuration_enabled, bool):
+        raise ValueError(  # noqa: TRY004 - public config validation error
+            "configure_external_ldap must be true or false"
+        )
 
-    settings: Dict[str, Any] = {
-        "enabled": enabled,
-        "manage_container": managed,
-        "configure_proxy": configure_proxy,
-        "server_ip": str(raw.get("server_ip", "")).strip(),
-        "server_port": _integer(
-            raw.get("server_port", 1389), "server_port", 1, 65535
-        ),
-        "secure_port": _integer(
-            raw.get("secure_port", 1636), "secure_port", 1, 65535
-        ),
-        "domain": str(raw.get("domain", "")).strip().lower(),
-        "admin_username": str(
-            raw.get("admin_username", "admin")
-        ).strip(),
-        "container_name": str(
-            raw.get("container_name", "omnia_external_ldap")
-        ).strip(),
-        "volume_name": str(
-            raw.get("volume_name", "omnia_external_ldap_data")
-        ).strip(),
-        "image": str(
-            raw.get(
-                "image", "docker.io/bitnamilegacy/openldap:latest"
+    server_ip = str(source.get("external_ldap_server_ip", "")).strip()
+    server_port = source.get("external_ldap_server_port", "")
+    domain = str(source.get("external_ldap_domain", "")).strip().lower()
+    bind_username = str(source.get("external_ldap_bind_username", "")).strip()
+
+    if validation_enabled:
+        missing = [
+            field
+            for field, value in (
+                ("external_ldap_server_ip", server_ip),
+                ("external_ldap_server_port", str(server_port).strip()),
+                ("external_ldap_domain", domain),
+                ("external_ldap_bind_username", bind_username),
             )
-        ).strip(),
-        "proxy_container_name": str(
-            raw.get("proxy_container_name", "omnia_auth")
-        ).strip(),
-        "proxy_config_path": str(
-            raw.get("proxy_config_path", "")
-        ).strip(),
-        "uid_number": _integer(
-            raw.get("uid_number", 2000), "uid_number", 1, 2147483647
-        ),
-        "gid_number": _integer(
-            raw.get("gid_number", 2000), "gid_number", 1, 2147483647
-        ),
-        "login_shell": str(
-            raw.get("login_shell", "/bin/bash")
-        ).strip(),
-        "home_base": str(raw.get("home_base", "/home")).strip(),
-    }
+            if not value
+        ]
+        if missing:
+            raise ValueError(
+                "External LDAP configuration is incomplete; missing "
+                + ", ".join(missing)
+            )
 
-    if settings["enabled"]:
-        for field in ("server_ip", "domain"):
-            if not settings[field]:
-                raise ValueError(
-                    f"external_ldap.{field} is required when enabled"
-                )
-        domain_to_dn(settings["domain"])
-        _ldap_host(settings["server_ip"])
-    for field in (
-        "admin_username",
-        "container_name",
-        "volume_name",
-        "proxy_container_name",
-    ):
-        if not _SAFE_CONTAINER.fullmatch(settings[field]):
-            raise ValueError(f"external_ldap.{field} is invalid")
-    if not settings["image"] or any(
-        character in settings["image"] for character in "\r\n\x00"
-    ):
-        raise ValueError("external_ldap.image is invalid")
-    if not settings["login_shell"].startswith("/"):
-        raise ValueError("external_ldap.login_shell must be absolute")
-    if not settings["home_base"].startswith("/"):
-        raise ValueError("external_ldap.home_base must be absolute")
-    if settings["proxy_config_path"] and not settings[
-        "proxy_config_path"
-    ].startswith("/"):
-        raise ValueError("external_ldap.proxy_config_path must be absolute")
+    settings: dict[str, Any] = {
+        "validation_enabled": validation_enabled,
+        "configuration_enabled": configuration_enabled,
+        "server_ip": server_ip,
+        "server_port": (
+            _integer(
+                server_port,
+                "external_ldap_server_port",
+                1,
+                65535,
+            )
+            if validation_enabled
+            else LDAP_DEFAULT_PORT
+        ),
+        "domain": domain,
+        "bind_username": bind_username,
+        "proxy_container_name": LDAP_PROXY_CONTAINER,
+        "proxy_config_path": "",
+    }
+    if validation_enabled:
+        _ldap_host(server_ip)
+        domain_to_dn(domain)
+        if not _SAFE_NAME.fullmatch(bind_username):
+            raise ValueError(
+                "external_ldap_bind_username contains unsupported characters"
+            )
     return settings
 
 
 def load_external_ldap_credentials(
     credentials: Mapping[str, Any] | None = None,
-) -> Dict[str, str]:
-    """Load test-user and external-directory admin secrets."""
-    source = dict(
-        credentials if credentials is not None else load_test_credentials()
-    )
+) -> dict[str, str]:
+    """Load the LDAP test identity used by login verification."""
+    source = dict(credentials if credentials is not None else load_test_credentials())
     values = {
         "username": source.get("ldap_username", ""),
         "password": source.get("ldap_password", ""),
-        "admin_password": source.get("external_ldap_admin_password", ""),
     }
     if not all(isinstance(value, str) for value in values.values()):
-        raise ValueError("External LDAP credentials must be strings")
+        raise ValueError("LDAP test credentials must be strings")
     if not _SAFE_NAME.fullmatch(values["username"]):
-        raise ValueError(
-            "ldap_username is missing or contains unsupported characters"
-        )
+        raise ValueError("ldap_username is missing or contains unsupported characters")
     if not values["password"]:
         raise ValueError("ldap_password is required in test_creds.yml")
-    if not values["admin_password"]:
-        raise ValueError(
-            "external_ldap_admin_password is required in test_creds.yml"
-        )
-    for field in ("password", "admin_password"):
-        if any(character in values[field] for character in "\r\n\x00"):
-            raise ValueError(f"{field} must be a single-line value")
+    if any(character in values["password"] for character in "\r\n\x00"):
+        raise ValueError("ldap_password must be a single-line value")
     return values
 
 
-def build_user_ldif(
-    username: str,
-    base_dn: str,
-    uid_number: int,
-    gid_number: int,
-    login_shell: str,
-    home_base: str,
-) -> str:
-    """Build one password-free POSIX user LDIF document."""
-    if not _SAFE_NAME.fullmatch(username):
-        raise ValueError("Invalid LDAP username")
-    home = posixpath.join(home_base.rstrip("/"), username)
-    return "\n".join((
-        f"dn: uid={username},ou=People,{base_dn}",
-        "objectClass: inetOrgPerson",
-        "objectClass: posixAccount",
-        "objectClass: shadowAccount",
-        f"cn: {username}",
-        f"sn: {username}",
-        f"uid: {username}",
-        f"uidNumber: {uid_number}",
-        f"gidNumber: {gid_number}",
-        f"loginShell: {login_shell}",
-        f"homeDirectory: {home}",
-        "shadowLastChange: 0",
-        "shadowMax: 0",
-        "shadowWarning: 0",
-        "",
-    ))
+def load_external_ldap_bind_credentials(
+    credentials: Mapping[str, Any] | None = None,
+) -> dict[str, str]:
+    """Load credentials used by the omnia_auth external-directory bind."""
+    source = dict(credentials if credentials is not None else load_test_credentials())
+    values = {"password": source.get("external_ldap_bind_password", "")}
+    if not isinstance(values["password"], str):
+        raise TypeError("External LDAP bind password must be a string")
+    if not values["password"]:
+        raise ValueError("external_ldap_bind_password is required in test_creds.yml")
+    if any(character in values["password"] for character in "\r\n\x00"):
+        raise ValueError("external_ldap_bind_password must be a single-line value")
+    return values
 
 
-def build_group_ldif(
-    username: str, base_dn: str, gid_number: int,
-) -> str:
-    """Build the matching POSIX group LDIF document."""
-    if not _SAFE_NAME.fullmatch(username):
-        raise ValueError("Invalid LDAP username")
-    return "\n".join((
-        f"dn: cn={username},ou=groups,{base_dn}",
-        "objectClass: posixGroup",
-        f"cn: {username}",
-        f"gidNumber: {gid_number}",
-        f"memberUid: {username}",
-        "",
-    ))
-
-
-def extract_proxy_identity(current_config: str) -> Dict[str, str]:
-    """Preserve the Omnia-local suffix/root identity from slapd.conf."""
+def extract_proxy_identity(current_config: str) -> dict[str, str]:
+    """Preserve the Omnia-local suffix and root identity from slapd.conf."""
     patterns = {
         "suffix": r'^\s*suffix\s+"?([^"\s]+)"?\s*$',
-        "rootdn": r'^\s*rootdn\s+"?([^"\n]+?)"?\s*$',
-        "rootpw": r"^\s*rootpw\s+(.+?)\s*$",
+        "rootdn": r'^\s*rootdn\s+"?([^"\n]+)"?\s*$',
+        "rootpw": r"^\s*rootpw\s+(\S+)\s*$",
     }
-    values = {}
+    identity: dict[str, str] = {}
     for field, pattern in patterns.items():
         match = re.search(pattern, current_config, re.MULTILINE)
         if not match:
-            raise ValueError(
-                f"Existing slapd.conf does not define {field}"
-            )
-        values[field] = match.group(1).strip()
-    return values
+            raise ValueError(f"Existing slapd.conf does not define {field}")
+        identity[field] = match.group(1).strip()
+    return identity
+
+
+def load_local_proxy_identity(host) -> dict[str, str]:
+    """Resolve the Omnia-local LDAP identity from authoritative inputs.
+
+    The local suffix comes from the OIM FQDN. The local administrator identity
+    comes from the encrypted Orchestrator credential store. Existing proxy
+    content is deliberately not used because it may already contain a prior
+    external-directory mapping.
+    """
+    hostname_result = _checked(
+        run_on_host(host, "hostname -f"),
+        "Resolve OIM FQDN",
+    )
+    fqdn = hostname_result.stdout.strip().lower().rstrip(".")
+    if not _HOSTNAME.fullmatch(fqdn) or "." not in fqdn:
+        raise ValueError("OIM hostname must be a fully qualified domain name")
+    labels = fqdn.split(".")
+    local_domain = ".".join(labels[1:]) if len(labels) > 2 else fqdn
+    local_dn = domain_to_dn(local_domain)
+
+    input_path = resolve_target_input_project_path(host)
+    remote_paths = {
+        "credentials": posixpath.join(input_path, "orchestrator_credentials.yml"),
+        "key": posixpath.join(input_path, ".orchestrator_credentials_key"),
+    }
+    remote_files = {name: host.file(path) for name, path in remote_paths.items()}
+    missing = [
+        remote_paths[name]
+        for name, remote_file in remote_files.items()
+        if not remote_file.is_file
+    ]
+    if missing:
+        raise ValueError(
+            "Required Orchestrator credential artifact is missing: "
+            + ", ".join(missing)
+        )
+
+    with tempfile.TemporaryDirectory(prefix="omnia_local_ldap_identity_") as local_dir:
+        os.chmod(local_dir, 0o700)
+        local_paths = {
+            name: os.path.join(local_dir, posixpath.basename(path))
+            for name, path in remote_paths.items()
+        }
+        for name, local_path in local_paths.items():
+            with open(local_path, "wb") as handle:
+                handle.write(remote_files[name].content)
+            os.chmod(local_path, 0o600)
+        decrypted = vault_decrypt_to_dict(
+            local_paths["credentials"],
+            local_paths["key"],
+        )
+    if not decrypted["success"]:
+        raise ValueError(
+            "Unable to read the encrypted Orchestrator credential store: "
+            + decrypted["error"]
+        )
+
+    values = decrypted["data"]
+    username = values.get("openldap_db_username", "")
+    password = values.get("openldap_db_password", "")
+    if not isinstance(username, str) or not _SAFE_NAME.fullmatch(username):
+        raise ValueError(
+            "openldap_db_username is missing or invalid in orchestrator_credentials.yml"
+        )
+    if (
+        not isinstance(password, str)
+        or not password
+        or any(character in password for character in "\r\n\x00")
+    ):
+        raise ValueError(
+            "openldap_db_password is missing or invalid in orchestrator_credentials.yml"
+        )
+    return {
+        "suffix": local_dn,
+        "rootdn": f"cn={username},{local_dn}",
+        "rootpw": password,
+    }
 
 
 def resolve_proxy_config_path(
-    host, settings: Mapping[str, Any] | None = None,
+    host,
+    settings: Mapping[str, Any] | None = None,
 ) -> str:
-    """Resolve the mounted slapd.conf from config or target Omnia env."""
+    """Resolve the mounted slapd.conf from the execution OIM environment."""
     values = dict(settings or load_external_ldap_settings())
     explicit = str(values.get("proxy_config_path", "")).strip()
     if explicit:
         return explicit
-    data_path = read_remote_env(
-        host, "OMNIA_DATA_PATH", required=False
-    ) or "/opt/omnia"
-    return posixpath.join(
-        data_path.rstrip("/"), "auth/config/slapd.conf"
-    )
+    data_path = read_remote_env(host, "OMNIA_DATA_PATH", required=False) or "/opt/omnia"
+    return posixpath.join(data_path.rstrip("/"), "auth/config/slapd.conf")
 
 
 def build_proxy_slapd_conf(
     local_identity: Mapping[str, str],
     settings: Mapping[str, Any],
+    bind_username: str,
     bind_password: str,
 ) -> str:
-    """Render the automation-v2.2.0.0 meta-proxy slapd.conf contract."""
+    """Render the desired external-directory meta-proxy configuration."""
+    if not _SAFE_NAME.fullmatch(bind_username):
+        raise ValueError("Invalid external LDAP bind username")
+    if not bind_password or any(character in bind_password for character in "\r\n\x00"):
+        raise ValueError("Invalid external LDAP bind password")
+
     external_dn = domain_to_dn(str(settings["domain"]))
     local_dn = str(local_identity["suffix"])
-    bind_dn = f"cn={settings['admin_username']},{external_dn}"
+    bind_dn = f"cn={bind_username},{external_dn}"
     server_uri = (
         f"ldap://{_ldap_host(str(settings['server_ip']))}:"
         f"{settings['server_port']}/{local_dn}"
     )
-    escaped_bind_password = bind_password.replace("\\", "\\\\").replace(
-        '"', '\\"'
+    escaped_password = bind_password.replace("\\", "\\\\").replace('"', '\\"')
+    return LDAP_PROXY_SLAPD_TEMPLATE.format(
+        ldap_suffix=local_dn,
+        ldap_rootdn=local_identity["rootdn"],
+        ldap_rootpw=local_identity["rootpw"],
+        ldap_uri=server_uri,
+        ldap_suffixmassage_local=local_dn,
+        ldap_suffixmassage_remote=external_dn,
+        ldap_bind_dn=bind_dn,
+        ldap_bind_credentials=escaped_password,
     )
-    return f"""# Managed by the Orchestrator external LDAP test setup utility
-# Compatible with dell/omnia-containers automation-v2.2.0.0
-
-modulepath /usr/lib64/openldap
-moduleload back_ldap.la
-moduleload back_meta.la
-
-include     /etc/openldap/schema/core.schema
-include     /etc/openldap/schema/cosine.schema
-include     /etc/openldap/schema/nis.schema
-include     /etc/openldap/schema/inetorgperson.schema
-
-pidfile     /run/openldap/slapd.pid
-argsfile    /run/openldap/slapd.args
-
-TLSCACertificateFile  /etc/openldap/certs/ldapserver.crt
-TLSCertificateFile    /etc/openldap/certs/ldapserver.crt
-TLSCertificateKeyFile /etc/openldap/certs/ldapserver.key
-
-database    meta
-suffix      "{local_dn}"
-rootdn      "{local_identity['rootdn']}"
-rootpw      {local_identity['rootpw']}
-
-uri         "{server_uri}"
-suffixmassage "{local_dn}" "{external_dn}"
-idassert-bind
-    bindmethod=simple
-    binddn="{bind_dn}"
-    credentials="{escaped_bind_password}"
-    flags=override
-    mode=none
-idassert-authzFrom "dn.regex:.*"
-"""
 
 
 def _checked(result, action: str):
-    """Raise an actionable error for a failed target command."""
+    """Raise a safe, actionable error for a failed target command."""
     if result.rc != 0:
         detail = (result.stderr or result.stdout or "unknown error").strip()
         raise RuntimeError(f"{action} failed: {detail}")
@@ -351,15 +348,14 @@ def _checked(result, action: str):
 
 @contextmanager
 def _target_files(
-    host, files: Mapping[str, tuple[str, int]],
-) -> Iterator[Dict[str, str]]:
+    host,
+    files: Mapping[str, tuple[str, int]],
+) -> Iterator[dict[str, str]]:
     """Copy protected temporary files to the execution OIM."""
     token = secrets.token_hex(8)
-    remote_dir = posixpath.join(
-        tempfile.gettempdir(), f"omnia_external_ldap_{token}"
-    )
+    remote_dir = posixpath.join(tempfile.gettempdir(), f"omnia_external_ldap_{token}")
     local_dir = tempfile.mkdtemp(prefix="omnia_external_ldap_")
-    remote_paths: Dict[str, str] = {}
+    remote_paths: dict[str, str] = {}
     local_paths = []
     try:
         _checked(
@@ -413,468 +409,328 @@ def _target_files(
             pass
 
 
-def _ldap_command(
+def _verify_external_directory_reachability(
     host,
     settings: Mapping[str, Any],
-    tool: str,
-    arguments: list[str],
-):
-    """Run one LDAP client with all arguments shell-quoted by Testinfra."""
-    parts = [
-        tool,
-        "-x",
-        "-H",
-        f"ldap://{_ldap_host(str(settings['server_ip']))}:"
-        f"{settings['server_port']}",
-        *arguments,
-    ]
-    return run_on_host(
-        host, " ".join("%s" for _ in parts), *parts
-    )
-
-
-def _wait_for_external_ldap(
-    host,
-    settings: Mapping[str, Any],
-    base_dn: str,
-    admin_password_file: str,
-    timeout: int = 90,
 ) -> None:
-    """Wait for authenticated LDAP service readiness."""
-    admin_dn = f"cn={settings['admin_username']},{base_dn}"
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        result = _ldap_command(
+    """Prove LDAP protocol reachability from the omnia_auth container."""
+    base_dn = domain_to_dn(str(settings["domain"]))
+    endpoint = (
+        f"ldap://{_ldap_host(str(settings['server_ip']))}:{settings['server_port']}"
+    )
+    command = [
+        "podman",
+        "exec",
+        LDAP_PROXY_CONTAINER,
+        "ldapsearch",
+        "-x",
+        "-LLL",
+        "-o",
+        "nettimeout=5",
+        "-H",
+        endpoint,
+        "-b",
+        "",
+        "-s",
+        "base",
+        "namingContexts",
+    ]
+    last_detail = ""
+    for _ in range(LDAP_READY_RETRIES):
+        result = run_on_host(
             host,
-            settings,
-            "ldapsearch",
-            [
-                "-D", admin_dn,
-                "-y", admin_password_file,
-                "-b", base_dn,
-                "-s", "base",
-                "(objectClass=*)",
-                "dn",
-            ],
+            " ".join("%s" for _ in command),
+            *command,
         )
         if result.rc == 0:
+            naming_contexts = {
+                line.split(":", 1)[1].strip().lower()
+                for line in result.stdout.splitlines()
+                if line.lower().startswith("namingcontexts:")
+            }
+            if base_dn.lower() not in naming_contexts:
+                raise RuntimeError(
+                    f"External LDAP does not advertise {base_dn} as a naming context"
+                )
             return
-        detail = (result.stderr or result.stdout or "").strip()
-        if result.rc == 49 or "invalid credentials" in detail.lower():
+        last_detail = (result.stderr or result.stdout or "").strip()
+        if result.rc == 127 or "not found" in last_detail.lower():
             raise RuntimeError(
-                "External LDAP rejected the configured administrator "
-                "credential; update external_ldap_admin_password in the "
-                "encrypted test credential store"
+                "ldapsearch is unavailable inside the omnia_auth container"
             )
-        time.sleep(2)
+        time.sleep(LDAP_READY_DELAY_SECONDS)
+    suffix = f": {last_detail}" if last_detail else ""
     raise RuntimeError(
-        "External LDAP did not accept the configured admin credential "
-        f"within {timeout} seconds"
+        "External LDAP endpoint did not become reachable from the "
+        f"omnia_auth container{suffix}"
     )
 
 
-def _deploy_external_container(
-    host,
-    settings: Mapping[str, Any],
-    env_file: str,
-    recreate: bool,
-) -> None:
-    """Create or start the explicitly configured Bitnami container."""
-    container = settings["container_name"]
-    volume = settings["volume_name"]
-    exists = run_on_host(
-        host, "podman container exists %s", container
-    ).rc == 0
-    if recreate and exists:
-        _checked(
-            run_on_host(host, "podman rm -f -- %s", container),
-            "Remove configured external LDAP container",
-        )
-        exists = False
-    if recreate:
-        volume_exists = run_on_host(
-            host, "podman volume exists %s", volume
-        ).rc == 0
-        if volume_exists:
-            _checked(
-                run_on_host(host, "podman volume rm -- %s", volume),
-                "Remove configured external LDAP volume",
+def _proxy_running(host, container: str) -> bool:
+    """Return whether the exact proxy container is running."""
+    state = run_on_host(
+        host,
+        "podman inspect --format '{{.State.Status}}' %s",
+        container,
+    )
+    return state.rc == 0 and state.stdout.strip() == "running"
+
+
+def _proxy_health(host, container: str) -> str:
+    """Return the exact container health state without raising."""
+    health = run_on_host(
+        host,
+        "podman inspect --format "
+        "'{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' %s",
+        container,
+    )
+    return health.stdout.strip() if health.rc == 0 else "unavailable"
+
+
+def _wait_for_proxy(host) -> bool:
+    """Wait for running, healthy, and LDAP-responsive proxy state."""
+    for _ in range(LDAP_READY_RETRIES):
+        if _proxy_running(host, LDAP_PROXY_CONTAINER):
+            probe = run_on_host(
+                host,
+                "%s %s %s %s %s %s %s",
+                "podman",
+                "exec",
+                LDAP_PROXY_CONTAINER,
+                "ldapwhoami",
+                "-x",
+                "-H",
+                "ldap://127.0.0.1:389",
             )
-    if exists:
-        running = run_on_host(
+            if _proxy_health(host, LDAP_PROXY_CONTAINER) == "healthy" and probe.rc == 0:
+                return True
+        time.sleep(LDAP_READY_DELAY_SECONDS)
+    return False
+
+
+def _restore_proxy_config(host, backup: str, config_path: str) -> None:
+    """Atomically restore the most recent configuration and its readiness."""
+    rollback = f"{config_path}.rollback-{secrets.token_hex(8)}.tmp"
+    _checked(
+        run_on_host(
             host,
-            "podman inspect --format '{{.State.Running}}' %s",
-            container,
-        )
-        _checked(running, "Inspect external LDAP container")
-        if running.stdout.strip().lower() != "true":
-            _checked(
-                run_on_host(host, "podman start -- %s", container),
-                "Start external LDAP container",
-            )
-        return
-
+            "install -o root -g root -m 0600 -- %s %s",
+            backup,
+            rollback,
+        ),
+        "Stage LDAP proxy rollback",
+    )
     _checked(
-        run_on_host(host, "podman pull -- %s", settings["image"]),
-        "Pull external LDAP image",
+        run_on_host(host, "mv -f -- %s %s", rollback, config_path),
+        "Restore LDAP proxy configuration",
     )
-    run_on_host(host, "podman volume create -- %s", volume)
-    command = [
-        "podman", "run", "-d", "--name", container,
-        "-p", f"0.0.0.0:{settings['server_port']}:1389",
-        "-p", f"0.0.0.0:{settings['secure_port']}:1636",
-        "--env-file", env_file,
-        "-v", f"{volume}:/bitnami/openldap",
-        settings["image"],
-    ]
+    run_on_host(host, "restorecon -F -- %s 2>/dev/null || true", config_path)
     _checked(
-        run_on_host(host, " ".join("%s" for _ in command), *command),
-        "Deploy external LDAP container",
+        run_on_host(host, "systemctl restart %s", LDAP_PROXY_SERVICE),
+        "Restart omnia_auth after rollback",
     )
-
-
-def _ensure_posix_number_available(
-    host,
-    settings: Mapping[str, Any],
-    admin_dn: str,
-    admin_password_file: str,
-    base_dn: str,
-    attribute: str,
-    value: int,
-    expected_dn: str,
-) -> None:
-    """Fail when a requested POSIX ID belongs to a different LDAP entry."""
-    lookup = _ldap_command(
-        host,
-        settings,
-        "ldapsearch",
-        [
-            "-D", admin_dn,
-            "-y", admin_password_file,
-            "-b", base_dn,
-            "-s", "sub",
-            f"({attribute}={value})",
-            "dn",
-        ],
-    )
-    _checked(lookup, f"Check external_ldap.{attribute}")
-    expected = expected_dn.casefold()
-    conflicts = []
-    for line in lookup.stdout.splitlines():
-        if line.casefold().startswith("dn: "):
-            found_dn = line[4:].strip()
-            if found_dn.casefold() != expected:
-                conflicts.append(found_dn)
-    if conflicts:
-        raise RuntimeError(
-            f"external_ldap.{attribute} value {value} already belongs to "
-            f"{', '.join(conflicts)}; choose an unused value for the new user"
-        )
-
-
-def _ensure_ldap_entry(
-    host,
-    settings: Mapping[str, Any],
-    admin_dn: str,
-    admin_password_file: str,
-    entry_dn: str,
-    object_filter: str,
-    ldif_file: str,
-) -> bool:
-    """Create an LDAP entry if its exact DN is absent."""
-    lookup = _ldap_command(
-        host,
-        settings,
-        "ldapsearch",
-        [
-            "-D", admin_dn,
-            "-y", admin_password_file,
-            "-b", entry_dn,
-            "-s", "base",
-            object_filter,
-            "dn",
-        ],
-    )
-    if lookup.rc == 0:
-        return False
-    created = _ldap_command(
-        host,
-        settings,
-        "ldapadd",
-        ["-D", admin_dn, "-y", admin_password_file, "-f", ldif_file],
-    )
-    _checked(created, f"Create LDAP entry {entry_dn}")
-    return True
+    if not _wait_for_proxy(host):
+        raise RuntimeError("omnia_auth did not become ready after slapd.conf rollback")
 
 
 def _install_proxy_config(
     host,
     settings: Mapping[str, Any],
-    bind_password: str,
-) -> Dict[str, str]:
-    """Validate and atomically install slapd.conf, rolling back on failure."""
+    bind_credentials: Mapping[str, str],
+) -> dict[str, Any]:
+    """Install changed content atomically and roll back failed restarts."""
     config_path = resolve_proxy_config_path(host, settings)
     current = _checked(
         run_on_host(host, "cat -- %s", config_path),
         "Read deployed slapd.conf",
     ).stdout
-    identity = extract_proxy_identity(current)
-    content = build_proxy_slapd_conf(identity, settings, bind_password)
+    identity = load_local_proxy_identity(host)
+    desired = build_proxy_slapd_conf(
+        identity,
+        settings,
+        str(settings["bind_username"]),
+        bind_credentials["password"],
+    )
+    if not _proxy_running(host, LDAP_PROXY_CONTAINER):
+        raise RuntimeError(
+            "omnia_auth container is not running; run the prepare playbook "
+            "and inspect omnia_auth.service"
+        )
+    if current == desired:
+        return {
+            "path": config_path,
+            "local_dn": identity["suffix"],
+            "changed": False,
+        }
 
-    with _target_files(host, {"slapd.conf": (content, 0o600)}) as generated:
-        candidate = f"{config_path}.omnia-test-candidate"
-        _checked(
-            run_on_host(
-                host, "install -o root -g root -m 0600 -- %s %s",
-                generated["slapd.conf"], candidate,
-            ),
-            "Stage generated slapd.conf",
-        )
-        container_candidate = (
-            f"/run/omnia-test-slapd-{secrets.token_hex(8)}.conf"
-        )
-        container = settings["proxy_container_name"]
-        try:
+    _verify_external_directory_reachability(host, settings)
+
+    backup = f"{config_path}.pre-external-ldap"
+    candidate = f"{config_path}.omnia-test-{secrets.token_hex(8)}.tmp"
+    installed = False
+    try:
+        with _target_files(host, {"slapd.conf": (desired, 0o600)}) as staged:
             _checked(
                 run_on_host(
-                    host, "podman cp %s %s", candidate,
-                    f"{container}:{container_candidate}",
+                    host,
+                    "install -o root -g root -m 0600 -- %s %s",
+                    staged["slapd.conf"],
+                    candidate,
                 ),
-                "Copy candidate slapd.conf into proxy container",
+                "Stage generated slapd.conf",
             )
-            _checked(
+            container_candidate = f"/run/omnia-test-slapd-{secrets.token_hex(8)}.conf"
+            try:
+                _checked(
+                    run_on_host(
+                        host,
+                        "podman cp %s %s",
+                        candidate,
+                        f"{LDAP_PROXY_CONTAINER}:{container_candidate}",
+                    ),
+                    "Copy candidate slapd.conf into omnia_auth",
+                )
+                _checked(
+                    run_on_host(
+                        host,
+                        "podman exec %s slaptest -u -f %s",
+                        LDAP_PROXY_CONTAINER,
+                        container_candidate,
+                    ),
+                    "Validate candidate slapd.conf",
+                )
+            finally:
                 run_on_host(
-                    host, "podman exec %s slaptest -u -f %s",
-                    container, container_candidate,
-                ),
-                "Validate candidate slapd.conf",
-            )
-        finally:
-            run_on_host(
-                host, "podman exec %s rm -f -- %s",
-                container, container_candidate,
-            )
+                    host,
+                    "podman exec %s rm -f -- %s",
+                    LDAP_PROXY_CONTAINER,
+                    container_candidate,
+                )
 
-        backup = f"{config_path}.pre-external-ldap"
-        if run_on_host(host, "test -f %s", backup).rc != 0:
             _checked(
                 run_on_host(host, "cp -a -- %s %s", config_path, backup),
                 "Back up deployed slapd.conf",
             )
+            _checked(
+                run_on_host(host, "mv -f -- %s %s", candidate, config_path),
+                "Install generated slapd.conf",
+            )
+            installed = True
+            run_on_host(
+                host,
+                "restorecon -F -- %s 2>/dev/null || true",
+                config_path,
+            )
+
         _checked(
-            run_on_host(host, "mv -f -- %s %s", candidate, config_path),
-            "Install generated slapd.conf",
+            run_on_host(host, "systemctl restart %s", LDAP_PROXY_SERVICE),
+            "Restart omnia_auth service",
         )
-        run_on_host(host, "restorecon -F -- %s 2>/dev/null || true", config_path)
-
-    service = settings["proxy_container_name"]
-    restarted = run_on_host(host, "systemctl restart %s", service)
-    if restarted.rc != 0:
-        run_on_host(host, "cp -a -- %s %s", backup, config_path)
-        run_on_host(host, "systemctl restart %s", service)
-        _checked(restarted, "Restart LDAP proxy service")
-    healthy = False
-    for _ in range(30):
-        state = run_on_host(
-            host,
-            "podman inspect --format '{{.State.Status}}' %s",
-            settings["proxy_container_name"],
-        )
-        probe = run_on_host(
-            host,
-            "%s %s %s %s %s %s %s %s %s %s",
-            "ldapsearch", "-x", "-H", "ldap://127.0.0.1:389",
-            "-b", identity["suffix"], "-s", "base",
-            "(objectClass=*)", "dn",
-        )
-        if (
-            state.rc == 0
-            and state.stdout.strip() == "running"
-            and probe.rc == 0
-        ):
-            healthy = True
-            break
-        time.sleep(2)
-    if not healthy:
-        run_on_host(host, "cp -a -- %s %s", backup, config_path)
-        run_on_host(host, "systemctl restart %s", service)
-        raise RuntimeError("LDAP proxy failed to become running; backup restored")
-    return {"path": config_path, "local_dn": identity["suffix"]}
-
-
-def reconcile_external_ldap(host, recreate: bool = False) -> Dict[str, Any]:
-    """Deploy/reconcile an external POSIX user and the Omnia LDAP proxy."""
-    settings = load_external_ldap_settings()
-    if not settings["enabled"]:
-        raise ValueError(
-            "external_ldap.enabled must be true in test_config.yml"
-        )
-    credentials = load_external_ldap_credentials()
-    base_dn = domain_to_dn(settings["domain"])
-    username = credentials["username"]
-    admin_dn = f"cn={settings['admin_username']},{base_dn}"
-    user_dn = f"uid={username},ou=People,{base_dn}"
-    group_dn = f"cn={username},ou=groups,{base_dn}"
-
-    env_content = "\n".join((
-        f"LDAP_ADMIN_USERNAME={settings['admin_username']}",
-        f"LDAP_ADMIN_PASSWORD={credentials['admin_password']}",
-        f"LDAP_ROOT={base_dn}",
-        "LDAP_ALLOW_ANON_BINDING=yes",
-        "",
-    ))
-    people_ldif = "\n".join((
-        f"dn: ou=People,{base_dn}",
-        "objectClass: top",
-        "objectClass: organizationalUnit",
-        "ou: People",
-        "",
-    ))
-    groups_ldif = "\n".join((
-        f"dn: ou=groups,{base_dn}",
-        "objectClass: top",
-        "objectClass: organizationalUnit",
-        "ou: groups",
-        "",
-    ))
-    files = {
-        "admin_password": (credentials["admin_password"], 0o600),
-        "user_password": (credentials["password"], 0o600),
-        "container.env": (env_content, 0o600),
-        "people.ldif": (people_ldif, 0o600),
-        "groups.ldif": (groups_ldif, 0o600),
-        "user.ldif": (
-            build_user_ldif(
-                username,
-                base_dn,
-                settings["uid_number"],
-                settings["gid_number"],
-                settings["login_shell"],
-                settings["home_base"],
-            ),
-            0o600,
-        ),
-        "group.ldif": (
-            build_group_ldif(username, base_dn, settings["gid_number"]),
-            0o600,
-        ),
-    }
-    created = []
-    with _target_files(host, files) as staged:
-        if settings["manage_container"]:
-            _deploy_external_container(
-                host,
-                settings,
-                staged["container.env"],
-                recreate,
+        if not _wait_for_proxy(host):
+            raise RuntimeError(
+                "omnia_auth did not become ready after applying slapd.conf"
             )
-        elif recreate:
-            raise ValueError(
-                "--recreate requires external_ldap.manage_container=true"
-            )
-        _wait_for_external_ldap(
-            host, settings, base_dn, staged["admin_password"]
-        )
-        _ensure_posix_number_available(
-            host,
-            settings,
-            admin_dn,
-            staged["admin_password"],
-            base_dn,
-            "uidNumber",
-            settings["uid_number"],
-            user_dn,
-        )
-        _ensure_posix_number_available(
-            host,
-            settings,
-            admin_dn,
-            staged["admin_password"],
-            base_dn,
-            "gidNumber",
-            settings["gid_number"],
-            group_dn,
-        )
-
-        entries = (
-            (
-                f"ou=People,{base_dn}",
-                "(objectClass=organizationalUnit)",
-                staged["people.ldif"],
-            ),
-            (
-                f"ou=groups,{base_dn}",
-                "(objectClass=organizationalUnit)",
-                staged["groups.ldif"],
-            ),
-            (user_dn, "(objectClass=posixAccount)", staged["user.ldif"]),
-            (group_dn, "(objectClass=posixGroup)", staged["group.ldif"]),
-        )
-        for entry_dn, object_filter, ldif_path in entries:
-            if _ensure_ldap_entry(
-                host,
-                settings,
-                admin_dn,
-                staged["admin_password"],
-                entry_dn,
-                object_filter,
-                ldif_path,
-            ):
-                created.append(entry_dn)
-
-        password_update = _ldap_command(
-            host,
-            settings,
-            "ldappasswd",
-            [
-                "-D", admin_dn,
-                "-y", staged["admin_password"],
-                "-T", staged["user_password"],
-                user_dn,
-            ],
-        )
-        _checked(password_update, "Set LDAP test-user password")
-
-        direct_bind = _ldap_command(
-            host,
-            settings,
-            "ldapwhoami",
-            ["-D", user_dn, "-y", staged["user_password"]],
-        )
-        _checked(direct_bind, "Authenticate LDAP test user directly")
-
-        proxy_path = ""
-        if settings["configure_proxy"]:
-            proxy = _install_proxy_config(
-                host,
-                settings,
-                credentials["admin_password"],
-            )
-            proxy_path = proxy["path"]
-            proxy_user_dn = (
-                f"uid={username},ou=People,{proxy['local_dn']}"
-            )
-            proxy_bind = run_on_host(
-                host,
-                "%s %s %s %s %s %s %s %s",
-                "ldapwhoami", "-x", "-H", "ldap://127.0.0.1:389",
-                "-D", proxy_user_dn, "-y", staged["user_password"],
-            )
-            _checked(proxy_bind, "Authenticate LDAP test user through proxy")
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        if installed:
+            _restore_proxy_config(host, backup, config_path)
+            raise RuntimeError(f"{exc}; previous slapd.conf restored") from exc
+        raise
+    finally:
+        run_on_host(host, "rm -f -- %s", candidate)
 
     return {
-        "username": username,
-        "user_dn": user_dn,
-        "created_entries": created,
-        "proxy_config_path": proxy_path,
+        "path": config_path,
+        "local_dn": identity["suffix"],
+        "changed": True,
     }
 
 
-def verify_external_ldap_user_bind(host) -> Dict[str, str]:
+def configure_external_ldap_proxy(host) -> dict[str, Any]:
+    """Validate inputs and idempotently reconcile the omnia_auth proxy."""
+    try:
+        settings = load_external_ldap_settings()
+        if not settings["validation_enabled"]:
+            return {
+                "success": True,
+                "changed": False,
+                "skipped": True,
+                "details": (
+                    "validate_external_ldap is false; omnia_auth was not modified"
+                ),
+                "error": "",
+            }
+        if not settings["configuration_enabled"]:
+            return {
+                "success": True,
+                "changed": False,
+                "skipped": True,
+                "details": (
+                    "configure_external_ldap is false; omnia_auth was not modified"
+                ),
+                "error": "",
+            }
+        bind_credentials = load_external_ldap_bind_credentials()
+        result = _install_proxy_config(host, settings, bind_credentials)
+        action = "updated" if result["changed"] else "already matched"
+        return {
+            "success": True,
+            "changed": result["changed"],
+            "skipped": False,
+            "details": (f"omnia_auth slapd.conf {action}; container is running"),
+            "error": "",
+        }
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return {
+            "success": False,
+            "changed": False,
+            "skipped": False,
+            "details": "External LDAP proxy was not configured",
+            "error": str(exc),
+        }
+
+
+def verify_external_ldap_backend(host) -> dict[str, Any]:
+    """Verify external LDAP reachability from the omnia_auth container."""
+    endpoint = "unavailable"
+    try:
+        settings = load_external_ldap_settings()
+        if not settings["validation_enabled"]:
+            return {
+                "success": True,
+                "skipped": True,
+                "endpoint": "",
+                "details": "validate_external_ldap is false",
+                "error": "",
+            }
+        endpoint = (
+            f"ldap://{_ldap_host(str(settings['server_ip']))}:{settings['server_port']}"
+        )
+        _verify_external_directory_reachability(host, settings)
+        return {
+            "success": True,
+            "skipped": False,
+            "endpoint": endpoint,
+            "details": (
+                "External LDAP protocol reachability and naming context "
+                "verified from omnia_auth"
+            ),
+            "error": "",
+        }
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return {
+            "success": False,
+            "skipped": False,
+            "endpoint": endpoint,
+            "details": "External LDAP protocol reachability failed",
+            "error": str(exc),
+        }
+
+
+def verify_external_ldap_user_bind(host) -> dict[str, str]:
     """Verify the configured test user can bind through ``omnia_auth``."""
     settings = load_external_ldap_settings()
-    if not settings["enabled"]:
-        raise ValueError("external_ldap is not enabled")
+    if not settings["validation_enabled"]:
+        raise ValueError("validate_external_ldap is false")
     credentials = load_external_ldap_credentials()
     config_path = resolve_proxy_config_path(host, settings)
     current = _checked(
@@ -889,8 +745,14 @@ def verify_external_ldap_user_bind(host) -> Dict[str, str]:
         result = run_on_host(
             host,
             "%s %s %s %s %s %s %s %s",
-            "ldapwhoami", "-x", "-H", "ldap://127.0.0.1:389",
-            "-D", user_dn, "-y", staged["user_password"],
+            "ldapwhoami",
+            "-x",
+            "-H",
+            "ldap://127.0.0.1:389",
+            "-D",
+            user_dn,
+            "-y",
+            staged["user_password"],
         )
     _checked(result, "Authenticate LDAP test user through proxy")
     return {"username": credentials["username"], "dn": user_dn}

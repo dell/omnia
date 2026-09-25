@@ -23,7 +23,6 @@ from omnia_auto import (
     resolve_domain_input_path,
 )
 
-
 DOMAIN_NAME = "orchestrator"
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
 ENV_ORCHESTRATOR_DATA_PATH = "ORCHESTRATOR_DATA_PATH"
@@ -46,9 +45,7 @@ def _validate_project_name(project: str) -> str:
 
 def resolve_project_name(_config=None) -> str:
     """Return the local runtime project from the Omnia environment."""
-    project = os.environ.get(
-        ENV_OMNIA_PROJECT_NAME, DEFAULT_PROJECT_NAME
-    )
+    project = os.environ.get(ENV_OMNIA_PROJECT_NAME, DEFAULT_PROJECT_NAME)
     return _validate_project_name(project)
 
 
@@ -63,17 +60,13 @@ def resolve_shared_path(_config=None) -> str:
         ).rstrip("/")
         shared_path = os.path.join(omnia_path, DOMAIN_NAME)
     if not os.path.isabs(shared_path) or shared_path == "/":
-        raise ValueError(
-            "Resolved Orchestrator data path must be safe and absolute"
-        )
+        raise ValueError("Resolved Orchestrator data path must be safe and absolute")
     return shared_path
 
 
 def _resolve_project_path(_config, path_kind: str) -> str:
     """Resolve one local path from environment-backed runtime context."""
-    return os.path.join(
-        resolve_shared_path(), path_kind, resolve_project_name()
-    )
+    return os.path.join(resolve_shared_path(), path_kind, resolve_project_name())
 
 
 def resolve_input_project_path(config=None) -> str:
@@ -88,9 +81,7 @@ def resolve_output_project_path(config=None) -> str:
 
 def resolve_target_project_name(host) -> str:
     """Return the project selected by the target Omnia environment."""
-    return _validate_project_name(
-        read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
-    )
+    return _validate_project_name(read_remote_env(host, ENV_OMNIA_PROJECT_NAME))
 
 
 def resolve_target_shared_path(host) -> str:

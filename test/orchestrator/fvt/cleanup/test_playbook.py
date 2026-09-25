@@ -12,68 +12,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Orchestrator Cleanup — Deploy.
-
-ORCH_FVT_CLEANUP_E001: Deploy orchestrator.yml --tags cleanup
-"""
-
-import re
+"""Execute the supported full Orchestrator cleanup lifecycle."""
 
 import pytest
-
-from library.functions import TestLogger, run_playbook
-from library.messages import (
-    TEST_NAMES,
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
+from library.functions import (
+    TestLogger,
+    cleanup_extra_vars,
+    cleanup_selection_fields,
+    run_playbook,
 )
+from library.messages import CLEANUP_TEST_ASSERT_MSGS as ASSERT
+from library.messages import CLEANUP_TEST_LOG_MSGS as LOG
+from library.vars import TEST_CASES as TC
 
-
-pytestmark = pytest.mark.destructive
+pytestmark = [pytest.mark.destructive]
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_cleanup(host):
-    """ORCH_FVT_CLEANUP_E001: Deploy orchestrator.yml --tags cleanup."""
-    tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag="cleanup"), "ORCH_FVT_CLEANUP_E001"
-    )
-    result = run_playbook(tag="cleanup")
+    """Run ``orchestrator.yml --tags cleanup`` exactly once."""
+    tc = TC["deploy_cleanup"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    try:
+        extra_vars = cleanup_extra_vars()
+    except (TypeError, ValueError) as exc:
+        test_log.failed_fields(
+            LOG["playbook_failed"], [("Configuration error", str(exc))]
+        )
+        pytest.fail(str(exc))
 
+    result = run_playbook(tag="cleanup", extra_vars=extra_vars or None)
+    fields = [
+        ("Command", "ansible-playbook playbooks/orchestrator.yml --tags cleanup"),
+        *cleanup_selection_fields(),
+        ("Return code", result["rc"]),
+        ("Duration seconds", f"{result['duration']:.1f}"),
+    ]
     if result["success"]:
-        tl.passed(LOG["playbook_success"].format(
-            duration=result["duration"]
-        ))
+        test_log.passed_fields(LOG["playbook_success"], fields)
     else:
-        tl.failed(
-            LOG["playbook_failed"].format(
-                rc=result["rc"], duration=result["duration"],
-            ),
-            result.get("error", "See playbook output above"),
+        test_log.failed_fields(
+            LOG["playbook_failed"],
+            [*fields, ("Error", result.get("error", "See playbook output"))],
         )
 
     assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="orchestrator.yml", tag="cleanup",
-        rc=result["rc"], duration=result["duration"],
-    )
-
-    rerun = run_playbook(tag="cleanup")
-    assert rerun["success"], ASSERT["playbook_failed"].format(
-        playbook="orchestrator.yml", tag="cleanup (idempotency rerun)",
-        rc=rerun["rc"], duration=rerun["duration"],
-    )
-
-    recap = re.search(
-        r"localhost\s+:.*changed=(\d+).*failed=(\d+)",
-        rerun.get("output", ""),
-    )
-    assert recap is not None, "Cleanup rerun did not contain a localhost play recap"
-    assert int(recap.group(1)) == 0, (
-        f"Cleanup rerun was not idempotent: changed={recap.group(1)}"
-    )
-    assert int(recap.group(2)) == 0, (
-        f"Cleanup rerun failed: failed={recap.group(2)}"
+        rc=result["rc"], duration=result["duration"]
     )

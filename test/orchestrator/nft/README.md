@@ -1,255 +1,68 @@
-# Non-Functional Tests (NFT) — Orchestrator
+# Orchestrator Non-Functional Tests
 
-Non-Functional Tests validate **performance**, **idempotency**, and **security** of the orchestrator playbooks. Unlike FVT (which verifies correctness), NFT ensures that operations complete within acceptable timeframes, produce consistent results across repeated executions, and maintain proper security configurations.
+The NFT suite measures lifecycle duration, repeat-execution behavior, and
+protection of sensitive runtime artifacts. These cases execute real
+Orchestrator playbooks against the configured OIM. They are not offline unit
+tests.
 
----
+## Test registry
 
-## Test Categories
+| Order | TC ID | Test | Marker | Contract |
+|---:|---|---|---|---|
+| 10 | `ORCH_NFT_001` | `test_precheck_performance` | `performance` | Precheck completes within its configured threshold. |
+| 20 | `ORCH_NFT_002` | `test_prepare_performance` | `performance`, `destructive` | Prepare completes within its configured threshold. |
+| 30 | `ORCH_NFT_005` | `test_prepare_idempotency` | `idempotency`, `destructive` | The second prepare has no persistent changes, preserves container identity, and leaves all required OpenCHAMI services ready. |
+| 40 | `ORCH_NFT_003` | `test_provision_performance` | `performance`, `destructive` | Provision completes within its configured threshold. |
+| 50 | `ORCH_NFT_006` | `test_precheck_idempotency` | `idempotency` | The second precheck succeeds without persistent changes. |
+| 60 | `ORCH_NFT_008` | `test_credential_file_permissions` | `security` | The encrypted credential file is root-owned and mode `0600` or `0640`. |
+| 61 | `ORCH_NFT_009` | `test_ssh_private_key_permissions` | `security` | `/root/.ssh/oim_rsa` is root-owned and mode `0600`. |
+| 62 | `ORCH_NFT_010` | `test_log_file_permissions` | `security` | Orchestrator log files are root-owned and have no permissions for other users. |
+| 63 | `ORCH_NFT_011` | `test_vault_encryption` | `security` | Product credentials have a supported Ansible Vault header and a root-owned mode-`0600` key. |
+| 90 | `ORCH_NFT_004` | `test_cleanup_performance` | `performance`, `destructive` | Full cleanup completes within its configured threshold. |
+| 91 | `ORCH_NFT_007` | `test_cleanup_idempotency` | `idempotency`, `destructive` | Two cleanup executions succeed, the second has no persistent changes, and every cleanup FVT postcondition passes. |
 
-| Category | Description | Marker |
-|----------|-------------|--------|
-| Performance | Verify playbooks complete within time thresholds | performance |
-| Idempotency | Verify playbooks can run multiple times safely | idempotency |
-| Security | Verify file permissions and encryption | security |
+`ORCH_NFT_001` and `ORCH_NFT_006` use the current `precheck` lifecycle. They
+retain the stable IDs formerly associated with the retired standalone
+validation operation.
 
-## Test Case Registry
+## Performance thresholds
 
-### Performance Tests
+`test_config.yml` defines the accepted wall-clock limits in seconds:
 
-| TC ID | Test | Threshold | Marker |
-|-------|------|-----------|--------|
-| ORCH_NFT_001 | Validate performance | < 30s | nft, performance |
-| ORCH_NFT_002 | Prepare performance | < 300s (5 min) | nft, performance |
-| ORCH_NFT_003 | Provision performance | < 1800s (30 min) | nft, performance |
-| ORCH_NFT_004 | Cleanup performance | < 180s (3 min) | nft, performance |
+```yaml
+nft_performance_threshold_seconds:
+  precheck: 60
+  prepare: 300
+  provision: 1800
+  cleanup: 180
+```
 
-**Performance thresholds** ensure that orchestrator operations complete in reasonable timeframes:
-- **Validate**: Configuration validation should be fast (< 30 seconds)
-- **Prepare**: OpenCHAMI deployment should complete in under 5 minutes
-- **Provision**: Full node provisioning should complete in under 30 minutes
-- **Cleanup**: Container/service cleanup should complete in under 3 minutes
-
-### Idempotency Tests
-
-| TC ID | Test | Marker |
-|-------|------|--------|
-| ORCH_NFT_005 | Prepare idempotency (OpenCHAMI containers stable) | nft, idempotency |
-| ORCH_NFT_006 | Validate idempotency (config validation safe to re-run) | nft, idempotency |
-| ORCH_NFT_007 | Cleanup idempotency (safe to cleanup twice) | nft, idempotency |
-
-**Idempotency tests** verify that playbooks can be run multiple times without errors:
-- **Prepare idempotency**: Running prepare twice should succeed and keep OpenCHAMI containers stable
-- **Validate idempotency**: Running validate twice should succeed without errors
-- **Cleanup idempotency**: Running cleanup twice should succeed and keep resources cleaned
-
-### Security Tests
-
-| TC ID | Test | Marker |
-|-------|------|--------|
-| ORCH_NFT_008 | Credential file permissions (0640 or stricter) | nft, security |
-| ORCH_NFT_009 | SSH key permissions (0600) | nft, security |
-| ORCH_NFT_010 | Sensitive log file permissions | nft, security |
-| ORCH_NFT_011 | Ansible vault encryption verification | nft, security |
-
-**Security tests** verify that sensitive files have proper access controls:
-- **Credential permissions**: Ensure credential files are not world-readable
-- **SSH key permissions**: Ensure SSH private keys have owner-only access
-- **Log file permissions**: Ensure log files don't expose sensitive information
-- **Vault encryption**: Verify Ansible vault encryption is properly configured
+These values describe the supported reference OIM using the active project
+input and its current mapped-node inventory. The report records the configured
+limit and measured duration. Change a limit only when the supported reference
+environment or acceptance requirement changes, and document the rationale in
+the same change.
 
 ## Execution
 
+Run NFT separately from normal lifecycle FVT:
+
 ```bash
-# Run all NFT tests
+cd test/orchestrator
+
+# Complete suite. This provisions state and finishes with full cleanup.
 ./run_validation.sh nft_orchestrator test
 
-# Run only performance tests
+# One quality contract only.
 ./run_validation.sh nft_orchestrator test --marker performance
-
-# Run only idempotency tests
 ./run_validation.sh nft_orchestrator test --marker idempotency
-
-# Run only security tests
 ./run_validation.sh nft_orchestrator test --marker security
-
-# Run with verbose output
-./run_validation.sh nft_orchestrator test -v
-
-# Run with debug output
-./run_validation.sh nft_orchestrator test --debug
 ```
 
-## Test Flow
+The complete, performance, and idempotency flows mutate the target. Cleanup
+uses `cleanup_credentials`, `cleanup_slurm`, and `cleanup_k8s` from
+`test_config.yml`. Review those values and back up required cluster data before
+execution. Do not enable FVT cleanup and NFT in the same unattended batch.
 
-### Performance Test Flow
-
-```
-1. ORCH_NFT_001: Run validate playbook, measure duration
-   ├─ Assert: rc=0 (playbook succeeded)
-   └─ Assert: duration < 30s
-
-2. ORCH_NFT_002: Run prepare playbook, measure duration
-   ├─ Assert: rc=0 (playbook succeeded)
-   └─ Assert: duration < 300s
-
-3. ORCH_NFT_003: Run provision playbook, measure duration
-   ├─ Assert: rc=0 (playbook succeeded)
-   └─ Assert: duration < 1800s
-
-4. ORCH_NFT_004: Run cleanup playbook, measure duration
-   ├─ Assert: rc=0 (playbook succeeded)
-   └─ Assert: duration < 180s
-```
-
-### Idempotency Test Flow
-
-```
-1. ORCH_NFT_005: Prepare idempotency
-   ├─ Run 1: Prepare playbook (initial deployment)
-   ├─ Run 2: Prepare playbook (idempotent re-run)
-   └─ Assert: Both runs exit 0, containers stable
-
-2. ORCH_NFT_006: Validate idempotency
-   ├─ Run 1: Validate playbook (initial validation)
-   ├─ Run 2: Validate playbook (idempotent re-run)
-   └─ Assert: Both runs exit 0
-
-3. ORCH_NFT_007: Cleanup idempotency
-   ├─ Run 1: Cleanup playbook (initial cleanup)
-   ├─ Run 2: Cleanup playbook (idempotent re-run)
-   └─ Assert: Both runs exit 0, resources remain cleaned
-```
-
-### Security Test Flow
-
-```
-1. ORCH_NFT_008: Credential file permissions
-   └─ Assert: omnia_config_credentials.yml has 0640 or stricter
-
-2. ORCH_NFT_009: SSH key permissions
-   └─ Assert: SSH private keys have 0600 permissions
-
-3. ORCH_NFT_010: Sensitive log file permissions
-   └─ Assert: Log files are not world-readable
-
-4. ORCH_NFT_011: Vault encryption verification
-   └─ Assert: Vault header present, key file has 0600
-```
-
-## Why NFT Matters
-
-### Performance Testing
-- **Early detection**: Catch performance regressions before production
-- **Capacity planning**: Understand resource requirements and timing
-- **User experience**: Ensure operations complete in acceptable timeframes
-- **SLA compliance**: Verify service level agreements are met
-
-### Idempotency Testing
-- **Reliability**: Playbooks must be safe to run multiple times
-- **Error recovery**: Users can re-run after failures without manual cleanup
-- **CI/CD safety**: Automated pipelines can safely retry operations
-- **Operational efficiency**: Reduce manual intervention in production
-
-### Security Testing
-- **Data protection**: Ensure sensitive files are properly protected
-- **Compliance**: Meet security standards and regulatory requirements
-- **Audit readiness**: Maintain proper access controls
-- **Risk mitigation**: Reduce security vulnerabilities
-
-## Expected Results
-
-All NFT tests should **PASS** on a healthy orchestrator deployment:
-
-```
-ORCH_NFT_001: ✔ PASS  (validate: 34.4s < 60s)
-ORCH_NFT_002: ✔ PASS  (prepare: 245.7s < 300s)
-ORCH_NFT_003: ✔ PASS  (provision: 1542.1s < 1800s)
-ORCH_NFT_004: ✔ PASS  (cleanup: 125.4s < 180s)
-ORCH_NFT_005: ✔ PASS  (prepare idempotent: run1=245.7s, run2=3.2s)
-ORCH_NFT_006: ✔ PASS  (validate idempotent: run1=12.3s, run2=11.8s)
-ORCH_NFT_007: ✔ PASS  (cleanup idempotent: run1=125.4s, run2=2.1s)
-ORCH_NFT_008: ✔ PASS  (credential file permissions: 0640)
-ORCH_NFT_009: ✔ PASS  (SSH key permissions: 0600)
-ORCH_NFT_010: ✔ PASS  (log files are not world-exposed)
-ORCH_NFT_011: ✔ PASS  (vault encryption: header present, key 0600)
-```
-
-## Troubleshooting
-
-### Performance Test Failures
-
-If a performance test fails:
-1. Check if the playbook succeeded (rc=0) but was slow
-2. Review cluster resource availability (CPU, memory, network)
-3. Check for external dependencies (image registry, DNS, storage)
-4. Consider adjusting thresholds if infrastructure is slower
-5. Review orchestrator logs for bottlenecks
-
-### Idempotency Test Failures
-
-If an idempotency test fails:
-1. Check the second run's exit code and error messages
-2. Look for tasks that fail when resources already exist
-3. Verify tasks use proper guards:
-   - `changed_when: false` for check commands
-   - `failed_when: false` for cleanup commands
-   - `--ignore-not-found=true` for kubectl delete
-   - Proper Ansible idempotency patterns
-4. Review playbook logic for conditional task execution
-
-### Security Test Failures
-
-If a security test fails:
-1. Check current file permissions using `stat` or `ls -l`
-2. Verify file ownership and group membership
-3. Update file permissions using `chmod`
-4. Review Ansible vault configuration
-5. Ensure vault key files are properly protected
-
-## Adjusting Thresholds
-
-Edit the constants in `nft/test_performance.py`:
-
-```python
-VALIDATE_THRESHOLD = 60     # 60 seconds
-PREPARE_THRESHOLD = 300     # 5 minutes
-PROVISION_THRESHOLD = 1800  # 30 minutes
-CLEANUP_THRESHOLD = 180     # 3 minutes
-```
-
-For faster hardware, reduce thresholds. For CI/CD pipelines with shared resources, consider increasing them. Document any threshold changes with rationale.
-
-## Prerequisites
-
-Run these commands from `test/orchestrator/`. NFT requires a valid target environment, input configuration, and credentials:
-
-```bash
-# Validate prerequisites
-./run_validation.sh fvt_orchestrator validate verify
-
-# Run NFT (includes cleanup operations)
-./run_validation.sh nft_orchestrator test
-```
-
-**Note**: NFT tests execute actual playbook operations including cleanup. Ensure you have proper backups and understand the impact before running NFT in production environments.
-
-## Integration with FVT
-
-NFT complements FVT by testing non-functional aspects:
-
-1. **Run FVT first** to verify functional correctness
-2. **Run NFT** to verify performance, idempotency, and security
-3. **Use both** for comprehensive testing coverage
-
-```bash
-# Complete test suite
-./run_validation.sh fvt_orchestrator validate verify
-./run_validation.sh fvt_orchestrator prepare verify
-./run_validation.sh nft_orchestrator test
-```
-
-## Related Documentation
-
-- See `../fvt/README.md` for FVT test case registry
-- See `../README.md` for overall test automation documentation
-- See `../docs/` for detailed configuration documentation
+Security-only execution is observational, but required artifacts fail when
+missing; absence is not reported as a successful skip.
