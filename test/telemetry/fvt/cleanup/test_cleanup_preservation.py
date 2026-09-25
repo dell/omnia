@@ -183,8 +183,47 @@ def test_cleanup_logs_preserved(host, delete_sinks_volume):
 
 
 # =============================================================================
-# PHASE 2: DEFAULT CLEANUP RUNS AT ORDER 3 (in test_playbook.py)
+# PHASE 2: DEFAULT CLEANUP (order 3)
 # =============================================================================
+
+@pytest.mark.deploy
+@pytest.mark.sanity
+@pytest.mark.order(3)
+def test_deploy_cleanup(host, delete_sinks_volume):
+    """TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup).
+
+    Runs after both preservation checks. When delete_sinks_volume=true,
+    passes -e Delete_sinks_volume=true to also delete sink PVCs.
+    """
+    tc = TC["deploy_cleanup"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    extra_vars = {"Delete_sinks_volume": "true"} if delete_sinks_volume else None
+    mode_label = "with volume deletion" if delete_sinks_volume else "default"
+    tl.check(f"Running telemetry playbook --tags cleanup ({mode_label})")
+    result = run_playbook(tag="cleanup", extra_vars=extra_vars)
+
+    if result["success"]:
+        tl.passed(
+            LOG_MSGS["playbook_success"].format(
+                duration=f"{result['duration']:.1f}s",
+            ),
+            f"rc={result['rc']}",
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["playbook_failed"].format(
+                rc=result["rc"],
+                duration=f"{result['duration']:.1f}s",
+            ),
+            result.get("error", ""),
+        )
+
+    assert result["success"], ASSERT_MSGS["playbook_failed"].format(
+        playbook="telemetry.yml",
+        tag="cleanup",
+        rc=result["rc"],
+    )
 
 
 # =============================================================================
@@ -195,22 +234,17 @@ def test_cleanup_logs_preserved(host, delete_sinks_volume):
 
 @pytest.mark.functional
 @pytest.mark.order(4)
-def test_cleanup_credentials_deleted(host, delete_sinks_volume):
+def test_cleanup_credentials_deleted(host):
     """TEL_FVT_CLEANUP_V016: Verify credentials deleted after default cleanup.
 
     After the default cleanup (cleanup_credentials=true by default):
       - telemetry_credentials.yml must be deleted
       - .telemetry_credentials_key must be deleted
 
-    Depends on: test_deploy_cleanup (order 3 in test_playbook.py).
-    Skipped when delete_sinks_volume=true (preservation not applicable).
+    Depends on: test_deploy_cleanup (order 3 in this module).
+    Also applies when delete_sinks_volume=true because that mode always
+    deletes credentials.
     """
-    if delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=true — preservation flags are overridden; "
-            "credentials are always deleted in this mode"
-        )
-
     tc = TC["cleanup_credentials_deleted"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -226,21 +260,16 @@ def test_cleanup_credentials_deleted(host, delete_sinks_volume):
 
 @pytest.mark.functional
 @pytest.mark.order(5)
-def test_cleanup_logs_deleted(host, delete_sinks_volume):
+def test_cleanup_logs_deleted(host):
     """TEL_FVT_CLEANUP_V018: Verify logs deleted after default cleanup.
 
     After the default cleanup (cleanup_logs=true by default):
       - <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME>/ must be deleted
 
-    Depends on: test_deploy_cleanup (order 3 in test_playbook.py).
-    Skipped when delete_sinks_volume=true (preservation not applicable).
+    Depends on: test_deploy_cleanup (order 3 in this module).
+    Also applies when delete_sinks_volume=true because that mode always
+    deletes logs.
     """
-    if delete_sinks_volume:
-        pytest.skip(
-            "delete_sinks_volume=true — preservation flags are overridden; "
-            "logs are always deleted in this mode"
-        )
-
     tc = TC["cleanup_logs_deleted"]
     tl = TestLogger(tc["title"], tc["id"])
 
