@@ -29,18 +29,21 @@ Bug Fixes
 Features
 --------
 
+- Added ownership-aware Metadata Service reconciliation and persistent per-node metadata application status.
 - Added persistent Service Tag-to-XNAME identity resolution through native SMD Hardware Inventory.
 - Added the CA-verified ``openchami_reconcile`` Ansible module for SMD and OpenCHAMI reconciliation.
-- Removed temporary row-position XNAME generation from provision, validation, and PXE workflows.
+- Provision, validation, and PXE workflows consume only SMD-resolved identities; PXE mappings do not contain XNAME values.
+- Metadata Service resources are updated in place through CA-verified APIs, with safe stale-group cleanup.
+- Provisioning-password hashes are stable for each project and cluster, with plaintext supplied to OpenSSL over standard input.
+- Reorganized Orchestrator documentation into focused lowercase architecture, identity, troubleshooting, contract, and container guides.
 
 Breaking Changes
 ---------------
 
-- Renamed ``phone_home`` timing and verification controls to ``node_registration`` throughout PXE provisioning workflow.
-  - Role: ``verify_phone_home`` → ``verify_node_registration``
-  - Variables: ``enable_phone_home`` → ``enable_node_registration``, etc.
-  - Legacy ``phone_home_*`` variables supported with deprecation warning
-  - Node completion is verified directly through SSH, boot freshness, and cloud-init status
+- Node-registration timing and verification use the
+  ``enable_node_registration``, ``node_registration_pause_minutes``,
+  ``node_registration_retries``, and ``node_registration_delay`` controls.
+- Node completion is verified directly through SSH, boot freshness, and cloud-init status.
 
 v2.2.0
 ======

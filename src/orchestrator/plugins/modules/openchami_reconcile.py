@@ -29,7 +29,8 @@ description:
   - Uses verified HTTPS and TokenSmith JWT authentication.
   - Resolves persistent XNAME identities, reconciles SMD groups, cleans scoped
     SMD artifacts, runs static discovery, verifies registrations, and
-    idempotently reconciles Metadata Service InstanceInfo resources.
+    idempotently reconciles owned Metadata Service InstanceInfo, Group, and
+    ClusterDefaults resources.
 options:
   action:
     description: Reconciliation operation to perform.
@@ -45,6 +46,9 @@ options:
       - discover_static
       - verify_components
       - reconcile_instanceinfos
+      - reconcile_metadata_groups
+      - prune_metadata_groups
+      - reconcile_cluster_defaults
   cluster_uri:
     description: HTTPS URL of the OpenCHAMI gateway.
     type: str
@@ -113,6 +117,33 @@ options:
     type: list
     elements: dict
     default: []
+  metadata_groups:
+    description: Desired Metadata Service group resources.
+    type: list
+    elements: dict
+    default: []
+  metadata_group_names:
+    description: Complete desired Metadata Service group-name set.
+    type: list
+    elements: str
+    default: []
+  cluster_defaults:
+    description: Desired Metadata Service ClusterDefaults resource.
+    type: dict
+    default: {}
+  project_name:
+    description: Omnia project owning reconciled Metadata Service resources.
+    type: str
+  legacy_managed_group_names:
+    description: Reserved legacy Omnia group names eligible for safe adoption.
+    type: list
+    elements: str
+    default: []
+  legacy_managed_group_prefixes:
+    description: Reserved legacy Omnia group prefixes eligible for safe adoption.
+    type: list
+    elements: str
+    default: []
   timeout:
     description: Per-request network timeout in seconds.
     type: int
@@ -149,6 +180,7 @@ EXAMPLES = r'''
     access_token: "{{ openchami_access_token }}"
     ca_cert: "{{ openchami_ca_cert_path }}"
     instance_infos: "{{ desired_instance_infos }}"
+    project_name: "{{ project_name }}"
 '''
 
 RETURN = r'''
@@ -182,6 +214,9 @@ def main():
                     "discover_static",
                     "verify_components",
                     "reconcile_instanceinfos",
+                    "reconcile_metadata_groups",
+                    "prune_metadata_groups",
+                    "reconcile_cluster_defaults",
                 ],
             },
             "cluster_uri": {"type": "str", "required": True},
@@ -233,6 +268,28 @@ def main():
             "instance_infos": {
                 "type": "list",
                 "elements": "dict",
+                "default": [],
+            },
+            "metadata_groups": {
+                "type": "list",
+                "elements": "dict",
+                "default": [],
+            },
+            "metadata_group_names": {
+                "type": "list",
+                "elements": "str",
+                "default": [],
+            },
+            "cluster_defaults": {"type": "dict", "default": {}},
+            "project_name": {"type": "str"},
+            "legacy_managed_group_names": {
+                "type": "list",
+                "elements": "str",
+                "default": [],
+            },
+            "legacy_managed_group_prefixes": {
+                "type": "list",
+                "elements": "str",
                 "default": [],
             },
             "timeout": {"type": "int", "default": 15},
@@ -295,9 +352,32 @@ def main():
                     _required(module, "expected_xnames")
                 ),
             }
-        else:
+        elif action == "reconcile_instanceinfos":
             result = reconciler.reconcile_instance_infos(
                 desired=_required(module, "instance_infos"),
+                project_name=_required(module, "project_name"),
+                check_mode=module.check_mode,
+            )
+        elif action == "reconcile_metadata_groups":
+            result = reconciler.reconcile_metadata_groups(
+                desired=_required(module, "metadata_groups"),
+                project_name=_required(module, "project_name"),
+                check_mode=module.check_mode,
+            )
+        elif action == "prune_metadata_groups":
+            result = reconciler.prune_metadata_groups(
+                desired_names=module.params["metadata_group_names"],
+                project_name=_required(module, "project_name"),
+                legacy_managed_names=module.params["legacy_managed_group_names"],
+                legacy_managed_prefixes=module.params[
+                    "legacy_managed_group_prefixes"
+                ],
+                check_mode=module.check_mode,
+            )
+        else:
+            result = reconciler.reconcile_cluster_defaults(
+                desired=_required(module, "cluster_defaults"),
+                project_name=_required(module, "project_name"),
                 check_mode=module.check_mode,
             )
         module.exit_json(**result)

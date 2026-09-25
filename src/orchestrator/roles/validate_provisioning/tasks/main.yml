@@ -26,6 +26,33 @@
     file: "{{ role_path }}/../../vars/functional_group_classification.yml"
     name: classification
 
+- name: Check for an existing orchestrator status report
+  ansible.builtin.stat:
+    path: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+  register: previous_orchestrator_status_stat
+
+- name: Load the existing orchestrator status report
+  ansible.builtin.slurp:
+    src: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+  register: previous_orchestrator_status_raw
+  when: previous_orchestrator_status_stat.stat.exists
+
+- name: Index previous per-node status by XNAME
+  ansible.builtin.set_fact:
+    previous_orchestrator_status: >-
+      {{ (previous_orchestrator_status_raw.content | b64decode | from_yaml)
+         if previous_orchestrator_status_stat.stat.exists else {} }}
+    previous_node_status_by_xname: >-
+      {% set result = {} -%}
+      {% set previous = ((previous_orchestrator_status_raw.content | b64decode | from_yaml)
+                         if previous_orchestrator_status_stat.stat.exists else {}) -%}
+      {% for node in previous.nodes | default([]) -%}
+      {% if node.xname | default('') | length > 0 -%}
+      {% set _ = result.update({node.xname: node}) -%}
+      {% endif -%}
+      {% endfor -%}
+      {{ result }}
+
 - name: Query SMD for all registered components
   ansible.builtin.uri:
     url: "{{ openchami_base_url }}/hsm/v2/State/Components"
@@ -90,6 +117,31 @@
 - name: Build expected functional group names
   ansible.builtin.set_fact:
     expected_fg_names: "{{ fg_config.functional_groups | map(attribute='name') | list }}"
+
+- name: Prune stale Omnia-owned Metadata Service groups
+  openchami_reconcile:
+    action: prune_metadata_groups
+    cluster_uri: "{{ openchami_base_url }}"
+    access_token: "{{ openchami_access_token }}"
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    project_name: "{{ hostvars['localhost']['project_name'] }}"
+    metadata_group_names: "{{ omnia_metadata_desired_group_names }}"
+    legacy_managed_group_names:
+      - ssh
+      - chrony
+      - node_registration
+      - additional_metadata_svc
+    legacy_managed_group_prefixes:
+      - service_kube_
+      - slurm_
+      - login_
+      - os_
+      - additional_metadata_svc_
+  register: metadata_group_prune_result
+  no_log: true
+  when:
+    - omnia_metadata_desired_group_names is defined
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Identify functional groups without boot configurations
   ansible.builtin.set_fact:
@@ -188,11 +240,34 @@
     - nodes_missing_hostnames is defined
     - nodes_missing_hostnames | length > 0
 
+- name: Calculate persistent metadata application state
+  ansible.builtin.set_fact:
+    identity_changed_nodes: >-
+      {{ expected_nodes
+         | intersect(omnia_identity_created_xnames | default([])) }}
+    metadata_changed_this_run_nodes: >-
+      {{ expected_nodes
+         if omnia_metadata_global_changed | default(false) | bool
+         else expected_nodes
+              | intersect(omnia_metadata_changed_xnames | default([])) }}
+    previous_reprovision_required_nodes: >-
+      {{ previous_orchestrator_status.nodes | default([])
+         | selectattr('reprovision_required', 'defined')
+         | selectattr('reprovision_required', 'equalto', true)
+         | map(attribute='xname') | list }}
+
+- name: Build complete reprovision-required node list
+  ansible.builtin.set_fact:
+    reprovision_required_nodes: >-
+      {{ (metadata_changed_this_run_nodes
+          + previous_reprovision_required_nodes)
+         | intersect(expected_nodes) | unique | list }}
+
 # --- Provisioning summary ---
 - name: Generate provisioning summary
   ansible.builtin.set_fact:
     provisioning_summary:
-      schema_version: "1.0"
+      schema_version: "1.1"
       phase: provisioning
       run_id: "{{ ansible_date_time.epoch }}"
       overall_status: "{{ 'success' if missing_nodes | length == 0 else 'failed' }}"
@@ -210,6 +285,11 @@
       registered_admin_interfaces: "{{ expected_admin_macs | intersect(registered_interface_macs) | length }}"
       missing_admin_interfaces: "{{ missing_smd_interfaces }}"
       nodes_missing_hostnames: "{{ nodes_missing_hostnames | default([]) }}"
+      identity_changed_nodes: "{{ identity_changed_nodes }}"
+      metadata_changed_nodes: "{{ metadata_changed_this_run_nodes }}"
+      reprovision_required_nodes: "{{ reprovision_required_nodes }}"
+      stale_metadata_groups_deleted: >-
+        {{ (metadata_group_prune_result | default({})).get('deleted', []) }}
       inventory_source: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
       timestamp: "{{ ansible_date_time.iso8601 }}"
 
@@ -246,6 +326,13 @@
            'bmc_ip': _mapping_entry.BMC_IP | default(''),
            'hostname': _mapping_entry.HOSTNAME | default(''),
            'service_tag': _mapping_entry.SERVICE_TAG | default(''),
+           'identity_changed': item in identity_changed_nodes,
+           'metadata_changed': item in reprovision_required_nodes,
+           'running_state_updated': (
+             false if item in reprovision_required_nodes
+             else _previous_node.running_state_updated | default(false) | bool
+           ),
+           'reprovision_required': item in reprovision_required_nodes,
            'status': _node_status,
            'failure_reason': _failure_reason,
            'failure_stage': ('provisioning' if _node_status == 'failed' else ''),
@@ -273,6 +360,7 @@
          | map(attribute='value') | first | default({}) }}
     _node_status: "{{ 'success' if item in registered_xnames else 'failed' }}"
     _failure_reason: "{{ '' if _node_status == 'success' else 'not registered in SMD' }}"
+    _previous_node: "{{ previous_node_status_by_xname.get(item, {}) }}"
 
 # Write orchestrator_status.yml for provision, execute, and the untagged
 # full flow.
@@ -283,7 +371,7 @@
     mode: "0644"
   vars:
     orchestrator_status:
-      schema_version: "1.0"
+      schema_version: "1.1"
       run_id: "{{ ansible_date_time.epoch }}"
       overall_status: "{{ 'success' if missing_nodes | length == 0 else 'failed' }}"
       last_completed_phase: provisioning
