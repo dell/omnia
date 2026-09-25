@@ -39,13 +39,17 @@ Test cases:
     TEL_NFT_010: Service endpoint availability (order 115)
     TEL_NFT_011: Data ingestion after sink restart (order 116)
     TEL_NFT_012: Node reboot recovery (order 117)
-    TEL_NFT_013: Full lifecycle (cleanup -> redeploy) (order 118)
-    TEL_NFT_014: Operator pod recovery (order 119)
+    TEL_NFT_020: iDRAC enable/disable/re-enable data lifecycle (order 118)
+    TEL_NFT_013: Full lifecycle (cleanup -> redeploy) (order 119)
+    TEL_NFT_014: Operator pod recovery (order 120)
 """
+
+import time
+from uuid import uuid4
 
 import pytest
 
-from omnia_auto import TestLogger, run_playbook
+from omnia_auto import TestLogger, run_on_host, run_playbook
 
 from library.vars.test_case_vars import TEST_CASES as TC
 from library.vars.common_vars import (
@@ -65,9 +69,19 @@ from library.messages.telemetry_msgs import (
 from library.functions.telemetry_func import (
     is_source_enabled,
     is_sink_enabled,
+    is_sink_enabled_for_source,
     resolve_kube_vip_ip,
 )
 from library.functions.k8s_func import verify_all_pods_running
+from library.functions.idrac_func import (
+    get_idrac_lifecycle_state,
+    get_idrac_telemetry_config_path,
+    probe_fresh_idrac_kafka_records,
+    query_idrac_vm_samples,
+    set_idrac_metrics_enabled,
+    wait_for_fresh_idrac_vm_samples,
+    wait_for_idrac_replicas,
+)
 from library.functions.resilience_func import (
     verify_pod_recreation,
     verify_all_pvcs_bound,
@@ -564,12 +578,231 @@ def test_node_reboot_recovery(host):
 
 
 # =========================================================================
+# TEL_NFT_020: iDRAC Enable -> Disable -> Re-enable Data Lifecycle
+# =========================================================================
+
+
+def _assert_idrac_storage_identity(baseline, current, phase):
+    """Assert the StatefulSet, PVCs, and bound PV names were reused."""
+    assert current["statefulset"]["uid"] == baseline["statefulset"]["uid"], (
+        f"iDRAC StatefulSet UID changed during {phase}"
+    )
+    assert current["pvcs"] == baseline["pvcs"], (
+        f"iDRAC PVC UID/PV identity changed during {phase}: "
+        f"before={baseline['pvcs']}, after={current['pvcs']}"
+    )
+    assert current["kafka_topic"] == baseline["kafka_topic"], (
+        f"iDRAC Kafka topic identity changed during {phase}"
+    )
+    assert current["pvcs"], "No iDRAC MySQL PVCs were found"
+    assert all(
+        pvc["phase"] == "Bound" and pvc["volume_name"]
+        for pvc in current["pvcs"].values()
+    ), f"One or more iDRAC PVCs are not Bound during {phase}"
+
+
+@pytest.mark.nft
+@pytest.mark.resilience
+@pytest.mark.order(118)
+def test_idrac_data_lifecycle(host):  # pylint: disable=too-many-locals,too-many-statements,too-many-function-args
+    """Verify data flow stops and resumes without replacing iDRAC storage.
+
+    The test starts Kafka consumers at ``latest`` so historical records cannot
+    satisfy fresh-data checks. VictoriaMetrics is queried through the raw
+    export API so only stored samples in the requested wall-clock window are
+    counted. The original config file is restored byte-for-byte in ``finally``.
+    """
+    if not is_source_enabled(host, "idrac"):
+        pytest.skip("iDRAC must initially be enabled for lifecycle validation")
+    if not is_sink_enabled_for_source(host, "idrac", "kafka"):
+        pytest.skip("iDRAC Kafka collection target is not enabled")
+    if not is_sink_enabled_for_source(host, "idrac", "victoria_metrics"):
+        pytest.skip("iDRAC VictoriaMetrics collection target is not enabled")
+
+    tc = TC["nft_idrac_data_lifecycle"]
+    tl = TestLogger(tc["title"], tc["id"])
+    config_path = get_idrac_telemetry_config_path(host)
+    backup_path = f"{config_path}.idrac-lifecycle-{uuid4().hex}.bak"
+
+    baseline = get_idrac_lifecycle_state(host)
+    assert baseline["success"], baseline["error"]
+    expected_replicas = baseline["statefulset"]["replicas"]
+    assert expected_replicas > 0, "iDRAC has no enabled replicas at test start"
+    _assert_idrac_storage_identity(baseline, baseline, "baseline")
+
+    backup = run_on_host(  # pylint: disable=too-many-function-args
+        host, "cp --preserve=all -- %s %s", config_path, backup_path,
+    )
+    assert backup.rc == 0, f"Unable to back up {config_path}: {backup.stderr}"
+
+    baseline_vm_start = time.time()
+    restored = False
+    success_details = ""
+    try:
+        tl.check("Confirming fresh iDRAC records in Kafka before disable")
+        kafka_before = probe_fresh_idrac_kafka_records(host, timeout_seconds=90)
+        assert kafka_before["success"], (
+            "No fresh iDRAC Kafka record before disable: "
+            f"{kafka_before.get('error', '')}"
+        )
+
+        tl.check("Confirming fresh iDRAC samples in VictoriaMetrics before disable")
+        vm_before = wait_for_fresh_idrac_vm_samples(
+            host, baseline_vm_start, timeout_seconds=90,
+        )
+        assert vm_before["success"], vm_before["error"]
+        baseline_vm_end = time.time()
+
+        tl.check("Disabling iDRAC through telemetry reconciliation")
+        update = set_idrac_metrics_enabled(host, False)
+        assert update["success"], update["error"]
+        disable_run = run_playbook(
+            playbook=PLAYBOOK_ENTRY_POINT,
+            playbook_workdir=PLAYBOOK_WORKDIR,
+            tag="execute",
+            timeout=LIFECYCLE_DEPLOY_TIMEOUT,
+        )
+        assert disable_run["rc"] == 0, (
+            f"iDRAC disable deploy failed: {disable_run.get('output', '')[-2000:]}"
+        )
+
+        disabled_wait = wait_for_idrac_replicas(host, 0, timeout=300)
+        assert disabled_wait["success"], disabled_wait["error"]
+        disabled = disabled_wait["state"]
+        assert (
+            disabled["statefulset"]["desired_replicas_annotation"]
+            == expected_replicas
+        ), "Saved iDRAC replica annotation does not match the enabled state"
+        _assert_idrac_storage_identity(baseline, disabled, "disable")
+
+        # Allow any records already buffered before pod termination to drain.
+        time.sleep(30)
+        disabled_vm_start = time.time()
+
+        tl.check("Confirming no new iDRAC Kafka records while disabled")
+        kafka_disabled = probe_fresh_idrac_kafka_records(
+            host, timeout_seconds=60,
+        )
+        assert not kafka_disabled["error"], kafka_disabled["error"]
+        assert not kafka_disabled["records"], (
+            "Fresh iDRAC Kafka records arrived while the source was disabled: "
+            f"{kafka_disabled['records'][:3]}"
+        )
+
+        tl.check("Confirming no new iDRAC VictoriaMetrics samples while disabled")
+        vm_disabled = query_idrac_vm_samples(
+            host, disabled_vm_start, time.time(),
+        )
+        assert vm_disabled["success"], vm_disabled["error"]
+        assert vm_disabled["sample_count"] == 0, (
+            f"{vm_disabled['sample_count']} new iDRAC VM samples arrived "
+            "while disabled"
+        )
+
+        historical_disabled = query_idrac_vm_samples(
+            host, baseline_vm_start, baseline_vm_end,
+        )
+        assert historical_disabled["success"], historical_disabled["error"]
+        assert historical_disabled["sample_count"] > 0, (
+            "Pre-disable VictoriaMetrics history was not queryable after disable"
+        )
+
+        tl.check("Re-enabling iDRAC through telemetry reconciliation")
+        update = set_idrac_metrics_enabled(host, True)
+        assert update["success"], update["error"]
+        reenable_started = time.time()
+        enable_run = run_playbook(
+            playbook=PLAYBOOK_ENTRY_POINT,
+            playbook_workdir=PLAYBOOK_WORKDIR,
+            tag="execute",
+            timeout=LIFECYCLE_DEPLOY_TIMEOUT,
+        )
+        assert enable_run["rc"] == 0, (
+            f"iDRAC re-enable deploy failed: {enable_run.get('output', '')[-2000:]}"
+        )
+
+        enabled_wait = wait_for_idrac_replicas(
+            host, expected_replicas, timeout=600,
+        )
+        assert enabled_wait["success"], enabled_wait["error"]
+        reenabled = enabled_wait["state"]
+        _assert_idrac_storage_identity(baseline, reenabled, "re-enable")
+
+        tl.check("Confirming fresh Kafka records after iDRAC re-enable")
+        kafka_after = probe_fresh_idrac_kafka_records(host, timeout_seconds=90)
+        assert kafka_after["success"], (
+            "No fresh iDRAC Kafka record after re-enable: "
+            f"{kafka_after.get('error', '')}"
+        )
+
+        assert (
+            kafka_after["records"][0]["offset"]
+            > kafka_before["records"][0]["offset"]
+        ), "iDRAC Kafka offset did not advance after re-enable"
+
+        tl.check("Confirming fresh and historical VictoriaMetrics data")
+        vm_after = wait_for_fresh_idrac_vm_samples(
+            host, reenable_started, timeout_seconds=90,
+        )
+        assert vm_after["success"], vm_after["error"]
+        historical_after = query_idrac_vm_samples(
+            host, baseline_vm_start, baseline_vm_end,
+        )
+        assert historical_after["success"], historical_after["error"]
+        assert historical_after["sample_count"] > 0, (
+            "Pre-disable VictoriaMetrics history disappeared after re-enable"
+        )
+
+        restored = True
+        success_details = (
+            f"StatefulSet UID: {baseline['statefulset']['uid']}\n"
+            f"PVCs: {baseline['pvcs']}\n"
+            f"Kafka topic: {baseline['kafka_topic']}\n"
+            f"Kafka before offset: {kafka_before['records'][0]['offset']}\n"
+            f"Kafka after offset: {kafka_after['records'][0]['offset']}\n"
+            f"VM historical samples: {historical_after['sample_count']}\n"
+            f"VM new samples: {vm_after['sample_count']}"
+        )
+    finally:
+        restore = run_on_host(  # pylint: disable=too-many-function-args
+            host, "cp --preserve=all -- %s %s", backup_path, config_path,
+        )
+        remove_backup_rc = -1
+        restore_run_rc = -1
+        if restore.rc == 0:
+            remove_backup = run_on_host(  # pylint: disable=too-many-function-args
+                host, "rm -f -- %s", backup_path,
+            )
+            remove_backup_rc = remove_backup.rc
+            restore_run = run_playbook(
+                playbook=PLAYBOOK_ENTRY_POINT,
+                playbook_workdir=PLAYBOOK_WORKDIR,
+                tag="execute",
+                timeout=LIFECYCLE_DEPLOY_TIMEOUT,
+            )
+            restore_run_rc = restore_run["rc"]
+        # Keep the backup for manual recovery when the copy itself failed.
+        if restore.rc != 0 or remove_backup_rc != 0 or restore_run_rc != 0:
+            pytest.fail(
+                "Failed to restore original telemetry configuration/state: "
+                f"copy_rc={restore.rc}, remove_rc={remove_backup_rc}, "
+                f"deploy_rc={restore_run_rc}, backup={backup_path}"
+            )
+
+    assert restored, "iDRAC lifecycle did not complete"
+    tl.passed(
+        "iDRAC disable/re-enable preserved storage and data continuity",
+        success_details,
+    )
+
+
+# =========================================================================
 # TEL_NFT_013: Full Lifecycle (Cleanup -> Redeploy -> Verify)
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(118)
+@pytest.mark.order(119)
 def test_full_lifecycle(host):
     """TEL_NFT_013: Complete cleanup and redeployment cycle.
 
@@ -619,7 +852,6 @@ def test_full_lifecycle(host):
         if attempt < max_retries:
             tl.check(f"Deploy attempt {attempt} failed (rc={deploy['rc']}), retrying...")
             # Wait a bit before retry to allow cluster to stabilize
-            import time
             time.sleep(10)
 
     if deploy["rc"] != 0:
@@ -668,7 +900,7 @@ def test_full_lifecycle(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(119)
+@pytest.mark.order(120)
 def test_operator_pod_recovery(host):
     """TEL_NFT_014: Delete operator pods and verify CR reconciliation.
 
@@ -683,7 +915,7 @@ def test_operator_pod_recovery(host):
     # Check which operators are actually deployed (by checking if pods exist)
     # We use delete_pods_by_prefix to list pods, but don't actually delete them
     operators = []
-    
+
     # Check for VictoriaMetrics operator
     vm_check = delete_pods_by_prefix(host, "victoria-metrics-operator")
     if vm_check["count"] > 0:
@@ -691,7 +923,7 @@ def test_operator_pod_recovery(host):
             "kind": "victoria_metrics",
             "name": "VictoriaMetrics Operator",
         })
-    
+
     # Check for Strimzi operator
     strimzi_check = delete_pods_by_prefix(host, "strimzi-cluster-operator")
     if strimzi_check["count"] > 0:

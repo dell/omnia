@@ -130,7 +130,7 @@ TEST_CASES = {
     },
     "idrac_kafka_topic": {
         "id": "TEL_FVT_DEPLOY_V015",
-        "title": "Verify iDRAC Kafka topic exists",
+        "title": "Verify fresh iDRAC metrics flow to Kafka",
     },
     "idrac_victoria_pump": {
         "id": "TEL_FVT_DEPLOY_V016",
@@ -565,6 +565,10 @@ TEST_CASES = {
     "nft_node_reboot": {
         "id": "TEL_NFT_012",
         "title": "Node reboot recovery (all pods Running)",
+    },
+    "nft_idrac_data_lifecycle": {
+        "id": "TEL_NFT_020",
+        "title": "iDRAC enable/disable/re-enable data lifecycle",
     },
     "nft_full_lifecycle": {
         "id": "TEL_NFT_013",
