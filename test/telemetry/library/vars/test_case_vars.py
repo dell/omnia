@@ -49,6 +49,10 @@ TEST_CASES = {
         "id": "TEL_FVT_CLEANUP_E001",
         "title": "Deploy telemetry (--tags cleanup)",
     },
+    "deploy_cleanup_with_preservation_flags": {
+        "id": "TEL_FVT_CLEANUP_E002",
+        "title": "Deploy cleanup with credential and log preservation",
+    },
     # -- Precheck -----------------------------------------------------------
     "env_vars_present": {
         "id": "TEL_FVT_PRECHECK_V001",

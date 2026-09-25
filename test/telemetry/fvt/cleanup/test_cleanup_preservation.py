@@ -87,7 +87,7 @@ def test_deploy_cleanup_with_preservation_flags(host, delete_sinks_volume):
             "credentials and logs are always deleted in this mode"
         )
 
-    tc = TC["deploy_cleanup"]
+    tc = TC["deploy_cleanup_with_preservation_flags"]
     tl = TestLogger(tc["title"], tc["id"])
 
     extra_vars = {
@@ -121,6 +121,7 @@ def test_deploy_cleanup_with_preservation_flags(host, delete_sinks_volume):
     )
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.order(1)
 def test_cleanup_credentials_preserved(host, delete_sinks_volume):
@@ -152,6 +153,7 @@ def test_cleanup_credentials_preserved(host, delete_sinks_volume):
     assert result["success"], result["error"]
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.order(2)
 def test_cleanup_logs_preserved(host, delete_sinks_volume):
