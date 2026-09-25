@@ -48,50 +48,96 @@ class FakeUUIDGenerator:
     """Deterministic UUID generator for tests."""
 
     def __init__(self) -> None:
+        """Initialize the UUID generator with a counter starting at 0."""
         self._counter = 0
 
     def generate(self) -> uuid.UUID:
+        """Generate a deterministic UUID based on an internal counter.
+
+        Returns:
+            A UUID with a predictable format for testing.
+        """
         self._counter += 1
         return uuid.UUID(f"00000000-0000-4000-8000-{self._counter:012d}")
 
 
 @pytest.fixture
 def job_id() -> JobId:
+    """Provide a valid JobId for testing.
+
+    Returns:
+        A JobId instance with a predefined valid UUID.
+    """
     return JobId(VALID_JOB_ID)
 
 
 @pytest.fixture
 def correlation_id() -> CorrelationId:
+    """Provide a valid CorrelationId for testing.
+
+    Returns:
+        A CorrelationId instance with a predefined valid UUID.
+    """
     return CorrelationId(VALID_CORRELATION_ID)
 
 
 @pytest.fixture
 def job_repo() -> InMemoryJobRepository:
+    """Provide an in-memory job repository for testing.
+
+    Returns:
+        An InMemoryJobRepository instance.
+    """
     return InMemoryJobRepository()
 
 
 @pytest.fixture
 def stage_repo() -> InMemoryStageRepository:
+    """Provide an in-memory stage repository for testing.
+
+    Returns:
+        An InMemoryStageRepository instance.
+    """
     return InMemoryStageRepository()
 
 
 @pytest.fixture
 def audit_repo() -> InMemoryAuditEventRepository:
+    """Provide an in-memory audit event repository for testing.
+
+    Returns:
+        An InMemoryAuditEventRepository instance.
+    """
     return InMemoryAuditEventRepository()
 
 
 @pytest.fixture
 def artifact_store() -> InMemoryArtifactStore:
+    """Provide an in-memory artifact store for testing.
+
+    Returns:
+        An InMemoryArtifactStore instance.
+    """
     return InMemoryArtifactStore()
 
 
 @pytest.fixture
 def artifact_metadata_repo() -> InMemoryArtifactMetadataRepository:
+    """Provide an in-memory artifact metadata repository for testing.
+
+    Returns:
+        An InMemoryArtifactMetadataRepository instance.
+    """
     return InMemoryArtifactMetadataRepository()
 
 
 @pytest.fixture
 def uuid_generator() -> FakeUUIDGenerator:
+    """Provide a deterministic UUID generator for testing.
+
+    Returns:
+        A FakeUUIDGenerator instance.
+    """
     return FakeUUIDGenerator()
 
 
@@ -138,13 +184,3 @@ def completed_parse_catalog_stage(job_id) -> Stage:  # pylint: disable=redefined
     stage.start()
     stage.complete()
     return stage
-
-
-@pytest.fixture
-def generate_input_files_stage(job_id) -> Stage:  # pylint: disable=redefined-outer-name
-    """A generate-input-files stage in PENDING state."""
-    return Stage(
-        job_id=job_id,
-        stage_name=StageName(StageType.GENERATE_INPUT_FILES.value),
-        stage_state=StageState.PENDING,
-    )

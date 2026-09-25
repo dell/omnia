@@ -178,8 +178,6 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "s3_fail": "Missing {count} role boot image(s) in S3: {missing}",
     "pipeline_result_ok": "Build pipeline completed \u2014 all stages passed",
     "pipeline_result_fail": "Build pipeline completed with failures",
-    "catalog_roles_ok": "Catalog roles: {roles} (arch: {archs})",
-    "catalog_roles_fail": "Failed to get catalog roles: {error}",
 }
 
 # =============================================================================

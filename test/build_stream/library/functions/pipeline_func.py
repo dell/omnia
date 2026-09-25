@@ -1877,55 +1877,6 @@ def poll_stage_until_complete(
 # BSM API VERIFICATION
 # =============================================================================
 
-def get_catalog_roles(host, job_id: str) -> Dict[str, Any]:
-    """Get catalog roles and architectures from BSM API.
-
-    Args:
-        host: Testinfra host connection.
-        job_id: UUID of the job.
-
-    Returns:
-        Dict with keys: success, roles, architectures, image_key, error.
-    """
-    result = {
-        "success": False, "roles": [], "architectures": [],
-        "image_key": "", "error": "",
-    }
-
-    gitlab_config = _get_gitlab_config(host)
-    host_ip = gitlab_config.get(BSM_HOST_IP_KEY, "")
-    port = gitlab_config.get(BSM_PORT_KEY, "")
-    if not host_ip or not port:
-        result["error"] = "BSM host_ip or port not configured"
-        return result
-
-    token = _get_bsm_access_token(host)
-    if not token:
-        result["error"] = "Failed to obtain BSM access token"
-        return result
-
-    cmd = CMDS["bsm_api_catalog_roles"].format(
-        token=token, host=host_ip, port=port, job_id=job_id,
-    )
-    cmd_result = run_on_host(host, cmd)
-    if cmd_result.rc != 0:
-        result["error"] = f"API call failed: rc={cmd_result.rc}"
-        return result
-
-    try:
-        data = json.loads(cmd_result.stdout.strip())
-        if "detail" in data:
-            result["error"] = f"API error: {data['detail']}"
-            return result
-        result["roles"] = data.get("roles", [])
-        result["architectures"] = data.get("architectures", [])
-        result["image_key"] = data.get("image_key", "")
-        result["success"] = True
-    except json.JSONDecodeError:
-        result["error"] = f"Invalid JSON: {cmd_result.stdout[:200]}"
-    return result
-
-
 def verify_registry_images(
     host, job_id: str, roles: List[str],
 ) -> Dict[str, Any]:

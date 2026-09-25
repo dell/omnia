@@ -41,7 +41,7 @@ from core.jobs.value_objects import (
     StageName,
     StageState,
 )
-from infra.db.models import Base
+from infra.db.models import Base, StageModel
 from infra.db.repositories import (
     SqlAuditEventRepository,
     SqlIdempotencyRepository,
@@ -263,7 +263,7 @@ class TestSqlStageRepository:
             ),
             Stage(
                 job_id=job_id,
-                stage_name=StageName("generate-input-files"),
+                stage_name=StageName("build-image"),
                 stage_state=StageState.PENDING,
             ),
             Stage(
@@ -279,10 +279,61 @@ class TestSqlStageRepository:
         assert len(found_stages) == 3
         stage_names = [str(s.stage_name) for s in found_stages]
         assert "parse-catalog" in stage_names
-        assert "generate-input-files" in stage_names
+        assert "build-image" in stage_names
         assert "create-local-repository" in stage_names
         # Verify ordering by stage_name
         assert stage_names == sorted(stage_names)
+
+    @pytest.mark.parametrize(
+        "retired_stage_name",
+        ["generate-input-files", "build-image-x86_64", "build-image-aarch64"],
+    )
+    def test_find_all_by_job_filters_retired_stage_names(
+        self,
+        stage_repo: SqlStageRepository,
+        job_repo: SqlJobRepository,
+        db_session: Session,
+        retired_stage_name: str,
+    ) -> None:
+        """Rows left by pre-2.3 jobs are hidden from find_all_by_job.
+
+        The retired stages were dropped from the StageType enum but their
+        rows are intentionally left in job_stages on upgraded systems, so
+        the repository must filter them out at read time. Inserted via the
+        ORM model directly because StageName rejects the retired names.
+        """
+        job_id = JobId(str(uuid.uuid4()))
+        job_repo.save(
+            Job(
+                job_id=job_id,
+                client_id=ClientId("test-client"),
+                request_client_id="request-123",
+            )
+        )
+        stage_repo.save_all(
+            [
+                Stage(
+                    job_id=job_id,
+                    stage_name=StageName("build-image"),
+                    stage_state=StageState.PENDING,
+                )
+            ]
+        )
+
+        db_session.add(
+            StageModel(
+                job_id=str(job_id),
+                stage_name=retired_stage_name,
+                stage_state=StageState.COMPLETED.value,
+                attempt=1,
+                version=1,
+            )
+        )
+        db_session.commit()
+
+        found = stage_repo.find_all_by_job(job_id)
+
+        assert [str(s.stage_name) for s in found] == ["build-image"]
 
     def test_update_with_optimistic_locking(
         self, stage_repo: SqlStageRepository, job_repo: SqlJobRepository

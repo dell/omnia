@@ -114,7 +114,6 @@ from library.functions.pipeline_func import (
     discover_deploy_pipeline,
     discover_cleanup_pipeline,
     # BSM API
-    get_catalog_roles,
     verify_registry_images,
     verify_s3_boot_images,
     verify_registry_images_absent,
@@ -335,7 +334,6 @@ __all__ = [
     "get_gitlab_job_trace",
     "discover_deploy_pipeline",
     "discover_cleanup_pipeline",
-    "get_catalog_roles",
     "verify_registry_images",
     "verify_s3_boot_images",
     "verify_registry_images_absent",

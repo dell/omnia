@@ -49,7 +49,7 @@ from core.jobs.repositories import (
     UUIDGenerator,
 )
 from core.jobs.services import JobStateHelper
-from core.jobs.value_objects import JobId, StageName
+from core.jobs.value_objects import JobId, StageName, StageType
 from core.localrepo.entities import PlaybookResult
 from core.localrepo.services import PlaybookQueueResultService
 
@@ -464,12 +464,8 @@ class ResultPoller:
 
     @staticmethod
     def _is_build_image_stage(stage_name: str) -> bool:
-        """Check if the stage is a build-image stage."""
-        return stage_name in (
-            "build-image-x86_64",
-            "build-image-aarch64",
-            "build-image",
-        )
+        """Check if the stage is the build-image stage."""
+        return stage_name == StageType.BUILD_IMAGE.value
 
     def _emit_dictionary_hit_events(self, result: PlaybookResult) -> None:
         """Persist one audit event for each catalog image reused by hash."""
