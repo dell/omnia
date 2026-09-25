@@ -95,7 +95,6 @@
            | selectattr('metadata.name', 'in', target_fg_names) | list }}
       loop_control:
         label: "{{ item.metadata.name }}"
-      failed_when: false
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     # When a node moves between categories (e.g. from kubernetes to slurm),
@@ -139,7 +138,6 @@
       loop: "{{ _stale_boot_configs | default([]) }}"
       loop_control:
         label: "{{ item.metadata.name }} (stale — contains MAC from current category)"
-      failed_when: false
       when:
         - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
         - _stale_boot_configs | default([]) | length > 0

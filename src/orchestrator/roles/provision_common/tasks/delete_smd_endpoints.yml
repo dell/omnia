@@ -107,7 +107,6 @@
     validate_certs: false
     return_content: true
   register: existing_boot_configs
-  failed_when: false
 
 - name: Delete boot configurations for target functional groups only
   ansible.builtin.uri:
@@ -165,7 +164,6 @@
   loop: "{{ _stale_boot_configs | default([]) }}"
   loop_control:
     label: "{{ item.metadata.name }} (stale — contains MAC from current category)"
-  failed_when: false
   when: _stale_boot_configs | default([]) | length > 0
 
 # ── Stale SMD group memberships (xname overlap from other categories) ──
@@ -205,7 +203,6 @@
     validate_certs: false
     return_content: true
   register: existing_instanceinfos
-  failed_when: false
 
 - name: Delete instanceinfos for target category nodes only
   ansible.builtin.uri:
@@ -289,7 +286,6 @@
         validate_certs: false
         return_content: true
       register: existing_clusterdefaults
-      failed_when: false
 
     - name: Delete existing metadata-service clusterdefaults
       ansible.builtin.uri:
