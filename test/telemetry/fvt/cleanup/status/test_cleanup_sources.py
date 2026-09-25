@@ -56,8 +56,17 @@ from library.functions.cleanup_func import (
 
 @pytest.mark.functional
 @pytest.mark.order(56)
-def test_cleanup_idrac(host):
-    """TEL_FVT_CLEANUP_V006: Verify iDRAC telemetry resources removed after cleanup."""
+def test_cleanup_idrac(host, delete_sinks_volume):
+    """TEL_FVT_CLEANUP_V006: Verify iDRAC telemetry resources removed after cleanup.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
+    """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_idrac"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -73,8 +82,17 @@ def test_cleanup_idrac(host):
 
 @pytest.mark.functional
 @pytest.mark.order(57)
-def test_cleanup_ldms(host):
-    """TEL_FVT_CLEANUP_V007: Verify LDMS + Vector-LDMS resources removed after cleanup."""
+def test_cleanup_ldms(host, delete_sinks_volume):
+    """TEL_FVT_CLEANUP_V007: Verify LDMS + Vector-LDMS resources removed after cleanup.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
+    """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_ldms"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -90,8 +108,17 @@ def test_cleanup_ldms(host):
 
 @pytest.mark.functional
 @pytest.mark.order(58)
-def test_cleanup_ome(host):
-    """TEL_FVT_CLEANUP_V008: Verify OME + Vector-OME resources removed after cleanup."""
+def test_cleanup_ome(host, delete_sinks_volume):
+    """TEL_FVT_CLEANUP_V008: Verify OME + Vector-OME resources removed after cleanup.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
+    """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_ome"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -107,8 +134,17 @@ def test_cleanup_ome(host):
 
 @pytest.mark.functional
 @pytest.mark.order(59)
-def test_cleanup_ufm(host):
-    """TEL_FVT_CLEANUP_V009: Verify UFM telemetry resources removed after cleanup."""
+def test_cleanup_ufm(host, delete_sinks_volume):
+    """TEL_FVT_CLEANUP_V009: Verify UFM telemetry resources removed after cleanup.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
+    """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_ufm"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -124,8 +160,17 @@ def test_cleanup_ufm(host):
 
 @pytest.mark.functional
 @pytest.mark.order(60)
-def test_cleanup_vast(host):
-    """TEL_FVT_CLEANUP_V010: Verify VAST telemetry resources removed after cleanup."""
+def test_cleanup_vast(host, delete_sinks_volume):
+    """TEL_FVT_CLEANUP_V010: Verify VAST telemetry resources removed after cleanup.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
+    """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_vast"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -141,8 +186,17 @@ def test_cleanup_vast(host):
 
 @pytest.mark.functional
 @pytest.mark.order(61)
-def test_cleanup_sfm(host):
-    """TEL_FVT_CLEANUP_V011: Verify SFM telemetry resources removed after cleanup."""
+def test_cleanup_sfm(host, delete_sinks_volume):
+    """TEL_FVT_CLEANUP_V011: Verify SFM telemetry resources removed after cleanup.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
+    """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_sfm"]
     tl = TestLogger(tc["title"], tc["id"])
 

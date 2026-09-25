@@ -38,7 +38,16 @@ def test_deploy_cleanup(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup).
     
     Ordered AFTER preservation cleanup and verification (order 5).
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
+    Only runs when delete_sinks_volume=true (cleanup with volume deletion).
     """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 

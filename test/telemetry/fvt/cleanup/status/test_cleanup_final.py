@@ -43,12 +43,20 @@ from library.functions.cleanup_func import (
 
 @pytest.mark.sanity
 @pytest.mark.order(66)
-def test_no_pods_after_full_cleanup(host):
+def test_no_pods_after_full_cleanup(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_V012: Verify no pods remain in telemetry namespace.
 
     After a full cleanup (--tags cleanup), the telemetry namespace
     should contain zero pods.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["no_pods_after_full_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -76,7 +84,15 @@ def test_no_pvcs_after_full_cleanup(host, delete_sinks_volume):
       - With delete_sinks_volume=true: zero PVCs must remain (all deleted).
       - With delete_sinks_volume=false: sink PVCs must be preserved and
         source PVCs must be deleted.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     case_key = (
         "no_pvcs_after_full_cleanup"
         if delete_sinks_volume

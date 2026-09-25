@@ -43,11 +43,19 @@ from library.vars.common_vars import CMDS
 
 @pytest.mark.sanity
 @pytest.mark.order(6)
-def test_cleanup_pods_removed(host):
+def test_cleanup_pods_removed(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_V001: Verify telemetry pods removed after cleanup.
     
     Ordered AFTER default cleanup playbook (order 6).
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_pods_removed"]
     tl = TestLogger(tc["title"], tc["id"])
 

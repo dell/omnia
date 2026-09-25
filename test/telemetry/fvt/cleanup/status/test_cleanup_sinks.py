@@ -46,12 +46,20 @@ from library.functions.cleanup_func import (
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(63)
-def test_cleanup_kafka(host):
+def test_cleanup_kafka(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_V003: Verify Kafka resources removed after full cleanup.
 
     Checks that Kafka brokers, controllers, bridge, and Strimzi operator
     pods have been removed from the telemetry namespace.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_kafka"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -68,12 +76,20 @@ def test_cleanup_kafka(host):
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(64)
-def test_cleanup_victoria_metrics(host):
+def test_cleanup_victoria_metrics(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_V004: Verify VictoriaMetrics resources removed after full cleanup.
 
     Checks that vmstorage, vminsert, vmselect, vmagent, and the
     victoria-metrics-operator pods have been removed.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_victoria_metrics"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -90,12 +106,20 @@ def test_cleanup_victoria_metrics(host):
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(65)
-def test_cleanup_victoria_logs(host):
+def test_cleanup_victoria_logs(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_V005: Verify VictoriaLogs resources removed after full cleanup.
 
     Checks that vlstorage, vlinsert, vlselect, and vlagent pods have
     been removed from the telemetry namespace.
+    
+    Skipped when delete_sinks_volume=false (preservation cleanup already ran).
     """
+    if not delete_sinks_volume:
+        pytest.skip(
+            "delete_sinks_volume=false — default cleanup verification is skipped "
+            "because preservation cleanup already ran"
+        )
+    
     tc = TC["cleanup_victoria_logs"]
     tl = TestLogger(tc["title"], tc["id"])
 
