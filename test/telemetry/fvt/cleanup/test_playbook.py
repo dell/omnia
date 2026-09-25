@@ -15,6 +15,20 @@
 """
 Telemetry Cleanup — Playbook Execution.
 
+Runs the default cleanup playbook (--tags cleanup) which removes all
+telemetry workloads, credentials, and logs.
+
+Execution order:
+    Order 5 — runs AFTER the preservation cleanup phase (orders 0-4).
+    When delete_sinks_volume=true, the preservation phase is skipped
+    and this is effectively the first test to run.
+
+Variable interactions (from Ansible source):
+    - delete_sinks_volume=true  → passes Delete_sinks_volume=true to
+      the playbook, which deletes ALL PVCs including sink volumes.
+    - Default (false)           → sink PVCs are preserved; source PVCs
+      are always deleted.
+
 Test cases:
     TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup)
 """
@@ -34,18 +48,21 @@ from library.functions import run_playbook
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(5)
-def test_deploy_cleanup(host):
+def test_deploy_cleanup(host, delete_sinks_volume):
     """TEL_FVT_CLEANUP_E001: Deploy telemetry (--tags cleanup).
-    
-    Runs cleanup with default flags (credentials and logs are deleted).
-    
+
+    Runs the default cleanup playbook.  When delete_sinks_volume=true,
+    passes -e Delete_sinks_volume=true to also delete sink PVCs.
+
     Ordered AFTER preservation cleanup and verification (order 5).
     """
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Running telemetry playbook --tags cleanup (default: delete credentials and logs)")
-    result = run_playbook(tag="cleanup")
+    extra_vars = {"Delete_sinks_volume": "true"} if delete_sinks_volume else None
+    mode_label = "with volume deletion" if delete_sinks_volume else "default"
+    tl.check(f"Running telemetry playbook --tags cleanup ({mode_label})")
+    result = run_playbook(tag="cleanup", extra_vars=extra_vars)
 
     if result["success"]:
         tl.passed(
