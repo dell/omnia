@@ -73,8 +73,8 @@
   tags: openchami
 
 - name: Wait for services to stop
-  ansible.builtin.pause:
-    seconds: 5
+  ansible.builtin.wait_for:
+    timeout: 5
   when:
     - not (dry_run | default(false) | bool)
     - >-

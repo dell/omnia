@@ -58,6 +58,7 @@ MARKERS: list[str] = [
     "performance",
     "idempotency",
     "security",
+    "lifecycle",
 ]
 
 # =====================================================================
