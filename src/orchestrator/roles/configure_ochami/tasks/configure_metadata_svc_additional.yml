@@ -21,7 +21,7 @@
   ansible.builtin.template:
     src: "{{ ms_group_additional_template }}"
     dest: "{{ metadata_svc_dir }}/ms-group-{{ additional_metadata_svc_common_group_name }}.yaml"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+    mode: "0600"
   vars:
     ms_additional_group_name: "{{ additional_metadata_svc_common_group_name }}"
     ms_additional_data: "{{ additional_metadata_svc_common_data }}"
@@ -31,6 +31,7 @@
   ansible.builtin.slurp:
     src: "{{ metadata_svc_dir }}/ms-group-{{ additional_metadata_svc_common_group_name }}.yaml"
   register: ms_additional_common_raw
+  no_log: true
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
@@ -72,24 +73,41 @@
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
 
-- name: Set metadata-service group configuration for common group (via metadata-service API)  # noqa: name[template]
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-      Content-Type: "application/json"
-    body_format: json
-    body: "{{ item }}"
-    status_code: [200, 201, 409]
-    validate_certs: false
-  loop: "{{ _ms_additional_bodies | default([]) }}"
-  loop_control:
-    label: "{{ item.metadata.name }}"
+- name: Reconcile additional common metadata-service group
+  openchami_reconcile:
+    action: reconcile_metadata_groups
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: "{{ ochami_env[cluster_env_key] }}"
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    project_name: "{{ hostvars['localhost']['project_name'] }}"
+    metadata_groups: "{{ _ms_additional_bodies | default([]) }}"
+  register: _metadata_additional_common_reconcile
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
+
+- name: Track desired additional common metadata-service group
+  ansible.builtin.set_fact:
+    omnia_metadata_desired_group_names: >-
+      {{ ((omnia_metadata_desired_group_names | default([]))
+          + (_ms_additional_bodies | default([]) | map(attribute='metadata.name') | list))
+         | unique | list }}
+  when:
+    - additional_metadata_svc_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Mark global metadata change for additional common content
+  ansible.builtin.set_fact:
+    omnia_metadata_global_changed: true
+  when:
+    - additional_metadata_svc_common_enabled | default(false) | bool
+    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - >-
+      ((_metadata_additional_common_reconcile.created | default([]))
+       + (_metadata_additional_common_reconcile.updated | default([]))) | length > 0
 
 # --- Per-functional-group additional metadata-service groups ---
 # provision_common supplies an effective list scoped to its registered
