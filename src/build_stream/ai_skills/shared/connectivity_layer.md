@@ -32,7 +32,12 @@ Prefer, in this order, only the following source classes (HLD §4.1 of
    reference file's A.5 Package Source Defaults Table (e.g. querying the
    repository's own metadata for a package's available versions).
 4. **Local system RPM repositories** (DNF/YUM metadata for RHEL, EPEL, etc.)
-   when reachable from the execution environment.
+   when reachable from the execution environment. This class also covers a
+   read-only read of the local Omnia source tree (e.g. to find which
+   playbook/role invokes a package) when the skill has file-system access —
+   it is a local, read-only file read with no outbound network or
+   FIPS/allow-list implication (Req-SEC-C-1/C-2 unaffected), so it is
+   reachability under this existing class, not a fifth source class.
 
 Never perform, and never cite, an open-ended general web search or an
 unofficial/third-party mirror. If none of the four source classes above can
@@ -67,6 +72,14 @@ unapproved source.
      reference file.
    - Flag the request for manual review or a later online-resolution
      attempt.
+
+**Fallback trigger, stated precisely:** step 3 triggers only on an actual
+lookup failure at step 1 (unreachable, timeout, malformed response, or no
+online attempt possible per step 5) — never merely because a row is
+absent from a specific master-reference-file table. A consuming skill
+that has other approved, reachable sources available (e.g. local `dnf`
+metadata) MUST attempt those before treating the request as exhausted;
+"absent from one table" is not itself a fallback trigger.
 5. **No online attempt is possible in this channel** (e.g. a browser-based
    AI assistant with no outbound network access of its own): skip step 1,
    go directly to step 3's fallback behavior, and disclose that no online
