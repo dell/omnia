@@ -20,12 +20,35 @@ Exactly the same four classes as
 1. Red Hat Compatibility Matrix
 2. Upstream documentation
 3. Live package repositories
-4. Local system RPM repositories
+4. Local system RPM repositories — this class also covers a read-only
+   read of the local Omnia source tree (e.g. to map a package to the
+   playbook/role that invokes it), when the skill has file-system access.
+   It is reachability under this existing class, not a fifth source
+   class, since it is a local, read-only file read with no outbound
+   network or FIPS/allow-list implication (Req-SEC-C-1/C-2 unaffected).
 
 Never perform, and never cite, an open-ended general web search or an
 unofficial/third-party mirror. If a request cannot be answered from these
 four classes and the master reference file is also silent on it, the
 answer is "unresolved" — not a broader search.
+
+## Architecture-Mismatch Handling
+
+If the operator's target architecture's local repo metadata isn't
+available (e.g. the catalog targets `aarch64` but only `x86_64` metadata
+is present locally), do not silently substitute the other architecture's
+data. Stop and ask the operator to choose:
+
+- **(a)** set up local repos for the catalog's target architecture, or
+- **(b)** connect to the online approved sources instead, or
+- **(c)** use the other architecture's metadata as a disclosed stand-in
+  (the report must state this substitution explicitly wherever it's
+  used).
+
+Record whichever the operator chooses in the report. If the operator
+declines to choose (or a proxy/stand-in is not offered), log the event
+with `reason=arch-mismatch`; if the operator is offered (c) and declines
+it, log `reason=operator-declined-proxy`.
 
 ## Procedure
 
@@ -62,7 +85,7 @@ happened.
   using a real shell append — no new Python code:
 
   ```bash
-  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) skill=<impact-analysis|compatibility-analysis> request=\"<operator's request, summarized>\" outcome=<degraded|unresolved> reason=<unreachable|timeout|malformed|not-in-approved-sources|not-in-master-reference> source_consulted=<source name or 'none'>" >> src/build_stream/ai_skills/analysis/degraded_mode_audit.log
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) skill=<impact-analysis|compatibility-analysis> request=\"<operator's request, summarized>\" outcome=<degraded|unresolved> reason=<unreachable|timeout|malformed|not-in-approved-sources|not-in-master-reference|arch-mismatch|operator-declined-proxy> source_consulted=<source name or 'none'>" >> src/build_stream/ai_skills/analysis/degraded_mode_audit.log
   ```
 
   Do not write secrets, credentials, or full request payloads into this
@@ -98,3 +121,13 @@ happened.
 > file. Report it as unresolved, flag for manual review, log
 > `outcome=unresolved reason=not-in-master-reference`. Do not broaden the
 > search to a general web page about the package.
+
+**Architecture mismatch:**
+> The catalog targets `aarch64`, but the execution environment only has
+> `x86_64` local repo metadata subscribed and no online access. Stop and
+> ask the operator to choose (a), (b), or (c). If the operator picks (c),
+> disclose the `x86_64` stand-in explicitly wherever it's used in the
+> report and log `outcome=degraded reason=arch-mismatch
+> source_consulted=local-dnf-x86_64-stand-in`. If the operator declines
+> to choose a proxy at all, log `reason=operator-declined-proxy` and
+> report the affected finding as unresolved instead of guessing.
