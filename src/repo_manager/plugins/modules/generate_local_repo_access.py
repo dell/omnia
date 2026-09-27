@@ -814,7 +814,7 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         status_by_version, _aggregate_status = build_terminal_context_status(
             self.execution_contexts,
             self.execution_results,
-            'failed',
+            requested_status,
         )
         for version in self.missing_rpm_repositories_by_version:
             status_by_version[str(version)] = 'failed'

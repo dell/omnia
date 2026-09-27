@@ -72,6 +72,70 @@
             "minimum": 1,
             "maximum": 200,
             "description": "Sidekiq background job concurrency"
+        },
+        "cadence": {
+            "type": "object",
+            "description": "Cadence polling configuration for periodic package sync",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Enable or disable cadence polling for periodic package sync"
+                },
+                "interval_seconds": {
+                    "type": "integer",
+                    "minimum": 3600,
+                    "description": "Cadence polling interval in seconds (minimum 1 hour)"
+                },
+                "catalog_filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[a-zA-Z0-9._-]+\\.json$",
+                    "description": "Cadence catalog filename in GitLab repository"
+                },
+                "gitlab_repo_path": {
+                    "type": "string",
+                    "description": "Path to local GitLab repository clone"
+                },
+                "playbook_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Package sync playbook name"
+                },
+                "sync_timeout_seconds": {
+                    "type": "integer",
+                    "minimum": 60,
+                    "description": "Timeout for repo sync playbook execution"
+                },
+                "sync_poll_interval_seconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 300,
+                    "description": "Poll interval while waiting for sync result"
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "enabled": {
+                                "const": true
+                            }
+                        },
+                        "required": ["enabled"]
+                    },
+                    "then": {
+                        "required": [
+                            "gitlab_repo_path"
+                        ],
+                        "properties": {
+                            "gitlab_repo_path": {
+                                "minLength": 1
+                            }
+                        }
+                    }
+                }
+            ],
+            "additionalProperties": false
         }
     },
     "allOf": [

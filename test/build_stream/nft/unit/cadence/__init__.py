@@ -11,12 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-# cleanup_build_output.yml — Remove all build_status.yml output files.
 
-- name: Remove all build output files
-  ansible.builtin.file:
-    path: "{{ output_project_dir }}"
-    state: absent
-  delegate_to: localhost
-  connection: local
+"""
+Unit tests for cadence polling functionality.
+"""
