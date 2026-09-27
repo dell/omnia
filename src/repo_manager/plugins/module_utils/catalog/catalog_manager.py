@@ -152,14 +152,21 @@ def cmd_add(args):
 
     summary = upsert_packages(catalog, parsed)
     output_file = args.output or args.catalog
-    write_catalog(catalog, output_file)
 
-    # Optional validation
+    # Validate before writing -- an edit that fails schema validation must
+    # never be written to disk (only reported), not written-then-reported.
     if args.validate and args.schema:
         issues = validate_catalog(catalog, args.schema)
+        errors = [i for i in issues if i['severity'] == 'error']
+        if errors:
+            print(format_issues(issues))
+            logger.error("Add rejected: catalog would fail schema validation. "
+                         "File left unmodified.")
+            return 1
         if issues:
             print(format_issues(issues))
 
+    write_catalog(catalog, output_file)
     print(f"Added: {summary['added']}, Updated: {summary['updated']}, "
           f"Groups created: {summary['groups_created']} -> {output_file}")
     return 0
@@ -183,14 +190,21 @@ def cmd_delete(args):
 
     summary = delete_packages(catalog, parsed_delete)
     output_file = args.output or args.catalog
-    write_catalog(catalog, output_file)
 
-    # Optional validation
+    # Validate before writing -- an edit that fails schema validation must
+    # never be written to disk (only reported), not written-then-reported.
     if args.validate and args.schema:
         issues = validate_catalog(catalog, args.schema)
+        errors = [i for i in issues if i['severity'] == 'error']
+        if errors:
+            print(format_issues(issues))
+            logger.error("Delete rejected: catalog would fail schema validation. "
+                         "File left unmodified.")
+            return 1
         if issues:
             print(format_issues(issues))
 
+    write_catalog(catalog, output_file)
     print(f"Deleted: {summary['deleted']}, Groups removed: {summary['groups_removed']}, "
           f"Skipped: {summary['skipped']} -> {output_file}")
     return 0
