@@ -24,6 +24,7 @@ src/build_stream/update_playbook_watcher.sh
 
 # AI skills runtime artifacts (degraded-mode audit trail; see analysis/trusted_source_policy.md)
 src/build_stream/ai_skills/analysis/degraded_mode_audit.log
+src/build_stream/ai_skills/catalog_editing/pre_edit_gate_audit.log
 
 # RPM build artifacts
 src/rpm_build/**/*.rpm
