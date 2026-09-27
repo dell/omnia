@@ -345,6 +345,31 @@ Pulp-policy transition.
 
 ---
 
+### 16. Exact RPM reconciliation fails or reports a stale checkpoint
+
+Run the standalone operation only after a successful normal download:
+
+```bash
+ansible-playbook repo_operations/repo_sync.yml
+```
+
+Inspect `output/<project>/repo_resync_status.yml` and the applicable
+`log/<os>/<version>/standard.log`. A failed repository checkpoint has
+`retry_required: true` in
+`log/<os>/<version>/mirror_status/pulp_mirror_index.json`. When Pulp can identify
+the distribution's live repository version, that HREF is stored even if later
+pruning fails. When the live version is indeterminate, the failed checkpoint's
+HREF is empty; the next run preflights the serving chain and retries rather than
+trusting stale state.
+
+Do not delete Pulp versions manually and do not run exact reconciliation at the
+same time as download or cleanup. After successful exact reconciliation, run
+the normal download workflow to process RPM package rows marked pending, then
+run `--tags status` only if consumer output must be regenerated for another
+reason. Stable repository endpoint URLs do not change during exact sync.
+
+---
+
 ## Log Locations
 
 | Content | Path |

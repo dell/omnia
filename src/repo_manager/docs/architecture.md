@@ -137,6 +137,27 @@ General catalog workers, RPM-repository workers and DNF command concurrency are
 separate controls. DNF command concurrency defaults to one to protect its shared
 metadata cache.
 
+### Standalone exact RPM reconciliation
+
+`playbooks/repo_operations/repo_sync.yml` is an administrative operation, not
+part of the normal `repo_manager.yml` tag flow. It requires the normal download
+workflow to have created every selected RPM serving chain first. All catalog
+contexts are preflighted before the first Pulp mutation, then executed in the
+same deterministic OS-version order used by download.
+
+For each repository, the operation preserves the currently served publication
+until a replacement has synchronized, published, switched and passed HTTPS
+metadata validation. The live repository-version HREF is checkpointed before
+older publications and versions are pruned. A content change marks only catalog
+RPM identities mapped to that OS/version/architecture repository as pending, so
+the next normal download performs DNF reconciliation. If the live version
+cannot be established after a failed switch or rollback, the repository is
+stored as failed with no HREF instead of retaining an unverified one.
+
+Exact reconciliation does not process Git, tarball, manifest, shell, ISO,
+Galaxy, Python, container or standalone RPM-file artifacts, and it does not
+change public distribution URLs.
+
 ### Step 4: Status (tag: status)
 
 - Verify the Pulp endpoint.
@@ -144,10 +165,11 @@ metadata cache.
 - Generate `<REPO_MANAGER_DATA_PATH>/output/<project>/repo_status.yml`.
 - Include HTTPS repository URLs, file-content URLs and certificate paths.
 
-Both RPM `repositories` and File/Python `file_repos` use the hierarchy
+RPM `repositories`, File/Python `file_repos` and type-level
+`base_urls` use the hierarchy
 `<version> -> <architecture> -> ...`, so every selected OS minor version
-publishes its exact ready Pulp endpoints. The legacy type-level and
-`offline_*` URLs continue to identify the first ordered execution context.
+publishes its exact ready Pulp endpoints. Content-base URLs are emitted only
+when an actual ready artifact distribution proves that the path exists.
 
 The status file is generated only when the `status` tag runs. Selective cleanup
 removes the stale file; run `download,status` to restore deleted catalog content

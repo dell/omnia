@@ -60,6 +60,10 @@ from ansible.module_utils.repo_manager.security_utils import (
     redact_url_credentials,
     validate_repository_url,
 )
+from ansible.module_utils.repo_manager.yaml_safety import (
+    YamlSafetyError,
+    validate_runtime_yaml_data,
+)
 
 
 def validate(
@@ -83,6 +87,15 @@ def validate(
     """
     errors = []
     repo_manager_config_yml = create_file_path(input_file_path, files["repo_manager_config"])
+
+    try:
+        validate_runtime_yaml_data(data)
+    except YamlSafetyError as exc:
+        errors.append(create_error_msg(
+            repo_manager_config_yml,
+            exc.location,
+            "Jinja template syntax is not allowed in runtime configuration",
+        ))
 
     errors.extend(_validate_registry_configs(data, repo_manager_config_yml))
 

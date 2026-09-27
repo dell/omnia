@@ -25,8 +25,6 @@ import subprocess
 import tempfile
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
-import yaml
-
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.repo_manager import config
 from ansible.module_utils.repo_manager.config import (
@@ -111,9 +109,6 @@ options:
       type: list
       elements: dict
       default: []
-    metadata_file:
-      description: Local repository metadata file to update after cleanup.
-      type: path
     pulp_repo_file:
       description: Generated DNF repository file to update after cleanup.
       type: path
@@ -2417,102 +2412,6 @@ def invalidate_repo_status(repo_status_file: str, repo_store_path: str,
     return True
 
 
-def update_metadata_after_cleanup(cleaned_repos: List[str], metadata_file: str, logger,
-                                  cleanup_all: bool = False) -> Tuple[bool, bool]:
-    """Remove cleaned-up repository entries from localrepo_metadata.yml.
-
-    For each successfully cleaned repo, find and remove its policy entry
-    from the metadata file. Repo names in metadata are normalized
-    (hyphens replaced with underscores, suffixed with _policy).
-
-    When cleanup_all is True (i.e. cleanup_repos=all), the entire metadata
-    file is deleted.
-
-    Args:
-        cleaned_repos: List of repo names that were successfully deleted
-        metadata_file: Path to localrepo_metadata.yml
-        logger: Logger instance
-        cleanup_all: If True, delete the entire metadata file
-    """
-    if not metadata_file or (not cleaned_repos and not cleanup_all):
-        return True, False
-
-    if not os.path.exists(metadata_file):
-        logger.info(f"Metadata file not found: {metadata_file}, skipping metadata update")
-        return True, False
-
-    try:
-        # When cleanup_repos=all, delete the metadata file entirely.
-        if cleanup_all:
-            os.remove(metadata_file)
-            logger.info(f"Deleted metadata file: {metadata_file}")
-            return True, True
-
-        with open(metadata_file, 'r', encoding='utf-8') as f:
-            metadata = yaml.safe_load(f) or {}
-
-        updated = False
-        for repo_name in cleaned_repos:
-            # Normalize repo name to match metadata key format: <name>_policy.
-            # Metadata may store keys either with arch prefix (e.g., x86_64_doca_policy)
-            # or without it (e.g., doca_policy), so try both.
-            normalized_name = repo_name.replace('-', '_')
-            candidate_policy_keys = {f"{normalized_name}_policy"}
-            repo_arch, catalog_repo_name = rpm_repository_identity(repo_name)
-            _arch, _os_type, repo_version, _name = rpm_repository_context(
-                repo_name
-            )
-            candidate_policy_keys.add(
-                f"{catalog_repo_name.replace('-', '_')}_policy"
-            )
-
-            def _section_matches_repo_context(
-                    section: str, arch: str, version: Optional[str]) -> bool:
-                """Return whether a metadata section belongs to the repo context.
-
-                Repository names sourced from repositories.{version}.{arch} structure.
-                Flat repos: baseos, appstream, epel, cuda, etc.
-                Nested repos: entries under user_repos and additional_repos.
-                """
-                if not isinstance(section, str):
-                    return False
-                suffix = f"_{version}_{arch}" if version else f"_{arch}"
-                return section.endswith(suffix)
-
-            # Search through all sections in metadata for these policy keys
-            for section_key in list(metadata.keys()):
-                if repo_arch and not _section_matches_repo_context(
-                        section_key, repo_arch, repo_version):
-                    continue
-                if not isinstance(metadata.get(section_key), dict):
-                    continue
-                for policy_key in list(candidate_policy_keys):
-                    if policy_key in metadata[section_key]:
-                        del metadata[section_key][policy_key]
-                        updated = True
-                        logger.info(
-                            f"Removed '{policy_key}' from metadata section '{section_key}'"
-                        )
-                # Remove the section if it's now empty
-                if section_key in metadata and isinstance(metadata[section_key], dict) and not metadata[section_key]:
-                    del metadata[section_key]
-                    logger.info(f"Removed empty metadata section '{section_key}'")
-
-        if updated:
-            _atomic_write_text(
-                metadata_file,
-                yaml.safe_dump(metadata, default_flow_style=False),
-            )
-            logger.info(f"Successfully updated metadata file: {metadata_file}")
-        else:
-            logger.info("No matching entries found in metadata for cleaned repos")
-        return True, updated
-
-    except Exception:
-        logger.error("Failed to update metadata after cleanup")
-        return False, False
-
-
 def remove_repos_from_pulp_repo_file(cleaned_repos: List[str], pulp_repo_file: str,
                                      logger, cleanup_all: bool = False
                                      ) -> Tuple[bool, bool]:
@@ -2628,10 +2527,6 @@ def run_module():
             catalog_execution_contexts=dict(
                 type='list', elements='dict', default=[]
             ),
-            metadata_file=dict(
-                type='str', required=False,
-                default=os.path.join(config.REPO_MANAGER_OFFLINE_REPO_DIR, ".data", "localrepo_metadata.yml")
-            ),
             pulp_repo_file=dict(
                 type='str', required=False,
                 default=config.PULP_REPO_FILE_PATH
@@ -2655,7 +2550,6 @@ def run_module():
     cluster_os_type = module.params['cluster_os_type']
     cluster_os_version = module.params['cluster_os_version']
     catalog_execution_contexts = module.params['catalog_execution_contexts']
-    metadata_file = module.params['metadata_file']
     pulp_repo_file = module.params['pulp_repo_file']
     repo_status_file = module.params['repo_status_file']
 
@@ -2955,27 +2849,13 @@ def run_module():
                 "message": "All Pulp file repositories were removed but local state cleanup failed",
             })
 
-    # Update metadata file to remove entries for successfully cleaned repos
+    # Collect exact successfully cleaned repositories for consumer state updates.
     cleaned_repo_names = [
         result['name'] for result in all_results
         if result.get('type') == 'repository'
         and (result['status'] == 'Success' or result.get('pulp_absent'))
     ]
     all_requested_repos_clean = repo_all_complete
-    if (cleaned_repo_names or all_requested_repos_clean) and metadata_file:
-        metadata_updated, metadata_changed = update_metadata_after_cleanup(
-            cleaned_repo_names, metadata_file, logger,
-            cleanup_all=all_requested_repos_clean
-        )
-        state_changed = state_changed or metadata_changed
-        if not metadata_updated:
-            all_results.append({
-                "name": metadata_file,
-                "type": "local_state",
-                "status": "Failed",
-                "message": "Pulp objects were removed but repository metadata could not be updated",
-            })
-
     # Update yum repo file (pulp.repo) to remove stanzas for successfully cleaned repositories
     if (cleaned_repo_names or all_requested_repos_clean) and pulp_repo_file:
         repo_file_updated, repo_file_changed = remove_repos_from_pulp_repo_file(

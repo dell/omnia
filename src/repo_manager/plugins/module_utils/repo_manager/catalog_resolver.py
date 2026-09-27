@@ -51,6 +51,7 @@ from ansible.module_utils.repo_manager.security_utils import (
     validate_artifact_url,
     validate_repository_url,
 )
+from ansible.module_utils.repo_manager.yaml_safety import load_runtime_yaml
 
 
 class CatalogResolutionError(ValueError):
@@ -841,7 +842,7 @@ def parse_user_repos_from_config(config_data, os_version, arch,
 # ---------------------------------------------------------------------------
 
 def load_repo_manager_config(config_path, logger):
-    """Load and parse the repo_manager_config.yml file.
+    """Load literal repo_manager_config.yml data through the safety boundary.
 
     Args:
         config_path (str): Path to repo_manager_config.yml.
@@ -852,9 +853,7 @@ def load_repo_manager_config(config_path, logger):
             config_data (dict): Parsed YAML data.
             is_catalog_based (bool): Always True (catalog-based is the only mode).
     """
-    import yaml
-    with open(config_path, 'r', encoding='utf-8') as fh:
-        config_data = yaml.safe_load(fh) or {}
+    config_data, _ = load_runtime_yaml(config_path)
 
     logger.info("Loaded catalog-based configuration from %s", config_path)
     return config_data, True

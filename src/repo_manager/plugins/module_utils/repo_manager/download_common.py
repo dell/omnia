@@ -78,6 +78,9 @@ from ansible.module_utils.repo_manager.shared_artifact_state import (
     file_sha256,
     probe_http_validator,
 )
+from ansible.module_utils.repo_manager.secure_path import (
+    open_secure_relative_file,
+)
 from ansible.module_utils.repo_manager.software_utils import build_repo_name
 from ansible.module_utils.repo_manager.security_utils import (
     render_catalog_placeholders,
@@ -319,18 +322,6 @@ def download_file_distribution(distribution_name, dl_directory, relative_path, l
         Exception: For any other unexpected errors encountered during execution.
     """
 
-    def sanitize_path(base_directory: str, requested_path: str) -> str:
-        if not requested_path or os.path.isabs(requested_path):
-            raise ValueError("Invalid path traversal detected")
-        path_segments = requested_path.replace("\\", "/").split("/")
-        if any(segment in ("", ".", "..") for segment in path_segments):
-            raise ValueError("Invalid path traversal detected")
-        base_directory = os.path.abspath(base_directory)
-        safe_path = os.path.abspath(os.path.join(base_directory, requested_path))
-        if os.path.commonpath((base_directory, safe_path)) != base_directory:
-            raise ValueError("Invalid path traversal detected")
-        return safe_path
-
     try:
         cmd = pulp_file_commands["show_distribution"] % distribution_name
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
@@ -342,60 +333,70 @@ def download_file_distribution(distribution_name, dl_directory, relative_path, l
         )
         full_url = f"{base_url}{quote(relative_path, safe='/@:+,=~.-_')}"
 
-        local_path = sanitize_path(dl_directory, relative_path)
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
         retry = 0
         while retry <= MAX_RETRY:
-
-            downloaded_bytes = os.path.getsize(local_path) if os.path.exists(local_path) else 0
-            headers = {"Range": f"bytes={downloaded_bytes}-"} if downloaded_bytes > 0 else {}
-
-            session = requests.Session()
-            session.mount("https://", HTTPAdapter(max_retries=3))
-
+            file_descriptor = None
             try:
+                file_descriptor, local_path = open_secure_relative_file(
+                    dl_directory, relative_path
+                )
+                downloaded_bytes = os.fstat(file_descriptor).st_size
+                headers = (
+                    {"Range": f"bytes={downloaded_bytes}-"}
+                    if downloaded_bytes > 0 else {}
+                )
                 logger.info(f"Attempt {retry + 1}: Downloading from byte {downloaded_bytes}")
 
-                with session.get(
-                    full_url,
-                    stream=True,
-                    headers=headers,
-                    verify=(
-                        os.environ.get("PULP_CA_BUNDLE")
-                        or PULP_SSL_CA_CERT
-                    ),
-                    timeout=(30, 600)
-                ) as r:
+                with requests.Session() as session:
+                    session.mount("https://", HTTPAdapter(max_retries=3))
+                    with session.get(
+                        full_url,
+                        stream=True,
+                        headers=headers,
+                        verify=(
+                            os.environ.get("PULP_CA_BUNDLE")
+                            or PULP_SSL_CA_CERT
+                        ),
+                        timeout=(30, 600)
+                    ) as r:
 
-                    if r.status_code == 416:
-                        logger.info("File already complete. No download needed.")
-                        return "Success"
+                        if r.status_code == 416:
+                            logger.info("File already complete. No download needed.")
+                            return "Success"
 
-                    if r.status_code not in (200, 206):
-                        logger.error(f"HTTP error: {r.status_code}")
-                        raise requests.exceptions.HTTPError("Bad status code")
+                        if r.status_code not in (200, 206):
+                            logger.error(f"HTTP error: {r.status_code}")
+                            raise requests.exceptions.HTTPError("Bad status code")
 
-                    total = int(r.headers.get("Content-Length", 0))
-                    total_size = downloaded_bytes + total
+                        if r.status_code == 200 and downloaded_bytes:
+                            # The server ignored Range. Replace the partial file
+                            # rather than appending a second complete payload.
+                            os.ftruncate(file_descriptor, 0)
+                            downloaded_bytes = 0
 
-                    mode = "ab" if downloaded_bytes else "wb"
+                        total = int(r.headers.get("Content-Length", 0))
+                        total_size = downloaded_bytes + total
+                        os.lseek(file_descriptor, 0, os.SEEK_END)
 
-                    with open(local_path, mode) as f:
-                        current = downloaded_bytes
-                        for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
-                            if not chunk:
-                                continue
-                            f.write(chunk)
-                            current += len(chunk)
-                            logger.info(
-                                f"Progress: {
-                                    round(
-                                        (current / total_size) * 100,
-                                        2)}% ({current}/{total_size} bytes)")
+                        with os.fdopen(file_descriptor, "ab") as target_file:
+                            file_descriptor = None
+                            current = downloaded_bytes
+                            for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
+                                if not chunk:
+                                    continue
+                                target_file.write(chunk)
+                                current += len(chunk)
+                                progress = (
+                                    round((current / total_size) * 100, 2)
+                                    if total_size else 100.0
+                                )
+                                logger.info(
+                                    f"Progress: {progress}% "
+                                    f"({current}/{total_size} bytes)"
+                                )
 
                 # Final size check
-                if os.path.getsize(local_path) == total_size:
+                if current == total_size:
                     logger.info(f"Download completed successfully: {local_path}")
                     return "Success"
                 raise ValueError("File size mismatch after download")
@@ -406,6 +407,9 @@ def download_file_distribution(distribution_name, dl_directory, relative_path, l
                 wait = 5 * retry
                 logger.info(f"Retrying in {wait} seconds...")
                 time.sleep(wait)
+            finally:
+                if file_descriptor is not None:
+                    os.close(file_descriptor)
 
         logger.error("Max retries exceeded, download failed.")
         return "Failed"

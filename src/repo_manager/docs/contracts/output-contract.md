@@ -15,6 +15,9 @@ to downstream Omnia components.
 
 **Consumers**: Image Build Manager and cluster provisioning workflows.
 
+See the complete illustrative
+[Repo Manager status sample](../../samples/repo_status.yml).
+
 ### Structure
 
 ```yaml
@@ -79,8 +82,16 @@ file_repos:
       pip_module:
         cffi_1_17_1: "https://192.0.2.10:2225/pypi/.../rhel/10.2/pip_module/cffi==1.17.1/"
 
-offline_tarball_path: "https://192.0.2.10:2225/pulp/content/.../tarball/"
-offline_pip_module_path: "https://192.0.2.10:2225/pypi/.../pip_module/"
+base_urls:
+  "10.0":
+    x86_64:
+      tarball: "https://192.0.2.10:2225/pulp/content/.../rhel/10.0/tarball/"
+      pip_module: "https://192.0.2.10:2225/pypi/.../rhel/10.0/pip_module/"
+    aarch64: {}
+  "10.2":
+    x86_64:
+      tarball: "https://192.0.2.10:2225/pulp/content/.../rhel/10.2/tarball/"
+      pip_module: "https://192.0.2.10:2225/pypi/.../rhel/10.2/pip_module/"
 ```
 
 ### Fields
@@ -102,8 +113,11 @@ offline_pip_module_path: "https://192.0.2.10:2225/pypi/.../pip_module/"
 | `registries.<name>.host` | string | Canonical OCI `host[:port]` authority |
 | `registries.<name>.tls` | object | Non-secret TLS settings used by downstream consumers |
 | `file_repos.<version>.<arch>.<type>.<artifact>` | string | Version-qualified File or Python distribution URL |
-| `*_base_url` | string | Backward-compatible primary-context base URL for a content type when available |
-| `offline_*_path` | string | Backward-compatible primary-context type URL |
+| `base_urls.<version>.<arch>.<type>` | string | Version-qualified type-level URL derived from a ready File or Python distribution |
+
+The flat `*_base_url` and `offline_*_path` aliases are not published.
+Consumers must select the required OS minor version, architecture and content
+type from `base_urls`.
 
 During a multi-version download, `overall_status` is `in_progress` while later
 contexts remain pending. It becomes `success` only after every selected context
@@ -112,12 +126,15 @@ completes, or `failed` as soon as a context fails.
 Repository URLs are generated from actual Pulp distributions. Empty architecture
 maps are valid only when the catalog did not reference an RPM repository for
 that architecture. If required repositories are missing, the affected version
-and aggregate status are `failed`; the generating Ansible module returns the
-missing names to the calling playbook for its failure report.
-`file_repos` uses the same version-first organization as `repositories`, so a
-multi-version catalog publishes every ready File and Python distribution under
-its exact OS minor version. The legacy type-level URL fields continue to use
-the first ordered execution context.
+and aggregate status are `failed`; verified URLs for other successful versions
+remain available, while failed or pending version maps are empty. The generating
+Ansible module returns the missing names to the calling playbook for its failure
+report. If live Pulp inspection itself fails, all repository maps remain empty.
+`file_repos` and `base_urls` use the same version-first organization
+as `repositories`. A multi-version catalog therefore publishes every ready
+File and Python artifact URL and type-level base URL under its exact OS minor
+version and architecture. A content type without a ready distribution is
+omitted; failed or pending version/architecture maps remain empty.
 Registry authentication references, usernames, passwords and tokens are never
 written to `repo_status.yml`.
 
@@ -127,10 +144,11 @@ written to `repo_status.yml`.
 |------|----------|
 | Pulp unavailable | Status generation fails |
 | Distribution exists | URL is included |
-| Catalog-required distribution is missing | Status is `failed`; standalone status generation reports an error after writing diagnostic output |
+| Catalog-required distribution is missing | Aggregate and affected-version status are `failed`; successful-version URLs remain available, failed-version maps are empty, and standalone status generation reports an error after writing diagnostic output |
 | Repository has explicit `priority` | Priority is included; otherwise consumers retain their default of 99 |
 | `additional_repos` | One aggregate priority is emitted; conflicting effective priorities fail validation |
 | No distribution for an architecture/type | Corresponding map is empty |
+| No ready distribution for a content type | Its `base_urls` entry is omitted rather than fabricated |
 | Catalog selection changes | Sections for versions outside the active catalog are removed |
 | Custom `OMNIA_DATA_PATH` | Certificate and output paths use the custom root |
 | Selective cleanup completed | The stale file is removed; run `--tags status` to regenerate it |
@@ -193,6 +211,33 @@ The internal mirror index records exact RPM repository states (`pending`,
 `ready` or `failed`), the last confirmed repository-version HREF and effective
 Pulp policy. These additive recovery fields do not change `status.csv`,
 `groups_status.csv` or `repo_status.yml`.
+
+### Standalone exact-reconciliation result
+
+`playbooks/repo_operations/repo_sync.yml` writes
+`<REPO_MANAGER_DATA_PATH>/output/<project>/repo_resync_status.yml` for its own
+administrative result:
+
+```yaml
+repositories:
+  x86_64_rhel_10.0_baseos:
+    sync_status: success
+    old_version: 42
+    new_version: 43
+    packages_added: 2
+    packages_removed: 1
+    stale_packages_remaining: 0
+    publication_updated: true
+    cleanup_status: success
+overall_status: success
+orphan_cleanup: success
+```
+
+The file is reset to `in_progress` at invocation start and atomically replaced
+with the final result. It is not consumed by Image Build Manager and does not
+replace `repo_status.yml`. Repository `version_href` and package `pending`
+state are kept in the context-specific
+`mirror_status/pulp_mirror_index.json`, not in this summary file.
 
 ---
 
