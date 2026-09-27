@@ -40,6 +40,8 @@ from catalog.mutator import upsert_packages, delete_packages
 from catalog.validator import validate_catalog, format_issues
 from catalog.transformer import detect_schema_version, transform, write_keymap
 from catalog.optimizer import optimize
+from catalog.differ import diff_catalogs, serialize_ops, CatalogFormatError, ReversibilityError
+from catalog.report_renderer import summarize, collect_warnings, render_changelog_text, render_html
 
 
 _CATALOG_FAILURE_MESSAGES = {
@@ -400,6 +402,73 @@ def cmd_optimize(args):  # pylint: disable=too-many-statements
     return 0
 
 
+def cmd_diff(args):  # pylint: disable=too-many-locals
+    """Diff two catalogs: emit forward/reverse machine-readable diffs plus a
+    human-readable changelog (text and, when jinja2 is available, HTML).
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        current_catalog = read_catalog(args.current)
+        future_catalog = read_catalog(args.future)
+    except (FileNotFoundError, ValueError):
+        _log_catalog_failure(logger, "catalog_read")
+        return 1
+
+    if args.schema:
+        for label, catalog in (("current", current_catalog), ("future", future_catalog)):
+            issues = validate_catalog(catalog, args.schema)
+            errors = [i for i in issues if i['severity'] == 'error']
+            if errors:
+                print(f"Diff rejected: '{label}' catalog fails schema validation.")
+                print(format_issues(issues))
+                return 1
+
+    try:
+        result = diff_catalogs(current_catalog, future_catalog)
+    except CatalogFormatError as exc:
+        logger.error("%s", exc)
+        return 1
+    except ReversibilityError as exc:
+        logger.error("Reversibility check failed: %s", exc)
+        return 1
+
+    with open(args.output_forward, 'w', encoding='utf-8') as fh:
+        json.dump(serialize_ops(result['forward_diff']), fh, indent=2)
+    with open(args.output_reverse, 'w', encoding='utf-8') as fh:
+        json.dump(serialize_ops(result['reverse_diff']), fh, indent=2)
+
+    summary = summarize(current_catalog['catalog'], future_catalog['catalog'],
+                         result['forward_diff'])
+    warnings = collect_warnings(current_catalog['catalog'], future_catalog['catalog'],
+                                 result['forward_diff'])
+    current_name = current_catalog['catalog'].get('name', args.current)
+    future_name = future_catalog['catalog'].get('name', args.future)
+
+    changelog_text = render_changelog_text(current_name, future_name,
+                                            result['schema_version'], summary, warnings)
+    if args.output_changelog:
+        with open(args.output_changelog, 'w', encoding='utf-8') as fh:
+            fh.write(changelog_text)
+    else:
+        print(changelog_text)
+
+    if args.output_html:
+        html = render_html(current_name, future_name, result['schema_version'],
+                            summary, warnings)
+        if html is None:
+            logger.warning("HTML report requested but jinja2 is not installed -- skipped")
+        else:
+            with open(args.output_html, 'w', encoding='utf-8') as fh:
+                fh.write(html)
+
+    blocking = [w for w in warnings if w['severity'] == 'blocking']
+    print(f"\nDiff complete: {len(result['forward_diff'])} forward op(s), "
+          f"{len(warnings)} warning(s) ({len(blocking)} blocking) -> "
+          f"{args.output_forward}, {args.output_reverse}")
+    return 0
+
+
 def main():
     """Main entry point."""
     # Get CATALOG_FILE_PATH environment variable as default
@@ -499,6 +568,25 @@ def main():
                             help='Minimum number of common packages to extract '
                                  '(default: 10)')
     opt_parser.set_defaults(func=cmd_optimize)
+
+    # Diff command
+    diff_parser = subparsers.add_parser(
+        'diff', help='Diff two catalogs (reversible machine-readable diff + changelog)')
+    diff_parser.add_argument('--current', required=True, help='Current catalog file')
+    diff_parser.add_argument('--future', required=True, help='Future catalog file')
+    diff_parser.add_argument('--schema', '-s',
+                             help='Schema file; rejects the diff if either catalog fails')
+    diff_parser.add_argument('--output-forward', required=True,
+                             help='Output file for the forward diff (current -> future)')
+    diff_parser.add_argument('--output-reverse', required=True,
+                             help='Output file for the reverse diff (future -> current)')
+    diff_parser.add_argument('--output-changelog',
+                             help='Output file for the plain-English changelog '
+                                  '(default: stdout)')
+    diff_parser.add_argument('--output-html',
+                             help='Output file for the rich HTML changelog report '
+                                  '(requires jinja2)')
+    diff_parser.set_defaults(func=cmd_diff)
 
     args = parser.parse_args()
 
