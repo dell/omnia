@@ -13,6 +13,15 @@ Every catalog in the bulk edit is gated independently by
 `pre_edit_gate.md` (FR-6.1) — a bulk edit is not a bypass of the gate,
 it's the gate applied per catalog with per-catalog approval.
 
+## Write-Path Boundary (NFR-2, Req-SEC-I-1/I-4)
+
+Applies per catalog, identically to `edit_catalog.md`: only write to a
+catalog file under the known catalog repository root
+(`src/main/samples/catalogs/<os_version>/*.json`). This is currently an
+instruction-level control — `write_catalog()` itself has no code-level
+boundary check — so refuse any resolved path outside that root
+yourself, for every catalog in the bulk set, not just the first one.
+
 ## Inputs You Must Read First
 
 1. `src/build_stream/ai_skills/catalog_editing/pre_edit_gate.md` and, for
