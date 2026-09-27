@@ -12,46 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Orchestrator Provision — Deploy.
-
-ORCH_FVT_PROVISION_E001: Deploy orchestrator.yml (full provisioning)
-"""
+"""Execute the Orchestrator provision lifecycle once."""
 
 import pytest
-
 from library.functions import TestLogger, run_playbook
-from library.messages import (
-    TEST_NAMES,
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
-)
+from library.messages import PROVISION_TEST_ASSERT_MSGS as ASSERT
+from library.messages import PROVISION_TEST_LOG_MSGS as LOG
+from library.vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.buildstream
-@pytest.mark.order(0)
+@pytest.mark.order(100)
 def test_deploy_provision(host):
-    """ORCH_FVT_PROVISION_E001: Deploy orchestrator.yml --tags provision."""
-    tl = TestLogger(
-        TEST_NAMES["deploy_playbook_full"], "ORCH_FVT_PROVISION_E001"
-    )
-    result = run_playbook(tag="provision", timeout=7200)
+    """Run ``orchestrator.yml --tags provision``."""
+    tc = TC["deploy_provision"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    result = run_playbook(tag="provision")
 
+    fields = [
+        ("Return code", result["rc"]),
+        ("Duration seconds", f"{result['duration']:.1f}"),
+    ]
     if result["success"]:
-        tl.passed(LOG["playbook_success"].format(
-            duration=result["duration"]
-        ))
+        test_log.passed_fields(LOG["playbook_success"], fields)
     else:
-        tl.failed(
-            LOG["playbook_failed"].format(
-                rc=result["rc"], duration=result["duration"],
-            ),
-            result.get("error", "See playbook output above"),
+        test_log.failed_fields(
+            LOG["playbook_failed"],
+            [*fields, ("Error", result.get("error", "See playbook output"))],
         )
 
     assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="orchestrator.yml", tag="provision",
-        rc=result["rc"], duration=result["duration"],
+        rc=result["rc"], duration=result["duration"]
     )
