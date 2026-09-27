@@ -14,6 +14,21 @@ edit this skill applies is gated by
 `src/build_stream/ai_skills/catalog_editing/pre_edit_gate.md` — there is
 no "apply an edit" path here that skips it (FR-6.1).
 
+## Write-Path Boundary (NFR-2, Req-SEC-I-1/I-4)
+
+**Only ever write to a catalog file under the known catalog repository
+root** (`src/main/samples/catalogs/<os_version>/*.json`, or the exact
+path the operator explicitly names within that tree). Refuse — do not
+attempt — any write whose resolved path falls outside that root (e.g. an
+absolute path elsewhere on the filesystem, or a relative path containing
+`..` that escapes it), even if `catalog_manager.py` itself would not
+reject it. This is currently an **instruction-level control, not a
+code-level one**: `catalog_manager.py`'s underlying `write_catalog()`
+function has no built-in path-boundary check today (verified: it will
+write wherever it's told). Treat this skill's own refusal as the
+enforcement point until a code-level guard exists, and never rely on the
+tool to catch a mistaken or malicious path for you.
+
 ## Inputs You Must Read First
 
 1. `src/build_stream/ai_skills/catalog_editing/pre_edit_gate.md` — run
