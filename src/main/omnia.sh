@@ -719,6 +719,63 @@ warn_stage_order() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Normalize Extra Args for Ansible
+# Converts short-form sink parameters to proper Ansible format:
+#   -e kafka                              → -e kafka=true
+#   -e kafka,victoria_metrics             → -e sinks=kafka,victoria_metrics
+#   -e kafka -e victoria_metrics          → -e kafka=true -e victoria_metrics=true
+# ─────────────────────────────────────────────────────────────────────────────
+normalize_extra_args() {
+    local -n args_ref=$1
+    local normalized_args=()
+    local i=0
+
+    while [ $i -lt ${#args_ref[@]} ]; do
+        local arg="${args_ref[$i]}"
+        
+        # Check if this is a -e flag followed by a value
+        if [ "$arg" = "-e" ] && [ $((i + 1)) -lt ${#args_ref[@]} ]; then
+            local next_arg="${args_ref[$((i + 1))]}"
+            
+            # Check if next arg contains comma-separated sink names (e.g., kafka,victoria_metrics)
+            if [[ "$next_arg" =~ ^[a-zA-Z_,]+$ ]] && [[ "$next_arg" =~ , ]] && [[ ! "$next_arg" =~ = ]]; then
+                # Validate that all parts are valid sink names
+                local valid=true
+                IFS=',' read -ra sinks <<< "$next_arg"
+                for sink in "${sinks[@]}"; do
+                    if [[ ! "$sink" =~ ^(kafka|Kafka|victoria_metrics|Victoria_metrics|victoria_logs|Victoria_logs)$ ]]; then
+                        valid=false
+                        break
+                    fi
+                done
+                
+                if [ "$valid" = true ]; then
+                    # Convert -e kafka,victoria_metrics to -e sinks=kafka,victoria_metrics
+                    normalized_args+=("-e" "sinks=${next_arg}")
+                    i=$((i + 2))
+                    continue
+                fi
+            fi
+            
+            # Check if next arg is a single sink name without = sign
+            if [[ "$next_arg" =~ ^(kafka|Kafka|victoria_metrics|Victoria_metrics|victoria_logs|Victoria_logs)$ ]] && [[ ! "$next_arg" =~ = ]]; then
+                # Convert -e kafka to -e kafka=true
+                normalized_args+=("-e" "${next_arg}=true")
+                i=$((i + 2))
+                continue
+            fi
+        fi
+        
+        # Otherwise, keep the arg as-is
+        normalized_args+=("$arg")
+        i=$((i + 1))
+    done
+    
+    # Update the array reference with normalized args
+    args_ref=("${normalized_args[@]}")
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Run Domain Playbook
 # ─────────────────────────────────────────────────────────────────────────────
 run_domain() {
@@ -744,6 +801,9 @@ run_domain() {
                 ;;
         esac
     done
+
+    # Normalize extra args (convert -e kafka to -e kafka=true)
+    normalize_extra_args extra_args
 
     # Validate domain exists
     local domain_found=false
