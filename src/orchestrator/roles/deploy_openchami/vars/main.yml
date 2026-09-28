@@ -45,6 +45,12 @@ postgres_tag: "11.5-alpine"
 haproxy_tag: "latest"
 acme_tag: "3.1.1"
 
+# OpenCHAMI certificate renewal
+openchami_cert_renewal_service: openchami-cert-renewal.service
+openchami_cert_renewal_timer: openchami-cert-renewal.timer
+openchami_cert_renewal_threshold_seconds: 46800
+openchami_haproxy_cert_volume: haproxy-certs
+
 # OpenCHAMI images list for podman pull on OIM
 # NOTE: MinIO and registry images are managed by image_build_manager domain.
 openchami_images:

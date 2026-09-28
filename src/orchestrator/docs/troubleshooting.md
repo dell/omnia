@@ -165,7 +165,7 @@ has consumed it.
 
 Run the PXE phase with node registration verification enabled. Only a fresh
 boot with successful SSH and cloud-init verification clears
-`reprovision_required` and sets `running_state_updated: true`.
+`reprovision_required` and records `pxeboot.state: success`.
 
 ---
 

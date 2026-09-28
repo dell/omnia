@@ -56,6 +56,25 @@ Orchestrator deliberately does not:
 - continuously monitor Kubernetes, Slurm, CSI, or application health; or
 - provide an in-place rollback for the v2.3 one-way OpenCHAMI upgrade.
 
+## Architectural Principles
+
+The implementation follows these rules across lifecycle phases:
+
+| Principle | Architectural consequence |
+|-----------|---------------------------|
+| Thin public entry point | `orchestrator.yml` routes tags to focused phase playbooks instead of embedding the complete lifecycle in one play. |
+| Persistent physical identity | Service Tag-to-XNAME bindings live in SMD Hardware Inventory; mutable CSV values do not redefine an existing server. |
+| Desired state is not applied state | OpenCHAMI publication and successful node application are reported separately. Only a verified fresh boot proves that a running node consumed new metadata. |
+| Reconcile before mutation | Clients read and normalize current service state, compare it with desired state, and write only when required. |
+| Functional groups are data | PXE mapping and classification data select category workflows; individual hostnames and CSV row positions do not select code paths. |
+| Prepare before publication | Category bolt-ons generate mounts, packages, and cloud-init fragments before final Boot Service and Metadata Service publication. |
+| Explicit ownership boundaries | Category, project, and component ownership limit cleanup and prevent one workflow from deleting another workflow's state. |
+| Node-scoped failure reporting | A failed BMC or node verification does not hide the result of other selected nodes, and pending application state is retained for retry. |
+
+These principles make independently selected tags repeatable while preserving
+the distinction between controller intent, OpenCHAMI desired state, and the
+configuration currently running on a physical server.
+
 ## Runtime Topology
 
 ```text
@@ -343,6 +362,7 @@ openchami_reconcile module
     |
     +-- OpenChamiReconciler
     |      +-- SMD identity/group/component operations
+    |      +-- Boot configuration reconciliation and stale-MAC pruning
     |      +-- Metadata ownership and reconciliation
     |      +-- registration verification
     |
@@ -367,16 +387,18 @@ The module exposes the following action contract:
 | `cleanup_smd` | Remove category-scoped stale SMD endpoints and interfaces |
 | `discover_static` | Invoke supported static discovery without a shell |
 | `verify_components` | Read back expected node registration |
+| `list_boot_configurations` | Read Boot Service configuration state |
+| `reconcile_boot_configurations` | Create, compare, replace, and deduplicate desired boot configurations |
+| `prune_boot_configurations` | Remove non-target boot configurations that claim managed node MACs |
 | `reconcile_instanceinfos` | Create, update, and deduplicate per-XNAME metadata |
 | `reconcile_metadata_groups` | Reconcile project-owned Metadata Service groups |
 | `prune_metadata_groups` | Safely remove stale owned groups with no SMD members |
 | `reconcile_cluster_defaults` | Reconcile the project-owned cluster default |
 
-The declarative module owns identity and Metadata Service reconciliation.
-Selected service tasks use the `ochami` CLI or direct Ansible `uri` calls for
-static discovery and Boot Service operations. They are not a second identity
-authority. New service integration should use the shared Python client when
-its API is supported.
+The declarative module owns identity, Boot Service, and Metadata Service
+reconciliation. Static discovery uses the supported `ochami` CLI through a
+fixed-argument adapter that passes the same gateway URI, JWT, and CA. These
+interfaces are not a second identity authority.
 
 ### OpenCHAMI Data Model
 
@@ -442,12 +464,11 @@ last provisioning and PXE verification results.
 
 | Field | Interpretation |
 |-------|----------------|
-| `identity_changed` | This lifecycle created the Service Tag-to-XNAME binding |
-| `metadata_changed` | Desired metadata differs from the last verified applied state |
+| `status` | Aggregate node state: success, pending, or failed |
 | `reprovision_required` | A verified fresh boot is still needed |
-| `running_state_updated` | PXE freshness and node verification proved application |
-| `provisioning.status` | OpenCHAMI desired-state reconciliation result |
-| `pxeboot.status` | BMC boot and optional node verification result |
+| `provisioning_status` | OpenCHAMI desired-state reconciliation result |
+| `pxeboot.status` | PXE attempt result |
+| `pxeboot.state` | Compact machine-readable PXE or verification state |
 
 Running `provision` twice without PXE boot does not clear an existing
 `reprovision_required` condition. A successful fresh boot with node
@@ -469,14 +490,54 @@ See [`contracts/input-contract.md`](contracts/input-contract.md) and
 [`contracts/output-contract.md`](contracts/output-contract.md) for complete
 field-level contracts.
 
-## Validation Boundaries
+## Validation Architecture
 
-- Input validation checks structure and cross-file consistency before mutation.
-- Service validation checks OpenCHAMI and OpenLDAP readiness.
-- Provision validation checks desired registration and configuration state.
-- PXE verification proves a fresh boot and acceptable cloud-init completion.
-- Orchestrator does not continuously monitor Kubernetes, Slurm, CSI, or
-  application health after the lifecycle finishes.
+Validation is layered so configuration errors stop before service mutation,
+while external and applied-state checks run only when their prerequisites
+exist:
+
+```text
+project YAML and CSV
+        |
+        v
+L1 schema validation
+        |
+        v
+L2 cross-field and cross-file validation
+        |
+        v
+environment and artifact prechecks
+        |
+        v
+deployed-service readiness checks
+        |
+        v
+post-provision OpenCHAMI readback
+        |
+        v
+post-PXE SSH freshness and cloud-init verification
+```
+
+| Layer | Owner | What it proves | Mutation allowed |
+|-------|-------|----------------|------------------|
+| L1 structure | `validate_orchestrator_config` and domain schemas | Required properties, types, formats, enums, and file structure are valid | No |
+| L2 relationships | Orchestrator validation engine and per-input validators | Cross-field and cross-file relationships such as selected workloads, networks, storage, and mapping uniqueness are consistent | No |
+| Runtime precheck | `orchestrator_validations` and component precheck plays | Referenced images, repositories, storage, networking, and OIM prerequisites are available | No service deployment |
+| Service readiness | OpenCHAMI and OpenLDAP validation plays | Required containers, endpoints, authentication, and service health are ready | Read-only service checks |
+| Desired-state readback | `validate_provisioning` | Expected SMD, Boot Service, Metadata Service, interface, group, and hostname state was published | Reports only |
+| Applied-state verification | `verify_node_registration` and `node_boot_status` | The observed boot is newer than the PXE request and cloud-init reached an acceptable terminal state | Reports only |
+
+L1 and L2 validation are intentionally separate from runtime prechecks. A
+structurally valid configuration may still reference an unavailable external
+service, while a reachable service cannot make an internally inconsistent
+configuration safe. See the
+[`validate_orchestrator_input` role](../roles/validate_orchestrator_input/README.md)
+and [`orchestrator_validations` role](../roles/orchestrator_validations/README.md)
+for their maintained task-level boundaries.
+
+PXE verification establishes boot-time application only. Orchestrator does
+not continuously monitor Kubernetes, Slurm, CSI, or application health after
+the lifecycle finishes.
 
 ## Idempotency and Mutation Rules
 
@@ -489,8 +550,9 @@ field-level contracts.
 - Metadata resources are compared before create/update and carry
   project-ownership labels for safe pruning.
 - SMD cleanup is scoped by category and component ownership.
-- Boot configurations for the target groups are replaced deliberately so MAC
-  ownership and artifact references cannot remain stale.
+- Boot configurations are compared before writing. Changed configurations are
+  replaced by name, duplicates are removed, and non-target configurations are
+  pruned only when they claim a MAC managed by the current category.
 - Removing a PXE mapping row does not free its XNAME or delete its Hardware
   Inventory record.
 - Cleanup is destructive and opt-in; credentials are included by default
@@ -536,6 +598,31 @@ continue from a known desired-state input.
 `configure_ochami` owns reusable templates and focused service tasks.
 `provision_common` coordinates those resources through the category
 provisioning workflow; it is the supported lifecycle entry point.
+
+### Ansible Plugin and Dependency Boundaries
+
+Orchestrator owns its domain-specific roles, modules, module utilities, action
+plugins, callback plugin, schemas, and variables under `src/orchestrator/`.
+The domain-level and phase-level `ansible.cfg` files resolve those resources
+through paths relative to their own execution directory. This is why the
+documented top-level invocation starts in `src/orchestrator/playbooks`; a
+direct phase invocation must use that phase's configuration and satisfy its
+persisted-state prerequisites.
+
+Domain ownership does not mean that Orchestrator has zero runtime
+dependencies. Its declared Galaxy dependencies include `ansible.posix`,
+`ansible.utils`, `community.general`, and `dellemc.openmanage`, and selected
+playbook configurations also expose Build Stream roles used by shared node
+workflows. Python dependencies and Galaxy collections are installed from the
+domain `requirements.txt` and `requirements.yml` by `domain-init.sh`.
+
+The boundary is therefore:
+
+- Orchestrator-specific behavior remains in this collection;
+- reusable cross-domain roles are referenced explicitly rather than copied;
+- third-party collections remain versioned installation dependencies; and
+- OpenCHAMI integration logic belongs in the shared domain client and
+  reconciler, not in ad hoc shell commands.
 
 ## Extension Rules
 
