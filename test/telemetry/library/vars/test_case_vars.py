@@ -600,8 +600,12 @@ TEST_CASES = {
         "title": "Node reboot recovery (all pods Running)",
     },
     "nft_idrac_data_lifecycle": {
-        "id": "TEL_NFT_020",
+        "id": "TEL_NFT_023",
         "title": "iDRAC enable/disable/re-enable data lifecycle",
+    },
+    "nft_ome_channel_lifecycle": {
+        "id": "TEL_NFT_024",
+        "title": "OME metrics/logs channel lifecycle",
     },
     "nft_full_lifecycle": {
         "id": "TEL_NFT_013",

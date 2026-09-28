@@ -85,6 +85,18 @@ UT_TEST_CASE_IDS = {
             39: "test_vector_ldms_bridge_requires_enabled_ldms_source",
         },
     ),
+    **_module_cases(
+        "test_ome_lifecycle.py",
+        {
+            40: "test_full_deploy_always_invokes_ome_reconciliation",
+            41: "test_ome_dependency_validation_precedes_cluster_changes",
+            42: "test_all_ome_channel_combinations_render_expected_vector_routes",
+            43: "test_ome_disable_is_idempotent_and_non_destructive",
+            44: "test_ome_restore_reconciles_configured_replicas_without_creation",
+            45: "test_ome_disabled_forwarders_protect_shared_ldms_vmagent",
+            46: "test_ome_status_reports_each_channel_as_deployed_or_disabled",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

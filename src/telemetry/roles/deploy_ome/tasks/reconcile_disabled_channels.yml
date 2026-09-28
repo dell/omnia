@@ -1,0 +1,48 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+---
+
+# vmagent-vector is also used by Vector-LDMS, so it is only stopped when no
+# enabled bridge needs it.  vlagent-vector is currently OME-specific.
+- name: Build disabled OME forwarding workload list
+  ansible.builtin.set_fact:
+    _ome_disabled_forwarders: >-
+      {{
+        ([vector.vmagent_vector.service_name]
+         if (not (ome_metrics_enabled | bool)
+             and not (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool
+                      and telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool))
+         else [])
+        + ([vector.vlagent_vector.service_name]
+           if not (ome_logs_enabled | bool) else [])
+      }}
+
+- name: Read disabled OME forwarding workload replica counts
+  ansible.builtin.command: >-
+    kubectl get deployment {{ item }} -n {{ telemetry_namespace }}
+    --ignore-not-found -o jsonpath='{.spec.replicas}'
+  loop: "{{ _ome_disabled_forwarders }}"
+  loop_control:
+    label: "deployment/{{ item }}"
+  register: _ome_disabled_forwarder_state
+  changed_when: false
+  failed_when: false
+
+- name: Scale disabled OME forwarding workloads to zero
+  ansible.builtin.command: >-
+    kubectl scale deployment {{ item.item }} -n {{ telemetry_namespace }}
+    --replicas=0
+  loop: "{{ _ome_disabled_forwarder_state.results }}"
+  loop_control:
+    label: "deployment/{{ item.item }}"
+  register: _ome_disabled_forwarder_scale
+  changed_when: "'scaled' in _ome_disabled_forwarder_scale.stdout"
+  when:
+    - item.rc == 0
+    - item.stdout | trim | length > 0
+    - item.stdout | trim | int > 0

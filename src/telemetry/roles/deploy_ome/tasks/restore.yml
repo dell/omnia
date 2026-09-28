@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+---
+
+- name: Build enabled OME workload replica targets
+  ansible.builtin.set_fact:
+    _ome_enabled_workloads: >-
+      {{
+        [{'name': vector.ome.app_name, 'replicas': vector.ome.replicas | int}]
+        + ([{'name': vector.vmagent_vector.service_name,
+             'replicas': vector.vmagent_vector.replicas | int}]
+           if ome_metrics_enabled | bool else [])
+        + ([{'name': vector.vlagent_vector.service_name,
+             'replicas': vector.vlagent_vector.replicas | int}]
+           if ome_logs_enabled | bool else [])
+      }}
+
+- name: Read enabled OME workload replica counts
+  ansible.builtin.command: >-
+    kubectl get deployment {{ item.name }} -n {{ telemetry_namespace }}
+    --ignore-not-found -o jsonpath='{.spec.replicas}'
+  loop: "{{ _ome_enabled_workloads }}"
+  loop_control:
+    label: "deployment/{{ item.name }}"
+  register: _ome_enabled_workload_state
+  changed_when: false
+  failed_when: >-
+    _ome_enabled_workload_state.rc != 0
+    or (_ome_enabled_workload_state.stdout | trim | length) == 0
+
+- name: Restore enabled OME workloads to configured replicas
+  ansible.builtin.command: >-
+    kubectl scale deployment {{ item.item.name }} -n {{ telemetry_namespace }}
+    --replicas={{ item.item.replicas }}
+  loop: "{{ _ome_enabled_workload_state.results }}"
+  loop_control:
+    label: "deployment/{{ item.item.name }}"
+  register: _ome_restore_results
+  changed_when: "'scaled' in _ome_restore_results.stdout"
+  when: (item.stdout | trim | int) != (item.item.replicas | int)
+
+- name: Wait for enabled OME workload rollouts
+  ansible.builtin.command: >-
+    kubectl rollout status deployment/{{ item.name }}
+    -n {{ telemetry_namespace }} --timeout=300s
+  loop: "{{ _ome_enabled_workloads }}"
+  loop_control:
+    label: "deployment/{{ item.name }}"
+  changed_when: false

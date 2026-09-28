@@ -17,6 +17,7 @@ unchanged.
 | `TEL_UT_023`–`TEL_UT_028` | `test_ome_victoria_func.py` | Victoria metric timestamps, identifiers, disabled pipelines, and log parsing |
 | `TEL_UT_029`–`TEL_UT_036` | `test_idrac_lifecycle.py` | iDRAC enable/disable routing, retained-state restore, status, and fresh Kafka-flow contracts |
 | `TEL_UT_037`–`TEL_UT_039` | `test_sink_enablement.py` | Direct source targets and Vector-OME/Vector-LDMS derived sink enablement |
+| `TEL_UT_040`–`TEL_UT_046` | `test_ome_lifecycle.py` | OME independent metrics/logs reconciliation, dependency validation, retained-state restore, isolation, and status contracts |
 
 The runner resolves each ID from the test file and function portion of the
 pytest node ID and includes it in summaries and generated reports.
