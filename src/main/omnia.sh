@@ -819,13 +819,13 @@ run_domain() {
 
     # Normalize extra args (convert -e kafka to -e kafka=true)
     normalize_extra_args extra_args
-    # The telemetry deploy_sinks flow accepts sink names as a concise -e value:
+    # The telemetry deploy_sinks and cleanup_sinks flows accept sink names as a concise -e value:
     #   -e kafka
     #   -e kafka,victoria_metrics
     #   -e kafka -e victoria_logs
     # Convert that shorthand into the "sinks" list consumed by Ansible while
     # leaving ordinary extra-vars (key=value, JSON/YAML, and @file) untouched.
-    if [ "$domain" = "telemetry" ] && [[ ",${tags}," == *",deploy_sinks,"* ]]; then
+    if [ "$domain" = "telemetry" ] && ([[ ",${tags}," == *",deploy_sinks,"* ]] || [[ ",${tags}," == *",cleanup_sinks,"* ]]); then
         local normalized_args=()
         local selected_sinks=()
         local arg_index=0
