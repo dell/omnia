@@ -213,6 +213,7 @@
     - name: Display selective sink cleanup summary
       vars:
         _requested_sinks: "{{ _cleanup_sinks_requested | default([]) }}"
+        _any_blocked: "{{ _cleanup_sinks_any_blocked | default(false) | bool }}"
         _blocked_sinks: >-
           {{
             ([]
@@ -221,7 +222,8 @@
              + (['victoria_logs'] if (_vl_cleanup_blocked | default(false) | bool) else [])
             )
           }}
-        _cleaned_sinks: "{{ _requested_sinks | difference(_blocked_sinks) }}"
+        _cleaned_sinks: >-
+          {{ [] if _any_blocked else (_requested_sinks | difference(_blocked_sinks)) }}
         _dep_failed: "{{ _sink_dependency_check_failed | default(false) | bool }}"
       ansible.builtin.debug:
         msg:
@@ -231,16 +233,42 @@
           - "Requested sinks: {{ _requested_sinks | join(', ') }}"
           - "Cleaned:  {{ _cleaned_sinks | join(', ') | default('none', true) }}"
           - "Blocked:  {{ _blocked_sinks | join(', ') | default('none', true) }}"
+          - >-
+            {% if _any_blocked | bool %}Result: BLOCKED — no sinks were cleaned because
+            one or more requested sinks have running dependent sources.{% endif %}
           - "{% if _dep_failed | bool %}Dependency check: FAILED — all sinks preserved{% endif %}"
           - "{% if _kafka_cleanup_blocked | default(false) | bool %}Kafka blocked by: {{ _kafka_blocking_sources | default([]) | join(', ') }}{% endif %}"
           - "{% if _vm_cleanup_blocked | default(false) | bool %}VictoriaMetrics blocked by: {{ _vm_blocking_sources | default([]) | join(', ') }}{% endif %}"
           - "{% if _vl_cleanup_blocked | default(false) | bool %}VictoriaLogs blocked by: {{ _vl_blocking_sources | default([]) | join(', ') }}{% endif %}"
-          - "Volume option: {{ 'deleted' if (_cleanup_delete_sinks_volume | default(false) | bool) else 'preserved' }}"
+          - "Volume option: {{ 'not applicable (blocked)' if _any_blocked else ('deleted' if (_cleanup_delete_sinks_volume | default(false) | bool) else 'preserved') }}"
           - "======================================================"
       when:
         - _cleanup_sinks | default(false) | bool
         - not (_cleanup_all | default(false) | bool)
-        - _cleanup_status != 'failed'
+
+    - name: Fail selective sink cleanup — blocked by running sources
+      vars:
+        _blocked_sinks: >-
+          {{
+            ([]
+             + (['kafka'] if (_kafka_cleanup_blocked | default(false) | bool) else [])
+             + (['victoria_metrics'] if (_vm_cleanup_blocked | default(false) | bool) else [])
+             + (['victoria_logs'] if (_vl_cleanup_blocked | default(false) | bool) else [])
+            )
+          }}
+      ansible.builtin.fail:
+        msg: >-
+          Sink cleanup aborted — {{ _blocked_sinks | join(', ') }} blocked by
+          running dependent sources.
+          {% if _kafka_cleanup_blocked | default(false) | bool %}Kafka blocked by: {{ _kafka_blocking_sources | default([]) | join(', ') }}. {% endif %}
+          {% if _vm_cleanup_blocked | default(false) | bool %}VictoriaMetrics blocked by: {{ _vm_blocking_sources | default([]) | join(', ') }}. {% endif %}
+          {% if _vl_cleanup_blocked | default(false) | bool %}VictoriaLogs blocked by: {{ _vl_blocking_sources | default([]) | join(', ') }}. {% endif %}
+          Stop or clean up the listed source(s) before retrying.
+          Status was written to {{ _output_base }}/telemetry_status.yml.
+      when:
+        - _cleanup_sinks | default(false) | bool
+        - not (_cleanup_all | default(false) | bool)
+        - _cleanup_sinks_any_blocked | default(false) | bool
 
     - name: Fail telemetry cleanup after status is written
       vars:

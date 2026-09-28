@@ -81,27 +81,26 @@
         {{ _raw | list }}
       {%- else -%}
         {#- Short-form: detect -e kafka / -e victoria_metrics / -e victoria_logs     -#}
-        {#- When Ansible receives "-e kafka", the variable is set to an empty string -#}
-        {#- or "true". vars/cleanup.yml defines victoria_metrics/victoria_logs as     -#}
-        {#- dicts, so CLI values override them. We detect CLI values by checking if  -#}
-        {#- the variable is NOT a mapping (dict).                                    -#}
+        {#- When Ansible receives "-e kafka", it overrides the default null value     -#}
+        {#- to true. We detect CLI values by checking if the variable is NOT null    -#}
+        {#- and NOT a mapping (dict). This allows -e kafka to work correctly.        -#}
         {%- set _short = [] -%}
-        {%- if kafka is defined and kafka is not mapping -%}
+        {%- if kafka is not none and kafka is not mapping -%}
           {%- set _ = _short.append('kafka') -%}
         {%- endif -%}
-        {%- if Kafka is defined and Kafka is not mapping -%}
+        {%- if Kafka is not none and Kafka is not mapping -%}
           {%- set _ = _short.append('kafka') -%}
         {%- endif -%}
-        {%- if victoria_metrics is defined and victoria_metrics is not mapping -%}
+        {%- if victoria_metrics is not none and victoria_metrics is not mapping -%}
           {%- set _ = _short.append('victoria_metrics') -%}
         {%- endif -%}
-        {%- if Victoria_metrics is defined and Victoria_metrics is not mapping -%}
+        {%- if Victoria_metrics is not none and Victoria_metrics is not mapping -%}
           {%- set _ = _short.append('victoria_metrics') -%}
         {%- endif -%}
-        {%- if victoria_logs is defined and victoria_logs is not mapping -%}
+        {%- if victoria_logs is not none and victoria_logs is not mapping -%}
           {%- set _ = _short.append('victoria_logs') -%}
         {%- endif -%}
-        {%- if Victoria_logs is defined and Victoria_logs is not mapping -%}
+        {%- if Victoria_logs is not none and Victoria_logs is not mapping -%}
           {%- set _ = _short.append('victoria_logs') -%}
         {%- endif -%}
         {%- if _short | unique | list | length > 0 -%}

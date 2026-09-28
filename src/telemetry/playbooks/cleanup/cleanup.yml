@@ -62,8 +62,10 @@
 #            cleanup_ufm, cleanup_vast
 # Design: Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared
 # infrastructure. Selective sink cleanup (cleanup_sinks) checks for running
-# dependent sources before removing any sink. Full cleanup (cleanup) drains
-# sources first and then removes all sinks unconditionally.
+# dependent sources before removing any sink. If ANY requested sink is blocked
+# by a running source, the entire selective cleanup is aborted and NO sinks
+# are cleaned. Full cleanup (cleanup) drains sources first and then removes
+# all sinks unconditionally.
 #
 # Resource ownership:
 #   OME cleanup includes Vector-OME bridge resources

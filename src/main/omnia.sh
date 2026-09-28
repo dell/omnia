@@ -741,10 +741,12 @@ normalize_extra_args() {
             if [[ "$next_arg" =~ ^[a-zA-Z_,]+$ ]] && [[ "$next_arg" =~ , ]] && [[ ! "$next_arg" =~ = ]]; then
                 # Validate that all parts are valid sink names
                 local valid=true
+                local invalid_sink=""
                 IFS=',' read -ra sinks <<< "$next_arg"
                 for sink in "${sinks[@]}"; do
                     if [[ ! "$sink" =~ ^(kafka|Kafka|victoria_metrics|Victoria_metrics|victoria_logs|Victoria_logs)$ ]]; then
                         valid=false
+                        invalid_sink="$sink"
                         break
                     fi
                 done
@@ -754,6 +756,11 @@ normalize_extra_args() {
                     normalized_args+=("-e" "sinks=${next_arg}")
                     i=$((i + 2))
                     continue
+                else
+                    # Error: invalid sink name in comma-separated list
+                    echo -e "${RED}ERROR: Invalid telemetry sink '${invalid_sink}' in '${next_arg}'${NC}"
+                    echo -e "${YELLOW}Valid sinks: kafka, victoria_metrics, victoria_logs${NC}"
+                    exit 1
                 fi
             fi
             
@@ -763,6 +770,14 @@ normalize_extra_args() {
                 normalized_args+=("-e" "${next_arg}=true")
                 i=$((i + 2))
                 continue
+            fi
+            
+            # Check if next arg looks like a sink name but is invalid (no = sign, not a valid sink)
+            if [[ ! "$next_arg" =~ = ]] && [[ "$next_arg" =~ ^[a-zA-Z_]+$ ]]; then
+                # It looks like a sink name but doesn't match valid pattern
+                echo -e "${RED}ERROR: Invalid telemetry sink '${next_arg}'${NC}"
+                echo -e "${YELLOW}Valid sinks: kafka, victoria_metrics, victoria_logs${NC}"
+                exit 1
             fi
         fi
         

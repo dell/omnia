@@ -144,9 +144,13 @@
       {{ 'failed' in _component_values or _cleanup_failures | length > 0 }}
     _has_cleaned: "{{ 'cleaned' in _component_values }}"
     _has_blocked: "{{ 'blocked' in _component_values }}"
+    _is_selective_blocked: >-
+      {{ (_cleanup_sinks | default(false) | bool)
+         and not (_cleanup_all | default(false) | bool)
+         and (_cleanup_sinks_any_blocked | default(false) | bool) }}
   ansible.builtin.set_fact:
     _cleanup_status: >-
-      {% if _has_failed %}failed{% elif _has_cleaned %}passed{% elif _has_blocked %}passed{% else %}skipped{% endif %}
+      {% if _has_failed %}failed{% elif _is_selective_blocked | bool %}blocked{% elif _has_cleaned %}passed{% elif _has_blocked %}passed{% else %}skipped{% endif %}
     _status_type: cleanup
 
 - name: Build per-component volume cleanup results
@@ -238,7 +242,9 @@
   ansible.builtin.debug:
     msg:
       - "======================================================"
-      - "Telemetry Cleanup Status: {{ _cleanup_status | upper | trim }}"
+      - >-
+        Telemetry Cleanup Status: {{ _cleanup_status | upper | trim }}
+        {%- if _cleanup_status | trim == 'blocked' %} (sink dependencies prevent cleanup){% endif %}
       - "Volumes: {{ _cleanup_volume_status | upper | trim }}"
       - "======================================================"
       - "Output: {{ _output_base }}/telemetry_status.yml"

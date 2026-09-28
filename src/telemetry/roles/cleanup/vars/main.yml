@@ -51,6 +51,16 @@ _cleanup_sinks_default:
   - victoria_metrics
   - victoria_logs
 
+# Short-form sink selection markers (for -e kafka, -e victoria_metrics, -e victoria_logs)
+# Set to null by default. When user passes -e kafka, Ansible overrides to true.
+# The short-form detection logic checks "is not none" to detect CLI overrides.
+kafka: null
+Kafka: null
+victoria_metrics: null
+Victoria_metrics: null
+victoria_logs: null
+Victoria_logs: null
+
 # Error messages for cleanup_sinks validation
 cleanup_sinks_invalid_name_msg: >-
   Invalid sink name(s) in sinks variable: {invalid}.

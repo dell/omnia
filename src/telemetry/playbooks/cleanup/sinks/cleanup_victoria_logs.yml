@@ -14,20 +14,28 @@
 ---
 
 # =============================================================================
-# VictoriaLogs Cleanup (DEPRECATED)
+# VictoriaLogs Cleanup (REMOVED)
 # =============================================================================
-# This standalone playbook is deprecated. Use the unified cleanup_sinks flow:
-#   ansible-playbook telemetry.yml --tags cleanup_sinks -e sinks=victoria_logs
+# This standalone playbook has been removed. Use the unified cleanup_sinks flow
+# which includes dependency checking:
 #
-# This playbook bypasses dependency checking. For safe sink cleanup with
-# runtime source detection, always use the cleanup_sinks tag.
+#   ansible-playbook telemetry.yml --tags cleanup_sinks -e sinks=victoria_logs
+#   ansible-playbook telemetry.yml --tags cleanup_sinks -e victoria_logs
+#
+# The cleanup_sinks flow checks for running dependent sources before removing
+# any sink. If a dependent source is running, cleanup is blocked and no
+# resources are modified.
 # =============================================================================
 
-- name: "Cleanup VictoriaLogs (deprecated — use cleanup_sinks)"
-  hosts: kube_vip_group
+- name: "Cleanup VictoriaLogs (removed — use cleanup_sinks)"
+  hosts: localhost
+  connection: local
   gather_facts: false
   tasks:
-    - name: "Run VictoriaLogs cleanup"
-      ansible.builtin.include_role:
-        name: cleanup
-        tasks_from: victoria_logs
+    - name: "Reject deprecated cleanup_victoria_logs playbook"
+      ansible.builtin.fail:
+        msg: >-
+          This standalone VictoriaLogs cleanup playbook has been removed.
+          Use the unified cleanup_sinks flow with dependency checking:
+            ansible-playbook telemetry.yml --tags cleanup_sinks -e sinks=victoria_logs
+            ansible-playbook telemetry.yml --tags cleanup_sinks -e victoria_logs
