@@ -185,6 +185,23 @@
                         }
                       }
                     ]
+                  },
+                  "ib_ipv6_mode": {
+                    "type": "string",
+                    "enum": ["ipv4-only", "dual-stack", "ipv6-only"],
+                    "description": "IPoIB address-family mode for IPv6 configuration."
+                  },
+                  "ib_ipv6_approved_prefixes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "description": "Approved IPv6 prefix for IPoIB allocation (e.g. 'fd00:1b::/64')."
+                    },
+                    "description": "List of approved IPv6 prefixes for this IB fabric."
+                  },
+                  "ib_ipv6_allocation_file": {
+                    "type": "string",
+                    "description": "Path to the versioned IPoIB IPv6 allocation export JSON file."
                   }
                 },
                 "additionalProperties": false
