@@ -79,8 +79,6 @@ boot_source_override_enabled: continuous  # or: once, disabled
 boot_source_override_target: pxe         # or: uefi_http, hdd, etc.
 ```
 
-**Note**: Legacy variable names (`enable_phone_home`, `phone_home_pause_minutes`, etc.) are supported for backward compatibility but deprecated.
-
 `continuous` preserves the established Omnia behavior, but it also makes later
 restarts select PXE until the iDRAC override is changed. Use `once` when only
 the current provisioning boot should use PXE.
@@ -120,7 +118,7 @@ The play writes all lifecycle reports under
 successful run:
 
 - `pxeboot_status.yml`: complete PXE and verification result for every node.
-- `failed_nodes.json`: failure-only compatibility report; `failed_nodes` is an
+- `failed_nodes.json`: failure-only report; `failed_nodes` is an
   empty array when all nodes succeed.
 - `orchestrator_status.yml`: stable aggregate of provisioning and PXE phase
   status. An existing `provisioning_report.yml` is retained and correlated by
@@ -297,19 +295,6 @@ ansible-playbook orchestrator.yml --tags pxeboot
 - `orchestrator_common`: Credential decryption and loading
 - `idrac_pxe_boot`: iDRAC PXE boot configuration and restart
 - `verify_node_registration`: Cloud-init node-registration verification
-
-## Migration from utils Domain
-
-This utility was moved from `src/utils` to `src/orchestrator` in Omnia 2.2+.
-
-**Old path**: `src/utils/playbooks/set_pxe_boot.yml`
-**New path**: `src/orchestrator/playbooks/pxeboot/pxeboot.yml`
-
-**Key changes**:
-- Uses `pxe_mapping_file.csv` instead of inventory files
-- Uses orchestrator credentials (no separate credential collection)
-- Conditional execution via `enable_pxe_boot` flag
-- Tag-based execution: `--tags pxeboot`
 
 ## Node completion signal
 

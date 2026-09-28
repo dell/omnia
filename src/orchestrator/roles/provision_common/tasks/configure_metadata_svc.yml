@@ -15,7 +15,7 @@
 # Configure metadata-service for a single functional group.
 # Extracted from configure_ochami/tasks/configure_metadata_svc_group.yml.
 # Called in a loop with fg_name set by the caller.
-# Uses delete-then-set for idempotency.
+# Reconciles resources in place so Metadata Service UIDs remain stable.
 
 # Validate repo_status configuration is available - needed for node configuration
 - name: Load repository configuration messages
@@ -360,7 +360,7 @@
           {{ lookup('ansible.builtin.first_found',
                     _ms_template_candidates) }}
         dest: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
-        mode: "{{ file_permissions_644 }}"
+        mode: "0600"
       vars:
         connection_type: "{{ (hostvars['localhost']['ldap_connection_type'] | default('TLS')) | lower }}"
         ldap_search_base: >-
@@ -381,6 +381,7 @@
   ansible.builtin.slurp:
     src: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
   register: ms_fg_group_raw
+  no_log: true
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Parse FG group entries - {{ fg_name }}
@@ -414,76 +415,38 @@
     loop_var: entry
     label: "{{ entry.name }}"
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
 
-- name: Fetch existing metadata-service groups for delete-before-set - {{ fg_name }}
-  block:
-    - name: Fetch existing metadata-service groups
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200]
-        validate_certs: false
-        return_content: true
-      register: _existing_fg_groups
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-      no_log: true
-  rescue:
-    - name: Fail with metadata-service API error
-      ansible.builtin.fail:
-        msg: "{{ metadata_service_api_fail_msg }}"
+- name: Reconcile metadata-service group configuration for {{ fg_name }}
+  openchami_reconcile:
+    action: reconcile_metadata_groups
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: "{{ ochami_env[cluster_env_key] }}"
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    project_name: "{{ hostvars['localhost']['project_name'] }}"
+    metadata_groups: "{{ _ms_fg_bodies | default([]) }}"
+  register: _metadata_fg_reconcile
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  no_log: true
 
-- name: Delete existing metadata-service group entries for {{ fg_name }}
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups/{{ item.metadata.uid }}"
-    method: DELETE
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-    status_code: [200, 204, 404]
-    validate_certs: false
-  loop: >-
-    {{ _existing_fg_groups.json | default([])
-       | selectattr('metadata.name', 'in', _ms_fg_bodies | default([]) | map(attribute='metadata.name') | list)
-       | list }}
-  loop_control:
-    label: "{{ item.metadata.name | default(item.metadata.uid) }}"
+- name: Track desired metadata-service groups for {{ fg_name }}
+  ansible.builtin.set_fact:
+    omnia_metadata_desired_group_names: >-
+      {{ ((omnia_metadata_desired_group_names | default([]))
+          + (_ms_fg_bodies | default([]) | map(attribute='metadata.name') | list))
+         | unique | list }}
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+
+- name: Track nodes affected by metadata-service group changes for {{ fg_name }}
+  ansible.builtin.set_fact:
+    omnia_metadata_changed_xnames: >-
+      {{ ((omnia_metadata_changed_xnames | default([]))
+          + (_category_nodes
+             | selectattr('FUNCTIONAL_GROUP_NAME', 'equalto', fg_name)
+             | map(attribute='XNAME') | list))
+         | unique | list }}
   when:
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-    - _existing_fg_groups.json | default([]) | length > 0
-
-- name: Set metadata-service group configuration for functional group (via metadata-service API)  # noqa: name[template]
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-      Content-Type: "application/json"
-    body_format: json
-    body: "{{ item }}"
-    status_code: [200, 201]
-    validate_certs: false
-  loop: "{{ _ms_fg_bodies | default([]) }}"
-  loop_control:
-    label: "{{ item.metadata.name }}"
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-- name: Verify metadata-service group configuration - {{ fg_name }}
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/groups"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-    status_code: [200]
-    validate_certs: false
-    return_content: true
-  register: ms_group_output
-  no_log: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-- name: Verify metadata-service group output - {{ fg_name }}
-  ansible.builtin.debug:
-    msg: "{{ ms_group_output.json | default([]) | selectattr('metadata.name', 'equalto', fg_name) | list }}"
-    verbosity: 2
-  no_log: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+    - >-
+      ((_metadata_fg_reconcile.created | default([]))
+       + (_metadata_fg_reconcile.updated | default([]))) | length > 0

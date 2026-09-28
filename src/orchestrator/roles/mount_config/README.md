@@ -1,4 +1,4 @@
-# NFS Client Role
+# mount_config
 
 ## Overview
 Configures NFS client mounts on cluster nodes based on their functional roles and host-specific targeting.
@@ -83,3 +83,39 @@ Both functional group and host-specific mounts are rendered in cloud-init templa
 2. **Host-Specific Mounts**: Resolve the current node identifier with `cloud-init query` before creating node-specific bind mounts
 
 This allows a single cloud-init template to serve multiple nodes while each node receives only its applicable mounts.
+
+## Requirements
+
+- Valid `storage_config.yml` and `omnia_config.yml` for the active project.
+- Referenced NFS/VAST endpoints reachable when OIM mounting is selected.
+- PXE mapping facts available for host-specific targeting.
+
+## Role Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `mount_config_mode` | `all` | Select `all`, `cloud-init`, or `oim-mount` work |
+| `storage_config_vars` | Project `storage_config.yml` | Mount and swap definitions |
+| `omnia_config_vars` | Project `omnia_config.yml` | Enabled storage references |
+| `pxe_mapping_file_path` | Setup-derived | Host-specific targeting input |
+
+Internal mount options and output maps are defined in `vars/main.yml`.
+
+## Dependencies
+
+No automatic dependency is declared in `meta/main.yml`. The caller must
+resolve project paths and validate storage references first.
+
+## Example
+
+```yaml
+- hosts: oim
+  roles:
+    - role: mount_config
+      vars:
+        mount_config_mode: cloud-init
+```
+
+## License
+
+Apache-2.0
