@@ -93,9 +93,6 @@
       register: _dep_check_vast
       changed_when: false
       failed_when: false
-
-
-
     # -----------------------------------------------------------------
     # Step 2: Build blocking sources for each sink
     # -----------------------------------------------------------------

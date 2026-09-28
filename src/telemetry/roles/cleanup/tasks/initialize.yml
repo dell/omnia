@@ -116,11 +116,6 @@
     _cleanup_sinks_requested: []
   when: not (_cleanup_sinks | bool)
 
-- name: Debug - Display detected sinks
-  ansible.builtin.debug:
-    msg: "Detected sinks: {{ _cleanup_sinks_requested }}"
-  when: _cleanup_sinks | bool
-
 - name: Validate requested sink names
   ansible.builtin.assert:
     that:
