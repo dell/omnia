@@ -127,9 +127,9 @@
 # Remove VMServiceScrape for OTEL Collector (if exists)
 # =============================================================================
 # VMServiceScrape tells vmagent to scrape the OTEL Collector.
-# When PowerScale metrics are disabled, we should remove this to prevent
-# vmagent from attempting to scrape a scaled-down service.
-# This prevents error logs in vmagent when trying to scrape a non-existent service.
+# When PowerScale metrics are disabled (scaled to 0), vmagent will attempt to
+# scrape a scaled-down service, generating error logs.
+# This deletion prevents those error logs and keeps vmagent clean.
 # =============================================================================
 
 - name: Check if VMServiceScrape for otel-collector exists
