@@ -526,6 +526,55 @@ TEST_CASES = {
         "id": "TEL_FVT_CLEANUP_V033",
         "title": "Verify volumes protected during blocked cleanup with delete_sinks_volume=true",
     },
+    "cleanup_sinks_all_or_nothing": {
+        "id": "TEL_FVT_CLEANUP_V034",
+        "title": "Verify all-or-nothing: blocked sink prevents cleanup of other sinks",
+    },
+    "cleanup_sinks_blocked_playbook_fails": {
+        "id": "TEL_FVT_CLEANUP_V035",
+        "title": "Verify playbook fails with non-zero rc when sinks are blocked",
+    },
+    # -- Cleanup: Sinks Short-Form Parameter Support -------------------------
+    "cleanup_sinks_short_form_single": {
+        "id": "TEL_FVT_CLEANUP_V036",
+        "title": "Verify short-form parameter -e kafka works correctly",
+    },
+    "cleanup_sinks_short_form_comma_separated": {
+        "id": "TEL_FVT_CLEANUP_V037",
+        "title": "Verify comma-separated parameter -e kafka,victoria_metrics works",
+    },
+    "cleanup_sinks_short_form_all_three": {
+        "id": "TEL_FVT_CLEANUP_V038",
+        "title": "Verify comma-separated all three sinks -e kafka,victoria_metrics,victoria_logs",
+    },
+    "cleanup_sinks_short_form_separate_flags": {
+        "id": "TEL_FVT_CLEANUP_V039",
+        "title": "Verify separate flags -e kafka -e victoria_metrics work correctly",
+    },
+    "cleanup_sinks_short_form_vs_explicit": {
+        "id": "TEL_FVT_CLEANUP_V040",
+        "title": "Verify short-form and explicit form produce same results",
+    },
+    "cleanup_sinks_short_form_normalization": {
+        "id": "TEL_FVT_CLEANUP_V041",
+        "title": "Verify parameter normalization in omnia.sh",
+    },
+    "cleanup_sinks_actual_resource_cleanup": {
+        "id": "TEL_FVT_CLEANUP_V042",
+        "title": "Verify actual resource cleanup for all sinks",
+    },
+    "cleanup_sinks_dependency_blocking_short_form": {
+        "id": "TEL_FVT_CLEANUP_V043",
+        "title": "Verify dependency checking with short-form parameters",
+    },
+    "cleanup_sinks_all_or_nothing_short_form": {
+        "id": "TEL_FVT_CLEANUP_V044",
+        "title": "Verify all-or-nothing behavior with short-form parameters",
+    },
+    "cleanup_sinks_volume_preservation_short_form": {
+        "id": "TEL_FVT_CLEANUP_V045",
+        "title": "Verify volume preservation with short-form parameters",
+    },
     # -- Cleanup: Sources ---------------------------------------------------
     "cleanup_idrac": {
         "id": "TEL_FVT_CLEANUP_V006",

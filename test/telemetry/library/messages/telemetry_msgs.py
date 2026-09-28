@@ -89,6 +89,9 @@ TEST_LOG_MSGS = {
     "sink_volumes_preserved": "Sink {sink} volumes preserved (default)",
     "sink_volumes_deleted": "Sink {sink} volumes deleted (delete_sinks_volume=true)",
     "sink_other_sinks_unchanged": "Other sinks unchanged after selective {sink} cleanup",
+    "sink_all_or_nothing_pass": "All-or-nothing: all sinks preserved when {sink} is blocked",
+    "sink_all_or_nothing_fail": "All-or-nothing violation: sinks were cleaned despite {sink} being blocked",
+    "sink_playbook_fail_on_block": "Playbook correctly fails when sinks are blocked",
 
     # Cleanup - Final State
     "no_pods_remaining": "No pods remaining in telemetry namespace",
@@ -475,6 +478,14 @@ TEST_ASSERT_MSGS = {
     "other_sinks_modified": (
         "Other sinks were modified during selective {sink} cleanup.\n"
         "Expected only the targeted sink to be affected.\n"
+    ),
+    "all_or_nothing_violation": (
+        "All-or-nothing violation: when {sink} is blocked by running sources, "
+        "all requested sinks must remain unchanged. No sink should be cleaned.\n"
+    ),
+    "playbook_should_fail_on_block": (
+        "Playbook should exit with non-zero return code when any requested sink "
+        "is blocked by running dependent sources.\n"
     ),
 
     # Cleanup - Final State

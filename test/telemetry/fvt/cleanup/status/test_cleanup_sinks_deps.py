@@ -19,6 +19,11 @@ Verifies that the cleanup_sinks tag correctly checks for running
 dependent sources before removing sinks (Kafka, VictoriaMetrics,
 VictoriaLogs).
 
+All-or-nothing behavior: If ANY requested sink is blocked by a running
+dependent source, the ENTIRE selective cleanup is aborted and NO sinks
+are cleaned. The playbook fails with a non-zero return code and lists
+all blocking sources.
+
 Dependency map:
     Kafka:           iDRAC (kafka target), LDMS, Vector-LDMS, Vector-OME
     VictoriaMetrics: iDRAC (VM target), PowerScale, UFM, VAST,
@@ -42,6 +47,8 @@ Test cases:
     TEL_FVT_CLEANUP_V031: Repeated sink cleanup is idempotent
     TEL_FVT_CLEANUP_V032: Selective cleanup does not affect other sinks
     TEL_FVT_CLEANUP_V033: Volumes protected during blocked cleanup
+    TEL_FVT_CLEANUP_V034: All-or-nothing — blocked sink prevents cleanup of other sinks
+    TEL_FVT_CLEANUP_V035: Playbook fails with non-zero rc when sinks blocked
 """
 
 import pytest
@@ -154,6 +161,7 @@ def test_cleanup_sinks_kafka_blocked(host):
     WHEN cleanup_sinks is executed with sinks=kafka
     THEN Kafka cleanup is not performed
     AND no Kafka resource or volume is deleted
+    AND the playbook fails with a non-zero return code
     AND the playbook reports the blocking sources.
     """
     tc = TC["cleanup_sinks_kafka_blocked"]
@@ -180,30 +188,37 @@ def test_cleanup_sinks_kafka_blocked(host):
     # Record Kafka state before cleanup attempt
     kafka_before = verify_sink_running(host, "kafka")
 
-    # Run cleanup_sinks for kafka — should be blocked
+    # Run cleanup_sinks for kafka — should be blocked and fail
     result = run_playbook(
         tag="cleanup_sinks",
         extra_vars={"sinks": "kafka"},
     )
 
+    # Verify playbook failed (non-zero rc) due to blocked sinks
+    playbook_failed = not result["success"]
+
     # Verify Kafka is still running (unchanged)
     kafka_after = verify_sink_running(host, "kafka")
     unchanged = kafka_before["pod_count"] == kafka_after["pod_count"]
 
-    if unchanged:
+    if unchanged and playbook_failed:
         tl.passed(
             LOG_MSGS["sink_cleanup_blocked"].format(
                 sink="Kafka", sources=", ".join(blocking),
             ),
-            f"Kafka pods unchanged: {kafka_after['pod_count']}",
+            f"Kafka pods unchanged: {kafka_after['pod_count']}, playbook rc={result['rc']}",
         )
     else:
         tl.failed(
             LOG_MSGS["sink_unchanged"].format(sink="Kafka"),
-            f"Before: {kafka_before['pod_count']}, After: {kafka_after['pod_count']}",
+            f"Before: {kafka_before['pod_count']}, After: {kafka_after['pod_count']}, "
+            f"playbook_failed: {playbook_failed}",
         )
 
     assert unchanged, ASSERT_MSGS["sink_should_remain_unchanged"].format(sink="Kafka")
+    assert playbook_failed, (
+        "Playbook should fail with non-zero rc when sinks are blocked"
+    )
 
 
 @pytest.mark.functional
@@ -453,7 +468,8 @@ def test_cleanup_sinks_vm_blocked(host):
     GIVEN one or more running sources use VictoriaMetrics
     WHEN cleanup_sinks is executed with sinks=victoria_metrics
     THEN VictoriaMetrics cleanup is not performed
-    AND its resources and volumes remain unchanged.
+    AND its resources and volumes remain unchanged
+    AND the playbook fails with a non-zero return code.
     """
     tc = TC["cleanup_sinks_vm_blocked"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -475,29 +491,34 @@ def test_cleanup_sinks_vm_blocked(host):
 
     vm_before = verify_sink_running(host, "victoria_metrics")
 
-    run_playbook(
+    result = run_playbook(
         tag="cleanup_sinks",
         extra_vars={"sinks": "victoria_metrics"},
     )
 
+    playbook_failed = not result["success"]
     vm_after = verify_sink_running(host, "victoria_metrics")
     unchanged = vm_before["pod_count"] == vm_after["pod_count"]
 
-    if unchanged:
+    if unchanged and playbook_failed:
         tl.passed(
             LOG_MSGS["sink_cleanup_blocked"].format(
                 sink="VictoriaMetrics", sources=", ".join(blocking),
             ),
-            f"VM pods unchanged: {vm_after['pod_count']}",
+            f"VM pods unchanged: {vm_after['pod_count']}, playbook rc={result['rc']}",
         )
     else:
         tl.failed(
             LOG_MSGS["sink_unchanged"].format(sink="VictoriaMetrics"),
-            f"Before: {vm_before['pod_count']}, After: {vm_after['pod_count']}",
+            f"Before: {vm_before['pod_count']}, After: {vm_after['pod_count']}, "
+            f"playbook_failed: {playbook_failed}",
         )
 
     assert unchanged, ASSERT_MSGS["sink_should_remain_unchanged"].format(
         sink="VictoriaMetrics",
+    )
+    assert playbook_failed, (
+        "Playbook should fail with non-zero rc when sinks are blocked"
     )
 
 
@@ -637,7 +658,8 @@ def test_cleanup_sinks_vl_blocked(host):
     GIVEN one or more running sources use VictoriaLogs
     WHEN cleanup_sinks is executed with sinks=victoria_logs
     THEN VictoriaLogs cleanup is not performed
-    AND its resources and volumes remain unchanged.
+    AND its resources and volumes remain unchanged
+    AND the playbook fails with a non-zero return code.
     """
     tc = TC["cleanup_sinks_vl_blocked"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -656,29 +678,34 @@ def test_cleanup_sinks_vl_blocked(host):
 
     vl_before = verify_sink_running(host, "victoria_logs")
 
-    run_playbook(
+    result = run_playbook(
         tag="cleanup_sinks",
         extra_vars={"sinks": "victoria_logs"},
     )
 
+    playbook_failed = not result["success"]
     vl_after = verify_sink_running(host, "victoria_logs")
     unchanged = vl_before["pod_count"] == vl_after["pod_count"]
 
-    if unchanged:
+    if unchanged and playbook_failed:
         tl.passed(
             LOG_MSGS["sink_cleanup_blocked"].format(
                 sink="VictoriaLogs", sources=", ".join(blocking),
             ),
-            f"VL pods unchanged: {vl_after['pod_count']}",
+            f"VL pods unchanged: {vl_after['pod_count']}, playbook rc={result['rc']}",
         )
     else:
         tl.failed(
             LOG_MSGS["sink_unchanged"].format(sink="VictoriaLogs"),
-            f"Before: {vl_before['pod_count']}, After: {vl_after['pod_count']}",
+            f"Before: {vl_before['pod_count']}, After: {vl_after['pod_count']}, "
+            f"playbook_failed: {playbook_failed}",
         )
 
     assert unchanged, ASSERT_MSGS["sink_should_remain_unchanged"].format(
         sink="VictoriaLogs",
+    )
+    assert playbook_failed, (
+        "Playbook should fail with non-zero rc when sinks are blocked"
     )
 
 
@@ -945,4 +972,150 @@ def test_cleanup_sinks_blocked_volumes_protected(host, delete_sinks_volume):
 
     assert pods_unchanged and pvcs_unchanged, (
         ASSERT_MSGS["sink_should_remain_unchanged"].format(sink="Kafka")
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.sink
+@pytest.mark.order(85)
+def test_cleanup_sinks_all_or_nothing(host):
+    """TEL_FVT_CLEANUP_V034: All-or-nothing — blocked sink prevents other sinks from being cleaned.
+
+    GIVEN Kafka is blocked by a running dependent source
+    AND VictoriaMetrics and VictoriaLogs are also requested
+    WHEN cleanup_sinks is executed with sinks=kafka,victoria_metrics,victoria_logs
+    THEN NO sinks are cleaned (all-or-nothing behavior)
+    AND Kafka, VictoriaMetrics, and VictoriaLogs all remain unchanged
+    AND the playbook fails with a non-zero return code.
+    """
+    tc = TC["cleanup_sinks_all_or_nothing"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    kafka_deps = [
+        ("app=nersc-ldms", "LDMS"),
+        ("app=vector-ldms", "Vector-LDMS"),
+        ("app=vector-ome", "Vector-OME"),
+        ("app=idrac-telemetry", "iDRAC"),
+    ]
+    blocking = []
+    for label, name in kafka_deps:
+        src = verify_source_running(host, label)
+        if src["running"]:
+            blocking.append(name)
+
+    if not blocking:
+        pytest.skip(
+            "No Kafka-dependent sources running; cannot test all-or-nothing scenario"
+        )
+
+    # Record state before cleanup attempt
+    kafka_before = verify_sink_running(host, "kafka")
+    vm_before = verify_sink_running(host, "victoria_metrics")
+    vl_before = verify_sink_running(host, "victoria_logs")
+
+    # Request all sinks — Kafka should block the entire cleanup
+    result = run_playbook(
+        tag="cleanup_sinks",
+        extra_vars={"sinks": "kafka,victoria_metrics,victoria_logs"},
+    )
+
+    playbook_failed = not result["success"]
+
+    # Verify ALL sinks remain unchanged
+    kafka_after = verify_sink_running(host, "kafka")
+    vm_after = verify_sink_running(host, "victoria_metrics")
+    vl_after = verify_sink_running(host, "victoria_logs")
+
+    kafka_ok = kafka_before["pod_count"] == kafka_after["pod_count"]
+    vm_ok = vm_before["pod_count"] == vm_after["pod_count"]
+    vl_ok = vl_before["pod_count"] == vl_after["pod_count"]
+
+    all_unchanged = kafka_ok and vm_ok and vl_ok
+
+    if all_unchanged and playbook_failed:
+        tl.passed(
+            "All-or-nothing: all sinks preserved when Kafka is blocked",
+            (
+                f"Kafka blocked by: {', '.join(blocking)}. "
+                f"Kafka: {kafka_after['pod_count']} pods, "
+                f"VM: {vm_after['pod_count']} pods, "
+                f"VL: {vl_after['pod_count']} pods — all unchanged. "
+                f"Playbook rc={result['rc']}"
+            ),
+        )
+    else:
+        tl.failed(
+            "All-or-nothing violation: some sinks were cleaned despite Kafka being blocked",
+            (
+                f"Kafka: {'unchanged' if kafka_ok else 'MODIFIED'}, "
+                f"VM: {'unchanged' if vm_ok else 'MODIFIED'}, "
+                f"VL: {'unchanged' if vl_ok else 'MODIFIED'}, "
+                f"playbook_failed: {playbook_failed}"
+            ),
+        )
+
+    assert all_unchanged, (
+        "All-or-nothing violation: when Kafka is blocked, VictoriaMetrics and "
+        "VictoriaLogs must also remain unchanged"
+    )
+    assert playbook_failed, (
+        "Playbook should fail with non-zero rc when any requested sink is blocked"
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.sink
+@pytest.mark.order(86)
+def test_cleanup_sinks_blocked_playbook_fails(host):
+    """TEL_FVT_CLEANUP_V035: Playbook fails with non-zero rc when sinks are blocked.
+
+    GIVEN one or more running sources block at least one requested sink
+    WHEN cleanup_sinks is executed
+    THEN the playbook exits with a non-zero return code
+    AND no sink resources are modified.
+    """
+    tc = TC["cleanup_sinks_blocked_playbook_fails"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    # Check for any running dependent source across all sinks
+    all_deps = [
+        ("app=nersc-ldms", "LDMS"),
+        ("app=vector-ldms", "Vector-LDMS"),
+        ("app=vector-ome", "Vector-OME"),
+        ("app=idrac-telemetry", "iDRAC"),
+        ("app.kubernetes.io/name=karavi-metrics-powerscale", "PowerScale"),
+    ]
+    blocking = []
+    for label, name in all_deps:
+        src = verify_source_running(host, label)
+        if src["running"]:
+            blocking.append(name)
+
+    if not blocking:
+        pytest.skip(
+            "No dependent sources running; cannot test playbook failure scenario"
+        )
+
+    # Request all sinks cleanup — at least one should be blocked
+    result = run_playbook(
+        tag="cleanup_sinks",
+        extra_vars={"sinks": "kafka,victoria_metrics,victoria_logs"},
+    )
+
+    playbook_failed = not result["success"]
+
+    if playbook_failed:
+        tl.passed(
+            "Playbook correctly fails when sinks are blocked",
+            f"rc={result['rc']}, blocking sources: {', '.join(blocking)}",
+        )
+    else:
+        tl.failed(
+            "Playbook should have failed when sinks are blocked",
+            f"rc={result['rc']}, blocking sources: {', '.join(blocking)}",
+        )
+
+    assert playbook_failed, (
+        f"Playbook should fail (non-zero rc) when sinks are blocked by "
+        f"running sources: {', '.join(blocking)}"
     )
