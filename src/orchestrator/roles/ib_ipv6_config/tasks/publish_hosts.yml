@@ -1,0 +1,41 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Publish managed IPoIB IPv6 hosts block to /etc/hosts on the OIM.
+# Uses blockinfile for atomic marker-delimited replacement.
+
+- name: Read rendered hosts block
+  ansible.builtin.slurp:
+    src: "{{ _ib_ipv6_render.hosts_block_file }}"
+  register: _ib_ipv6_hosts_raw
+  delegate_to: localhost
+
+- name: Parse hosts block content
+  ansible.builtin.set_fact:
+    _ib_ipv6_hosts_content: "{{ _ib_ipv6_hosts_raw.content | b64decode }}"
+
+- name: Update managed IPoIB IPv6 block in /etc/hosts
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    block: >-
+      {{ _ib_ipv6_hosts_content
+         | regex_replace('^# BEGIN Omnia IPoIB managed block\n', '')
+         | regex_replace('\n# END Omnia IPoIB managed block$', '') }}
+    marker: "# {mark} Omnia IPoIB managed block"
+    create: false
+  when: _ib_ipv6_hosts_content | length > 0
+
+- name: Display hosts publication status
+  ansible.builtin.debug:
+    msg: "[IB-IPv6] Managed hosts block updated in /etc/hosts"
