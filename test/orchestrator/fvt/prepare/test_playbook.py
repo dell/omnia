@@ -12,46 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Orchestrator Prepare — Deploy.
-
-ORCH_FVT_PREPARE_E001: Deploy orchestrator.yml --tags prepare
-"""
+"""Execute the Orchestrator prepare lifecycle."""
 
 import pytest
-
 from library.functions import TestLogger, run_playbook
 from library.messages import (
-    TEST_NAMES,
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
+    PREPARE_TEST_ASSERT_MSGS as ASSERT,
 )
+from library.messages import (
+    PREPARE_TEST_LOG_MSGS as LOG,
+)
+from library.vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.buildstream
 @pytest.mark.order(0)
 def test_deploy_prepare(host):
-    """ORCH_FVT_PREPARE_E001: Deploy orchestrator.yml --tags prepare."""
-    tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag="prepare"), "ORCH_FVT_PREPARE_E001"
-    )
+    """Run ``orchestrator.yml --tags prepare``."""
+    tc = TC["deploy_prepare"]
+    test_log = TestLogger(tc["title"], tc["id"])
     result = run_playbook(tag="prepare")
 
     if result["success"]:
-        tl.passed(LOG["playbook_success"].format(
-            duration=result["duration"]
-        ))
+        test_log.passed_fields(
+            LOG["playbook_success"],
+            [
+                ("Return code", result["rc"]),
+                ("Duration seconds", f"{result['duration']:.1f}"),
+            ],
+        )
     else:
-        tl.failed(
-            LOG["playbook_failed"].format(
-                rc=result["rc"], duration=result["duration"],
-            ),
-            result.get("error", "See playbook output above"),
+        test_log.failed_fields(
+            LOG["playbook_failed"],
+            [
+                ("Return code", result["rc"]),
+                ("Duration seconds", f"{result['duration']:.1f}"),
+                ("Error", result.get("error", "See playbook output")),
+            ],
         )
 
     assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="orchestrator.yml", tag="prepare",
-        rc=result["rc"], duration=result["duration"],
+        rc=result["rc"], duration=result["duration"]
     )

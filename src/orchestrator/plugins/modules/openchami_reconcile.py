@@ -29,7 +29,8 @@ description:
   - Uses verified HTTPS and TokenSmith JWT authentication.
   - Resolves persistent XNAME identities, reconciles SMD groups, cleans scoped
     SMD artifacts, runs static discovery, verifies registrations, and
-    idempotently reconciles Metadata Service InstanceInfo resources.
+    idempotently reconciles Boot Service configurations and owned Metadata
+    Service InstanceInfo, Group, and ClusterDefaults resources.
 options:
   action:
     description: Reconciliation operation to perform.
@@ -44,7 +45,13 @@ options:
       - cleanup_smd
       - discover_static
       - verify_components
+      - list_boot_configurations
+      - reconcile_boot_configurations
+      - prune_boot_configurations
       - reconcile_instanceinfos
+      - reconcile_metadata_groups
+      - prune_metadata_groups
+      - reconcile_cluster_defaults
   cluster_uri:
     description: HTTPS URL of the OpenCHAMI gateway.
     type: str
@@ -108,10 +115,52 @@ options:
     type: list
     elements: str
     default: []
+  boot_configurations:
+    description: Desired Boot Service configuration resources.
+    type: list
+    elements: dict
+    default: []
+  boot_configuration_names:
+    description: Complete desired Boot Service configuration-name set.
+    type: list
+    elements: str
+    default: []
+  boot_configuration_macs:
+    description: Node MACs used to identify stale Boot Service configurations.
+    type: list
+    elements: str
+    default: []
   instance_infos:
     description: Desired Metadata Service InstanceInfo resources.
     type: list
     elements: dict
+    default: []
+  metadata_groups:
+    description: Desired Metadata Service group resources.
+    type: list
+    elements: dict
+    default: []
+  metadata_group_names:
+    description: Complete desired Metadata Service group-name set.
+    type: list
+    elements: str
+    default: []
+  cluster_defaults:
+    description: Desired Metadata Service ClusterDefaults resource.
+    type: dict
+    default: {}
+  project_name:
+    description: Omnia project owning reconciled Metadata Service resources.
+    type: str
+  legacy_managed_group_names:
+    description: Reserved legacy Omnia group names eligible for safe adoption.
+    type: list
+    elements: str
+    default: []
+  legacy_managed_group_prefixes:
+    description: Reserved legacy Omnia group prefixes eligible for safe adoption.
+    type: list
+    elements: str
     default: []
   timeout:
     description: Per-request network timeout in seconds.
@@ -142,6 +191,14 @@ EXAMPLES = r'''
     nodes: "{{ mapping_nodes }}"
   register: resolved_identities
 
+- name: Reconcile one functional-group Boot Service configuration
+  omnia.orchestrator.openchami_reconcile:
+    action: reconcile_boot_configurations
+    cluster_uri: "https://{{ cluster_name }}.{{ cluster_domain }}:8443"
+    access_token: "{{ openchami_access_token }}"
+    ca_cert: "{{ openchami_ca_cert_path }}"
+    boot_configurations: "{{ desired_boot_configurations }}"
+
 - name: Reconcile per-node hostnames without duplicate InstanceInfo records
   omnia.orchestrator.openchami_reconcile:
     action: reconcile_instanceinfos
@@ -149,6 +206,7 @@ EXAMPLES = r'''
     access_token: "{{ openchami_access_token }}"
     ca_cert: "{{ openchami_ca_cert_path }}"
     instance_infos: "{{ desired_instance_infos }}"
+    project_name: "{{ project_name }}"
 '''
 
 RETURN = r'''
@@ -181,7 +239,13 @@ def main():
                     "cleanup_smd",
                     "discover_static",
                     "verify_components",
+                    "list_boot_configurations",
+                    "reconcile_boot_configurations",
+                    "prune_boot_configurations",
                     "reconcile_instanceinfos",
+                    "reconcile_metadata_groups",
+                    "prune_metadata_groups",
+                    "reconcile_cluster_defaults",
                 ],
             },
             "cluster_uri": {"type": "str", "required": True},
@@ -230,9 +294,46 @@ def main():
                 "elements": "str",
                 "default": [],
             },
+            "boot_configurations": {
+                "type": "list",
+                "elements": "dict",
+                "default": [],
+            },
+            "boot_configuration_names": {
+                "type": "list",
+                "elements": "str",
+                "default": [],
+            },
+            "boot_configuration_macs": {
+                "type": "list",
+                "elements": "str",
+                "default": [],
+            },
             "instance_infos": {
                 "type": "list",
                 "elements": "dict",
+                "default": [],
+            },
+            "metadata_groups": {
+                "type": "list",
+                "elements": "dict",
+                "default": [],
+            },
+            "metadata_group_names": {
+                "type": "list",
+                "elements": "str",
+                "default": [],
+            },
+            "cluster_defaults": {"type": "dict", "default": {}},
+            "project_name": {"type": "str"},
+            "legacy_managed_group_names": {
+                "type": "list",
+                "elements": "str",
+                "default": [],
+            },
+            "legacy_managed_group_prefixes": {
+                "type": "list",
+                "elements": "str",
                 "default": [],
             },
             "timeout": {"type": "int", "default": 15},
@@ -295,11 +396,49 @@ def main():
                     _required(module, "expected_xnames")
                 ),
             }
-        else:
-            result = reconciler.reconcile_instance_infos(
-                desired=_required(module, "instance_infos"),
+        elif action == "list_boot_configurations":
+            result = reconciler.list_boot_configurations()
+        elif action == "reconcile_boot_configurations":
+            result = reconciler.reconcile_boot_configurations(
+                desired=_required(module, "boot_configurations"),
                 check_mode=module.check_mode,
             )
+        elif action == "prune_boot_configurations":
+            result = reconciler.prune_boot_configurations(
+                desired_names=module.params["boot_configuration_names"],
+                target_macs=module.params["boot_configuration_macs"],
+                check_mode=module.check_mode,
+            )
+        elif action == "reconcile_instanceinfos":
+            result = reconciler.reconcile_instance_infos(
+                desired=_required(module, "instance_infos"),
+                project_name=_required(module, "project_name"),
+                check_mode=module.check_mode,
+            )
+        elif action == "reconcile_metadata_groups":
+            result = reconciler.reconcile_metadata_groups(
+                desired=_required(module, "metadata_groups"),
+                project_name=_required(module, "project_name"),
+                check_mode=module.check_mode,
+            )
+        elif action == "prune_metadata_groups":
+            result = reconciler.prune_metadata_groups(
+                desired_names=module.params["metadata_group_names"],
+                project_name=_required(module, "project_name"),
+                legacy_managed_names=module.params["legacy_managed_group_names"],
+                legacy_managed_prefixes=module.params[
+                    "legacy_managed_group_prefixes"
+                ],
+                check_mode=module.check_mode,
+            )
+        elif action == "reconcile_cluster_defaults":
+            result = reconciler.reconcile_cluster_defaults(
+                desired=_required(module, "cluster_defaults"),
+                project_name=_required(module, "project_name"),
+                check_mode=module.check_mode,
+            )
+        else:
+            raise ValueError(f"Unsupported OpenCHAMI action: {action}")
         module.exit_json(**result)
     except (OpenChamiError, IdentityError, TypeError, ValueError) as exc:
         module.fail_json(msg=str(exc), action=module.params.get("action"))

@@ -64,7 +64,8 @@
     headers:
       Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200]
-    validate_certs: false
+    ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    validate_certs: true
     return_content: true
   register: configure_ochami_legacy_common_groups
   no_log: true
@@ -79,7 +80,8 @@
     headers:
       Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200, 204, 404]
-    validate_certs: false
+    ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    validate_certs: true
   loop: >-
     {{ configure_ochami_legacy_common_groups.json | default([])
        | selectattr('metadata.name', 'equalto', 'node_registration')
@@ -101,7 +103,8 @@
     body_format: json
     body: "{{ item }}"
     status_code: [200, 201, 409]
-    validate_certs: false
+    ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    validate_certs: true
   loop: "{{ _ms_group_bodies | default([]) }}"
   loop_control:
     label: "{{ item.metadata.name }}"
