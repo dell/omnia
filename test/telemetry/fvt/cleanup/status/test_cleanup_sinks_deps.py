@@ -709,6 +709,72 @@ def test_cleanup_sinks_vl_blocked(host):
     )
 
 
+@pytest.mark.functional
+@pytest.mark.sink
+@pytest.mark.order(83)
+def test_cleanup_sinks_vl_multi_blocked(host):
+    """TEL_FVT_CLEANUP_V049: VictoriaLogs cleanup blocked by multiple sources.
+
+    GIVEN multiple running sources use VictoriaLogs
+    WHEN cleanup_sinks is executed with sinks=victoria_logs
+    THEN VictoriaLogs cleanup is not performed
+    AND its resources and volumes remain unchanged
+    AND the playbook fails with a non-zero return code
+    AND all blocking sources are listed in the error message.
+    """
+    tc = TC["cleanup_sinks_vl_multi_blocked"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    vl_deps = [
+        ("app.kubernetes.io/name=karavi-metrics-powerscale", "PowerScale"),
+        ("app=vector-ome", "Vector-OME"),
+    ]
+    blocking = []
+    for label, name in vl_deps:
+        src = verify_source_running(host, label)
+        if src["running"]:
+            blocking.append(name)
+
+    if len(blocking) < 2:
+        pytest.skip(
+            f"Fewer than 2 VL-dependent sources running ({len(blocking)}); "
+            f"cannot test multi-blocking scenario"
+        )
+
+    vl_before = verify_sink_running(host, "victoria_logs")
+
+    result = run_playbook(
+        tag="cleanup_sinks",
+        extra_vars={"sinks": "victoria_logs"},
+    )
+
+    playbook_failed = not result["success"]
+    vl_after = verify_sink_running(host, "victoria_logs")
+    unchanged = vl_before["pod_count"] == vl_after["pod_count"]
+
+    if unchanged and playbook_failed:
+        tl.passed(
+            LOG_MSGS["sink_cleanup_blocked"].format(
+                sink="VictoriaLogs", sources=", ".join(blocking),
+            ),
+            f"VL pods unchanged: {vl_after['pod_count']}, "
+            f"playbook rc={result['rc']}, blocking sources: {', '.join(blocking)}",
+        )
+    else:
+        tl.failed(
+            LOG_MSGS["sink_unchanged"].format(sink="VictoriaLogs"),
+            f"Before: {vl_before['pod_count']}, After: {vl_after['pod_count']}, "
+            f"playbook_failed: {playbook_failed}, blocking: {', '.join(blocking)}",
+        )
+
+    assert unchanged, ASSERT_MSGS["sink_should_remain_unchanged"].format(
+        sink="VictoriaLogs",
+    )
+    assert playbook_failed, (
+        "Playbook should fail with non-zero rc when sinks are blocked by multiple sources"
+    )
+
+
 # =============================================================================
 # CROSS-CUTTING TESTS
 # =============================================================================

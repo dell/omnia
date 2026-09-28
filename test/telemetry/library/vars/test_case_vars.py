@@ -506,6 +506,10 @@ TEST_CASES = {
         "id": "TEL_FVT_CLEANUP_V028",
         "title": "Verify VictoriaLogs cleanup blocked by dependent source",
     },
+    "cleanup_sinks_vl_multi_blocked": {
+        "id": "TEL_FVT_CLEANUP_V049",
+        "title": "Verify VictoriaLogs cleanup blocked by multiple dependent sources",
+    },
     "cleanup_sinks_dep_check_fail": {
         "id": "TEL_FVT_CLEANUP_V029",
         "title": "Verify sinks preserved on dependency check failure",
