@@ -864,14 +864,17 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
             "select_catalog 10.0/slurm_x86_64_no_vast.json"
         )
 
-        result = subprocess.run(
-            ["bash", "-c", script],
-            input="yes\n",
-            check=False,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as confirmation:
+            confirmation.write("yes\n")
+            confirmation.seek(0)
+            result = subprocess.run(
+                ["bash", "-c", script],
+                stdin=confirmation,
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
 
         backups = list(catalog_target.parent.glob("catalog_rhel.json.backup.*"))
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
