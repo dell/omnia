@@ -26,6 +26,7 @@ from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
 )
 from ._apptainer_helpers import (
+    _wait_for_job_accounting,
     apptainer_context,
     command_error,
     grouped_node_fields,
@@ -53,8 +54,25 @@ def _functional_context(host, summary):
         )
     try:
         image = primary_image(host, computes[0])
-    except FileNotFoundError as exc:
-        return context, rows, control, computes, optional_skip(summary, str(exc))
+    except FileNotFoundError:
+        return (
+            context,
+            rows,
+            control,
+            computes,
+            runtime_result(
+                False,
+                summary,
+                [
+                    (
+                        "Prerequisite",
+                        f"No usable SIF image in {APPTAINER_IMAGE_DIRECTORY}",
+                    ),
+                ],
+                f"Staged SIF data is required. Run the image download step or "
+                f"verify images exist in {APPTAINER_IMAGE_DIRECTORY}.",
+            ),
+        )
     return context, rows, control, computes, image
 
 
@@ -71,11 +89,14 @@ def _targeted_job_check(host, summary, username=""):
             result = run_targeted_container(
                 host, control, row, image["path"], username=username
             )
-            outcomes[row["HOSTNAME"]] = (
-                result["success"],
+            detail = (
                 f"job={result['job_id']} | output={result['output']}"
-                + (f" | error={result['error']}" if result["error"] else ""),
+                f" | state={result['scheduler_state']}"
+                f" | node={result['allocated_node']}"
             )
+            if result["error"]:
+                detail += f" | error={result['error']}"
+            outcomes[row["HOSTNAME"]] = (result["success"], detail)
         failures = [name for name, outcome in outcomes.items() if not outcome[0]]
         fields = [("Image", image["name"])]
         if username:
@@ -209,7 +230,17 @@ def check_apptainer_concurrent_jobs(host):
             if line.strip()
         ]
         expected = [row["HOSTNAME"] for row in targets]
-        ok = result.rc == 0 and sorted(reported) == sorted(expected)
+        output_ok = result.rc == 0 and sorted(reported) == sorted(expected)
+
+        # Verify no orphan jobs remain in the scheduler queue
+        final_queue = remote_command(
+            host, control, PXEBOOT_COMMANDS["slurm_queue_snapshot"]
+        )
+        queue_entries = [
+            line.strip() for line in final_queue.stdout.splitlines() if line.strip()
+        ]
+        queue_clean = final_queue.rc == 0 and not queue_entries
+        ok = output_ok and queue_clean
         return runtime_result(
             ok,
             summary,
@@ -217,8 +248,15 @@ def check_apptainer_concurrent_jobs(host):
                 ("Concurrent jobs", len(targets)),
                 ("Expected nodes", ", ".join(expected)),
                 ("Completed outputs", ", ".join(reported) or "none"),
+                ("Queue after completion", f"{'clean' if queue_clean else f'{len(queue_entries)} orphan(s)'}"),
             ],
-            command_error(result) if not ok else "",
+            command_error(result)
+            if not output_ok
+            else (
+                "Orphan jobs remain in the scheduler queue after completion"
+                if not queue_clean
+                else ""
+            ),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -422,14 +460,23 @@ def check_apptainer_job_array(host):
         )
         job_id = result.stdout.strip().split(";", 1)[0]
         valid_id = bool(re.fullmatch(r"[0-9]+", job_id))
-        ok = result.rc == 0 and valid_id
+        submit_ok = result.rc == 0 and valid_id
+
+        # Verify scheduler accounting for every array task
+        accounting = (
+            _wait_for_job_accounting(host, control, job_id)
+            if valid_id
+            else {"state": "unavailable", "state_ok": False, "allocated_node": "missing"}
+        )
+        ok = submit_ok and accounting["state_ok"]
         return runtime_result(
             ok,
             summary,
             [
                 ("Array tasks", APPTAINER_ARRAY_SIZE),
                 ("Job ID", job_id or "not reported"),
-                ("All tasks completed", result.rc == 0),
+                ("All tasks completed", submit_ok),
+                ("Scheduler state", accounting["state"]),
             ],
             command_error(result) if not ok else "",
         )

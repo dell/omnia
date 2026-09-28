@@ -17,6 +17,7 @@
 import os
 import re
 import shlex
+import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -24,6 +25,8 @@ from ..vars.pxeboot_vars import (
     APPTAINER_IMAGE_DIRECTORY,
     APPTAINER_JOB_TIMEOUT_SECONDS,
     PXEBOOT_COMMANDS,
+    SLURM_ACCOUNTING_POLL_SECONDS,
+    SLURM_ACCOUNTING_TIMEOUT_SECONDS,
 )
 from ._pxeboot_helpers import remote_command
 from ._workload_helpers import slurm_compute_rows, slurm_context
@@ -107,6 +110,43 @@ def command_error(result) -> str:
     return re.sub(r"\s+", " ", detail)[:300]
 
 
+def _wait_for_job_accounting(host, control, job_id):
+    """Wait for Slurm accounting to publish the job's terminal state."""
+    _TERMINAL_STATES = {
+        "CANCELLED",
+        "COMPLETED",
+        "FAILED",
+        "NODE_FAIL",
+        "OUT_OF_MEMORY",
+        "TIMEOUT",
+    }
+    deadline = time.monotonic() + SLURM_ACCOUNTING_TIMEOUT_SECONDS
+    state = "unavailable"
+    allocated_node = "missing"
+    while time.monotonic() < deadline:
+        result = remote_command(
+            host,
+            control,
+            PXEBOOT_COMMANDS["slurm_job_details"] % job_id,
+        )
+        output = result.stdout.strip()
+        if result.rc == 0 and output:
+            parts = output.split("|", 2)
+            state = parts[0].strip() or "unavailable"
+            allocated_node = (
+                parts[1].strip() if len(parts) > 1 and parts[1].strip() else "missing"
+            )
+            if state.split("+", 1)[0].upper() in _TERMINAL_STATES:
+                break
+        time.sleep(SLURM_ACCOUNTING_POLL_SECONDS)
+    normalized = state.split("+", 1)[0].upper()
+    return {
+        "state": state,
+        "state_ok": normalized == "COMPLETED",
+        "allocated_node": allocated_node,
+    }
+
+
 def run_targeted_container(host, control, compute, image_path: str, username=""):
     """Run one synchronous Apptainer job on an exact mapped compute node."""
     node = safe_node_name(compute["HOSTNAME"])
@@ -130,11 +170,23 @@ def run_targeted_container(host, control, compute, image_path: str, username="")
     job_id = job_line.partition("=")[2]
     output = [line for line in lines if line != job_line]
     hostname = output[-1].split(".", 1)[0] if output else ""
-    success = result.rc == 0 and hostname == compute["HOSTNAME"]
+    output_ok = result.rc == 0 and hostname == compute["HOSTNAME"]
+
+    # Verify scheduler completion state via sacct
+    accounting = (
+        _wait_for_job_accounting(host, control, job_id)
+        if job_id
+        else {"state": "unavailable", "state_ok": False, "allocated_node": "missing"}
+    )
+    allocated_ok = accounting["allocated_node"].split(".", 1)[0] == compute["HOSTNAME"]
+    success = output_ok and accounting["state_ok"] and allocated_ok
     return {
         "success": success,
         "job_id": job_id or "not reported",
         "output": "\n".join(output) or "none",
+        "scheduler_state": accounting["state"],
+        "scheduler_ok": accounting["state_ok"],
+        "allocated_node": accounting["allocated_node"],
         "error": "" if success else command_error(result),
     }
 
