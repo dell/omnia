@@ -18,12 +18,26 @@
 # execution flow for cadence (periodic) builds. It is triggered when
 # cadence_catalog_rhel.json changes in the GitLab repository.
 #
+# Prerequisites:
+#   - GitLab runner with curl and jq installed (alpine/ubuntu image works)
+#   - Network access from the runner to the OIM server
+#   - cadence_catalog_rhel.json in the repository root
+#   - GITLAB_API_TOKEN stored as a masked CI/CD variable (PAT with api scope)
+#   - BSM_API_USERNAME / BSM_API_PASSWORD for first-time registration
+#   - BSM_API_CERT stored as a CI/CD variable (PEM-encoded CA certificate)
+#
 # Architecture:
 #   initialization -> parse-catalog -> configure-local-repository
 #     -> build-images -> deploy -> restart -> validate -> summary
 #
 # The deploy stage uses the ImageGroupID from the just-completed build
 # stage, ensuring that what was built is what gets deployed.
+#
+# Token Management:
+#   - Access tokens expire after 1 hour
+#   - All API calls detect 401 errors (token_expired, invalid_token, missing_token)
+#   - On 401, the pipeline refreshes the token and retries the failed call once
+#   - Token refresh is transparent via the api_call_with_retry wrapper
 #
 # ER Reference: ER-BSM-002 — AC-015, AC-016
 # ---------------------------------------------------------------------------
@@ -180,17 +194,90 @@ initialization:
         exit 1
       fi
       echo "  [OK] BSM API health check passed"
+      echo ""
+      echo "  Step 2/4: Authentication"
+      echo "  ------------------------------------------------------------"
 
-      # Authentication
+      # ============================= Authentication Logic ====================================
+      # Authenticate: skip registration if credentials exist, else register once
+      # Registration is a one-time activity. On first run the pipeline registers
+      # a new OAuth client and persists CLIENT_ID / CLIENT_SECRET as GitLab
+      # project-level CI/CD variables (BSM_CLIENT_ID, BSM_CLIENT_SECRET).
+      # Subsequent runs skip registration and only generate a fresh access token.
+      # ==========================================================================
+
+      # --- 2a. Check for stored client credentials ---
       if [ -n "${BSM_CLIENT_ID:-}" ] && [ -n "${BSM_CLIENT_SECRET:-}" ]; then
+        echo "  Stored credentials found -- skipping registration"
+        echo "  CLIENT_ID: ${BSM_CLIENT_ID:0:12}..."
         CLIENT_ID="${BSM_CLIENT_ID}"
         CLIENT_SECRET="${BSM_CLIENT_SECRET}"
       else
-        echo "  ERROR: BSM_CLIENT_ID and BSM_CLIENT_SECRET must be configured"
-        exit 1
+        echo "  No stored credentials -- registering new client"
+
+        AUTH_HEADER=$(echo -n "${BSM_API_USERNAME}:${BSM_API_PASSWORD}" | base64)
+        CLIENT_NAME="gitlab-ci-cadence-client-$(date +%s)"
+
+        echo "  Registering client: ${CLIENT_NAME}"
+        echo "  Endpoint: POST ${BSM_API_URL}/api/v1/auth/register"
+
+        HTTP_CODE=$(curl -s -o register_response.json -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -X POST "${BSM_API_URL}/api/v1/auth/register" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Basic ${AUTH_HEADER}" \
+          -d "{
+            \"client_name\": \"${CLIENT_NAME}\",
+            \"allowed_scopes\": [\"catalog:read\", \"catalog:write\", \"job:write\"],
+            \"grant_types\": [\"client_credentials\"]
+          }" \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+
+        echo "  Register response code: ${HTTP_CODE}"
+
+        if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
+          echo "  ERROR: Client registration failed"
+          cat register_response.json
+          exit 1
+        fi
+
+        CLIENT_ID=$(jq -r '.client_id' register_response.json)
+        CLIENT_SECRET=$(jq -r '.client_secret' register_response.json)
+        echo "  Client registered: ${CLIENT_ID:0:12}..."
+
+        # --- 2b. Persist credentials as GitLab CI/CD variables ---
+        if [ -z "${GITLAB_API_TOKEN:-}" ]; then
+          echo "  WARNING: GITLAB_API_TOKEN not set -- cannot persist credentials"
+          echo "  Credentials will not survive across pipeline runs"
+        else
+          echo "  Persisting credentials to GitLab CI/CD variables..."
+
+          for VAR_NAME in BSM_CLIENT_ID BSM_CLIENT_SECRET; do
+            if [ "$VAR_NAME" = "BSM_CLIENT_ID" ]; then VAR_VALUE="${CLIENT_ID}"; fi
+            if [ "$VAR_NAME" = "BSM_CLIENT_SECRET" ]; then VAR_VALUE="${CLIENT_SECRET}"; fi
+
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X POST "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/variables" \
+              -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+              --form "key=${VAR_NAME}" \
+              --form "value=${VAR_VALUE}" \
+              --form "masked=true" \
+              --form "protected=false" \
+              --cacert "${CI_SERVER_TLS_CA_FILE}")
+
+            if [ "$HTTP_CODE" = "201" ]; then
+              echo "    ${VAR_NAME} stored successfully"
+            else
+              echo "    WARNING: Failed to store ${VAR_NAME} (HTTP ${HTTP_CODE})"
+            fi
+          done
+        fi
       fi
 
-      # Get access token
+      # --- 2c. Get access token (always -- tokens are short-lived) ---
+      echo ""
+      echo "  Requesting access token..."
+      echo "  Endpoint: POST ${BSM_API_URL}/api/v1/auth/token"
       TOKEN_HTTP_CODE=$(curl -s -o token_response.json -w "%{http_code}" \
         --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
         -X POST "${BSM_API_URL}/api/v1/auth/token" \
@@ -205,32 +292,61 @@ initialization:
       export ACCESS_TOKEN
       echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
       echo "  [OK] Authenticated successfully"
+      echo ""
+      echo "  Step 3/4: Job Creation/Resume"
+      echo "  ------------------------------------------------------------"
 
-      # Create a new job using the current BuildStream job contract.
-      IDEMPOTENCY_KEY=$(cat /proc/sys/kernel/random/uuid)
-      CORRELATION_ID=$(cat /proc/sys/kernel/random/uuid)
-      JOB_HTTP_CODE=$(api_call_with_retry job_response.json \
-        -X POST "${BSM_API_URL}/api/v1/jobs" \
-        -H "Content-Type: application/json" \
-        -H "Idempotency-Key: ${IDEMPOTENCY_KEY}" \
-        -H "X-Correlation-ID: ${CORRELATION_ID}" \
-        -d "{
-          \"correlation_id\": \"${CORRELATION_ID}\",
-          \"client_id\": \"${CLIENT_ID}\"
-        }" \
-        --retry 3 --retry-delay 2 \
-        --cacert "${BSM_CERT_FILE}")
-      if [ "$JOB_HTTP_CODE" != "201" ] && [ "$JOB_HTTP_CODE" != "200" ]; then
-        echo "  ERROR: Job creation failed (HTTP ${JOB_HTTP_CODE})"
-        cat job_response.json 2>/dev/null || true
-        exit 1
+      # ============================= Job Resume/Create Logic ====================================
+      # On pipeline retry (when initialization stage succeeded previously):
+      #   - GitLab preserves job.env artifacts from the previous run
+      #   - Reuse the existing JOB_ID instead of creating a new one
+      #   - This enables resume/retry of failed jobs
+      # On fresh pipeline run:
+      #   - No job.env exists → Create new job
+      # ==========================================================================
+
+      if [ -f job.env ]; then
+        echo "  Detected job.env from previous run (pipeline retry)"
+        source job.env
+        if [ -n "${JOB_ID:-}" ]; then
+          echo "  Reusing existing JOB_ID: ${JOB_ID}"
+          echo "  (Stage use cases will handle FAILED → IN_PROGRESS transition)"
+        else
+          echo "  WARNING: job.env exists but JOB_ID is empty — creating new job"
+          JOB_ID=""
+        fi
+      else
+        echo "  No job.env found — fresh pipeline run"
+        JOB_ID=""
       fi
-      JOB_ID=$(jq -r '.job_id' job_response.json)
-      if [ -z "${JOB_ID}" ] || [ "${JOB_ID}" = "null" ]; then
-        echo "  ERROR: Job creation response did not contain job_id"
-        exit 1
+
+      if [ -z "${JOB_ID}" ]; then
+        echo "  Creating new job..."
+        IDEMPOTENCY_KEY=$(cat /proc/sys/kernel/random/uuid)
+        CORRELATION_ID=$(cat /proc/sys/kernel/random/uuid)
+        JOB_HTTP_CODE=$(api_call_with_retry job_response.json \
+          -X POST "${BSM_API_URL}/api/v1/jobs" \
+          -H "Content-Type: application/json" \
+          -H "Idempotency-Key: ${IDEMPOTENCY_KEY}" \
+          -H "X-Correlation-ID: ${CORRELATION_ID}" \
+          -d "{
+            \"correlation_id\": \"${CORRELATION_ID}\",
+            \"client_id\": \"${CLIENT_ID}\"
+          }" \
+          --retry 3 --retry-delay 2 \
+          --cacert "${BSM_CERT_FILE}")
+        if [ "$JOB_HTTP_CODE" != "201" ] && [ "$JOB_HTTP_CODE" != "200" ]; then
+          echo "  ERROR: Job creation failed (HTTP ${JOB_HTTP_CODE})"
+          cat job_response.json 2>/dev/null || true
+          exit 1
+        fi
+        JOB_ID=$(jq -r '.job_id' job_response.json)
+        if [ -z "${JOB_ID}" ] || [ "${JOB_ID}" = "null" ]; then
+          echo "  ERROR: Job creation response did not contain job_id"
+          exit 1
+        fi
+        echo "  [OK] Job created: ${JOB_ID}"
       fi
-      echo "  [OK] Job created: ${JOB_ID}"
 
       # Upload every input required by the unified build/deploy flow before
       # the job reaches a terminal state. The Upload API accepts the canonical

@@ -31,7 +31,6 @@ from cadence_manager import (
     is_pipeline_busy,
     copy_cadence_catalog_to_default_path,
     bump_catalog_version,
-    git_commit_and_push,
     submit_repo_sync_request,
     wait_for_sync_result,
     emit_audit_event,
@@ -186,89 +185,6 @@ class TestVersionBumping:
         new_version = bump_catalog_version(catalog_file)
 
         assert new_version == "invalid.1"
-
-
-class TestGitOperations:
-    """UT-006: Git operations tests."""
-
-    def test_commit_and_push_success(self, temp_dir, sample_catalog_json, mock_git_repo):
-        """TC-UT-006-001: Commit and push catalog update."""
-        catalog_file = mock_git_repo / "cadence_catalog_rhel.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        with patch("cadence_manager.log_secure_info"):
-            with patch("cadence_manager._validate_git_repo", return_value=True):
-                with patch("cadence_manager.subprocess.run") as mock_run:
-                    # Mock successful git operations
-                    mock_run.return_value = MagicMock(returncode=0, stderr="")
-                    result = git_commit_and_push(
-                        mock_git_repo,
-                        "cadence_catalog_rhel.json",
-                        "1.1"
-                    )
-
-        assert result is True
-
-    def test_handle_no_changes(self, temp_dir, sample_catalog_json, mock_git_repo):
-        """TC-UT-006-002: Handle no changes to commit."""
-        catalog_file = mock_git_repo / "cadence_catalog_rhel.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-        # Commit initial version
-        import subprocess
-        subprocess.run(["git", "add", "."], cwd=mock_git_repo, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "Initial"], cwd=mock_git_repo, check=True, capture_output=True)
-
-        with patch("cadence_manager.log_secure_info"):
-            result = git_commit_and_push(
-                mock_git_repo,
-                "cadence_catalog_rhel.json",
-                "1.1"
-            )
-
-        assert result is True  # Idempotent
-
-    def test_handle_push_failure(self, temp_dir, sample_catalog_json, mock_git_repo):
-        """TC-UT-006-003: Handle git push failure."""
-        catalog_file = mock_git_repo / "cadence_catalog_rhel.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        with patch("cadence_manager.log_secure_info"):
-            with patch("cadence_manager._validate_git_repo", return_value=True):
-                with patch("cadence_manager._git_push_with_retry", return_value=False):
-                    result = git_commit_and_push(
-                        mock_git_repo,
-                        "cadence_catalog_rhel.json",
-                        "1.1"
-                    )
-
-        assert result is False
-
-    def test_use_configurable_git_author(self, temp_dir, sample_catalog_json, mock_git_repo):
-        """TC-UT-006-004: Use hardcoded git author (as per implementation)."""
-        catalog_file = mock_git_repo / "cadence_catalog_rhel.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        with patch("cadence_manager.log_secure_info"):
-            with patch("cadence_manager._validate_git_repo", return_value=True):
-                with patch("cadence_manager.subprocess.run") as mock_run:
-                    # Capture environment variables to verify git author
-                    env_captured = {}
-                    def side_effect(*args, **kwargs):
-                        if 'env' in kwargs:
-                            env_captured.update(kwargs['env'])
-                        return MagicMock(returncode=0, stderr="")
-                    
-                    mock_run.side_effect = side_effect
-                    result = git_commit_and_push(
-                        mock_git_repo,
-                        "cadence_catalog_rhel.json",
-                        "1.1"
-                    )
-
-        assert result is True
-        # Verify git author is hardcoded as "BuildStream Cadence"
-        assert env_captured.get("GIT_AUTHOR_NAME") == "BuildStream Cadence"
-        assert env_captured.get("GIT_AUTHOR_EMAIL") == "buildstream@omnia.local"
 
 
 class TestPlaybookRequest:
@@ -542,10 +458,15 @@ class TestCadenceExactMirrorFlow:
             temp_dir / "processing",
         )
 
-    def test_no_package_change_does_not_bump_or_push(
+    def test_no_package_change_still_bumps_version(
         self, sample_cadence_config, temp_dir
     ):
-        """TC-UT-011-001: Successful no-op sync ends without Git mutation."""
+        """TC-UT-011-001: Successful sync bumps version even when package count unchanged.
+
+        The implementation always bumps the catalog version after a successful sync,
+        because individual package versions may have changed even if the package
+        count is the same.
+        """
         thread = self._thread(sample_cadence_config, temp_dir)
         outcome = {
             "job_id": "cadence-1",
@@ -555,13 +476,15 @@ class TestCadenceExactMirrorFlow:
         with patch("cadence_manager.is_pipeline_busy", return_value=False), patch.object(
             thread, "_sync_packages", return_value=outcome
         ), patch.object(thread, "_bump_and_push") as bump, patch(
-            "cadence_manager.emit_audit_event"
-        ) as audit, patch("cadence_manager.log_secure_info") as log:
+            "cadence_manager.log_secure_info"
+        ) as log:
             thread._execute_cadence_cycle()  # pylint: disable=protected-access
-        bump.assert_not_called()
-        audit.assert_called_once()
-        assert audit.call_args.args[1]["updates_detected"] is False
-        log.assert_any_call("info", "No package updates for cadence catalog")
+        bump.assert_called_once_with("cadence-1")
+        log.assert_any_call(
+            "info",
+            "No package diff detected, but bumping catalog version "
+            "anyway — upstream package versions may have changed"
+        )
 
     def test_package_change_bumps_existing_catalog(
         self, sample_cadence_config, temp_dir
