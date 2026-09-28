@@ -1,0 +1,150 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ib_ipv6_config — IPoIB IPv6 configuration pipeline
+#
+# Pipeline: validate → render → publish → verify
+#
+# This role runs on the OIM node (delegating to targets for verification).
+# It validates the allocation export, renders NM/SMD/hosts artifacts,
+# publishes them via SMD/BSS/cloud-init, and verifies post-configuration state.
+
+- name: Display IPoIB IPv6 configuration start
+  ansible.builtin.debug:
+    msg: "{{ ib_ipv6_validation_start_msg }}"
+
+# -----------------------------------------------------------------------
+# Phase 1: Validate allocation export (Story 1)
+# -----------------------------------------------------------------------
+
+- name: Check allocation file exists
+  ansible.builtin.stat:
+    path: "{{ ib_ipv6_allocation_file }}"
+  register: _ib_ipv6_alloc_stat
+  delegate_to: localhost
+
+- name: Fail if allocation file is missing
+  ansible.builtin.fail:
+    msg: "{{ ib_ipv6_allocation_missing_msg }}"
+  when: not _ib_ipv6_alloc_stat.stat.exists
+
+- name: Validate IPoIB IPv6 allocation export
+  validate_ib_ipv6_allocation:
+    allocation_file: "{{ ib_ipv6_allocation_file }}"
+    approved_prefixes: "{{ ib_ipv6_approved_prefixes }}"
+    log_dir: "{{ ib_ipv6_log_dir }}"
+  register: _ib_ipv6_validation
+  delegate_to: localhost
+
+- name: Display allocation validation log
+  ansible.builtin.debug:
+    msg: "Validation log: {{ _ib_ipv6_validation.log_file }}"
+
+- name: Fail if allocation validation failed
+  ansible.builtin.fail:
+    msg: >-
+      {{ ib_ipv6_validation_fail_msg }}
+      Errors: {{ _ib_ipv6_validation.errors }}
+  when: _ib_ipv6_validation.validation_failed
+
+- name: Display allocation validation summary
+  ansible.builtin.debug:
+    msg: >-
+      {{ ib_ipv6_validation_pass_msg }}:
+      {{ _ib_ipv6_validation.total_allocations }} total,
+      {{ _ib_ipv6_validation.active_allocations }} active,
+      mode={{ _ib_ipv6_validation.ib_mode }},
+      snapshot={{ _ib_ipv6_validation.snapshot_id }}
+
+# -----------------------------------------------------------------------
+# Phase 2: Render NM/SMD/hosts artifacts (Story 2)
+# -----------------------------------------------------------------------
+
+- name: Load previous config hashes (if available)
+  block:
+    - name: Check if previous hashes file exists
+      ansible.builtin.stat:
+        path: "{{ ib_ipv6_hashes_file }}"
+      register: _ib_ipv6_hashes_stat
+      delegate_to: localhost
+
+    - name: Load previous hashes
+      ansible.builtin.slurp:
+        src: "{{ ib_ipv6_hashes_file }}"
+      register: _ib_ipv6_hashes_raw
+      delegate_to: localhost
+      when: _ib_ipv6_hashes_stat.stat.exists
+
+    - name: Parse previous hashes
+      ansible.builtin.set_fact:
+        _ib_ipv6_previous_hashes: >-
+          {{ (_ib_ipv6_hashes_raw.content | b64decode | from_json)
+             if _ib_ipv6_hashes_stat.stat.exists
+             else {} }}
+  rescue:
+    - name: Default to empty hashes on parse failure
+      ansible.builtin.set_fact:
+        _ib_ipv6_previous_hashes: {}
+
+- name: "{{ ib_ipv6_render_start_msg }}"
+  render_ib_ipv6_config:
+    normalized_nodes: "{{ _ib_ipv6_validation.normalized_nodes }}"
+    output_dir: "{{ ib_ipv6_output_dir }}"
+    previous_hashes: "{{ _ib_ipv6_previous_hashes }}"
+    log_dir: "{{ ib_ipv6_log_dir }}"
+  register: _ib_ipv6_render
+  delegate_to: localhost
+
+- name: Display render summary
+  ansible.builtin.debug:
+    msg: >-
+      {{ ib_ipv6_render_pass_msg }}:
+      {{ _ib_ipv6_render.nodes_needing_update | length }} nodes to update,
+      {{ _ib_ipv6_render.nodes_skipped | length }} unchanged (skipped)
+
+- name: Report render errors
+  ansible.builtin.debug:
+    msg: "Render error: {{ item }}"
+  loop: "{{ _ib_ipv6_render.errors }}"
+  when: _ib_ipv6_render.errors | length > 0
+
+# -----------------------------------------------------------------------
+# Phase 3: Publish to SMD, BSS, and /etc/hosts (Story 2)
+# -----------------------------------------------------------------------
+
+- name: "{{ ib_ipv6_publish_start_msg }}"
+  ansible.builtin.include_tasks: publish_smd.yml
+  when: _ib_ipv6_render.nodes_needing_update | length > 0
+
+- name: Publish cloud-init user-data to BSS
+  ansible.builtin.include_tasks: publish_bss.yml
+  when: _ib_ipv6_render.nodes_needing_update | length > 0
+
+- name: Update managed /etc/hosts block
+  ansible.builtin.include_tasks: publish_hosts.yml
+  when: ib_ipv6_manage_hosts | bool
+
+# -----------------------------------------------------------------------
+# Phase 4: Verify post-configuration state (Story 3)
+# -----------------------------------------------------------------------
+
+- name: "{{ ib_ipv6_verify_start_msg }}"
+  ansible.builtin.include_tasks: verify.yml
+  when: ib_ipv6_verify | bool
+
+- name: Record IPoIB IPv6 configuration complete
+  ansible.builtin.set_fact:
+    _ib_ipv6_configured: true
+    _ib_ipv6_mode: "{{ _ib_ipv6_validation.ib_mode }}"
+    _ib_ipv6_config_hashes: "{{ _ib_ipv6_render.config_hashes }}"
