@@ -7,7 +7,7 @@ VictoriaLogs result processing without deploying Telemetry.
 ## Test identification
 
 Every current unit-test function has a stable ID in the range `TEL_UT_001`
-through `TEL_UT_039`. The centralized mapping is maintained in
+through `TEL_UT_049`. The centralized mapping is maintained in
 `library/vars/ut_test_case_vars.py`; descriptive pytest function names remain
 unchanged.
 
@@ -18,6 +18,7 @@ unchanged.
 | `TEL_UT_029`–`TEL_UT_036` | `test_idrac_lifecycle.py` | iDRAC enable/disable routing, retained-state restore, status, and fresh Kafka-flow contracts |
 | `TEL_UT_037`–`TEL_UT_039` | `test_sink_enablement.py` | Direct source targets and Vector-OME/Vector-LDMS derived sink enablement |
 | `TEL_UT_040`–`TEL_UT_046` | `test_ome_lifecycle.py` | OME independent metrics/logs reconciliation, dependency validation, retained-state restore, isolation, and status contracts |
+| `TEL_UT_047`–`TEL_UT_049` | `test_kafka_topic_lifecycle.py` | Non-destructive topic-manifest cleanup, enabled-source application, and readiness gating |
 
 The runner resolves each ID from the test file and function portion of the
 pytest node ID and includes it in summaries and generated reports.

@@ -97,6 +97,14 @@ UT_TEST_CASE_IDS = {
             46: "test_ome_status_reports_each_channel_as_deployed_or_disabled",
         },
     ),
+    **_module_cases(
+        "test_kafka_topic_lifecycle.py",
+        {
+            47: "test_disabled_sources_remove_only_stale_topic_manifests",
+            48: "test_topic_deployment_never_discovers_stale_manifests_by_wildcard",
+            49: "test_topic_readiness_wait_is_limited_to_enabled_sources",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):
