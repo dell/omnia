@@ -279,18 +279,21 @@ def is_logs_enabled(host, source_name):
 def is_sink_enabled(host, sink_name):
     """Check if a telemetry sink is implicitly enabled.
 
-    A sink is considered enabled if at least one source targets it via
-    either metrics_enabled or logs_enabled collection.
+    A sink is considered enabled if an enabled source targets it directly or
+    an enabled Vector bridge requires it. This mirrors the sink support flags
+    derived by ``roles/common/tasks/derive_sink_support_flags.yml``.
 
     Args:
         host: Testinfra host connection to the OIM.
         sink_name: Sink name (e.g. 'victoria_metrics', 'victoria_logs', 'kafka').
 
     Returns:
-        bool: True if at least one source targets this sink.
+        bool: True if at least one enabled source or bridge requires this sink.
     """
     config = load_telemetry_config_from_target(host)
     sources = read_yaml_key(config, "telemetry_sources", default={})
+    if not isinstance(sources, dict):
+        sources = {}
     for src_cfg in sources.values():
         if not isinstance(src_cfg, dict):
             continue
@@ -302,6 +305,33 @@ def is_sink_enabled(host, sink_name):
         targets = src_cfg.get("collection_targets", [])
         if sink_name in targets:
             return True
+
+    bridges = read_yaml_key(config, "telemetry_bridges", default={})
+    if not isinstance(bridges, dict):
+        return False
+
+    vector_ome = bridges.get("vector_ome", {})
+    if isinstance(vector_ome, dict):
+        ome_metrics_enabled = bool(vector_ome.get("metrics_enabled", False))
+        ome_logs_enabled = bool(vector_ome.get("logs_enabled", False))
+        if sink_name == "kafka" and (ome_metrics_enabled or ome_logs_enabled):
+            return True
+        if sink_name == "victoria_metrics" and ome_metrics_enabled:
+            return True
+        if sink_name == "victoria_logs" and ome_logs_enabled:
+            return True
+
+    vector_ldms = bridges.get("vector_ldms", {})
+    ldms = sources.get("ldms", {}) if isinstance(sources, dict) else {}
+    ldms_bridge_enabled = (
+        isinstance(vector_ldms, dict)
+        and bool(vector_ldms.get("metrics_enabled", False))
+        and isinstance(ldms, dict)
+        and bool(ldms.get("metrics_enabled", False))
+    )
+    if ldms_bridge_enabled and sink_name in {"kafka", "victoria_metrics"}:
+        return True
+
     return False
 
 

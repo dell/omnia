@@ -745,6 +745,72 @@ run_domain() {
         esac
     done
 
+    # The telemetry deploy_sinks flow accepts sink names as a concise -e value:
+    #   -e kafka
+    #   -e kafka,victoria_metrics
+    #   -e kafka -e victoria_logs
+    # Convert that shorthand into the "sinks" list consumed by Ansible while
+    # leaving ordinary extra-vars (key=value, JSON/YAML, and @file) untouched.
+    if [ "$domain" = "telemetry" ] && [[ ",${tags}," == *",deploy_sinks,"* ]]; then
+        local normalized_args=()
+        local selected_sinks=()
+        local arg_index=0
+        local extra_value=""
+        local sink_name=""
+        local sink_is_valid=false
+
+        while [ "$arg_index" -lt "${#extra_args[@]}" ]; do
+            if [ "${extra_args[$arg_index]}" != "-e" ] && [ "${extra_args[$arg_index]}" != "--extra-vars" ]; then
+                normalized_args+=("${extra_args[$arg_index]}")
+                arg_index=$((arg_index + 1))
+                continue
+            fi
+
+            if [ $((arg_index + 1)) -ge "${#extra_args[@]}" ]; then
+                echo -e "${RED}ERROR: ${extra_args[$arg_index]} requires a value${NC}"
+                exit 1
+            fi
+
+            extra_value="${extra_args[$((arg_index + 1))]}"
+            if [[ "$extra_value" == *=* || "$extra_value" == @* || "$extra_value" == \{* || "$extra_value" == \[* ]]; then
+                normalized_args+=("${extra_args[$arg_index]}" "$extra_value")
+                arg_index=$((arg_index + 2))
+                continue
+            fi
+
+            IFS=',' read -ra sink_candidates <<< "$extra_value"
+            for sink_name in "${sink_candidates[@]}"; do
+                sink_name="${sink_name//[[:space:]]/}"
+                sink_is_valid=false
+                case "$sink_name" in
+                    kafka|victoria_metrics|victoria_logs)
+                        sink_is_valid=true
+                        ;;
+                esac
+                if [ "$sink_is_valid" = false ]; then
+                    echo -e "${RED}ERROR: Invalid telemetry sink '${sink_name}'${NC}"
+                    echo -e "${YELLOW}Valid sinks: kafka, victoria_metrics, victoria_logs${NC}"
+                    exit 1
+                fi
+                if [[ " ${selected_sinks[*]} " != *" ${sink_name} "* ]]; then
+                    selected_sinks+=("$sink_name")
+                fi
+            done
+            arg_index=$((arg_index + 2))
+        done
+
+        if [ "${#selected_sinks[@]}" -gt 0 ]; then
+            local sinks_json="["
+            for sink_name in "${selected_sinks[@]}"; do
+                [ "$sinks_json" = "[" ] || sinks_json+=","
+                sinks_json+="\"${sink_name}\""
+            done
+            sinks_json+="]"
+            normalized_args+=("-e" "sinks=${sinks_json}")
+        fi
+        extra_args=("${normalized_args[@]}")
+    fi
+
     # Validate domain exists
     local domain_found=false
     for d in "${DOMAINS[@]}"; do
@@ -1798,7 +1864,7 @@ RECOMMENDED EXECUTION ORDER:
     image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback
     orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot cleanup cleanup_credentials upgrade rollback
     repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate
-    telemetry:           precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria
+    telemetry:           precheck validate validation prepare credentials execute deploy deploy_sinks cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria
     utils:               precheck setup collect install_os backup_oim_logs slurm_config_backup slurm_config_cleanup slurm_config_rollback cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs cleanup_slurm_config_backups upgrade rollback
 
   Without --tags, each playbook runs its full default flow. Tags marked with

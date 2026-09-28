@@ -73,6 +73,7 @@ ansible-playbook playbooks/telemetry.yml
 | `precheck` | No | Run K8s and enabled Slurm prerequisite checks without deploying |
 | `validate` | Yes | L1 schema + L2 logic validation of all input files |
 | `deploy` / `execute` | Yes | Precheck, then deploy sinks + sources + kustomize apply |
+| `deploy_sinks` | No | Deploy only selected sink infrastructure: Kafka, VictoriaMetrics, and/or VictoriaLogs |
 | `cleanup` | No | Remove telemetry runtime resources; delete source volumes, preserve sink volumes by default |
 | `upgrade` | No | Upgrade telemetry (placeholder) |
 | `rollback` | No | Rollback telemetry (placeholder) |
@@ -95,6 +96,17 @@ ansible-playbook playbooks/telemetry.yml
 they never execute unless explicitly requested with `--tags`. `precheck` runs
 automatically for the default, `deploy`, and `execute` flows, and can also be
 requested alone for a check-only run.
+
+Deploy one or more sinks independently of telemetry sources:
+
+```bash
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka,victoria_metrics
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka -e victoria_logs
+```
+
+When invoking Ansible directly, use the `sinks` variable, for example:
+`ansible-playbook playbooks/telemetry.yml --tags deploy_sinks -e sinks=kafka,victoria_logs`.
 
 ### Credential and Global Cleanup
 

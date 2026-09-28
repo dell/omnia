@@ -80,7 +80,6 @@
 - name: "Phase 2 | Deploy iDRAC telemetry"
   ansible.builtin.import_playbook: sources/deploy_idrac_telemetry.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.idrac.metrics_enabled | default(false) | bool
 
 - name: "Phase 2 | Deploy LDMS telemetry"
   ansible.builtin.import_playbook: sources/deploy_ldms.yml
@@ -131,6 +130,7 @@
         kubectl get pods -n {{ telemetry_namespace }} --no-headers
       register: telemetry_pods
       changed_when: false
+      failed_when: false
 
     - name: Check for pods in error state
       ansible.builtin.set_fact:
@@ -149,7 +149,9 @@
           Telemetry deployment verification failed. The following pods are in error state:
           {{ failed_pods | join('\n') }}
           Check pod logs with: kubectl logs -n {{ telemetry_namespace }} <pod-name>
-      when: failed_pods | length > 0
+      when:
+        - failed_pods | length > 0
+        - not (idrac_reconcile_failed | default(false) | bool)
 
 # ── Phase 4: Collect deployment results ───────────────────────────────────────
 # Inspect cluster state to determine deployed/failed/skipped for each component
@@ -191,12 +193,35 @@
       when: hostvars['localhost']['victoria_logs_support'] | default(false) | bool
 
     # -- Source checks --------------------------------------------------------
+    - name: Check telemetry namespace for iDRAC status
+      ansible.builtin.command: >
+        kubectl get namespace {{ telemetry_namespace }} --ignore-not-found
+        -o jsonpath='{.metadata.name}'
+      register: _idrac_namespace
+      changed_when: false
+      failed_when: false
+
+    - name: Check iDRAC StatefulSet replica state
+      ansible.builtin.command: >
+        kubectl get statefulset {{ idrac_telemetry_k8s_name | default('idrac-telemetry') }}
+        -n {{ telemetry_namespace }} --ignore-not-found
+        -o jsonpath='{.spec.replicas} {.status.readyReplicas}'
+      register: _idrac_sts
+      changed_when: false
+      failed_when: false
+      when:
+        - _idrac_namespace.rc == 0
+        - _idrac_namespace.stdout | trim | length > 0
+
     - name: Check iDRAC pods
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry --no-headers
       register: _idrac_pods
       changed_when: false
       failed_when: false
+      when:
+        - _idrac_namespace.rc == 0
+        - _idrac_namespace.stdout | trim | length > 0
 
     - name: Check LDMS aggregator pod readiness
       ansible.builtin.command: >
@@ -263,7 +288,10 @@
           _kafka_pods: "{{ _kafka_pods }}"
           _vm_pods: "{{ _vm_pods }}"
           _vl_pods: "{{ _vl_pods }}"
+          _idrac_namespace: "{{ _idrac_namespace }}"
+          _idrac_sts: "{{ _idrac_sts }}"
           _idrac_pods: "{{ _idrac_pods }}"
+          _idrac_reconcile_failed: "{{ idrac_reconcile_failed | default(false) | bool }}"
           _ldms_aggregator_pods: "{{ _ldms_aggregator_pods }}"
           _ldms_store_pods: "{{ _ldms_store_pods }}"
           _powerscale_pods: "{{ _powerscale_pods }}"
@@ -335,16 +363,39 @@
     - name: Set source metrics-only results
       vars:
         _idrac_on: "{{ _cfg.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
-        _idrac_running: >-
-          {{ (_kv['_idrac_pods'].stdout_lines | default([])
-             | select('search', 'Running') | list | length) > 0 }}
+        _idrac_namespace_query_ok: "{{ _kv['_idrac_namespace'].rc | default(1) == 0 }}"
+        _idrac_namespace_exists: >-
+          {{ _kv['_idrac_namespace'].stdout | default('') | trim | length > 0 }}
+        _idrac_sts_values: "{{ _kv['_idrac_sts'].stdout | default('') | trim | split }}"
+        _idrac_sts_query_ok: >-
+          {{ not (_idrac_namespace_exists | bool)
+             or _kv['_idrac_sts'].rc | default(1) == 0 }}
+        _idrac_sts_exists: "{{ (_idrac_sts_values | length) > 0 }}"
+        _idrac_desired: "{{ _idrac_sts_values[0] | default('0') | int }}"
+        _idrac_ready: "{{ _idrac_sts_values[1] | default('0') | int }}"
+        _idrac_pod_query_ok: >-
+          {{ not (_idrac_namespace_exists | bool)
+             or _kv['_idrac_pods'].rc | default(1) == 0 }}
+        _idrac_pod_count: "{{ _kv['_idrac_pods'].stdout_lines | default([]) | length }}"
+        _idrac_operation_ok: "{{ not (_kv['_idrac_reconcile_failed'] | default(false) | bool) }}"
         _ldms_on: "{{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
         _ldms_aggregator_running: "{{ _kv['_ldms_aggregator_pods'].rc | default(1) == 0 }}"
         _ldms_store_running: "{{ _kv['_ldms_store_pods'].rc | default(1) == 0 }}"
       ansible.builtin.set_fact:
         _deploy_result_idrac_metrics: >-
-          {{ 'skipped' if not (_idrac_on | bool)
-             else ('deployed' if (_idrac_running | bool) else 'failed') }}
+          {% if not (_idrac_operation_ok | bool) or not (_idrac_namespace_query_ok | bool)
+                or not (_idrac_sts_query_ok | bool)
+                or not (_idrac_pod_query_ok | bool) %}
+          failed
+          {% elif _idrac_on | bool %}
+          {{ 'deployed' if ((_idrac_sts_exists | bool)
+             and (_idrac_desired | int) > 0
+             and (_idrac_ready | int) == (_idrac_desired | int)) else 'failed' }}
+          {% else %}
+          {{ 'disabled' if ((not (_idrac_sts_exists | bool)
+             or (_idrac_desired | int) == 0)
+             and (_idrac_pod_count | int) == 0) else 'failed' }}
+          {% endif %}
         _deploy_result_ldms_metrics: >-
           {{ 'skipped' if not (_ldms_on | bool)
              else ('deployed' if ((_ldms_aggregator_running | bool)
