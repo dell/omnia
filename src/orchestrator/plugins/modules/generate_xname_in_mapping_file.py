@@ -37,7 +37,7 @@ EXAMPLES = r'''
 - name: Generate xnames in mapping file
   generate_xname_in_mapping_file:
     mapping_file_path: >-
-      {{ omnia_data_path }}/orchestrator/input/{{ project_name }}/pxe_mapping_file.csv
+      {{ orchestrator_data_path }}/input/{{ project_name }}/pxe_mapping_file.csv
 '''
 
 RETURN = r'''

@@ -1,0 +1,18 @@
+---
+# Directory names under the Slurm NFS share
+slurm_share_dir_name: slurm
+slurm_backups_dir_name: slurm_backups
+
+# Behavioral defaults (overridable via slurm_config_util_config.yml or CLI -e)
+slurm_cleanup_confirm_token: "YES"
+slurm_cleanup_pre_backup_default: "y"
+slurm_rollback_backup_list_limit_default: 20
+
+# Path overrides - empty string means "derive from storage_config.yml"
+omnia_config_path: ""
+storage_config_path: ""
+pxe_mapping_path: ""
+slurm_config_path: ""
+slurm_backup_path: ""
+nfs_storage_name: ""
+rollback_backup_list_limit: ""

@@ -14,7 +14,7 @@
 ---
 
 discovery_cleanup_data_path: >-
-  {{ hostvars['localhost']['omnia_data_path'] | ansible.builtin.normpath }}
+  {{ hostvars['localhost']['discovery_data_path'] | ansible.builtin.normpath }}
 discovery_cleanup_project_name: "{{ hostvars['localhost']['discovery_project_name'] }}"
 discovery_cleanup_selected_tags: >-
   {{ hostvars['localhost']['provided_tags'] | default([]) }}
@@ -24,18 +24,18 @@ discovery_cleanup_output_dir: >-
   {{ hostvars['localhost']['discovery_output_dir'] | ansible.builtin.normpath }}
 
 discovery_cleanup_expected_input_dir: >-
-  {{ discovery_cleanup_data_path }}/discovery/input/{{ discovery_cleanup_project_name }}
+  {{ discovery_cleanup_data_path }}/input/{{ discovery_cleanup_project_name }}
 discovery_cleanup_expected_output_dir: >-
-  {{ discovery_cleanup_data_path }}/discovery/output/{{ discovery_cleanup_project_name }}
+  {{ discovery_cleanup_data_path }}/output/{{ discovery_cleanup_project_name }}
 
 discovery_cleanup_credential_paths:
   - "{{ discovery_cleanup_input_dir }}/discovery_credentials.yml"
   - "{{ discovery_cleanup_input_dir }}/.discovery_credentials_key"
 
 discovery_cleanup_invalid_configuration_msg: >-
-  Invalid Discovery cleanup configuration. OMNIA_DATA_PATH must be a safe
-  absolute data root, OMNIA_PROJECT_NAME must be one path segment, and
-  cleanup_credentials accepts only true or false.
+  Invalid Discovery cleanup configuration. DISCOVERY_DATA_PATH must resolve
+  to a safe absolute component data root, OMNIA_PROJECT_NAME must be one path
+  segment, and cleanup_credentials accepts only true or false.
 discovery_cleanup_invalid_output_type_msg: >-
   Refusing Discovery cleanup because the resolved output path exists but is
   not a regular directory: {{ discovery_cleanup_output_dir }}

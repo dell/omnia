@@ -21,7 +21,7 @@
 
 - name: Process mounts and add to metadata_svc_groups_dict
   ansible.builtin.include_tasks: process_single_mount.yml
-  loop: "{{ mounts | default([]) }}"
+  loop: "{{ effective_mounts | default([]) }}"
   loop_control:
     loop_var: mount_item
     label: "{{ mount_item.name | default('unnamed') }}"

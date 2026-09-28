@@ -25,6 +25,29 @@
   delegate_facts: true
   when: hostvars['localhost']['_cleanup_all'] | bool
 
+- name: Force delete remaining source pods before drain check
+  ansible.builtin.command: >
+    kubectl -n telemetry delete pod -l {{ item }}
+    --grace-period=0 --force --ignore-not-found=true
+  loop:
+    - app=idrac-telemetry
+    - app=nersc-ldms
+    - app=vector-ome
+    - app=vector-ldms
+    - app.kubernetes.io/name=karavi-metrics-powerscale
+    - app.kubernetes.io/name=otel-collector
+    - app=csi-volume-exporter
+    - app=ufm-external
+    - app=vast-external
+    - app=skyway-telemetry
+    - app=powervault-telemetry
+  loop_control:
+    label: "{{ item }}"
+  register: _source_pod_delete_before
+  when: hostvars['localhost']['_cleanup_all'] | bool
+  changed_when: _source_pod_delete_before.rc == 0
+  failed_when: false
+
 - name: Wait for source pods to terminate before sink cleanup
   ansible.builtin.command: >
     kubectl get pods -n telemetry --no-headers --ignore-not-found
@@ -46,9 +69,33 @@
   register: _source_pod_drain
   changed_when: false
   until: _source_pod_drain.stdout | trim | length == 0
-  retries: 12
-  delay: 5
+  retries: "{{ cleanup_custom_resource_retries }}"
+  delay: "{{ cleanup_custom_resource_delay }}"
   when: hostvars['localhost']['_cleanup_all'] | bool
+  failed_when: false
+
+- name: Force delete any remaining source pods after drain check
+  ansible.builtin.command: >
+    kubectl -n telemetry delete pod -l {{ item }}
+    --grace-period=0 --force --ignore-not-found=true
+  loop:
+    - app=idrac-telemetry
+    - app=nersc-ldms
+    - app=vector-ome
+    - app=vector-ldms
+    - app.kubernetes.io/name=karavi-metrics-powerscale
+    - app.kubernetes.io/name=otel-collector
+    - app=csi-volume-exporter
+    - app=ufm-external
+    - app=vast-external
+    - app=skyway-telemetry
+    - app=powervault-telemetry
+  loop_control:
+    label: "{{ item }}"
+  register: _source_pod_delete_after
+  when: hostvars['localhost']['_cleanup_all'] | bool
+  changed_when: _source_pod_delete_after.rc == 0
+  failed_when: false
 
 - name: Mark source drain as cleaned
   ansible.builtin.set_fact:

@@ -40,6 +40,7 @@
   validate_discovery_config:
     input_project_dir: "{{ input_project_dir }}"
     schema_dir: "{{ discovery_schema_dir }}"
+    log_dir: "{{ log_dir }}"
   register: discovery_validation_result
 
 # Report results

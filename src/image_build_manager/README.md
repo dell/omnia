@@ -27,7 +27,7 @@ images, and writes `build_status.yml` for downstream consumption by the provisio
 cd src/main
 
 # Configure the host, create the shared virtual environment, stage domain
-# inputs, and copy the sample catalog to $OMNIA_DATA_PATH/catalog/.
+# inputs, and install the default catalog if no active catalog exists.
 vi omnia.env
 sudo ./omnia.sh -s
 source /etc/profile.d/omnia-env.sh
@@ -64,6 +64,26 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 Run exactly one supported tag at a time. Although internal imported plays carry
 `x86_64` and `aarch64` tags, the top-level tag validator does not accept them as
 public tags; a `build` or `execute` run builds every configured architecture.
+
+### Full Domain Cleanup (`cleanup`)
+
+The public cleanup removes MinIO, the OCI registry, build outputs, runtime data,
+logs, `image_build_credentials.yml`, and its vault key. The shared `output/` and
+`log/` roots are preserved as empty directories. It does not prompt for a second
+credential decision:
+
+```bash
+cd src/main
+sudo ./omnia.sh --run image_build_manager --tags cleanup
+```
+
+The standalone cleanup playbook supports `--skip-tags credentials` only when
+credentials must intentionally be retained. `domain-init.sh --cleanup` is a
+non-interactive initializer helper that removes only staged input and domain log
+paths; it does not remove services or build outputs. After every domain cleanup
+tag has completed, `sudo ./omnia.sh --cleanup --all` performs the guarded global
+reset. Both global cleanup modes prompt for `yes`; trusted automation can add
+`--skip-approval`.
 
 ### Image Cleanup (`cleanup_images`)
 

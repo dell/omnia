@@ -13,18 +13,18 @@
 # limitations under the License.
 ---
 
-# Prepare OpenCHAMI --- Credential management and functional group generation
-# Can be run standalone or imported by orchestrator.yml
+# Prepare OpenCHAMI --- Credential management
+# Imported by the canonical orchestrator.yml entry point. Direct execution
+# requires orchestrator_setup facts to be supplied first.
 #
 # This playbook performs preparation steps required before deployment.
 # No deployment or installation actions are performed here.
 #
-# Steps:
+# Step:
 #   1. Credential management (prompt, encrypt, vault)
-#   2. Generate functional groups from pxe_mapping_file.csv
 #
-# Prerequisites: orchestrator_setup must have run (handled by always-tagged
-#   play in orchestrator.yml, or automatically when run standalone).
+# Prerequisite: orchestrator_setup must have run. The always-tagged setup play
+# in orchestrator.yml satisfies this for the canonical route.
 
 # Step 1: Credential management (prompt, encrypt, vault)
 - name: Create and update credential config files

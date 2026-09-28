@@ -30,8 +30,8 @@ from library.messages.repo_manager_msgs import (
 @pytest.mark.positive
 @pytest.mark.order(4)
 def test_per_repo_policy_only(host: Host):
-    """TC_RM_PO_004: Per-repo policy only, caching from global."""
-    tl = TestLogger(TEST_NAMES["per_repo_policy_only"], "TC_RM_PO_004")
+    """RM_FVT_POLICY_V004: Per-repo policy only, caching from global."""
+    tl = TestLogger(TEST_NAMES["per_repo_policy_only"], "RM_FVT_POLICY_V004")
 
     # Get global settings
     global_config = check_global_repo_config(host)
@@ -85,8 +85,8 @@ def test_per_repo_policy_only(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(5)
 def test_per_repo_caching_only(host: Host):
-    """TC_RM_PO_005: Per-repo caching only, policy from global."""
-    tl = TestLogger(TEST_NAMES["per_repo_caching_only"], "TC_RM_PO_005")
+    """RM_FVT_POLICY_V005: Per-repo caching only, policy from global."""
+    tl = TestLogger(TEST_NAMES["per_repo_caching_only"], "RM_FVT_POLICY_V005")
 
     # Get global settings
     global_config = check_global_repo_config(host)
@@ -140,8 +140,8 @@ def test_per_repo_caching_only(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(6)
 def test_empty_per_repo_config(host: Host):
-    """TC_RM_PO_006: Empty per-repo config should use global settings."""
-    tl = TestLogger(TEST_NAMES["empty_per_repo_config"], "TC_RM_PO_006")
+    """RM_FVT_POLICY_V006: Empty per-repo config should use global settings."""
+    tl = TestLogger(TEST_NAMES["empty_per_repo_config"], "RM_FVT_POLICY_V006")
 
     # Get global settings
     global_config = check_global_repo_config(host)

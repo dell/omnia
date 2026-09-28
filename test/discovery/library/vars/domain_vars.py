@@ -64,7 +64,7 @@ SUITES: Dict[str, List[str]] = {
     "credentials": [],
     "execute": ["output"],
     "discovery": ["output"],
-    "cleanup": [],
+    "cleanup": ["status"],
 }
 
 # =====================================================================

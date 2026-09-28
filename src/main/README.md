@@ -53,7 +53,7 @@ omnia-cli status
 ```bash
 ./omnia.sh -s                      # Full setup: venv + deps + input copy + catalog + omnia-cli
 ./omnia.sh -s --deps-only          # Venv + deps only, skip input staging
-./omnia.sh -s --skip-catalog       # Setup without catalog copy
+./omnia.sh -s --skip-catalog       # Do not install a missing default catalog
 ./omnia.sh -s --skip-omnia-cli     # Setup without omnia-cli install
 ./omnia.sh -s --force-deps         # Force reinstall all deps (bypass cache)
 ./omnia.sh -s --force-env          # Explicitly replace /etc config from repo omnia.env
@@ -66,10 +66,22 @@ omnia-cli status
 ./omnia.sh -i --dry-run            # Preview which domains would be initialized
 ./omnia.sh -i --dry-run --skip telemetry  # Preview with skip filter
 ./omnia.sh --check-deps            # Audit dependency version mismatches
+./omnia.sh --list-catalogs         # List bundled catalog choices
+./omnia.sh --select-catalog        # Select and activate a bundled catalog
 ./omnia.sh --cleanup               # Remove environment + CLI integration; preserve runtime data
-./omnia.sh --cleanup --all         # Full reset (remove everything including data)
+./omnia.sh --cleanup --all         # Guarded full reset; blocks on uncleared domain state
+./omnia.sh --cleanup --skip-approval       # Standard cleanup for trusted automation
+./omnia.sh --cleanup --all --skip-approval # Full cleanup for trusted automation
 ./omnia.sh -h                      # Help
 ```
+
+Both `--cleanup` and `--cleanup --all` display their removal scope and require
+the operator to type `yes`. Add `--skip-approval` only for trusted unattended
+automation. The `--all` safety preflight still runs when confirmation is
+skipped and stops before deletion if a domain contains uncleared state. `log/`
+and `output/` trees containing only empty directories are safe, as are the
+application files staged by the Build Stream initializer; files and symbolic
+links under runtime directories still block.
 
 **What `-s` does:**
 
@@ -83,7 +95,7 @@ omnia-cli status
    - Installs Ansible Galaxy collections from the domain's `requirements.yml`
    - Creates Ansible log directories
    - Copies input files from flat `input/` to `<OMNIA_DATA_PATH>/<domain>/input/<project>/`
-7. Copies catalog files from `src/main/samples/` to `$OMNIA_DATA_PATH/catalog/` (use `--skip-catalog` to suppress)
+7. Installs the default catalog at `CATALOG_FILE_PATH` only when no active catalog exists (use `--skip-catalog` to suppress); existing catalogs are preserved
 8. Installs `omnia-cli` to `/usr/local/bin/omnia-cli` and shared completion for `omnia-cli` and `omnia.sh` to `/etc/bash_completion.d/omnia-bash-completion` (use `--skip-omnia-cli` to suppress)
 
 After setup, all new login shells automatically have the environment variables.
@@ -99,6 +111,25 @@ or if you manage input files externally). Dependencies are still installed.
 changed the install step is skipped entirely — saving 10-30s per domain.
 Use `--force-deps` to bypass the cache. Cache files live at
 `$OMNIA_DATA_PATH/.data/deps-cache/`.
+
+### Catalog selection
+
+Setup never replaces an existing active catalog. List the bundled catalog
+variants and intentionally select one with:
+
+```bash
+./omnia.sh --list-catalogs
+./omnia.sh --select-catalog
+./omnia.sh --select-catalog 10.0/slurm_x86_64_no_vast.json
+```
+
+Without a selector, `--select-catalog` prompts with the numbered list. The list
+and selection flows show each catalog's embedded name and description plus a
+content-derived summary of its RHEL version, workloads, architectures, VAST
+client inclusion, and functional-layer count. The selected JSON is validated
+and atomically copied to `CATALOG_FILE_PATH`
+(default: `$OMNIA_DATA_PATH/catalog/catalog_rhel.json`). Replacing an existing
+catalog requires confirmation and creates a timestamped backup beside it.
 
 Each domain provides a `domain-init.sh` script that handles the copy. Input files
 live flat in the source `input/` directory (no project subdirectory); the project
@@ -117,7 +148,15 @@ bash src/image_build_manager/domain-init.sh --force-deps
 
 # Run with --force (overwrite without prompting)
 bash src/image_build_manager/domain-init.sh --force
+
+# Non-interactively remove only this initializer's staged input and log paths
+bash src/image_build_manager/domain-init.sh --cleanup
 ```
+
+`domain-init.sh --cleanup` deliberately has no confirmation prompt because it
+is an internal, narrowly scoped helper. It removes the domain's staged `input/`,
+runtime `log/`, and `/var/log/omnia/<domain>/` paths; it does not remove domain
+outputs, deployed services, or persistent application data.
 
 ### Domain Skip (`--skip`)
 
@@ -203,13 +242,14 @@ Repo Manager uses `precheck` for input validation, while Image Build Manager use
 
 ```bash
 omnia-cli status                          # All domains
-omnia-cli repo-manager                    # Repo manager details
-omnia-cli image-build                     # Image build details
+omnia-cli repo_manager                    # Repo manager details
+omnia-cli image_build_manager             # Image build details
 omnia-cli status --project prod           # Specific project
 omnia-cli version                         # Version info
 omnia-cli help                            # Full help
 omnia-cli logs <domain>                   # Browse & tail domain logs
 omnia-cli edit <domain>                   # Select and edit domain input files
+omnia-cli output <domain> [file]          # List or view domain output files
 ```
 
 ### Install to PATH
@@ -233,7 +273,8 @@ source /etc/bash_completion.d/omnia-bash-completion
 After loading it, use Tab completion with either interface, for example
 `omnia-cli st<Tab>` or `./omnia.sh --run image_<Tab>`. The `omnia.sh`
 completion covers command-specific options, comma-separated domain lists, and
-only the tags supported by the selected domain. If the system's Bash completion
+only the tags supported by the selected domain. It also completes catalog
+selectors and Telemetry cleanup values after `-e`/`--extra-vars`. If the system's Bash completion
 loader has not picked up the new file in a fresh shell, source the installed
 completion file or run
 `source "${OMNIA_DATA_PATH:-/opt/omnia}/activate-omnia.sh"` to load newly
@@ -288,15 +329,19 @@ completion and accepted by the top-level playbooks:
 | Domain | Supported tags |
 |--------|----------------|
 | `build_stream` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `upgrade`, `rollback` |
-| `discovery` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `discovery`, `cleanup`, `upgrade`, `rollback` |
+| `discovery` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
 | `image_build_manager` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `cleanup_images`, `upgrade`, `rollback` |
 | `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
 | `repo_manager` | `precheck`, `credentials`, `prepare`, `deploy`, `execute`, `download`, `status`, `cleanup`, `cleanup_pulp`, `cleanup_repos`, `upgrade`, `rollback`, `catalog_generate`, `catalog_add`, `catalog_delete`, `catalog_validate` |
-| `telemetry` | `precheck`, `validate`, `validation`, `execute`, `deploy`, `cleanup`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `upgrade`, `rollback`, `external_kafka`, `external_victoria` |
-| `utils` | `precheck`, `setup`, `collect`, `install_os`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `upgrade`, `rollback` |
+| `telemetry` | `precheck`, `validate`, `validation`, `prepare`, `credentials`, `execute`, `deploy`, `cleanup`, `cleanup_kafka`, `cleanup_victoria_metrics`, `cleanup_victoria_logs`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `upgrade`, `rollback`, `external_kafka`, `external_victoria` |
+| `utils` | `precheck`, `setup`, `collect`, `install_os`, `backup_oim_logs`, `slurm_config_backup`, `slurm_config_cleanup`, `slurm_config_rollback`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `cleanup_backup_oim_logs`, `cleanup_slurm_config_backups`, `upgrade`, `rollback` |
 
 Without `--tags`, a playbook runs its full default flow. Some tag combinations
 are intentionally rejected; follow the selected domain's validation message.
+Ansible extra variables are passed through by `omnia.sh`; for example, use
+`./omnia.sh -r telemetry --tags cleanup -e delete_sinks_volume=true` to opt in
+to deleting Telemetry sink PVCs. Bash completion suggests both boolean values
+after `-e` or `--extra-vars` for Telemetry.
 
 ---
 

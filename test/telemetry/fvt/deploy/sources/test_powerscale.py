@@ -27,12 +27,12 @@ PowerScale Architecture:
         PowerScale OneFS syslog -> VLAgent -> VictoriaLogs
 
 Test cases (execution order):
-    TC_SR_030: Verify CSM Metrics PowerScale deployment ready
-    TC_SR_031: Verify OTEL Collector deployment ready
-    TC_SR_032: Verify isilon-creds secret has correct endpoint
-    TC_SR_033: Verify PowerScale metrics in VictoriaMetrics
-    TC_SR_035: Verify/configure PowerScale syslog forwarding (BEFORE log check)
-    TC_SR_034: Verify PowerScale logs in VictoriaLogs (AFTER syslog config)
+    TEL_FVT_DEPLOY_V030: Verify CSM Metrics PowerScale deployment ready
+    TEL_FVT_DEPLOY_V031: Verify OTEL Collector deployment ready
+    TEL_FVT_DEPLOY_V032: Verify isilon-creds secret has correct endpoint
+    TEL_FVT_DEPLOY_V033: Verify PowerScale metrics in VictoriaMetrics
+    TEL_FVT_DEPLOY_V035: Verify/configure PowerScale syslog forwarding (BEFORE log check)
+    TEL_FVT_DEPLOY_V034: Verify PowerScale logs in VictoriaLogs (AFTER syslog config)
 """
 
 from datetime import datetime
@@ -56,6 +56,7 @@ from library.functions.k8s_func import verify_deploy_pods_detail
 from library.functions.telemetry_func import (
     is_source_enabled,
     is_logs_enabled,
+    is_sink_enabled_for_source,
 )
 from library.functions.powerscale_func import (
     decode_isilon_creds,
@@ -140,7 +141,7 @@ def _format_metric_lines(metric_details):
 
 
 # =========================================================================
-# TC_SR_030: Verify CSM Metrics PowerScale deployment ready
+# TEL_FVT_DEPLOY_V030: Verify CSM Metrics PowerScale deployment ready
 # =========================================================================
 
 @pytest.mark.source
@@ -188,7 +189,7 @@ def test_powerscale_csm_deploy(host):
 
 
 # =========================================================================
-# TC_SR_031: Verify OTEL Collector deployment ready
+# TEL_FVT_DEPLOY_V031: Verify OTEL Collector deployment ready
 # =========================================================================
 
 @pytest.mark.source
@@ -236,7 +237,7 @@ def test_powerscale_otel_deploy(host):
 
 
 # =========================================================================
-# TC_SR_032: Verify isilon-creds secret has correct endpoint
+# TEL_FVT_DEPLOY_V032: Verify isilon-creds secret has correct endpoint
 # =========================================================================
 
 @pytest.mark.source
@@ -299,7 +300,7 @@ def test_powerscale_secret_valid(host):
 
 
 # =========================================================================
-# TC_SR_033: Verify PowerScale metrics in VictoriaMetrics
+# TEL_FVT_DEPLOY_V033: Verify PowerScale metrics in VictoriaMetrics
 # =========================================================================
 
 @pytest.mark.source
@@ -308,6 +309,10 @@ def test_powerscale_secret_valid(host):
 def test_powerscale_metrics_in_vm(host):
     """Verify PowerScale metrics in VictoriaMetrics."""
     _skip_if_powerscale_disabled(host)
+    # Skip if PowerScale does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "powerscale", "victoria_metrics"):
+        pytest.skip("PowerScale source does not target VictoriaMetrics sink")
+    
     tc = TC["powerscale_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -354,8 +359,8 @@ def test_powerscale_metrics_in_vm(host):
 
 
 # =========================================================================
-# TC_SR_035: Verify/configure PowerScale syslog forwarding
-#   Runs BEFORE TC_SR_034 (log verification) so syslog is configured
+# TEL_FVT_DEPLOY_V035: Verify/configure PowerScale syslog forwarding
+#   Runs BEFORE TEL_FVT_DEPLOY_V034 (log verification) so syslog is configured
 #   before we check if logs are arriving.
 # =========================================================================
 
@@ -482,8 +487,8 @@ def test_powerscale_syslog_config(host):
 
 
 # =========================================================================
-# TC_SR_034: Verify PowerScale logs in VictoriaLogs
-#   Runs AFTER TC_SR_035 (syslog config) so logs have time to arrive.
+# TEL_FVT_DEPLOY_V034: Verify PowerScale logs in VictoriaLogs
+#   Runs AFTER TEL_FVT_DEPLOY_V035 (syslog config) so logs have time to arrive.
 # =========================================================================
 
 @pytest.mark.source
@@ -494,6 +499,9 @@ def test_powerscale_logs_in_vl(host):
     _skip_if_powerscale_disabled(host)
     if not is_logs_enabled(host, "powerscale"):
         pytest.skip("PowerScale logs not enabled in config")
+    # Skip if PowerScale does not target VictoriaLogs sink
+    if not is_sink_enabled_for_source(host, "powerscale", "victoria_logs"):
+        pytest.skip("PowerScale source does not target VictoriaLogs sink")
 
     tc = TC["powerscale_logs_in_vl"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -532,7 +540,7 @@ def test_powerscale_logs_in_vl(host):
 
 
 # =========================================================================
-# TC_SR_036: Verify comprehensive PowerScale deployment
+# TEL_FVT_DEPLOY_V036: Verify comprehensive PowerScale deployment
 # =========================================================================
 
 @pytest.mark.source
@@ -564,7 +572,7 @@ def test_powerscale_comprehensive_deployment(host):
 
 
 # =========================================================================
-# TC_SR_037: Verify PowerScale feature flags
+# TEL_FVT_DEPLOY_V037: Verify PowerScale feature flags
 # =========================================================================
 
 @pytest.mark.source
@@ -590,7 +598,7 @@ def test_powerscale_feature_flags(host):
 
 
 # =========================================================================
-# TC_SR_038: Verify PowerScale health metrics
+# TEL_FVT_DEPLOY_V038: Verify PowerScale health metrics
 # =========================================================================
 
 @pytest.mark.source
@@ -599,6 +607,10 @@ def test_powerscale_feature_flags(host):
 def test_powerscale_health_metrics(host):
     """Verify PowerScale health metrics."""
     _skip_if_powerscale_disabled(host)
+    # Skip if PowerScale does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "powerscale", "victoria_metrics"):
+        pytest.skip("PowerScale source does not target VictoriaMetrics sink")
+    
     tc = TC["powerscale_health_metrics"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -622,7 +634,7 @@ def test_powerscale_health_metrics(host):
 
 
 # =========================================================================
-# TC_SR_040: Verify PowerScale TLS enforcement
+# TEL_FVT_DEPLOY_V040: Verify PowerScale TLS enforcement
 # =========================================================================
 
 @pytest.mark.source
@@ -654,7 +666,7 @@ def test_powerscale_tls_enforcement(host):
 
 
 # =========================================================================
-# TC_SR_041: Verify PowerScale pod label compliance
+# TEL_FVT_DEPLOY_V041: Verify PowerScale pod label compliance
 # =========================================================================
 
 @pytest.mark.source
@@ -686,7 +698,7 @@ def test_powerscale_label_compliance(host):
 
 
 # =========================================================================
-# TC_SR_042: Verify PowerScale scrape interval
+# TEL_FVT_DEPLOY_V042: Verify PowerScale scrape interval
 # =========================================================================
 
 @pytest.mark.source
@@ -718,7 +730,7 @@ def test_powerscale_scrape_interval(host):
 
 
 # =========================================================================
-# TC_SR_042: Verify PowerScale CSI authorization mode
+# TEL_FVT_DEPLOY_V043: Verify PowerScale CSI authorization mode
 # =========================================================================
 
 @pytest.mark.source
@@ -750,7 +762,7 @@ def test_powerscale_csi_auth_mode(host):
 
 
 # =========================================================================
-# TC_SR_043: Verify PowerScale deployment mode
+# TEL_FVT_DEPLOY_V044: Verify PowerScale deployment mode
 # =========================================================================
 
 @pytest.mark.source
@@ -775,7 +787,7 @@ def test_powerscale_deployment_mode(host):
 
 
 # =========================================================================
-# TC_SR_044: Verify CSI Volume Exporter deployment
+# TEL_FVT_DEPLOY_V045: Verify CSI Volume Exporter deployment
 # =========================================================================
 
 @pytest.mark.source
@@ -814,7 +826,7 @@ def test_csi_volume_exporter_deploy(host):
 
 
 # =========================================================================
-# TC_SR_045: Verify CSI Volume Exporter metrics endpoint
+# TEL_FVT_DEPLOY_V046: Verify CSI Volume Exporter metrics endpoint
 # =========================================================================
 
 @pytest.mark.source
@@ -852,7 +864,7 @@ def test_csi_volume_exporter_endpoint(host):
 
 
 # =========================================================================
-# TC_SR_046: Verify CSI Volume Exporter metrics in VictoriaMetrics
+# TEL_FVT_DEPLOY_V047: Verify CSI Volume Exporter metrics in VictoriaMetrics
 # =========================================================================
 
 @pytest.mark.source
@@ -890,7 +902,7 @@ def test_csi_volume_exporter_metrics(host):
 
 
 # =========================================================================
-# TC_SR_047: Verify CSI Driver for PowerScale (isilon-controller) deployment
+# TEL_FVT_DEPLOY_V048: Verify CSI Driver for PowerScale (isilon-controller) deployment
 # =========================================================================
 
 @pytest.mark.source
@@ -930,7 +942,7 @@ def test_csi_driver_powerscale_deploy(host):
 
 
 # =========================================================================
-# TC_SR_048: Verify external-health-monitor-controller container is running
+# TEL_FVT_DEPLOY_V049: Verify external-health-monitor-controller container is running
 # =========================================================================
 
 @pytest.mark.source
@@ -970,7 +982,7 @@ def test_external_health_monitor_container(host):
 
 
 # =========================================================================
-# TC_SR_049: Verify CSI volume exporter deployment skipped when health monitor missing
+# TEL_FVT_DEPLOY_V050: Verify CSI volume exporter deployment skipped when health monitor missing
 # =========================================================================
 
 @pytest.mark.source
@@ -1011,7 +1023,7 @@ def test_csi_exporter_skipped_without_health_monitor(host):
 
 
 # =========================================================================
-# TC_SR_050: Verify warning message displayed for missing health monitor
+# TEL_FVT_DEPLOY_V051: Verify warning message displayed for missing health monitor
 # =========================================================================
 
 @pytest.mark.source
@@ -1036,7 +1048,7 @@ def test_health_monitor_warning_message(host):
 
 
 # =========================================================================
-# TC_SR_051: Verify CSM Metrics to OTEL Collector data flow
+# TEL_FVT_DEPLOY_V052: Verify CSM Metrics to OTEL Collector data flow
 # =========================================================================
 
 @pytest.mark.source
@@ -1068,7 +1080,7 @@ def test_csm_otel_data_flow(host):
 
 
 # =========================================================================
-# TC_SR_052: Verify OTEL Collector to VictoriaMetrics export
+# TEL_FVT_DEPLOY_V053: Verify OTEL Collector to VictoriaMetrics export
 # =========================================================================
 
 @pytest.mark.source
@@ -1100,7 +1112,7 @@ def test_otel_vm_export(host):
 
 
 # =========================================================================
-# TC_SR_053: Verify cert-manager TLS certificate generation
+# TEL_FVT_DEPLOY_V054: Verify cert-manager TLS certificate generation
 # =========================================================================
 
 @pytest.mark.source
@@ -1129,4 +1141,3 @@ def test_cert_manager_tls_certs(host):
     assert result["success"], ASSERT_MSGS["cert_manager_tls_failed"].format(
         details=result["details"],
     )
-

@@ -25,7 +25,7 @@
 #   ansible-playbook image_build_manager.yml --tags prepare         # Deploy MinIO + Registry only
 #   ansible-playbook image_build_manager.yml --tags execute         # Build images (alias for build)
 #   ansible-playbook image_build_manager.yml --tags build           # Build images only (skip prepare)
-#   ansible-playbook image_build_manager.yml --tags cleanup         # Cleanup (no credentials)
+#   ansible-playbook image_build_manager.yml --tags cleanup         # Cleanup services, data, logs, and credentials
 #   ansible-playbook image_build_manager.yml --tags cleanup_images  # Delete images (prompts for approval)
 #   ansible-playbook image_build_manager.yml --tags cleanup_images \
 #     -e cleanup_image_pattern="rhel-slurm_*"                      # Delete by pattern
@@ -42,7 +42,7 @@
 #   prepare      — Deploy MinIO + Registry (with credentials)
 #   execute      — Build OS images (alias for 'build') (with credentials)
 #   build        — Build OS images (x86_64 + aarch64) + write build_status (with credentials)
-#   cleanup      — Remove MinIO, registry, build artifacts (skips credentials)
+#   cleanup      — Remove MinIO, registry, build artifacts, logs, and credentials
 #   cleanup_images — Delete built images from S3 + registry (by pattern or all)
 #   upgrade      — Upgrade flow (placeholder — future release)
 #   rollback     — Rollback flow (placeholder — future release)
@@ -70,11 +70,14 @@
     - image_build_setup
 
 # =========================================================================
-# Step 1: Input validation (schema + logic) — skipped for precheck
+# Step 1: Input validation (schema + logic) — skipped for precheck and cleanup
 # =========================================================================
 - name: Validate image build configuration
   ansible.builtin.import_playbook: validate/validate_image_build_config.yml
-  when: "'precheck' not in (hostvars['localhost']['provided_tags'] | default([]))"
+  when: >-
+    (hostvars['localhost']['provided_tags'] | default([])
+    | intersect(['precheck', 'cleanup', 'cleanup_images'])
+    | length) == 0
   tags:
     - always
     - validate

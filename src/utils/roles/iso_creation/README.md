@@ -1,66 +1,54 @@
 # iso_creation
 
-Creates custom OS installation ISO images with Kickstart automation for bare-metal provisioning.
-
-## Description
-
-This role modifies standard OS ISO images by injecting custom Kickstart files, creating NFS-bootable ISOs, and repacking ISO files for automated bare-metal installations. It supports both x86_64 and aarch64 architectures.
+Builds a custom x86_64 or aarch64 installation ISO using a generated or
+user-provided Kickstart file and writes the artifacts to an NFS export.
 
 ## Requirements
 
-- Standard OS ISO image (RHEL, Rocky Linux, etc.)
-- Kickstart configuration file
-- `xorriso` and `isoinfo` tools for ISO manipulation
-- Sufficient disk space for ISO extraction and rebuilding
+- Validated `install_os_config.yml` facts
+- Existing local source ISO
+- Reachable NFS export from `custom_iso_path`
+- `xorriso` and `implantisomd5` (prepared by `fetch_iso`)
 
-## Role Variables
+## Behavior
 
-Available variables are listed below, along with default values (see `vars/main.yml`):
+1. Validate NFS server/path values.
+2. Reuse a matching NFS mount or mount the export at `/tmp/install_os_nfs`.
+3. Resolve the custom ISO, `kickstart.ks`, and `install_os_manifest.yml` paths.
+4. Skip an existing ISO unless `rebuild_iso: true`.
+5. Render the built-in `rhel10` Kickstart or process `kickstart_file`.
+6. Build either an embedded-Kickstart ISO or an ISO whose GRUB config points to
+   the NFS-hosted Kickstart.
+7. Unmount only the NFS mount created by this role.
 
-```yaml
-# ISO source and target paths
-iso_source_path: "/path/to/source.iso"
-iso_custom_path: "/path/to/custom.iso"
+## Key Variables
 
-# Kickstart configuration
-kickstart_file: "ks.cfg"
-user_kickstart_content: ""
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `source_iso_path` | Required upstream fact | Local source ISO |
+| `custom_iso_path` | Required upstream fact | `server:/path/file.iso` destination |
+| `kickstart_delivery_method` | `embedded` | `embedded` or `nfs` |
+| `kickstart_file` | `""` | Optional user-provided Kickstart |
+| `kickstart_template` | `rhel10` | Built-in template name |
+| `rebuild_iso` | `false` | Rebuild an existing destination ISO |
+| `nfs_kickstart_filename` | `kickstart.ks` | Generated Kickstart name |
+| `manifest_filename` | `install_os_manifest.yml` | Build manifest name |
 
-# Build options
-build_nfs_iso: false
-inject_kickstart: true
+Network, hostname, disk, timezone, root-password hash, and SSH-key Kickstart
+facts are supplied by the validation and credential roles.
+
+## Usage
+
+```bash
+cd src/utils
+ansible-playbook playbooks/install_os.yml --tags build_iso
 ```
 
 ## Dependencies
 
-None.
-
-## Example Playbook
-
-```yaml
-- hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - role: iso_creation
-      vars:
-        iso_source_path: "/opt/isos/rhel-10.0-x86_64-dvd.iso"
-        iso_custom_path: "/opt/isos/rhel-10.0-custom.iso"
-        kickstart_file: "node-ks.cfg"
-        inject_kickstart: true
-```
-
-## Tasks
-
-- `main.yml` - Main orchestration
-- `inject_user_kickstart.yml` - Inject custom Kickstart files
-- `build_nfs_iso.yml` - Create NFS-bootable ISO variants
-- `repack_iso.yml` - Repackage ISO with modifications
+Normally preceded by `validate_install_os_config`,
+`collect_install_os_credentials`, and `fetch_iso`.
 
 ## License
 
-Apache 2.0
-
-## Author Information
-
-Dell Technologies Omnia Team
+Apache License, Version 2.0

@@ -51,6 +51,7 @@ def main():
         REQUIRED_SUITE_TAGS,
         VERIFY_ONLY_TAGS,
         VERIFY_ONLY_SUITES,
+        SUITE_EXEC_OWNERS,
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
 
@@ -68,6 +69,7 @@ def main():
             "required_suite_tags": REQUIRED_SUITE_TAGS,
             "verify_only_tags": VERIFY_ONLY_TAGS,
             "verify_only_suites": VERIFY_ONLY_SUITES,
+            "suite_exec_owners": SUITE_EXEC_OWNERS,
         },
     )
     sys.exit(runner.main(sys.argv[1:]))

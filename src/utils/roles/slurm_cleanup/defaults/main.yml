@@ -1,5 +1,4 @@
 ---
-
-slurm_share_dir_name: slurm
-slurm_cleanup_pre_backup_default: 'y'
-slurm_cleanup_confirm_token: 'YES'
+# Optional: pre-set these to skip the interactive prompts (e.g. for automation)
+# pre_cleanup_backup_choice_input: "y"
+# cleanup_confirm_input: "YES"

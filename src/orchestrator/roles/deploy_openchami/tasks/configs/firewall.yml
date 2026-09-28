@@ -42,6 +42,14 @@
     - 53/tcp
     - 53/udp
 
+- name: Disable masquerading on trusted zone
+  ansible.posix.firewalld:
+    zone: trusted
+    masquerade: true
+    permanent: true
+    immediate: true
+    state: disabled
+
 - name: Add Podman interfaces to trusted zone
   ansible.posix.firewalld:
     interface: "{{ item }}"

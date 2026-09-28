@@ -22,6 +22,9 @@ credential_files:
     vault_path: "{{ input_project_dir }}/.orchestrator_credentials_key"
     condition: true
 
+# Module utilities used by collection-local credential validation modules
+module_utils_path: "{{ role_path }}/../../plugins/module_utils"
+
 # Credential definitions — orchestrator-scoped only
 # Other domains (discovery, image_build_manager, build_stream) own their own credentials.
 orchestrator_credentials_definitions:

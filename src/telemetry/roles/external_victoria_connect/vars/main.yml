@@ -41,8 +41,16 @@ victoria_tls_secret: "victoria-tls-certs"
 victoria_cert_dir_remote: "{{ telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}/certs/victoria"
 
 # Output paths
+# This role runs on kube_vip_group, while telemetry_setup derives the project
+# paths on localhost. Read the controller-side fact explicitly so a custom
+# OMNIA_DATA_PATH does not fall back to /opt/omnia in the remote host context.
+# yamllint disable rule:line-length
 victoria_output_dir: >-
-  {{ output_project_dir | default('/opt/omnia/telemetry/output/project_default') }}/external_victoria
+  {{
+    hostvars['localhost']['output_project_dir']
+    | default(output_project_dir | default((lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) | regex_replace('/$', '')) + '/telemetry/output/' + (lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true))), true)
+  }}/external_victoria
+# yamllint enable rule:line-length
 victoria_output_file: "{{ victoria_output_dir }}/external_victoria_connect_details.yml"
 
 # Error messages

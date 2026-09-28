@@ -17,7 +17,7 @@ Pytest configuration for build_stream FVT.
 
 Provides:
 - host fixture (testinfra connection to target)
-- Custom markers: sanity, functional, deploy
+- Custom markers: sanity, deploy, nft, resilience, security, disruptive
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
 - Credential auto-encryption
@@ -26,6 +26,7 @@ Provides:
 
 import sys
 import os
+from datetime import datetime
 
 import pytest
 
@@ -34,7 +35,8 @@ if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
-import omnia_auto
+import omnia_auto  # noqa: E402 - configured after module path setup
+
 omnia_auto.configure(
     module_root=_TEST_DIR,
     config_file="test_config.yml",
@@ -43,7 +45,7 @@ omnia_auto.configure(
 )
 
 # --- Common functions from omnia_auto ---
-from omnia_auto import (
+from omnia_auto import (  # noqa: E402 - configure before consumers
     get_testinfra_host,
     is_local_execution,
     load_test_config,
@@ -52,6 +54,7 @@ from omnia_auto import (
     get_current_report,
     get_test_output,
     get_last_tc_id,
+    get_last_detail_fields,
     encrypt_test_credentials,
     build_report_name,
     log,
@@ -60,15 +63,50 @@ from omnia_auto import (
 )
 
 # --- Module-specific functions ---
-from library.functions.host_func import (
+from library.functions.host_func import (  # noqa: E402
+    check_target_connectivity,
     sync_project_to_remote,
     sync_build_stream_input,
 )
-from library.functions.validation_func import (
+from library.functions.validation_func import (  # noqa: E402
     validate_all,
     ConfigValidationError,
 )
-from library.vars import TEST_CASES
+from library.functions.build_stream_func import (  # noqa: E402
+    check_build_stream_enabled,
+    check_build_stream_health,
+    check_postgres_tables,
+)
+from library.functions.gitlab_func import (  # noqa: E402
+    check_gitlab_runner_container,
+    check_gitlab_url_accessible,
+)
+from library.functions.pipeline_func import (  # noqa: E402
+    check_server_credentials,
+)
+from library.vars import TEST_CASES  # noqa: E402
+
+_FVT_SCENARIO_ORDER = {
+    "buildstream_install": 0,
+    "build_pipeline": 1,
+    "deploy_pipeline": 2,
+    "buildstream_cleanup": 3,
+}
+
+_FVT_SUITE_ORDER = {
+    "buildstream_install": {
+        "": 0,
+        "health": 1,
+        "buildstream_install": 2,
+    },
+    "build_pipeline": {"": 0, "build_pipeline": 1},
+    "buildstream_cleanup": {
+        "": 0,
+        "gitlab_cleanup": 1,
+        "buildstream_cleanup": 2,
+    },
+    "deploy_pipeline": {"": 0, "deploy_pipeline": 1},
+}
 
 # Build test-function-name → TC ID map for summary table fallback.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
@@ -86,8 +124,8 @@ def pytest_addoption(parser):
         default="",
         help=(
             "Marker filter expression. "
-            "Use '+' for AND (both required): sanity+functional. "
-            "Use ',' for OR (either matches): sanity,functional."
+            "Use '+' for AND (both required): sanity+deploy. "
+            "Use ',' for OR (either matches): sanity,deploy."
         ),
     )
 
@@ -104,9 +142,12 @@ def pytest_configure(config):
     markers = {
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
-        "functional": "Functional verification",
-        "regression": "Regression tests",
+        "manual": "Manually-triggered pipeline verification",
         "deploy": "Playbook deployment tests",
+        "nft": "BuildStream non-functional test",
+        "resilience": "Service and pipeline recovery test",
+        "security": "Authentication, authorization, and input security test",
+        "disruptive": "Explicitly enabled test that changes live service state",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -141,51 +182,55 @@ def _item_has_marker(item, marker_name):
     return item.get_closest_marker(marker_name) is not None
 
 
+@pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(session, config, items):
     """Filter by --marker expression and sort by order marker."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
 
     if mode != "none" and markers:
-        filtered = []
+        selected = []
+        deselected = []
         for item in items:
             if mode == "and":
-                if all(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"Missing marker(s) for AND expression: "
-                            f"{'+'.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
+                matches = all(
+                    _item_has_marker(item, marker) for marker in markers
+                )
             elif mode == "or":
-                if any(_item_has_marker(item, m) for m in markers):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=(
-                            f"No matching marker for OR expression: "
-                            f"{','.join(markers)}"
-                        )
-                    ))
-                    filtered.append(item)
-            elif mode == "single":
-                if _item_has_marker(item, markers[0]):
-                    filtered.append(item)
-                else:
-                    item.add_marker(pytest.mark.skip(
-                        reason=f"Missing marker: {markers[0]}"
-                    ))
-                    filtered.append(item)
-        items[:] = filtered
+                matches = any(
+                    _item_has_marker(item, marker) for marker in markers
+                )
+            else:
+                matches = _item_has_marker(item, markers[0])
+
+            if matches:
+                selected.append(item)
+            else:
+                deselected.append(item)
+
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
 
     def _get_order(item):
         marker = item.get_closest_marker("order")
-        if marker and marker.args:
-            return marker.args[0]
-        return 999
+        local_order = marker.args[0] if marker and marker.args else 999
+        node_parts = item.nodeid.replace("\\", "/").split("/")
+        scenario = ""
+        suite = ""
+        if "fvt" in node_parts:
+            index = node_parts.index("fvt")
+            if len(node_parts) > index + 1:
+                scenario = node_parts[index + 1]
+            if len(node_parts) > index + 2:
+                candidate = node_parts[index + 2]
+                if not candidate.startswith("test_"):
+                    suite = candidate
+        return (
+            _FVT_SCENARIO_ORDER.get(scenario, 999),
+            _FVT_SUITE_ORDER.get(scenario, {}).get(suite, 999),
+            local_order,
+        )
 
     items.sort(key=_get_order)
 
@@ -241,26 +286,38 @@ def pytest_sessionstart(session):
     config = _apply_dataset_overrides(config)
 
     host = get_testinfra_host()
+    execution_phase = os.environ.get("OMNIA_COMMAND_TYPE", "") == "exec"
 
     if not is_local_execution():
-        sync_result = sync_project_to_remote(host)
-        if sync_result["success"]:
-            log(sync_result["details"], "OK")
-        else:
-            log(f"Project sync failed: {sync_result['error']}", "WARN")
+        connectivity = check_target_connectivity(host)
+        if not connectivity["success"]:
+            message = f"Target unreachable: {connectivity['error']}"
+            log(message, "FAIL")
+            pytest.exit(message, returncode=1)
+        log(connectivity["details"], "OK")
 
-    if config.get("sync_build_stream_input", False):
+        if execution_phase:
+            sync_result = sync_project_to_remote(host)
+            if sync_result["success"]:
+                log(sync_result["details"], "OK")
+            else:
+                message = f"Project sync failed: {sync_result['error']}"
+                log(message, "FAIL")
+                pytest.exit(message, returncode=1)
+
+    if execution_phase and config.get("sync_build_stream_input", False):
         sync_result = sync_build_stream_input(host)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
         else:
-            log(f"Input sync failed: {sync_result['error']}", "ERROR")
+            message = f"Input sync failed: {sync_result['error']}"
+            log(message, "FAIL")
+            pytest.exit(message, returncode=1)
 
     # Initialize test report
     valid_scenarios = {
-        "buildstream_install", "gitlab_cleanup",
-        "buildstream_cleanup", "health",
-        "build_pipeline",
+        "buildstream_install", "buildstream_cleanup", "health",
+        "build_pipeline", "deploy_pipeline", "nft",
     }
     module_name = "build_stream"
     test_paths = (
@@ -272,22 +329,21 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
-    report_id = os.environ.get("REPORT_ID")
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
     base_name = str(
         config.get("report_name", "build_stream_test_report")
     )
     report_name = build_report_name(
-        domain_name="build_stream",
         base_name=base_name,
     )
     report = TestReport(
         module_name=module_name,
-        report_path=str(
-            config.get("report_path", "/opt/omnia/reports")
-        ),
+        report_path=os.path.expandvars(str(config["report_path"])),
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
 
@@ -324,6 +380,7 @@ def pytest_runtest_makereport(item, call):
 
     output = get_test_output(item.name)
     details = output if output else ""
+    detail_fields = get_last_detail_fields()
     skip_reason = ""
 
     if result.skipped:
@@ -341,12 +398,21 @@ def pytest_runtest_makereport(item, call):
             + f"SKIPPED: {skip_reason}"
         )
 
-    # Get TC ID from TestLogger (set during test execution)
-    tc_id = get_last_tc_id()
-
-    # Fallback: look up TC ID from TEST_CASES if TestLogger didn't set it
-    if not tc_id:
-        tc_id = _TC_ID_MAP.get(item.name, "")
+    # Prefer the stable function-name registry. TestLogger state is process
+    # global and can otherwise leak the preceding ID into a marker-filtered
+    # test that was skipped before its logger was constructed.
+    # Cleanup-pipeline coverage keeps the historical function names (for example
+    # ``test_gitlab_server_running``), which also exist in the installation
+    # health suite. Prefer the cleanup-pipeline registry entry for that suite
+    # so reports retain the correct test-case ID.
+    cleanup_key = f"cleanup_{item.name.removeprefix('test_')}"
+    cleanup_tc_id = TEST_CASES.get(cleanup_key, {}).get("id", "")
+    in_cleanup_pipeline = "cleanup_pipeline" in item.nodeid.replace("\\", "/").split("/")
+    tc_id = (
+        cleanup_tc_id
+        if in_cleanup_pipeline and cleanup_tc_id
+        else _TC_ID_MAP.get(item.name, "") or get_last_tc_id()
+    )
 
     # Accumulate for summary table (shared via omnia_auto)
     add_session_result(
@@ -359,13 +425,17 @@ def pytest_runtest_makereport(item, call):
     # Store in HTML/JSON report
     report = get_current_report()
     if report:
-        report.add_result({
+        report_payload = {
+            "tc_id": tc_id,
             "test_name": item.name,
             "status": status,
             "duration": getattr(result, "duration", 0),
             "details": details,
             "error": str(result.longrepr) if result.failed else "",
-        })
+        }
+        if detail_fields:
+            report_payload["detail_fields"] = detail_fields
+        report.add_result(report_payload)
 
 
 # =============================================================================
@@ -392,3 +462,26 @@ def pytest_report_teststatus(report, config):
 def host():
     """Testinfra host connected to the target server."""
     return get_testinfra_host()
+
+
+@pytest.fixture(scope="session")
+def manual_pipeline_prerequisites(host):
+    """Fail closed unless the installed BuildStream stack is operational."""
+    checks = (
+        ("BuildStream enabled", check_build_stream_enabled(host)),
+        ("BuildStream API healthy", check_build_stream_health(host)),
+        ("PostgreSQL schema ready", check_postgres_tables(host)),
+        ("GitLab accessible", check_gitlab_url_accessible(host)),
+        ("GitLab runner running", check_gitlab_runner_container(host)),
+        ("BuildStream credentials configured", check_server_credentials(host)),
+    )
+    failures = [
+        f"{name}: {result.get('error') or result.get('details') or 'failed'}"
+        for name, result in checks
+        if not result.get("success")
+    ]
+    assert not failures, (
+        "BuildStream installation prerequisite check failed:\n- "
+        + "\n- ".join(failures)
+    )
+    return [name for name, _result in checks]

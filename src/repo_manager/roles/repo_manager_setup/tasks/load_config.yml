@@ -53,15 +53,23 @@
          | default('project_default', true) }}
     cacheable: true
 
+- name: Resolve Repo Manager cleanup context
+  ansible.builtin.set_fact:
+    repo_manager_cleanup_context: >-
+      {{ (ansible_run_tags | default([])
+          | intersect(['cleanup', 'cleanup_pulp', 'cleanup_repos'])
+          | length) > 0 }}
+    cacheable: true
+
 # --- Validate required variables via module (single source of truth) ---
 - name: Validate system environment
   validate_system_environment:
-    required_vars:
-      - SYSTEM_ADMIN_NIC_IPV4
-      - CATALOG_FILE_PATH
+    required_vars: >-
+      {{ ['OMNIA_DATA_PATH'] if repo_manager_cleanup_context | bool else
+         ['SYSTEM_ADMIN_NIC_IPV4', 'CATALOG_FILE_PATH'] }}
     validate_hostname: false
     validate_domain: false
-    validate_ip: true
+    validate_ip: "{{ not (repo_manager_cleanup_context | bool) }}"
     validate_paths: true
   register: _env_validation
 
@@ -124,6 +132,7 @@
     state: directory
     mode: '0755'
   become: true
+  when: not (repo_manager_cleanup_context | bool)
 
 - name: Ensure domain-specific directories exist
   ansible.builtin.file:
@@ -140,6 +149,7 @@
   loop_control:
     label: "{{ item.path }}"
   become: true
+  when: not (repo_manager_cleanup_context | bool)
 
 # --- Validate domain directories were created ---
 - name: Validate domain directories were created
@@ -151,11 +161,14 @@
     - "{{ output_project_dir }}"
     - "{{ log_dir }}"
   register: _dir_checks
+  when: not (repo_manager_cleanup_context | bool)
 
 - name: Fail if any required directory is missing
   ansible.builtin.fail:
     msg: "{{ repo_manager_setup_fail_if_any_required_directory_is_missing_msg }}"
-  when: not item.stat.exists
+  when:
+    - not (repo_manager_cleanup_context | bool)
+    - not item.stat.exists
   loop: "{{ _dir_checks.results }}"
 
 # --- Set configuration loaded guard ---

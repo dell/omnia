@@ -134,11 +134,14 @@ def transform_package_dict(data, arch_val, logger):
         rpm_packages = []
         repo_mapping = {}
         rpm_type_mapping = {}
+        rpm_policy_mapping = {}
 
         for item in items:
             if item.get("type") in ("rpm", "rpm_repo"):
                 rpm_packages.append(item["package"])
                 rpm_type_mapping[item["package"]] = item["type"]
+                if item.get("pulp_policy"):
+                    rpm_policy_mapping[item["package"]] = item["pulp_policy"]
                 # Preserve repo_name if available
                 if "repo_name" in item:
                     repo_mapping[item["package"]] = item["repo_name"]
@@ -152,6 +155,7 @@ def transform_package_dict(data, arch_val, logger):
                 # Legacy rpm_list entries default to rpm.  A caller that already
                 # carries original catalog types can pass them through explicitly.
                 rpm_type_mapping.update(item.get("rpm_type_mapping", {}))
+                rpm_policy_mapping.update(item.get("rpm_policy_mapping", {}))
             else:
                 transformed_items.append(item)
 
@@ -169,6 +173,12 @@ def transform_package_dict(data, arch_val, logger):
             if repo_mapping:
                 rpm_task["repo_mapping"] = repo_mapping
                 logger.debug(f"Added repo_mapping to rpm_task for {sw_name}: {repo_mapping}")
+            if rpm_policy_mapping:
+                rpm_task["rpm_policy_mapping"] = {
+                    package_name: rpm_policy_mapping[package_name]
+                    for package_name in rpm_packages
+                    if package_name in rpm_policy_mapping
+                }
             transformed_items.append(rpm_task)
 
         result[arch_val][sw_name] = transformed_items
@@ -207,6 +217,40 @@ def resolve_pulp_policy(policy_str, caching_val, logger=None):
     return pulp_policy
 
 
+def get_repository_config(config_data, os_version, architecture, repo_name):
+    """Return one flat, additional, or user repository configuration."""
+    repositories = (
+        config_data.get("repositories", {})
+        .get(os_version, {})
+        .get(architecture, {})
+    )
+    direct_config = repositories.get(repo_name)
+    if isinstance(direct_config, dict):
+        return direct_config
+
+    for section_name in ("additional_repos", "user_repos"):
+        section = repositories.get(section_name, {})
+        if isinstance(section, dict):
+            nested_config = section.get(repo_name)
+            if isinstance(nested_config, dict):
+                return nested_config
+    return {}
+
+
+def resolve_repository_pulp_policy(
+        config_data, os_version, architecture, repo_name, logger=None):
+    """Resolve independent repository/global overrides into one Pulp policy."""
+    repo_config = get_repository_config(
+        config_data, os_version, architecture, repo_name
+    )
+    return resolve_pulp_policy(
+        repo_config.get("policy", config_data.get("repo_config", "partial")),
+        repo_config.get(
+            "caching",
+            config_data.get("caching_policy", DEFAULT_CACHING_POLICY),
+        ),
+        logger,
+    )
 
 
 def set_version_variables(user_data, software_names, cluster_os_version, logger):

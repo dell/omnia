@@ -26,6 +26,7 @@ Provides:
 
 import sys
 import os
+from datetime import datetime
 
 import pytest
 
@@ -113,6 +114,12 @@ def pytest_configure(config):
         "collect": "Log collector tests",
         "pxe": "PXE boot tests",
         "install_os": "OS installation tests",
+        "backup_oim_logs": "OIM log backup tests",
+        "cleanup_backup_oim_logs": "OIM log backup cleanup tests",
+        "slurm_config_util": "Slurm config backup/cleanup/rollback tests",
+        "cleanup_slurm_config_backups": "Slurm config backup cleanup tests",
+        "destructive": "Deletes live state (e.g. the active Slurm config share). "
+                        "Opt-in only: excluded unless explicitly selected via --marker destructive",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -150,6 +157,17 @@ def pytest_collection_modifyitems(session, config, items):
     """
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
+
+    # Step 0: Destructive tests (e.g. those that delete a live/shared config)
+    # are opt-in only. Deselect them unless explicitly requested via
+    # --marker destructive (alone or combined, e.g. slurm_config_util+destructive).
+    if "destructive" not in markers:
+        selected, deselected = [], []
+        for item in items:
+            (deselected if _item_has_marker(item, "destructive") else selected).append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
 
     # Step 1: Filter by marker expression
     if mode != "none" and markers:
@@ -267,7 +285,9 @@ def pytest_sessionstart(session):
                 module_name = part
                 break
 
-    report_id = os.environ.get("REPORT_ID")
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
     base_name = str(config.get("report_name", "test_report"))
     report_name = f"utils_{base_name}"
     report = TestReport(
@@ -275,7 +295,7 @@ def pytest_sessionstart(session):
         report_path=str(config.get("report_path", "/opt/omnia/reports")),
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
-        report_id=report_id,
+        run_id=run_id,
     )
     set_current_report(report)
 

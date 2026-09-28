@@ -24,27 +24,37 @@
 
 - name: Set default values for report variables
   ansible.builtin.set_fact:
-    db_idrac_ip_list: []
-    telemetry_idrac: []
-    telemetry_idrac_count: 0
-    failed_idrac_count: 0
-    failed_idrac: []
-    invalid_idrac_count: 0
-    invalid_idrac_list: []
-    idrac_redfish_disabled: []
-    idrac_invalid_creds: []
-    idrac_unreachable: []
-    deleted_idrac_count: 0
-    deleted_idrac_ips: []
-    disabled_telemetry_count: 0
-    disabled_telemetry_ips: []
+    db_idrac_ip_list: "{{ db_idrac_ip_list | default([]) }}"
+    telemetry_idrac: "{{ telemetry_idrac | default([]) }}"
+    telemetry_idrac_count: "{{ telemetry_idrac_count | default(0) }}"
+    failed_idrac_count: "{{ failed_idrac_count | default(0) }}"
+    failed_idrac: "{{ failed_idrac | default([]) }}"
+    invalid_idrac_count: "{{ invalid_idrac_count | default(0) }}"
+    invalid_idrac_list: "{{ invalid_idrac_list | default([]) }}"
+    idrac_redfish_disabled: "{{ idrac_redfish_disabled | default([]) }}"
+    idrac_invalid_creds: "{{ idrac_invalid_creds | default([]) }}"
+    idrac_unreachable: "{{ idrac_unreachable | default([]) }}"
+    deleted_idrac_count: "{{ deleted_idrac_count | default(0) }}"
+    deleted_idrac_ips: "{{ deleted_idrac_ips | default([]) }}"
+    disabled_telemetry_count: "{{ disabled_telemetry_count | default(0) }}"
+    disabled_telemetry_ips: "{{ disabled_telemetry_ips | default([]) }}"
     telemetry_config: "{{ hostvars['localhost']['telemetry_config'] | default({}) }}"
+    _report_output_dir: >-
+      {{ output_project_dir | default('/opt/omnia/telemetry/output/' + (project_name | default('project_default'))) }}
+
+- name: Ensure telemetry report output directory exists
+  ansible.builtin.file:
+    path: "{{ telemetry_report_dir }}"
+    state: directory
+    mode: "0755"
+  become: true
+  delegate_to: localhost
 
 - name: Create and update telemetry report from template
   ansible.builtin.template:
     src: "{{ telemetry_report_template }}"
-    dest: "{{ telemetry_report_path }}"
-    mode: "{{ filemode }}"
+    dest: "{{ _report_output_dir }}/idrac_telemetry_report.yml"
+    mode: "0644"
     force: true
   delegate_to: localhost
 

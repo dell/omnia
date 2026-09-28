@@ -19,22 +19,10 @@ Validation runner entry point for orchestrator.
 Thin wrapper that loads domain-specific variables from
 ``library/vars/domain_vars`` and delegates to ``ValidationRunner``.
 
-Supports both FVT (Functional Verification Tests) and NFT (Non-Functional Tests).
-
 Usage (via run_validation.sh or run_validation CLI)::
 
-    # FVT examples
-    python3 _run.py fvt_orchestrator validate verify --marker sanity
-    python3 _run.py fvt_orchestrator prepare test
-    python3 _run.py fvt_orchestrator provision test
-
-    # NFT examples
-    python3 _run.py nft_orchestrator test
-    python3 _run.py nft_orchestrator test --marker performance
-    python3 _run.py nft_orchestrator test --marker idempotency
-    python3 _run.py nft_orchestrator test --marker security
-
-    # Config mode
+    python3 _run.py fvt_orchestrator deploy verify --marker sanity
+    python3 _run.py fvt_orchestrator list
     python3 _run.py --config
 """
 
@@ -42,8 +30,50 @@ import os
 import sys
 
 
+_DESTRUCTIVE_TAGS = {"cleanup", "rollback"}
+
+
+def _runner_all_exec_tags(args, lifecycle_tags):
+    """Use broad verification only for Orchestrator's untagged verify."""
+    if (
+        len(args) >= 2
+        and args[0] == "fvt_orchestrator"
+        and args[1] == "verify"
+    ):
+        return []
+    return lifecycle_tags
+
+
+def _validate_destructive_opt_in(args):
+    """Reject state-changing standalone flows without explicit opt-in."""
+    if len(args) < 2 or args[0] != "fvt_orchestrator":
+        return True
+    tag = args[1]
+    if tag not in _DESTRUCTIVE_TAGS:
+        return True
+    command = args[2] if len(args) > 2 else "verify"
+    if command not in {"exec", "test"}:
+        return True
+    try:
+        marker_index = args.index("--marker")
+        marker_value = args[marker_index + 1]
+    except (ValueError, IndexError):
+        marker_value = ""
+    markers = marker_value.replace("+", ",").split(",")
+    if "destructive" in markers:
+        return True
+    print(
+        f"ERROR: '{tag} {command}' is destructive; rerun with "
+        "--marker destructive",
+        file=sys.stderr,
+    )
+    return False
+
+
 def main():
     """Load domain config and run ValidationRunner."""
+    if not _validate_destructive_opt_in(sys.argv[1:]):
+        return 2
     script_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, script_dir)
 
@@ -53,6 +83,13 @@ def main():
         MARKERS,
         SUITES,
         EXCLUDE_TAGS,
+        ALL_EXEC_TAGS,
+        ALL_EXEC_MARKER,
+        ALL_VERIFY_EXCLUDE_MARKERS,
+        REQUIRED_SUITE_TAGS,
+        VERIFY_ONLY_TAGS,
+        VERIFY_ONLY_SUITES,
+        SUITE_EXEC_OWNERS,
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
 
@@ -64,10 +101,19 @@ def main():
             "markers": MARKERS,
             "suites": SUITES,
             "exclude_tags": EXCLUDE_TAGS,
+            "all_exec_tags": _runner_all_exec_tags(
+                sys.argv[1:], ALL_EXEC_TAGS,
+            ),
+            "all_exec_marker": ALL_EXEC_MARKER,
+            "all_verify_exclude_markers": ALL_VERIFY_EXCLUDE_MARKERS,
+            "required_suite_tags": REQUIRED_SUITE_TAGS,
+            "verify_only_tags": VERIFY_ONLY_TAGS,
+            "verify_only_suites": VERIFY_ONLY_SUITES,
+            "suite_exec_owners": SUITE_EXEC_OWNERS,
         },
     )
-    sys.exit(runner.main(sys.argv[1:]))
+    return runner.main(sys.argv[1:])
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

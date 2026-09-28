@@ -154,6 +154,9 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "catalog_trigger_ok": "Catalog triggered pipeline #{pipeline_id}",
     "catalog_trigger_fail": "Catalog did not trigger a pipeline: {error}",
     "job_id_saved": "Job ID saved to test_config.yml: {job_id}",
+    "job_id_overwritten": (
+        "Job ID in test_config.yml overwritten: {old_job_id} -> {new_job_id}"
+    ),
     "job_id_save_fail": "Failed to save job_id to test_config.yml",
     "repo_status_ok": "repo_status.yml overall_status: success",
     "repo_status_fail": "repo_status.yml overall_status: {status}",
@@ -328,7 +331,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "  1. Check config file exists at:\n"
         "     /opt/omnia/build_stream/input/<project>/build_stream_config.yml\n"
         "  2. Set enable_build_stream: true in the config\n"
-        "  3. If file missing, verify project_name and shared_path in test_config.yml"
+        "  3. Verify OMNIA_DATA_PATH and OMNIA_PROJECT_NAME on the execution OIM"
     ),
     "bsm_health_fail": (
         "BSM API /health not healthy at {url}\n"
@@ -448,23 +451,23 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     "catalog_push_failed": (
         "Failed to push catalog to GitLab.\n"
         "HOW TO FIX:\n"
-        "  1. Verify catalog_name in test_config.yml is a valid file\n"
-        "  2. Available catalogs are in src/main/samples/\n"
+        "  1. Verify catalog_path in test_config.yml is a valid relative path\n"
+        "  2. Available catalogs are in src/main/samples/catalogs/\n"
         "  3. Check GitLab API access and root token"
     ),
     "catalog_not_in_examples": (
-        "Catalog '{catalog}' not found in src/main/samples/.\n"
+        "Catalog '{catalog}' not found in src/main/samples/catalogs/.\n"
         "Available catalogs: {available}\n"
         "HOW TO FIX:\n"
-        "  1. Set catalog_name in test_config.yml to one of the above\n"
-        "  2. Or add your catalog to src/main/samples/"
+        "  1. Set catalog_path in test_config.yml to one of the above\n"
+        "  2. Or add your catalog below src/main/samples/catalogs/"
     ),
-    "catalog_name_not_set": (
-        "catalog_name is empty in test_config.yml.\n"
+    "catalog_path_not_set": (
+        "catalog_path is empty in test_config.yml.\n"
         "HOW TO FIX:\n"
-        "  1. Edit test_config.yml and set catalog_name to a JSON file\n"
-        "     from src/main/samples/\n"
-        "  2. Example: catalog_name: catalog_rhel.json"
+        "  1. Edit test_config.yml and set catalog_path to a JSON file\n"
+        "     below src/main/samples/catalogs/\n"
+        "  2. Example: catalog_path: 10.0/slurm_x86_64_no_vast.json"
     ),
     "job_id_not_set": (
         "job_id is empty in test_config.yml.\n"
@@ -489,7 +492,9 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "  1. Run: ansible-playbook build_stream.yml --tags buildstream_install\n"
         "     (the playbook will prompt for credentials and save them)\n"
         "  2. Or manually create the credentials file at the path above\n"
-        "  3. Required fields: gitlab_root_password, gitlab_ssh_password"
+        "  3. Required fields: gitlab_root_password, gitlab_ssh_password,\n"
+        "     build_stream_auth_username, build_stream_auth_password, and\n"
+        "     build_stream_auth_password_hash"
     ),
     "pipeline_not_triggered": (
         "Build pipeline was not triggered.\n"
@@ -511,6 +516,14 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "  1. Check BSM API is healthy: curl -sk https://<host>:<port>/health\n"
         "  2. Check initialization stage logs in GitLab\n"
         "  3. Check Postgres: podman logs omnia_postgres"
+    ),
+    "job_id_not_saved": (
+        "The new build job ID could not be written to test_config.yml.\n"
+        "The existing job_id was not accepted for this execution.\n"
+        "HOW TO FIX:\n"
+        "  1. Verify test_config.yml contains exactly one job_id field\n"
+        "  2. Verify the file is writable\n"
+        "  3. Re-run the build pipeline execution"
     ),
     "registry_images_missing": (
         "Registry images missing for roles: {missing}\n"

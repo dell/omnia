@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Slurm Config Util Configuration Schema",
+  "description": "Schema for slurm_config_util_config.yml - Slurm configuration utility configuration",
+  "type": "object",
+  "properties": {
+    "omnia_config_path": {
+      "type": "string",
+      "description": "Path to omnia_config.yml (contains slurm_cluster / nfs_storage_name)"
+    },
+    "storage_config_path": {
+      "type": "string",
+      "description": "Path to storage_config.yml (contains NFS mount definitions)"
+    },
+    "pxe_mapping_path": {
+      "type": "string",
+      "description": "Path to the PXE/node mapping file"
+    },
+    "slurm_share_dir_name": {
+      "type": "string",
+      "description": "NFS share directory name for Slurm"
+    },
+    "slurm_backups_dir_name": {
+      "type": "string",
+      "description": "NFS share directory name for Slurm backups"
+    },
+    "nfs_storage_name": {
+      "type": "string",
+      "description": "Specific NFS storage name to use"
+    },
+    "slurm_backup_path": {
+      "type": "string",
+      "description": "Backup destination override"
+    },
+    "backup_base_name": {
+      "type": "string",
+      "description": "Base name for backup directories"
+    },
+    "slurm_cleanup_confirm_token": {
+      "type": "string",
+      "description": "Confirmation token required for slurm_cleanup"
+    },
+    "rollback_backup_list_limit": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of backups shown during rollback selection"
+    }
+  }
+}

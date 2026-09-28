@@ -60,6 +60,10 @@ MARKERS: List[str] = [
     "deploy",
     "x86_64",
     "aarch64",
+    "nft",
+    "performance",
+    "idempotency",
+    "security",
 ]
 
 # =====================================================================
@@ -79,22 +83,21 @@ SUITES: Dict[str, List[str]] = {
     "user_registry": [],
 }
 
-# Ordered deploy stages used by an untagged ``test`` or ``exec`` command.
-ALL_EXEC_TAGS: List[str] = [
-    "precheck",
-    "prepare",
-    "execute",
-    "status",
-]
-ALL_EXEC_MARKER: str = "sanity"
+# Ordered, non-destructive lifecycle used by an untagged ``exec`` or ``test``.
+# Cleanup remains explicit-only and catalog mutation requires an exact suite.
+ALL_EXEC_TAGS: List[str] = ["precheck", "prepare", "execute", "status"]
+ALL_EXEC_MARKER: str = ""
 ALL_VERIFY_EXCLUDE_MARKERS: List[str] = ["negative", "destructive"]
 
-# Catalog is an umbrella for distinct public operations. Lifecycle execution
-# must select exactly one operation; negative catalog checks are verify-only.
+# These scenarios validate existing state and own no deployment trigger.
+VERIFY_ONLY_TAGS: List[str] = ["policy", "negative", "user_registry"]
+
+# Catalog operations are ambiguous without one exact operation suite. The
+# negative suite verifies validation behavior and never executes a playbook.
 REQUIRED_SUITE_TAGS: List[str] = ["catalog"]
-VERIFY_ONLY_TAGS: List[str] = ["policy", "negative"]
-VERIFY_ONLY_SUITES: Dict[str, List[str]] = {
-    "catalog": ["negative"],
+VERIFY_ONLY_SUITES: Dict[str, List[str]] = {"catalog": ["negative"]}
+SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
+    "catalog": ["add", "delete", "generate", "validate"],
 }
 
 # =====================================================================
@@ -104,6 +107,4 @@ VERIFY_ONLY_SUITES: Dict[str, List[str]] = {
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
     "cleanup_repos",
-    "negative",
-    "catalog",
 ]

@@ -16,7 +16,7 @@
 Telemetry Precheck — PowerScale Privilege Validation.
 
 Test cases:
-    TC_PC_005: Verify PowerScale user has required privileges
+    TEL_FVT_PRECHECK_V004: Verify PowerScale user has required privileges
 """
 
 import pytest
@@ -32,6 +32,7 @@ from library.functions.telemetry_func import (
 )
 from library.functions.powerscale_func import (
     decode_isilon_creds,
+    get_powerscale_privileges,
 )
 
 
@@ -45,7 +46,7 @@ def _skip_if_powerscale_disabled(host):
 @pytest.mark.sanity
 @pytest.mark.order(5)
 def test_powerscale_privileges(host):
-    """TC_PC_005: Verify PowerScale user has required privileges."""
+    """TEL_FVT_PRECHECK_V004: Verify PowerScale user has required privileges."""
     _skip_if_powerscale_disabled(host)
     tc = TC["powerscale_privileges"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -92,19 +93,25 @@ def test_powerscale_privileges(host):
         "ISI_PRIV_AUDIT",
     ]
 
-    # SSH to PowerScale and check privileges
-    from omnia_auto import run_on_host
-    priv_cmd = f"sshpass -p '{ps_password}' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no {ps_user}@{ps_host} 'isi auth privileges'"
-    result = run_on_host(host, priv_cmd)
+    # SSH to PowerScale and check privileges through the centralized helper.
+    result = get_powerscale_privileges(
+        host, ps_user, ps_password, ps_host,
+    )
     
     if result.rc != 0:
         tl.info(
-            f"SSH to PowerScale failed for privilege check (rc={result.rc}, stderr: {result.stderr.strip()}). Privileges will be validated during deployment via PowerScale API."
+            "SSH to PowerScale failed for privilege check "
+            f"(rc={result.rc}, stderr: {result.stderr.strip()}). "
+            "Privileges will be validated during deployment via the "
+            "PowerScale API."
         )
         # Don't fail the test - this is expected if SSH is not available
         # Privileges will be validated during deployment via the PowerScale API
         tl.info("Privilege check skipped - will be validated during deployment")
-        pytest.skip("SSH not available from test host - privileges validated during deployment")
+        pytest.skip(
+            "SSH not available from test host - privileges validated during "
+            "deployment"
+        )
 
     # Parse available privileges
     available_privileges = []

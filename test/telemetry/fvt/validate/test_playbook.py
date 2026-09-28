@@ -16,7 +16,7 @@
 Telemetry Validate — Playbook Execution.
 
 Test cases:
-    TC_VL_001: Deploy telemetry (--tags validate)
+    TEL_FVT_VALIDATE_E001: Deploy telemetry (--tags validate)
 """
 
 import pytest
@@ -35,7 +35,7 @@ from library.functions import run_playbook
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_validate(host):
-    """TC_VL_001: Deploy telemetry (--tags validate)."""
+    """TEL_FVT_VALIDATE_E001: Deploy telemetry (--tags validate)."""
     tc = TC["deploy_validate"]
     tl = TestLogger(tc["title"], tc["id"])
 

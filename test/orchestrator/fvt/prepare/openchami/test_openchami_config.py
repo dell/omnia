@@ -15,10 +15,10 @@
 """
 Orchestrator Prepare — OpenCHAMI Configuration File Verification Tests.
 
-TC_PR_004: Verify OpenCHAMI configuration files exist after deployment
-TC_PR_005: Verify tokensmith.json configuration file exists
-TC_PR_006: Verify PostgreSQL initialization script exists
-TC_PR_007: Verify RPM configuration files are not missing
+ORCH_FVT_PREPARE_V004: Verify OpenCHAMI configuration files exist after deployment
+ORCH_FVT_PREPARE_V005: Verify tokensmith.json configuration file exists
+ORCH_FVT_PREPARE_V006: Verify PostgreSQL initialization script exists
+ORCH_FVT_PREPARE_V007: Verify RPM configuration files are not missing
 """
 
 import pytest
@@ -41,8 +41,8 @@ from library.messages import (
 @pytest.mark.buildstream
 @pytest.mark.order(4)
 def test_openchami_config_files_exist(host):
-    """TC_PR_004: Verify OpenCHAMI configuration files exist after deployment."""
-    tl = TestLogger(TEST_NAMES["openchami_config_files"], "TC_PR_004")
+    """ORCH_FVT_PREPARE_V004: Verify OpenCHAMI configuration files exist after deployment."""
+    tl = TestLogger(TEST_NAMES["openchami_config_files"], "ORCH_FVT_PREPARE_V004")
     result = check_openchami_config_files(host)
 
     if result["success"]:
@@ -64,8 +64,8 @@ def test_openchami_config_files_exist(host):
 @pytest.mark.buildstream
 @pytest.mark.order(5)
 def test_tokensmith_config_exists(host):
-    """TC_PR_005: Verify tokensmith.json configuration file exists."""
-    tl = TestLogger(TEST_NAMES["tokensmith_config"], "TC_PR_005")
+    """ORCH_FVT_PREPARE_V005: Verify tokensmith.json configuration file exists."""
+    tl = TestLogger(TEST_NAMES["tokensmith_config"], "ORCH_FVT_PREPARE_V005")
     result = check_tokensmith_config(host)
 
     if result["success"]:
@@ -80,8 +80,8 @@ def test_tokensmith_config_exists(host):
 @pytest.mark.buildstream
 @pytest.mark.order(6)
 def test_postgres_init_script_exists(host):
-    """TC_PR_006: Verify PostgreSQL initialization script exists."""
-    tl = TestLogger(TEST_NAMES["postgres_init_script"], "TC_PR_006")
+    """ORCH_FVT_PREPARE_V006: Verify PostgreSQL initialization script exists."""
+    tl = TestLogger(TEST_NAMES["postgres_init_script"], "ORCH_FVT_PREPARE_V006")
     result = check_postgres_init_script(host)
 
     if result["success"]:
@@ -95,8 +95,8 @@ def test_postgres_init_script_exists(host):
 @pytest.mark.functional
 @pytest.mark.order(7)
 def test_rpm_file_integrity(host):
-    """TC_PR_007: Verify RPM configuration files are not missing."""
-    tl = TestLogger(TEST_NAMES["rpm_file_integrity"], "TC_PR_007")
+    """ORCH_FVT_PREPARE_V007: Verify RPM configuration files are not missing."""
+    tl = TestLogger(TEST_NAMES["rpm_file_integrity"], "ORCH_FVT_PREPARE_V007")
     result = check_rpm_file_integrity(host)
 
     if result["success"]:

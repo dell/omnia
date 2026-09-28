@@ -18,24 +18,50 @@
     kubectl api-resources --namespaced=true --api-group=kafka.strimzi.io --output=name
   register: _ome_strimzi_api_resources
   changed_when: false
+  failed_when: false
 
-- name: OME | Delete Vector-OME bridge resources
+- name: OME | Check if Vector-OME resources exist
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get deployment vector-ome
+    --ignore-not-found=true --output=name
+  register: _ome_vector_check
+  changed_when: false
+  failed_when: false
+
+- name: OME | Delete Vector-OME bridge resources (non-CRD)
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
     --ignore-not-found=true --wait=false
   loop: "{{ vector_ome_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
-  changed_when: false
-  when: >-
-    item.type != 'kafkauser'
-    or 'kafkausers.kafka.strimzi.io' in _ome_strimzi_api_resources.stdout_lines
+  register: _ome_delete
+  when: item.type != 'kafkauser'
+  changed_when: _ome_delete.rc == 0
+  failed_when: false
+
+- name: OME | Delete Vector-OME bridge resources (CRD)
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false
+  loop: "{{ vector_ome_resources }}"
+  loop_control:
+    label: "{{ item.type }}/{{ item.name }}"
+  register: _ome_crd_delete
+  when:
+    - item.type == 'kafkauser'
+    - _ome_strimzi_api_resources.stdout_lines is defined
+    - "'kafkausers.kafka.strimzi.io' in _ome_strimzi_api_resources.stdout_lines"
+  changed_when: _ome_crd_delete.rc == 0
+  failed_when: false
 
 - name: OME | Force delete Vector-OME pods
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ome_pod_label }}
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
-  changed_when: false
+  register: _ome_pod_delete
+  changed_when: _ome_pod_delete.rc == 0 and 'deleted' in _ome_pod_delete.stdout
+  failed_when: false
 
 - name: OME | Cleanup complete
   ansible.builtin.debug:

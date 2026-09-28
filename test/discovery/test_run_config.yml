@@ -28,19 +28,23 @@
 # Top-level categories match the run_validation.sh first argument:
 #
 #   fvt_discovery  — Functional Verification Tests (playbook tags)
+#   nft_discovery  — Non-Functional Tests (performance, idempotency)
+#   ut_discovery   — Unit Tests (offline validation)
 #
-# FVT scenarios (nested under fvt_discovery):
-#   Each scenario maps to an Ansible playbook tag.  Fields:
-#     run:          true/false    - Whether to execute this scenario
-#     command:      <string>      - exec, verify, or test (default: test)
-#                                   exec   = Run the playbook only
-#                                   verify = Run verification tests only
-#                                   test   = Exec + Verify (full flow)
-#     suite:        <folder>      - FVT subfolder filter (empty = all suites)
-#     marker:       <expression>  - Marker filter expression (empty = all)
-#     dataset:      <name>        - Override dataset from test_config.yml
-#                                   Must be a valid folder under datasets/
-#     sync_input:   true/false    - Override sync_discovery_input
+# Common fields (FVT / NFT / UT):
+#   run:          true/false    - Whether to execute this entry
+#   command:      <string>      - exec, verify, or test (default: test)
+#   marker:       <expression>  - Marker filter (empty = all applicable tests)
+#
+# FVT-only fields (each entry maps to an Ansible playbook tag):
+#   suite:        <folder>      - FVT subfolder filter (empty = all suites)
+#   dataset:      <name>        - Override dataset from test_config.yml
+#                                 Must be a valid folder under datasets/
+#   sync_input:   true/false    - Override sync_discovery_input
+#
+# NFT / UT (top-level, no nested scenarios):
+#   Use command: "test". exec/verify are accepted aliases and run the same
+#   complete NFT/UT suite.
 #
 # -----------------------------------------------------------------------------
 # Marker Expression Syntax
@@ -75,18 +79,61 @@ skip_on_failure: false
 # FVT — Functional Verification Tests
 # =============================================================================
 fvt_discovery:
+  precheck:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
   validate:
-    run: true
+    run: false
     command: "test"
     suite: ""
     marker: "sanity"
     dataset: ""
     sync_input: true
-
+  credentials:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  execute:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
   discovery:
-    run: true
+    run: false
     command: "test"
     suite: ""
     marker: ""
     dataset: ""
     sync_input: true
+  cleanup:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+
+# =============================================================================
+# NFT — Non-Functional Tests
+# =============================================================================
+nft_discovery:
+  run: false
+  command: "test"
+  marker: ""
+
+# =============================================================================
+# UT — Unit Tests
+# =============================================================================
+ut_discovery:
+  run: false
+  command: "test"
+  marker: ""

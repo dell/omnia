@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Collect PXE Configuration Schema",
+  "description": "Schema for collect_pxe.yml - Node inventory for log collection",
+  "type": "object",
+  "properties": {
+    "service_kube_control_plane_x86_64": {
+      "type": "array",
+      "description": "Kubernetes control plane nodes (x86_64)",
+      "items": {
+        "type": "string",
+        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
+      }
+    },
+    "service_kube_node_x86_64": {
+      "type": "array",
+      "description": "Kubernetes worker nodes (x86_64)",
+      "items": {
+        "type": "string",
+        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
+      }
+    },
+    "slurm_control_node_x86_64": {
+      "type": "array",
+      "description": "Slurm controller nodes (x86_64)",
+      "items": {
+        "type": "string",
+        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
+      }
+    },
+    "slurm_node_x86_64": {
+      "type": "array",
+      "description": "Slurm compute nodes (x86_64)",
+      "items": {
+        "type": "string",
+        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
+      }
+    },
+    "slurm_node_aarch64": {
+      "type": "array",
+      "description": "Slurm compute nodes (aarch64)",
+      "items": {
+        "type": "string",
+        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
+      }
+    },
+    "login_node_x86_64": {
+      "type": "array",
+      "description": "Login nodes (x86_64)",
+      "items": {
+        "type": "string",
+        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
+      }
+    },
+    "login_compiler_node_aarch64": {
+      "type": "array",
+      "description": "Login compiler nodes (aarch64)",
+      "items": {
+        "type": "string",
+        "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
+      }
+    }
+  }
+}

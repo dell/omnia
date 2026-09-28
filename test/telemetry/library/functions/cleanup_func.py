@@ -437,12 +437,12 @@ def verify_no_pvcs_remaining(host, namespace=None) -> Dict[str, Any]:
     }
 
 
-def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
-    """Verify PVCs are preserved after cleanup (Delete_volume=false).
+def verify_source_pvcs_deleted(host, namespace=None) -> Dict[str, Any]:
+    """Verify source PVCs are deleted after cleanup (always expected).
 
-    When cleanup runs without ``Delete_volume=true``, persistent volume
-    claims must be retained so that data survives a redeploy.  This
-    function succeeds when at least one PVC still exists.
+    Source PVCs (iDRAC, LDMS, PowerScale, UFM, VAST) should always be
+    deleted regardless of the delete_volume flag. This function
+    verifies that no source PVCs remain.
 
     Args:
         host: testinfra host connected to kube_vip.
@@ -453,26 +453,166 @@ def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
                         count (int).
     """
     ns = namespace or TELEMETRY_NAMESPACE
-    count = _get_resource_count(host, "pvc", ns)
-    if count > 0:
+
+    # Check for source PVCs (should always be deleted)
+    source_pvc_count = 0
+    source_pvc_details = []
+    for prefix in ["mysqldb", "ldms", "powerscale", "ufm", "vast"]:
+        cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
+        result = run_on_kube_vip(host, cmd)
+        if result.rc == 0:
+            count = int(result.stdout.strip())
+            if count > 0:
+                source_pvc_count += count
+                source_pvc_details.append(f"{prefix} ({count})")
+
+    if source_pvc_count == 0:
         return {
             "success": True,
             "details": (
-                f"{count} PVC(s) preserved in namespace '{ns}' "
-                f"(Delete_volume=false)"
+                f"No source PVCs found in namespace '{ns}' "
+                f"(all source PVCs deleted as expected)"
             ),
             "error": "",
-            "count": count,
+            "count": 0,
         }
     return {
         "success": False,
         "details": (
-            f"No PVCs found in namespace '{ns}' — "
-            f"expected PVCs to be preserved (Delete_volume=false)"
+            f"{source_pvc_count} source PVC(s) still present in namespace '{ns}': "
+            f"{', '.join(source_pvc_details)}"
         ),
         "error": (
-            "PVCs were deleted despite Delete_volume=false; "
-            "volumes should have been preserved"
+            f"Source PVCs were not deleted; found {source_pvc_count} source PVC(s) "
+            f"that should have been deleted: {', '.join(source_pvc_details)}"
         ),
-        "count": 0,
+        "count": source_pvc_count,
     }
+
+
+def verify_sink_pvcs_deleted(host, namespace=None) -> Dict[str, Any]:
+    """Verify Kafka and Victoria PVCs are deleted after cleanup (delete_volume=true).
+
+    When delete_volume=true, Kafka and VictoriaMetrics/VictoriaLogs PVCs should be deleted.
+    This function verifies that no sink PVCs remain.
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), error (str),
+                        count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+
+    # Check for sink PVCs (should be deleted when delete_volume=true)
+    sink_pvc_count = 0
+    sink_pvc_details = []
+    for prefix in ["kafka", "vmstorage", "vminsert", "vmselect", "vlstorage", "vlinsert", "vlselect"]:
+        cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
+        result = run_on_kube_vip(host, cmd)
+        if result.rc == 0:
+            count = int(result.stdout.strip())
+            if count > 0:
+                sink_pvc_count += count
+                sink_pvc_details.append(f"{prefix} ({count})")
+
+    if sink_pvc_count == 0:
+        return {
+            "success": True,
+            "details": (
+                f"No sink PVCs found in namespace '{ns}' "
+                f"(all sink PVCs deleted as expected)"
+            ),
+            "error": "",
+            "count": 0,
+        }
+    return {
+        "success": False,
+        "details": (
+            f"{sink_pvc_count} sink PVC(s) still present in namespace '{ns}': "
+            f"{', '.join(sink_pvc_details)}"
+        ),
+        "error": (
+            f"Sink PVCs were not deleted; found {sink_pvc_count} sink PVC(s) "
+            f"that should have been deleted: {', '.join(sink_pvc_details)}"
+        ),
+        "count": sink_pvc_count,
+    }
+
+
+def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
+    """Verify Kafka and VictoriaMetrics/VictoriaLogs PVCs are preserved after cleanup (delete_volume=false).
+
+    When cleanup runs without ``delete_volume=true``, Kafka and VictoriaMetrics/VictoriaLogs
+    persistent volume claims must be retained so that data survives a redeploy.
+    Other source volumes (iDRAC, LDMS, PowerScale, UFM, VAST) are always deleted.
+
+    This function succeeds when:
+      - Kafka and VictoriaMetrics/VictoriaLogs PVCs exist (preserved)
+      - Other source PVCs do NOT exist (deleted)
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), error (str),
+                        count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+
+    # Check for Kafka and VictoriaMetrics/VictoriaLogs PVCs (should be preserved)
+    sink_pvc_count = 0
+    for prefix in ["kafka", "vmstorage", "vminsert", "vmselect", "vlstorage", "vlinsert", "vlselect"]:
+        cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
+        result = run_on_kube_vip(host, cmd)
+        if result.rc == 0:
+            sink_pvc_count += int(result.stdout.strip())
+
+    # Check for source PVCs (should be deleted)
+    source_pvc_count = 0
+    for prefix in ["mysqldb", "ldms", "powerscale", "ufm", "vast"]:
+        cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
+        result = run_on_kube_vip(host, cmd)
+        if result.rc == 0:
+            source_pvc_count += int(result.stdout.strip())
+
+    if sink_pvc_count > 0 and source_pvc_count == 0:
+        return {
+            "success": True,
+            "details": (
+                f"{sink_pvc_count} Kafka/VictoriaMetrics/VictoriaLogs PVC(s) preserved, "
+                f"{source_pvc_count} source PVC(s) deleted in namespace '{ns}' "
+                f"(delete_volume=false)"
+            ),
+            "error": "",
+            "count": sink_pvc_count,
+        }
+    elif sink_pvc_count == 0:
+        return {
+            "success": False,
+            "details": (
+                f"No Kafka/VictoriaMetrics/VictoriaLogs PVCs found in namespace '{ns}' — "
+                f"expected them to be preserved (delete_volume=false)"
+            ),
+            "error": (
+                "Kafka/VictoriaMetrics/VictoriaLogs PVCs were deleted despite delete_volume=false; "
+                "these volumes should have been preserved"
+            ),
+            "count": 0,
+        }
+    else:
+        return {
+            "success": False,
+            "details": (
+                f"{source_pvc_count} source PVC(s) still present in namespace '{ns}' — "
+                f"expected them to be deleted (delete_volume=false)"
+            ),
+            "error": (
+                f"Source PVCs were not deleted despite delete_volume=false; "
+                f"found {source_pvc_count} source PVC(s) that should have been deleted"
+            ),
+            "count": sink_pvc_count,
+        }

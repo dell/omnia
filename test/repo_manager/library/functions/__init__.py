@@ -84,3 +84,8 @@ from .host_func import (
     sync_project_to_remote,
     sync_repo_manager_input,
 )
+from .validation_func import (
+    ConfigValidationError,
+    validate_all,
+    validate_test_config,
+)

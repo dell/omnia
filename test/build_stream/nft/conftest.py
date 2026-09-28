@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Minimal conftest for build_stream NFT unit tests."""
+"""BuildStream NFT fixtures plus compatibility setup for retained source tests."""
 
 import sys
 import os
 from pathlib import Path
+
+import pytest
 
 # Add build_stream source to path for imports
 # Use dynamic path resolution for both local and CI environments
@@ -34,11 +36,38 @@ if str(_BUILD_STREAM_APP) not in sys.path:
 # Set DATABASE_URL early for test environment
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
-# JSONB shim for SQLite compatibility
-# SQLite doesn't support JSONB, so we map it to JSON for tests
-import sqlalchemy.dialects.sqlite.base as sqlite_base
-from sqlalchemy import JSON
+if os.environ.get("OMNIA_COMMAND_TYPE") == "nft":
+    # The shared validation runner selects only registered NFT cases. Retained
+    # source-level tests are not part of this category.
+    collect_ignore = ["unit", "others"]
 
-# Add JSONB as an alias for JSON in SQLite dialect
-if not hasattr(sqlite_base, "JSONB"):
-    sqlite_base.JSONB = JSON
+    @pytest.fixture(scope="session")
+    def nft_state():
+        """Share only test-created pipeline and job identifiers across NFT cases."""
+        return {
+            "cancelled_pipeline_id": 0,
+            "cancelled_job_id": "",
+            "active_pipeline_id": 0,
+            "active_job_id": "",
+            "security_job_id": "",
+        }
+
+
+    @pytest.fixture(scope="session", autouse=True)
+    def cleanup_test_pipeline(host, request):
+        """Cancel a still-running pipeline created by this NFT session."""
+        session_state = request.getfixturevalue("nft_state")
+        yield
+        pipeline_id = int(session_state.get("active_pipeline_id", 0) or 0)
+        if pipeline_id:
+            from library.functions import cancel_pipeline  # pylint: disable=import-outside-toplevel
+
+            cancel_pipeline(host, pipeline_id)
+else:
+    # Compatibility shim for developers running the retained source tests
+    # directly with their full development dependencies installed.
+    import sqlalchemy.dialects.sqlite.base as sqlite_base
+    from sqlalchemy import JSON
+
+    if not hasattr(sqlite_base, "JSONB"):
+        sqlite_base.JSONB = JSON

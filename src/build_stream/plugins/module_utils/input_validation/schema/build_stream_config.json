@@ -11,7 +11,7 @@
         },
         "build_stream_host_ip": {
             "type": "string",
-            "description": "BuildStream API server host IP"
+            "description": "BuildStream API server host IPv4 address"
         },
         "build_stream_port": {
             "type": "integer",
@@ -21,10 +21,13 @@
         },
         "gitlab_host": {
             "type": "string",
-            "description": "Target host for GitLab deployment"
+            "description": "Target host IPv4 address for GitLab deployment"
         },
         "gitlab_project_name": {
             "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$",
             "description": "GitLab project name"
         },
         "gitlab_project_visibility": {
@@ -34,6 +37,7 @@
         },
         "gitlab_default_branch": {
             "type": "string",
+            "minLength": 1,
             "description": "Default branch for GitLab repository"
         },
         "gitlab_https_port": {
@@ -60,13 +64,44 @@
         "gitlab_puma_workers": {
             "type": "integer",
             "minimum": 1,
+            "maximum": 64,
             "description": "Puma web worker count"
         },
         "gitlab_sidekiq_concurrency": {
             "type": "integer",
             "minimum": 1,
+            "maximum": 200,
             "description": "Sidekiq background job concurrency"
         }
     },
+    "allOf": [
+        {
+            "if": {
+                "properties": {
+                    "enable_build_stream": {
+                        "const": true
+                    }
+                },
+                "required": ["enable_build_stream"]
+            },
+            "then": {
+                "required": [
+                    "build_stream_host_ip",
+                    "build_stream_port",
+                    "gitlab_host"
+                ],
+                "properties": {
+                    "build_stream_host_ip": {
+                        "minLength": 1,
+                        "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                    },
+                    "gitlab_host": {
+                        "minLength": 1,
+                        "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                    }
+                }
+            }
+        }
+    ],
     "additionalProperties": false
 }

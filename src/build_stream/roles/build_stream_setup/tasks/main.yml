@@ -28,7 +28,16 @@
   ansible.builtin.include_tasks: validate_tags.yml
 
 # =====================================================================
-# Step 1: Upgrade guard
+# Step 1: Resolve configuration from environment variables
+# =====================================================================
+- name: Resolve configuration from environment
+  ansible.builtin.set_fact:
+    omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+    project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+    cacheable: true
+
+# =====================================================================
+# Step 2: Upgrade guard
 # =====================================================================
 - name: Check upgrade lock file
   ansible.builtin.stat:
@@ -43,33 +52,37 @@
     - not (upgrade_mode | default(false) | bool)
 
 # =====================================================================
-# Step 2: Set project directories as facts and verify
+# Step 3: Set project directories as facts and verify
 # =====================================================================
 - name: Set input_project_dir and output_project_dir as facts
   ansible.builtin.set_fact:
-    input_project_dir: "{{ input_project_dir }}"
-    output_project_dir: "{{ output_project_dir }}"
-    oim_shared_path: "{{ oim_shared_path }}"
+    input_project_dir: "{{ omnia_data_path }}/build_stream/input/{{ project_name }}"
+    output_project_dir: "{{ omnia_data_path }}/build_stream/output/{{ project_name }}"
+    oim_shared_path: "{{ omnia_data_path }}"
     cacheable: true
 
 - name: Verify the input project directory exists
   ansible.builtin.stat:
     path: "{{ input_project_dir }}"
   register: verify_project_dir
+  when: not (build_stream_cleanup_context | default(false) | bool)
 
 - name: Fail if input project directory does not exist
   ansible.builtin.fail:
     msg: "{{ project_dir_not_exist_fail_msg }}"
-  when: not (verify_project_dir.stat.exists | default(false))
+  when:
+    - not (build_stream_cleanup_context | default(false) | bool)
+    - not (verify_project_dir.stat.exists | default(false))
 
 - name: Ensure output project directory exists
   ansible.builtin.file:
     path: "{{ output_project_dir }}"
     state: directory
     mode: "0755"
+  when: not (build_stream_cleanup_context | default(false) | bool)
 
 # =====================================================================
-# Step 3: Create oim inventory group (local connection)
+# Step 4: Create oim inventory group (local connection)
 # =====================================================================
 - name: Create {{ oim_host_group }} group # noqa: name[template]
   ansible.builtin.add_host:
@@ -81,7 +94,7 @@
   when: create_oim_group | default(false) | bool
 
 # =====================================================================
-# Step 4: Set guard fact so downstream plays can skip re-runs
+# Step 5: Set guard fact so downstream plays can skip re-runs
 # =====================================================================
 - name: Mark build_stream_setup as done
   ansible.builtin.set_fact:

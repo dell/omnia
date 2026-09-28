@@ -20,11 +20,20 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ item }}"
 
+- name: Derive metadata-service template base name
+  ansible.builtin.set_fact:
+    _ms_template_base: >-
+      {{ (functional_group_name
+          | regex_replace(functional_group_os_version_regex, '_'))
+         if (functional_group_name
+             is match(functional_group_versioned_role_regex))
+         else functional_group_name }}
+
 - name: Load metadata-service group template
   block:
     - name: Load metadata-service group template - {{ functional_group_name }}
       ansible.builtin.template:
-        src: "metadata_svc/ms-group-{{ functional_group_name }}.yaml.j2"
+        src: "metadata_svc/ms-group-{{ _ms_template_base }}.yaml.j2"
         dest: "{{ metadata_svc_dir }}/ms-group-{{ functional_group_name }}.yaml"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   rescue:

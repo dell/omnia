@@ -456,7 +456,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             status_file_path (str): CSV path to record RPM download status.
             cluster_os_type (str): OS type (e.g., "rhel").
             cluster_os_version (str): OS version (e.g., "9.2").
-            repo_config_value (str): Repo mode: "always", "partial"
+            repo_config_value (str): Global fallback mode for legacy RPM tasks.
             arc (str): Architecture ("x86_64" or "aarch64").
             logger (Logger): Logger instance.
 
@@ -470,20 +470,21 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
     try:
         repo_mapping = package.get("repo_mapping", {})
         rpm_type_mapping = package.get("rpm_type_mapping", {})
+        rpm_policy_mapping = package.get("rpm_policy_mapping", {})
         rpm_list = list(dict.fromkeys(package["rpm_list"]))
         logger.info("%s - List of rpms is %s", package["package"], rpm_list)
 
         download_packages, validation_packages, require_mapped_repo = (
             partition_rpm_work(
-                rpm_list, rpm_type_mapping, repo_config_value
+                rpm_list, rpm_type_mapping, repo_config_value,
+                rpm_policy_mapping
             )
         )
-        if repo_config_value != "always":
-            logger.info(
-                "Partial policy: validating %d rpm package(s) with dnf info and "
-                "downloading %d rpm_repo package(s) with dependencies",
-                len(validation_packages), len(download_packages)
-            )
+        logger.info(
+            "Effective RPM policies: downloading %d package(s) with dependencies "
+            "and validating %d package(s) with dnf info",
+            len(download_packages), len(validation_packages)
+        )
 
         successful_packages = []
         failed_packages = []

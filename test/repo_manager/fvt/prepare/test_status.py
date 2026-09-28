@@ -6,16 +6,16 @@
 """
 Repo Manager — Prepare scenario verification tests.
 
-TC_RM_PP_000: Deploy repo_manager --tags prepare
-TC_RM_PP_001: Verify Pulp container is running
-TC_RM_PP_002: Verify Pulp status is healthy
-TC_RM_PP_003: Verify Pulp endpoint reachable
-TC_RM_PP_004: Verify Pulp CLI configured
-TC_RM_PP_005: Verify Pulp SSL certificates exist
-TC_RM_PP_006: Verify Pulp CLI can list RPM repositories
-TC_RM_PP_007: Verify Pulp API detailed health (DB, workers, content apps, storage)
-TC_RM_PP_008: Verify collect_repo_credentials role functionality
-TC_RM_PP_009: Verify credential encryption and vault handling
+RM_FVT_PREPARE_E001: Deploy repo_manager --tags prepare
+RM_FVT_PREPARE_V001: Verify Pulp container is running
+RM_FVT_PREPARE_V002: Verify Pulp status is healthy
+RM_FVT_PREPARE_V003: Verify Pulp endpoint reachable
+RM_FVT_PREPARE_V004: Verify Pulp CLI configured
+RM_FVT_PREPARE_V005: Verify Pulp SSL certificates exist
+RM_FVT_PREPARE_V006: Verify Pulp CLI can list RPM repositories
+RM_FVT_PREPARE_V007: Verify Pulp API detailed health (DB, workers, content apps, storage)
+RM_FVT_PREPARE_E002: Verify collect_repo_credentials role functionality
+RM_FVT_PREPARE_E003: Verify credential encryption and vault handling
 """
 
 import pytest
@@ -43,8 +43,8 @@ from library.messages import (
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_prepare_pulp(host):
-    """TC_RM_PP_000: Deploy repo_manager --tags prepare."""
-    tl = TestLogger(TEST_NAMES["pulp_container_running"], "TC_RM_PP_000")
+    """RM_FVT_PREPARE_E001: Deploy repo_manager --tags prepare."""
+    tl = TestLogger(TEST_NAMES["pulp_container_running"], "RM_FVT_PREPARE_E001")
     result = run_playbook(tag="prepare")
 
     if result["success"]:
@@ -59,8 +59,8 @@ def test_prepare_pulp(host):
 @pytest.mark.positive
 @pytest.mark.order(1)
 def test_pulp_container_running(host):
-    """TC_RM_PP_001: Verify Pulp container is running."""
-    tl = TestLogger(TEST_NAMES["pulp_container_running"], "TC_RM_PP_001")
+    """RM_FVT_PREPARE_V001: Verify Pulp container is running."""
+    tl = TestLogger(TEST_NAMES["pulp_container_running"], "RM_FVT_PREPARE_V001")
     result = check_pulp_container_running(host)
 
     if result["success"]:
@@ -75,8 +75,8 @@ def test_pulp_container_running(host):
 @pytest.mark.positive
 @pytest.mark.order(2)
 def test_pulp_status_healthy(host):
-    """TC_RM_PP_002: Verify Pulp status is healthy."""
-    tl = TestLogger(TEST_NAMES["pulp_status_healthy"], "TC_RM_PP_002")
+    """RM_FVT_PREPARE_V002: Verify Pulp status is healthy."""
+    tl = TestLogger(TEST_NAMES["pulp_status_healthy"], "RM_FVT_PREPARE_V002")
     result = check_pulp_status_healthy(host)
 
     if result["success"]:
@@ -91,8 +91,8 @@ def test_pulp_status_healthy(host):
 @pytest.mark.positive
 @pytest.mark.order(3)
 def test_pulp_endpoint_reachable(host):
-    """TC_RM_PP_003: Verify Pulp endpoint reachable."""
-    tl = TestLogger(TEST_NAMES["pulp_endpoint_reachable"], "TC_RM_PP_003")
+    """RM_FVT_PREPARE_V003: Verify Pulp endpoint reachable."""
+    tl = TestLogger(TEST_NAMES["pulp_endpoint_reachable"], "RM_FVT_PREPARE_V003")
     result = check_pulp_endpoint_reachable(host)
 
     if result["success"]:
@@ -107,8 +107,8 @@ def test_pulp_endpoint_reachable(host):
 @pytest.mark.positive
 @pytest.mark.order(4)
 def test_pulp_cli_configured(host):
-    """TC_RM_PP_004: Verify Pulp CLI configured."""
-    tl = TestLogger(TEST_NAMES["pulp_cli_configured"], "TC_RM_PP_004")
+    """RM_FVT_PREPARE_V004: Verify Pulp CLI configured."""
+    tl = TestLogger(TEST_NAMES["pulp_cli_configured"], "RM_FVT_PREPARE_V004")
     result = check_pulp_cli_configured(host)
 
     if result["success"]:
@@ -123,8 +123,8 @@ def test_pulp_cli_configured(host):
 @pytest.mark.positive
 @pytest.mark.order(5)
 def test_pulp_certificates_exist(host):
-    """TC_RM_PP_005: Verify Pulp SSL certificates exist."""
-    tl = TestLogger(TEST_NAMES["pulp_certificates_exist"], "TC_RM_PP_005")
+    """RM_FVT_PREPARE_V005: Verify Pulp SSL certificates exist."""
+    tl = TestLogger(TEST_NAMES["pulp_certificates_exist"], "RM_FVT_PREPARE_V005")
     result = check_pulp_certificates_exist(host)
 
     if result["success"]:
@@ -139,8 +139,8 @@ def test_pulp_certificates_exist(host):
 @pytest.mark.positive
 @pytest.mark.order(6)
 def test_pulp_cli_repository_list(host):
-    """TC_RM_PP_006: Verify Pulp CLI can list RPM repositories."""
-    tl = TestLogger(TEST_NAMES["pulp_cli_repository_list"], "TC_RM_PP_006")
+    """RM_FVT_PREPARE_V006: Verify Pulp CLI can list RPM repositories."""
+    tl = TestLogger(TEST_NAMES["pulp_cli_repository_list"], "RM_FVT_PREPARE_V006")
     result = check_pulp_cli_repository_list(host)
 
     if result["success"]:
@@ -155,8 +155,8 @@ def test_pulp_cli_repository_list(host):
 @pytest.mark.positive
 @pytest.mark.order(7)
 def test_pulp_api_detailed_status(host):
-    """TC_RM_PP_007: Verify Pulp API detailed health (DB, workers, content apps, storage)."""
-    tl = TestLogger(TEST_NAMES["pulp_api_detailed_status"], "TC_RM_PP_007")
+    """RM_FVT_PREPARE_V007: Verify Pulp API detailed health (DB, workers, content apps, storage)."""
+    tl = TestLogger(TEST_NAMES["pulp_api_detailed_status"], "RM_FVT_PREPARE_V007")
     result = check_pulp_api_detailed_status(host)
 
     if result["success"]:
@@ -171,8 +171,8 @@ def test_pulp_api_detailed_status(host):
 @pytest.mark.positive
 @pytest.mark.order(8)
 def test_collect_credentials(host):
-    """TC_RM_PP_008: Verify collect_repo_credentials role functionality."""
-    tl = TestLogger(TEST_NAMES["credentials_present"], "TC_RM_PP_008")
+    """RM_FVT_PREPARE_E002: Verify collect_repo_credentials role functionality."""
+    tl = TestLogger(TEST_NAMES["credentials_present"], "RM_FVT_PREPARE_E002")
     # This test verifies that the collect_repo_credentials role
     # properly collects and manages credentials
     result = check_credentials_present(host)
@@ -189,8 +189,8 @@ def test_collect_credentials(host):
 @pytest.mark.positive
 @pytest.mark.order(9)
 def test_credential_encryption(host):
-    """TC_RM_PP_009: Verify credential encryption and vault handling."""
-    tl = TestLogger(TEST_NAMES["credentials_present"], "TC_RM_PP_009")
+    """RM_FVT_PREPARE_E003: Verify credential encryption and vault handling."""
+    tl = TestLogger(TEST_NAMES["credentials_present"], "RM_FVT_PREPARE_E003")
     # This test verifies that credentials are properly encrypted
     # and handled via Ansible Vault
     result = check_credentials_present(host)

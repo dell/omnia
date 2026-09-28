@@ -241,7 +241,7 @@ EXAMPLES = r"""
   process_rpm_config:
     local_config: "{{ rpm_repositories }}"
     log_dir: "{{ repo_manager_log_dir }}"
-    thread_pool_size: 3
+    thread_pool_size: 1
     sw_archs:
       - x86_64
     cluster_os_type: rhel
@@ -632,7 +632,7 @@ def create_rpm_remote(repo, log):
         log (logging.Logger): Logger instance for logging the process and errors.
 
     Returns:
-        bool: True if the remote was created or updated successfully, False otherwise.
+        tuple: Success, repository name, and whether URL/policy changed.
     """
 
     try:
@@ -647,9 +647,17 @@ def create_rpm_remote(repo, log):
 
         remote_name = repo_name
 
-        remote_exists = show_rpm_remote(remote_name, log)
+        remote_exists, remote_state = _get_rpm_remote_state(
+            remote_name, log
+        )
         if remote_exists is None:
-            return False, repo_name
+            return False, repo_name, False
+        remote_changed = (
+            not remote_exists
+            or str(remote_state.get("url") or "").rstrip("/")
+            != remote_url.rstrip("/")
+            or remote_state.get("policy") != policy_type
+        )
         repo_keys = repo.keys()
         if "ca_cert" in repo_keys and repo["ca_cert"]:
             ca_cert = f"@{repo['ca_cert']}"
@@ -664,12 +672,15 @@ def create_rpm_remote(repo, log):
             if remote_exists:
                 log.info("Remote '%s' exists. Updating URL, policy, and certificates.", remote_name)
             else:
-                log.info("Remote '%s' does not exist. Executing creation command with certs.", remote_name)
+                log.info(
+                    "Remote '%s' does not exist. Executing creation command "
+                    "with certs.", remote_name,
+                )
             result = execute_command(command, log)
             # Reconcile an uncertain create response without repeating it.
             if result is False and not remote_exists and show_rpm_remote(remote_name, log):
                 log.info("Remote '%s' exists after the create response.", remote_name)
-                return True, repo_name
+                return True, repo_name, True
         else:
             log.info("Repository does not use SSL certificates for remote")
             action = "update" if remote_exists else "create"
@@ -685,25 +696,54 @@ def create_rpm_remote(repo, log):
             # Reconcile an uncertain create response without repeating it.
             if result is False and not remote_exists and show_rpm_remote(remote_name, log):
                 log.info("Remote '%s' exists after the create response.", remote_name)
-                return True, repo_name
+                return True, repo_name, True
         # Both create and update commands return a truthy result on success.
-        return bool(result), repo_name
+        return bool(result), repo_name, remote_changed if result else False
 
     except subprocess.CalledProcessError:
         repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
         log.error("Pulp command failed while creating remote '%s'", repo_name_for_error)
-        return False, repo_name_for_error
+        return False, repo_name_for_error, False
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
         log.error("Subprocess error while creating remote '%s'", repo_name_for_error)
-        return False, repo_name_for_error
+        return False, repo_name_for_error, False
     except Exception:
         repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
         log.error("Unexpected error while creating remote '%s'", repo_name_for_error)
-        return False, repo_name_for_error
+        return False, repo_name_for_error, False
     finally:
         repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
         log.info("Completed RPM remote creation process for '%s'", repo_name_for_error)
+
+
+def _get_rpm_remote_state(remote_name, log):
+    """Return existence and non-secret URL/policy state for an RPM remote."""
+    try:
+        remote_name = validate_repository_id(remote_name)
+        result = _run_pulp_cli(
+            pulp_rpm_commands["show_remote"] % remote_name,
+            log,
+            repo_name=remote_name,
+        )
+        if result is None or result.returncode != 0:
+            if result is not None and _is_not_found_pulp_error(result):
+                return False, {}
+            log.error("Unable to read RPM remote state for '%s'", remote_name)
+            return None, None
+        remote_data = json.loads(result.stdout)
+        if not isinstance(remote_data, dict):
+            return None, None
+        return True, {
+            "url": remote_data.get("url"),
+            "policy": remote_data.get("policy"),
+        }
+    except (json.JSONDecodeError, TypeError, ValueError):
+        log.error("Invalid RPM remote state for '%s'", remote_name)
+        return None, None
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+        log.error("Subprocess error while checking remote '%s'", remote_name)
+        return None, None
 
 
 def show_rpm_remote(remote_name, log):
@@ -719,13 +759,8 @@ def show_rpm_remote(remote_name, log):
             Pulp could not answer the query.
     """
     try:
-        remote_name = validate_repository_id(remote_name)
-        log.info("Checking existence of RPM remote: '%s'", remote_name)
-
-        command = pulp_rpm_commands["show_remote"] % remote_name
-        log.info("Executing command to show remote: %s", command)
-
-        return _query_object_exists(command, log, remote_name)
+        remote_exists, _ = _get_rpm_remote_state(remote_name, log)
+        return remote_exists
 
     except subprocess.CalledProcessError:
         log.error("Pulp command failed while checking remote '%s'", remote_name)
@@ -1269,7 +1304,8 @@ def _cleanup_partial_repo(repo_name, previous_version, log):
         return False
 
 
-def sync_rpm_repository_with_monitoring(repo, log, resync_repos=None):
+def sync_rpm_repository_with_monitoring(
+        repo, log, resync_repos=None, force_sync_repos=None):
     """
     Sync RPM repository with progress-based stuck detection.
     
@@ -1284,6 +1320,7 @@ def sync_rpm_repository_with_monitoring(repo, log, resync_repos=None):
         repo (dict): Repository configuration
         log (logging.Logger): Logger instance
         resync_repos (str/list): Controls sync behavior
+        force_sync_repos (iterable): Remotes whose URL or policy changed.
     
     Returns:
         tuple: (success, repo_name, actually_synced, version_changed)
@@ -1306,6 +1343,12 @@ def sync_rpm_repository_with_monitoring(repo, log, resync_repos=None):
             resync_list = [r.strip() for r in resync_repos.split(",")]
         elif isinstance(resync_repos, list):
             resync_list = resync_repos
+        if repo_name in set(force_sync_repos or ()):
+            force_sync = True
+            _log(
+                log, "info", repo_name,
+                "Remote URL or policy changed; synchronization is required",
+            )
 
         # A killed Ansible process does not stop a Pulp background task. Wait
         # for any sync/publication still reserving this repository before
@@ -1329,7 +1372,7 @@ def sync_rpm_repository_with_monitoring(repo, log, resync_repos=None):
                 f"Repository recovery failed: {recovery_error}",
             )
             return False, repo_name, False, False
-        if recovered_sync:
+        if recovered_sync and not force_sync:
             elapsed = int(time.time() - start)
             _log(
                 log, "info", repo_name,
@@ -1343,11 +1386,17 @@ def sync_rpm_repository_with_monitoring(repo, log, resync_repos=None):
             # reconciliation even when Pulp skipped the recovered sync because
             # the upstream metadata had not changed.
             return True, repo_name, True, True
+        if recovered_sync:
+            _log(
+                log, "info", repo_name,
+                "Recovered an earlier sync; dispatching another sync because "
+                "the remote source changed",
+            )
 
         if resync_list:
             if repo_name in resync_list:
                 force_sync = True
-            else:
+            elif not force_sync:
                 elapsed = int(time.time() - start)
                 _log(log, "info", repo_name, "Step 4/5: Sync — SKIPPED (not in resync list)")
                 _log(log, "info", repo_name, f"=== END REPO — SKIPPED ({elapsed}s) ===")
@@ -2395,6 +2444,19 @@ def create_aggregated_repository(repo_name, log):
     return True, repo_name
 
 
+def _resolve_aggregated_remote_policy(repo_entry):
+    """Return a validated Pulp policy for an additional repository remote."""
+    policy = str(repo_entry.get("policy", "partial")).lower()
+    if policy in ("immediate", "on_demand", "streamed"):
+        return validate_pulp_policy(policy)
+
+    caching = repo_entry.get("caching", True)
+    if not isinstance(caching, bool):
+        raise ValueError("Additional repository caching must be a boolean")
+    resolved_policy = POLICY_CACHING_MAP.get((policy, caching), policy)
+    return validate_pulp_policy(resolved_policy)
+
+
 def create_aggregated_remote(repo_entry, repo_name, log):
     """
     Create or update a remote for an additional repo entry.
@@ -2410,7 +2472,7 @@ def create_aggregated_remote(repo_entry, repo_name, log):
     repo_name = validate_repository_id(repo_name)
     name = validate_repository_id(repo_entry["name"])
     url = validate_repository_url(repo_entry["url"])
-    policy = validate_pulp_policy(repo_entry["policy"])
+    policy = _resolve_aggregated_remote_policy(repo_entry)
     remote_name = validate_repository_id(f"{repo_name}-{name}")
 
     log.info("Creating or updating aggregated remote '%s'.", remote_name)
@@ -2836,15 +2898,24 @@ def manage_rpm_repositories_multiprocess(
     log.info("Step 2: Starting concurrent RPM remote creation")
     with multiprocessing.Pool(processes=process) as pool:
         sync_result = pool.map(partial(create_rpm_remote, log=log), rpm_config)
-    failed = [name for success, name in sync_result if not success]
+    failed = [name for success, name, _ in sync_result if not success]
     if failed:
         log.error("Failed during creation of RPM remote for: %s", ", ".join(failed))
         return False, f"During creation of RPM remote for: {', '.join(failed)}"
+    changed_remotes = {
+        name for success, name, changed in sync_result
+        if success and changed
+    }
 
     # Step 3: Concurrent synchronization
     log.info("Step 3: Starting concurrent RPM repository synchronization")
     with multiprocessing.Pool(processes=pulp_process) as pool:
-        sync_results = pool.map(partial(sync_rpm_repository_with_monitoring, log=log, resync_repos=resync_repos), rpm_config)
+        sync_results = pool.map(partial(
+            sync_rpm_repository_with_monitoring,
+            log=log,
+            resync_repos=resync_repos,
+            force_sync_repos=changed_remotes,
+        ), rpm_config)
 
     sync_failed = [name for success, name, _, _ in sync_results if not success]
     if sync_failed:

@@ -33,7 +33,8 @@
 - name: Set facts for slurm
   ansible.builtin.set_fact:
     nfs_storage_name: "{{ slurm_cluster[0].nfs_storage_name }}"
-    vast_storage_name: "{{ slurm_cluster[0].vast_storage_name | default(false) }}"
+    vast_storage_name: >-
+      {{ slurm_cluster[0].vast_storage_name | default('', true) | trim }}
 
 - name: Set vast storage name if not set
   ansible.builtin.set_fact:

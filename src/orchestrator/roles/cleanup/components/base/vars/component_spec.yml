@@ -50,7 +50,8 @@ component_spec:
 
   # Logging
   logging:
-    log_file: "{{ omnia_data_path }}/orchestrator/log/cleanup/{{ component_name }}.log"
+    log_file: >-
+      {{ orchestrator_data_path }}/log/cleanup/{{ component_name }}.log
     log_level: "INFO"
     log_format: "detailed"
 

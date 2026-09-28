@@ -12,14 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# precheck_discovery.yml -- Placeholder for discovery precheck flow.
-# Full implementation deferred to a future release.
+# precheck_discovery.yml -- Discovery prerequisite validation.
 
-- name: Discovery precheck placeholder
+- name: Validate Discovery prerequisites
   hosts: localhost
   connection: local
   gather_facts: false
-  tasks:
-    - name: Precheck not implemented
-      ansible.builtin.debug:
-        msg: "discovery precheck flow is not implemented yet -- reserved for future release"
+  roles:
+    - precheck_environment

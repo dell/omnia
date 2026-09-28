@@ -41,15 +41,31 @@
     - name: Validate additional metadata-service configuration
       ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/validate_additional_metadata_svc.yml"
 
+    - name: Scope additional metadata-service groups to the registered category
+      ansible.builtin.set_fact:
+        additional_metadata_svc_effective_fg_names: >-
+          {{ additional_metadata_svc_fg_names | default([])
+             | intersect(
+                 ((target_fg_names | default([]))
+                  + (target_fg_names | default([])
+                     | map('regex_replace',
+                           '^service_kube_control_plane_first_',
+                           'service_kube_control_plane_')
+                     | list))
+                 | unique | list
+               ) }}
+
     - name: Create SMD group for additional_metadata_svc common
       ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_common.yml"
       loop:
         - "{{ additional_metadata_svc_common_group_name }}"
       when: additional_metadata_svc_common_enabled | default(false) | bool
 
+    # The input may configure groups owned by later provisioning categories.
+    # Publish only groups whose category has completed SMD registration.
     - name: Create SMD groups for per-FG additional metadata-service
       ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_additional_fg.yml"
-      with_items: "{{ additional_metadata_svc_fg_names | default([]) }}"
+      with_items: "{{ additional_metadata_svc_effective_fg_names }}"
       when: additional_metadata_svc_groups_enabled | default(false) | bool
 
     - name: Fetch existing boot configurations for cleanup

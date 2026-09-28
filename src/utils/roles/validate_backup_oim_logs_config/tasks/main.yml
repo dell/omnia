@@ -1,0 +1,116 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Validates backup_oim_logs_config.yml for OIM log backup playbook
+# Ensures valid domain names and backup path configuration
+
+# Step 1: Resolve config file path
+- name: Resolve backup_oim_logs config path
+  ansible.builtin.set_fact:
+    _backup_oim_logs_config_path: >-
+      {{ input_project_dir
+         | default(
+             lookup('env', 'OMNIA_DATA_PATH')
+             | default('/opt/omnia', true)
+             + '/utils/input/'
+             + lookup('env', 'OMNIA_PROJECT_NAME')
+             | default('project_default', true)
+           )
+      }}/backup_oim_logs_config.yml
+
+# Step 2: Check config file exists (optional file)
+- name: Check backup_oim_logs_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ _backup_oim_logs_config_path }}"
+  register: _config_file_stat
+
+# Step 3: Load config if it exists
+- name: Load backup_oim_logs_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ _backup_oim_logs_config_path }}"
+    name: backup_oim_logs_config
+  when: _config_file_stat.stat.exists | default(false)
+
+# Step 4: Set default values if config not present
+- name: Set default backup configuration
+  ansible.builtin.set_fact:
+    backup_oim_logs_config:
+      domains:
+        - repo_manager
+        - image_build_manager
+        - orchestrator
+        - discovery
+        - telemetry
+        - build_stream
+        - utils
+      backup_path: >-
+        {{ lookup('env', 'OMNIA_BACKUP_PATH')
+           | default('/opt/omnia/backups', true) }}
+  when: not (_config_file_stat.stat.exists | default(false))
+
+# Step 5: Validate domains is a list
+- name: Validate domains is a list
+  ansible.builtin.assert:
+    that:
+      - backup_oim_logs_config.domains is defined
+      - backup_oim_logs_config.domains is iterable
+    fail_msg: "domains must be a list of domain names"
+    quiet: true
+
+# Step 6: Validate each domain name
+- name: Set valid domain names
+  ansible.builtin.set_fact:
+    _valid_domains:
+      - repo_manager
+      - image_build_manager
+      - orchestrator
+      - discovery
+      - telemetry
+      - build_stream
+      - utils
+
+- name: Validate domain names
+  ansible.builtin.set_fact:
+    _invalid_domains: >-
+      {{ backup_oim_logs_config.domains
+         | difference(_valid_domains)
+         | list }}
+
+- name: Fail if invalid domain names found
+  ansible.builtin.fail:
+    msg: >-
+      Invalid domain names in backup_oim_logs_config.yml:
+      {{ _invalid_domains }}. Valid domains are: repo_manager,
+      image_build_manager, orchestrator, discovery, telemetry,
+      build_stream, utils
+  when: _invalid_domains | length > 0
+
+# Step 7: Validate backup_path (optional)
+- name: Validate backup_path if provided
+  ansible.builtin.assert:
+    that:
+      - backup_oim_logs_config.backup_path is string
+      - backup_oim_logs_config.backup_path | length >= 0
+    fail_msg: "backup_path must be a string"
+    quiet: true
+  when: backup_oim_logs_config.backup_path is defined
+
+# Step 8: Log validation success
+- name: Log validated configuration summary
+  ansible.builtin.debug:
+    msg: >-
+      Backup configuration validated:
+      {{ backup_oim_logs_config.domains | length }} domains to backup,
+      path: {{ backup_oim_logs_config.backup_path | default('default') }}

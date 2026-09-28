@@ -28,6 +28,7 @@ PodmanArgs=--privileged
 Volume={{ vol }}
 {% endfor %}
 Environment=PULP_HTTPS=true
+Environment=PULP_SETTINGS={{ pulp_deployment_defaults.container_mounts.settings_path }}/settings.py
 {% for env_arg in arg_list %}
 PodmanArgs={{ env_arg }}
 {% endfor %}

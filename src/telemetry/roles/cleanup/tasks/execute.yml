@@ -25,6 +25,16 @@
     - name: Run selected sink cleanups
       ansible.builtin.include_tasks: cleanup_sinks.yml
 
+    # - name: Delete all remaining pods in telemetry namespace
+    #   ansible.builtin.command: >
+    #     kubectl delete pods --all -n {{ telemetry_namespace }}
+    #     --grace-period={{ cleanup_resource_grace_period }}
+    #     --ignore-not-found=true
+    #   register: _cleanup_remaining_pods
+    #   changed_when: _cleanup_remaining_pods.stdout | default('') | length > 0
+    #   failed_when: false
+    #   when: hostvars['localhost']['_cleanup_all'] | bool
+
   rescue:
     - name: Handle component cleanup failure
       ansible.builtin.include_tasks: record_failure.yml

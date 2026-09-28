@@ -295,12 +295,21 @@
         msg: "{{ ochami_discovery_failed_msg }}"
       when: openchami_orchestration.rc != 0
 
-- name: Verify nodes registered in SMD
+- name: Wait until target nodes are registered in SMD
   ansible.builtin.shell: |
     set -o pipefail && \
-    /usr/bin/ochami smd component get | jq '.Components[] | select(.Type == "Node")'
-  changed_when: true
+    /usr/bin/ochami smd component get \
+    | jq -r '.Components[] | select(.Type == "Node") | .ID'
+  changed_when: false
   register: openchami_smd_status
+  retries: "{{ service_retries }}"
+  delay: "{{ service_retry_interval }}"
+  until:
+    - openchami_smd_status.rc == 0
+    - >-
+      _category_nodes | map(attribute='XNAME') | list
+      | difference(openchami_smd_status.stdout_lines | default([]))
+      | length == 0
 
 - name: Display SMD status
   ansible.builtin.debug:

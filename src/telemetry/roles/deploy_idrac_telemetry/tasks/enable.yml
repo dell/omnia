@@ -49,6 +49,12 @@
   vars:
     component: idrac
 
+- name: Prepare BMC inventory and iDRAC pod layout
+  ansible.builtin.include_tasks: prepare_bmc_inventory.yml
+  when:
+    - hostvars['localhost']['bmc_group_data_path'] is defined
+    - hostvars['localhost']['bmc_group_data_path'] | length > 0
+
 - name: Generate iDRAC telemetry manifests
   ansible.builtin.include_tasks: generate_manifests.yml
 

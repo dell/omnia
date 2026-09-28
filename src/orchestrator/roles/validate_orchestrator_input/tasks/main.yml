@@ -15,9 +15,13 @@
 # validate_orchestrator_input — Orchestrator L1 schema and L2 logic validation.
 #
 # Validates:
-#   - orchestrator_config.yml (required)
-#   - network_spec.yml        (required — cross-validated against mapping file)
-#   - storage_config.yml      (required when omnia_config references storage)
+#   - orchestrator_config.yml       (required)
+#   - omnia_config.yml              (required; workload-aware L1/L2 checks)
+#   - network_spec.yml              (required; cross-validated with mapping)
+#   - high_availability_config.yml  (required when Kubernetes is selected)
+#   - resolved PXE mapping CSV      (structure and cross-file relationships)
+#   - additional cloud-init YAML    (when configured)
+#   - storage_config.yml            (when selected workloads reference storage)
 #
 # Uses the domain-specific validate_orchestrator_config module (lean, no
 # dependency on the central input_validation framework).
@@ -71,4 +75,9 @@
 - name: Validation passed
   ansible.builtin.debug:
     msg: "{{ orchestrator_validation_pass_msg }}"
+  when: not validate_orchestrator_input_result.validation_failed
+
+- name: Record successful input validation
+  ansible.builtin.set_fact:
+    _orchestrator_input_validated: true
   when: not validate_orchestrator_input_result.validation_failed

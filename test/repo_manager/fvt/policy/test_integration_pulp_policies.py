@@ -28,12 +28,23 @@ from library.messages.repo_manager_msgs import (
 )
 
 
+# The aggregate used for uploaded ``additional_repos`` is a local Pulp
+# repository. It is intentionally published without an RPM remote, so remote
+# policy assertions do not apply to it.
+LOCAL_ONLY_REPOSITORIES = {"repo_manager-additional"}
+
+
+def _remote_backed_repos(repo_names):
+    """Return deployed repositories that are expected to own a Pulp remote."""
+    return [name for name in repo_names if name not in LOCAL_ONLY_REPOSITORIES]
+
+
 @pytest.mark.sanity
 @pytest.mark.positive
 @pytest.mark.order(17)
 def test_pulp_remote_policy_matches_config(host: Host):
-    """TC_RM_PO_017: Actual Pulp remote policy should match resolved configuration policy."""
-    tl = TestLogger(TEST_NAMES["pulp_remote_policy_matches_config"], "TC_RM_PO_017")
+    """RM_FVT_POLICY_V017: Actual Pulp remote policy should match resolved configuration policy."""
+    tl = TestLogger(TEST_NAMES["pulp_remote_policy_matches_config"], "RM_FVT_POLICY_V017")
 
     # Catalog mode intentionally deploys only repositories referenced by the
     # selected catalog. repo_status.yml is the deployment source of truth.
@@ -43,7 +54,7 @@ def test_pulp_remote_policy_matches_config(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = _remote_backed_repos(repos_result["repos"])
 
     # Test with first configured repo
     if not configured_repos:
@@ -72,8 +83,8 @@ def test_pulp_remote_policy_matches_config(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(18)
 def test_pulp_remote_policy_immediate_mode(host: Host):
-    """TC_RM_PO_018: Repos with always+false should have immediate policy in Pulp."""
-    tl = TestLogger(TEST_NAMES["pulp_remote_policy_immediate_mode"], "TC_RM_PO_018")
+    """RM_FVT_POLICY_V018: Repos with always+false should have immediate policy in Pulp."""
+    tl = TestLogger(TEST_NAMES["pulp_remote_policy_immediate_mode"], "RM_FVT_POLICY_V018")
 
     repos_result = get_deployed_repos(host, arch="x86_64")
 
@@ -81,7 +92,7 @@ def test_pulp_remote_policy_immediate_mode(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = _remote_backed_repos(repos_result["repos"])
 
     # Find a repo with always+false configuration
     found_repo = None
@@ -130,8 +141,8 @@ def test_pulp_remote_policy_immediate_mode(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(19)
 def test_pulp_remote_policy_on_demand_mode(host: Host):
-    """TC_RM_PO_019: Repos with partial+true should have on_demand policy in Pulp."""
-    tl = TestLogger(TEST_NAMES["pulp_remote_policy_on_demand_mode"], "TC_RM_PO_019")
+    """RM_FVT_POLICY_V019: Repos with partial+true should have on_demand policy in Pulp."""
+    tl = TestLogger(TEST_NAMES["pulp_remote_policy_on_demand_mode"], "RM_FVT_POLICY_V019")
 
     repos_result = get_deployed_repos(host, arch="x86_64")
 
@@ -139,7 +150,7 @@ def test_pulp_remote_policy_on_demand_mode(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = _remote_backed_repos(repos_result["repos"])
 
     # Find a repo with partial+true configuration
     found_repo = None
@@ -189,8 +200,8 @@ def test_pulp_remote_policy_on_demand_mode(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(20)
 def test_multiple_repos_policy_resolution(host: Host):
-    """TC_RM_PO_020: Multiple repos should have correct Pulp policies based on their config."""
-    tl = TestLogger(TEST_NAMES["multiple_repos_policy_resolution"], "TC_RM_PO_020")
+    """RM_FVT_POLICY_V020: Multiple repos should have correct Pulp policies based on their config."""
+    tl = TestLogger(TEST_NAMES["multiple_repos_policy_resolution"], "RM_FVT_POLICY_V020")
 
     repos_result = get_deployed_repos(host, arch="x86_64")
 
@@ -198,7 +209,7 @@ def test_multiple_repos_policy_resolution(host: Host):
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = _remote_backed_repos(repos_result["repos"])
 
     # Test multiple repos with different policy configurations
     results = []
@@ -269,8 +280,8 @@ def test_multiple_repos_policy_resolution(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(21)
 def test_pulp_repository_exists(host: Host):
-    """TC_RM_PO_021: Pulp repositories should exist for configured repos."""
-    tl = TestLogger(TEST_NAMES["pulp_repository_exists"], "TC_RM_PO_021")
+    """RM_FVT_POLICY_V021: Pulp repositories should exist for configured repos."""
+    tl = TestLogger(TEST_NAMES["pulp_repository_exists"], "RM_FVT_POLICY_V021")
 
     repos_result = get_deployed_repos(host, arch="x86_64")
 

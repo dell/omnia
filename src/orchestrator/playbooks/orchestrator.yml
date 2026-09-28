@@ -15,11 +15,13 @@
 # orchestrator.yml — Top-level entry point for the orchestrator domain.
 # =====================================================================
 # Thin wrapper that imports focused sub-playbooks organized by phase.
-# Each sub-playbook can also be run independently from its phase directory.
+# This is the canonical entry point. Direct phase-playbook execution is
+# supported only when that playbook's documented setup prerequisites are met.
 #
-# Usage (run ONE tag at a time — no comma-separated tags):
+# Usage (select the lifecycle tag or compatible tag combination required;
+# conflicting combinations are rejected by orchestrator_setup):
 #   cd src/orchestrator
-#   ansible-playbook playbooks/orchestrator.yml                        # Default: precheck + prepare + execute
+#   ansible-playbook playbooks/orchestrator.yml                        # Default: full lifecycle
 #   ansible-playbook playbooks/orchestrator.yml --tags precheck        # Generate FGs, then validate inputs + prerequisites
 #   ansible-playbook playbooks/orchestrator.yml --tags validate        # Validate input files only (schema + logic)
 #   ansible-playbook playbooks/orchestrator.yml --tags credentials     # Prompt for credentials (standalone, idempotent)
@@ -36,8 +38,8 @@
 #   ansible-playbook playbooks/orchestrator.yml --tags upgrade         # In-place upgrade OpenCHAMI + OpenLDAP
 #   ansible-playbook playbooks/orchestrator.yml --tags rollback        # Revert OpenCHAMI + OpenLDAP to previous state
 #
-# Tags (mutually exclusive — pick ONE):
-#   (none)       — Default flow: precheck + prepare + execute
+# Tag reference:
+#   (none)       — Full lifecycle through conditional PXE boot
 #   precheck     — Generate functional groups, then validate inputs, parameters, and boot images
 #   validate     — Validate input files only (schema + logic, no health checks)
 #   credentials  — Prompt for credentials (standalone, idempotent)
@@ -59,7 +61,8 @@
 # Tag Validation:
 #   - Invalid tags will fail with error message
 #   - Invalid combinations (e.g., prepare + upgrade) will fail
-#   - cleanup, validate and validate-deployment tags skip credential prompting
+#   - precheck, validate, validate-deployment, cleanup, and
+#     cleanup_credentials skip credential prompting
 #
 # PXE Boot (physical servers only):
 #   - Controlled by enable_pxe_boot in orchestrator_config.yml (default: true)
@@ -67,34 +70,31 @@
 #   - When false, --tags pxeboot is skipped with an informational message
 #
 # Lifecycle Flow (component-specific playbooks):
+#   shared (precheck, prepare, provision, execute):
+#     Generate functional groups from pxe_mapping_file.csv before consumers run
+#
 #   precheck:
-#     1. Validate orchestrator input (L1 schema + L2 logic)
-#     2. Validate orchestrator parameters + boot images
-#     3. Validate OIM timezone
-#     4. Assert OpenCHAMI configuration variables
-#     5. Assert OpenLDAP prerequisites (when enabled)
+#     Validate orchestrator input (L1 schema + L2 logic)
+#     Validate orchestrator parameters + boot images
+#     Validate OIM timezone
+#     Assert OpenCHAMI configuration variables
+#     Assert OpenLDAP prerequisites (when enabled)
 #
 #   prepare:
-#     6. Credential management (prompt, encrypt, vault)
-#     7. Generate functional groups from pxe_mapping_file.csv
-#     8. Prepare OpenLDAP (dirs, TLS certs, configs — when enabled)
-#     9. Deploy OpenCHAMI containers
-#    10. Deploy OpenLDAP container (when enabled)
-#    11. Validate OpenCHAMI readiness (gate)
-#    12. Validate OpenLDAP readiness (gate, when enabled)
+#     Credential management (prompt, encrypt, vault)
+#     Deploy OpenCHAMI containers
+#     Prepare and deploy OpenLDAP (when enabled)
+#     Validate OpenCHAMI and OpenLDAP readiness
 #
 #   execute:
-#    13. SSH preamble (key distribution + OpenCHAMI auth)
-#    14. Provision Kubernetes cluster
-#    15. Provision Slurm cluster
-#    16. Provision OS-only nodes
-#    17. Provision custom/user-defined nodes
-#    18. Validate provisioning + generate inventories
-#    19. PXE boot on iDRAC nodes (when enable_pxe_boot: true)
+#     SSH preamble (key distribution + OpenCHAMI auth)
+#     Provision Kubernetes, Slurm, OS-only, and custom nodes
+#     Validate provisioning and generate inventories
+#     PXE boot on iDRAC nodes (when enable_pxe_boot: true)
 #
 # Component Mapping:
 #   precheck  -> precheck_openchami.yml  + precheck_openldap.yml
-#   prepare   -> prepare_openchami.yml   + prepare_openldap.yml
+#   prepare   -> prepare_openchami.yml
 #               + deploy_openchami.yml    + deploy_openldap.yml
 #               + validate_openchami.yml  + validate_openldap.yml
 #   execute   -> provision_preamble.yml + provision_*.yml
@@ -104,8 +104,8 @@
 #   upgrade   -> upgrade_openchami.yml   + upgrade_openldap.yml
 #   rollback  -> rollback_openchami.yml  + rollback_openldap.yml
 #
-# Inputs:  $OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME/
-# Outputs: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/
+# Inputs:  $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/
+# Outputs: $ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/
 
 # =========================================================================
 # SHARED: Setup orchestrator environment (always runs for any tag)
@@ -161,7 +161,8 @@
   connection: local
   gather_facts: false
   roles:
-    - validate_orchestrator_input
+    - role: validate_orchestrator_input
+      when: not _orchestrator_input_validated | default(false) | bool
   tags:
     - validate
 

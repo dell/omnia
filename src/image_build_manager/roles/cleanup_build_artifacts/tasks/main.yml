@@ -19,29 +19,29 @@
     msg: "{{ cleanup_started_msg }}"
 
 - name: Cleanup MinIO container and data
-  ansible.builtin.include_tasks: cleanup_minio.yml
+  ansible.builtin.import_tasks: cleanup_minio.yml
   tags: minio
 
 - name: Cleanup registry container and data
-  ansible.builtin.include_tasks: cleanup_registry.yml
+  ansible.builtin.import_tasks: cleanup_registry.yml
   tags: registry
 
 - name: Cleanup build output files
-  ansible.builtin.include_tasks: cleanup_build_output.yml
+  ansible.builtin.import_tasks: cleanup_build_output.yml
   tags: output
 
 - name: Cleanup s3cmd configuration
-  ansible.builtin.include_tasks: cleanup_s3cmd.yml
+  ansible.builtin.import_tasks: cleanup_s3cmd.yml
   tags: s3cmd
 
 - name: Cleanup image_build_manager credentials
-  ansible.builtin.include_tasks: cleanup_credentials.yml
+  ansible.builtin.import_tasks: cleanup_credentials.yml
   tags: credentials
 
 - name: Cleanup domain data directories
-  ansible.builtin.include_tasks: cleanup_domain_data.yml
+  ansible.builtin.import_tasks: cleanup_domain_data.yml
   tags: data
 
 - name: Cleanup image_build_manager logs
-  ansible.builtin.include_tasks: cleanup_logs.yml
+  ansible.builtin.import_tasks: cleanup_logs.yml
   tags: logs

@@ -15,8 +15,10 @@
 """
 Orchestrator Cleanup — Deploy.
 
-TC_CL_000: Deploy orchestrator.yml --tags cleanup
+ORCH_FVT_CLEANUP_E001: Deploy orchestrator.yml --tags cleanup
 """
+
+import re
 
 import pytest
 
@@ -28,13 +30,16 @@ from library.messages import (
 )
 
 
+pytestmark = pytest.mark.destructive
+
+
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_cleanup(host):
-    """TC_CL_000: Deploy orchestrator.yml --tags cleanup."""
+    """ORCH_FVT_CLEANUP_E001: Deploy orchestrator.yml --tags cleanup."""
     tl = TestLogger(
-        TEST_NAMES["deploy_playbook"].format(tag="cleanup"), "TC_CL_000"
+        TEST_NAMES["deploy_playbook"].format(tag="cleanup"), "ORCH_FVT_CLEANUP_E001"
     )
     result = run_playbook(tag="cleanup")
 
@@ -53,4 +58,22 @@ def test_deploy_cleanup(host):
     assert result["success"], ASSERT["playbook_failed"].format(
         playbook="orchestrator.yml", tag="cleanup",
         rc=result["rc"], duration=result["duration"],
+    )
+
+    rerun = run_playbook(tag="cleanup")
+    assert rerun["success"], ASSERT["playbook_failed"].format(
+        playbook="orchestrator.yml", tag="cleanup (idempotency rerun)",
+        rc=rerun["rc"], duration=rerun["duration"],
+    )
+
+    recap = re.search(
+        r"localhost\s+:.*changed=(\d+).*failed=(\d+)",
+        rerun.get("output", ""),
+    )
+    assert recap is not None, "Cleanup rerun did not contain a localhost play recap"
+    assert int(recap.group(1)) == 0, (
+        f"Cleanup rerun was not idempotent: changed={recap.group(1)}"
+    )
+    assert int(recap.group(2)) == 0, (
+        f"Cleanup rerun failed: failed={recap.group(2)}"
     )

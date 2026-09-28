@@ -100,7 +100,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ victoria_metrics.pvc_labels }}"
   changed_when: false
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaMetrics | Delete single-node PVC by name
   ansible.builtin.command: >
@@ -108,7 +108,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ victoria_metrics.single_pvc }}"
   changed_when: false
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaMetrics | Delete vmstorage PVCs by name
   ansible.builtin.command: >
@@ -116,7 +116,7 @@
     --ignore-not-found=true --wait=false
   loop: "{{ range(0, 10) | list }}"
   changed_when: false
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 # --- vmagent-vector write-buffer cleanup (VM-side adapter for vector-ldms) ---
 - name: VictoriaMetrics | Delete vmagent-vector resources
@@ -134,7 +134,7 @@
     --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   loop: "{{ victoria_metrics.pod_labels }}"
   changed_when: false
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaMetrics | Wait for pods to terminate
   ansible.builtin.command: >
@@ -157,7 +157,7 @@
   until: _victoria_metrics_pvc_label_wait.stdout | trim | length == 0
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaMetrics | Wait for single-node PVCs to terminate
   ansible.builtin.command: >
@@ -169,7 +169,7 @@
   until: _victoria_metrics_single_pvc_wait.stdout | trim | length == 0
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaMetrics | Wait for vmstorage PVCs to terminate
   ansible.builtin.command: >
@@ -182,7 +182,7 @@
   until: _victoria_metrics_vmstorage_pvc_wait.stdout | trim | length == 0
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  when: _cleanup_delete_volume_enabled | bool
+  when: not (_cleanup_preserve_sink_volumes | bool)
 
 # --- Victoria operator cleanup (shared between VM and VL) ---
 # Only delete the operator if VictoriaLogs is NOT running

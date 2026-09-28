@@ -1,0 +1,27 @@
+# Repository-wide owners
+* @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan
+
+# Image Build Manager and BuildStream
+/src/image_build_manager/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @Rajeshkumar-s2
+/test/image_build_manager/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @Rajeshkumar-s2
+/src/build_stream/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @Rajeshkumar-s2
+/test/build_stream/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @Rajeshkumar-s2
+
+# Repo Manager and Utils
+/src/repo_manager/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @Venu-p1
+/test/repo_manager/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @Venu-p1
+/src/utils/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @Venu-p1
+/test/utils/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @Venu-p1
+
+# Telemetry
+/src/telemetry/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @priti-parate
+/test/telemetry/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @priti-parate
+
+# Discovery and Orchestrator
+/src/discovery/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @sujit-jadhav
+/test/discovery/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @sujit-jadhav
+/src/orchestrator/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @sujit-jadhav
+/test/orchestrator/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @sujit-jadhav
+
+# Pipeline tests
+/test/pipeline/ @abhishek-sa1 @VenkateswaraVatam @RvishankarOMnia @snarthan @saifudheene

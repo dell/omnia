@@ -14,6 +14,8 @@ AGENTS.md
 test/test_helper/bats-support/
 test/test_helper/bats-assert/
 
+test/**/datasets/local*/
+
 # BuildStream
 src/build_stream/MagicMock/
 src/build_stream/pyproject.toml
@@ -28,4 +30,3 @@ src/rpm_build/**/ovis-code/
 # Container build artifacts
 *.tar
 *.img
-

@@ -101,7 +101,8 @@
           | map('trim') | reject('equalto', '') | list)
           + (omnia_config.slurm_cluster | default([])
              | map(attribute='vast_storage_name') | select('defined')
-             | map('trim') | reject('equalto', '') | list)
+             | map('default', '', true) | map('trim')
+             | reject('equalto', '') | list)
           if (slurm_storage_required | bool)
           else [])
         +

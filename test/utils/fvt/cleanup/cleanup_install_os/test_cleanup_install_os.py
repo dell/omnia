@@ -29,9 +29,12 @@ from library.functions import (
     load_test_config,
     run_playbook,
     get_utils_input_path,
+    get_utils_output_path,
     check_install_os_temp_dir_removed,
     check_install_os_nfs_unmounted,
     check_install_os_credentials_removed,
+    check_utils_status_file_removed,
+    check_install_os_status_file_removed,
 )
 from library.vars import (
     TEST_CASES as TC,
@@ -143,7 +146,7 @@ def test_cleanup_install_os_nfs_unmounted(host):
 @pytest.mark.order(3)
 def test_cleanup_install_os_credentials_removed(host):
     """Verify credential files are removed when cleanup_credentials=true.
-    
+
     Note: This test verifies the credential cleanup behavior. By default,
     credentials are NOT removed unless cleanup_credentials=true is passed.
     This test checks the current state of credential files.
@@ -176,3 +179,57 @@ def test_cleanup_install_os_credentials_removed(host):
     # This test always passes - it's informational about credential state
     # The actual cleanup behavior depends on the cleanup_credentials flag
     assert True, "Credential cleanup verification completed"
+
+
+@pytest.mark.sanity
+@pytest.mark.cleanup_install_os
+@pytest.mark.order(4)
+def test_cleanup_install_os_status_file_removed(host):
+    """Verify utils_status.yml file is removed after cleanup_install_os."""
+    tc = TC["cleanup_status_file_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    result = check_utils_status_file_removed(host, output_path)
+
+    tl.info("Status file cleanup status:")
+    tl.info(f"  Status file path: {result['path']}")
+    tl.info(f"  Status file removed: {'Yes' if result['success'] else 'No'}")
+
+    if result["success"]:
+        tl.passed("Utils status file removed")
+    else:
+        tl.failed(f"Status file still exists at {result['path']}")
+
+    assert result["success"], (
+        f"Utils status file not removed: "
+        f"path={result['path']}, "
+        f"exists={result['exists']}"
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.cleanup_install_os
+@pytest.mark.order(5)
+def test_cleanup_install_os_specific_status_file_removed(host):
+    """Verify install_os_status.yml file is removed after cleanup_install_os."""
+    tc = TC["cleanup_install_os_status_file_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    result = check_install_os_status_file_removed(host, output_path)
+
+    tl.info("Install OS status file cleanup status:")
+    tl.info(f"  Status file path: {result['path']}")
+    tl.info(f"  Status file removed: {'Yes' if result['success'] else 'No'}")
+
+    if result["success"]:
+        tl.passed("Install OS status file removed")
+    else:
+        tl.failed(f"Install OS status file still exists at {result['path']}")
+
+    assert result["success"], (
+        f"Install OS status file not removed: "
+        f"path={result['path']}, "
+        f"exists={result['exists']}"
+    )

@@ -92,9 +92,13 @@
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 # --- Per-functional-group additional metadata-service groups ---
+# provision_common supplies an effective list scoped to its registered
+# category. The legacy all-at-once flow falls back to the full configured list.
 - name: Configure per-FG additional metadata-service groups
   ansible.builtin.include_tasks: configure_metadata_svc_additional_fg.yml
   vars:
     _ms_fg_name: "{{ item }}"
-  with_items: "{{ additional_metadata_svc_fg_names | default([]) }}"
+  with_items: >-
+    {{ additional_metadata_svc_effective_fg_names
+       | default(additional_metadata_svc_fg_names | default([])) }}
   when: additional_metadata_svc_groups_enabled | default(false) | bool

@@ -27,11 +27,23 @@
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_idrac'] | bool
 
-- name: Cleanup iDRAC telemetry
-  ansible.builtin.include_tasks: idrac.yml
+- name: Check if iDRAC resources exist
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get statefulset idrac-telemetry
+    --ignore-not-found=true --output=name
+  register: _idrac_check
+  changed_when: false
   when: >-
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_idrac'] | bool
+  failed_when: false
+
+- name: Cleanup iDRAC telemetry
+  ansible.builtin.include_tasks: idrac.yml
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool)
+    and _idrac_check.stdout | default('') | length > 0
 
 - name: Mark iDRAC cleanup as cleaned
   ansible.builtin.set_fact:
@@ -44,16 +56,47 @@
   delegate_to: localhost
   delegate_facts: true
   when: >-
-    hostvars['localhost']['_cleanup_all'] | bool
-    or hostvars['localhost']['_cleanup_idrac'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool)
+    and _idrac_check.stdout | default('') | length > 0
+
+- name: Mark iDRAC cleanup as skipped
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'idrac': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool)
+    and _idrac_check.stdout | default('') | length == 0
+
+- name: Mark iDRAC cleanup as skipped (not selected)
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'idrac': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and not (hostvars['localhost']['_cleanup_idrac'] | bool)
 
 - name: Cleanup iDRAC credentials
   ansible.builtin.include_tasks: cleanup_credentials.yml
   vars:
     _cleanup_credential_component: idrac
   when: >-
-    not (hostvars['localhost']['_cleanup_all'] | bool)
-    and hostvars['localhost']['_cleanup_idrac'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_idrac'] | bool)
+    and _idrac_check.stdout | default('') | length > 0
 
 - name: Mark LDMS cleanup as attempted
   ansible.builtin.set_fact:
@@ -69,11 +112,23 @@
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_ldms'] | bool
 
-- name: Cleanup LDMS telemetry (includes Vector-LDMS bridge)
-  ansible.builtin.include_tasks: ldms.yml
+- name: Check if LDMS resources exist
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get statefulset nersc-ldms-aggr
+    --ignore-not-found=true --output=name
+  register: _ldms_check
+  changed_when: false
   when: >-
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_ldms'] | bool
+  failed_when: false
+
+- name: Cleanup LDMS telemetry (includes Vector-LDMS bridge)
+  ansible.builtin.include_tasks: ldms.yml
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ldms'] | bool)
+    and _ldms_check.stdout | default('') | length > 0
 
 - name: Mark LDMS cleanup as cleaned
   ansible.builtin.set_fact:
@@ -86,16 +141,47 @@
   delegate_to: localhost
   delegate_facts: true
   when: >-
-    hostvars['localhost']['_cleanup_all'] | bool
-    or hostvars['localhost']['_cleanup_ldms'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ldms'] | bool)
+    and _ldms_check.stdout | default('') | length > 0
+
+- name: Mark LDMS cleanup as skipped
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ldms': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ldms'] | bool)
+    and _ldms_check.stdout | default('') | length == 0
+
+- name: Mark LDMS cleanup as skipped (not selected)
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ldms': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and not (hostvars['localhost']['_cleanup_ldms'] | bool)
 
 - name: Cleanup LDMS credentials
   ansible.builtin.include_tasks: cleanup_credentials.yml
   vars:
     _cleanup_credential_component: ldms
   when: >-
-    not (hostvars['localhost']['_cleanup_all'] | bool)
-    and hostvars['localhost']['_cleanup_ldms'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ldms'] | bool)
+    and _ldms_check.stdout | default('') | length > 0
 
 - name: Mark OME cleanup as attempted
   ansible.builtin.set_fact:
@@ -111,11 +197,23 @@
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_ome'] | bool
 
-- name: Cleanup OME telemetry (includes Vector-OME bridge)
-  ansible.builtin.include_tasks: ome.yml
+- name: Check if OME resources exist
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get deployment vector-ome
+    --ignore-not-found=true --output=name
+  register: _ome_check
+  changed_when: false
   when: >-
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_ome'] | bool
+  failed_when: false
+
+- name: Cleanup OME telemetry (includes Vector-OME bridge)
+  ansible.builtin.include_tasks: ome.yml
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ome'] | bool)
+    and _ome_check.stdout | default('') | length > 0
 
 - name: Mark OME cleanup as cleaned
   ansible.builtin.set_fact:
@@ -128,8 +226,38 @@
   delegate_to: localhost
   delegate_facts: true
   when: >-
-    hostvars['localhost']['_cleanup_all'] | bool
-    or hostvars['localhost']['_cleanup_ome'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ome'] | bool)
+    and _ome_check.stdout | default('') | length > 0
+
+- name: Mark OME cleanup as skipped
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ome': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ome'] | bool)
+    and _ome_check.stdout | default('') | length == 0
+
+- name: Mark OME cleanup as skipped (not selected)
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ome': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and not (hostvars['localhost']['_cleanup_ome'] | bool)
 
 - name: Mark PowerScale cleanup as attempted
   ansible.builtin.set_fact:
@@ -145,11 +273,23 @@
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_powerscale'] | bool
 
-- name: Cleanup PowerScale telemetry
-  ansible.builtin.include_tasks: powerscale.yml
+- name: Check if PowerScale resources exist
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get deployment karavi-metrics-powerscale
+    --ignore-not-found=true --output=name
+  register: _powerscale_check
+  changed_when: false
   when: >-
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_powerscale'] | bool
+  failed_when: false
+
+- name: Cleanup PowerScale telemetry
+  ansible.builtin.include_tasks: powerscale.yml
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_powerscale'] | bool)
+    and _powerscale_check.stdout | default('') | length > 0
 
 - name: Mark PowerScale cleanup as cleaned
   ansible.builtin.set_fact:
@@ -162,16 +302,47 @@
   delegate_to: localhost
   delegate_facts: true
   when: >-
-    hostvars['localhost']['_cleanup_all'] | bool
-    or hostvars['localhost']['_cleanup_powerscale'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_powerscale'] | bool)
+    and _powerscale_check.stdout | default('') | length > 0
+
+- name: Mark PowerScale cleanup as skipped
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'powerscale': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_powerscale'] | bool)
+    and _powerscale_check.stdout | default('') | length == 0
+
+- name: Mark PowerScale cleanup as skipped (not selected)
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'powerscale': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and not (hostvars['localhost']['_cleanup_powerscale'] | bool)
 
 - name: Cleanup PowerScale credentials
   ansible.builtin.include_tasks: cleanup_credentials.yml
   vars:
     _cleanup_credential_component: powerscale
   when: >-
-    not (hostvars['localhost']['_cleanup_all'] | bool)
-    and hostvars['localhost']['_cleanup_powerscale'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_powerscale'] | bool)
+    and _powerscale_check.stdout | default('') | length > 0
 
 - name: Mark UFM cleanup as attempted
   ansible.builtin.set_fact:
@@ -187,11 +358,23 @@
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_ufm'] | bool
 
-- name: Cleanup UFM telemetry
-  ansible.builtin.include_tasks: ufm.yml
+- name: Check if UFM resources exist
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get service ufm-external
+    --ignore-not-found=true --output=name
+  register: _ufm_check
+  changed_when: false
   when: >-
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_ufm'] | bool
+  failed_when: false
+
+- name: Cleanup UFM telemetry
+  ansible.builtin.include_tasks: ufm.yml
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ufm'] | bool)
+    and _ufm_check.stdout | default('') | length > 0
 
 - name: Mark UFM cleanup as cleaned
   ansible.builtin.set_fact:
@@ -204,16 +387,47 @@
   delegate_to: localhost
   delegate_facts: true
   when: >-
-    hostvars['localhost']['_cleanup_all'] | bool
-    or hostvars['localhost']['_cleanup_ufm'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ufm'] | bool)
+    and _ufm_check.stdout | default('') | length > 0
+
+- name: Mark UFM cleanup as skipped
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ufm': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ufm'] | bool)
+    and _ufm_check.stdout | default('') | length == 0
+
+- name: Mark UFM cleanup as skipped (not selected)
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ufm': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and not (hostvars['localhost']['_cleanup_ufm'] | bool)
 
 - name: Cleanup UFM credentials
   ansible.builtin.include_tasks: cleanup_credentials.yml
   vars:
     _cleanup_credential_component: ufm
   when: >-
-    not (hostvars['localhost']['_cleanup_all'] | bool)
-    and hostvars['localhost']['_cleanup_ufm'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_ufm'] | bool)
+    and _ufm_check.stdout | default('') | length > 0
 
 - name: Mark VAST cleanup as attempted
   ansible.builtin.set_fact:
@@ -229,11 +443,23 @@
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_vast'] | bool
 
-- name: Cleanup VAST telemetry
-  ansible.builtin.include_tasks: vast.yml
+- name: Check if VAST resources exist
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get service vast-external
+    --ignore-not-found=true --output=name
+  register: _vast_check
+  changed_when: false
   when: >-
     hostvars['localhost']['_cleanup_all'] | bool
     or hostvars['localhost']['_cleanup_vast'] | bool
+  failed_when: false
+
+- name: Cleanup VAST telemetry
+  ansible.builtin.include_tasks: vast.yml
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_vast'] | bool)
+    and _vast_check.stdout | default('') | length > 0
 
 - name: Mark VAST cleanup as cleaned
   ansible.builtin.set_fact:
@@ -246,13 +472,72 @@
   delegate_to: localhost
   delegate_facts: true
   when: >-
-    hostvars['localhost']['_cleanup_all'] | bool
-    or hostvars['localhost']['_cleanup_vast'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_vast'] | bool)
+    and _vast_check.stdout | default('') | length > 0
+
+- name: Mark VAST cleanup as skipped
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'vast': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_vast'] | bool)
+    and _vast_check.stdout | default('') | length == 0
+
+- name: Mark VAST cleanup as skipped (not selected)
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'vast': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and not (hostvars['localhost']['_cleanup_vast'] | bool)
+
+- name: Mark PowerScale cleanup as skipped (not selected)
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'powerscale': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and not (hostvars['localhost']['_cleanup_powerscale'] | bool)
+
+- name: Mark UFM cleanup as skipped (not selected)
+  ansible.builtin.set_fact:
+    _cleanup_active_component: ""
+    _cleanup_component_results: >-
+      {{
+        hostvars['localhost']['_cleanup_component_results']
+        | combine({'ufm': 'skipped'})
+      }}
+  delegate_to: localhost
+  delegate_facts: true
+  when: >-
+    not (hostvars['localhost']['_cleanup_all'] | bool)
+    and not (hostvars['localhost']['_cleanup_ufm'] | bool)
 
 - name: Cleanup VAST credentials
   ansible.builtin.include_tasks: cleanup_credentials.yml
   vars:
     _cleanup_credential_component: vast
   when: >-
-    not (hostvars['localhost']['_cleanup_all'] | bool)
-    and hostvars['localhost']['_cleanup_vast'] | bool
+    (hostvars['localhost']['_cleanup_all'] | bool
+    or hostvars['localhost']['_cleanup_vast'] | bool)
+    and _vast_check.stdout | default('') | length > 0

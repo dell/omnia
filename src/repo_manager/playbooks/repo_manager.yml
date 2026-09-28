@@ -193,9 +193,9 @@
   roles:
     - role: precheck_environment
       when: >-
-        not ('credentials' in (ansible_run_tags | default([])) and
-             ((ansible_run_tags | default([]) |
-               difference(['credentials'])) | length == 0))
+        ((ansible_run_tags | default([]))
+         | intersect(['credentials', 'cleanup', 'cleanup_pulp', 'cleanup_repos'])
+         | length) == 0
   tags:
     - precheck
     - always

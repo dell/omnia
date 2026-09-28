@@ -20,8 +20,9 @@ both validation and repository resolution. For each catalog execution context,
 the role processes only `catalog_context.referenced_repositories`:
 
 - An explicit URL always takes precedence.
-- With subscription access, only a referenced BaseOS, AppStream or CodeReady
-  Builder repository with an empty or missing URL uses subscription discovery.
+- With subscription access, a referenced BaseOS, AppStream, CodeReady Builder
+  or exact entitled binary RPM Repo ID with an empty or missing URL uses
+  subscription discovery.
 - Without subscription access, every referenced RPM repository, including
   BaseOS, AppStream and CodeReady Builder, requires an explicit URL.
 - Missing repositories are reported together across selected architectures.

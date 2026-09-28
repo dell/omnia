@@ -182,6 +182,13 @@ def get_last_detail_fields() -> list:
     return [field.copy() for field in _LAST_DETAIL_FIELDS.get()]
 
 
+def clear_test_context() -> None:
+    """Clear output and identifiers retained from the previous test."""
+    _LAST_OUTPUT.set("")
+    _LAST_TC_ID.set("")
+    _LAST_DETAIL_FIELDS.set(())
+
+
 class TestLogger:
     """
     Structured test output logger for pytest validation tests.

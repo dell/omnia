@@ -28,13 +28,17 @@
 # =========================================================================
 - name: Load network_spec.yml
   ansible.builtin.include_vars: "{{ input_project_dir }}/network_spec.yml"
-  when: admin_netmask_bits is not defined
+  when: >-
+    admin_netmask_bits is not defined
+    or ib_network_netmask_bits is not defined
 
 - name: Parse network_spec data
   ansible.builtin.include_role:
     name: orchestrator_common
     tasks_from: normalize_network_spec.yml
-  when: admin_netmask_bits is not defined
+  when: >-
+    admin_netmask_bits is not defined
+    or ib_network_netmask_bits is not defined
 
 - name: Set network facts from network_spec
   ansible.builtin.set_fact:
@@ -42,9 +46,13 @@
     admin_nic: "{{ network_data.admin_network.oim_nic_name }}"
     admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
     ib_network_subnet: "{{ network_data.ib_network.subnet | default('') }}"
+    ib_network_netmask_bits: >-
+      {{ network_data.ib_network.netmask_bits | default('') }}
     ib_network_dns: "{{ network_data.ib_network.dns | default([]) }}"
     dns: "{{ network_data.admin_network.dns | default([]) }}"
-  when: admin_netmask_bits is not defined
+  when: >-
+    admin_netmask_bits is not defined
+    or ib_network_netmask_bits is not defined
 
 # =========================================================================
 # Step 2: Ensure /etc/hosts entry for cluster hostname (read-only idempotent)

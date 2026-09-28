@@ -87,7 +87,7 @@ available at `gitlab_url`:
 
 | Container | Image Name | Port | Purpose |
 |-----------|-----------|------|---------|
-| `omnia_build_stream` | `omnia_build_stream:latest` | `8010` (configurable) | BSM FastAPI server — orchestrates builds, deploys, validations. |
+| `omnia_build_stream` | `omnia_build_stream:1.2` | `8010` (configurable) | BSM FastAPI server — orchestrates builds, deploys, validations. |
 
 Built from: `src/build_stream/containers/omnia_build_stream/Containerfile`
 

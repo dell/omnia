@@ -61,3 +61,43 @@
       ansible.builtin.fail:
         msg: "{{ pulp_status_fail_msg }}"
       when: result.status | default(0) != 200
+
+    - name: Validate configured Pulp public content origin
+      ansible.builtin.assert:
+        that:
+          - >-
+            (result.json | default({})).get(
+              'content_settings', {}
+            ).get('content_origin', '') == pulp_base_url
+        fail_msg: "{{ pulp_content_origin_fail_msg }}"
+        quiet: true
+
+    - name: Check Pulp OCI registry endpoint
+      ansible.builtin.uri:
+        url: "{{ pulp_registry_url }}"
+        method: GET
+        validate_certs: true
+        ca_path: "{{ pulp_server_crt }}"
+        return_content: false
+        status_code: [401]
+        timeout: "{{ validation_endpoint_timeout }}"
+      register: registry_result
+      retries: "{{ validation_endpoint_retries }}"
+      delay: "{{ validation_endpoint_delay }}"
+      until: registry_result.status | default(-1) == 401
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    - name: Require a healthy Pulp OCI registry endpoint
+      ansible.builtin.assert:
+        that:
+          - registry_result.status | default(-1) == 401
+          - >-
+            registry_result.docker_distribution_api_version |
+            default('') == 'registry/2.0'
+          - >-
+            (registry_result.www_authenticate |
+             default('')).startswith('Basic ')
+        fail_msg: "{{ pulp_registry_status_fail_msg }}"
+        quiet: true

@@ -19,12 +19,12 @@ Tests that verify the overall health of the telemetry namespace,
 running before any source/sink-specific tests.
 
 Matches the omnia-containers-2.2 format:
-  - Shows ``kubectl get pods -o wide`` output
+  - Shows a wide-format inventory of namespace pods
   - Lists every pod with ✓/✗ status
   - Retries if pods are not yet ready
 
 Test cases:
-    TC_NS_001: Verify all telemetry pods running
+    TEL_FVT_DEPLOY_V008: Verify all telemetry pods running
 """
 
 import time
@@ -43,7 +43,7 @@ from library.functions.k8s_func import verify_all_pods_running
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_all_telemetry_pods_running(host):
-    """TC_NS_001: Verify all pods in telemetry namespace are running.
+    """TEL_FVT_DEPLOY_V008: Verify all pods in telemetry namespace are running.
 
     Retries up to 3 times with 30-second intervals.
     All pods must be Running with all containers ready.

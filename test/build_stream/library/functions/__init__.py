@@ -41,6 +41,11 @@ from omnia_auto import (
     run_playbook as _run_playbook,
 )
 from library.vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
+from library.functions.host_func import (
+    check_target_connectivity,
+    sync_build_stream_input,
+    sync_project_to_remote,
+)
 
 # --- GitLab verification ---
 from library.functions.gitlab_func import (
@@ -89,20 +94,31 @@ from library.functions.pipeline_func import (
     wait_for_pipeline_triggered,
     # Database
     get_latest_job,
+    wait_for_new_job,
     get_stage_state,
     verify_stage_completed,
     get_image_groups_for_job,
     get_images_for_job,
+    resolve_deploy_image_group,
     # Stage monitoring
     poll_stage_until_complete,
     # GitLab CI/CD stage tracking
     get_child_pipeline_id,
     get_gitlab_pipeline_jobs,
     poll_gitlab_ci_stages,
+    wait_for_child_pipeline,
+    run_deploy_child_pipeline,
+    wait_for_pipeline_job,
+    play_gitlab_job,
+    get_gitlab_job_trace,
+    discover_deploy_pipeline,
+    discover_cleanup_pipeline,
     # BSM API
     get_catalog_roles,
     verify_registry_images,
     verify_s3_boot_images,
+    verify_registry_images_absent,
+    verify_s3_boot_images_absent,
     clear_bsm_token_cache,
     # Initialization verification
     verify_initialization_health,
@@ -114,6 +130,8 @@ from library.functions.pipeline_func import (
     verify_build_image,
     verify_build_image_meta,
     get_pipeline_summary,
+    get_bsm_job_details,
+    get_bsm_artifact_json,
     # Repo manager output
     check_repo_status,
     # Registry & S3 direct checks
@@ -166,6 +184,26 @@ from library.functions.validation_func import (
     ConfigValidationError,
 )
 
+# --- Non-functional resilience and security ---
+from library.functions.nft_func import (
+    artifact_path_absent,
+    bsm_request,
+    create_disposable_job,
+    forbidden_upload_absent,
+    get_bsm_context,
+    get_scoped_token,
+    pipeline_status,
+    restart_service,
+    secret_absent_from_bsm_logs,
+    stop_service,
+    trigger_catalog_job,
+    upload_inline_file,
+    upload_oversized_file,
+    wait_for_pipeline_status,
+    wait_for_queue_claimed,
+    wait_for_queue_entry,
+)
+
 
 def run_playbook(extra_vars=None, **kwargs):
     """Wrapper that injects module-specific playbook and workdir."""
@@ -197,6 +235,25 @@ __all__ = [
     "build_report_name",
     "record_playbook_failure",
     "run_playbook",
+    "artifact_path_absent",
+    "bsm_request",
+    "create_disposable_job",
+    "forbidden_upload_absent",
+    "get_bsm_context",
+    "get_scoped_token",
+    "pipeline_status",
+    "restart_service",
+    "secret_absent_from_bsm_logs",
+    "stop_service",
+    "trigger_catalog_job",
+    "upload_inline_file",
+    "upload_oversized_file",
+    "wait_for_pipeline_status",
+    "wait_for_queue_claimed",
+    "wait_for_queue_entry",
+    "check_target_connectivity",
+    "sync_build_stream_input",
+    "sync_project_to_remote",
     # GitLab
     "check_gitlab_packages_installed",
     "check_gitlab_server_reachable",
@@ -261,17 +318,28 @@ __all__ = [
     "get_catalog_content",
     "wait_for_pipeline_triggered",
     "get_latest_job",
+    "wait_for_new_job",
     "get_stage_state",
     "verify_stage_completed",
     "get_image_groups_for_job",
+    "resolve_deploy_image_group",
     "get_images_for_job",
     "poll_stage_until_complete",
     "get_child_pipeline_id",
     "get_gitlab_pipeline_jobs",
     "poll_gitlab_ci_stages",
+    "wait_for_child_pipeline",
+    "run_deploy_child_pipeline",
+    "wait_for_pipeline_job",
+    "play_gitlab_job",
+    "get_gitlab_job_trace",
+    "discover_deploy_pipeline",
+    "discover_cleanup_pipeline",
     "get_catalog_roles",
     "verify_registry_images",
     "verify_s3_boot_images",
+    "verify_registry_images_absent",
+    "verify_s3_boot_images_absent",
     "clear_bsm_token_cache",
     "verify_initialization_health",
     "verify_initialization_auth",
@@ -281,6 +349,8 @@ __all__ = [
     "verify_build_image",
     "verify_build_image_meta",
     "get_pipeline_summary",
+    "get_bsm_job_details",
+    "get_bsm_artifact_json",
     "check_repo_status",
     "check_registry_images_exist",
     "check_s3_boot_images_exist",

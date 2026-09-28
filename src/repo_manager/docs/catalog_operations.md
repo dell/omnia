@@ -85,6 +85,9 @@ doca_ofed, rpm_repo, doca-ofed, doca, arch=aarch64
 | `rpm_repo` | `key, rpm_repo, name, reponame` | `doca_ofed, rpm_repo, doca-ofed, doca` |
 | `tarball` | `key, tarball, name, url` | `papi, tarball, papi, https://...` |
 | `image` | `key, image, image_path, registry, tag` | `curl, image, docker.io/curlimages/curl, docker.io, 8.17.0` |
+| `git` | `key, git, name, url, version` | `csi_powerscale, git, csi-powerscale, https://github.com/dell/csi-powerscale.git, v2.17.0` |
+| `manifest` | `key, manifest, name, url` | `calico, manifest, calico-v3.32.1, https://raw.githubusercontent.com/.../calico.yaml` |
+| `pip_module` | `key, pip_module, name` | `cffi, pip_module, cffi==1.17.1` |
 
 Trailing overrides supported on package lines:
 

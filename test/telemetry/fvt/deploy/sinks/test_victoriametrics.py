@@ -16,13 +16,14 @@
 Telemetry Deploy — VictoriaMetrics Sink Verification Tests.
 
 Test cases:
-    TC_SK_004: Verify VictoriaMetrics cluster pods running
-    TC_SK_005: Verify VMAgent pods running
+    TEL_FVT_DEPLOY_V004: Verify VictoriaMetrics cluster pods running
+    TEL_FVT_DEPLOY_V005: Verify VMAgent pods running
 """
 
 import pytest
 
 from library.functions import TestLogger
+from library.functions.telemetry_func import is_sink_enabled
 from library.vars.test_case_vars import TEST_CASES as TC
 from library.vars.common_vars import (
     VM_POD_PREFIXES,
@@ -39,9 +40,14 @@ from library.functions.k8s_func import verify_pods_by_prefix
 @pytest.mark.sanity
 @pytest.mark.order(20)
 def test_vm_cluster_pods(host):
-    """TC_SK_004: Verify VictoriaMetrics cluster pods running."""
+    """TEL_FVT_DEPLOY_V004: Verify VictoriaMetrics cluster pods running."""
     tc = TC["vm_cluster_pods"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if victoria_metrics sink is not enabled
+    if not is_sink_enabled(host, "victoria_metrics"):
+        tl.skipped("VictoriaMetrics sink is not enabled in telemetry configuration")
+        pytest.skip("VictoriaMetrics sink is not enabled")
 
     all_ok = True
     for role, prefix in VM_POD_PREFIXES.items():
@@ -79,9 +85,14 @@ def test_vm_cluster_pods(host):
 @pytest.mark.sanity
 @pytest.mark.order(21)
 def test_vmagent_pods(host):
-    """TC_SK_005: Verify VMAgent pods running."""
+    """TEL_FVT_DEPLOY_V005: Verify VMAgent pods running."""
     tc = TC["vmagent_pods"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if victoria_metrics sink is not enabled
+    if not is_sink_enabled(host, "victoria_metrics"):
+        tl.skipped("VictoriaMetrics sink is not enabled in telemetry configuration")
+        pytest.skip("VictoriaMetrics sink is not enabled")
 
     tl.check(f"Checking VMAgent pods (prefix: {VMAGENT_POD_PREFIX})")
     result = verify_pods_by_prefix(host, VMAGENT_POD_PREFIX, min_count=1)

@@ -31,10 +31,20 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: always
   tasks:
     - name: Run image_build_setup role (standalone only)
       ansible.builtin.include_role:
         name: image_build_setup
+      vars:
+        image_build_cleanup_mode: true
+        additional_supported_tags:
+          - minio
+          - registry
+          - output
+          - s3cmd
+          - data
+          - logs
       when: not (image_build_setup_done | default(false) | bool)
 
 # Load image_build_config.yml to get s3_configurations
@@ -42,6 +52,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: always
   tasks:
     - name: Load image_build_config.yml
       ansible.builtin.include_vars:

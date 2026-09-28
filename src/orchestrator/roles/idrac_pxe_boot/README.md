@@ -72,7 +72,8 @@ None.
 ```
 
 Credentials are expected to be loaded on `localhost` before this role runs
-(e.g., via the `collect_pxe_credentials` role).
+(for example, from the project-scoped Orchestrator credential store used by
+`playbooks/pxeboot/pxeboot.yml`).
 
 ## Tasks
 

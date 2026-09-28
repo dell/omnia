@@ -219,22 +219,25 @@ class AuthService:
             # Ensure no exception details are exposed
             raise InvalidClientError("Client authentication failed") from None
 
+        # Checkmarx: Truncate client_id to first 8 chars before logging (prevents sensitive data exposure)
+        safe_client_id = client_id[:8] + "..." if len(client_id) > 8 else client_id
+        
         if client_id not in oauth_clients:
-            log_auth_info("warning", f"Unknown client_id attempted authentication: {client_id}")
+            log_auth_info("warning", f"Unknown client_id attempted authentication: {safe_client_id}")
             raise InvalidClientError("Client authentication failed")
 
         client_data = oauth_clients[client_id]
 
         if not client_data.get("is_active", False):
-            log_auth_info("warning", f"Disabled client attempted token request: {client_id}")
+            log_auth_info("warning", f"Disabled client attempted token request: {safe_client_id}")
             raise ClientDisabledError("Client account is disabled")
 
         stored_hash = client_data.get("client_secret_hash")
         if not stored_hash or not verify_password(client_secret, stored_hash):
-            log_auth_info("warning", f"Invalid client secret provided: {client_id}")
+            log_auth_info("warning", f"Invalid client secret provided: {safe_client_id}")
             raise InvalidClientError("Client authentication failed")
 
-        log_auth_info("info", f"Client credentials verified successfully: {client_id}")
+        log_auth_info("info", f"Client credentials verified successfully: {safe_client_id}")
         return client_data
 
     def generate_token(
@@ -259,6 +262,9 @@ class AuthService:
             InvalidScopeError: If requested scope is not allowed.
             TokenCreationError: If token creation fails.
         """
+        # Checkmarx: Truncate client_id for all logging in this method
+        safe_client_id = client_id[:8] + "..." if len(client_id) > 8 else client_id
+        
         client_data = self.verify_client_credentials(client_id, client_secret)
 
         allowed_scopes = client_data.get("allowed_scopes", DEFAULT_SCOPES)
@@ -268,9 +274,10 @@ class AuthService:
             requested_scopes = requested_scope.split()
             for scope in requested_scopes:
                 if scope not in allowed_scopes:
+                    # Checkmarx: Use truncated client_id to prevent sensitive data exposure
                     log_auth_info(
                         "warning",
-                        f"Client requested unauthorized scope: {scope}, client_id={client_id}",
+                        f"Client requested unauthorized scope: {scope}, client_id={safe_client_id}",
                     )
                     raise InvalidScopeError(f"Scope '{scope}' is not allowed for this client")
             granted_scopes = requested_scopes
@@ -284,10 +291,12 @@ class AuthService:
                 scopes=granted_scopes,
             )
         except JWTCreationError:
-            log_auth_info("error", f"Failed to create access token: {client_id}")
+            # Checkmarx: Use truncated client_id to prevent sensitive data exposure
+            log_auth_info("error", f"Failed to create access token: {safe_client_id}")
             raise TokenCreationError("Failed to create access token") from None
 
-        log_auth_info("info", f"Access token generated successfully: {client_id}")
+        # Checkmarx: Use truncated client_id to prevent sensitive data exposure
+        log_auth_info("info", f"Access token generated successfully: {safe_client_id}")
 
         return TokenResult(
             access_token=access_token,

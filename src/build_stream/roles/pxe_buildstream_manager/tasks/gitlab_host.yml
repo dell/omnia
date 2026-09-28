@@ -15,15 +15,15 @@
 
 - name: Load GitLab configuration inputs
   ansible.builtin.include_vars:
-    file: "{{ omnia_data_path }}/build_stream/input/{{ project_name | default('project_default') }}/build_stream_config.yml"
+    file: "{{ hostvars['localhost']['omnia_data_path'] }}/build_stream/input/{{ project_name }}/build_stream_config.yml"
 
 - name: Load BuildStream credentials
   ansible.builtin.include_role:
     name: orchestrator_common
     tasks_from: decrypt_include_encrypt.yml
   vars:
-    credential_file_path: "{{ omnia_data_path }}/build_stream/input/{{ project_name | default('project_default') }}/build_stream_credentials.yml"
-    vault_password_file: "{{ omnia_data_path }}/build_stream/input/{{ project_name | default('project_default') }}/.build_stream_credentials_key"
+    credential_file_path: "{{ hostvars['localhost']['omnia_data_path'] }}/build_stream/input/{{ project_name }}/build_stream_credentials.yml"
+    vault_password_file: "{{ hostvars['localhost']['omnia_data_path'] }}/build_stream/input/{{ project_name }}/.build_stream_credentials_key"
 
 - name: Validate GitLab SSH password
   ansible.builtin.assert:

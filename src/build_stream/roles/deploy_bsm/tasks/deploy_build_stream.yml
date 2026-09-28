@@ -279,13 +279,6 @@
     - jwt_regeneration_needed | bool
     - jwt_gen_result.rc | default(0) != 0
 
-# - name: Update project name in default.yml
-#  ansible.builtin.replace:
-#    path: "{{ build_stream_default_file }}"
-#    regexp: "{{ build_stream_project_default }}"
-#    replace: "{{ build_stream_project_build_stream }}"
-#  delegate_to: localhost
-
 # -------------------------------------------------------------------
 # 6) Deploy quadlet using template + restart via handlers
 # -------------------------------------------------------------------
@@ -340,7 +333,7 @@
           containers.podman.podman_container_exec:
             name: "{{ build_stream_container_name }}"
             command: >
-              python -m alembic -c {{ omnia_path }}/build_stream/infra/db/alembic.ini upgrade head
+              python -m alembic -c {{ build_stream_container_omnia_path }}/build_stream/infra/db/alembic.ini upgrade head
             env:
               DB_USER: "{{ postgres_user }}"
               DB_PASSWORD: "{{ postgres_password }}"

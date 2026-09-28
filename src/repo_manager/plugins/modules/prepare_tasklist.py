@@ -31,6 +31,7 @@ from ansible.module_utils.repo_manager.software_utils import (
     remove_duplicates_from_trans,
     build_repo_name,
     resolve_pulp_policy,
+    resolve_repository_pulp_policy,
 )
 from ansible.module_utils.repo_manager.catalog_resolver import (
     load_repo_manager_config,
@@ -101,15 +102,22 @@ task_count:
   returned: success
 """
 
-def packages_requiring_reconciliation(change_results, configured_registry_names):
+def packages_requiring_reconciliation(
+        change_results, configured_registry_names, rpm_policy_by_repo=None):
     """Return mirrored packages whose external Pulp state must be revalidated."""
     reconciliation_packages = []
+    rpm_policy_by_repo = rpm_policy_by_repo or {}
     for package_info in change_results.get("skip", []):
         package_type = package_info.get("type")
-        if package_type == "rpm_repo":
-            # rpm_repo means the package payload and dependencies must remain
-            # retrievable through Pulp, not merely present in repository metadata.
-            reconciliation_packages.append(package_info)
+        if package_type in ("rpm", "rpm_repo"):
+            repo_name = (
+                package_info.get("repo_name")
+                or package_info.get("definition", {}).get("repo_name", "")
+            )
+            if rpm_policy_by_repo.get(repo_name) == "on_demand":
+                # Reissue the DNF request so catalog-selected payloads remain
+                # retained after a policy transition or interrupted Pulp run.
+                reconciliation_packages.append(package_info)
             continue
 
         if (package_type == "image"
@@ -160,6 +168,7 @@ def main():
         config_dir = os.path.dirname(os.path.abspath(local_repo_config_path))
         config_data, _ = load_repo_manager_config(local_repo_config_path, logger)
         repo_config = get_repo_config_policy(config_data)
+        global_caching_policy = get_caching_policy(config_data)
 
         # Discover and load catalogs
         catalog_path = get_catalog_path(config_data, config_dir, logger)
@@ -234,9 +243,16 @@ def main():
             change_results = detect_package_changes(global_index, mirror_data, arch, logger)
             packages_to_process = filter_tasks_for_processing(change_results, logger)
 
+            rpm_policy_by_repo = {
+                repo_name: resolve_repository_pulp_policy(
+                    config_data, cluster_os_version, arch, repo_name, logger
+                )
+                for repo_name in referenced_repositories.get(arch, [])
+            }
+
             configured_registry_names = set((config_data.get("registries") or {}).keys())
             reconciliation_packages = packages_requiring_reconciliation(
-                change_results, configured_registry_names
+                change_results, configured_registry_names, rpm_policy_by_repo
             )
             if reconciliation_packages:
                 logger.info(
@@ -268,6 +284,20 @@ def main():
                 pkg_def["catalog_name"] = pkg_info["catalog_name"]
                 pkg_def["catalogs"] = pkg_info["catalogs"]
 
+                if pkg_def["type"] in ("rpm", "rpm_repo"):
+                    repo_name = (
+                        pkg_def.get("repo_name")
+                        or pkg_info.get("repo_name", "")
+                    )
+                    if repo_name not in rpm_policy_by_repo:
+                        rpm_policy_by_repo[repo_name] = (
+                            resolve_repository_pulp_policy(
+                                config_data, cluster_os_version, arch,
+                                repo_name, logger
+                            )
+                        )
+                    pkg_def["pulp_policy"] = rpm_policy_by_repo[repo_name]
+
                 if group_name not in tasks_by_group:
                     tasks_by_group[group_name] = []
                 tasks_by_group[group_name].append(pkg_def)
@@ -293,9 +323,6 @@ def main():
                         "pending", "", pkg_info.get("repo_name", "")
                     )
         save_mirror_index(mirror_index_path, mirror_data, logger)
-
-        # Get global caching policy from config
-        global_caching_policy = get_caching_policy(config_data)
 
         # Parse repository URLs from config
         local_config = []

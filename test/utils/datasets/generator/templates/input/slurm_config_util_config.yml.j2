@@ -1,0 +1,63 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# slurm_config_util_config.yml - Optional configuration for Slurm config utilities
+# =============================================================================
+# This whole file is optional. If it is absent, defaults derived from
+# OMNIA_DATA_PATH / OMNIA_PROJECT_NAME are used for every value below.
+
+# --- Input file overrides ---------------------------------------------------
+# Path to omnia_config.yml (contains slurm_cluster / nfs_storage_name)
+# Default: OMNIA_DATA_PATH/utils/input/OMNIA_PROJECT_NAME/omnia_config.yml
+omnia_config_path: "{{ omnia_config_path | default('') }}"
+
+# Path to storage_config.yml (contains NFS mount definitions)
+# Default: OMNIA_DATA_PATH/utils/input/OMNIA_PROJECT_NAME/storage_config.yml
+storage_config_path: "{{ storage_config_path | default('') }}"
+
+# Path to the PXE/node mapping file. This file identifies the Slurm controller(s)
+# and provides node-to-IP mappings. Two formats are supported:
+#   - YAML format (default): nodes_slurm.yaml (OpenChami-generated)
+#       Example: OMNIA_DATA_PATH/openchami/workdir/nodes/nodes_slurm.yaml
+#   - CSV format: pxe_mapping_file.csv (orchestrator-generated)
+#       Example: OMNIA_DATA_PATH/orchestrator/input/<project>/pxe_mapping_file.csv
+# Format is auto-detected from the file extension (.csv = CSV, otherwise YAML).
+# Default: OMNIA_DATA_PATH/utils/input/OMNIA_PROJECT_NAME/nodes_slurm.yaml
+pxe_mapping_path: "{{ pxe_mapping_path | default('') }}"
+
+# --- NFS share directory names (under the Slurm NFS mount) ------------------
+slurm_share_dir_name: "{{ slurm_share_dir_name | default('slurm') }}"
+slurm_backups_dir_name: "{{ slurm_backups_dir_name | default('slurm_backups') }}"
+
+# Specific NFS storage name (from storage_config.yml mounts) to use.
+# Leave empty to use slurm_cluster[0].nfs_storage_name from omnia_config.yml.
+nfs_storage_name: "{{ nfs_storage_name | default('') }}"
+
+# --- Backup destination override --------------------------------------------
+# May be a local absolute path or a raw NFS export "<server>:/<path>".
+# Leave empty to use (in order): OMNIA_BACKUP_PATH env var, then the default
+# path OMNIA_DATA_PATH/utils/output/OMNIA_PROJECT_NAME/slurm_config_util.
+slurm_backup_path: "{{ slurm_backup_path | default('') }}"
+
+# Optional base name for backup directories (prepended to timestamp).
+# Default: "slurm_config" creates "slurm_config_2026-09-14_20-05-08"
+backup_base_name: "{{ backup_base_name | default('slurm_config') }}"
+
+# --- Behavioral settings -----------------------------------------------------
+# Confirmation token required to proceed with slurm_cleanup
+slurm_cleanup_confirm_token: "{{ slurm_cleanup_confirm_token | default('YES') }}"
+
+# Maximum number of backups shown (latest first) during rollback selection
+rollback_backup_list_limit: {{ rollback_backup_list_limit | default(20) }}

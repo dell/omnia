@@ -23,11 +23,23 @@ All verification functions return a dict with keys:
   success (bool), details (str), error (str), and optionally skipped (bool).
 """
 
-import time
+import base64
+from contextlib import contextmanager
+import os
 import re
+import tempfile
+import time
 from typing import Any, Dict, List, Optional
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import (
+    connection_params,
+    load_test_config,
+    load_test_credentials,
+    run_on_host,
+    run_ssh_command,
+    sync_files,
+)
+from .project_func import resolve_target_input_project_path
 from ..vars.common_vars import CMDS
 from ..vars.slurm_vars import (
     SLURM_SERVICES,
@@ -49,10 +61,8 @@ def check_slurm_enabled(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error, skipped
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = (
         f"test -f {pxe_mapping_path} && "
@@ -97,9 +107,8 @@ def check_slurm_service_running(host) -> Dict[str, Any]:
         Dict with success, details, error
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -140,9 +149,8 @@ def check_slurm_services_running(host) -> Dict[str, Any]:
         Dict with success, details, error
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -183,9 +191,8 @@ def check_slurm_directories_exist(host) -> Dict[str, Any]:
         Dict with success, details, error
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -226,9 +233,8 @@ def check_slurm_config_files_exist(host) -> Dict[str, Any]:
         Dict with success, details, error
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -272,9 +278,8 @@ def check_slurm_config_integrity(host) -> Dict[str, Any]:
         Dict with success, details, error, skipped
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -287,7 +292,7 @@ def check_slurm_config_integrity(host) -> Dict[str, Any]:
         }
 
     control_ip = result.stdout.strip()
-    slurm_config_path = f"/opt/omnia/orchestrator/input/{project}/slurm_config.yml"
+    slurm_config_path = f"{input_path}/slurm_config.yml"
 
     # Check if slurm_config.yml exists
     cmd = f"test -f {slurm_config_path} && echo exists || echo missing"
@@ -408,9 +413,8 @@ def check_slurm_nodes_registered(host) -> Dict[str, Any]:
         Dict with success, details, error
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -452,9 +456,8 @@ def check_slurm_partitions_exist(host) -> Dict[str, Any]:
         Dict with success, details, error
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -496,9 +499,8 @@ def check_munge_service_running(host) -> Dict[str, Any]:
         Dict with success, details, error
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -539,9 +541,8 @@ def check_slurmctld_responding(host) -> Dict[str, Any]:
         Dict with success, details, error
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -582,9 +583,8 @@ def check_slurm_job_submission(host) -> Dict[str, Any]:
         Dict with success, details, error
     """
     # Read PXE mapping to get control node IP
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -642,9 +642,8 @@ def check_slurm_nodes_idle(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"grep 'slurm_control_node' {pxe_mapping_path} | cut -d',' -f7"
     result = run_on_host(host, cmd)
@@ -726,9 +725,8 @@ def get_nodes_by_functional_group(host, group_keyword: str) -> List[str]:
     Returns:
         List of node hostnames
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"if [ -f {pxe_mapping_path} ]; then tail -n +2 {pxe_mapping_path} | grep -i '{group_keyword}' | cut -d',' -f5 | grep -v '^$' | sort -u; else echo 'NO_PXE_FILE'; fi"
     result = run_on_host(host, cmd)
@@ -771,9 +769,8 @@ def get_node_ip_from_pxe_mapping(host, hostname: str) -> Optional[str]:
     Returns:
         IP address or None if not found
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    pxe_mapping_path = f"/opt/omnia/orchestrator/input/{project}/pxe_mapping_file.csv"
+    input_path = resolve_target_input_project_path(host)
+    pxe_mapping_path = f"{input_path}/pxe_mapping_file.csv"
 
     cmd = f"if [ -f {pxe_mapping_path} ]; then tail -n +2 {pxe_mapping_path} | grep -i '{hostname}' | cut -d',' -f7 | grep -v '^$' | head -1; else echo 'NO_IP'; fi"
     result = run_on_host(host, cmd)
@@ -1316,130 +1313,350 @@ def check_drain_undrain_nodes(host) -> Dict[str, Any]:
 # LDAP AUTHENTICATION TESTS
 # =============================================================================
 
-def check_ldap_user_login(host, username: str = "ldapuser") -> Dict[str, Any]:
-    """Test LDAP user login to SLURM nodes.
+_LDAP_USERNAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_.-]*$")
 
-    Args:
-        host: Testinfra host connection
-        username: LDAP username to test
 
-    Returns:
-        Dict with success, details, error, failed_nodes
-    """
-    login_nodes = get_login_nodes(host)
+def _load_ldap_test_credentials():
+    """Return test-owned LDAP credentials without reading product inputs."""
+    credentials = load_test_credentials()
+    username = credentials.get("ldap_username", "")
+    password = credentials.get("ldap_password", "")
+    if not username and not password:
+        return None, None
+    if not isinstance(username, str) or not isinstance(password, str):
+        raise ValueError("LDAP test credentials must be strings")
+    if not username or not password:
+        raise ValueError(
+            "Both ldap_username and ldap_password are required in test_creds.yml"
+        )
+    if not _LDAP_USERNAME_PATTERN.fullmatch(username):
+        raise ValueError("ldap_username contains unsupported characters")
+    return username, password
 
-    if not login_nodes:
+
+@contextmanager
+def _target_password_file(host, password):
+    """Place a mode-0600 password file on the OIM for one sshpass call."""
+    local_handle = tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        prefix="omnia_ldap_",
+        delete=False,
+    )
+    local_path = local_handle.name
+    remote_path = ""
+    try:
+        os.chmod(local_path, 0o600)
+        local_handle.write(password)
+        local_handle.flush()
+        local_handle.close()
+
+        created = run_on_host(host, "mktemp /tmp/omnia_ldap_XXXXXX")
+        if created.rc != 0 or not created.stdout.strip():
+            raise RuntimeError("Unable to create temporary LDAP credential file")
+        remote_path = created.stdout.strip()
+
+        connection = connection_params()
+        transfer = sync_files(
+            mode=connection["mode"],
+            src=local_path,
+            dest=remote_path,
+            ip=connection["ip"],
+            user=connection["user"],
+            port=connection["port"],
+            auth_secret=connection["auth_secret"],
+            ssh_opts=connection["ssh_opts"],
+        )
+        if not transfer["success"]:
+            raise RuntimeError(
+                "Unable to transfer temporary LDAP credential file: "
+                + transfer["error"]
+            )
+        secured = run_on_host(host, "chmod 0600 -- %s", remote_path)
+        if secured.rc != 0:
+            raise RuntimeError("Unable to secure temporary LDAP credential file")
+        yield remote_path
+    finally:
+        if not local_handle.closed:
+            local_handle.close()
+        try:
+            os.unlink(local_path)
+        except FileNotFoundError:
+            pass
+        if remote_path:
+            run_on_host(host, "rm -f -- %s", remote_path)
+
+
+def _ldap_credentials_or_result(username_override=None):
+    """Return credentials or a standard skipped/failed result."""
+    try:
+        username, password = _load_ldap_test_credentials()
+    except ValueError as exc:
+        return None, None, {
+            "success": False,
+            "skipped": False,
+            "details": str(exc),
+            "error": "Invalid LDAP test credentials",
+        }
+    if username is None:
+        return None, None, {
+            "success": False,
+            "skipped": True,
+            "details": (
+                "LDAP test credentials are not configured; run "
+                "./setup_env.sh --set-ldap-test-creds"
+            ),
+            "error": "LDAP test credentials missing",
+        }
+    if username_override:
+        if not _LDAP_USERNAME_PATTERN.fullmatch(username_override):
+            return None, None, {
+                "success": False,
+                "skipped": False,
+                "details": "LDAP username override is invalid",
+                "error": "Invalid LDAP username",
+            }
+        username = username_override
+    return username, password, None
+
+
+def _slurm_control_target(host):
+    """Return the first configured Slurm control node and its admin IP."""
+    controls = get_slurm_control_nodes(host)
+    if not controls:
+        return None, None
+    return controls[0], get_node_ip_from_pxe_mapping(host, controls[0])
+
+
+def _root_control_command(host, control_ip, command):
+    """Execute one command on the Slurm controller as root."""
+    return run_ssh_command(
+        host,
+        control_ip,
+        command,
+        user="root",
+        connect_timeout=10,
+    )
+
+
+def check_ldap_user_login(
+    host, username: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Verify interactive LDAP password login while the user owns a job."""
+    username, password, result = _ldap_credentials_or_result(username)
+    if result is not None:
+        return {**result, "failed_nodes": []}
+
+    control_name, control_ip = _slurm_control_target(host)
+    if not control_name or not control_ip:
         return {
             "success": False,
             "skipped": True,
-            "details": "No login nodes available for LDAP test",
-            "error": "No login nodes found",
-            "failed_nodes": []
+            "details": "No Slurm control node is available for the LDAP test",
+            "error": "No Slurm control node found",
+            "failed_nodes": [],
         }
 
-    # Get LDAP credentials from config
-    config = load_test_config()
-    ldap_creds = config.get("ldap_credentials", {})
-
-    if not ldap_creds:
+    sshpass = run_on_host(host, "command -v sshpass")
+    if sshpass.rc != 0:
         return {
             "success": False,
-            "skipped": True,
-            "details": "LDAP credentials not configured in test_config.yml",
-            "error": "LDAP credentials missing",
-            "failed_nodes": []
+            "skipped": False,
+            "details": "Install sshpass on the OIM to run LDAP password login",
+            "error": "sshpass is unavailable",
+            "failed_nodes": [],
         }
 
-    failed_nodes = []
-    for node in login_nodes:
-        node_ip = get_node_ip_from_pxe_mapping(host, node)
+    submit = _root_control_command(
+        host,
+        control_ip,
+        (
+            f"sudo -iu {username} sbatch --parsable "
+            "--job-name=omnia-ldap-login "
+            "--wrap='sleep 120' --output=/tmp/omnia_ldap_login_%j.out"
+        ),
+    )
+    job_match = re.search(r"^(\d+)", submit.stdout.strip())
+    if submit.rc != 0 or not job_match:
+        return {
+            "success": False,
+            "skipped": False,
+            "details": submit.stderr or submit.stdout,
+            "error": "Unable to submit the LDAP user's access-window job",
+            "failed_nodes": [],
+        }
+
+    job_id = job_match.group(1)
+    try:
+        allocated_node = ""
+        last_state = ""
+        for _ in range(20):
+            queued = _root_control_command(
+                host,
+                control_ip,
+                f"squeue -h -j {job_id} -o '%N|%T'",
+            )
+            if queued.rc == 0 and queued.stdout.strip():
+                node_field, _, state = queued.stdout.strip().partition("|")
+                last_state = state
+                if state.upper() == "RUNNING" and node_field not in {
+                    "",
+                    "(null)",
+                    "n/a",
+                }:
+                    allocated_node = node_field.split(",", 1)[0]
+                    break
+            time.sleep(1)
+
+        if not allocated_node:
+            return {
+                "success": False,
+                "skipped": False,
+                "details": (
+                    f"Job {job_id} did not reach RUNNING state "
+                    f"(last state: {last_state or 'unknown'})"
+                ),
+                "error": "LDAP access-window job was not allocated",
+                "failed_nodes": [],
+            }
+
+        node_ip = get_node_ip_from_pxe_mapping(host, allocated_node)
         if not node_ip:
-            failed_nodes.append(f"{node} (no IP)")
-            continue
+            return {
+                "success": False,
+                "skipped": False,
+                "details": f"No admin IP found for allocated node {allocated_node}",
+                "error": "Allocated Slurm node is absent from PXE mapping",
+                "failed_nodes": [allocated_node],
+            }
 
-        # Test SSH login with LDAP user
-        login_cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 {username}@{node_ip} 'echo \"Login successful\"' 2>&1"
-        result = run_on_host(host, login_cmd)
+        identity_ready = False
+        for _ in range(30):
+            identity = run_ssh_command(
+                host,
+                node_ip,
+                f"getent passwd {username}",
+                user="root",
+                connect_timeout=10,
+            )
+            if identity.rc == 0 and identity.stdout.strip():
+                identity_ready = True
+                break
+            time.sleep(1)
+        if not identity_ready:
+            return {
+                "success": False,
+                "skipped": False,
+                "details": (
+                    f"LDAP identity {username} did not become visible on "
+                    f"allocated node {allocated_node} within 30 seconds"
+                ),
+                "error": "LDAP identity did not propagate to allocated node",
+                "failed_nodes": [allocated_node],
+            }
 
-        if result.rc != 0 or "Login successful" not in result.stdout:
-            failed_nodes.append(node)
+        try:
+            with _target_password_file(host, password) as password_file:
+                command_parts = (
+                    "sshpass",
+                    "-f",
+                    password_file,
+                    "ssh",
+                    "-o",
+                    "StrictHostKeyChecking=accept-new",
+                    "-o",
+                    "ConnectTimeout=10",
+                    "-o",
+                    "PreferredAuthentications=password,keyboard-interactive",
+                    "-o",
+                    "PubkeyAuthentication=no",
+                    "--",
+                    f"{username}@{node_ip}",
+                    "id -un",
+                )
+                login = run_on_host(
+                    host,
+                    " ".join("%s" for _ in command_parts),
+                    *command_parts,
+                )
+        except (OSError, RuntimeError, ValueError) as exc:
+            return {
+                "success": False,
+                "skipped": False,
+                "details": str(exc),
+                "error": "Unable to prepare LDAP password login",
+                "failed_nodes": [allocated_node],
+            }
 
-    if not failed_nodes:
+        if login.rc != 0 or login.stdout.strip() != username:
+            return {
+                "success": False,
+                "skipped": False,
+                "details": login.stderr or login.stdout,
+                "error": (
+                    f"LDAP password login failed on allocated node "
+                    f"{allocated_node}"
+                ),
+                "failed_nodes": [allocated_node],
+            }
         return {
             "success": True,
-            "details": f"LDAP user {username} login successful on all {len(login_nodes)} login nodes",
+            "skipped": False,
+            "details": (
+                f"LDAP user {username} logged in to allocated node "
+                f"{allocated_node} while job {job_id} was active"
+            ),
             "error": "",
-            "failed_nodes": []
+            "failed_nodes": [],
         }
-
-    return {
-        "success": False,
-        "details": f"LDAP user login failed on {len(failed_nodes)}/{len(login_nodes)} login nodes",
-        "error": f"Failed nodes: {failed_nodes}",
-        "failed_nodes": failed_nodes
-    }
+    finally:
+        _root_control_command(host, control_ip, f"scancel {job_id}")
 
 
-def check_ldap_job_submission(host, username: str = "ldapuser") -> Dict[str, Any]:
-    """Test job submission by LDAP user.
+def check_ldap_job_submission(
+    host, username: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Verify the LDAP identity can submit a Slurm job without prompting."""
+    username, _, result = _ldap_credentials_or_result(username)
+    if result is not None:
+        return {**result, "job_id": None}
 
-    Args:
-        host: Testinfra host connection
-        username: LDAP username to test
-
-    Returns:
-        Dict with success, details, error, job_id
-    """
-    login_nodes = get_login_nodes(host)
-
-    if not login_nodes:
+    control_name, control_ip = _slurm_control_target(host)
+    if not control_name or not control_ip:
         return {
             "success": False,
             "skipped": True,
-            "details": "No login nodes available for LDAP job submission test",
-            "error": "No login nodes found",
-            "job_id": None
+            "details": "No Slurm control node is available for LDAP submission",
+            "error": "No Slurm control node found",
+            "job_id": None,
         }
 
-    login_node = login_nodes[0]
-    login_ip = get_node_ip_from_pxe_mapping(host, login_node)
-
-    if not login_ip:
+    submitted = _root_control_command(
+        host,
+        control_ip,
+        (
+            f"sudo -iu {username} sbatch --parsable "
+            "--job-name=omnia-ldap-submit "
+            "--wrap='true' --output=/tmp/omnia_ldap_submit_%j.out"
+        ),
+    )
+    job_match = re.search(r"^(\d+)", submitted.stdout.strip())
+    if submitted.rc != 0 or not job_match:
         return {
             "success": False,
-            "details": f"Could not get IP for login node {login_node}",
-            "error": "No IP available for login node",
-            "job_id": None
-        }
-
-    # Submit job as LDAP user
-    submit_cmd = f"ssh -o StrictHostKeyChecking=no {username}@{login_ip} 'sbatch --wrap=\"sleep 5\" --output=/tmp/ldap_test.out' 2>&1"
-    result = run_on_host(host, submit_cmd)
-
-    if result.rc != 0:
-        return {
-            "success": False,
-            "details": f"LDAP user job submission failed: {result.stdout}",
+            "skipped": False,
+            "details": submitted.stderr or submitted.stdout,
             "error": "LDAP user job submission failed",
-            "job_id": None
+            "job_id": None,
         }
 
-    job_id_match = re.search(r'Submitted batch job (\d+)', result.stdout)
-    if not job_id_match:
-        return {
-            "success": False,
-            "details": f"Could not extract job ID from LDAP user job submission: {result.stdout}",
-            "error": "Job ID extraction failed",
-            "job_id": None
-        }
-
-    job_id = job_id_match.group(1)
-
+    job_id = job_match.group(1)
     return {
         "success": True,
-        "details": f"LDAP user {username} successfully submitted job {job_id}",
+        "skipped": False,
+        "details": f"LDAP user {username} submitted Slurm job {job_id}",
         "error": "",
-        "job_id": job_id
+        "job_id": job_id,
     }
 
 
@@ -1477,29 +1694,35 @@ def check_gpu_available(host) -> Dict[str, Any]:
             "gpu_nodes": []
         }
 
-    # Check for GPU configuration in slurm.conf
-    check_cmd = f"ssh -o StrictHostKeyChecking=no {control_ip} 'grep -i gres /etc/slurm/slurm.conf' 2>/dev/null"
-    result = run_on_host(host, check_cmd)
+    # Query Slurm's resolved runtime GRES values.  A broad grep of slurm.conf
+    # can match comments or a bare ``GresTypes`` declaration and incorrectly
+    # claim that GPU nodes exist.
+    sinfo_result = run_ssh_command(
+        host,
+        control_ip,
+        "sinfo -h -o '%N|%G'",
+    )
+    gpu_nodes = []
+    if sinfo_result.rc == 0:
+        for line in sinfo_result.stdout.splitlines():
+            node_name, separator, gres = line.partition("|")
+            normalized_gres = gres.strip().lower()
+            if (
+                separator
+                and normalized_gres not in {"", "(null)", "n/a"}
+                and re.search(r"(?:^|,)gpu(?::|=)", normalized_gres)
+            ):
+                gpu_nodes.append(node_name.strip())
 
-    if result.rc == 0 and result.stdout.strip():
-        gpu_lines = [line.strip() for line in result.stdout.split('\n') if line.strip()]
+    if gpu_nodes:
         return {
             "success": True,
-            "details": f"GPU resources configured in slurm.conf: {len(gpu_lines)} GRES entries",
+            "details": (
+                "GPU resources reported by Slurm on nodes: "
+                + ", ".join(gpu_nodes)
+            ),
             "error": "",
-            "gpu_nodes": gpu_lines
-        }
-
-    # Check sinfo for GPU partitions
-    sinfo_cmd = f"ssh -o StrictHostKeyChecking=no {control_ip} 'sinfo -o \"%P %G\"' 2>/dev/null"
-    sinfo_result = run_on_host(host, sinfo_cmd)
-
-    if "gpu" in sinfo_result.stdout.lower():
-        return {
-            "success": True,
-            "details": "GPU resources found in SLURM partition configuration",
-            "error": "",
-            "gpu_nodes": []
+            "gpu_nodes": gpu_nodes
         }
 
     return {
@@ -1560,34 +1783,30 @@ def check_gpu_job_execution(host) -> Dict[str, Any]:
             "job_id": None
         }
 
-    # Submit a simple GPU job
-    gpu_job_cmd = f"ssh -o StrictHostKeyChecking=no {control_ip} 'sbatch --gres=gpu:1 --wrap=\"nvidia-smi\" --output=/tmp/gpu_test.out' 2>&1"
-    result = run_on_host(host, gpu_job_cmd)
+    # Execute synchronously so a successful submission cannot hide a failed
+    # allocation, driver problem, or workload failure.
+    result = run_ssh_command(
+        host,
+        control_ip,
+        "timeout 180 srun --nodes=1 --ntasks=1 --gres=gpu:1 nvidia-smi -L",
+    )
 
-    if result.rc != 0:
+    if result.rc != 0 or "GPU" not in result.stdout:
         return {
             "success": False,
-            "details": f"GPU job submission failed: {result.stdout}",
-            "error": "GPU job submission failed",
+            "details": (
+                f"GPU workload failed (rc={result.rc}): "
+                f"{result.stdout} {result.stderr}"
+            ),
+            "error": "GPU workload did not complete successfully",
             "job_id": None
         }
-
-    job_id_match = re.search(r'Submitted batch job (\d+)', result.stdout)
-    if not job_id_match:
-        return {
-            "success": False,
-            "details": f"Could not extract job ID from GPU job submission: {result.stdout}",
-            "error": "Job ID extraction failed",
-            "job_id": None
-        }
-
-    job_id = job_id_match.group(1)
 
     return {
         "success": True,
-        "details": f"GPU job {job_id} submitted successfully",
+        "details": "Synchronous Slurm GPU workload completed successfully",
         "error": "",
-        "job_id": job_id
+        "job_id": "synchronous"
     }
 
 
@@ -1763,11 +1982,35 @@ int main(int argc, char** argv) {
 }
 """
 
-    # This is a simplified test - in reality you'd need to compile and run the MPI program
+    encoded_program = base64.b64encode(mpi_program.encode("utf-8")).decode(
+        "ascii"
+    )
+    remote_script = f"""set -euo pipefail
+test -d /hpc_tools
+workdir=$(mktemp -d /hpc_tools/.omnia_mpi_test.XXXXXX)
+trap 'rm -r -- "$workdir"' EXIT
+printf '%s' '{encoded_program}' | base64 --decode > "$workdir/hello_mpi.c"
+mpicc -O2 -o "$workdir/hello_mpi" "$workdir/hello_mpi.c"
+timeout 180 srun --nodes=1 --ntasks=2 "$workdir/hello_mpi"
+"""
+    result = run_ssh_command(host, login_ip, remote_script)
+    rank_lines = [
+        line for line in result.stdout.splitlines()
+        if line.startswith("Hello from rank ")
+    ]
+    if result.rc != 0 or len(rank_lines) != 2:
+        return {
+            "success": False,
+            "details": (
+                f"MPI workload failed (rc={result.rc}): "
+                f"{result.stdout} {result.stderr}"
+            ),
+            "error": "MPI compile or Slurm execution failed",
+            "job_id": None,
+        }
     return {
         "success": True,
-        "details": "MPI job execution test structure verified (full execution requires compilation environment)",
+        "details": "MPI program compiled and completed as a two-rank Slurm job",
         "error": "",
-        "job_id": None
+        "job_id": "synchronous",
     }
-

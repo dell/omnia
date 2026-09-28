@@ -19,12 +19,12 @@ Verifies that each telemetry source's K8s resources have been removed
 after running the cleanup playbook.
 
 Test cases:
-    TC_CL_005: Verify cleanup_idrac removes iDRAC resources
-    TC_CL_006: Verify cleanup_ldms removes LDMS + Vector-LDMS
-    TC_CL_007: Verify cleanup_ome removes OME + Vector-OME
-    TC_CL_008: Verify cleanup_ufm removes UFM resources
-    TC_CL_009: Verify cleanup_vast removes VAST resources
-    TC_CL_010: Verify cleanup_sfm removes SFM resources
+    TEL_FVT_CLEANUP_V006: Verify cleanup_idrac removes iDRAC resources
+    TEL_FVT_CLEANUP_V007: Verify cleanup_ldms removes LDMS + Vector-LDMS
+    TEL_FVT_CLEANUP_V008: Verify cleanup_ome removes OME + Vector-OME
+    TEL_FVT_CLEANUP_V009: Verify cleanup_ufm removes UFM resources
+    TEL_FVT_CLEANUP_V010: Verify cleanup_vast removes VAST resources
+    TEL_FVT_CLEANUP_V011: Verify cleanup_sfm removes SFM resources
 """
 
 import pytest
@@ -57,7 +57,7 @@ from library.functions.cleanup_func import (
 @pytest.mark.functional
 @pytest.mark.order(51)
 def test_cleanup_idrac(host):
-    """TC_CL_005: Verify iDRAC telemetry resources removed after cleanup."""
+    """TEL_FVT_CLEANUP_V006: Verify iDRAC telemetry resources removed after cleanup."""
     tc = TC["cleanup_idrac"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -74,7 +74,7 @@ def test_cleanup_idrac(host):
 @pytest.mark.functional
 @pytest.mark.order(52)
 def test_cleanup_ldms(host):
-    """TC_CL_006: Verify LDMS + Vector-LDMS resources removed after cleanup."""
+    """TEL_FVT_CLEANUP_V007: Verify LDMS + Vector-LDMS resources removed after cleanup."""
     tc = TC["cleanup_ldms"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -91,7 +91,7 @@ def test_cleanup_ldms(host):
 @pytest.mark.functional
 @pytest.mark.order(53)
 def test_cleanup_ome(host):
-    """TC_CL_007: Verify OME + Vector-OME resources removed after cleanup."""
+    """TEL_FVT_CLEANUP_V008: Verify OME + Vector-OME resources removed after cleanup."""
     tc = TC["cleanup_ome"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -108,7 +108,7 @@ def test_cleanup_ome(host):
 @pytest.mark.functional
 @pytest.mark.order(54)
 def test_cleanup_ufm(host):
-    """TC_CL_008: Verify UFM telemetry resources removed after cleanup."""
+    """TEL_FVT_CLEANUP_V009: Verify UFM telemetry resources removed after cleanup."""
     tc = TC["cleanup_ufm"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -125,7 +125,7 @@ def test_cleanup_ufm(host):
 @pytest.mark.functional
 @pytest.mark.order(55)
 def test_cleanup_vast(host):
-    """TC_CL_009: Verify VAST telemetry resources removed after cleanup."""
+    """TEL_FVT_CLEANUP_V010: Verify VAST telemetry resources removed after cleanup."""
     tc = TC["cleanup_vast"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -142,7 +142,7 @@ def test_cleanup_vast(host):
 @pytest.mark.functional
 @pytest.mark.order(56)
 def test_cleanup_sfm(host):
-    """TC_CL_010: Verify SFM telemetry resources removed after cleanup."""
+    """TEL_FVT_CLEANUP_V011: Verify SFM telemetry resources removed after cleanup."""
     tc = TC["cleanup_sfm"]
     tl = TestLogger(tc["title"], tc["id"])
 

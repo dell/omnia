@@ -105,7 +105,12 @@ def main():
     )
     parser.add_argument(
         '--base-dir',
-        default='/opt/omnia/input/project_default/',
+        default=os.path.join(
+            os.getenv('OMNIA_DATA_PATH', '/opt/omnia'),
+            'build_stream',
+            'input',
+            os.getenv('OMNIA_PROJECT_NAME', 'project_default'),
+        ),
         help='Project base directory containing input/ and build_stream/ folders, or the input/ directory itself.'
     )
     args = parser.parse_args()

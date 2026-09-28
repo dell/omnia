@@ -4,8 +4,9 @@ Cleans up image-build infrastructure and local data. The normal `cleanup` flow
 removes local MinIO (unless PowerScale is selected), the local registry,
 project output, work/data directories, logs, credentials, and `/root/.s3cfg`.
 
-The full cleanup removes the shared domain `output/` and `log/` roots, so it
-affects all projects that use that domain data path.
+The full cleanup removes all contents from the shared domain `output/` and
+`log/` roots and then recreates those roots as empty directories, so it affects
+all projects that use that domain data path.
 
 The separate `cleanup_images.yml` task file deletes matching objects from the
 `boot-images` bucket when `s3cmd` and `/root/.s3cfg` exist, and matching

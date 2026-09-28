@@ -31,13 +31,15 @@ Offline mode characteristics:
     - Container images from local registry
 
 Test cases:
-    TC_SR_100: Verify install_mode configuration is valid
-    TC_SR_101: Verify Python packages installed correctly for current mode
-    TC_SR_102: Verify iDRAC deployment succeeded in current mode
-    TC_SR_103: Verify iDRAC pods running in current mode
-    TC_SR_104: Verify PowerScale dependencies available for current mode
-    TC_SR_105: Verify PowerScale deployment succeeded in current mode
+    TEL_FVT_DEPLOY_V110: Verify install_mode configuration is valid
+    TEL_FVT_DEPLOY_V111: Verify Python packages installed correctly for current mode
+    TEL_FVT_DEPLOY_V112: Verify iDRAC deployment succeeded in current mode
+    TEL_FVT_DEPLOY_V113: Verify iDRAC pods running in current mode
+    TEL_FVT_DEPLOY_V114: Verify PowerScale dependencies available for current mode
+    TEL_FVT_DEPLOY_V115: Verify PowerScale deployment succeeded in current mode
 """
+
+import shlex
 
 import pytest
 import yaml
@@ -108,6 +110,21 @@ def _get_repo_url(host):
     return data.get("repo_url")
 
 
+def _get_k8s_cluster_mount(host):
+    """Read the shared Kubernetes mount used by telemetry deployment."""
+    input_path = _get_input_path(host)
+    file_path = f"{input_path}/{TELEMETRY_PACKAGES_FILE}"
+    cmd = CMDS["cat_file"].format(path=file_path)
+    result = run_on_host(host, cmd)
+    if result.rc != 0 or not result.stdout.strip():
+        return "/opt/omnia/k8s_mount"
+    try:
+        data = yaml.safe_load(result.stdout) or {}
+    except yaml.YAMLError:
+        return "/opt/omnia/k8s_mount"
+    return str(data.get("k8s_cluster_mount") or "/opt/omnia/k8s_mount")
+
+
 def _skip_if_idrac_disabled(host):
     """Skip test if iDRAC source is not enabled or not deployed."""
     if not is_source_enabled(host, "idrac"):
@@ -124,14 +141,14 @@ def _skip_if_powerscale_disabled(host):
 
 
 # =========================================================================
-# TC_SR_100: Verify install_mode configuration is valid
+# TEL_FVT_DEPLOY_V110: Verify install_mode configuration is valid
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(100)
 def test_install_mode_config(host):
-    """TC_SR_100: Verify telemetry_packages.yml has a valid install_mode."""
+    """TEL_FVT_DEPLOY_V110: Verify telemetry_packages.yml has a valid install_mode."""
     tc = TC["install_mode_config"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -172,14 +189,14 @@ def test_install_mode_config(host):
 
 
 # =========================================================================
-# TC_SR_101: Verify Python packages installed correctly for current mode
+# TEL_FVT_DEPLOY_V111: Verify Python packages installed correctly for current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(101)
 def test_python_packages_installed(host):
-    """TC_SR_101: Verify Python packages installed for the current mode."""
+    """TEL_FVT_DEPLOY_V111: Verify Python packages installed for the current mode."""
     _skip_if_idrac_disabled(host)
     tc = TC["install_mode_python_packages"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -213,14 +230,14 @@ def test_python_packages_installed(host):
 
 
 # =========================================================================
-# TC_SR_102: Verify iDRAC deployment succeeded in current mode
+# TEL_FVT_DEPLOY_V112: Verify iDRAC deployment succeeded in current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(102)
 def test_idrac_deployment(host):
-    """TC_SR_102: Verify iDRAC deployment succeeded in the current mode."""
+    """TEL_FVT_DEPLOY_V112: Verify iDRAC deployment succeeded in the current mode."""
     _skip_if_idrac_disabled(host)
     tc = TC["install_mode_idrac_deployment"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -258,14 +275,14 @@ def test_idrac_deployment(host):
 
 
 # =========================================================================
-# TC_SR_103: Verify iDRAC pods running in current mode
+# TEL_FVT_DEPLOY_V113: Verify iDRAC pods running in current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(103)
 def test_idrac_pods(host):
-    """TC_SR_103: Verify iDRAC pods running in the current mode."""
+    """TEL_FVT_DEPLOY_V113: Verify iDRAC pods running in the current mode."""
     _skip_if_idrac_disabled(host)
     tc = TC["install_mode_idrac_pods"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -306,23 +323,29 @@ def test_idrac_pods(host):
 
 
 # =========================================================================
-# TC_SR_104: Verify PowerScale dependencies available for current mode
+# TEL_FVT_DEPLOY_V114: Verify PowerScale dependencies available for current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(104)
 def test_powerscale_dependencies(host):
-    """TC_SR_104: Verify PowerScale dependencies for the current mode."""
+    """TEL_FVT_DEPLOY_V114: Verify PowerScale dependencies for the current mode."""
     _skip_if_powerscale_disabled(host)
     tc = TC["install_mode_powerscale_deps"]
     tl = TestLogger(tc["title"], tc["id"])
 
     install_mode = _get_install_mode(host) or "unknown"
+    k8s_cluster_mount = _get_k8s_cluster_mount(host).rstrip("/")
+    dependency_root = (
+        f"{k8s_cluster_mount}/telemetry/karavi-observability"
+    )
+    tl.check(f"Using k8s_cluster_mount path: {k8s_cluster_mount}")
 
     if install_mode == "online":
         tl.check("Checking karavi-observability git clone")
-        cmd = "ls -la /opt/omnia/k8s_mount/telemetry/karavi-observability/karavi-observability/.git 2>/dev/null"
+        repo_path = f"{dependency_root}/karavi-observability/.git"
+        cmd = f"test -d {shlex.quote(repo_path)}"
         result = run_on_kube_vip(host, cmd)
 
         if result.rc == 0:
@@ -339,7 +362,8 @@ def test_powerscale_dependencies(host):
             pytest.fail("karavi-observability git repo not found")
 
         tl.check("Checking helm-charts git clone")
-        cmd = "ls -la /opt/omnia/k8s_mount/telemetry/karavi-observability/helm-charts/.git 2>/dev/null"
+        repo_path = f"{dependency_root}/helm-charts/.git"
+        cmd = f"test -d {shlex.quote(repo_path)}"
         result = run_on_kube_vip(host, cmd)
 
         if result.rc == 0:
@@ -356,36 +380,51 @@ def test_powerscale_dependencies(host):
             pytest.fail("helm-charts git repo not found")
     else:
         # Offline mode: verify Pulp-based artifacts exist
-        tl.check("Checking PowerScale helm chart available from local repo")
-        cmd = "ls /opt/omnia/k8s_mount/telemetry/karavi-observability/ 2>/dev/null"
+        tl.check("Checking extracted PowerScale dependencies from local repo")
+        dependency_paths = [
+            f"{dependency_root}/karavi-observability",
+            f"{dependency_root}/helm-charts/charts/karavi-observability",
+        ]
+        cmd = (
+            f"test -d {shlex.quote(dependency_paths[0])} -a -d "
+            f"{shlex.quote(dependency_paths[1])}"
+        )
         result = run_on_kube_vip(host, cmd)
 
-        if result.rc == 0 and result.stdout.strip():
+        if result.rc == 0:
+            details = (
+                "Extracted dependencies found: "
+                + ", ".join(dependency_paths)
+            )
             tl.passed(
                 LOG_MSGS["deployment_success"].format(
                     component=f"PowerScale dependencies ({install_mode} mode)"
                 ),
-                f"Files found in karavi-observability directory",
+                details,
             )
         else:
+            details = (
+                "Missing one or more extracted dependencies: "
+                + ", ".join(dependency_paths)
+            )
             tl.failed(
                 LOG_MSGS["deployment_failed"].format(
-                    component=f"PowerScale dependencies ({install_mode} mode)"
+                    details=details,
                 ),
-                "",
+                details,
             )
-            pytest.fail("PowerScale dependencies not found")
+            pytest.fail(details)
 
 
 # =========================================================================
-# TC_SR_105: Verify PowerScale deployment succeeded in current mode
+# TEL_FVT_DEPLOY_V115: Verify PowerScale deployment succeeded in current mode
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(105)
 def test_powerscale_deployment(host):
-    """TC_SR_105: Verify PowerScale deployment succeeded in the current mode."""
+    """TEL_FVT_DEPLOY_V115: Verify PowerScale deployment succeeded in the current mode."""
     _skip_if_powerscale_disabled(host)
     tc = TC["install_mode_powerscale_deployment"]
     tl = TestLogger(tc["title"], tc["id"])

@@ -15,7 +15,7 @@
 """
 Orchestrator Provision — Deploy.
 
-TC_PV_000: Deploy orchestrator.yml (full provisioning)
+ORCH_FVT_PROVISION_E001: Deploy orchestrator.yml (full provisioning)
 """
 
 import pytest
@@ -33,11 +33,11 @@ from library.messages import (
 @pytest.mark.buildstream
 @pytest.mark.order(0)
 def test_deploy_provision(host):
-    """TC_PV_000: Deploy orchestrator.yml (full provisioning)."""
+    """ORCH_FVT_PROVISION_E001: Deploy orchestrator.yml --tags provision."""
     tl = TestLogger(
-        TEST_NAMES["deploy_playbook_full"], "TC_PV_000"
+        TEST_NAMES["deploy_playbook_full"], "ORCH_FVT_PROVISION_E001"
     )
-    result = run_playbook(timeout=7200)
+    result = run_playbook(tag="provision", timeout=7200)
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
@@ -52,6 +52,6 @@ def test_deploy_provision(host):
         )
 
     assert result["success"], ASSERT["playbook_failed"].format(
-        playbook="orchestrator.yml", tag="(full)",
+        playbook="orchestrator.yml", tag="provision",
         rc=result["rc"], duration=result["duration"],
     )

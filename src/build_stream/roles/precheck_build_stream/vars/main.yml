@@ -18,8 +18,8 @@
 # Minimal checks to verify that repo_manager and image_build_manager
 # have completed prepare-base (containers running + credentials present).
 
-omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
-omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+omnia_data_path: "{{ hostvars['localhost']['omnia_data_path'] }}"
+omnia_project_name: "{{ hostvars['localhost']['project_name'] }}"
 
 # Containers that must be running (deployed by prepare-base)
 required_containers:

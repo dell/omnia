@@ -35,7 +35,7 @@ from library.functions import (
     check_file_exists,
     find_log_bundle,
     get_utils_input_path,
-    get_utils_output_path,
+    get_collect_output_path,
     load_test_config,
     run_playbook,
     validate_bundle_log_files,
@@ -326,7 +326,7 @@ def test_collect_output_dir_exists(host):
     tc = TC["collect_output_dir_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    output_path = get_utils_output_path(host)
+    output_path = get_collect_output_path(host)
     result = check_dir_exists(host, output_path)
 
     if result["success"]:
@@ -345,7 +345,7 @@ def test_collect_bundle_created(host):
     tc = TC["collect_bundle_created"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    output_path = get_utils_output_path(host)
+    output_path = get_collect_output_path(host)
     result = find_log_bundle(host, output_path)
 
     if result["success"]:
@@ -364,7 +364,7 @@ def test_collect_metadata_exists(host):
     tc = TC["collect_metadata_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    output_path = get_utils_output_path(host)
+    output_path = get_collect_output_path(host)
     # Find any metadata.json file in the collect directory tree
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
     result = host.run(cmd)
@@ -393,7 +393,7 @@ def test_collect_metadata_valid(host):
     tc = TC["collect_metadata_valid"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    output_path = get_utils_output_path(host)
+    output_path = get_collect_output_path(host)
     # Find any metadata.json file in the collect directory tree
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
     result = host.run(cmd)
@@ -422,7 +422,7 @@ def test_collect_metadata_sha256(host):
     tc = TC["collect_metadata_sha256"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    output_path = get_utils_output_path(host)
+    output_path = get_collect_output_path(host)
     # Find any metadata.json file in the collect directory tree
     cmd = f"find {output_path} -name 'metadata.json' 2>/dev/null | head -1"
     result = host.run(cmd)
@@ -451,7 +451,7 @@ def test_collect_bundle_contents(host):
     tc = TC["collect_bundle_contents"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    output_path = get_utils_output_path(host)
+    output_path = get_collect_output_path(host)
     bundle_result = find_log_bundle(host, output_path)
 
     if not bundle_result["success"]:
@@ -479,7 +479,7 @@ def test_collect_bundle_log_files_content(host):
     tc = TC["collect_bundle_log_files_content"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    output_path = get_utils_output_path(host)
+    output_path = get_collect_output_path(host)
     bundle_result = find_log_bundle(host, output_path)
 
     if not bundle_result["success"]:

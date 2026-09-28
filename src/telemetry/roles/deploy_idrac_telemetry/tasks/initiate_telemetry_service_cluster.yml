@@ -42,48 +42,6 @@
     disabled_telemetry_count: 0
     disabled_telemetry_ips: []
 
-- name: Set BMC group data filename from bmc_group_data_path
-  ansible.builtin.set_fact:
-    bmc_group_data_filename: "{{ hostvars['localhost']['bmc_group_data_path'] }}"
-  when:
-    - hostvars['localhost']['bmc_group_data_path'] is defined
-    - hostvars['localhost']['bmc_group_data_path'] | length > 0
-
-- name: Load BMC inventory from bmc_group_data.csv
-  ansible.builtin.set_fact:
-    bmc_group_data_lines: "{{ lookup('file', bmc_group_data_filename).split('\n') }}"
-  when:
-    - bmc_group_data_filename is defined
-    - bmc_group_data_filename | length > 0
-
-- name: Parse BMC group data CSV and create parent-to-IP mapping
-  ansible.builtin.set_fact:
-    bmc_ips_dict: >-
-      {%- set result = {'MGMT_node': []} -%}
-      {%- for line in bmc_group_data_lines[1:] if line.strip() -%}
-        {%- set parts = line.split(',') -%}
-        {%- if parts | length >= 3 -%}
-          {%- set bmc_ip = parts[0].strip() -%}
-          {%- set parent = parts[2].strip() -%}
-          {%- if parent -%}
-            {%- set _ = result.update({parent: result.get(parent, []) + [bmc_ip]}) -%}
-          {%- else -%}
-            {%- set _ = result['MGMT_node'].append(bmc_ip) -%}
-          {%- endif -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ result }}
-
-- name: Create service_cluster_metadata for single-pod iDRAC telemetry deployment
-  ansible.builtin.set_fact:
-    service_cluster_metadata:
-      MGMT_node:
-        parent_status: true
-        service_tag: MGMT_node
-        role: service_kube_control_plane
-        idrac_podname: idrac-telemetry-0
-  when: service_cluster_metadata is not defined
-
 - name: Fetch iDRAC BMC IPs for each pod
   fetch_idrac_ips:
     service_cluster_metadata: "{{ service_cluster_metadata }}"
@@ -344,20 +302,12 @@
     - telemetry_idrac | length > 0
   block:
     - name: Restart iDRAC telemetry StatefulSet
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: apps/v1
-          kind: StatefulSet
-          metadata:
-            name: "{{ idrac_telemetry_k8s_name }}"
-            namespace: "{{ telemetry_namespace }}"
-          spec:
-            template:
-              metadata:
-                annotations:
-                  kubectl.kubernetes.io/restartedAt: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+      ansible.builtin.command: >
+        kubectl rollout restart
+        statefulset/{{ idrac_telemetry_k8s_name }}
+        -n {{ telemetry_namespace }}
       register: restart_statefulset
+      changed_when: restart_statefulset.rc == 0
   rescue:
     - name: StatefulSet restart failed
       ansible.builtin.fail:

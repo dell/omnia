@@ -1,0 +1,116 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# =============================================================================
+# parse_pxe_mapping.yml - Identify the Slurm controller from the PXE mapping
+# =============================================================================
+# Supports two input formats:
+#   - YAML (default): openchami-generated nodes_slurm.yaml
+#       nodes: [{name, group, interfaces: [{ip_addrs: [{ip_addr}]}]}]
+#   - CSV: pxe_mapping_file.csv (pre-openchami inventory)
+#       FUNCTIONAL_GROUP_NAME,GROUP_NAME,...,HOSTNAME,...,ADMIN_IP,...
+
+- name: Validate PXE mapping file exists
+  ansible.builtin.stat:
+    path: "{{ pxe_mapping_path_effective }}"
+  register: _pxe_mapping_stat
+
+- name: Fail if PXE mapping file not found
+  ansible.builtin.fail:
+    msg: "PXE mapping file not found at {{ pxe_mapping_path_effective }}"
+  when: not _pxe_mapping_stat.stat.exists
+
+- name: Detect PXE mapping file format
+  ansible.builtin.set_fact:
+    pxe_mapping_format: "{{ 'csv' if (pxe_mapping_path_effective | lower).endswith('.csv') else 'yaml' }}"
+
+# --- YAML format -------------------------------------------------------------
+
+- name: Load nodes from YAML PXE mapping
+  ansible.builtin.include_vars:
+    file: "{{ pxe_mapping_path_effective }}"
+    name: pxe_mapping_yaml
+  when: pxe_mapping_format == 'yaml'
+
+- name: Build IP-to-name mapping from YAML
+  ansible.builtin.set_fact:
+    ip_name_map: "{{ ip_name_map | default({}) | combine({item.name: item.interfaces[0].ip_addrs[0].ip_addr}) }}"
+  loop: "{{ pxe_mapping_yaml.nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: pxe_mapping_format == 'yaml'
+
+- name: Build group-to-nodes mapping from YAML
+  ansible.builtin.set_fact:
+    grouped_nodes: >-
+      {{ grouped_nodes | default({}) | combine({item.group: (grouped_nodes | default({}) | dict2items
+         | selectattr('key', 'equalto', item.group) | map(attribute='value') | list | first | default([])) + [item.name]}) }}
+  loop: "{{ pxe_mapping_yaml.nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: pxe_mapping_format == 'yaml'
+
+# --- CSV format ----------------------------------------------------------
+
+- name: Read CSV PXE mapping file
+  ansible.builtin.read_csv:
+    path: "{{ pxe_mapping_path_effective }}"
+  register: _pxe_mapping_csv
+  when: pxe_mapping_format == 'csv'
+
+- name: Build IP-to-name mapping from CSV
+  ansible.builtin.set_fact:
+    ip_name_map: "{{ ip_name_map | default({}) | combine({item.HOSTNAME: item.ADMIN_IP}) }}"
+  loop: "{{ _pxe_mapping_csv.list }}"
+  loop_control:
+    label: "{{ item.HOSTNAME }}"
+  when: pxe_mapping_format == 'csv'
+
+- name: Build group-to-nodes mapping from CSV
+  ansible.builtin.set_fact:
+    grouped_nodes: >-
+      {{ grouped_nodes | default({}) | combine({item.FUNCTIONAL_GROUP_NAME: (grouped_nodes | default({}) | dict2items
+         | selectattr('key', 'equalto', item.FUNCTIONAL_GROUP_NAME) | map(attribute='value') | list | first | default([])) + [item.HOSTNAME]}) }}
+  loop: "{{ _pxe_mapping_csv.list }}"
+  loop_control:
+    label: "{{ item.HOSTNAME }}"
+  when: pxe_mapping_format == 'csv'
+
+# --- Common: identify Slurm controller(s) -------------------------------
+
+- name: Assign Slurm controller list
+  ansible.builtin.set_fact:
+    ctld_list: "{{ grouped_nodes | default({}) | dict2items
+                   | selectattr('key', 'match', '^slurm_control_node_')
+                   | map(attribute='value') | list | flatten }}"
+
+- name: Fail if Slurm controller list is empty
+  ansible.builtin.fail:
+    msg: >-
+      Slurm controller functional group (slurm_control_node_*) is missing from the
+      PXE mapping file ({{ pxe_mapping_path_effective }}). Please update the file and rerun.
+  when: ctld_list | length == 0
+
+- name: Set Slurm controller hostname and IP
+  ansible.builtin.set_fact:
+    slurm_controller_hostname: "{{ ctld_list | first }}"
+    slurm_controller_ip: "{{ ip_name_map[ctld_list | first] }}"
+
+- name: Add Slurm controller as dynamic host
+  ansible.builtin.add_host:
+    name: slurm_controller
+    ansible_host: "{{ slurm_controller_ip }}"
+    ansible_user: root
+    ansible_port: 22

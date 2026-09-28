@@ -1,0 +1,124 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# =============================================================================
+# resolve_inputs.yml - Load optional config file, omnia_config.yml, storage_config.yml
+# =============================================================================
+
+- name: Check for optional slurm_config_util_config.yml
+  ansible.builtin.stat:
+    path: "{{ slurm_config_util_config_file }}"
+  register: _slurm_config_stat
+
+- name: Load slurm_config_util_config.yml when present
+  ansible.builtin.include_vars:
+    file: "{{ slurm_config_util_config_file }}"
+    name: slurm_util_config
+  when: _slurm_config_stat.stat.exists
+
+- name: Resolve effective input paths (CLI extra-var > config file > default)
+  ansible.builtin.set_fact:
+    omnia_config_path_effective: >-
+      {{ omnia_config_path | default('', true)
+         or (slurm_util_config.omnia_config_path | default('', true) if _slurm_config_stat.stat.exists else '')
+         or default_omnia_config_path }}
+    storage_config_path_effective: >-
+      {{ storage_config_path | default('', true)
+         or (slurm_util_config.storage_config_path | default('', true) if _slurm_config_stat.stat.exists else '')
+         or default_storage_config_path }}
+    pxe_mapping_path_effective: >-
+      {{ pxe_mapping_path | default('', true)
+         or (slurm_util_config.pxe_mapping_path | default('', true) if _slurm_config_stat.stat.exists else '')
+         or default_pxe_mapping_path }}
+    slurm_share_dir_name_effective: >-
+      {{ (slurm_util_config.slurm_share_dir_name | default('', true) if _slurm_config_stat.stat.exists else '')
+         or slurm_share_dir_name }}
+    slurm_backups_dir_name_effective: >-
+      {{ (slurm_util_config.slurm_backups_dir_name | default('', true) if _slurm_config_stat.stat.exists else '')
+         or slurm_backups_dir_name }}
+    slurm_cleanup_confirm_token_effective: >-
+      {{ (slurm_util_config.slurm_cleanup_confirm_token | default('', true) if _slurm_config_stat.stat.exists else '')
+         or slurm_cleanup_confirm_token }}
+    rollback_backup_list_limit_effective: >-
+      {{ (rollback_backup_list_limit | default('', true))
+         or (slurm_util_config.rollback_backup_list_limit | default('', true) if _slurm_config_stat.stat.exists else '')
+         or slurm_rollback_backup_list_limit_default }}
+    nfs_storage_name_override: >-
+      {{ nfs_storage_name | default('', true)
+         or (slurm_util_config.nfs_storage_name | default('', true) if _slurm_config_stat.stat.exists else '') }}
+    slurm_config_path_override: >-
+      {{ slurm_config_path | default('', true)
+         or (slurm_util_config.slurm_config_path | default('', true) if _slurm_config_stat.stat.exists else '') }}
+    backup_base_name_effective: >-
+      {{ backup_base_name | default('slurm_config', true)
+         or (slurm_util_config.backup_base_name | default('slurm_config', true) if _slurm_config_stat.stat.exists else 'slurm_config') }}
+
+- name: Validate omnia_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ omnia_config_path_effective }}"
+  register: _omnia_config_stat
+
+- name: Fail if omnia_config.yml not found
+  ansible.builtin.fail:
+    msg: "omnia_config.yml not found at {{ omnia_config_path_effective }}"
+  when: not _omnia_config_stat.stat.exists
+
+- name: Validate storage_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ storage_config_path_effective }}"
+  register: _storage_config_stat
+
+- name: Fail if storage_config.yml not found
+  ansible.builtin.fail:
+    msg: "storage_config.yml not found at {{ storage_config_path_effective }}"
+  when: not _storage_config_stat.stat.exists
+
+- name: Load omnia_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ omnia_config_path_effective }}"
+    name: omnia_config_data
+
+- name: Load storage_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ storage_config_path_effective }}"
+    name: storage_config_data
+
+- name: Validate slurm_cluster configuration
+  ansible.builtin.fail:
+    msg: "slurm_cluster is not configured or is empty in omnia_config.yml. Please configure slurm_cluster first."
+  when: >-
+    omnia_config_data.slurm_cluster is not defined
+    or omnia_config_data.slurm_cluster is none
+    or (omnia_config_data.slurm_cluster | default([])) | length == 0
+
+- name: Resolve NFS storage name
+  ansible.builtin.set_fact:
+    nfs_storage_name_effective: "{{ nfs_storage_name_override or omnia_config_data.slurm_cluster[0].nfs_storage_name }}"
+
+- name: Match NFS storage entry in storage_config.yml mounts
+  ansible.builtin.set_fact:
+    _matched_nfs_mounts: >-
+      {{ storage_config_data.mounts | selectattr('name', 'equalto', nfs_storage_name_effective) | list }}
+
+- name: Fail if NFS storage name not found in storage_config.yml
+  ansible.builtin.fail:
+    msg: >-
+      NFS storage '{{ nfs_storage_name_effective }}' referenced by slurm_cluster is not
+      defined in storage_config.yml mounts.
+  when: _matched_nfs_mounts | length == 0
+
+- name: Resolve share path from storage_config.yml mounts
+  ansible.builtin.set_fact:
+    share_path: "{{ _matched_nfs_mounts[0].mount_point }}"

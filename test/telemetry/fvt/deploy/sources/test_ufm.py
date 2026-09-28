@@ -25,10 +25,10 @@ UFM Architecture:
         UFM Prometheus Exporter (HTTPS) -> vmagent(shared) -> VictoriaMetrics
 
 Test cases:
-    TC_SR_060: Verify UFM external service exists with correct endpoint
-    TC_SR_061: Verify UFM VMServiceScrape CR exists
-    TC_SR_062: Verify UFM credentials K8s secret exists
-    TC_SR_063: Verify UFM InfiniBand metrics in VictoriaMetrics
+    TEL_FVT_DEPLOY_V060: Verify UFM external service exists with correct endpoint
+    TEL_FVT_DEPLOY_V061: Verify UFM VMServiceScrape CR exists
+    TEL_FVT_DEPLOY_V062: Verify UFM credentials K8s secret exists
+    TEL_FVT_DEPLOY_V063: Verify UFM InfiniBand metrics in VictoriaMetrics
 """
 
 import pytest
@@ -39,7 +39,7 @@ from library.messages.ufm_msgs import (
     UFM_DETAIL_MSGS as DETAIL_MSGS,
     UFM_LOG_MSGS as LOG_MSGS,
 )
-from library.functions.telemetry_func import is_source_enabled
+from library.functions.telemetry_func import is_source_enabled, is_sink_enabled_for_source
 from library.functions.ufm_func import (
     verify_ufm_external_service,
     verify_ufm_vmscrape,
@@ -57,7 +57,7 @@ def _skip_if_ufm_disabled(host):
 
 
 # =========================================================================
-# TC_SR_060: Verify UFM external service exists with correct endpoint
+# TEL_FVT_DEPLOY_V060: Verify UFM external service exists with correct endpoint
 # =========================================================================
 
 @pytest.mark.source
@@ -65,7 +65,7 @@ def _skip_if_ufm_disabled(host):
 @pytest.mark.ufm
 @pytest.mark.order(70)
 def test_ufm_external_service(host):
-    """TC_SR_060: Verify UFM external service exists with correct endpoint."""
+    """TEL_FVT_DEPLOY_V060: Verify UFM external service exists with correct endpoint."""
     _skip_if_ufm_disabled(host)
     tc = TC["ufm_external_svc"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -109,7 +109,7 @@ def test_ufm_external_service(host):
 
 
 # =========================================================================
-# TC_SR_061: Verify UFM VMServiceScrape CR exists
+# TEL_FVT_DEPLOY_V061: Verify UFM VMServiceScrape CR exists
 # =========================================================================
 
 @pytest.mark.source
@@ -117,7 +117,7 @@ def test_ufm_external_service(host):
 @pytest.mark.ufm
 @pytest.mark.order(71)
 def test_ufm_vmscrape(host):
-    """TC_SR_061: Verify UFM VMServiceScrape CR exists."""
+    """TEL_FVT_DEPLOY_V061: Verify UFM VMServiceScrape CR exists."""
     _skip_if_ufm_disabled(host)
     tc = TC["ufm_vmscrape"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -147,7 +147,7 @@ def test_ufm_vmscrape(host):
 
 
 # =========================================================================
-# TC_SR_062: Verify UFM credentials K8s secret exists
+# TEL_FVT_DEPLOY_V062: Verify UFM credentials K8s secret exists
 # =========================================================================
 
 @pytest.mark.source
@@ -155,7 +155,7 @@ def test_ufm_vmscrape(host):
 @pytest.mark.ufm
 @pytest.mark.order(72)
 def test_ufm_credentials_secret(host):
-    """TC_SR_062: Verify UFM credentials K8s secret exists."""
+    """TEL_FVT_DEPLOY_V062: Verify UFM credentials K8s secret exists."""
     _skip_if_ufm_disabled(host)
     tc = TC["ufm_credentials_secret"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -182,7 +182,7 @@ def test_ufm_credentials_secret(host):
 
 
 # =========================================================================
-# TC_SR_063: Verify UFM InfiniBand metrics in VictoriaMetrics
+# TEL_FVT_DEPLOY_V063: Verify UFM InfiniBand metrics in VictoriaMetrics
 # =========================================================================
 
 @pytest.mark.source
@@ -190,8 +190,12 @@ def test_ufm_credentials_secret(host):
 @pytest.mark.ufm
 @pytest.mark.order(73)
 def test_ufm_metrics_in_vm(host):
-    """TC_SR_063: Verify UFM InfiniBand metrics in VictoriaMetrics."""
+    """TEL_FVT_DEPLOY_V063: Verify UFM InfiniBand metrics in VictoriaMetrics."""
     _skip_if_ufm_disabled(host)
+    # Skip if UFM does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "ufm", "victoria_metrics"):
+        pytest.skip("UFM source does not target VictoriaMetrics sink")
+    
     tc = TC["ufm_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 """Security helpers shared by Repo Manager command and logging boundaries."""
 
+from collections.abc import Mapping
 import ipaddress
 import re
 import shlex
@@ -57,6 +58,9 @@ _SAFE_CONTAINER_DIGEST_PATTERN = re.compile(
 )
 _CONTROL_OR_WHITESPACE_PATTERN = re.compile(r"[\x00-\x20\x7f]")
 _MALFORMED_PERCENT_ESCAPE_PATTERN = re.compile(r"%(?![0-9A-Fa-f]{2})")
+_CATALOG_PLACEHOLDER_PATTERN = re.compile(
+    r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}"
+)
 _SENSITIVE_QUERY_KEYS = frozenset({
     "accesstoken",
     "apikey",
@@ -80,6 +84,49 @@ _SENSITIVE_QUERY_KEYS = frozenset({
 
 class ArtifactUrlValidationError(ValueError):
     """Raised when a catalog artifact URL violates the public URL contract."""
+
+
+def render_catalog_placeholders(value, variables, field_name="value"):
+    """Render data-only catalog version placeholders exactly once.
+
+    Catalog fields support literal text and simple ``{{ variable_name }}``
+    substitutions. They are data, not executable Jinja templates: expressions,
+    filters, calls, attributes, indexing, blocks, comments, and unmatched braces
+    are rejected before any downstream URL or identifier validation runs.
+    """
+    if not isinstance(value, str):
+        raise ValueError(f"Catalog {field_name} must be a string")
+    if variables is None:
+        variables = {}
+    if not isinstance(variables, Mapping):
+        raise ValueError("Catalog version variables must be a mapping")
+
+    # Remove every permitted placeholder and reject any remaining braces. This
+    # validates the complete input grammar before performing substitutions.
+    residual_value = _CATALOG_PLACEHOLDER_PATTERN.sub("", value)
+    if "{" in residual_value or "}" in residual_value:
+        raise ValueError(
+            f"Catalog {field_name} contains unsupported placeholder syntax"
+        )
+
+    def _replace_placeholder(match):
+        variable_name = match.group(1)
+        if variable_name not in variables:
+            raise ValueError(
+                f"Catalog {field_name} references an unavailable version variable"
+            )
+        replacement = variables[variable_name]
+        if not isinstance(replacement, str):
+            raise ValueError(
+                f"Catalog {field_name} version variable must be a string"
+            )
+        if "{" in replacement or "}" in replacement:
+            raise ValueError(
+                f"Catalog {field_name} version variable contains invalid syntax"
+            )
+        return replacement
+
+    return _CATALOG_PLACEHOLDER_PATTERN.sub(_replace_placeholder, value)
 
 
 def url_contains_credentials(url):

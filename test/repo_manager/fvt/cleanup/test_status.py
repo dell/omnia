@@ -6,10 +6,10 @@
 """
 Repo Manager — Cleanup scenario verification tests.
 
-TC_RM_CL_000: Deploy repo_manager --tags cleanup
-TC_RM_CL_001: Verify Pulp container removed
-TC_RM_CL_002: Verify managed Pulp CLI preserved
-TC_RM_CL_003: Verify Pulp directories removed
+RM_FVT_CLEANUP_E001: Deploy repo_manager --tags cleanup
+RM_FVT_CLEANUP_V001: Verify Pulp container removed
+RM_FVT_CLEANUP_V002: Verify managed Pulp CLI preserved
+RM_FVT_CLEANUP_V003: Verify Pulp directories removed
 """
 
 import pytest
@@ -34,9 +34,9 @@ pytestmark = pytest.mark.destructive
 @pytest.mark.sanity
 @pytest.mark.order(100)
 def test_deploy_cleanup(host):
-    """TC_RM_CL_000: Deploy repo_manager --tags cleanup."""
+    """RM_FVT_CLEANUP_E001: Deploy repo_manager --tags cleanup."""
     assert host is not None
-    tl = TestLogger(TEST_NAMES["pulp_container_removed"], "TC_RM_CL_000")
+    tl = TestLogger(TEST_NAMES["pulp_container_removed"], "RM_FVT_CLEANUP_E001")
     result = run_playbook(tag="cleanup_pulp")
 
     if result["success"]:
@@ -51,8 +51,8 @@ def test_deploy_cleanup(host):
 @pytest.mark.positive
 @pytest.mark.order(101)
 def test_pulp_container_removed(host):
-    """TC_RM_CL_001: Verify Pulp container removed."""
-    tl = TestLogger(TEST_NAMES["pulp_container_removed"], "TC_RM_CL_001")
+    """RM_FVT_CLEANUP_V001: Verify Pulp container removed."""
+    tl = TestLogger(TEST_NAMES["pulp_container_removed"], "RM_FVT_CLEANUP_V001")
     result = check_pulp_container_removed(host)
 
     if result["success"]:
@@ -67,8 +67,8 @@ def test_pulp_container_removed(host):
 @pytest.mark.positive
 @pytest.mark.order(102)
 def test_pulp_cli_preserved(host):
-    """TC_RM_CL_002: Verify the managed Pulp CLI remains executable."""
-    tl = TestLogger(TEST_NAMES["pulp_cli_preserved"], "TC_RM_CL_002")
+    """RM_FVT_CLEANUP_V002: Verify the managed Pulp CLI remains executable."""
+    tl = TestLogger(TEST_NAMES["pulp_cli_preserved"], "RM_FVT_CLEANUP_V002")
     result = check_pulp_cli_preserved(host)
 
     if result["success"]:
@@ -83,8 +83,8 @@ def test_pulp_cli_preserved(host):
 @pytest.mark.positive
 @pytest.mark.order(103)
 def test_pulp_directories_removed(host):
-    """TC_RM_CL_003: Verify Pulp directories removed."""
-    tl = TestLogger(TEST_NAMES["pulp_directories_removed"], "TC_RM_CL_003")
+    """RM_FVT_CLEANUP_V003: Verify Pulp directories removed."""
+    tl = TestLogger(TEST_NAMES["pulp_directories_removed"], "RM_FVT_CLEANUP_V003")
     result = check_pulp_directories_removed(host)
 
     if result["success"]:

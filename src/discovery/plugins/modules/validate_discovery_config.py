@@ -31,6 +31,7 @@ Usage in a playbook:
 import json
 import logging
 import os
+import re
 
 import yaml
 from ansible.module_utils.basic import AnsibleModule
@@ -54,13 +55,18 @@ options:
     description: Path to the directory containing JSON schema files.
     required: true
     type: str
+  log_dir:
+    description: Directory where the validation log is written.
+    required: false
+    type: str
 '''
 
 EXAMPLES = r'''
 - name: Validate discovery configuration files
   validate_discovery_config:
-    input_project_dir: /opt/omnia/input/project_default
+    input_project_dir: "{{ discovery_data_path }}/input/{{ discovery_project_name }}"
     schema_dir: "{{ role_path }}/../../plugins/module_utils/discovery_validation/schema"
+    log_dir: "{{ discovery_data_path }}/log/{{ discovery_project_name }}"
   register: validation_result
 '''
 
@@ -75,7 +81,11 @@ validation_errors:
   returned: failure
 '''
 
-VALIDATION_LOG_PATH = "/opt/omnia/log/core/playbooks/"
+VALIDATION_LOG_PATH = os.path.join(
+    os.environ.get("DISCOVERY_DATA_PATH")
+    or os.path.join(os.environ.get("OMNIA_DATA_PATH", "/opt/omnia"), "discovery"),
+    "log",
+)
 
 # Files to validate and their corresponding schema names
 VALIDATION_FILES = [
@@ -87,10 +97,10 @@ VALIDATION_FILES = [
 ]
 
 
-def create_logger(project_name):
+def create_logger(project_name, log_dir=VALIDATION_LOG_PATH):
     """Create a logger for discovery validation."""
     log_file = os.path.join(
-        VALIDATION_LOG_PATH, f"discovery_validation_{project_name}.log"
+        log_dir, f"discovery_validation_{project_name}.log"
     )
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     logging.basicConfig(
@@ -134,9 +144,10 @@ def load_json(path):
 def validate_against_schema(data, schema, file_label, errors, logger):
     """
     Validate data against a JSON schema (L1).
-    Uses basic type/required/enum checks without jsonschema dependency.
+    Enforces required, type, enum, and string constraints without a jsonschema
+    dependency.
     """
-    if not schema or not data:
+    if not schema:
         return
 
     schema_type = schema.get("type")
@@ -161,11 +172,50 @@ def validate_against_schema(data, schema, file_label, errors, logger):
             continue
         value = data[prop_name]
 
+        expected_type = prop_schema.get("type")
+        type_matches = {
+            "string": isinstance(value, str),
+            "boolean": isinstance(value, bool),
+            "object": isinstance(value, dict),
+            "array": isinstance(value, list),
+            "integer": isinstance(value, int) and not isinstance(value, bool),
+            "number": isinstance(value, (int, float))
+            and not isinstance(value, bool),
+        }.get(expected_type, True)
+        if not type_matches:
+            msg = (
+                f"{file_label}: Property '{prop_name}' must be of type "
+                f"'{expected_type}'"
+            )
+            errors.append(msg)
+            logger.error(msg)
+            continue
+
         if "enum" in prop_schema and value not in prop_schema["enum"]:
             msg = (f"{file_label}: Property '{prop_name}' has invalid value "
                    f"'{value}'. Allowed: {prop_schema['enum']}")
             errors.append(msg)
             logger.error(msg)
+
+        if isinstance(value, str):
+            invalid_length = (
+                len(value) < prop_schema.get("minLength", 0)
+                or (
+                    "maxLength" in prop_schema
+                    and len(value) > prop_schema["maxLength"]
+                )
+            )
+            invalid_pattern = (
+                "pattern" in prop_schema
+                and re.search(prop_schema["pattern"], value) is None
+            )
+            if invalid_length or invalid_pattern:
+                msg = prop_schema.get(
+                    "errorMessage",
+                    f"{file_label}: Property '{prop_name}' has an invalid value",
+                )
+                errors.append(msg)
+                logger.error(msg)
 
         # Recurse into nested objects
         if prop_schema.get("type") == "object" and isinstance(value, dict):
@@ -184,18 +234,20 @@ def validate_against_schema(data, schema, file_label, errors, logger):
 
 def run_module():
     """Main entry point for the Ansible module."""
-    module_args = dict(
-        input_project_dir=dict(type="str", required=True),
-        schema_dir=dict(type="str", required=True),
-    )
+    module_args = {
+        "input_project_dir": {"type": "str", "required": True},
+        "schema_dir": {"type": "str", "required": True},
+        "log_dir": {"type": "str", "required": False, "default": ""},
+    }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     input_project_dir = module.params["input_project_dir"]
     schema_dir = module.params["schema_dir"]
+    log_dir = module.params["log_dir"] or VALIDATION_LOG_PATH
     project_name = os.path.basename(input_project_dir)
 
-    logger, log_file = create_logger(project_name)
+    logger, log_file = create_logger(project_name, log_dir)
     logger.info("=== Discovery Validation Start ===")
 
     all_errors = []
@@ -252,7 +304,7 @@ def run_module():
             config_data = data
 
     # --- L2: Cross-field logic validation ---
-    if config_data:
+    if isinstance(config_data, dict):
         l2_errors = validate_discovery_config(config_data, logger)
         if l2_errors:
             all_errors.extend(l2_errors)

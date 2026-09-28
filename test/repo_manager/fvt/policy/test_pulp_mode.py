@@ -28,8 +28,8 @@ from library.messages.repo_manager_msgs import (
 @pytest.mark.positive
 @pytest.mark.order(14)
 def test_pulp_mode_in_repo_status(host: Host):
-    """TC_RM_PO_014: repo_status.yml should reflect correct Pulp mode."""
-    tl = TestLogger(TEST_NAMES["pulp_mode_in_repo_status"], "TC_RM_PO_014")
+    """RM_FVT_POLICY_V014: repo_status.yml should reflect correct Pulp mode."""
+    tl = TestLogger(TEST_NAMES["pulp_mode_in_repo_status"], "RM_FVT_POLICY_V014")
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")
@@ -82,8 +82,8 @@ def test_pulp_mode_in_repo_status(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(15)
 def test_actual_pulp_repository_policy(host: Host):
-    """TC_RM_PO_015: Actual Pulp repository should have correct policy."""
-    tl = TestLogger(TEST_NAMES["actual_pulp_repository_policy"], "TC_RM_PO_015")
+    """RM_FVT_POLICY_V015: Actual Pulp repository should have correct policy."""
+    tl = TestLogger(TEST_NAMES["actual_pulp_repository_policy"], "RM_FVT_POLICY_V015")
 
     # Get all configured repos
     repos_result = get_configured_repos(host, arch="x86_64")
@@ -125,8 +125,8 @@ def test_actual_pulp_repository_policy(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(16)
 def test_disk_space_savings(host: Host):
-    """TC_RM_PO_016: On-demand repos should save disk space."""
-    tl = TestLogger(TEST_NAMES["disk_space_savings"], "TC_RM_PO_016")
+    """RM_FVT_POLICY_V016: On-demand repos should save disk space."""
+    tl = TestLogger(TEST_NAMES["disk_space_savings"], "RM_FVT_POLICY_V016")
 
     # This test verifies that repos with on_demand policy save disk space
     # compared to repos with immediate policy

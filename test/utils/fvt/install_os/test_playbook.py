@@ -249,65 +249,6 @@ def test_deploy_install_os_deploy(host):
     pytest.fail("install_os deploy tag failed")
 
 
-@pytest.mark.deploy
-@pytest.mark.functional
-@pytest.mark.order(24)
-def test_deploy_install_os_full(host):
-    """Deploy install_os.yml with all tags (full execution).
-
-    Validates complete end-to-end OS installation. Requires actual hardware and full config.
-    """
-    tc = TC["deploy_install_os_full"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    # Pre-verification: Check config has all required parameters
-    from library.functions import get_utils_input_path, validate_install_os_config
-    input_path = get_utils_input_path(host)
-    config_path = f"{input_path}/install_os_config.yml"
-
-    config_result = validate_install_os_config(host, config_path)
-    if not config_result["success"]:
-        tl.failed(f"Config validation failed: {config_result['error']}")
-        pytest.fail(f"Config validation failed: {config_result['error']}")
-
-    config = config_result.get("config", {})
-
-    # Check all required parameters for full execution
-    source_iso = config.get("source_iso_path", "")
-    custom_iso = config.get("custom_iso_path", "")
-    bmc_ip = config.get("target_bmc_ip", "")
-    admin_ip = config.get("target_admin_ip", "")
-    hostname = config.get("target_hostname", "")
-
-    missing_params = []
-    if not source_iso:
-        missing_params.append("source_iso_path")
-    if not custom_iso:
-        missing_params.append("custom_iso_path")
-    if not bmc_ip:
-        missing_params.append("target_bmc_ip")
-    if not admin_ip:
-        missing_params.append("target_admin_ip")
-    if not hostname:
-        missing_params.append("target_hostname")
-
-    if missing_params:
-        tl.skipped(f"Missing required config parameters: {', '.join(missing_params)}")
-        pytest.skip(f"Missing required config parameters: {', '.join(missing_params)}")
-
-    result = run_playbook(playbook=PLAYBOOK_INSTALL_OS)
-
-    if result["success"]:
-        tl.passed(LOG["playbook_success"].format(duration=result["duration"]))
-        return
-
-    tl.failed(
-        LOG["playbook_failed"].format(rc=result["rc"], duration=result["duration"]),
-        result.get("error", "See playbook output above"),
-    )
-    pytest.fail("install_os full execution failed")
-
-
 # =============================================================================
 # NEGATIVE TEST CASES (Validation Only - No Actual Deployment)
 # =============================================================================

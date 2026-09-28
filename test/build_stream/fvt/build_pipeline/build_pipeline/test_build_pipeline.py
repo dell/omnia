@@ -52,16 +52,18 @@ from library.functions import (
     verify_initialization_upload,
     verify_stage_completed,
     get_pipeline_summary,
+    get_images_for_job,
     check_repo_status,
     check_server_credentials,
-    check_registry_images_exist,
-    check_s3_boot_images_exist,
+    verify_registry_images,
+    verify_s3_boot_images,
 )
 from library.vars import TEST_CASES as TC
 from library.vars.common_vars import (
     STAGE_BUILD_IMAGE,
     STAGE_CREATE_LOCAL_REPO,
     STAGE_STATE_COMPLETED,
+    BUILD_PIPELINE_ONLY_STAGES,
 )
 from library.messages import (
     TEST_LOG_MSGS as LOG,
@@ -87,14 +89,29 @@ def _skip_if_no_creds(tl):
         pytest.skip("build_stream_credentials.yml not configured")
 
 
+def _get_job_roles(host, pipeline_state):
+    """Return the functional-group roles recorded for this exact job."""
+    result = get_images_for_job(host, pipeline_state.job_id)
+    assert result["success"], result["error"]
+    roles = sorted({
+        image["role"]
+        for image in result["images"]
+        if image.get("role")
+    })
+    assert roles, (
+        f"No image roles are recorded for job {pipeline_state.job_id}"
+    )
+    return roles
+
+
 # =============================================================================
-# CREDENTIALS PRE-CHECK (TC_BP_PRE)
+# CREDENTIALS PRE-CHECK (BSM_FVT_BUILD_PIPELINE_V001)
 # =============================================================================
 
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_build_credentials_configured(host, pipeline_state):
-    """TC_BP_PRE: Verify build_stream_credentials.yml has required fields."""
+    """BSM_FVT_BUILD_PIPELINE_V001: Verify build_stream_credentials.yml has required fields."""
     global _creds_ok
     tc = TC["build_credentials_configured"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -120,13 +137,13 @@ def test_build_credentials_configured(host, pipeline_state):
 
 
 # =============================================================================
-# PRE-BUILD CHECKS (TC_BP_002 -- TC_BP_005)
+# PRE-BUILD CHECKS (BSM_FVT_BUILD_PIPELINE_V002 -- BSM_FVT_BUILD_PIPELINE_V005)
 # =============================================================================
 
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_build_bsm_health_check(host, pipeline_state):
-    """TC_BP_002: Verify BSM API /health returns 200."""
+    """BSM_FVT_BUILD_PIPELINE_V002: Verify BSM API /health returns 200."""
     tc = TC["build_bsm_health_check"]
     tl = TestLogger(tc["title"], tc["id"])
     _skip_if_no_creds(tl)
@@ -149,7 +166,7 @@ def test_build_bsm_health_check(host, pipeline_state):
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_build_oauth_auth(host, pipeline_state):
-    """TC_BP_003: Verify BSM_CLIENT_ID / BSM_CLIENT_SECRET in GitLab CI vars."""
+    """BSM_FVT_BUILD_PIPELINE_V003: Verify BSM_CLIENT_ID / BSM_CLIENT_SECRET in GitLab CI vars."""
     tc = TC["build_oauth_auth"]
     tl = TestLogger(tc["title"], tc["id"])
     _skip_if_no_creds(tl)
@@ -169,7 +186,7 @@ def test_build_oauth_auth(host, pipeline_state):
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_build_job_created(host, pipeline_state):
-    """TC_BP_004: Verify BSM job row exists in jobs table."""
+    """BSM_FVT_BUILD_PIPELINE_V004: Verify BSM job row exists in jobs table."""
     tc = TC["build_job_created"]
     tl = TestLogger(tc["title"], tc["id"])
     _skip_if_no_creds(tl)
@@ -190,7 +207,7 @@ def test_build_job_created(host, pipeline_state):
 @pytest.mark.sanity
 @pytest.mark.order(4)
 def test_build_job_accessible_via_api(host, pipeline_state):
-    """TC_BP_005: Verify job retrievable via GET /api/v1/jobs/{job_id}."""
+    """BSM_FVT_BUILD_PIPELINE_V005: Verify job retrievable via GET /api/v1/jobs/{job_id}."""
     tc = TC["build_job_accessible_via_api"]
     tl = TestLogger(tc["title"], tc["id"])
     _skip_if_no_creds(tl)
@@ -208,13 +225,13 @@ def test_build_job_accessible_via_api(host, pipeline_state):
 
 
 # =============================================================================
-# DB STAGE VERIFICATION (TC_BP_006 -- TC_BP_007)
+# DB STAGE VERIFICATION (BSM_FVT_BUILD_PIPELINE_V006 -- BSM_FVT_BUILD_PIPELINE_V007)
 # =============================================================================
 
 @pytest.mark.sanity
 @pytest.mark.order(5)
 def test_build_stage_create_local_repository(host, pipeline_state):
-    """TC_BP_006: Verify create-local-repository stage COMPLETED in job_stages."""
+    """BSM_FVT_BUILD_PIPELINE_V006: Verify create-local-repository stage COMPLETED in job_stages."""
     tc = TC["build_stage_create_local_repository"]
     tl = TestLogger(tc["title"], tc["id"])
     _skip_if_no_creds(tl)
@@ -227,9 +244,6 @@ def test_build_stage_create_local_repository(host, pipeline_state):
         tl.passed(LOG["stage_db_ok"].format(
             stage=STAGE_CREATE_LOCAL_REPO, state=STAGE_STATE_COMPLETED,
         ))
-    elif "not found" in result.get("error", "").lower():
-        tl.skipped(LOG["stage_skipped"].format(stage=STAGE_CREATE_LOCAL_REPO))
-        pytest.skip(f"{STAGE_CREATE_LOCAL_REPO} not found for this job")
     else:
         tl.failed(LOG["stage_db_fail"].format(
             stage=STAGE_CREATE_LOCAL_REPO,
@@ -248,7 +262,7 @@ def test_build_stage_create_local_repository(host, pipeline_state):
 @pytest.mark.sanity
 @pytest.mark.order(6)
 def test_build_stage_build_image(host, pipeline_state):
-    """TC_BP_007: Verify build-image stage COMPLETED in job_stages."""
+    """BSM_FVT_BUILD_PIPELINE_V007: Verify build-image stage COMPLETED in job_stages."""
     tc = TC["build_stage_build_image"]
     tl = TestLogger(tc["title"], tc["id"])
     _skip_if_no_creds(tl)
@@ -261,9 +275,6 @@ def test_build_stage_build_image(host, pipeline_state):
         tl.passed(LOG["stage_db_ok"].format(
             stage=STAGE_BUILD_IMAGE, state=STAGE_STATE_COMPLETED,
         ))
-    elif "not found" in result.get("error", "").lower():
-        tl.skipped(LOG["stage_skipped"].format(stage=STAGE_BUILD_IMAGE))
-        pytest.skip(f"{STAGE_BUILD_IMAGE} not found for this job")
     else:
         tl.failed(LOG["stage_db_fail"].format(
             stage=STAGE_BUILD_IMAGE,
@@ -280,13 +291,13 @@ def test_build_stage_build_image(host, pipeline_state):
 
 
 # =============================================================================
-# REPO MANAGER VERIFICATION (TC_BP_008)
+# REPO MANAGER VERIFICATION (BSM_FVT_BUILD_PIPELINE_V008)
 # =============================================================================
 
 @pytest.mark.sanity
 @pytest.mark.order(7)
 def test_build_repo_status(host, pipeline_state):
-    """TC_BP_008: Verify repo_status.yml overall_status is success."""
+    """BSM_FVT_BUILD_PIPELINE_V008: Verify repo_status.yml overall_status is success."""
     tc = TC["build_repo_status"]
     tl = TestLogger(tc["title"], tc["id"])
     _skip_if_no_creds(tl)
@@ -310,31 +321,38 @@ def test_build_repo_status(host, pipeline_state):
 
 
 # =============================================================================
-# ARTIFACT VERIFICATION (TC_BP_010 -- TC_BP_011)
+# ARTIFACT VERIFICATION (BSM_FVT_BUILD_PIPELINE_V010 -- BSM_FVT_BUILD_PIPELINE_V011)
 # =============================================================================
 
 @pytest.mark.sanity
 @pytest.mark.order(8)
 def test_build_registry_images(host, pipeline_state):
-    """TC_BP_010: Verify container images exist in local registry."""
+    """BSM_FVT_BUILD_PIPELINE_V010: Verify every job role in the registry."""
     tc = TC["build_registry_images"]
     tl = TestLogger(tc["title"], tc["id"])
     _skip_if_no_creds(tl)
     _skip_if_no_job(pipeline_state, tl)
 
-    result = check_registry_images_exist(host)
+    roles = _get_job_roles(host, pipeline_state)
+    result = verify_registry_images(
+        host, pipeline_state.job_id, roles,
+    )
     if result["success"]:
         tl.passed(LOG["registry_ok"].format(
-            count=len(result["found_images"]),
+            count=len(result["found"]),
         ))
     else:
         tl.failed(LOG["registry_fail"].format(
-            count=0, missing="none found",
+            count=len(result.get("found", [])),
+            missing=", ".join(result.get("missing", [])),
         ))
 
     assert result["success"], (
         ASSERT["registry_images_missing"].format(
-            missing=result.get("error", "No images in registry"),
+            missing=(
+                ", ".join(result.get("missing", []))
+                or result.get("error", "No images in registry")
+            ),
         )
     )
 
@@ -342,37 +360,44 @@ def test_build_registry_images(host, pipeline_state):
 @pytest.mark.sanity
 @pytest.mark.order(9)
 def test_build_s3_boot_images(host, pipeline_state):
-    """TC_BP_011: Verify boot images exist in S3 bucket."""
+    """BSM_FVT_BUILD_PIPELINE_V011: Verify every job role's S3 artifacts."""
     tc = TC["build_s3_boot_images"]
     tl = TestLogger(tc["title"], tc["id"])
     _skip_if_no_creds(tl)
     _skip_if_no_job(pipeline_state, tl)
 
-    result = check_s3_boot_images_exist(host)
+    roles = _get_job_roles(host, pipeline_state)
+    result = verify_s3_boot_images(
+        host, pipeline_state.job_id, roles,
+    )
     if result["success"]:
         tl.passed(LOG["s3_ok"].format(
-            count=len(result["found_images"]),
+            count=len(result["found_roles"]),
         ))
     else:
         tl.failed(LOG["s3_fail"].format(
-            count=0, missing="none found",
+            count=len(result.get("found_roles", [])),
+            missing=", ".join(result.get("missing_roles", [])),
         ))
 
     assert result["success"], (
         ASSERT["s3_images_missing"].format(
-            missing=result.get("error", "No boot images in S3"),
+            missing=(
+                ", ".join(result.get("missing_roles", []))
+                or result.get("error", "No boot images in S3")
+            ),
         )
     )
 
 
 # =============================================================================
-# PIPELINE SUMMARY (TC_BP_012)
+# PIPELINE SUMMARY (BSM_FVT_BUILD_PIPELINE_V011)
 # =============================================================================
 
 @pytest.mark.sanity
 @pytest.mark.order(10)
 def test_build_pipeline_result(host, pipeline_state):
-    """TC_BP_012: Verify build pipeline stages reached COMPLETED.
+    """BSM_FVT_BUILD_PIPELINE_V011: Verify build stages reached COMPLETED.
 
     Only checks build-pipeline stages (upload, create-local-repository,
     build-image). Deploy-pipeline stages (deploy, restart, validate)
@@ -387,6 +412,15 @@ def test_build_pipeline_result(host, pipeline_state):
     if not result["success"]:
         tl.failed(f"Failed to get summary: {result['error']}")
         assert False, f"Pipeline summary query failed: {result['error']}"
+
+    actual_stages = {
+        stage["stage_name"] for stage in result["stages"]
+    }
+    missing_stages = set(BUILD_PIPELINE_ONLY_STAGES) - actual_stages
+    assert not missing_stages, (
+        "Build pipeline is missing mandatory stage(s): "
+        f"{', '.join(sorted(missing_stages))}"
+    )
 
     if result["all_completed"]:
         tl.passed(LOG["pipeline_result_ok"])

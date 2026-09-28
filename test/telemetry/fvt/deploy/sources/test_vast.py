@@ -27,12 +27,12 @@ VAST Architecture:
         VAST syslog -> VLAgent -> VictoriaLogs
 
 Test cases:
-    TC_SR_080: Verify VAST external service exists with correct endpoint
-    TC_SR_081: Verify VAST VMServiceScrape CR exists
-    TC_SR_082: Verify VAST credentials K8s secret exists
-    TC_SR_083: Verify VAST storage metrics in VictoriaMetrics
-    TC_SR_085: Configure VAST syslog and trigger a test event
-    TC_SR_084: Verify that fresh VAST event in VictoriaLogs
+    TEL_FVT_DEPLOY_V090: Verify VAST external service exists with correct endpoint
+    TEL_FVT_DEPLOY_V091: Verify VAST VMServiceScrape CR exists
+    TEL_FVT_DEPLOY_V092: Verify VAST credentials K8s secret exists
+    TEL_FVT_DEPLOY_V093: Verify VAST storage metrics in VictoriaMetrics
+    TEL_FVT_DEPLOY_V095: Configure VAST syslog and trigger a test event
+    TEL_FVT_DEPLOY_V094: Verify that fresh VAST event in VictoriaLogs
 """
 
 from datetime import datetime, timezone
@@ -45,6 +45,7 @@ from library.functions import (
     get_vast_endpoint_from_config,
     is_logs_enabled,
     is_source_enabled,
+    is_sink_enabled_for_source,
     verify_vast_credentials_secret,
     verify_vast_external_service,
     verify_fresh_vast_test_event,
@@ -135,7 +136,7 @@ def _format_vast_log_details(result):
 
 
 # =========================================================================
-# TC_SR_080: Verify VAST external service exists with correct endpoint
+# TEL_FVT_DEPLOY_V090: Verify VAST external service exists with correct endpoint
 # =========================================================================
 
 @pytest.mark.source
@@ -178,7 +179,7 @@ def test_vast_external_service(host):
 
 
 # =========================================================================
-# TC_SR_081: Verify VAST VMServiceScrape CR exists
+# TEL_FVT_DEPLOY_V091: Verify VAST VMServiceScrape CR exists
 # =========================================================================
 
 @pytest.mark.source
@@ -217,7 +218,7 @@ def test_vast_vmscrape(host):
 
 
 # =========================================================================
-# TC_SR_082: Verify VAST credentials K8s secret exists
+# TEL_FVT_DEPLOY_V092: Verify VAST credentials K8s secret exists
 # =========================================================================
 
 @pytest.mark.source
@@ -260,7 +261,7 @@ def test_vast_credentials_secret(host):
 
 
 # =========================================================================
-# TC_SR_083: Verify VAST storage metrics in VictoriaMetrics
+# TEL_FVT_DEPLOY_V093: Verify VAST storage metrics in VictoriaMetrics
 # =========================================================================
 
 @pytest.mark.source
@@ -270,6 +271,10 @@ def test_vast_credentials_secret(host):
 def test_vast_metrics_in_vm(host):
     """Verify VAST storage metrics in VictoriaMetrics."""
     _skip_if_vast_metrics_disabled(host)
+    # Skip if VAST does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "vast", "victoria_metrics"):
+        pytest.skip("VAST source does not target VictoriaMetrics sink")
+    
     tc = TC["vast_metrics_in_vm"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -315,7 +320,7 @@ def test_vast_metrics_in_vm(host):
 
 
 # =========================================================================
-# TC_SR_085: Configure VAST syslog and trigger a test event
+# TEL_FVT_DEPLOY_V095: Configure VAST syslog and trigger a test event
 # =========================================================================
 
 @pytest.mark.source
@@ -356,7 +361,7 @@ def test_vast_syslog_configuration(host):
 
 
 # =========================================================================
-# TC_SR_084: Verify the fresh VAST test event in VictoriaLogs
+# TEL_FVT_DEPLOY_V094: Verify the fresh VAST test event in VictoriaLogs
 # =========================================================================
 
 @pytest.mark.source
@@ -366,6 +371,9 @@ def test_vast_syslog_configuration(host):
 def test_vast_test_event_in_victoria_logs(host):
     """Verify the VAST test event from this run reached VictoriaLogs."""
     _skip_if_vast_logs_disabled(host)
+    # Skip if VAST does not target VictoriaLogs sink
+    if not is_sink_enabled_for_source(host, "vast", "victoria_logs"):
+        pytest.skip("VAST source does not target VictoriaLogs sink")
 
     tc = TC["vast_test_event_in_victoria_logs"]
     tl = TestLogger(tc["title"], tc["id"])

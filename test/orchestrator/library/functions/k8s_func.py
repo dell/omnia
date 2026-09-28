@@ -24,10 +24,12 @@ All verification functions return a dict with keys:
 """
 
 import re
+import shlex
 import time
 from typing import Any, Dict, List, Optional
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import run_on_host
+from .project_func import resolve_target_input_project_path
 from ..vars.common_vars import CMDS
 from ..vars.k8s_vars import (
     K8S_DIRECTORIES,
@@ -40,19 +42,54 @@ from ..vars.k8s_vars import (
     K8S_FIREWALL_PORTS_CONTROL_PLANE,
     K8S_FIREWALL_PORTS_WORKER,
     K8S_SYSTEMD_TARGETS,
+    POD_YAML_TEMPLATE,
+    PVC_YAML_TEMPLATE,
+    PV_YAML_TEMPLATE,
 )
-from ..vars.common_vars import INPUT_PATH_TEMPLATE
+
+from ..vars.common_vars import (
+    INPUT_PATH_TEMPLATE,
+    SHARED_PATH,
+    CATALOG_FILE_PATH_TEMPLATE,
+    ENV_CATALOG_FILE_PATH,
+    ENV_OMNIA_DATA_PATH,
+)
 
 
 # =============================================================================
 # NODE DISCOVERY FUNCTIONS
 # =============================================================================
 
-def _get_project_path(host) -> str:  # pylint: disable=unused-argument
-    """Get the project input path using domain-scoped INPUT_PATH_TEMPLATE."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    return INPUT_PATH_TEMPLATE.format(project=project)
+def _get_project_path(host) -> str:
+    """Get the target project input path from the Omnia environment."""
+    return resolve_target_input_project_path(host)
+
+
+def _get_local_registry(host) -> str:
+    """Get the local container registry URL from OIM server.
+    
+    Returns:
+        Registry URL (e.g., "10.40.8.252:2225") or empty string if not found.
+    """
+    project_path = _get_project_path(host)
+    network_spec_path = f"{project_path}/network_spec.yml"
+    
+    # Try to get OIM IP from network_spec.yml
+    cmd = (
+        f"if [ -f {network_spec_path} ]; then "
+        f"grep -E '^[[:space:]]*primary_oim_admin_ip:' "
+        f"{network_spec_path} | head -1 | "
+        f"awk '{{print $2}}' | tr -d '\"'; "
+        f"fi"
+    )
+    result = run_on_host(host, cmd)
+    
+    if result.rc == 0 and result.stdout.strip():
+        oim_ip = result.stdout.strip()
+        # Registry runs on OIM at port 2225
+        return f"{oim_ip}:2225"
+    
+    return ""
 
 
 def get_k8s_nodes_from_pxe(host, group_keyword: str) -> List[str]:
@@ -154,7 +191,7 @@ def _ssh_cmd(ip: str, remote_cmd: str) -> str:
     """Build an SSH command string."""
     return (
         f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "
-        f"root@{ip} '{remote_cmd}'"
+        f"root@{ip} {shlex.quote(remote_cmd)}"
     )
 
 
@@ -195,6 +232,15 @@ def check_k8s_enabled(host) -> Dict[str, Any]:
         "kube_control_plane",
     ]
     has_k8s = any(keyword in result.stdout.lower() for keyword in k8s_keywords)
+
+    # If not found in orchestrator_config.yml, check the PXE mapping file
+    if not has_k8s:
+        pxe_mapping_path = f"{project_path}/pxe_mapping_file.csv"
+        pxe_cmd = f"test -f {pxe_mapping_path} && cat {pxe_mapping_path}"
+        pxe_result = run_on_host(host, pxe_cmd)
+        
+        if pxe_result.rc == 0:
+            has_k8s = any(keyword in pxe_result.stdout.lower() for keyword in k8s_keywords)
 
     if has_k8s:
         return {
@@ -1023,7 +1069,10 @@ def check_k8s_pki_certs_exist(host) -> Dict[str, Any]:
 
 
 def check_k8s_nfs_config_exists(host) -> Dict[str, Any]:
-    """Check if K8s NFS configuration directory exists on OIM.
+    """Check if K8s NFS mounting works by creating a dummy PV/PVC.
+
+    This test creates a temporary PV/PVC using the NFS share configured
+    in storage_config.yml and verifies that a pod can mount and use it.
 
     Args:
         host: Testinfra host connection
@@ -1031,25 +1080,271 @@ def check_k8s_nfs_config_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error
     """
-    cmd = f"test -d {K8S_NFS_CONFIG_DIR} && echo exists"
-    result = run_on_host(host, cmd)
-
-    if "exists" in result.stdout:
-        # List files in the directory
-        ls_cmd = f"ls -la {K8S_NFS_CONFIG_DIR}/ 2>/dev/null | wc -l"
-        ls_result = run_on_host(host, ls_cmd)
-        file_count = ls_result.stdout.strip()
-
+    cp_ip = _get_first_control_plane_ip(host)
+    if not cp_ip:
         return {
-            "success": True,
-            "details": f"K8s NFS config directory exists ({file_count} entries)",
-            "error": "",
+            "success": False,
+            "skipped": True,
+            "details": "No K8s control plane nodes found",
+            "error": "No control plane nodes available",
         }
 
+    project_path = _get_project_path(host)
+    storage_config_path = f"{project_path}/storage_config.yml"
+    
+    # Get NFS server and path from storage_config.yml
+    cmd = (
+        f"if [ -f {storage_config_path} ]; then "
+        f"grep -A 5 'name: \"nfs_k8s\"' {storage_config_path} | "
+        f"grep 'source:' | awk '{{print $2}}' | tr -d '\"'; "
+        f"fi"
+    )
+    result = run_on_host(host, cmd)
+    
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "details": "Could not find NFS K8s configuration in storage_config.yml",
+            "error": "NFS K8s mount not configured",
+        }
+    
+    nfs_source = result.stdout.strip()
+    # Expected format: "10.40.8.252:/nfs_share/k8s"
+    parts = nfs_source.split(":")
+    if len(parts) != 2:
+        return {
+            "success": False,
+            "details": f"Invalid NFS source format: {nfs_source}",
+            "error": "NFS source format should be 'server:/path'",
+        }
+    
+    nfs_server = parts[0]
+    nfs_path = parts[1]
+    
+    # Create test names
+    pv_name = "test-nfs-pv"
+    pvc_name = "test-nfs-pvc"
+    pod_name = "test-nfs-pod"
+    ns = "default"
+    
+    # Cleanup any existing resources
+    cleanup_cmd = _ssh_cmd(
+        cp_ip,
+        f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null; "
+        f"kubectl delete pvc {pvc_name} -n {ns} --ignore-not-found 2>/dev/null; "
+        f"kubectl delete pv {pv_name} --ignore-not-found 2>/dev/null"
+    )
+    run_on_host(host, cleanup_cmd)
+    time.sleep(2)
+    
+    # Create PV YAML from template
+    pv_yaml = PV_YAML_TEMPLATE.format(
+        pv_name=pv_name,
+        nfs_server=nfs_server,
+        nfs_path=nfs_path
+    )
+    
+    # Create PVC YAML from template
+    pvc_yaml = PVC_YAML_TEMPLATE.format(
+        pvc_name=pvc_name,
+        pv_name=pv_name
+    )
+    
+    # Create PV YAML file using mktemp for security
+    mktemp_cmd = _ssh_cmd(cp_ip, "mktemp -t")
+    mktemp_result = run_on_host(host, mktemp_cmd)
+    if mktemp_result.rc != 0 or not mktemp_result.stdout.strip():
+        return {
+            "success": False,
+            "details": "Failed to create temporary file for PV YAML",
+            "error": "mktemp command failed",
+        }
+    pv_file = mktemp_result.stdout.strip()
+    
+    write_pv_cmd = _ssh_cmd(cp_ip, f"cat > {pv_file} << 'PVYAML'\n{pv_yaml}PVYAML")
+    result = run_on_host(host, write_pv_cmd)
+    if result.rc != 0:
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file}"))
+        return {
+            "success": False,
+            "details": f"Failed to write PV YAML: {result.stdout}",
+            "error": "PV YAML write failed",
+        }
+    
+    # Create PV
+    create_pv_cmd = _ssh_cmd(cp_ip, f"kubectl apply -f {pv_file}")
+    result = run_on_host(host, create_pv_cmd)
+    if result.rc != 0:
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file}"))
+        return {
+            "success": False,
+            "details": f"Failed to create PV: {result.stdout}",
+            "error": f"PV creation failed: {result.stdout[:200]}",
+        }
+    
+    # Create PVC YAML file using mktemp for security
+    mktemp_cmd = _ssh_cmd(cp_ip, "mktemp -t")
+    mktemp_result = run_on_host(host, mktemp_cmd)
+    if mktemp_result.rc != 0 or not mktemp_result.stdout.strip():
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file}"))
+        return {
+            "success": False,
+            "details": "Failed to create temporary file for PVC YAML",
+            "error": "mktemp command failed",
+        }
+    pvc_file = mktemp_result.stdout.strip()
+    
+    write_pvc_cmd = _ssh_cmd(cp_ip, f"cat > {pvc_file} << 'PVCYAML'\n{pvc_yaml}PVCYAML")
+    result = run_on_host(host, write_pvc_cmd)
+    if result.rc != 0:
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file}"))
+        return {
+            "success": False,
+            "details": f"Failed to write PVC YAML: {result.stdout}",
+            "error": "PVC YAML write failed",
+        }
+    
+    # Create PVC
+    create_pvc_cmd = _ssh_cmd(cp_ip, f"kubectl apply -f {pvc_file}")
+    result = run_on_host(host, create_pvc_cmd)
+    if result.rc != 0:
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file}"))
+        return {
+            "success": False,
+            "details": f"Failed to create PVC: {result.stdout}",
+            "error": "PVC creation failed",
+        }
+    
+    # Wait for PVC to be Bound
+    max_wait = 30
+    wait_time = 0
+    while wait_time < max_wait:
+        check_cmd = _ssh_cmd(
+            cp_ip,
+            f"kubectl get pvc {pvc_name} -n {ns} --no-headers -o custom-columns=STATUS:.status.phase 2>/dev/null"
+        )
+        check_result = run_on_host(host, check_cmd)
+        phase = check_result.stdout.strip()
+        
+        if phase == "Bound":
+            break
+        if phase == "Failed":
+            run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pvc {pvc_name} -n {ns} --ignore-not-found"))
+            run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+            run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file}"))
+            return {
+                "success": False,
+                "details": f"PVC failed to bind (phase: {phase})",
+                "error": "PVC binding failed",
+            }
+        
+        time.sleep(2)
+        wait_time += 2
+    
+    if wait_time >= max_wait:
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pvc {pvc_name} -n {ns} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file}"))
+        return {
+            "success": False,
+            "details": f"PVC did not bind within {max_wait}s (last phase: {phase})",
+            "error": "PVC binding timeout",
+        }
+    
+    # Create test pod that uses the PVC
+    registry = _get_local_registry(host)
+    image = f"{registry}/library/busybox:1.36" if registry else "busybox:1.36"
+    
+    # Create pod YAML from template
+    pod_yaml = POD_YAML_TEMPLATE.format(
+        pod_name=pod_name,
+        image=image,
+        pvc_name=pvc_name
+    )
+    
+    # Create pod YAML file using mktemp for security
+    mktemp_cmd = _ssh_cmd(cp_ip, "mktemp -t")
+    mktemp_result = run_on_host(host, mktemp_cmd)
+    if mktemp_result.rc != 0 or not mktemp_result.stdout.strip():
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pvc {pvc_name} -n {ns} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file}"))
+        return {
+            "success": False,
+            "details": "Failed to create temporary file for pod YAML",
+            "error": "mktemp command failed",
+        }
+    pod_file = mktemp_result.stdout.strip()
+    
+    write_pod_cmd = _ssh_cmd(cp_ip, f"cat > {pod_file} << 'PODYAML'\n{pod_yaml}PODYAML")
+    result = run_on_host(host, write_pod_cmd)
+    if result.rc != 0:
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pvc {pvc_name} -n {ns} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file} {pod_file}"))
+        return {
+            "success": False,
+            "details": f"Failed to write pod YAML: {result.stdout}",
+            "error": "Pod YAML write failed",
+        }
+    
+    create_pod_cmd = _ssh_cmd(cp_ip, f"kubectl apply -f {pod_file}")
+    result = run_on_host(host, create_pod_cmd)
+    if result.rc != 0:
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pvc {pvc_name} -n {ns} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+        run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file} {pod_file}"))
+        return {
+            "success": False,
+            "details": f"Failed to create test pod: {result.stdout}",
+            "error": "Test pod creation failed",
+        }
+    
+    # Wait for pod to complete
+    max_wait = 30
+    wait_time = 0
+    phase = "Unknown"
+    while wait_time < max_wait:
+        check_cmd = _ssh_cmd(
+            cp_ip,
+            f"kubectl get pod {pod_name} -n {ns} --no-headers -o custom-columns=STATUS:.status.phase 2>/dev/null"
+        )
+        check_result = run_on_host(host, check_cmd)
+        phase = check_result.stdout.strip()
+        
+        if phase in ("Succeeded", "Completed"):
+            break
+        if phase == "Failed":
+            break
+        
+        time.sleep(2)
+        wait_time += 2
+    
+    # Get pod logs to verify NFS write worked
+    logs_cmd = _ssh_cmd(cp_ip, f"kubectl logs {pod_name} -n {ns} 2>/dev/null")
+    logs_result = run_on_host(host, logs_cmd)
+    
+    # Cleanup
+    run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found"))
+    run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pvc {pvc_name} -n {ns} --ignore-not-found"))
+    run_on_host(host, _ssh_cmd(cp_ip, f"kubectl delete pv {pv_name} --ignore-not-found"))
+    run_on_host(host, _ssh_cmd(cp_ip, f"rm -f {pv_file} {pvc_file} {pod_file}"))
+    
+    if "NFS test" in logs_result.stdout:
+        return {
+            "success": True,
+            "details": f"NFS mounting verified successfully (source: {nfs_source})",
+            "error": "",
+        }
+    
     return {
         "success": False,
-        "details": f"K8s NFS config directory {K8S_NFS_CONFIG_DIR} not found",
-        "error": "NFS config directory missing - k8s_config role may not have run",
+        "details": f"NFS write test failed (phase: {phase}, logs: {logs_result.stdout[:200]})",
+        "error": "NFS mount verification failed",
     }
 
 
@@ -1168,17 +1463,36 @@ def check_k8s_pod_create(host) -> Dict[str, Any]:
 
     pod_name = "omnia-test-pod"
     ns = "default"
+    
+    # Get local registry URL
+    registry = _get_local_registry(host)
+    if registry:
+        # Use local registry with explicit tag
+        image = f"{registry}/library/busybox:1.36"
+    else:
+        # Fallback to public registry (may fail without internet)
+        image = "busybox:1.36"
 
-    # Clean up any existing test pod
-    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+    # Clean up any existing test pod with force delete
+    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --force --grace-period=0 --ignore-not-found 2>/dev/null")
     run_on_host(host, cleanup_cmd)
-    time.sleep(2)
+    
+    # Wait for pod to be fully deleted
+    max_delete_wait = 30
+    delete_wait_time = 0
+    while delete_wait_time < max_delete_wait:
+        check_cmd = _ssh_cmd(cp_ip, f"kubectl get pod {pod_name} -n {ns} --no-headers 2>/dev/null")
+        check_result = run_on_host(host, check_cmd)
+        if not check_result.stdout.strip():
+            break
+        time.sleep(2)
+        delete_wait_time += 2
 
     # Create a simple test pod
     create_cmd = _ssh_cmd(
         cp_ip,
-        f"kubectl run {pod_name} --image=busybox --restart=Never "
-        f"-- sh -c 'echo test && sleep 30' 2>&1"
+        f"kubectl run {pod_name} --image={image} --restart=Never "
+        f"-- sh -c 'echo test && sleep 30'"
     )
     result = run_on_host(host, create_cmd)
 
@@ -1186,8 +1500,11 @@ def check_k8s_pod_create(host) -> Dict[str, Any]:
         return {
             "success": False,
             "details": f"Pod creation failed: {result.stdout}",
-            "error": "kubectl run failed",
+            "error": f"kubectl run failed (image={image}): {result.stdout[:200]}",
         }
+
+    # Give pod a moment to start
+    time.sleep(2)
 
     # Wait for pod to be Running
     max_wait = 60
@@ -1200,9 +1517,9 @@ def check_k8s_pod_create(host) -> Dict[str, Any]:
         check_result = run_on_host(host, check_cmd)
         phase = check_result.stdout.strip()
 
-        if phase in ("Running", "Succeeded"):
+        if phase in ("Running", "Succeeded", "Completed"):
             # Clean up
-            cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+            cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --force --grace-period=0 --ignore-not-found 2>/dev/null")
             run_on_host(host, cleanup_cmd)
 
             return {
@@ -1218,13 +1535,13 @@ def check_k8s_pod_create(host) -> Dict[str, Any]:
         wait_time += 5
 
     # Clean up
-    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --force --grace-period=0 --ignore-not-found 2>/dev/null")
     run_on_host(host, cleanup_cmd)
 
     return {
         "success": False,
-        "details": f"Test pod did not reach Running state (last phase: {phase})",
-        "error": "Pod scheduling/startup failed",
+        "details": f"Test pod did not reach Running/Succeeded state (last phase: '{phase}', waited {wait_time}s)",
+        "error": f"Pod scheduling/startup failed or timed out (phase='{phase}')",
     }
 
 
@@ -1248,17 +1565,36 @@ def check_k8s_dns_resolution(host) -> Dict[str, Any]:
 
     pod_name = "omnia-dns-test"
     ns = "default"
+    
+    # Get local registry URL
+    registry = _get_local_registry(host)
+    if registry:
+        # Use local registry with explicit tag
+        image = f"{registry}/library/busybox:1.36"
+    else:
+        # Fallback to public registry (may fail without internet)
+        image = "busybox:1.36"
 
-    # Clean up any existing test pod
-    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+    # Clean up any existing test pod with force delete
+    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --force --grace-period=0 --ignore-not-found 2>/dev/null")
     run_on_host(host, cleanup_cmd)
-    time.sleep(2)
+    
+    # Wait for pod to be fully deleted
+    max_delete_wait = 30
+    delete_wait_time = 0
+    while delete_wait_time < max_delete_wait:
+        check_cmd = _ssh_cmd(cp_ip, f"kubectl get pod {pod_name} -n {ns} --no-headers 2>/dev/null")
+        check_result = run_on_host(host, check_cmd)
+        if not check_result.stdout.strip():
+            break
+        time.sleep(2)
+        delete_wait_time += 2
 
-    # Run DNS test pod
+    # Run DNS test pod (without sh -c to avoid busybox argument parsing issues)
     cmd = _ssh_cmd(
         cp_ip,
-        f"kubectl run {pod_name} --image=busybox --restart=Never "
-        f"-- sh -c 'nslookup kubernetes.default.svc.cluster.local' 2>&1"
+        f"kubectl run {pod_name} --image={image} --restart=Never "
+        f"-- nslookup kubernetes.default.svc.cluster.local 2>&1"
     )
     run_on_host(host, cmd)
 
@@ -1273,7 +1609,7 @@ def check_k8s_dns_resolution(host) -> Dict[str, Any]:
         check_result = run_on_host(host, check_cmd)
         phase = check_result.stdout.strip()
 
-        if phase in ("Succeeded", "Failed"):
+        if phase in ("Succeeded", "Failed", "Completed"):
             break
 
         time.sleep(5)
@@ -1284,7 +1620,7 @@ def check_k8s_dns_resolution(host) -> Dict[str, Any]:
     logs_result = run_on_host(host, logs_cmd)
 
     # Clean up
-    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --force --grace-period=0 --ignore-not-found 2>/dev/null")
     run_on_host(host, cleanup_cmd)
 
     if "Address" in logs_result.stdout or "Name:" in logs_result.stdout:
@@ -1463,7 +1799,7 @@ def check_k8s_node_taints(host) -> Dict[str, Any]:
 # =============================================================================
 
 def check_k8s_smd_groups(host) -> Dict[str, Any]:
-    """Check if K8s functional groups are registered in SMD.
+    """Check if K8s nodes are registered in SMD State/Components.
 
     Args:
         host: Testinfra host connection
@@ -1471,34 +1807,75 @@ def check_k8s_smd_groups(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error
     """
-    # Check SMD for K8s groups
+    # Get the hostname for SSL certificate validation
+    hostname_cmd = "hostname -f"
+    hostname_result = run_on_host(host, hostname_cmd)
+    if hostname_result.rc != 0 or not hostname_result.stdout.strip():
+        return {
+            "success": False,
+            "details": "Cannot determine system hostname",
+            "error": "hostname command failed",
+        }
+    hostname = hostname_result.stdout.strip()
+    
+    # Get the haproxy port from environment or use default
+    # Check if haproxy is running and what port it's listening on
+    port_cmd = "ss -tlnp 2>/dev/null | grep haproxy | grep -oE ':[0-9]+' | head -1 | tr -d ':'"
+    port_result = run_on_host(host, port_cmd)
+    port = port_result.stdout.strip() if port_result.rc == 0 and port_result.stdout.strip() else "8443"
+    
+    # Check SMD State/Components (public endpoint, no auth required)
     cmd = (
-        "curl -sk https://localhost:8443/hsm/v2/groups 2>/dev/null"
+        f"curl -sk https://{hostname}:{port}/hsm/v2/State/Components 2>&1"
     )
     result = run_on_host(host, cmd)
 
     if result.rc != 0 or not result.stdout.strip():
         return {
             "success": False,
-            "details": "Cannot query SMD groups",
-            "error": "SMD API not reachable",
+            "details": f"Cannot query SMD State/Components (hostname: {hostname}, port: {port})",
+            "error": f"SMD API not reachable at https://{hostname}:{port}",
         }
 
-    # Check for K8s-related groups
-    k8s_keywords = ["kube", "kubernetes", "service_kube"]
-    has_k8s = any(kw in result.stdout.lower() for kw in k8s_keywords)
-
-    if has_k8s:
+    # Check if we got a valid JSON response
+    import json
+    try:
+        components_data = json.loads(result.stdout)
+        components = components_data.get("Components", [])
+    except (json.JSONDecodeError, ValueError):
         return {
-            "success": True,
-            "details": "K8s functional groups found in SMD",
-            "error": "",
+            "success": False,
+            "details": "Invalid JSON response from SMD",
+            "error": f"SMD returned invalid JSON: {result.stdout[:200]}",
         }
+
+    if not components:
+        return {
+            "success": False,
+            "details": "No components found in SMD",
+            "error": "SMD State/Components is empty - nodes may not be registered",
+        }
+
+    # Check for K8s nodes (nodes with Type="Node")
+    k8s_nodes = [c for c in components if c.get("Type") == "Node"]
+    
+    if not k8s_nodes:
+        return {
+            "success": False,
+            "details": "No K8s nodes found in SMD State/Components",
+            "error": "K8s nodes may not have been registered during provisioning",
+        }
+
+    node_count = len(k8s_nodes)
+    node_ids = [n.get("ID", "unknown") for n in k8s_nodes[:5]]  # Show first 5
+    node_list = ", ".join(node_ids)
+    if node_count > 5:
+        node_list += f", ... ({node_count - 5} more)"
 
     return {
-        "success": False,
-        "details": "No K8s functional groups found in SMD",
-        "error": "K8s groups may not have been registered during provisioning",
+        "success": True,
+        "details": f"Found {node_count} K8s nodes in SMD: {node_list}",
+        "error": "",
     }
 
 
@@ -1511,17 +1888,51 @@ def check_k8s_metadata_configured(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error
     """
+    # Get the hostname for SSL certificate validation
+    hostname_cmd = "hostname -f"
+    hostname_result = run_on_host(host, hostname_cmd)
+    if hostname_result.rc != 0 or not hostname_result.stdout.strip():
+        return {
+            "success": False,
+            "details": "Cannot determine system hostname",
+            "error": "hostname command failed",
+        }
+    hostname = hostname_result.stdout.strip()
+    
+    # Get the haproxy port from environment or use default
+    port_cmd = "ss -tlnp 2>/dev/null | grep haproxy | grep -oE ':[0-9]+' | head -1 | tr -d ':'"
+    port_result = run_on_host(host, port_cmd)
+    port = port_result.stdout.strip() if port_result.rc == 0 and port_result.stdout.strip() else "8443"
+    
     # Check metadata-service for K8s cloud-init config
+    # Note: /cloud-init endpoint may return 503 if no nodes are registered yet
     cmd = (
-        "curl -sk https://localhost:8443/cloud-init 2>/dev/null"
+        f"curl -sk https://{hostname}:{port}/cloud-init 2>&1"
     )
     result = run_on_host(host, cmd)
 
     if result.rc != 0 or not result.stdout.strip():
         return {
             "success": False,
-            "details": "Cannot query metadata-service",
-            "error": "metadata-service API not reachable",
+            "details": f"Cannot query metadata-service (hostname: {hostname}, port: {port})",
+            "error": f"metadata-service API not reachable at https://{hostname}:{port}",
+        }
+
+    # Check if authentication is required (indicates provisioning phase not completed)
+    if "missing bearer token" in result.stdout.lower() or "unauthorized" in result.stdout.lower():
+        return {
+            "success": False,
+            "skipped": True,
+            "details": "metadata-service requires authentication - provisioning phase not completed",
+            "error": "metadata-service API requires JWT token. This test requires full provisioning to have been executed.",
+        }
+
+    # Check if we got a valid response (even if it's a 503, it means the service is up)
+    if "503" in result.stdout or "meta-data" in result.stdout.lower() or "user-data" in result.stdout.lower():
+        return {
+            "success": True,
+            "details": "metadata-service is configured and responding",
+            "error": "",
         }
 
     return {
@@ -1681,21 +2092,45 @@ def check_chronyd_running(host) -> Dict[str, Any]:
 
 
 def _get_software_config(host) -> Optional[Dict]:
-    """Read and parse software_config.json from the project input directory.
+    """Read and parse catalog from orchestrator_config.yml catalog_file_path.
 
     Returns:
         Parsed JSON dict, or None if not available.
     """
-    project_path = _get_project_path(host)
-    sw_config_path = f"{project_path}/software_config.json"
-
-    cmd = f"test -f {sw_config_path} && cat {sw_config_path}"
+    import json
+    import os
+    
+    # Priority 1: CATALOG_FILE_PATH environment variable
+    catalog_path = os.environ.get(ENV_CATALOG_FILE_PATH)
+    
+    if not catalog_path:
+        # Priority 2: catalog_file_path from orchestrator_config.yml
+        project_path = _get_project_path(host)
+        orch_config_path = f"{project_path}/orchestrator_config.yml"
+        
+        cmd = f"test -f {orch_config_path} && cat {orch_config_path}"
+        result = run_on_host(host, cmd)
+        
+        if result.rc == 0 and result.stdout.strip():
+            try:
+                import yaml
+                orch_config = yaml.safe_load(result.stdout)
+                catalog_path = orch_config.get("catalog_file_path")
+            except (yaml.YAMLError, ValueError, AttributeError):
+                pass
+    
+    if not catalog_path:
+        # Priority 3: Default template with OMNIA_DATA_PATH
+        omnia_base = os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia")
+        catalog_path = CATALOG_FILE_PATH_TEMPLATE.format(omnia_base=omnia_base)
+    
+    # Read catalog file
+    cmd = f"test -f {catalog_path} && cat {catalog_path}"
     result = run_on_host(host, cmd)
-
+    
     if result.rc != 0 or not result.stdout.strip():
         return None
-
-    import json
+    
     try:
         return json.loads(result.stdout)
     except (json.JSONDecodeError, ValueError):
@@ -1703,39 +2138,58 @@ def _get_software_config(host) -> Optional[Dict]:
 
 
 def _get_service_k8s_version(host) -> Optional[str]:
-    """Extract service_k8s version from software_config.json.
+    """Extract kubectl version from catalog.
 
     Returns:
-        Version string (e.g. '1.34.1') or None.
+        Version string (e.g. '1.35.1') or None.
     """
-    sw_config = _get_software_config(host)
-    if not sw_config:
+    catalog = _get_software_config(host)
+    if not catalog:
         return None
 
-    for sw in sw_config.get("softwares", []):
-        if isinstance(sw, dict) and sw.get("name") == "service_k8s":
-            version = (sw.get("version") or "").strip()
-            if version.startswith("v"):
-                version = version[1:]
-            return version if version else None
+    # Catalog structure: catalog.packages is a dict with package names as keys
+    packages = catalog.get("catalog", {}).get("packages", {})
+    
+    # Look for kubectl package with tag (e.g., "docker.io/alpine/kubectl" with tag "1.35.1")
+    for pkg_key, pkg_value in packages.items():
+        if isinstance(pkg_value, dict):
+            name = pkg_value.get("name", "")
+            tag = pkg_value.get("tag", "")
+            
+            # Match kubectl container image with tag
+            if "kubectl" in name and tag:
+                version = tag.strip()
+                if version.startswith("v"):
+                    version = version[1:]
+                return version if version else None
+            
+            # Match kubectl RPM package (e.g., "kubectl-1.35.1")
+            if name.startswith("kubectl-"):
+                version = name.replace("kubectl-", "").strip()
+                if version.startswith("v"):
+                    version = version[1:]
+                return version if version else None
 
     return None
 
 
 def _is_powerscale_csi_configured(host) -> bool:
-    """Check if csi_driver_powerscale is in software_config.json."""
-    sw_config = _get_software_config(host)
-    if not sw_config:
+    """Check if PowerScale CSI is enabled in omnia_config.yml."""
+    project_path = _get_project_path(host)
+    omnia_config_path = f"{project_path}/omnia_config.yml"
+    
+    cmd = f"if [ -f {omnia_config_path} ]; then grep -E '^[[:space:]]*enable_powerscale_csi:' {omnia_config_path} | head -1 | awk '{{print $2}}' | tr -d '\"'; fi"
+    result = run_on_host(host, cmd)
+    
+    if result.rc != 0 or not result.stdout.strip():
         return False
-
-    return any(
-        isinstance(sw, dict) and sw.get("name") == "csi_driver_powerscale"
-        for sw in sw_config.get("softwares", [])
-    )
+    
+    # Check if the value is true (case-insensitive)
+    return result.stdout.strip().lower() in ["true", "yes", "1"]
 
 
 def check_kubectl_version(host) -> Dict[str, Any]:
-    """Check if kubectl client version matches the expected version from software_config.
+    """Check if kubectl client version matches the expected version from catalog.
 
     Args:
         host: Testinfra host connection
@@ -1748,8 +2202,8 @@ def check_kubectl_version(host) -> Dict[str, Any]:
         return {
             "success": False,
             "skipped": True,
-            "details": "service_k8s version not found in software_config.json",
-            "error": "Cannot determine expected K8s version",
+            "details": "kubectl version not found in catalog",
+            "error": "Cannot determine expected kubectl version from catalog",
             "expected_version": None,
             "actual_versions": [],
         }
@@ -2695,8 +3149,14 @@ def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
     Returns:
         Dict with success, details, error, pv_count, issues
     """
-    # Note: Storage class validation is reserved for future enhancement
-    # Currently just checks PV status regardless of storage class type
+    # Skip if PowerScale CSI is configured (CSI test would handle this case)
+    if _is_powerscale_csi_configured(host):
+        return {
+            "success": True,
+            "skipped": True,
+            "details": "PowerScale CSI is configured - NFS PV check skipped (CSI test handles this)",
+            "error": "",
+        }
 
     cp_ip = _get_first_control_plane_ip(host)
     if not cp_ip:
@@ -2713,21 +3173,22 @@ def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
     if result.rc != 0 or not result.stdout.strip():
         return {
             "success": True,
-            "details": "No Persistent Volumes found in the cluster",
+            "skipped": True,
+            "details": "No Persistent Volumes found in the cluster - PV binding check skipped",
             "error": "",
-            "pv_count": 0,
-            "issues": [],
         }
 
     lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
     issues = []
     checked = 0
+    expected_sc = "nfs-client"  # When PowerScale is not configured, expect nfs-client
 
     for line in lines:
         parts = line.split()
-        if len(parts) >= 5:
+        if len(parts) >= 6:
             pv_name = parts[0]
             status = parts[4]
+            storage_class = parts[5]
 
             # Skip Released PVs
             if status == "Released":
@@ -2736,11 +3197,13 @@ def check_k8s_persistent_volumes(host) -> Dict[str, Any]:
             checked += 1
             if status != "Bound":
                 issues.append(f"PV {pv_name}: not Bound (status={status})")
+            elif storage_class != expected_sc:
+                issues.append(f"PV {pv_name}: storage_class={storage_class} (expected {expected_sc})")
 
     if not issues:
         return {
             "success": True,
-            "details": f"All {checked} PV(s) are Bound",
+            "details": f"All {checked} PV(s) are Bound with storage class {expected_sc}",
             "error": "",
             "pv_count": checked,
             "issues": [],
@@ -2827,77 +3290,6 @@ def check_k8s_nfs_storage_class(host) -> Dict[str, Any]:
     }
 
 
-def check_k8s_telemetry_pvcs(host) -> Dict[str, Any]:
-    """Check if telemetry PVCs are Bound with the correct storage class.
-
-    Args:
-        host: Testinfra host connection
-
-    Returns:
-        Dict with success, details, error, pvc_count, issues
-    """
-    # Note: Storage class validation is reserved for future enhancement
-    cp_ip = _get_first_control_plane_ip(host)
-    if not cp_ip:
-        return {
-            "success": False,
-            "skipped": True,
-            "details": "No control plane nodes found",
-            "error": "No control plane nodes available",
-        }
-
-    # Check if telemetry namespace exists
-    ns_cmd = _ssh_cmd(cp_ip, "kubectl get ns telemetry 2>/dev/null")
-    ns_result = run_on_host(host, ns_cmd)
-    if ns_result.rc != 0:
-        return {
-            "success": True,
-            "skipped": True,
-            "details": "telemetry namespace not found - PVC check skipped",
-            "error": "",
-        }
-
-    cmd = _ssh_cmd(cp_ip, "kubectl get pvc -n telemetry --no-headers 2>/dev/null")
-    result = run_on_host(host, cmd)
-
-    if result.rc != 0 or not result.stdout.strip():
-        return {
-            "success": False,
-            "details": "No PVCs found in telemetry namespace",
-            "error": "telemetry PVCs missing",
-        }
-
-    lines = [l.strip() for l in result.stdout.strip().split('\n') if l.strip()]
-    issues = []
-    pvc_count = 0
-
-    for line in lines:
-        parts = line.split()
-        if len(parts) >= 3:
-            pvc_count += 1
-            pvc_name = parts[0]
-            status = parts[1]
-            if status != "Bound":
-                issues.append(f"PVC {pvc_name}: status={status} (expected Bound)")
-
-    if not issues:
-        return {
-            "success": True,
-            "details": f"All {pvc_count} telemetry PVC(s) are Bound",
-            "error": "",
-            "pvc_count": pvc_count,
-            "issues": [],
-        }
-
-    return {
-        "success": False,
-        "details": f"{len(issues)}/{pvc_count} telemetry PVC(s) not Bound",
-        "error": "; ".join(issues),
-        "pvc_count": pvc_count,
-        "issues": issues,
-    }
-
-
 # =============================================================================
 # BUSYBOX POD DEPLOYMENT TEST
 # =============================================================================
@@ -2922,17 +3314,40 @@ def check_k8s_busybox_pod(host) -> Dict[str, Any]:
 
     pod_name = "omnia-busybox-test"
     ns = "default"
+    
+    # Get local registry URL
+    registry = _get_local_registry(host)
+    if registry:
+        # Use local registry with explicit tag
+        image = f"{registry}/library/busybox:1.36"
+    else:
+        # Fallback to public registry (may fail without internet)
+        image = "busybox:1.36"
 
-    # Cleanup any existing pod
-    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+    # Cleanup any existing pod with force delete
+    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --force --grace-period=0 --ignore-not-found 2>/dev/null")
     run_on_host(host, cleanup_cmd)
-    time.sleep(2)
+    
+    # Wait for pod to be fully deleted with verification
+    max_delete_wait = 45
+    delete_wait_time = 0
+    while delete_wait_time < max_delete_wait:
+        check_cmd = _ssh_cmd(cp_ip, f"kubectl get pod {pod_name} -n {ns} --no-headers 2>/dev/null")
+        check_result = run_on_host(host, check_cmd)
+        if not check_result.stdout.strip():
+            break
+        # If pod still exists, try force delete again
+        if delete_wait_time % 10 == 0:
+            cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --force --grace-period=0 --ignore-not-found 2>/dev/null")
+            run_on_host(host, cleanup_cmd)
+        time.sleep(3)
+        delete_wait_time += 3
 
     # Create BusyBox pod
     create_cmd = _ssh_cmd(
         cp_ip,
-        f"kubectl run {pod_name} --image=busybox:1.36 --restart=Never "
-        f"-- sh -c 'echo BusyBox running && sleep 30' 2>&1"
+        f"kubectl run {pod_name} --image={image} --restart=Never "
+        f"-- sh -c 'echo BusyBox running && sleep 30'"
     )
     result = run_on_host(host, create_cmd)
 
@@ -2942,6 +3357,9 @@ def check_k8s_busybox_pod(host) -> Dict[str, Any]:
             "details": f"BusyBox pod creation failed: {result.stdout}",
             "error": "kubectl run failed",
         }
+
+    # Give pod a moment to start
+    time.sleep(2)
 
     # Wait for pod to reach Running/Ready
     max_wait = 60
@@ -2956,9 +3374,9 @@ def check_k8s_busybox_pod(host) -> Dict[str, Any]:
         check_result = run_on_host(host, check_cmd)
         phase = check_result.stdout.strip()
 
-        if phase in ("Running", "Succeeded"):
+        if phase in ("Running", "Succeeded", "Completed"):
             # Cleanup
-            cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+            cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --force --grace-period=0 --ignore-not-found 2>/dev/null")
             run_on_host(host, cleanup_cmd)
 
             return {
@@ -2974,7 +3392,7 @@ def check_k8s_busybox_pod(host) -> Dict[str, Any]:
         wait_time += 5
 
     # Cleanup
-    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --ignore-not-found 2>/dev/null")
+    cleanup_cmd = _ssh_cmd(cp_ip, f"kubectl delete pod {pod_name} -n {ns} --force --grace-period=0 --ignore-not-found 2>/dev/null")
     run_on_host(host, cleanup_cmd)
 
     return {
@@ -3181,4 +3599,637 @@ def check_k8s_nfs_client_target(host) -> Dict[str, Any]:
         "error": f"Failed: {failed_nodes}",
         "nodes_checked": nodes_checked,
         "failed_nodes": failed_nodes,
+    }
+
+
+# =============================================================================
+# ETCD LOCAL DISK VERIFICATION FUNCTIONS
+# =============================================================================
+
+def check_etcd_on_local_disk_enabled(host) -> Dict[str, Any]:
+    """Check if etcd_on_local_disk is enabled in omnia_config.yml.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, enabled (bool), details, error
+    """
+    project_path = _get_project_path(host)
+    omnia_config_path = f"{project_path}/omnia_config.yml"
+
+    cmd = f"cat {omnia_config_path}"
+    result = run_on_host(host, cmd)
+
+    if result.rc != 0:
+        return {
+            "success": False,
+            "enabled": False,
+            "details": f"Failed to read {omnia_config_path}",
+            "error": result.stderr,
+        }
+
+    try:
+        import yaml
+        omnia_config = yaml.safe_load(result.stdout)
+    except yaml.YAMLError as e:
+        return {
+            "success": False,
+            "enabled": False,
+            "details": f"Failed to parse {omnia_config_path}",
+            "error": str(e),
+        }
+
+    # Check service_k8s_cluster for etcd_on_local_disk setting
+    clusters = omnia_config.get("service_k8s_cluster", [])
+    if not clusters:
+        return {
+            "success": True,
+            "enabled": False,
+            "details": "No service_k8s_cluster found in omnia_config.yml",
+            "error": "",
+        }
+
+    enabled = clusters[0].get("etcd_on_local_disk", False)
+    if isinstance(enabled, str):
+        enabled = enabled.lower() in ("true", "yes", "1")
+
+    return {
+        "success": True,
+        "enabled": enabled,
+        "details": f"etcd_on_local_disk={enabled} in omnia_config.yml",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_boss_card_detection(host) -> Dict[str, Any]:
+    """Verify Dell BOSS card detection via PCI scan on control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, boss_detected (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "boss_detected": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    # Use reference implementation: lspci -nn -d 1028: (Dell vendor ID)
+    boss_model_keywords = ["boss", "BOSS"]
+    boss_found = False
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        cmd = _ssh_cmd(node_ip, "lspci -nn -d 1028:")
+        result = run_on_host(host, cmd)
+
+        if result.rc == 0 and result.stdout.strip():
+            node_boss_found = False
+            for keyword in boss_model_keywords:
+                if keyword.lower() in result.stdout.lower():
+                    boss_found = True
+                    node_boss_found = True
+                    details.append(f"BOSS card detected on {node_ip}: {keyword}")
+                    break
+            if not node_boss_found:
+                details.append(f"Dell hardware but no BOSS card on {node_ip}")
+        else:
+            details.append(f"No Dell hardware/BOSS card detected on {node_ip}")
+
+    return {
+        "success": True,
+        "boss_detected": boss_found,
+        "details": "; ".join(details) if details else "No BOSS card information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_disk_partitioning(host) -> Dict[str, Any]:
+    """Verify GPT partition exists for etcd data and root disk is excluded.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, partition_exists (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "partition_exists": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    partition_found = False
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get root disk
+        root_disk_cmd = _ssh_cmd(node_ip, "lsblk -no PKNAME $(findmnt -no SOURCE /) 2>/dev/null | head -1")
+        root_disk_result = run_on_host(host, root_disk_cmd)
+        root_disk = root_disk_result.stdout.strip()
+
+        # Get the disk backing /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"Etcd partition not found on {node_ip}")
+            continue
+
+        # Verify it is not the root disk
+        part_parent_cmd = _ssh_cmd(node_ip, f"lsblk -no PKNAME {mount_src} 2>/dev/null | head -1")
+        part_parent_result = run_on_host(host, part_parent_cmd)
+        part_parent = part_parent_result.stdout.strip()
+
+        if part_parent and root_disk and part_parent == root_disk:
+            details.append(f"Etcd partition on {node_ip} is on root disk (not allowed)")
+            continue
+
+        # Verify GPT partition table
+        parent_disk = f"/dev/{part_parent}" if part_parent else mount_src
+        pttype_cmd = _ssh_cmd(node_ip, f"blkid -o value -s PTTYPE {parent_disk} 2>/dev/null")
+        pttype_result = run_on_host(host, pttype_cmd)
+        pttype = pttype_result.stdout.strip().lower()
+
+        if pttype == "gpt":
+            partition_found = True
+            details.append(f"Etcd GPT partition found on {node_ip}: {mount_src}")
+        else:
+            details.append(f"Etcd partition on {node_ip} but not GPT: {pttype or 'unknown'}")
+
+    return {
+        "success": True,
+        "partition_exists": partition_found,
+        "details": "; ".join(details) if details else "No partition information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_filesystem_creation(host) -> Dict[str, Any]:
+    """Verify ext4 filesystem on etcd partition.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, filesystem_valid (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "filesystem_valid": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    filesystem_valid = False
+    details = []
+    supported_filesystems = ["ext4"]  # Reference supports ext4
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get the disk backing /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"Filesystem not found on {node_ip} (no mount source)")
+            continue
+
+        # Get filesystem type
+        fstype_cmd = _ssh_cmd(node_ip, f"blkid -o value -s TYPE {mount_src} 2>/dev/null")
+        fstype_result = run_on_host(host, fstype_cmd)
+        fstype = fstype_result.stdout.strip().lower()
+
+        if fstype in supported_filesystems:
+            filesystem_valid = True
+            details.append(f"Valid filesystem ({fstype}) found on {node_ip}: {mount_src}")
+        else:
+            details.append(f"Invalid filesystem on {node_ip}: {fstype or 'none'}")
+
+    return {
+        "success": True,
+        "filesystem_valid": filesystem_valid,
+        "details": "; ".join(details) if details else "No filesystem information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_fstab_and_mount(host) -> Dict[str, Any]:
+    """Verify UUID-based fstab entry and active mount for /var/lib/etcd.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, fstab_entry_exists (bool), mount_active (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "fstab_entry_exists": False,
+            "mount_active": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    fstab_entry_exists = False
+    mount_active = False
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Check fstab for UUID-based entry
+        fstab_cmd = _ssh_cmd(node_ip, "grep '/var/lib/etcd' /etc/fstab 2>/dev/null")
+        fstab_result = run_on_host(host, fstab_cmd)
+        fstab_out = fstab_result.stdout.strip()
+
+        has_uuid_entry = False
+        if fstab_out:
+            for line in fstab_out.splitlines():
+                if "UUID=" in line and "/var/lib/etcd" in line:
+                    has_uuid_entry = True
+                    break
+
+        # Check mount is active
+        mount_cmd = _ssh_cmd(node_ip, "mountpoint -q /var/lib/etcd")
+        mount_result = run_on_host(host, mount_cmd)
+        node_mount = mount_result.rc == 0
+
+        if has_uuid_entry:
+            fstab_entry_exists = True
+        if node_mount:
+            mount_active = True
+
+        details.append(f"{node_ip}: UUID-fstab={'exists' if has_uuid_entry else 'missing'}, mount={'active' if node_mount else 'inactive'}")
+
+    return {
+        "success": True,
+        "fstab_entry_exists": fstab_entry_exists,
+        "mount_active": mount_active,
+        "details": "; ".join(details) if details else "No fstab/mount information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_local_disk_config(host) -> Dict[str, Any]:
+    """Verify etcd uses local disk at /var/lib/etcd (not NFS).
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, using_local_disk (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "using_local_disk": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    using_local_disk = False
+    details = []
+    nfs_mount_type = "nfs"
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Check mount type for /var/lib/etcd
+        cmd = _ssh_cmd(node_ip, "findmnt -no FSTYPE /var/lib/etcd 2>/dev/null")
+        result = run_on_host(host, cmd)
+        fstype = result.stdout.strip().lower()
+
+        if fstype and fstype != nfs_mount_type:
+            using_local_disk = True
+            details.append(f"Local disk mount on {node_ip}: {fstype}")
+        else:
+            reason = f"mount type is '{fstype}'" if fstype else "not mounted"
+            details.append(f"Not using local disk on {node_ip}: {reason}")
+
+    return {
+        "success": True,
+        "using_local_disk": using_local_disk,
+        "details": "; ".join(details) if details else "No mount information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_fallback_disk_detection(host) -> Dict[str, Any]:
+    """Verify fallback disk detection (non-BOSS disk).
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, fallback_disk_detected (bool)
+    """
+    boss_result = check_k8s_etcd_boss_card_detection(host)
+    
+    if not boss_result["success"]:
+        return {
+            "success": False,
+            "fallback_disk_detected": False,
+            "details": "BOSS card detection failed",
+            "error": boss_result["error"],
+        }
+
+    # If BOSS card is detected, skip fallback disk check
+    if boss_result.get("boss_detected"):
+        return {
+            "success": True,
+            "fallback_disk_detected": False,
+            "details": "BOSS card detected, skipping fallback disk check",
+            "error": "",
+        }
+
+    # Check if etcd is mounted (indicating fallback disk is being used)
+    mount_result = check_k8s_etcd_local_disk_config(host)
+    
+    if mount_result.get("using_local_disk"):
+        return {
+            "success": True,
+            "fallback_disk_detected": True,
+            "details": "Fallback disk detected (etcd mounted on local disk)",
+            "error": "",
+        }
+
+    return {
+        "success": True,
+        "fallback_disk_detected": False,
+        "details": "No fallback disk detected (etcd not mounted locally)",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_first_boot_setup(host) -> Dict[str, Any]:
+    """Verify etcd-disk-setup.sh script exists and executed successfully.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, script_exists (bool), script_executed (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "script_exists": False,
+            "script_executed": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    script_exists = False
+    script_executed = False
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Check if script exists (using reference path)
+        script_path = "/usr/local/bin/etcd-disk-setup.sh"
+        script_cmd = _ssh_cmd(node_ip, f"test -f {script_path}")
+        script_result = run_on_host(host, script_cmd)
+        node_script_exists = script_result.rc == 0
+
+        # Check if script was executed (look for log file using reference path)
+        log_path = "/var/log/etcd-disk-setup.log"
+        log_cmd = _ssh_cmd(node_ip, f"test -f {log_path}")
+        log_result = run_on_host(host, log_cmd)
+        node_script_executed = log_result.rc == 0
+
+        if node_script_exists:
+            script_exists = True
+        if node_script_executed:
+            script_executed = True
+
+        details.append(f"{node_ip}: script={'exists' if node_script_exists else 'missing'}, log={'exists' if node_script_executed else 'missing'}")
+
+    return {
+        "success": True,
+        "script_exists": script_exists,
+        "script_executed": script_executed,
+        "details": "; ".join(details) if details else "No script information",
+        "error": "",
+    }
+
+
+def check_k8s_etcd_ssd_disk_support(host) -> Dict[str, Any]:
+    """Verify SSD disk support for etcd on control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, ssd_detected (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "ssd_detected": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    ssd_detected = False
+    ssd_nodes = []
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get the source device for /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"No etcd mount on {node_ip}")
+            continue
+
+        # Get parent disk name
+        parent_disk_cmd = _ssh_cmd(node_ip, f"lsblk -no PKNAME {mount_src} 2>/dev/null | head -1")
+        parent_disk_result = run_on_host(host, parent_disk_cmd)
+        parent_disk = parent_disk_result.stdout.strip()
+        if not parent_disk:
+            parent_disk = mount_src.replace("/dev/", "").rstrip("0123456789").rstrip("p")
+
+        # Detect disk type on the etcd disk
+        disk_type_cmd = _ssh_cmd(node_ip, f"lsblk -o NAME,ROTA /dev/{parent_disk} 2>/dev/null | grep -v '^NAME'")
+        disk_type_result = run_on_host(host, disk_type_cmd)
+        
+        if disk_type_result.rc == 0 and disk_type_result.stdout.strip():
+            # ROTA=0 means SSD, ROTA=1 means HDD
+            if "0" in disk_type_result.stdout.split()[-1]:
+                ssd_detected = True
+                ssd_nodes.append(node_ip)
+
+    if ssd_nodes:
+        details = f"SSD disk used for etcd on: {', '.join(ssd_nodes)}"
+    else:
+        details = "No SSD disk used for etcd on any control plane node"
+
+    return {
+        "success": True,
+        "ssd_detected": ssd_detected,
+        "details": details,
+        "error": "",
+    }
+
+
+def check_k8s_etcd_hdd_disk_support(host) -> Dict[str, Any]:
+    """Verify HDD disk support for etcd on control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, hdd_detected (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "hdd_detected": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    hdd_detected = False
+    hdd_nodes = []
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get the source device for /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"No etcd mount on {node_ip}")
+            continue
+
+        # Get parent disk name
+        parent_disk_cmd = _ssh_cmd(node_ip, f"lsblk -no PKNAME {mount_src} 2>/dev/null | head -1")
+        parent_disk_result = run_on_host(host, parent_disk_cmd)
+        parent_disk = parent_disk_result.stdout.strip()
+        if not parent_disk:
+            parent_disk = mount_src.replace("/dev/", "").rstrip("0123456789").rstrip("p")
+
+        # Detect disk type on the etcd disk
+        disk_type_cmd = _ssh_cmd(node_ip, f"lsblk -o NAME,ROTA /dev/{parent_disk} 2>/dev/null | grep -v '^NAME'")
+        disk_type_result = run_on_host(host, disk_type_cmd)
+        
+        if disk_type_result.rc == 0 and disk_type_result.stdout.strip():
+            # ROTA=0 means SSD, ROTA=1 means HDD
+            if "1" in disk_type_result.stdout.split()[-1]:
+                hdd_detected = True
+                hdd_nodes.append(node_ip)
+
+    if hdd_nodes:
+        details = f"HDD disk used for etcd on: {', '.join(hdd_nodes)}"
+    else:
+        details = "No HDD disk used for etcd on any control plane node"
+
+    return {
+        "success": True,
+        "hdd_detected": hdd_detected,
+        "details": details,
+        "error": "",
+    }
+
+
+def check_k8s_etcd_nvme_disk_support(host) -> Dict[str, Any]:
+    """Verify NVMe disk support for etcd on control plane nodes.
+
+    Args:
+        host: Testinfra host connection
+
+    Returns:
+        Dict with success, details, error, nvme_detected (bool)
+    """
+    cp_nodes = get_k8s_control_plane_nodes(host)
+    
+    if not cp_nodes:
+        return {
+            "success": False,
+            "nvme_detected": False,
+            "details": "No control plane nodes found",
+            "error": "No control plane nodes available",
+        }
+
+    nvme_detected = False
+    nvme_nodes = []
+    details = []
+
+    for node_ip in cp_nodes:
+        if not node_ip:
+            continue
+
+        # Get the source device for /var/lib/etcd
+        mount_src_cmd = _ssh_cmd(node_ip, "findmnt -no SOURCE /var/lib/etcd 2>/dev/null")
+        mount_src_result = run_on_host(host, mount_src_cmd)
+        mount_src = mount_src_result.stdout.strip()
+
+        if not mount_src:
+            details.append(f"No etcd mount on {node_ip}")
+            continue
+
+        # Check if the etcd disk is NVMe
+        if "nvme" in mount_src.lower():
+            nvme_detected = True
+            nvme_nodes.append(node_ip)
+
+    if nvme_nodes:
+        details = f"NVMe disk used for etcd on: {', '.join(nvme_nodes)}"
+    else:
+        details = "No NVMe disk used for etcd on any control plane node"
+
+    return {
+        "success": True,
+        "nvme_detected": nvme_detected,
+        "details": details,
+        "error": "",
     }

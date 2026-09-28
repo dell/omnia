@@ -23,18 +23,9 @@ redhat_uep_cert: "/etc/rhsm/ca/redhat-uep.pem"
 entitlement_path: "/etc/pki/entitlement"
 redhat_repo_file: "/etc/yum.repos.d/redhat.repo"
 
-# Usage: configure_rhel_os_urls.yml
+# Usage: resolve_rhel_repository_urls.yml
 local_repo_config_path: "{{ repo_manager_config_file }}"
 omnia_rhel_cert_dir: "{{ rhel_repo_cert_dir }}"
-required_repos_by_arch:
-  x86_64: >-
-    {{ (catalog_context.referenced_repositories.get('x86_64', []) |
-        select('in', platform_profiles.rhel.subscription_repositories) | list)
-       if 'x86_64' in selected_architectures else [] }}
-  aarch64: >-
-    {{ (catalog_context.referenced_repositories.get('aarch64', []) |
-        select('in', platform_profiles.rhel.subscription_repositories) | list)
-       if 'aarch64' in selected_architectures else [] }}
 # =============================================================================
 # FAILURE AND ASSERTION MESSAGES
 # =============================================================================
@@ -60,12 +51,31 @@ repository_access_fail_when_a_referenced_repository_has_no_explicit_url_msg: >-
   Only catalog-referenced subscription repositories may omit URLs when a
   RHEL subscription is enabled.
 
-repository_access_validate_copied_subscription_certificates_msg: >-
-  RHEL subscription certificates required by Repo Manager are missing
-  from {{ omnia_rhel_cert_dir }}.
+repository_access_fail_when_subscription_inventory_cannot_be_resolved_msg: >-
+  RHEL subscription repository inventory could not be resolved safely for
+  RHEL {{ cluster_os_version }}. Verify subscription-manager output,
+  redhat.repo, and the copied entitlement certificates.
 
 
 repository_access_fail_when_subscription_cannot_provide_a_referenced_repository_msg: >-
   RHEL subscription and explicit configuration do not provide these
   repositories for RHEL {{ cluster_os_version }}:
   {{ unresolved_subscription_repo_summary | join('; ') }}.
+
+repository_access_repository_metadata_validation_failed_msg: |-
+  Repository metadata validation failed.
+
+  {% for failure in repository_metadata_failures %}
+  - Architecture: {{ failure.architecture }}
+    Repository: {{ failure.repository }}
+    Metadata: {{ failure.metadata }}
+    Reason: {{ failure.reason }}
+  {% endfor %}
+
+  {% if repository_metadata_failures |
+        selectattr('status', 'equalto', 404) | list | length > 0 %}
+  The configured URL is not a valid RPM repository base URL.
+  {% else %}
+  Check repository availability, network connectivity, access permissions,
+  and TLS configuration.
+  {% endif %}

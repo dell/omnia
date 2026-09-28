@@ -21,8 +21,9 @@ from typing import Any
 
 from ..messages import orchestrator_messages as msg
 
-
 AddressRange = tuple[ipaddress.IPv4Address, ipaddress.IPv4Address]
+ConfiguredNetwork = tuple[str, ipaddress.IPv4Network]
+ConfiguredRange = tuple[str, AddressRange]
 
 
 def record_error(errors: list[str], logger: Logger | None, message: str) -> None:
@@ -134,37 +135,112 @@ def _validate_admin_ip(
 
 def _validate_additional_subnets(
     admin_config: dict[str, Any],
-    primary_network: ipaddress.IPv4Network | None,
-    primary_range: AddressRange | None,
+    label: str,
+    errors: list[str],
+    logger: Logger | None,
+) -> tuple[list[ConfiguredNetwork], list[ConfiguredRange]]:
+    """Validate and return every additional subnet under an admin entry."""
+    configured_networks: list[ConfiguredNetwork] = []
+    configured_ranges: list[ConfiguredRange] = []
+    additional_subnets = admin_config.get("additional_subnets", [])
+    if not isinstance(additional_subnets, list):
+        return configured_networks, configured_ranges
+
+    for index, additional in enumerate(additional_subnets):
+        subnet_label = f"{label}.additional_subnets[{index}]"
+        additional_network, additional_range = _validate_network_entry(
+            additional, subnet_label, errors, logger
+        )
+        if additional_network:
+            configured_networks.append((subnet_label, additional_network))
+        if additional_range:
+            configured_ranges.append((subnet_label, additional_range))
+    return configured_networks, configured_ranges
+
+
+def _ranges_overlap(first: AddressRange, second: AddressRange) -> bool:
+    """Return whether two inclusive IPv4 ranges intersect."""
+    return first[0] <= second[1] and second[0] <= first[1]
+
+
+def _validate_admin_overlaps(
+    configured_networks: list[ConfiguredNetwork],
+    configured_ranges: list[ConfiguredRange],
     errors: list[str],
     logger: Logger | None,
 ) -> None:
-    """Validate additional admin subnets and reject overlaps."""
-    configured_networks = [primary_network] if primary_network else []
-    configured_ranges = [primary_range] if primary_range else []
-    additional_subnets = admin_config.get("additional_subnets", [])
-    if not isinstance(additional_subnets, list):
-        return
-
-    for index, additional in enumerate(additional_subnets):
-        label = f"admin_network.additional_subnets[{index}]"
-        additional_network, additional_range = _validate_network_entry(
-            additional, label, errors, logger
-        )
-        if additional_network and any(
-            additional_network.overlaps(existing) for existing in configured_networks
+    """Reject subnet and DHCP-range overlaps across all admin entries."""
+    for index, (label, network) in enumerate(configured_networks):
+        if any(
+            network.overlaps(previous_network)
+            for _, previous_network in configured_networks[:index]
         ):
             record_error(errors, logger, msg.subnet_overlap_msg(label))
-        if additional_range and any(
-            additional_range[0] <= existing[1]
-            and existing[0] <= additional_range[1]
-            for existing in configured_ranges
+
+    for index, (label, address_range) in enumerate(configured_ranges):
+        if any(
+            _ranges_overlap(address_range, previous_range)
+            for _, previous_range in configured_ranges[:index]
         ):
             record_error(errors, logger, msg.dynamic_range_overlap_msg(label))
-        if additional_network:
-            configured_networks.append(additional_network)
-        if additional_range:
-            configured_ranges.append(additional_range)
+
+
+def _validate_admin_bmc_relationships(
+    admin_entries: list[tuple[str, dict[str, Any]]],
+    configured_ranges: list[ConfiguredRange],
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Validate OIM BMC addresses against admin IPs and every DHCP pool."""
+    admin_addresses = {
+        str(admin_config.get("primary_oim_admin_ip"))
+        for _, admin_config in admin_entries
+        if is_valid_ipv4(admin_config.get("primary_oim_admin_ip"))
+    }
+    for label, admin_config in admin_entries:
+        bmc_ip = admin_config.get("primary_oim_bmc_ip", "")
+        if not bmc_ip or not is_valid_ipv4(bmc_ip):
+            continue
+
+        parsed_bmc_ip = ipaddress.ip_address(bmc_ip)
+        if str(parsed_bmc_ip) in admin_addresses:
+            record_error(
+                errors,
+                logger,
+                msg.admin_bmc_ip_same_msg(label, str(bmc_ip)),
+            )
+
+        for range_label, address_range in configured_ranges:
+            if address_range[0] <= parsed_bmc_ip <= address_range[1]:
+                record_error(
+                    errors,
+                    logger,
+                    msg.bmc_ip_in_dynamic_range_msg(
+                        label, str(bmc_ip), range_label
+                    ),
+                )
+
+
+def _validate_ib_admin_relationships(
+    all_admin_networks: list[ConfiguredNetwork],
+    ib_networks: list[ConfiguredNetwork],
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Validate that IB and admin subnets do not overlap."""
+    for ib_label, ib_network in ib_networks:
+        for admin_label, admin_network in all_admin_networks:
+            if ib_network.overlaps(admin_network):
+                record_error(
+                    errors,
+                    logger,
+                    msg.ib_admin_subnet_overlap_msg(
+                        ib_label,
+                        str(ib_network),
+                        admin_label,
+                        str(admin_network),
+                    ),
+                )
 
 
 def validate(config_data: Any, logger: Logger | None = None) -> list[str]:
@@ -187,28 +263,69 @@ def validate(config_data: Any, logger: Logger | None = None) -> list[str]:
         record_error(errors, logger, msg.NETWORK_SPEC_NETWORKS_REQUIRED_MSG)
         return errors
 
-    admin_config = next(
-        (
-            entry["admin_network"]
-            for entry in networks
-            if isinstance(entry, dict)
-            and isinstance(entry.get("admin_network"), dict)
-        ),
-        None,
-    )
-    if admin_config is None:
+    admin_entries: list[tuple[str, dict[str, Any]]] = []
+    all_admin_networks: list[ConfiguredNetwork] = []
+    configured_ranges: list[ConfiguredRange] = []
+    ib_networks: list[ConfiguredNetwork] = []
+
+    for index, entry in enumerate(networks):
+        if not isinstance(entry, dict):
+            continue
+
+        admin_config = entry.get("admin_network")
+        if isinstance(admin_config, dict):
+            admin_label = f"Networks[{index}].admin_network"
+            admin_entries.append((admin_label, admin_config))
+            primary_network, primary_range = _validate_network_entry(
+                admin_config, admin_label, errors, logger
+            )
+            if admin_config.get("netmask_bits") is None:
+                record_error(
+                    errors, logger, msg.NETWORK_SPEC_NETMASK_REQUIRED_MSG
+                )
+            _validate_admin_ip(
+                admin_config, primary_network, primary_range, errors, logger
+            )
+            if primary_network:
+                primary_entry = (admin_label, primary_network)
+                all_admin_networks.append(primary_entry)
+            if primary_range:
+                configured_ranges.append((admin_label, primary_range))
+            additional_networks, additional_ranges = (
+                _validate_additional_subnets(
+                    admin_config, admin_label, errors, logger
+                )
+            )
+            all_admin_networks.extend(additional_networks)
+            configured_ranges.extend(additional_ranges)
+
+        ib_config = entry.get("ib_network")
+        if isinstance(ib_config, dict):
+            ib_label = f"Networks[{index}].ib_network"
+            ib_network = network_from_config(ib_config)
+            if ib_network is None:
+                record_error(
+                    errors,
+                    logger,
+                    msg.network_definition_invalid_msg(ib_label),
+                )
+            else:
+                ib_networks.append((ib_label, ib_network))
+
+    if not admin_entries:
         record_error(errors, logger, msg.NETWORK_SPEC_ADMIN_REQUIRED_MSG)
         return errors
 
-    primary_network, primary_range = _validate_network_entry(
-        admin_config, "admin_network", errors, logger
+    _validate_admin_overlaps(
+        all_admin_networks, configured_ranges, errors, logger
     )
-    if admin_config.get("netmask_bits") is None:
-        record_error(errors, logger, msg.NETWORK_SPEC_NETMASK_REQUIRED_MSG)
-    _validate_admin_ip(
-        admin_config, primary_network, primary_range, errors, logger
+    _validate_admin_bmc_relationships(
+        admin_entries, configured_ranges, errors, logger
     )
-    _validate_additional_subnets(
-        admin_config, primary_network, primary_range, errors, logger
+    _validate_ib_admin_relationships(
+        all_admin_networks,
+        ib_networks,
+        errors,
+        logger,
     )
     return errors

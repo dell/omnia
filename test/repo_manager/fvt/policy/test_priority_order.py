@@ -30,8 +30,8 @@ from library.messages.repo_manager_msgs import (
 @pytest.mark.positive
 @pytest.mark.order(1)
 def test_per_repo_policy_overrides_global(host: Host):
-    """TC_RM_PO_001: Per-repo policy should win over global repo_config."""
-    tl = TestLogger(TEST_NAMES["per_repo_policy_override"], "TC_RM_PO_001")
+    """RM_FVT_POLICY_V001: Per-repo policy should win over global repo_config."""
+    tl = TestLogger(TEST_NAMES["per_repo_policy_override"], "RM_FVT_POLICY_V001")
 
     # Get global settings
     global_config = check_global_repo_config(host)
@@ -77,8 +77,8 @@ def test_per_repo_policy_overrides_global(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(2)
 def test_per_repo_caching_overrides_global(host: Host):
-    """TC_RM_PO_002: Per-repo caching should win over global CACHING_POLICY."""
-    tl = TestLogger(TEST_NAMES["per_repo_caching_override"], "TC_RM_PO_002")
+    """RM_FVT_POLICY_V002: Per-repo caching should win over global CACHING_POLICY."""
+    tl = TestLogger(TEST_NAMES["per_repo_caching_override"], "RM_FVT_POLICY_V002")
 
     # Get global settings
     global_caching = check_global_caching_policy(host)
@@ -124,8 +124,8 @@ def test_per_repo_caching_overrides_global(host: Host):
 @pytest.mark.positive
 @pytest.mark.order(3)
 def test_per_repo_complete_override(host: Host):
-    """TC_RM_PO_003: Per-repo should completely override global settings."""
-    tl = TestLogger(TEST_NAMES["per_repo_complete_override"], "TC_RM_PO_003")
+    """RM_FVT_POLICY_V003: Per-repo should completely override global settings."""
+    tl = TestLogger(TEST_NAMES["per_repo_complete_override"], "RM_FVT_POLICY_V003")
 
     # Get global settings
     global_config = check_global_repo_config(host)

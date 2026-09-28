@@ -8,7 +8,7 @@
 
 domain: "telemetry"
 type: "{{ _status_type | default('deploy') }}"
-project_name: "{{ project_name | default('project_default') }}"
+project_name: "{{ project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)) }}"
 {% if _status_type | default('deploy') == 'cleanup' %}
 overall_status: "{{ 'success' if _cleanup_status == 'passed' else ('failed' if _cleanup_status == 'failed' else 'partial') }}"
 {% else %}
@@ -20,7 +20,9 @@ kube_vip: "{{ kube_vip | default('') }}"
 
 {% if _status_type | default('deploy') == 'cleanup' %}
 volumes:
-  delete_requested: {{ _cleanup_delete_volume | default(false) | bool | lower }}
+  delete_requested:
+    sinks: {{ _cleanup_delete_sinks_volume_enabled | default(false) | bool | lower }}
+    sources: true
   status: "{{ _cleanup_volume_status | default('skipped') }}"
   components:
     idrac: "{{ _cleanup_volume_results.idrac | default('skipped') }}"

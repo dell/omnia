@@ -38,24 +38,17 @@ DOMAIN_NAME: str = "orchestrator"
 # =====================================================================
 
 FVT_TAGS: List[str] = [
+    "precheck",
     "validate",
     "prepare",
     "provision",
+    "deploy",
+    "execute",
+    "pxeboot",
+    "check",
     "cleanup",
     "rollback",
-    "modules",
-    "roles",
     "playbooks",
-    "slurm",
-    "kubernetes",
-    # Standalone K8s sub-tags (used by fvt_k8s)
-    "services",
-    "etcd",
-    "ha",
-    "network",
-    "storage",
-    "firewall",
-    "nft",
     "negative",
 ]
 
@@ -75,6 +68,17 @@ MARKERS: List[str] = [
     "security",
     "negative",
     "buildstream",
+    "destructive",
+    "additional_cloud_init",
+    "hpc_benchmarks",
+    "apptainer",
+    "gpu",
+    "openldap",
+    "storage",
+    "vast",
+    "powervault",
+    "recovery",
+    "unit",
 ]
 
 # =====================================================================
@@ -82,18 +86,42 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "validate": ["status", "slurm", "kubernetes"],
-    "prepare": ["openchami"],
+    "precheck": [],
+    "validate": [],
+    "prepare": ["openchami", "openldap"],
+    "deploy": [],
     "provision": ["slurm", "kubernetes"],
+    "execute": [],
+    "pxeboot": [],
+    "check": ["slurm", "kubernetes", "status"],
     "cleanup": ["status"],
     "rollback": [],
-    "modules": [],
-    "roles": [],
     "playbooks": [],
-    "slurm": [],
-    "kubernetes": [],
-    "nft": [],
     "negative": [],
+}
+
+# Ordered non-destructive lifecycle used by an untagged ``test`` or ``exec``.
+# The execute playbook includes provisioning and conditional PXE boot exactly as
+# the public orchestrator lifecycle defines it.
+ALL_EXEC_TAGS: List[str] = ["precheck", "prepare", "execute"]
+ALL_EXEC_MARKER: str = "sanity"
+ALL_VERIFY_EXCLUDE_MARKERS: List[str] = ["negative", "destructive"]
+
+# These areas validate already-produced state or source contracts. They do not
+# own an Ansible lifecycle operation and must never be presented as deployable.
+VERIFY_ONLY_TAGS: List[str] = [
+    "check",
+    "playbooks",
+    "negative",
+]
+
+REQUIRED_SUITE_TAGS: List[str] = []
+VERIFY_ONLY_SUITES: Dict[str, List[str]] = {}
+
+# Kubernetes and Slurm follow the same provision-suite convention: the
+# selected suite contains the one deployment owner for that platform.
+SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
+    "provision": ["kubernetes", "slurm"],
 }
 
 # =====================================================================
@@ -103,6 +131,5 @@ SUITES: Dict[str, List[str]] = {
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
     "rollback",
-    "nft",
     "negative",
 ]

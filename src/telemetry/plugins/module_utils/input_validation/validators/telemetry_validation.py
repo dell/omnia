@@ -67,6 +67,53 @@ def _validated_mount_path(value):
     return value
 
 
+def _validated_project_name(value):
+    """Return a safe project name, or an empty string when invalid.
+    
+    Prevents path traversal attacks by rejecting names containing:
+    - Path separators (/, \)
+    - Parent directory references (..)
+    - Null bytes or control characters
+    - Names must be 1-80 characters
+    - Must start with alphanumeric
+    """
+    if not isinstance(value, str) or not value:
+        return ""
+    if len(value) > 80:
+        return ""
+    # Must start with alphanumeric
+    if not value[0].isalnum():
+        return ""
+    # Reject path traversal sequences and separators
+    if any(seq in value for seq in ("..", "/", "\\", "\x00", "\r", "\n")):
+        return ""
+    # Only allow alphanumeric, underscore, hyphen, and dot
+    if not all(c.isalnum() or c in ("_", "-", ".") for c in value):
+        return ""
+    return value
+
+
+def _validated_data_path(value):
+    """Return a safe absolute data path, or an empty string when invalid.
+    
+    Prevents path traversal attacks by ensuring:
+    - Path is absolute (starts with /)
+    - No null bytes or control characters
+    - No path traversal sequences
+    """
+    if not isinstance(value, str) or not value:
+        return ""
+    # Must be absolute path
+    if not os.path.isabs(value):
+        return ""
+    # Reject control characters and path traversal
+    if any(char in value for char in ("\x00", "\r", "\n")):
+        return ""
+    if ".." in value:
+        return ""
+    return value
+
+
 def _inventory_kube_vip(inventory_data):
     """Return the inventory kube VIP and a safely shaped children mapping."""
     if not isinstance(inventory_data, dict):
@@ -143,6 +190,8 @@ def validate_telemetry_config(
 
     # =========================================================================
     # L2: Validate cluster_inventory — file existence under telemetry input dir
+    # Empty value is allowed — the playbook will resolve a default path:
+    #   $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
     # =========================================================================
     cluster_inventory = data.get("cluster_inventory", "")
     if cluster_inventory:
@@ -189,13 +238,11 @@ def validate_telemetry_config(
             # (e.g., /opt/omnia/orchestrator/orchestrator.yml) - no directory restriction
             logger.info(f"cluster_inventory validated: {cluster_inv_full_path}")
     else:
-        errors.append(create_error_msg(
-            "cluster_inventory",
-            "",
-            "cluster_inventory is required. Provide the path to the Ansible inventory file "
-            "(e.g., '/omnia/src/telemetry/input/orchestrator_inventory.yml' or 'orchestrator_inventory.yml')"
-        ))
-        logger.error("cluster_inventory is empty or not provided")
+        # Empty cluster_inventory is allowed — playbook resolves default from
+        # $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+        logger.info(
+            "cluster_inventory is empty — playbook will use default orchestrator output path"
+        )
 
     # =========================================================================
     # L2: Validate kube_vip — extracted from cluster_inventory file
@@ -313,6 +360,51 @@ def validate_telemetry_config(
     idrac_telemetry_support = idrac_source.get("metrics_enabled", False)
     idrac_collection_targets = idrac_source.get("collection_targets", [])
 
+    # iDRAC inventory is mandatory only when iDRAC telemetry is enabled.
+    # Resolve relative paths from the directory containing telemetry_config.yml,
+    # which is also where the default project input files are stored.
+    idrac_configurations = data.get("idrac_telemetry_configurations", {})
+    if not isinstance(idrac_configurations, dict):
+        idrac_configurations = {}
+    bmc_group_data_path = idrac_configurations.get("bmc_group_data_path", "")
+
+    if idrac_telemetry_support:
+        if not isinstance(bmc_group_data_path, str) or not bmc_group_data_path.strip():
+            errors.append(create_error_msg(
+                "idrac_telemetry_configurations.bmc_group_data_path",
+                bmc_group_data_path,
+                "bmc_group_data_path is required when "
+                "telemetry_sources.idrac.metrics_enabled is true. Provide the path "
+                "to an existing bmc_group_data.csv file."
+            ))
+            logger.error(
+                "bmc_group_data_path is empty while iDRAC telemetry is enabled"
+            )
+        else:
+            configured_bmc_path = bmc_group_data_path.strip()
+            if os.path.isabs(configured_bmc_path):
+                resolved_bmc_path = configured_bmc_path
+            else:
+                resolved_bmc_path = os.path.join(
+                    os.path.dirname(input_file_path), configured_bmc_path
+                )
+
+            if not os.path.isfile(resolved_bmc_path):
+                errors.append(create_error_msg(
+                    "idrac_telemetry_configurations.bmc_group_data_path",
+                    bmc_group_data_path,
+                    f"BMC group data file not found at: {resolved_bmc_path}. "
+                    "Provide the path to an existing bmc_group_data.csv file."
+                ))
+                logger.error(
+                    "bmc_group_data_path does not reference an existing file: %s",
+                    resolved_bmc_path,
+                )
+            else:
+                logger.info(
+                    "bmc_group_data_path validated: %s", resolved_bmc_path
+                )
+
     # Bridge feature flags
     vector_ldms = telemetry_bridges.get("vector_ldms", {})
     vector_ome = telemetry_bridges.get("vector_ome", {})
@@ -324,7 +416,7 @@ def validate_telemetry_config(
     # =========================================================================
     # Validate collection_targets per source type
     # =========================================================================
-    # iDRAC: supports kafka and victoria_metrics
+    # iDRAC: supports kafka and victoria_metrics (at least one required when enabled)
     idrac_targets = set(idrac_collection_targets)
     allowed_idrac_targets = {"kafka", "victoria_metrics"}
     invalid_idrac_targets = idrac_targets - allowed_idrac_targets
@@ -333,6 +425,14 @@ def validate_telemetry_config(
             "telemetry_sources.idrac.collection_targets",
             list(invalid_idrac_targets),
             f"Invalid collection targets for iDRAC. Only 'kafka' and 'victoria_metrics' are supported. Found: {invalid_idrac_targets}"
+        ))
+    
+    # iDRAC only has metrics_enabled (no logs_enabled)
+    if idrac_telemetry_support and not idrac_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.idrac.collection_targets",
+            list(idrac_targets),
+            "iDRAC collection_targets must not be empty when iDRAC telemetry is enabled. At least one target is required ('kafka' or 'victoria_metrics')."
         ))
 
     # LDMS: only supports kafka
@@ -354,6 +454,32 @@ def validate_telemetry_config(
             list(invalid_powerscale_targets),
             f"Invalid collection targets for PowerScale. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_powerscale_targets}"
         ))
+    
+    # Validate that required targets are present based on enabled features
+    powerscale_metrics_enabled = powerscale_source.get("metrics_enabled", False)
+    powerscale_logs_enabled = powerscale_source.get("logs_enabled", False)
+    
+    if powerscale_metrics_enabled and "victoria_metrics" not in powerscale_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.powerscale.collection_targets",
+            list(powerscale_targets),
+            "PowerScale collection_targets must include 'victoria_metrics' when metrics_enabled is true."
+        ))
+    
+    if powerscale_logs_enabled and "victoria_logs" not in powerscale_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.powerscale.collection_targets",
+            list(powerscale_targets),
+            "PowerScale collection_targets must include 'victoria_logs' when logs_enabled is true."
+        ))
+    
+    # Ensure at least one target is specified when any feature is enabled
+    if (powerscale_metrics_enabled or powerscale_logs_enabled) and not powerscale_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.powerscale.collection_targets",
+            list(powerscale_targets),
+            "PowerScale collection_targets must not be empty when PowerScale telemetry is enabled. At least one target is required."
+        ))
 
     # UFM: supports victoria_metrics and victoria_logs
     ufm_targets = set(ufm_source.get("collection_targets", []))
@@ -364,6 +490,69 @@ def validate_telemetry_config(
             "telemetry_sources.ufm.collection_targets",
             list(invalid_ufm_targets),
             f"Invalid collection targets for UFM. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_ufm_targets}"
+        ))
+    
+    # Validate that required targets are present based on enabled features
+    ufm_metrics_enabled = ufm_source.get("metrics_enabled", False)
+    ufm_logs_enabled = ufm_source.get("logs_enabled", False)
+    
+    if ufm_metrics_enabled and "victoria_metrics" not in ufm_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.ufm.collection_targets",
+            list(ufm_targets),
+            "UFM collection_targets must include 'victoria_metrics' when metrics_enabled is true."
+        ))
+    
+    if ufm_logs_enabled and "victoria_logs" not in ufm_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.ufm.collection_targets",
+            list(ufm_targets),
+            "UFM collection_targets must include 'victoria_logs' when logs_enabled is true."
+        ))
+    
+    # Ensure at least one target is specified when any feature is enabled
+    if (ufm_metrics_enabled or ufm_logs_enabled) and not ufm_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.ufm.collection_targets",
+            list(ufm_targets),
+            "UFM collection_targets must not be empty when UFM telemetry is enabled. At least one target is required."
+        ))
+
+    # VAST: supports victoria_metrics and victoria_logs
+    vast_targets = set(vast_source.get("collection_targets", []))
+    allowed_vast_targets = {"victoria_metrics", "victoria_logs"}
+    invalid_vast_targets = vast_targets - allowed_vast_targets
+    if invalid_vast_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.vast.collection_targets",
+            list(invalid_vast_targets),
+            f"Invalid collection targets for VAST. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_vast_targets}"
+        ))
+    
+    # Validate that required targets are present based on enabled features
+    vast_metrics_enabled = vast_source.get("metrics_enabled", False)
+    vast_logs_enabled = vast_source.get("logs_enabled", False)
+    
+    if vast_metrics_enabled and "victoria_metrics" not in vast_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.vast.collection_targets",
+            list(vast_targets),
+            "VAST collection_targets must include 'victoria_metrics' when metrics_enabled is true."
+        ))
+    
+    if vast_logs_enabled and "victoria_logs" not in vast_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.vast.collection_targets",
+            list(vast_targets),
+            "VAST collection_targets must include 'victoria_logs' when logs_enabled is true."
+        ))
+    
+    # Ensure at least one target is specified when any feature is enabled
+    if (vast_metrics_enabled or vast_logs_enabled) and not vast_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.vast.collection_targets",
+            list(vast_targets),
+            "VAST collection_targets must not be empty when VAST telemetry is enabled. At least one target is required."
         ))
 
     # OME: only supports kafka (OME does NOT push directly to VictoriaMetrics)
@@ -1029,15 +1218,51 @@ def validate_telemetry_packages(
                     telemetry_config.get("cluster_inventory", "")
                     if isinstance(telemetry_config, dict) else ""
                 )
+                
+                # Resolve cluster_inventory path: use configured value or default
+                cluster_inv_path = None
+                if isinstance(cluster_inventory, str) and cluster_inventory.strip():
+                    # Configured value
+                    cluster_inv_path = cluster_inventory.strip()
+                else:
+                    # Empty or not set: use default orchestrator output path
+                    # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+                    omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia").rstrip("/")
+                    project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+                    
+                    # Validate project name to prevent path traversal
+                    safe_project_name = _validated_project_name(project_name)
+                    if not safe_project_name:
+                        logger.warning(
+                            "OMNIA_PROJECT_NAME contains invalid characters: %s; "
+                            "using default 'project_default'",
+                            project_name,
+                        )
+                        safe_project_name = "project_default"
+                    
+                    # Validate OMNIA_DATA_PATH is absolute and safe
+                    safe_data_path = _validated_data_path(omnia_data_path)
+                    if not safe_data_path:
+                        logger.warning(
+                            "OMNIA_DATA_PATH is invalid or not absolute: %s; using /opt/omnia",
+                            omnia_data_path,
+                        )
+                        safe_data_path = "/opt/omnia"
+                    omnia_data_path = safe_data_path
+                    
+                    cluster_inv_path = f"{omnia_data_path}/orchestrator/output/{safe_project_name}/orchestrator_inventory.yml"
+                    logger.info(
+                        "cluster_inventory is empty; using default path: %s",
+                        cluster_inv_path,
+                    )
+                
                 if (
                     (
                         not isinstance(kube_vip, str)
                         or not kube_vip.strip()
                     )
-                    and isinstance(cluster_inventory, str)
-                    and cluster_inventory.strip()
+                    and cluster_inv_path
                 ):
-                    cluster_inv_path = cluster_inventory.strip()
                     if not os.path.isabs(cluster_inv_path):
                         cluster_inv_full_path = os.path.join(
                             input_dir, cluster_inv_path,
@@ -1217,7 +1442,8 @@ def validate_telemetry_packages(
         logger.info(f"install_mode validation PASSED: {install_mode}")
 
     # =========================================================================
-    # Validate repo_url (required for offline mode)
+    # Validate repo_url (optional for offline mode — auto-derived from
+    # SYSTEM_ADMIN_NIC_IPV4 when empty)
     # =========================================================================
     repo_url = data.get("repo_url", "")
     if install_mode == "offline":
@@ -1231,7 +1457,11 @@ def validate_telemetry_packages(
             else:
                 logger.info(f"repo_url validation PASSED: {repo_url}")
         else:
-            logger.warning("repo_url is empty in offline mode — package downloads may fail")
+            logger.info(
+                "repo_url is empty in offline mode — will auto-derive from "
+                "SYSTEM_ADMIN_NIC_IPV4 at runtime: "
+                "https://<SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0"
+            )
 
     # =========================================================================
     # Validate container_registry format (when provided)

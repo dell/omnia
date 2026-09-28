@@ -16,11 +16,12 @@
 
 # Build Stream Container Configuration
 build_stream_container_name: "omnia_build_stream"
+build_stream_container_omnia_path: "/opt/omnia"
 
 # Build Stream Image (Docker Hub)
 build_stream_dockerhub_registry: "docker.io/dellhpcomniaaisolution"
 build_stream_image_name: "{{ build_stream_dockerhub_registry }}/omnia_build_stream"
-build_stream_image_tag: "1.1"
+build_stream_image_tag: "1.2"
 
 # Ports & Logs — passed as host vars from prepare_build_stream.yml
 build_stream_log_dir: "{{ omnia_path }}/build_stream/log"
@@ -35,7 +36,7 @@ build_stream_watcher_exec: "/usr/bin/python3 {{ omnia_path }}/build_stream/playb
 omnia_src_path: "{{ lookup('env', 'OMNIA_SRC_PATH') | default(playbook_dir ~ '/../../../', true) }}"
 venv_path: "{{ lookup('env', 'OMNIA_VENV_PATH') | default('/opt/omnia/venv', true) }}"
 system_admin_nic_ipv4: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
-omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+project_name: "{{ hostvars['localhost']['project_name'] }}"
 watcher_restart_sec: 10
 watcher_startup_delay_seconds: 20
 watcher_no_new_privileges: true
@@ -67,9 +68,6 @@ build_stream_jwt_keys_dir: "{{ omnia_path }}/build_stream_root/api/.auth/keys"
 
 # Project configuration
 build_stream_root_dir: "{{ omnia_path }}/build_stream_root"
-build_stream_default_file: "{{ omnia_path }}/build_stream/input/default.yml"
-build_stream_project_default: "project_default"
-build_stream_project_build_stream: "project_build_stream"
 
 # Quadlet
 quadlet_dir: "/etc/containers/systemd"

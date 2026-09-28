@@ -181,11 +181,19 @@
       {% if auth.type | default('none') == 'basic' %}
       {% set _ = requirements.append({
         'registry_name': registry_name,
-        'vault_path': auth.credentials.vault_path
+        'vault_path': auth.credentials.vault_path,
+        'origin': {
+          'scheme': registry_config.base_url |
+            ansible.builtin.urlsplit('scheme') | lower,
+          'host': registry_config.base_url |
+            ansible.builtin.urlsplit('hostname') | lower,
+          'port': registry_config.port | int
+        }
       }) %}
       {% endif %}
       {% endfor %}
       {{ requirements | to_json }}
+  no_log: true
 
 - name: Reconcile configured registry credentials
   ansible.builtin.include_tasks: process_registry_credential.yml

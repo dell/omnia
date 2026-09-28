@@ -151,24 +151,28 @@ LDMS_CMD_TEMPLATES = {
 
     # Kafka REST API commands (via curl)
     "rest_create_consumer": (
-        "curl -s -X POST http://{bridge_ip}:{port}/consumers/{consumer_group} "
+        "curl -kfsS --max-time 15 -X POST "
+        "https://{bridge_ip}:{port}/consumers/{consumer_group} "
         "-H 'Content-Type: application/vnd.kafka.v2+json' "
         "-d '{{\"name\": \"{consumer_name}\", \"format\": \"json\", "
         "\"auto.offset.reset\": \"{offset}\"}}'"
     ),
     "rest_subscribe_topic": (
-        "curl -s -X POST http://{bridge_ip}:{port}/consumers/{consumer_group}"
+        "curl -kfsS --max-time 15 -X POST "
+        "https://{bridge_ip}:{port}/consumers/{consumer_group}"
         "/instances/{consumer_name}/subscription "
         "-H 'Content-Type: application/vnd.kafka.v2+json' "
         "-d '{{\"topics\": [\"{topic}\"]}}'"
     ),
     "rest_consume_records": (
-        "curl -s -X GET http://{bridge_ip}:{port}/consumers/{consumer_group}"
+        "curl -kfsS --max-time 15 -X GET "
+        "https://{bridge_ip}:{port}/consumers/{consumer_group}"
         "/instances/{consumer_name}/records "
         "-H 'Accept: application/vnd.kafka.json.v2+json'"
     ),
     "rest_delete_consumer": (
-        "curl -s -X DELETE http://{bridge_ip}:{port}/consumers/{consumer_group}"
+        "curl -kfsS --max-time 15 -X DELETE "
+        "https://{bridge_ip}:{port}/consumers/{consumer_group}"
         "/instances/{consumer_name}"
     ),
 }

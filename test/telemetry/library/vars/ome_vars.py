@@ -108,7 +108,7 @@ OME_TEST_KAFKA_BRIDGE_HOST = "kafka-bridge.example.test"
 OME_TEST_KAFKA_BRIDGE_BOOTSTRAP = (
     f"{OME_TEST_KAFKA_BRIDGE_HOST}:{KAFKA_BRIDGE_DEFAULT_PORT}"
 )
-OME_TEST_KAFKA_BRIDGE_ENDPOINT = f"http://{OME_TEST_KAFKA_BRIDGE_BOOTSTRAP}"
+OME_TEST_KAFKA_BRIDGE_ENDPOINT = f"https://{OME_TEST_KAFKA_BRIDGE_BOOTSTRAP}"
 
 
 # =============================================================================
@@ -229,13 +229,13 @@ OME_CMD_TEMPLATES: Dict[str, str] = {
 
     # REST proxy - list topics
     "rest_list_topics": (
-        "curl -fsS --max-time 15 http://{bridge_ip}:{port}/topics"
+        "curl -kfsS --max-time 15 https://{bridge_ip}:{port}/topics"
     ),
 
     # REST proxy - create consumer group
     "rest_create_consumer": (
-        'curl -fsS --max-time 15 -X POST '
-        'http://{bridge_ip}:{port}/consumers/{consumer_group} '
+        'curl -kfsS --max-time 15 -X POST '
+        'https://{bridge_ip}:{port}/consumers/{consumer_group} '
         '-H "content-type: application/vnd.kafka.v2+json" '
         '-d \'{{"name": "{consumer_name}", "format": "json", '
         '"auto.offset.reset": "{offset}", "enable.auto.commit": true}}\''
@@ -243,8 +243,8 @@ OME_CMD_TEMPLATES: Dict[str, str] = {
 
     # REST proxy - subscribe to topic
     "rest_subscribe_topic": (
-        'curl -fsS --max-time 15 -X POST '
-        'http://{bridge_ip}:{port}/consumers/{consumer_group}'
+        'curl -kfsS --max-time 15 -X POST '
+        'https://{bridge_ip}:{port}/consumers/{consumer_group}'
         '/instances/{consumer_name}/subscription '
         '-H "content-type: application/vnd.kafka.v2+json" '
         '-d \'{{"topics": ["{topic}"]}}\''
@@ -252,16 +252,16 @@ OME_CMD_TEMPLATES: Dict[str, str] = {
 
     # REST proxy - consume records
     "rest_consume_records": (
-        'curl -fsS --max-time 15 -X GET '
-        'http://{bridge_ip}:{port}/consumers/{consumer_group}'
+        'curl -kfsS --max-time 15 -X GET '
+        'https://{bridge_ip}:{port}/consumers/{consumer_group}'
         '/instances/{consumer_name}/records '
         '-H "accept: application/vnd.kafka.json.v2+json"'
     ),
 
     # REST proxy - delete consumer
     "rest_delete_consumer": (
-        'curl -fsS --max-time 15 -X DELETE '
-        'http://{bridge_ip}:{port}/consumers/{consumer_group}'
+        'curl -kfsS --max-time 15 -X DELETE '
+        'https://{bridge_ip}:{port}/consumers/{consumer_group}'
         '/instances/{consumer_name}'
     ),
 

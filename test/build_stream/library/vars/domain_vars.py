@@ -29,6 +29,7 @@ from typing import Dict, List
 # =====================================================================
 
 DOMAIN_NAME: str = "build_stream"
+ENABLE_UT: bool = False
 
 # =====================================================================
 # FVT tags -- each maps to a subdirectory under fvt/
@@ -36,10 +37,19 @@ DOMAIN_NAME: str = "build_stream"
 
 FVT_TAGS: List[str] = [
     "buildstream_install",
-    "gitlab_cleanup",
-    "buildstream_cleanup",
     "build_pipeline",
+    "deploy_pipeline",
+    "buildstream_cleanup",
 ]
+
+# A no-tag FVT command follows this lifecycle.  ``test`` performs
+# exec + verify for each scenario before advancing to the next one.
+ALL_EXEC_TAGS: List[str] = [
+    "buildstream_install",
+    "build_pipeline",
+    "deploy_pipeline",
+]
+ALL_EXEC_MARKER: str = "sanity"
 
 # =====================================================================
 # Pytest markers supported by this domain
@@ -47,9 +57,12 @@ FVT_TAGS: List[str] = [
 
 MARKERS: List[str] = [
     "sanity",
-    "functional",
-    "regression",
+    "manual",
     "deploy",
+    "nft",
+    "resilience",
+    "security",
+    "disruptive",
 ]
 
 # =====================================================================
@@ -58,16 +71,34 @@ MARKERS: List[str] = [
 
 SUITES: Dict[str, List[str]] = {
     "buildstream_install": ["health", "buildstream_install"],
-    "gitlab_cleanup": [],
-    "buildstream_cleanup": [],
-    "build_pipeline": ["build_pipeline"],
+    "buildstream_cleanup": [
+        "gitlab_cleanup",
+        "buildstream_cleanup",
+        "cleanup_pipeline",
+    ],
+    "build_pipeline": ["build_pipeline", "manual"],
+    "deploy_pipeline": ["deploy_pipeline", "manual"],
 }
+
+# Explicit manual execution owns its trigger. This prevents the normal sanity
+# trigger at the tag root from being collected and reported as skipped.
+SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
+    "build_pipeline": ["manual"],
+    "deploy_pipeline": ["manual"],
+    "buildstream_cleanup": [
+        "gitlab_cleanup",
+        "buildstream_cleanup",
+        "cleanup_pipeline",
+    ],
+}
+
+# Cleanup operations are destructive and have different targets. Require the
+# caller to select exactly one suite so GitLab cleanup, BuildStream cleanup,
+# and image cleanup-pipeline execution can never be mixed accidentally.
+REQUIRED_SUITE_TAGS: List[str] = ["buildstream_cleanup"]
 
 # =====================================================================
 # Tags excluded from "all" verify (run only when explicit)
 # =====================================================================
 
-EXCLUDE_TAGS: List[str] = [
-    "gitlab_cleanup",
-    "buildstream_cleanup",
-]
+EXCLUDE_TAGS: List[str] = ["buildstream_cleanup"]

@@ -258,7 +258,7 @@ RPM_SYNC_STUCK_TIMEOUT = get_config_value('rpm_repo_config.sync_stuck_timeout', 
 RPM_PROGRESS_CHECK_INTERVAL = get_config_value('rpm_repo_config.progress_check_interval', 30, 'REPO_MANAGER_PROGRESS_CHECK_INTERVAL')
 RPM_CLEANUP_ON_TIMEOUT = get_config_value('rpm_repo_config.cleanup_on_timeout', True, 'REPO_MANAGER_CLEANUP_ON_TIMEOUT')
 RPM_CLI_QUERY_TIMEOUT = max(1, get_config_value(
-    'rpm_repo_config.cli_query_timeout', 150,
+    'rpm_repo_config.cli_query_timeout', 360,
     'REPO_MANAGER_PULP_QUERY_TIMEOUT'
 ))
 RPM_CLI_QUERY_RETRIES = max(1, get_config_value(

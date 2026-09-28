@@ -25,15 +25,15 @@ Verifies that the telemetry stack recovers gracefully from failures:
   - Operator pod recovery and CR reconciliation
 
 Test cases:
-    NFT_TL_006: Sink pod deletion & recovery (Kafka broker)
-    NFT_TL_007: Source pod deletion & recovery (enabled sources)
-    NFT_TL_008: StatefulSet storage pod recovery (vmstorage/vlstorage)
-    NFT_TL_009: PVC persistence after pod deletion
-    NFT_TL_010: Service endpoint availability after pod restart
-    NFT_TL_011: Data ingestion after sink restart
-    NFT_TL_012: Node reboot recovery
-    NFT_TL_013: Full lifecycle (cleanup -> redeploy -> verify)
-    NFT_TL_014: Operator pod recovery
+    TEL_NFT_006: Sink pod deletion & recovery (Kafka broker)
+    TEL_NFT_007: Source pod deletion & recovery (enabled sources)
+    TEL_NFT_008: StatefulSet storage pod recovery (vmstorage/vlstorage)
+    TEL_NFT_009: PVC persistence after pod deletion
+    TEL_NFT_010: Service endpoint availability after pod restart
+    TEL_NFT_011: Data ingestion after sink restart
+    TEL_NFT_012: Node reboot recovery
+    TEL_NFT_013: Full lifecycle (cleanup -> redeploy -> verify)
+    TEL_NFT_014: Operator pod recovery
 """
 
 import pytest
@@ -50,7 +50,6 @@ from library.vars.common_vars import (
     IDRAC_POD_PREFIX,
     VECTOR_LDMS_APP_NAME,
     VECTOR_OME_APP_NAME,
-    TELEMETRY_NAMESPACE,
 )
 from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
@@ -106,14 +105,14 @@ def _get_enabled_source_prefixes(host):
 
 
 # =========================================================================
-# NFT_TL_006: Sink Pod Deletion & Recovery
+# TEL_NFT_006: Sink Pod Deletion & Recovery
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
 @pytest.mark.order(120)
 def test_sink_pod_deletion_recovery(host):
-    """NFT_TL_006: Delete Kafka broker pods and verify automatic recovery.
+    """TEL_NFT_006: Delete Kafka broker pods and verify automatic recovery.
 
     Validates that Kubernetes controllers (StatefulSet) automatically
     recreate deleted sink pods within the recovery timeout.
@@ -151,14 +150,14 @@ def test_sink_pod_deletion_recovery(host):
 
 
 # =========================================================================
-# NFT_TL_007: Source Pod Deletion & Recovery
+# TEL_NFT_007: Source Pod Deletion & Recovery
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
 @pytest.mark.order(121)
 def test_source_pod_deletion_recovery(host):
-    """NFT_TL_007: Delete enabled source pods and verify recovery.
+    """TEL_NFT_007: Delete enabled source pods and verify recovery.
 
     Skipped if no sources are enabled. Validates that source pods
     (iDRAC, Vector bridges) are recreated by their controllers.
@@ -206,14 +205,14 @@ def test_source_pod_deletion_recovery(host):
 
 
 # =========================================================================
-# NFT_TL_008: StatefulSet Storage Pod Recovery
+# TEL_NFT_008: StatefulSet Storage Pod Recovery
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
 @pytest.mark.order(122)
 def test_sts_storage_pod_recovery(host):
-    """NFT_TL_008: Delete VictoriaMetrics/Logs storage pods & verify recovery.
+    """TEL_NFT_008: Delete VictoriaMetrics/Logs storage pods & verify recovery.
 
     Storage pods (vmstorage, vlstorage) are backed by PVCs and managed
     by StatefulSets. They must be recreated with the same identity and
@@ -262,14 +261,14 @@ def test_sts_storage_pod_recovery(host):
 
 
 # =========================================================================
-# NFT_TL_009: PVC Persistence After Pod Deletion
+# TEL_NFT_009: PVC Persistence After Pod Deletion
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
 @pytest.mark.order(123)
 def test_pvc_persistence_after_pod_deletion(host):
-    """NFT_TL_009: Verify all PVCs remain Bound after pod deletions.
+    """TEL_NFT_009: Verify all PVCs remain Bound after pod deletions.
 
     After the preceding pod deletion tests, PVCs must remain in
     Bound state, proving that persistent data survives pod restarts.
@@ -303,14 +302,14 @@ def test_pvc_persistence_after_pod_deletion(host):
 
 
 # =========================================================================
-# NFT_TL_010: Service Endpoint Availability After Pod Restart
+# TEL_NFT_010: Service Endpoint Availability After Pod Restart
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
 @pytest.mark.order(124)
 def test_service_endpoints_after_restart(host):
-    """NFT_TL_010: Verify core services have endpoints after pod restart.
+    """TEL_NFT_010: Verify core services have endpoints after pod restart.
 
     After pod deletion and recreation, LoadBalancer and ClusterIP
     services must have active endpoints (backing pods registered).
@@ -342,16 +341,16 @@ def test_service_endpoints_after_restart(host):
 
 
 # =========================================================================
-# NFT_TL_011: Data Ingestion After Sink Restart
+# TEL_NFT_011: Data Ingestion After Sink Restart
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
 @pytest.mark.order(125)
 def test_data_queryable_after_sink_restart(host):
-    """NFT_TL_011: Verify VictoriaMetrics data is queryable after restart.
+    """TEL_NFT_011: Verify VictoriaMetrics data is queryable after restart.
 
-    After vmstorage pods were deleted and recreated (NFT_TL_008),
+    After vmstorage pods were deleted and recreated (TEL_NFT_008),
     historical metric data must still be queryable via vmselect.
     """
     tc = TC["nft_data_after_restart"]
@@ -385,14 +384,14 @@ def test_data_queryable_after_sink_restart(host):
 
 
 # =========================================================================
-# NFT_TL_012: Node Reboot Recovery
+# TEL_NFT_012: Node Reboot Recovery
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
 @pytest.mark.order(126)
 def test_node_reboot_recovery(host):
-    """NFT_TL_012: Verify all pods recover after kube_vip node reboot.
+    """TEL_NFT_012: Verify all pods recover after kube_vip node reboot.
 
     Reboots the kube_vip node via SSH and waits for all telemetry
     pods to return to Running state.
@@ -457,14 +456,14 @@ def test_node_reboot_recovery(host):
 
 
 # =========================================================================
-# NFT_TL_013: Full Lifecycle (Cleanup -> Redeploy -> Verify)
+# TEL_NFT_013: Full Lifecycle (Cleanup -> Redeploy -> Verify)
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
 @pytest.mark.order(127)
 def test_full_lifecycle(host):
-    """NFT_TL_013: Complete cleanup and redeployment cycle.
+    """TEL_NFT_013: Complete cleanup and redeployment cycle.
 
     Runs cleanup to tear down the telemetry stack, then redeploys
     and verifies all pods return to Running state.
@@ -539,14 +538,14 @@ def test_full_lifecycle(host):
 
 
 # =========================================================================
-# NFT_TL_014: Operator Pod Recovery
+# TEL_NFT_014: Operator Pod Recovery
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
 @pytest.mark.order(128)
 def test_operator_pod_recovery(host):
-    """NFT_TL_014: Delete operator pods and verify CR reconciliation.
+    """TEL_NFT_014: Delete operator pods and verify CR reconciliation.
 
     Deletes the VictoriaMetrics operator and Strimzi operator pods,
     then verifies they are recreated and their CRs remain healthy.
@@ -556,22 +555,11 @@ def test_operator_pod_recovery(host):
 
     operators = [
         {
-            "prefix": "victoria-metrics-operator",
-            "cr_cmd": (
-                f"kubectl get vmcluster -n {TELEMETRY_NAMESPACE} "
-                f"-o jsonpath='{{.items[0].status.updateStatus}}' 2>/dev/null"
-            ),
-            "cr_healthy_values": ["operational", "expanding"],
+            "kind": "victoria_metrics",
             "name": "VictoriaMetrics Operator",
         },
         {
-            "prefix": "strimzi-cluster-operator",
-            "cr_cmd": (
-                f"kubectl get kafka kafka -n {TELEMETRY_NAMESPACE} "
-                f"-o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
-                f" 2>/dev/null"
-            ),
-            "cr_healthy_values": ["True"],
+            "kind": "strimzi",
             "name": "Strimzi Cluster Operator",
         },
     ]
@@ -582,9 +570,8 @@ def test_operator_pod_recovery(host):
     for op in operators:
         tl.check(f"Testing recovery for {op['name']}")
         result = verify_operator_recovery(
-            host, op["prefix"], op["cr_cmd"],
+            host, op["kind"],
             timeout=OPERATOR_RECOVERY_TIMEOUT,
-            cr_healthy_values=op.get("cr_healthy_values"),
         )
         all_details.append(f"{op['name']}: {result['details']}")
         if not result["success"]:

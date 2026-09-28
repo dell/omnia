@@ -35,7 +35,7 @@
 - name: Clean cleanup framework logs
   tags: artifacts
   ansible.builtin.file:
-    path: "{{ omnia_data_path }}/orchestrator/log/cleanup"
+    path: "{{ orchestrator_data_path }}/log/cleanup"
     state: absent
 
 - name: Clean cleanup framework state

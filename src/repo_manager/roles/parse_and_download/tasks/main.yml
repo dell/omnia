@@ -164,10 +164,10 @@
         ((lookup('pipe', 'date +%s') | int - playbook_start_time | int) % 60)
       }} sec
 
-- name: Local repository status
+- name: Repo Manager status
   ansible.builtin.debug:
     msg: >-
-      {{ 'localrepository SUCCESS' if final_status == 'success' else
-         'Local repo setup failed — some packages did not download, and dependent scripts/playbooks may also fail. '
-         'Refer to the localrepo logs for more details. Rerun repo_manager.yml.' }}
+      {{ 'Repo Manager setup succeeded.' if final_status == 'success' else
+         'Repo Manager setup failed — some packages did not download, and dependent scripts/playbooks may also fail. '
+         'Refer to the Repo Manager logs for more details. Rerun repo_manager.yml.' }}
   failed_when: final_status != 'success'

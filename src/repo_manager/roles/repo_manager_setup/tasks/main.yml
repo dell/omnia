@@ -26,6 +26,7 @@
 
 - name: Create directories
   ansible.builtin.include_tasks: create_directories.yml
+  when: not (repo_manager_cleanup_context | default(false) | bool)
 
 - name: Set setup guard fact
   ansible.builtin.set_fact:

@@ -73,13 +73,31 @@ def check_playbook_syntax(playbook_name: str) -> Dict[str, Any]:
             "error": f"Cannot validate syntax - playbook does not exist"
         }
 
-    subprocess.run(
+    ansible_env = os.environ.copy()
+    ansible_env["ANSIBLE_ROLES_PATH"] = os.path.join(
+        SRC_ORCHESTRATOR_DIR, "roles"
+    )
+    ansible_env["ANSIBLE_LIBRARY"] = os.path.join(
+        SRC_ORCHESTRATOR_DIR, "plugins", "modules"
+    )
+    ansible_env["ANSIBLE_MODULE_UTILS"] = os.path.join(
+        SRC_ORCHESTRATOR_DIR, "plugins", "module_utils"
+    )
+    result = subprocess.run(
         ["ansible-playbook", "--syntax-check", playbook_path],
         capture_output=True,
         text=True,
-        check=True,
-        cwd=SRC_ORCHESTRATOR_DIR
+        check=False,
+        cwd=SRC_ORCHESTRATOR_DIR,
+        env=ansible_env,
     )
+
+    if result.returncode != 0:
+        return {
+            "success": False,
+            "details": result.stdout.strip(),
+            "error": result.stderr.strip() or "Ansible syntax check failed",
+        }
 
     return {
         "success": True,

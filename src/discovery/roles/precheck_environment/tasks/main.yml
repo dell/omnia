@@ -1,0 +1,69 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# This opt-in role performs non-mutating checks after discovery_setup has
+# resolved the active data path, project, and Discovery configuration. It does
+# not load credentials or call the OME API.
+
+- name: Check whether the system environment file is installed
+  ansible.builtin.stat:
+    path: "{{ discovery_precheck_system_env_file }}"
+  register: discovery_precheck_system_env
+
+- name: Warn when the system environment file is not installed
+  ansible.builtin.debug:
+    msg: "{{ discovery_precheck_system_env_warning_msg }}"
+  when: not discovery_precheck_system_env.stat.exists
+
+- name: Validate the Discovery system environment
+  validate_system_environment:
+    required_vars: []
+    validate_hostname: false
+    validate_domain: false
+    validate_ip: false
+    validate_paths: true
+    data_path: "{{ discovery_data_path }}"
+  register: discovery_precheck_validation
+  changed_when: false
+
+- name: Verify the OME HTTPS endpoint
+  ansible.builtin.include_role:
+    name: discovery_common
+    tasks_from: check_ome_connectivity.yml
+
+- name: Build Discovery environment validation summary
+  ansible.builtin.set_fact:
+    discovery_precheck_summary_lines: >-
+      {{ discovery_precheck_validation.checks | default([])
+         | map(attribute='message') | list }}
+
+- name: Display Discovery precheck summary
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        [
+          '======================================================',
+          'Discovery Precheck Status: PASSED',
+          '======================================================',
+          'System environment file: '
+          ~ (discovery_precheck_system_env.stat.exists
+             | ternary('present', 'missing (warning)')),
+          'Discovery data path: ' ~ discovery_data_path,
+          'Project: ' ~ discovery_project_name,
+          'OME HTTPS endpoint: ' ~ discovery_ome_connectivity_status,
+          'Checks:'
+        ]
+        + discovery_precheck_summary_lines
+        + ['======================================================']
+      }}

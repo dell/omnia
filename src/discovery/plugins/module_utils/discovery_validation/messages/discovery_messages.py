@@ -21,7 +21,7 @@ keep validator logic free of inline strings.
 
 # ── discovery_config.yml messages ────────────────────────────────────────────
 
-OME_IP_REQUIRED_MSG = "discovery_config: ome_ip is required when enable_bmc_discovery is true."
+OME_IP_REQUIRED_MSG = "discovery_config: ome_ip is required."
 OME_IP_LOOPBACK_MSG = (
     "discovery_config: ome_ip '{}' is a loopback address. "
     "Provide the actual OME appliance IP."

@@ -1,6 +1,10 @@
 # provision_common
 
-Common provisioning role shared by all category-specific provisioning playbooks (`provision_kubernetes.yml`, `provision_slurm.yml`, `provision_os.yml`, `provision_custom.yml`). Handles SMD node registration, BSS boot parameters, cloud-init configuration, DNS setup, and SELinux context management.
+Common provisioning role shared by all category-specific provisioning playbooks
+(`provision_kubernetes.yml`, `provision_slurm.yml`, `provision_os.yml`,
+`provision_custom.yml`). Handles SMD node registration, Boot Service
+configuration, Metadata Service data, DNS setup, and SELinux context
+management.
 
 Kubernetes and Slurm provisioning use two explicit phases:
 

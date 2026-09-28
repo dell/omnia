@@ -13,7 +13,7 @@ must be a boolean (or `yes`/`no`, `1`/`0`).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `Delete_volume` / `delete_volume` | `false` | When `true`, delete component PVCs and Kafka identity metadata. When `false`, preserve persistent data and the metadata required for safe redeployment. |
+| `Delete_sinks_volume` / `delete_sinks_volume` | `false` | When `true`, delete sink component PVCs (Kafka, VictoriaMetrics, VictoriaLogs) and Kafka identity metadata. When `false`, preserve sink persistent data and the metadata required for safe redeployment. Source component PVCs (iDRAC, LDMS, PowerScale, etc.) are always deleted. |
 
 ## Input Files
 

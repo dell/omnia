@@ -28,5 +28,5 @@
       - "======================================================================"
   vars:
     _default_base: "{{ omnia_data_path | default('/opt/omnia') }}"
-    _output_dir: "{{ _default_base + '/telemetry/output/' + (project_name | default('project_default')) }}"
+    _output_dir: "{{ _default_base + '/telemetry/output/' + (project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true))) }}"
     _status_path: "{{ output_project_dir | default(_output_dir) }}"

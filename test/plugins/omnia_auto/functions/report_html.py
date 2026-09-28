@@ -162,7 +162,7 @@ def generate_html(data: Dict[str, Any]) -> str:
             server_info_list.append(_redact_sensitive(server_ip))
 
         for run in server_data.get("runs", []):
-            run_id = run.get("report_id", "unknown")
+            run_id = run.get("run_id", "unknown")
             modules = run.get("modules", [])
             if not modules and "results" in run:
                 modules = [{
@@ -286,8 +286,14 @@ def generate_html(data: Dict[str, Any]) -> str:
         run_sections_html = ""
         for run_id in sorted(tests_by_run.keys()):
             run_tests = tests_by_run[run_id]
-            run_id_short = run_id[-8:] if len(run_id) > 8 else run_id
+            run_id_short = run_id
             run_section_id = f"run-{suite_name.replace(' ', '_').replace('/', '_')}-{run_id_short}"
+
+            # Per-run statistics
+            run_total = len(run_tests)
+            run_passed = sum(1 for t in run_tests if t["status"] == "PASSED")
+            run_skipped = sum(1 for t in run_tests if t["status"] == "SKIPPED")
+            run_failed = run_total - run_passed - run_skipped
 
             run_rows = ""
             for t in run_tests:
@@ -349,9 +355,17 @@ def generate_html(data: Dict[str, Any]) -> str:
             # Run header with collapsible section
             run_sections_html += f'''
             <div class="run-section" style="margin-left:20px;margin-top:10px;border-left:3px solid var(--border);padding-left:10px;">
-              <div class="run-header" onclick="toggleRun('{run_section_id}')" style="cursor:pointer;padding:8px;background:var(--bg-panel);border-radius:4px;margin-bottom:8px;">
-                <span class="run-arrow" id="arrow-{run_section_id}">&#9660;</span>
-                <strong style="font-size:12px;">Run ID: {_escape_html(run_id_short)}</strong>
+              <div class="run-header" onclick="toggleRun('{run_section_id}')" style="cursor:pointer;padding:8px;background:var(--bg-panel);border-radius:4px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+                <span>
+                  <span class="run-arrow" id="arrow-{run_section_id}">&#9660;</span>
+                  <strong style="font-size:12px;">Run ID: {_escape_html(run_id_short)}</strong>
+                </span>
+                <span style="font-size:12px;">
+                  <span class="text-muted">{run_total} tests</span>
+                  <span class="td-pass" style="margin-left:10px;">{run_passed} passed</span>
+                  <span class="td-fail" style="margin-left:10px;">{run_failed} failed</span>
+                  <span class="td-skip" style="margin-left:10px;">{run_skipped} skipped</span>
+                </span>
               </div>
               <div class="run-body" id="{run_section_id}">
                 <table class="scenario-table" style="margin-top:8px;">

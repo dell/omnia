@@ -12,13 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# cleanup_domain_data.yml — Remove empty domain data directories left after service cleanup.
+# cleanup_domain_data.yml — Remove service data and reset runtime output/log roots.
 
 - name: Remove domain data directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
   loop: "{{ domain_data_cleanup_directories }}"
+  become: true
+  delegate_to: localhost
+  connection: local
+
+- name: Reset runtime output and log directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ domain_data_preserved_directories }}"
+  become: true
+  delegate_to: localhost
+  connection: local
+
+- name: Preserve empty runtime output and log directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ domain_data_preserved_directories }}"
   become: true
   delegate_to: localhost
   connection: local

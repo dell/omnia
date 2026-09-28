@@ -147,8 +147,8 @@ gitlab_input_repo_dir: "input"
 #   input/orchestrator/        — orchestrator domain input files
 #
 # Source paths resolve from each domain's runtime input directory.
-gitlab_omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
-gitlab_omnia_project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
+gitlab_omnia_data_path: "{{ hostvars['localhost']['omnia_data_path'] }}"
+gitlab_omnia_project_name: "{{ hostvars['localhost']['project_name'] }}"
 gitlab_omnia_src_path: "{{ lookup('env', 'OMNIA_SRC_PATH') | default((role_path | realpath) + '/../../..', true) }}"
 
 # omnia.env — copied into the GitLab repo root so CI can source it
@@ -346,7 +346,7 @@ gitlab_ca_export_msg: |
 
 # OIM API Server Configuration
 oim_api_verify_ssl: true
-gitlab_bs_cert_path: "{{ hostvars['localhost']['oim_shared_path'] | default('/opt/omnia') }}/build_stream_ssl/ssl/bs_cert.pem"
+gitlab_bs_cert_path: "{{ hostvars['localhost']['oim_shared_path'] }}/build_stream_ssl/ssl/bs_cert.pem"
 
 gitlab_deployment_complete_msg:
   - "============================================"

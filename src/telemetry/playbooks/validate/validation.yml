@@ -49,8 +49,8 @@
       ansible.builtin.set_fact:
         _telemetry_root: "{{ playbook_dir | dirname | dirname }}"
         _telemetry_module_utils: "{{ playbook_dir | dirname | dirname }}/plugins/module_utils"
-        _input_base: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/input"
-        _input_project: "{{ project_name | default('project_default') }}"
+        _input_base: "{{ telemetry_data_path | default(omnia_data_path | default('/opt/omnia') + '/telemetry') }}/input"
+        _input_project: "{{ project_name | default(lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true)) }}"
 
     - name: "Run L1 + L2 validation for telemetry input files"
       validate_input:

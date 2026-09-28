@@ -57,8 +57,7 @@
 # =========================================================================
 - name: Set build_status path for precheck
   ansible.builtin.set_fact:
-    _precheck_build_status_path: >-
-      {{ omnia_data_path }}/image_build_manager/output/{{ project_name }}/build_status.yml
+    _precheck_build_status_path: "{{ image_build_manager_output_path }}"
 
 - name: Check build_status.yml exists
   ansible.builtin.stat:

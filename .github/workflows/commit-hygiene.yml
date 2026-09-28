@@ -1,3 +1,16 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 ---
 # Commit Hygiene — validates every commit in a PR
 #
@@ -6,7 +19,7 @@
 #   - No commits from root user
 #   - Commit message format: <type>(<scope>): <description>
 #   - No empty or single-word commit messages
-#   - Copyright header present in new source files
+#   - Copyright header present in added/modified YAML and Python files
 #
 # Co-Authored-By trailers are acceptable — the check validates the
 # primary Author and Committer fields, not trailers.
@@ -168,48 +181,45 @@ jobs:
           echo "PASSED: All ${COMMIT_COUNT} commits pass hygiene checks."
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Job 2: Copyright Header Check (new/modified source files)
+  # Job 2: Copyright Header Audit (added/modified YAML and Python files)
   # ═══════════════════════════════════════════════════════════════════════
   copyright-header:
-    name: Copyright Header Check
+    name: Copyright Header Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Check copyright headers in new/changed source files
+      - name: Audit copyright headers in added/modified YAML and Python files
         run: |
           set -euo pipefail
 
           git fetch origin ${{ github.base_ref }}
-          CHANGED=$(git diff --name-only --diff-filter=d \
-            origin/${{ github.base_ref }} HEAD -- \
-            '*.py' '*.yml' '*.yaml' '*.sh' '*.bash' || true)
+          mapfile -d '' -t CHANGED < <(
+            git diff --name-only -z --diff-filter=ACMR \
+              origin/${{ github.base_ref }} HEAD -- \
+              '*.py' '*.yml' '*.yaml'
+          )
 
-          # Exclude workflow files, galaxy.yml, and requirements files
-          CHANGED=$(echo "$CHANGED" | grep -v '^\.github/workflows/' | \
-            grep -v 'galaxy\.yml$' | \
-            grep -v 'requirements\.yml$' | \
-            grep -v 'meta/main\.yml$' || true)
-
-          if [ -z "$CHANGED" ]; then
-            echo "No source files changed — skipping copyright check."
+          if [ "${#CHANGED[@]}" -eq 0 ]; then
+            echo "No YAML or Python files were added or modified."
             exit 0
           fi
 
           MISSING=0
-          MISSING_FILES=""
+          MISSING_FILES=()
 
-          COPYRIGHT_PATTERN="Copyright.*Dell Inc"
+          # Deliberately year-agnostic: validate the owner text, not a year.
+          COPYRIGHT_PATTERN='Copyright.*Dell Inc\. or its subsidiaries\. All Rights Reserved\.'
 
-          for f in $CHANGED; do
+          for f in "${CHANGED[@]}"; do
             if [ ! -f "$f" ]; then continue; fi
 
             # Check first 15 lines for copyright header
             if ! head -15 "$f" | grep -qi "$COPYRIGHT_PATTERN"; then
               MISSING=$((MISSING + 1))
-              MISSING_FILES="${MISSING_FILES}\n  - ${f}"
+              MISSING_FILES+=("$f")
               echo "::warning file=${f}::Missing Dell copyright header (see specs/code-styleguides/general.md §1)"
             fi
           done
@@ -220,15 +230,15 @@ jobs:
           echo "==========================================="
           if [ "$MISSING" -gt 0 ]; then
             echo "Files missing copyright header: ${MISSING}"
-            echo -e "$MISSING_FILES"
+            printf '  - %s\n' "${MISSING_FILES[@]}"
             echo "==========================================="
             echo ""
-            echo "Add the Apache 2.0 copyright header to each file."
+            echo "Add the Dell Apache 2.0 copyright header to each file."
+            echo "The audit accepts any copyright year; it does not validate the year."
             echo "See: Omnia_Spec/specs/code-styleguides/general.md §1"
-            # Advisory for now — uncomment next line to make blocking
-            # exit 1
+            echo "Advisory only: existing repository header debt does not block this PR."
           else
-            echo "All source files have copyright headers."
+            echo "All added/modified YAML and Python files have copyright headers."
             echo "==========================================="
           fi
 

@@ -91,9 +91,9 @@ ansible-doc -t callback omnia.orchestrator.omnia_default
 
 ```bash
 cd $DISCOVERY_HOME
-ansible-playbook discovery.yml --syntax-check
-ansible-playbook playbooks/validate_discovery.yml --syntax-check
-ansible-playbook playbooks/discovery_credentials.yml --syntax-check
+ansible-playbook playbooks/discovery.yml --syntax-check
+ansible-playbook playbooks/validate/validate_discovery.yml --syntax-check
+ansible-playbook playbooks/credentials/discovery_credentials.yml --syntax-check
 ```
 
 ### Image Build (8 playbooks)
@@ -133,25 +133,26 @@ ansible-playbook playbooks/rollback_orchestrator.yml --syntax-check
 
 ```bash
 cd $DISCOVERY_HOME
-ansible-playbook discovery.yml --tags validate
+ansible-playbook playbooks/discovery.yml --tags validate
 ```
 
 ### Credential Management
 
 ```bash
-ansible-playbook playbooks/discovery_credentials.yml
+ansible-playbook playbooks/discovery.yml --tags credentials
 ```
 
 ### Full OME Discovery (requires live OME)
 
 ```bash
-ansible-playbook discovery.yml -e "discovery_mechanism=ome"
+ansible-playbook playbooks/discovery.yml --tags execute
 ```
 
 ### Custom Project Name
 
 ```bash
-ansible-playbook discovery.yml -e "discovery_mechanism=ome" -e "project_name=my_cluster"
+OMNIA_PROJECT_NAME=my_cluster \
+  ansible-playbook playbooks/discovery.yml --tags execute
 ```
 
 ---
@@ -254,8 +255,10 @@ ansible-playbook orchestrator.yml --tags rollback
 
 | Tag | Description | Infra Required |
 |-----|-------------|----------------|
+| `precheck` | Validate the data path and OME HTTPS reachability | OME endpoint |
 | `validate` | Config validation | None |
-| `discovery` | Full OME discovery | OME |
+| `credentials` | Load stored or collect missing OME credentials | None |
+| `execute` | Full OME discovery | OME |
 | `cleanup` | Cleanup | None |
 
 ### Image Build Tags
@@ -303,7 +306,7 @@ ansible-doc omnia.image_build.validate_image_build_config | head -3
 ansible-doc omnia.orchestrator.validate_orchestrator_config | head -3
 
 # Syntax check
-cd $DISCOVERY_HOME && ansible-playbook discovery.yml --syntax-check
+cd $DISCOVERY_HOME && ansible-playbook playbooks/discovery.yml --syntax-check
 cd $IMAGE_BUILD_HOME/playbooks && ansible-playbook image_build_manager.yml --syntax-check
 cd $ORCHESTRATOR_HOME && ansible-playbook orchestrator.yml --syntax-check
 ```

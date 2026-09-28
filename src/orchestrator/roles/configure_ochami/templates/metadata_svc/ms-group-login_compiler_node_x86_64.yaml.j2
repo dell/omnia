@@ -171,11 +171,13 @@
           content: |
             {{ lookup('template', 'templates/slurm/check_slurm_controller_status.sh.j2') | indent(12) }}
 
+{% if vast_enabled | default(false) | bool %}
         - path: /usr/local/bin/configure_vast_installation.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
           content: |
             {{ lookup('template', 'templates/vast/configure_vast_installation.sh.j2') | indent(12) }}
+{% endif %}
 
         - path: /tmp/apptainer_mirror.conf
           permissions: '0644'
@@ -201,12 +203,37 @@
 {% if dns_enabled | default(false) | bool %}
         - |
           # Restore CoreDNS resolv.conf after set-ssh.sh (nmcli con up may overwrite it)
-          printf 'search {{ domain_name }}\nnameserver {{ admin_nic_ip }}\noptions timeout:1 attempts:2\n' > /etc/resolv.conf
-          chattr +i /etc/resolv.conf || true
+          resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)
+          [ -n "$resolv_target" ] || resolv_target=/etc/resolv.conf
+          resolv_tmp=$(mktemp "$(dirname "$resolv_target")/.resolv.conf.XXXXXX")
+          trap 'rm -f "$resolv_tmp"' EXIT
+          printf 'search {{ domain_name }}\nnameserver {{ admin_nic_ip }}\noptions timeout:1 attempts:2\n' > "$resolv_tmp"
+          if [ -e "$resolv_target" ]; then
+            chown --reference="$resolv_target" "$resolv_tmp"
+            chmod --reference="$resolv_target" "$resolv_tmp"
+          else
+            chmod 0644 "$resolv_tmp"
+          fi
+          if command -v chattr >/dev/null 2>&1; then
+            chattr -i "$resolv_target" || true
+          fi
+          if ! mv -f -- "$resolv_tmp" "$resolv_target"; then
+            echo "ERROR: Failed to atomically replace $resolv_target" >&2
+            if command -v chattr >/dev/null 2>&1; then
+              chattr +i "$resolv_target" || true
+            fi
+            rm -f "$resolv_tmp"
+            trap - EXIT
+            exit 1
+          fi
+          if command -v chattr >/dev/null 2>&1; then
+            chattr +i "$resolv_target" || true
+          fi
+          trap - EXIT
 {% endif %}
+{% if vast_enabled | default(false) | bool %}
         - /usr/local/bin/configure_vast_installation.sh
-        - mkdir -p {{ client_mount_path }}/slurm/ssh
-        - echo "{{ metadata_svc_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
+{% endif %}
         - mkdir -p {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages
         - echo "{{ metadata_svc_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
         - mount -av
@@ -242,7 +269,7 @@
         - mount -av
         - chmod 1777 /tmp /scratch
         - /usr/local/bin/install_cuda_toolkit.sh
-        # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
+        # Add the Slurm SSH child mount after the configured storage root is mounted
         - mkdir -p {{ client_mount_path }}/slurm/ssh 
         - mkdir -p {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages
         - echo "{{ metadata_svc_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab

@@ -26,16 +26,29 @@
 
 - name: Promote the first Kubernetes control-plane node to the primary group
   block:
+    - name: Decode PXE mapping content
+      ansible.builtin.set_fact:
+        _pxe_mapping_content: >-
+          {{ _pxe_mapping_normalization_raw.content | b64decode }}
+      no_log: true
+
     - name: Build normalized PXE mapping content
       ansible.builtin.set_fact:
         _normalized_pxe_mapping_content: >-
           {{
-            (_pxe_mapping_normalization_raw.content | b64decode)
-            | regex_replace(
-                '(service_kube_control_plane_)((?!first_)\w+)',
-                'service_kube_control_plane_first_\2',
-                count=1
-              )
+            _pxe_mapping_content
+            if (_pxe_mapping_content | regex_search(
+              '(?m)^service_kube_control_plane_first_'
+              ~ '(?:(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+_)?'
+              ~ '(?:x86_64|aarch64),'
+            )) is not none
+            else _pxe_mapping_content | regex_replace(
+              '(?m)^service_kube_control_plane_'
+              ~ '(?=(?:(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+_)?'
+              ~ '(?:x86_64|aarch64),)',
+              'service_kube_control_plane_first_',
+              count=1
+            )
           }}
       no_log: true
   rescue:

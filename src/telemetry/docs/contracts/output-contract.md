@@ -106,7 +106,8 @@ fatal.
 - Telemetry workloads, services, and component custom resources, except the
   Kafka identity resources retained in preservation mode
 - Helm releases (Strimzi, VictoriaMetrics operator, cert-manager)
-- PVCs only when `Delete_volume=true` or `delete_volume=true`; otherwise PVCs are preserved
+- Source component PVCs (iDRAC, LDMS, PowerScale, etc.) are always deleted
+- Sink component PVCs (Kafka, VictoriaMetrics, VictoriaLogs) only when `Delete_sinks_volume=true` or `delete_sinks_volume=true`; otherwise PVCs are preserved
 - `telemetry_status.yml` is NOT removed (preserves last-known state)
 
 When volume deletion is not requested, Kafka cleanup retains `Kafka/kafka` in

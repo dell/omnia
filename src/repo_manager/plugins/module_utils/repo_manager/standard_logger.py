@@ -16,6 +16,8 @@
 File to setup standard logger
 """
 
+from contextlib import contextmanager
+import errno
 import os
 import logging
 import stat
@@ -23,13 +25,14 @@ import stat
 from ansible.module_utils.repo_manager.security_utils import (
     redact_url_credentials,
 )
+from ansible.module_utils.repo_manager.secure_path import open_secure_directory
 
 
 LOG_DIRECTORY_MODE = 0o700
 LOG_FILE_MODE = 0o600
 
 
-class UrlCredentialRedactionFilter(logging.Filter):
+class UrlCredentialRedactionFilter(logging.Filter):  # pylint: disable=too-few-public-methods
     """Remove URL user information before a message reaches any handler."""
 
     def filter(self, record):
@@ -38,53 +41,130 @@ class UrlCredentialRedactionFilter(logging.Filter):
         return True
 
 
+def _validate_owned_descriptor(file_status, expected_type, description):
+    """Reject an opened object that is unsafe for privileged logging."""
+    if not expected_type(file_status.st_mode):
+        raise OSError(errno.EINVAL, f"Repo Manager {description} has invalid type")
+    if file_status.st_uid != os.geteuid():
+        raise PermissionError(
+            errno.EPERM, f"Repo Manager {description} has untrusted ownership"
+        )
+    if file_status.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+        raise PermissionError(
+            errno.EPERM, f"Repo Manager {description} is writable by other users"
+        )
+
+
+def _open_secure_log_directory(log_dir):
+    """Return a pinned, validated Repo Manager log-directory descriptor."""
+    directory_descriptor = open_secure_directory(
+        log_dir, create=True, mode=LOG_DIRECTORY_MODE
+    )
+    try:
+        _validate_owned_descriptor(
+            os.fstat(directory_descriptor), stat.S_ISDIR, "log directory"
+        )
+        os.fchmod(directory_descriptor, LOG_DIRECTORY_MODE)
+        return directory_descriptor
+    except Exception:
+        os.close(directory_descriptor)
+        raise
+
+
 def secure_log_directory(log_dir):
     """Create or restrict a Repo Manager log directory."""
-    os.makedirs(log_dir, mode=LOG_DIRECTORY_MODE, exist_ok=True)
-    flags = os.O_RDONLY
-    if hasattr(os, "O_DIRECTORY"):
-        flags |= os.O_DIRECTORY
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    directory_descriptor = os.open(log_dir, flags)
+    directory_descriptor = _open_secure_log_directory(log_dir)
+    os.close(directory_descriptor)
+
+
+def open_secure_log_file(log_filepath, truncate=False):
+    """Return a validated log descriptor; the caller must close it."""
+    log_dir = os.path.dirname(log_filepath) or "."
+    log_name = os.path.basename(log_filepath)
+    if log_name in ("", ".", ".."):
+        raise ValueError("Repo Manager log filename is invalid")
+
+    directory_descriptor = _open_secure_log_directory(log_dir)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_NONBLOCK | os.O_NOFOLLOW
+    flags |= getattr(os, "O_CLOEXEC", 0)
+    if not truncate:
+        flags |= os.O_APPEND
+    file_descriptor = None
     try:
-        if not stat.S_ISDIR(os.fstat(directory_descriptor).st_mode):
-            raise OSError("Repo Manager log path is not a directory")
-        os.fchmod(directory_descriptor, LOG_DIRECTORY_MODE)
+        file_descriptor = os.open(
+            log_name,
+            flags,
+            LOG_FILE_MODE,
+            dir_fd=directory_descriptor,
+        )
+        _validate_owned_descriptor(
+            os.fstat(file_descriptor), stat.S_ISREG, "log file"
+        )
+        os.fchmod(file_descriptor, LOG_FILE_MODE)
+        if truncate:
+            os.ftruncate(file_descriptor, 0)
+        return file_descriptor
+    except Exception:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+        raise
     finally:
         os.close(directory_descriptor)
 
 
 def secure_log_file(log_filepath):
     """Create or restrict a regular Repo Manager log file."""
-    log_dir = os.path.dirname(log_filepath) or "."
-    secure_log_directory(log_dir)
+    file_descriptor = open_secure_log_file(log_filepath)
+    os.close(file_descriptor)
 
-    directory_flags = os.O_RDONLY
-    if hasattr(os, "O_DIRECTORY"):
-        directory_flags |= os.O_DIRECTORY
-    if hasattr(os, "O_NOFOLLOW"):
-        directory_flags |= os.O_NOFOLLOW
-    directory_descriptor = os.open(log_dir, directory_flags)
 
-    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NONBLOCK
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
+@contextmanager
+def secure_log_stream(log_filepath, mode="a"):
+    """Yield a text stream backed by the securely opened log descriptor."""
+    if mode not in ("a", "w"):
+        raise ValueError("Secure Repo Manager log mode must be 'a' or 'w'")
+    file_descriptor = open_secure_log_file(
+        log_filepath, truncate=(mode == "w")
+    )
     try:
-        file_descriptor = os.open(
-            os.path.basename(log_filepath),
-            flags,
-            LOG_FILE_MODE,
-            dir_fd=directory_descriptor,
+        with os.fdopen(file_descriptor, mode, encoding="utf-8") as stream:
+            file_descriptor = None
+            yield stream
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+
+
+class SecureFileHandler(logging.FileHandler):  # pylint: disable=too-few-public-methods
+    """Logging handler that writes through one validated, pinned descriptor."""
+
+    def __init__(self, log_filepath, mode="a"):
+        if mode not in ("a", "w"):
+            raise ValueError("Secure Repo Manager log mode must be 'a' or 'w'")
+        super().__init__(
+            log_filepath,
+            mode=mode,
+            encoding="utf-8",
+            delay=True,
+        )
+
+        self.stream = self._open()
+
+    def _open(self):
+        """Open and return a stream backed by a validated descriptor."""
+        file_descriptor = open_secure_log_file(
+            self.baseFilename, truncate=(self.mode == "w")
         )
         try:
-            if not stat.S_ISREG(os.fstat(file_descriptor).st_mode):
-                raise OSError("Repo Manager log path is not a regular file")
-            os.fchmod(file_descriptor, LOG_FILE_MODE)
-        finally:
+            return os.fdopen(
+                file_descriptor,
+                self.mode,
+                encoding=self.encoding,
+                errors=self.errors,
+            )
+        except Exception:
             os.close(file_descriptor)
-    finally:
-        os.close(directory_descriptor)
+            raise
 
 
 def setup_standard_logger(log_dir, log_filename="standard.log"):
@@ -98,15 +178,21 @@ def setup_standard_logger(log_dir, log_filename="standard.log"):
     Returns:
         logging.Logger: The configured logger instance.
     """
+    if (
+            not isinstance(log_filename, str)
+            or not log_filename
+            or os.path.isabs(log_filename)
+            or os.path.basename(log_filename) != log_filename
+    ):
+        raise ValueError("Repo Manager log filename must be a basename")
     log_filepath = os.path.join(log_dir, log_filename)
-    secure_log_file(log_filepath)
 
     # Create a logger
     logger = logging.getLogger("task_logger")
     logger.setLevel(logging.DEBUG)
 
     # Create file handler and set level to debug
-    file_handler = logging.FileHandler(log_filepath)
+    file_handler = SecureFileHandler(log_filepath)
     file_handler.setLevel(logging.DEBUG)
     file_handler.addFilter(UrlCredentialRedactionFilter())
 

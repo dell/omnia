@@ -6,12 +6,12 @@
 """
 Repo Manager — User Registry negative test cases.
 
-TC_RM_UR_NEG_001: Verify validation fails with missing config file
-TC_RM_UR_NEG_002: Verify validation detects invalid registry base_url
-TC_RM_UR_NEG_003: Verify validation detects incomplete TLS cert/key pair
-TC_RM_UR_NEG_004: Verify validation detects unsupported auth type
-TC_RM_UR_NEG_005: Verify validation detects missing cert paths on disk
-TC_RM_UR_NEG_006: Verify validation detects missing vault_path for basic auth
+RM_FVT_USER_REGISTRY_NEG_001: Verify validation fails with missing config file
+RM_FVT_USER_REGISTRY_NEG_002: Verify validation detects invalid registry base_url
+RM_FVT_USER_REGISTRY_NEG_003: Verify validation detects incomplete TLS cert/key pair
+RM_FVT_USER_REGISTRY_NEG_004: Verify validation detects unsupported auth type
+RM_FVT_USER_REGISTRY_NEG_005: Verify validation detects missing cert paths on disk
+RM_FVT_USER_REGISTRY_NEG_006: Verify validation detects missing vault_path for basic auth
 """
 
 import pytest
@@ -32,9 +32,9 @@ from library.messages import TEST_NAMES
 @pytest.mark.negative
 @pytest.mark.order(1)
 def test_registry_validation_fails_missing_config(host):
-    """TC_RM_UR_NEG_001: Verify validation fails with missing config file."""
+    """RM_FVT_USER_REGISTRY_NEG_001: Verify validation fails with missing config file."""
     tl = TestLogger(
-        TEST_NAMES["user_registry_section_exists"], "TC_RM_UR_NEG_001"
+        TEST_NAMES["user_registry_section_exists"], "RM_FVT_USER_REGISTRY_NEG_001"
     )
     result = check_input_config_exists(host)
 
@@ -66,9 +66,9 @@ def test_registry_validation_fails_missing_config(host):
 @pytest.mark.negative
 @pytest.mark.order(2)
 def test_registry_validation_detects_invalid_base_url(host):
-    """TC_RM_UR_NEG_002: Verify validation detects invalid registry base_url."""
+    """RM_FVT_USER_REGISTRY_NEG_002: Verify validation detects invalid registry base_url."""
     tl = TestLogger(
-        TEST_NAMES["user_registry_base_url_valid"], "TC_RM_UR_NEG_002"
+        TEST_NAMES["user_registry_base_url_valid"], "RM_FVT_USER_REGISTRY_NEG_002"
     )
     # This test validates that the base_url validation function correctly
     # identifies invalid URLs. When no registries are configured, this
@@ -99,9 +99,9 @@ def test_registry_validation_detects_invalid_base_url(host):
 @pytest.mark.negative
 @pytest.mark.order(3)
 def test_registry_validation_detects_incomplete_tls_pair(host):
-    """TC_RM_UR_NEG_003: Verify validation detects incomplete TLS cert/key pair."""
+    """RM_FVT_USER_REGISTRY_NEG_003: Verify validation detects incomplete TLS cert/key pair."""
     tl = TestLogger(
-        TEST_NAMES["user_registry_tls_pair_consistent"], "TC_RM_UR_NEG_003"
+        TEST_NAMES["user_registry_tls_pair_consistent"], "RM_FVT_USER_REGISTRY_NEG_003"
     )
     result = check_user_registry_tls_pair_consistent(host)
 
@@ -129,9 +129,9 @@ def test_registry_validation_detects_incomplete_tls_pair(host):
 @pytest.mark.negative
 @pytest.mark.order(4)
 def test_registry_validation_detects_unsupported_auth_type(host):
-    """TC_RM_UR_NEG_004: Verify validation detects unsupported auth type."""
+    """RM_FVT_USER_REGISTRY_NEG_004: Verify validation detects unsupported auth type."""
     tl = TestLogger(
-        TEST_NAMES["user_registry_auth_type_valid"], "TC_RM_UR_NEG_004"
+        TEST_NAMES["user_registry_auth_type_valid"], "RM_FVT_USER_REGISTRY_NEG_004"
     )
     result = check_user_registry_auth_type(host)
 
@@ -159,9 +159,9 @@ def test_registry_validation_detects_unsupported_auth_type(host):
 @pytest.mark.negative
 @pytest.mark.order(5)
 def test_registry_validation_detects_missing_cert_paths(host):
-    """TC_RM_UR_NEG_005: Verify validation detects missing cert paths on disk."""
+    """RM_FVT_USER_REGISTRY_NEG_005: Verify validation detects missing cert paths on disk."""
     tl = TestLogger(
-        TEST_NAMES["user_registry_tls_cert_paths_valid"], "TC_RM_UR_NEG_005"
+        TEST_NAMES["user_registry_tls_cert_paths_valid"], "RM_FVT_USER_REGISTRY_NEG_005"
     )
     result = check_user_registry_tls_cert_paths(host)
 
@@ -189,9 +189,9 @@ def test_registry_validation_detects_missing_cert_paths(host):
 @pytest.mark.negative
 @pytest.mark.order(6)
 def test_registry_validation_detects_missing_vault_path(host):
-    """TC_RM_UR_NEG_006: Verify validation detects missing vault_path for basic auth."""
+    """RM_FVT_USER_REGISTRY_NEG_006: Verify validation detects missing vault_path for basic auth."""
     tl = TestLogger(
-        TEST_NAMES["user_registry_credentials_present"], "TC_RM_UR_NEG_006"
+        TEST_NAMES["user_registry_credentials_present"], "RM_FVT_USER_REGISTRY_NEG_006"
     )
     result = check_user_registry_credentials(host)
 

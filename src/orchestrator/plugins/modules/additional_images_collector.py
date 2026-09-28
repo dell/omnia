@@ -26,6 +26,49 @@ functional layers, groups, and package definitions.
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.build_image.common_functions import load_json_file
 
+DOCUMENTATION = r'''
+---
+module: additional_images_collector
+short_description: Collect container images from an Omnia catalog
+description:
+  - Reads an Omnia catalog JSON file.
+  - Collects packages whose C(packagetype) is C(image) from functional-layer groups.
+  - Returns image references grouped by the role name derived from each functional layer.
+options:
+  catalog_file_path:
+    description:
+      - Path to the Omnia catalog JSON file.
+    type: str
+    required: true
+author:
+  - Dell Omnia Team
+'''
+
+EXAMPLES = r'''
+- name: Collect additional container images from the catalog
+  omnia.orchestrator.additional_images_collector:
+    catalog_file_path: "{{ catalog_file_path }}"
+  register: additional_images
+
+- name: Display images grouped by role
+  ansible.builtin.debug:
+    var: additional_images.additional_images_dict
+'''
+
+RETURN = r'''
+additional_images_dict:
+  description:
+    - Container images grouped by the role derived from each functional layer.
+    - Every image entry contains C(package) and C(pull_ref), plus either C(digest) or C(tag).
+  type: dict
+  returned: success
+  sample:
+    service_kube_control_plane:
+      - package: registry.k8s.io/kube-apiserver
+        tag: v1.35.1
+        pull_ref: registry.k8s.io/kube-apiserver:v1.35.1
+'''
+
 
 def collect_images_from_catalog(catalog_data):
     """

@@ -16,14 +16,14 @@
 # Paths derived after tasks/main.yml resolves the environment configuration.
 upgrade_lock_file: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
 default_build_status_path: >-
-  {{ omnia_data_path }}/image_build_manager/output/{{ project_name }}/build_status.yml
+  {{ image_build_manager_data_path }}/output/{{ project_name }}/build_status.yml
 default_repo_manager_data_path: >-
   {{ lookup('env', 'REPO_MANAGER_DATA_PATH')
      | default(omnia_data_path + '/repo_manager', true) }}
 default_repo_status_path: >-
   {{ default_repo_manager_data_path }}/output/{{ project_name }}/repo_status.yml
 default_pxe_mapping_file_path: >-
-  {{ omnia_data_path }}/orchestrator/input/{{ project_name }}/pxe_mapping_file.csv
+  {{ orchestrator_data_path }}/input/{{ project_name }}/pxe_mapping_file.csv
 default_catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default(omnia_data_path + '/catalog/catalog_rhel.json', true) }}"
 
 # --- Tag validation ---
@@ -91,6 +91,18 @@ state_initialization_tags:
   - execute
   - pxeboot
   - upgrade
+
+# Lifecycle flows that validate local project inputs before setup dereferences
+# them. Credential-only and operational recovery flows remain lightweight.
+input_validation_tags:
+  - precheck
+  - validate
+  - prepare
+  - deploy
+  - provision
+  - execute
+  - validate-deployment
+  - pxeboot
 
 invalid_tag_combinations:
   - [precheck, cleanup]

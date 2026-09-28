@@ -13,15 +13,23 @@
 # limitations under the License.
 
 ---
-- name: Set catalog paths
+- name: Set sample file paths
   ansible.builtin.set_fact:
-    _gitlab_example_repo_path: "catalog/{{ catalog_file_name }}"
-    _gitlab_example_hosted_path: "{{ gitlab_hosted_payload_dir }}/catalog/{{ catalog_file_name }}"
-    _gitlab_example_encoded_path: "{{ ('catalog/' ~ catalog_file_name) | urlencode | replace('/', '%2F') }}"
+    _gitlab_example_repo_path: "catalog/{{ catalog_file_relative_path }}"
+    _gitlab_example_hosted_path: >-
+      {{ gitlab_hosted_payload_dir }}/catalog/
+      {{- catalog_file_relative_path }}
+    _gitlab_example_encoded_path: >-
+      {{ ('catalog/' ~ catalog_file_relative_path)
+         | urlencode
+         | replace('/', '%2F') }}
 
 - name: Check if catalog exists in repository
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_example_encoded_path }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
+    url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/
+      {{- gitlab_project_id }}/repository/files/
+      {{- _gitlab_example_encoded_path }}?ref={{ gitlab_default_branch }}
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
@@ -30,21 +38,30 @@
   register: gitlab_example_catalog_check
   no_log: true
 
-- name: Copy catalog to GitLab host
+- name: Ensure sample parent directory exists on GitLab host
+  ansible.builtin.file:
+    path: "{{ _gitlab_example_hosted_path | dirname }}"
+    state: directory
+    mode: '0755'
+
+- name: Copy sample file to GitLab host
   ansible.builtin.copy:
     src: "{{ catalog_file_path }}"
     dest: "{{ _gitlab_example_hosted_path }}"
     mode: '0644'
 
-- name: Read catalog from GitLab host
+- name: Read sample file from GitLab host
   ansible.builtin.slurp:
     src: "{{ _gitlab_example_hosted_path }}"
   register: gitlab_example_catalog_content
 
-- name: Create catalog in GitLab repository
+- name: Create sample file in GitLab repository
   when: gitlab_example_catalog_check.status == 404
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_example_encoded_path }}"
+    url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/
+      {{- gitlab_project_id }}/repository/files/
+      {{- _gitlab_example_encoded_path }}
     method: POST
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
@@ -53,7 +70,31 @@
       branch: "{{ gitlab_default_branch }}"
       encoding: base64
       content: "{{ gitlab_example_catalog_content.content }}"
-      commit_message: "Add catalog: {{ catalog_file_name }}"
+      commit_message: "Add sample: {{ catalog_file_relative_path }}"
+    status_code: [200, 201]
+    validate_certs: false
+  no_log: true
+
+- name: Update sample file in GitLab repository
+  when:
+    - gitlab_example_catalog_check.status == 200
+    - >-
+      (gitlab_example_catalog_check.json.content | b64decode) !=
+      (gitlab_example_catalog_content.content | b64decode)
+  ansible.builtin.uri:
+    url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/
+      {{- gitlab_project_id }}/repository/files/
+      {{- _gitlab_example_encoded_path }}
+    method: PUT
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch }}"
+      encoding: base64
+      content: "{{ gitlab_example_catalog_content.content }}"
+      commit_message: "Update sample: {{ catalog_file_relative_path }}"
     status_code: [200, 201]
     validate_certs: false
   no_log: true

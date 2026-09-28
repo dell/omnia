@@ -25,15 +25,15 @@ iDRAC Architecture:
                                      -> KafkaPump -> Kafka topic 'idrac'
 
 Test cases:
-    TC_SR_001: Verify iDRAC pod count matches bmc_group_data.csv
-    TC_SR_002: Verify iDRAC StatefulSet pods ready
-    TC_SR_003: Verify all iDRAC containers running
-    TC_SR_004: Verify MySQL data in iDRAC telemetry pods
-    TC_SR_005: Verify iDRAC receiver is collecting metrics
-    TC_SR_006: Verify iDRAC Kafka topic exists
-    TC_SR_007: Verify iDRAC VictoriaPump metrics endpoint
-    TC_SR_008: Verify iDRAC telemetry service exists
-    TC_SR_009: Verify iDRAC telemetry data in VictoriaMetrics
+    TEL_FVT_DEPLOY_V010: Verify iDRAC pod count matches bmc_group_data.csv
+    TEL_FVT_DEPLOY_V011: Verify iDRAC StatefulSet pods ready
+    TEL_FVT_DEPLOY_V012: Verify all iDRAC containers running
+    TEL_FVT_DEPLOY_V013: Verify MySQL data in iDRAC telemetry pods
+    TEL_FVT_DEPLOY_V014: Verify iDRAC receiver is collecting metrics
+    TEL_FVT_DEPLOY_V015: Verify iDRAC Kafka topic exists
+    TEL_FVT_DEPLOY_V016: Verify iDRAC VictoriaPump metrics endpoint
+    TEL_FVT_DEPLOY_V017: Verify iDRAC telemetry service exists
+    TEL_FVT_DEPLOY_V018: Verify iDRAC telemetry data in VictoriaMetrics
 """
 
 from datetime import datetime
@@ -63,6 +63,7 @@ from library.functions.k8s_func import (
 )
 from library.functions.telemetry_func import (
     is_source_enabled,
+    is_sink_enabled_for_source,
     run_on_kube_vip,
     verify_idrac_vm_data,
     get_idrac_service_tags,
@@ -84,14 +85,14 @@ def _skip_if_idrac_disabled(host):
 
 
 # =========================================================================
-# TC_SR_001: Verify iDRAC pod count matches bmc_group_data.csv
+# TEL_FVT_DEPLOY_V010: Verify iDRAC pod count matches bmc_group_data.csv
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(40)
 def test_idrac_pod_count(host):
-    """TC_SR_001: Verify iDRAC pod count matches bmc_group_data.csv."""
+    """TEL_FVT_DEPLOY_V010: Verify iDRAC pod count matches bmc_group_data.csv."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_pod_count"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -104,6 +105,7 @@ def test_idrac_pod_count(host):
         pytest.skip(result["skip_reason"])
 
     details_lines = [
+        f"BMC data path   : {result.get('bmc_data_path', '')}",
         f"BMC entries      : {result.get('bmc_entries', 0)}",
         f"Parent nodes     : {len(result.get('parents', []))}",
         f"Expected pods    : {result['expected_count']}"
@@ -136,14 +138,14 @@ def test_idrac_pod_count(host):
 
 
 # =========================================================================
-# TC_SR_002: Verify iDRAC StatefulSet pods ready
+# TEL_FVT_DEPLOY_V011: Verify iDRAC StatefulSet pods ready
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(41)
 def test_idrac_sts_ready(host):
-    """TC_SR_002: Verify iDRAC StatefulSet pods ready."""
+    """TEL_FVT_DEPLOY_V011: Verify iDRAC StatefulSet pods ready."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_sts_ready"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -178,14 +180,14 @@ def test_idrac_sts_ready(host):
 
 
 # =========================================================================
-# TC_SR_003: Verify all iDRAC containers running
+# TEL_FVT_DEPLOY_V012: Verify all iDRAC containers running
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(42)
 def test_idrac_containers(host):
-    """TC_SR_003: Verify all iDRAC containers running."""
+    """TEL_FVT_DEPLOY_V012: Verify all iDRAC containers running."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_containers"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -247,14 +249,14 @@ def test_idrac_containers(host):
 
 
 # =========================================================================
-# TC_SR_004: Verify MySQL data in iDRAC telemetry pods
+# TEL_FVT_DEPLOY_V013: Verify MySQL data in iDRAC telemetry pods
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(43)
 def test_idrac_mysql_data(host):
-    """TC_SR_004: Verify MySQL data in iDRAC telemetry pods."""
+    """TEL_FVT_DEPLOY_V013: Verify MySQL data in iDRAC telemetry pods."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_mysql_data"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -269,10 +271,24 @@ def test_idrac_mysql_data(host):
     details_lines = []
     pods_missing = 0
     for pr in result.get("pod_results", []):
-        icon = "\u2713" if pr["has_data"] else "\u2717"
-        details_lines.append(
-            f"  {icon} {pr['pod_name']}: {pr['ip_count']} IP(s) in MySQL"
-        )
+        pod_ok = pr["has_data"] or pr.get("expected_idle", False)
+        icon = "\u2713" if pod_ok else "\u2717"
+        if pr.get("error"):
+            details_lines.append(
+                f"  {icon} {pr['pod_name']}: MySQL query failed: "
+                f"{pr['error']}"
+            )
+        elif pr.get("expected_idle"):
+            details_lines.append(
+                f"  {icon} {pr['pod_name']}: expected idle; all "
+                f"{len(pr.get('assigned_ips', []))} assigned BMC(s) "
+                "are unsupported"
+            )
+        else:
+            details_lines.append(
+                f"  {icon} {pr['pod_name']}: "
+                f"{pr['ip_count']} IP(s) in MySQL"
+            )
         if pr["mysql_ips"]:
             for ip in pr["mysql_ips"][:5]:
                 details_lines.append(f"      - {ip}")
@@ -280,7 +296,7 @@ def test_idrac_mysql_data(host):
                 details_lines.append(
                     f"      ... and {len(pr['mysql_ips']) - 5} more"
                 )
-        if not pr["has_data"]:
+        if not pod_ok:
             pods_missing += 1
     details = "\n".join(details_lines)
 
@@ -303,14 +319,14 @@ def test_idrac_mysql_data(host):
 
 
 # =========================================================================
-# TC_SR_005: Verify iDRAC receiver is collecting metrics
+# TEL_FVT_DEPLOY_V014: Verify iDRAC receiver is collecting metrics
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(44)
 def test_idrac_receiver_collecting(host):
-    """TC_SR_005: Verify iDRAC receiver is collecting metrics."""
+    """TEL_FVT_DEPLOY_V014: Verify iDRAC receiver is collecting metrics."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_receiver_collecting"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -321,10 +337,19 @@ def test_idrac_receiver_collecting(host):
     details_lines = []
     not_collecting = 0
     for pr in result.get("pod_results", []):
-        icon = "\u2713" if pr["collecting"] else "\u2717"
-        details_lines.append(
-            f"  {icon} {pr['pod_name']}: {pr['report_count']} report(s)"
-        )
+        pod_ok = pr["collecting"] or pr.get("expected_idle", False)
+        icon = "\u2713" if pod_ok else "\u2717"
+        if pr.get("expected_idle"):
+            details_lines.append(
+                f"  {icon} {pr['pod_name']}: expected idle; all "
+                f"{len(pr.get('assigned_ips', []))} assigned BMC(s) "
+                "are unsupported"
+            )
+        else:
+            details_lines.append(
+                f"  {icon} {pr['pod_name']}: "
+                f"{pr['report_count']} report(s)"
+            )
         if pr["sample_reports"]:
             for report in pr["sample_reports"]:
                 details_lines.append(f"      - {report}")
@@ -332,7 +357,7 @@ def test_idrac_receiver_collecting(host):
             details_lines.append(
                 f"      ServiceTags: {', '.join(pr['service_tags'])}"
             )
-        if not pr["collecting"]:
+        if not pod_ok:
             not_collecting += 1
     details = "\n".join(details_lines)
 
@@ -357,15 +382,19 @@ def test_idrac_receiver_collecting(host):
 
 
 # =========================================================================
-# TC_SR_006: Verify iDRAC Kafka topic exists
+# TEL_FVT_DEPLOY_V015: Verify iDRAC Kafka topic exists
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(45)
 def test_idrac_kafka_topic(host):
-    """TC_SR_006: Verify iDRAC Kafka topic exists."""
+    """TEL_FVT_DEPLOY_V015: Verify iDRAC Kafka topic exists."""
     _skip_if_idrac_disabled(host)
+    # Skip if iDRAC does not target Kafka sink
+    if not is_sink_enabled_for_source(host, "idrac", "kafka"):
+        pytest.skip("iDRAC source does not target Kafka sink")
+    
     tc = TC["idrac_kafka_topic"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -389,15 +418,19 @@ def test_idrac_kafka_topic(host):
 
 
 # =========================================================================
-# TC_SR_007: Verify iDRAC VictoriaPump container
+# TEL_FVT_DEPLOY_V016: Verify iDRAC VictoriaPump container
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(46)
 def test_idrac_victoria_pump(host):
-    """TC_SR_007: Verify iDRAC VictoriaPump container is running."""
+    """TEL_FVT_DEPLOY_V016: Verify iDRAC VictoriaPump container is running."""
     _skip_if_idrac_disabled(host)
+    # Skip if iDRAC does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "idrac", "victoria_metrics"):
+        pytest.skip("iDRAC source does not target VictoriaMetrics sink")
+    
     tc = TC["idrac_victoria_pump"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -449,14 +482,14 @@ def test_idrac_victoria_pump(host):
 
 
 # =========================================================================
-# TC_SR_008: Verify iDRAC telemetry service exists
+# TEL_FVT_DEPLOY_V017: Verify iDRAC telemetry service exists
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(47)
 def test_idrac_service(host):
-    """TC_SR_008: Verify iDRAC telemetry service exists."""
+    """TEL_FVT_DEPLOY_V017: Verify iDRAC telemetry service exists."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_service"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -482,7 +515,7 @@ def test_idrac_service(host):
 
 
 # =========================================================================
-# TC_SR_009: Verify iDRAC telemetry data in VictoriaMetrics
+# TEL_FVT_DEPLOY_V018: Verify iDRAC telemetry data in VictoriaMetrics
 # =========================================================================
 
 def _build_service_tag_lines(tag_result):
@@ -512,20 +545,28 @@ def _build_service_tag_lines(tag_result):
 @pytest.mark.functional
 @pytest.mark.order(48)
 def test_idrac_vm_data(host):
-    """TC_SR_009: Verify iDRAC telemetry data in VictoriaMetrics."""
+    """TEL_FVT_DEPLOY_V018: Verify iDRAC telemetry data in VictoriaMetrics."""
     _skip_if_idrac_disabled(host)
+    # Skip if iDRAC does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "idrac", "victoria_metrics"):
+        pytest.skip("iDRAC source does not target VictoriaMetrics sink")
+    
     tc = TC["idrac_vm_data"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Get activated service tags
-    tl.check("Discovering activated iDRAC service tags")
+    # Discover service tags from the metrics that this test is responsible for
+    # validating.  An empty result means the deployed iDRAC pipeline has not
+    # delivered queryable telemetry, so it must fail rather than be hidden as
+    # an environment-based skip.
+    tl.check("Discovering iDRAC service tags in VictoriaMetrics")
     service_tags = get_idrac_service_tags(host)
     if not service_tags:
-        tl.skipped(
-            "No activated iDRAC service tags found",
-            "Test skipped - no telemetry activation to verify",
+        failure = (
+            "No iDRAC PowerEdge metrics with a ServiceTag label were found "
+            "in VictoriaMetrics"
         )
-        pytest.skip("No activated iDRAC service tags found")
+        tl.failed(LOG_MSGS["idrac_vm_data_missing"].format(count=0), failure)
+        pytest.fail(failure)
 
     tl.check(f"Querying VictoriaMetrics for {len(service_tags)} service tag(s)")
     result = verify_idrac_vm_data(host, service_tags)
@@ -536,7 +577,7 @@ def test_idrac_vm_data(host):
 
     # Build details
     details_lines = [
-        f"VictoriaMetrics: http://{result.get('vmselect_ip')}:{result.get('vmselect_port')}",
+        f"VictoriaMetrics: https://{result.get('vmselect_ip')}:{result.get('vmselect_port')}",
         f"Activated service tags: {service_tags}",
         "",
         "Service tag verification:",

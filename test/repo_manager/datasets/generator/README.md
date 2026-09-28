@@ -1,71 +1,96 @@
-# Dataset Generator — Repo Manager
+# Repo Manager Dataset Generator
 
-Renders Jinja2 templates into test dataset directories for repo_manager FVT.
+The generator creates complete, reproducible Repo Manager FVT inputs from
+Jinja2 templates or from the canonical public files in
+`src/repo_manager/input/`. Credentials are never copied or generated.
 
-## Quick Start
+## Commands
 
 ```bash
-# Generate from a profile
-python generate_dataset.py my_ds defaults
+cd test/repo_manager/datasets/generator
 
-# Copy directly from src/repo_manager/input/
-python generate_dataset.py my_ds --from-src
+# Discover profiles
+python generate_dataset.py profiles
+python generate_dataset.py profiles defaults
 
-# List available profiles
-python generate_dataset.py --list-profiles
+# Generate and atomically publish
+python generate_dataset.py create my_dataset --profile defaults
+python generate_dataset.py my_dataset rhel10
 
-# Regenerate with overrides
-python generate_dataset.py my_ds defaults --var pulp_server_port=2225 --force
+# Preview without publishing
+python generate_dataset.py my_dataset defaults --dry-run
+
+# Fail when an existing dataset has drifted
+python generate_dataset.py my_dataset defaults --check
+
+# Snapshot only the public source-input allowlist
+python generate_dataset.py source_snapshot --from-src
+
+# Replace an existing dataset atomically
+python generate_dataset.py my_dataset defaults --force
 ```
 
-## Profiles
+The legacy positional syntax remains supported:
 
-| Profile | Description |
-|---------|-------------|
-| `defaults` | Base profile with placeholder values |
-| `rhel10` | RHEL 10 specific configuration |
-| `minimal` | Minimal configuration for basic testing |
-
-Override any key with `--var KEY=VALUE` (repeatable).
-
-## Generated Files
-
+```bash
+python generate_dataset.py <dataset_name> <profile>
 ```
+
+## Options
+
+| Option | Purpose |
+|--------|---------|
+| `--profile NAME` | Select a profile instead of using the positional form |
+| `--var KEY=VALUE` | Override a declared, non-secret top-level variable |
+| `--from-src` | Copy the two canonical public input files |
+| `--dry-run` | Render and validate in staging without publishing |
+| `--check` | Compare deterministic staged output with an existing dataset |
+| `--force` | Atomically replace an existing dataset |
+| `--list-profiles` | List supported profiles |
+| `--show-profile NAME` | Display effective profile variables |
+
+`--dry-run` and `--check` are mutually exclusive. `--check` cannot be combined
+with `--force`.
+
+## Output contract
+
+```text
 datasets/<name>/
-  input/
-    repo_manager_config.yml      # Repository configuration
-    repo_manager_endpoint_config.yml # Endpoint configuration
-  README.md                      # Auto-generated summary
+├── input/
+│   ├── repo_manager_config.yml
+│   └── repo_manager_endpoint_config.yml
+├── dataset_manifest.yml
+└── README.md
 ```
 
-## Adding New Profiles
+`dataset_manifest.yml` records generator version, source hashes, CLI overrides,
+and SHA-256 hashes for every generated input. It is deterministic so `--check`
+can be used in CI to detect drift.
 
-1. Create `profiles/<name>.yml` with overrides
-2. `defaults.yml` is always loaded first as the base
-3. Profile values override defaults (deep-merge)
+Publication uses a temporary staging directory. With `--force`, the existing
+dataset is first moved to a rollback location and restored if publication
+fails. A partially rendered dataset is never exposed as the final output.
 
-Example `profiles/my_env.yml`:
+## Credential boundary
+
+Only these files may be copied by `--from-src`:
+
+- `repo_manager_config.yml`
+- `repo_manager_endpoint_config.yml`
+
+Credential-, password-, secret-, token-, access-key-, and private-key-like CLI
+variables are rejected. Configure the encrypted Repo Manager credential file
+separately on the execution OIM.
+
+## Using a generated dataset
+
+Set the values in `test_config.yml`:
+
 ```yaml
-pulp_server_port: 2226
-repo_config: "always"
-caching_policy: false
+dataset: "my_dataset"
+sync_repo_manager_input: true
 ```
 
-## Alignment
-
-This generator follows the same pattern as:
-- `test/build_stream/datasets/generator/`
-- `test/orchestrator/datasets/generator/`
-
-## Usage in Testing
-
-After generating a dataset, update `test_config.yml`:
-
-```yaml
-dataset: "my_custom_ds"    # Use custom dataset
-dataset: ""                # Use deployed system config (default)
-```
-
-## Dataset Synchronization
-
-When `dataset` is set and `sync_repo_manager_input: true`, the framework automatically syncs the dataset to the target server before test execution.
+For batch execution, set `dataset` and `sync_input` on an enabled scenario in
+`test_run_config.yml`, or use the global `dataset_override` and
+`sync_input_override` values.

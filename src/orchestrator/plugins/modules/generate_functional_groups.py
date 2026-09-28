@@ -5,10 +5,11 @@
 Write the generated configuration only when its content changes.
 """
 
+import csv
 import os
 import re
-import csv
 from collections import OrderedDict
+
 import yaml
 from ansible.module_utils.basic import AnsibleModule
 
@@ -44,10 +45,10 @@ EXAMPLES = r'''
 - name: Generate functional groups from mapping file
   generate_functional_groups:
     mapping_file_path: >-
-      {{ omnia_data_path }}/orchestrator/input/{{ project_name }}/pxe_mapping_file.csv
-    functional_groups_file_path: "{{ omnia_data_path }}/orchestrator/output/{{ project_name }}/.data/functional_groups_config.yml"
+      {{ orchestrator_data_path }}/input/{{ project_name }}/pxe_mapping_file.csv
+    functional_groups_file_path: "{{ orchestrator_data_path }}/output/{{ project_name }}/.data/functional_groups_config.yml"
     omnia_config_path: >-
-      {{ omnia_data_path }}/orchestrator/input/{{ project_name }}/omnia_config.yml
+      {{ orchestrator_data_path }}/input/{{ project_name }}/omnia_config.yml
     classification_file_path: "{{ role_path }}/../../vars/functional_group_classification.yml"
   register: fg_result
 '''
@@ -93,6 +94,43 @@ DESCRIPTION_MAP = {
     "service_kube_control_plane": "Kubernetes Control Plane",
     "service_kube_node": "Kubernetes Worker Node"
 }
+
+SUPPORTED_ARCHITECTURES = ("x86_64", "aarch64")
+SUPPORTED_OS_NAMES = ("rhel", "rocky", "ubuntu", "sles")
+_ARCHITECTURE_PATTERN = "|".join(SUPPORTED_ARCHITECTURES)
+_OS_NAME_PATTERN = "|".join(SUPPORTED_OS_NAMES)
+OS_VERSION_SEGMENT_PATTERN = re.compile(
+    rf"_(?:{_OS_NAME_PATTERN})(?:_[0-9]+)+"
+    rf"(?=_(?:{_ARCHITECTURE_PATTERN})$)"
+)
+KUBE_CONTROL_PLANE_PATTERN = re.compile(
+    r"^service_kube_control_plane"
+    r"(?P<primary>_first)?"
+    rf"(?P<os_version>_(?:{_OS_NAME_PATTERN})(?:_[0-9]+)+)?"
+    rf"_(?P<architecture>{_ARCHITECTURE_PATTERN})$"
+)
+
+
+def legacy_functional_group_name(functional_group_name):
+    """Return the legacy template/classification name for a versioned FG."""
+    return OS_VERSION_SEGMENT_PATTERN.sub("", functional_group_name)
+
+
+def is_primary_kube_control_plane(functional_group_name):
+    """Return whether the FG already identifies the primary control plane."""
+    match = KUBE_CONTROL_PLANE_PATTERN.fullmatch(functional_group_name)
+    return bool(match and match.group("primary"))
+
+
+def promote_primary_kube_control_plane(functional_group_name):
+    """Promote a control-plane FG while preserving OS version and architecture."""
+    match = KUBE_CONTROL_PLANE_PATTERN.fullmatch(functional_group_name)
+    if not match or match.group("primary"):
+        return functional_group_name
+
+    os_version = match.group("os_version") or ""
+    architecture = match.group("architecture")
+    return f"service_kube_control_plane_first{os_version}_{architecture}"
 
 
 def load_classification(classification_file_path, module):
@@ -189,7 +227,6 @@ def parse_csv(filename, module, categories=None):
     """
     groups = {}
     functional_groups = {}
-    kube_control_seen = False
 
     try:
         with open(filename, newline="", encoding="utf-8") as f:
@@ -200,16 +237,26 @@ def parse_csv(filename, module, categories=None):
                 line for line in cleaned_lines if len(line.split(",")) == expected_columns
             ]
 
-            reader = csv.DictReader(valid_lines)
+            mapping_rows = list(csv.DictReader(valid_lines))
+            kube_control_seen = any(
+                is_primary_kube_control_plane(
+                    row["FUNCTIONAL_GROUP_NAME"].strip()
+                )
+                for row in mapping_rows
+            )
 
-            for row in reader:
+            for row in mapping_rows:
                 func_group = row["FUNCTIONAL_GROUP_NAME"].strip()
                 group_name = row["GROUP_NAME"].strip()
                 parent = row.get("PARENT_SERVICE_TAG", "").strip() or ""
 
-                if func_group == "service_kube_control_plane_x86_64" and not kube_control_seen:
-                    func_group = "service_kube_control_plane_first_x86_64"
-                    kube_control_seen = True
+                if not kube_control_seen:
+                    promoted_func_group = promote_primary_kube_control_plane(
+                        func_group
+                    )
+                    if promoted_func_group != func_group:
+                        func_group = promoted_func_group
+                        kube_control_seen = True
 
                 groups[group_name] = {"parent": parent}
 
@@ -218,7 +265,10 @@ def parse_csv(filename, module, categories=None):
                     functional_groups.setdefault(func_group, set()).add(group_name)
                 else:
                     # Legacy: only accept FGs in the hardcoded map
-                    if func_group in FUNCTIONAL_GROUP_LAYER_MAP:
+                    if (
+                        legacy_functional_group_name(func_group)
+                        in FUNCTIONAL_GROUP_LAYER_MAP
+                    ):
                         functional_groups.setdefault(func_group, set()).add(group_name)
 
         return groups, functional_groups
@@ -246,7 +296,8 @@ def build_yaml(new_groups, new_func_groups, kube_cluster_name, slurm_cluster_nam
         if categories is not None:
             category, layer, description = classify_functional_group(func_group, categories)
         else:
-            layer = FUNCTIONAL_GROUP_LAYER_MAP.get(func_group, "compute")
+            legacy_func_group = legacy_functional_group_name(func_group)
+            layer = FUNCTIONAL_GROUP_LAYER_MAP.get(legacy_func_group, "compute")
             desc_key = next((k for k in DESCRIPTION_MAP if func_group.startswith(k)), func_group)
             description = DESCRIPTION_MAP.get(desc_key, func_group)
             category = None
@@ -314,8 +365,13 @@ def render_yaml_with_comments(data):
         lines.extend([
             f"  - name: \"{functional_group['name']}\"",
             f"    cluster_name: \"{functional_group['cluster_name']}\"",
-            "    group:",
         ])
+        if functional_group.get("category") is not None:
+            lines.extend([
+                f"    category: \"{functional_group['category']}\"",
+                f"    layer: \"{functional_group['layer']}\"",
+            ])
+        lines.append("    group:")
         lines.extend(
             f"      - {group_name}"
             for group_name in sorted(set(functional_group["group"]))

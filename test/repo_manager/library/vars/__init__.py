@@ -26,10 +26,5 @@ from .domain_vars import (
     MARKERS,
     SUITES,
     EXCLUDE_TAGS,
-    ALL_EXEC_TAGS,
-    ALL_EXEC_MARKER,
-    ALL_VERIFY_EXCLUDE_MARKERS,
-    REQUIRED_SUITE_TAGS,
-    VERIFY_ONLY_TAGS,
-    VERIFY_ONLY_SUITES,
 )
+from .ut_test_case_vars import UT_TEST_CASE_IDS

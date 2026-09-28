@@ -25,8 +25,10 @@ Handles:
 All shell commands are referenced from ``OME_CMD_TEMPLATES`` in ``ome_vars.py``.
 """
 
+import contextlib
 import json
 import math
+import os
 import time
 
 from omnia_auto import read_remote_yaml, run_on_host
@@ -629,21 +631,36 @@ def run_external_kafka_playbook():
     Runs: ansible-playbook telemetry.yml --tags external_kafka
 
     Uses omnia_auto.run_playbook which handles local/remote execution
-    based on test_config.yml settings.
+    based on test_config.yml settings. Its verbose live stream is suppressed
+    for this nested test operation; the complete output remains available in
+    the returned result, and a short output tail is added to failures.
 
     Returns:
         dict with keys: success, output, error, duration.
     """
     from omnia_auto import run_playbook
-    result = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        tag="external_kafka",
-        playbook_workdir=PLAYBOOK_WORKDIR,
-    )
+
+    with (
+        open(os.devnull, "w", encoding="utf-8") as hidden_output,
+        contextlib.redirect_stdout(hidden_output),
+    ):
+        result = run_playbook(
+            playbook=PLAYBOOK_ENTRY_POINT,
+            tag="external_kafka",
+            playbook_workdir=PLAYBOOK_WORKDIR,
+        )
+
+    error = result.get("error", "")
+    if not result.get("success", False):
+        output_lines = result.get("output", "").strip().splitlines()
+        if output_lines:
+            output_tail = "\n".join(output_lines[-20:])
+            error = f"{error}\nLast playbook output:\n{output_tail}"
+
     return {
         "success": result.get("success", False),
         "output": result.get("output", ""),
-        "error": result.get("error", ""),
+        "error": error,
         "duration": result.get("duration", 0),
     }
 
@@ -721,7 +738,8 @@ def verify_external_kafka_connection_details(host):
     bridge_ip = get_kafka_bridge_ip(host)
     bridge_port = get_kafka_bridge_port(host) if bridge_ip else ""
     expected_bridge = (
-        f"http://{bridge_ip}:{bridge_port}" if bridge_ip and bridge_port else ""
+        f"https://{bridge_ip}:{bridge_port}"
+        if bridge_ip and bridge_port else ""
     )
 
     mismatches = []
@@ -1713,6 +1731,10 @@ def verify_ome_data_in_kafka(
                 "records_found": 0,
                 "sample_records": [],
                 "bridge_ip": bridge_ip,
+                "port": port,
+                "topic": topic,
+                "attempts": 0,
+                "elapsed_seconds": 0.0,
             }
 
         # Step 2: Subscribe to topic
@@ -1735,6 +1757,10 @@ def verify_ome_data_in_kafka(
                 "records_found": 0,
                 "sample_records": [],
                 "bridge_ip": bridge_ip,
+                "port": port,
+                "topic": topic,
+                "attempts": 0,
+                "elapsed_seconds": 0.0,
             }
 
         # Step 3: Consume records with timeout

@@ -213,13 +213,19 @@
   ansible.builtin.debug:
     var: provisioning_summary
 
-# Write provisioning report only when called from provision flow (not standalone validate)
+# Write the provisioning report for provision, execute, and the untagged
+# full flow.
 - name: Write provisioning report
   ansible.builtin.copy:
     content: "{{ provisioning_summary | to_nice_yaml }}"
     dest: "{{ orchestrator_output_dir }}/provisioning_report.yml"
     mode: "0644"
-  when: ansible_run_tags | default([]) | intersect(['provision']) | length > 0 or ansible_run_tags | length == 0
+  when: >-
+    ansible_run_tags | default([])
+    | intersect(['execute', 'provision'])
+    | length > 0
+    or 'all' in (ansible_run_tags | default([]))
+    or ansible_run_tags | default([]) | length == 0
 
 - name: Initialize per-node provisioning status
   ansible.builtin.set_fact:
@@ -264,7 +270,8 @@
     _node_status: "{{ 'success' if item in registered_xnames else 'failed' }}"
     _failure_reason: "{{ '' if _node_status == 'success' else 'not registered in SMD' }}"
 
-# Write orchestrator_status.yml only when called from provision flow (not standalone validate)
+# Write orchestrator_status.yml for provision, execute, and the untagged
+# full flow.
 - name: Write orchestrator_status.yml (provisioning path)
   ansible.builtin.copy:
     content: "{{ orchestrator_status | to_nice_yaml }}"
@@ -305,4 +312,9 @@
         provisioning_report: provisioning_report.yml
         pxeboot_status: pxeboot_status.yml
         failed_nodes: failed_nodes.json
-  when: ansible_run_tags | default([]) | intersect(['provision']) | length > 0 or ansible_run_tags | length == 0
+  when: >-
+    ansible_run_tags | default([])
+    | intersect(['execute', 'provision'])
+    | length > 0
+    or 'all' in (ansible_run_tags | default([]))
+    or ansible_run_tags | default([]) | length == 0

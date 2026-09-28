@@ -19,14 +19,17 @@
 
 # --- Shared cleanup settings ---
 telemetry_namespace: "telemetry"
-# Preserve persistent telemetry data unless the user explicitly requests deletion.
-# Both -e delete_volume=true and -e Delete_volume=true are accepted.
-_cleanup_delete_volume_enabled: >-
+# Preserve sink volumes (Kafka, VictoriaMetrics, VictoriaLogs) unless the user explicitly requests deletion.
+# Both -e delete_sinks_volume=true and -e Delete_sinks_volume=true are accepted.
+# Source volumes (iDRAC, LDMS, PowerScale, etc.) are always deleted.
+_cleanup_delete_sinks_volume_enabled: >-
   {{
-    (hostvars['localhost'] | default({}))['_cleanup_delete_volume']
-    | default(Delete_volume | default(delete_volume | default(false)))
+    (hostvars['localhost'] | default({}))['_cleanup_delete_sinks_volume']
+    | default(Delete_sinks_volume | default(delete_sinks_volume | default(false)))
     | bool
   }}
+_cleanup_preserve_sink_volumes: >-
+  {{ not (_cleanup_delete_sinks_volume_enabled | bool) }}
 cleanup_resource_grace_period: 0
 cleanup_post_delete_pause: 5
 cleanup_helm_timeout: "5m"

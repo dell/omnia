@@ -23,6 +23,9 @@ Parses the INI-like input format:
   pkg_key, rpm, name, reponame
   pkg_key, tarball, name, url
   pkg_key, image, image_path, registry, tag
+  pkg_key, git, name, url, version
+  pkg_key, manifest, name, url
+  pkg_key, pip_module, name
 """
 
 import re
@@ -99,6 +102,53 @@ def _build_package_entry(pkg_type, fields, defaults, overrides):
                 "registry": registry
             }]
         }
+    elif pkg_type == 'git':
+        # fields: [pkg_key, git, name, url, version, ...]
+        name = fields[2] if len(fields) > 2 else fields[0]
+        url = fields[3] if len(fields) > 3 else ''
+        version = fields[4] if len(fields) > 4 else overrides.get('version', '')
+        entry = {
+            "name": name,
+            "packagetype": "git",
+            "sources": [{
+                "architecture": arch,
+                "url": url,
+                "name": os_name,
+                "version": [os_version]
+            }]
+        }
+        if version:
+            entry["version"] = version
+        return entry
+    elif pkg_type == 'manifest':
+        # fields: [pkg_key, manifest, name, url, ...]
+        name = fields[2] if len(fields) > 2 else fields[0]
+        url = fields[3] if len(fields) > 3 else ''
+        return {
+            "name": name,
+            "packagetype": "manifest",
+            "sources": [{
+                "architecture": arch,
+                "url": url,
+                "name": os_name,
+                "version": [os_version]
+            }]
+        }
+    elif pkg_type == 'pip_module':
+        # fields: [pkg_key, pip_module, name, ...]
+        name = fields[2] if len(fields) > 2 else fields[0]
+        entry = {
+            "name": name,
+            "packagetype": "pip_module",
+            "sources": [{
+                "architecture": arch,
+                "name": os_name,
+                "version": [os_version]
+            }]
+        }
+        if overrides.get('version'):
+            entry["version"] = overrides['version']
+        return entry
     else:
         raise ValueError(f"Unknown package type: {pkg_type}")
 
@@ -220,13 +270,17 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
             pkg_key = fields[0]
             pkg_type = fields[1].lower()
 
-            if pkg_type not in ('rpm', 'rpm_repo', 'tarball', 'image'):
+            if pkg_type not in ('rpm', 'rpm_repo', 'tarball', 'image', 'git', 'manifest', 'pip_module'):
                 raise ValueError(f"Line {line_num}: Unknown package type '{pkg_type}'")
 
             # Determine where trailing overrides start
-            override_start = 4  # Default for rpm/rpm_repo/tarball
+            override_start = 4  # Default for rpm/rpm_repo/tarball/manifest
             if pkg_type == 'image':
                 override_start = 5
+            elif pkg_type == 'git':
+                override_start = 5
+            elif pkg_type == 'pip_module':
+                override_start = 3
 
             overrides = _parse_trailing_overrides(fields, override_start)
             pkg_entry = _build_package_entry(pkg_type, fields, defaults, overrides)

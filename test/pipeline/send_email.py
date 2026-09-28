@@ -24,6 +24,8 @@ All configuration is read from GitLab CI/CD variables (environment):
     TEST_REPORTS_PATH     - Path to test reports directory (default: /opt/omnia/reports)
     PIPELINE_MODE         - Pipeline mode: cleanup/deploy/default (optional)
     DOMAINS               - Comma-separated domain list (optional)
+    CLUSTER               - Cluster name, shown in email subject and body (optional)
+    TARGET_IP             - Cluster target IP, shown in email body (optional)
 
 GitLab-provided variables used automatically:
     PIPELINE_TRIGGER_TIME - Set by initialization stage
@@ -32,7 +34,9 @@ GitLab-provided variables used automatically:
 import glob
 import json
 import os
+import re
 import smtplib
+import subprocess
 import time
 import traceback
 from email.mime.base import MIMEBase
@@ -60,6 +64,23 @@ pipeline_url = os.environ.get("CI_PIPELINE_URL", "")
 pipeline_mode = os.environ.get("PIPELINE_MODE", "default")
 domains = os.environ.get("DOMAINS", "default")
 test_mode = os.environ.get("TEST_MODE", "false").lower() == "true"
+cluster_name = os.environ.get("CLUSTER", os.environ.get("CLUSTER_NAME", ""))
+cluster_ip = os.environ.get("TARGET_IP", "")
+
+# Get the current commit ID of the omnia repository
+# Priority: CI_COMMIT_SHA (from GitLab CI) > git rev-parse HEAD (local) > unknown
+commit_id = os.environ.get("CI_COMMIT_SHA", "")
+if not commit_id:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        commit_id = result.stdout.strip()
+    except Exception:
+        commit_id = "unknown"
 
 # ---------------------------------------------------------------------------
 missing = []
@@ -97,45 +118,167 @@ if os.path.exists(TEST_REPORTS_PATH):
     json_files = glob.glob(os.path.join(TEST_REPORTS_PATH, "*.json"))
     html_files = glob.glob(os.path.join(TEST_REPORTS_PATH, "*.html"))
     test_report_files = sorted(json_files + html_files)
-    
+
+    print(f"Test reports directory contents: {TEST_REPORTS_PATH}")
+    for f in sorted(os.listdir(TEST_REPORTS_PATH)):
+        print(f"  {f}")
+
     if json_files:
         print(f"Found {len(json_files)} JSON test report(s)")
-        # Extract summary from the first JSON report
+        # Aggregate summary across all JSON reports with per-domain breakdown
         try:
-            with open(json_files[0], "r", encoding="utf-8") as f:
-                report_data = json.load(f)
-            
+            domain_order = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry"]
+            domain_summaries = {}
             total_passed = 0
             total_failed = 0
             total_skipped = 0
-            
-            for server_data in report_data.get("servers", {}).values():
-                for run in server_data.get("runs", []):
-                    summary = run.get("summary", {})
-                    total_passed += summary.get("passed", 0)
-                    total_failed += summary.get("failed", 0)
-                    total_skipped += summary.get("skipped", 0)
-            
+
+            for json_file in json_files:
+                with open(json_file, "r", encoding="utf-8") as f:
+                    report_data = json.load(f)
+
+                # Extract domain from filename using multiple patterns
+                filename = os.path.basename(json_file)
+                domain = None
+                for d in domain_order:
+                    if (
+                        f"_{d}_report" in filename
+                        or f"_{d}_test_report" in filename
+                        or f"{d}_test_report" in filename
+                        or f"{d}_report" in filename
+                    ):
+                        domain = d
+                        break
+                if not domain:
+                    # Try to match domain name anywhere in filename (substring)
+                    for d in domain_order:
+                        if d in filename:
+                            domain = d
+                            break
+                if not domain:
+                    domain = "unknown"
+
+                print(f"  Processing report: {filename} -> domain: {domain}")
+
+                passed = 0
+                failed = 0
+                skipped = 0
+
+                # Strategy 1: "servers" -> "runs" -> "summary" format
+                servers = report_data.get("servers", {})
+                if servers and isinstance(servers, dict):
+                    for server_data in servers.values():
+                        for run in server_data.get("runs", []):
+                            summary = run.get("summary", {})
+                            passed += summary.get("passed", 0)
+                            failed += summary.get("failed", 0)
+                            skipped += summary.get("skipped", 0)
+
+                # Strategy 2: top-level "summary" dict
+                if passed == 0 and failed == 0 and skipped == 0:
+                    top_summary = report_data.get("summary", {})
+                    if isinstance(top_summary, dict):
+                        passed = top_summary.get("passed", 0)
+                        failed = top_summary.get("failed", 0)
+                        skipped = top_summary.get("skipped", 0)
+
+                # Strategy 3: "results" list with per-test status
+                if passed == 0 and failed == 0 and skipped == 0:
+                    results = report_data.get("results", [])
+                    if isinstance(results, list):
+                        for r in results:
+                            status = r.get("status", r.get("outcome", "")).lower()
+                            if status in ("passed", "pass"):
+                                passed += 1
+                            elif status in ("failed", "fail", "error"):
+                                failed += 1
+                            elif status in ("skipped", "skip", "deselected"):
+                                skipped += 1
+
+                # Strategy 4: "tests" list with per-test status
+                if passed == 0 and failed == 0 and skipped == 0:
+                    tests = report_data.get("tests", [])
+                    if isinstance(tests, list):
+                        for t in tests:
+                            status = t.get("status", t.get("outcome", "")).lower()
+                            if status in ("passed", "pass"):
+                                passed += 1
+                            elif status in ("failed", "fail", "error"):
+                                failed += 1
+                            elif status in ("skipped", "skip", "deselected"):
+                                skipped += 1
+
+                # Strategy 5: top-level "passed"/"failed"/"skipped" counts
+                if passed == 0 and failed == 0 and skipped == 0:
+                    passed = report_data.get("passed", report_data.get("num_passed", 0))
+                    failed = report_data.get("failed", report_data.get("num_failed", 0))
+                    skipped = report_data.get("skipped", report_data.get("num_skipped", 0))
+                    if isinstance(passed, list):
+                        passed = len(passed)
+                    if isinstance(failed, list):
+                        failed = len(failed)
+                    if isinstance(skipped, list):
+                        skipped = len(skipped)
+
+                print(f"    passed={passed}, failed={failed}, skipped={skipped}")
+
+                if domain not in domain_summaries:
+                    domain_summaries[domain] = {"passed": 0, "failed": 0, "skipped": 0}
+                domain_summaries[domain]["passed"] += passed
+                domain_summaries[domain]["failed"] += failed
+                domain_summaries[domain]["skipped"] += skipped
+
+                total_passed += passed
+                total_failed += failed
+                total_skipped += skipped
+
+            # Build per-domain table
+            domain_rows = ""
+            for domain in domain_order:
+                if domain in domain_summaries:
+                    ds = domain_summaries[domain]
+                    bg = "#f8f9fa" if domain_order.index(domain) % 2 == 0 else "#ffffff"
+                    domain_rows += f"""\
+        <tr style="background-color: {bg};">
+            <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: green;">{ds['passed']}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{ds['skipped']}</td>
+        </tr>"""
+            # Include any domains not in the standard order (e.g. "unknown")
+            for domain in sorted(domain_summaries.keys()):
+                if domain not in domain_order:
+                    ds = domain_summaries[domain]
+                    domain_rows += f"""\
+        <tr style="background-color: #f8f9fa;">
+            <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: green;">{ds['passed']}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{ds['skipped']}</td>
+        </tr>"""
+
             test_reports_summary = f"""
     <h3>Test Execution Summary</h3>
     <table style="border-collapse: collapse; margin: 10px 0;">
-        <tr style="background-color: #f0f0f0;">
-            <td style="border: 1px solid #ddd; padding: 8px;"><strong>Passed</strong></td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: green;"><strong>{total_passed}</strong></td>
+        <tr style="background-color: #343a40; color: white;">
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: left;">Domain</th>
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: center;">Passed</th>
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: center;">Failed</th>
+            <th style="border: 1px solid #dee2e6; padding: 8px 12px; text-align: center;">Skipped</th>
         </tr>
-        <tr>
-            <td style="border: 1px solid #ddd; padding: 8px;"><strong>Failed</strong></td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: red;"><strong>{total_failed}</strong></td>
-        </tr>
-        <tr style="background-color: #f0f0f0;">
-            <td style="border: 1px solid #ddd; padding: 8px;"><strong>Skipped</strong></td>
-            <td style="border: 1px solid #ddd; padding: 8px; color: orange;"><strong>{total_skipped}</strong></td>
+{domain_rows}
+        <tr style="background-color: #e9ecef; font-weight: bold;">
+            <td style="border: 1px solid #ddd; padding: 8px;">Total</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: green;">{total_passed}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: red;">{total_failed}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{total_skipped}</td>
         </tr>
     </table>
     <p><em>Detailed test reports are attached to this email.</em></p>
 """
         except Exception as e:
             print(f"Error reading test report summary: {e}")
+            traceback.print_exc()
             test_reports_summary = "<p><em>Test reports are attached to this email.</em></p>"
     else:
         test_reports_summary = "<p><em>No test reports found.</em></p>"
@@ -149,8 +292,8 @@ else:
 # Stage ordering per pipeline mode
 STAGE_ORDER_DEFAULT = [
     "initialization", "setup_environment",
-    "cleanup_repo_manager", "cleanup_image_build_manager",
-    "cleanup_orchestrator", "cleanup_telemetry", "cleanup_omnia",
+    "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "setup_main", "test_main_installation",
     "repo_manager", "test_repo_manager",
     "image_build_manager", "test_image_build_manager",
@@ -168,8 +311,8 @@ STAGE_ORDER_DEPLOY = [
 ]
 STAGE_ORDER_CLEANUP = [
     "initialization", "setup_environment",
-    "cleanup_repo_manager", "cleanup_image_build_manager",
-    "cleanup_orchestrator", "cleanup_telemetry", "cleanup_omnia",
+    "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "summary",
 ]
 
@@ -212,7 +355,7 @@ def pick_stage_order(mode, selected_domains, include_tests, job_statuses):
         "repo_manager", "image_build_manager", "orchestrator", "telemetry",
     }
     selected = domain_names if selected_domains == "default" else {
-        value.strip() for value in selected_domains.split(",") if value.strip()
+        value.strip() for value in re.split(r"[,|]", selected_domains) if value.strip()
     }
     applicable = []
     for stage in order:
@@ -301,14 +444,25 @@ msg["From"] = SENDER_EMAIL
 msg["To"] = ", ".join(recipients)
 
 subject_detail = f" - {failed_stage}" if failed_stage else ""
+cluster_label = f" [{cluster_name}]" if cluster_name else ""
 msg["Subject"] = (
-    f"Omnia Pipeline - {overall_status}{subject_detail} ({pipeline_mode})"
+    f"Omnia Pipeline{cluster_label} - {overall_status}{subject_detail} ({pipeline_mode})"
 )
+
+cluster_header = f" — {cluster_name}" if cluster_name else ""
+cluster_info_html = ""
+if cluster_name or cluster_ip:
+    cluster_info_html = '<p>'
+    if cluster_name:
+        cluster_info_html += f'<strong>Cluster:</strong> {cluster_name}'
+    if cluster_ip:
+        cluster_info_html += f' &nbsp;|&nbsp; <strong>Target IP:</strong> {cluster_ip}'
+    cluster_info_html += '</p>'
 
 html_body = f"""
 <html>
 <body style="font-family: Arial, sans-serif; margin: 20px;">
-    <h2>Omnia Pipeline Execution Report</h2>
+    <h2>Omnia Pipeline Execution Report{cluster_header}</h2>
     <div style="background-color: {status_color}; color: white;
                 padding: 15px; border-radius: 5px; margin-bottom: 20px;">
         <h3 style="margin: 0;">{overall_status}</h3>
@@ -318,9 +472,11 @@ html_body = f"""
             {'&nbsp;|&nbsp; <strong>Failed at:</strong> ' + failed_stage if failed_stage else ''}
         </p>
     </div>
+    {cluster_info_html}
     <p><strong>Pipeline Trigger Time:</strong> {trigger_time}</p>
     <p><strong>Pipeline URL:</strong>
         <a href="{pipeline_url}">{pipeline_url}</a></p>
+    <p><strong>Commit ID:</strong> {commit_id}</p>
 
     <h3>Stage Execution Summary</h3>
     {stage_table_html}

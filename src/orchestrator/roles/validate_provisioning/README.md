@@ -1,6 +1,9 @@
 # validate_provisioning
 
-Post-provisioning validation role. Verifies that all expected nodes are registered in SMD, boot parameters are correctly configured in BSS, and generates a provisioning report.
+Post-provisioning validation role. Verifies that expected nodes and
+administrative interfaces are registered in SMD, functional groups have Boot
+Service configurations and Metadata Service data, and generates a provisioning
+report.
 
 ## Requirements
 

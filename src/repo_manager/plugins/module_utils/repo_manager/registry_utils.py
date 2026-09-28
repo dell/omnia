@@ -71,6 +71,28 @@ def get_registry_authority(registry_config):
     return urlsplit(build_registry_base_url(registry_config)).netloc
 
 
+def get_registry_origin_binding(registry_config):
+    """Return the canonical scheme, host, and effective port for credentials."""
+    parsed = urlsplit(build_registry_base_url(registry_config))
+    effective_port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    return {
+        "scheme": parsed.scheme,
+        "host": parsed.hostname,
+        "port": effective_port,
+    }
+
+
+def registry_origin_matches(stored_origin, expected_origin):
+    """Return whether a stored credential origin exactly matches its endpoint."""
+    if not isinstance(stored_origin, dict):
+        return False
+    return (
+        stored_origin.get("scheme") == expected_origin["scheme"]
+        and stored_origin.get("host") == expected_origin["host"]
+        and stored_origin.get("port") == expected_origin["port"]
+    )
+
+
 def get_image_path_for_registry(package_name, registry_name, registry_config):
     """Return an image path after enforcing the configured endpoint prefix.
 
@@ -140,10 +162,17 @@ def resolve_registry_contexts(  # pylint: disable=too-many-locals
                     f"Credential record '{vault_path}' must be a mapping"
                 )
             credential_registry = credentials.get("registry", "")
-            if credential_registry and credential_registry != registry_name:
+            if credential_registry != registry_name:
                 raise ValueError(
-                    f"Credential record '{vault_path}' is mapped to registry "
-                    f"'{credential_registry}', not '{registry_name}'"
+                    f"Stored credentials do not match registry '{registry_name}'; "
+                    "collect registry credentials again"
+                )
+            expected_origin = get_registry_origin_binding(registry_config)
+            if not registry_origin_matches(
+                    credentials.get("origin"), expected_origin):
+                raise ValueError(
+                    f"Stored credentials are not bound to registry "
+                    f"'{registry_name}'; collect registry credentials again"
                 )
             username = credentials.get("username", "")
             password = credentials.get("password", "")

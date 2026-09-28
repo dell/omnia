@@ -32,15 +32,10 @@ def _validate_ome_ip(config_data, errors, logger=None):
     Validate OME IP address logic.
 
     Rules:
-    - If enable_bmc_discovery is true, ome_ip must be a valid, non-loopback IPv4.
-    - If enable_bmc_discovery is false, ome_ip is ignored.
+    - ome_ip must be a valid, non-loopback IPv4 address.
     """
-    enable_bmc = config_data.get("enable_bmc_discovery", False)
-    if not enable_bmc:
-        return
-
     ome_ip = config_data.get("ome_ip", "")
-    if not ome_ip:
+    if not isinstance(ome_ip, str) or not ome_ip:
         errors.append(OME_IP_REQUIRED_MSG)
         if logger:
             logger.error(OME_IP_REQUIRED_MSG)
@@ -48,7 +43,12 @@ def _validate_ome_ip(config_data, errors, logger=None):
 
     try:
         addr = ipaddress.ip_address(ome_ip)
-        if addr.is_loopback:
+        if addr.version != 4:
+            msg = OME_IP_INVALID_MSG.format(ome_ip)
+            errors.append(msg)
+            if logger:
+                logger.error(msg)
+        elif addr.is_loopback:
             msg = OME_IP_LOOPBACK_MSG.format(ome_ip)
             errors.append(msg)
             if logger:

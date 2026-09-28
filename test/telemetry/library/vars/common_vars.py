@@ -120,6 +120,25 @@ KAFKA_CR_NAME = "kafka"
 KAFKA_EXTERNAL_BOOTSTRAP_SVC = "kafka-kafka-external-bootstrap"
 
 # =============================================================================
+# SOURCE-TO-SINKS MAPPING
+# =============================================================================
+# Maps each telemetry source to the sinks it can target.
+# Used for source-specific sink enablement checks in tests.
+#
+# Format: source_name -> [list of possible sink names]
+# This allows tests to verify if a specific source targets a specific sink.
+
+SOURCE_SINK_MAPPING = {
+    "idrac": ["kafka", "victoria_metrics"],
+    "ldms": ["kafka"],
+    "powerscale": ["victoria_metrics", "victoria_logs"],
+    "ufm": ["victoria_metrics", "victoria_logs"],
+    "vast": ["victoria_metrics", "victoria_logs"],
+    "ome": ["kafka"],  # OME publishes to Kafka; Vector-OME bridge routes to Victoria
+    "sfm": ["victoria_metrics"],  # SFM uses Prometheus Remote Write to victoria_metrics
+}
+
+# =============================================================================
 # SOURCE COMPONENT NAMES
 # =============================================================================
 
@@ -273,7 +292,7 @@ VAST_LOG_CLOCK_SKEW_SECONDS = 15
 VAST_LOG_MAX_FUTURE_SKEW_SECONDS = 30
 VAST_TRIGGER_STATE_SCHEMA_VERSION = 1
 VAST_TRIGGER_STATE_SUBDIR = os.path.join("reports", "state")
-VAST_TRIGGER_STATE_FILE = "vast_syslog_{report_id}.json"
+VAST_TRIGGER_STATE_FILE = "vast_syslog_{run_id}.json"
 VAST_TRIGGER_MAX_AGE_SECONDS = 3600
 VAST_REPORT_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$"
 VAST_QUERY_TIMEOUT_SECONDS = 30
@@ -421,6 +440,17 @@ CMDS = {
         " -o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
         " 2>/dev/null"
     ),
+    "kubectl_get_kafka_ready_status": (
+        "kubectl get kafka kafka -n {namespace}"
+        " -o jsonpath='{{.status.conditions[?(@.type==\"Ready\")].status}}'"
+        " 2>/dev/null"
+    ),
+
+    # --- VictoriaMetrics ---
+    "kubectl_get_vmcluster_update_status": (
+        "kubectl get vmcluster -n {namespace}"
+        " -o jsonpath='{{.items[0].status.updateStatus}}' 2>/dev/null"
+    ),
 
     # --- KafkaUser ---
     "kubectl_get_kafkauser": (
@@ -496,8 +526,8 @@ CMDS = {
     ),
     # --- iDRAC VictoriaMetrics data ---
     "vm_query_idrac_service_tag": (
-        "curl -s --max-time 15"
-        " 'http://{vmselect_ip}:{vmselect_port}"
+        "curl -sk --max-time 15"
+        " 'https://{vmselect_ip}:{vmselect_port}"
         "/select/0/prometheus/api/v1/query?query={encoded_query}'"
     ),
 
@@ -545,11 +575,20 @@ CMDS = {
         " {user}@{host}"
         " '{isi_cmd}'"
     ),
+    "powerscale_get_privileges": "isi auth privileges",
+    "powerscale_get_privileges_password": (
+        "sshpass -p %s ssh -o StrictHostKeyChecking=accept-new"
+        " -o PubkeyAuthentication=no -o ConnectTimeout=10 -- %s %s"
+    ),
 
     # --- Cleanup verification ---
     "kubectl_count_resources": (
         "kubectl get {resource} -n {namespace}"
         " --no-headers --ignore-not-found 2>/dev/null | wc -l"
+    ),
+    "kubectl_get_pvc_count": (
+        "kubectl get pvc -n {namespace}"
+        " --no-headers --ignore-not-found 2>/dev/null | grep {prefix} | wc -l"
     ),
     "kubectl_get_ns": (
         "kubectl get namespace {namespace}"

@@ -16,10 +16,39 @@
 # PRE-FLIGHT CHECKS - Verify container and environment status before deployment
 # =============================================================================
 # This task file performs pre-deployment verification:
-#   1. Check if Pulp container exists and its status
-#   2. Verify Pulp image availability
-#   3. Check required directories
+#   1. Validate capacity, timeout and storage configuration
+#   2. Check if the Pulp container exists and its status
+#   3. Verify Pulp image availability
+#   4. Check required directories
 # =============================================================================
+
+# -----------------------------------------------------------------------------
+# LOCAL CAPACITY AND TIMEOUT VALIDATION
+# -----------------------------------------------------------------------------
+
+- name: Validate local Pulp capacity and timeout configuration
+  ansible.builtin.assert:
+    that:
+      - (pulp_deployment_defaults.workers.task | int) >= 1
+      - (pulp_deployment_defaults.workers.api | int) >= 1
+      - (pulp_deployment_defaults.workers.content | int) >= 1
+      - (parallel_config.default_nthreads | int) >= 1
+      - (rpm_repo_config.thread_pool_size | int) >= 1
+      - (dnf_config.max_concurrent_commands | int) >= 1
+      - (pulp_deployment_defaults.timeouts.gunicorn_seconds | int) > 0
+      - (pulp_deployment_defaults.timeouts.nginx_connect_seconds | int) > 0
+      - >-
+        (pulp_deployment_defaults.timeouts.nginx_connect_seconds | int) <
+        (pulp_deployment_defaults.timeouts.nginx_proxy_seconds | int)
+      - >-
+        (pulp_deployment_defaults.timeouts.gunicorn_seconds | int) <
+        (pulp_deployment_defaults.timeouts.nginx_proxy_seconds | int)
+      - >-
+        (pulp_deployment_defaults.timeouts.nginx_proxy_seconds | int) <
+        (rpm_repo_config.cli_query_timeout | int)
+    fail_msg: >-
+      {{ deploy_pulp_validate_capacity_and_timeout_configuration_msg }}
+    quiet: true
 
 # -----------------------------------------------------------------------------
 # STORAGE PATH VALIDATION

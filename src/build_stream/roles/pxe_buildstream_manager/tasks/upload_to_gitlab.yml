@@ -15,7 +15,7 @@
 
 - name: Load GitLab configuration inputs
   ansible.builtin.include_vars:
-    file: "{{ omnia_data_path }}/build_stream/input/{{ project_name | default('project_default') }}/build_stream_config.yml"
+    file: "{{ hostvars['localhost']['omnia_data_path'] }}/build_stream/input/{{ project_name }}/build_stream_config.yml"
   delegate_to: localhost
   run_once: true
 

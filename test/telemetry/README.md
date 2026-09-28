@@ -284,16 +284,16 @@ test/telemetry/
 
 | Area | TCs | Marker |
 |------|-----|--------|
-| Precheck | 7 | sanity |
-| Validate | 6 | sanity |
-| Deploy | 63 | sanity + functional + source + sink |
+| Precheck | 5 | sanity |
+| Validate | 2 | sanity |
+| Deploy | 90 | sanity + functional + source + sink |
 | Cleanup | 15* | sanity + functional |
-| **FVT Total** | **91** | |
+| Full-stack alternate ID | 1 | deploy |
+| **FVT Total** | **113 reportable IDs / 111 test functions** | |
 
-\* One of the two final-state PVC tests
-(`test_no_pvcs_after_full_cleanup` / `test_pvcs_preserved_after_cleanup`)
-is always skipped depending on the `DELETE_VOLUME` flag, and
-`test_cleanup_topics_removed` additionally skips when
+\* The two final-state PVC IDs are mode-dependent branches of
+`test_no_pvcs_after_full_cleanup`; only the ID matching `DELETE_VOLUME` is
+reported. `test_cleanup_topics_removed` also skips when
 `DELETE_VOLUME` is unset/`false` (KafkaTopic CRDs are preserved in that
 mode) — so 14 run when `DELETE_VOLUME=true`, 13 run otherwise.
 
@@ -310,17 +310,21 @@ mode) — so 14 run when `DELETE_VOLUME=true`, 13 run otherwise.
 `test_cleanup_idempotency_no_pvcs`'s two PVC assertions runs per
 invocation, based on `DELETE_VOLUME` — 4 run in any single invocation.
 
-### Grand Total: **108 Tests defined** (105–106 active in a single run,
-depending on `DELETE_VOLUME` — see footnotes above)
+### Grand Total: **130 reportable IDs across 127 test functions**
+
+The difference comes from one full-versus-tagged deploy function and the
+mode-dependent FVT/NFT PVC checks, each of which can emit one of two stable
+IDs. Optional-source configuration and `DELETE_VOLUME` determine which cases
+run or skip in a particular environment.
 
 ## Output Format
 
 ```
-  ▶ [TC_NS_001] Verify all telemetry pods running
+  ▶ [TEL_FVT_DEPLOY_V008] Verify all telemetry pods running
   → Checking all pods in telemetry namespace
   ✔ PASS: All 43 pods running
 
-  ▶ [TC_SR_019] Verify UFM InfiniBand metrics in VictoriaMetrics
+  ▶ [TEL_FVT_DEPLOY_V063] Verify UFM InfiniBand metrics in VictoriaMetrics
   → Querying VictoriaMetrics for UFM InfiniBand metrics
   ✔ PASS: 6 UFM metric(s) found
     │   ✓ infiniband_CBW: 0 (2026-08-24 12:59:50)

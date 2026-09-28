@@ -16,8 +16,8 @@
 Telemetry Deploy — Playbook Execution.
 
 Test cases:
-    TC_DP_001: Deploy telemetry (full stack, no tags)
-    TC_DP_002: Deploy telemetry (--tags deploy)
+    TEL_FVT_FULL_E001: Deploy telemetry (full stack, no tags)
+    TEL_FVT_DEPLOY_E001: Deploy telemetry (--tags deploy)
 """
 
 import os

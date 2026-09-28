@@ -1,69 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 ---
 
-- name: Set slurm_config_path
-  ansible.builtin.set_fact:
-    slurm_config_path: "{{ share_path }}/{{ slurm_share_dir_name }}"
-
-- name: Display resolved slurm config path
-  ansible.builtin.debug:
-    msg: "Resolved slurm_config_path={{ slurm_config_path }}"
-
-- name: Prompt for backup base name
-  ansible.builtin.pause:
-    prompt: "Enter backup base name (leave empty for timestamp-only)"
-  register: backup_base_name_input
+- name: Resolve shared Slurm config facts
+  ansible.builtin.include_role:
+    name: slurm_config_common
 
 - name: Set backup id
   ansible.builtin.set_fact:
-    backup_timestamp: "{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"
-    backup_base_name: "{{ backup_base_name_input.user_input | default('') }}"
+    backup_timestamp: "{{ ansible_date_time.date | replace('-', '') }}-{{ ansible_date_time.time | replace(':', '') }}"
 
 - name: Set backup name suffix
   ansible.builtin.set_fact:
-    backup_name_suffix: "{{ (backup_base_name | length > 0) | ternary(backup_base_name ~ '_' ~ backup_timestamp, backup_timestamp) }}"
+    backup_name_suffix: >-
+      {{ (backup_base_name_effective | length > 0) | ternary(backup_base_name_effective ~ '_' ~ backup_timestamp, backup_timestamp) }}
 
-- name: Set backup directory
+- name: Set backup run directory
   ansible.builtin.set_fact:
-    slurm_backups_root: "{{ share_path }}/{{ slurm_backups_dir_name }}"
     backup_id: "{{ backup_name_suffix }}"
-    backup_dir: "{{ share_path }}/{{ slurm_backups_dir_name }}/{{ backup_name_suffix }}"
-
-- name: Ensure slurm backups root exists
-  ansible.builtin.file:
-    path: "{{ slurm_backups_root }}"
-    state: directory
-    mode: '0755'
-
-- name: Display slurm backups root
-  ansible.builtin.debug:
-    msg: "Resolved slurm_backups_root={{ slurm_backups_root }}"
-
-- name: Create backup directory
-  ansible.builtin.file:
-    path: "{{ backup_dir }}"
-    state: directory
-    mode: '0755'
+    backup_dir: "{{ slurm_backups_root_effective }}/{{ backup_name_suffix }}"
 
 - name: Create backup config directories
   ansible.builtin.file:
-    path: "{{ backup_dir }}/{{ ctld_list[0] }}/{{ item }}"
+    path: "{{ backup_dir }}/{{ slurm_controller_hostname }}/{{ item }}"
     state: directory
     mode: '0755'
-  loop:
-    - etc/slurm
-    - etc/munge
-    - etc/my.cnf.d
+  loop: "{{ slurm_config_directories_effective }}"
 
 - name: Backup controller config directories
   ansible.builtin.command: >-
-    cp -a "{{ slurm_config_path }}/{{ ctld_list[0] }}/{{ item }}/." "{{ backup_dir }}/{{ ctld_list[0] }}/{{ item }}/"
-  loop:
-    - etc/slurm
-    - etc/munge
-    - etc/my.cnf.d
+    cp -a "{{ slurm_config_path_effective }}/{{ slurm_controller_hostname }}/{{ item }}/."
+    "{{ backup_dir }}/{{ slurm_controller_hostname }}/{{ item }}/"
+  loop: "{{ slurm_config_directories_effective }}"
   changed_when: true
   failed_when: false
 
+- name: Compute SHA256 checksums of backed-up files
+  ansible.builtin.shell: >-
+    set -o pipefail;
+    find "{{ backup_dir }}/{{ slurm_controller_hostname }}" -type f -exec sha256sum {} \; | sort
+  args:
+    executable: /bin/bash
+  register: backup_checksums
+  changed_when: false
+  failed_when: false
+
+- name: Write backup metadata.json
+  ansible.builtin.template:
+    src: metadata.json.j2
+    dest: "{{ backup_dir }}/metadata.json"
+    mode: '0644'
+  vars:
+    backup_generated_at_utc: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+    backup_controller_hostname: "{{ slurm_controller_hostname }}"
+    backup_source_path: "{{ slurm_config_path_effective }}/{{ slurm_controller_hostname }}"
+    backup_location: "{{ backup_dir }}/{{ slurm_controller_hostname }}"
+    backup_directories: "{{ slurm_config_directories_effective }}"
+    backup_checksums_output: "{{ backup_checksums.stdout_lines | default([]) }}"
+
 - name: Display backup location
   ansible.builtin.debug:
-    msg: "Slurm config backup created at: {{ backup_dir }}/{{ ctld_list[0] }}"
+    msg: "Slurm config backup created at: {{ backup_dir }}/{{ slurm_controller_hostname }}"

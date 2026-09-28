@@ -16,9 +16,9 @@
 Telemetry Precheck — Cluster Health Verification Tests.
 
 Test cases:
-    TC_PC_002: Verify omnia.env variables present
-    TC_PC_003: Verify K8s nodes are Ready
-    TC_PC_004: Verify kube_vip is reachable
+    TEL_FVT_PRECHECK_V001: Verify omnia.env variables present
+    TEL_FVT_PRECHECK_V002: Verify K8s nodes are Ready
+    TEL_FVT_PRECHECK_V003: Verify kube_vip is reachable
 """
 
 import pytest
@@ -41,7 +41,7 @@ from library.vars.common_vars import CMDS
 @pytest.mark.sanity
 @pytest.mark.order(1)
 def test_env_vars_present(host):
-    """TC_PC_002: Verify omnia.env variables present."""
+    """TEL_FVT_PRECHECK_V001: Verify omnia.env variables present."""
     tc = TC["env_vars_present"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -71,7 +71,7 @@ def test_env_vars_present(host):
 @pytest.mark.sanity
 @pytest.mark.order(2)
 def test_k8s_nodes_ready(host):
-    """TC_PC_003: Verify K8s nodes are Ready."""
+    """TEL_FVT_PRECHECK_V002: Verify K8s nodes are Ready."""
     tc = TC["k8s_nodes_ready"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -115,7 +115,7 @@ def test_k8s_nodes_ready(host):
 @pytest.mark.sanity
 @pytest.mark.order(3)
 def test_kube_vip_reachable(host):
-    """TC_PC_004: Verify kube_vip is reachable."""
+    """TEL_FVT_PRECHECK_V003: Verify kube_vip is reachable."""
     tc = TC["kube_vip_reachable"]
     tl = TestLogger(tc["title"], tc["id"])
 

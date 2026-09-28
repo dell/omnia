@@ -36,9 +36,6 @@ default_lease_time: "86400"
 # DNS enabled flag
 dns_enabled: false
 
-# Kernel version override
-kernel_version_override: ""
-
 # Additional cloud-init config file
 additional_cloud_init_config_file: ""
 

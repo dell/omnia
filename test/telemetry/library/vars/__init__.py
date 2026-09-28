@@ -227,6 +227,7 @@ from .ome_vars import (
 )
 
 from .test_case_vars import TEST_CASES
+from .ut_test_case_vars import UT_TEST_CASE_IDS
 
 from .domain_vars import (
     DOMAIN_NAME as VALIDATION_DOMAIN,
@@ -438,6 +439,7 @@ __all__ = [
     "UFM_VMSCRAPE_NAME",
     # Test case vars
     "TEST_CASES",
+    "UT_TEST_CASE_IDS",
     "VALIDATION_DOMAIN",
     "FVT_TAGS",
     "MARKERS",

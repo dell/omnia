@@ -30,8 +30,12 @@ state_file_path: "/var/lib/omnia/cleanup/cleanup_state.json"
 component_state_path: "/var/lib/omnia/cleanup/{{ component_name }}.state"
 
 # Logging
-log_file_path: "{{ hostvars['localhost']['omnia_data_path'] }}/orchestrator/log/cleanup/cleanup.log"
-component_log_path: "{{ hostvars['localhost']['omnia_data_path'] }}/orchestrator/log/cleanup/{{ component_name }}.log"
+log_file_path: >-
+  {{ hostvars['localhost']['orchestrator_data_path']
+     }}/log/cleanup/cleanup.log
+component_log_path: >-
+  {{ hostvars['localhost']['orchestrator_data_path']
+     }}/log/cleanup/{{ component_name }}.log
 
 # Backup
 backup_path: "/var/lib/omnia/cleanup/backups"
@@ -44,12 +48,13 @@ storage_config_path: "{{ input_project_dir }}/storage_config.yml"
 
 # Storage paths
 omnia_shared_path: "{{ hostvars['localhost']['omnia_data_path'] }}"
-orchestrator_output_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
+orchestrator_output_dir: >-
+  {{ hostvars['localhost']['orchestrator_output_dir'] }}
 
 # OpenCHAMI paths
 openchami_config_dir: "/etc/openchami"
 openchami_share_dir: "{{ omnia_shared_path }}/openchami"
-openchami_log_dir: "{{ omnia_shared_path }}/orchestrator/log/openchami"
+openchami_log_dir: "{{ orchestrator_data_path }}/log/openchami"
 openchami_work_dir: "{{ openchami_share_dir }}/workdir"
 ochami_dir: "/etc/ochami"
 

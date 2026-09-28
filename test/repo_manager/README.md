@@ -16,6 +16,18 @@ source setup_env.sh            # One-time: create .venv, install deps
 vi test_config.yml             # Set oim_server_ip, dataset, etc.
 ```
 
+Named datasets are validated before any target synchronization. Generate or
+check deterministic datasets with:
+
+```bash
+cd datasets/generator
+python generate_dataset.py create my_dataset --profile defaults
+python generate_dataset.py my_dataset defaults --check
+```
+
+Generated datasets include provenance and artifact hashes. Repo Manager
+credentials are intentionally excluded and remain encrypted on the target.
+
 ## Running Tests
 
 ```bash
@@ -84,7 +96,12 @@ suite, for example `catalog test --suite validate`.
 
 ## Test Cases
 
-See [docs/TEST_CASES.md](docs/TEST_CASES.md) for the complete test case registry.
+See the authoritative test-case registries:
+
+- [fvt/README.md](fvt/README.md) -- FVT test-case registry (117 tests)
+- [nft/README.md](nft/README.md) -- NFT test-case registry (5 tests)
+- [ut/README.md](ut/README.md) -- UT test-case registry (141 tests)
+- [docs/TEST_CASES.md](docs/TEST_CASES.md) -- Consolidated summary
 
 ## Directory Structure
 
@@ -99,6 +116,7 @@ test/repo_manager/
 ├── test_run_config.yml         # Batch execution config
 ├── requirements.txt            # Python dependencies
 ├── ut/                         # Deterministic source-contract tests
+├── nft/                        # Non-Functional Tests (idempotency, performance, security)
 │
 ├── docs/                       # Configuration documentation
 │   ├── test_config.md
@@ -108,6 +126,7 @@ test/repo_manager/
 ├── datasets/                   # Test input datasets
 │   ├── data_set_01/
 │   │   ├── input/              # repo_manager_config, endpoint config
+│   │   ├── dataset_manifest.yml # Deterministic provenance and hashes
 │   │   └── README.md
 │   ├── generator/               # Dataset generation tools
 │   │   ├── generate_dataset.py # Generator script
@@ -174,10 +193,13 @@ The test framework is organized into several categories:
 | **Status Tests** | Generate and verify repo_status.yml | 3 |
 | **Cleanup Tests** | Cleanup Pulp server | 4 |
 | **Selective Cleanup Tests** | Exact repository cleanup and state verification | 4 |
-| **Unit/Contract Tests** | Source state machines, cleanup, status and command safety | 111 |
 | **Policy Tests** | Test repository policies | 21 |
 | **User Registry Tests** | Test user registry configuration and validation | 15 |
 | **Negative Tests** | Test error scenarios | 10 |
+| **Catalog Tests** | Catalog generate, add, delete, validate, and negative | 30 |
+| **Unit/Contract Tests** | Source state machines, cleanup, status and command safety | 141 |
+| **Non-Functional Tests** | Idempotency, performance, and security | 5 |
+| | **Total** | **263** |
 
 ## Test Markers
 
@@ -191,6 +213,10 @@ Tests can be filtered using pytest markers:
 - `deploy`: Playbook deployment tests
 - `x86_64`: x86_64 architecture tests
 - `aarch64`: aarch64 architecture tests
+- `nft`: Non-functional tests
+- `performance`: Performance tests
+- `idempotency`: Idempotency tests
+- `security`: Security tests
 
 ## Using the omnia-auto Pip Package
 

@@ -14,7 +14,8 @@
 ---
 
 # Provision OS — Register OS-only FGs, configure BSS/metadata-service, no bolt-ons
-# Can be run standalone (after provision_preamble.yml) or imported by orchestrator.yml
+# Imported after provision_preamble.yml in the same canonical Ansible run.
+# Direct execution requires all setup and preamble facts to be supplied.
 #
 # Prerequisites: provision_preamble.yml must have run first.
 

@@ -25,7 +25,8 @@
 #   4. Copies input files from source tree to runtime data path
 #
 # Source (flat):   src/discovery/input/
-# Destination:     <OMNIA_DATA_PATH>/discovery/input/<project>/
+# Destination:     <DISCOVERY_DATA_PATH>/input/<project>/
+# Default:         <OMNIA_DATA_PATH>/discovery/input/<project>/
 #
 # The source input/ directory contains template config files without any
 # project subdirectory.  The project directory (e.g. project_default) is
@@ -34,8 +35,9 @@
 # Usage:
 #   ./domain-init.sh                       # Uses env vars (must be exported)
 #   ./domain-init.sh --force               # Overwrite without prompting
+#   ./domain-init.sh --cleanup             # Non-interactive initializer cleanup
 #   ./domain-init.sh --deps-only           # Install deps only, skip input staging
-#   OMNIA_DATA_PATH=/opt/omnia OMNIA_PROJECT_NAME=prod ./domain-init.sh
+#   DISCOVERY_DATA_PATH=/data/discovery OMNIA_PROJECT_NAME=prod ./domain-init.sh
 #
 # Called automatically by: omnia.sh --init  or  omnia.sh --setup-venv
 #
@@ -47,7 +49,8 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 readonly DOMAIN_NAME="discovery"
 
 # Color definitions
@@ -59,6 +62,7 @@ readonly NC='\033[0m'
 FORCE_OVERWRITE=false
 DEPS_ONLY=false
 FORCE_DEPS=false
+CLEANUP_MODE=false
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Parse arguments
@@ -69,20 +73,28 @@ _parse_args() {
             --force|-f) FORCE_OVERWRITE=true ;;
             --deps-only) DEPS_ONLY=true ;;
             --force-deps) FORCE_DEPS=true ;;
+            --cleanup) CLEANUP_MODE=true ;;
             --help|-h)
-                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps]"
+                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps] [--cleanup]"
                 echo "  --force, -f     Overwrite existing files without prompting"
                 echo "  --deps-only     Skip input file staging (only install deps)"
                 echo "  --force-deps    Bypass dep cache and force reinstall of pip/Galaxy deps"
+                echo "  --cleanup       Non-interactively remove initializer-owned input and log paths"
                 exit 0
                 ;;
             *)
                 echo -e "${RED}Unknown argument: $arg${NC}" >&2
-                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps]" >&2
+                echo "Usage: $0 [--force|-f] [--deps-only] [--force-deps] [--cleanup]" >&2
                 exit 1
                 ;;
         esac
     done
+
+    if [ "$CLEANUP_MODE" = true ] && { [ "$FORCE_OVERWRITE" = true ] || [ "$DEPS_ONLY" = true ] || [ "$FORCE_DEPS" = true ]; }; then
+        echo -e "${RED}[${DOMAIN_NAME}] ERROR: --cleanup must be used by itself.${NC}" >&2
+        echo "Usage: $0 --cleanup" >&2
+        exit 1
+    fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -90,7 +102,53 @@ _parse_args() {
 # ─────────────────────────────────────────────────────────────────────────────
 _load_env() {
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+    DISCOVERY_DATA_PATH="${DISCOVERY_DATA_PATH:-${OMNIA_DATA_PATH}/${DOMAIN_NAME}}"
     OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+    DOMAIN_INIT_LOG_ROOT="${DOMAIN_INIT_LOG_ROOT:-/var/log/omnia}"
+}
+
+cleanup_initializer_artifacts() {
+    local configured_data_path="${DISCOVERY_DATA_PATH%/}"
+    local configured_log_root="${DOMAIN_INIT_LOG_ROOT%/}"
+    local data_root
+    data_root="$(realpath -m -- "$DISCOVERY_DATA_PATH")"
+    local logical_data_root
+    logical_data_root="$(realpath -ms -- "$DISCOVERY_DATA_PATH")"
+    local log_root
+    log_root="$(realpath -m -- "$DOMAIN_INIT_LOG_ROOT")"
+    local logical_log_root
+    logical_log_root="$(realpath -ms -- "$DOMAIN_INIT_LOG_ROOT")"
+    local domain_data_dir="${data_root}"
+    local cleanup_paths=("${domain_data_dir}/input" "${domain_data_dir}/log" "${log_root}/${DOMAIN_NAME}")
+    case "$data_root" in
+        ""|/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)
+            echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup for unsafe DISCOVERY_DATA_PATH: ${DISCOVERY_DATA_PATH}${NC}" >&2
+            return 1 ;;
+    esac
+    case "$log_root" in
+        ""|/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)
+            echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup for unsafe log root: ${DOMAIN_INIT_LOG_ROOT}${NC}" >&2
+            return 1 ;;
+    esac
+    if [ -L "$configured_data_path" ] || [ -L "$configured_log_root" ] ||
+       [ "$data_root" != "$logical_data_root" ] || [ "$log_root" != "$logical_log_root" ]; then
+        echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup because a configured cleanup root is a symbolic link.${NC}" >&2
+        return 1
+    fi
+    if [ -L "$domain_data_dir" ] || { [ -e "$domain_data_dir" ] && [ ! -d "$domain_data_dir" ]; }; then
+        echo -e "${RED}[${DOMAIN_NAME}] Refusing cleanup because the domain data path is not a regular directory: ${domain_data_dir}${NC}" >&2
+        return 1
+    fi
+    echo -e "${GREEN}[${DOMAIN_NAME}] Cleaning initializer-owned artifacts...${NC}"
+    local path
+    for path in "${cleanup_paths[@]}"; do
+        if [ -e "$path" ] || [ -L "$path" ]; then
+            rm -rf -- "$path"
+            echo -e "  ${GREEN}[${DOMAIN_NAME}] Removed: ${path}${NC}"
+        fi
+    done
+    rmdir "$domain_data_dir" 2>/dev/null || true
+    echo -e "${GREEN}[${DOMAIN_NAME}] Initializer cleanup complete. Deployed resources and domain output were not changed.${NC}"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -147,11 +205,11 @@ _check_existing_files() {
 # ─────────────────────────────────────────────────────────────────────────────
 # Copy flat input/ files to the runtime project directory
 # Source:  src/<domain>/input/            (flat — no project subdirectory)
-# Dest:   <OMNIA_DATA_PATH>/<domain>/input/<project>/
+# Dest:   <DISCOVERY_DATA_PATH>/input/<project>/
 # ─────────────────────────────────────────────────────────────────────────────
 copy_input_files() {
     local src_dir="$SCRIPT_DIR/input"
-    local dest_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/input/${OMNIA_PROJECT_NAME}"
+    local dest_dir="${DISCOVERY_DATA_PATH}/input/${OMNIA_PROJECT_NAME}"
 
     if [ ! -d "$src_dir" ]; then
         echo -e "  ${YELLOW}[${DOMAIN_NAME}] No input directory at ${src_dir} — skipping${NC}"
@@ -189,8 +247,8 @@ copy_input_files() {
 # Create runtime data directories (output + log) and Ansible log directory
 # ─────────────────────────────────────────────────────────────────────────────
 create_runtime_directories() {
-    local output_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/output/${OMNIA_PROJECT_NAME}"
-    local runtime_log_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/log/${OMNIA_PROJECT_NAME}"
+    local output_dir="${DISCOVERY_DATA_PATH}/output/${OMNIA_PROJECT_NAME}"
+    local runtime_log_dir="${DISCOVERY_DATA_PATH}/log/${OMNIA_PROJECT_NAME}"
     local ansible_log_dir="/var/log/omnia/${DOMAIN_NAME}"
 
     for dir in "$output_dir" "$runtime_log_dir" "$ansible_log_dir"; do
@@ -276,6 +334,11 @@ install_dependencies() {
 main() {
     _parse_args "$@"
     _load_env
+
+    if [ "$CLEANUP_MODE" = true ]; then
+        cleanup_initializer_artifacts
+        return 0
+    fi
 
     echo -e "${GREEN}[${DOMAIN_NAME}] Initializing domain...${NC}"
 

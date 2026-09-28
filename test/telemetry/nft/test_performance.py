@@ -21,9 +21,9 @@ Verifies that key operations complete within expected timeframes:
   - Cleanup playbook completes within threshold (< 300s / 5 minutes)
 
 Test cases:
-    NFT_TL_001: Validate performance (< 30s)
-    NFT_TL_002: Deploy performance (< 600s)
-    NFT_TL_003: Cleanup performance (< 300s)
+    TEL_NFT_001: Validate performance (< 30s)
+    TEL_NFT_002: Deploy performance (< 600s)
+    TEL_NFT_003: Cleanup performance (< 300s)
 """
 
 import pytest
@@ -47,10 +47,10 @@ CLEANUP_THRESHOLD = 300    # 5 minutes
 @pytest.mark.performance
 @pytest.mark.order(100)
 def test_validate_performance(host):
-    """NFT_TL_001: Verify validate completes within 30s threshold.
+    """TEL_NFT_001: Verify validate completes within 30s threshold.
 
-    Runs ``ansible-playbook telemetry.yml --tags validate`` and asserts
-    that execution completes in under 30 seconds.
+    Runs the validation phase and asserts that execution completes in under
+    30 seconds.
     """
     tc = TC["nft_validate_perf"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -96,10 +96,10 @@ def test_validate_performance(host):
 @pytest.mark.performance
 @pytest.mark.order(101)
 def test_deploy_performance(host):
-    """NFT_TL_002: Verify deploy completes within 600s (10 min) threshold.
+    """TEL_NFT_002: Verify deploy completes within 600s (10 min) threshold.
 
-    Runs ``ansible-playbook telemetry.yml --tags execute`` and asserts
-    that full deployment completes in under 10 minutes.
+    Runs the deployment phase and asserts that full deployment completes in
+    under 10 minutes.
     """
     tc = TC["nft_deploy_perf"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -144,19 +144,20 @@ def test_deploy_performance(host):
 @pytest.mark.nft
 @pytest.mark.performance
 @pytest.mark.order(102)
-def test_cleanup_performance(host, delete_volume):
-    """NFT_TL_003: Verify cleanup completes within 300s (5 min) threshold.
+def test_cleanup_performance(host, delete_sinks_volume):
+    """TEL_NFT_003: Verify cleanup completes within 300s (5 min) threshold.
 
-    Runs ``ansible-playbook telemetry.yml --tags cleanup`` and asserts
-    that full cleanup completes in under 5 minutes.
+    Runs the cleanup phase and asserts that full cleanup completes in under
+    5 minutes.
 
-    The ``delete_volume`` fixture controls whether ``Delete_volume=true``
-    is passed — matching the production cleanup invocation.
+    The ``delete_sinks_volume`` fixture controls whether
+    ``Delete_sinks_volume=true`` is passed, matching the production cleanup
+    invocation.
     """
     tc = TC["nft_cleanup_perf"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    extra_vars = {"Delete_volume": "true"} if delete_volume else None
+    extra_vars = {"Delete_sinks_volume": "true"} if delete_sinks_volume else None
 
     tl.check(f"Running cleanup playbook (threshold: {CLEANUP_THRESHOLD}s)")
     result = run_playbook(

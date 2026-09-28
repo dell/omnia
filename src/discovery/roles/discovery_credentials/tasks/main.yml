@@ -28,4 +28,3 @@
 # Step 3: Update credentials — prompt for missing OME creds
 - name: Update credentials
   ansible.builtin.include_tasks: update_credentials.yml
-  when: enable_bmc_discovery | default(false) | bool

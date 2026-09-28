@@ -40,7 +40,7 @@
 #
 # Credential management (OpenBao / Vault):
 #   Domain credentials are fetched from OpenBao using JWT authentication.
-#   VAULT_SERVER_URL must be configured. Secrets are stored at:
+#   BAO_SERVER_URL must be configured. Secrets are stored at:
 #     secret/data/omnia/repo_manager
 #     secret/data/omnia/image_build_manager
 #     secret/data/omnia/orchestrator
@@ -56,24 +56,27 @@
 #   <CLUSTER_PREFIX>_TARGET_PASS
 #
 # Domain credentials come from OpenBao (Vault-compatible) via JWT auth:
-#   VAULT_SERVER_URL, VAULT_AUTH_ROLE, VAULT_SECRET_PATH
+#   BAO_SERVER_URL, BAO_AUTH_ROLE, BAO_DATA_PATH
 #
 # Default mode stages (full cycle):
 #   1. initialization          -> Load cluster config, validate connectivity
 #   2. setup_environment       -> Clone repo, copy omnia.env, setup venv
-#   3. cleanup_repo_manager    -> repo_manager --tags cleanup
-#   4. cleanup_image_build     -> image_build_manager --tags cleanup
-#   5. cleanup_orchestrator    -> cleanup_orchestrator.yml standalone
-#   6. cleanup_omnia           -> omnia.sh --cleanup --all
-#   7. setup_main             -> Re-run omnia.sh -s to rebuild venv
-#   8. test_main_installation       -> Validate omnia setup via test framework
-#   9. repo_manager            -> Copy inputs, encrypt creds, run playbook
-#  10. test_repo_manager       -> Run repo_manager validation tests
-#  11. image_build_manager     -> Copy inputs, encrypt creds, run playbook
-#  12. test_image_build_manager -> Run image_build_manager validation tests
-#  13. orchestrator            -> Copy inputs, encrypt creds, run playbook
-#  14. test_orchestrator       -> Run orchestrator validation tests
-#  15. summary                 -> Pipeline report + email
+#   3. cleanup_telemetry       -> telemetry --tags cleanup
+#   4. cleanup_orchestrator    -> cleanup_orchestrator.yml standalone
+#   5. cleanup_image_build     -> image_build_manager --tags cleanup
+#   6. cleanup_repo_manager    -> repo_manager --tags cleanup
+#   7. cleanup_omnia           -> omnia.sh --cleanup --all
+#   8. setup_main             -> Re-run omnia.sh -s to rebuild venv
+#   9. test_main_installation       -> Validate omnia setup via test framework
+#  10. repo_manager            -> Copy inputs, encrypt creds, run playbook
+#  11. test_repo_manager       -> Run repo_manager validation tests
+#  12. image_build_manager     -> Copy inputs, encrypt creds, run playbook
+#  13. test_image_build_manager -> Run image_build_manager validation tests
+#  14. orchestrator            -> Copy inputs, encrypt creds, run playbook
+#  15. test_orchestrator       -> Run orchestrator validation tests
+#  16. telemetry              -> Copy inputs, encrypt creds, run playbook
+#  17. test_telemetry          -> Run telemetry validation tests
+#  18. summary                -> Pipeline report + email
 #
 # VENV GATE: Every domain stage resolves OMNIA_DATA_PATH from omnia.env
 #            on the target, then verifies that the venv and activate-omnia.sh
@@ -87,9 +90,6 @@ workflow:
 
 variables:
   SSH_CONNECT_TIMEOUT: "30"
-  OMNIA_REPO: "https://github.com/dell/omnia.git"
-  OMNIA_BRANCH: "main"
-  OMNIA_INSTALL_PATH: "/root/omnia"
   PIPELINE_VERSION: "3.0"
   SKIP_STAGES: ""
   TEST_MAIN_CMD: "./run_validation.sh fvt_main verify"
@@ -104,26 +104,23 @@ variables:
   #
   # OpenBao / Vault credential management (REQUIRED):
   #   Domain credentials are fetched from OpenBao (Vault-compatible) using JWT auth.
-  #   VAULT_SERVER_URL must be set — pipeline will fail without it.
-  #   Secrets are stored at: <VAULT_SECRET_PATH>/<domain>
+  #   BAO_SERVER_URL must be set — pipeline will fail without it.
+  #   Secrets are stored at: <BAO_DATA_PATH>/<domain>
   #     e.g. secret/data/omnia/repo_manager, secret/data/omnia/orchestrator
   #   For KV v2, include /data/ after mount point: secret/data/omnia
   #   For KV v1, omit /data/: secret/omnia
-  VAULT_SERVER_URL: ""
-  VAULT_AUTH_ROLE: "gitlab-role"
-  VAULT_SECRET_PATH: "secret/data/omnia"
+  # These variables are passed from the parent trigger job per-cluster
   #
-  # Test credential files are stored as GitLab CI/CD File Type Variables.
-  # Naming convention: <CLUSTER_PREFIX>_TEST_CREDS
+  # Test credential files are managed via OpenBao (not CI/CD File Variables)
   # See README.md for full setup instructions.
 
 stages:
   - initialization
   - setup_environment
-  - cleanup_repo_manager
-  - cleanup_image_build
-  - cleanup_orchestrator
   - cleanup_telemetry
+  - cleanup_orchestrator
+  - cleanup_image_build
+  - cleanup_repo_manager
   - cleanup_omnia
   - setup_main
   - test_main_installation
@@ -174,19 +171,26 @@ default:
             $TARGET:$OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null || true
         fi
 
-        # Resolve OMNIA_DATA_PATH from omnia.env on target
-        echo "Resolving OMNIA_DATA_PATH from target"
+        # Resolve OMNIA_DATA_PATH and OMNIA_VENV_PATH from omnia.env on target
+        echo "Resolving omnia paths from target"
         OMNIA_DATA_PATH=$($SSH_CMD $TARGET "
           grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2
         " | tail -1)
         OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+        OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+        OMNIA_VENV_PATH=$($SSH_CMD $TARGET "
+          grep '^OMNIA_VENV_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2
+        " | tail -1)
+        OMNIA_VENV_PATH="${OMNIA_VENV_PATH:-$OMNIA_DATA_PATH/venv}"
+        OMNIA_VENV_PATH="${OMNIA_VENV_PATH%/}"
         echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
+        echo "  OMNIA_VENV_PATH = $OMNIA_VENV_PATH"
 
         # GATE: venv and activate-omnia.sh MUST exist
         echo "Verifying omnia venv on target"
         $SSH_CMD $TARGET "
-          if [ ! -d $OMNIA_DATA_PATH/venv ]; then
-            echo 'ERROR: Omnia venv not found at $OMNIA_DATA_PATH/venv'
+          if [ ! -d $OMNIA_VENV_PATH ]; then
+            echo 'ERROR: Omnia venv not found at $OMNIA_VENV_PATH'
             echo ''
             echo 'To fix this, either:'
             echo '  1. Run setup_environment stage (automatic in default mode)'
@@ -215,17 +219,17 @@ default:
       fetch_openbao_secret() {
         local secret_name="$1"
         local output_file="$2"
-        if [ -z "$VAULT_SERVER_URL" ]; then
-          echo "ERROR: VAULT_SERVER_URL is not set."
+        if [ -z "$BAO_SERVER_URL" ]; then
+          echo "ERROR: BAO_SERVER_URL is not set."
           echo "  OpenBao is required for domain credential management."
-          echo "  Set VAULT_SERVER_URL in GitLab CI/CD variables."
+          echo "  Set BAO_SERVER_URL in GitLab CI/CD variables."
           return 1
         fi
         echo "  Authenticating with OpenBao..."
         local auth_response
         auth_response=$(curl -sk --request POST \
-          "${VAULT_SERVER_URL}/v1/auth/jwt/login" \
-          --data "{\"jwt\": \"${VAULT_ID_TOKEN}\", \"role\": \"${VAULT_AUTH_ROLE}\"}" 2>/dev/null)
+          "${BAO_SERVER_URL}/v1/auth/jwt/login" \
+          --data "{\"jwt\": \"${VAULT_ID_TOKEN}\", \"role\": \"${BAO_AUTH_ROLE}\"}" 2>/dev/null)
 
         local bao_token
         bao_token=$(echo "$auth_response" | python3 -c \
@@ -243,7 +247,7 @@ default:
         echo "  Fetching secret: ${secret_name}"
         local secret_response
         secret_response=$(curl -sk --header "X-Vault-Token: ${bao_token}" \
-          "${VAULT_SERVER_URL}/v1/${VAULT_SECRET_PATH}/${secret_name}" 2>/dev/null)
+          "${BAO_SERVER_URL}/v1/${BAO_DATA_PATH}/${secret_name}" 2>/dev/null)
         # Extract secret data (handles both KV v1 and KV v2 response formats)
         # Format all values as quoted strings (JSON format) for YAML compatibility
         python3 -c \
@@ -337,27 +341,27 @@ initialization:
     # Validate OpenBao server reachability (if configured)
     - echo "Validating OpenBao server configuration"
     - |
-      if [ -z "$VAULT_SERVER_URL" ]; then
-        echo "  WARNING: VAULT_SERVER_URL not configured"
+      if [ -z "$BAO_SERVER_URL" ]; then
+        echo "  WARNING: BAO_SERVER_URL not configured"
         echo "  OpenBao credential management will be skipped"
       else
-        echo "  Checking OpenBao server reachability: $VAULT_SERVER_URL"
+        echo "  Checking OpenBao server reachability: $BAO_SERVER_URL"
         # Extract host and port from URL (handle https://host:port format)
-        VAULT_HOST=$(echo "$VAULT_SERVER_URL" | sed -E 's|https?://([^:/]+).*|\1|')
-        VAULT_PORT=$(echo "$VAULT_SERVER_URL" | sed -E 's|.*:([0-9]+)/?$|\1|; s|.*||')
+        VAULT_HOST=$(echo "$BAO_SERVER_URL" | sed -E 's|https?://([^:/]+).*|\1|')
+        VAULT_PORT=$(echo "$BAO_SERVER_URL" | sed -E 's|.*:([0-9]+)/?$|\1|; s|.*||')
         VAULT_PORT="${VAULT_PORT:-8200}"
 
         # Test connectivity with curl (skip certificate verification for self-signed certs)
-        if curl -sk --connect-timeout 10 --max-time 15 "$VAULT_SERVER_URL/v1/sys/health" > /dev/null 2>&1; then
-          echo "  ✓ OpenBao server is reachable at $VAULT_SERVER_URL"
+        if curl -sk --connect-timeout 10 --max-time 15 "$BAO_SERVER_URL/v1/sys/health" > /dev/null 2>&1; then
+          echo "  ✓ OpenBao server is reachable at $BAO_SERVER_URL"
         else
           echo "  ✗ ERROR: OpenBao server is NOT reachable"
-          echo "    URL: $VAULT_SERVER_URL"
+          echo "    URL: $BAO_SERVER_URL"
           echo "    Host: $VAULT_HOST"
           echo "    Port: $VAULT_PORT"
           echo ""
           echo "  Troubleshooting steps:"
-          echo "    1. Verify VAULT_SERVER_URL is correct in CI/CD variables"
+          echo "    1. Verify BAO_SERVER_URL is correct in CI/CD variables"
           echo "    2. Check if OpenBao server is running"
           echo "    3. Verify network connectivity to the OpenBao server"
           echo "    4. Check firewall rules allow access to port $VAULT_PORT"
@@ -401,9 +405,7 @@ setup_environment:
   rules:
     - if: '$SKIP_STAGES =~ /setup_environment/'
       when: never
-    - if: '$PIPELINE_MODE == "default"'
-      when: on_success
-    - if: '$ENABLE_SETUP == "true"'
+    - if: '$PIPELINE_MODE == "default" || $PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "cleanup"'
       when: on_success
   needs:
     - job: initialization
@@ -464,6 +466,7 @@ setup_environment:
         grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2
       " | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
       $SSH_CMD $TARGET "
         source $OMNIA_DATA_PATH/activate-omnia.sh && \
@@ -484,6 +487,7 @@ setup_environment:
           grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2
         " | tail -1)
         OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
         echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
         if [ -z "$OMNIA_DATA_PATH" ]; then
           echo "ERROR: Could not determine OMNIA_DATA_PATH from target"
@@ -535,7 +539,7 @@ setup_environment:
 cleanup_repo_manager:
   stage: cleanup_repo_manager
   timeout: 3h
-  allow_failure: true
+  allow_failure: false
   before_script: []
   rules:
     - if: '$SKIP_STAGES =~ /repo_manager/'
@@ -543,6 +547,9 @@ cleanup_repo_manager:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /repo_manager/)'
       when: on_success
   needs:
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
     - job: setup_environment
       artifacts: true
       optional: true
@@ -563,6 +570,7 @@ cleanup_repo_manager:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       if [ "$DRY_RUN" = "true" ]; then
         echo "DRY_RUN: Would execute repo_manager.yml --tags cleanup on $TARGET"
       else
@@ -570,7 +578,7 @@ cleanup_repo_manager:
           source $OMNIA_DATA_PATH/activate-omnia.sh
           cd $OMNIA_INSTALL_PATH/src/repo_manager/playbooks/
           ansible-playbook repo_manager.yml --tags cleanup -e cleanup_credentials=true -e cleanup_logs=true $ANSIBLE_VERBOSITY
-        " || echo 'repo_manager cleanup skipped (no previous state or not applicable)'
+        "
       fi
 
     - echo "========================================================"
@@ -584,7 +592,7 @@ cleanup_repo_manager:
 cleanup_image_build_manager:
   stage: cleanup_image_build
   timeout: 3h
-  allow_failure: true
+  allow_failure: false
   before_script: []
   rules:
     - if: '$SKIP_STAGES =~ /image_build_manager/'
@@ -592,7 +600,7 @@ cleanup_image_build_manager:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /image_build_manager/)'
       when: on_success
   needs:
-    - job: cleanup_repo_manager
+    - job: cleanup_orchestrator
       artifacts: true
       optional: true
     - job: setup_environment
@@ -615,6 +623,7 @@ cleanup_image_build_manager:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       if [ "$DRY_RUN" = "true" ]; then
         echo "DRY_RUN: Would execute image_build_manager.yml --tags cleanup on $TARGET"
       else
@@ -622,7 +631,7 @@ cleanup_image_build_manager:
           source $OMNIA_DATA_PATH/activate-omnia.sh
           cd $OMNIA_INSTALL_PATH/src/image_build_manager/playbooks
           ansible-playbook image_build_manager.yml --tags cleanup $ANSIBLE_VERBOSITY
-        " || echo 'image_build_manager cleanup skipped (no previous state or not applicable)'
+        "
       fi
 
     - echo "========================================================"
@@ -636,7 +645,7 @@ cleanup_image_build_manager:
 cleanup_orchestrator:
   stage: cleanup_orchestrator
   timeout: 3h
-  allow_failure: true
+  allow_failure: false
   before_script: []
   rules:
     - if: '$SKIP_STAGES =~ /orchestrator/'
@@ -644,7 +653,7 @@ cleanup_orchestrator:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /orchestrator/)'
       when: on_success
   needs:
-    - job: cleanup_image_build_manager
+    - job: cleanup_telemetry
       artifacts: true
       optional: true
     - job: setup_environment
@@ -667,14 +676,16 @@ cleanup_orchestrator:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute cleanup_orchestrator.yml --tags cleanup on $TARGET"
+        echo "DRY_RUN: Would execute orchestrator.yml --tags cleanup on $TARGET"
       else
         $SSH_CMD $TARGET "
           source $OMNIA_DATA_PATH/activate-omnia.sh
-          cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/cleanup
-          ansible-playbook cleanup_orchestrator.yml --tags cleanup $ANSIBLE_VERBOSITY
-        " || echo 'orchestrator cleanup skipped (no previous state or not applicable)'
+          cd $OMNIA_INSTALL_PATH/src/orchestrator/playbooks/
+          export SKIP_APPROVAL=true
+          ansible-playbook orchestrator.yml --tags cleanup $ANSIBLE_VERBOSITY
+        "
       fi
 
     - echo "========================================================"
@@ -688,7 +699,7 @@ cleanup_orchestrator:
 cleanup_telemetry:
   stage: cleanup_telemetry
   timeout: 3h
-  allow_failure: true
+  allow_failure: false
   before_script: []
   rules:
     - if: '$SKIP_STAGES =~ /telemetry/'
@@ -696,9 +707,6 @@ cleanup_telemetry:
     - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default") && ($DOMAINS == "default" || $DOMAINS =~ /telemetry/)'
       when: on_success
   needs:
-    - job: cleanup_orchestrator
-      artifacts: true
-      optional: true
     - job: setup_environment
       artifacts: true
       optional: true
@@ -719,14 +727,15 @@ cleanup_telemetry:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       if [ "$DRY_RUN" = "true" ]; then
         echo "DRY_RUN: Would execute telemetry.yml --tags cleanup on $TARGET"
       else
         $SSH_CMD $TARGET "
           source $OMNIA_DATA_PATH/activate-omnia.sh
           cd $OMNIA_INSTALL_PATH/src/telemetry/playbooks/
-          ansible-playbook telemetry.yml --tags cleanup $ANSIBLE_VERBOSITY
-        " || echo 'telemetry cleanup skipped (no previous state or not applicable)'
+          ansible-playbook telemetry.yml --tags cleanup -e delete_sinks_volume=true $ANSIBLE_VERBOSITY
+        "
       fi
 
     - echo "========================================================"
@@ -743,6 +752,7 @@ cleanup_telemetry:
 cleanup_omnia:
   stage: cleanup_omnia
   timeout: 3h
+  allow_failure: false
   before_script: []
   rules:
     - if: '$SKIP_STAGES =~ /cleanup_omnia/'
@@ -751,6 +761,15 @@ cleanup_omnia:
       when: on_success
   needs:
     - job: cleanup_telemetry
+      artifacts: true
+      optional: true
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: cleanup_image_build_manager
+      artifacts: true
+      optional: true
+    - job: cleanup_repo_manager
       artifacts: true
       optional: true
     - job: setup_environment
@@ -771,18 +790,19 @@ cleanup_omnia:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
 
-    - echo "Running omnia.sh --cleanup --all"
+    - echo "Running omnia.sh --cleanup --all --skip-approval"
     - |
       if [ "$DRY_RUN" = "true" ]; then
-        echo "DRY_RUN: Would execute omnia.sh --cleanup --all on $TARGET"
+        echo "DRY_RUN: Would execute omnia.sh --cleanup --all --skip-approval on $TARGET"
       else
         $SSH_CMD $TARGET "
           source $OMNIA_DATA_PATH/activate-omnia.sh 2>/dev/null || true
           cd $OMNIA_INSTALL_PATH/src/main
-          echo 'yes' | ./omnia.sh --cleanup --all
-        " || echo 'WARNING: omnia.sh --cleanup --all reported errors (continuing)'
+          echo 'yes' | ./omnia.sh --cleanup --all --skip-approval
+        "
       fi
 
     # Verify cleanup removed the venv
@@ -823,6 +843,8 @@ setup_main:
     - if: '$SKIP_STAGES =~ /setup_main/'
       when: never
     - if: '$PIPELINE_MODE == "default"'
+      when: on_success
+    - if: '$ENABLE_SETUP == "true"'
       when: on_success
   needs:
     - job: initialization
@@ -880,6 +902,8 @@ setup_main:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       echo "  OMNIA_DATA_PATH = $OMNIA_DATA_PATH"
       if [ "$DRY_RUN" != "true" ]; then
         $SSH_CMD $TARGET "
@@ -895,6 +919,8 @@ setup_main:
       echo "Step 4 - Re-copying catalog file"
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       CATALOG_PATH="$CI_PROJECT_DIR/clusters/$CLUSTER/catalogs/catalog_rhel.json"
       if [ -f "$CATALOG_PATH" ]; then
         $SSH_CMD $TARGET "mkdir -p $OMNIA_DATA_PATH/catalog"
@@ -945,8 +971,11 @@ test_main_installation:
     - if: '($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true"'
       when: on_success
   needs:
+    - job: initialization
+      artifacts: true
     - job: setup_environment
       artifacts: true
+      optional: true
     - job: setup_main
       artifacts: true
       optional: true
@@ -962,8 +991,6 @@ test_main_installation:
     - job: cleanup_omnia
       artifacts: true
       optional: true
-    - job: initialization
-      artifacts: true
   script:
     - echo "========================================================"
     - echo "  Testing omnia.sh installation on cluster $CLUSTER"
@@ -1015,7 +1042,7 @@ test_main_installation:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+
           cd $OMNIA_INSTALL_PATH/test/main
           source .venv/bin/activate
           $TEST_MAIN_CMD
@@ -1035,7 +1062,7 @@ repo_manager:
   timeout: 3h
   id_tokens:
     VAULT_ID_TOKEN:
-      aud: $VAULT_SERVER_URL
+      aud: $BAO_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /repo_manager/'
       when: never
@@ -1074,14 +1101,17 @@ repo_manager:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       ENV_VARS=$($SSH_CMD $TARGET "
         source $OMNIA_DATA_PATH/activate-omnia.sh
         echo \$OMNIA_DATA_PATH
         echo \$OMNIA_PROJECT_NAME
       ")
       OMNIA_DATA_PATH=$(echo "$ENV_VARS" | tail -2 | head -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       OMNIA_PROJECT_NAME=$(echo "$ENV_VARS" | tail -1)
       OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME%/}"
       INPUT_DIR="$OMNIA_DATA_PATH/repo_manager/input/$OMNIA_PROJECT_NAME"
       echo "  OMNIA_DATA_PATH    = $OMNIA_DATA_PATH"
       echo "  OMNIA_PROJECT_NAME = $OMNIA_PROJECT_NAME"
@@ -1237,7 +1267,7 @@ test_repo_manager:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+
           cd $OMNIA_INSTALL_PATH/test/repo_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1261,7 +1291,7 @@ image_build_manager:
   timeout: 3h
   id_tokens:
     VAULT_ID_TOKEN:
-      aud: $VAULT_SERVER_URL
+      aud: $BAO_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /image_build_manager/'
       when: never
@@ -1306,14 +1336,17 @@ image_build_manager:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       ENV_VARS=$($SSH_CMD $TARGET "
         source $OMNIA_DATA_PATH/activate-omnia.sh
         echo \$OMNIA_DATA_PATH
         echo \$OMNIA_PROJECT_NAME
       ")
       OMNIA_DATA_PATH=$(echo "$ENV_VARS" | tail -2 | head -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       OMNIA_PROJECT_NAME=$(echo "$ENV_VARS" | tail -1)
       OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME%/}"
       INPUT_DIR="$OMNIA_DATA_PATH/image_build_manager/input/$OMNIA_PROJECT_NAME"
       echo "  OMNIA_DATA_PATH    = $OMNIA_DATA_PATH"
       echo "  OMNIA_PROJECT_NAME = $OMNIA_PROJECT_NAME"
@@ -1469,7 +1502,7 @@ test_image_build_manager:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+
           cd $OMNIA_INSTALL_PATH/test/image_build_manager
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1493,7 +1526,7 @@ orchestrator:
   timeout: 3h
   id_tokens:
     VAULT_ID_TOKEN:
-      aud: $VAULT_SERVER_URL
+      aud: $BAO_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /orchestrator/'
       when: never
@@ -1538,14 +1571,17 @@ orchestrator:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       ENV_VARS=$($SSH_CMD $TARGET "
         source $OMNIA_DATA_PATH/activate-omnia.sh
         echo \$OMNIA_DATA_PATH
         echo \$OMNIA_PROJECT_NAME
       ")
       OMNIA_DATA_PATH=$(echo "$ENV_VARS" | tail -2 | head -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       OMNIA_PROJECT_NAME=$(echo "$ENV_VARS" | tail -1)
       OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME%/}"
       INPUT_DIR="$OMNIA_DATA_PATH/orchestrator/input/$OMNIA_PROJECT_NAME"
       echo "  OMNIA_DATA_PATH    = $OMNIA_DATA_PATH"
       echo "  OMNIA_PROJECT_NAME = $OMNIA_PROJECT_NAME"
@@ -1700,7 +1736,7 @@ test_orchestrator:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+
           cd $OMNIA_INSTALL_PATH/test/orchestrator
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -1725,7 +1761,7 @@ telemetry:
   timeout: 3h
   id_tokens:
     VAULT_ID_TOKEN:
-      aud: $VAULT_SERVER_URL
+      aud: $BAO_SERVER_URL
   rules:
     - if: '$SKIP_STAGES =~ /telemetry/'
       when: never
@@ -1770,14 +1806,17 @@ telemetry:
     - |
       OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
       OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       ENV_VARS=$($SSH_CMD $TARGET "
         source $OMNIA_DATA_PATH/activate-omnia.sh
         echo \$OMNIA_DATA_PATH
         echo \$OMNIA_PROJECT_NAME
       ")
       OMNIA_DATA_PATH=$(echo "$ENV_VARS" | tail -2 | head -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
       OMNIA_PROJECT_NAME=$(echo "$ENV_VARS" | tail -1)
       OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
+      OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME%/}"
       INPUT_DIR="$OMNIA_DATA_PATH/telemetry/input/$OMNIA_PROJECT_NAME"
       echo "  OMNIA_DATA_PATH    = $OMNIA_DATA_PATH"
       echo "  OMNIA_PROJECT_NAME = $OMNIA_PROJECT_NAME"
@@ -1930,7 +1969,7 @@ test_telemetry:
       else
         $SSH_CMD $TARGET "
           export CI_PIPELINE_ID=$CI_PIPELINE_ID
-          export REPORT_ID=$CI_PIPELINE_ID
+
           cd $OMNIA_INSTALL_PATH/test/telemetry
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
@@ -2122,35 +2161,173 @@ summary:
       print(f"Collected {len(jobs)} job status records")
       PY
 
+    - |
+      echo "Extracting report paths and names from domain test_config.yml files..."
+      python3 - <<'PY'
+      import json
+      import os
+      import yaml
+
+      cluster = os.environ.get("CLUSTER", "cluster1")
+      domains_env = os.environ.get("DOMAINS", "default")
+      if domains_env == "default":
+        domains = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry"]
+      else:
+        # Handle both comma and pipe separators for domain lists
+        import re
+        domains = ["main"] + [d.strip() for d in re.split(r"[,|]", domains_env) if d.strip()]
+
+      # Default report_name per domain (matches conftest.py defaults)
+      default_report_names = {
+        "main": "omnia_main_test_report",
+        "repo_manager": "repo_manager_test_report",
+        "image_build_manager": "image_test_report",
+        "orchestrator": "orchestrator_test_report",
+        "telemetry": "telemetry_test_report",
+        "build_stream": "build_stream_test_report",
+        "discovery": "discovery_test_report",
+        "utils": "utils_test_report",
+      }
+
+      report_paths = {}
+      report_names = {}
+      for domain in domains:
+        config_path = f"clusters/{cluster}/inputs/test/{domain}/test_config.yml"
+        try:
+          with open(config_path, encoding="utf-8") as f:
+            cfg = yaml.safe_load(f)
+          if cfg:
+            path = cfg.get("report_path", "/opt/omnia/reports")
+            name = cfg.get("report_name", default_report_names.get(domain, f"{domain}_test_report"))
+            report_paths[domain] = path
+            report_names[domain] = name
+            print(f"  {domain}: path={path}, name={name}")
+          else:
+            report_paths[domain] = "/opt/omnia/reports"
+            report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
+            print(f"  {domain}: (default) /opt/omnia/reports, name={report_names[domain]}")
+        except FileNotFoundError:
+          report_paths[domain] = "/opt/omnia/reports"
+          report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
+          print(f"  {domain}: (not found, using default) /opt/omnia/reports, name={report_names[domain]}")
+        except Exception as e:
+          report_paths[domain] = "/opt/omnia/reports"
+          report_names[domain] = default_report_names.get(domain, f"{domain}_test_report")
+          print(f"  {domain}: (error: {e}, using default) /opt/omnia/reports, name={report_names[domain]}")
+
+      with open("pipeline_reports/report_paths.json", "w", encoding="utf-8") as f:
+        json.dump(report_paths, f)
+      with open("pipeline_reports/report_names.json", "w", encoding="utf-8") as f:
+        json.dump(report_names, f)
+      print("Report paths and names saved to pipeline_reports/")
+      PY
+
     # Copy test reports from remote target to CI runner
     - |
       echo "Fetching test reports from target..."
-      REMOTE_REPORTS_PATH="/opt/omnia/reports"
       LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
       mkdir -p "$LOCAL_REPORTS_PATH"
       if [ "$DOMAINS" = "default" ]; then
         REPORT_DOMAINS="main repo_manager image_build_manager orchestrator telemetry"
       else
-        REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',' ' ')"
+        # Handle both comma and pipe separators for domain lists
+        REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',|' ' ')"
       fi
+
+      # Check which test stages actually executed successfully
+      echo "Checking which test stages executed..."
+      python3 - <<'PY'
+      import json
+      import os
+
+      # Read job statuses
+      job_statuses = []
+      try:
+        with open("pipeline_reports/job_statuses.json", "r") as f:
+          job_statuses = json.load(f)
+      except:
+        pass
+
+      # Determine which test stages succeeded
+      test_stages_executed = {}
+      for job in job_statuses:
+        name = job.get("name", "")
+        status = job.get("status", "")
+        if status == "success" and "test_" in name:
+          # Extract domain from job name
+          if "test_main" in name:
+            test_stages_executed["main"] = True
+          elif "test_repo_manager" in name:
+            test_stages_executed["repo_manager"] = True
+          elif "test_image_build_manager" in name:
+            test_stages_executed["image_build_manager"] = True
+          elif "test_orchestrator" in name:
+            test_stages_executed["orchestrator"] = True
+          elif "test_telemetry" in name:
+            test_stages_executed["telemetry"] = True
+
+      # Save to file for shell script
+      with open("pipeline_reports/test_stages_executed.json", "w") as f:
+        json.dump(test_stages_executed, f)
+
+      print(f"Test stages executed: {list(test_stages_executed.keys())}")
+      PY
+
       for domain in $REPORT_DOMAINS; do
-        REPORT_GLOB="*_${CI_PIPELINE_ID}_${domain}_report.json"
+        REMOTE_PATH=$(python3 -c "import json; print(json.load(open('pipeline_reports/report_paths.json')).get('$domain', '/opt/omnia/reports'))")
+        REPORT_BASE_NAME=$(python3 -c "import json; d=json.load(open('pipeline_reports/report_names.json')); print(d.get('$domain','${domain}_test_report'))")
+        echo "  Domain: $domain, Remote path: $REMOTE_PATH, Report name: $REPORT_BASE_NAME"
+
+        # Debug: list all report files in the remote directory
+        echo "  Available report files in $REMOTE_PATH:"
+        $SSH_CMD $TARGET "ls -1t $REMOTE_PATH/*.json 2>/dev/null | head -20" || true
+
+        # Search for reports using exact name from test_config.yml
+        LATEST_JSON=""
+        # Pattern 1: <pipeline_id>_<report_name>.json (CI naming: exact match)
+        REPORT_GLOB="${CI_PIPELINE_ID}_${REPORT_BASE_NAME}.json"
+        echo "  Trying pattern 1: $REPORT_GLOB"
         LATEST_JSON=$($SSH_CMD $TARGET \
-          "ls -1t $REMOTE_REPORTS_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+          "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+
+        # Pattern 2: <report_name>.json (CLI naming: no pipeline prefix)
+        if [ -z "$LATEST_JSON" ]; then
+          REPORT_GLOB="${REPORT_BASE_NAME}.json"
+          echo "  Trying pattern 2: $REPORT_GLOB"
+          LATEST_JSON=$($SSH_CMD $TARGET \
+            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+        fi
+
+        # Pattern 3: *<pipeline_id>*<report_name>*.json (broad fallback)
+        if [ -z "$LATEST_JSON" ]; then
+          REPORT_GLOB="*${CI_PIPELINE_ID}*${REPORT_BASE_NAME}*.json"
+          echo "  Trying pattern 3: $REPORT_GLOB"
+          LATEST_JSON=$($SSH_CMD $TARGET \
+            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
+        fi
+
         if [ -n "$LATEST_JSON" ]; then
+          echo "  Found JSON: $LATEST_JSON"
           $SCP_CMD "$TARGET:$LATEST_JSON" "$LOCAL_REPORTS_PATH/" || true
+          # Look for matching HTML report
           LATEST_HTML="${LATEST_JSON%.json}.html"
           if $SSH_CMD $TARGET "test -f $LATEST_HTML"; then
+            echo "  Found HTML: $LATEST_HTML"
             $SCP_CMD "$TARGET:$LATEST_HTML" "$LOCAL_REPORTS_PATH/" || true
           fi
+        else
+          echo "  WARNING: No report found for domain: $domain (test stage executed but no report generated)"
         fi
       done
-      echo "  Fresh reports copied to $LOCAL_REPORTS_PATH/"
+      echo "  Reports copied to $LOCAL_REPORTS_PATH/"
       ls -la "$LOCAL_REPORTS_PATH/" 2>/dev/null
 
     - export PIPELINE_MODE
     - export DOMAINS
     - export TEST_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
+    - export CLUSTER="${CLUSTER}"
+    - export CLUSTER_NAME="${CLUSTER_NAME}"
+    - export TARGET_IP="${TARGET_IP}"
 
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"

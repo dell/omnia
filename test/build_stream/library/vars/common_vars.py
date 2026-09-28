@@ -23,6 +23,7 @@ Only module-specific constants remain here.
 """
 
 import os
+import re
 from typing import Dict, List
 
 # =============================================================================
@@ -35,6 +36,9 @@ MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
 
 TEST_ROOT = os.path.dirname(MODULE_ROOT)
 MONOREPO_ROOT = os.path.dirname(TEST_ROOT)
+SRC_INPUT_DIR = os.path.join(
+    MONOREPO_ROOT, "src", "build_stream", "input",
+)
 
 # =============================================================================
 # DOMAIN IDENTITY
@@ -44,6 +48,7 @@ DOMAIN_NAME = "build_stream"
 
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
+ENV_OMNIA_VENV_PATH = "OMNIA_VENV_PATH"
 
 # =============================================================================
 # PLAYBOOK CONFIGURATION
@@ -55,7 +60,27 @@ PLAYBOOK_WORKDIR = "src/build_stream/playbooks"
 PLAYBOOK_TAGS: List[str] = [
     "buildstream_install",
     "gitlab_cleanup",
+    "buildstream_cleanup",
 ]
+
+# =============================================================================
+# CONFIG VALIDATION
+# =============================================================================
+
+IPV4_PATTERN = re.compile(
+    r"^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}"
+    r"(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$"
+)
+
+REQUIRED_CONFIG_FIELDS = [
+    "dataset",
+    "sync_build_stream_input",
+    "report_path",
+    "report_name",
+]
+
+REQUIRED_DATASET_FILES = ["input/build_stream_config.yml"]
+REQUIRED_SRC_FILES = ["build_stream_config.yml"]
 
 # =============================================================================
 # BUILD STREAM API (BSM)
@@ -110,26 +135,6 @@ EXPECTED_PLAYBOOK_ENTRIES: List[str] = [
 ]
 
 # =============================================================================
-# SHARED VENV (2.3 — no omnia_core container)
-# =============================================================================
-
-OMNIA_VENV_PATH_DEFAULT = "/opt/omnia/venv"
-
-# =============================================================================
-# NFS / PLAYBOOK WATCHER
-# =============================================================================
-
-NFS_QUEUE_DIR_DEFAULT = "/opt/omnia/playbook_queue"
-NFS_ARTIFACT_BASE_DEFAULT = "/opt/omnia/build_stream_root"
-
-# =============================================================================
-# TLS CERTIFICATE PATHS
-# =============================================================================
-
-BSM_TLS_CERT_PATH = "/opt/omnia/build_stream_ssl/ssl/bs_cert.pem"
-BSM_TLS_KEY_PATH = "/opt/omnia/build_stream_ssl/ssl/bs_key.pem"
-
-# =============================================================================
 # SERVER CREDENTIALS (source of truth on target host)
 # =============================================================================
 
@@ -140,6 +145,9 @@ BUILD_STREAM_CREDENTIALS_KEY = ".build_stream_credentials_key"
 BUILD_STREAM_REQUIRED_CREDS: List[str] = [
     "gitlab_root_password",
     "gitlab_ssh_password",
+    "build_stream_auth_username",
+    "build_stream_auth_password",
+    "build_stream_auth_password_hash",
 ]
 
 # =============================================================================
@@ -148,7 +156,6 @@ BUILD_STREAM_REQUIRED_CREDS: List[str] = [
 
 GITLAB_API_VERSION = "v4"
 GITLAB_ROOT_TOKEN_FILE = "/root/.gitlab_root_token"
-
 GITLAB_RUNNER_CONTAINER = "gitlab-runner"
 
 GITLAB_SERVICES: List[str] = [
@@ -244,17 +251,6 @@ OMNIA_TARGET_PATH = "/etc/systemd/system/omnia.target"
 PLAYBOOK_WATCHER_SERVICE_FILE = "/etc/systemd/system/playbook_watcher.service"
 PLAYBOOK_WATCHER_SERVICE_NAME = "playbook_watcher.service"
 
-# Directories removed during build_stream cleanup
-BUILDSTREAM_CLEANUP_DIRECTORIES: List[str] = [
-    "/opt/omnia/build_stream/log",
-    "/opt/omnia/build_stream/playbook_queue",
-    "/opt/omnia/build_stream_ssl",
-    "/opt/omnia/build_stream_root",
-    "/opt/omnia/build_stream_inv",
-    "/opt/omnia/build_stream_enabled",
-    "/opt/omnia/build_stream",
-]
-
 # Credential files removed during cleanup
 BUILDSTREAM_CREDENTIAL_FILES: List[str] = [
     "build_stream_credentials.yml",
@@ -314,6 +310,7 @@ STAGE_STATE_FAILED = "FAILED"
 JOB_STATE_PENDING = "PENDING"
 JOB_STATE_IN_PROGRESS = "IN_PROGRESS"
 JOB_STATE_COMPLETED = "COMPLETED"
+JOB_STATE_SUCCEEDED = "SUCCEEDED"
 JOB_STATE_FAILED = "FAILED"
 
 # =============================================================================
@@ -321,7 +318,17 @@ JOB_STATE_FAILED = "FAILED"
 # =============================================================================
 
 IMAGE_GROUP_STATUS_BUILT = "BUILT"
+IMAGE_GROUP_STATUS_PASSED = "PASSED"
 IMAGE_GROUP_STATUS_CLEANED = "CLEANED"
+
+GITLAB_CI_DEPLOY_STAGES: List[str] = [
+    "select_image",
+    "deploy",
+    "restart",
+    "validate",
+    "summary",
+]
+PXE_MAPPING_FILE_PATH = "input/orchestrator/pxe_mapping_file.csv"
 
 # =============================================================================
 # PIPELINE TRIGGER VARIABLES
@@ -334,7 +341,6 @@ PIPELINE_TYPE_CLEANUP = "cleanup"
 
 # Catalog file path in GitLab repo (2.3)
 CATALOG_FILE_PATH = "catalog_rhel.json"
-CATALOG_DEFAULT_FILENAME = "catalog_rhel_x86_64_with_slurm_only.json"
 
 # =============================================================================
 # POLLING CONFIGURATION
@@ -400,15 +406,12 @@ CMDS: Dict[str, str] = {
     ),
 
     # --- SSH to GitLab ---
-    "ssh_to_gitlab": (
-        "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10"
-        " -o BatchMode=yes"
-        " root@{gitlab_host} '{cmd}' 2>/dev/null"
-    ),
-    "sshpass_to_gitlab": (
-        "sshpass -p '{password}'"
-        " ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10"
-        " root@{gitlab_host} '{cmd}' 2>/dev/null"
+    "ssh_to_gitlab_password": (
+        "SSHPASS={ssh_password} sshpass -e ssh -o IdentitiesOnly=no"
+        " -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
+        " -o PreferredAuthentications=password"
+        " -o PubkeyAuthentication=no -o BatchMode=no"
+        " {gitlab_user}@{gitlab_host} '{cmd}' 2>/dev/null"
     ),
 
     # --- GitLab rails commands ---
@@ -498,12 +501,22 @@ CMDS: Dict[str, str] = {
     ),
     "gitlab_api_pipeline_jobs": (
         "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}/jobs'"
-        " 2>/dev/null"
+        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}/jobs"
+        "?per_page=100' 2>/dev/null"
     ),
     "gitlab_api_pipeline_bridges": (
         "curl -sk --header 'PRIVATE-TOKEN: {token}'"
         " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}/bridges'"
+        " 2>/dev/null"
+    ),
+    "gitlab_api_play_job": (
+        "curl -sk -X POST --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/jobs/{job_id}/play'"
+        " 2>/dev/null"
+    ),
+    "gitlab_api_job_trace": (
+        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/jobs/{job_id}/trace'"
         " 2>/dev/null"
     ),
     "gitlab_api_cancel_pipeline": (
@@ -548,6 +561,12 @@ CMDS: Dict[str, str] = {
     "bsm_api_get_job": (
         "curl -sk -H 'Authorization: Bearer {token}'"
         " 'https://{host}:{port}/api/v1/jobs/{job_id}' 2>/dev/null"
+    ),
+    "bsm_api_get_artifact": (
+        "curl -sk -H 'Authorization: Bearer {token}'"
+        " -w '\\n%{{http_code}}'"
+        " 'https://{host}:{port}/api/v1/jobs/{job_id}/artifacts/{label}'"
+        " 2>/dev/null"
     ),
     "bsm_api_catalog_roles": (
         "curl -sk -H 'Authorization: Bearer {token}'"

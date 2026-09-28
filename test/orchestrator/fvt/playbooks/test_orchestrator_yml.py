@@ -15,10 +15,10 @@
 """
 Orchestrator Playbooks — orchestrator.yml Tests.
 
-TC_PB_001: Test orchestrator.yml playbook exists
-TC_PB_002: Test orchestrator.yml playbook syntax
-TC_PB_003: Test orchestrator.yml playbook tags
-TC_PB_004: Test orchestrator.yml playbook dependencies
+ORCH_FVT_PLAYBOOKS_V001: Test orchestrator.yml playbook exists
+ORCH_FVT_PLAYBOOKS_V002: Test orchestrator.yml playbook syntax
+ORCH_FVT_PLAYBOOKS_V003: Test orchestrator.yml playbook tags
+ORCH_FVT_PLAYBOOKS_V004: Test orchestrator.yml playbook dependencies
 """
 
 import pytest
@@ -41,11 +41,11 @@ from library.messages import (
 @pytest.mark.buildstream
 @pytest.mark.order(1)
 def test_playbook_exists():
-    """TC_PB_001: Test orchestrator.yml playbook exists."""
+    """ORCH_FVT_PLAYBOOKS_V001: Test orchestrator.yml playbook exists."""
     playbook_name = "orchestrator.yml"
     tl = TestLogger(
         TEST_FRAMEWORK_NAMES["playbook_exists"].format(playbook_name=playbook_name),
-        "TC_PB_001"
+        "ORCH_FVT_PLAYBOOKS_V001"
     )
 
     result = check_playbook_exists(playbook_name)
@@ -65,11 +65,11 @@ def test_playbook_exists():
 @pytest.mark.buildstream
 @pytest.mark.order(2)
 def test_playbook_syntax():
-    """TC_PB_002: Test orchestrator.yml playbook syntax."""
+    """ORCH_FVT_PLAYBOOKS_V002: Test orchestrator.yml playbook syntax."""
     playbook_name = "orchestrator.yml"
     tl = TestLogger(
         TEST_FRAMEWORK_NAMES["playbook_syntax"].format(playbook_name=playbook_name),
-        "TC_PB_002"
+        "ORCH_FVT_PLAYBOOKS_V002"
     )
 
     result = check_playbook_syntax(playbook_name)
@@ -88,11 +88,11 @@ def test_playbook_syntax():
 @pytest.mark.functional
 @pytest.mark.order(3)
 def test_playbook_tags():
-    """TC_PB_003: Test orchestrator.yml playbook tags."""
+    """ORCH_FVT_PLAYBOOKS_V003: Test orchestrator.yml playbook tags."""
     playbook_name = "orchestrator.yml"
     tl = TestLogger(
         TEST_FRAMEWORK_NAMES["playbook_tags"].format(playbook_name=playbook_name),
-        "TC_PB_003"
+        "ORCH_FVT_PLAYBOOKS_V003"
     )
 
     result = get_playbook_tags(playbook_name)
@@ -115,11 +115,11 @@ def test_playbook_tags():
 @pytest.mark.functional
 @pytest.mark.order(4)
 def test_playbook_dependencies():
-    """TC_PB_004: Test orchestrator.yml playbook dependencies."""
+    """ORCH_FVT_PLAYBOOKS_V004: Test orchestrator.yml playbook dependencies."""
     playbook_name = "orchestrator.yml"
     tl = TestLogger(
         TEST_FRAMEWORK_NAMES["playbook_dependencies"].format(playbook_name=playbook_name),
-        "TC_PB_004"
+        "ORCH_FVT_PLAYBOOKS_V004"
     )
 
     result = check_playbook_dependencies(playbook_name)
