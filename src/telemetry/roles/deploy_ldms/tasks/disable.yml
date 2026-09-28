@@ -16,10 +16,13 @@
 # =============================================================================
 # deploy_ldms — Disable LDMS telemetry
 # =============================================================================
-# Scales down LDMS telemetry resources when no telemetry sources
-# require LDMS.
+# Disables LDMS telemetry by:
+#   1. Scaling down LDMS aggregator and store workloads to zero
+#   2. Stopping and disabling LDMS sampler services on managed nodes
+#   3. Stopping Vector-LDMS bridge
+#   4. Preserving all PVCs, secrets, and configuration for future re-enablement
 #
-# This stops LDMS telemetry while preserving its configuration for future re-enablement.
+# This stops LDMS telemetry while preserving its configuration and data.
 # =============================================================================
 
 - name: Load telemetry configuration
@@ -27,27 +30,180 @@
     name: common
     tasks_from: load_telemetry_config
 
-- name: Check if LDMS resources exist
+- name: Derive sink support flags
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: derive_sink_support_flags
+
+# =============================================================================
+# Phase 1: Scale down LDMS aggregator workloads
+# =============================================================================
+
+- name: Check if LDMS aggregator StatefulSet exists
   ansible.builtin.command: >
-    kubectl get statefulset nersc-ldms-agg -n {{ telemetry_namespace }}
-  register: ldms_check
+    kubectl get statefulset {{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }}
+  register: ldms_aggregator_check
   changed_when: false
   failed_when: false
 
-- name: Scale down LDMS resources
+- name: Get current LDMS aggregator replica count
   ansible.builtin.command: >
-    kubectl scale statefulset nersc-ldms-agg
+    kubectl get statefulset {{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }}
+    -o jsonpath='{.spec.replicas}'
+  register: ldms_aggregator_replicas
+  changed_when: false
+  failed_when: false
+  when: ldms_aggregator_check.rc == 0
+
+- name: Scale down LDMS aggregator StatefulSet
+  ansible.builtin.command: >
+    kubectl scale statefulset {{ ldms_aggregator_name }}
     -n {{ telemetry_namespace }} --replicas=0
-  register: scale_down_result
-  changed_when: "'scaled' in scale_down_result.stdout"
-  when: ldms_check.rc == 0
+  register: scale_down_aggregator_result
+  changed_when: "'scaled' in scale_down_aggregator_result.stdout"
+  when:
+    - ldms_aggregator_check.rc == 0
+    - ldms_aggregator_replicas.stdout | default('0') | int > 0
 
-- name: Display scale down result
+- name: Log LDMS aggregator scale down
   ansible.builtin.debug:
-    msg: "Scaling down LDMS telemetry to 0 replicas"
-  when: ldms_check.rc == 0
+    msg: "Scaled down LDMS aggregator ({{ ldms_aggregator_name }}) from {{ ldms_aggregator_replicas.stdout | default('0') }} to 0 replicas"
+  when:
+    - ldms_aggregator_check.rc == 0
+    - ldms_aggregator_replicas.stdout | default('0') | int > 0
 
-- name: LDMS resources not found
+- name: Log LDMS aggregator already disabled (idempotent)
   ansible.builtin.debug:
-    msg: "LDMS telemetry resources not found, nothing to scale down"
-  when: ldms_check.rc != 0
+    msg: "LDMS aggregator ({{ ldms_aggregator_name }}) already scaled to 0 replicas - no action needed"
+  when:
+    - ldms_aggregator_check.rc == 0
+    - ldms_aggregator_replicas.stdout | default('0') | int == 0
+
+# =============================================================================
+# Phase 2: Scale down LDMS store workloads
+# =============================================================================
+
+- name: Get all LDMS store StatefulSets
+  ansible.builtin.command: >
+    kubectl get statefulset -n {{ telemetry_namespace }}
+    -l app={{ ldms_store_name }}
+    -o jsonpath='{.items[*].metadata.name}'
+  register: ldms_store_statefulsets
+  changed_when: false
+  failed_when: false
+
+- name: Scale down LDMS store StatefulSets
+  ansible.builtin.command: >
+    kubectl scale statefulset {{ item }}
+    -n {{ telemetry_namespace }} --replicas=0
+  loop: "{{ ldms_store_statefulsets.stdout.split() }}"
+  register: scale_down_store_result
+  changed_when: "'scaled' in scale_down_store_result.stdout"
+  when: ldms_store_statefulsets.stdout | default('') | length > 0
+
+- name: Log LDMS store scale down
+  ansible.builtin.debug:
+    msg: "Scaled down LDMS store StatefulSets: {{ ldms_store_statefulsets.stdout.split() | join(', ') }}"
+  when: ldms_store_statefulsets.stdout | default('') | length > 0
+
+# =============================================================================
+# Phase 3: Stop and disable LDMS sampler services on managed nodes
+# =============================================================================
+
+- name: Prepare LDMS sampler configuration (to get node inventory)
+  ansible.builtin.include_tasks: prepare_ldms_sampler_config.yml
+  when: not (skip_sampler_config | default(false) | bool)
+
+- name: Stop LDMS sampler services on managed nodes
+  ansible.builtin.systemd:
+    name: "{{ ldms_sampler.service_name }}"
+    state: stopped
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['slurm_node_group'] | default([]) }}"
+  register: sampler_stop_result
+  failed_when: false
+  when: groups['slurm_node_group'] | default([]) | length > 0
+
+- name: Disable LDMS sampler services on managed nodes
+  ansible.builtin.systemd:
+    name: "{{ ldms_sampler.service_name }}"
+    enabled: false
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['slurm_node_group'] | default([]) }}"
+  register: sampler_disable_result
+  failed_when: false
+  when: groups['slurm_node_group'] | default([]) | length > 0
+
+- name: Log LDMS sampler service disable
+  ansible.builtin.debug:
+    msg: "Stopped and disabled LDMS sampler services on {{ groups['slurm_node_group'] | default([]) | length }} managed node(s)"
+  when: groups['slurm_node_group'] | default([]) | length > 0
+
+# =============================================================================
+# Phase 4: Stop Vector-LDMS bridge
+# =============================================================================
+
+- name: Check if Vector-LDMS deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }}
+  register: vector_ldms_check
+  changed_when: false
+  failed_when: false
+
+- name: Get current Vector-LDMS replica count
+  ansible.builtin.command: >
+    kubectl get deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }}
+    -o jsonpath='{.spec.replicas}'
+  register: vector_ldms_replicas
+  changed_when: false
+  failed_when: false
+  when: vector_ldms_check.rc == 0
+
+- name: Scale down Vector-LDMS deployment
+  ansible.builtin.command: >
+    kubectl scale deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }} --replicas=0
+  register: scale_down_vector_result
+  changed_when: "'scaled' in scale_down_vector_result.stdout"
+  when:
+    - vector_ldms_check.rc == 0
+    - vector_ldms_replicas.stdout | default('0') | int > 0
+
+- name: Log Vector-LDMS scale down
+  ansible.builtin.debug:
+    msg: "Scaled down Vector-LDMS bridge ({{ vector.ldms.app_name }}) from {{ vector_ldms_replicas.stdout | default('0') }} to 0 replicas"
+  when:
+    - vector_ldms_check.rc == 0
+    - vector_ldms_replicas.stdout | default('0') | int > 0
+
+# =============================================================================
+# Phase 5: Update status
+# =============================================================================
+
+- name: Update LDMS telemetry status
+  ansible.builtin.include_tasks: update_status.yml
+
+- name: Determine if any changes were made
+  ansible.builtin.set_fact:
+    ldms_disable_changes_made: >-
+      {{
+        (scale_down_aggregator_result is changed) or
+        (scale_down_store_result is changed) or
+        (sampler_stop_result is changed) or
+        (scale_down_vector_result is changed)
+      }}
+
+- name: Log LDMS disable complete
+  ansible.builtin.debug:
+    msg: |
+      LDMS telemetry disabled {{ 'successfully' if ldms_disable_changes_made else '(already disabled - idempotent operation)' }}:
+        - LDMS aggregator: scaled to 0 replicas
+        - LDMS store: scaled to 0 replicas
+        - LDMS sampler services: stopped and disabled on {{ groups['slurm_node_group'] | default([]) | length }} node(s)
+        - Vector-LDMS bridge: scaled to 0 replicas
+        - Configuration and data: preserved (PVCs, secrets, configs retained)
+        - Changes made: {{ 'Yes' if ldms_disable_changes_made else 'No (already disabled)' }}

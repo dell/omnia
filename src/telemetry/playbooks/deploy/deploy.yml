@@ -84,7 +84,6 @@
 - name: "Phase 2 | Deploy LDMS telemetry"
   ansible.builtin.import_playbook: sources/deploy_ldms.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool
 
 - name: "Phase 2 | Deploy PowerScale telemetry"
   ansible.builtin.import_playbook: sources/deploy_powerscale.yml

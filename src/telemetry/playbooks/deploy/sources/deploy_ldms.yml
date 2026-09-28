@@ -22,6 +22,29 @@
 # (Kafka-to-VictoriaMetrics ingestion pipeline).
 # All K8s tasks execute on the kube_vip host.
 
+- name: Check LDMS State and Disable if Needed
+  hosts: kube_vip_group
+  gather_facts: false
+  any_errors_fatal: true
+  vars_files:
+    - ../../../vars/telemetry_common.yml
+  tasks:
+    - name: Load telemetry config
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: load_telemetry_config
+      when: telemetry_config is not defined
+
+    - name: Check if LDMS is disabled
+      ansible.builtin.set_fact:
+        ldms_metrics_enabled: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+
+    - name: Disable LDMS if metrics_enabled is false
+      ansible.builtin.include_role:
+        name: deploy_ldms
+        tasks_from: disable
+      when: not ldms_metrics_enabled
+
 - name: Deploy LDMS Telemetry
   hosts: kube_vip_group
   gather_facts: true
@@ -34,6 +57,10 @@
         name: common
         tasks_from: load_telemetry_config
       when: telemetry_config is not defined
+
+    - name: Check if LDMS is enabled
+      ansible.builtin.set_fact:
+        ldms_metrics_enabled: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
 
     - name: Derive sink support flags (only if not already derived)
       ansible.builtin.include_role:
@@ -342,6 +369,10 @@
           aggregator cannot be configured safely without current
           authentication material.
   tasks:
+    - name: End play if LDMS is disabled
+      ansible.builtin.meta: end_play
+      when: not ldms_metrics_enabled
+
     - name: Deploy Kafka (handles both cluster deployment and topic management)
       ansible.builtin.include_role:
         name: deploy_kafka
@@ -369,6 +400,10 @@
   gather_facts: false
   any_errors_fatal: true
   tasks:
+    - name: End play if LDMS is disabled
+      ansible.builtin.meta: end_play
+      when: hostvars[groups['kube_vip_group'][0]]['ldms_metrics_enabled'] is defined and not hostvars[groups['kube_vip_group'][0]]['ldms_metrics_enabled']
+
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:
         telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
@@ -396,6 +431,10 @@
   gather_facts: true
   any_errors_fatal: true
   tasks:
+    - name: End play if LDMS is disabled
+      ansible.builtin.meta: end_play
+      when: not ldms_metrics_enabled
+
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:
         telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
@@ -466,6 +505,10 @@
   max_fail_percentage: 100
   ignore_unreachable: true
   tasks:
+    - name: End play if LDMS is disabled
+      ansible.builtin.meta: end_play
+      when: hostvars[groups['kube_vip_group'][0]]['ldms_metrics_enabled'] is defined and not hostvars[groups['kube_vip_group'][0]]['ldms_metrics_enabled']
+
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:
         telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
@@ -489,6 +532,10 @@
   gather_facts: false
   any_errors_fatal: true
   tasks:
+    - name: End play if LDMS is disabled
+      ansible.builtin.meta: end_play
+      when: not ldms_metrics_enabled
+
     - name: Initialize runtime LDMS unreachable nodes
       ansible.builtin.set_fact:
         _ldms_deploy_runtime_unreachable_hosts: []
