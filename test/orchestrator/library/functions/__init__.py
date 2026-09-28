@@ -103,9 +103,12 @@ from .metadata_service_provision_func import (
 )
 from .network_inventory_func import check_network_inventory
 from .nft_func import (
+    check_clean_baseline,
     check_cleanup_idempotency,
     check_credential_file_permissions,
+    check_lifecycle_fresh_install,
     check_lifecycle_performance,
+    check_lifecycle_provision_verify,
     check_log_file_permissions,
     check_precheck_idempotency,
     check_prepare_idempotency,
@@ -230,6 +233,7 @@ __all__ = [
     "check_apptainer_slurm_environment",
     "check_boot_configurations",
     "check_boot_nodes",
+    "check_clean_baseline",
     "check_cleanup_artifacts",
     "check_cleanup_credentials",
     "check_cleanup_idempotency",
@@ -256,7 +260,9 @@ __all__ = [
     "check_kubernetes_version_compatibility",
     "check_kubernetes_virtual_ip",
     "check_kubernetes_workload_scheduling",
+    "check_lifecycle_fresh_install",
     "check_lifecycle_performance",
+    "check_lifecycle_provision_verify",
     "check_log_file_permissions",
     "check_metadata_groups",
     "check_metadata_instances",
