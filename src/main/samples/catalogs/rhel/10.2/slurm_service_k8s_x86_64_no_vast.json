@@ -465,6 +465,7 @@
           "kubectl_1_35_1",
           "prettytable==3_14_0",
           "python3_3_12_9",
+          "python3_3_12_14",
           "git",
           "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
@@ -496,6 +497,7 @@
           "kubectl_1_35_1",
           "prettytable==3_14_0",
           "python3_3_12_9",
+          "python3_3_12_14",
           "git",
           "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
@@ -794,6 +796,20 @@
       },
       "python3_3_12_9": {
         "name": "python3-3.12.9",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
+      },
+      "python3_3_12_14": {
+        "name": "python3-3.12.14",
         "packagetype": "rpm",
         "sources": [
           {

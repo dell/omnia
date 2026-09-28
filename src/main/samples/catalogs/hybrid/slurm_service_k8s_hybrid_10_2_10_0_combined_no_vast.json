@@ -1,22 +1,22 @@
 {
   "catalog": {
-    "name": "Omnia Slurm + Kubernetes Catalog - RHEL 10.2 x86_64 and aarch64",
+    "name": "Omnia Slurm + Kubernetes Catalog - RHEL 10.2 and 10.0 x86_64 and aarch64 (No VAST)",
     "version": "1.0",
     "schema_version": 2,
-    "identifier": "omnia-slurm-k8s-rhel-10-2-x86-64-aarch64",
-    "description": "Full mixed deployment catalog for RHEL 10.2: x86_64 (Slurm control, login, K8s control-plane, K8s node) and aarch64 (Slurm node, login-compiler)",
+    "identifier": "omnia-slurm-k8s-hybrid-10-2-10-0-x86-64-aarch64-no-vast",
+    "description": "Full Slurm + Kubernetes hybrid catalog: RHEL 10.2 x86_64 (Slurm control, K8s control-plane and K8s node) + RHEL 10.0 x86_64 (Slurm login) + RHEL 10.0 aarch64 (Slurm node and login-compiler), without VAST.",
     "functionallayer": [
       {
         "name": "os_rhel_10_2_x86_64",
         "components": [
-          "baseos_group",
+          "baseos_group_10.2",
           "ldms_group"
         ]
       },
       {
         "name": "slurm_control_node_rhel_10_2_x86_64",
         "components": [
-          "baseos_group",
+          "baseos_group_10.2",
           "admin_debug_group",
           "slurm_custom_group",
           "openldap_group",
@@ -27,9 +27,9 @@
         ]
       },
       {
-        "name": "login_node_rhel_10_2_x86_64",
+        "name": "login_node_rhel_10_0_x86_64",
         "components": [
-          "baseos_group",
+          "baseos_group_10.0",
           "admin_debug_group",
           "slurm_custom_group",
           "openldap_group",
@@ -38,14 +38,13 @@
           "login_node_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
-          "vast_stack_driver_groupv1",
           "ldms_group"
         ]
       },
       {
         "name": "service_kube_control_plane_rhel_10_2_x86_64",
         "components": [
-          "baseos_group",
+          "baseos_group_10.2",
           "admin_debug_group",
           "service_k8s_common_group",
           "service_k8s_telemetry_group",
@@ -60,7 +59,7 @@
       {
         "name": "service_kube_node_rhel_10_2_x86_64",
         "components": [
-          "baseos_group",
+          "baseos_group_10.2",
           "admin_debug_group",
           "service_k8s_common_group",
           "service_k8s_telemetry_group",
@@ -72,16 +71,23 @@
         ]
       },
       {
-        "name": "os_rhel_10_2_aarch64",
+        "name": "os_rhel_10_0_x86_64",
         "components": [
-          "baseos_group",
+          "baseos_group_10.0",
           "ldms_group"
         ]
       },
       {
-        "name": "slurm_node_rhel_10_2_aarch64",
+        "name": "os_rhel_10_0_aarch64",
         "components": [
-          "baseos_group",
+          "baseos_group_10.0",
+          "ldms_group"
+        ]
+      },
+      {
+        "name": "slurm_node_rhel_10_0_aarch64",
+        "components": [
+          "baseos_group_10.0",
           "admin_debug_group",
           "slurm_custom_group",
           "openldap_group",
@@ -91,14 +97,13 @@
           "slurm_node_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
-          "vast_stack_driver_groupv1",
           "nvidia_stack_driver_groupv1"
         ]
       },
       {
-        "name": "login_compiler_node_rhel_10_2_aarch64",
+        "name": "login_compiler_node_rhel_10_0_aarch64",
         "components": [
-          "baseos_group",
+          "baseos_group_10.0",
           "admin_debug_group",
           "slurm_custom_group",
           "openldap_group",
@@ -107,59 +112,12 @@
           "login_compiler_node_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
-          "vast_stack_driver_groupv1",
           "nvidia_stack_driver_groupv1",
           "ldms_group"
         ]
       }
     ],
     "groups": {
-      "baseos_group": {
-        "name": "baseos_group",
-        "type": "base_os",
-        "os_version": "10.2",
-        "os": "rhel",
-        "description": "Base OS packages for RHEL 10.2 x86_64 cluster nodes",
-        "components": [
-          "systemd",
-          "systemd_udev",
-          "kernel",
-          "dracut",
-          "dracut_live",
-          "dracut_network",
-          "squashfs_tools",
-          "nfs_utils",
-          "nfs4_acl_tools",
-          "networkmanager",
-          "nm_connection_editor",
-          "iproute",
-          "iputils",
-          "docker.io/curlimages/curl",
-          "bash",
-          "coreutils",
-          "grep",
-          "sed",
-          "gawk",
-          "findutils",
-          "util_linux",
-          "kbd",
-          "lsof",
-          "cryptsetup",
-          "lvm2",
-          "device_mapper",
-          "rsyslog",
-          "chrony",
-          "sudo",
-          "gzip",
-          "wget",
-          "cloud_init",
-          "glibc_langpack_en",
-          "gedit",
-          "ghcr_io/openchami/image_thrillhouse",
-          "docker_io/dellhpcomniaaisolution/image_build_el10",
-          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
-        ]
-      },
       "admin_debug_group": {
         "name": "admin_debug_group",
         "type": "group",
@@ -226,7 +184,6 @@
         "components": [
           "cffi==1_17_1",
           "cryptography==45_0_7",
-          "kubernetes==33_1_0",
           "omsdk==1_2_518",
           "prettytable==3_14_0",
           "nvcr.io/nvidia/hpc-benchmarks"
@@ -478,7 +435,8 @@
           "python3_3_12_9",
           "git",
           "kubernetes==33_1_0",
-          "PyMySQL==1_1_2"
+          "PyMySQL==1_1_2",
+          "python3_3_12_14"
         ]
       },
       "service_kube_control_plane_group": {
@@ -509,7 +467,8 @@
           "python3_3_12_9",
           "git",
           "kubernetes==33_1_0",
-          "PyMySQL==1_1_2"
+          "PyMySQL==1_1_2",
+          "python3_3_12_14"
         ]
       },
       "service_kube_node_group": {
@@ -553,14 +512,6 @@
           "doca_ofed"
         ]
       },
-      "vast_stack_driver_groupv1": {
-        "name": "vast_stack_v1",
-        "type": "group",
-        "description": "VAST Data high-performance NFS client",
-        "components": [
-          "vastnfs"
-        ]
-      },
       "nvidia_stack_driver_groupv1": {
         "name": "nvidia_stack_v1",
         "type": "group",
@@ -571,6 +522,98 @@
           "cuda_toolkit",
           "datacenter_gpu_manager",
           "nvhpc"
+        ]
+      },
+      "baseos_group_10.0": {
+        "name": "baseos_group",
+        "type": "base_os",
+        "os_version": "10.0",
+        "os": "rhel",
+        "description": "Base OS packages for RHEL 10.0 cluster nodes",
+        "components": [
+          "systemd",
+          "systemd_udev",
+          "kernel",
+          "dracut",
+          "dracut_live",
+          "dracut_network",
+          "squashfs_tools",
+          "nfs_utils",
+          "nfs4_acl_tools",
+          "networkmanager",
+          "nm_connection_editor",
+          "iproute",
+          "iputils",
+          "docker.io/curlimages/curl",
+          "bash",
+          "coreutils",
+          "grep",
+          "sed",
+          "gawk",
+          "findutils",
+          "util_linux",
+          "kbd",
+          "lsof",
+          "cryptsetup",
+          "lvm2",
+          "device_mapper",
+          "rsyslog",
+          "chrony",
+          "sudo",
+          "gzip",
+          "wget",
+          "cloud_init",
+          "glibc_langpack_en",
+          "gedit",
+          "ghcr_io/openchami/image_thrillhouse",
+          "docker_io/dellhpcomniaaisolution/image_build_el10",
+          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
+        ]
+      },
+      "baseos_group_10.2": {
+        "name": "baseos_group",
+        "type": "base_os",
+        "os_version": "10.2",
+        "os": "rhel",
+        "description": "Base OS packages for RHEL 10.2 cluster nodes",
+        "components": [
+          "systemd",
+          "systemd_udev",
+          "kernel",
+          "dracut",
+          "dracut_live",
+          "dracut_network",
+          "squashfs_tools",
+          "nfs_utils",
+          "nfs4_acl_tools",
+          "networkmanager",
+          "nm_connection_editor",
+          "iproute",
+          "iputils",
+          "docker.io/curlimages/curl",
+          "bash",
+          "coreutils",
+          "grep",
+          "sed",
+          "gawk",
+          "findutils",
+          "util_linux",
+          "kbd",
+          "lsof",
+          "cryptsetup",
+          "lvm2",
+          "device_mapper",
+          "rsyslog",
+          "chrony",
+          "sudo",
+          "gzip",
+          "wget",
+          "cloud_init",
+          "glibc_langpack_en",
+          "gedit",
+          "ghcr_io/openchami/image_thrillhouse",
+          "docker_io/dellhpcomniaaisolution/image_build_el10",
+          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
         ]
       }
     },
@@ -584,7 +627,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -592,7 +636,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -606,7 +651,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -614,7 +660,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -673,7 +720,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -681,7 +729,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -718,7 +767,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -726,7 +776,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -740,7 +791,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -748,7 +800,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -831,7 +884,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -839,7 +893,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -853,7 +908,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -861,7 +917,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -875,7 +932,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -883,7 +941,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -942,7 +1001,8 @@
             "reponame": "cuda",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -950,7 +1010,8 @@
             "reponame": "cuda",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -987,7 +1048,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -995,7 +1057,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1123,7 +1186,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1131,7 +1195,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1145,7 +1210,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1153,7 +1219,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1167,7 +1234,8 @@
             "reponame": "doca",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1175,7 +1243,8 @@
             "reponame": "doca",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ],
@@ -1212,7 +1281,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1220,7 +1290,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1257,7 +1328,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1265,7 +1337,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1279,7 +1352,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1287,7 +1361,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1301,7 +1376,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1309,7 +1385,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1369,7 +1446,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1377,7 +1455,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1391,7 +1470,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1399,7 +1479,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1413,7 +1494,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1421,7 +1503,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1435,7 +1518,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1443,7 +1527,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1458,7 +1543,8 @@
             "reponame": "nvidia-hpc-sdk",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1466,7 +1552,8 @@
             "reponame": "nvidia-hpc-sdk",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1527,7 +1614,8 @@
             "registry": "ghcr.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1535,7 +1623,8 @@
             "registry": "ghcr.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1549,7 +1638,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1557,7 +1647,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1571,7 +1662,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1579,7 +1671,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1616,7 +1709,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1624,7 +1718,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1638,7 +1733,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1646,7 +1742,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1660,7 +1757,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1668,7 +1766,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1705,7 +1804,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1713,7 +1813,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1772,7 +1873,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1780,7 +1882,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1816,7 +1919,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1824,7 +1928,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1838,7 +1943,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1846,7 +1952,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1860,7 +1967,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1868,7 +1976,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1927,7 +2036,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -1935,7 +2045,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1971,7 +2082,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/llnl/msr-safe/archive/refs/tags/v1.7.0.tar.gz"
           },
@@ -1979,7 +2091,8 @@
             "architecture": "aarch64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/llnl/msr-safe/archive/refs/tags/v1.7.0.tar.gz"
           }
@@ -2017,7 +2130,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2025,7 +2139,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2085,7 +2200,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2093,7 +2209,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2130,7 +2247,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2138,7 +2256,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2152,7 +2271,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2160,7 +2280,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2197,7 +2318,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2205,7 +2327,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2219,7 +2342,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2227,7 +2351,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2240,7 +2365,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/geopm/geopm/archive/refs/tags/v3.1.0.tar.gz"
           },
@@ -2248,7 +2374,8 @@
             "architecture": "aarch64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/geopm/geopm/archive/refs/tags/v3.1.0.tar.gz"
           }
@@ -2263,7 +2390,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2271,7 +2399,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2350,7 +2479,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2358,7 +2488,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2372,7 +2503,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2380,7 +2512,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2394,7 +2527,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2402,7 +2536,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2462,7 +2597,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2470,7 +2606,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2484,7 +2621,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2492,7 +2630,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2506,7 +2645,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2514,7 +2654,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2528,7 +2669,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2536,7 +2678,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2550,7 +2693,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2558,7 +2702,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2572,7 +2717,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2580,7 +2726,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2617,7 +2764,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2625,7 +2773,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2639,7 +2788,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2647,7 +2797,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2661,7 +2812,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2669,30 +2821,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
-      "vastnfs": {
-        "name": "vastnfs",
-        "packagetype": "rpm",
-        "version": "4.1",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "vast",
-            "name": "vast",
-            "version": [
-              "10.2"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "reponame": "vast",
-            "name": "vast",
-            "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2706,7 +2836,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2714,7 +2845,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2728,7 +2860,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2736,7 +2869,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2749,7 +2883,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://mvapich.cse.ohio-state.edu/download/mvapich/osu-micro-benchmarks-7.5.tar.gz"
           },
@@ -2757,7 +2892,8 @@
             "architecture": "aarch64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://mvapich.cse.ohio-state.edu/download/mvapich/osu-micro-benchmarks-7.5.tar.gz"
           }
@@ -2795,7 +2931,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2803,7 +2940,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2840,7 +2978,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2848,7 +2987,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2862,7 +3002,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2870,7 +3011,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2884,7 +3026,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2892,7 +3035,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2906,7 +3050,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -2914,7 +3059,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2949,7 +3095,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/openucx/ucx/releases/download/v1.18.0/ucx-1.18.0.tar.gz"
           },
@@ -2957,7 +3104,8 @@
             "architecture": "aarch64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/openucx/ucx/releases/download/v1.18.0/ucx-1.18.0.tar.gz"
           }
@@ -3019,7 +3167,8 @@
             "reponame": "cuda",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3027,7 +3176,8 @@
             "reponame": "cuda",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3041,7 +3191,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3049,7 +3200,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3085,7 +3237,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/intel/mpi-benchmarks/archive/refs/tags/IMB-v2021.8.tar.gz"
           },
@@ -3093,7 +3246,8 @@
             "architecture": "aarch64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/intel/mpi-benchmarks/archive/refs/tags/IMB-v2021.8.tar.gz"
           }
@@ -3154,7 +3308,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3162,7 +3317,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3199,7 +3355,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3207,7 +3364,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3222,7 +3380,8 @@
             "registry": "docker.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3237,7 +3396,8 @@
             "registry": "docker.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3251,7 +3411,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3259,7 +3420,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3295,14 +3457,16 @@
             "architecture": "x86_64",
             "name": "pypi",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
             "architecture": "aarch64",
             "name": "pypi",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3316,7 +3480,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3324,7 +3489,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3361,7 +3527,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3369,7 +3536,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3383,7 +3551,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3391,7 +3560,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3405,7 +3575,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3413,7 +3584,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3428,7 +3600,8 @@
             "reponame": "cuda",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3436,7 +3609,8 @@
             "reponame": "cuda",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3496,7 +3670,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3504,7 +3679,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3562,7 +3738,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://apps.fz-juelich.de/jsc/sionlib/download.php?version=1.7.7"
           },
@@ -3570,7 +3747,8 @@
             "architecture": "aarch64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://apps.fz-juelich.de/jsc/sionlib/download.php?version=1.7.7"
           }
@@ -3585,7 +3763,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3593,7 +3772,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3607,7 +3787,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3615,7 +3796,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3697,7 +3879,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3705,7 +3888,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3855,7 +4039,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3863,7 +4048,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3876,7 +4062,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/icl-utk-edu/papi/releases/download/papi-7-2-0-t/papi-7.2.0.tar.gz"
           },
@@ -3884,7 +4071,8 @@
             "architecture": "aarch64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/icl-utk-edu/papi/releases/download/papi-7-2-0-t/papi-7.2.0.tar.gz"
           }
@@ -3943,7 +4131,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3951,7 +4140,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3965,7 +4155,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3973,7 +4164,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3986,14 +4178,16 @@
             "architecture": "x86_64",
             "name": "pypi",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
             "architecture": "aarch64",
             "name": "pypi",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4006,14 +4200,16 @@
             "architecture": "x86_64",
             "name": "pypi",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
             "architecture": "aarch64",
             "name": "pypi",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4026,7 +4222,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/rrze-hpc/likwid/archive/refs/tags/v5.4.1.tar.gz"
           },
@@ -4034,7 +4231,8 @@
             "architecture": "aarch64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://github.com/rrze-hpc/likwid/archive/refs/tags/v5.4.1.tar.gz"
           }
@@ -4049,7 +4247,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4057,7 +4256,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4071,7 +4271,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4079,7 +4280,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4093,7 +4295,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4101,7 +4304,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4136,14 +4340,16 @@
             "architecture": "x86_64",
             "name": "pypi",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
             "architecture": "aarch64",
             "name": "pypi",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4203,7 +4409,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4211,7 +4418,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4248,7 +4456,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4256,7 +4465,8 @@
             "reponame": "slurm_custom",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4270,7 +4480,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4278,7 +4489,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4292,7 +4504,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4300,7 +4513,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4314,7 +4528,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4322,7 +4537,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4336,7 +4552,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4344,7 +4561,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4358,7 +4576,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4366,7 +4585,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4380,7 +4600,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4388,7 +4609,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4402,7 +4624,8 @@
             "reponame": "codeready-builder",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4410,7 +4633,8 @@
             "reponame": "codeready-builder",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4424,7 +4648,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4432,7 +4657,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4468,7 +4694,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4476,7 +4703,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4490,7 +4718,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4498,7 +4727,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4511,7 +4741,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.7.tar.gz"
           },
@@ -4519,7 +4750,8 @@
             "architecture": "aarch64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "url": "https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.7.tar.gz"
           }
@@ -4535,7 +4767,8 @@
             "reponame": "cuda",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4543,7 +4776,8 @@
             "reponame": "cuda",
             "name": "nvidia",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4557,7 +4791,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4565,7 +4800,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4602,7 +4838,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4610,7 +4847,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4692,7 +4930,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4700,7 +4939,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4714,7 +4954,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4722,7 +4963,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4736,7 +4978,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4744,7 +4987,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4778,7 +5022,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4786,7 +5031,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4820,7 +5066,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4828,7 +5075,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4842,7 +5090,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4850,7 +5099,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4909,7 +5159,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4917,7 +5168,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4954,7 +5206,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4962,7 +5215,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -4976,7 +5230,8 @@
             "reponame": "codeready-builder",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -4984,7 +5239,8 @@
             "reponame": "codeready-builder",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5020,7 +5276,8 @@
             "reponame": "ldms",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5028,7 +5285,8 @@
             "reponame": "ldms",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5042,7 +5300,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5050,7 +5309,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5086,7 +5346,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5094,7 +5355,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5108,7 +5370,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5116,7 +5379,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5176,7 +5440,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5184,7 +5449,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5198,7 +5464,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5206,7 +5473,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5220,7 +5488,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5228,7 +5497,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5242,7 +5512,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5250,7 +5521,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5264,7 +5536,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5272,7 +5545,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5286,7 +5560,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5294,7 +5569,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5330,7 +5606,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5338,7 +5615,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5352,7 +5630,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5360,7 +5639,8 @@
             "reponame": "epel",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5420,7 +5700,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5428,7 +5709,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5442,7 +5724,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5450,7 +5733,8 @@
             "reponame": "baseos",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5464,7 +5748,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5472,7 +5757,8 @@
             "reponame": "appstream",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5487,7 +5773,8 @@
             "registry": "docker.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -5495,7 +5782,8 @@
             "registry": "docker.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -5510,12 +5798,36 @@
             "registry": "nvcr.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
             "architecture": "aarch64",
             "registry": "nvcr.io",
+            "name": "rhel",
+            "version": [
+              "10.2",
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python3_3_12_14": {
+        "name": "python3-3.12.14",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
             "name": "rhel",
             "version": [
               "10.2"

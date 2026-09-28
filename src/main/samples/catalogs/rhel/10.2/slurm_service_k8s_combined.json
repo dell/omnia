@@ -1,10 +1,10 @@
 {
   "catalog": {
-    "name": "Omnia Slurm + Kubernetes Catalog - RHEL 10.2 x86_64 and aarch64 (No VAST)",
+    "name": "Omnia Slurm + Kubernetes Catalog - RHEL 10.2 x86_64 and aarch64",
     "version": "1.0",
     "schema_version": 2,
-    "identifier": "omnia-slurm-k8s-rhel-10-2-x86-64-aarch64-no-vast",
-    "description": "Full mixed deployment catalog for RHEL 10.2: x86_64 (Slurm control, login, K8s control-plane, K8s node) and aarch64 (Slurm node, login-compiler) without VAST Data NFS client.",
+    "identifier": "omnia-slurm-k8s-rhel-10-2-x86-64-aarch64",
+    "description": "Full mixed deployment catalog for RHEL 10.2: x86_64 (Slurm control, login, K8s control-plane, K8s node) and aarch64 (Slurm node, login-compiler)",
     "functionallayer": [
       {
         "name": "os_rhel_10_2_x86_64",
@@ -38,6 +38,7 @@
           "login_node_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
+          "vast_stack_driver_groupv1",
           "ldms_group"
         ]
       },
@@ -90,6 +91,7 @@
           "slurm_node_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
+          "vast_stack_driver_groupv1",
           "nvidia_stack_driver_groupv1"
         ]
       },
@@ -105,6 +107,7 @@
           "login_compiler_node_group",
           "common_pks",
           "infiniband_stack_driver_groupv1",
+          "vast_stack_driver_groupv1",
           "nvidia_stack_driver_groupv1",
           "ldms_group"
         ]
@@ -473,6 +476,7 @@
           "kubectl_1_35_1",
           "prettytable==3_14_0",
           "python3_3_12_9",
+          "python3_3_12_14",
           "git",
           "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
@@ -504,6 +508,7 @@
           "kubectl_1_35_1",
           "prettytable==3_14_0",
           "python3_3_12_9",
+          "python3_3_12_14",
           "git",
           "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
@@ -548,6 +553,14 @@
         "description": "RDMA / InfiniBand network fabric stack",
         "components": [
           "doca_ofed"
+        ]
+      },
+      "vast_stack_driver_groupv1": {
+        "name": "vast_stack_v1",
+        "type": "group",
+        "description": "VAST Data high-performance NFS client",
+        "components": [
+          "vastnfs"
         ]
       },
       "nvidia_stack_driver_groupv1": {
@@ -2663,6 +2676,29 @@
           }
         ]
       },
+      "vastnfs": {
+        "name": "vastnfs",
+        "packagetype": "rpm",
+        "version": "4.1",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "vast",
+            "name": "vast",
+            "version": [
+              "10.2"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "vast",
+            "name": "vast",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
+      },
       "perf": {
         "name": "perf",
         "packagetype": "rpm",
@@ -3500,6 +3536,28 @@
       },
       "python3_3_12_9": {
         "name": "python3-3.12.9",
+        "packagetype": "rpm",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "reponame": "baseos",
+            "name": "rhel",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
+      },
+      "python3_3_12_14": {
+        "name": "python3-3.12.14",
         "packagetype": "rpm",
         "sources": [
           {
