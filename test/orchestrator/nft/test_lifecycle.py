@@ -25,6 +25,7 @@ import pytest
 from library.functions import (
     check_clean_baseline,
     check_lifecycle_fresh_install,
+    check_lifecycle_provision_verify,
 )
 
 from nft.result import verify_nft
@@ -44,3 +45,9 @@ def test_clean_baseline(host):
 def test_lifecycle_fresh_install(host):
     """Require the complete fresh-install lifecycle to succeed from clean baseline."""
     verify_nft(host, "lifecycle_fresh_install", check_lifecycle_fresh_install)
+
+
+@pytest.mark.order(102)
+def test_lifecycle_provision_verify(host):
+    """Verify provision state and node connectivity after the fresh-install lifecycle."""
+    verify_nft(host, "lifecycle_provision_verify", check_lifecycle_provision_verify)

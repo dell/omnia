@@ -723,6 +723,10 @@ NFT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_NFT_013",
         "title": "Verify complete fresh-install lifecycle from clean baseline",
     },
+    "lifecycle_provision_verify": {
+        "id": "ORCH_NFT_014",
+        "title": "Verify provision and node state after fresh-install lifecycle",
+    },
 }
 
 TEST_CASES: dict[str, dict[str, str]] = {

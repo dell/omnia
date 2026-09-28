@@ -707,3 +707,66 @@ def check_lifecycle_fresh_install(host) -> dict[str, Any]:
         fields,
         "; ".join(all_failures),
     )
+
+
+def check_lifecycle_provision_verify(host) -> dict[str, Any]:
+    """Verify provision and node state by calling existing FVT check functions.
+
+    Runs the same checks that the FVT provision and pxeboot verify suites
+    use, sourced from the PXE mapping file.  When ``pxeboot_status.yml``
+    is absent, connectivity and cloud-init checks fall back to direct SSH
+    probes against the administrative addresses in the mapping file.
+    """
+    from .provision_status_func import check_provision_reports
+    from .smd_provision_func import check_smd_identity, check_smd_groups
+    from .boot_service_provision_func import (
+        check_boot_configurations,
+        check_boot_nodes,
+    )
+    from .metadata_service_provision_func import (
+        check_metadata_groups,
+        check_metadata_instances,
+    )
+    from .network_inventory_func import check_network_inventory
+    from .pxeboot_func import (
+        check_node_ping,
+        check_node_ssh,
+        check_node_hostname_ssh,
+        check_node_cloud_init,
+    )
+
+    checks: tuple[tuple[str, Callable], ...] = (
+        # Provision desired-state checks
+        ("Provision reports", check_provision_reports),
+        ("SMD identity", check_smd_identity),
+        ("SMD functional groups", check_smd_groups),
+        ("Boot configurations", check_boot_configurations),
+        ("Boot node identity", check_boot_nodes),
+        ("Metadata groups", check_metadata_groups),
+        ("Metadata instances", check_metadata_instances),
+        ("Network inventory", check_network_inventory),
+        # Node connectivity and cloud-init checks
+        ("Node ping", check_node_ping),
+        ("Node SSH", check_node_ssh),
+        ("Node hostname SSH", check_node_hostname_ssh),
+        ("Node cloud-init", check_node_cloud_init),
+    )
+
+    fields: list[tuple[str, object]] = []
+    failures: list[str] = []
+    for label, checker in checks:
+        try:
+            check_result = checker(host)
+        except Exception as exc:
+            check_result = {"success": False, "error": str(exc)}
+        passed = check_result.get("success", False)
+        fields.append((label, "passed" if passed else "FAILED"))
+        if not passed:
+            failures.append(f"{label}: {check_result.get('error', 'unknown')}")
+
+    return _result(
+        not failures,
+        "Lifecycle provision verification completed",
+        fields,
+        "; ".join(failures),
+    )
