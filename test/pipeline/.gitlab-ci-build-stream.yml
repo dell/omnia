@@ -1636,6 +1636,15 @@ build_stream:
     - job: prepare_base
       artifacts: true
       optional: true
+    - job: test_repo_manager
+      artifacts: true
+      optional: true
+    - job: test_image_build_manager
+      artifacts: true
+      optional: true
+    - job: test_orchestrator
+      artifacts: true
+      optional: true
   script:
     - echo "========================================================"
     - echo "  Running build_stream on cluster $CLUSTER"

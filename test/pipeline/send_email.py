@@ -68,6 +68,7 @@ cluster_name = os.environ.get("CLUSTER", os.environ.get("CLUSTER_NAME", ""))
 cluster_ip = os.environ.get("TARGET_IP", "")
 utils_enable = os.environ.get("UTILS_ENABLE", "false").lower() == "true"
 utils_mode = os.environ.get("UTILS_MODE", "default_logs")
+build_stream_enable = os.environ.get("BUILD_STREAM_ENABLE", "false").lower() == "true"
 target_user = os.environ.get("TARGET_USER", "")
 target_pass = os.environ.get("TARGET_PASS", "")
 omnia_install_path = os.environ.get("OMNIA_INSTALL_PATH", "")
@@ -154,7 +155,7 @@ if os.path.exists(TEST_REPORTS_PATH):
         print(f"Found {len(json_files)} JSON test report(s)")
         # Aggregate summary across all JSON reports with per-domain breakdown
         try:
-            domain_order = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry"]
+            domain_order = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry", "build_stream"]
             domain_summaries = {}
             total_passed = 0
             total_failed = 0
@@ -314,26 +315,29 @@ else:
 # Stage ordering per pipeline mode
 STAGE_ORDER_DEFAULT = [
     "initialization", "setup_environment",
-    "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator",
     "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
-    "setup_main", "test_main_installation",
+    "setup_main", "test_main_installation", "prepare_base",
     "repo_manager", "test_repo_manager",
     "image_build_manager", "test_image_build_manager",
     "orchestrator", "test_orchestrator",
+    "build_stream", "test_build_stream",
     "telemetry", "test_telemetry",
     "summary",
 ]
 STAGE_ORDER_DEPLOY = [
     "initialization", "setup_environment",
+    "prepare_base",
     "repo_manager", "test_repo_manager",
     "image_build_manager", "test_image_build_manager",
     "orchestrator", "test_orchestrator",
+    "build_stream", "test_build_stream",
     "telemetry", "test_telemetry",
     "summary",
 ]
 STAGE_ORDER_CLEANUP = [
     "initialization", "setup_environment",
-    "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator",
     "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "summary",
 ]
@@ -342,6 +346,16 @@ STAGE_ORDER_UTILS = [
     "initialization", "setup_environment",
     "install_os", "log_collection_cluster", "log_collection_oim",
     "test_utils",
+    "summary",
+]
+# Stage ordering for BUILD_STREAM_ENABLE (build_stream pipeline)
+STAGE_ORDER_BUILD_STREAM = [
+    "initialization", "setup_environment",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
+    "setup_main", "test_main_installation", "prepare_base",
+    "test_repo_manager", "test_image_build_manager", "test_orchestrator",
+    "build_stream", "test_build_stream",
     "summary",
 ]
 
@@ -374,18 +388,22 @@ def load_job_statuses():
         return {}
 
 
-def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_utils_pipeline=False):
+def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_utils_pipeline=False, is_build_stream_pipeline=False):
     """Return stages applicable to the selected mode and domains."""
     if is_utils_pipeline:
         # Use utils pipeline stages when UTILS_ENABLE is true
         return STAGE_ORDER_UTILS
+    
+    if is_build_stream_pipeline:
+        # Use build_stream pipeline stages when BUILD_STREAM_ENABLE is true
+        return STAGE_ORDER_BUILD_STREAM
     
     order = {
         "cleanup": STAGE_ORDER_CLEANUP,
         "deploy": STAGE_ORDER_DEPLOY,
     }.get(mode, STAGE_ORDER_DEFAULT)
     domain_names = {
-        "repo_manager", "image_build_manager", "orchestrator", "telemetry",
+        "repo_manager", "image_build_manager", "orchestrator", "telemetry", "build_stream",
     }
     selected = domain_names if selected_domains == "default" else {
         value.strip() for value in re.split(r"[,|]", selected_domains) if value.strip()
@@ -407,10 +425,10 @@ def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_uti
     return applicable
 
 
-def build_stage_table_html(job_statuses, mode, selected_domains, include_tests, is_utils_pipeline=False):
+def build_stage_table_html(job_statuses, mode, selected_domains, include_tests, is_utils_pipeline=False, is_build_stream_pipeline=False):
     """Build an HTML table showing each applicable stage and its status."""
     stage_order = pick_stage_order(
-        mode, selected_domains, include_tests, job_statuses, is_utils_pipeline
+        mode, selected_domains, include_tests, job_statuses, is_utils_pipeline, is_build_stream_pipeline
     )
     rows = []
     has_failure = False
@@ -454,7 +472,7 @@ def build_stage_table_html(job_statuses, mode, selected_domains, include_tests, 
 # Load job statuses and build table
 job_statuses = load_job_statuses()
 stage_table_html, has_failure, failed_stage = build_stage_table_html(
-    job_statuses, pipeline_mode, domains, test_mode, utils_enable
+    job_statuses, pipeline_mode, domains, test_mode, utils_enable, build_stream_enable
 )
 
 if not job_statuses:
