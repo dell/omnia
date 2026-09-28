@@ -346,6 +346,50 @@ class MetadataClient:
         body = self.client.request_json("GET", f"{self.BASE}/instanceinfos").body
         return body or []
 
+    def groups(self) -> list[dict[str, Any]]:
+        body = self.client.request_json("GET", f"{self.BASE}/groups").body
+        return body or []
+
+    def create_group(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.client.request_json(
+            "POST", f"{self.BASE}/groups", payload, expected=(200, 201)
+        ).body
+
+    def update_group(self, uid: str, payload: dict[str, Any]) -> dict[str, Any]:
+        path = f"{self.BASE}/groups/{parse.quote(uid, safe='')}"
+        return self.client.request_json("PUT", path, payload, expected=(200,)).body
+
+    def delete_group(self, uid: str) -> bool:
+        path = f"{self.BASE}/groups/{parse.quote(uid, safe='')}"
+        response = self.client.request_json(
+            "DELETE", path, expected=(200, 204, 404)
+        )
+        return response.status != 404
+
+    def cluster_defaults(self) -> list[dict[str, Any]]:
+        body = self.client.request_json(
+            "GET", f"{self.BASE}/clusterdefaultss"
+        ).body
+        return body or []
+
+    def create_cluster_defaults(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self.client.request_json(
+            "POST", f"{self.BASE}/clusterdefaultss", payload, expected=(200, 201)
+        ).body
+
+    def update_cluster_defaults(
+        self, uid: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        path = f"{self.BASE}/clusterdefaultss/{parse.quote(uid, safe='')}"
+        return self.client.request_json("PUT", path, payload, expected=(200,)).body
+
+    def delete_cluster_defaults(self, uid: str) -> bool:
+        path = f"{self.BASE}/clusterdefaultss/{parse.quote(uid, safe='')}"
+        response = self.client.request_json(
+            "DELETE", path, expected=(200, 204, 404)
+        )
+        return response.status != 404
+
     def create_instance_info(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self.client.request_json(
             "POST", f"{self.BASE}/instanceinfos", payload, expected=(200, 201)

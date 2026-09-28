@@ -26,6 +26,10 @@ from .identity import SMDIdentityResolver, normalize_mac
 class OpenChamiReconciler:
     """Coordinate identity, SMD, and Metadata Service operations."""
 
+    MANAGED_BY_LABEL = "omnia.dell.com/managed-by"
+    PROJECT_LABEL = "omnia.dell.com/project"
+    MANAGED_BY_VALUE = "omnia"
+
     def __init__(self, base_url, token, ca_cert=None, timeout=15, retries=3):
         client = OpenChamiClient(
             base_url=base_url,
@@ -286,8 +290,204 @@ class OpenChamiReconciler:
             )
         return {"expected": sorted(expected), "missing": []}
 
-    def reconcile_instance_infos(self, desired: Iterable[dict[str, Any]], check_mode=False):
+    def reconcile_metadata_groups(
+        self,
+        desired: Iterable[dict[str, Any]],
+        project_name: str,
+        check_mode=False,
+    ):
+        """Create or update Omnia-owned Metadata Service groups by name."""
+        ownership = self._ownership_labels(project_name)
+        existing_by_name = self._resources_by_name(
+            self.metadata.groups(), "Metadata Service group"
+        )
+        created = []
+        updated = []
+        adopted = []
+        unchanged = []
+        seen = set()
+
+        for item in desired:
+            name, desired_spec = self._desired_resource(item, "group")
+            if name in seen:
+                raise ValueError(f"Duplicate desired Metadata Service group {name!r}")
+            seen.add(name)
+            current = existing_by_name.get(name)
+            payload = {
+                "metadata": {"name": name},
+                "spec": desired_spec,
+                "labels": ownership,
+            }
+            if current is None:
+                if not check_mode:
+                    self.metadata.create_group(payload)
+                created.append(name)
+                continue
+
+            uid = self._resource_uid(current, "Metadata Service group", name)
+            spec_changed = self._group_spec(current.get("spec") or {}) != self._group_spec(
+                desired_spec
+            )
+            labels_changed = not self._has_ownership(current, ownership)
+            if spec_changed or labels_changed:
+                if not check_mode:
+                    self.metadata.update_group(uid, payload)
+                (updated if spec_changed else adopted).append(name)
+            else:
+                unchanged.append(name)
+
+        if not check_mode:
+            self._verify_metadata_groups(desired, ownership)
+        return {
+            "changed": bool(created or updated or adopted),
+            "created": created,
+            "updated": updated,
+            "adopted": adopted,
+            "unchanged": unchanged,
+        }
+
+    def prune_metadata_groups(
+        self,
+        desired_names: Iterable[str],
+        project_name: str,
+        legacy_managed_names: Iterable[str],
+        legacy_managed_prefixes: Iterable[str],
+        check_mode=False,
+    ):
+        """Delete only stale Omnia-owned metadata groups with no SMD members."""
+        desired = set(self._unique(desired_names))
+        legacy_names = set(self._unique(legacy_managed_names))
+        legacy_prefixes = tuple(self._unique(legacy_managed_prefixes))
+        ownership = self._ownership_labels(project_name)
+        smd_members = {
+            str(group.get("label", "")).strip(): set(
+                (group.get("members") or {}).get("ids", []) or []
+            )
+            for group in self.smd.groups()
+            if group.get("label")
+        }
+        deleted = []
+        delete_candidates = []
+        retained = []
+        blocked = []
+
+        for group in self.metadata.groups():
+            name = str(group.get("metadata", {}).get("name", "")).strip()
+            if not name or name in desired:
+                continue
+            owned = self._has_ownership(group, ownership)
+            legacy_owned = name in legacy_names or (
+                bool(legacy_prefixes) and name.startswith(legacy_prefixes)
+            )
+            if not owned and not legacy_owned:
+                retained.append(name)
+                continue
+            members = sorted(smd_members.get(name, set()))
+            if members:
+                blocked.append({"name": name, "members": members})
+                continue
+            uid = self._resource_uid(group, "Metadata Service group", name)
+            delete_candidates.append((name, uid))
+
+        if blocked:
+            details = "; ".join(
+                f"{item['name']}: {', '.join(item['members'])}" for item in blocked
+            )
+            raise ValueError(
+                "Refusing to delete stale Metadata Service groups that still "
+                f"have SMD members: {details}"
+            )
+        for name, uid in delete_candidates:
+            if not check_mode:
+                self.metadata.delete_group(uid)
+            deleted.append(name)
+        return {
+            "changed": bool(deleted),
+            "deleted": deleted,
+            "retained_unmanaged": retained,
+            "blocked": blocked,
+        }
+
+    def reconcile_cluster_defaults(
+        self,
+        desired: dict[str, Any],
+        project_name: str,
+        check_mode=False,
+    ):
+        """Reconcile the project-owned Metadata Service ClusterDefaults."""
+        ownership = self._ownership_labels(project_name)
+        name, desired_spec = self._desired_resource(desired, "ClusterDefaults")
+        matches = [
+            resource
+            for resource in self.metadata.cluster_defaults()
+            if str(resource.get("metadata", {}).get("name", "")).strip() == name
+        ]
+        matches.sort(
+            key=lambda resource: self._canonical_resource_key(resource, ownership)
+        )
+        current = matches[0] if matches else None
+        payload = {
+            "metadata": {"name": name},
+            "spec": desired_spec,
+            "labels": ownership,
+        }
+        result = {
+            "changed": False,
+            "created": [],
+            "updated": [],
+            "adopted": [],
+            "unchanged": [],
+            "deleted_duplicate_uids": [],
+        }
+        if current is None:
+            if not check_mode:
+                created_resource = self.metadata.create_cluster_defaults(payload)
+                created_uid = str(
+                    (created_resource or {}).get("metadata", {}).get("uid", "")
+                ).strip()
+                self._verify_cluster_defaults(
+                    name, desired_spec, ownership, expected_uid=created_uid or None
+                )
+            result["changed"] = True
+            result["created"].append(name)
+            return result
+
+        uid = self._resource_uid(current, "Metadata Service ClusterDefaults", name)
+        spec_changed = self._cluster_defaults_spec(
+            current.get("spec") or {}
+        ) != self._cluster_defaults_spec(desired_spec)
+        labels_changed = not self._has_ownership(current, ownership)
+        if spec_changed or labels_changed:
+            if not check_mode:
+                self.metadata.update_cluster_defaults(uid, payload)
+            result["changed"] = True
+            result["updated" if spec_changed else "adopted"].append(name)
+        else:
+            result["unchanged"].append(name)
+
+        if not check_mode:
+            self._verify_cluster_defaults(
+                name, desired_spec, ownership, expected_uid=uid
+            )
+        for duplicate in matches[1:]:
+            duplicate_uid = self._resource_uid(
+                duplicate, "Metadata Service ClusterDefaults", name
+            )
+            if not check_mode:
+                self.metadata.delete_cluster_defaults(duplicate_uid)
+            result["deleted_duplicate_uids"].append(duplicate_uid)
+        if result["deleted_duplicate_uids"]:
+            result["changed"] = True
+        return result
+
+    def reconcile_instance_infos(
+        self,
+        desired: Iterable[dict[str, Any]],
+        project_name: str,
+        check_mode=False,
+    ):
         """Create/update one InstanceInfo per XNAME and remove duplicates."""
+        ownership = self._ownership_labels(project_name)
         existing = self.metadata.instance_infos()
         by_instance_id = {}
         for resource in existing:
@@ -297,6 +497,7 @@ class OpenChamiReconciler:
 
         created = []
         updated = []
+        adopted = []
         deleted_duplicates = []
         unchanged = []
         seen = set()
@@ -323,7 +524,11 @@ class OpenChamiReconciler:
             if not matches:
                 if not check_mode:
                     self.metadata.create_instance_info(
-                        {"metadata": {"name": instance_id}, "spec": desired_spec}
+                        {
+                            "metadata": {"name": instance_id},
+                            "spec": desired_spec,
+                            "labels": ownership,
+                        }
                     )
                 created.append(instance_id)
                 continue
@@ -336,13 +541,19 @@ class OpenChamiReconciler:
             merged_spec = dict(current_spec)
             merged_spec.update(desired_spec)
             current_name = canonical.get("metadata", {}).get("name", "")
-            if current_spec != merged_spec or current_name != instance_id:
+            spec_changed = current_spec != merged_spec or current_name != instance_id
+            labels_changed = not self._has_ownership(canonical, ownership)
+            if spec_changed or labels_changed:
                 if not check_mode:
                     self.metadata.update_instance_info(
                         canonical_uid,
-                        {"metadata": {"name": instance_id}, "spec": merged_spec},
+                        {
+                            "metadata": {"name": instance_id},
+                            "spec": merged_spec,
+                            "labels": ownership,
+                        },
                     )
-                updated.append(instance_id)
+                (updated if spec_changed else adopted).append(instance_id)
             else:
                 unchanged.append(instance_id)
 
@@ -357,12 +568,150 @@ class OpenChamiReconciler:
                 deleted_duplicates.append(duplicate_uid)
 
         return {
-            "changed": bool(created or updated or deleted_duplicates),
+            "changed": bool(created or updated or adopted or deleted_duplicates),
             "created": created,
             "updated": updated,
+            "adopted": adopted,
             "unchanged": unchanged,
             "deleted_duplicate_uids": deleted_duplicates,
         }
+
+    @classmethod
+    def _ownership_labels(cls, project_name: str) -> dict[str, str]:
+        project = str(project_name or "").strip()
+        if not project:
+            raise ValueError("project_name is required for metadata reconciliation")
+        return {
+            cls.MANAGED_BY_LABEL: cls.MANAGED_BY_VALUE,
+            cls.PROJECT_LABEL: project,
+        }
+
+    @staticmethod
+    def _has_ownership(resource, expected_labels) -> bool:
+        labels = resource.get("metadata", {}).get("labels", {}) or {}
+        return all(labels.get(key) == value for key, value in expected_labels.items())
+
+    @staticmethod
+    def _resources_by_name(resources, resource_type):
+        indexed = {}
+        for resource in resources:
+            name = str(resource.get("metadata", {}).get("name", "")).strip()
+            if not name:
+                continue
+            if name in indexed:
+                raise ValueError(f"{resource_type} returned duplicate name {name!r}")
+            indexed[name] = resource
+        return indexed
+
+    @staticmethod
+    def _desired_resource(item, resource_type):
+        if not isinstance(item, dict):
+            raise TypeError(f"Desired {resource_type} must be a mapping")
+        name = str(item.get("metadata", {}).get("name", "")).strip()
+        spec = item.get("spec")
+        if not name or not isinstance(spec, dict):
+            raise ValueError(f"Desired {resource_type} requires metadata.name and spec")
+        return name, dict(spec)
+
+    @staticmethod
+    def _resource_uid(resource, resource_type, name):
+        uid = str(resource.get("metadata", {}).get("uid", "")).strip()
+        if not uid:
+            raise ValueError(f"{resource_type} {name!r} has no metadata.uid")
+        return uid
+
+    @classmethod
+    def _canonical_resource_key(cls, resource, ownership):
+        """Prefer an owned resource, then the oldest resource, then its UID."""
+        metadata = resource.get("metadata", {}) or {}
+        return (
+            not cls._has_ownership(resource, ownership),
+            str(metadata.get("createdAt", "")),
+            str(metadata.get("uid", "")),
+        )
+
+    @staticmethod
+    def _group_spec(spec):
+        return {
+            "description": str(spec.get("description", "")),
+            "template": str(spec.get("template", "")),
+            "metaData": dict(spec.get("metaData") or {}),
+            "osVersion": str(spec.get("osVersion", "")),
+        }
+
+    @staticmethod
+    def _cluster_defaults_spec(spec):
+        return {
+            "description": str(spec.get("description", "")),
+            "base_url": str(spec.get("base_url", "")),
+            "cloud_provider": str(spec.get("cloud_provider", "")),
+            "region": str(spec.get("region", "")),
+            "availability_zone": str(spec.get("availability_zone", "")),
+            "cluster_name": str(spec.get("cluster_name", "")),
+            "short_name": str(spec.get("short_name", "")),
+            "nid_length": int(spec.get("nid_length", 0) or 0),
+            "public_keys": list(spec.get("public_keys") or []),
+        }
+
+    def _verify_metadata_groups(self, desired, ownership):
+        existing = self._resources_by_name(
+            self.metadata.groups(), "Metadata Service group"
+        )
+        for item in desired:
+            name, desired_spec = self._desired_resource(item, "group")
+            current = existing.get(name)
+            if current is None:
+                raise ValueError(
+                    f"Metadata Service did not persist desired group {name!r}"
+                )
+            if self._group_spec(current.get("spec") or {}) != self._group_spec(
+                desired_spec
+            ):
+                raise ValueError(
+                    f"Metadata Service group {name!r} does not match desired spec"
+                )
+            if not self._has_ownership(current, ownership):
+                raise ValueError(
+                    f"Metadata Service group {name!r} is missing Omnia ownership labels"
+                )
+            status = current.get("status") or {}
+            error_message = status.get("errorMessage") or status.get("errorDetails")
+            if status.get("valid") is False and error_message:
+                raise ValueError(
+                    f"Metadata Service group {name!r} is invalid: {error_message}"
+                )
+
+    def _verify_cluster_defaults(
+        self, name, desired_spec, ownership, expected_uid=None
+    ):
+        matches = [
+            resource
+            for resource in self.metadata.cluster_defaults()
+            if str(resource.get("metadata", {}).get("name", "")).strip() == name
+        ]
+        if expected_uid:
+            matches = [
+                resource
+                for resource in matches
+                if str(resource.get("metadata", {}).get("uid", "")).strip()
+                == expected_uid
+            ]
+        if not matches:
+            raise ValueError(
+                f"Metadata Service did not persist ClusterDefaults {name!r}"
+            )
+        current = matches[0]
+        if self._cluster_defaults_spec(
+            current.get("spec") or {}
+        ) != self._cluster_defaults_spec(desired_spec):
+            raise ValueError(
+                f"Metadata Service ClusterDefaults {name!r} does not match desired spec"
+            )
+        if not self._has_ownership(current, ownership):
+            raise ValueError(
+                f"Metadata Service ClusterDefaults {name!r} is missing "
+                "Omnia ownership labels"
+            )
 
     @staticmethod
     def _unique(values) -> list[str]:

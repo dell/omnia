@@ -2,97 +2,121 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
-"""
-Orchestrator Prepare — OpenCHAMI Verification Tests.
-
-ORCH_FVT_PREPARE_V001: Verify all OpenCHAMI containers are running
-ORCH_FVT_PREPARE_V002: Verify OpenCHAMI systemd services are active
-ORCH_FVT_PREPARE_V003: Verify OpenCHAMI API is reachable
-"""
+"""OpenCHAMI postconditions produced by Orchestrator prepare."""
 
 import pytest
-
-from library.functions import (
-    TestLogger,
-    check_openchami_containers,
-    check_services_active,
-    check_openchami_api_reachable,
+from library.functions import TestLogger
+from library.functions.openchami_prepare_func import (
+    check_prepare_openchami_apis,
+    check_prepare_openchami_artifacts,
+    check_prepare_openchami_containers,
+    check_prepare_openchami_services,
+    check_prepare_openchami_storage,
+)
+from library.functions.postgres_prepare_func import (
+    check_prepare_postgresql_readiness,
 )
 from library.messages import (
-    TEST_NAMES,
-    TEST_LOG_MSGS as LOG,
-    TEST_ASSERT_MSGS as ASSERT,
+    PREPARE_TEST_ASSERT_MSGS as ASSERT,
 )
+from library.messages import (
+    PREPARE_TEST_LOG_MSGS as LOG,
+)
+from library.vars import TEST_CASES as TC
+
+pytestmark = [pytest.mark.sanity]
 
 
-@pytest.mark.sanity
-@pytest.mark.buildstream
+def _assert_result(test_log, component, result):
+    """Record one structured prepare result and enforce its postcondition."""
+    if result["success"]:
+        test_log.passed_fields(
+            LOG["check_passed"].format(component=component),
+            result["fields"],
+        )
+    else:
+        test_log.failed_fields(
+            LOG["check_failed"].format(component=component),
+            [*result["fields"], ("Error", result["error"])],
+        )
+    assert result["success"], ASSERT["verification_failed"].format(
+        component=component,
+        error=result["error"],
+    )
+
+
 @pytest.mark.order(1)
 def test_openchami_containers_running(host):
-    """ORCH_FVT_PREPARE_V001: Verify all OpenCHAMI containers are running."""
-    tl = TestLogger(
-        TEST_NAMES["openchami_container_running"].format(
-            container="all"
-        ),
-        "ORCH_FVT_PREPARE_V001",
-    )
-    result = check_openchami_containers(host)
-
-    if result["success"]:
-        tl.passed(
-            LOG["container_running"].format(container="all OpenCHAMI"),
-            result["details"],
-        )
-    else:
-        tl.failed(
-            LOG["container_not_running"].format(container="OpenCHAMI"),
-            result["details"],
-        )
-
-    assert result["success"], ASSERT["container_not_running"].format(
-        container="OpenCHAMI", status=result.get("error", "unknown"),
+    """Verify all long-running OpenCHAMI containers."""
+    tc = TC["openchami_containers"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(
+        test_log,
+        "OpenCHAMI containers",
+        check_prepare_openchami_containers(host),
     )
 
 
-@pytest.mark.sanity
-@pytest.mark.buildstream
 @pytest.mark.order(2)
-def test_openchami_services_active(host):
-    """ORCH_FVT_PREPARE_V002: Verify OpenCHAMI systemd services are active."""
-    tl = TestLogger(TEST_NAMES["openchami_services_active"], "ORCH_FVT_PREPARE_V002")
-    result = check_services_active(host)
-
-    if result["success"]:
-        tl.passed(LOG["services_active_ok"], result["details"])
-    else:
-        tl.failed(
-            LOG["services_inactive"].format(count=result["error"]),
-            result["details"],
-        )
-
-    assert result["success"], result["error"]
+def test_openchami_services_ready(host):
+    """Verify OpenCHAMI units and successful SMD initialization."""
+    tc = TC["openchami_services"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(
+        test_log,
+        "OpenCHAMI services",
+        check_prepare_openchami_services(host),
+    )
 
 
 @pytest.mark.functional
+@pytest.mark.sanity
 @pytest.mark.order(3)
-def test_openchami_api_reachable(host):
-    """ORCH_FVT_PREPARE_V003: Verify OpenCHAMI API is reachable."""
-    tl = TestLogger(TEST_NAMES["openchami_api_reachable"], "ORCH_FVT_PREPARE_V003")
-    result = check_openchami_api_reachable(host)
+def test_openchami_apis_ready(host):
+    """Verify the authenticated SMD, Boot and Metadata APIs."""
+    tc = TC["openchami_apis"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(
+        test_log,
+        "OpenCHAMI APIs",
+        check_prepare_openchami_apis(host),
+    )
 
-    if result["success"]:
-        tl.passed(LOG["api_reachable_ok"], result["details"])
-    else:
-        tl.failed(LOG["api_not_reachable"], result["details"])
 
-    assert result["success"], result["error"]
+@pytest.mark.order(4)
+def test_openchami_persistent_storage_and_tls(host):
+    """Verify persistent data volumes and HAProxy certificates."""
+    tc = TC["openchami_storage"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(
+        test_log,
+        "OpenCHAMI storage and TLS",
+        check_prepare_openchami_storage(host),
+    )
+
+
+@pytest.mark.order(5)
+def test_openchami_packages_and_artifacts(host):
+    """Verify installed packages and generated configuration files."""
+    tc = TC["openchami_artifacts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(
+        test_log,
+        "OpenCHAMI artifacts",
+        check_prepare_openchami_artifacts(host),
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.sanity
+@pytest.mark.order(13)
+def test_postgresql_readiness(host):
+    """Verify PostgreSQL and its required SMD database contract."""
+    tc = TC["postgresql_readiness"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(
+        test_log,
+        "PostgreSQL readiness",
+        check_prepare_postgresql_readiness(host),
+    )
