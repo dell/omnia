@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+PLATFORM_HELPER="/hpc_tools/scripts/omnia_platform.sh"
+. "$PLATFORM_HELPER" || exit 1
+omnia_detect_platform || exit 1
+
 LOGIN_COMPILER_PRESENT="{{ login_compiler_node_present | lower }}"
 SLURM_NODE_PRESENT="{{ slurm_node_present | lower }}"
 
@@ -19,7 +23,8 @@ if [ "$LOGIN_COMPILER_PRESENT" = "true" ]; then
     echo "[INFO] Login/compiler nodes present → mounting shared toolkit from NFS."
     # Mount shared toolkit at /usr/local/cuda
     mkdir -p /usr/local/cuda
-    CUDA_NFS="/hpc_tools/cuda"
+    CUDA_NFS="${OMNIA_PLATFORM_ROOT}/cuda"
+    mkdir -p "$CUDA_NFS"
     if ! mountpoint -q /usr/local/cuda; then
         mount --bind "$CUDA_NFS" /usr/local/cuda || true
     fi

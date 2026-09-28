@@ -12,14 +12,17 @@ exec > >(tee -a "$LOGFILE") 2>&1
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BENCHMARK_TOOLS_LIST="${SCRIPT_DIR}/benchmark_tools.list"
 HPC_TOOLS_DIR="/hpc_tools"
-ARCH="$(uname -m)"
-OS_VERSION="{{ hostvars['localhost']['cluster_os_version'] }}"
+PLATFORM_HELPER="${HPC_TOOLS_DIR}/scripts/omnia_platform.sh"
+. "$PLATFORM_HELPER" || exit 1
+omnia_detect_platform || exit 1
+ARCH="$OMNIA_ARCH"
 PULP_SERVER="{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
 PULP_CONTENT_BASE="https://${PULP_SERVER}/pulp/content/offline_repo/cluster"
 
 echo "===== Starting Benchmark Tarball Pull Script (Pulp Only) ====="
 echo "[INFO] Timestamp: $(date)"
 echo "[INFO] Architecture: $ARCH"
+echo "[INFO] Platform: $OMNIA_OS_TYPE $OMNIA_OS_VERSION"
 echo "[INFO] Pulp mirror: $PULP_SERVER"
 
 # Check prerequisites
@@ -105,8 +108,8 @@ while IFS= read -r tool || [ -n "$tool" ]; do
         continue
     fi
 
-    PULP_URL="${PULP_CONTENT_BASE}/${ARCH}/rhel/${OS_VERSION}/tarball/${tool}"
-    DEST_DIR="${HPC_TOOLS_DIR}/${tool}"
+    PULP_URL="${PULP_CONTENT_BASE}/${OMNIA_PULP_PLATFORM_PATH}/tarball/${tool}"
+    DEST_DIR="${OMNIA_PLATFORM_ROOT}/${tool}"
 
     echo "[INFO] Pulp URL: $PULP_URL"
     echo "[INFO] Destination: $DEST_DIR"
