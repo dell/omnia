@@ -34,11 +34,17 @@ tool to catch a mistaken or malicious path for you.
 1. `src/build_stream/ai_skills/catalog_editing/pre_edit_gate.md` — run
    this BEFORE applying any edit. It is not optional for a "trivial"
    edit; a non-applicable analysis is still disclosed, not skipped
-   silently.
+   silently. It also owns taking the pre-edit snapshot this skill's edit
+   overwrites in place — see its Step 4.
 2. `src/repo_manager/schemas/catalog_schema.json` — the schema gate.
 3. `src/build_stream/ai_skills/master_reference/master_reference_file.md`
    — for resolving a package's correct group/section, version, and
    metadata tags when the operator's request doesn't fully specify them.
+4. `src/build_stream/ai_skills/shared/working_directory.md` — the
+   scratch-file convention `pre_edit_gate.md` uses for the pre-edit
+   snapshot and any input files this skill builds (e.g. the
+   `catalog_manager.py add`/`delete` input file in the Worked Example
+   below).
 
 ## Procedure
 

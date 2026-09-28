@@ -22,6 +22,15 @@ Catalogue** table: `os_version`, `architecture`, `stack`, `node_role`,
 
 ## Procedure
 
+0. **When presenting a menu of choices on an A.1 axis** (rather than reacting
+   to a specific request), list only the `option` rows whose `support_status`
+   is `supported`. Do NOT include a `planned` or `unsupported` option in the
+   presented list "for completeness" or "for context" — every option you
+   show should be one the operator can actually pick without triggering a
+   refusal. This applies whether the axis has one supported option (e.g.
+   `gpu`, where only NVIDIA is `supported`) or several. A `planned`/
+   `unsupported` option only enters the conversation if the operator
+   explicitly names it themselves, which is Step 5 below, not this step.
 1. **Read the A.1 Selection Catalogue table** from `master_reference_file.md`
    in this directory. Read the whole table, not just the row you expect to
    match — you need every row on the requested axis to state alternatives.
@@ -51,6 +60,14 @@ Catalogue** table: `os_version`, `architecture`, `stack`, `node_role`,
    made from the master reference file, not a live source (NFR-5).
 
 ## Worked examples
+
+**Presenting a menu (Step 0 — supported options only):**
+> Catalog Generation reaches Step 1's GPU selection and needs to ask the
+> operator what GPU to use. A.1 has two `gpu` rows: NVIDIA (`supported`)
+> and AMD / ROCm (`planned`). Present: "GPU options: NVIDIA, or none." Do
+> not also list "AMD / ROCm (planned, not yet available)" in that same
+> menu — it only comes up if the operator asks for it by name, which
+> Step 5 then handles.
 
 **Supported selection (allow):**
 > Operator asks for storage "VAST (NFS/RDMA)" on the "slurm" stack.

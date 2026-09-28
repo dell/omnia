@@ -10,6 +10,7 @@
     --added: #067647;
     --removed: #b42318;
     --changed: #175cd3;
+    --info: #475467;
     --border: #e5e7eb;
     --bg-muted: #f8fafc;
   }
@@ -36,12 +37,14 @@
   .badge.changed { background: var(--changed); }
   .badge.blocking { background: var(--blocking); }
   .badge.warning { background: var(--warning); }
+  .badge.info { background: var(--info); }
   .empty { color: #6b7280; font-style: italic; }
   .warning-card {
     border: 1px solid var(--border); border-left: 4px solid var(--warning);
     border-radius: 4px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; background: var(--bg-muted);
   }
   .warning-card.blocking { border-left-color: var(--blocking); }
+  .warning-card.info { border-left-color: var(--info); }
   .warning-card .constraint-id { font-weight: 700; font-family: monospace; }
   .summary-counts { color: #374151; font-size: 0.95rem; }
   ul.notes { margin: 0.25rem 0 1.5rem; padding-left: 1.25rem; }
@@ -72,6 +75,15 @@
   {{ summary.packages.changed | length }} changed
 </p>
 {% if summary.packages.added or summary.packages.removed or summary.packages.changed %}
+{% if cutover and version_bump_packages %}
+<div class="warning-card">
+  <span class="badge changed">CONSOLIDATED</span>
+  <p>{{ version_bump_packages | length }} package(s) version-bumped
+    {{ cutover.old_version }} &rarr; {{ cutover.new_version }} only (no other
+    change), as part of the base-OS-version cutover:
+    {{ version_bump_packages[:10] | map(attribute='key') | join(', ') }}{% if version_bump_packages | length > 10 %}, and {{ version_bump_packages | length - 10 }} more{% endif %}.</p>
+</div>
+{% endif %}
 <table>
   <thead><tr><th>Change</th><th>Package</th><th>Before</th><th>After</th></tr></thead>
   <tbody>
@@ -83,7 +95,7 @@
     <tr><td><span class="badge removed">removed</span></td><td>{{ item.key }}</td>
       <td>{{ package_label(item.value) }}</td><td>&mdash;</td></tr>
     {% endfor %}
-    {% for item in summary.packages.changed %}
+    {% for item in (other_changed_packages if cutover else summary.packages.changed) %}
     <tr><td><span class="badge changed">changed</span></td><td>{{ item.key }}</td>
       <td>{{ package_label(item.old) }}</td><td>{{ package_label(item.new) }}</td></tr>
     {% endfor %}
@@ -144,6 +156,19 @@
 {% endif %}
 
 <h2>Base OS, Architecture, and Catalog Metadata Impact</h2>
+{% if cutover %}
+<p class="summary-counts">Base-OS-version cutover: {{ cutover.old_version }} &rarr;
+  {{ cutover.new_version }} ({{ cutover.renamed_layers | length }} functional layer(s)
+  renamed, components unchanged)</p>
+<table>
+  <thead><tr><th>Old Functional Layer</th><th>New Functional Layer</th></tr></thead>
+  <tbody>
+    {% for old_name, new_name in cutover.renamed_layers %}
+    <tr><td>{{ old_name }}</td><td>{{ new_name }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 {% if base_os_notes or architecture_notes or summary.catalog_fields %}
 <ul class="notes">
   {% for note in base_os_notes %}<li>{{ note }}</li>{% endfor %}
@@ -152,7 +177,7 @@
   <li>{{ item.field }}: {{ item.old }} &rarr; {{ item.new }}</li>
   {% endfor %}
 </ul>
-{% else %}
+{% elif not cutover %}
 <p class="empty">No base OS, architecture, or catalog-metadata changes.</p>
 {% endif %}
 

@@ -30,6 +30,10 @@ Two artifacts are always produced, and are never merged into each other:
 3. `src/build_stream/ai_skills/master_reference/master_reference_file.md`
    — A.8 Constraint and Co-Requisite Table, specifically CON-004 and
    CON-007, which the changelog's compatibility/dependency warnings cite.
+4. `src/build_stream/ai_skills/shared/working_directory.md` — where to put
+   `forward_diff.json`/`reverse_diff.json`/the rendered changelog files when
+   the operator (or a calling skill such as `pre_edit_gate.md`) hasn't named
+   specific output paths.
 
 ## Procedure
 
@@ -39,18 +43,24 @@ A catalog can hold hundreds of packages; do not attempt to manually compare
 two full catalogs and enumerate every add/remove/version-change yourself —
 that degrades badly with scale and fails silently (a missed item looks
 like a clean diff, not an error). If you have shell access, run the
-existing tool:
+existing tool. When the operator hasn't named specific output paths, write
+the outputs into this invocation's working directory
+(`shared/working_directory.md`) rather than the current directory:
 
 ```bash
 python3 src/repo_manager/plugins/module_utils/catalog/catalog_manager.py diff \
   --current <path-to-current-catalog.json> \
   --future <path-to-future-catalog.json> \
   --schema src/repo_manager/schemas/catalog_schema.json \
-  --output-forward forward_diff.json \
-  --output-reverse reverse_diff.json \
-  --output-changelog changelog.md \
-  --output-html changelog.html
+  --output-forward $WORKDIR/forward_diff.json \
+  --output-reverse $WORKDIR/reverse_diff.json \
+  --output-changelog $WORKDIR/changelog.md \
+  --output-html $WORKDIR/changelog.html
 ```
+
+Copy `changelog.md`/`changelog.html` (and, if the operator wants them,
+`forward_diff.json`/`reverse_diff.json`) to their real destination before
+`$WORKDIR` is removed at the end of the procedure.
 
 - **Exit code 0:** the diff was computed and the reversibility invariant
   verified. `forward_diff.json`/`reverse_diff.json` are the machine-readable

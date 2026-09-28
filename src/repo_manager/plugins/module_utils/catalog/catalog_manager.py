@@ -41,7 +41,9 @@ from catalog.validator import validate_catalog, format_issues
 from catalog.transformer import detect_schema_version, transform, write_keymap
 from catalog.optimizer import optimize
 from catalog.differ import diff_catalogs, serialize_ops, CatalogFormatError, ReversibilityError
-from catalog.report_renderer import summarize, collect_warnings, render_changelog_text, render_html
+from catalog.report_renderer import (
+    summarize, collect_warnings, render_changelog_text, render_html, detect_os_version_cutover,
+)
 
 
 _CATALOG_FAILURE_MESSAGES = {
@@ -454,13 +456,14 @@ def cmd_diff(args):  # pylint: disable=too-many-locals
 
     summary = summarize(current_catalog['catalog'], future_catalog['catalog'],
                          result['forward_diff'])
+    cutover = detect_os_version_cutover(current_catalog['catalog'], future_catalog['catalog'])
     warnings = collect_warnings(current_catalog['catalog'], future_catalog['catalog'],
                                  result['forward_diff'])
     current_name = current_catalog['catalog'].get('name', args.current)
     future_name = future_catalog['catalog'].get('name', args.future)
 
     changelog_text = render_changelog_text(current_name, future_name,
-                                            result['schema_version'], summary, warnings)
+                                            result['schema_version'], summary, warnings, cutover)
     if args.output_changelog:
         with open(args.output_changelog, 'w', encoding='utf-8') as fh:
             fh.write(changelog_text)
@@ -469,7 +472,7 @@ def cmd_diff(args):  # pylint: disable=too-many-locals
 
     if args.output_html:
         html = render_html(current_name, future_name, result['schema_version'],
-                            summary, warnings)
+                            summary, warnings, cutover)
         if html is None:
             logger.warning("HTML report requested but jinja2 is not installed -- skipped")
         else:
