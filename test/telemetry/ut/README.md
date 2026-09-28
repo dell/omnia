@@ -47,14 +47,14 @@ UT IDs use `TEL_UT_<SEQ>`: `TEL` is the stable Telemetry domain code, `UT` ident
 
 ### OME Victoria Functions (TEL_UT_023–TEL_UT_028)
 
-| TC ID | Test | Marker | Note |
-|-------|------|--------|------|
-| TEL_UT_023 | Collect metric results uses original metric names | ut | |
-| TEL_UT_024 | Collect metric results keeps metric names | ut | |
-| TEL_UT_025 | Verify metrics normalizes custom OME identifier | ut | SKIPPED - requires complex mocking |
-| TEL_UT_026 | Verify logs skips when bridge is disabled | ut | SKIPPED - requires complex mocking |
-| TEL_UT_027 | Parse log timestamp accepts ISO and nanoseconds | ut | |
-| TEL_UT_028 | Extract log fields returns readable names | ut | |
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TEL_UT_023 | Collect metric results uses original metric names | ut |
+| TEL_UT_024 | Collect metric results keeps metric names | ut |
+| TEL_UT_025 | Verify metrics normalizes custom OME identifier | ut |
+| TEL_UT_026 | Verify logs skips when bridge is disabled | ut |
+| TEL_UT_027 | Parse log timestamp accepts ISO and nanoseconds | ut |
+| TEL_UT_028 | Extract log fields returns readable names | ut |
 
 ### iDRAC Lifecycle (TEL_UT_029–TEL_UT_036)
 
@@ -131,13 +131,13 @@ pytest ut/ -vv -s
 All UT tests should **PASS**:
 
 ```
-Total Tests:           59
-├─ Passed:             55 (93%)
+Total Tests:           66
+├─ Passed:             64 (97%)
 ├─ Failed:              0 (0%)
-└─ Skipped:             4 (7%) — Expected behavior
+└─ Skipped:             2 (3%) — Expected behavior
 
 OME Functions (TEL_UT_001–TEL_UT_022): 22/22 PASS
-OME Victoria (TEL_UT_023–TEL_UT_028): 4/6 PASS (2 skipped)
+OME Victoria (TEL_UT_023–TEL_UT_028): 6/6 PASS
 iDRAC Lifecycle (TEL_UT_029–TEL_UT_036): 8/8 PASS
 Sink Enablement (TEL_UT_037–TEL_UT_039): 3/3 PASS
 Cleanup Sinks Parameter Normalization: 18/20 PASS (2 skipped)
