@@ -135,10 +135,40 @@ def _cloud_init_state(host, row, report_node) -> tuple[bool, str]:
 
 
 def check_node_cloud_init(host):
-    """Verify direct cloud-init state and correlate available PXE evidence."""
+    """Verify direct cloud-init state and correlate available PXE evidence.
+
+    When ``pxeboot_status.yml`` is not available (e.g. the verify suite
+    runs after provision but before a PXE boot lifecycle), every node is
+    probed directly via SSH using the PXE mapping file as the source of
+    truth for administrative addresses.
+    """
     try:
         context = load_runtime_context(host)
         report = context["pxeboot_status"]
+        rows = context["rows"]
+
+        # Direct-probe path: no PXE status file available.
+        if report is None:
+            outcomes = {}
+            for row in rows:
+                ok, detail = direct_cloud_init_probe(host, row)
+                outcomes[row["HOSTNAME"]] = (ok, detail)
+            failed = [name for name, outcome in outcomes.items() if not outcome[0]]
+            return runtime_result(
+                not failed,
+                "Fresh PXE boot and cloud-init",
+                [
+                    ("PXE run ID", "N/A (direct probe from mapping file)"),
+                    ("Mapped nodes", len(rows)),
+                    ("Verification mode", "direct SSH probe"),
+                    *group_fields(rows, outcomes),
+                ],
+                "Cloud-init verification failed for: " + ", ".join(failed)
+                if failed
+                else "",
+            )
+
+        # Report-correlated path: PXE status file is available.
         if report.get("phase") != "pxeboot":
             raise ValueError("pxeboot_status.yml does not describe the PXE phase")
         if report.get("overall_status") != "success":
@@ -146,7 +176,7 @@ def check_node_cloud_init(host):
         report_nodes = _report_nodes(report)
         outcomes = {}
         report_coverage = 0
-        for row in context["rows"]:
+        for row in rows:
             report_node = report_nodes.get(row["HOSTNAME"])
             if report_node is None:
                 direct_ok, direct_detail = direct_cloud_init_probe(host, row)
@@ -167,12 +197,12 @@ def check_node_cloud_init(host):
             "Fresh PXE boot and cloud-init",
             [
                 ("PXE run ID", report.get("run_id", "unknown")),
-                ("Mapped nodes", len(context["rows"])),
+                ("Mapped nodes", len(rows)),
                 (
                     "Latest PXE report coverage",
-                    f"{report_coverage}/{len(context['rows'])}",
+                    f"{report_coverage}/{len(rows)}",
                 ),
-                *group_fields(context["rows"], outcomes),
+                *group_fields(rows, outcomes),
             ],
             "Cloud-init verification failed for: " + ", ".join(failed)
             if failed
