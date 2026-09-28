@@ -337,20 +337,20 @@ class TestAllocationNormalizer:
 
 
 # ===================================================================
-# TC-UT-004: Legacy Adapter — IB_IP compatibility projection
+# TC-UT-004: Legacy Adapter — IB_IPV4 compatibility projection
 # ===================================================================
 
 class TestLegacyAdapter:
-    """TC-UT-004: Legacy Adapter — IB_IP compatibility projection."""
+    """TC-UT-004: Legacy Adapter — IB_IPV4 compatibility projection."""
 
-    def test_single_ipv4_interface_projects_ib_ip(self):
-        """ORCH_UT_130: Single IPv4 interface projects to flat IB_IP."""
+    def test_single_ipv4_interface_projects_ib_ipv4(self):
+        """ORCH_UT_130: Single IPv4 interface projects to flat IB_IPV4."""
         data = _ipv4_single_interface_export()
         active, _ = validator.filter_active(data["allocations"])
         per_node = validator.normalize_per_node(active)
         result = validator.legacy_ib_ip_projection(per_node["nid0010"])
         assert result is not None
-        assert result["IB_IP"] == "10.0.1.10"
+        assert result["IB_IPV4"] == "10.0.1.10"
 
     def test_multi_interface_returns_none(self):
         """ORCH_UT_131: Multi-interface node returns None (no legacy projection)."""
@@ -361,7 +361,7 @@ class TestLegacyAdapter:
         assert result is None
 
     def test_ipv6_only_interface_returns_none(self):
-        """ORCH_UT_132: IPv6-only interface returns None (no IB_IP for IPv6)."""
+        """ORCH_UT_132: IPv6-only interface returns None (no IB_IPV4 for IPv6)."""
         data = _valid_allocation_export()
         active, _ = validator.filter_active(data["allocations"])
         per_node = validator.normalize_per_node(active)

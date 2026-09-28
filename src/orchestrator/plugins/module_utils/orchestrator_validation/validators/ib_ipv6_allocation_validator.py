@@ -381,16 +381,16 @@ def normalize_per_node(
 
 
 # ---------------------------------------------------------------------------
-# Legacy Adapter — flat IB_IP compatibility projection
+# Legacy Adapter — flat IB_IPV4 compatibility projection
 # ---------------------------------------------------------------------------
 
 def legacy_ib_ip_projection(
     node_interfaces: dict[str, list[dict[str, Any]]],
 ) -> dict[str, Any] | None:
-    """Project a single-interface node into a flat IB_IP-compatible record.
+    """Project a single-interface node into a flat IB_IPV4-compatible record.
 
     This adapter supports backward compatibility with existing consumers
-    that expect a single IPv4 ``IB_IP`` field per node. Returns ``None``
+    that expect a single IPv4 ``IB_IPV4`` field per node. Returns ``None``
     for multi-interface nodes (they use the full normalized model).
 
     Args:
@@ -398,7 +398,7 @@ def legacy_ib_ip_projection(
             node.
 
     Returns:
-        ``{"IB_IP": "<ipv4_address>"}`` dict for single-interface nodes
+        ``{"IB_IPV4": "<ipv4_address>"}`` dict for single-interface nodes
         with an IPv4 allocation, or ``None``.
     """
     if len(node_interfaces) != 1:
@@ -412,7 +412,7 @@ def legacy_ib_ip_projection(
     if len(ipv4_records) != 1:
         return None
 
-    return {"IB_IP": ipv4_records[0].get("address", "")}
+    return {"IB_IPV4": ipv4_records[0].get("address", "")}
 
 
 # ---------------------------------------------------------------------------

@@ -53,6 +53,11 @@
 #
 # ib_network defines the InfiniBand network subnet, CIDR prefix length, and
 # optional DNS server addresses.
+#
+# IPv6 support (ER-ORCH-005): When ipv6_subnet and ipv6_netmask_bits are set,
+# the IPoIB cloud-init script configures dual-stack (IPv4 + IPv6) on each
+# IB interface. The per-node IPv6 address comes from IB_IPV6 in the PXE
+# mapping file. Leave ipv6_subnet empty to keep IPv4-only behavior.
 
 Networks:
   - admin_network:
@@ -68,6 +73,8 @@ Networks:
       additional_subnets: []
 
   - ib_network:
-      subnet: "192.168.0.0"
-      netmask_bits: "24"
+      ipv4_subnet: "192.168.0.0"
+      ipv4_netmask_bits: "24"
       dns: []
+      ipv6_subnet: "fd00:1b::"
+      ipv6_netmask_bits: "64"
