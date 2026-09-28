@@ -17,9 +17,32 @@ and external-pool relationships are checked before provisioning.
 System availability checks such as NFS reachability, S3 image access, and OIM
 connectivity belong to `orchestrator_validations`, not this role.
 
+## Requirements
+
+- Active project input directory containing `orchestrator_config.yml`.
+- Python dependencies required by the validation module installed in the Omnia
+  virtual environment.
+- Schema files under `plugins/module_utils/orchestrator_validation/schema/`.
+
 ## Role Variables
 
 See `vars/main.yml` and `defaults/main.yml` for available variables.
+
+## Dependencies
+
+No automatic dependency is declared in `meta/main.yml`. This role invokes the
+`validate_orchestrator_config` module.
+
+## Example
+
+```yaml
+- hosts: localhost
+  connection: local
+  roles:
+    - validate_orchestrator_input
+```
+
+The normal route is `orchestrator.yml --tags validate`.
 
 ## License
 
