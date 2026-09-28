@@ -44,6 +44,11 @@ provisioning-password hash uses a stable project-and-cluster salt and receives
 the plaintext through standard input, preventing unchanged runs from creating
 false metadata drift or exposing the password in a process argument.
 
+Boot Service configurations also use the shared CA-verified client. Unchanged
+functional-group configurations are retained, changed configurations are
+replaced by name and verified by readback, and stale configurations are
+removed only when they reference a node MAC managed by the current category.
+
 Kubernetes and Slurm Metadata Service templates resolve NFS and VAST paths only
 from storage names declared in `omnia_config.yml` and matching entries in
 `storage_config.yml`. Provisioning fails before publishing cloud-init when a

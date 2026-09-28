@@ -175,20 +175,20 @@ Provisioning records desired-state changes in `orchestrator_status.yml`:
 
 | Field | Meaning |
 |-------|---------|
-| `identity_changed` | The run created the persistent Service Tag-to-XNAME binding |
-| `metadata_changed` | Desired metadata differs from the last verified node application |
-| `running_state_updated` | PXE and node verification confirmed the desired state was applied |
+| `status` | Aggregate node state: success, pending, or failed |
 | `reprovision_required` | A successful verified PXE boot is still required |
+| `provisioning_status` | Latest OpenCHAMI desired-state result |
+| `pxeboot.status` | Latest PXE attempt result |
+| `pxeboot.state` | Compact PXE or node-verification state |
 
 A repeated provision run preserves an existing `reprovision_required: true`
 state even when reconciliation is otherwise idempotent. Provisioning alone does
 not claim that a running node consumed new metadata.
 
 After PXE boot, passwordless SSH, boot freshness, and cloud-init completion are
-verified on the node. A successful verified boot clears `metadata_changed` and
-`reprovision_required` and sets `running_state_updated: true`. Disabling
-verification or manually booting a node does not automatically prove that the
-desired runtime state was applied.
+verified on the node. A successful verified boot clears
+`reprovision_required`. Disabling verification or manually booting a node does
+not automatically prove that the desired runtime state was applied.
 
 ## 10. Security and Recovery
 

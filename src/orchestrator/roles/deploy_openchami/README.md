@@ -12,9 +12,18 @@ Installs or refreshes the OpenCHAMI 0.2.0 Fabrica deployment and starts the
 5. Configures firewall, hosts, packages, HAProxy, TokenSmith, and certificates.
 6. Starts and verifies the aggregate OpenCHAMI target.
 7. Refreshes network configuration when an installation already exists.
+8. Renews missing, mismatched, expired, or near-expiry HAProxy certificates
+   and enables the packaged daily certificate-renewal timer.
 
 The deployment includes SMD and PostgreSQL, Boot Service, Metadata Service,
 TokenSmith, local CA/ACME units, CoreSMD DHCP/DNS, and HAProxy.
+
+Certificate renewal is internal and requires no project input. Omnia uses the
+OpenCHAMI RPM's `openchami-cert-renewal.service`, verifies the deployed
+certificate has more than 13 hours remaining, and enables
+`openchami-cert-renewal.timer`. The timer uses the schedule supplied by the
+OpenCHAMI package, so the packaged daily interval remains authoritative. The
+24-hour server certificate is renewed by the packaged lifecycle.
 
 ## Requirements
 

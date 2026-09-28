@@ -408,7 +408,7 @@ class MetadataClient:
 
 
 class BootServiceClient:
-    """Read operations used to validate Boot Service authentication."""
+    """Operations used to reconcile Boot Service configurations."""
 
     BASE = "/boot-service"
 
@@ -423,3 +423,23 @@ class BootServiceClient:
             "GET", f"{self.BASE}/bootconfigurations"
         ).body
         return body or []
+
+    def create_boot_configuration(self, payload: dict[str, Any]) -> Any:
+        """Create one boot configuration."""
+        return self.client.request_json(
+            "POST",
+            f"{self.BASE}/bootconfigurations",
+            payload,
+            expected=(200, 201),
+        ).body
+
+    def delete_boot_configuration(self, uid: str) -> bool:
+        """Delete one boot configuration, treating absence as success."""
+        path = (
+            f"{self.BASE}/bootconfigurations/"
+            f"{parse.quote(uid, safe='')}"
+        )
+        response = self.client.request_json(
+            "DELETE", path, expected=(200, 204, 404)
+        )
+        return response.status != 404
