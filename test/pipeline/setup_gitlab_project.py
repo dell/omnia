@@ -288,6 +288,10 @@ def load_pipeline_config(config_path):
     if global_cfg.get("utils_mode") is not None:
         variables["UTILS_MODE"] = str(global_cfg["utils_mode"])
 
+    # -- Global build_stream configuration
+    if global_cfg.get("build_stream_enable") is not None:
+        variables["BUILD_STREAM_ENABLE"] = str(global_cfg["build_stream_enable"])
+
     for cluster in cluster_names:
         cluster_cfg = cfg.get(cluster)
         if not cluster_cfg:
@@ -851,6 +855,7 @@ def generate_cluster_build_stream_trigger_job(cluster_name):
     REPO_MANAGER_TAGS: "${{{upper_prefix}_REPO_MANAGER_TAGS}}"
     IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_IMAGE_BUILD_MANAGER_TAGS}}"
     ORCHESTRATOR_TAGS: "${{{upper_prefix}_ORCHESTRATOR_TAGS}}"
+    BUILD_STREAM_TAGS: "${{{upper_prefix}_BUILD_STREAM_TAGS}}"
     TEST_MAIN_CMD: "${{{upper_prefix}_TEST_MAIN_CMD}}"
     TEST_REPO_MANAGER_CMD: "${{{upper_prefix}_TEST_REPO_MANAGER_CMD}}"
     TEST_IMAGE_BUILD_MANAGER_CMD: "${{{upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD}}"
@@ -1145,6 +1150,9 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("UTILS_ENABLE", "false"),
+            ("UTILS_MODE", "default_logs"),
+            ("BUILD_STREAM_ENABLE", "false"),
         ]
         for key, default_val in global_keys:
             if key not in config_vars:

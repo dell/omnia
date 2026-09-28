@@ -35,6 +35,13 @@ Start here → **[Quick Start Guide](QUICKSTART.md)**
 - Run utils validation tests
 - Utils modes and configuration
 
+### 🔄 **Deploying Build Stream?**
+→ **[Build Stream Pipeline Guide](BUILD_STREAM_PIPELINE.md)**
+- Deploy build_stream domain with unified base setup
+- Prepare base infrastructure (repo_manager, image_build_manager, orchestrator)
+- Test base domains and build_stream
+- Build stream pipeline configuration and examples
+
 ### ⚙️ **Configuring Everything?**
 → **[Configuration Reference](CONFIGURATION.md)**
 - Complete `pipeline_config.yml` reference
@@ -95,6 +102,7 @@ Each cluster runs as a completely independent child pipeline. If one cluster fai
 
 - **Deploy to a single server** → [Quick Start](QUICKSTART.md)
 - **Deploy to multiple servers** → [Configuration Reference](CONFIGURATION.md#multi-cluster-deployment)
+- **Deploy build_stream domain** → [Build Stream Pipeline](BUILD_STREAM_PIPELINE.md)
 - **Redeploy a single domain** → [Pipeline Modes](PIPELINE_MODES.md#scenario-2-redeploy-only-repo_manager-after-changing-pulp-credentials)
 - **Clean up and start fresh** → [Pipeline Modes](PIPELINE_MODES.md#scenario-5-full-cleanup-of-everything-on-the-target)
 - **Collect logs from cluster** → [Utils Pipeline](UTILS_PIPELINE.md#example-1-collect-logs-default)
@@ -198,6 +206,7 @@ test/pipeline/
 │   ├── OPENBAO_SETUP.md             ← OpenBao configuration
 │   ├── PIPELINE_MODES.md            ← Deployment strategies
 │   ├── UTILS_PIPELINE.md            ← Utils operations (log collection, install_os)
+│   ├── BUILD_STREAM_PIPELINE.md     ← Build stream deployment
 │   ├── CONFIGURATION.md             ← Complete reference
 │   └── TROUBLESHOOTING.md           ← Common issues & solutions
 ├── .gitlab-ci.yml                   ← Parent pipeline (multi-cluster)
@@ -233,10 +242,15 @@ test/pipeline/
 ### Step 3: Customize Your Deployment
 → [Pipeline Modes & Domains](PIPELINE_MODES.md)
 
-### Step 4: Reference Configuration
+### Step 4: Choose Your Pipeline
+- **Standard Cluster Pipeline** → [Pipeline Modes & Domains](PIPELINE_MODES.md)
+- **Build Stream Pipeline** → [Build Stream Pipeline Guide](BUILD_STREAM_PIPELINE.md)
+- **Utils Pipeline** → [Utils Pipeline Guide](UTILS_PIPELINE.md)
+
+### Step 5: Reference Configuration
 → [Configuration Reference](CONFIGURATION.md)
 
-### Step 5: Troubleshoot Issues
+### Step 6: Troubleshoot Issues
 → [Troubleshooting Guide](TROUBLESHOOTING.md)
 
 ---
@@ -246,6 +260,7 @@ test/pipeline/
 - **Documentation:** Start with the [Quick Start Guide](QUICKSTART.md)
 - **Configuration Help:** See [Configuration Reference](CONFIGURATION.md)
 - **Deployment Strategies:** Check [Pipeline Modes & Domains](PIPELINE_MODES.md)
+- **Build Stream Deployment:** Visit [Build Stream Pipeline Guide](BUILD_STREAM_PIPELINE.md)
 - **Utils Operations:** Visit [Utils Pipeline Guide](UTILS_PIPELINE.md)
 - **Troubleshooting:** Visit [Troubleshooting Guide](TROUBLESHOOTING.md)
 - **OpenBao Issues:** See [OpenBao Setup Guide](OPENBAO_SETUP.md)
