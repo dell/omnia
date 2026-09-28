@@ -37,6 +37,7 @@
 #   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka","victoria_logs"]'
 #   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["victoria_metrics","victoria_logs"]'
 #   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka","victoria_metrics","victoria_logs"]'
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e sinks=kafka,victoria_metrics
 #
 # Extra Variables:
 #   sinks  - YAML list of sinks to deploy (default: all three)
@@ -73,10 +74,14 @@
         sinks_list: >-
           {%- if sinks is defined -%}
             {%- if sinks is string -%}
-              {{ sinks | from_yaml }}
-          {%- else -%}
+              {%- if (sinks | trim).startswith('[') -%}
+                {{ sinks | from_yaml }}
+              {%- else -%}
+                {{ sinks.split(',') | map('trim') | reject('equalto', '') | list }}
+              {%- endif -%}
+            {%- else -%}
               {{ sinks }}
-          {%- endif -%}
+            {%- endif -%}
           {%- else -%}
             {{ sinks_default }}
           {%- endif -%}

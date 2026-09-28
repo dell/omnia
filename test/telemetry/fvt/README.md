@@ -60,7 +60,7 @@ tag.
 | TEL_FVT_DEPLOY_V012 | Verify all iDRAC containers running | sanity |
 | TEL_FVT_DEPLOY_V013 | Verify MySQL data in iDRAC telemetry pods | functional |
 | TEL_FVT_DEPLOY_V014 | Verify iDRAC receiver is collecting metrics | functional |
-| TEL_FVT_DEPLOY_V015 | Verify iDRAC Kafka topic exists | sanity |
+| TEL_FVT_DEPLOY_V015 | Verify topic readiness and fresh iDRAC metrics in Kafka | sanity |
 | TEL_FVT_DEPLOY_V016 | Verify iDRAC VictoriaPump metrics endpoint | sanity |
 | TEL_FVT_DEPLOY_V017 | Verify iDRAC telemetry service exists | sanity |
 | TEL_FVT_DEPLOY_V018 | Verify iDRAC telemetry data in VictoriaMetrics | functional |

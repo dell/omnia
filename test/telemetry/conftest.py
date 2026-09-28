@@ -160,6 +160,9 @@ _TC_ID_MAP.update(
             "nft_data_after_restart"
         ]["id"],
         "test_node_reboot_recovery": TEST_CASES["nft_node_reboot"]["id"],
+        "test_idrac_data_lifecycle": TEST_CASES[
+            "nft_idrac_data_lifecycle"
+        ]["id"],
         "test_full_lifecycle": TEST_CASES["nft_full_lifecycle"]["id"],
         "test_operator_pod_recovery": TEST_CASES["nft_operator_recovery"][
             "id"
