@@ -20,7 +20,7 @@ This module implements Story 1 (ER-ORCH-005-allocation-import-validation):
 - Runs L2 semantic validation (address validity, prefix containment, duplicates)
 - Normalizes per-node/per-interface and filters by lifecycle
 - Detects IB mode (dual-stack / ipv6-only / ipv4-only)
-- Produces a legacy IB_IP adapter projection for backward compatibility
+- Produces a legacy IB_IPV4 adapter projection for backward compatibility
 - Enforces node-scoped atomicity (failed node → no artifacts)
 
 The normalized output is consumed by the render_ib_ipv6_config module.
@@ -47,7 +47,7 @@ description:
   - Loads and validates the IPoIB IPv6 allocation export JSON file.
   - Performs JSON Schema L1 and cross-field L2 semantic validation.
   - Normalizes allocations per-node/per-interface for downstream rendering.
-  - Detects IB mode and produces legacy IB_IP adapter output.
+  - Detects IB mode and produces legacy IB_IPV4 adapter output.
   - Enforces node-scoped atomicity — a failed node produces no artifacts.
 options:
   allocation_file:
@@ -110,7 +110,7 @@ ib_mode:
   type: str
 legacy_ib_ip:
   description: >
-    Legacy flat IB_IP projection for backward-compatible single-interface
+    Legacy flat IB_IPV4 projection for backward-compatible single-interface
     IPv4 nodes.
   returned: success
   type: dict

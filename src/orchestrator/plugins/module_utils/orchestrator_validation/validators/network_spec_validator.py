@@ -41,11 +41,37 @@ def is_valid_ipv4(address: Any) -> bool:
         return False
 
 
+def is_valid_ipv6(address: Any) -> bool:
+    """Return whether a value represents an IPv6 address."""
+    try:
+        return ipaddress.ip_address(address).version == 6
+    except (TypeError, ValueError):
+        return False
+
+
 def network_from_config(config: dict[str, Any]) -> ipaddress.IPv4Network | None:
-    """Return the strict IPv4 network declared by a network entry."""
+    """Return the strict IPv4 network declared by a network entry.
+
+    Reads ``subnet``/``netmask_bits`` keys (admin_network format).
+    """
     try:
         network = ipaddress.ip_network(
             f"{config.get('subnet', '')}/{config.get('netmask_bits', '')}",
+            strict=True,
+        )
+    except (TypeError, ValueError):
+        return None
+    return network if isinstance(network, ipaddress.IPv4Network) else None
+
+
+def ib_network_from_config(config: dict[str, Any]) -> ipaddress.IPv4Network | None:
+    """Return the strict IPv4 network declared by an ib_network entry.
+
+    Reads ``ipv4_subnet``/``ipv4_netmask_bits`` keys (ib_network format).
+    """
+    try:
+        network = ipaddress.ip_network(
+            f"{config.get('ipv4_subnet', '')}/{config.get('ipv4_netmask_bits', '')}",
             strict=True,
         )
     except (TypeError, ValueError):
@@ -243,6 +269,37 @@ def _validate_ib_admin_relationships(
                 )
 
 
+def _validate_ib_ipv6_config(
+    ib_config: dict[str, Any],
+    label: str,
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Validate optional IPv6 subnet/netmask pair on an IB network entry."""
+    ipv6_subnet = str(ib_config.get("ipv6_subnet", "") or "").strip()
+    ipv6_netmask = str(ib_config.get("ipv6_netmask_bits", "") or "").strip()
+
+    if not ipv6_subnet and not ipv6_netmask:
+        return
+
+    if ipv6_subnet and not ipv6_netmask:
+        record_error(errors, logger, msg.ib_ipv6_netmask_required_msg(label))
+        return
+
+    if ipv6_netmask and not ipv6_subnet:
+        record_error(errors, logger, msg.ib_ipv6_subnet_required_msg(label))
+        return
+
+    try:
+        network = ipaddress.ip_network(
+            f"{ipv6_subnet}/{ipv6_netmask}", strict=False,
+        )
+        if not isinstance(network, ipaddress.IPv6Network):
+            raise ValueError("not IPv6")
+    except (TypeError, ValueError):
+        record_error(errors, logger, msg.ib_ipv6_subnet_invalid_msg(label))
+
+
 def validate(config_data: Any, logger: Logger | None = None) -> list[str]:
     """Validate the complete L2 network specification contract.
 
@@ -302,7 +359,7 @@ def validate(config_data: Any, logger: Logger | None = None) -> list[str]:
         ib_config = entry.get("ib_network")
         if isinstance(ib_config, dict):
             ib_label = f"Networks[{index}].ib_network"
-            ib_network = network_from_config(ib_config)
+            ib_network = ib_network_from_config(ib_config)
             if ib_network is None:
                 record_error(
                     errors,
@@ -311,6 +368,8 @@ def validate(config_data: Any, logger: Logger | None = None) -> list[str]:
                 )
             else:
                 ib_networks.append((ib_label, ib_network))
+
+            _validate_ib_ipv6_config(ib_config, ib_label, errors, logger)
 
     if not admin_entries:
         record_error(errors, logger, msg.NETWORK_SPEC_ADMIN_REQUIRED_MSG)

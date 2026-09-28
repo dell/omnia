@@ -249,7 +249,7 @@ def _mapping_addresses(
     addresses: dict[str, set[str]] = {
         "ADMIN_IP": set(),
         "BMC_IP": set(),
-        "IB_IP": set(),
+        "IB_IPV4": set(),
     }
     for row in rows:
         for field in addresses:

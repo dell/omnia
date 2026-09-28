@@ -367,7 +367,7 @@ class TestLegacyIPv4Only:
         assert mode == "ipv4-only"
 
     def test_ipv4_only_legacy_adapter_works(self):
-        """ORCH_FVT_IPV6_E006: IPv4-only interface projects to flat IB_IP.
+        """ORCH_FVT_IPV6_E006: IPv4-only interface projects to flat IB_IPV4.
 
         Scenario: IPv4-only interface is not modified by IPv6 enhancement
           GIVEN the interface is IPv4-only in the allocation export
@@ -378,7 +378,7 @@ class TestLegacyIPv4Only:
         valid, _ = validator.preflight_validate(data, LOGGER)
         legacy = validator.legacy_ib_ip_projection(valid["nid0010"])
         assert legacy is not None
-        assert legacy["IB_IP"] == "10.0.200.10"
+        assert legacy["IB_IPV4"] == "10.0.200.10"
 
 
 # ===================================================================
