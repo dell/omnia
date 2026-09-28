@@ -362,6 +362,7 @@ openchami_reconcile module
     |
     +-- OpenChamiReconciler
     |      +-- SMD identity/group/component operations
+    |      +-- Boot configuration reconciliation and stale-MAC pruning
     |      +-- Metadata ownership and reconciliation
     |      +-- registration verification
     |
@@ -386,16 +387,18 @@ The module exposes the following action contract:
 | `cleanup_smd` | Remove category-scoped stale SMD endpoints and interfaces |
 | `discover_static` | Invoke supported static discovery without a shell |
 | `verify_components` | Read back expected node registration |
+| `list_boot_configurations` | Read Boot Service configuration state |
+| `reconcile_boot_configurations` | Create, compare, replace, and deduplicate desired boot configurations |
+| `prune_boot_configurations` | Remove non-target boot configurations that claim managed node MACs |
 | `reconcile_instanceinfos` | Create, update, and deduplicate per-XNAME metadata |
 | `reconcile_metadata_groups` | Reconcile project-owned Metadata Service groups |
 | `prune_metadata_groups` | Safely remove stale owned groups with no SMD members |
 | `reconcile_cluster_defaults` | Reconcile the project-owned cluster default |
 
-The declarative module owns identity and Metadata Service reconciliation.
-Selected service tasks use the `ochami` CLI or direct Ansible `uri` calls for
-static discovery and Boot Service operations. They are not a second identity
-authority. New service integration should use the shared Python client when
-its API is supported.
+The declarative module owns identity, Boot Service, and Metadata Service
+reconciliation. Static discovery uses the supported `ochami` CLI through a
+fixed-argument adapter that passes the same gateway URI, JWT, and CA. These
+interfaces are not a second identity authority.
 
 ### OpenCHAMI Data Model
 
@@ -461,12 +464,11 @@ last provisioning and PXE verification results.
 
 | Field | Interpretation |
 |-------|----------------|
-| `identity_changed` | This lifecycle created the Service Tag-to-XNAME binding |
-| `metadata_changed` | Desired metadata differs from the last verified applied state |
+| `status` | Aggregate node state: success, pending, or failed |
 | `reprovision_required` | A verified fresh boot is still needed |
-| `running_state_updated` | PXE freshness and node verification proved application |
-| `provisioning.status` | OpenCHAMI desired-state reconciliation result |
-| `pxeboot.status` | BMC boot and optional node verification result |
+| `provisioning_status` | OpenCHAMI desired-state reconciliation result |
+| `pxeboot.status` | PXE attempt result |
+| `pxeboot.state` | Compact machine-readable PXE or verification state |
 
 Running `provision` twice without PXE boot does not clear an existing
 `reprovision_required` condition. A successful fresh boot with node
@@ -548,8 +550,9 @@ the lifecycle finishes.
 - Metadata resources are compared before create/update and carry
   project-ownership labels for safe pruning.
 - SMD cleanup is scoped by category and component ownership.
-- Boot configurations for the target groups are replaced deliberately so MAC
-  ownership and artifact references cannot remain stale.
+- Boot configurations are compared before writing. Changed configurations are
+  replaced by name, duplicates are removed, and non-target configurations are
+  pruned only when they claim a MAC managed by the current category.
 - Removing a PXE mapping row does not free its XNAME or delete its Hardware
   Inventory record.
 - Cleanup is destructive and opt-in; credentials are included by default
