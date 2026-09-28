@@ -240,7 +240,9 @@
           - "{% if _kafka_cleanup_blocked | default(false) | bool %}Kafka blocked by: {{ _kafka_blocking_sources | default([]) | join(', ') }}{% endif %}"
           - "{% if _vm_cleanup_blocked | default(false) | bool %}VictoriaMetrics blocked by: {{ _vm_blocking_sources | default([]) | join(', ') }}{% endif %}"
           - "{% if _vl_cleanup_blocked | default(false) | bool %}VictoriaLogs blocked by: {{ _vl_blocking_sources | default([]) | join(', ') }}{% endif %}"
-          - "Volume option: {{ 'not applicable (blocked)' if _any_blocked else ('deleted' if (_cleanup_delete_sinks_volume | default(false) | bool) else 'preserved') }}"
+          - >-
+            Volume option: {{ 'not applicable (blocked)' if _any_blocked
+            else ('deleted' if (_cleanup_delete_sinks_volume | default(false) | bool) else 'preserved') }}
           - "======================================================"
       when:
         - _cleanup_sinks | default(false) | bool
