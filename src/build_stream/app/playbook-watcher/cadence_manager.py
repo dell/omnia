@@ -517,7 +517,7 @@ def update_catalog_via_gitlab_api(
             api_url,
             headers=headers,
             json=payload,
-            verify=False,  # Match existing TLS behavior in GitLab roles
+            verify=False,  # nosec B501 - Match existing TLS behavior in GitLab roles
             timeout=30
         )
 
