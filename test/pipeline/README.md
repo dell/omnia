@@ -44,6 +44,7 @@ this:
 ```
 .gitlab-ci.yml                          Parent pipeline (triggers per-cluster)
 .gitlab-ci-cluster.yml                  Child pipeline (all stages for one cluster)
+.gitlab-ci-build-stream.yml             Build stream child pipeline (per-cluster)
 pipeline_config.yml                     Pipeline configuration (fill this out)
 setup_gitlab_project.py                 Script to create/update the GitLab project
 send_email.py                           Email notification helper
@@ -115,6 +116,20 @@ For detailed information, see [docs/UTILS_PIPELINE.md](docs/UTILS_PIPELINE.md).
 
 ---
 
+## Build Stream Pipeline
+
+The **Build Stream Pipeline** runs independently when `BUILD_STREAM_ENABLE=true`. It prepares the base infrastructure (repo_manager, image_build_manager, orchestrator) using a unified `prepare_base` stage, then deploys and tests the build_stream domain on target servers. The cluster and utils pipelines are skipped when build stream mode is active.
+
+**Key differences from cluster pipeline:**
+- Uses `prepare_base` stage instead of individual deploy stages for repo_manager, image_build_manager, orchestrator
+- `prepare_base` combines input file copying, credential fetching, encryption, and runs `omnia.sh --prepare-base`
+- Test stages for repo_manager, image_build_manager, orchestrator run after prepare_base
+- build_stream deploy runs after prepare_base
+
+Set `BUILD_STREAM_ENABLE=true` to trigger the build stream pipeline.
+
+---
+
 ## Domains
 
 | Domain | Purpose |
@@ -123,10 +138,11 @@ For detailed information, see [docs/UTILS_PIPELINE.md](docs/UTILS_PIPELINE.md).
 | **image_build_manager** | Container image building and registry |
 | **orchestrator** | Kubernetes and container orchestration |
 | **telemetry** | Monitoring, logging, and observability |
+| **build_stream** | Build stream image provisioning and deployment |
 
 Select which domains to run with the `domains` setting:
 
-- `"default"` -- All 4 domains
+- `"default"` -- All domains
 - `"repo_manager"` -- Single domain
 - `"repo_manager|orchestrator"` -- Multiple domains (regex OR)
 
@@ -137,15 +153,16 @@ Select which domains to run with the `domains` setting:
 ```
  Stage                         Mode: default   deploy   cleanup
  ─────────────────────────────────────────────────────────────────
- 1. initialization                  Y            Y        Y
- 2. setup_environment               Y          (opt)    (opt)
- 3. cleanup_<domains>               Y                     Y
- 4. cleanup_omnia                   Y                     Y
- 5. setup_main                      Y
- 6. test_main_installation        (test)       (test)
- 7. <domain> deploy                 Y            Y
- 8. test_<domain>                 (test)       (test)
- 9. summary                         Y            Y        Y
+ 1.  initialization                  Y            Y        Y
+ 2.  setup_environment               Y          (opt)    (opt)
+ 3.  cleanup_build_stream            Y                     Y
+ 4.  cleanup_<domains>               Y                     Y
+ 5.  cleanup_omnia                   Y                     Y
+ 6.  setup_main                      Y
+ 7.  test_main_installation        (test)       (test)
+ 8.  <domain> deploy                 Y            Y
+ 9.  test_<domain>                 (test)       (test)
+ 10. summary                         Y            Y        Y
 ```
 
 `(opt)` = runs only if `ENABLE_SETUP=true` |
