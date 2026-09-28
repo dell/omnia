@@ -279,6 +279,14 @@ TEST_CASES = {
         "id": "UTILS_FVT_CLEANUP_V002",
         "title": "Verify all install_os artifacts cleaned",
     },
+    "cleanup_status_file_removed": {
+        "id": "UTILS_FVT_CLEANUP_V003",
+        "title": "Verify utils_status.yml file is removed after cleanup",
+    },
+    "cleanup_install_os_status_file_removed": {
+        "id": "UTILS_FVT_CLEANUP_INSTALL_OS_V004",
+        "title": "Verify install_os_status.yml file is removed after cleanup_install_os",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # BACKUP_OIM_LOGS SCENARIO - Deploy Tests

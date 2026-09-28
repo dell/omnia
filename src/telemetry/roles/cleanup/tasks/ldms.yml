@@ -36,7 +36,7 @@
         | bool
       }}
     _ldms_slurm_inventory_file: >-
-      {{ hostvars['localhost']['telemetry_config'].cluster_inventory | default('') }}
+      {{ hostvars['localhost']['cluster_inventory_path'] | default('') }}
     _ldms_inventory_children: {}
     _ldms_slurm_control_hosts: {}
     _ldms_slurm_compute_hosts: {}

@@ -42,10 +42,11 @@
 | BSM_FVT_BUILDSTREAM_INSTALL_V030 | test_nfs_queue_directory_accessible | Verify NFS queue dir (2.3) |
 | BSM_FVT_BUILDSTREAM_INSTALL_V031 | test_playbook_watcher_running | Verify watcher service (2.3) |
 
-## Section C: Combined BuildStream Cleanup (24 test cases)
+## Section C: Explicit cleanup suites (24 test cases)
 
-The `buildstream_cleanup` scenario runs GitLab cleanup first, followed by the
-BuildStream service and data cleanup. Verification then checks both areas.
+Cleanup is not part of the default lifecycle. Select exactly one suite so an
+operation cannot remove GitLab, BuildStream, and image artifacts in the same
+run accidentally.
 
 | TC ID | Test Function | Description |
 |-------|---------------|-------------|
@@ -132,7 +133,7 @@ the image group for the configured `job_id`, trigger `PIPELINE_TYPE=cleanup`,
 and verify database, S3, and registry cleanup in the same pytest session.
 
 ```bash
-./run_validation.sh fvt_build_stream buildstream_cleanup verify \
+./run_validation.sh fvt_build_stream buildstream_cleanup test \
   --suite cleanup_pipeline --marker sanity
 ```
 
@@ -168,8 +169,13 @@ vi test_config.yml    # Set catalog_path, oim_server_ip
 # Complete sanity lifecycle: install -> build -> deploy
 ./run_validation.sh fvt_build_stream test --marker sanity
 
-# Cleanup is explicit and is not included in the untagged lifecycle
-./run_validation.sh fvt_build_stream buildstream_cleanup test --marker sanity
+# Cleanup is explicit and requires exactly one selected suite
+./run_validation.sh fvt_build_stream buildstream_cleanup test \
+  --suite buildstream_cleanup --marker sanity
+./run_validation.sh fvt_build_stream buildstream_cleanup test \
+  --suite gitlab_cleanup --marker sanity
+./run_validation.sh fvt_build_stream buildstream_cleanup test \
+  --suite cleanup_pipeline --marker sanity
 
 # Deploy only (job_id is mandatory and resolves the image group)
 ./run_validation.sh fvt_build_stream deploy_pipeline test --marker sanity

@@ -48,15 +48,10 @@
       no_log: true
       when: telemetry_credentials is defined
 
-    - name: Set bmc_group_data_path from config or OMNIA_DATA_PATH (for iDRAC)
+    - name: Set bmc_group_data_path from config or orchestrator output (for iDRAC)
+      # yamllint disable rule:line-length
       ansible.builtin.set_fact:
-        bmc_group_data_path: >-
-          {% if telemetry_config.idrac_telemetry_configurations.bmc_group_data_path is defined
-             and telemetry_config.idrac_telemetry_configurations.bmc_group_data_path | length > 0 -%}
-          {{ telemetry_config.idrac_telemetry_configurations.bmc_group_data_path }}{%- elif input_project_dir is defined
-             and input_project_dir | length > 0 -%}
-          {{ input_project_dir }}/bmc_group_data.csv{%- else -%}
-          {%- endif %}
+        bmc_group_data_path: "{% if telemetry_config.idrac_telemetry_configurations.bmc_group_data_path is defined and telemetry_config.idrac_telemetry_configurations.bmc_group_data_path | length > 0 %}{{ telemetry_config.idrac_telemetry_configurations.bmc_group_data_path }}{% else %}{{ omnia_data_path | default('/opt/omnia', true) | regex_replace('/$', '') }}/orchestrator/output/{{ project_name | default('project_default', true) }}/bmc_group_data.csv{% endif %}"
       when:
         - telemetry_config.idrac_telemetry_configurations is defined
 

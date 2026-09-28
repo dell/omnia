@@ -53,6 +53,26 @@
           | length) > 0 }}
     cacheable: true
 
+- name: Validate OMNIA_PROJECT_NAME for path traversal safety
+  ansible.builtin.assert:
+    that:
+      - project_name is regex('^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$')
+      - not ('..' in project_name)
+      - not ('/' in project_name)
+      - not ('\\' in project_name)
+    fail_msg: >-
+      OMNIA_PROJECT_NAME contains invalid characters: '{{ project_name }}'.
+      Must start with alphanumeric, contain only alphanumeric, underscore, hyphen, or dot,
+      and be 1-80 characters long. Cannot contain path separators or parent directory references.
+
+- name: Validate OMNIA_DATA_PATH is absolute
+  ansible.builtin.assert:
+    that:
+      - omnia_data_path.startswith('/')
+    fail_msg: >-
+      OMNIA_DATA_PATH must be an absolute path starting with '/'.
+      Got: '{{ omnia_data_path }}'
+
 - name: Display resolved environment
   ansible.builtin.debug:
     msg:

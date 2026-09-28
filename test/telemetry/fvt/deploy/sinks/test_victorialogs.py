@@ -23,6 +23,7 @@ Test cases:
 import pytest
 
 from library.functions import TestLogger
+from library.functions.telemetry_func import is_sink_enabled
 from library.vars.test_case_vars import TEST_CASES as TC
 from library.vars.common_vars import (
     VL_POD_PREFIXES,
@@ -42,6 +43,11 @@ def test_vl_cluster_pods(host):
     """TEL_FVT_DEPLOY_V006: Verify VictoriaLogs cluster pods running."""
     tc = TC["vl_cluster_pods"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if victoria_logs sink is not enabled
+    if not is_sink_enabled(host, "victoria_logs"):
+        tl.skipped("VictoriaLogs sink is not enabled in telemetry configuration")
+        pytest.skip("VictoriaLogs sink is not enabled")
 
     all_ok = True
     for role, prefix in VL_POD_PREFIXES.items():
@@ -82,6 +88,11 @@ def test_vlagent_pods(host):
     """TEL_FVT_DEPLOY_V007: Verify VLAgent pods running."""
     tc = TC["vlagent_pods"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if victoria_logs sink is not enabled
+    if not is_sink_enabled(host, "victoria_logs"):
+        tl.skipped("VictoriaLogs sink is not enabled in telemetry configuration")
+        pytest.skip("VictoriaLogs sink is not enabled")
 
     tl.check(f"Checking VLAgent pods (prefix: {VLAGENT_POD_PREFIX})")
     result = verify_pods_by_prefix(host, VLAGENT_POD_PREFIX, min_count=1)

@@ -23,11 +23,16 @@ import json
 import logging
 from pathlib import Path
 
+import ansible.module_utils
 import pytest
 import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+MODULE_UTILS_DIR = REPO_ROOT / "src/image_build_manager/plugins/module_utils"
+if str(MODULE_UTILS_DIR) not in ansible.module_utils.__path__:
+    ansible.module_utils.__path__.append(str(MODULE_UTILS_DIR))
+
 SCHEMA_DIR = (
     REPO_ROOT
     / "src/image_build_manager/plugins/module_utils/input_validation/schema"

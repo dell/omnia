@@ -28,6 +28,13 @@ Start here → **[Quick Start Guide](QUICKSTART.md)**
 - Real-world deployment scenarios
 - Pipeline stages reference
 
+### 🛠️ **Running Utils Operations?**
+→ **[Utils Pipeline Guide](UTILS_PIPELINE.md)**
+- Collect logs from clusters
+- Install OS on target nodes
+- Run utils validation tests
+- Utils modes and configuration
+
 ### ⚙️ **Configuring Everything?**
 → **[Configuration Reference](CONFIGURATION.md)**
 - Complete `pipeline_config.yml` reference
@@ -90,6 +97,8 @@ Each cluster runs as a completely independent child pipeline. If one cluster fai
 - **Deploy to multiple servers** → [Configuration Reference](CONFIGURATION.md#multi-cluster-deployment)
 - **Redeploy a single domain** → [Pipeline Modes](PIPELINE_MODES.md#scenario-2-redeploy-only-repo_manager-after-changing-pulp-credentials)
 - **Clean up and start fresh** → [Pipeline Modes](PIPELINE_MODES.md#scenario-5-full-cleanup-of-everything-on-the-target)
+- **Collect logs from cluster** → [Utils Pipeline](UTILS_PIPELINE.md#example-1-collect-logs-default)
+- **Install OS on target nodes** → [Utils Pipeline](UTILS_PIPELINE.md#example-2-install-os)
 - **Rotate credentials** → [Configuration Reference](CONFIGURATION.md#rotating-credentials)
 - **Fix SSH connectivity** → [Troubleshooting](TROUBLESHOOTING.md#pipeline-fails-at-initialization)
 - **Fix OpenBao issues** → [Troubleshooting](TROUBLESHOOTING.md#openbao-server-is-not-reachable)
@@ -103,7 +112,7 @@ Each cluster runs as a completely independent child pipeline. If one cluster fai
 ```
 Parent Pipeline (.gitlab-ci.yml)
     ↓
-    └─→ Child Pipeline 1 (.gitlab-ci-cluster.yml) for cluster1
+    ├─→ Child Pipeline 1 (.gitlab-ci-cluster.yml) for cluster1
     │   ├─ initialization
     │   ├─ setup_environment
     │   ├─ cleanup_<domains>
@@ -111,16 +120,20 @@ Parent Pipeline (.gitlab-ci.yml)
     │   ├─ test_<domains>
     │   └─ summary
     │
-    └─→ Child Pipeline 2 (.gitlab-ci-cluster.yml) for cluster2
+    ├─→ Child Pipeline 2 (.gitlab-ci-cluster.yml) for cluster2
+    │   └─ (same stages as cluster1)
+    │
+    └─→ Utils Pipeline (.gitlab-ci-utils.yml) [if UTILS_ENABLE=true]
         ├─ initialization
         ├─ setup_environment
-        ├─ cleanup_<domains>
-        ├─ deploy_<domains>
-        ├─ test_<domains>
+        ├─ install_os (conditional)
+        ├─ log_collection_cluster (conditional)
+        ├─ log_collection_oim (conditional)
+        ├─ test_utils (conditional)
         └─ summary
 ```
 
-Each cluster runs independently. If cluster1 fails, cluster2 continues.
+Each cluster and utils pipeline runs independently. If cluster1 fails, cluster2 and utils pipelines continue.
 
 ### Credential Flow
 
@@ -173,10 +186,12 @@ test/pipeline/
 │   ├── QUICKSTART.md                ← Start here for quick setup
 │   ├── OPENBAO_SETUP.md             ← OpenBao configuration
 │   ├── PIPELINE_MODES.md            ← Deployment strategies
+│   ├── UTILS_PIPELINE.md            ← Utils operations (log collection, install_os)
 │   ├── CONFIGURATION.md             ← Complete reference
 │   └── TROUBLESHOOTING.md           ← Common issues & solutions
 ├── .gitlab-ci.yml                   ← Parent pipeline (multi-cluster)
 ├── .gitlab-ci-cluster.yml           ← Child pipeline (per-cluster stages)
+├── .gitlab-ci-utils.yml             ← Utils pipeline (log collection, install_os)
 ├── setup_gitlab_project.py          ← Setup script
 ├── pipeline_config.yml              ← Your configuration (create this)
 └── clusters/
@@ -219,6 +234,7 @@ test/pipeline/
 - **Documentation:** Start with the [Quick Start Guide](QUICKSTART.md)
 - **Configuration Help:** See [Configuration Reference](CONFIGURATION.md)
 - **Deployment Strategies:** Check [Pipeline Modes & Domains](PIPELINE_MODES.md)
+- **Utils Operations:** Visit [Utils Pipeline Guide](UTILS_PIPELINE.md)
 - **Troubleshooting:** Visit [Troubleshooting Guide](TROUBLESHOOTING.md)
 - **OpenBao Issues:** See [OpenBao Setup Guide](OPENBAO_SETUP.md)
 

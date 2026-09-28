@@ -41,7 +41,25 @@ Contributions to Omnia are made through [Pull Requests (PRs)](https://help.githu
       2. Linking text to the related issue (_e.g., This PR closes issue #<issue_number>_),
       3. How the changes solves the problem, and
       4. How to verify that the changes work correctly.
-   
+
+## Secret scanning
+
+Gitleaks scans pull requests for passwords, API keys, tokens, and other
+credentials. If a secret is detected, the `Scan for secrets` check fails with
+exit code 1. Repository administrators must configure this check as required in
+the branch protection rules for `main` and `staging` to prevent merging when it
+fails.
+
+If the check fails:
+
+1. Use the redacted finding to locate the credential.
+2. Revoke or rotate a real credential and remove it from every affected commit.
+3. Push the corrected branch and confirm that the check passes.
+
+For a confirmed false positive, add a narrowly scoped allowlist rule to
+`.github/workflows/.gitleaks.toml` with a comment explaining why it is safe.
+Never allowlist a real credential.
+
 ## Omnia Branches and Contribution Flow
 Omnia development targets the repository's current default branch (`main`). Use
 short-lived feature or fix branches and merge changes through reviewed pull

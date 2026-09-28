@@ -12,11 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Create a common SMD group (ssh or chrony).
-# Extracted from configure_ochami/tasks/create_groups_common.yml.
-# Called in a loop with common_group_name set by the caller.
+# Reconcile one shared SMD group with every category registered so far.
 
-- name: Create common SMD group - {{ common_group_name }}
-  ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/create_groups_common.yml"
-  loop:
-    - "{{ common_group_name }}"
+- name: Reconcile common SMD group - {{ common_group_name }}
+  openchami_reconcile:
+    action: reconcile_groups
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    smd_groups:
+      - label: "{{ common_group_name }}"
+        members:
+          ids: >-
+            {{ (hostvars['localhost']['read_mapping_file']['dict']
+                | dict2items
+                | selectattr('value.FUNCTIONAL_GROUP_NAME',
+                             'in', registered_fg_names | default(target_fg_names, true))
+                | map(attribute='value.XNAME') | sort | list)
+               if ((registered_fg_names | default(target_fg_names, true)) | length > 0)
+               else (hostvars['localhost']['read_mapping_file']['dict']
+                     | dict2items | map(attribute='value.XNAME') | sort | list) }}
+  register: _common_group_reconcile
+  no_log: true

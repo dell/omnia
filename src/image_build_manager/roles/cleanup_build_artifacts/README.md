@@ -18,7 +18,7 @@ The top-level `image_build_manager.yml` validator accepts only the public
 `cleanup` and `cleanup_images` tags. The standalone
 `playbooks/cleanup/cleanup_image_build_manager.yml` playbook additionally
 supports role sub-tags such as `minio`, `registry`, `output`, `s3cmd`,
-`credentials`, `data`, and `logs`.
+`cleanup_credentials`, `data`, and `logs`.
 
 Full cleanup does not delete objects from external PowerScale S3.
 

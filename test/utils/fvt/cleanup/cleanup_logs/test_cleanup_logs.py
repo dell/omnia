@@ -32,6 +32,7 @@ from library.functions import (
     check_old_log_bundles_removed,
     check_empty_log_dirs_removed,
     check_temp_log_dirs_cleaned,
+    check_utils_status_file_removed,
 )
 from library.vars import (
     TEST_CASES as TC,
@@ -154,4 +155,31 @@ def test_cleanup_logs_temp_dirs_cleaned(host):
 
     assert result["success"], (
         f"Temporary directories not cleaned: {result['temp_dirs_status']}"
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.cleanup_logs
+@pytest.mark.order(4)
+def test_cleanup_logs_status_file_removed(host):
+    """Verify utils_status.yml file is removed after cleanup_logs."""
+    tc = TC["cleanup_status_file_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    result = check_utils_status_file_removed(host, output_path)
+
+    tl.info("Status file cleanup status:")
+    tl.info(f"  Status file path: {result['path']}")
+    tl.info(f"  Status file removed: {'Yes' if result['success'] else 'No'}")
+
+    if result["success"]:
+        tl.passed("Utils status file removed")
+    else:
+        tl.failed(f"Status file still exists at {result['path']}")
+
+    assert result["success"], (
+        f"Utils status file not removed: "
+        f"path={result['path']}, "
+        f"exists={result['exists']}"
     )

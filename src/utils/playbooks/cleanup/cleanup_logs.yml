@@ -99,15 +99,13 @@
           - "Old bundles removed: {{ old_logs.files | default([]) | length }}"
           - "Retention period: {{ log_retention_days }} days"
           - "=========================================="
+
+    - name: Remove utils status file
+      ansible.builtin.file:
+        path: "{{ output_project_dir }}/utils_status.yml"
+        state: absent
   post_tasks:
     - name: Record execution end time
       ansible.builtin.set_fact:
         utils_execution_end_time: "{{ ansible_date_time.iso8601 }}"
         cacheable: true
-
-    - name: Write execution status
-      ansible.builtin.include_role:
-        name: utils_status_writer
-      vars:
-        utils_domain_status: "{{ 'success' if ansible_failed_result is not defined else 'failure' }}"
-        utils_playbook_name: "cleanup_logs.yml"

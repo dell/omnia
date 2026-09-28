@@ -227,9 +227,10 @@ def _skip(tag: str) -> None:
     )
 
 
-def _timestamp() -> str:
-    """ISO-ish timestamp for report IDs."""
-    return datetime.now().strftime("%Y%m%d%H%M%S")
+def _generate_random_id() -> str:
+    """Generate a random ID for report identification."""
+    import uuid
+    return str(uuid.uuid4())[:8]  # Use first 8 characters of UUID for shorter ID
 
 
 def _count_test_files(directory: str) -> int:
@@ -550,10 +551,10 @@ class ValidationRunner:
         verbose: str = "", debug: str = "",
     ) -> int:
         """Execute an FVT scenario."""
-        report_id = os.environ.get(
-            "REPORT_ID", _timestamp(),
-        )
-        os.environ["REPORT_ID"] = report_id
+        # Always generate a random RUN_ID for each run so that
+        # re-runs create separate entries instead of appending
+        run_id = _generate_random_id()
+        os.environ["RUN_ID"] = run_id
         if debug:
             os.environ["OMNIA_DEBUG"] = "true"
 
@@ -563,12 +564,12 @@ class ValidationRunner:
         os.makedirs(log_dir, exist_ok=True)
         label = tag or "all"
         os.environ["OMNIA_LOG_FILE"] = os.path.join(
-            log_dir, f"{label}_{command}_{report_id}.log",
+            log_dir, f"{label}_{command}_{run_id}.log",
         )
         os.environ["OMNIA_DEPLOY_TAG"] = tag
 
         self._print_banner(
-            "fvt", tag, command, suite, marker, report_id,
+            "fvt", tag, command, suite, marker, run_id,
         )
 
         if command == "exec":
@@ -911,10 +912,7 @@ class ValidationRunner:
                 count = _count_test_files(self.nft_dir)
                 _yellow("NFT Tests:")
                 _green("  nft", end="")
-                print(
-                    f"  ({count} test files"
-                    " — performance, idempotency)"
-                )
+                print(f"  ({count} non-functional test files)")
             else:
                 _warn("NFT directory not found")
         elif category == "ut":
@@ -986,8 +984,10 @@ class ValidationRunner:
             _err(f"Invalid batch config: {exc}")
             return 2
 
-        report_id = _timestamp()
-        os.environ["REPORT_ID"] = report_id
+        # Always generate a random RUN_ID for each run so that
+        # re-runs create separate entries instead of appending
+        run_id = _generate_random_id()
+        os.environ["RUN_ID"] = run_id
 
         fd, results_file = tempfile.mkstemp(
             prefix="omnia_results_", suffix=".json",
@@ -998,7 +998,7 @@ class ValidationRunner:
 
         _separator()
         _info("  Batch Execution from test_run_config.yml")
-        _info(f"  Report ID : {report_id}")
+        _info(f"  Report ID : {run_id}")
         _separator()
         print()
 
@@ -1420,7 +1420,7 @@ class ValidationRunner:
     def _print_banner(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, category: str, tag: str,
         command: str, suite: str,
-        marker: str, report_id: str,
+        marker: str, run_id: str,
     ) -> None:
         """Print execution banner."""
         cat_name = getattr(
@@ -1439,7 +1439,7 @@ class ValidationRunner:
             _green(f"  Suite     : {suite}")
         if marker:
             _green(f"  Marker    : {marker}")
-        _green(f"  Report ID : {report_id}")
+        _green(f"  Report ID : {run_id}")
         _separator()
         print()
 
@@ -1470,6 +1470,32 @@ class ValidationRunner:
     # -----------------------------------------------------------------
     # HELP
     # -----------------------------------------------------------------
+
+    def _print_suite_exec_owner_help(self) -> None:
+        """Print commands for suites that own their execution lifecycle."""
+        if not self._suite_exec_owners:
+            return
+
+        _yellow("SUITE-OWNED EXECUTION")
+        print(
+            "  Deploy-marked scenario tests in these suites run during "
+            "exec and test."
+        )
+        print(
+            "  verify runs only non-deploy tests and may have no cases "
+            "for such a suite."
+        )
+        for tag, suites in self._suite_exec_owners.items():
+            for suite in suites:
+                print(
+                    f"  ./run_validation.sh {self.cat_fvt} {tag} exec"
+                    f" --suite {suite}"
+                )
+                print(
+                    f"  ./run_validation.sh {self.cat_fvt} {tag} test"
+                    f" --suite {suite}"
+                )
+        print()
 
     def _print_help(self) -> None:  # pylint: disable=too-many-statements
         """Print top-level help text."""
@@ -1538,6 +1564,7 @@ class ValidationRunner:
         print("  -v, --verbose     Increase verbosity")
         print("  --debug           Full debug (-vvs)")
         print()
+        self._print_suite_exec_owner_help()
         f = self.cat_fvt
         n = self.cat_nft
         u = self.cat_ut
@@ -1567,7 +1594,7 @@ class ValidationRunner:
             print(f"  ./run_validation.sh {u} test")
         print()
 
-    def _print_fvt_help(self) -> None:
+    def _print_fvt_help(self) -> None:  # pylint: disable=too-many-statements
         """Print FVT-specific help text."""
         f = self.cat_fvt
         _separator()
@@ -1623,6 +1650,7 @@ class ValidationRunner:
             for m in self._domain_markers:
                 print(f"  {m}")
             print()
+        self._print_suite_exec_owner_help()
         _yellow("EXAMPLES")
         # Dynamic examples based on domain config
         tags = self._get_fvt_tags()

@@ -105,7 +105,7 @@
     --ignore-not-found=true --wait=false
   changed_when: false
   when:
-    - true
+    - not (_cleanup_preserve_sink_volumes | bool)
     - "'kafkatopics.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
   failed_when: false
 
@@ -224,7 +224,7 @@
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
   when:
-    - true
+    - not (_cleanup_preserve_sink_volumes | bool)
     - "'kafkatopics.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
   failed_when: false
 
@@ -241,7 +241,7 @@
     --output=name
   register: _kafka_retained_pvcs
   changed_when: false
-  when: false
+  when: _cleanup_preserve_sink_volumes | bool
 
 - name: Kafka | Discover existing Kafka cluster resource
   ansible.builtin.command: >
@@ -249,7 +249,7 @@
     --output=name --ignore-not-found=true
   register: _kafka_existing_cluster
   changed_when: false
-  when: false
+  when: _cleanup_preserve_sink_volumes | bool
 
 - name: Kafka | Read retained node pool cluster IDs
   ansible.builtin.command:
@@ -269,7 +269,7 @@
   changed_when: false
   failed_when: false
   when:
-    - not (true)
+    - _cleanup_preserve_sink_volumes | bool
     - _kafka_retained_pvcs.stdout_lines | default([]) | length > 0
   no_log: true
 
@@ -291,7 +291,7 @@
   changed_when: false
   failed_when: false
   when:
-    - not (true)
+    - _cleanup_preserve_sink_volumes | bool
     - _kafka_retained_pvcs.stdout_lines | default([]) | length > 0
   no_log: true
 
@@ -318,7 +318,7 @@
         | list
       }}
   when:
-    - not (true)
+    - _cleanup_preserve_sink_volumes | bool
     - _kafka_retained_pvcs.stdout_lines | default([]) | length > 0
   no_log: true
 
@@ -337,7 +337,7 @@
       consistent cluster ID and original node IDs. Cleanup is stopping before
       Kafka cluster metadata is removed to protect the data.
   when:
-    - not (true)
+    - _cleanup_preserve_sink_volumes | bool
     - _kafka_retained_pvcs.stdout_lines | default([]) | length > 0
 
 - name: Kafka | Build cluster ID preservation secret
@@ -359,7 +359,7 @@
   register: _kafka_cluster_id_secret_manifest
   changed_when: false
   when:
-    - not (true)
+    - _cleanup_preserve_sink_volumes | bool
     - _kafka_retained_pvcs.stdout_lines | default([]) | length > 0
   no_log: true
 
@@ -372,7 +372,7 @@
     'created' in _kafka_cluster_id_secret_apply.stdout or
     'configured' in _kafka_cluster_id_secret_apply.stdout
   when:
-    - not (true)
+    - _cleanup_preserve_sink_volumes | bool
     - _kafka_retained_pvcs.stdout_lines | default([]) | length > 0
   no_log: true
 
@@ -383,7 +383,7 @@
   register: _kafka_reconciliation_pause
   changed_when: "'annotated' in _kafka_reconciliation_pause.stdout"
   when:
-    - not (true)
+    - _cleanup_preserve_sink_volumes | bool
     - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
     - _kafka_existing_cluster.stdout | trim | length > 0
 
@@ -394,10 +394,9 @@
     --timeout={{ cleanup_kafka_wait_timeout }}
   changed_when: false
   when:
-    - not (true)
+    - _cleanup_preserve_sink_volumes | bool
     - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
     - _kafka_existing_cluster.stdout | trim | length > 0
-  failed_when: false
 
 - name: Kafka | Delete Kafka cluster
   ansible.builtin.command: >
@@ -408,7 +407,7 @@
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
   when:
-    - true
+    - not (_cleanup_preserve_sink_volumes | bool)
     - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
   failed_when: false
 
@@ -422,7 +421,7 @@
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
   when:
-    - true
+    - not (_cleanup_preserve_sink_volumes | bool)
     - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
   failed_when: false
 
@@ -439,7 +438,7 @@
     kubectl -n {{ telemetry_namespace }} delete deployment
     -l {{ kafka_pvc_label }} --ignore-not-found=true --wait=false
   changed_when: false
-  when: false
+  when: _cleanup_preserve_sink_volumes | bool
   failed_when: false
 
 - name: Kafka | Delete node pools
@@ -451,7 +450,7 @@
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
   when:
-    - true
+    - not (_cleanup_preserve_sink_volumes | bool)
     - "'kafkanodepools.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
   failed_when: false
 
@@ -492,7 +491,7 @@
   when:
     - (item ~ 's.kafka.strimzi.io') in _kafka_api_resources.stdout_lines
     - >-
-      true or
+      not (_cleanup_preserve_sink_volumes | bool) or
       item not in ['kafkatopic', 'kafka', 'kafkanodepool']
   failed_when: false
 
@@ -571,6 +570,7 @@
     label: "Export {{ item }}"
   register: _isilon_export_delete
   when:
+    - not (_cleanup_preserve_sink_volumes | bool)
     - _kafka_export_ids | default([]) | length > 0
     - _isilon_creds_decoded | default('') | length > 0
   failed_when: false
@@ -629,7 +629,7 @@
   loop: "{{ kafka_secret_resources }}"
   changed_when: false
   when:
-    - true or item != "kafka-cluster-id"
+    - not (_cleanup_preserve_sink_volumes | bool) or item != "kafka-cluster-id"
   failed_when: false
 
 - name: Kafka | Delete services
@@ -645,7 +645,7 @@
     kubectl -n {{ telemetry_namespace }} delete service
     -l {{ kafka_pvc_label }} --ignore-not-found=true --wait=false
   changed_when: false
-  when: false
+  when: _cleanup_preserve_sink_volumes | bool
   failed_when: false
 
 - name: Kafka | Delete ConfigMaps by label

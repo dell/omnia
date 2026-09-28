@@ -736,7 +736,9 @@ class CreateBuildImageUseCase:
         playbook_name = full_path.split("/")[-1]
         playbook_path = PlaybookPath(playbook_name)
 
-        # Only pass job_id - playbook reads catalog for everything else
+        # Only pass job_id - playbook reads catalog for everything else.
+        # Rebuild control is handled by build_image.force_rebuild in the
+        # pipeline configuration (build_stream_config.yml), not here.
         extra_vars_dict = {
             "job_id": str(command.job_id),
         }

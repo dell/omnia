@@ -63,6 +63,7 @@ from library.functions.k8s_func import (
 )
 from library.functions.telemetry_func import (
     is_source_enabled,
+    is_sink_enabled_for_source,
     run_on_kube_vip,
     verify_idrac_vm_data,
     get_idrac_service_tags,
@@ -390,6 +391,10 @@ def test_idrac_receiver_collecting(host):
 def test_idrac_kafka_topic(host):
     """TEL_FVT_DEPLOY_V015: Verify iDRAC Kafka topic exists."""
     _skip_if_idrac_disabled(host)
+    # Skip if iDRAC does not target Kafka sink
+    if not is_sink_enabled_for_source(host, "idrac", "kafka"):
+        pytest.skip("iDRAC source does not target Kafka sink")
+    
     tc = TC["idrac_kafka_topic"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -422,6 +427,10 @@ def test_idrac_kafka_topic(host):
 def test_idrac_victoria_pump(host):
     """TEL_FVT_DEPLOY_V016: Verify iDRAC VictoriaPump container is running."""
     _skip_if_idrac_disabled(host)
+    # Skip if iDRAC does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "idrac", "victoria_metrics"):
+        pytest.skip("iDRAC source does not target VictoriaMetrics sink")
+    
     tc = TC["idrac_victoria_pump"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -538,6 +547,10 @@ def _build_service_tag_lines(tag_result):
 def test_idrac_vm_data(host):
     """TEL_FVT_DEPLOY_V018: Verify iDRAC telemetry data in VictoriaMetrics."""
     _skip_if_idrac_disabled(host)
+    # Skip if iDRAC does not target VictoriaMetrics sink
+    if not is_sink_enabled_for_source(host, "idrac", "victoria_metrics"):
+        pytest.skip("iDRAC source does not target VictoriaMetrics sink")
+    
     tc = TC["idrac_vm_data"]
     tl = TestLogger(tc["title"], tc["id"])
 

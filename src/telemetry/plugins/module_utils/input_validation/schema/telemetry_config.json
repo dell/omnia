@@ -6,9 +6,8 @@
   "properties": {
     "cluster_inventory": {
       "type": "string",
-      "minLength": 1,
-      "description": "Path to Ansible inventory file for telemetry deployment. Must contain kube_vip_group with the Kubernetes control plane VIP. Required for LDMS Slurm node discovery and K8s cluster validation.",
-      "errorMessage": "cluster_inventory is required and must be a non-empty file path (e.g., '/opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yml')."
+      "description": "Path to Ansible inventory file for telemetry deployment. Must contain kube_vip_group with the Kubernetes control plane VIP. Required for LDMS Slurm node discovery and K8s cluster validation. Leave empty to use the default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml",
+      "errorMessage": "cluster_inventory must be a valid file path string (leave empty to use the default orchestrator output path)."
     },
     "telemetry_sources": {
       "type": "object",

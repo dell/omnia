@@ -98,6 +98,23 @@ clusters/cluster1/
 
 ---
 
+## Utils Pipeline
+
+The **Utils Pipeline** runs independently when `UTILS_ENABLE=true`. It executes utils domain operations on target servers without running the main cluster pipeline.
+
+| Mode | Operations | Use case |
+|---|---|---|
+| `default_logs` | Collect cluster + OIM logs | Default log collection |
+| `install_os` | Run install_os playbook | OS installation on target nodes |
+| `collect` | Collect cluster logs only | Cluster-specific log collection |
+| `backup_oim_logs` | Backup OIM logs only | OIM log backup |
+
+Set `UTILS_ENABLE=true` and choose a `UTILS_MODE` to run utils operations. Tests run when `TEST_MODE=true`.
+
+For detailed information, see [docs/UTILS_PIPELINE.md](docs/UTILS_PIPELINE.md).
+
+---
+
 ## Domains
 
 | Domain | Purpose |

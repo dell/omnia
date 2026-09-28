@@ -85,6 +85,8 @@ from .cleanup_func import (
     check_all_install_os_cleaned,
     check_setup_output_dir_exists,
     check_setup_input_dir_exists,
+    check_utils_status_file_removed,
+    check_install_os_status_file_removed,
 )
 
 from .backup_func import (
@@ -196,6 +198,8 @@ __all__ = [
     "check_all_install_os_cleaned",
     "check_setup_output_dir_exists",
     "check_setup_input_dir_exists",
+    "check_utils_status_file_removed",
+    "check_install_os_status_file_removed",
     # OIM log backup functions
     "validate_backup_config",
     "validate_backup_metadata_file",

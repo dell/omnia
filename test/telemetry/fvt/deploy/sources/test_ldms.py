@@ -59,7 +59,7 @@ from library.functions.k8s_func import (
     verify_kafka_topic_ready,
     verify_pods_by_prefix,
 )
-from library.functions.telemetry_func import is_source_enabled
+from library.functions.telemetry_func import is_source_enabled, is_sink_enabled_for_source
 
 
 def _skip_if_ldms_disabled(host):
@@ -455,6 +455,10 @@ def test_ldms_sampler_plugins(host):
 def test_ldms_kafka_topic(host):
     """TEL_FVT_DEPLOY_V026: Verify LDMS Kafka topic exists."""
     _skip_if_ldms_disabled(host)
+    # Skip if LDMS does not target Kafka sink
+    if not is_sink_enabled_for_source(host, "ldms", "kafka"):
+        pytest.skip("LDMS source does not target Kafka sink")
+    
     tc = TC["ldms_kafka_topic"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -565,6 +569,10 @@ def test_ldms_earliest_data(host):
     from library.functions.ldms_func import verify_ldms_earliest_data_in_kafka
 
     _skip_if_ldms_disabled(host)
+    # Skip if LDMS does not target Kafka sink
+    if not is_sink_enabled_for_source(host, "ldms", "kafka"):
+        pytest.skip("LDMS source does not target Kafka sink")
+    
     tc = TC["ldms_earliest_data"]
     tl = TestLogger(tc["title"], tc["id"])
 
@@ -640,6 +648,10 @@ def test_ldms_kafka_data(host):
     from library.functions.ldms_func import verify_ldms_data_in_kafka
 
     _skip_if_ldms_disabled(host)
+    # Skip if LDMS does not target Kafka sink
+    if not is_sink_enabled_for_source(host, "ldms", "kafka"):
+        pytest.skip("LDMS source does not target Kafka sink")
+    
     tc = TC["ldms_kafka_data"]
     tl = TestLogger(tc["title"], tc["id"])
 

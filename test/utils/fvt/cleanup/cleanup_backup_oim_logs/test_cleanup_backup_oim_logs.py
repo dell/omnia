@@ -27,7 +27,9 @@ from library.functions import (
     load_test_config,
     run_playbook,
     get_backup_oim_logs_output_path,
+    get_utils_output_path,
     check_backup_workspace_removed,
+    check_utils_status_file_removed,
 )
 from library.vars import (
     TEST_CASES as TC,
@@ -86,4 +88,31 @@ def test_cleanup_backup_oim_logs_workspace_removed(host):
 
     assert result["success"], (
         f"Backup run directories not removed: {result['remaining']}"
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.cleanup_backup_oim_logs
+@pytest.mark.order(2)
+def test_cleanup_backup_oim_logs_status_file_removed(host):
+    """Verify utils_status.yml file is removed after cleanup_backup_oim_logs."""
+    tc = TC["cleanup_status_file_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    output_path = get_utils_output_path(host)
+    result = check_utils_status_file_removed(host, output_path)
+
+    tl.info("Status file cleanup status:")
+    tl.info(f"  Status file path: {result['path']}")
+    tl.info(f"  Status file removed: {'Yes' if result['success'] else 'No'}")
+
+    if result["success"]:
+        tl.passed("Utils status file removed")
+    else:
+        tl.failed(f"Status file still exists at {result['path']}")
+
+    assert result["success"], (
+        f"Utils status file not removed: "
+        f"path={result['path']}, "
+        f"exists={result['exists']}"
     )

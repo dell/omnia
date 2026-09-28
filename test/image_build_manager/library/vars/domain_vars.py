@@ -52,6 +52,7 @@ MARKERS: List[str] = [
     "x86_64",
     "aarch64",
     "functional",
+    "regression",
     "deploy",
 ]
 
@@ -65,10 +66,16 @@ SUITES: Dict[str, List[str]] = {
     "prepare": ["container", "s3"],
     "build": [
         "s3", "registry", "naming",
-        "image_verification",
+        "image_verification", "catalog_reuse",
     ],
     "cleanup": ["cleanup"],
     "cleanup_images": ["cleanup_images"],
+}
+
+# The catalog-reuse suite performs its own controlled sequence of build
+# executions and assertions.  It must not also execute build/test_playbook.py.
+SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
+    "build": ["catalog_reuse"],
 }
 
 # =====================================================================

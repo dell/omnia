@@ -13,6 +13,11 @@
 # limitations under the License.
 ---
 
+- name: Include openchami vars for cluster_env_key
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../../orchestrator_common/vars/openchami_vars.yml"
+  when: cluster_env_key is not defined
+
 - name: Refresh SMD access token before ochami operations
   ansible.builtin.include_role:
     name: orchestrator_common
@@ -31,7 +36,7 @@
         method: DELETE
         headers:
           Authorization: >-
-            Bearer {{ hostvars['oim']['ochami_env'][(oim_node_name | upper) + '_ACCESS_TOKEN'] }}
+            Bearer {{ hostvars['oim']['ochami_env'][cluster_env_key] }}
         status_code: [200, 404]
         validate_certs: false
       no_log: true

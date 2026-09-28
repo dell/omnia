@@ -40,6 +40,7 @@ from .ome_func import get_ome_pipeline_context
 from .telemetry_func import (
     get_vlselect_endpoint,
     get_vmselect_endpoint,
+    is_sink_enabled_for_source,
     run_on_kube_vip,
 )
 
@@ -619,6 +620,13 @@ def verify_ome_metrics_in_victoria(host, topic):
             ),
         )
     try:
+        # Check if OME source targets victoria_metrics sink
+        if not is_sink_enabled_for_source(host, "ome", "victoria_metrics"):
+            return _result(
+                True,
+                details="OME source does not target VictoriaMetrics sink",
+                skipped=True,
+            )
         context = _pipeline_context(host, "metrics")
         resolved_topic = _resolved_topic(topic, context["identifier"])
         if not context["source_enabled"] or not context["bridge_enabled"]:
@@ -646,6 +654,13 @@ def verify_ome_logs_in_victoria(host, topic):
             ),
         )
     try:
+        # Check if OME source targets victoria_logs sink
+        if not is_sink_enabled_for_source(host, "ome", "victoria_logs"):
+            return _result(
+                True,
+                details="OME source does not target VictoriaLogs sink",
+                skipped=True,
+            )
         context = _pipeline_context(host, "logs")
         resolved_topic = _resolved_topic(topic, context["identifier"])
         if not context["source_enabled"] or not context["bridge_enabled"]:

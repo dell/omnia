@@ -47,13 +47,11 @@
 #   cluster provisioning. Ensure network connectivity and mount permissions are configured.
 
 # skip_merge
-#   Variable indicates whether a specific configuration file path
-#   under config_sources should be used as-is without merging
-#   If skip_merge is set to true for a configuration source path,
-#   that configuration file will be applied directly
-#   without merging with defaults or existing configurations
-#   It accepts true and false values
-#   Default value is false
+# Optional cluster-wide boolean configured inside a slurm_cluster entry.
+# When false, file-based config_sources are merged with generated defaults.
+# When true, generated defaults are not merged into file-based config_sources.
+# Files are parsed and regenerated, so comments and formatting are not retained.
+# Default value is false.
 
 # node_discovery_mode
 #   Controls how hardware specifications are discovered for Slurm compute nodes
@@ -92,15 +90,17 @@
 #       real_memory: 256000
 
 # config_sources
-# defines how the Slurm configuration files are provided to the cluster.
+# Optional mapping configured inside a slurm_cluster entry. It defines how
+# Slurm configuration files are provided to the cluster.
 # <conf name>:
 #    <mapping> or <filepath>
 # <mapping> Supply the configuration values directly as a key–value map
-# <filepath> Supply the absolute path to a custom configuration file
-#            This path can be any path inside the omnia_core container.
-#            The default input path is under
-#            "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME".
-#            can also be used to place the custom conf files
+# <filepath> Supply an absolute path to a custom configuration file that is
+#            readable on the OIM host.
+# The project input directory under
+# "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME" can be used to store
+# custom configuration files. Environment variables are not expanded inside
+# omnia_config.yml; provide the resolved absolute path.
 # The conf files supported by slurm are
 # slurm
 # cgroup
@@ -113,37 +113,36 @@
 # oci
 # topology
 # burst_buffer
-#
-# These files will be written into the slurm_config directory with .conf suffix
-# config_sources:
-#   slurm:
-#     SlurmctldTimeout: 60
-#     SlurmdTimeout: 150
-#     NodeName:
-#       - NodeName: newnode1
-#         CPUs: 16
-#         RealMemory: 64000
-#       - NodeName: newnode2
-#         CPUs: 16
-#         RealMemory: 64000
-#   cgroup:
-#     CgroupPlugin: autodetect
-#     ConstrainCores: True
-#     ConstrainDevices: True
-#     ConstrainRAMSpace: True
-#     ConstrainSwapSpace: True
-#
-#   OR
-#
-# config_sources:
-#   slurm: <ORCHESTRATOR_DATA_PATH>/input/<project>/slurm.conf
-#   cgroup: <ORCHESTRATOR_DATA_PATH>/input/<project>/cgroup.conf
-#   slurmdbd: <ORCHESTRATOR_DATA_PATH>/input/<project>/slurmdbd.conf
+# These files are written into the Slurm configuration directory with the
+# corresponding .conf suffix.
 
 slurm_cluster:
   - cluster_name: slurm_cluster
     nfs_storage_name: nfs_slurm
     vast_storage_name: vast_storage
+# Optional custom Slurm configuration. Keep skip_merge and config_sources
+# nested under this slurm_cluster entry. Choose one config_sources format
+# and remove only the first '#' from each configuration line in that example.
+#
+# Inline mapping example:
+#    skip_merge: false
+#    config_sources:
+#      slurm:
+#        SlurmctldTimeout: 60
+#        SlurmdTimeout: 150
+#      cgroup:
+#        CgroupPlugin: autodetect
+#        ConstrainCores: true
+#        ConstrainDevices: true
+#        ConstrainRAMSpace: true
+#        ConstrainSwapSpace: true
+#
+# OR, absolute file-path example:
+#    skip_merge: false
+#    config_sources:
+#      slurm: /absolute/path/to/slurm.conf
+#      cgroup: /absolute/path/to/cgroup.conf
+#      slurmdbd: /absolute/path/to/slurmdbd.conf
 
 # ----------------------------SERVICE K8S------------------------------------------------------
 # For service k8s cluster below parameters are required,(List)

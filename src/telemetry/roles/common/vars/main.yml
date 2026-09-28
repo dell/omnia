@@ -39,6 +39,18 @@ deploy_timeout: "600s"
 verify_timeout: "300s"
 
 # =============================================================================
+# Pulp Repository Configuration (for offline mode)
+# =============================================================================
+# These variables define the structure of the Pulp repository URL when
+# repo_url is auto-derived from SYSTEM_ADMIN_NIC_IPV4 in offline mode.
+# Customize these if your Pulp repository uses different paths or versions.
+pulp_port: "2225"
+pulp_base_path: "pulp/content/offline_repo"
+pulp_cluster_arch: "cluster/x86_64"
+pulp_os_name: "rhel"
+pulp_os_version: "10.0"
+
+# =============================================================================
 # Python dependency installation
 # =============================================================================
 # Internal mapping from Python import names to catalog/Pulp distribution names.

@@ -147,7 +147,7 @@ cleanup:
           while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
             POLL_HTTP_CODE=$(curl -s -o images_poll_response.json -w "%{http_code}" \
               --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
-              -X GET "${BSM_API_URL}/api/v1/images?status=CLEANED&limit=1000" \
+              -X GET "${BSM_API_URL}/api/v1/images?include_all=true&limit=1000" \
               -H "Authorization: Bearer ${ACCESS_TOKEN}" \
               --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 
@@ -159,10 +159,11 @@ cleanup:
             fi
 
             CLEANUP_IG_STATE=$(jq -r --arg jid "${CLEANUP_JOB_ID}" \
-              '.image_groups[]? | select(.job_id == $jid) | .status' \
-              images_poll_response.json 2>/dev/null || echo "UNKNOWN")
+              '.image_groups[]? | select(.job_id == $jid) | .status // empty' \
+              images_poll_response.json 2>/dev/null || true)
+            CLEANUP_IG_STATE=${CLEANUP_IG_STATE:-UNKNOWN}
 
-            echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Image Group: ${CLEANUP_IG_STATE:-UNKNOWN}"
+            echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Cleanup: ${CLEANUP_IG_STATE}"
 
             if [ "${CLEANUP_IG_STATE}" = "CLEANED" ]; then
               CLEANUP_COMPLETED=true

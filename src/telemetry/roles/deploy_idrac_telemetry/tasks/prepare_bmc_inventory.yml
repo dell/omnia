@@ -19,8 +19,7 @@
 
 - name: Set BMC group data filename from bmc_group_data_path
   ansible.builtin.set_fact:
-    bmc_group_data_filename: >-
-      {{ hostvars['localhost']['bmc_group_data_path'] }}
+    bmc_group_data_filename: "{{ hostvars['localhost']['bmc_group_data_path'] | trim }}"
 
 # These native list expressions and Jinja conditions must remain on one line;
 # folded continuations change their types or evaluation in Ansible templates.

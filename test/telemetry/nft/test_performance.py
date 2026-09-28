@@ -20,10 +20,16 @@ Verifies that key operations complete within expected timeframes:
   - Deploy playbook completes within threshold (< 600s / 10 minutes)
   - Cleanup playbook completes within threshold (< 300s / 5 minutes)
 
+Execution order:
+  - Validate (order 100) and Deploy (order 101) run first.
+  - Cleanup (order 130) runs LAST, after all resilience tests, because
+    cleanup deletes credentials from the src flow — any deploy after
+    cleanup would fail with missing creds.
+
 Test cases:
-    TEL_NFT_001: Validate performance (< 30s)
-    TEL_NFT_002: Deploy performance (< 600s)
-    TEL_NFT_003: Cleanup performance (< 300s)
+    TEL_NFT_001: Validate performance (order 100)
+    TEL_NFT_002: Deploy performance (order 101)
+    TEL_NFT_003: Cleanup performance (order 130)
 """
 
 import pytest
@@ -143,12 +149,17 @@ def test_deploy_performance(host):
 
 @pytest.mark.nft
 @pytest.mark.performance
-@pytest.mark.order(102)
+@pytest.mark.order(130)
 def test_cleanup_performance(host, delete_sinks_volume):
     """TEL_NFT_003: Verify cleanup completes within 300s (5 min) threshold.
 
     Runs the cleanup phase and asserts that full cleanup completes in under
     5 minutes.
+
+    Ordered AFTER all resilience tests because cleanup deletes credentials
+    from the src flow — any subsequent deploy would fail with missing
+    creds.  This test is the first in the cleanup phase that tears
+    down the deployed stack.
 
     The ``delete_sinks_volume`` fixture controls whether
     ``Delete_sinks_volume=true`` is passed, matching the production cleanup

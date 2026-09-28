@@ -22,6 +22,7 @@ All functions return a dict with keys: success, details, error.
 """
 
 import os
+import shlex
 import time
 from typing import Any, Dict, List
 
@@ -423,6 +424,32 @@ def check_ansible_available(host) -> Dict[str, Any]:
         "success": False,
         "details": "",
         "error": "Ansible not found in venv",
+    }
+
+
+def check_cli_log_paths(host) -> Dict[str, Any]:
+    """Verify omnia-cli does not search the unsupported data log path.
+
+    Args:
+        host: Testinfra host connection.
+
+    Returns:
+        Dict with keys: success, details, error, source_file, and output.
+    """
+    cli_path = f"{_resolve_clone_path()}/{OMNIA_CLI_PATH}"
+    cmd = CMDS["omnia_cli_log_dirs_source"].format(
+        omnia_cli=shlex.quote(cli_path)
+    )
+    result = run_on_host(host, cmd)
+    output = result.stdout.strip()
+    has_unsupported_path = "${base}/log" in output
+
+    return {
+        "success": result.rc == 0 and not has_unsupported_path,
+        "details": output,
+        "error": result.stderr.strip() if result.rc != 0 else "",
+        "source_file": cli_path,
+        "output": output,
     }
 
 
