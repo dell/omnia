@@ -27,12 +27,19 @@ yourself, for every catalog in the bulk set, not just the first one.
 1. `src/build_stream/ai_skills/catalog_editing/pre_edit_gate.md` and, for
    this Story, its per-catalog differentiation section — a bulk edit can
    be clean for some catalogs and flagged for others; each gets its own
-   approval decision.
+   approval decision. It also owns the pre-edit snapshot for each
+   catalog, per its Step 4.
 2. `src/build_stream/ai_skills/catalog_editing/edit_catalog.md` — the
    underlying single-catalog edit mechanics this skill applies
    per-catalog.
 3. `src/repo_manager/schemas/catalog_schema.json` — the per-catalog schema
    gate.
+4. `src/build_stream/ai_skills/shared/working_directory.md` — use one
+   working directory for the whole bulk-edit invocation, with one
+   pre-edit snapshot file per catalog inside it (e.g.
+   `$WORKDIR/<catalog-name>.pre_edit_snapshot.json`), so a per-catalog
+   diff/changelog can be generated for every applied catalog without the
+   snapshots colliding with each other.
 
 ## Procedure
 
@@ -92,7 +99,9 @@ For each catalog the operator approved:
 ### Step 4 — Report
 
 List, explicitly:
-- **Applied:** every catalog that changed, with the specific change.
+- **Applied:** every catalog that changed, with the specific change and
+  confirmation that its per-catalog changelog (per `pre_edit_gate.md`
+  Step 4) was generated and copied to its destination.
 - **Skipped (schema-invalid):** every catalog that would have failed
   schema validation after the change, with the specific violation. Its
   file is unmodified — confirm this if asked (e.g. by hash comparison).

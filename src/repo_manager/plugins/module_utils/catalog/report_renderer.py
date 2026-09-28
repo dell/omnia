@@ -27,6 +27,7 @@ warnings this Story's scope supports (master reference file A.8):
       references affects both roles.
 """
 
+import copy
 import logging
 import os
 import re
@@ -40,6 +41,7 @@ _KUBE_COMPONENT_PATTERNS = {
     "cri-o": re.compile(r"cri[-_]o", re.IGNORECASE),
 }
 _VERSION_RE = re.compile(r"(\d+\.\d+)\.\d+")
+_LAYER_VERSION_TOKEN_RE = re.compile(r"rhel_(\d+_\d+)_")
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
 TEMPLATE_NAME = "changelog_report.html.j2"
@@ -105,6 +107,64 @@ def summarize(current_body: dict, future_body: dict, forward_diff: list) -> dict
             })
 
     return summary
+
+
+def detect_os_version_cutover(current_body: dict, future_body: dict):
+    """Detect whether this diff is a wholesale base-OS-version cutover: every
+    functional layer in the current catalog was renamed to its counterpart in
+    the future catalog by substituting a single 'MAJOR_MINOR' version token
+    (e.g. '10_0' -> '10_2'), with each renamed layer's component set
+    otherwise unchanged, and no layer name is shared between the two catalogs.
+
+    This is the situation the diff-changelog Story's worked example already
+    describes in prose (a same-content catalog re-cut for a new OS version,
+    where per-OS-version layer naming makes every group in the old layer set
+    look "removed" relative to the new one). Detecting it lets the renderer
+    consolidate what would otherwise be dozens of near-identical per-package
+    and per-group lines into one explanatory note.
+
+    Args:
+        current_body: The current catalog's body (value under 'catalog').
+        future_body: The future catalog's body (value under 'catalog').
+
+    Returns:
+        A dict {'old_version', 'new_version', 'renamed_layers'} (dotted
+        version strings and a sorted list of (old_name, new_name) pairs) if
+        the whole-catalog cutover pattern is detected, else None.
+    """
+    current_layers = {
+        layer["name"]: set(layer.get("components", []))
+        for layer in current_body.get("functionallayer", [])
+    }
+    future_layers = {
+        layer["name"]: set(layer.get("components", []))
+        for layer in future_body.get("functionallayer", [])
+    }
+    if not current_layers or not future_layers:
+        return None
+    if set(current_layers) & set(future_layers):
+        return None  # some layer name persisted unchanged -- not a full cutover
+
+    old_tokens = {tok for name in current_layers for tok in _LAYER_VERSION_TOKEN_RE.findall(name)}
+    new_tokens = {tok for name in future_layers for tok in _LAYER_VERSION_TOKEN_RE.findall(name)}
+    if len(old_tokens) != 1 or len(new_tokens) != 1:
+        return None
+    old_token, new_token = old_tokens.pop(), new_tokens.pop()
+    if old_token == new_token:
+        return None
+
+    renamed_layers = []
+    for name, components in current_layers.items():
+        mapped = name.replace(old_token, new_token)
+        if mapped not in future_layers or components != future_layers[mapped]:
+            return None
+        renamed_layers.append((name, mapped))
+
+    return {
+        "old_version": old_token.replace("_", "."),
+        "new_version": new_token.replace("_", "."),
+        "renamed_layers": sorted(renamed_layers),
+    }
 
 
 def _extract_minor_version(text: str):
@@ -175,17 +235,29 @@ def check_con004(future_body: dict, forward_diff: list) -> list:
     }]
 
 
-def check_con007(current_body: dict, future_body: dict) -> list:
+def check_con007(current_body: dict, future_body: dict, cutover: dict = None) -> list:
     """CON-007 (master reference file A.8, warning): removing a group from one
     functional layer's components while another functional layer still
     references it affects both roles, not just the edited one.
 
+    When `cutover` (from `detect_os_version_cutover`) is supplied and every
+    individual finding below is fully explained by that whole-catalog
+    OS-version rename (i.e. the only functional layer still referencing the
+    "removed" group is that layer's own renamed counterpart), the per-group
+    findings are consolidated into a single informational note instead of one
+    warning per group -- otherwise a same-content OS-version cutover renders
+    as dozens of near-duplicate CON-007 lines that all say the same thing.
+
     Args:
         current_body: The current catalog's body.
         future_body: The future catalog's body.
+        cutover: Optional result of `detect_os_version_cutover(current_body,
+            future_body)`, used only to consolidate presentation -- it never
+            suppresses a finding that isn't fully explained by the rename.
 
     Returns:
-        A list of warning dicts (one per affected group/layer pairing).
+        A list of warning dicts (one per affected group/layer pairing, or a
+        single consolidated dict when `cutover` explains every finding).
     """
     warnings = []
     current_layers = {
@@ -196,24 +268,63 @@ def check_con007(current_body: dict, future_body: dict) -> list:
         layer["name"]: set(layer.get("components", []))
         for layer in future_body.get("functionallayer", [])
     }
+    rename_map = dict(cutover["renamed_layers"]) if cutover else {}
+
+    # A group's removal is fully explained by the rename (not a real
+    # structural change) when the *set* of layers referencing it, translated
+    # through the rename map, is identical before and after -- i.e. it was
+    # already shared across exactly the layers that got renamed, and nothing
+    # else changed about who references it.
+    all_groups = {g for comps in current_layers.values() for g in comps}
+    all_groups |= {g for comps in future_layers.values() for g in comps}
+    cutover_explained_groups = set()
+    if cutover:
+        for group in all_groups:
+            old_refs = {name for name, comps in current_layers.items() if group in comps}
+            new_refs = {name for name, comps in future_layers.items() if group in comps}
+            translated_old_refs = {rename_map.get(name, name) for name in old_refs}
+            if old_refs and translated_old_refs == new_refs:
+                cutover_explained_groups.add(group)
 
     for layer_name, old_components in current_layers.items():
         new_components = future_layers.get(layer_name, set())
         for group in old_components - new_components:
+            if group in cutover_explained_groups:
+                continue
             still_referenced_by = sorted(
                 other_name for other_name, other_components in future_layers.items()
                 if other_name != layer_name and group in other_components
             )
-            if still_referenced_by:
-                warnings.append({
-                    "constraint_id": "CON-007",
-                    "severity": "warning",
-                    "message": (
-                        f"Group '{group}' was removed from functional layer '{layer_name}', "
-                        f"but is still referenced by {', '.join(still_referenced_by)} -- "
-                        "removing it here does not remove it from those layers."
-                    ),
-                })
+            if not still_referenced_by:
+                continue
+            warnings.append({
+                "constraint_id": "CON-007",
+                "severity": "warning",
+                "message": (
+                    f"Group '{group}' was removed from functional layer '{layer_name}', "
+                    f"but is still referenced by {', '.join(still_referenced_by)} -- "
+                    "removing it here does not remove it from those layers."
+                ),
+            })
+
+    if cutover_explained_groups:
+        example = sorted(cutover_explained_groups)[0]
+        warnings.insert(0, {
+            "constraint_id": "CON-007",
+            "severity": "info",
+            "message": (
+                f"Base-OS-version cutover ({cutover['old_version']} -> "
+                f"{cutover['new_version']}): {len(cutover_explained_groups)} group(s) "
+                f"across {len(cutover['renamed_layers'])} functional layer(s) appear "
+                f"'removed' only because each layer was renamed to its "
+                f"{cutover['new_version']} equivalent, and every layer that referenced "
+                f"the group before still does after the rename (e.g. group "
+                f"'{example}'). This is not an orphaned-group warning -- see the Base "
+                "OS, Architecture, and Catalog Metadata Impact section for the full "
+                "old -> new layer-name mapping. Affected groups: "
+                f"{', '.join(sorted(cutover_explained_groups))}."
+            ),
+        })
     return warnings
 
 
@@ -228,9 +339,10 @@ def collect_warnings(current_body: dict, future_body: dict, forward_diff: list) 
     Returns:
         Combined list of warning dicts from every implemented check.
     """
+    cutover = detect_os_version_cutover(current_body, future_body)
     warnings = []
     warnings.extend(check_con004(future_body, forward_diff))
-    warnings.extend(check_con007(current_body, future_body))
+    warnings.extend(check_con007(current_body, future_body, cutover))
     return warnings
 
 
@@ -293,15 +405,65 @@ def _package_label(pkg) -> str:
     return f"{name} [{', '.join(source_versions)}]" if source_versions else name
 
 
-def _render_package_section(pkg: dict) -> list:
-    """Render the '## Packages' section's lines from a packages summary bucket."""
+def _without_source_versions(pkg: dict) -> dict:
+    """Deep-copy a package value with every source's 'version' list stripped,
+    so two packages that differ only in their OS-version pin compare equal.
+    """
+    clone = copy.deepcopy(pkg)
+    for source in clone.get("sources", []) or []:
+        source.pop("version", None)
+    return clone
+
+
+def _is_pure_version_bump(old_pkg: dict, new_pkg: dict, cutover: dict) -> bool:
+    """True when a changed package's only difference is its source(s)' version
+    list moving from the cutover's old version to its new version -- the same
+    per-package "diff" that a whole-catalog OS-version re-cut produces,
+    whether or not the package also carries its own unrelated top-level
+    `version`/`tag` (e.g. a container image tag), which is compared as-is.
+    """
+    if not cutover or not old_pkg or not new_pkg:
+        return False
+    if not (set(_source_versions(old_pkg)) == {cutover["old_version"]}
+            and set(_source_versions(new_pkg)) == {cutover["new_version"]}):
+        return False
+    return _without_source_versions(old_pkg) == _without_source_versions(new_pkg)
+
+
+def _split_package_changes(changed: list, cutover: dict) -> tuple:
+    """Split a packages summary's 'changed' list into (pure_version_bumps,
+    other_changes), using `_is_pure_version_bump` against `cutover`.
+    """
+    if not cutover:
+        return [], changed
+    bumps, other = [], []
+    for item in changed:
+        (bumps if _is_pure_version_bump(item["old"], item["new"], cutover) else other).append(item)
+    return bumps, other
+
+
+def _render_package_section(pkg: dict, cutover: dict = None) -> list:
+    """Render the '## Packages' section's lines from a packages summary bucket.
+
+    When `cutover` is supplied, packages whose only change is the version-list
+    bump the cutover already explains are collapsed into a single summary
+    line instead of one near-identical bullet per package.
+    """
+    bumps, other_changed = _split_package_changes(pkg["changed"], cutover)
     lines = [f"## Packages ({len(pkg['added'])} added, {len(pkg['removed'])} removed, "
              f"{len(pkg['changed'])} changed)"]
     for item in pkg["added"]:
         lines.append(f"- + {item['key']}: {_package_label(item['value'])}")
     for item in pkg["removed"]:
         lines.append(f"- - {item['key']}: {_package_label(item['value'])}")
-    for item in pkg["changed"]:
+    if bumps:
+        lines.append(
+            f"- ~ {len(bumps)} package(s) version-bumped {cutover['old_version']} -> "
+            f"{cutover['new_version']} only (no other change) as part of the base-OS-"
+            f"version cutover: {', '.join(item['key'] for item in bumps[:5])}"
+            + (f", and {len(bumps) - 5} more" if len(bumps) > 5 else "")
+        )
+    for item in other_changed:
         lines.append(f"- ~ {item['key']}: {_package_label(item['old'])} -> "
                      f"{_package_label(item['new'])}")
     lines.append("")
@@ -324,13 +486,21 @@ def _render_keyed_section(title: str, bucket: dict) -> list:
     return lines
 
 
-def _render_impact_section(summary: dict) -> list:
+def _render_impact_section(summary: dict, cutover: dict = None) -> list:
     """Render the base-OS/architecture/catalog-metadata impact section's lines."""
     base_os_notes = _base_os_notes(summary)
     arch_notes = _architecture_notes(summary)
-    if not (base_os_notes or arch_notes or summary["catalog_fields"]):
+    if not (base_os_notes or arch_notes or summary["catalog_fields"] or cutover):
         return []
     lines = ["## Base OS, Architecture, and Catalog Metadata Impact"]
+    if cutover:
+        lines.append(
+            f"- Base-OS-version cutover: {cutover['old_version']} -> "
+            f"{cutover['new_version']} ({len(cutover['renamed_layers'])} functional "
+            "layer(s) renamed, components unchanged):"
+        )
+        for old_name, new_name in cutover["renamed_layers"]:
+            lines.append(f"  - {old_name} -> {new_name}")
     for note in base_os_notes + arch_notes:
         lines.append(f"- {note}")
     for item in summary["catalog_fields"]:
@@ -351,8 +521,9 @@ def _render_warnings_section(warnings: list) -> list:
     return lines
 
 
-def render_changelog_text(current_name: str, future_name: str, schema_version: dict,
-                           summary: dict, warnings: list) -> str:
+def render_changelog_text(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        current_name: str, future_name: str, schema_version: dict,
+        summary: dict, warnings: list, cutover: dict = None) -> str:
     """Render the plain-English changelog (Markdown-flavored text).
 
     Args:
@@ -361,22 +532,26 @@ def render_changelog_text(current_name: str, future_name: str, schema_version: d
         schema_version: {'current': ..., 'future': ...} labels from diff_catalogs.
         summary: The dict from `summarize()`.
         warnings: The list from `collect_warnings()`.
+        cutover: Optional result of `detect_os_version_cutover()`, used to
+            consolidate pure OS-version-bump package lines and to render the
+            old -> new functional-layer-name mapping.
 
     Returns:
         The changelog as a single Markdown-flavored text string.
     """
     lines = [f"# Changelog: {current_name} -> {future_name}", "",
              f"Schema version: {schema_version['current']} -> {schema_version['future']}", ""]
-    lines.extend(_render_package_section(summary["packages"]))
+    lines.extend(_render_package_section(summary["packages"], cutover))
     lines.extend(_render_keyed_section("Groups", summary["groups"]))
     lines.extend(_render_keyed_section("Functional Layers", summary["functionallayer"]))
-    lines.extend(_render_impact_section(summary))
+    lines.extend(_render_impact_section(summary, cutover))
     lines.extend(_render_warnings_section(warnings))
     return "\n".join(lines)
 
 
-def render_html(current_name: str, future_name: str, schema_version: dict,
-                 summary: dict, warnings: list):
+def render_html(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        current_name: str, future_name: str, schema_version: dict,
+        summary: dict, warnings: list, cutover: dict = None):
     """Render the rich HTML changelog report via Jinja2.
 
     Args:
@@ -385,6 +560,7 @@ def render_html(current_name: str, future_name: str, schema_version: dict,
         schema_version: {'current': ..., 'future': ...} labels from diff_catalogs.
         summary: The dict from `summarize()`.
         warnings: The list from `collect_warnings()`.
+        cutover: Optional result of `detect_os_version_cutover()`.
 
     Returns:
         The rendered HTML as a string, or None if `jinja2` is not installed
@@ -395,6 +571,8 @@ def render_html(current_name: str, future_name: str, schema_version: dict,
     except ImportError:
         logger.warning("jinja2 not installed, skipping HTML report generation")
         return None
+
+    bumps, other_changed = _split_package_changes(summary["packages"]["changed"], cutover)
 
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(TEMPLATE_DIR),
@@ -410,4 +588,7 @@ def render_html(current_name: str, future_name: str, schema_version: dict,
         base_os_notes=_base_os_notes(summary),
         architecture_notes=_architecture_notes(summary),
         package_label=_package_label,
+        cutover=cutover,
+        version_bump_packages=bumps,
+        other_changed_packages=other_changed,
     )

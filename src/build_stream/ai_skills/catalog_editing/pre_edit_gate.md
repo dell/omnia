@@ -24,6 +24,13 @@ branches (approve / decline / not-applicable) are verified by tracing
 this procedure by hand against each branch, the same evidence style
 already used for the master reference file's Selection Catalogue gate.
 
+## Inputs You Must Read First
+
+1. `src/build_stream/ai_skills/shared/working_directory.md` — the
+   per-invocation scratch-file convention this gate uses to snapshot a
+   catalog before it is edited in place, so a diff/changelog can still
+   be generated against the pre-edit state afterward (Step 4).
+
 ## States and Transitions
 
 The gate has exactly one active state per catalog per requested edit:
@@ -88,17 +95,36 @@ approval for a newly-presented finding.
 
 ### Step 4 — Transition on the operator's decision
 
-- **Approve:** apply the edit via `edit_catalog.md`'s (or, for a
-  cross-catalog request, `bulk_edit_catalog.md`'s) mechanics, then
-  invoke `src/build_stream/ai_skills/diff_changelog/changelog_generator.md`
-  against the catalog's before/after state to generate/update its
-  changelog. Report both the applied edit and the changelog update.
+- **Approve:**
+  1. **Before applying the edit**, snapshot the catalog's current
+     (pre-edit) content into this invocation's working directory per
+     `src/build_stream/ai_skills/shared/working_directory.md` (e.g.
+     `$WORKDIR/pre_edit_snapshot.json`). The edit is applied in place
+     (`edit_catalog.md`/`bulk_edit_catalog.md` overwrite the catalog file
+     directly), so this snapshot is the only remaining copy of the
+     "before" state once the write happens — without it, Step 4.2 below
+     has nothing to diff against.
+  2. Apply the edit via `edit_catalog.md`'s (or, for a cross-catalog
+     request, `bulk_edit_catalog.md`'s) mechanics.
+  3. Invoke `src/build_stream/ai_skills/diff_changelog/changelog_generator.md`
+     with `--current $WORKDIR/pre_edit_snapshot.json --future
+     <the now-edited catalog file>` to generate/update its changelog.
+     Write the diff/changelog outputs into the same working directory,
+     then copy the changelog (and, if the operator wants it, the
+     machine-readable diff) to wherever the operator's changelog record
+     for this catalog lives, before the working directory is cleaned up.
+  4. Report both the applied edit and the changelog update.
+  5. Clean up the working directory (including the pre-edit snapshot)
+     per `working_directory.md` once the changelog has been copied to
+     its real destination.
 - **Decline:** do not apply the edit. Do not write to the catalog file.
-  Do not generate or update a changelog entry. Report that the catalog
-  is unchanged.
+  Do not generate or update a changelog entry. Do not take a pre-edit
+  snapshot in the first place (Step 4.1 is only needed on the approve
+  path). Report that the catalog is unchanged.
 - **Not-applicable checks still require approval and still update the
   changelog on approval** — "not applicable" only affects which checks
-  ran, not whether the gate itself is bypassed.
+  ran, not whether the gate itself is bypassed. The snapshot-diff-cleanup
+  sequence above still applies, even for a metadata-only edit.
 
 ### Step 5 — Per-catalog differentiation for bulk edits
 
@@ -107,6 +133,11 @@ catalogs, run Steps 1-4 **independently per catalog**. A finding on one
 catalog never blocks, suppresses, or auto-applies to another:
 - Present each catalog's findings separately (a table or per-catalog
   section, not a single merged verdict).
+- Step 4's pre-edit snapshot is per catalog, named so multiple snapshots
+  in the same working directory don't collide (e.g.
+  `$WORKDIR/<catalog-name>.pre_edit_snapshot.json`), and each approved
+  catalog's changelog is generated against its own snapshot independently
+  of any other catalog's outcome.
 - Accept a separate approve/decline decision per flagged catalog. A
   catalog with no finding may be approved and applied while another
   with a finding is still pending or declined — these are independent
@@ -135,9 +166,12 @@ analysis skills' degraded-mode disclosure contract).
 > Analysis reports the direct blast radius (which functional layers
 > reference it) plus severity; Compatibility Analysis is not applicable
 > (a removal, not a version change). Findings presented; operator
-> approves. The edit is applied via `edit_catalog.md`, then
-> `changelog_generator.md` is invoked to record the removal and its
-> disclosed impact.
+> approves. The pre-edit catalog is snapshotted to `$WORKDIR/
+> pre_edit_snapshot.json`, the edit is applied via `edit_catalog.md`, then
+> `changelog_generator.md` is invoked with that snapshot as `--current`
+> and the now-edited file as `--future` to record the removal and its
+> disclosed impact. The changelog is copied to its destination and
+> `$WORKDIR` is removed.
 
 **Decline:**
 > Same findings as above, but the operator declines. The catalog file
