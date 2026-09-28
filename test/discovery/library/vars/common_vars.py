@@ -38,6 +38,7 @@ DOMAIN_NAME = "discovery"
 
 # Environment variable names on the target host
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
+ENV_DISCOVERY_DATA_PATH = "DISCOVERY_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 
 # Domain config file (inside the domain input directory)
@@ -63,9 +64,20 @@ PLAYBOOK_TAGS: List[str] = [
 # =============================================================================
 # Domain-specific paths
 # =============================================================================
-SHARED_PATH = "/opt/omnia/discovery"
-INPUT_PATH_TEMPLATE = "/opt/omnia/discovery/input/{project}"
-OUTPUT_PATH_TEMPLATE = "/opt/omnia/discovery/output/{project}"
+# src/ paths — used when dataset is empty (default: use src/ directly)
+SRC_INPUT_DIR = os.path.join(
+    REPO_ROOT, "src", "discovery", "input",
+)
+
+# Shared path — derived from DISCOVERY_DATA_PATH env var when available;
+# falls back to OMNIA_DATA_PATH/discovery, then /opt/omnia/discovery
+SHARED_PATH = (
+    os.environ.get(ENV_DISCOVERY_DATA_PATH)
+    or os.path.join(
+        os.environ.get(ENV_OMNIA_DATA_PATH, "/opt/omnia"),
+        DOMAIN_NAME,
+    )
+).rstrip("/")
 
 # Credentials
 CREDENTIALS_FILE_NAME = "discovery_credentials.yml"
