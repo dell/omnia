@@ -29,7 +29,9 @@
 #   credentials — Collect telemetry credentials only (opt-in only)
 #   execute     — Deploy all enabled telemetry (alias: deploy)
 #   deploy_sinks — Deploy selected sink infrastructure only; pass sink names
-#                  with -e (kafka, victoria_metrics, victoria_logs)
+#                  with -e sinks=<name> (kafka, victoria_metrics, victoria_logs)
+#                  Examples: -e sinks=kafka, -e sinks=kafka,victoria_metrics,
+#                            -e 'sinks=["kafka","victoria_logs"]'
 #   cleanup     — Cleanup all telemetry components and stored credentials
 #   upgrade     — Upgrade telemetry components (placeholder)
 #   rollback    — Rollback telemetry components (placeholder)

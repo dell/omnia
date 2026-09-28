@@ -24,24 +24,25 @@
 #   ansible-playbook deploy/sinks/deploy_sinks.yml
 #
 #   # Deploy only Kafka
-#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka"]'
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e sinks=kafka
 #
 #   # Deploy only VictoriaMetrics
-#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["victoria_metrics"]'
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e sinks=victoria_metrics
 #
 #   # Deploy only VictoriaLogs
-#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["victoria_logs"]'
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e sinks=victoria_logs
 #
 #   # Deploy any combination
-#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka","victoria_metrics"]'
-#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka","victoria_logs"]'
-#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["victoria_metrics","victoria_logs"]'
-#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka","victoria_metrics","victoria_logs"]'
 #   ansible-playbook deploy/sinks/deploy_sinks.yml -e sinks=kafka,victoria_metrics
+#   ansible-playbook deploy/sinks/deploy_sinks.yml -e 'sinks=["kafka","victoria_logs"]'
+#
+#   # Via omnia.sh (bare -e flags are auto-normalised by the shell wrapper)
+#   ./omnia.sh -r telemetry --tags deploy_sinks -e kafka
 #
 # Extra Variables:
-#   sinks  - YAML list of sinks to deploy (default: all three)
+#   sinks  - YAML list or comma-separated string of sinks to deploy.
 #            Valid values: kafka, victoria_metrics, victoria_logs
+#            Defaults to all three when not provided.
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -69,6 +70,12 @@
         tasks_from: load_telemetry_config
 
     # --- Parse and validate sinks variable ---
+    # Accepts:  -e sinks=kafka
+    #           -e sinks=kafka,victoria_metrics
+    #           -e 'sinks=["kafka","victoria_logs"]'
+    # When sinks is not provided, all sinks are deployed by default.
+    # Note: bare -e kafka (without sinks=) only works via omnia.sh,
+    # which normalises it to sinks=["kafka"] before invoking ansible-playbook.
     - name: Normalize sinks variable to a list
       ansible.builtin.set_fact:
         sinks_list: >-
