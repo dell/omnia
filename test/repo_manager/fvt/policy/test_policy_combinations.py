@@ -15,7 +15,7 @@ from library.functions import (
     TestLogger,
     check_repo_policy,
     check_repo_caching,
-    get_configured_repos,
+    get_configured_repo_contexts,
 )
 from library.messages.repo_manager_msgs import (
     TEST_NAMES,
@@ -31,19 +31,24 @@ def test_policy_always_caching_false(host: Host):
     tl = TestLogger(TEST_NAMES["policy_always_caching_false"], "RM_FVT_POLICY_V007")
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
 
     # Find a repo with policy: always + caching: false
     found_repo = None
-    for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if repo_policy["success"] and repo_caching["success"]:
             policy = repo_policy.get("policy")
@@ -78,19 +83,24 @@ def test_policy_always_caching_true(host: Host):
     tl = TestLogger(TEST_NAMES["policy_always_caching_true"], "RM_FVT_POLICY_V008")
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
 
     # Find a repo with policy: always + caching: true
     found_repo = None
-    for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if repo_policy["success"] and repo_caching["success"]:
             policy = repo_policy.get("policy")
@@ -125,19 +135,24 @@ def test_policy_partial_caching_false(host: Host):
     tl = TestLogger(TEST_NAMES["policy_partial_caching_false"], "RM_FVT_POLICY_V009")
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
 
     # Find a repo with policy: partial + caching: false
     found_repo = None
-    for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if repo_policy["success"] and repo_caching["success"]:
             policy = repo_policy.get("policy")
@@ -172,19 +187,24 @@ def test_policy_partial_caching_true(host: Host):
     tl = TestLogger(TEST_NAMES["policy_partial_caching_true"], "RM_FVT_POLICY_V010")
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
 
     # Find a repo with policy: partial + caching: true
     found_repo = None
-    for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if repo_policy["success"] and repo_caching["success"]:
             policy = repo_policy.get("policy")

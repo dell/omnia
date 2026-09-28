@@ -13,6 +13,11 @@ policies.
 
 **Schema**: `plugins/module_utils/input_validation/schema/repo_manager_config.json`
 
+Runtime configuration is literal YAML. Jinja expression (`{{`), statement
+(`{%`) and comment (`{#`) delimiters are rejected recursively before the data
+is made available to Ansible. Supply fully resolved values rather than Ansible
+templates.
+
 ### Top-Level Fields
 
 | Field | Type | Required | Default | Description |
@@ -159,6 +164,9 @@ authentication also requires the configured Vault credential entry.
 **Location**: `<REPO_MANAGER_DATA_PATH>/input/<project>/repo_manager_endpoint_config.yml`
 
 **Schema**: `plugins/module_utils/input_validation/schema/repo_manager_endpoint_config.json`
+
+This file follows the same literal-YAML rule as `repo_manager_config.yml`;
+Jinja delimiters are not supported.
 
 ```yaml
 pulp_server_port: 2225
