@@ -258,6 +258,24 @@ def is_source_enabled(host, source_name):
     return read_yaml_key(config, key, default=False)
 
 
+def is_metrics_enabled(host, source_name):
+    """Check if a telemetry source has metrics collection enabled.
+
+    Uses ``read_yaml_key`` to look up
+    ``telemetry_sources.<source_name>.metrics_enabled``.
+
+    Args:
+        host: Testinfra host connection to the OIM.
+        source_name: Source name (e.g. 'powerscale').
+
+    Returns:
+        bool: True if source has metrics_enabled: true.
+    """
+    config = load_telemetry_config_from_target(host)
+    key = f"telemetry_sources.{source_name}.metrics_enabled"
+    return read_yaml_key(config, key, default=True)
+
+
 def is_logs_enabled(host, source_name):
     """Check if a telemetry source has logs collection enabled.
 
