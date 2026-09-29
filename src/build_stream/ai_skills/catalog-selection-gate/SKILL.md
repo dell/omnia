@@ -1,6 +1,6 @@
 ---
 name: catalog-selection-gate
-description: Validates an operator-requested os_version/architecture/stack/node_role/gpu/storage/network selection against the Selection Catalogue's support_status before any functional group or package set is emitted. Use when Catalog Generation, Catalog Editing, or an Analysis skill is about to resolve or present a selection on one of those axes.
+description: Validates operator-requested OS families/versions, role architectures, stacks, GPU, storage, and network selections against the Selection Catalogue and verified platform/consumer evidence before emitting groups or packages. Use when generating, editing, or analyzing catalogs, including hybrid-OS requests.
 ---
 
 Before starting, read `../shared/skill_scope.md` and use only this bundle's
@@ -21,7 +21,44 @@ browser-based AI assistant that was only given the file's contents.
 Apply this procedure whenever a skill is about to resolve or emit a
 selection on one of the axes in `references/master_reference_file.md`'s
 **A.1 Selection Catalogue** table: `os_version`, `architecture`, `stack`,
-`node_role`, `gpu`, `storage`, or `network`.
+`node_role`, `gpu`, `storage`, or `network`. Also gate `os_family` and each
+requested `(role, os_family, os_version, architecture)` assignment: the capture's
+OS version rows are not a catalog-wide constraint or evidence for another family.
+
+## OS-family/version and hybrid evidence
+
+Distinguish mixed stack, mixed architecture, and multiple OS family/version pairs.
+Read concrete definitions recursively under this checkout's
+`src/main/samples/catalogs/`; account for legacy `<version>/`, newer
+`<family>/<version>/`, and `hybrid/` layouts. An explicitly operator-designated
+catalog root/worktree may provide reference data, but record its revision/path
+and disclose unmerged status. It does not change the active schema/runtime or
+authorize loading skills from another directory.
+
+The reference table is a snapshot. For a tuple absent from it, require matching
+base-group OS metadata, role/group/package definitions, source coverage, and
+active consumer support before allowing the selection. No matching evidence
+means unresolved, not an invented default or a silent substitution. Existing
+`planned`/`unsupported` decisions still follow Step 5; a sample alone does not
+override them. Read the relevant consumer contracts before proposing a new
+family, not just a free-form schema `os` field.
+
+PR #5374's ten hybrid examples establish RHEL 10.2/10.0 role mappings; they do
+not establish multiple-family runtime support. The inspected schema has no
+`deb` package type, and the image-build parser returns one `cluster_os_type`
+and indexes base packages by version only. Recheck the active checkout before
+accepting a multi-family request. If these limits remain, retain the requested
+families and explain the missing provider/consumer support; any output is a
+blocked draft, not a supported hybrid catalog. Do not relabel DEB packages as
+RPMs or change runtime code as part of this gate.
+
+Apply hardware/storage and stack compatibility to every consuming platform
+tuple. An axis marked supported does not mean every combination is supported.
+Check exactly one matching base-OS group per layer, mandatory `os` coverage for
+each tuple, and OS-family/version/architecture source coverage. `noarch` does
+not remove OS compatibility requirements. Scope login/compiler and login
+defaults to their associated compute pool; explicit login overrides need their
+own supported tuple. Do not create a role/platform cross-product.
 
 ## Procedure
 
@@ -30,7 +67,9 @@ selection on one of the axes in `references/master_reference_file.md`'s
    is `supported`. Do NOT include a `planned` or `unsupported` option in the
    presented list "for completeness" or "for context" — every option you
    show should be one the operator can actually pick without triggering a
-   refusal. This applies whether the axis has one supported option or
+   refusal. For OS families and hybrid tuples not represented by A.1, offer
+   only choices established by the evidence checks above; filter other axis
+   choices by the consuming tuples too. This applies whether the axis has one supported option or
    several, including explicit opt-outs such as None for GPU. A `planned`/
    `unsupported` option only enters the conversation if the operator
    explicitly names it themselves, which is Step 5 below, not this step.
@@ -53,21 +92,27 @@ selection on one of the axes in `references/master_reference_file.md`'s
    An explicit storage
    opt-out emits no conditional storage group and needs no fabricated A.1 row.
 3. **No matching row found:**
+   - For OS families/versions or hybrid role tuples, use the evidence procedure
+     above. If verified, record the evidence and proceed with Step 4's
+     compatibility checks; do not fabricate an A.1 row or update the capture.
    - Do NOT fabricate a decision or a value.
-   - Tell the operator the selection is not recorded in the master
-     reference file and is not available offline.
-   - Flag the request for manual review or online resolution.
+   - If still unresolved, tell the operator what is missing from the available
+     reference data and flag it for manual review or approved source lookup.
+     Online package availability alone does not prove consumer support.
 4. **Matching row found, `support_status: supported`:**
-   - Allow the selection. Proceed to emit the functional group or package
-     set using this table row (and the A.2–A.8 tables it depends on).
+   - Allow the selection only after tuple-level compatibility checks. Resolve
+     the functional group or package set using the applicable table rows and
+     concrete catalog definitions; global RHEL defaults are not other-family
+     package definitions.
    - Apply compatibility to role/architecture assignments, not just the
      global architecture set: Kubernetes roles must be x86_64, while mixed
      clusters can have aarch64 Slurm compute. Storage choices are scoped by
      purpose/access method; PowerScale NFS does not imply PowerScale CSI.
      These generation refinements supersede the capture's aggregate "x86_64
      only when Kubernetes is included" note and automatic storage defaults:
-     `src/main/samples/catalogs/10.2/slurm_service_k8s_combined.json` demonstrates
-     the split-role architecture. Ask about existing cluster storage rather
+     Find `slurm_service_k8s_combined.json` recursively under the approved
+     catalog root for the split-role architecture, and inspect hybrid examples
+     for per-role OS assignments. Ask about existing cluster storage rather
      than assuming VAST or PowerScale CSI. Keep broader reference-table updates
      separate from this instruction-only change.
 5. **Matching row found, `support_status: planned` or `support_status:
@@ -82,8 +127,10 @@ selection on one of the axes in `references/master_reference_file.md`'s
      operator. Only apply an alternative after the operator explicitly
      confirms it.
 6. **Disclose offline mode** whenever you resolve step 4 or step 5 without
-   online package-repository access: state plainly that the decision was
-   made from the master reference file, not a live source (NFR-5).
+   online package-repository access: state which master-reference rows, catalog
+   files/revisions and consumer contracts support the decision, rather than
+   implying live source verification (NFR-5). Never describe an unmerged sample
+   as released support or schema validation as deployment verification.
 
 ## Worked examples
 
@@ -120,6 +167,22 @@ selection on one of the axes in `references/master_reference_file.md`'s
 > reference file's Selection Catalogue and I don't have online access
 > right now, so I can't confirm whether it's supported. Flagging this for
 > manual review or a follow-up check once online access is available."
+
+**Hybrid OS versions (verify each role):**
+> Operator requests RHEL 10.2/x86_64 Slurm controller and Kubernetes roles,
+> RHEL 10.0/aarch64 Slurm compute/compiler, and RHEL 10.0/x86_64 login.
+> With the PR #5374 catalog root explicitly authorized, inspect its combined
+> hybrid sample: it uses those assignments, three `os` layers, and distinct
+> `baseos_group_10.2`/`baseos_group_10.0` dictionary keys. Check the active
+> schema/consumers and requested GPU/InfiniBand/storage choices separately;
+> the sample is role-mapping evidence, not permission to enable all its groups.
+
+**Multiple OS families (retain intent, block unsupported output):**
+> Operator requests RHEL controllers and Ubuntu compute. No verified Ubuntu
+> base definitions/provider exist, and consumers still expose one cluster OS
+> family. Keep Ubuntu in the unresolved selection record, explain these limits,
+> and ask for compatible reference/runtime support. Do not silently generate
+> RHEL compute, invent Ubuntu packages, or claim a schema-valid draft is usable.
 
 ## Regenerating `master_reference_file.md`
 
