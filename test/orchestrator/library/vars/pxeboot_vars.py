@@ -629,6 +629,39 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "then module=available; fi; "
         'printf \'%s|%s|%s\' "$policy" "$usepam" "$module"'
     ),
+    # PowerVault iSCSI commands
+    "pv_iscsid_active": "systemctl is-active iscsid",
+    "pv_iscsid_enabled": "systemctl is-enabled iscsid",
+    "pv_multipathd_active": "systemctl is-active multipathd",
+    "pv_multipathd_enabled": "systemctl is-enabled multipathd",
+    "pv_iscsi_initiator_read": "cat %s",
+    "pv_iscsi_discovery": "iscsiadm -m discovery -t sendtargets -p %s:%d",
+    "pv_iscsi_sessions": "iscsiadm -m session",
+    "pv_iscsi_session_detail": "iscsiadm -m session -P 1 2>/dev/null",
+    "pv_iscsi_node_show": "iscsiadm -m node -o show",
+    "pv_multipath_list": "multipath -ll",
+    "pv_mountpoint_check": "mountpoint -q %s && echo mounted || echo not_mounted",
+    "pv_dir_exists": "test -d %s && echo exists || echo not_exists",
+    "pv_fstab_read": "cat /etc/fstab",
+    "pv_proc_mounts_read": "cat /proc/mounts",
+    "pv_blkid_fstype": "blkid -s TYPE -o value %s 2>/dev/null",
+    "pv_parted_print": "parted -s %s print 2>/dev/null",
+    "pv_port_check": (
+        "timeout %d bash -c 'cat < /dev/tcp/%s/%d' >/dev/null 2>&1 && "
+        "echo reachable || echo unreachable"
+    ),
+    "pv_df": "df -h %s",
+    "pv_mount_grep": "mount | grep '%s'",
+    "pv_log_exists": "test -f %s && echo exists || echo not_exists",
+    "pv_log_complete": "grep '%s' %s && echo found || echo not_found",
+    "pv_log_errors": "grep -E '^\\[.*\\].*ERROR' %s || true",
+    "pv_node_key_hostname": "hostname -s",
+    "pv_node_key_ipv4": "hostname -I | awk '{print $1}'",
+    "pv_node_key_instance": (
+        "cloud-init query instance_id 2>/dev/null || "
+        "cat /var/lib/cloud/data/instance-id 2>/dev/null || hostname"
+    ),
+    "pv_permissions_check": "stat -c '%%U:%%G:%%a' %s",
 }
 
 KUBERNETES_REQUIRED_POD_PREFIXES: tuple[str, ...] = (
@@ -663,3 +696,16 @@ SLURM_ROLE_SERVICES: dict[str, tuple[str, ...]] = {
     SLURM_LOGIN_PREFIX: ("slurmd", "munge"),
     SLURM_COMPILER_PREFIX: ("slurmd", "munge"),
 }
+
+# =============================================================================
+# PowerVault iSCSI Storage Constants
+# =============================================================================
+POWERVAULT_DEFAULT_ISCSI_PORT = 3260
+POWERVAULT_DEFAULT_FS_TYPE = "xfs"
+POWERVAULT_DEFAULT_MOUNT_OPTS = "defaults,_netdev,noatime"
+POWERVAULT_DEFAULT_NODE_KEY = "local_hostname"
+POWERVAULT_LOG_TEMPLATE = "/var/log/omnia_iscsi_setup_{name}.log"
+POWERVAULT_LOG_COMPLETE_MSG = "iSCSI/multipath setup complete"
+POWERVAULT_PORT_CHECK_TIMEOUT = 5
+POWERVAULT_STORAGE_CONFIG_PATH = "/opt/omnia/input/project_default/storage_config.yml"
+POWERVAULT_ISCSI_INITIATOR_PATH = "/etc/iscsi/initiatorname.iscsi"
