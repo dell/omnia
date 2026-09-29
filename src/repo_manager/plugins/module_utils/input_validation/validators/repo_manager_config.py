@@ -434,10 +434,9 @@ def _validate_repo_priorities(repos_section, cluster_os_version, arch, errors,
         repo_path = f"{base_path}.additional_repos.{repo_name}"
         url = repo_config.get("url")
         if not str(url or "").strip():
-            errors.append(create_error_msg(
-                f"{repo_path}.url", "",
-                "An additional repository requires a non-empty URL",
-            ))
+            # Subscription-discovered repositories intentionally omit the
+            # URL. Their catalog/subscription validation is handled later;
+            # only URL-backed entries participate in the aggregate contract.
             continue
         configured_sources.append(repo_name)
         try:

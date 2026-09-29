@@ -744,9 +744,25 @@ def file_exists_in_status(name: str, base_path: str, logger,
 
 
 def get_all_repositories(logger) -> List[str]:
-    """Get all RPM repository names from Pulp."""
+    """Get public RPM repositories while grouping owned aggregate sources."""
     repos = _list_pulp_objects("rpm", "repository", logger, fields=["name"])
-    return None if repos is None else [item["name"] for item in repos if item.get("name")]
+    if repos is None:
+        return None
+    names = [item["name"] for item in repos if item.get("name")]
+    known_names = set(names)
+    filtered = []
+    for name in names:
+        owner, separator, _source = str(name).partition("-source-")
+        if separator:
+            _arch, _os_type, _os_version, logical_name = (
+                rpm_repository_context(owner)
+            )
+            if (
+                    logical_name == config.AGGREGATED_REPO_SUFFIX
+                    and owner in known_names):
+                continue
+        filtered.append(name)
+    return filtered
 
 
 def get_all_containers(logger) -> List[str]:
@@ -869,6 +885,25 @@ def _rpm_remote_names_for_cleanup(repository_name: str, logger):
     )
 
 
+def _rpm_source_repository_names_for_cleanup(repository_name: str, logger):
+    """Return private source repositories owned by one public aggregate."""
+    _arch, _os_type, _os_version, logical_name = rpm_repository_context(
+        repository_name
+    )
+    if logical_name != config.AGGREGATED_REPO_SUFFIX:
+        return []
+    repositories = _list_pulp_objects(
+        "rpm", "repository", logger, fields=["name"]
+    )
+    if repositories is None:
+        return None
+    source_prefix = f"{repository_name}-source-"
+    return sorted(
+        repository["name"] for repository in repositories
+        if str(repository.get("name") or "").startswith(source_prefix)
+    )
+
+
 def cleanup_repository(name: str, base_path: str, repo_store_path: str,
                        logger) -> Dict[str, Any]:
     """Cleanup a single RPM repository."""
@@ -889,6 +924,14 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
         remote_names = _rpm_remote_names_for_cleanup(name, logger)
         if remote_names is None:
             result["message"] = "Unable to enumerate owned RPM remotes"
+            return result
+        source_repository_names = _rpm_source_repository_names_for_cleanup(
+            name, logger
+        )
+        if source_repository_names is None:
+            result["message"] = (
+                "Unable to enumerate owned aggregate source repositories"
+            )
             return result
 
         messages = []
@@ -917,6 +960,58 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
         else:
             messages.append("repository already absent")
 
+        ok, message, object_changed = _delete_named_object(
+            "rpm", "repository", name, logger
+        )
+        result["changed"] = result["changed"] or object_changed
+        result["pulp_changed"] = result["pulp_changed"] or object_changed
+        messages.append(message)
+        if not ok:
+            result["message"] = "; ".join(messages)
+            return result
+
+        for source_repository_name in source_repository_names:
+            source_present = repo_exists(source_repository_name, logger)
+            if source_present is None:
+                result["message"] = (
+                    "; ".join(messages)
+                    + "; unable to query aggregate source repository"
+                )
+                return result
+            if source_present:
+                (
+                    ok,
+                    publication_messages,
+                    publication_changed,
+                ) = _delete_publications(
+                    "rpm", source_repository_name, logger
+                )
+                result["changed"] = (
+                    result["changed"] or publication_changed
+                )
+                result["pulp_changed"] = (
+                    result["pulp_changed"] or publication_changed
+                )
+                messages.extend(publication_messages)
+                if not ok:
+                    result["message"] = "; ".join(messages)
+                    return result
+            ok, message, object_changed = _delete_named_object(
+                "rpm",
+                "repository",
+                source_repository_name,
+                logger,
+                required=False,
+            )
+            result["changed"] = result["changed"] or object_changed
+            result["pulp_changed"] = (
+                result["pulp_changed"] or object_changed
+            )
+            messages.append(message)
+            if not ok:
+                result["message"] = "; ".join(messages)
+                return result
+
         for remote_name in remote_names:
             ok, message, object_changed = _delete_named_object(
                 "rpm", "remote", remote_name, logger, required=False
@@ -928,15 +1023,6 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
                 result["message"] = "; ".join(messages)
                 return result
 
-        ok, message, object_changed = _delete_named_object(
-            "rpm", "repository", name, logger
-        )
-        result["changed"] = result["changed"] or object_changed
-        result["pulp_changed"] = result["pulp_changed"] or object_changed
-        messages.append(message)
-        if not ok:
-            result["message"] = "; ".join(messages)
-            return result
         result["pulp_absent"] = True
 
         rpm_file_artifacts = find_rpm_file_artifacts(name, base_path, logger)

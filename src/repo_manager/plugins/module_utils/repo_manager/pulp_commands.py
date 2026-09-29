@@ -154,6 +154,47 @@ def build_rpm_repository_version_list_command(
     ]
 
 
+def build_rpm_repository_content_list_command(
+        repository, version, *, limit=1000, offset=0):
+    """Build one paginated all-types RPM repository-content query."""
+    page_limit = _validated_page_value(limit, "limit", minimum=1)
+    page_offset = _validated_page_value(offset, "offset", minimum=0)
+    if isinstance(version, bool) or not isinstance(version, int) or version < 0:
+        raise ValueError("version must be a non-negative integer")
+    return [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "repository", "content", "list",
+        "--repository", str(repository),
+        "--version", str(version),
+        "--all-types",
+        "--limit", str(page_limit),
+        "--offset", str(page_offset),
+    ]
+
+
+def build_rpm_repository_content_modify_command(
+        repository, base_version, *, add_content_file=None,
+        remove_content_file=None):
+    """Build an RPM repository-version mutation from exact content files."""
+    if (isinstance(base_version, bool) or not isinstance(base_version, int)
+            or base_version < 0):
+        raise ValueError("base_version must be a non-negative integer")
+    if not add_content_file and not remove_content_file:
+        raise ValueError("At least one content change file is required")
+    command = [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "repository", "content", "modify",
+        "--repository", str(repository),
+        "--base-repository", str(repository),
+        "--base-version", str(base_version),
+    ]
+    if add_content_file:
+        command.extend(["--add-content", f"@{add_content_file}"])
+    if remove_content_file:
+        command.extend(["--remove-content", f"@{remove_content_file}"])
+    return command
+
+
 def build_rpm_remote_command(action, *, name, url, policy, ca_cert=None,
                              client_cert=None, client_key=None):
     """Build an RPM remote mutation with optional TLS material."""

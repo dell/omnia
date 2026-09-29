@@ -265,6 +265,8 @@ def _build_repo_priority_map(  # pylint: disable=too-many-locals,too-many-branch
                         str(additional_config.get('url') or '').strip()
                     )
                     if not has_explicit_url:
+                        if priority is not None:
+                            priorities[(arch, additional_name)] = priority
                         continue
                     if priority is None:
                         effective_priorities.add(DEFAULT_DNF_REPOSITORY_PRIORITY)
