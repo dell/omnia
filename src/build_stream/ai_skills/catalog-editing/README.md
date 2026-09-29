@@ -51,16 +51,23 @@ Pin RHEL to 10.2 in the slurm catalog
 ## Write-Path Security
 
 Only writes to catalog files under:
-- `src/main/samples/catalogs/<os_version>/*.json`
+- `src/main/samples/catalogs/**/*.json` (recursively — a flat
+  `<os_version>/*.json` layout, a versioned `rhel/<os_version>/*.json`
+  layout, and a `hybrid/*.json` tree are all covered by the same root)
 
-Refuses writes outside catalog repository root, even with explicit paths.
+Every `add`/`delete` invocation passes `--catalog-root`, which
+`catalog_io.resolve_and_validate_catalog_path()` enforces at the code level
+(not just by instruction): the resolved destination — following symlinks —
+must stay inside that root, or the write is rejected before anything is
+written. The write itself is an atomic temporary-file replacement within
+the validated directory.
 
 ## References
 
 - `references/pre_edit_gate.md` — Pre-edit impact and compatibility gate
-- `references/bulk_edit_catalog.md` — Bulk editing procedures
+- `src/build_stream/ai_skills/bulk-edit-catalog/SKILL.md` — Bulk editing skill
 - `src/repo_manager/schemas/catalog_schema.json` — Catalog schema
-- `src/build_stream/ai_skills/analysis/impact_analysis.md` — Impact analysis skill
+- `src/build_stream/ai_skills/impact-analysis/SKILL.md` — Impact analysis skill
 
 ## Workflow
 

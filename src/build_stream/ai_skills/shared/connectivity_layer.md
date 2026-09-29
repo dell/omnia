@@ -60,7 +60,8 @@ unapproved source.
      request.
 3. **Online source is unreachable, times out, or returns malformed data:**
    - Fall back to the master reference file
-     (`master_reference/master_reference_file.md`) for the same request.
+     (`catalog-selection-gate/references/master_reference_file.md`) for
+     the same request.
    - Set `disclosure=true`.
    - State plainly to the operator which condition triggered the fallback
      (unreachable / timeout / malformed response) and that the data

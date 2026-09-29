@@ -1,6 +1,6 @@
 ---
 name: compatibility-analysis
-description: Standalone AI skill that cross-references a package or catalog definition against online upstream documentation and the Red Hat Compatibility Matrix, with a disclosed fallback to master reference file data only. Channel-agnostic (FR-5.1).
+description: Cross-references a package or catalog definition against online upstream documentation and the Red Hat Compatibility Matrix, with a disclosed fallback to master reference file data only. Use when confirming whether a package/version is compatible with a target OS, architecture, or another catalog package.
 ---
 
 ## Purpose
@@ -14,9 +14,9 @@ for the operator.
 
 1. `src/build_stream/ai_skills/shared/connectivity_layer.md` — online/
    offline fallback procedure.
-2. `src/build_stream/ai_skills/analysis/trusted_source_policy.md` —
-   approved source classes and audit-logging contract.
-3. `src/build_stream/ai_skills/master_reference/master_reference_file.md`
+2. `src/build_stream/ai_skills/impact-analysis/references/trusted_source_policy.md`
+   — approved source classes and audit-logging contract.
+3. `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md`
    — A.1 Selection Catalogue (OS/architecture support constraints), A.6
    Pinned Version Table (the tested/reference version for the same
    component), and A.8 Constraint and Co-Requisite Table (cross-cutting
@@ -75,6 +75,6 @@ for the operator.
 ## What This Skill Does Not Do
 
 - It does not replace FR-4.2's changelog compatibility-warning summary —
-  that's generated as part of a diff/changelog request
-  (`ER-BSM-001-diff-changelog-skill`, not yet implemented), which may
-  invoke this skill's logic but packages the result differently.
+  that's generated as part of a diff/changelog request (the `catalog-diff`
+  skill), which invokes this skill's logic but packages the result
+  differently.

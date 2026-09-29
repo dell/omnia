@@ -11,33 +11,45 @@ base-os catalog," "remove nvidia-driver from gpu-compute," "pin RHEL to
 consistent metadata, and the rest of the catalog untouched
 (`ER-BSM-001-nersc-ai-skills-catalog-authoring`, FR-1.2, AC-005). Every
 edit this skill applies is gated by
-`src/build_stream/ai_skills/catalog_editing/pre_edit_gate.md` — there is
-no "apply an edit" path here that skips it (FR-6.1).
+`src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md` —
+there is no "apply an edit" path here that skips it (FR-6.1).
 
 ## Write-Path Boundary (NFR-2, Req-SEC-I-1/I-4)
 
 **Only ever write to a catalog file under the known catalog repository
-root** (`src/main/samples/catalogs/<os_version>/*.json`, or the exact
-path the operator explicitly names within that tree). Refuse — do not
-attempt — any write whose resolved path falls outside that root (e.g. an
-absolute path elsewhere on the filesystem, or a relative path containing
-`..` that escapes it), even if `catalog_manager.py` itself would not
-reject it. This is currently an **instruction-level control, not a
-code-level one**: `catalog_manager.py`'s underlying `write_catalog()`
-function has no built-in path-boundary check today (verified: it will
-write wherever it's told). Treat this skill's own refusal as the
-enforcement point until a code-level guard exists, and never rely on the
-tool to catch a mistaken or malicious path for you.
+root** (`src/main/samples/catalogs/**/*.json` — recursively, at whatever
+depth the shipped catalog topology actually uses today, e.g. a flat
+`<os_version>/*.json` layout, a versioned `rhel/<os_version>/*.json`
+layout, or a `hybrid/*.json` tree — or the exact path the operator
+explicitly names within that tree). Never assume a fixed directory
+depth; the boundary is the repository root itself, not any one level
+beneath it. This is now a
+**code-level control, not just an instruction**: always pass
+`--catalog-root src/main/samples/catalogs` to every `catalog_manager.py
+add`/`delete` invocation (see the Procedure and Worked Example below).
+`catalog_io.resolve_and_validate_catalog_path()` resolves the write
+target to an absolute, symlink-free path — following symlinks in the
+destination's parent directories *and* the leaf itself — and rejects the
+write (nothing is written, `add`/`delete` return exit code 1) if that
+resolved path falls outside the given root, whether the escape is an
+absolute path elsewhere on the filesystem, a relative path containing
+`..`, or a symlink that redirects into it. The write itself is then an
+atomic temporary-file replacement (`os.replace()`) within the validated
+directory, so an interrupted write never leaves a truncated catalog file
+on disk. Never omit `--catalog-root` for a write this skill performs —
+without it, `catalog_manager.py` still writes wherever it's told (the
+flag is opt-in so the same general-purpose CLI stays usable for
+production catalog paths outside this git-tracked sample tree).
 
 ## Inputs You Must Read First
 
-1. `src/build_stream/ai_skills/catalog_editing/pre_edit_gate.md` — run
-   this BEFORE applying any edit. It is not optional for a "trivial"
+1. `src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md`
+   — run this BEFORE applying any edit. It is not optional for a "trivial"
    edit; a non-applicable analysis is still disclosed, not skipped
    silently. It also owns taking the pre-edit snapshot this skill's edit
    overwrites in place — see its Step 4.
 2. `src/repo_manager/schemas/catalog_schema.json` — the schema gate.
-3. `src/build_stream/ai_skills/master_reference/master_reference_file.md`
+3. `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md`
    — for resolving a package's correct group/section, version, and
    metadata tags when the operator's request doesn't fully specify them.
 4. `src/build_stream/ai_skills/shared/working_directory.md` — the
@@ -74,7 +86,8 @@ the JSON or write a new mutation script:**
   python3 src/repo_manager/plugins/module_utils/catalog/catalog_manager.py add \
     --input <input-file> --catalog <path-to-catalog.json> \
     --default-os-version <the catalog's actual OS version, e.g. 10.2> \
-    --schema src/repo_manager/schemas/catalog_schema.json
+    --schema src/repo_manager/schemas/catalog_schema.json \
+    --catalog-root src/main/samples/catalogs
   ```
   **Always pass `--default-os-version` matching the target catalog's own
   version** — the tool's own default is `10.0` and will silently pin a
@@ -85,7 +98,8 @@ the JSON or write a new mutation script:**
   ```bash
   python3 src/repo_manager/plugins/module_utils/catalog/catalog_manager.py delete \
     --input <delete-file> --catalog <path-to-catalog.json> \
-    --schema src/repo_manager/schemas/catalog_schema.json
+    --schema src/repo_manager/schemas/catalog_schema.json \
+    --catalog-root src/main/samples/catalogs
   ```
 - **Both commands validate the in-memory result before writing** (fixed
   2026-09-27) — a schema-violating edit is rejected with the specific
@@ -134,7 +148,8 @@ curl, rpm, curl, baseos
 python3 src/repo_manager/plugins/module_utils/catalog/catalog_manager.py add \
   --input add_curl.txt --catalog service_k8s_x86_64.json \
   --default-os-version 10.2 \
-  --schema src/repo_manager/schemas/catalog_schema.json
+  --schema src/repo_manager/schemas/catalog_schema.json \
+  --catalog-root src/main/samples/catalogs
 ```
 
 Verified result: `curl` is added to `catalog.packages` with
@@ -147,5 +162,5 @@ assumed).
 
 ## What This Skill Does Not Do
 
-- Cross-catalog bulk edits (`bulk_edit_catalog.md`).
+- Cross-catalog bulk edits (the `bulk-edit-catalog` skill).
 - Anything the Pre-Edit Gate declines or that lacks operator approval.

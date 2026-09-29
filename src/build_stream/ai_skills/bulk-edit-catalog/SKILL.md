@@ -1,6 +1,6 @@
 ---
 name: bulk-edit-catalog
-description: Standalone AI skill that applies a requested change consistently across every catalog it affects, with per-catalog schema-validation failure isolation, subject to the Pre-Edit Impact & Compatibility Gate. Channel-agnostic (FR-5.1).
+description: Applies a requested change consistently across every catalog it affects, with per-catalog schema-validation failure isolation, subject to the Pre-Edit Impact & Compatibility Gate. Use when an edit must be applied identically across more than one catalog, not just a single file.
 ---
 
 ## Purpose
@@ -15,23 +15,26 @@ it's the gate applied per catalog with per-catalog approval.
 
 ## Write-Path Boundary (NFR-2, Req-SEC-I-1/I-4)
 
-Applies per catalog, identically to `edit_catalog.md`: only write to a
-catalog file under the known catalog repository root
-(`src/main/samples/catalogs/<os_version>/*.json`). This is currently an
-instruction-level control — `write_catalog()` itself has no code-level
-boundary check — so refuse any resolved path outside that root
-yourself, for every catalog in the bulk set, not just the first one.
+Applies per catalog, identically to the `catalog-editing` skill: only write
+to a catalog file under the known catalog repository root
+(`src/main/samples/catalogs/**/*.json`, recursively — never assume a fixed
+directory depth, since the shipped topology may be flat
+(`<os_version>/*.json`), versioned (`rhel/<os_version>/*.json`), or include
+a `hybrid/*.json` tree), and every resolved path is validated with
+`resolve_and_validate_catalog_path()` (see
+`src/build_stream/ai_skills/catalog-editing/SKILL.md`'s Write-Path
+Boundary section) before any write, for every catalog in the bulk set,
+not just the first one.
 
 ## Inputs You Must Read First
 
-1. `src/build_stream/ai_skills/catalog_editing/pre_edit_gate.md` and, for
-   this Story, its per-catalog differentiation section — a bulk edit can
-   be clean for some catalogs and flagged for others; each gets its own
-   approval decision. It also owns the pre-edit snapshot for each
+1. `src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md`
+   and, for this Story, its per-catalog differentiation section — a bulk
+   edit can be clean for some catalogs and flagged for others; each gets
+   its own approval decision. It also owns the pre-edit snapshot for each
    catalog, per its Step 4.
-2. `src/build_stream/ai_skills/catalog_editing/edit_catalog.md` — the
-   underlying single-catalog edit mechanics this skill applies
-   per-catalog.
+2. `src/build_stream/ai_skills/catalog-editing/SKILL.md` — the underlying
+   single-catalog edit mechanics this skill applies per-catalog.
 3. `src/repo_manager/schemas/catalog_schema.json` — the per-catalog schema
    gate.
 4. `src/build_stream/ai_skills/shared/working_directory.md` — use one
@@ -45,10 +48,12 @@ yourself, for every catalog in the bulk set, not just the first one.
 
 ### Step 1 — Identify every matching catalog
 
-Search the catalog set (typically `src/main/samples/catalogs/<os_version>/`)
-for the condition the operator named (e.g. every catalog with a `base_os`
-group whose `os_version` is `10.0`). List every match before proceeding —
-do not apply to a partial set silently.
+Search the catalog set recursively (`src/main/samples/catalogs/**/*.json` —
+do not assume every catalog lives exactly one directory level below
+`catalogs/`; a versioned (`rhel/<os_version>/`) or `hybrid/` subtree is
+still in scope) for the condition the operator named (e.g. every catalog
+with a `base_os` group whose `os_version` is `10.0`). List every match
+before proceeding — do not apply to a partial set silently.
 
 ### Step 2 — Run the Pre-Edit Gate per catalog
 
@@ -64,8 +69,9 @@ proposed change against **each** matching catalog independently, per
 
 For each catalog the operator approved:
 
-- **If the change is a package add/remove**, reuse `edit_catalog.md`'s
-  mechanics (`catalog_manager.py add`/`delete`) once per catalog file —
+- **If the change is a package add/remove**, reuse the `catalog-editing`
+  skill's mechanics (`catalog_manager.py add`/`delete`) once per catalog
+  file —
   each invocation reads, validates, and writes exactly one file, so one
   catalog's schema failure cannot affect another's already-completed
   write.
@@ -153,6 +159,7 @@ other's failure.
 
 ## What This Skill Does Not Do
 
-- Single-catalog edits with no cross-catalog scope (`edit_catalog.md`).
+- Single-catalog edits with no cross-catalog scope (the `catalog-editing`
+  skill).
 - Anything the Pre-Edit Gate declines, per catalog, or that lacks that
   catalog's specific operator approval.

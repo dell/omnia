@@ -23,11 +23,11 @@ not run it in this channel).
 
 ## Inputs You Must Read First
 
-1. `src/build_stream/ai_skills/master_reference/master_reference_file.md` —
+1. `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` —
    the 8 Appendix A tables (Selection Catalogue, Node-Role, Functional-Layer
    Composition, Stack-Storage Compatibility, Package Source Defaults, Pinned
    Version, Supported Hardware, Constraint/Co-Requisite).
-2. `src/build_stream/ai_skills/master_reference/SKILL.md` — the shared
+2. `src/build_stream/ai_skills/catalog-selection-gate/SKILL.md` — the shared
    `support_status` Selection Catalogue gate (allow/refuse/no-silent-
    substitution). Apply it at every decision point below.
 3. `src/build_stream/ai_skills/shared/connectivity_layer.md` — the shared
@@ -39,6 +39,16 @@ not run it in this channel).
 5. `src/build_stream/ai_skills/shared/working_directory.md` — where to put
    the draft catalog while it's still being assembled/validated (Steps 4-6),
    before it is written to its final location.
+
+**Topology dependency:** every A.1–A.8 table row assumes the catalog
+topology `references/master_reference_file.md` was last captured against
+(see that file's "Topology scope of this capture" note). If
+`src/main/samples/catalogs/` now has a versioned `rhel/<os_version>/`
+subtree, a `hybrid/` subtree, or a different catalog count than that
+capture recorded, treat every count/row here as needing re-verification
+before you rely on it — the discovery commands below (`grep -rl`, etc.)
+are already recursive and keep working regardless, but the hand-tabulated
+rows themselves are not automatically current.
 
 **A.3's known limitation:** the Functional-Layer Composition Table records
 which *groups* a role includes, not which *packages* each group actually
@@ -70,7 +80,7 @@ not ask for a later-step selection before an earlier one is resolved.
 | 9 | Additional packages / custom functional roles | 1–8 | none | Step 4a |
 
 For every selection at steps 1, 2, 3, 5, 6, 7:
-- Apply the Selection Catalogue gate (`master_reference/SKILL.md`) before
+- Apply the Selection Catalogue gate (`catalog-selection-gate/SKILL.md`) before
   offering or accepting the option. Per that gate's Step 0, the menu you
   present lists **only** `supported` rows for the axis, filtered by prior
   selections — never include a `planned` or `unsupported` row in the
@@ -258,7 +268,12 @@ groups already have their package list stated by the operator and do not
 go through this step.)
 
 1. **Search every shipped catalog for this exact group name**, not just the
-   catalog nearest the requested stack/arch/os_version:
+   catalog nearest the requested stack/arch/os_version. This search is
+   already recursive and topology-agnostic — it does not assume catalogs
+   live at any fixed directory depth below `catalogs/`, so it still finds
+   every match whether the shipped layout is flat (`<os_version>/*.json`),
+   versioned (`rhel/<os_version>/*.json`), or includes a `hybrid/*.json`
+   subtree:
    ```bash
    grep -rl '"<group_name>"' src/main/samples/catalogs/
    ```

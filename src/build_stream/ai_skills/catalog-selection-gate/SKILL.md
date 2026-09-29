@@ -1,6 +1,6 @@
 ---
 name: catalog-selection-gate
-description: Shared support_status decision gate every catalog-authoring skill (Catalog Generation, Catalog Editing's Pre-Edit Gate, Analysis skills) applies before emitting a functional group or package set for an operator-requested selection.
+description: Validates an operator-requested os_version/architecture/stack/node_role/gpu/storage/network selection against the Selection Catalogue's support_status before any functional group or package set is emitted. Use when Catalog Generation, Catalog Editing, or an Analysis skill is about to resolve or present a selection on one of those axes.
 ---
 
 ## Purpose
@@ -16,9 +16,9 @@ browser-based AI assistant that was only given the file's contents.
 ## When to apply this gate
 
 Apply this procedure whenever a skill is about to resolve or emit a
-selection on one of the axes in `master_reference_file.md`'s **A.1 Selection
-Catalogue** table: `os_version`, `architecture`, `stack`, `node_role`,
-`gpu`, `storage`, or `network`.
+selection on one of the axes in `references/master_reference_file.md`'s
+**A.1 Selection Catalogue** table: `os_version`, `architecture`, `stack`,
+`node_role`, `gpu`, `storage`, or `network`.
 
 ## Procedure
 
@@ -31,9 +31,10 @@ Catalogue** table: `os_version`, `architecture`, `stack`, `node_role`,
    `gpu`, where only NVIDIA is `supported`) or several. A `planned`/
    `unsupported` option only enters the conversation if the operator
    explicitly names it themselves, which is Step 5 below, not this step.
-1. **Read the A.1 Selection Catalogue table** from `master_reference_file.md`
-   in this directory. Read the whole table, not just the row you expect to
-   match — you need every row on the requested axis to state alternatives.
+1. **Read the A.1 Selection Catalogue table** from
+   `references/master_reference_file.md` in this package. Read the whole
+   table, not just the row you expect to match — you need every row on
+   the requested axis to state alternatives.
 2. **Find the row** whose `axis` and `option` match the operator's request
    (case-insensitive, e.g. "amd" and "AMD / ROCm" are the same option).
 3. **No matching row found:**
@@ -95,7 +96,7 @@ Catalogue** table: `os_version`, `architecture`, `stack`, `node_role`,
 
 ## Regenerating `master_reference_file.md`
 
-See the capture note at the top of `master_reference_file.md` for the
+See the capture note at the top of `references/master_reference_file.md` for the
 re-derivation process (master catalogs -> repository configuration ->
 online sources only for a genuinely unresolvable row). This Story does not
 automate that process; a future re-derivation repeats the same read-and-

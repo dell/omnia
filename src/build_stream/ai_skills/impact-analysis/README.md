@@ -66,10 +66,10 @@ What is the impact of removing ldms_group from compute nodes?
 
 ## References
 
-- `references/compatibility_analysis.md` — Compatibility analysis procedures
+- `src/build_stream/ai_skills/compatibility-analysis/SKILL.md` — Compatibility analysis skill
 - `references/trusted_source_policy.md` — Trusted source validation policy
 - `src/build_stream/ai_skills/shared/connectivity_layer.md` — Online/offline resolution
-- `src/build_stream/ai_skills/master_reference/master_reference_file.md` — Offline reference data
+- `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` — Offline reference data
 
 ## Workflow
 

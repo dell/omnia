@@ -31,10 +31,10 @@ catalog) require it. See R1/R2 below.
    online/offline fallback procedure. Note its clarified trigger: fall
    back only on an actual lookup failure, never merely because a row is
    absent from one table.
-3. `src/build_stream/ai_skills/analysis/trusted_source_policy.md` — the
-   approved source classes, the architecture-mismatch flow, and the
+3. `src/build_stream/ai_skills/impact-analysis/references/trusted_source_policy.md`
+   — the approved source classes, the architecture-mismatch flow, and the
    audit-logging contract for degraded-mode events.
-4. `src/build_stream/ai_skills/master_reference/master_reference_file.md`
+4. `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md`
    — A.5 Package Source Defaults Table (`reponame` per package), A.6
    Pinned Version Table, and A.3 Functional-Layer Composition Table —
    consulted as described in the Procedure below, not as the first stop.
