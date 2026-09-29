@@ -18,8 +18,9 @@
 # =============================================================================
 # Consolidated role for enabling or disabling PowerScale telemetry.
 # Auto-determines state from telemetry_config.yml:
-#   telemetry_sources.powerscale.metrics_enabled OR
-#   telemetry_sources.powerscale.logs_enabled
+#   telemetry_sources.powerscale.metrics_enabled
+#
+# Note: Logs are managed via PowerScale API, not by Omnia.
 # =============================================================================
 
 - name: Load telemetry configuration
@@ -31,11 +32,7 @@
 - name: Determine PowerScale telemetry state from config
   ansible.builtin.set_fact:
     powerscale_enabled: >-
-      {{
-        (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool)
-        or
-        (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool)
-      }}
+      {{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}
   when: telemetry_config is defined
 
 - name: Enable PowerScale telemetry
