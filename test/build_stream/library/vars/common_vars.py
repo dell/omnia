@@ -568,11 +568,6 @@ CMDS: Dict[str, str] = {
         " 'https://{host}:{port}/api/v1/jobs/{job_id}/artifacts/{label}'"
         " 2>/dev/null"
     ),
-    "bsm_api_catalog_roles": (
-        "curl -sk -H 'Authorization: Bearer {token}'"
-        " 'https://{host}:{port}/api/v1/jobs/{job_id}/catalog/roles'"
-        " 2>/dev/null"
-    ),
 
     # --- Registry ---
     "regctl_repo_ls": (

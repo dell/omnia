@@ -237,6 +237,7 @@ logging.basicConfig(
 
 # Global state
 SHUTDOWN_REQUESTED = False
+_cadence_thread = None  # Set by run_watcher_loop for SIGUSR1 access
 job_semaphore = Semaphore(MAX_CONCURRENT_JOBS)
 
 
@@ -249,6 +250,20 @@ def signal_handler(signum, _):
         str(signum)
     )
     SHUTDOWN_REQUESTED = True
+
+
+def _sigusr1_handler(signum, _):
+    """Handle SIGUSR1 to trigger an immediate cadence cycle."""
+    if _cadence_thread is not None:
+        log_secure_info(
+            "info", "SIGUSR1 received — triggering cadence cycle"
+        )
+        _cadence_thread.trigger()
+    else:
+        log_secure_info(
+            "warning",
+            "SIGUSR1 received but cadence polling is not active"
+        )
 
 
 def ensure_directories():
@@ -1174,6 +1189,15 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # Set ANSIBLE_LOG_PATH as env var so Ansible writes its log there
         env = os.environ.copy()
         env["ANSIBLE_LOG_PATH"] = log_path_str
+
+        # Expand shell-style variable references in env values.
+        # systemd EnvironmentFile does NOT perform shell expansion, so
+        # values like CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/...
+        # remain literal.  Resolve ${VAR} and $VAR references here.
+        for key in list(env):
+            val = env[key]
+            if "$" in val:
+                env[key] = os.path.expandvars(val)
 
         log_secure_info(
             "debug", "Executing command",
@@ -2245,7 +2269,9 @@ def run_watcher_loop():
         sys.exit(1)
 
     # Start cadence polling timer (ER-BSM-002: AC-008)
+    global _cadence_thread
     cadence_thread = _start_cadence_timer()
+    _cadence_thread = cadence_thread  # expose for SIGUSR1 handler
 
     # Main loop
     iteration = 0
@@ -2286,6 +2312,7 @@ def main():
     # Register signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGUSR1, _sigusr1_handler)
 
     try:
         run_watcher_loop()

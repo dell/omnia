@@ -45,6 +45,7 @@ FVT_TAGS: List[str] = [
     "negative",
     "catalog",
     "user_registry",
+    "repo_sync",
 ]
 
 # =====================================================================
@@ -64,6 +65,7 @@ MARKERS: List[str] = [
     "performance",
     "idempotency",
     "security",
+    "repo_resync",
 ]
 
 # =====================================================================
@@ -81,6 +83,7 @@ SUITES: Dict[str, List[str]] = {
     "negative": ["error_scenarios"],
     "catalog": ["add", "delete", "generate", "negative", "validate"],
     "user_registry": [],
+    "repo_sync": [],
 }
 
 # Ordered, non-destructive lifecycle used by an untagged ``exec`` or ``test``.
@@ -107,4 +110,5 @@ SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
     "cleanup_repos",
+    "repo_sync",
 ]
