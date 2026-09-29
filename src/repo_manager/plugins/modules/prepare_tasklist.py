@@ -478,8 +478,7 @@ def main():
         for arch in sw_archs:
             add_repos = parse_additional_repos_from_config(
                 config_data, repo_config, arch, cluster_os_version, logger,
-                global_caching_policy, os_type=cluster_os_type,
-                referenced_repo_names=referenced_repositories.get(arch, []))
+                global_caching_policy, os_type=cluster_os_type)
             if add_repos:
                 additional_repos_config[arch] = add_repos
             else:

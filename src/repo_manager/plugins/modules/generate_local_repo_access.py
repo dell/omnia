@@ -45,6 +45,7 @@ from ansible.module_utils.repo_manager.pulp_commands import (
 from ansible.module_utils.repo_manager.repo_paths import PULP_CLI_EXECUTABLE
 from ansible.module_utils.repo_manager.registry_utils import get_registry_authority
 from ansible.module_utils.repo_manager.repo_settings import (
+    AGGREGATED_REPO_SUFFIX,
     PULP_DISTRIBUTION_ROOT_PARTS,
 )
 from ansible.module_utils.repo_manager.repository_status_builder import (
@@ -174,7 +175,8 @@ except ImportError:
 
 
 DEFAULT_DNF_REPOSITORY_PRIORITY = 99
-AGGREGATED_REPOSITORY_NAME = 'repo_manager-additional'
+AGGREGATED_REPOSITORY_NAME = AGGREGATED_REPO_SUFFIX
+LEGACY_AGGREGATED_REPOSITORY_NAME = 'repo_manager-additional'
 
 
 def _validated_priority(value, config_path):
@@ -197,6 +199,26 @@ def _repo_version_config(config, cluster_os_version):
         if str(version) == str(cluster_os_version):
             return version_config if isinstance(version_config, dict) else {}
     return {}
+
+
+def _required_rpm_repositories(config, os_version, architecture, referenced):
+    """Return catalog requirements plus the optional aggregate name."""
+    configured_required = referenced.get(architecture, [])
+    if not isinstance(configured_required, list):
+        return None
+    required = list(configured_required)
+    arch_config = _repo_version_config(config, os_version).get(architecture, {})
+    additional_repos = {}
+    if isinstance(arch_config, dict):
+        additional_repos = arch_config.get('additional_repos') or {}
+    aggregate_configured = isinstance(additional_repos, dict) and any(
+        isinstance(source, dict)
+        and bool(str(source.get('url') or '').strip())
+        for source in additional_repos.values()
+    )
+    if aggregate_configured and AGGREGATED_REPOSITORY_NAME not in required:
+        required.append(AGGREGATED_REPOSITORY_NAME)
+    return required
 
 
 def _build_repo_priority_map(  # pylint: disable=too-many-locals,too-many-branches
@@ -232,7 +254,6 @@ def _build_repo_priority_map(  # pylint: disable=too-many-locals,too-many-branch
                 if not isinstance(repo_config, dict):
                     continue
                 effective_priorities = set()
-                has_explicit_priority = False
                 for additional_name, additional_config in repo_config.items():
                     if not isinstance(additional_config, dict):
                         continue
@@ -243,17 +264,13 @@ def _build_repo_priority_map(  # pylint: disable=too-many-locals,too-many-branch
                     has_explicit_url = bool(
                         str(additional_config.get('url') or '').strip()
                     )
-                    # Empty-URL entries are resolved from the RHEL subscription
-                    # and published individually rather than through the
-                    # aggregate repository.
-                    if not has_explicit_url and priority is not None:
-                        priorities[(arch, additional_name)] = priority
                     if not has_explicit_url:
+                        if priority is not None:
+                            priorities[(arch, additional_name)] = priority
                         continue
                     if priority is None:
                         effective_priorities.add(DEFAULT_DNF_REPOSITORY_PRIORITY)
                     else:
-                        has_explicit_priority = True
                         effective_priorities.add(priority)
 
                 if len(effective_priorities) > 1:
@@ -262,7 +279,7 @@ def _build_repo_priority_map(  # pylint: disable=too-many-locals,too-many-branch
                         f"{repo_path} is published as one Pulp repository and "
                         f"must use one effective priority; found {values}"
                     )
-                if has_explicit_priority and effective_priorities:
+                if effective_priorities:
                     priorities[(arch, AGGREGATED_REPOSITORY_NAME)] = next(
                         iter(effective_priorities)
                     )
@@ -476,7 +493,8 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         for arch in selected_architectures:
             prefix = f"{arch}_{selected_os_type}_{selected_os_version}_"
             if name.startswith(prefix):
-                return arch, name[len(prefix):]
+                repo_name = name[len(prefix):]
+                return arch, repo_name
         return None, None
 
     def parse_rpm_distributions(self, context=None):
@@ -505,7 +523,8 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
                 dist, context
             )
 
-            if not arch or not repo_name:
+            if (not arch or not repo_name
+                    or repo_name == LEGACY_AGGREGATED_REPOSITORY_NAME):
                 continue
 
             # Use the cluster_os_version as the version key
@@ -555,7 +574,7 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         )
         referenced = active_context.get('referenced_repositories')
         if not isinstance(referenced, dict):
-            return {}
+            referenced = {}
 
         selected_os_version = str(
             active_context.get('os_version', self.cluster_os_version)
@@ -568,8 +587,11 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         )
         missing = {}
         for architecture in selected_architectures:
-            required = referenced.get(architecture, [])
-            if not isinstance(required, list):
+            required = _required_rpm_repositories(
+                self._load_local_repo_config(), selected_os_version,
+                architecture, referenced,
+            )
+            if required is None:
                 continue
             published = version_repositories.get(architecture, {})
             available = {
@@ -814,7 +836,7 @@ class LocalRepoAccessGenerator:  # pylint: disable=too-many-instance-attributes
         status_by_version, _aggregate_status = build_terminal_context_status(
             self.execution_contexts,
             self.execution_results,
-            requested_status,
+            getattr(self, 'overall_status', 'failed'),
         )
         for version in self.missing_rpm_repositories_by_version:
             status_by_version[str(version)] = 'failed'
