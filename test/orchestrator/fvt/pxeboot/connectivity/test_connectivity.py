@@ -72,13 +72,13 @@ def test_node_hostname_ssh(host):
     _check(host, "node_hostname_ssh", check_node_hostname_ssh)
 
 
-@pytest.mark.order(207)
+@pytest.mark.order(295)
 def test_node_architecture(host):
     """Verify each node's live architecture matches its functional group."""
     _check(host, "node_architecture", check_node_architecture)
 
 
-@pytest.mark.order(208)
+@pytest.mark.order(296)
 def test_node_os_version(host):
     """Verify each node's live OS version matches its functional group."""
     _check(host, "node_os_version", check_node_os_version)

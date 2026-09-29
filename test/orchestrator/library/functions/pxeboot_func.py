@@ -228,16 +228,14 @@ def check_node_architecture(host):
         context = load_runtime_context(host)
         rows = context["rows"]
         outcomes: dict[str, tuple[bool, str]] = {}
-        skipped_count = 0
         for row in rows:
             fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
             expected_arch, _os, _ver = parse_fg_identity(fg)
             if not expected_arch:
                 # Cannot determine expected architecture from the FG name.
-                skipped_count += 1
                 outcomes[row["HOSTNAME"]] = (
-                    True,
-                    f"skipped (no arch suffix in '{fg}')",
+                    False,
+                    f"No architecture suffix in functional group name '{fg}'",
                 )
                 continue
             result_cmd = remote_command(
@@ -260,25 +258,10 @@ def check_node_architecture(host):
                     False,
                     f"MISMATCH: expected={expected_arch}, actual={actual_arch}",
                 )
-        if skipped_count == len(rows):
-            return runtime_result(
-                True,
-                summary,
-                [
-                    ("Mapped nodes", len(rows)),
-                    ("Reason",
-                     "No functional group names contain a recognizable "
-                     "architecture suffix"),
-                ],
-                "",
-                skipped=True,
-            )
         failed = [name for name, outcome in outcomes.items() if not outcome[0]]
         fields: list[tuple[str, object]] = [
             ("Mapped nodes", len(rows)),
         ]
-        if skipped_count:
-            fields.append(("Skipped (no arch in FG name)", skipped_count))
         fields.extend(group_fields(rows, outcomes))
         return runtime_result(
             not failed,
@@ -375,26 +358,7 @@ def check_node_os_version(host):
                 build_error,
             )
 
-        # Pre-scan: can we resolve OS for any node?
-        resolvable = 0
-        for row in rows:
-            fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
-            _src, os_id, _ver = _resolve_expected_os(fg, build_entries)
-            if os_id:
-                resolvable += 1
-        if resolvable == 0:
-            return runtime_result(
-                True,
-                summary,
-                [
-                    ("Reason",
-                     "Cannot resolve expected OS version from "
-                     "build_status.yml or functional group names"),
-                ],
-                "",
-                skipped=True,
-            )
-
+        # OS verification is mandatory — every mapped node must resolve.
         outcomes: dict[str, tuple[bool, str]] = {}
         for row in rows:
             fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
@@ -402,27 +366,28 @@ def check_node_os_version(host):
                 _resolve_expected_os(fg, build_entries)
             )
 
+            # If we cannot resolve expected OS for this node, fail.
+            if not expected_os or not expected_version:
+                outcomes[row["HOSTNAME"]] = (
+                    False,
+                    f"Cannot resolve expected OS from build_status.yml "
+                    f"or functional group name '{fg}'",
+                )
+                continue
+
             # Probe the live node.
             result_cmd = remote_command(
                 host, row, PXEBOOT_COMMANDS["os_release"]
             )
             if result_cmd.rc != 0:
                 outcomes[row["HOSTNAME"]] = (
-                    False if expected_os else True,
+                    False,
                     "os-release probe failed "
                     "(SSH unreachable or command error)",
                 )
                 continue
 
             actual_os, actual_version = _parse_os_release(result_cmd.stdout)
-
-            if not expected_os or not expected_version:
-                outcomes[row["HOSTNAME"]] = (
-                    True,
-                    f"{actual_os} {actual_version} (detected, "
-                    "no OS resolution available)",
-                )
-                continue
 
             os_ok = actual_os == expected_os.lower()
             version_ok = actual_version == expected_version
@@ -457,7 +422,6 @@ def check_node_os_version(host):
         ]
         fields: list[tuple[str, object]] = [
             ("Mapped nodes", len(rows)),
-            ("Verifiable (OS resolved)", resolvable),
         ]
         if build_source:
             fields.append(("OS source", build_source))

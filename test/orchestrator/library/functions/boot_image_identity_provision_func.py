@@ -144,6 +144,8 @@ def _extract_entry(candidate: Any) -> dict[str, str]:
         raise ValueError(f"{group} has no kernel path")
     if not initrd:
         raise ValueError(f"{group} has no initrd path")
+    if not image:
+        raise ValueError(f"{group} has no image (rootfs) path")
     return {"group": group, "kernel": kernel, "initrd": initrd, "image": image}
 
 
@@ -239,6 +241,24 @@ def _construct_expected_url(
     return f"{endpoint}/{path}"
 
 
+def _extract_rootfs_url(spec: dict[str, Any]) -> str | None:
+    """Extract the rootfs URL from Boot Service spec.params.
+
+    The rootfs is embedded as a kernel argument in the form
+    ``root=live:<url>``. Returns None if not found or malformed.
+    """
+    params = spec.get("params") if isinstance(spec, dict) else None
+    if not isinstance(params, dict):
+        return None
+    for param_value in params.values():
+        if not isinstance(param_value, str):
+            continue
+        if param_value.startswith("root=live:"):
+            url = param_value[10:]  # Strip "root=live:" prefix
+            return url if url else None
+    return None
+
+
 def _path_match(actual: str, expected: str, endpoint: str) -> bool:
     """Compare a Boot Service URL with a build_status relative path.
 
@@ -253,8 +273,6 @@ def _path_match(actual: str, expected: str, endpoint: str) -> bool:
     """
     if not actual or not expected:
         return False
-    if actual == expected:
-        return True
     canonical_expected = _construct_expected_url(endpoint, expected)
     return actual == canonical_expected
 
@@ -343,14 +361,27 @@ def check_boot_image_identity(host) -> dict[str, Any]:
                 fields.append(("  Boot configuration", "spec missing"))
                 continue
 
-            # Compare kernel and initrd paths using full URL comparison.
+            # Compare kernel, initrd, and rootfs paths using full URL comparison.
             actual_kernel = str(spec.get("kernel") or "").strip()
             actual_initrd = str(spec.get("initrd") or "").strip()
             expected_kernel = expected["kernel"]
             expected_initrd = expected["initrd"]
+            expected_rootfs = expected["image"]
 
             kernel_ok = _path_match(actual_kernel, expected_kernel, endpoint)
             initrd_ok = _path_match(actual_initrd, expected_initrd, endpoint)
+
+            # Extract and validate rootfs URL from spec.params.
+            actual_rootfs = _extract_rootfs_url(spec)
+            if actual_rootfs is None:
+                rootfs_ok = False
+                fields.append(("  Rootfs", "MISSING from spec.params"))
+            else:
+                rootfs_ok = _path_match(actual_rootfs, expected_rootfs, endpoint)
+                fields.append((
+                    "  Rootfs",
+                    "matched" if rootfs_ok else f"MISMATCH: expected={expected_rootfs}",
+                ))
 
             fields.append((
                 "  Kernel",
@@ -372,6 +403,12 @@ def check_boot_image_identity(host) -> dict[str, Any]:
                 failures.append(
                     f"{fg_name}: initrd mismatch "
                     f"(expected={expected_url}, actual={actual_initrd})"
+                )
+            if not rootfs_ok:
+                expected_url = _construct_expected_url(endpoint, expected_rootfs)
+                failures.append(
+                    f"{fg_name}: rootfs mismatch "
+                    f"(expected={expected_url}, actual={actual_rootfs or 'MISSING'})"
                 )
 
         return result(

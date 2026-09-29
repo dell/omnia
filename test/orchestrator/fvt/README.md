@@ -159,8 +159,8 @@ is rejected. Reboot and scheduler-state cases require their explicit markers.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 207 | `ORCH_FVT_PXEBOOT_V097` | `test_node_architecture` | `connectivity` | `connectivity`, `sanity` | Verify each node's live architecture matches its functional group name suffix. | All stated checks pass for every applicable target. |
-| 208 | `ORCH_FVT_PXEBOOT_V098` | `test_node_os_version` | `connectivity` | `connectivity`, `sanity` | Verify each node's live OS version matches the expected image from build_status.yml. | All stated checks pass for every applicable target. |
+| 295 | `ORCH_FVT_PXEBOOT_V097` | `test_node_architecture` | `connectivity` | `connectivity`, `sanity` | Verify each node's live architecture matches its functional group name suffix. | All stated checks pass for every applicable target. |
+| 296 | `ORCH_FVT_PXEBOOT_V098` | `test_node_os_version` | `connectivity` | `connectivity`, `sanity` | Verify each node's live OS version matches the expected image from build_status.yml. | All stated checks pass for every applicable target. |
 
 Cloud-init is accepted only when its structured status satisfies the
 product contract. A generated script success message is not treated as
