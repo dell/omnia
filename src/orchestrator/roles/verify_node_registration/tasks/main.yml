@@ -25,6 +25,18 @@
       - bmc_ip | string | length > 0
     fail_msg: "{{ verify_node_registration_fail_msg }}"
 
+- name: "[Node-Registration] Wait for passwordless SSH after PXE boot"
+  ansible.builtin.wait_for_connection:
+    connect_timeout: 5
+    sleep: "{{ hostvars['localhost']['node_registration_delay'] }}"
+    timeout: >-
+      {{ (hostvars['localhost']['node_registration_retries'] | int)
+         * (hostvars['localhost']['node_registration_delay'] | int) }}
+  register: verify_node_registration_ssh_wait
+  changed_when: false
+  ignore_errors: true
+  ignore_unreachable: true
+
 - name: "[Node-Registration] Poll fresh boot and cloud-init state"
   node_boot_status:
     pxe_start_epoch: "{{ hostvars['localhost']['pxe_start_epoch'] }}"
@@ -38,6 +50,11 @@
   failed_when: false
   ignore_errors: true
   ignore_unreachable: true
+  when: >-
+    not (
+      verify_node_registration_ssh_wait.failed | default(false) | bool
+      or verify_node_registration_ssh_wait.unreachable | default(false) | bool
+    )
 
 - name: "[Node-Registration] Record structured node result"
   ansible.builtin.set_fact:
@@ -56,16 +73,22 @@
       cloud_init: "{{ verify_node_registration_poll_result.cloud_init | default({}) }}"
   vars:
     _node_state: >-
-      {{ verify_node_registration_poll_result.state
-         | default('unreachable'
-                   if verify_node_registration_poll_result.unreachable | default(false) | bool
-                   else 'verification_result_missing') }}
+      {{ 'unreachable'
+         if _ssh_wait_failed
+         else verify_node_registration_poll_result.state
+              | default('unreachable'
+                        if verify_node_registration_poll_result.unreachable | default(false) | bool
+                        else 'verification_result_missing') }}
     _node_detail: >-
-      {{ verify_node_registration_poll_result.detail
-         | default('Passwordless root SSH failed on ' ~ inventory_hostname ~ ': ' ~
-                   (verify_node_registration_poll_result.msg | default('no SSH error was returned'))
-                   if verify_node_registration_poll_result.unreachable | default(false) | bool
-                   else 'Node-registration verification did not return a result') }}
+      {{ 'Passwordless root SSH did not become available'
+         if _ssh_wait_failed
+         else verify_node_registration_poll_result.detail
+              | default('Passwordless root SSH verification failed'
+                        if verify_node_registration_poll_result.unreachable | default(false) | bool
+                        else 'Node-registration verification did not return a result') }}
+    _ssh_wait_failed: >-
+      {{ verify_node_registration_ssh_wait.failed | default(false) | bool
+         or verify_node_registration_ssh_wait.unreachable | default(false) | bool }}
 
 - name: "[Node-Registration] Display node result"
   ansible.builtin.debug:

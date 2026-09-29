@@ -41,6 +41,10 @@ playbook resolves SMD identities and runs `generate_inventories` first.
 | `provisioning_report.yml` | Registration, interface, group, boot, and metadata summary |
 | `orchestrator_status.yml` | Persistent per-node provisioning and reprovision state |
 
+Each aggregate node record contains only XNAME, hostname, admin/BMC addresses,
+overall `status`, `reprovision_required`, `provisioning_status`, and compact
+`pxeboot.status`/`pxeboot.state` values.
+
 ## License
 
 Apache-2.0

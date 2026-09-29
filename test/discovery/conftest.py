@@ -240,7 +240,12 @@ def pytest_sessionstart(session):
     )
     report = TestReport(
         module_name=module_name,
-        report_path=str(config.get("report_path", "/opt/omnia/reports")),
+        report_path=str(
+            config.get(
+                "report_path",
+                os.environ.get("OMNIA_DATA_PATH", "/opt/omnia") + "/reports",
+            )
+        ),
         report_name=report_name,
         server_ip=str(config.get("oim_server_ip", "localhost")),
         run_id=run_id,
