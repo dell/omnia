@@ -155,7 +155,7 @@ validate_external_ldap: false
 #   - slapd.conf is not changed;
 #   - omnia_auth is not restarted; and
 #   - validation checks the existing deployed proxy configuration.
-configure_external_ldap: true
+configure_external_ldap: false
 #
 # Passwords must not be added to this file. Store both the LDAP login-test
 # password and the external bind password in encrypted test_creds.yml with:
