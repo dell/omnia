@@ -18,6 +18,12 @@ from omnia_auto import TestLogger
 from omnia_auto import run_playbook as _run_playbook
 
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
+from .additional_cloud_init_pxeboot_func import (
+    check_additional_cloud_init_metadata_groups,
+    check_additional_cloud_init_runcmd,
+    check_additional_cloud_init_smd_groups,
+    check_additional_cloud_init_write_files,
+)
 from .apptainer_accelerator_pxeboot_func import (
     check_apptainer_cuda_workload,
     check_apptainer_gpu_access,
