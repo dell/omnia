@@ -27,7 +27,12 @@ import yaml
 
 from ..messages import orchestrator_messages as msg
 from .network_spec_validator import record_error
-from .pxe_mapping_validator import read_mapping, resolve_mapping_path
+from .pxe_mapping_validator import (
+    CANONICAL_HEADERS,
+    LEGACY_HEADERS,
+    read_mapping,
+    resolve_mapping_path,
+)
 
 
 AddressRange = tuple[ipaddress.IPv4Address, ipaddress.IPv4Address]
@@ -77,7 +82,14 @@ def load_pxe_mapping_rows(input_project_dir: str) -> list[dict[str, str]]:
         return []
 
     try:
-        _, normalized_fields, numbered_rows = read_mapping(mapping_path)
+        raw_header, normalized_fields, numbered_rows = read_mapping(
+            mapping_path
+        )
+        if raw_header == list(LEGACY_HEADERS):
+            normalized_fields = list(CANONICAL_HEADERS)
+            numbered_rows = [
+                (n, vals + [""]) for n, vals in numbered_rows
+            ]
         return [
             dict(zip(normalized_fields, values))
             for _, values in numbered_rows

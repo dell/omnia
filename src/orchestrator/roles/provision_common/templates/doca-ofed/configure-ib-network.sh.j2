@@ -31,16 +31,18 @@ declare -A ADMIN_IB_NIC_NAME_MAP=(
 
 declare -A ADMIN_IB_IP_MAP=(
 {% for mac, node in hostvars['localhost']['read_mapping_file']['dict'].items() -%}
-{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and node.IB_IPV4 is defined and node.IB_IPV4 | trim | length > 0 %}
-  ["{{ node.ADMIN_IP }}"]="{{ node.IB_IPV4 }}"
+{% set ib_ipv4_val = node.IB_IPV4 | default(node.IB_IP | default('')) %}
+{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and ib_ipv4_val | trim | length > 0 %}
+  ["{{ node.ADMIN_IP }}"]="{{ ib_ipv4_val }}"
 {%- endif %}
 {%- endfor %}
 )
 
 declare -A ADMIN_IB_IPV6_MAP=(
 {% for mac, node in hostvars['localhost']['read_mapping_file']['dict'].items() -%}
-{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and node.IB_IPV6 is defined and node.IB_IPV6 | trim | length > 0 %}
-  ["{{ node.ADMIN_IP }}"]="{{ node.IB_IPV6 }}"
+{% set ib_ipv6_val = node.IB_IPV6 | default('') %}
+{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and ib_ipv6_val | trim | length > 0 %}
+  ["{{ node.ADMIN_IP }}"]="{{ ib_ipv6_val }}"
 {%- endif %}
 {%- endfor %}
 )
