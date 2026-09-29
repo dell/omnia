@@ -336,8 +336,16 @@ def check_additional_cloud_init_write_files(host):
         for fg_name, file_paths in fg_files.items():
             matching_rows = [
                 row for row in rows
-                if row.get("EXPECTED_FUNCTIONAL_GROUP", "") == fg_name
+                if row.get("FUNCTIONAL_GROUP_NAME", "") == fg_name
             ]
+            if not matching_rows:
+                failures.append(
+                    f"FG {fg_name}: no matching nodes in PXE mapping"
+                )
+                fields.append(
+                    (f"  FG {fg_name} write_files", "✗ no matching nodes")
+                )
+                continue
             fg_verified = 0
             for row in matching_rows:
                 node_errors = []
@@ -505,7 +513,7 @@ def check_additional_cloud_init_runcmd(host):
         for fg_name, log_paths in fg_log_paths.items():
             matching_rows = [
                 row for row in rows
-                if row.get("EXPECTED_FUNCTIONAL_GROUP", "") == fg_name
+                if row.get("FUNCTIONAL_GROUP_NAME", "") == fg_name
             ]
             if not matching_rows:
                 failures.append(
