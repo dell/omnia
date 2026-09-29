@@ -86,7 +86,11 @@ own supported tuple. Do not create a role/platform cross-product.
    the requested axis to state alternatives.
 2. **Find the row** whose `axis` and `option` match the operator's request
    (case-insensitive, e.g. "amd" and "AMD / ROCm" are the same option).
-   For the GPU prompt, map "none"/"CPU-only" to `None (CPU-only catalog)`.
+   For the GPU prompt, map "none"/"CPU-only" to the existing A.1 GPU None row.
+   Display it as `None (CPU-only)` in prompts and summaries, regardless of the
+   reference row's legacy label. This is a compute/GPU support choice, not a
+   catalog type. Explain once that None omits NVIDIA GPU driver/CUDA groups;
+   it does not establish whether the machines physically contain GPUs.
    For OS selections, expand "both"/"hybrid" into the requested versions and
    check each role's tuple; clarify ambiguous version sets instead of selecting
    one version or looking for a literal `hybrid` support-status row.
@@ -148,7 +152,7 @@ own supported tuple. Do not create a role/platform cross-product.
 > Catalog Generation reaches Step 1's GPU selection and needs to ask the
 > operator what GPU to use. A.1 records NVIDIA and None as `supported`
 > and AMD / ROCm as `planned`. Present: "GPU support: NVIDIA, or None
-> (CPU-only catalog, without NVIDIA GPU driver/CUDA groups)?" Do
+> (CPU-only)?" Do
 > not also list "AMD / ROCm (planned, not yet available)" in that same
 > menu — it only comes up if the operator asks for it by name, which
 > Step 5 then handles.
@@ -166,7 +170,7 @@ own supported tuple. Do not create a role/platform cross-product.
 > Decision: refuse. Response: "AMD / ROCm is recorded as `planned`, not
 > `supported`, in the master reference file — no functional group ships
 > for it today. The supported options on the `gpu` axis are NVIDIA and
-> None (CPU-only catalog, without NVIDIA GPU driver/CUDA groups). I will
+> None (CPU-only). I will
 > not substitute NVIDIA for you; let me know if you'd like me to use it
 > instead."
 

@@ -76,7 +76,7 @@ answers into the seven domains before asking anything:
 | Compute | Role-to-platform assignments, NVIDIA or None | Derive mandatory roles; apply the OS and architecture rules below |
 | Storage | Existing controller/job storage and Kubernetes access methods | No assumed VAST or CSI; ask about the actual environment |
 | Network | Include InfiniBand: Yes / No | Propose Yes only when explicitly deferred; No does not mean Ethernet-only |
-| Packages and Sources | Additional packages and their target roles, custom roles, source overrides | Reuse supplied answers; propose no additions/overrides only when deferred |
+| Packages and Sources | Additional packages and their target roles, custom roles, source overrides | Resolve additions and source overrides separately; ask the Source Overrides question before confirmation unless already answered |
 | Output | Display name, identifier, version, description, destination | Reuse explicit values; offer names and disclose metadata defaults |
 
 Keep a working selection record in the conversation, organized by these domains;
@@ -85,8 +85,11 @@ choices, derived values, defaults, conflicts, and unanswered questions.
 Ask one missing decision at a time; accept answers that resolve several domains. Do not ask again
 for an already supplied choice, including additional packages, role assignments,
 or a catalog name. "Minimal" alone does not answer storage or hardware questions.
-An explicit "no additional packages" does answer that question. Silence is not
-consent to a default. Disclose applied defaults and include them in confirmation.
+An explicit "no additional packages" answers only the additions question, not
+Source Overrides. Likewise, "use the default sources" does not answer whether
+additional packages are needed. Silence is not consent to either default;
+propose no additions/overrides only when explicitly deferred. Disclose applied
+defaults and include them in confirmation.
 
 Mandatory roles are derived from the stack and disclosed. Optional login roles
 are included only when requested; their architecture still follows the Compute
@@ -169,8 +172,11 @@ example's actual layers/groups, not just its filename or description.
 
 ### Hardware prompts
 
-When unanswered, ask "GPU support: NVIDIA, or None (CPU-only catalog, without
-NVIDIA GPU driver/CUDA groups)?" None describes the configured software, not
+When unanswered, ask "GPU support: NVIDIA, or None (CPU-only)?" In interview
+and confirmation summaries, use `GPU: NVIDIA` or `GPU: None (CPU-only)`.
+This is a compute/GPU support selection, not a catalog type; do not label the
+catalog "CPU-only catalog" or "GPU catalog". Explain once that None omits
+NVIDIA GPU driver/CUDA groups; it describes the configured software, not
 whether the machines physically contain GPUs. Propose None only when the
 operator explicitly defers. NVIDIA applies only to eligible Slurm compute and
 login/compiler roles. If no selected role is eligible, explain the conflict;
@@ -195,7 +201,8 @@ families/versions; for example `slurm_hybrid_rhel_10_2_10_0` when accurate.
 
 Accept schema-valid display names with spaces. Propose a separate identifier and
 filename stem by lowercasing, replacing runs outside `[a-z0-9_-]` with `_`, and
-trimming leading/trailing `_`/`-`; use `catalog` if empty. Show this mapping.
+trimming leading/trailing `_`/`-`; use `catalog` if empty. Show the mapping only
+when the display name, identifier, or filename stem differ.
 Propose version `1.0.0` for a new catalog and a description derived from the
 confirmed configuration. Honor explicit metadata and paths. For a single OS
 family/version (even with multiple architectures), follow the active checkout's existing `<family>/<version>/` or
@@ -204,6 +211,21 @@ legacy `<version>/` directory layout. For multiple family/version pairs, propose
 operator-chosen path. Do not publish into a read-only reference worktree. Confirm
 new destination directories and resolve filename collisions; silence does not
 accept a name or other default.
+
+Keep the operator-facing identity confirmation to one or two short lines: name,
+version and destination, followed by "Proceed?" when approval is needed. Do not
+repeat an identical identifier, the full generated description, or the default
+active-checkout reference root. Use a repository-relative destination when the
+active checkout is already clear; otherwise show the absolute path. Briefly flag
+any differing identifier, custom/unconfirmed description or external reference
+root instead of hiding it. Retain all identity fields and provenance in the
+working record and catalog; this shortens presentation, not validation.
+
+Example: "Create `slurm_hybrid_rhel_10_2_10_0_mixed_arch` (v1.0.0) in
+`src/main/samples/catalogs/hybrid/`, using the selections above. Proceed?"
+The filename is `<identifier>.json` unless an explicit different filename is shown.
+When identity is part of the final configuration summary, use its single approval
+question rather than requesting a second identity-only confirmation.
 
 ## Step 2 — Resolve storage by environment and purpose
 
@@ -247,6 +269,46 @@ targets, and deployment settings without collecting secrets or editing them.
 
 ## Step 3 — Cross-domain preflight and confirmation
 
+### Source Overrides — required interview checkpoint
+
+After resolving platform, roles, hardware, storage and additional packages, show
+the applicable sources and ask explicitly:
+
+> Use these sources, or override any with your own repository/mirror?
+
+Do not skip this question because no additional packages were requested, the
+catalog is "minimal", or default sources exist. Reuse an explicit source decision
+already supplied instead of asking again; still show its resolved scope in the
+confirmation summary. Record acceptance, overrides, or explicit deferral as a
+separate answer within Packages and Sources.
+
+- Derive sources from the selected reference groups/packages and requested
+  additions, not every row in A.5. For example, do not include DOCA solely because
+  it is listed in A.5 when InfiniBand and all other DOCA consumers are excluded.
+- Resolve matching repository/registry mappings from the operator-designated
+  configuration or this checkout's `src/repo_manager/input/repo_manager_config.yml`.
+  Use A.5 as a disclosed reference fallback; do not silently override supplied
+  mappings with snapshot defaults or claim live availability from a static file.
+- Present a compact table: **Repository/provider | Source key | OS family/version
+  and architecture | URL/registry or status**. Use meaningful names such as Red
+  Hat BaseOS, Fedora EPEL, Kubernetes, or NVIDIA DOCA when supported by the source
+  data. Show the actual repository URL when available; `default_repo` and
+  `subscription_repo` are internal classifications, not sufficient display names.
+  Keep distinct platform URLs separate and label a website link as a website,
+  not as an installable repository endpoint.
+- If a URL is absent, state "not configured — operator/subscription mapping
+  required" or "reference unavailable", as appropriate. Never invent an endpoint
+  or treat "use defaults" as resolving a missing URL. Record missing mappings as
+  pre-sync prerequisites; they need not force invented URLs into the catalog.
+- For an override, resolve the source key, replacement URL/registry, and affected
+  platforms/packages. Recheck source coverage and compatibility. Redact credentials
+  or secret query parameters in displayed URLs; do not request passwords/tokens.
+  Keep overrides in the working record and only use schema-supported catalog
+  fields. Repository-configuration changes remain a separate action requiring
+  authorization; do not edit deployment configuration during generation.
+
+### Cross-domain checks and final confirmation
+
 Review the working record against the reference data and the rules in this skill:
 
 | Relationship | Check before assembly |
@@ -276,9 +338,14 @@ unresolved unless the intended resolved kernel is established from target data;
 do not invent a pin. Missing evidence keeps the catalog a draft. If no such
 driver is selected, mark this check not applicable without asking for a kernel.
 
-Restate all seven domains, including a role/family/version/architecture mapping,
-reference-root provenance, storage purpose
+Summarize all seven domains concisely, including a role/family/version/architecture mapping,
+any non-default reference-root provenance, storage purpose
 and access method, defaults, custom content, catalog identity, and output path.
+Keep the identity portion to the one/two-line format above; do not expand it
+back into a field-by-field block or repeat an already summarized description.
+Include the separate Source Overrides answer, resolved source names/URLs and
+platform scope, plus any outstanding repository mappings. Do not consider the
+interview complete while the source decision is unanswered.
 Ask for confirmation once the configuration is complete. Only after approval
 begin assembly. Later changes invalidate confirmation
 and require rechecking affected dependencies and reconfirming the changed record.
@@ -387,6 +454,9 @@ current schema, or mislabel such a package as `rpm`. Unsupported providers remai
 an explicit prerequisite outside this skill's instruction-only scope.
 Check stack version co-requisites against A.8 and review explicit source overrides;
 schema validation alone does not prove upstream version compatibility.
+If package resolution introduces a source not shown in the interview, or changes
+an accepted source, return to the Source Overrides checkpoint for that difference
+and reconfirm before publication. Do not repeat already resolved questions.
 
 Operator-supplied repositories such as `slurm_custom`, `ldms` and `vast` have no
 default URL by design. Preserve `reponame`; report missing URL mappings before
