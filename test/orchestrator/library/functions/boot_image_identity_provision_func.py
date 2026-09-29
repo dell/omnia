@@ -195,6 +195,31 @@ def _match_build_entry(
 
 
 # -------------------------------------------------------------------
+# Path comparison
+# -------------------------------------------------------------------
+
+def _path_match(actual: str, expected: str) -> bool:
+    """Compare a Boot Service URL with a build_status relative path.
+
+    The Boot Service template prepends the S3 endpoint URL to the path
+    from build_status.yml (e.g. ``http://182.10.0.250:9000/boot-images/...``),
+    so the actual value is a full URL while the expected value is just the
+    relative path (``boot-images/...``).
+
+    Match succeeds when:
+    - The actual value ends with the expected path (URL form), or
+    - The values are exactly equal (both relative or both absolute).
+    """
+    if not actual or not expected:
+        return False
+    if actual == expected:
+        return True
+    # Normalize: strip leading slashes from expected for suffix comparison.
+    normalized = expected.lstrip("/")
+    return actual.endswith("/" + normalized) or actual.endswith(normalized)
+
+
+# -------------------------------------------------------------------
 # Public check functions
 # -------------------------------------------------------------------
 
@@ -260,13 +285,16 @@ def check_boot_image_identity(host) -> dict[str, Any]:
                 continue
 
             # Compare kernel and initrd paths.
+            # The Boot Service stores the full URL (s3_endpoint/path) while
+            # build_status.yml stores just the relative path.  Match by
+            # checking that the actual URL ends with the expected path.
             actual_kernel = str(spec.get("kernel") or "").strip()
             actual_initrd = str(spec.get("initrd") or "").strip()
             expected_kernel = expected["kernel"]
             expected_initrd = expected["initrd"]
 
-            kernel_ok = actual_kernel == expected_kernel
-            initrd_ok = actual_initrd == expected_initrd
+            kernel_ok = _path_match(actual_kernel, expected_kernel)
+            initrd_ok = _path_match(actual_initrd, expected_initrd)
 
             fields.append((
                 "  Kernel",
