@@ -160,6 +160,16 @@ PROVISION_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify CoreDHCP and CoreDNS inventory inputs",
         "component": "CoreDHCP/CoreDNS inventory",
     },
+    "boot_image_identity": {
+        "id": "ORCH_FVT_PROVISION_V009",
+        "title": "Verify Boot Service image paths match build_status.yml",
+        "component": "Boot image identity",
+    },
+    "boot_image_architecture": {
+        "id": "ORCH_FVT_PROVISION_V010",
+        "title": "Verify build_status.yml architecture key consistency",
+        "component": "Boot image architecture",
+    },
 }
 
 PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
@@ -636,6 +646,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V094",
         "title": "Verify Apptainer artifacts after compute reboot",
         "component": "Apptainer artifact recovery",
+    },
+    "node_architecture": {
+        "id": "ORCH_FVT_PXEBOOT_V097",
+        "title": "Verify live node architecture matches functional group",
+        "component": "Node architecture",
+    },
+    "node_os_version": {
+        "id": "ORCH_FVT_PXEBOOT_V098",
+        "title": "Verify live node OS version matches functional group",
+        "component": "Node OS version",
     },
 }
 

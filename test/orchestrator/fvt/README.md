@@ -122,6 +122,8 @@ state with the active PXE mapping.
 | 106 | `ORCH_FVT_PROVISION_V006` | `test_metadata_service_groups` | `openchami` | `sanity` | Verify one usable cloud-init template per functional group. | All stated checks pass for every applicable target. |
 | 107 | `ORCH_FVT_PROVISION_V007` | `test_metadata_service_instances` | `openchami` | `sanity` | Verify unique per-node hostname metadata. | All stated checks pass for every applicable target. |
 | 108 | `ORCH_FVT_PROVISION_V008` | `test_coredhcp_and_coredns_inventory` | `openchami` | `sanity` | Verify the SMD identity records consumed by CoreDHCP/CoreDNS. | All stated checks pass for every applicable target. |
+| 109 | `ORCH_FVT_PROVISION_V009` | `test_boot_image_identity` | `openchami` | `sanity` | Verify Boot Service kernel/initrd paths match build_status.yml per functional group. | All stated checks pass for every applicable target. |
+| 110 | `ORCH_FVT_PROVISION_V010` | `test_boot_image_architecture` | `openchami` | `sanity` | Verify build_status.yml architecture keys are consistent with functional group name suffixes. | All stated checks pass for every applicable target. |
 
 Provision verification is read-only. It resolves XNAMEs from live SMD
 interfaces and groups and obtains fresh OpenCHAMI credentials for API reads.
@@ -152,6 +154,13 @@ is rejected. Reboot and scheduler-state cases require their explicit markers.
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
 | 204 | `ORCH_FVT_PXEBOOT_V004` | `test_node_cloud_init` | `cloudinit` | `cloudinit`, `sanity` | Verify PXE report freshness and direct cloud-init JSON state. | All stated checks pass for every applicable target. |
+
+### Architecture and OS identity
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 295 | `ORCH_FVT_PXEBOOT_V097` | `test_node_architecture` | `connectivity` | `connectivity`, `sanity` | Verify each node's live architecture matches its functional group name suffix. | All stated checks pass for every applicable target. |
+| 296 | `ORCH_FVT_PXEBOOT_V098` | `test_node_os_version` | `connectivity` | `connectivity`, `sanity` | Verify each node's live OS version matches the expected image from build_status.yml. | All stated checks pass for every applicable target. |
 
 Cloud-init is accepted only when its structured status satisfies the
 product contract. A generated script success message is not treated as
