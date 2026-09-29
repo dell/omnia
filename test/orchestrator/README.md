@@ -313,6 +313,7 @@ PXE verification defaults to `sanity` when no marker is supplied:
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_cluster
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_ldap
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_apptainer
+./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_hpc_benchmarks
 ```
 
 Focused workload and image examples:

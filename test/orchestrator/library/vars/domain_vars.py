@@ -85,6 +85,7 @@ SUITES: dict[str, list[str]] = {
         "slurm_infiniband",
         "slurm_recovery",
         "slurm_apptainer",
+        "slurm_hpc_benchmarks",
     ],
     "cleanup": [
         "openchami",

@@ -51,6 +51,50 @@ APPTAINER_CONCURRENT_JOB_COUNT = 3
 APPTAINER_ARRAY_SIZE = 3
 APPTAINER_GPU_MEMORY_SETTLE_SECONDS = 5
 
+HPC_TOOLS_BASE = "/hpc_tools"
+HPC_TOOLS_SCRIPTS_DIRECTORY = "/hpc_tools/scripts"
+HPC_TOOLS_BENCHMARKS_DIRECTORY = "/hpc_tools/benchmarks"
+HPC_TOOLS_CONTAINER_IMAGES_DIRECTORY = "/hpc_tools/container_images"
+HPC_TOOLS_CUDA_DIRECTORY = "/hpc_tools/cuda"
+HPC_TOOLS_NVIDIA_SDK_DIRECTORY = "/hpc_tools/nvidia_sdk"
+HPC_TOOLS_CORE_SUBDIRS: tuple[str, ...] = (
+    "cuda",
+    "scripts",
+    "container_images",
+    "nvidia_sdk",
+)
+HPC_TOOLS_DIRECTORY_MODE = "755"
+HPC_BENCHMARKS_PULL_SCRIPT = "/hpc_tools/scripts/pull_benchmarks.sh"
+HPC_BENCHMARKS_TOOLS_LIST = "/hpc_tools/scripts/benchmark_tools.list"
+HPC_BENCHMARKS_CUSTOM_JSON_SEARCH: tuple[str, ...] = (
+    "/opt/omnia/config/slurm_custom.json",
+    "/etc/omnia/slurm_custom.json",
+    "/opt/omnia/slurm_custom.json",
+)
+HPC_BENCHMARKS_OFFLINE_REPO_ROOTS: tuple[str, ...] = (
+    "/var/lib/pulp/content/offline_repo",
+    "/opt/omnia/offline_repo",
+)
+HPC_BENCHMARKS_OFFLINE_LAYOUT = "cluster/{arch}/rhel/10.0/{layout}/{package}"
+HPC_BENCHMARKS_SOURCE_TYPES: frozenset[str] = frozenset({"tarball", "source"})
+HPC_BENCHMARKS_CONTAINER_FIRST_PACKAGES: tuple[str, ...] = (
+    "hpl",
+    "hpl-mxp",
+    "stream",
+)
+HPC_BENCHMARKS_CONTAINER_FIRST_IMAGE_MARKER = "nvcr.io/nvidia/hpc-benchmarks"
+HPC_BENCHMARKS_MSR_SAFE_PACKAGE = "msr-safe"
+HPC_BENCHMARKS_RHEL_MAJOR = "10"
+HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS = 600
+HPC_BENCHMARKS_COMPILE_KEYWORDS: tuple[str, ...] = (
+    "make ",
+    "gcc ",
+    "g++ ",
+    "cmake ",
+    "configure ",
+    "./configure",
+)
+
 KUBERNETES_PREFIX = "service_kube_"
 KUBERNETES_CONTROL_PLANE_PREFIX = "service_kube_control_plane_"
 KUBERNETES_PRIMARY_CONTROL_PLANE_PREFIX = "service_kube_control_plane_first_"
@@ -474,6 +518,51 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "su - %s -c \"sbatch --parsable --nodelist=%s --wrap='sleep 45'\""
     ),
     "node_reboot": "systemctl reboot",
+    "arch": "arch",
+    "os_release": "cat /etc/os-release",
+    "hpc_tools_stat": "stat -c '%F|%a|%U|%G' %s 2>/dev/null || echo missing",
+    "hpc_tools_list": "find %s -mindepth 1 -maxdepth 1 -printf '%p|%y|%m\\n' 2>/dev/null",
+    "hpc_tools_tool_files": (
+        "find %s -mindepth 1 -maxdepth 2 -printf '%p|%y|%s\\n' 2>/dev/null"
+    ),
+    "hpc_tools_tool_executables": (
+        "find %s -type f \\( -perm -u+x -o -perm -g+x -o -perm -o+x \\) "
+        "! -name '*.sh' ! -name '*.py' ! -name '*.tar*' ! -name '*.tgz' "
+        "! -name '*.gz' ! -name '*.bz2' ! -name '*.xz' ! -name '*.zip' "
+        "-printf '%p\\n' 2>/dev/null | head -20"
+    ),
+    "hpc_tools_findmnt": "findmnt -n -o SOURCE,FSTYPE,TARGET /hpc_tools",
+    "hpc_tools_readable": "test -r %s",
+    "hpc_benchmarks_read_json": "cat %s",
+    "hpc_benchmarks_locate_json": (
+        "for path in /opt/omnia/config/slurm_custom.json "
+        "/etc/omnia/slurm_custom.json /opt/omnia/slurm_custom.json; do "
+        'if test -r "$path"; then printf \'%%s\' "$path"; exit 0; fi; done; exit 1'
+    ),
+    "hpc_benchmarks_offline_probe": "test -d %s && find %s -mindepth 1 -maxdepth 1 | head -5",
+    "hpc_benchmarks_pull_script_check": (
+        "test -x %s && grep -c 'pull_benchmark\\|Pull and organize' %s"
+    ),
+    "hpc_benchmarks_pull_script_no_build": (
+        "! grep -Eq '^[[:space:]]*(make|gcc|g\\+\\+|cmake|./configure)[[:space:]]' %s"
+    ),
+    "hpc_benchmarks_run_pull_script": (
+        "timeout %s %s %s 2>&1 | tail -80; exit ${PIPESTATUS[0]}"
+    ),
+    "hpc_benchmarks_snapshot_dirs": (
+        "find %s -mindepth 1 -maxdepth 1 -type d -printf '%p\\n' 2>/dev/null | sort"
+    ),
+    "hpc_benchmarks_egress_probe": (
+        "curl -sS --connect-timeout 5 --max-time 10 -o /dev/null "
+        "-w '%%{http_code}' https://www.google.com 2>&1 || echo failed"
+    ),
+    "hpc_benchmarks_pull_script_var": (
+        "awk -F= '/^%s=/{sub(/^%s=/,\"\"); gsub(/^\"|\"$/,\"\"); print; exit}' %s"
+    ),
+    "hpc_benchmarks_pulp_list": (
+        "curl -ksfL --connect-timeout 5 --max-time 15 %s 2>/dev/null | "
+        "grep -oE 'href=\"[^\"]+\"' | grep -vE '(\\.\\./|index\\.html)' | head -20"
+    ),
     "pam_adopt_integration": (
         "policy=missing; usepam=disabled; module=missing; "
         "if grep -Eq '^[[:space:]]*account[[:space:]]+required"

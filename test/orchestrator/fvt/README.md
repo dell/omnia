@@ -28,7 +28,7 @@ ORCH_FVT_<LIFECYCLE>_<TYPE><NUMBER>
 | `precheck` | `ORCH_FVT_PRECHECK_E001` | `V001`–`V007` | `environment`, `storage`, `dependencies`, `inputs` |
 | `prepare` | `ORCH_FVT_PREPARE_E001` | `V001`–`V013` | `openchami`, `network`, `openldap` |
 | `provision` | `ORCH_FVT_PROVISION_E001` | `V001`–`V008` | `openchami` |
-| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V094` | `connectivity`, `cloudinit`, `kubernetes_*`, `slurm_*` |
+| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V094` | `connectivity`, `cloudinit`, `kubernetes_*`, `slurm_*, slurm_hpc_benchmarks` |
 | `cleanup` | `ORCH_FVT_CLEANUP_E001` | `V001`–`V006` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
 
 The detailed registry below is the authoritative inventory. Its `Order`
@@ -273,6 +273,30 @@ selected by mapped functional groups.
 Image download has a 20-minute ceiling with polling progress every 20
 seconds. The reboot cases share one reboot state instead of rebooting the
 same compute node independently for each postcondition.
+
+### Slurm HPC Benchmarks
+
+|| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+||---:|---|---|---|---|---|---|
+|| 295 | `ORCH_FVT_PXEBOOT_V095` | `test_hpc_benchmarks_json_declaration` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify benchmark_tools.list JSON syntax and required fields. | All stated checks pass for every applicable target. |
+|| 296 | `ORCH_FVT_PXEBOOT_V096` | `test_hpc_benchmarks_nfs_accessibility` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify Pulp server reachability from a compute node. | All stated checks pass for every applicable target. |
+|| 297 | `ORCH_FVT_PXEBOOT_V097` | `test_hpc_benchmarks_local_repo_sync` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify offline repo sync status on the OIM. | All stated checks pass for every applicable target. |
+|| 298 | `ORCH_FVT_PXEBOOT_V098` | `test_hpc_benchmarks_tools_dir_creation` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify /hpc_tools directory structure on compute nodes. | All stated checks pass for every applicable target. |
+|| 299 | `ORCH_FVT_PXEBOOT_V099` | `test_hpc_benchmarks_post_staging_validation` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify staged tools match benchmark_tools.list. | All stated checks pass for every applicable target. |
+|| 300 | `ORCH_FVT_PXEBOOT_V100` | `test_hpc_benchmarks_per_tool_staging_report` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify per-tool staging report markers and content. | All stated checks pass for every applicable target. |
+|| 301 | `ORCH_FVT_PXEBOOT_V101` | `test_hpc_benchmarks_staging_idempotency` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify repeated staging leaves consistent state. | The repeated operation succeeds without changing protected state. |
+|| 302 | `ORCH_FVT_PXEBOOT_V102` | `test_hpc_benchmarks_e2e_provisioning` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify full provisioning lifecycle with benchmark tools. | All stated checks pass for every applicable target. |
+|| 303 | `ORCH_FVT_PXEBOOT_V103` | `test_hpc_benchmarks_airgapped_staging` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify airgapped staging from offline repo. | All stated checks pass for every applicable target. |
+|| 304 | `ORCH_FVT_PXEBOOT_V104` | `test_hpc_benchmarks_source_only_delivery` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify source-only delivery skips framework-owned directories. | All stated checks pass for every applicable target. |
+|| 305 | `ORCH_FVT_PXEBOOT_V105` | `test_hpc_benchmarks_rhel_compatibility` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify RHEL 10.x compatibility constraints. | All stated checks pass for every applicable target. |
+|| 306 | `ORCH_FVT_PXEBOOT_V106` | `test_hpc_benchmarks_container_first_guidance` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify container image first guidance is correct. | All stated checks pass for every applicable target. |
+|| 307 | `ORCH_FVT_PXEBOOT_V107` | `test_hpc_benchmarks_container_image_unaffected` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify container images are not modified by staging. | All stated checks pass for every applicable target. |
+|| 308 | `ORCH_FVT_PXEBOOT_V108` | `test_hpc_benchmarks_cuda_flow_unaffected` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify CUDA flow is not modified by staging. | All stated checks pass for every applicable target. |
+|| 309 | `ORCH_FVT_PXEBOOT_V109` | `test_hpc_benchmarks_nvhpc_flow_unaffected` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify NVHPC flow is not modified by staging. | All stated checks pass for every applicable target. |
+|| 310 | `ORCH_FVT_PXEBOOT_V110` | `test_hpc_benchmarks_openmpi_unaffected` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify OpenMPI flow is not modified by staging. | All stated checks pass for every applicable target. |
+|| 311 | `ORCH_FVT_PXEBOOT_V111` | `test_hpc_benchmarks_msr_safe_arch_boundary` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify MSR-safe tools are not staged on x86_64. | All stated checks pass for every applicable target. |
+|| 312 | `ORCH_FVT_PXEBOOT_V112` | `test_hpc_benchmarks_artifact_copy` | `slurm_hpc_benchmarks` | `destructive`, `sanity`, `slurm` | Verify artifact copy from OIM to compute nodes. | The operation completes successfully and returns the expected result. |
+|| 313 | `ORCH_FVT_PXEBOOT_V113` | `test_hpc_benchmarks_existing_dirs_preserved` | `slurm_hpc_benchmarks` | `destructive`, `sanity`, `slurm` | Verify existing directories are preserved during staging. | The operation completes successfully and returns the expected result. |
 
 ## Cleanup test cases
 

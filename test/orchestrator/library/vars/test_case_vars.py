@@ -637,6 +637,101 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Apptainer artifacts after compute reboot",
         "component": "Apptainer artifact recovery",
     },
+    "hpc_benchmarks_json_declaration": {
+        "id": "ORCH_FVT_PXEBOOT_V095",
+        "title": "Verify HPC benchmarks tool declaration (benchmark_tools.list)",
+        "component": "HPC benchmarks tool declaration",
+    },
+    "hpc_benchmarks_local_repo_sync": {
+        "id": "ORCH_FVT_PXEBOOT_V096",
+        "title": "Verify benchmark tarballs reachable via Pulp offline repo URL",
+        "component": "HPC benchmarks Pulp sync",
+    },
+    "hpc_benchmarks_tools_dir_creation": {
+        "id": "ORCH_FVT_PXEBOOT_V097",
+        "title": "Verify /hpc_tools directory layout and permissions",
+        "component": "HPC benchmarks directory creation",
+    },
+    "hpc_benchmarks_artifact_copy": {
+        "id": "ORCH_FVT_PXEBOOT_V098",
+        "title": "Verify declared benchmark artifacts are staged per tool",
+        "component": "HPC benchmarks artifact copy",
+    },
+    "hpc_benchmarks_msr_safe_arch_boundary": {
+        "id": "ORCH_FVT_PXEBOOT_V099",
+        "title": "Verify msr-safe is staged only for x86_64",
+        "component": "HPC benchmarks msr-safe arch boundary",
+    },
+    "hpc_benchmarks_container_first_guidance": {
+        "id": "ORCH_FVT_PXEBOOT_V100",
+        "title": "Verify pull_benchmarks.sh and benchmark_tools.list are deployed",
+        "component": "HPC benchmarks staging artifacts",
+    },
+    "hpc_benchmarks_source_only_delivery": {
+        "id": "ORCH_FVT_PXEBOOT_V101",
+        "title": "Verify no compile or build commands are staged",
+        "component": "HPC benchmarks source-only delivery",
+    },
+    "hpc_benchmarks_per_tool_staging_report": {
+        "id": "ORCH_FVT_PXEBOOT_V102",
+        "title": "Verify per-tool staging report from pull_benchmarks.sh",
+        "component": "HPC benchmarks per-tool staging report",
+    },
+    "hpc_benchmarks_e2e_provisioning": {
+        "id": "ORCH_FVT_PXEBOOT_V103",
+        "title": "Verify end-to-end benchmark provisioning pipeline",
+        "component": "HPC benchmarks end-to-end provisioning",
+    },
+    "hpc_benchmarks_nfs_accessibility": {
+        "id": "ORCH_FVT_PXEBOOT_V104",
+        "title": "Verify /hpc_tools NFS is mounted and readable on compute nodes",
+        "component": "HPC benchmarks NFS accessibility",
+    },
+    "hpc_benchmarks_airgapped_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V105",
+        "title": "Verify benchmark staging completes without external egress",
+        "component": "HPC benchmarks air-gapped staging",
+    },
+    "hpc_benchmarks_post_staging_validation": {
+        "id": "ORCH_FVT_PXEBOOT_V106",
+        "title": "Verify post-staging validation of benchmark tool directories",
+        "component": "HPC benchmarks post-staging validation",
+    },
+    "hpc_benchmarks_rhel_compatibility": {
+        "id": "ORCH_FVT_PXEBOOT_V107",
+        "title": "Verify benchmark staging on RHEL 10.x",
+        "component": "HPC benchmarks RHEL compatibility",
+    },
+    "hpc_benchmarks_cuda_flow_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V108",
+        "title": "Verify CUDA flow is unaffected by benchmark staging",
+        "component": "HPC benchmarks CUDA flow invariance",
+    },
+    "hpc_benchmarks_nvhpc_flow_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V109",
+        "title": "Verify NVIDIA HPC SDK flow is unaffected by benchmark staging",
+        "component": "HPC benchmarks NVIDIA SDK flow invariance",
+    },
+    "hpc_benchmarks_container_image_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V110",
+        "title": "Verify container image flow is unaffected by benchmark staging",
+        "component": "HPC benchmarks container image flow invariance",
+    },
+    "hpc_benchmarks_openmpi_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V111",
+        "title": "Verify OpenMPI/UCX are unaffected by benchmark staging",
+        "component": "HPC benchmarks OpenMPI invariance",
+    },
+    "hpc_benchmarks_existing_dirs_preserved": {
+        "id": "ORCH_FVT_PXEBOOT_V112",
+        "title": "Verify pre-existing /hpc_tools directories are preserved",
+        "component": "HPC benchmarks existing directory preservation",
+    },
+    "hpc_benchmarks_staging_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V113",
+        "title": "Verify benchmark staging is idempotent",
+        "component": "HPC benchmarks staging idempotency",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
