@@ -186,7 +186,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "apptainer_srun_non_root": (
         "timeout %s runuser -u %s -- srun --nodes=1 --ntasks=1 "
-        "--nodelist=%s apptainer exec %s hostname -s"
+        "--chdir=/tmp --nodelist=%s apptainer exec %s hostname -s"
     ),
     "apptainer_multi_srun": (
         "timeout %s srun --nodes=%s --ntasks=%s apptainer exec %s hostname -s"
@@ -353,10 +353,10 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "sacct --noheader --parsable2 --jobs=%s --format=State,NodeList | head -1"
     ),
     "slurm_array_job_details": (
-        "sacct --noheader --parsable2 --jobs=%s --format=JobIDRaw,State"
+        "sacct --noheader --parsable2 --jobs=%s --format=JobID,State"
     ),
     "slurm_queue_snapshot": "squeue --noheader --format='%i|%T|%N|%R'",
-    "slurm_queue_snapshot_by_name": "squeue --noheader --name=%s --format='%i|%T|%N|%R'",
+    "slurm_queue_snapshot_by_name": "squeue --noheader --name=%s --format='%%i|%%T|%%N|%%R'",
     "slurm_submit_concurrent_job": (
         "sbatch --parsable --nodes=1 --ntasks=1 --exclusive --nodelist=%s "
         "--output=/tmp/omnia-fvt-concurrent-%%j.out "
