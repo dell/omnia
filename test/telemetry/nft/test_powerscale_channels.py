@@ -72,6 +72,7 @@ def _deploy_with_channels(host, tl, metrics_enabled, step_name, cleanup_first=Tr
 
     extra_vars = {
         "telemetry_config.telemetry_sources.powerscale.metrics_enabled": metrics_enabled,
+        "telemetry_config.telemetry_sources.powerscale.logs_enabled": False,
     }
 
     result = run_playbook(
@@ -93,17 +94,21 @@ def test_powerscale_channels_comprehensive(host):
     """Comprehensive test for PowerScale metrics channel transitions.
 
     Tests metrics enable/disable transitions:
-    1. true (baseline - metrics enabled)
-    2. false (metrics disabled)
-    3. true (re-enable metrics)
-    4. true (idempotency)
+    1. true (baseline - metrics enabled, logs disabled)
+    2. false (metrics disabled, logs disabled)
+    3. true (re-enable metrics, logs disabled)
+    4. true (idempotency, logs disabled)
 
     This validates:
     - Playbook can deploy with metrics enabled
-    - Playbook can disable metrics
+    - Playbook can disable metrics (logs explicitly set to false)
     - Playbook can re-enable metrics
     - Deployment is idempotent
     - Cleanup works correctly
+
+    Note: logs_enabled is explicitly set to False in all test steps to ensure
+    the test validates metrics transitions independently (logs are managed via
+    PowerScale API, not by Omnia).
 
     Note: This is playbook-level validation only. Component-level verification
     (pods, services, configmaps) is covered by FVT tests.
