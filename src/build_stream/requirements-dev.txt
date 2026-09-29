@@ -27,6 +27,9 @@ dependency-injector>=4.41.0
 # Form data parsing (required by FastAPI routes)
 python-multipart>=0.0.26
 
+# HTTP client (required by cadence_manager.py for GitLab API)
+requests>=2.31.0
+
 # Code quality
 pylint>=3.0.0
 black>=26.5.0

@@ -112,23 +112,17 @@ cadence:
   # Enable or disable cadence polling for periodic package synchronization
   # Accepted values: true | false
   # Default: false
-  enabled: false
+  enabled: true
 
   # Polling interval for cadence syncs in seconds
   # Accepted values: integer >= 3600 (1 hour minimum)
   # Default: 86400 (24 hours)
-  interval_seconds: 86400
+  interval_seconds: 21600
 
   # Cadence catalog filename in the GitLab repository
-  # This file is version-bumped after successful package sync
+  # This file is version-bumped after successful package sync via GitLab API
   # Default: "cadence_catalog_rhel.json"
   catalog_filename: "cadence_catalog_rhel.json"
-
-  # Path to the local GitLab repository clone on the OIM host
-  # Used for git operations (commit and push of updated catalog)
-  # REQUIRED when cadence.enabled is true
-  # Default: ""
-  gitlab_repo_path: ""
 
   # Package sync playbook name to invoke during cadence cycles
   # Default: "repo_sync.yml"

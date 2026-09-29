@@ -64,10 +64,13 @@ class TestInputFilesMissingError:
         assert err.job_id == "job-1"
         assert err.input_path == "/input"
 
-    def test_message_suggests_generate_api(self):
-        """Error message should suggest running GenerateInputFiles API."""
+    def test_message_suggests_upload_api(self):
+        """Error message should point at the Upload API.
+
+        The GenerateInputFiles API it used to name was retired in 2.3.
+        """
         err = InputFilesMissingError(job_id="job-1", input_path="/input")
-        assert "GenerateInputFiles" in err.message
+        assert "Upload API" in err.message
 
 
 class TestInputDirectoryInvalidError:
