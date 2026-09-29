@@ -84,7 +84,10 @@ registries:
 | `base_url: http://...` | Schema-compatible but not recommended for production |
 
 Registry credentials are passed to the Pulp remote for synchronization. They are
-not embedded in distribution URLs.
+not embedded in distribution URLs. Secret-bearing container-remote mutations
+use the CA-verified Pulp HTTPS API because the installed Pulp CLI accepts remote
+passwords only as process arguments. Non-secret Pulp lifecycle operations
+continue to use the centralized shell-free CLI boundary.
 
 ---
 
@@ -105,10 +108,12 @@ not embedded in distribution URLs.
 | Control | Purpose |
 |---------|---------|
 | JSON Schema with `additionalProperties: false` | Reject unknown configuration keys |
+| Literal runtime-YAML loading | Reject Jinja expressions, statements and comments before Ansible receives input values |
 | Catalog logic validation | Reject unresolved repositories and registries |
 | Exact Pulp object names/hrefs | Avoid substring deletion |
 | Argument-list subprocess execution | Keep user values out of shell parsing |
 | Cleanup path validation | Refuse broad system and parent-directory targets |
+| Descriptor-pinned artifact writes | Reject traversal, symlink and hard-link redirection below download roots |
 | Atomic status/mirror writes | Avoid partially written tracking state |
 | Pulp post-delete verification | Update local state only after confirmed deletion |
 | Target-qualified Python downloads | Prevent OIM interpreter/CPU wheels from entering node repositories |
@@ -117,6 +122,18 @@ not embedded in distribution URLs.
 
 Digest-based container cleanup is rejected. Tagged cleanup addresses exactly one
 tag; untagged cleanup intentionally removes the complete image repository.
+
+`repo_manager_config.yml`, `repo_manager_endpoint_config.yml` and runtime OIM
+metadata are data files, not Ansible templates. Repo Manager parses these files
+with the safe YAML loader and recursively rejects `{{`, `{%` and `{#` in
+mapping keys, scalar values and list entries before publishing any Ansible
+facts. Do not use Jinja interpolation in these files; provide resolved literal
+values instead. A missing optional OIM metadata file remains supported, but an
+existing malformed or template-bearing metadata file fails closed.
+
+The packaged vars/default.yml settings file is required runtime input.
+Missing, unreadable, malformed or non-mapping content fails closed instead of
+silently selecting fallback settings.
 
 ---
 

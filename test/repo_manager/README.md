@@ -46,9 +46,6 @@ credentials are intentionally excluded and remain encrypted on the target.
 # Download and sync repositories
 ./run_validation.sh fvt_repo_manager execute test
 
-# Exact-mirror only the active catalog's RPM repositories
-./run_validation.sh fvt_repo_manager repo_sync test --marker repo_resync
-
 # Generate repo_status.yml
 ./run_validation.sh fvt_repo_manager status test
 
@@ -76,7 +73,6 @@ REPO_MANAGER_TEST_CLEANUP_REPO=x86_64_rhel_10.0_test_repo \
 | `precheck` | Run environment/input prechecks and verify their inputs |
 | `prepare` | Deploy Pulp server and verify container/services |
 | `execute` | Download and sync repositories |
-| `repo_sync` | Exact-mirror only active-catalog RPM repositories and remove stale state |
 | `status` | Generate and verify repo_status.yml |
 | `cleanup` | Cleanup Pulp server and verify removal |
 | `cleanup_repos` | Explicitly selected exact repository cleanup and state invalidation |
@@ -93,7 +89,7 @@ The FVT commands have fixed meanings:
 
 An untagged `test` runs `precheck`, `prepare`, `execute`, and `status` in
 order, then verifies the non-destructive scenarios. Cleanup, negative, and
-catalog and exact-mirror operations require explicit selection, and aggregate verification
+catalog operations require explicit selection, and aggregate verification
 filters co-located `negative` or `destructive` tests. Policy and negative
 scenarios are verification-only. Catalog lifecycle commands require an exact
 suite, for example `catalog test --suite validate`.
@@ -102,9 +98,9 @@ suite, for example `catalog test --suite validate`.
 
 See the authoritative test-case registries:
 
-- [fvt/README.md](fvt/README.md) -- FVT test-case registry (125 tests)
+- [fvt/README.md](fvt/README.md) -- FVT test-case registry (117 tests)
 - [nft/README.md](nft/README.md) -- NFT test-case registry (5 tests)
-- [ut/README.md](ut/README.md) -- UT test-case registry (152 tests)
+- [ut/README.md](ut/README.md) -- UT test-case registry (205 tests)
 - [docs/TEST_CASES.md](docs/TEST_CASES.md) -- Consolidated summary
 
 ## Directory Structure
@@ -201,10 +197,9 @@ The test framework is organized into several categories:
 | **User Registry Tests** | Test user registry configuration and validation | 15 |
 | **Negative Tests** | Test error scenarios | 10 |
 | **Catalog Tests** | Catalog generate, add, delete, validate, and negative | 30 |
-| **Catalog Exact-Mirror Tests** | Standalone sync, scope, stale-state removal, publications, and Slurm user repo | 8 |
-| **Unit/Contract Tests** | Source state machines, cleanup, status and command safety | 152 |
+| **Unit/Contract Tests** | Source state machines, cleanup, status and command safety | 205 |
 | **Non-Functional Tests** | Idempotency, performance, and security | 5 |
-| | **Total** | **282** |
+| | **Total** | **327** |
 
 ## Test Markers
 
@@ -222,7 +217,6 @@ Tests can be filtered using pytest markers:
 - `performance`: Performance tests
 - `idempotency`: Idempotency tests
 - `security`: Security tests
-- `repo_resync`: Explicit catalog-scoped RPM exact-mirror tests
 
 ## Using the omnia-auto Pip Package
 

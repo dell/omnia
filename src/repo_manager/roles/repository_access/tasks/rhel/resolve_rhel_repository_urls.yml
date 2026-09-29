@@ -10,11 +10,29 @@
     archs: "{{ selected_architectures }}"
     referenced_repos_by_arch: "{{ catalog_context.referenced_repositories }}"
 
-- name: Load Repo Manager repository configuration
-  ansible.builtin.include_vars:
-    file: "{{ local_repo_config_path }}"
-    name: local_config
-  no_log: true
+- name: Load repository configuration through the literal-YAML boundary
+  block:
+    - name: Parse and validate repository configuration
+      load_validated_yaml:
+        path: "{{ local_repo_config_path }}"
+      register: _local_repo_config_load
+      no_log: true
+
+    - name: Publish validated repository configuration
+      ansible.builtin.set_fact:
+        local_config: "{{ _local_repo_config_load.data }}"
+      no_log: true
+
+  rescue:
+    - name: Reject unsafe or invalid repository configuration
+      ansible.builtin.fail:
+        msg: >-
+          {{ repository_access_invalid_repo_manager_config_msg }}
+          Error code:
+          {{ _local_repo_config_load.error_code |
+             default('validation_failed') }}.
+          Location:
+          {{ _local_repo_config_load.error_location | default('$') }}.
 
 - name: Validate catalog version and architectures exist in repository configuration
   ansible.builtin.assert:

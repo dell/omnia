@@ -19,9 +19,11 @@ Validates test_config.yml and test_creds.yml before test execution.
 """
 
 import os
+import re
 from typing import Any, Dict, List
 
 from omnia_auto import load_test_config, get_module_root
+from ..vars.common_vars import SRC_INPUT_DIR
 
 
 class ConfigValidationError(Exception):
@@ -39,31 +41,51 @@ def validate_test_config() -> Dict[str, Any]:
     warnings: List[str] = []
 
     # Required string fields
-    for field in ("clone_path", "dataset", "project_name"):
+    for field in ("report_path", "report_name"):
         val = config.get(field, "")
         if not val or not str(val).strip():
             errors.append(f"'{field}' is required and cannot be empty")
 
-    # Dataset directory must exist locally
-    module_root = get_module_root()
-    dataset = config.get("dataset", "data_set_01")
-    dataset_dir = os.path.join(module_root, "datasets", dataset)
-    if not os.path.isdir(dataset_dir):
-        errors.append(
-            f"Dataset directory not found: {dataset_dir}"
-        )
-
-    # Optional: oim_server_ip
+    # clone_path is required for remote execution
     server_ip = config.get("oim_server_ip", "")
-    if not server_ip:
+    if server_ip:
+        clone_path = config.get("clone_path", "")
+        if not clone_path or not str(clone_path).strip():
+            errors.append("clone_path is required for remote execution")
+        elif not os.path.isabs(clone_path.strip()):
+            errors.append(f"clone_path must be absolute: {clone_path.strip()}")
+    else:
         warnings.append(
             "oim_server_ip is empty — running in local mode"
         )
+
+    # Dataset directory must exist locally (if dataset is set)
+    dataset = config.get("dataset", "")
+    if dataset:
+        module_root = get_module_root()
+        dataset_dir = os.path.join(module_root, "datasets", dataset)
+        if not os.path.isdir(dataset_dir):
+            errors.append(
+                f"Dataset directory not found: {dataset_dir}"
+            )
+    else:
+        # When dataset is empty, src/ input directory must exist
+        if not os.path.isdir(SRC_INPUT_DIR):
+            errors.append(
+                f"src/ input directory not found: {SRC_INPUT_DIR}"
+            )
 
     # Report path should not contain spaces
     report_path = str(config.get("report_path", ""))
     if " " in report_path:
         errors.append("report_path must not contain spaces")
+
+    # Report name must contain only letters, numbers, underscores, hyphens
+    report_name = str(config.get("report_name", ""))
+    if not re.match(r'^[a-zA-Z0-9_-]+$', report_name):
+        errors.append(
+            "report_name must contain only letters, numbers, underscores, hyphens"
+        )
 
     return {
         "valid": len(errors) == 0,

@@ -304,28 +304,32 @@
 
 | Suite | Count | Coverage |
 |-------|------:|----------|
-| `test_cleanup_contract.py` | 24 | Cases 1-6 scope, exact identities, fail-closed state, idempotency and ordering |
+| `test_artifact_reuse.py` | 6 | Verified immutable reuse and standalone RPM processing |
+| `test_cleanup_contract.py` | 27 | Cases 1-6 scope, exact identities, fail-closed state, idempotency and ordering |
 | `test_common_vars.py` | 3 | Environment-derived path resolution and fallback |
-| `test_container_reconciliation.py` | 8 | Ready/incomplete/unknown state and tag union |
+| `test_container_reconciliation.py` | 20 | Ready/incomplete/unknown state, platform validation, reuse and tag union |
+| `test_context_resolution.py` | 5 | Cases 1-6 context discovery, ordering and compatibility |
 | `test_dataset_generator.py` | 6 | Contained output, explicit inputs, and secret-free overrides |
 | `test_dataset_contract.py` | 17 | Consumer, generator, publication, and sync contracts |
 | `test_dnf_retry.py` | 7 | Transient-only bounded retries and integrity failures |
 | `test_framework_contract.py` | 30 | Commands, public tags, suites, entrypoint imports, filtering and dispatch |
-| `test_fvt_policy_helpers.py` | 6 | Policy config keys, Pulp JSON parsing, catalog-selected repos and repo source types |
-| `test_mirror_state.py` | 9 | Rerun selection, ambiguity, corruption and atomic replacement |
+| `test_fvt_policy_helpers.py` | 9 | Policy config keys, Pulp JSON parsing, selected contexts and HTTPS verification |
+| `test_mirror_state.py` | 16 | Rerun/resync selection, checkpoints, ambiguity, corruption and atomic replacement |
 | `test_pulp_command_contract.py` | 13 | Central structured argv and allowlisted grammar |
+| `test_pulp_object_state.py` | 9 | Tri-state Pulp queries, digest reuse and distribution bindings |
 | `test_repo_file_state.py` | 3 | Atomic, read-only and symlink-safe DNF repo files |
 | `test_repo_settings.py` | 7 | Configuration precedence and typed environment values |
-| `test_status_contract.py` | 8 | Multi-version aggregation and fail-closed publication |
+| `test_shared_artifact_state.py` | 16 | Integrity-verified reuse, ownership, atomic persistence and Git resolution |
+| `test_status_contract.py` | 11 | Multi-version aggregation, version-first endpoints and fail-closed publication |
 
 See [ut/README.md](../ut/README.md) for the full UT test-case registry with individual test IDs
-(`RM_UT_001` through `RM_UT_143`).
+(`RM_UT_001` through `RM_UT_207`; IDs remain stable when tests move between modules).
 
 ---
 
 ## Test Summary
 
-**Total Test Cases: 263**
+**Total Test Cases: 327**
 
 | Category | Count |
 |----------|-------|
@@ -340,5 +344,5 @@ See [ut/README.md](../ut/README.md) for the full UT test-case registry with indi
 | Negative Tests | 10 |
 | Catalog Tests | 30 |
 | Non-Functional Tests | 5 |
-| Unit/Contract Tests | 141 |
-| **Total** | **263** |
+| Unit/Contract Tests | 205 |
+| **Total** | **327** |

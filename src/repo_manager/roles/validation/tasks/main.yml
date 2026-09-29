@@ -17,9 +17,6 @@
   when: >-
     catalog_context.platform_capabilities.package_manager | default('dnf') == 'dnf'
 
-- name: Validate metadata
-  ansible.builtin.include_tasks: validate_metadata.yml
-
 - name: Validate user_repo certificates
   validate_user_repo:
     certs_path: "{{ user_repo_cert_dir }}"

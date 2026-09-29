@@ -63,24 +63,6 @@ Running the playbook without `--tags` executes the standard non-cleanup
 workflow. Cleanup and catalog operations use `never` and must be selected
 explicitly.
 
-### Catalog RPM Exact-Mirror Reconciliation
-
-BuildStream cadence uses a separate Repo Manager operation; it is not part of
-the normal download workflow:
-
-```bash
-cd src/repo_manager/playbooks/repo_operations
-ansible-playbook repo_sync.yml
-```
-
-`repo_sync.yml` reads `CATALOG_FILE_PATH`, selects only RPM repositories
-referenced by that catalog, and force-synchronizes them with Pulp's
-`mirror_content_only` policy. It preserves each remote's configured download
-policy. Replacement metadata is published, served, and validated before older
-publications and versions are removed. The result is written atomically to
-`<REPO_MANAGER_DATA_PATH>/output/<project>/repo_resync_status.yml`; any failed
-repository makes the playbook fail and prevents global orphan cleanup.
-
 ---
 
 ## Tags
@@ -101,6 +83,28 @@ repository makes the playbook fail and prevents global orphan cleanup.
 Standard tags can be combined. Their execution order is defined by
 `playbooks/repo_manager.yml`, not the order written after `--tags`. Do not mix a
 cleanup tag with a standard workflow command.
+
+### Exact RPM Repository Reconciliation
+
+Use the standalone playbook only after the normal download workflow has created
+the catalog-selected RPM repositories, remotes, publications and distributions:
+
+```bash
+cd src/repo_manager/playbooks
+ansible-playbook repo_operations/repo_sync.yml
+```
+
+This maintenance operation processes the catalog's RHEL minor-version contexts
+sequentially. It preflights every context before changing Pulp, synchronizes
+each referenced RPM repository with `mirror_content_only`, validates the new
+HTTPS `repomd.xml`, switches the stable distribution, updates the repository
+checkpoint and affected package states atomically, and only then prunes
+superseded publications and repository versions. Non-RPM artifacts are not
+processed. Do not run it concurrently with download or cleanup operations.
+
+The result is written to `output/<project>/repo_resync_status.yml`. The normal
+consumer contract in `repo_status.yml`, the standard playbook tags and the
+fresh-download/rerun behavior are unchanged.
 
 ### Selective Cleanup
 
@@ -181,8 +185,8 @@ Credential files are Ansible Vault protected, root-owned and mode `0600`.
 
 | Output | Location | Purpose |
 |--------|----------|---------|
-| `repo_status.yml` | `output/<project>/` | Version-qualified Pulp RPM/File/Python URLs and certificate paths for consumers |
-| `repo_resync_status.yml` | `output/<project>/` | Per-repository exact-mirror, publication, and cleanup result |
+| `repo_status.yml` | `output/<project>/` | Version-qualified Pulp RPM, artifact and content-base URLs plus certificate paths for consumers |
+| `repo_resync_status.yml` | `output/<project>/` | Administrative result for the latest standalone exact RPM reconciliation |
 | Package/group state | `log/<os>/<version>/<arch>/` | Per-group CSV and worker results |
 | Mirror indexes | `log/<os>/<version>/mirror_status/` | Composite catalog and Pulp mirror state |
 
@@ -331,6 +335,7 @@ Full Pulp cleanup removes runtime logs by default. Use
 | [Security](docs/security.md) | HTTPS, Vault, registry TLS and cleanup controls |
 | [Input Contract](docs/contracts/input-contract.md) | Environment and input schemas |
 | [Output Contract](docs/contracts/output-contract.md) | `repo_status.yml`, state and logs |
+| [Samples](samples/README.md) | Current input examples and illustrative `repo_status.yml` output |
 | [Design](docs/design/repo-manager-design.md) | Developer implementation boundaries and invariants |
 | [Pulp Administration](docs/pulp-administration.md) | Pulp lifecycle, storage, health and recovery |
 

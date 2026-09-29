@@ -16,7 +16,7 @@ from library.functions import (
     check_repo_policy,
     check_repo_caching,
     check_repo_source_type,
-    get_deployed_repos,
+    get_deployed_repo_contexts,
     verify_policy_resolution,
 )
 from library.messages.repo_manager_msgs import (
@@ -32,22 +32,31 @@ def test_subscription_repo_per_repo_override(host: Host):
     """RM_FVT_POLICY_V011: Subscription repos should support per-repo overrides."""
     tl = TestLogger(TEST_NAMES["subscription_repo_per_repo_override"], "RM_FVT_POLICY_V011")
 
-    repos_result = get_deployed_repos(host, arch="x86_64")
+    repos_result = get_deployed_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
 
     # Find a subscription repo (typically baseos, appstream, codeready-builder)
     found_repo = None
-    for repo_name in configured_repos:
-        source = check_repo_source_type(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        architecture = repo["architecture"]
+        os_version = repo["os_version"]
+        source = check_repo_source_type(
+            host, repo_name, architecture, os_version
+        )
         if not source["success"] or source.get("source_type") != "subscription":
             continue
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+        repo_policy = check_repo_policy(
+            host, repo_name, architecture, os_version
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, architecture, os_version
+        )
 
         if repo_policy["success"] and repo_caching["success"]:
             policy_source = repo_policy.get("source")
@@ -81,22 +90,31 @@ def test_url_repo_per_repo_override(host: Host):
     """RM_FVT_POLICY_V012: URL repos should support per-repo overrides."""
     tl = TestLogger(TEST_NAMES["url_repo_per_repo_override"], "RM_FVT_POLICY_V012")
 
-    repos_result = get_deployed_repos(host, arch="x86_64")
+    repos_result = get_deployed_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
 
     # Find a URL repo (typically epel, docker-ce, etc.)
     found_repo = None
-    for repo_name in configured_repos:
-        source = check_repo_source_type(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        architecture = repo["architecture"]
+        os_version = repo["os_version"]
+        source = check_repo_source_type(
+            host, repo_name, architecture, os_version
+        )
         if not source["success"] or source.get("source_type") != "url":
             continue
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+        repo_policy = check_repo_policy(
+            host, repo_name, architecture, os_version
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, architecture, os_version
+        )
 
         if repo_policy["success"] and repo_caching["success"]:
             policy_source = repo_policy.get("source")
@@ -130,19 +148,22 @@ def test_subscription_and_url_identical_behavior(host: Host):
     """RM_FVT_POLICY_V013: Subscription and URL repos should behave identically."""
     tl = TestLogger(TEST_NAMES["subscription_and_url_identical_behavior"], "RM_FVT_POLICY_V013")
 
-    repos_result = get_deployed_repos(host, arch="x86_64")
+    repos_result = get_deployed_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
 
     representatives = {}
-    for repo_name in configured_repos:
-        source = check_repo_source_type(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        source = check_repo_source_type(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
         if source["success"]:
-            representatives.setdefault(source.get("source_type"), repo_name)
+            representatives.setdefault(source.get("source_type"), repo)
 
     missing_types = {"subscription", "url"} - representatives.keys()
     if missing_types:
@@ -154,8 +175,11 @@ def test_subscription_and_url_identical_behavior(host: Host):
     failures = []
     details = []
     for source_type in ("subscription", "url"):
-        repo_name = representatives[source_type]
-        resolution = verify_policy_resolution(host, repo_name)
+        repo = representatives[source_type]
+        repo_name = repo["name"]
+        resolution = verify_policy_resolution(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
         if not resolution["success"] or not resolution.get("match"):
             failures.append(f"{source_type} repo {repo_name}: {resolution['details']}")
         else:

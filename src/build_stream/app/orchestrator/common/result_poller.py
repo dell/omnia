@@ -549,6 +549,32 @@ class ResultPoller:
             )
             self._audit_repo.save(event)
 
+    def _emit_dictionary_hit_events(self, result: PlaybookResult) -> None:
+        """Persist one audit event for each catalog image reused by hash."""
+        for hit in result.dictionary_hits or []:
+            functional_group = hit.get("functional_group", "")
+            image_group_id = hit.get("image_group_id", "")
+            if not functional_group or not image_group_id:
+                continue
+            event = AuditEvent(
+                event_id=str(self._uuid_generator.generate()),
+                job_id=result.job_id,
+                event_type="DICTIONARY_HIT",
+                correlation_id=(
+                    str(result.correlation_id)
+                    if result.correlation_id
+                    else str(self._uuid_generator.generate())
+                ),
+                client_id=result.job_id,
+                timestamp=datetime.now(timezone.utc),
+                details={
+                    "stage_name": result.stage_name,
+                    "functional_group": functional_group,
+                    "image_group_id": image_group_id,
+                },
+            )
+            self._audit_repo.save(event)
+
     def _on_build_image_success(self, result: PlaybookResult) -> None:
         """Create ImageGroup (BUILT) and Image records on build-image success.
 

@@ -41,15 +41,27 @@ def load_config():
     Load configuration from vars/default.yml.
 
     Returns:
-        dict: Configuration dictionary, empty dict if file not found or invalid.
+        dict: Configuration dictionary.
+
+    Raises:
+        RuntimeError: If the required defaults cannot be loaded safely.
     """
     try:
-        if os.path.exists(CONFIG_FILE_PATH):
-            with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
-                return yaml.safe_load(f) or {}
-    except (OSError, UnicodeError, yaml.YAMLError):
-        pass
-    return {}
+        with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as config_file:
+            config = yaml.safe_load(config_file) or {}
+    except FileNotFoundError as error:
+        raise RuntimeError(
+            "Repo Manager defaults configuration is unavailable"
+        ) from error
+    except (OSError, UnicodeError, yaml.YAMLError) as error:
+        raise RuntimeError(
+            "Repo Manager defaults configuration could not be loaded"
+        ) from error
+    if not isinstance(config, dict):
+        raise RuntimeError(
+            "Repo Manager defaults configuration must be a mapping"
+        )
+    return config
 
 # Load configuration
 _config = load_config()

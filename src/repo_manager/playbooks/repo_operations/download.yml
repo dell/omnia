@@ -106,18 +106,16 @@
         run_subscription_check: true
         cacheable: true
 
-    - name: Include metadata vars
-      ansible.builtin.include_vars:
-        file: "{{ omnia_metadata_file }}"
-        name: oim_shared_path_from_metadata
+    - name: Load validated metadata vars
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_oim_metadata.yml
       when: repo_manager_metadata_support | default(false) | bool
-      failed_when: false
 
-    - name: Load repo_manager_config.yml
-      ansible.builtin.include_vars:
-        file: "{{ repo_manager_config_file }}"
-        name: repo_manager_config
-      no_log: true
+    - name: Load validated repo_manager_config.yml
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_repo_manager_config.yml
 
     - name: Resolve cluster OS details from catalog functional layers
       ansible.builtin.include_role:
@@ -126,7 +124,8 @@
 
     - name: Set repository policy from configuration
       ansible.builtin.set_fact:
-        repo_config: "{{ repo_manager_config.repo_config | default('partial') }}"
+        repo_config: >-
+          {{ repo_manager_config_data.repo_config | default('partial') }}
 
     # -------------------------------------------------------------------------
     # PHASE 2: CREDENTIALS

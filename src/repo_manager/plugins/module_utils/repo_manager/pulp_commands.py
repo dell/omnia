@@ -118,6 +118,42 @@ def build_pulp_task_list_command(*, cid=None, reserved_resource=None,
     return command
 
 
+def _validated_page_value(value, name, *, minimum):
+    """Return one bounded pagination value for a Pulp list command."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(
+            f"{name} must be an integer greater than or equal to {minimum}"
+        )
+    return value
+
+
+def build_rpm_publication_list_command(repository, *, limit=1000, offset=0):
+    """Build one paginated RPM-publication query."""
+    page_limit = _validated_page_value(limit, "limit", minimum=1)
+    page_offset = _validated_page_value(offset, "offset", minimum=0)
+    return [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "publication", "list",
+        "--repository", str(repository),
+        "--limit", str(page_limit),
+        "--offset", str(page_offset),
+    ]
+
+
+def build_rpm_repository_version_list_command(
+        repository, *, limit=1000, offset=0):
+    """Build one paginated RPM repository-version query."""
+    page_limit = _validated_page_value(limit, "limit", minimum=1)
+    page_offset = _validated_page_value(offset, "offset", minimum=0)
+    return [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "repository", "version", "list",
+        "--repository", str(repository),
+        "--limit", str(page_limit),
+        "--offset", str(page_offset),
+    ]
+
+
 def build_container_tags_href(repository_version, tag=None):
     """Return the Pulp API href used to query container tag content."""
     href = (
@@ -462,10 +498,6 @@ pulp_rpm_commands = {
     "show_repository_version": _template(
         "rpm", "repository", "version", "show", "--repository", "%s",
         "--version", "%s",
-    ),
-    "list_repository_versions": _template(
-        "rpm", "repository", "version", "list", "--repository", "%s",
-        "--limit", "1000",
     ),
     "list_repositories": _template("rpm", "repository", "list", "--limit", "1000"),
     "list_remotes": _template("rpm", "remote", "list", "--limit", "1000"),

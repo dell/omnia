@@ -288,6 +288,10 @@ def load_pipeline_config(config_path):
     if global_cfg.get("utils_mode") is not None:
         variables["UTILS_MODE"] = str(global_cfg["utils_mode"])
 
+    # -- Global build_stream configuration
+    if global_cfg.get("build_stream_enable") is not None:
+        variables["BUILD_STREAM_ENABLE"] = str(global_cfg["build_stream_enable"])
+
     for cluster in cluster_names:
         cluster_cfg = cfg.get(cluster)
         if not cluster_cfg:
@@ -344,6 +348,7 @@ def load_pipeline_config(config_path):
             "image_build_manager": "IMAGE_BUILD_MANAGER_TAGS",
             "orchestrator": "ORCHESTRATOR_TAGS",
             "telemetry": "TELEMETRY_TAGS",
+            "build_stream": "BUILD_STREAM_TAGS",
         }
         for cfg_key, var_suffix in tag_map.items():
             val = deploy_tags.get(cfg_key)
@@ -358,6 +363,7 @@ def load_pipeline_config(config_path):
             "image_build_manager": "TEST_IMAGE_BUILD_MANAGER_CMD",
             "orchestrator": "TEST_ORCHESTRATOR_CMD",
             "telemetry": "TEST_TELEMETRY_CMD",
+            "build_stream": "TEST_BUILD_STREAM_CMD",
             "utils": "TEST_UTILS_CMD",
         }
         for cfg_key, var_suffix in test_cmd_map.items():
@@ -604,6 +610,7 @@ DOMAIN_INPUT_MAP = {
     "image_build_manager": "src/image_build_manager/input",
     "orchestrator": "src/orchestrator/input",
     "telemetry": "src/telemetry/input",
+    "build_stream": "src/build_stream/input",
 }
 
 # Test configuration files per domain.
@@ -629,6 +636,10 @@ DOMAIN_TEST_MAP = {
     },
     "telemetry": {
         "src_dir": "test/telemetry",
+        "files": ["test_config.yml", "test_run_config.yml"],
+    },
+    "build_stream": {
+        "src_dir": "test/build_stream",
         "files": ["test_config.yml", "test_run_config.yml"],
     },
 }
@@ -724,6 +735,7 @@ def collect_pipeline_files():
     for name, repo_name in [
         (".gitlab-ci.yml", ".gitlab-ci.yml"),
         (".gitlab-ci-cluster.yml", ".gitlab-ci-cluster.yml"),
+        (".gitlab-ci-build-stream.yml", ".gitlab-ci-build-stream.yml"),
         (".gitlab-ci-utils.yml", ".gitlab-ci-utils.yml"),
         ("send_email.py", "send_email.py"),
         ("pipeline_config.yml", "pipeline_config.yml"),
@@ -776,6 +788,8 @@ def generate_cluster_trigger_job(cluster_name):
   rules:
     - if: '$UTILS_ENABLE == "true"'
       when: never
+    - if: '$BUILD_STREAM_ENABLE == "true"'
+      when: never
     - if: '$CLUSTERS =~ /{prefix}/'
       when: on_success
 """
@@ -807,7 +821,50 @@ def generate_cluster_utils_trigger_job(cluster_name):
     DRY_RUN: "${{{upper_prefix}_DRY_RUN}}"
   allow_failure: true
   rules:
+    - if: '$BUILD_STREAM_ENABLE == "true"'
+      when: never
     - if: '$UTILS_ENABLE == "true" && $CLUSTERS =~ /{prefix}/'
+      when: on_success
+"""
+
+
+def generate_cluster_build_stream_trigger_job(cluster_name):
+    """Generate a build_stream trigger job for a cluster in .gitlab-ci.yml format."""
+    prefix = cluster_name.lower()
+    upper_prefix = cluster_name.upper()
+    return f"""trigger_cluster_{prefix}_build_stream:
+  stage: trigger
+  trigger:
+    include:
+      - local: .gitlab-ci-build-stream.yml
+    strategy: depend
+  variables:
+    CLUSTER: "{prefix}"
+    OMNIA_REPO: "${{{upper_prefix}_OMNIA_REPO}}"
+    OMNIA_BRANCH: "${{{upper_prefix}_OMNIA_BRANCH}}"
+    OMNIA_INSTALL_PATH: "${{{upper_prefix}_OMNIA_INSTALL_PATH}}"
+    BAO_SERVER_URL: "${{{upper_prefix}_BAO_SERVER_URL}}"
+    BAO_AUTH_ROLE: "${{{upper_prefix}_BAO_AUTH_ROLE}}"
+    BAO_DATA_PATH: "${{{upper_prefix}_BAO_DATA_PATH}}"
+    PIPELINE_MODE: "${{{upper_prefix}_PIPELINE_MODE}}"
+    DOMAINS: "${{{upper_prefix}_DOMAINS}}"
+    ENABLE_SETUP: "${{{upper_prefix}_ENABLE_SETUP}}"
+    TEST_MODE: "${{{upper_prefix}_TEST_MODE}}"
+    DRY_RUN: "${{{upper_prefix}_DRY_RUN}}"
+    VERBOSE: "${{{upper_prefix}_VERBOSE}}"
+    REPO_MANAGER_TAGS: "${{{upper_prefix}_REPO_MANAGER_TAGS}}"
+    IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_IMAGE_BUILD_MANAGER_TAGS}}"
+    ORCHESTRATOR_TAGS: "${{{upper_prefix}_ORCHESTRATOR_TAGS}}"
+    BUILD_STREAM_TAGS: "${{{upper_prefix}_BUILD_STREAM_TAGS}}"
+    TEST_MAIN_CMD: "${{{upper_prefix}_TEST_MAIN_CMD}}"
+    TEST_REPO_MANAGER_CMD: "${{{upper_prefix}_TEST_REPO_MANAGER_CMD}}"
+    TEST_IMAGE_BUILD_MANAGER_CMD: "${{{upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD}}"
+    TEST_ORCHESTRATOR_CMD: "${{{upper_prefix}_TEST_ORCHESTRATOR_CMD}}"
+    TEST_BUILD_STREAM_CMD: "${{{upper_prefix}_TEST_BUILD_STREAM_CMD}}"
+    SKIP_STAGES: "${{{upper_prefix}_SKIP_STAGES}}"
+  allow_failure: true
+  rules:
+    - if: '$BUILD_STREAM_ENABLE == "true" && $CLUSTERS =~ /{prefix}/'
       when: on_success
 """
 
@@ -834,11 +891,13 @@ def generate_cluster_variables(cluster_name):
   {upper_prefix}_IMAGE_BUILD_MANAGER_TAGS: ""
   {upper_prefix}_ORCHESTRATOR_TAGS: ""
   {upper_prefix}_TELEMETRY_TAGS: ""
+  {upper_prefix}_BUILD_STREAM_TAGS: ""
   {upper_prefix}_TEST_MAIN_CMD: "./run_validation.sh fvt_main verify"
   {upper_prefix}_TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
   {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   {upper_prefix}_TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
   {upper_prefix}_TEST_TELEMETRY_CMD: "./run_validation.sh fvt_telemetry verify"
+  {upper_prefix}_TEST_BUILD_STREAM_CMD: "./run_validation.sh fvt_build_stream test"
   {upper_prefix}_TEST_UTILS_CMD: "./run_validation.sh fvt_utils verify"
   {upper_prefix}_SKIP_STAGES: ""
 """
@@ -918,8 +977,21 @@ def update_gitlab_ci_yml_with_clusters(clusters):
     for cluster in clusters:
         utils_jobs += generate_cluster_utils_trigger_job(cluster)
 
+    # Generate build_stream trigger jobs
+    build_stream_jobs = (
+        "\n# ---------------------------------------------------------------------------\n"
+        "# Build Stream Pipeline — Multi-Cluster Support\n"
+        "# ---------------------------------------------------------------------------\n"
+        "# Triggered when BUILD_STREAM_ENABLE=true to run build_stream operations.\n"
+        "# Each cluster runs its own build_stream pipeline independently.\n"
+        "# If BUILD_STREAM_ENABLE=true, cluster and utils pipelines are skipped.\n"
+        "# ---------------------------------------------------------------------------\n"
+    )
+    for cluster in clusters:
+        build_stream_jobs += generate_cluster_build_stream_trigger_job(cluster)
+
     # Write the updated file
-    new_content = header + cluster_jobs + utils_jobs
+    new_content = header + cluster_jobs + utils_jobs + build_stream_jobs
     with open(gitlab_ci_path, 'w') as f:
         f.write(new_content)
 
@@ -982,7 +1054,7 @@ def cmd_create(args, client):
         print("ERROR: No clusters specified. Use --clusters cluster1,cluster2 or --config pipeline_config.yml")
         return False
 
-    domains = ["repo_manager", "image_build_manager", "orchestrator", "telemetry"]
+    domains = ["repo_manager", "image_build_manager", "orchestrator", "telemetry", "build_stream"]
     print(f"Clusters: {', '.join(cluster_names)}")
     print(f"Domains:  {', '.join(domains)}")
 
@@ -1078,6 +1150,9 @@ def cmd_create(args, client):
             ("EMAIL_SENDER", ""),
             ("SMTP_SERVER", ""),
             ("SMTP_PORT", "25"),
+            ("UTILS_ENABLE", "false"),
+            ("UTILS_MODE", "default_logs"),
+            ("BUILD_STREAM_ENABLE", "false"),
         ]
         for key, default_val in global_keys:
             if key not in config_vars:
@@ -1113,6 +1188,7 @@ def cmd_create(args, client):
             ("SMTP_PORT", "25"),
             ("UTILS_ENABLE", "false"),
             ("UTILS_MODE", "default_logs"),
+            ("BUILD_STREAM_ENABLE", "false"),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1139,11 +1215,13 @@ def cmd_create(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
+            ("BUILD_STREAM_TAGS", ""),
             ("TEST_MAIN_CMD", "./run_validation.sh fvt_main verify"),
             ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
             ("TEST_TELEMETRY_CMD", "./run_validation.sh fvt_telemetry verify"),
+            ("TEST_BUILD_STREAM_CMD", "./run_validation.sh fvt_build_stream test"),
             ("TEST_UTILS_CMD", "./run_validation.sh fvt_utils verify"),
             ("SKIP_STAGES", ""),
         ]
@@ -1287,6 +1365,7 @@ def cmd_update(args, client):
             ("SMTP_PORT", "25"),
             ("UTILS_ENABLE", "false"),
             ("UTILS_MODE", "default_logs"),
+            ("BUILD_STREAM_ENABLE", "false"),
         ]
         for key, default_val in global_keys:
             status = client.set_variable(project_id, key, default_val)
@@ -1313,11 +1392,13 @@ def cmd_update(args, client):
             ("IMAGE_BUILD_MANAGER_TAGS", ""),
             ("ORCHESTRATOR_TAGS", ""),
             ("TELEMETRY_TAGS", ""),
+            ("BUILD_STREAM_TAGS", ""),
             ("TEST_MAIN_CMD", "./run_validation.sh fvt_main verify"),
             ("TEST_REPO_MANAGER_CMD", "./run_validation.sh fvt_repo_manager verify"),
             ("TEST_IMAGE_BUILD_MANAGER_CMD", "./run_validation.sh fvt_image_build_manager verify"),
             ("TEST_ORCHESTRATOR_CMD", "./run_validation.sh fvt_orchestrator verify"),
             ("TEST_TELEMETRY_CMD", "./run_validation.sh fvt_telemetry verify"),
+            ("TEST_BUILD_STREAM_CMD", "./run_validation.sh fvt_build_stream test"),
             ("TEST_UTILS_CMD", "./run_validation.sh fvt_utils verify"),
             ("SKIP_STAGES", ""),
         ]

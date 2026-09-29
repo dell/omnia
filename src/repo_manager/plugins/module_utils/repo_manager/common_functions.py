@@ -34,11 +34,12 @@ from pathlib import Path
 import yaml
 
 from ansible.module_utils.repo_manager.secure_path import open_secure_directory
+from ansible.module_utils.repo_manager.yaml_safety import load_runtime_yaml
 
 
 def load_yaml_file(path):
     """
-    Load YAML from a given file path.
+    Load literal runtime YAML from a given file path.
 
     Args:
         path (str): The path to the YAML file.
@@ -49,14 +50,8 @@ def load_yaml_file(path):
     Raises:
         FileNotFoundError: If the file does not exist.
     """
-    if not os.path.isfile(path):
-        raise FileNotFoundError(f"Config file not found: {path}")
-    with open(path, "r", encoding="utf-8") as file:
-        return yaml.safe_load(file)
-
-
-
-
+    data, _ = load_runtime_yaml(path)
+    return data
 
 
 def is_encrypted(file_path):

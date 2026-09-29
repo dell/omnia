@@ -44,6 +44,9 @@ from ansible.module_utils.repo_manager.pulp_commands import (
     pulp_container_commands,
 )
 from ansible.module_utils.repo_manager.pulp_object_state import query_pulp_object
+from ansible.module_utils.repo_manager.pulp_container_remote_api import (
+    reconcile_authenticated_container_remote,
+)
 from ansible.module_utils.repo_manager.security_utils import (
     render_catalog_placeholders,
     validate_container_digest,
@@ -56,27 +59,6 @@ from ansible.module_utils.repo_manager.security_utils import (
 from ansible.module_utils.repo_manager.tag_validator import validate_tag_via_pulp_sync
 
 file_lock = Lock()
-
-
-def _build_authenticated_remote_command(
-        action, remote_name, remote_url, package, policy_type, tags,
-        docker_username, docker_password):
-    """Build a Pulp container remote argv list without shell quoting."""
-    remote_name = validate_repository_id(remote_name)
-    remote_url = validate_repository_url(remote_url)
-    package = validate_container_reference(package)
-    policy_type = validate_container_policy(policy_type)
-    tags = [validate_container_tag(tag) for tag in tags]
-    return build_container_remote_command(
-        action,
-        name=remote_name,
-        url=remote_url,
-        upstream_name=package,
-        policy=policy_type,
-        include_tags=tags,
-        username=docker_username,
-        password=docker_password,
-    )
 
 
 def _image_already_synced(repository_name, tag, logger, architecture=None):
@@ -194,7 +176,7 @@ def create_container_remote_with_auth(
         docker_password = docker_password_cipher.decrypt(
             docker_secret_token.encode("utf-8")
         ).decode("utf-8")
-        remote_exists, _remote_details = query_pulp_object(
+        remote_exists, remote_details = query_pulp_object(
             pulp_container_commands["show_remote"] % remote_name,
             logger,
             execute_command,
@@ -202,37 +184,36 @@ def create_container_remote_with_auth(
         if remote_exists is None:
             logger.error("Unable to determine authenticated remote state")
             return False
-        if remote_exists is False:
-            create_command = _build_authenticated_remote_command(
-                "create", remote_name, remote_url, package, policy_type,
-                [tag], docker_username, docker_password
-            )
-
-            result = execute_command(create_command, logger)
-            if result:
-                logger.info(f"Remote '{remote_name}' created successfully with auth.")
-                return True
-            logger.error(f"Failed to create remote '{remote_name}' with auth.")
-            return False
-
-        logger.info(f"Remote '{remote_name}' already exists. Checking tags.")
-        existing_tags = extract_existing_tags(remote_name, logger)
-        if tag in existing_tags:
-            logger.info(f"Tag '{tag}' already exists. No update needed.")
-            return True
-
-        new_tags = existing_tags + [tag]
-        update_command = _build_authenticated_remote_command(
-            "update", remote_name, remote_url, package, policy_type,
-            new_tags, docker_username, docker_password
+        existing_tags = (
+            extract_existing_tags(remote_name, logger)
+            if remote_exists is True else []
         )
-        result = execute_command(update_command, logger)
+        new_tags = list(dict.fromkeys(existing_tags + [tag]))
+        action = "update" if remote_exists is True else "create"
+        result = reconcile_authenticated_container_remote(
+            action,
+            name=remote_name,
+            url=remote_url,
+            upstream_name=package,
+            policy=policy_type,
+            include_tags=new_tags,
+            username=docker_username,
+            password=docker_password,
+            logger=logger,
+            remote_href=(
+                remote_details.get("pulp_href")
+                if isinstance(remote_details, dict) else None
+            ),
+        )
         if result:
             logger.info(
-                f"Remote '{remote_name}' updated successfully with auth and tags: {new_tags}"
+                "Remote '%s' %sd successfully with authenticated tag set.",
+                remote_name, action,
             )
             return True
-        logger.error(f"Failed to update remote '{remote_name}' with auth.")
+        logger.error(
+            "Failed to %s authenticated remote '%s'.", action, remote_name
+        )
         return False
 
     except Exception:  # pylint: disable=broad-exception-caught

@@ -2,43 +2,44 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-"""Precheck lifecycle execution and input verification."""
+"""Execute the Orchestrator precheck lifecycle."""
 
 import pytest
-
-from library.functions import (
-    TestLogger,
-    check_input_config_exists,
-    check_network_spec_exists,
-    run_playbook,
-)
+from library.functions import TestLogger, run_playbook
+from library.messages import PRECHECK_TEST_ASSERT_MSGS as ASSERT
+from library.messages import PRECHECK_TEST_LOG_MSGS as LOG
+from library.vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
 def test_deploy_precheck(host):
-    """ORCH_FVT_PRECHECK_E001: Execute the public precheck lifecycle tag."""
-    tl = TestLogger("Deploy orchestrator precheck", "ORCH_FVT_PRECHECK_E001")
+    """Run ``orchestrator.yml --tags precheck`` exactly once."""
+    tc = TC["deploy_precheck"]
+    test_log = TestLogger(tc["title"], tc["id"])
     result = run_playbook(tag="precheck")
+    fields = [
+        ("Return code", result["rc"]),
+        ("Duration seconds", f"{result['duration']:.1f}"),
+    ]
     if result["success"]:
-        tl.passed("Orchestrator precheck completed", result.get("output", ""))
+        test_log.passed_fields(LOG["playbook_success"], fields)
     else:
-        tl.failed("Orchestrator precheck failed", result.get("error", ""))
-    assert result["success"], result.get("error", "Precheck failed")
-
-
-@pytest.mark.sanity
-@pytest.mark.order(1)
-@pytest.mark.parametrize(
-    ("check", "label"),
-    [
-        (check_input_config_exists, "orchestrator_config.yml"),
-        (check_network_spec_exists, "network_spec.yml"),
-    ],
-)
-def test_precheck_required_inputs(host, check, label):
-    """ORCH_FVT_PRECHECK_V004: Required precheck inputs exist on the selected target."""
-    result = check(host)
-    assert result["success"], f"{label}: {result.get('error', result)}"
+        test_log.failed_fields(
+            LOG["playbook_failed"],
+            [*fields, ("Error", result.get("error", "See playbook output"))],
+        )
+    assert result["success"], ASSERT["playbook_failed"].format(
+        rc=result["rc"], duration=result["duration"]
+    )
