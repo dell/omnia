@@ -79,6 +79,14 @@ not ask for a later-step selection before an earlier one is resolved.
 | 8 | Source overrides | 1, 2, 5, 6 | defaults from A.5 | A.5 |
 | 9 | Additional packages / custom functional roles | 1–8 | none | Step 4a |
 
+**Step 4 (Node roles) is not a prompted decision:** Do not ask the operator
+to choose node roles. Instead, automatically select all roles marked
+`mandatory: yes` in the A.2 Node-Role table for the chosen stack, and
+disclose which roles you selected. For example, for the Slurm stack, state:
+"I've selected the mandatory roles for Slurm: os, slurm_control_node, and
+slurm_node." Optional roles (those with `mandatory: no`) are only included
+if the operator explicitly requests them in Step 9 (custom roles).
+
 For every selection at steps 1, 2, 3, 5, 6, 7:
 - Apply the Selection Catalogue gate (`catalog-selection-gate/SKILL.md`) before
   offering or accepting the option. Per that gate's Step 0, the menu you
