@@ -15,17 +15,10 @@
 """Additional cloud-init post-boot verification for stateless nodes."""
 
 import os
-import posixpath
 import yaml
 
-from ..vars.pxeboot_vars import PXEBOOT_COMMANDS
-from ..vars.provision_vars import (
-    ADDITIONAL_METADATA_PREFIX,
-    OPENCHAMI_API_PATHS,
-)
+from ..vars.provision_vars import ADDITIONAL_METADATA_PREFIX
 from ._pxeboot_helpers import (
-    group_fields,
-    load_runtime_context,
     remote_command,
     runtime_exception,
     runtime_result,
@@ -38,6 +31,21 @@ from ._provision_helpers import (
     resource_list,
 )
 from ._workload_helpers import optional_skip as _skip
+
+
+def _load_cloud_init_context(host):
+    """Load provision context with orchestrator_config.
+
+    Uses load_context (provision-level) instead of load_runtime_context
+    so that pxeboot_status.yml is not required.  Test ordering
+    (pytest.mark.order 295-298) ensures these run after PXE boot tests.
+    """
+    context = load_context(host)
+    input_dir = os.path.dirname(context["mapping_path"])
+    context["orchestrator_config"] = read_yaml_mapping(
+        host, os.path.join(input_dir, "orchestrator_config.yml"),
+    )
+    return context
 
 
 def _load_additional_cloud_init_config(host, context):
@@ -73,7 +81,7 @@ def check_additional_cloud_init_smd_groups(host):
     """Verify SMD groups exist for additional cloud-init configuration."""
     summary = "Additional cloud-init SMD groups"
     try:
-        context = load_runtime_context(host)
+        context = _load_cloud_init_context(host)
         enabled, config_data, aci_path = _load_additional_cloud_init_config(
             host, context
         )
@@ -84,7 +92,6 @@ def check_additional_cloud_init_smd_groups(host):
         groups_data = config_data.get("groups") or {}
 
         # Load live SMD groups via API
-        provision_context = load_context(host)
         smd_groups = api_json(host, "smd_groups")
         smd_group_list = resource_list(smd_groups)
         if isinstance(smd_groups, dict) and "Groups" in smd_groups:
@@ -148,7 +155,7 @@ def check_additional_cloud_init_metadata_groups(host):
     """Verify metadata-service groups exist for additional cloud-init."""
     summary = "Additional cloud-init metadata-service groups"
     try:
-        context = load_runtime_context(host)
+        context = _load_cloud_init_context(host)
         enabled, config_data, aci_path = _load_additional_cloud_init_config(
             host, context
         )
@@ -262,7 +269,7 @@ def check_additional_cloud_init_write_files(host):
     """Verify write_files entries were applied on provisioned nodes."""
     summary = "Additional cloud-init write_files on nodes"
     try:
-        context = load_runtime_context(host)
+        context = _load_cloud_init_context(host)
         enabled, config_data, aci_path = _load_additional_cloud_init_config(
             host, context
         )
@@ -367,11 +374,36 @@ def check_additional_cloud_init_write_files(host):
         )
 
 
+def _extract_runcmd_log_paths(commands):
+    """Extract log file paths from runcmd entries that use >> redirection.
+
+    Returns a list of file paths that runcmd entries append to.  This lets
+    the test verify runcmd execution by checking whether those files exist
+    on the node — a more direct check than parsing cloud-init status JSON.
+    """
+    paths = []
+    for cmd in commands:
+        if not isinstance(cmd, str):
+            continue
+        # Match: ... >> /path/to/file or ... >> /path/to/file (end)
+        parts = cmd.split(">>")
+        if len(parts) >= 2:
+            target = parts[-1].strip().split()[0]
+            if target.startswith("/"):
+                paths.append(target)
+    return paths
+
+
 def check_additional_cloud_init_runcmd(host):
-    """Verify runcmd entries are present in the cloud-init log on nodes."""
+    """Verify runcmd entries executed during cloud-init on provisioned nodes.
+
+    Checks for runcmd execution by verifying that log files produced by
+    the configured runcmd entries exist on the target nodes.  Falls back
+    to cloud-init status when no verifiable log paths can be extracted.
+    """
     summary = "Additional cloud-init runcmd on nodes"
     try:
-        context = load_runtime_context(host)
+        context = _load_cloud_init_context(host)
         enabled, config_data, aci_path = _load_additional_cloud_init_config(
             host, context
         )
@@ -396,59 +428,95 @@ def check_additional_cloud_init_runcmd(host):
         if not common_cmds and not fg_cmds:
             return _skip(summary, "No runcmd entries in config")
 
+        # Extract verifiable log paths from runcmd entries
+        common_log_paths = _extract_runcmd_log_paths(common_cmds)
+        fg_log_paths = {
+            fg: _extract_runcmd_log_paths(cmds) for fg, cmds in fg_cmds.items()
+        }
+
         rows = context["rows"]
         failures = []
         fields = [
             ("Config file", aci_path),
             ("Common runcmd entries", len(common_cmds)),
+            ("Common verifiable logs", len(common_log_paths)),
             ("Per-FG runcmd groups", len(fg_cmds)),
         ]
 
-        # Verify cloud-init completed on all nodes; runcmd runs as part of
-        # cloud-init final stage.  If cloud-init succeeded, runcmd was
-        # executed.  We verify cloud-init status JSON for each node.
+        # Check common runcmd log files on all nodes
         verified = 0
         for row in rows:
-            result = remote_command(host, row, PXEBOOT_COMMANDS["cloud_init"])
-            if result.rc != 0:
+            node_errors = []
+            if common_log_paths:
+                for log_path in common_log_paths:
+                    result = remote_command(
+                        host, row,
+                        f"test -f {log_path} && echo EXISTS",
+                    )
+                    if result.rc != 0 or "EXISTS" not in result.stdout:
+                        node_errors.append(f"{log_path} not found")
+            else:
+                # No verifiable log paths; fall back to cloud-init status
+                result = remote_command(
+                    host, row, "cloud-init status --long",
+                )
+                if result.rc != 0:
+                    node_errors.append("cloud-init status unavailable")
+                elif "done" not in result.stdout.lower():
+                    node_errors.append("cloud-init not done")
+
+            if node_errors:
                 failures.append(
-                    f"{row['HOSTNAME']}: cloud-init status check failed"
+                    f"{row['HOSTNAME']}: {'; '.join(node_errors)}"
                 )
                 fields.append(
-                    (f"  {row['HOSTNAME']}", "✗ cloud-init status unavailable")
+                    (f"  {row['HOSTNAME']}", f"✗ {'; '.join(node_errors)}")
                 )
-                continue
-            stdout = result.stdout
-            # cloud-init status --format json outputs after ---JSON--- marker
-            json_marker = "---JSON---"
-            if json_marker in stdout:
-                import json
-
-                json_part = stdout.split(json_marker, 1)[1].strip()
-                try:
-                    ci_status = json.loads(json_part)
-                except (json.JSONDecodeError, ValueError):
-                    ci_status = {}
             else:
-                ci_status = {}
-            status = str(ci_status.get("status") or "").lower()
-            if status == "done":
                 verified += 1
                 fields.append(
-                    (f"  {row['HOSTNAME']}", "✓ cloud-init done (runcmd executed)")
-                )
-            else:
-                failures.append(
-                    f"{row['HOSTNAME']}: cloud-init status={status}"
-                )
-                fields.append(
-                    (
-                        f"  {row['HOSTNAME']}",
-                        f"✗ cloud-init status={status or 'unknown'}",
-                    )
+                    (f"  {row['HOSTNAME']}", "✓ runcmd artifacts verified")
                 )
 
-        fields.append(("  Nodes verified", f"{verified}/{len(rows)}"))
+        fields.append(("  Common runcmd verified", f"{verified}/{len(rows)}"))
+
+        # Check per-FG runcmd log files on matching nodes
+        for fg_name, log_paths in fg_log_paths.items():
+            if not log_paths:
+                continue
+            matching_rows = [
+                row for row in rows
+                if row.get("EXPECTED_FUNCTIONAL_GROUP", "") == fg_name
+                or row.get("FUNCTIONAL_GROUP_NAME", "").startswith(fg_name)
+            ]
+            fg_verified = 0
+            for row in matching_rows:
+                node_errors = []
+                for log_path in log_paths:
+                    result = remote_command(
+                        host, row,
+                        f"test -f {log_path} && echo EXISTS",
+                    )
+                    if result.rc != 0 or "EXISTS" not in result.stdout:
+                        node_errors.append(f"{log_path} not found")
+                if node_errors:
+                    failures.append(
+                        f"{row['HOSTNAME']}({fg_name}): {'; '.join(node_errors)}"
+                    )
+                    fields.append(
+                        (
+                            f"  {row['HOSTNAME']}({fg_name})",
+                            f"✗ {'; '.join(node_errors)}",
+                        )
+                    )
+                else:
+                    fg_verified += 1
+            fields.append(
+                (
+                    f"  FG {fg_name} runcmd verified",
+                    f"{fg_verified}/{len(matching_rows)}",
+                )
+            )
 
         return runtime_result(
             not failures,
