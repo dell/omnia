@@ -3,6 +3,9 @@ name: bulk-edit-catalog
 description: Applies a requested change consistently across every catalog it affects, with per-catalog schema-validation failure isolation, subject to the Pre-Edit Impact & Compatibility Gate. Use when an edit must be applied identically across more than one catalog, not just a single file.
 ---
 
+Before starting, read `../shared/skill_scope.md` and use only this bundle's
+companion skills and shared instructions.
+
 ## Purpose
 
 Apply the same logical change — "pin RHEL from 10.0 to 10.2 across all

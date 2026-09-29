@@ -3,6 +3,9 @@ name: catalog-diff
 description: Produces deterministic, reversible machine-readable diffs between catalog versions plus human-readable changelogs. Use when comparing catalog versions or generating upgrade documentation.
 ---
 
+Before starting, read `../shared/skill_scope.md` and use only this bundle's
+companion skills and shared instructions.
+
 ## Purpose
 
 Answer "what changed between `<current_catalog>` and `<future_catalog>`?" by
@@ -33,6 +36,9 @@ Two artifacts are always produced, and are never merged into each other:
    than a silent, potentially misleading semantic conclusion. A diff
    request against a schema-invalid catalog version must be rejected with
    the specific violation, never emitted as a partial diff.
+   A missing `jsonschema` dependency or missing/unreadable schema also
+   rejects a schema-requested diff. Report the prerequisite failure and
+   retry after it is resolved; never silently switch to `--allow-schemaless`.
 3. `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md`
    — A.8 Constraint and Co-Requisite Table, specifically CON-004 and
    CON-007, which the changelog's compatibility/dependency warnings cite.

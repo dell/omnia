@@ -193,6 +193,14 @@ ansible-playbook repo_manager.yml --tags catalog_validate \
 
 Validation does not modify the catalog.
 
+When a schema is supplied, validation requires a readable schema file and
+the `jsonschema` library in the Python environment running the catalog tool.
+A missing library or missing/unreadable schema is an error; restore that
+prerequisite and retry. Schema-requested add/delete operations reject the
+change before writing, and schema-requested diffs reject it before producing
+artifacts. Omitting the schema provides only the non-schema checks and must
+not be described as schema validation.
+
 ---
 
 ## Catalog JSON Shape

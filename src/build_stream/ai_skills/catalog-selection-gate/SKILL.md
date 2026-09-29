@@ -3,6 +3,9 @@ name: catalog-selection-gate
 description: Validates an operator-requested os_version/architecture/stack/node_role/gpu/storage/network selection against the Selection Catalogue's support_status before any functional group or package set is emitted. Use when Catalog Generation, Catalog Editing, or an Analysis skill is about to resolve or present a selection on one of those axes.
 ---
 
+Before starting, read `../shared/skill_scope.md` and use only this bundle's
+companion skills and shared instructions.
+
 ## Purpose
 
 This is not a standalone operator-facing skill. It is the shared decision
@@ -27,8 +30,8 @@ selection on one of the axes in `references/master_reference_file.md`'s
    is `supported`. Do NOT include a `planned` or `unsupported` option in the
    presented list "for completeness" or "for context" — every option you
    show should be one the operator can actually pick without triggering a
-   refusal. This applies whether the axis has one supported option (e.g.
-   `gpu`, where only NVIDIA is `supported`) or several. A `planned`/
+   refusal. This applies whether the axis has one supported option or
+   several, including explicit opt-outs such as None for GPU. A `planned`/
    `unsupported` option only enters the conversation if the operator
    explicitly names it themselves, which is Step 5 below, not this step.
 1. **Read the A.1 Selection Catalogue table** from
@@ -37,6 +40,9 @@ selection on one of the axes in `references/master_reference_file.md`'s
    the requested axis to state alternatives.
 2. **Find the row** whose `axis` and `option` match the operator's request
    (case-insensitive, e.g. "amd" and "AMD / ROCm" are the same option).
+   For the GPU prompt, map "none"/"CPU-only" to `None (CPU-only catalog)`.
+   For the InfiniBand yes/no prompt, map Yes to `InfiniBand (DOCA OFED)`
+   and No to `No InfiniBand`. Do not present an Ethernet choice.
 3. **No matching row found:**
    - Do NOT fabricate a decision or a value.
    - Tell the operator the selection is not recorded in the master
@@ -64,8 +70,9 @@ selection on one of the axes in `references/master_reference_file.md`'s
 
 **Presenting a menu (Step 0 — supported options only):**
 > Catalog Generation reaches Step 1's GPU selection and needs to ask the
-> operator what GPU to use. A.1 has two `gpu` rows: NVIDIA (`supported`)
-> and AMD / ROCm (`planned`). Present: "GPU options: NVIDIA, or none." Do
+> operator what GPU to use. A.1 records NVIDIA and None as `supported`
+> and AMD / ROCm as `planned`. Present: "GPU support: NVIDIA, or None
+> (CPU-only catalog, without NVIDIA GPU driver/CUDA groups)?" Do
 > not also list "AMD / ROCm (planned, not yet available)" in that same
 > menu — it only comes up if the operator asks for it by name, which
 > Step 5 then handles.
@@ -82,7 +89,8 @@ selection on one of the axes in `references/master_reference_file.md`'s
 > configuration; no functional group ships today).
 > Decision: refuse. Response: "AMD / ROCm is recorded as `planned`, not
 > `supported`, in the master reference file — no functional group ships
-> for it today. The supported option on the `gpu` axis is: NVIDIA. I will
+> for it today. The supported options on the `gpu` axis are NVIDIA and
+> None (CPU-only catalog, without NVIDIA GPU driver/CUDA groups). I will
 > not substitute NVIDIA for you; let me know if you'd like me to use it
 > instead."
 

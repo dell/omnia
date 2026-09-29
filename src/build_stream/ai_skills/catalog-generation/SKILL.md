@@ -3,6 +3,9 @@ name: catalog-generation
 description: Generates schema-valid Omnia catalogs from operator-described functional groups, base OS, and package lists. Use when creating new catalogs for cluster configurations (Slurm, Kubernetes, or mixed-stack deployments).
 ---
 
+Before starting, read `../shared/skill_scope.md` and use only this bundle's
+companion skills and shared instructions.
+
 ## Purpose
 
 Generate a schema-valid catalog from an operator's description, by running the
@@ -73,9 +76,9 @@ not ask for a later-step selection before an earlier one is resolved.
 | 2 | Architecture(s) | 1 | x86_64 | A.1, A.5 |
 | 3 | Stack | 1 | none — operator must choose | A.1, A.2, A.4 |
 | 4 | Node roles | 2, 3 | all mandatory roles for the stack (A.2) | A.2 |
-| 5 | GPU | 4 | none | A.1, A.3, A.7 |
+| 5 | GPU: NVIDIA or None (CPU-only catalog) | 4 | None, only if explicitly deferred | A.1, A.3, A.7 |
 | 6 | Storage | 3 | default_for the chosen stack, from A.4 | A.4 |
-| 7 | Network | 4 | InfiniBand attached | A.1, A.3 |
+| 7 | Include InfiniBand support? Yes / No | 4 | Yes, only if explicitly deferred | A.1, A.3 |
 | 8 | Source overrides | 1, 2, 5, 6 | defaults from A.5 | A.5 |
 | 9 | Additional packages / custom functional roles | 1–8 | none | Step 4a |
 
@@ -116,6 +119,24 @@ already-chosen stack.
 functional layer (per node role), not per catalog. Do not process GPU or
 network selection before node roles are resolved.
 
+**GPU prompt:** when the request has not already answered Step 5, ask:
+"GPU support: NVIDIA, or None (CPU-only catalog, without NVIDIA GPU
+driver/CUDA groups)?" Explain that None describes the software being
+configured, not whether GPUs are physically present in the machines. NVIDIA
+adds the NVIDIA group only to eligible `gpu_capable` roles; None omits it.
+If no selected role is GPU-capable, explain that constraint rather than
+silently attaching GPU software to an ineligible role. If custom packages
+would reintroduce GPU software after None was chosen, clarify that conflict
+before assembly.
+
+**InfiniBand prompt:** when the request has not already answered Step 7,
+ask "Include InfiniBand support? Yes / No." Yes selects A.1's
+`InfiniBand (DOCA OFED)` and includes `infiniband_stack_driver_groupv1`
+where A.3 permits it. No selects `No InfiniBand` and omits that group.
+Do not present a separate Ethernet option; No makes no assertion about
+the site's other network interfaces. Apply a default only when the
+operator explicitly defers the question, and disclose it.
+
 Once steps 1–7 are resolved, and before restating the selection set for
 confirmation, **always ask Step 9 explicitly**: "Would you like to add any
 packages beyond the standard functional-layer composition, or define a
@@ -126,9 +147,29 @@ package or role once asked. If the operator declines or doesn't answer,
 proceed with none added and say so. See Step 4a for how an answer here is
 applied once catalog assembly reaches functional-layer expansion.
 
-Once steps 1–9 are resolved, **restate the full selection set to the
-operator for confirmation** before proceeding to Step 8 and catalog
-assembly. Do not emit a catalog before this confirmation.
+Once steps 1–9 are resolved, resolve the catalog name below, then **restate
+the full selection set, catalog name, and output filename for confirmation**
+before catalog assembly. Reuse selections and names already supplied by the
+operator instead of asking for them again.
+
+### Catalog name
+
+If the operator supplied a name, use it as `catalog.name`. Otherwise offer
+two or three names based on the confirmed OS, architecture, and stack and
+allow a custom name in the same prompt. For example, for a CPU-only Slurm
+catalog on RHEL 10.2 x86_64: "Choose a catalog name: `slurm_cpu_rhel_10_2_x86_64`,
+`hpc_slurm_rhel_10_2_x86_64`, or enter your own name." Suggestions must match
+the actual selections; do not imply GPU or InfiniBand support when omitted.
+
+Accept any non-empty name that satisfies the catalog schema, including a
+human-readable name with spaces. Keep that display name separate from a
+proposed filesystem-safe filename stem and `catalog.identifier`; show the
+mapping in the final selection confirmation. Do not interpret a display name
+as a directory or shell command. Honor an explicitly supplied output path.
+If a proposed filename already exists, resolve a new filename or an explicit
+edit request before generation. If the operator asks you to choose, use the
+first matching suggestion and disclose it; silence alone does not select a
+name.
 
 ## Step 2 — Stack-Storage Filter and Default Pre-Selection (AC-009)
 
@@ -359,7 +400,8 @@ For every package referenced by an included group:
 
 ## Step 6 — Assemble and Validate the Catalog
 
-1. Assemble the full catalog JSON: `catalog.name`, `catalog.version`,
+1. Assemble the full catalog JSON using the confirmed `catalog.name`,
+   filename, and identifier: `catalog.version`,
    `catalog.schema_version` (`2`, matching every shipped catalog),
    `catalog.identifier`, `catalog.description`, `catalog.functionallayer`,
    `catalog.groups`, `catalog.packages`. If you have shell access, write this
@@ -377,7 +419,10 @@ For every package referenced by an included group:
      --schema src/repo_manager/schemas/catalog_schema.json
    ```
 
-   - Exit code `0` and no `[ERROR]` lines: the catalog is schema-valid.
+   - Exit code `0`, no `[ERROR]` lines, and schema validation actually ran:
+     the catalog is schema-valid. A missing `jsonschema` library or an
+     unreadable/missing schema is a blocking validation failure, not a
+     successful offline fallback. Do not omit `--schema` to get past it.
      Proceed to Step 7.
    - Any `[ERROR]` line: do NOT present the catalog as final. Report the
      specific violation(s) verbatim and either fix the offending section
@@ -387,7 +432,8 @@ For every package referenced by an included group:
 3. If you do not have shell access in this channel (browser-based
    assistant), state that schema validation could not be executed in this
    channel and that the operator (or a channel with shell access) should
-   run the command above before syncing.
+   run the command above before syncing. Label any returned JSON as an
+   unvalidated draft, never as a schema-valid final catalog.
 4. Once validation passes, copy the draft from `$WORKDIR` to the expected
    catalog path (`src/main/samples/catalogs/<os_version>/<name>.json`
    pattern, or the path the operator specifies) with no manual post-editing
@@ -419,11 +465,12 @@ source) or that remains unresolved for lack of any shipped catalog.
 | 2 | x86_64 | default applied, confirmed |
 | 3 | slurm | stated ("Slurm-only") |
 | 4 | os, slurm_control_node, slurm_node | mandatory roles; login roles omitted as "minimal" |
-| 5 | none | not stated, default none |
+| 5 | None (CPU-only catalog) | operator chose None when prompted |
 | 6 | none | not stated; skill notes VAST is available for this stack |
-| 7 | InfiniBand | default applied, confirmed |
+| 7 | Yes — include InfiniBand | operator chose Yes when prompted |
 | 8 | `slurm_custom` and `ldms` URLs outstanding | A.5 — operator-supplied by design |
 | 9 | none | operator declined when asked |
+| Name | slurm_cpu_rhel_10_0_x86_64 | operator selected a suggested name; custom input was also offered |
 
 Output: three functional layers (`os_rhel_10_0_x86_64`,
 `slurm_control_node_rhel_10_0_x86_64`, `slurm_node_rhel_10_0_x86_64`), each

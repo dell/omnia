@@ -43,6 +43,8 @@ Generate a catalog for:
 | Capability | Description |
 |------------|-------------|
 | Selection Interview | Guides operator through 9-step dependency-ordered configuration selection |
+| Catalog Naming | Offers configuration-specific names or accepts the operator's own name |
+| Hardware Prompts | GPU: NVIDIA or None (CPU-only software); InfiniBand: Yes or No |
 | Stack-Storage Filtering | Validates storage compatibility with selected software stack |
 | Architecture Constraints | Enforces architecture-specific limitations (e.g., Kubernetes x86_64-only) |
 | Functional Layer Expansion | Generates role-by-architecture functional layers with appropriate groups |
@@ -54,7 +56,7 @@ Generate a catalog for:
 ## Workflow
 
 1. **Selection Interview** (Steps 1-9): Collect OS, architecture, stack, roles, GPU, storage, network, source overrides, and additional packages
-2. **Confirmation**: Present complete configuration for operator approval
+2. **Name and Confirmation**: Offer catalog names or accept a custom name, then confirm the configuration, name, and output filename
 3. **Functional Layer Expansion**: Generate layers per role and architecture
 4. **Group Resolution**: Resolve group package composition from shipped catalogs
 5. **Package Resolution**: Resolve versions and sources via connectivity layer
@@ -89,3 +91,9 @@ python3 src/repo_manager/plugins/module_utils/catalog/catalog_manager.py \
 ```
 
 Exit code 0 with no `[ERROR]` lines indicates schema-valid output.
+Missing `jsonschema` or an unreadable/missing schema blocks validation.
+Without shell access, output is explicitly an unvalidated draft.
+
+Companion skills are resolved only within this checkout's `ai_skills`
+bundle; see `../shared/skill_scope.md`. Previously loaded or installed
+skills from another directory are not substitutes.

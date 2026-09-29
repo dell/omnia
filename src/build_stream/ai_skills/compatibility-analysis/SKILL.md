@@ -3,6 +3,9 @@ name: compatibility-analysis
 description: Cross-references a package or catalog definition against online upstream documentation and the Red Hat Compatibility Matrix, with a disclosed fallback to master reference file data only. Use when confirming whether a package/version is compatible with a target OS, architecture, or another catalog package.
 ---
 
+Before starting, read `../shared/skill_scope.md` and use only this bundle's
+companion skills and shared instructions.
+
 ## Purpose
 
 Answer "is `<package>` `<version>` compatible with `<target OS/architecture

@@ -3,6 +3,9 @@ name: catalog-editing
 description: Applies single-catalog edits (add/remove packages, pin versions, correct metadata) with correct section placement and impact gating. Use when modifying existing Omnia catalogs with validation and compatibility checks.
 ---
 
+Before starting, read `../shared/skill_scope.md` and use only this bundle's
+companion skills and shared instructions.
+
 ## Purpose
 
 Apply an operator-requested single-catalog change — "add curl to the
@@ -107,6 +110,9 @@ the JSON or write a new mutation script:**
   is never written and then reported as broken. Verify this yourself if
   in doubt: hash the file before and after a rejected edit and confirm
   they match.
+- Missing `jsonschema` or a missing/unreadable schema is a blocking
+  validation error. Restore the prerequisite and retry; do not omit
+  `--schema` or disable validation to complete the edit.
 
 **If you do not have shell access** (browser-based assistant): apply the
 same logical change directly to the pasted catalog JSON (add the package
