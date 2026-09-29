@@ -271,48 +271,85 @@ def check_node_architecture(host):
         return runtime_exception(summary, exc)
 
 
+def _parse_os_release(output: str) -> tuple[str, str]:
+    """Extract ``(os_id, version_id)`` from ``/etc/os-release`` grep output."""
+    os_id = ""
+    version_id = ""
+    for line in output.splitlines():
+        line = line.strip()
+        if line.startswith("ID="):
+            os_id = line.partition("=")[2].strip().strip('"').lower()
+        elif line.startswith("VERSION_ID="):
+            version_id = line.partition("=")[2].strip().strip('"')
+    return os_id, version_id
+
+
 def check_node_os_version(host):
     """Verify each node's live OS identity matches its functional group.
 
     When the functional group name does not encode the OS version (e.g.
     ``slurm_node_x86_64`` instead of ``slurm_node_rhel_10_0_x86_64``),
-    the node is reported as *skipped* rather than failed — the expected
-    OS cannot be derived without the version segment.
+    the test still probes the node and reports the detected OS.  If **no**
+    mapped node carries an OS version in its functional group name the
+    entire check is skipped with ``pytest.skip`` so it does not silently
+    pass.
     """
     summary = "Node OS version identity"
     try:
         context = load_runtime_context(host)
         rows = context["rows"]
+
+        # Pre-scan: determine whether any FG carries an OS version.
+        verifiable_count = sum(
+            1 for row in rows
+            if parse_fg_identity(
+                row.get("EXPECTED_FUNCTIONAL_GROUP", "")
+            )[1] is not None
+        )
+        if verifiable_count == 0:
+            return runtime_result(
+                True,
+                summary,
+                [("Reason", "No functional group encodes an OS version")],
+                "",
+                skipped=True,
+            )
+
         outcomes: dict[str, tuple[bool, str]] = {}
-        skipped_count = 0
         for row in rows:
             fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
             _arch, expected_os, expected_version = parse_fg_identity(fg)
-            if not expected_os or not expected_version:
-                skipped_count += 1
-                outcomes[row["HOSTNAME"]] = (
-                    True,
-                    f"skipped (no OS version in '{fg}')",
-                )
-                continue
+
+            # Probe the live node regardless of whether we can verify.
             result_cmd = remote_command(
                 host, row, PXEBOOT_COMMANDS["os_release"]
             )
             if result_cmd.rc != 0:
+                if expected_os:
+                    outcomes[row["HOSTNAME"]] = (
+                        False,
+                        "os-release probe failed "
+                        "(SSH unreachable or command error)",
+                    )
+                else:
+                    outcomes[row["HOSTNAME"]] = (
+                        True,
+                        "os-release probe failed (not verifiable, "
+                        f"no OS in '{fg}')",
+                    )
+                continue
+
+            actual_os, actual_version = _parse_os_release(result_cmd.stdout)
+
+            if not expected_os or not expected_version:
+                # FG has no OS — report what the node is running.
                 outcomes[row["HOSTNAME"]] = (
-                    False,
-                    "os-release probe failed (SSH unreachable or command error)",
+                    True,
+                    f"{actual_os} {actual_version} (detected, "
+                    f"FG '{fg}' has no OS version to verify)",
                 )
                 continue
-            # Parse ID= and VERSION_ID= from grep output.
-            actual_os = ""
-            actual_version = ""
-            for line in result_cmd.stdout.splitlines():
-                line = line.strip()
-                if line.startswith("ID="):
-                    actual_os = line.partition("=")[2].strip().strip('"').lower()
-                elif line.startswith("VERSION_ID="):
-                    actual_version = line.partition("=")[2].strip().strip('"')
+
             os_ok = actual_os == expected_os.lower()
             version_ok = actual_version == expected_version
             if os_ok and version_ok:
@@ -324,26 +361,33 @@ def check_node_os_version(host):
                 parts = []
                 if not os_ok:
                     parts.append(
-                        f"OS: expected={expected_os}, actual={actual_os or 'unknown'}"
+                        f"OS: expected={expected_os}, "
+                        f"actual={actual_os or 'unknown'}"
                     )
                 if not version_ok:
                     parts.append(
                         f"version: expected={expected_version}, "
                         f"actual={actual_version or 'unknown'}"
                     )
-                outcomes[row["HOSTNAME"]] = (False, "MISMATCH: " + "; ".join(parts))
-        failed = [name for name, outcome in outcomes.items() if not outcome[0]]
+                outcomes[row["HOSTNAME"]] = (
+                    False, "MISMATCH: " + "; ".join(parts)
+                )
+
+        failed = [
+            name for name, outcome in outcomes.items() if not outcome[0]
+        ]
         fields: list[tuple[str, object]] = [
             ("Mapped nodes", len(rows)),
+            ("Verifiable (OS in FG name)", verifiable_count),
         ]
-        if skipped_count:
-            fields.append(("Skipped (no OS in FG name)", skipped_count))
         fields.extend(group_fields(rows, outcomes))
         return runtime_result(
             not failed,
             summary,
             fields,
-            "OS version mismatch for: " + ", ".join(failed) if failed else "",
+            "OS version mismatch for: " + ", ".join(failed)
+            if failed
+            else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
