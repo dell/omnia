@@ -260,6 +260,19 @@ def check_node_architecture(host):
                     False,
                     f"MISMATCH: expected={expected_arch}, actual={actual_arch}",
                 )
+        if skipped_count == len(rows):
+            return runtime_result(
+                True,
+                summary,
+                [
+                    ("Mapped nodes", len(rows)),
+                    ("Reason",
+                     "No functional group names contain a recognizable "
+                     "architecture suffix"),
+                ],
+                "",
+                skipped=True,
+            )
         failed = [name for name, outcome in outcomes.items() if not outcome[0]]
         fields: list[tuple[str, object]] = [
             ("Mapped nodes", len(rows)),
@@ -333,9 +346,10 @@ def check_node_os_version(host):
         context = load_runtime_context(host)
         rows = context["rows"]
 
-        # Load build_status.yml to resolve OS from image entries.
+        # Load build_status.yml — mandatory evidence for OS verification.
         build_entries: list[dict[str, str]] | None = None
         build_source = ""
+        build_error = ""
         try:
             build_path = _build_status_path(host)
             build_status = read_yaml_mapping(host, build_path)
@@ -344,8 +358,22 @@ def check_node_os_version(host):
                     build_status
                 )
                 build_source = build_path
-        except (OSError, TypeError, ValueError):
-            pass
+            else:
+                build_error = (
+                    f"build_status.yml overall_status="
+                    f"'{build_status.get('overall_status')}', "
+                    f"expected 'success'"
+                )
+        except (OSError, TypeError, ValueError) as read_exc:
+            build_error = f"build_status.yml unreadable: {read_exc}"
+
+        if build_error:
+            return runtime_result(
+                False,
+                summary,
+                [("build_status.yml", build_error)],
+                build_error,
+            )
 
         # Pre-scan: can we resolve OS for any node?
         resolvable = 0
