@@ -86,6 +86,12 @@ fresh boot and cloud-init completion with:
 ./omnia.sh --run orchestrator --tags verify-node-registration
 ```
 
+For a node whose Orchestrator-triggered PXE attempt failed, first allow the
+`pxeboot` workflow to finish and write `orchestrator_status.yml`. Then boot the
+node manually or through the hypervisor and run the verification tag. The
+external verifier requires a boot newer than the persisted lifecycle status;
+a boot started before the failed PXE workflow finishes is treated as stale.
+
 ## Input / Output
 
 ### Input

@@ -90,6 +90,12 @@ uses the existing SSH/cloud-init verifier. On success, both boot paths record
 `pxeboot.state: success`; `pxeboot.trigger_method` is `orchestrator` for the normal
 PXE path and `external` for this verification-only path.
 
+When recovering from a failed Orchestrator PXE attempt, wait for the `pxeboot`
+workflow to finish and persist `orchestrator_status.yml` before manually
+booting the affected node. The external verifier uses the persisted lifecycle
+status timestamp as its freshness boundary. A node booted before that report
+is finalized remains `reprovision_required` and is reported as a stale boot.
+
 ## Configuration
 
 ### set_pxe_boot_config.yml

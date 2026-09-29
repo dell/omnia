@@ -50,6 +50,12 @@ These facts must be set by the calling playbook before invoking this role:
 | `verification_trigger_method` | `orchestrator` (default) or `external` |
 | `bmc_ip` | BMC address; required only for the `orchestrator` trigger method |
 
+For `external` verification after a failed PXE attempt, the caller derives
+`verification_start_epoch` from the completed aggregate lifecycle status. The
+operator must therefore wait for the PXE workflow to finish writing that
+status, and then boot the node. A boot older than this epoch is intentionally
+treated as stale.
+
 ## Dependencies
 
 None.

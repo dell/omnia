@@ -233,6 +233,12 @@ SSH verifier. A successful result continues to use `pxeboot.state: success`;
 `pxeboot.trigger_method: external` is the only field that distinguishes the
 external boot from the normal `orchestrator` path.
 
+After a failed Orchestrator PXE attempt, the operator must wait for that
+workflow to finish writing `orchestrator_status.yml` before starting the manual
+or hypervisor boot. A boot older than the persisted status timestamp is stale,
+keeps `reprovision_required: true`, and cannot be recorded as externally
+verified.
+
 PXE inventories do not supply XNAME values. Before rebooting any server, the
 PXE workflow resolves each Service Tag through SMD Hardware Inventory and uses
 the resulting permanent XNAME for report correlation. If an identity is

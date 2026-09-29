@@ -317,6 +317,11 @@ the aggregate status, and applies the same fresh-boot and cloud-init checks over
 SSH. Successful results retain `state: success` and record
 `trigger_method: external`.
 
+For recovery after an Orchestrator PXE failure, the PXE workflow must finish
+and persist its aggregate status before the operator starts the external boot.
+That persisted timestamp is the external verifier's freshness boundary, so an
+earlier boot is rejected as stale and does not clear the reprovision gate.
+
 ### Step 6: Cleanup
 
 The top-level cleanup route runs the canonical aggregate cleanup and reports
