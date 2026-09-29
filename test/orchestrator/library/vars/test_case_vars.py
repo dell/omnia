@@ -732,6 +732,51 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify benchmark staging is idempotent",
         "component": "HPC benchmarks staging idempotency",
     },
+    "coredns_container_state": {
+        "id": "ORCH_FVT_PXEBOOT_V114",
+        "title": "Verify coresmd container state matches dns_enabled dataset",
+        "component": "CoreDNS/CoreDHCP container state",
+    },
+    "coredns_forward_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V115",
+        "title": "Verify CoreDNS forward resolution from OIM for mapped nodes",
+        "component": "CoreDNS forward resolution",
+    },
+    "coredns_reverse_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V116",
+        "title": "Verify CoreDNS reverse resolution from OIM for mapped admin IPs",
+        "component": "CoreDNS reverse resolution",
+    },
+    "coredhcp_multisubnet_running_image": {
+        "id": "ORCH_FVT_PXEBOOT_V117",
+        "title": "Verify multi-subnet coresmd containers use expected image",
+        "component": "CoreDHCP multi-subnet running image",
+    },
+    "dns_compute_resolv_conf": {
+        "id": "ORCH_FVT_PXEBOOT_V118",
+        "title": "Verify /etc/resolv.conf on every compute uses CoreDNS as primary",
+        "component": "Compute /etc/resolv.conf",
+    },
+    "dns_compute_forward_getent": {
+        "id": "ORCH_FVT_PXEBOOT_V119",
+        "title": "Verify every compute resolves peers via getent hosts",
+        "component": "Compute getent hosts resolution",
+    },
+    "coredns_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V120",
+        "title": "Verify CoreDNS/CoreDHCP state is stable across a settle window",
+        "component": "CoreDNS idempotency snapshot",
+    },
+    "dns_node_addition_pipeline": {
+        "id": "ORCH_FVT_PXEBOOT_V121",
+        "title": "Verify SMD-to-CoreDNS pipeline resolves every mapped node",
+        "component": "CoreDNS node-addition pipeline",
+    },
+    "dns_smd_unreachable_cached_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V122",
+        "title": "Verify CoreDNS serves cached records when SMD is unavailable",
+        "component": "CoreDNS SMD-unavailable cached resolution",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {

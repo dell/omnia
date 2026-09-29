@@ -95,6 +95,29 @@ HPC_BENCHMARKS_COMPILE_KEYWORDS: tuple[str, ...] = (
     "./configure",
 )
 
+# CoreDNS / CoreDHCP (coresmd) — deployed by src/orchestrator/roles/deploy_openchami
+# and configured by src/orchestrator/roles/provision_common/tasks/configure_dns.yml
+CORESMD_COREDNS_CONTAINER = "coresmd-coredns"
+CORESMD_COREDHCP_CONTAINER = "coresmd-coredhcp"
+CORESMD_CONTAINERS: tuple[str, ...] = (
+    CORESMD_COREDNS_CONTAINER,
+    CORESMD_COREDHCP_CONTAINER,
+)
+SMD_CONTAINER_NAME = "smd"
+CORESMD_IMAGE_REPO = "ghcr.io/openchami/coresmd"
+COREDNS_COREFILE_PATH = "/etc/openchami/configs/Corefile"
+COREDHCP_CONFIG_PATH = "/etc/openchami/configs/coredhcp.yaml"
+COREDNS_QUERY_TIMEOUT_SECONDS = 5
+COREDNS_QUERY_SAMPLE_SIZE = 5
+COREDNS_IDEMPOTENCY_SETTLE_SECONDS = 5
+COREDNS_CACHE_DURATION_SECONDS = 30
+COREDNS_NODE_ADDITION_WAIT_SECONDS = 60
+COREDNS_SMD_UNREACHABLE_HOLD_SECONDS = 45
+COREDNS_TEMP_XNAME = "x9999c0s0b0n0"
+COREDNS_TEMP_HOSTNAME = "omnia-fvt-tempnode"
+COREDNS_TEMP_MAC = "aa:bb:cc:dd:ee:99"
+COREDNS_TEMP_IP = "127.9.9.9"
+
 KUBERNETES_PREFIX = "service_kube_"
 KUBERNETES_CONTROL_PLANE_PREFIX = "service_kube_control_plane_"
 KUBERNETES_PRIMARY_CONTROL_PLANE_PREFIX = "service_kube_control_plane_first_"
@@ -562,6 +585,39 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "hpc_benchmarks_pulp_list": (
         "curl -ksfL --connect-timeout 5 --max-time 15 %s 2>/dev/null | "
         "grep -oE 'href=\"[^\"]+\"' | grep -vE '(\\.\\./|index\\.html)' | head -20"
+    ),
+    "coresmd_container_ps": (
+        "podman ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | "
+        "grep -E '(^|\\|)%s(\\||-|$)' | head -5"
+    ),
+    "coresmd_container_id": (
+        "podman ps --format '{{.ID}}|{{.Names}}|{{.Image}}' | "
+        "grep -E '(^|\\|)%s(\\||-|$)' | head -1"
+    ),
+    "coresmd_container_running": (
+        "podman inspect --format '{{.State.Running}}|{{.Image}}|{{.Config.Image}}' %s "
+        "2>/dev/null || echo missing"
+    ),
+    "coresmd_container_exec": "podman exec %s %s",
+    "coresmd_container_pause": "podman pause %s",
+    "coresmd_container_unpause": "podman unpause %s",
+    "dns_query_forward": (
+        "dig +short +time=%s +tries=1 @%s %s A"
+    ),
+    "dns_query_reverse": (
+        "dig +short +time=%s +tries=1 @%s -x %s"
+    ),
+    "dns_query_forwarders": (
+        "dig +short +time=%s +tries=1 @%s %s A"
+    ),
+    "resolv_conf_read": "cat /etc/resolv.conf",
+    "hosts_file_read": "cat /etc/hosts | head -200",
+    "getent_hosts": "getent hosts %s",
+    "getent_hosts_reverse": "getent hosts %s",
+    "config_file_hash": "sha256sum %s 2>/dev/null | cut -d' ' -f1 || echo missing",
+    "port_reachable": (
+        "timeout 3 bash -c 'cat < /dev/tcp/%s/%s' >/dev/null 2>&1 && "
+        "echo reachable || echo blocked"
     ),
     "pam_adopt_integration": (
         "policy=missing; usepam=disabled; module=missing; "

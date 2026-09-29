@@ -59,6 +59,17 @@ from .apptainer_runtime_pxeboot_func import (
     check_apptainer_sif_permissions,
 )
 from .boot_service_provision_func import check_boot_configurations, check_boot_nodes
+from .coredns_pxeboot_func import (
+    check_coredhcp_multisubnet_running_image,
+    check_coredns_container_state,
+    check_coredns_forward_resolution,
+    check_coredns_idempotency,
+    check_coredns_reverse_resolution,
+    check_dns_compute_forward_getent,
+    check_dns_compute_resolv_conf,
+    check_dns_node_addition_pipeline,
+    check_dns_smd_unreachable_cached_resolution,
+)
 from .hpc_benchmarks_pxeboot_func import (
     check_hpc_benchmarks_airgapped_staging,
     check_hpc_benchmarks_artifact_copy,
@@ -262,7 +273,16 @@ __all__ = [
     "check_cleanup_openchami",
     "check_cleanup_openldap",
     "check_cleanup_slurm",
+    "check_coredhcp_multisubnet_running_image",
+    "check_coredns_container_state",
+    "check_coredns_forward_resolution",
+    "check_coredns_idempotency",
+    "check_coredns_reverse_resolution",
     "check_credential_file_permissions",
+    "check_dns_compute_forward_getent",
+    "check_dns_compute_resolv_conf",
+    "check_dns_node_addition_pipeline",
+    "check_dns_smd_unreachable_cached_resolution",
     "check_hpc_benchmarks_airgapped_staging",
     "check_hpc_benchmarks_artifact_copy",
     "check_hpc_benchmarks_container_first_guidance",
