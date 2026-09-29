@@ -60,6 +60,13 @@ before proceeding — do not apply to a partial set silently.
 
 ### Step 2 — Run the Pre-Edit Gate per catalog
 
+For package additions, use `catalog-editing/SKILL.md`'s dependency-discovery
+requirement for each catalog and consuming platform before presenting approvals.
+Reuse evidence only for matching package/version/source/platform tuples; check
+already-satisfied dependencies and group reachability separately in each catalog.
+Show the requested-plus-dependency proposal per catalog, not one assumed common
+dependency set. An unpinned or same-repository addition is not exempt.
+
 Run Impact Analysis / Compatibility & Dependency Analysis for the
 proposed change against **each** matching catalog independently, per
 `pre_edit_gate.md`. A finding on one catalog does not block another:

@@ -269,6 +269,20 @@ targets, and deployment settings without collecting secrets or editing them.
 
 ## Step 3 — Cross-domain preflight and confirmation
 
+### Package additions — dependency review
+
+For requested additional packages, read this bundle's
+`../compatibility-analysis/SKILL.md` and follow Best-effort dependency discovery
+before the Source Overrides checkpoint and final confirmation. Use the planned
+reference groups to identify already-satisfied requirements per consuming tuple.
+Record requested packages, required dependency additions, separately offered
+optional items, evidence and gaps in Packages and Sources. Include their sources
+in the checkpoint below. Obtain approval for the combined set in the final
+confirmation; do not silently expand an add request or enable GPU/InfiniBand.
+If later assembly discovers more dependencies, present the difference and get
+confirmation before including them. Unresolved requirements remain disclosed
+draft limitations under this skill's existing publication rules.
+
 ### Source Overrides — required interview checkpoint
 
 After resolving platform, roles, hardware, storage and additional packages, show
@@ -514,6 +528,9 @@ does **not** enforce all of the following; this is a separate model-performed re
 6. NFS/iSCSI client packages and requested additions exist on their intended
    layers with appropriate sources. No dangling references or unused groups/packages
    remain after pruning. No requested package/group was silently omitted.
+   Confirmed explicit dependency additions are reachable on the same consuming
+   tuples, without duplicate entries or unapproved optional packages; report any
+   remaining dependency-evidence gaps separately from schema validation.
 7. Multi-family output retains OS identity through the active consumer path;
    neither schema success nor a matching filename establishes that. Report an
    unsupported runtime contract separately and keep such output a blocked draft.

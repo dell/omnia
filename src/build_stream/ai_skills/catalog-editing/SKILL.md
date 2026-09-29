@@ -74,9 +74,21 @@ among several plausible package keys.
 
 ### Step 2 — Run the Pre-Edit Gate
 
-Follow `pre_edit_gate.md` in full before touching the file. Do not
-proceed past this step without either an explicit approval or an
-explicit, disclosed "not applicable" determination for each check.
+For every package addition (including a new group/role attachment), first follow
+this bundle's `../compatibility-analysis/SKILL.md` Best-effort dependency
+discovery procedure. Include the requested package and proposed dependencies
+in one concrete edit plan before approval. This overrides `pre_edit_gate.md`'s
+same-repo/unpinned-addition exemption: dependency investigation still applies.
+Assess the impact of the full addition set, including shared-group consumers,
+version/provider conflicts and hardware-selection changes; do not dismiss
+impact solely because nothing is being removed. Present satisfied dependencies,
+proposed additions, optional items and unresolved checks with the gate findings.
+
+Follow `pre_edit_gate.md` in full before touching the file, disclosing the result
+or reason for non-applicability of each check. Regardless of individual check
+applicability, wait for explicit approval of the complete proposed edit before
+Step 3. A request to add one package does not authorize unpresented dependency
+additions.
 
 For kernel-dependent drivers, refine the gate's applicability rule: run this
 bundle's `../compatibility-analysis/SKILL.md` Driver/kernel compatibility
@@ -94,7 +106,9 @@ or sources to resolve them. Preserve the pre-edit approval requirement.
 the JSON or write a new mutation script:**
 
 - **Add/update a package:** build a small input file in the existing
-  `catalog_manager.py` input format (see Worked Example) and run:
+  `catalog_manager.py` input format (see Worked Example), including only the
+  confirmed requested packages and explicit dependency additions in their
+  approved groups, and run:
   ```bash
   python3 src/repo_manager/plugins/module_utils/catalog/catalog_manager.py add \
     --input <input-file> --catalog <path-to-catalog.json> \
@@ -148,11 +162,12 @@ is not preserved verbatim; its logical content is what must match).
 > Operator: "Add curl to the base-os catalog"
 > (target: `src/main/samples/catalogs/10.2/service_k8s_x86_64.json`)
 
-After the Pre-Edit Gate determines this is a low-risk addition (Impact
-Analysis: `curl` isn't currently in the catalog, so no removal blast
-radius applies; Compatibility Analysis: not applicable to a same-repo
-RPM addition with no version pin conflict — both disclosed per
-`pre_edit_gate.md`) and the operator approves:
+First investigate dependencies for the target platform and assess the affected
+group's consumers. The following input illustrates the requested `curl` entry
+only; it is not evidence that curl has no dependencies or that BaseOS supplies
+the requested artifact. Verify its source and present any missing prerequisites
+before approval. If that review confirms this is the only required explicit
+addition and the operator approves the Pre-Edit Gate findings:
 
 Input file (`add_curl.txt`):
 ```
