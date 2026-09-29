@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import math
 import os
-import re
 import time
 from typing import Any
 
@@ -71,14 +70,13 @@ boot:
   type: dict
   returned: always
 cloud_init:
-  description: Structured cloud-init status fields.
+  description: Compact cloud-init status without node-local diagnostics.
   type: dict
   returned: always
 """
 
 _CLOUD_INIT_PATH = "/usr/bin/cloud-init"
 _MAX_COMMAND_OUTPUT_BYTES = 131072
-_MAX_DETAIL_CHARACTERS = 1000
 _EMPTY_CLOUD_CONFIG_TEXT = "empty cloud config"
 
 
@@ -157,10 +155,10 @@ def _is_benign_degraded(cloud_init: dict[str, Any]) -> bool:
     )
 
 
-def _detail(output: str) -> str:
-    """Flatten and bound human-readable cloud-init status output."""
-    flattened = re.sub(r"[\t ]+", " ", output.replace("\r", "").replace("\n", ";"))
-    return flattened[:_MAX_DETAIL_CHARACTERS] or "cloud-init returned no status output"
+def _compact_cloud_init(payload: dict[str, Any]) -> dict[str, str]:
+    """Return status without exposing node-local cloud-init diagnostics."""
+    status = payload.get("status", "unknown")
+    return {"status": status if isinstance(status, str) and status else "unknown"}
 
 
 def _empty_cloud_init(status: str = "unknown") -> dict[str, Any]:
@@ -191,11 +189,11 @@ def _classify_cloud_init(
         _, json_stdout, _ = _run_cloud_init(
             module, "status", "--format", "json"
         )
-    except OSError as error:
+    except OSError:
         return (
             True,
             "cloud_init_error",
-            f"cloud-init status could not run: {error}",
+            "Cloud-init verification failed",
             _empty_cloud_init(),
         )
 
@@ -207,10 +205,11 @@ def _classify_cloud_init(
 
     terminal = False
     state = "cloud_init_pending"
-    detail = _detail(long_output)
+    detail = "Cloud-init verification is pending"
     if status == "done" and extended_status.startswith("degraded"):
         terminal = True
         state = "cloud_init_error"
+        detail = "Cloud-init verification failed"
         if _is_benign_degraded(cloud_init):
             state = "success"
             # This warning is an expected OpenCHAMI condition and already
@@ -225,6 +224,7 @@ def _classify_cloud_init(
     elif status in {"error", "degraded", "disabled", "not_installed"}:
         terminal = True
         state = "cloud_init_error"
+        detail = "Cloud-init verification failed"
 
     return terminal, state, detail, cloud_init
 
@@ -277,7 +277,7 @@ def main() -> None:
         state=state,
         detail=detail,
         boot=boot,
-        cloud_init=cloud_init,
+        cloud_init=_compact_cloud_init(cloud_init),
     )
 
 

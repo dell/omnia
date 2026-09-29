@@ -144,6 +144,8 @@ def _extract_entry(candidate: Any) -> dict[str, str]:
         raise ValueError(f"{group} has no kernel path")
     if not initrd:
         raise ValueError(f"{group} has no initrd path")
+    if not image:
+        raise ValueError(f"{group} has no image (rootfs) path")
     return {"group": group, "kernel": kernel, "initrd": initrd, "image": image}
 
 
@@ -161,6 +163,9 @@ def _match_build_entry(
     1. Exact name match.
     2. Prefix + arch suffix match (handles FGs without OS version).
     3. Strip ``_first`` and retry prefix + arch (primary KCP fallback).
+
+    Returns None if no match is found, or if multiple ambiguous matches
+    exist (same prefix+arch but different OS versions).
     """
     # 1. Exact match.
     for entry in entries:
@@ -174,22 +179,45 @@ def _match_build_entry(
     fg_prefix = fg_prefix_without_os(fg_name)
 
     # 2. Prefix + arch match.
+    matches = []
     for entry in entries:
         entry_prefix = fg_prefix_without_os(entry["group"])
         entry_arch, _eos, _ever = parse_fg_identity(entry["group"])
         if entry_prefix == fg_prefix and entry_arch == arch:
-            return entry
+            matches.append(entry)
+
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        # Ambiguous: multiple entries with same prefix+arch but different OS.
+        # This is a configuration error — fail explicitly.
+        raise ValueError(
+            f"Ambiguous match for {fg_name}: found {len(matches)} entries "
+            f"with prefix '{fg_prefix}' and arch '{arch}': "
+            f"{[m['group'] for m in matches]}. "
+            f"Use exact functional group name to disambiguate."
+        )
 
     # 3. Strip _first and retry (primary Kubernetes control plane).
     if "_first_" in fg_prefix or fg_prefix.endswith("_first"):
         base_prefix = fg_prefix.replace("_first_", "_", 1)
         if base_prefix == fg_prefix:
             base_prefix = fg_prefix.rsplit("_first", 1)[0]
+        matches = []
         for entry in entries:
             entry_prefix = fg_prefix_without_os(entry["group"])
             entry_arch, _eos, _ever = parse_fg_identity(entry["group"])
             if entry_prefix == base_prefix and entry_arch == arch:
-                return entry
+                matches.append(entry)
+
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            raise ValueError(
+                f"Ambiguous _first match for {fg_name}: found {len(matches)} "
+                f"entries with prefix '{base_prefix}' and arch '{arch}': "
+                f"{[m['group'] for m in matches]}"
+            )
 
     return None
 
@@ -198,7 +226,40 @@ def _match_build_entry(
 # Path comparison
 # -------------------------------------------------------------------
 
-def _path_match(actual: str, expected: str) -> bool:
+def _construct_expected_url(
+    endpoint: str,
+    relative_path: str,
+) -> str:
+    """Construct the canonical expected S3 URL.
+
+    Normalizes the endpoint and relative path to produce a consistent
+    URL format for comparison with the Boot Service's actual URL.
+    """
+    # Strip trailing slash from endpoint, leading slash from path.
+    endpoint = endpoint.rstrip("/")
+    path = relative_path.lstrip("/")
+    return f"{endpoint}/{path}"
+
+
+def _extract_rootfs_url(spec: dict[str, Any]) -> str | None:
+    """Extract the rootfs URL from Boot Service spec.params.
+
+    The rootfs is embedded as a kernel argument in the form
+    ``root=live:<url>`` within the params string. Returns None if
+    not found or malformed.
+    """
+    params = spec.get("params") if isinstance(spec, dict) else None
+    if not isinstance(params, str):
+        return None
+    # Parse the params string to find root=live:<url>
+    for token in params.split():
+        if token.startswith("root=live:"):
+            url = token[10:]  # Strip "root=live:" prefix
+            return url if url else None
+    return None
+
+
+def _path_match(actual: str, expected: str, endpoint: str) -> bool:
     """Compare a Boot Service URL with a build_status relative path.
 
     The Boot Service template prepends the S3 endpoint URL to the path
@@ -206,17 +267,14 @@ def _path_match(actual: str, expected: str) -> bool:
     so the actual value is a full URL while the expected value is just the
     relative path (``boot-images/...``).
 
-    Match succeeds when:
-    - The actual value ends with the expected path (URL form), or
-    - The values are exactly equal (both relative or both absolute).
+    Match succeeds when the actual URL equals the canonical expected URL
+    constructed from the S3 endpoint and relative path. This validates
+    the scheme, host, port, and full path — not just a suffix.
     """
     if not actual or not expected:
         return False
-    if actual == expected:
-        return True
-    # Normalize: strip leading slashes from expected for suffix comparison.
-    normalized = expected.lstrip("/")
-    return actual.endswith("/" + normalized) or actual.endswith(normalized)
+    canonical_expected = _construct_expected_url(endpoint, expected)
+    return actual == canonical_expected
 
 
 # -------------------------------------------------------------------
@@ -241,8 +299,27 @@ def check_boot_image_identity(host) -> dict[str, Any]:
         entries, _arch_map = _parse_build_status_images(build_status)
         configurations = resource_list(api_json(host, "boot_configurations"))
 
+        # Extract S3 endpoint for full URL comparison.
+        s3_config = build_status.get("s3_configurations", {})
+        if not isinstance(s3_config, dict):
+            return result(
+                False,
+                "Boot image identity verification",
+                [("build_status.yml", build_path)],
+                "s3_configurations is missing or not a mapping",
+            )
+        endpoint = s3_config.get("endpoint_url", "")
+        if not endpoint:
+            return result(
+                False,
+                "Boot image identity verification",
+                [("build_status.yml", build_path)],
+                "s3_configurations.endpoint_url is missing",
+            )
+
         fields: list[tuple[str, object]] = [
             ("build_status.yml", build_path),
+            ("S3 endpoint", endpoint),
             ("Image entries", len(entries)),
             ("Boot configurations", len(configurations)),
         ]
@@ -284,17 +361,27 @@ def check_boot_image_identity(host) -> dict[str, Any]:
                 fields.append(("  Boot configuration", "spec missing"))
                 continue
 
-            # Compare kernel and initrd paths.
-            # The Boot Service stores the full URL (s3_endpoint/path) while
-            # build_status.yml stores just the relative path.  Match by
-            # checking that the actual URL ends with the expected path.
+            # Compare kernel, initrd, and rootfs paths using full URL comparison.
             actual_kernel = str(spec.get("kernel") or "").strip()
             actual_initrd = str(spec.get("initrd") or "").strip()
             expected_kernel = expected["kernel"]
             expected_initrd = expected["initrd"]
+            expected_rootfs = expected["image"]
 
-            kernel_ok = _path_match(actual_kernel, expected_kernel)
-            initrd_ok = _path_match(actual_initrd, expected_initrd)
+            kernel_ok = _path_match(actual_kernel, expected_kernel, endpoint)
+            initrd_ok = _path_match(actual_initrd, expected_initrd, endpoint)
+
+            # Extract and validate rootfs URL from spec.params.
+            actual_rootfs = _extract_rootfs_url(spec)
+            if actual_rootfs is None:
+                rootfs_ok = False
+                fields.append(("  Rootfs", "MISSING from spec.params"))
+            else:
+                rootfs_ok = _path_match(actual_rootfs, expected_rootfs, endpoint)
+                fields.append((
+                    "  Rootfs",
+                    "matched" if rootfs_ok else f"MISMATCH: expected={expected_rootfs}",
+                ))
 
             fields.append((
                 "  Kernel",
@@ -306,14 +393,22 @@ def check_boot_image_identity(host) -> dict[str, Any]:
             ))
 
             if not kernel_ok:
+                expected_url = _construct_expected_url(endpoint, expected_kernel)
                 failures.append(
                     f"{fg_name}: kernel mismatch "
-                    f"(expected={expected_kernel}, actual={actual_kernel})"
+                    f"(expected={expected_url}, actual={actual_kernel})"
                 )
             if not initrd_ok:
+                expected_url = _construct_expected_url(endpoint, expected_initrd)
                 failures.append(
                     f"{fg_name}: initrd mismatch "
-                    f"(expected={expected_initrd}, actual={actual_initrd})"
+                    f"(expected={expected_url}, actual={actual_initrd})"
+                )
+            if not rootfs_ok:
+                expected_url = _construct_expected_url(endpoint, expected_rootfs)
+                failures.append(
+                    f"{fg_name}: rootfs mismatch "
+                    f"(expected={expected_url}, actual={actual_rootfs or 'MISSING'})"
                 )
 
         return result(

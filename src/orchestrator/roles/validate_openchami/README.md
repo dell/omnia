@@ -16,7 +16,7 @@ This role acts as the readiness gate between deployment and provisioning.
 | Variable | Purpose |
 |----------|---------|
 | `openchami_base_url` | Gateway URL derived from the OIM hostname and domain |
-| `openchami_validate_certs` | Certificate-validation setting used by readiness requests |
+| `openchami_ca_cert_path` | CA certificate used to verify the OpenCHAMI gateway |
 
 Readiness endpoints and retry behavior are implemented in `tasks/main.yml`.
 

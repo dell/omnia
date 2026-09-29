@@ -15,7 +15,7 @@
 # Configure boot-service boot params for a single functional group.
 # Extracted from configure_ochami/tasks/configure_boot_svc_group.yml.
 # Called in a loop with fg_name set by the caller.
-# Uses delete-then-set for idempotency.
+# Reconciles through the shared JWT- and CA-verified OpenCHAMI client.
 
 - name: Load S3 configuration messages
   ansible.builtin.include_vars:
@@ -71,43 +71,14 @@
   ansible.builtin.set_fact:
     boot_svc_config: "{{ boot_svc_config_raw.content | b64decode | from_yaml }}"
 
-- name: Find existing boot configuration by name - {{ fg_name }}
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-    status_code: [200]
-    validate_certs: false
-    return_content: true
-  register: existing_boot_configs
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-- name: Delete existing boot configuration - {{ fg_name }}
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
-    method: DELETE
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-    status_code: [200, 404]
-    validate_certs: false
-  loop: >-
-    {{ existing_boot_configs.json | default([])
-       | selectattr('metadata.name', 'equalto', fg_name) | list }}
-  loop_control:
-    label: "{{ item.metadata.name }}"
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-- name: Add boot configuration - {{ fg_name }}
-  ansible.builtin.uri:
-    url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-      Content-Type: "application/json"
-    body_format: json
-    body: "{{ boot_svc_config }}"
-    status_code: [200, 201]
-    validate_certs: false
-  changed_when: true
+- name: Reconcile Boot Service configuration - {{ fg_name }}
+  openchami_reconcile:
+    action: reconcile_boot_configurations
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: "{{ ochami_env[cluster_env_key] }}"
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    boot_configurations:
+      - "{{ boot_svc_config }}"
+  register: _boot_configuration_reconcile
+  no_log: true
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
