@@ -258,11 +258,23 @@ Review the working record against the reference data and the rules in this skill
 | Storage ↔ Role/access method | PowerVault controller use; VAST on applicable compute/login roles; plain NFS distinct from Kubernetes CSI |
 | Network ↔ Role/architecture | InfiniBand only on applicable roles with matching driver sources; No must not be undone by a custom package |
 | Packages ↔ Platform/Stack | Source coverage for consuming architectures/OS and compatible stack version pins |
+| Drivers ↔ Target kernel | Verify each selected kernel-dependent driver's version and build/module prerequisites against the intended kernel for every consuming platform |
 
 This is an instruction-driven review, not an executable preflight. For a conflict,
 state the affected domain/field, requested value, violated rule, reason, and
 supported alternatives. Ask the operator to resolve it; do not silently switch
 choices or drop an architecture. If evidence is missing, mark the item unresolved.
+
+When kernel-dependent drivers are selected, read this bundle's
+`../compatibility-analysis/SKILL.md` and follow its Driver/kernel compatibility
+procedure. Resolve the actual driver definitions and intended target kernel,
+not just the RHEL release or the agent host's running kernel. Record the checked
+tuple, prerequisites, evidence and verdict in Packages and Sources; ask only for
+missing target details. Apply this to NVIDIA GPU and DOCA/OFED drivers wherever
+selected, including custom groups. An unpinned/unknown kernel leaves this check
+unresolved unless the intended resolved kernel is established from target data;
+do not invent a pin. Missing evidence keeps the catalog a draft. If no such
+driver is selected, mark this check not applicable without asking for a kernel.
 
 Restate all seven domains, including a role/family/version/architecture mapping,
 reference-root provenance, storage purpose
@@ -435,6 +447,11 @@ does **not** enforce all of the following; this is a separate model-performed re
 7. Multi-family output retains OS identity through the active consumer path;
    neither schema success nor a matching filename establishes that. Report an
    unsupported runtime contract separately and keep such output a blocked draft.
+8. Every selected kernel-dependent driver has a supported target-kernel verdict
+   with verified prerequisites from the compatibility procedure. Recheck affected
+   layers if assembly or source resolution changed the kernel, driver, platform
+   or installation method since preflight. Report this result separately from
+   schema validation; a floating kernel requires revalidation before deployment.
 
 Report schema-validation results separately from this selection review. Do not
 claim these semantic checks ran automatically. Any unresolved or failed check

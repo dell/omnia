@@ -78,6 +78,16 @@ Follow `pre_edit_gate.md` in full before touching the file. Do not
 proceed past this step without either an explicit approval or an
 explicit, disclosed "not applicable" determination for each check.
 
+For kernel-dependent drivers, refine the gate's applicability rule: run this
+bundle's `../compatibility-analysis/SKILL.md` Driver/kernel compatibility
+procedure whenever the edit adds a driver or changes a consuming layer's kernel,
+OS, architecture, driver version, module/build prerequisites or resolving source.
+This also applies to bulk edits using these mechanics, and overrides the gate's
+same-repo/unpinned-addition exemption for these changes. Check the proposed target
+combination, not the agent host, and recheck all affected layers. Report unresolved
+or unsupported combinations before applying the edit; do not silently alter pins
+or sources to resolve them. Preserve the pre-edit approval requirement.
+
 ### Step 3 — Apply the edit (only after gate approval)
 
 **If you have shell access, reuse the existing tool — do not hand-edit

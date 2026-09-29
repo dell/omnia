@@ -246,6 +246,46 @@ not be described as schema validation.
 }
 ```
 
+## Machine-readable catalog diffs
+
+The `catalog_manager.py diff` command emits forward and reverse operation lists.
+These are Omnia's custom patch format, not RFC 6902 JSON Patch. Apply them with
+`catalog.differ.apply_patch`; generation verifies exact reconstruction in both
+directions, including component ordering.
+
+For an existing group or functional layer whose only change is its `components`
+list, the engine emits `insert_component` and `remove_component` operations.
+For example, appending `htop` to a three-member group produces this operation
+(in addition to the separate package-definition `add`, if needed):
+
+```json
+{
+  "op": "insert_component",
+  "path": ["catalog", "groups", "admin_debug_group", "components"],
+  "index": 3,
+  "value": "htop"
+}
+```
+
+Indices are zero-based and refer to the list **after all preceding operations**.
+Insertion permits indices from zero through the current length. Removal requires
+an existing index whose component equals `value`; otherwise application fails.
+Operations must be applied in emitted order, not sorted or deduplicated. Reorders
+use removal/insertion pairs; repeated values retain their positions and counts.
+Functional-layer paths use `functionallayer_by_name` and the layer's name.
+
+Whole-object `add`, `remove`, and `set` operations remain supported. New/deleted
+groups or layers, package-definition changes, and changes to other group/layer
+fields still use that format. Thus changing metadata together with components
+can still produce a whole-object `set`. Reports count component edits as one
+changed owner, not as added/deleted groups or layers.
+
+Compatibility is reader-backward, not reader-forward: the updated reader accepts
+old patches, but older readers must not consume the new component operations.
+Upgrade patch consumers together with the generator. Apply a patch to its
+matching source catalog; this is not a merge or an idempotent update protocol.
+The source object is copied, so a failed application does not mutate it.
+
 ## Logging
 
 Catalog operations write:
