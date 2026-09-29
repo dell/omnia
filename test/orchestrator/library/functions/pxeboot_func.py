@@ -34,6 +34,12 @@ from ._pxeboot_helpers import (
     runtime_result,
     ssh_probe,
 )
+from .boot_image_identity_provision_func import (
+    _build_status_path,
+    _match_build_entry,
+    _parse_build_status_images,
+)
+from ._prepare_helpers import read_yaml_mapping
 
 
 def check_node_ping(host):
@@ -284,33 +290,79 @@ def _parse_os_release(output: str) -> tuple[str, str]:
     return os_id, version_id
 
 
-def check_node_os_version(host):
-    """Verify each node's live OS identity matches its functional group.
+def _resolve_expected_os(
+    fg_name: str,
+    build_entries: list[dict[str, str]] | None,
+) -> tuple[str | None, str | None, str | None]:
+    """Resolve OS identity for a functional group.
 
-    When the functional group name does not encode the OS version (e.g.
-    ``slurm_node_x86_64`` instead of ``slurm_node_rhel_10_0_x86_64``),
-    the test still probes the node and reports the detected OS.  If **no**
-    mapped node carries an OS version in its functional group name the
-    entire check is skipped with ``pytest.skip`` so it does not silently
-    pass.
+    First tries the FG name itself.  If the FG name has no OS segment
+    (e.g. ``slurm_node_x86_64``), falls back to the matched
+    ``build_status.yml`` entry which carries the full versioned name
+    (e.g. ``slurm_node_rhel_10_0_x86_64``).
+
+    Returns ``(matched_source_name, os_id, os_version)`` or
+    ``(None, None, None)`` when resolution fails.
+    """
+    _arch, os_id, os_ver = parse_fg_identity(fg_name)
+    if os_id and os_ver:
+        return fg_name, os_id, os_ver
+    if build_entries is not None:
+        matched = _match_build_entry(fg_name, build_entries)
+        if matched:
+            _arch2, os_id2, os_ver2 = parse_fg_identity(matched["group"])
+            if os_id2 and os_ver2:
+                return matched["group"], os_id2, os_ver2
+    return None, None, None
+
+
+def check_node_os_version(host):
+    """Verify each node's live OS identity matches the expected image.
+
+    The expected OS is resolved from ``build_status.yml`` — the PXE
+    mapping functional group name (e.g. ``slurm_node_x86_64``) is
+    matched to the corresponding build entry
+    (e.g. ``slurm_node_rhel_10_0_x86_64``) using the same prefix +
+    architecture matching used by the Orchestrator's ``validate_image.yml``.
+
+    The live node's ``/etc/os-release`` is then compared against the
+    OS identity extracted from the matched build entry.
     """
     summary = "Node OS version identity"
     try:
         context = load_runtime_context(host)
         rows = context["rows"]
 
-        # Pre-scan: determine whether any FG carries an OS version.
-        verifiable_count = sum(
-            1 for row in rows
-            if parse_fg_identity(
-                row.get("EXPECTED_FUNCTIONAL_GROUP", "")
-            )[1] is not None
-        )
-        if verifiable_count == 0:
+        # Load build_status.yml to resolve OS from image entries.
+        build_entries: list[dict[str, str]] | None = None
+        build_source = ""
+        try:
+            build_path = _build_status_path(host)
+            build_status = read_yaml_mapping(host, build_path)
+            if build_status.get("overall_status") == "success":
+                build_entries, _arch_map = _parse_build_status_images(
+                    build_status
+                )
+                build_source = build_path
+        except (OSError, TypeError, ValueError):
+            pass
+
+        # Pre-scan: can we resolve OS for any node?
+        resolvable = 0
+        for row in rows:
+            fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
+            _src, os_id, _ver = _resolve_expected_os(fg, build_entries)
+            if os_id:
+                resolvable += 1
+        if resolvable == 0:
             return runtime_result(
                 True,
                 summary,
-                [("Reason", "No functional group encodes an OS version")],
+                [
+                    ("Reason",
+                     "Cannot resolve expected OS version from "
+                     "build_status.yml or functional group names"),
+                ],
                 "",
                 skipped=True,
             )
@@ -318,44 +370,42 @@ def check_node_os_version(host):
         outcomes: dict[str, tuple[bool, str]] = {}
         for row in rows:
             fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
-            _arch, expected_os, expected_version = parse_fg_identity(fg)
+            source_name, expected_os, expected_version = (
+                _resolve_expected_os(fg, build_entries)
+            )
 
-            # Probe the live node regardless of whether we can verify.
+            # Probe the live node.
             result_cmd = remote_command(
                 host, row, PXEBOOT_COMMANDS["os_release"]
             )
             if result_cmd.rc != 0:
-                if expected_os:
-                    outcomes[row["HOSTNAME"]] = (
-                        False,
-                        "os-release probe failed "
-                        "(SSH unreachable or command error)",
-                    )
-                else:
-                    outcomes[row["HOSTNAME"]] = (
-                        True,
-                        "os-release probe failed (not verifiable, "
-                        f"no OS in '{fg}')",
-                    )
+                outcomes[row["HOSTNAME"]] = (
+                    False if expected_os else True,
+                    "os-release probe failed "
+                    "(SSH unreachable or command error)",
+                )
                 continue
 
             actual_os, actual_version = _parse_os_release(result_cmd.stdout)
 
             if not expected_os or not expected_version:
-                # FG has no OS — report what the node is running.
                 outcomes[row["HOSTNAME"]] = (
                     True,
                     f"{actual_os} {actual_version} (detected, "
-                    f"FG '{fg}' has no OS version to verify)",
+                    "no OS resolution available)",
                 )
                 continue
 
             os_ok = actual_os == expected_os.lower()
             version_ok = actual_version == expected_version
+            source_label = (
+                f" via {source_name}" if source_name != fg else ""
+            )
             if os_ok and version_ok:
                 outcomes[row["HOSTNAME"]] = (
                     True,
-                    f"{actual_os} {actual_version} (matched)",
+                    f"{actual_os} {actual_version} "
+                    f"(matched{source_label})",
                 )
             else:
                 parts = []
@@ -370,7 +420,8 @@ def check_node_os_version(host):
                         f"actual={actual_version or 'unknown'}"
                     )
                 outcomes[row["HOSTNAME"]] = (
-                    False, "MISMATCH: " + "; ".join(parts)
+                    False,
+                    f"MISMATCH{source_label}: " + "; ".join(parts),
                 )
 
         failed = [
@@ -378,8 +429,10 @@ def check_node_os_version(host):
         ]
         fields: list[tuple[str, object]] = [
             ("Mapped nodes", len(rows)),
-            ("Verifiable (OS in FG name)", verifiable_count),
+            ("Verifiable (OS resolved)", resolvable),
         ]
+        if build_source:
+            fields.append(("OS source", build_source))
         fields.extend(group_fields(rows, outcomes))
         return runtime_result(
             not failed,
