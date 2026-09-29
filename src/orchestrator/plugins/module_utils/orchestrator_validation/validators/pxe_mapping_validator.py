@@ -48,6 +48,19 @@ CANONICAL_HEADERS = (
     "IB_IPV4",
     "IB_IPV6",
 )
+LEGACY_HEADERS = (
+    "FUNCTIONAL_GROUP_NAME",
+    "GROUP_NAME",
+    "SERVICE_TAG",
+    "PARENT_SERVICE_TAG",
+    "HOSTNAME",
+    "ADMIN_MAC",
+    "ADMIN_IP",
+    "BMC_MAC",
+    "BMC_IP",
+    "IB_NIC_NAME",
+    "IB_IP",
+)
 REQUIRED_VALUE_FIELDS = (
     "FUNCTIONAL_GROUP_NAME",
     "GROUP_NAME",
@@ -648,7 +661,14 @@ def validate(
         record_error(errors, logger, msg.pxe_mapping_empty_msg(path))
         return errors
 
-    if raw_header != list(CANONICAL_HEADERS):
+    if raw_header == list(LEGACY_HEADERS):
+        raw_header = list(CANONICAL_HEADERS)
+        header = list(CANONICAL_HEADERS)
+        raw_rows = [
+            (row_number, row + [""])
+            for row_number, row in raw_rows
+        ]
+    elif raw_header != list(CANONICAL_HEADERS):
         record_error(
             errors,
             logger,

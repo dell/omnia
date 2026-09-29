@@ -232,7 +232,8 @@ def pxe_mapping_header_contract_msg(
     """Return an exact PXE mapping header-contract error message."""
     return (
         f"orchestrator_config: Mapping file '{path}' has header {actual}; "
-        f"expected exactly {expected}. Preserve all columns in this order, "
+        f"expected {expected} (or legacy 11-column format with IB_IP). "
+        "Preserve all columns in this order, "
         "including IB_NIC_NAME and IB_IPV4."
     )
 

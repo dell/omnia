@@ -46,9 +46,9 @@
     admin_nic: "{{ network_data.admin_network.oim_nic_name }}"
     admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
     ib_network_ipv4_subnet: >-
-      {{ network_data.ib_network.ipv4_subnet | default('') }}
+      {{ network_data.ib_network.ipv4_subnet | default(network_data.ib_network.subnet | default('')) }}
     ib_network_ipv4_netmask_bits: >-
-      {{ network_data.ib_network.ipv4_netmask_bits | default('') }}
+      {{ network_data.ib_network.ipv4_netmask_bits | default(network_data.ib_network.netmask_bits | default('')) }}
     ib_network_ipv6_subnet: >-
       {{ network_data.ib_network.ipv6_subnet | default('') }}
     ib_network_ipv6_netmask_bits: >-
