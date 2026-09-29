@@ -22,7 +22,6 @@
 #   - Scales down karavi-metrics-powerscale deployment to 0 replicas
 #   - Scales down otel-collector deployment to 0 replicas
 #   - Scales down csi-volume-exporter deployment to 0 replicas
-#   - Deletes VMServiceScrape for OTEL Collector (if exists) to prevent vmagent scrape errors
 #
 # WHAT THIS PRESERVES (for re-enablement):
 #   - PVCs (otel-collector-data)
@@ -106,14 +105,14 @@
 
 - name: Check if csi-volume-exporter deployment exists
   ansible.builtin.command: >
-    kubectl get deployment csi-volume-exporter -n {{ ps_namespace }} -o name
+    kubectl get deployment {{ csi_volume_exporter.app_name }} -n {{ ps_namespace }} -o name
   register: csi_exporter_check
   changed_when: false
   failed_when: false
 
 - name: Scale down csi-volume-exporter deployment
   ansible.builtin.command: >
-    kubectl scale deployment csi-volume-exporter -n {{ ps_namespace }} --replicas=0
+    kubectl scale deployment {{ csi_volume_exporter.app_name }} -n {{ ps_namespace }} --replicas=0
   register: csi_scale_result
   changed_when: "'scaled' in csi_scale_result.stdout or csi_scale_result.rc == 0"
   when: csi_exporter_check.rc == 0
