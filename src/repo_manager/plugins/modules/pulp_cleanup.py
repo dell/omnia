@@ -848,6 +848,27 @@ def _cleanup_uploaded_repository(plugin: str, repository_name: str,
     return ok, messages, changed
 
 
+def _rpm_remote_names_for_cleanup(repository_name: str, logger):
+    """Return only remotes owned by one RPM repository."""
+    _arch, _os_type, _os_version, logical_name = rpm_repository_context(
+        repository_name
+    )
+    if logical_name != config.AGGREGATED_REPO_SUFFIX:
+        return [repository_name]
+
+    remotes = _list_pulp_objects(
+        "rpm", "remote", logger, fields=["name"]
+    )
+    if remotes is None:
+        return None
+    source_prefix = f"{repository_name}-source-"
+    return sorted(
+        remote["name"] for remote in remotes
+        if remote.get("name") == repository_name
+        or str(remote.get("name") or "").startswith(source_prefix)
+    )
+
+
 def cleanup_repository(name: str, base_path: str, repo_store_path: str,
                        logger) -> Dict[str, Any]:
     """Cleanup a single RPM repository."""
@@ -864,6 +885,10 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
         repository_present = repo_exists(name, logger)
         if repository_present is None:
             result["message"] = "Unable to query RPM repository; Pulp may be unavailable"
+            return result
+        remote_names = _rpm_remote_names_for_cleanup(name, logger)
+        if remote_names is None:
+            result["message"] = "Unable to enumerate owned RPM remotes"
             return result
 
         messages = []
@@ -892,15 +917,16 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
         else:
             messages.append("repository already absent")
 
-        ok, message, object_changed = _delete_named_object(
-            "rpm", "remote", name, logger, required=False
-        )
-        result["changed"] = result["changed"] or object_changed
-        result["pulp_changed"] = result["pulp_changed"] or object_changed
-        messages.append(message)
-        if not ok:
-            result["message"] = "; ".join(messages)
-            return result
+        for remote_name in remote_names:
+            ok, message, object_changed = _delete_named_object(
+                "rpm", "remote", remote_name, logger, required=False
+            )
+            result["changed"] = result["changed"] or object_changed
+            result["pulp_changed"] = result["pulp_changed"] or object_changed
+            messages.append(message)
+            if not ok:
+                result["message"] = "; ".join(messages)
+                return result
 
         ok, message, object_changed = _delete_named_object(
             "rpm", "repository", name, logger

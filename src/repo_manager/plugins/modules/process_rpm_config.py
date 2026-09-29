@@ -26,6 +26,7 @@ This module handles:
 
 
 # pylint: disable=import-error,no-name-in-module,too-many-lines,too-many-branches,too-many-statements,too-many-locals,too-many-return-statements,too-many-arguments,too-many-positional-arguments
+import configparser
 import json
 import multiprocessing
 import os
@@ -72,6 +73,7 @@ from ansible.module_utils.repo_manager.config import (
     MIRROR_INDEX_FILENAME,
 )
 from ansible.module_utils.repo_manager.pulp_commands import (
+    build_rpm_remote_command,
     build_rpm_publication_list_command,
     build_rpm_repository_version_list_command,
     build_pulp_task_list_command,
@@ -2086,6 +2088,57 @@ def build_repo_priority_map(rpm_config):
     return priorities
 
 
+def build_complete_repo_priority_map(
+        rpm_config, repo_file_path, cluster_os_type, cluster_os_version,
+        architectures, log, extra_priorities=None):
+    """Return priorities for the active context plus earlier contexts.
+
+    The sequential catalog flow rewrites one shared ``pulp.repo`` after every
+    OS-version context. Preserve validated priorities belonging to other
+    contexts so a later context cannot silently remove an earlier context's
+    settings. Priorities for the active context always come from the current
+    input, which also makes removing or changing one take effect immediately.
+    """
+    current_priorities = build_repo_priority_map(rpm_config)
+    current_priorities.update(extra_priorities or {})
+    active_prefixes = tuple(
+        f"{arch}_{cluster_os_type}_{cluster_os_version}_"
+        for arch in (architectures or [])
+    )
+    preserved_priorities = {}
+
+    if repo_file_path and os.path.isfile(repo_file_path):
+        parser = configparser.ConfigParser(
+            interpolation=None, strict=False
+        )
+        try:
+            with open(repo_file_path, "r", encoding="utf-8") as repo_file:
+                parser.read_file(repo_file)
+            for section in parser.sections():
+                repo_name = validate_repository_id(section)
+                if active_prefixes and repo_name.startswith(active_prefixes):
+                    continue
+                if not parser.has_option(section, "priority"):
+                    continue
+                priority = parser.getint(section, "priority")
+                if 1 <= priority <= 100:
+                    preserved_priorities[repo_name] = priority
+                else:
+                    log.warning(
+                        "Ignoring out-of-range DNF priority for repository %s",
+                        repo_name,
+                    )
+        except (OSError, configparser.Error, ValueError) as error:
+            log.warning(
+                "Unable to preserve priorities from the existing DNF file "
+                "(%s); current context priorities will still be applied",
+                type(error).__name__,
+            )
+
+    preserved_priorities.update(current_priorities)
+    return preserved_priorities
+
+
 def create_yum_repo_file(
         distributions, log, sslcacert=None, repo_priorities=None,
         pulp_base_url=None, repo_file_path=None):
@@ -2627,6 +2680,120 @@ def _resolve_aggregated_remote_policy(repo_entry):
     return validate_pulp_policy(resolved_policy)
 
 
+def _selected_additional_architectures(additional_repos_config,
+                                       selected_architectures):
+    """Return configured architectures in stable execution order."""
+    configured = set((additional_repos_config or {}).keys())
+    requested = list(selected_architectures or [])
+    if requested:
+        return [arch for arch in requested if arch in configured]
+    ordered = [arch for arch in ARCH_SUFFIXES if arch in configured]
+    return ordered + sorted(configured - set(ordered))
+
+
+def validate_additional_repo_contract(
+        additional_repos_config, selected_architectures, rpm_config,
+        cluster_os_type, cluster_os_version):
+    """Validate one aggregate's policy, priority and source identity contract.
+
+    This check runs before any Pulp mutation so a conflicting aggregate cannot
+    partially change repository state.
+    """
+    active_architectures = []
+    aggregate_priorities = {}
+    configured_repository_names = {
+        _configured_repository_name(repo) for repo in rpm_config
+    }
+
+    for arch in _selected_additional_architectures(
+            additional_repos_config, selected_architectures):
+        repos = (additional_repos_config or {}).get(arch) or []
+        if not repos:
+            continue
+        if not isinstance(repos, list):
+            raise ValueError(
+                f"additional_repos_config.{arch} must be a list"
+            )
+
+        aggregate_name = validate_repository_id(build_repo_name(
+            arch, cluster_os_type, cluster_os_version,
+            AGGREGATED_REPO_SUFFIX,
+        ))
+        if aggregate_name in configured_repository_names:
+            raise ValueError(
+                f"Repository name '{aggregate_name}' is reserved for "
+                "additional_repos"
+            )
+
+        effective_policies = set()
+        effective_priorities = set()
+        source_names = set()
+        for repo_entry in repos:
+            if not isinstance(repo_entry, dict):
+                raise ValueError(
+                    f"additional_repos_config.{arch} entries must be mappings"
+                )
+            source_name = validate_repository_id(
+                repo_entry.get("original_name") or repo_entry.get("name")
+            )
+            if source_name in source_names:
+                raise ValueError(
+                    f"Duplicate additional repository source '{source_name}' "
+                    f"for architecture '{arch}'"
+                )
+            source_names.add(source_name)
+            validate_repository_url(repo_entry.get("url"))
+            effective_policies.add(
+                _resolve_aggregated_remote_policy(repo_entry)
+            )
+
+            priority = repo_entry.get("priority")
+            if priority is None:
+                priority = 99
+            if (isinstance(priority, bool) or not isinstance(priority, int)
+                    or priority < 1 or priority > 100):
+                raise ValueError(
+                    f"Additional repository '{source_name}' priority must be "
+                    "an integer from 1 through 100"
+                )
+            effective_priorities.add(priority)
+
+            client_cert = (
+                repo_entry.get("sslclientcert")
+                or repo_entry.get("client_cert")
+            )
+            client_key = (
+                repo_entry.get("sslclientkey")
+                or repo_entry.get("client_key")
+            )
+            if bool(client_cert) != bool(client_key):
+                raise ValueError(
+                    f"Additional repository '{source_name}' must configure "
+                    "sslclientcert and sslclientkey together"
+                )
+
+        if len(effective_policies) != 1:
+            raise ValueError(
+                f"Additional repositories for '{arch}' must use one effective "
+                "Pulp policy; found " + ", ".join(sorted(effective_policies))
+            )
+        if len(effective_priorities) != 1:
+            raise ValueError(
+                f"Additional repositories for '{arch}' must use one effective "
+                "DNF priority; found "
+                + ", ".join(
+                    str(value) for value in sorted(effective_priorities)
+                )
+            )
+
+        active_architectures.append(arch)
+        aggregate_priorities[aggregate_name] = next(
+            iter(effective_priorities)
+        )
+
+    return active_architectures, aggregate_priorities
+
+
 def create_aggregated_remote(repo_entry, repo_name, log):
     """
     Create or update a remote for an additional repo entry.
@@ -2640,37 +2807,38 @@ def create_aggregated_remote(repo_entry, repo_name, log):
         tuple: (success, remote_name)
     """
     repo_name = validate_repository_id(repo_name)
-    name = validate_repository_id(repo_entry["name"])
+    name = validate_repository_id(
+        repo_entry.get("original_name") or repo_entry["name"]
+    )
     url = validate_repository_url(repo_entry["url"])
     policy = _resolve_aggregated_remote_policy(repo_entry)
-    remote_name = validate_repository_id(f"{repo_name}-{name}")
+    remote_name = validate_repository_id(f"{repo_name}-source-{name}")
 
     log.info("Creating or updating aggregated remote '%s'.", remote_name)
 
-    ca_cert = repo_entry.get("ca_cert", "")
-    client_key = repo_entry.get("client_key", "")
-    client_cert = repo_entry.get("client_cert", "")
+    ca_cert = repo_entry.get("sslcacert") or repo_entry.get("ca_cert", "")
+    client_key = (
+        repo_entry.get("sslclientkey") or repo_entry.get("client_key", "")
+    )
+    client_cert = (
+        repo_entry.get("sslclientcert") or repo_entry.get("client_cert", "")
+    )
 
     remote_exists = show_rpm_remote(remote_name, log)
     if remote_exists is None:
         log.error("Unable to determine remote state: %s", remote_name)
         return False, remote_name
 
-    if ca_cert and client_key and client_cert:
-        ca_cert_arg = f"@{ca_cert}"
-        client_cert_arg = f"@{client_cert}"
-        client_key_arg = f"@{client_key}"
-
-        action = "create" if not remote_exists else "update"
-        command = pulp_rpm_commands[f"{action}_remote_cert"] % (
-            remote_name, url, policy,
-            ca_cert_arg, client_cert_arg, client_key_arg,
-        )
-    else:
-        action = "create" if not remote_exists else "update"
-        command = pulp_rpm_commands[f"{action}_remote"] % (
-            remote_name, url, policy,
-        )
+    action = "create" if not remote_exists else "update"
+    command = build_rpm_remote_command(
+        action,
+        name=remote_name,
+        url=url,
+        policy=policy,
+        ca_cert=f"@{ca_cert}" if ca_cert else None,
+        client_cert=f"@{client_cert}" if client_cert else None,
+        client_key=f"@{client_key}" if client_key else None,
+    )
 
     result = execute_command(command, log)
     if not result:
@@ -2906,13 +3074,6 @@ def manage_aggregated_repos(
             sync_failures = []
 
             for repo_entry in repos:
-                # Ensure repo name is normalized
-                repo_name_entry = repo_entry["name"]
-                expected_prefix = f"{arch}_{cluster_os_type}_{cluster_os_version}_"
-                if not repo_name_entry.startswith(expected_prefix):
-                    repo_name_entry = normalize_repo_name(repo_name_entry, arch, cluster_os_type, cluster_os_version)
-                    repo_entry["name"] = repo_name_entry  # Update the entry
-
                 # Create remote
                 log.info(f"Step 2: Creating remote for '{repo_entry['name']}'")
                 success, remote_name = create_aggregated_remote(repo_entry, repo_name, log)
@@ -3659,7 +3820,8 @@ def manage_rpm_repositories_multiprocess(
         thread_pool_size=RPM_THREAD_POOL_SIZE,
         pulp_base_url=None,
         repo_file_path=None,
-        mirror_index_path=None):
+        mirror_index_path=None,
+        write_repo_file=True):
     """
     Manage RPM repositories using multiprocessing.
 
@@ -3678,6 +3840,8 @@ def manage_rpm_repositories_multiprocess(
         pulp_base_url (str): Trusted public Pulp HTTPS origin.
         repo_file_path (str): Destination path for the generated DNF file.
         mirror_index_path (str): Per-version mirror state used for sync recovery.
+        write_repo_file (bool): Write the DNF file after regular repositories.
+            Aggregate callers defer this until all additional sources succeed.
     Returns:
         tuple: (bool, str) indicating success and a message
     """
@@ -3726,17 +3890,25 @@ def manage_rpm_repositories_multiprocess(
                 "Repositories required by this context are incomplete: "
                 + ", ".join(readiness_failures)
             )
-        base_urls = get_base_urls(log, pulp_base_url)
-        if not base_urls:
-            return False, "Base URLs fetch failed — repo file not created."
-        if not create_yum_repo_file(
-                base_urls, log,
-                repo_priorities=build_repo_priority_map(rpm_config),
-                pulp_base_url=pulp_base_url,
-                repo_file_path=repo_file_path):
-            return False, (
-                "Failed to atomically create the DNF repository file"
-            )
+        if write_repo_file:
+            base_urls = get_base_urls(log, pulp_base_url)
+            if not base_urls:
+                return False, "Base URLs fetch failed — repo file not created."
+            if not create_yum_repo_file(
+                    base_urls, log,
+                    repo_priorities=build_complete_repo_priority_map(
+                        rpm_config,
+                        repo_file_path,
+                        cluster_os_type,
+                        cluster_os_version,
+                        sw_archs,
+                        log,
+                    ),
+                    pulp_base_url=pulp_base_url,
+                    repo_file_path=repo_file_path):
+                return False, (
+                    "Failed to atomically create the DNF repository file"
+                )
         return True, "No targeted repositories for this execution context"
 
     # Validate resync_repos contains valid repository names
@@ -3947,22 +4119,32 @@ def manage_rpm_repositories_multiprocess(
     # This handles the scenario where omnia_core upgrade deletes pulp.repo
     # and local_repo.yml runs again with already-synced repos.
     # Distributions must exist before we can fetch base_urls.
-    log.info("Step 6: Ensuring pulp.repo file exists")
-    base_urls = get_base_urls(log, pulp_base_url)
-    if not base_urls:
-        log.error("No base URLs retrieved from Pulp. Cannot create repo file.")
-        return False, "Base URLs fetch failed — repo file not created."
+    if write_repo_file:
+        log.info("Step 6: Ensuring pulp.repo file exists")
+        base_urls = get_base_urls(log, pulp_base_url)
+        if not base_urls:
+            log.error("No base URLs retrieved from Pulp. Cannot create repo file.")
+            return False, "Base URLs fetch failed — repo file not created."
 
-    log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
-    repo_file_created = create_yum_repo_file(
-        base_urls, log,
-        repo_priorities=build_repo_priority_map(rpm_config),
-        pulp_base_url=pulp_base_url,
-        repo_file_path=repo_file_path,
-    )
-    if not repo_file_created:
-        return False, "Failed to atomically create the DNF repository file"
-    log.info("Successfully created/updated pulp.repo file with fetched base URLs.")
+        log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
+        repo_file_created = create_yum_repo_file(
+            base_urls, log,
+            repo_priorities=build_complete_repo_priority_map(
+                rpm_config,
+                repo_file_path,
+                cluster_os_type,
+                cluster_os_version,
+                sw_archs,
+                log,
+            ),
+            pulp_base_url=pulp_base_url,
+            repo_file_path=repo_file_path,
+        )
+        if not repo_file_created:
+            return False, "Failed to atomically create the DNF repository file"
+        log.info(
+            "Successfully created/updated pulp.repo file with fetched base URLs."
+        )
 
     if not _persist_repository_checkpoints(
             mirror_index_path,
@@ -3975,6 +4157,42 @@ def manage_rpm_repositories_multiprocess(
     _log_summary(log, sync_results, all_failures, total_start_time)
 
     return True, "All repositories processed successfully"
+
+
+def write_complete_repo_file(
+        rpm_config, aggregate_priorities, active_additional_architectures,
+        cluster_os_type, cluster_os_version, pulp_base_url, repo_file_path,
+        log):
+    """Atomically publish DNF configuration after aggregate success."""
+    distributions = get_base_urls(log, pulp_base_url)
+    if not distributions:
+        return False, "Base URLs fetch failed — repo file not created."
+
+    legacy_names = {
+        build_repo_name(
+            arch, cluster_os_type, cluster_os_version,
+            "repo_manager-additional",
+        )
+        for arch in active_additional_architectures
+    }
+    distributions = [
+        distribution for distribution in distributions
+        if distribution.get("name") not in legacy_names
+    ]
+    priorities = build_complete_repo_priority_map(
+        rpm_config,
+        repo_file_path,
+        cluster_os_type,
+        cluster_os_version,
+        active_additional_architectures,
+        log,
+        extra_priorities=aggregate_priorities,
+    )
+    if not create_yum_repo_file(
+            distributions, log, repo_priorities=priorities,
+            pulp_base_url=pulp_base_url, repo_file_path=repo_file_path):
+        return False, "Failed to atomically create the DNF repository file"
+    return True, "DNF repository file includes additional repositories"
 
 
 def main():
@@ -4115,6 +4333,22 @@ def main():
                 rpm_config.append(user_repo_entry)
                 log.info(f"Added user repo: {original_name} -> {normalized_name} for arch {arch} with policy: {resolved_policy}")
 
+    try:
+        active_additional_architectures, aggregate_priorities = (
+            validate_additional_repo_contract(
+                additional_repos_config,
+                sw_archs,
+                rpm_config,
+                cluster_os_type,
+                cluster_os_version,
+            )
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        module.fail_json(
+            changed=False,
+            msg=f"Invalid additional_repos configuration: {error}",
+        )
+
     if exact_mirror:
         aggregated_repositories = [
             repo
@@ -4212,21 +4446,38 @@ def main():
         pulp_base_url=pulp_base_url,
         repo_file_path=repo_file_path,
         mirror_index_path=mirror_index_path,
+        write_repo_file=not bool(active_additional_architectures),
     )
 
     if result is False:
         module.fail_json(msg=f"Error {output}, check {standard_log_path}")
 
-    # Handle aggregated repos if additional_repos_config is provided
-    if additional_repos_config:
+    # Handle only non-empty aggregate definitions. Missing or empty
+    # additional_repos remains a complete no-op.
+    if active_additional_architectures:
         log.info("Processing additional_repos aggregated repositories")
         result, output = manage_aggregated_repos(
             additional_repos_config, log, cluster_os_type,
-            cluster_os_version, sw_archs or []
+            cluster_os_version, active_additional_architectures
         )
         if result is False:
             module.fail_json(msg=f"Error in aggregated repos: {output}, check {standard_log_path}")
         log.info("Successfully processed additional_repos aggregated repositories")
+
+        result, output = write_complete_repo_file(
+            rpm_config,
+            aggregate_priorities,
+            active_additional_architectures,
+            cluster_os_type,
+            cluster_os_version,
+            pulp_base_url,
+            repo_file_path,
+            log,
+        )
+        if result is False:
+            module.fail_json(
+                msg=f"Error {output}, check {standard_log_path}"
+            )
 
     module.exit_json(changed=True, result=output)
 

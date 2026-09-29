@@ -154,6 +154,31 @@ def build_rpm_repository_version_list_command(
     ]
 
 
+def build_rpm_remote_command(action, *, name, url, policy, ca_cert=None,
+                             client_cert=None, client_key=None):
+    """Build an RPM remote mutation with optional TLS material."""
+    if action not in {"create", "update"}:
+        raise ValueError(f"Unsupported RPM remote action: {action}")
+    if bool(client_cert) != bool(client_key):
+        raise ValueError(
+            "RPM remote client certificate and key must be configured together"
+        )
+
+    command = [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "remote", action,
+        "--name", str(name),
+        "--url", str(url),
+        "--policy", str(policy),
+    ]
+    if ca_cert:
+        command.extend(["--ca-cert", str(ca_cert)])
+    if client_cert:
+        command.extend(["--client-cert", str(client_cert)])
+        command.extend(["--client-key", str(client_key)])
+    return command
+
+
 def build_container_tags_href(repository_version, tag=None):
     """Return the Pulp API href used to query container tag content."""
     href = (

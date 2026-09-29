@@ -723,8 +723,9 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
         os_version (str): OS version key.
         logger: Logger instance.
         global_caching_policy (bool): Global caching policy from config (default: True).
-        referenced_repo_names (iterable): Optional catalog-selected repository
-            names. Repositories outside this set are ignored before URL parsing.
+        referenced_repo_names (iterable): Retained for caller compatibility.
+            Additional repositories are intentionally independent of catalog
+            repository mappings, so this value is ignored.
 
     Returns:
         list[dict]: List of additional repo entries.
@@ -733,17 +734,13 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
     version_repos = repositories.get(os_version, {})
     arch_repos = version_repos.get(arch, {})
     additional = arch_repos.get("additional_repos", {})
-    referenced_repos = (
-        set(referenced_repo_names) if referenced_repo_names is not None else None
-    )
+    del os_type, referenced_repo_names
 
     if not additional or not isinstance(additional, dict):
         return []
 
     parsed = []
     for repo_name, repo_def in additional.items():
-        if referenced_repos is not None and repo_name not in referenced_repos:
-            continue
         if not isinstance(repo_def, dict):
             continue
         url = repo_def.get("url", "")
@@ -751,14 +748,11 @@ def parse_additional_repos_from_config(config_data, repo_config_policy, arch,
             continue
         url = validate_repository_url(url)
 
-        # Normalize repo name to standard format
-        normalized_name = normalize_repo_name(
-            repo_name, arch, os_type or DEFAULT_OS_TYPE, os_version
-        )
-
         parsed.append({
-            "name": normalized_name,
-            "original_name": repo_name,  # Keep original for reference
+            # Source names remain logical names. The aggregate repository owns
+            # the standard context-qualified Pulp name.
+            "name": repo_name,
+            "original_name": repo_name,
             "url": url,
             "gpgkey": repo_def.get("gpgkey", ""),
             "policy": repo_def.get("policy", repo_config_policy),
