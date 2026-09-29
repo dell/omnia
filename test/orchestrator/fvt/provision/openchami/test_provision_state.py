@@ -18,6 +18,8 @@ import pytest
 from library.functions import (
     TestLogger,
     check_boot_configurations,
+    check_boot_image_architecture,
+    check_boot_image_identity,
     check_boot_nodes,
     check_metadata_groups,
     check_metadata_instances,
@@ -112,3 +114,15 @@ def test_metadata_service_instances(host):
 def test_coredhcp_and_coredns_inventory(host):
     """Verify the SMD identity records consumed by CoreDHCP/CoreDNS."""
     _run_check(host, "network_inventory", check_network_inventory)
+
+
+@pytest.mark.order(109)
+def test_boot_image_identity(host):
+    """Verify Boot Service kernel/initrd paths match build_status.yml."""
+    _run_check(host, "boot_image_identity", check_boot_image_identity)
+
+
+@pytest.mark.order(110)
+def test_boot_image_architecture(host):
+    """Verify build_status.yml architecture keys match functional group names."""
+    _run_check(host, "boot_image_architecture", check_boot_image_architecture)

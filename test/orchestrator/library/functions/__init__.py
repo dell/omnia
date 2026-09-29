@@ -58,6 +58,10 @@ from .apptainer_runtime_pxeboot_func import (
     check_apptainer_sif_integrity,
     check_apptainer_sif_permissions,
 )
+from .boot_image_identity_provision_func import (
+    check_boot_image_architecture,
+    check_boot_image_identity,
+)
 from .boot_service_provision_func import check_boot_configurations, check_boot_nodes
 from .cleanup_func import (
     check_cleanup_artifacts,
@@ -129,8 +133,10 @@ from .precheck_func import (
 )
 from .provision_status_func import check_provision_reports
 from .pxeboot_func import (
+    check_node_architecture,
     check_node_cloud_init,
     check_node_hostname_ssh,
+    check_node_os_version,
     check_node_ping,
     check_node_ssh,
 )
@@ -232,6 +238,8 @@ __all__ = [
     "check_apptainer_single_node_job",
     "check_apptainer_slurm_environment",
     "check_boot_configurations",
+    "check_boot_image_architecture",
+    "check_boot_image_identity",
     "check_boot_nodes",
     "check_clean_baseline",
     "check_cleanup_artifacts",
@@ -267,8 +275,10 @@ __all__ = [
     "check_metadata_groups",
     "check_metadata_instances",
     "check_network_inventory",
+    "check_node_architecture",
     "check_node_cloud_init",
     "check_node_hostname_ssh",
+    "check_node_os_version",
     "check_node_ping",
     "check_node_ssh",
     "check_precheck_admin_ipv4",
