@@ -36,7 +36,8 @@ cd src/orchestrator/playbooks
 ansible-playbook orchestrator.yml --tags validate
 ```
 
-The file requires the exact 11-column header documented in the input contract.
+The file requires the 12-column header documented in the input contract (the
+legacy 11-column format with `IB_IP` is also accepted).
 Service Tags, admin/BMC MAC addresses, and admin/BMC IP addresses must be
 populated and unique. Do not add an XNAME column.
 
@@ -244,6 +245,128 @@ ansible-playbook orchestrator.yml --tags cleanup \
 
 The standalone `domain-init.sh --cleanup` helper removes staged input/log paths;
 it does not replace component cleanup.
+
+### 16. InfiniBand IPv6 address not configured (DEGRADED_IPV6)
+
+After provisioning, the IB interface has an IPv4 address but no IPv6 address
+despite `IB_IPV6` being set in the PXE mapping file.
+
+**Possible causes:**
+
+- `ipv6_subnet` and `ipv6_netmask_bits` are not configured in `network_spec.yml`
+- The cloud-init IB configuration script exited before reaching IPv6 setup
+- NetworkManager failed to apply the IPv6 address
+
+**Resolution:**
+
+```bash
+# On the affected node, check if IPv6 is configured
+ip -6 addr show ib0
+
+# Check cloud-init logs for IB configuration errors
+journalctl -u cloud-init --no-pager | grep -i "ipv6\|IB_IPV6\|DEGRADED"
+
+# Verify network_spec.yml on the OIM
+cat "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/network_spec.yml" | grep -A2 ib_network
+
+# Re-provision the node (idempotent)
+cd src/orchestrator/playbooks
+ansible-playbook orchestrator.yml --tags provision
+```
+
+---
+
+### 17. IPv6 Duplicate Address Detection (DAD) failure
+
+A node's IPv6 address shows `dadfailed` state, indicating another device on the
+IB fabric has the same address.
+
+```bash
+# Check for dadfailed addresses
+ip -6 addr show dev ib0 | grep dadfailed
+```
+
+**Resolution:**
+
+1. Identify the duplicate: search the PXE mapping file for the conflicting
+   `IB_IPV6` value.
+2. Verify uniqueness: the orchestrator validator rejects duplicate `IB_IPV6`
+   values. If the CSV passed validation, the conflict is from an external
+   device.
+3. Clear the DAD failure and reassign:
+
+```bash
+# On the affected node
+ip -6 addr del <address>/<prefix> dev ib0
+ip -6 addr add <address>/<prefix> dev ib0
+```
+
+4. If the conflict persists, check for other hosts outside Omnia management
+   that may be using the same IPv6 address on the IB fabric.
+
+---
+
+### 18. IB device not found or wrong interface selected
+
+The cloud-init IB configuration script cannot map the `IB_NIC_NAME` slot number
+to an mlx5 device.
+
+```text
+ERROR: Could not resolve PCI address for slot 7
+```
+
+**Resolution:**
+
+```bash
+# On the affected node, list available IB devices
+ibstat
+ibdev2netdev
+
+# Check PCI slot mapping
+dmidecode -t slot | grep -A2 "Slot 7"
+
+# Verify the IB_NIC_NAME in the PXE mapping matches the actual hardware
+# The slot number must match the physical PCIe slot
+lspci | grep -i mellanox
+```
+
+See [hardware-identity-mapping.md](hardware-identity-mapping.md) for the
+slot-to-PCI device resolution algorithm.
+
+---
+
+### 19. InfiniBand link layer is Ethernet (RoCE), not InfiniBand
+
+The cloud-init script filters mlx5 devices by link layer. Devices reporting
+`Link layer: Ethernet` (RoCE mode) are excluded from IB configuration.
+
+```text
+ERROR: ibstat filtering found no InfiniBand-capable mlx5 devices
+```
+
+**Resolution:**
+
+- Confirm the adapter firmware is configured for InfiniBand mode, not Ethernet
+- Check `ibstat` output on the node for `Link layer:` values
+- ConnectX-6 Dx adapters are Ethernet-only and cannot be used for IPoIB
+
+---
+
+### 20. Legacy PXE mapping file (IB_IP header) not recognized
+
+If you see a header mismatch error mentioning `IB_IP`, the orchestrator
+supports both the legacy 11-column format (`IB_IP`) and the new 12-column
+format (`IB_IPV4`, `IB_IPV6`). The validator normalizes `IB_IP` to `IB_IPV4`
+automatically.
+
+If you still see errors, ensure the CSV header has no extra whitespace or
+hidden characters:
+
+```bash
+head -1 "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv" | cat -A
+```
+
+---
 
 ## Log Locations
 
