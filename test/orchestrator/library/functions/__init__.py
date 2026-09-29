@@ -58,6 +58,10 @@ from .apptainer_runtime_pxeboot_func import (
     check_apptainer_sif_integrity,
     check_apptainer_sif_permissions,
 )
+from .boot_image_identity_provision_func import (
+    check_boot_image_architecture,
+    check_boot_image_identity,
+)
 from .boot_service_provision_func import check_boot_configurations, check_boot_nodes
 from .cleanup_func import (
     check_cleanup_artifacts,
@@ -129,8 +133,10 @@ from .precheck_func import (
 )
 from .provision_status_func import check_provision_reports
 from .pxeboot_func import (
+    check_node_architecture,
     check_node_cloud_init,
     check_node_hostname_ssh,
+    check_node_os_version,
     check_node_ping,
     check_node_ssh,
 )
@@ -157,6 +163,10 @@ from .slurm_configuration_pxeboot_func import (
     check_slurm_reconfigure,
 )
 from .slurm_discovery_pxeboot_func import check_slurm_hardware_discovery
+from .slurm_lifecycle_pxeboot_func import (
+    check_slurm_node_add,
+    check_slurm_node_remove,
+)
 from .slurm_fabric_pxeboot_func import (
     check_slurm_gpu_inventory,
     check_slurm_infiniband_configuration,
@@ -232,6 +242,8 @@ __all__ = [
     "check_apptainer_single_node_job",
     "check_apptainer_slurm_environment",
     "check_boot_configurations",
+    "check_boot_image_architecture",
+    "check_boot_image_identity",
     "check_boot_nodes",
     "check_clean_baseline",
     "check_cleanup_artifacts",
@@ -267,8 +279,10 @@ __all__ = [
     "check_metadata_groups",
     "check_metadata_instances",
     "check_network_inventory",
+    "check_node_architecture",
     "check_node_cloud_init",
     "check_node_hostname_ssh",
+    "check_node_os_version",
     "check_node_ping",
     "check_node_ssh",
     "check_precheck_admin_ipv4",
@@ -314,6 +328,8 @@ __all__ = [
     "check_slurm_login_node_jobs",
     "check_slurm_login_pam_job_access",
     "check_slurm_membership",
+    "check_slurm_node_add",
+    "check_slurm_node_remove",
     "check_slurm_openmpi_installation",
     "check_slurm_openmpi_job",
     "check_slurm_pam_no_job_access",

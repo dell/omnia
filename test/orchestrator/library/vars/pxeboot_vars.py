@@ -128,6 +128,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "hostname": "hostname -s",
     "hostname_resolution": "getent ahostsv4 %s",
+    "node_architecture": "uname -m",
+    "os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
     "node_services": "systemctl is-active %s",
     "apptainer_runtime": (
         "command -v apptainer >/dev/null 2>&1 && apptainer --version"

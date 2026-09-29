@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Node connectivity and cloud-init checks owned by the PXE lifecycle."""
+"""Node connectivity, cloud-init, architecture, and OS version checks."""
 
 from ..vars.pxeboot_vars import (
+    PXEBOOT_COMMANDS,
     PING_RETRIES,
     PING_RETRY_DELAY_SECONDS,
     SSH_RETRIES,
@@ -25,7 +26,9 @@ from ._pxeboot_helpers import (
     group_fields,
     hostname_ssh_probe,
     load_runtime_context,
+    parse_fg_identity,
     ping_probe,
+    remote_command,
     retry_nodes,
     runtime_exception,
     runtime_result,
@@ -210,3 +213,137 @@ def check_node_cloud_init(host):
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception("Fresh PXE boot and cloud-init", exc)
+
+
+def check_node_architecture(host):
+    """Verify each node's live architecture matches its functional group."""
+    summary = "Node architecture identity"
+    try:
+        context = load_runtime_context(host)
+        rows = context["rows"]
+        outcomes: dict[str, tuple[bool, str]] = {}
+        skipped_count = 0
+        for row in rows:
+            fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
+            expected_arch, _os, _ver = parse_fg_identity(fg)
+            if not expected_arch:
+                # Cannot determine expected architecture from the FG name.
+                skipped_count += 1
+                outcomes[row["HOSTNAME"]] = (
+                    True,
+                    f"skipped (no arch suffix in '{fg}')",
+                )
+                continue
+            result_cmd = remote_command(
+                host, row, PXEBOOT_COMMANDS["node_architecture"]
+            )
+            if result_cmd.rc != 0:
+                outcomes[row["HOSTNAME"]] = (
+                    False,
+                    "uname -m failed (SSH unreachable or command error)",
+                )
+                continue
+            actual_arch = result_cmd.stdout.strip()
+            if actual_arch == expected_arch:
+                outcomes[row["HOSTNAME"]] = (
+                    True,
+                    f"{actual_arch} (matched)",
+                )
+            else:
+                outcomes[row["HOSTNAME"]] = (
+                    False,
+                    f"MISMATCH: expected={expected_arch}, actual={actual_arch}",
+                )
+        failed = [name for name, outcome in outcomes.items() if not outcome[0]]
+        fields: list[tuple[str, object]] = [
+            ("Mapped nodes", len(rows)),
+        ]
+        if skipped_count:
+            fields.append(("Skipped (no arch in FG name)", skipped_count))
+        fields.extend(group_fields(rows, outcomes))
+        return runtime_result(
+            not failed,
+            summary,
+            fields,
+            "Architecture mismatch for: " + ", ".join(failed) if failed else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+def check_node_os_version(host):
+    """Verify each node's live OS identity matches its functional group.
+
+    When the functional group name does not encode the OS version (e.g.
+    ``slurm_node_x86_64`` instead of ``slurm_node_rhel_10_0_x86_64``),
+    the node is reported as *skipped* rather than failed — the expected
+    OS cannot be derived without the version segment.
+    """
+    summary = "Node OS version identity"
+    try:
+        context = load_runtime_context(host)
+        rows = context["rows"]
+        outcomes: dict[str, tuple[bool, str]] = {}
+        skipped_count = 0
+        for row in rows:
+            fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
+            _arch, expected_os, expected_version = parse_fg_identity(fg)
+            if not expected_os or not expected_version:
+                skipped_count += 1
+                outcomes[row["HOSTNAME"]] = (
+                    True,
+                    f"skipped (no OS version in '{fg}')",
+                )
+                continue
+            result_cmd = remote_command(
+                host, row, PXEBOOT_COMMANDS["os_release"]
+            )
+            if result_cmd.rc != 0:
+                outcomes[row["HOSTNAME"]] = (
+                    False,
+                    "os-release probe failed (SSH unreachable or command error)",
+                )
+                continue
+            # Parse ID= and VERSION_ID= from grep output.
+            actual_os = ""
+            actual_version = ""
+            for line in result_cmd.stdout.splitlines():
+                line = line.strip()
+                if line.startswith("ID="):
+                    actual_os = line.partition("=")[2].strip().strip('"').lower()
+                elif line.startswith("VERSION_ID="):
+                    actual_version = line.partition("=")[2].strip().strip('"')
+            os_ok = actual_os == expected_os.lower()
+            version_ok = actual_version == expected_version
+            if os_ok and version_ok:
+                outcomes[row["HOSTNAME"]] = (
+                    True,
+                    f"{actual_os} {actual_version} (matched)",
+                )
+            else:
+                parts = []
+                if not os_ok:
+                    parts.append(
+                        f"OS: expected={expected_os}, actual={actual_os or 'unknown'}"
+                    )
+                if not version_ok:
+                    parts.append(
+                        f"version: expected={expected_version}, "
+                        f"actual={actual_version or 'unknown'}"
+                    )
+                outcomes[row["HOSTNAME"]] = (False, "MISMATCH: " + "; ".join(parts))
+        failed = [name for name, outcome in outcomes.items() if not outcome[0]]
+        fields: list[tuple[str, object]] = [
+            ("Mapped nodes", len(rows)),
+        ]
+        if skipped_count:
+            fields.append(("Skipped (no OS in FG name)", skipped_count))
+        fields.extend(group_fields(rows, outcomes))
+        return runtime_result(
+            not failed,
+            summary,
+            fields,
+            "OS version mismatch for: " + ", ".join(failed) if failed else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)

@@ -17,7 +17,9 @@
 import pytest
 from library.functions import (
     TestLogger,
+    check_node_architecture,
     check_node_hostname_ssh,
+    check_node_os_version,
     check_node_ping,
     check_node_ssh,
 )
@@ -63,3 +65,15 @@ def test_node_ssh(host):
 def test_node_hostname_ssh(host):
     """Verify mapped hostnames resolve and support passwordless root SSH."""
     _check(host, "node_hostname_ssh", check_node_hostname_ssh)
+
+
+@pytest.mark.order(205)
+def test_node_architecture(host):
+    """Verify each node's live architecture matches its functional group."""
+    _check(host, "node_architecture", check_node_architecture)
+
+
+@pytest.mark.order(206)
+def test_node_os_version(host):
+    """Verify each node's live OS version matches its functional group."""
+    _check(host, "node_os_version", check_node_os_version)
