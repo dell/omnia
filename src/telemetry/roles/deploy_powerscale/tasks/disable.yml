@@ -123,33 +123,6 @@
     msg: "Scaled down csi-volume-exporter deployment to 0 replicas"
   when: csi_exporter_check.rc == 0
 
-# =============================================================================
-# Remove VMServiceScrape for OTEL Collector (if exists)
-# =============================================================================
-# VMServiceScrape tells vmagent to scrape the OTEL Collector.
-# When PowerScale metrics are disabled (scaled to 0), vmagent will attempt to
-# scrape a scaled-down service, generating error logs.
-# This deletion prevents those error logs and keeps vmagent clean.
-# =============================================================================
-
-- name: Check if VMServiceScrape for otel-collector exists
-  ansible.builtin.command: >
-    kubectl get vmservicescrape -n {{ ps_namespace }} -l app.kubernetes.io/name={{ karavi_observability.otel_collector_deployment }} -o name
-  register: vmservicescrape_check
-  changed_when: false
-  failed_when: false
-
-- name: Delete VMServiceScrape for otel-collector
-  ansible.builtin.command: >
-    kubectl delete vmservicescrape -n {{ ps_namespace }} -l app.kubernetes.io/name={{ karavi_observability.otel_collector_deployment }} --ignore-not-found=true
-  register: vmservicescrape_delete_result
-  changed_when: true
-  when: vmservicescrape_check.rc == 0
-
-- name: Display VMServiceScrape deletion status
-  ansible.builtin.debug:
-    msg: "Deleted VMServiceScrape for otel-collector"
-  when: vmservicescrape_check.rc == 0
 
 # =============================================================================
 # Display Summary
