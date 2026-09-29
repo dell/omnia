@@ -45,9 +45,10 @@ telemetry_usage_info_msg:
   - ""
   - "Sink cleanup (with dependency checking):"
   - "  cleanup_sinks              - All sinks (default)"
-  - "  cleanup_sinks -e kafka     - Kafka only"
+  - "  cleanup_sinks -e sinks=kafka     - Kafka only"
   - "  cleanup_sinks -e sinks=victoria_metrics  - VictoriaMetrics only"
   - "  cleanup_sinks -e sinks=victoria_logs     - VictoriaLogs only"
+  - "  cleanup_sinks -e sinks=kafka,victoria_metrics  - Kafka and VictoriaMetrics"
 
   - ""
   - "Examples:"

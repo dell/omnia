@@ -54,8 +54,6 @@ playbooks/telemetry.yml (entry point)
   |     +-- Delete_volume=true         Delete PVCs + Kafka identity
   |     +-- sources/cleanup_*.yml      Per-source cleanup (vars from ../../vars/cleanup.yml)
   |     +-- cleanup_sinks             [tag: cleanup_sinks]  Selective sink cleanup with dependency checking (-e sinks=... or -e kafka)
-  |     +-- sinks/cleanup_kafka.yml   Per-sink cleanup (deprecated — use cleanup_sinks)
-  |     +-- sinks/cleanup_victoria_*.yml (deprecated — use cleanup_sinks)
   +-- upgrade/upgrade.yml              [tag: upgrade]       Placeholder
   +-- rollback/rollback.yml            [tag: rollback]      Placeholder
 ```

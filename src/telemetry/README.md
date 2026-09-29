@@ -199,10 +199,6 @@ telemetry/
 │   │       └── deploy_sfm.yml
 │   ├── cleanup/
 │   │   ├── cleanup.yml            # Cleanup orchestrator
-│   │   ├── sinks/                 # Sink cleanup playbooks
-│   │   │   ├── cleanup_kafka.yml
-│   │   │   ├── cleanup_victoria_metrics.yml
-│   │   │   └── cleanup_victoria_logs.yml
 │   │   └── sources/               # Per-source cleanup playbooks
 │   │       ├── cleanup_idrac.yml
 │   │       ├── cleanup_ldms.yml
