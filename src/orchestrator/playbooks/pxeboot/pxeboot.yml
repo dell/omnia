@@ -882,6 +882,12 @@
               pxeboot:
                 status: "{{ _pxe_status }}"
                 state: "{{ _pxe_state }}"
+                trigger_method: orchestrator
+                verification_method: >-
+                  {{ 'not_started'
+                     if item in (pxe_boot_failed_bmc_ips | default([]))
+                     else ('ssh_cloud_init' if enable_node_registration | bool
+                           else 'not_run') }}
 
         - name: Index current PXE node statuses by XNAME
           ansible.builtin.set_fact:
@@ -962,6 +968,18 @@
               pxeboot:
                 status: "{{ _compact_pxeboot_status }}"
                 state: "{{ _compact_pxeboot_state }}"
+                trigger_method: >-
+                  {{ _legacy_pxeboot.get(
+                       'trigger_method',
+                       'not_run' if _compact_pxeboot_status == 'not_run'
+                       else 'orchestrator'
+                     ) }}
+                verification_method: >-
+                  {{ _legacy_pxeboot.get(
+                       'verification_method',
+                       'ssh_cloud_init' if _compact_pxeboot_status == 'success'
+                       else 'not_run'
+                     ) }}
 
         - name: Publish compact aggregate node status
           ansible.builtin.set_fact:

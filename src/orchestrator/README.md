@@ -67,6 +67,7 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 | `execute` | Run provisioning and conditional PXE boot |
 | `validate-deployment` | Validate deployed OpenCHAMI and OpenLDAP services |
 | `pxeboot` | Run iDRAC PXE boot and optional node/cloud-init verification |
+| `verify-node-registration` | Verify pending manually or hypervisor-booted nodes over SSH without iDRAC |
 | `cleanup` | Remove enabled components and credentials by default |
 | `cleanup_credentials` | Remove only the Orchestrator credential file and vault key |
 | `upgrade` | Run the opt-in OpenCHAMI and OpenLDAP upgrade workflows |
@@ -77,6 +78,13 @@ boot. Cleanup, credential cleanup, upgrade, and rollback are opt-in. The
 rollback route is intentionally non-operational in v2.3 because the OpenCHAMI
 upgrade is one-way. Unsupported and conflicting tag combinations fail
 during setup.
+
+After an operator or hypervisor boots pending nodes, verify and record their
+fresh boot and cloud-init completion with:
+
+```bash
+./omnia.sh --run orchestrator --tags verify-node-registration
+```
 
 ## Input / Output
 

@@ -41,6 +41,7 @@ supported_tags:
   - execute
   - validate-deployment
   - pxeboot
+  - verify-node-registration
   - cleanup
   - cleanup_credentials
   - upgrade
@@ -52,6 +53,7 @@ skip_credential_tags:
   - cleanup_credentials
   - validate-deployment
   - validate
+  - verify-node-registration
 
 # Flows that consume repositories, offline content, or the Pulp certificate.
 # Cleanup and input-only/credential-only flows must remain runnable without
@@ -90,6 +92,7 @@ state_initialization_tags:
   - provision
   - execute
   - pxeboot
+  - verify-node-registration
   - upgrade
 
 # Lifecycle flows that validate local project inputs before setup dereferences
@@ -114,6 +117,7 @@ invalid_tag_combinations:
   - [provision, cleanup]
   - [execute, cleanup]
   - [pxeboot, cleanup]
+  - [verify-node-registration, cleanup]
   - [cleanup, upgrade]
   - [cleanup, rollback]
   - [precheck, cleanup_credentials]
@@ -125,6 +129,7 @@ invalid_tag_combinations:
   - [provision, cleanup_credentials]
   - [execute, cleanup_credentials]
   - [pxeboot, cleanup_credentials]
+  - [verify-node-registration, cleanup_credentials]
   - [cleanup_credentials, upgrade]
   - [cleanup_credentials, rollback]
   - [precheck, upgrade]
@@ -135,7 +140,12 @@ invalid_tag_combinations:
   - [deploy, upgrade]
   - [provision, upgrade]
   - [execute, upgrade]
+  - [verify-node-registration, upgrade]
   - [upgrade, rollback]
+  - [verify-node-registration, rollback]
+  - [pxeboot, verify-node-registration]
+  - [execute, verify-node-registration]
+  - [provision, verify-node-registration]
 
 # OIM host group
 oim_host_port: "22"

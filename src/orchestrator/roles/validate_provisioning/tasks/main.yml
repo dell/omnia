@@ -320,7 +320,9 @@
            'provisioning_status': _node_status,
            'pxeboot': {
              'status': 'not_run',
-             'state': 'not_run'
+             'state': 'not_run',
+             'trigger_method': 'not_run',
+             'verification_method': 'not_run'
            }}] }}
   loop: "{{ expected_nodes }}"
   vars:

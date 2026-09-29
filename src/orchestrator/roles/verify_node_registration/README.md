@@ -1,6 +1,7 @@
 # verify_node_registration
 
-Verify fresh boot and cloud-init completion on PXE-booted nodes.
+Verify fresh boot and cloud-init completion on Orchestrator- or externally
+booted nodes.
 
 ## Description
 
@@ -43,10 +44,11 @@ These facts must be set by the calling playbook before invoking this role:
 
 | Fact | Description |
 |------|-------------|
-| `hostvars['localhost']['pxe_start_epoch']` | Epoch timestamp when PXE boot started |
+| `hostvars['localhost']['verification_start_epoch']` or `pxe_start_epoch` | Epoch timestamp before the expected fresh boot |
 | `hostvars['localhost']['node_registration_retries']` | Maximum attempts per node |
 | `hostvars['localhost']['node_registration_delay']` | Delay between attempts |
-| `bmc_ip` | BMC address associated with the current admin-IP inventory host |
+| `verification_trigger_method` | `orchestrator` (default) or `external` |
+| `bmc_ip` | BMC address; required only for the `orchestrator` trigger method |
 
 ## Dependencies
 
@@ -64,7 +66,7 @@ None.
 
 ## Workflow
 
-1. **Assert context** - Verify the PXE epoch and BMC mapping
+1. **Assert context** - Verify the boot epoch and trigger-specific identity
 2. **Poll independently** - Run `node_boot_status` over Ansible SSH to read
    uptime and cloud-init state
 3. **Verify freshness** - Reject a boot that predates the PXE request
@@ -82,7 +84,7 @@ After execution, the following fact is available on every host in
 
 | Fact | Description |
 |------|-------------|
-| `verify_node_registration_result` | Node identity, status, state, detail, terminal flag, attempts, verification method, and structured `cloud_init` data |
+| `verify_node_registration_result` | Node identity, status, state, trigger method, detail, terminal flag, attempts, verification method, and structured `cloud_init` data |
 
 The nested `cloud_init` object publishes only the normalized `status` required
 by automation. The node-local module evaluates the complete `cloud-init status

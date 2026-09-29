@@ -163,6 +163,8 @@ nodes:
     pxeboot:
       status: failed
       state: cloud_init_error
+      trigger_method: orchestrator
+      verification_method: ssh_cloud_init
 ```
 
 `failed_nodes.json` preserves its BuildStream-compatible failure envelope.
@@ -200,6 +202,8 @@ Each aggregate per-node record also exposes:
 | `provisioning_status` | Latest desired-state provisioning result. |
 | `pxeboot.status` | Latest PXE attempt result: `not_run`, `success`, `failed`, or `unverified`. |
 | `pxeboot.state` | Short machine state such as `success`, `idrac_unreachable`, `ssh_unreachable`, or `cloud_init_error`. |
+| `pxeboot.trigger_method` | Boot origin: `orchestrator`, `external`, or `not_run`. This field distinguishes an Orchestrator-triggered boot from a manual or hypervisor-triggered boot without changing the state vocabulary. |
+| `pxeboot.verification_method` | Verification path: `ssh_cloud_init` or `not_run`. |
 
 Provisioning preserves a previously pending `reprovision_required` value even
 when a later reconciliation is idempotent. Only a successful PXE run with
@@ -220,6 +224,14 @@ their existing inventory-selection behavior.
 Pending selection fails closed before any Redfish operation when aggregate
 status is missing, malformed, or lacks an XNAME from the current mapping. This
 prevents an uncertain retry from silently becoming a full-cluster reboot.
+
+For a VM or a physical node booted manually, the
+`verify-node-registration` tag selects the same pending nodes but performs no
+Redfish operation. It verifies that each observed boot is newer than the
+persisted lifecycle state and that cloud-init completed through the existing
+SSH verifier. A successful result continues to use `pxeboot.state: success`;
+`pxeboot.trigger_method: external` is the only field that distinguishes the
+external boot from the normal `orchestrator` path.
 
 PXE inventories do not supply XNAME values. Before rebooting any server, the
 PXE workflow resolves each Service Tag through SMD Hardware Inventory and uses

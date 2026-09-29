@@ -63,6 +63,9 @@ ansible-playbook orchestrator.yml --tags pxeboot
 
 # Explicitly PXE boot every mapped node instead of only pending/failed nodes
 ansible-playbook orchestrator.yml --tags pxeboot -e pxeboot_scope=all
+
+# Verify pending nodes after a manual or hypervisor-triggered boot
+ansible-playbook orchestrator.yml --tags verify-node-registration
 ```
 
 By default, the standard Orchestrator flow reads `orchestrator_status.yml` and
@@ -79,6 +82,13 @@ Run provisioning to regenerate lifecycle state, or pass the extra variable
 An explicit `pxeboot_inventory` remains an operator-selected subset and is not
 filtered again. The BuildStream job flow continues using its existing generated
 effective inventory and restart-state behavior.
+
+The `verify-node-registration` tag is intended for VMs without iDRAC and for
+physical nodes booted manually after an iDRAC operation fails. It selects only
+nodes still marked `reprovision_required`, performs no Redfish operation, and
+uses the existing SSH/cloud-init verifier. On success, both boot paths record
+`pxeboot.state: success`; `pxeboot.trigger_method` is `orchestrator` for the normal
+PXE path and `external` for this verification-only path.
 
 ## Configuration
 

@@ -311,6 +311,12 @@ When `enable_pxe_boot` is true, Orchestrator:
 A successful verified boot clears pending metadata application state. A boot
 without node verification is reported as initiated but unverified.
 
+VMs and manually booted physical nodes use the separate
+`verify-node-registration` tag. It skips Redfish, selects pending nodes from
+the aggregate status, and applies the same fresh-boot and cloud-init checks over
+SSH. Successful results retain `state: success` and record
+`trigger_method: external`.
+
 ### Step 6: Cleanup
 
 The top-level cleanup route runs the canonical aggregate cleanup and reports
