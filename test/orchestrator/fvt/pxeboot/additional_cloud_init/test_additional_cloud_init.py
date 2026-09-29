@@ -42,7 +42,7 @@ pytestmark = [
 ]
 
 
-@pytest.mark.order(295)
+@pytest.mark.order(297)
 def test_additional_cloud_init_smd_groups(host):
     """Verify SMD groups exist for additional cloud-init configuration."""
     verify_pxeboot(
@@ -52,7 +52,7 @@ def test_additional_cloud_init_smd_groups(host):
     )
 
 
-@pytest.mark.order(296)
+@pytest.mark.order(298)
 def test_additional_cloud_init_metadata_groups(host):
     """Verify metadata-service groups and templates for additional cloud-init."""
     verify_pxeboot(
@@ -62,7 +62,7 @@ def test_additional_cloud_init_metadata_groups(host):
     )
 
 
-@pytest.mark.order(297)
+@pytest.mark.order(299)
 def test_additional_cloud_init_write_files(host):
     """Verify write_files entries were applied on provisioned nodes."""
     verify_pxeboot(
@@ -72,7 +72,7 @@ def test_additional_cloud_init_write_files(host):
     )
 
 
-@pytest.mark.order(298)
+@pytest.mark.order(300)
 def test_additional_cloud_init_runcmd(host):
     """Verify runcmd entries executed during cloud-init on provisioned nodes."""
     verify_pxeboot(
