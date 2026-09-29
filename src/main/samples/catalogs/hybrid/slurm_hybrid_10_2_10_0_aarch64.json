@@ -4,7 +4,7 @@
     "version": "1.0",
     "schema_version": 2,
     "identifier": "omnia-slurm-hybrid-10-2-10-0-aarch64",
-    "description": "Hybrid Slurm catalog for aarch64: RHEL 10.2 (control node) + RHEL 10.0 (node, login and login-compiler).",
+    "description": "Hybrid Slurm catalog for aarch64: RHEL 10.2 (control) + RHEL 10.0 (node, login and login-compiler).",
     "functionallayer": [
       {
         "name": "os_rhel_10_2_aarch64",
