@@ -95,6 +95,7 @@ component override is unset or empty.
 |----------|--------|------|----------|-------------|
 | `OMNIA_PROJECT_NAME` | Environment | string | No | Project name (default: `project_default`) |
 | `cleanup_credentials` | CLI extra variable | bool | No | Remove credentials during `cleanup` (default: `true`) |
+| `cleanup_logs` | CLI extra variable | bool | No | Remove current-project runtime logs and Discovery Ansible execution logs during `cleanup` (default: `true`) |
 
 ### Usage
 
@@ -103,13 +104,17 @@ cd src/discovery/playbooks
 ansible-playbook discovery.yml
 OMNIA_PROJECT_NAME=my_project ansible-playbook discovery.yml
 ansible-playbook discovery.yml --tags cleanup -e cleanup_credentials=false
+ansible-playbook discovery.yml --tags cleanup -e cleanup_logs=false
 ansible-playbook discovery.yml --tags cleanup_credentials
 ```
 
 `cleanup_credentials=false` preserves only `discovery_credentials.yml` and
 `.discovery_credentials_key`. Cleanup does not remove or create the current
 project's Discovery output directory. When it exists, cleanup empties it and
-leaves the directory in place. All other input files are preserved.
+leaves the directory in place. Cleanup resets the current project's runtime log
+directory and removes `/var/log/omnia/discovery` by default;
+`cleanup_logs=false` preserves both log locations. All other input files are
+preserved.
 The `cleanup_credentials` tag removes only the credential file and vault key.
 
 ---

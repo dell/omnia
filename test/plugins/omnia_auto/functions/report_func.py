@@ -762,7 +762,7 @@ def record_playbook_failure(
     existing = _load_report(report_path, report_name)
     for _srv in existing.get("servers", {}).values():
         for run in _srv.get("runs", []):
-            if run.get("run_id") != report_id:
+            if run.get("run_id") != run_id:
                 continue
             for mod in run.get("modules", []):
                 if (

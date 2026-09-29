@@ -34,10 +34,7 @@ from ..vars.sfm_vars import (
     SFM_VM_POLL_INTERVAL_SECONDS,
 )
 from .sfm_func import load_sfm_context, sfm_result, sfm_skip_result
-from .telemetry_func import (
-    get_vmselect_endpoint,
-    run_on_kube_vip,
-)
+from .telemetry_func import get_vmselect_endpoint, is_sink_enabled_for_source, run_on_kube_vip
 
 
 class _SfmMetricError(RuntimeError):
@@ -307,6 +304,11 @@ def verify_sfm_metrics_in_victoria(host):
     try:
         if load_sfm_context() is None:
             return sfm_skip_result()
+        # Skip if SFM source does not target victoria_metrics sink
+        if not is_sink_enabled_for_source(host, "sfm", "victoria_metrics"):
+            return sfm_skip_result(
+                "SFM source does not target VictoriaMetrics sink"
+            )
         vmselect_ip, vmselect_port = get_vmselect_endpoint(host)
         if not vmselect_ip or not vmselect_port:
             raise _SfmMetricError(SFM_ERROR_MSGS["vm_endpoint_missing"])

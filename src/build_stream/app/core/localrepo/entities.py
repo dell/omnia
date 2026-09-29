@@ -102,6 +102,8 @@ class PlaybookResult:
         timestamp: Result creation timestamp.
         log_file_path: Ansible log file path on OIM host (NFS share).
         node_results_file_path: Path to per-node results JSON (restart stage only).
+        dictionary_hits: Catalog functional groups reused from the global
+            image dictionary during a build-image stage.
     """
 
     job_id: str
@@ -122,6 +124,7 @@ class PlaybookResult:
     correlation_id: Optional[str] = None
     test_summary: Optional[Dict[str, Any]] = None
     artifact_dir: Optional[str] = None
+    dictionary_hits: Optional[list[Dict[str, str]]] = None
 
     @property
     def is_success(self) -> bool:
@@ -166,6 +169,5 @@ class PlaybookResult:
             correlation_id=data.get("correlation_id"),
             test_summary=data.get("test_summary"),
             artifact_dir=data.get("artifact_dir"),
+            dictionary_hits=data.get("dictionary_hits"),
         )
-
-

@@ -40,6 +40,7 @@ def main():
         FVT_TAGS,
         MARKERS,
         SUITES,
+        SUITE_EXEC_OWNERS,
         EXCLUDE_TAGS,
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
@@ -51,6 +52,7 @@ def main():
             "tags": FVT_TAGS,
             "markers": MARKERS,
             "suites": SUITES,
+            "suite_exec_owners": SUITE_EXEC_OWNERS,
             "exclude_tags": EXCLUDE_TAGS,
         },
     )

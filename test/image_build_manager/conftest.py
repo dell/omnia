@@ -26,6 +26,7 @@ Provides:
 
 import sys
 import os
+import inspect
 from datetime import datetime
 
 import pytest
@@ -103,6 +104,7 @@ _FVT_SUITE_ORDER = {
         "registry": 3,
         "naming": 4,
         "image_verification": 5,
+        "catalog_reuse": 6,
     },
     "cleanup_images": {"": 0, "cleanup_images": 1},
     "cleanup": {"": 0, "cleanup": 1},
@@ -420,20 +422,29 @@ def pytest_sessionstart(session):
     run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
     os.environ["RUN_ID"] = run_id
     base_name = str(config.get("report_name", "test_report"))
-    report_name = build_report_name(
-        base_name=base_name,
-    )
-    report = TestReport(
-        module_name=module_name,
-        report_path=str(
+    report_name_args = {"base_name": base_name}
+    if "domain_name" in inspect.signature(build_report_name).parameters:
+        report_name_args["domain_name"] = "image_build_manager"
+    report_name = build_report_name(**report_name_args)
+    report_args = {
+        "module_name": module_name,
+        "report_path": str(
             config.get(
                 "report_path",
                 os.environ.get("OMNIA_DATA_PATH", "/opt/omnia") + "/reports",
             )
         ),
-        report_name=report_name,
-        server_ip=str(config.get("oim_server_ip", "localhost")),
-        run_id=run_id,
+        "report_name": report_name,
+        "server_ip": str(config.get("oim_server_ip", "localhost")),
+    }
+    report_id_argument = (
+        "run_id"
+        if "run_id" in inspect.signature(TestReport).parameters
+        else "report_id"
+    )
+    report_args[report_id_argument] = run_id
+    report = TestReport(
+        **report_args,
     )
     set_current_report(report)
 

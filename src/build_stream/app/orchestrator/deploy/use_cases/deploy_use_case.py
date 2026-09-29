@@ -247,10 +247,19 @@ class DeployUseCase:
         """Create deploy playbook request entity."""
         playbook_path = PlaybookPath(ORCHESTRATOR_PLAYBOOK_NAME)
 
+        # Resolve composite image group ID from Job (ER-BSM-002)
+        job = self._job_repo.find_by_id(command.job_id)
+        composite_id = (
+            job.composite_image_group_id
+            if job and job.composite_image_group_id
+            else str(command.image_group_id)
+        )
+
         extra_vars_dict = {
             "job_id": str(command.job_id),
             "image_key": str(command.image_group_id),
             "image_group_id": str(command.image_group_id),
+            "composite_image_group_id": composite_id,
             "attempt": stage.attempt,
         }
         extra_vars = ExtraVars(extra_vars_dict)

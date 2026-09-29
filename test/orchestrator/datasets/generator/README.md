@@ -1,154 +1,90 @@
 # Orchestrator Dataset Generator
 
-This directory contains the dataset generator for orchestrator tests, following the Official Omnia Test Automation Design Document (v2.0) and aligned with the image_build_manager module.
+`generate_dataset.py` creates a repeatable snapshot from the current
+`src/orchestrator/input/` tree and the current Orchestrator sample handoffs.
+Profiles select which source files and sample directories are copied.
 
-## Structure
+The generator does not render Jinja templates and has no `--from-src` mode;
+copying the source tree is its only generation mode.
 
-```
-generator/
-├── templates/
-│   └── input/
-│       ├── additional_cloud_init.yml.j2
-│       ├── high_availability_config.yml.j2
-│       ├── network_spec.yml.j2
-│       ├── omnia_config.yml.j2
-│       ├── orchestrator_config.yml.j2
-�       ├── pxe_mapping_file.csv.j2
-│       ├── security_config.yml.j2
-│       ├── set_pxe_boot_config.yml.j2
-│       └── storage_config.yml.j2
-├── profiles/
-│   ├── defaults.yml
-│   ├── k8s_only.yml
-│   ├── slurm_only.yml
-│   ├── k8s_and_slurm.yml
-│   └── README.md
-├── generate_dataset.py
-└── README.md
-```
+## Quick start
 
-## Usage
-
-### Generate a dataset
+Run from `test/orchestrator/datasets/generator`:
 
 ```bash
-cd datasets/generator/
-python generate_dataset.py <dataset_name> <profile>
+# Inspect the available profiles.
+./generate_dataset.py --list-profiles
+
+# Validate generation without publishing a dataset.
+./generate_dataset.py lab_k8s k8s_only --dry-run
+
+# Publish a new dataset.
+./generate_dataset.py lab_k8s k8s_only
+
+# Confirm that a published dataset still matches its source/profile recipe.
+./generate_dataset.py lab_k8s k8s_only --check
 ```
 
-### Examples
+## Command syntax
 
-#### Generate from Source Files (Recommended)
-
-```bash
-# Generate K8s-only dataset
-python generate_dataset.py my_k8s_dataset k8s_only --from-src
-
-# Generate Slurm-only dataset
-python generate_dataset.py my_slurm_dataset slurm_only --from-src
-
-# Generate combined K8s + Slurm dataset
-python generate_dataset.py my_combined_dataset k8s_and_slurm --from-src
-
-# Generate with default profile (no filtering)
-python generate_dataset.py my_dataset defaults --from-src
+```text
+generate_dataset.py <dataset_name> <profile> [options]
+generate_dataset.py --list-profiles
 ```
 
-#### Generate from Templates
+| Argument or option | Behavior |
+|---|---|
+| `dataset_name` | Directory name created below `datasets/` |
+| `profile` | `defaults`, `k8s_only`, `slurm_only`, `k8s_and_slurm`, or another profile YAML present in `profiles/` |
+| `--list-profiles` | Print available profiles and exit |
+| `--dry-run` | Generate and validate in staging, publish nothing, then remove staging |
+| `--check` | Regenerate in staging and fail if the published dataset differs |
+| `--force` | Replace an existing dataset after staging generation succeeds |
+| `--var KEY=VALUE` | Override an in-memory profile value; repeatable |
 
-```bash
-# Generate with profile-based template rendering
-python generate_dataset.py my_dataset k8s_only
-
-# Generate with CLI variable overrides
-python generate_dataset.py my_custom defaults --var pxe_mapping_file_path=/path/to/mapping.csv
-```
-
-#### Check and Dry-Run
-
-```bash
-# Check if existing dataset is current
-python generate_dataset.py my_k8s_dataset k8s_only --check
-
-# Test generation without publishing
-python generate_dataset.py my_k8s_dataset k8s_only --dry-run
-```
-
-#### Force Overwrite
-
-```bash
-# Force overwrite existing dataset
-python generate_dataset.py my_k8s_dataset k8s_only --from-src --force
-```
-
-### List Available Profiles
-
-```bash
-python generate_dataset.py --list-profiles
-```
-
-## CLI Options
-
-| Option | Description |
-|--------|-------------|
-| `dataset_name` | Name of the dataset directory to create |
-| `profile` | Profile name: defaults, k8s_only, slurm_only, k8s_and_slurm, or custom |
-| `--var KEY=VALUE` | Override a template variable (repeatable) |
-| `--list-profiles` | List available profiles and exit |
-| `--force` | Overwrite existing dataset directory |
-| `--from-src` | Copy files directly from src/ instead of rendering templates |
-| `--check` | Check if dataset is current (compare with staged output) |
-| `--dry-run` | Generate staging output without publishing to datasets/ |
+`--var` does not edit the copied YAML or CSV files. Of the current variables,
+only `dcgm_enabled` is emitted in the generated README. To change product
+input, create the dataset, review the generated files, and maintain an
+intentional custom dataset or custom source/profile workflow. Do not assume a
+variable override changed the runtime configuration.
 
 ## Profiles
 
-### Available Profiles
+| Profile | Current file selection | Profile metadata |
+|---|---|---|
+| `defaults` | Every `.yml` and `.csv` in `src/orchestrator/input/`, plus Repo Manager sample output | Defaults from `profiles/defaults.yml` |
+| `k8s_only` | Nine named input files and both standard sample directories | `dcgm_enabled: false` |
+| `slurm_only` | Nine named input files and both standard sample directories | `dcgm_enabled: true` |
+| `k8s_and_slurm` | Nine named input files and both standard sample directories | `dcgm_enabled: true` |
 
-- **defaults**: Base profile with default orchestrator configuration
-- **k8s_only**: Kubernetes-only deployment configuration
-  - dcgm_enabled: false
-  - Includes: All 9 input files + repo_manager_output + image_build_manager_output
-- **slurm_only**: Slurm-only deployment configuration
-  - dcgm_enabled: true
-  - Includes: All 9 input files + repo_manager_output + image_build_manager_output
-- **k8s_and_slurm**: Combined Kubernetes + Slurm deployment configuration
-  - dcgm_enabled: true
-  - Includes: All 9 input files + repo_manager_output + image_build_manager_output
+The shipped workload profiles currently select the same files and include both
+dependency handoffs. Their names and `dcgm_enabled` metadata do not rewrite
+`omnia_config.yml` or `pxe_mapping_file.csv`. Therefore, the copied source
+content determines the actual Kubernetes/Slurm topology. Inspect it before
+synchronization.
 
-### Profile-Based File Filtering
+The current unfiltered `defaults` path does not publish
+`image_build_manager_output/`. Use a named profile whenever the dataset must
+supply both dependency handoffs, and verify the generated file list before
+enabling synchronization.
 
-When using `--from-src`, profiles control which files are included:
+See [profiles/README.md](profiles/README.md) for the profile schema.
 
-- **k8s_only**: Filters to include specific input files and sample directories
-- **slurm_only**: Filters to include specific input files and sample directories
-- **k8s_and_slurm**: Filters to include specific input files and sample directories
-- **defaults**: No filtering - copies all files from src/
+## Source and output
 
-Each profile defines:
-- `include_files.input`: List of input files to include
-- `include_files.samples`: List of sample directories to include
+The generator reads:
 
-## Templates
-
-All input files from `src/orchestrator/input/` are available as Jinja2 templates:
-
-- **additional_cloud_init.yml.j2**: Additional cloud-init configuration
-- **high_availability_config.yml.j2**: High availability configuration for K8s
-- **network_spec.yml.j2**: Network specification
-- **omnia_config.yml.j2**: Omnia configuration (Slurm + K8s clusters)
-- **orchestrator_config.yml.j2**: Orchestrator configuration
-- **pxe_mapping_file.csv.j2**: Node-to-FG mapping
-- **security_config.yml.j2**: Security configuration
-- **set_pxe_boot_config.yml.j2**: PXE boot configuration
-- **storage_config.yml.j2**: Storage configuration
-
-## Dataset Structure
-
-Generated datasets include:
-
+```text
+src/orchestrator/input/
+src/orchestrator/samples/repo_manager_output/
+src/orchestrator/samples/image_build_manager_output/
 ```
-<dataset_name>/
-├── input/                          # 9 input files from src/orchestrator/input/
+
+A shipped filtered profile produces:
+
+```text
+datasets/<dataset_name>/
+├── input/
 │   ├── additional_cloud_init.yml
 │   ├── high_availability_config.yml
 │   ├── network_spec.yml
@@ -158,69 +94,71 @@ Generated datasets include:
 │   ├── security_config.yml
 │   ├── set_pxe_boot_config.yml
 │   └── storage_config.yml
-├── repo_manager_output/             # From src/orchestrator/samples/repo_manager_output/
+├── repo_manager_output/
 │   └── repo_status.yml
-├── image_build_manager_output/     # From src/orchestrator/samples/image_build_manager_output/
+├── image_build_manager_output/
 │   └── build_status.yml
-└── README.md                         # Auto-generated documentation
+└── README.md
 ```
 
-## Alignment
+The generated README records the profile, `dcgm_enabled`, copied files, and
+the command needed to regenerate the dataset.
 
-This generator follows the same pattern as:
-- `test/image_build_manager/datasets/generator/` (reference implementation)
-- Official Omnia Test Automation Design Document (v2.0)
+## Publication behavior
 
-## Key Features
+Generation occurs in a temporary staging directory below `datasets/`.
 
-### Staging Directory
-- Uses temporary staging directory for atomic operations
-- Generates to staging first, then publishes to final location
-- Automatically cleans up staging directory
+- A new dataset is copied into its final directory only after source copying
+  and README generation succeed.
+- An existing dataset is not replaced unless `--force` is supplied.
+- `--check` compares file names, sizes, and bytes with a newly staged result.
+- `--dry-run` proves that staging succeeds but does not leave the staging
+  directory available for inspection.
 
-### Profile-Based Filtering
-- Profiles control which files are included when using `--from-src`
-- Supports input file filtering and sample directory selection
-- Falls back to copying all files if no filter specified
-
-### Check Mode
-- Compare existing dataset with newly generated staging output
-- Detects new, modified, and deleted files
-- Returns error if dataset is stale
-
-### Dry-Run Mode
-- Generate staging output without publishing
-- Useful for testing before actual generation
-- Shows staging output path for inspection
-
-## Regenerating Datasets
-
-To regenerate an existing dataset:
+Examples:
 
 ```bash
-cd datasets/generator/
-python generate_dataset.py <dataset_name> <profile> --force
+# Replace an existing snapshot with current source content.
+./generate_dataset.py lab_k8s k8s_only --force
+
+# Detect source/profile drift without modifying the published dataset.
+./generate_dataset.py lab_k8s k8s_only --check
 ```
 
-## Dataset Usage
+## Custom profiles
 
-After generating a dataset, update `test_config.yml`:
+Add `<name>.yml` under `profiles/`. A profile inherits metadata from
+`defaults.yml` and may define:
 
 ```yaml
-dataset: "my_k8s_dataset"
+dcgm_enabled: true
+
+include_files:
+  input:
+    - orchestrator_config.yml
+    - omnia_config.yml
+    - network_spec.yml
+    - pxe_mapping_file.csv
+  samples:
+    - repo_manager_output
+    - image_build_manager_output
+```
+
+Paths in `input` are relative to `src/orchestrator/input/`. Sample names are
+relative to `src/orchestrator/samples/`. A missing selected source is warned
+about rather than synthesized, so review generator output and the generated
+file list.
+
+## Use the generated dataset
+
+Set the dataset name and the desired sync flags in `test_config.yml`:
+
+```yaml
+dataset: "lab_k8s"
 sync_orchestrator_input: true
+sync_repo_manager_output: true
+sync_image_build_manager_output: true
 ```
 
-Or override at runtime:
-
-```bash
-export OMNIA_DATASET_OVERRIDE="my_slurm_dataset"
-pytest fvt/
-```
-
-## See Also
-
-- **Profile Documentation**: `profiles/README.md`
-- **Dataset Documentation**: `../README.md`
-- **Alignment Plan**: `../../ALIGNMENT_PLAN.md`
-- **Compliance Summary**: `../../COMPLIANCE_SUMMARY.md`
+Selection alone does not copy anything. See [../README.md](../README.md) for
+the destination rules and one-run overrides.

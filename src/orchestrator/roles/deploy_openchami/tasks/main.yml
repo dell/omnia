@@ -26,3 +26,6 @@
 - name: Refresh openchami network configs
   ansible.builtin.include_tasks: refresh_openchami_configs.yml
   when: hostvars['oim']['openchami_install_status']
+
+- name: Configure OpenCHAMI certificate renewal
+  ansible.builtin.include_tasks: configure_certificate_renewal.yml

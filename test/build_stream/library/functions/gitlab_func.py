@@ -101,7 +101,7 @@ def _ssh_to_gitlab(host, cmd: str) -> Dict[str, Any]:
     # sshpass reads SSHPASS from the environment, avoiding a password in the
     # process argument list and preventing an interactive prompt.
     from library.functions.pipeline_func import load_server_credentials
-    ssh_password = load_server_credentials(host).get("gitlab_ssh_password", "")
+    ssh_password = load_server_credentials(host).get("gitlab_ssh_password", "")  # gitleaks:allow - credentials loaded from secure test config file
     if not ssh_password:
         return {
             "success": False,

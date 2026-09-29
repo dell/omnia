@@ -788,6 +788,8 @@ test_utils:
     # Step 3: Run utils validation tests
     - echo "Step 3 - Running utils validation tests"
     - |
+      # Use default if CI/CD variable is empty
+      TEST_CMD="${TEST_UTILS_CMD:-./run_validation.sh fvt_utils verify}"
       if [ "$DRY_RUN" = "true" ]; then
         echo "DRY_RUN: Would execute utils tests on $TARGET"
       else
@@ -797,7 +799,7 @@ test_utils:
           cd $OMNIA_INSTALL_PATH/test/utils
           if [ -f run_validation.sh ]; then
             source .venv/bin/activate 2>/dev/null || true
-            $TEST_UTILS_CMD
+            $TEST_CMD
           else
             echo 'WARNING: run_validation.sh not found — skipping tests'
           fi
