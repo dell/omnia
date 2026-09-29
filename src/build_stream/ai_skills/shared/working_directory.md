@@ -1,6 +1,6 @@
 ---
 name: skill-working-directory
-description: Shared convention for where a catalog-authoring or diff/changelog skill puts intermediate files (pre-edit snapshots, generated diffs, generated changelogs) it needs mid-procedure but that are not the final deliverable, and how it cleans them up. Referenced (not duplicated) by catalog_generation, catalog_editing, and diff_changelog. Channel-agnostic (FR-5.1).
+description: Shared convention for where a catalog-authoring or diff/changelog skill puts intermediate files (pre-edit snapshots, generated diffs, generated changelogs) it needs mid-procedure but that are not the final deliverable, and how it cleans them up. Referenced (not duplicated) by catalog-generation, catalog-editing, bulk-edit-catalog, and catalog-diff. Channel-agnostic (FR-5.1).
 ---
 
 ## Purpose
@@ -8,14 +8,14 @@ description: Shared convention for where a catalog-authoring or diff/changelog s
 Several skills in this ER need a scratch file mid-procedure that is not
 itself a requested deliverable:
 
-- `edit_catalog.md`/`bulk_edit_catalog.md` need a **pre-edit snapshot** of a
-  catalog so a diff/changelog can still be generated after the edit has
-  already overwritten the original file in place (see `pre_edit_gate.md`
-  Step 4).
-- `changelog_generator.md` needs a place for `forward_diff.json`,
+- The `catalog-editing`/`bulk-edit-catalog` skills need a **pre-edit
+  snapshot** of a catalog so a diff/changelog can still be generated after
+  the edit has already overwritten the original file in place (see
+  `pre_edit_gate.md` Step 4).
+- The `catalog-diff` skill needs a place for `forward_diff.json`,
   `reverse_diff.json`, and the rendered changelog files when the operator
   hasn't named specific output paths.
-- `catalog_generation/SKILL.md` needs a place for a draft catalog while it is
+- `catalog-generation/SKILL.md` needs a place for a draft catalog while it is
   still being validated/iterated on, before it is written to its final
   location in Step 6.
 
@@ -66,8 +66,8 @@ claim a working directory was created in a channel that has none.
 
 ## What This Is Not
 
-- Not a replacement for the Write-Path Boundary in `edit_catalog.md` and
-  `bulk_edit_catalog.md` (NFR-2, Req-SEC-I-1/I-4) — that boundary governs
+- Not a replacement for the Write-Path Boundary in the `catalog-editing`
+  and `bulk-edit-catalog` skills (NFR-2, Req-SEC-I-1/I-4) — that boundary governs
   where a *final* catalog write lands; this convention governs where
   *scratch* files live before that write happens. A scratch file under
   `$WORKDIR` is never itself a catalog write.

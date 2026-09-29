@@ -2,9 +2,13 @@
 
 **Version:** 1.0.0  
 **Captured:** 2026-09-25  
-**Consumers:** Catalog Generation, Catalog Editing, and Analysis skills read this file directly (channel-agnostic instructions and reference data — no coding-agent-only tooling assumed, per FR-5.1). The Selection Catalogue `support_status` gate every skill applies against the A.1 table below is defined in `SKILL.md` in this same directory.
+**Consumers:** Catalog Generation, Catalog Editing, and Analysis skills read this file directly (channel-agnostic instructions and reference data — no coding-agent-only tooling assumed, per FR-5.1). The Selection Catalogue `support_status` gate every skill applies against the A.1 table below is defined in `SKILL.md` in the parent `catalog-selection-gate` package directory.
 
 This file is a development-time deliverable, hand-derived and maintained by the Build Stream team as part of the build/release process for the AI-assisted catalog authoring skills (ER-BSM-001-nersc-ai-skills-catalog-authoring, FR-1.0). It is not generated at skill-invocation time by an operator. Each row's provenance names the exact master-catalog file(s) or repository-configuration file it was read from; a handful of A.1/A.7 rows (AMD/ROCm, BeeGFS) additionally cross-reference `src/repo_manager/plugins/module_utils/input_validation/core/config.py`'s `expected_versions` map, which carries a version pin with no corresponding catalog group — evidence that a capability is `planned`, not `supported`, without needing an online lookup. No row in this capture required an online source; regenerate by repeating the same read-and-tabulate process against the current `src/main/samples/catalogs/**/*.json` and `src/repo_manager/input/repo_manager_config.yml` whenever either changes, falling back to online sources (Red Hat Compatibility Matrix, vendor docs) only for a genuinely unresolvable row, and flagging that row as incomplete rather than fabricating it (NFR-2). Master catalogs remain the authoritative source for the concrete package set of an already-shipped configuration.
+
+**Topology scope of this capture, and the required re-derivation trigger:** every provenance note, file count, and glob pattern in this file was captured against the specific catalog tree that existed under `src/main/samples/catalogs/` on the date above — currently a flat `<os_version>/*.json` layout with no versioned `rhel/` subtree and no `hybrid/` subtree. **If the shipped catalog tree's topology changes** (e.g. RHEL catalogs move under a versioned `catalogs/rhel/<os_version>/` path, or a `catalogs/hybrid/` tree of mixed-stack catalogs is introduced, or the total catalog count changes), **every count, provenance path, and A.1–A.8 row in this file must be re-derived against the new tree before being treated as authoritative** — do not assume an old row still applies just because its `axis`/`option`/`role` text looks unchanged; re-run the read-and-tabulate process (see `SKILL.md`'s "Regenerating" section) and re-verify every count. Every discovery command a consuming skill runs against `src/main/samples/catalogs/` (Step 4b's `grep -rl`, `bulk-edit-catalog`'s catalog-set search, etc.) is written recursively (`catalogs/**/*.json`) specifically so it keeps working across a topology change without its own wording needing an update — only this file's hand-tabulated rows need re-deriving.
+
+**Hybrid catalog classification:** a catalog is "hybrid" when its functional layers reference groups from more than one top-level stack category (e.g. both `slurm_*`-pattern groups and `service_kube_*`-pattern groups in the same catalog) — this already exists today as the `stack: slurm + service_k8s` row in A.1 below, and any future `catalogs/hybrid/` tree is expected to hold catalogs matching that same classification rule, not a new stack category. If a shipped hybrid catalog combines stacks in a way no existing A.1 `stack` row covers, do not fabricate a verdict for it — treat it exactly like any other selection absent from the table (`SKILL.md` Step 3): flag it, and re-derive this file against the new combination before it can be treated as `supported`.
 
 ## Source Locations
 
@@ -14,6 +18,13 @@ This file is a development-time deliverable, hand-derived and maintained by the 
 | Sample catalogs (RHEL 10.2) | `src/main/samples/catalogs/10.2/` | 12 master catalog JSON files (content-equivalent to 10.0 apart from version pinning) |
 | Catalog schema | `src/repo_manager/schemas/catalog_schema.json` | JSON schema defining the structure and validation rules for catalog files |
 | Repository configuration | `src/repo_manager/input/repo_manager_config.yml` | Repository/registry source defaults (A.5 table) and expected version pins |
+
+**These two rows describe the topology captured on 2026-09-25 only** (a
+flat two-directory layout, 24 files total). If `src/main/samples/catalogs/`
+now also has a versioned `rhel/<os_version>/` subtree, a `hybrid/` subtree,
+or a different total file count, this table — and every count elsewhere in
+this file — is stale and must be re-derived against the tree that actually
+exists before being relied on.
 
 ---
 

@@ -34,7 +34,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # pylint: disable=wrong-import-position
 from catalog.parser import parse_input_file, parse_delete_file
 from catalog.catalog_io import (
-    read_catalog, write_catalog, new_catalog as create_new_catalog, catalog_exists
+    read_catalog, write_catalog, new_catalog as create_new_catalog, catalog_exists,
+    CatalogPathError, find_path_collisions,
 )
 from catalog.mutator import upsert_packages, delete_packages
 from catalog.validator import validate_catalog, format_issues
@@ -168,7 +169,11 @@ def cmd_add(args):
         if issues:
             print(format_issues(issues))
 
-    write_catalog(catalog, output_file)
+    try:
+        write_catalog(catalog, output_file, allowed_root=args.catalog_root)
+    except CatalogPathError as exc:
+        logger.error("Add rejected: %s", exc)
+        return 1
     print(f"Added: {summary['added']}, Updated: {summary['updated']}, "
           f"Groups created: {summary['groups_created']} -> {output_file}")
     return 0
@@ -206,7 +211,11 @@ def cmd_delete(args):
         if issues:
             print(format_issues(issues))
 
-    write_catalog(catalog, output_file)
+    try:
+        write_catalog(catalog, output_file, allowed_root=args.catalog_root)
+    except CatalogPathError as exc:
+        logger.error("Delete rejected: %s", exc)
+        return 1
     print(f"Deleted: {summary['deleted']}, Groups removed: {summary['groups_removed']}, "
           f"Skipped: {summary['skipped']} -> {output_file}")
     return 0
@@ -424,6 +433,21 @@ def cmd_diff(args):  # pylint: disable=too-many-locals
     """
     logger = logging.getLogger(__name__)
 
+    collisions = find_path_collisions({
+        "current catalog": args.current,
+        "future catalog": args.future,
+        "forward diff output": args.output_forward,
+        "reverse diff output": args.output_reverse,
+        "changelog output": args.output_changelog,
+        "HTML output": args.output_html,
+    })
+    if collisions:
+        for label_a, label_b, path in collisions:
+            logger.error("Diff rejected: '%s' and '%s' resolve to the same path (%s). "
+                         "An output cannot overwrite an input or another output.",
+                         label_a, label_b, path)
+        return 1
+
     try:
         current_catalog = read_catalog(args.current)
         future_catalog = read_catalog(args.future)
@@ -459,6 +483,24 @@ def cmd_diff(args):  # pylint: disable=too-many-locals
     cutover = detect_os_version_cutover(current_catalog['catalog'], future_catalog['catalog'])
     warnings = collect_warnings(current_catalog['catalog'], future_catalog['catalog'],
                                  result['forward_diff'])
+    if not args.schema:
+        # --allow-schemaless was required to get here without --schema (see
+        # main()'s argument validation) -- disclose the degradation in the
+        # artifact itself, not just on stdout, so a reader of the changelog
+        # later can't mistake this for a schema-validated semantic diff.
+        warnings.insert(0, {
+            "constraint_id": "SCHEMA-DEGRADED",
+            "severity": "warning",
+            "message": (
+                "No catalog schema was supplied (--allow-schemaless). This diff could not "
+                "distinguish set-like arrays from ordered arrays and did not validate any "
+                "semantic catalog field -- treat it as a text-only comparison, not a "
+                "schema-validated semantic diff."
+            ),
+        })
+        logger.warning("Degraded mode: diffing without a schema (--allow-schemaless). "
+                       "Set-like vs ordered arrays could not be distinguished and no "
+                       "semantic catalog-field validation was performed.")
     current_name = current_catalog['catalog'].get('name', args.current)
     future_name = future_catalog['catalog'].get('name', args.future)
 
@@ -536,6 +578,11 @@ def main():
     add_parser.add_argument('--schema', help='Schema file for validation')
     add_parser.add_argument('--validate', action='store_true', default=True,
                             help='Validate after add')
+    add_parser.add_argument('--catalog-root',
+                            help='Catalog repository root the resolved --output/--catalog '
+                                 'path must stay inside; the write is rejected (nothing '
+                                 'written) if it resolves outside this root, including via '
+                                 'a symlink. Omit to skip this check (e.g. one-off tooling).')
     add_parser.set_defaults(func=cmd_add)
 
     # Delete command
@@ -551,6 +598,11 @@ def main():
     del_parser.add_argument('--schema', help='Schema file for validation')
     del_parser.add_argument('--validate', action='store_true', default=True,
                             help='Validate after delete')
+    del_parser.add_argument('--catalog-root',
+                            help='Catalog repository root the resolved --output/--catalog '
+                                 'path must stay inside; the write is rejected (nothing '
+                                 'written) if it resolves outside this root, including via '
+                                 'a symlink. Omit to skip this check (e.g. one-off tooling).')
     del_parser.set_defaults(func=cmd_delete)
 
     # Validate command
@@ -592,7 +644,16 @@ def main():
     diff_parser.add_argument('--current', required=True, help='Current catalog file')
     diff_parser.add_argument('--future', required=True, help='Future catalog file')
     diff_parser.add_argument('--schema', '-s',
-                             help='Schema file; rejects the diff if either catalog fails')
+                             help='Schema file for semantic comparison; rejects the diff if '
+                                  'either catalog fails. Required unless --allow-schemaless '
+                                  'is passed.')
+    diff_parser.add_argument('--allow-schemaless', action='store_true',
+                             help='Explicitly permit a schema-less diff. Without a schema, '
+                                  'the diff cannot distinguish set-like arrays from ordered '
+                                  'arrays or validate semantic catalog fields; the resulting '
+                                  'changelog is a disclosed, degraded text-only comparison, '
+                                  'not a schema-validated semantic diff. Without this flag, '
+                                  '--schema is required.')
     diff_parser.add_argument('--output-forward', required=True,
                              help='Output file for the forward diff (current -> future)')
     diff_parser.add_argument('--output-reverse', required=True,
@@ -624,6 +685,11 @@ def main():
         if not args.catalog:
             parser.error("validate: --catalog is required "
                          "(set CATALOG_FILE_PATH or use -c)")
+    elif args.command == 'diff':
+        if not args.schema and not args.allow_schemaless:
+            parser.error("diff: --schema is required for a schema-validated semantic diff; "
+                         "pass --allow-schemaless to explicitly accept a degraded, "
+                         "text-only comparison instead")
 
     setup_logging(args.log_dir)
 

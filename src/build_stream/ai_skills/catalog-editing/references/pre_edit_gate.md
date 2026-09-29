@@ -6,8 +6,8 @@ description: Shared gate every catalog edit (single-catalog or bulk) must pass t
 ## Purpose
 
 This is not a standalone operator-facing skill. It is the shared
-orchestration procedure `edit_catalog.md` and `bulk_edit_catalog.md` both
-call before applying any change (FR-6.1 of
+orchestration procedure the `catalog-editing` and `bulk-edit-catalog`
+skills both call before applying any change (FR-6.1 of
 `ER-BSM-001-nersc-ai-skills-catalog-authoring`). There is no path in
 either editing skill that applies an edit without going through this
 gate first — a "trivial" or "metadata-only" edit still runs this
@@ -69,11 +69,11 @@ If a check does not apply, say so explicitly in the findings (see Step
 ### Step 2 — Run the applicable checks
 
 - Impact Analysis: invoke
-  `src/build_stream/ai_skills/analysis/impact_analysis.md`'s procedure
+  `src/build_stream/ai_skills/impact-analysis/SKILL.md`'s procedure
   against the target catalog and the specific package/group/layer/OS
   target.
 - Compatibility & Dependency Analysis: invoke
-  `src/build_stream/ai_skills/analysis/compatibility_analysis.md`'s
+  `src/build_stream/ai_skills/compatibility-analysis/SKILL.md`'s
   procedure against the specific package/version/target.
 
 Both skills already carry their own online-preferred/offline-disclosed
@@ -100,13 +100,13 @@ approval for a newly-presented finding.
      (pre-edit) content into this invocation's working directory per
      `src/build_stream/ai_skills/shared/working_directory.md` (e.g.
      `$WORKDIR/pre_edit_snapshot.json`). The edit is applied in place
-     (`edit_catalog.md`/`bulk_edit_catalog.md` overwrite the catalog file
-     directly), so this snapshot is the only remaining copy of the
-     "before" state once the write happens — without it, Step 4.2 below
-     has nothing to diff against.
-  2. Apply the edit via `edit_catalog.md`'s (or, for a cross-catalog
-     request, `bulk_edit_catalog.md`'s) mechanics.
-  3. Invoke `src/build_stream/ai_skills/diff_changelog/changelog_generator.md`
+     (the `catalog-editing`/`bulk-edit-catalog` skills overwrite the
+     catalog file directly), so this snapshot is the only remaining copy
+     of the "before" state once the write happens — without it, Step 4.2
+     below has nothing to diff against.
+  2. Apply the edit via the `catalog-editing` skill's (or, for a
+     cross-catalog request, the `bulk-edit-catalog` skill's) mechanics.
+  3. Invoke `src/build_stream/ai_skills/catalog-diff/SKILL.md`
      with `--current $WORKDIR/pre_edit_snapshot.json --future
      <the now-edited catalog file>` to generate/update its changelog.
      Write the diff/changelog outputs into the same working directory,
@@ -128,7 +128,7 @@ approval for a newly-presented finding.
 
 ### Step 5 — Per-catalog differentiation for bulk edits
 
-When `bulk_edit_catalog.md` is driving a request across multiple
+When the `bulk-edit-catalog` skill is driving a request across multiple
 catalogs, run Steps 1-4 **independently per catalog**. A finding on one
 catalog never blocks, suppresses, or auto-applies to another:
 - Present each catalog's findings separately (a table or per-catalog
@@ -142,7 +142,7 @@ catalog never blocks, suppresses, or auto-applies to another:
   catalog with no finding may be approved and applied while another
   with a finding is still pending or declined — these are independent
   decisions, not a single "all clear" gate for the whole bulk request.
-- The bulk-edit report (per `bulk_edit_catalog.md` Step 4) must show,
+- The bulk-edit report (per the `bulk-edit-catalog` skill's Step 4) must show,
   per catalog: applied / held-pending-approval / declined / skipped
   (schema-invalid) / unchanged (didn't match).
 
@@ -154,7 +154,7 @@ what the finding was (or "not applicable" and why), what the operator
 decided, and the outcome. Follow the same audit-logging pattern already
 established in `trusted_source_policy.md` — when you have file-system
 access, append one line per decision to
-`src/build_stream/ai_skills/catalog_editing/pre_edit_gate_audit.log`;
+`src/build_stream/ai_skills/catalog-editing/pre_edit_gate_audit.log`;
 when you don't, state the decision and its outcome explicitly in the
 operator-visible response (which is then the only record, same as the
 analysis skills' degraded-mode disclosure contract).
@@ -167,9 +167,9 @@ analysis skills' degraded-mode disclosure contract).
 > reference it) plus severity; Compatibility Analysis is not applicable
 > (a removal, not a version change). Findings presented; operator
 > approves. The pre-edit catalog is snapshotted to `$WORKDIR/
-> pre_edit_snapshot.json`, the edit is applied via `edit_catalog.md`, then
-> `changelog_generator.md` is invoked with that snapshot as `--current`
-> and the now-edited file as `--future` to record the removal and its
+> pre_edit_snapshot.json`, the edit is applied via the `catalog-editing`
+> skill, then the `catalog-diff` skill is invoked with that snapshot as
+> `--current` and the now-edited file as `--future` to record the removal and its
 > disclosed impact. The changelog is copied to its destination and
 > `$WORKDIR` is removed.
 
@@ -189,7 +189,7 @@ analysis skills' degraded-mode disclosure contract).
 > A bulk request to pin RHEL 10.0 -> 10.2 targets two catalogs.
 > Catalog A's Impact/Compatibility checks find nothing; Catalog B's base
 > OS group is missing a required field and would fail schema validation
-> after the edit (a `bulk_edit_catalog.md`-level finding, reported
+> after the edit (a `bulk-edit-catalog`-level finding, reported
 > alongside any Impact/Compatibility findings). Present Catalog A as
 > clear and Catalog B as flagged, with its specific violation. The
 > operator may approve Catalog A while Catalog B remains held (or is

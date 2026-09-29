@@ -1,6 +1,9 @@
 name: catalog-editing
 version: 1.0.0
-description: "Applies single-catalog edits (add/remove packages, pin versions, correct metadata) with correct section placement and impact gating. Use when modifying existing Omnia catalogs with validation and compatibility checks."
+description: >-
+  Applies single-catalog edits (add/remove packages, pin versions, correct metadata) with correct
+  section placement and impact gating. Use when modifying existing Omnia catalogs with validation
+  and compatibility checks.
 author: Omnia Build Stream Team
 role: engineering
 domain: catalog-authoring
@@ -13,6 +16,8 @@ tags:
 dependencies:
   - pre-edit-gate
   - impact-analysis
+  - compatibility-analysis
+  - catalog-selection-gate
 status: active
 created: 2026-09-29
 updated: 2026-09-29

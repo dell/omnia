@@ -40,7 +40,14 @@ _KUBE_COMPONENT_PATTERNS = {
     "kubectl": re.compile(r"kubectl", re.IGNORECASE),
     "cri-o": re.compile(r"cri[-_]o", re.IGNORECASE),
 }
+_KUBE_IMAGE_PATTERNS = {
+    "kube-apiserver": re.compile(r"kube-apiserver$", re.IGNORECASE),
+    "kube-controller-manager": re.compile(r"kube-controller-manager$", re.IGNORECASE),
+    "kube-scheduler": re.compile(r"kube-scheduler$", re.IGNORECASE),
+    "kube-proxy": re.compile(r"kube-proxy$", re.IGNORECASE),
+}
 _VERSION_RE = re.compile(r"(\d+\.\d+)\.\d+")
+_REPONAME_KUBE_VERSION_RE = re.compile(r"kubernetes-v(\d+)-(\d+)", re.IGNORECASE)
 _LAYER_VERSION_TOKEN_RE = re.compile(r"rhel_(\d+_\d+)_")
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
@@ -176,20 +183,55 @@ def _extract_minor_version(text: str):
 
 
 def _find_kube_components(catalog_body: dict) -> dict:
-    """Locate the CON-004 kube-core components (kubeadm/kubelet/kubectl/cri-o)
-    in a catalog's packages, each with its resolved minor version.
+    """Locate every CON-004 kube-core version pin in a catalog's packages,
+    each with its resolved minor version -- across all three pin kinds the
+    master reference file's A.8 CON-004 constraint actually covers:
+
+    - **RPM** components (kubeadm/kubelet/kubectl/cri-o): minor version from
+      the package's own name/key (e.g. 'kubelet-1.35.1').
+    - **Container image** components (kube-apiserver/kube-controller-manager/
+      kube-scheduler/kube-proxy): minor version from the image package's own
+      `tag` field, not its key -- a `packagetype: image` entry's key is the
+      image reference (e.g. 'registry.k8s.io/kube-apiserver'), which never
+      changes when only the tag is bumped or rolled back.
+    - **Repository identifier** components: any source whose `reponame`
+      itself encodes a Kubernetes minor version (e.g. 'kubernetes-v1-35').
+      This is tracked as its own component, separate from the RPM/image
+      component sharing that repository, so a reponame that drifts out of
+      sync with the package's own name/tag (e.g. the RPM still reads
+      'kubelet-1.35.1' but its `reponame` moved to 'kubernetes-v1-34') is
+      itself detected as a version-pin disagreement, not silently ignored.
     """
     found = {}
     for key, pkg in catalog_body.get("packages", {}).items():
         name = pkg.get("name", "") or ""
+        tag = pkg.get("tag", "") or ""
         haystack = f"{key} {name}"
-        for label, pattern in _KUBE_COMPONENT_PATTERNS.items():
-            if label in found:
+        packagetype = pkg.get("packagetype")
+
+        if packagetype == "image":
+            for label, pattern in _KUBE_IMAGE_PATTERNS.items():
+                if label not in found and pattern.search(key):
+                    minor = _extract_minor_version(tag)
+                    if minor:
+                        found[label] = {"key": key, "name": f"{name}:{tag}",
+                                        "minor_version": minor}
+        else:
+            for label, pattern in _KUBE_COMPONENT_PATTERNS.items():
+                if label not in found and pattern.search(haystack):
+                    minor = _extract_minor_version(name) or _extract_minor_version(key)
+                    if minor:
+                        found[label] = {"key": key, "name": name, "minor_version": minor}
+
+        for source in pkg.get("sources", []) or []:
+            reponame = source.get("reponame") or ""
+            match = _REPONAME_KUBE_VERSION_RE.search(reponame)
+            if not match:
                 continue
-            if pattern.search(haystack):
-                minor = _extract_minor_version(name) or _extract_minor_version(key)
-                if minor:
-                    found[label] = {"key": key, "name": name, "minor_version": minor}
+            label = f"repository '{reponame}'"
+            if label not in found:
+                found[label] = {"key": key, "name": reponame,
+                                 "minor_version": f"{match.group(1)}.{match.group(2)}"}
     return found
 
 

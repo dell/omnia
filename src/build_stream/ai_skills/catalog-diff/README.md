@@ -16,7 +16,9 @@ Use this skill when you need to:
 ## Prerequisites
 
 - Two catalog JSON files (current and future versions)
-- Access to catalog schema for validation
+- Access to catalog schema for validation (`--schema` is required unless
+  `--allow-schemaless` is explicitly passed, which produces a disclosed
+  degraded text-only comparison instead)
 - Master reference file for context
 
 ## Usage
@@ -87,7 +89,7 @@ Properties:
 ## References
 
 - `src/repo_manager/schemas/catalog_schema.json` — Catalog schema validation
-- `src/build_stream/ai_skills/master_reference/master_reference_file.md` — Reference context
+- `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` — Reference context
 
 ## Workflow
 

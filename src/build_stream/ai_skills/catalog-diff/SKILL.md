@@ -24,10 +24,16 @@ Two artifacts are always produced, and are never merged into each other:
 
 1. The two catalog JSON files (current and future) the operator names or
    pastes.
-2. `src/repo_manager/schemas/catalog_schema.json` — the schema gate; a diff
+2. `src/repo_manager/schemas/catalog_schema.json` — the schema gate.
+   **`--schema` is required** for a semantic diff — without it,
+   `catalog_manager.py diff` refuses to run at all unless
+   `--allow-schemaless` is explicitly passed, in which case it produces a
+   disclosed, degraded text-only comparison (a `SCHEMA-DEGRADED` warning is
+   inserted into the changelog itself, not just printed to stdout) rather
+   than a silent, potentially misleading semantic conclusion. A diff
    request against a schema-invalid catalog version must be rejected with
    the specific violation, never emitted as a partial diff.
-3. `src/build_stream/ai_skills/master_reference/master_reference_file.md`
+3. `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md`
    — A.8 Constraint and Co-Requisite Table, specifically CON-004 and
    CON-007, which the changelog's compatibility/dependency warnings cite.
 4. `src/build_stream/ai_skills/shared/working_directory.md` — where to put
@@ -65,10 +71,19 @@ Copy `changelog.md`/`changelog.html` (and, if the operator wants them,
 - **Exit code 0:** the diff was computed and the reversibility invariant
   verified. `forward_diff.json`/`reverse_diff.json` are the machine-readable
   artifacts; `changelog.md`/`changelog.html` are the human-readable ones.
+- **Exit code 1 with "--schema is required...":** you omitted `--schema`
+  and did not pass `--allow-schemaless`. Add `--schema` (the normal case),
+  or pass `--allow-schemaless` only if the operator explicitly accepts a
+  degraded, text-only comparison — say so plainly if you do.
 - **Exit code 1 with `[ERROR]` lines and "Diff rejected: '<current|future>'
   catalog fails schema validation":** report the specific violation(s)
   verbatim to the operator. Do NOT emit a diff against an invalid catalog,
   and do NOT attempt to guess what the diff "would have been."
+- **Exit code 1 with "Diff rejected: '<label>' and '<label>' resolve to the
+  same path":** two of `--current`/`--future`/the four `--output-*` paths
+  resolve to the same file (including via a symlink) — an output can never
+  overwrite an input or another output. Fix the colliding path(s) and
+  re-run; nothing was written.
 - **Exit code 1 with a legacy-Schema-1.0 error:** the named catalog uses
   the PascalCase `Catalog` root key. Tell the operator to run
   `catalog_manager.py transform` on that file first — this skill does not
@@ -94,20 +109,28 @@ output is the fact record, per the no-fabrication rule (NFR-3).
 
 ### Step 3 — Surface every warning, never soften a blocking one
 
-- `CON-004` (blocking): the future catalog's Kubernetes RPM/image/repo
-  version pins disagree. Present this prominently — it is a blocking
-  constraint, not a stylistic note.
+- `CON-004` (blocking): the future catalog's Kubernetes RPM, container
+  **image tag**, and **repository identifier** version pins disagree —
+  e.g. an image tag moving from `1.35` to `1.34` while a sibling RPM stays
+  on `1.35`, or a `reponame` drifting to `kubernetes-v1-34` while the RPM
+  it sources is still named `kubelet-1.35.1`. Present this prominently —
+  it is a blocking constraint, not a stylistic note.
 - `CON-007` (warning): a group removed from one functional layer is still
   referenced by another. Tell the operator which other layer(s) are
   affected, since the "removal" in this catalog does not actually remove
   the group from those other layers.
-- **No warnings section content beyond `CON-004`/`CON-007` today.** If the
-  operator asks about a different kind of compatibility caveat (e.g. an
-  NVIDIA driver / RHEL Compatibility-Matrix caveat), tell them this skill
-  does not check that yet — it requires the online Red Hat Compatibility
-  Matrix, which is `ER-BSM-001-analysis-skills`'s Compatibility Analysis
-  skill, not this offline diff skill. Do not fabricate a caveat to answer
-  the question.
+- `SCHEMA-DEGRADED` (warning, only present when `--allow-schemaless` was
+  used): the diff was computed without a catalog schema. Surface this as
+  prominently as any other warning — it means the comparison could not
+  distinguish set-like arrays from ordered arrays and validated no
+  semantic catalog field.
+- **No warnings section content beyond `CON-004`/`CON-007`/`SCHEMA-DEGRADED`
+  today.** If the operator asks about a different kind of compatibility
+  caveat (e.g. an NVIDIA driver / RHEL Compatibility-Matrix caveat), tell
+  them this skill does not check that yet — it requires the online Red Hat
+  Compatibility Matrix, which is the `compatibility-analysis` skill, not
+  this offline diff skill. Do not fabricate a caveat to answer the
+  question.
 
 ## Worked Example
 

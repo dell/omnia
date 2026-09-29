@@ -14,7 +14,7 @@ Use this skill when you need to:
 
 ## Prerequisites
 
-- Access to `src/build_stream/ai_skills/master_reference/master_reference_file.md`
+- Access to `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md`
 - Access to `src/repo_manager/schemas/catalog_schema.json`
 - Understanding of target cluster configuration (OS, stack, roles, storage, network)
 
@@ -64,8 +64,8 @@ Generate a catalog for:
 
 ## References
 
-- `src/build_stream/ai_skills/master_reference/master_reference_file.md` — Appendix A tables (Selection Catalogue, Node-Role, Functional-Layer Composition, etc.)
-- `src/build_stream/ai_skills/master_reference/SKILL.md` — Shared support_status Selection Catalogue gate
+- `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` — Appendix A tables (Selection Catalogue, Node-Role, Functional-Layer Composition, etc.)
+- `src/build_stream/ai_skills/catalog-selection-gate/SKILL.md` — Shared support_status Selection Catalogue gate
 - `src/build_stream/ai_skills/shared/connectivity_layer.md` — Online/offline package resolution fallback procedure
 - `src/repo_manager/schemas/catalog_schema.json` — Official Omnia catalog JSON schema
 - `src/build_stream/ai_skills/shared/working_directory.md` — Working directory conventions for draft catalogs

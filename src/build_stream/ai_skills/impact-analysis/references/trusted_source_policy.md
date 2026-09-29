@@ -80,12 +80,12 @@ after the fact: what was requested, what the outcome was, and why it
 happened.
 
 - **When you have file-system access** (coding-agent channel): append one
-  line to `src/build_stream/ai_skills/analysis/degraded_mode_audit.log`
+  line to `src/build_stream/ai_skills/impact-analysis/degraded_mode_audit.log`
   (create the file if it does not exist) in this exact plain-text format,
   using a real shell append — no new Python code:
 
   ```bash
-  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) skill=<impact-analysis|compatibility-analysis> request=\"<operator's request, summarized>\" outcome=<degraded|unresolved> reason=<unreachable|timeout|malformed|not-in-approved-sources|not-in-master-reference|arch-mismatch|operator-declined-proxy> source_consulted=<source name or 'none'>" >> src/build_stream/ai_skills/analysis/degraded_mode_audit.log
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) skill=<impact-analysis|compatibility-analysis> request=\"<operator's request, summarized>\" outcome=<degraded|unresolved> reason=<unreachable|timeout|malformed|not-in-approved-sources|not-in-master-reference|arch-mismatch|operator-declined-proxy> source_consulted=<source name or 'none'>" >> src/build_stream/ai_skills/impact-analysis/degraded_mode_audit.log
   ```
 
   Do not write secrets, credentials, or full request payloads into this
