@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fresh boot and authoritative cloud-init verification."""
+"""Authoritative cloud-init verification for every mapped node."""
 
 import pytest
 from library.functions import TestLogger, check_node_cloud_init
@@ -25,7 +25,7 @@ from library.vars import TEST_CASES as TC
 @pytest.mark.cloudinit
 @pytest.mark.order(204)
 def test_node_cloud_init(host):
-    """Verify PXE report freshness and direct cloud-init JSON state."""
+    """Verify direct cloud-init JSON state using mapped administrative IPs."""
     tc = TC["node_cloud_init"]
     test_log = TestLogger(tc["title"], tc["id"])
     result = check_node_cloud_init(host)

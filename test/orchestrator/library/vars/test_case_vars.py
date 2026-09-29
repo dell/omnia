@@ -184,7 +184,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
     },
     "node_cloud_init": {
         "id": "ORCH_FVT_PXEBOOT_V004",
-        "title": "Verify fresh boot and cloud-init completion",
+        "title": "Verify mapped-node cloud-init completion",
         "component": "Cloud-init",
     },
     "kubernetes_nodes": {

@@ -151,7 +151,7 @@ is rejected. Reboot and scheduler-state cases require their explicit markers.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 204 | `ORCH_FVT_PXEBOOT_V004` | `test_node_cloud_init` | `cloudinit` | `cloudinit`, `sanity` | Verify PXE report freshness and direct cloud-init JSON state. | All stated checks pass for every applicable target. |
+| 204 | `ORCH_FVT_PXEBOOT_V004` | `test_node_cloud_init` | `cloudinit` | `cloudinit`, `sanity` | Read every node from the PXE mapping file and verify cloud-init directly over its mapped administrative IP. | All stated checks pass for every applicable target. |
 
 Cloud-init is accepted only when its structured status satisfies the
 product contract. A generated script success message is not treated as
