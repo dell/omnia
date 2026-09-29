@@ -23,8 +23,12 @@
       - discovery_cleanup_project_name is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
       - discovery_cleanup_input_dir == discovery_cleanup_expected_input_dir
       - discovery_cleanup_output_dir == discovery_cleanup_expected_output_dir
+      - discovery_cleanup_log_dir == discovery_cleanup_expected_log_dir
       - >-
         cleanup_credentials is not defined or
         (cleanup_credentials | string | trim | lower) in ['true', 'false']
+      - >-
+        cleanup_logs is not defined or
+        (cleanup_logs | string | trim | lower) in ['true', 'false']
     fail_msg: "{{ discovery_cleanup_invalid_configuration_msg }}"
     quiet: true
