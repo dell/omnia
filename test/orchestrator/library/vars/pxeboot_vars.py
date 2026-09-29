@@ -95,6 +95,29 @@ HPC_BENCHMARKS_COMPILE_KEYWORDS: tuple[str, ...] = (
     "./configure",
 )
 
+# CoreDNS / CoreDHCP (coresmd) — deployed by src/orchestrator/roles/deploy_openchami
+# and configured by src/orchestrator/roles/provision_common/tasks/configure_dns.yml
+CORESMD_COREDNS_CONTAINER = "coresmd-coredns"
+CORESMD_COREDHCP_CONTAINER = "coresmd-coredhcp"
+CORESMD_CONTAINERS: tuple[str, ...] = (
+    CORESMD_COREDNS_CONTAINER,
+    CORESMD_COREDHCP_CONTAINER,
+)
+SMD_CONTAINER_NAME = "smd"
+CORESMD_IMAGE_REPO = "ghcr.io/openchami/coresmd"
+COREDNS_COREFILE_PATH = "/etc/openchami/configs/Corefile"
+COREDHCP_CONFIG_PATH = "/etc/openchami/configs/coredhcp.yaml"
+COREDNS_QUERY_TIMEOUT_SECONDS = 5
+COREDNS_QUERY_SAMPLE_SIZE = 5
+COREDNS_IDEMPOTENCY_SETTLE_SECONDS = 5
+COREDNS_CACHE_DURATION_SECONDS = 30
+COREDNS_NODE_ADDITION_WAIT_SECONDS = 60
+COREDNS_SMD_UNREACHABLE_HOLD_SECONDS = 45
+COREDNS_TEMP_XNAME = "x9999c0s0b0n0"
+COREDNS_TEMP_HOSTNAME = "omnia-fvt-tempnode"
+COREDNS_TEMP_MAC = "aa:bb:cc:dd:ee:99"
+COREDNS_TEMP_IP = "127.9.9.9"
+
 KUBERNETES_PREFIX = "service_kube_"
 KUBERNETES_CONTROL_PLANE_PREFIX = "service_kube_control_plane_"
 KUBERNETES_PRIMARY_CONTROL_PLANE_PREFIX = "service_kube_control_plane_first_"
@@ -563,6 +586,39 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "curl -ksfL --connect-timeout 5 --max-time 15 %s 2>/dev/null | "
         "grep -oE 'href=\"[^\"]+\"' | grep -vE '(\\.\\./|index\\.html)' | head -20"
     ),
+    "coresmd_container_ps": (
+        "podman ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | "
+        "grep -E '(^|\\|)%s(\\||-|$)' | head -5"
+    ),
+    "coresmd_container_id": (
+        "podman ps --format '{{.ID}}|{{.Names}}|{{.Image}}' | "
+        "grep -E '(^|\\|)%s(\\||-|$)' | head -1"
+    ),
+    "coresmd_container_running": (
+        "podman inspect --format '{{.State.Running}}|{{.Image}}|{{.Config.Image}}' %s "
+        "2>/dev/null || echo missing"
+    ),
+    "coresmd_container_exec": "podman exec %s %s",
+    "coresmd_container_pause": "podman pause %s",
+    "coresmd_container_unpause": "podman unpause %s",
+    "dns_query_forward": (
+        "dig +short +time=%s +tries=1 @%s %s A"
+    ),
+    "dns_query_reverse": (
+        "dig +short +time=%s +tries=1 @%s -x %s"
+    ),
+    "dns_query_forwarders": (
+        "dig +short +time=%s +tries=1 @%s %s A"
+    ),
+    "resolv_conf_read": "cat /etc/resolv.conf",
+    "hosts_file_read": "cat /etc/hosts | head -200",
+    "getent_hosts": "getent hosts %s",
+    "getent_hosts_reverse": "getent hosts %s",
+    "config_file_hash": "sha256sum %s 2>/dev/null | cut -d' ' -f1 || echo missing",
+    "port_reachable": (
+        "timeout 3 bash -c 'cat < /dev/tcp/%s/%s' >/dev/null 2>&1 && "
+        "echo reachable || echo blocked"
+    ),
     "pam_adopt_integration": (
         "policy=missing; usepam=disabled; module=missing; "
         "if grep -Eq '^[[:space:]]*account[[:space:]]+required"
@@ -573,6 +629,39 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "then module=available; fi; "
         'printf \'%s|%s|%s\' "$policy" "$usepam" "$module"'
     ),
+    # PowerVault iSCSI commands
+    "pv_iscsid_active": "systemctl is-active iscsid",
+    "pv_iscsid_enabled": "systemctl is-enabled iscsid",
+    "pv_multipathd_active": "systemctl is-active multipathd",
+    "pv_multipathd_enabled": "systemctl is-enabled multipathd",
+    "pv_iscsi_initiator_read": "cat %s",
+    "pv_iscsi_discovery": "iscsiadm -m discovery -t sendtargets -p %s:%d",
+    "pv_iscsi_sessions": "iscsiadm -m session",
+    "pv_iscsi_session_detail": "iscsiadm -m session -P 1 2>/dev/null",
+    "pv_iscsi_node_show": "iscsiadm -m node -o show",
+    "pv_multipath_list": "multipath -ll",
+    "pv_mountpoint_check": "mountpoint -q %s && echo mounted || echo not_mounted",
+    "pv_dir_exists": "test -d %s && echo exists || echo not_exists",
+    "pv_fstab_read": "cat /etc/fstab",
+    "pv_proc_mounts_read": "cat /proc/mounts",
+    "pv_blkid_fstype": "blkid -s TYPE -o value %s 2>/dev/null",
+    "pv_parted_print": "parted -s %s print 2>/dev/null",
+    "pv_port_check": (
+        "timeout %d bash -c 'cat < /dev/tcp/%s/%d' >/dev/null 2>&1 && "
+        "echo reachable || echo unreachable"
+    ),
+    "pv_df": "df -h %s",
+    "pv_mount_grep": "mount | grep '%s'",
+    "pv_log_exists": "test -f %s && echo exists || echo not_exists",
+    "pv_log_complete": "grep '%s' %s && echo found || echo not_found",
+    "pv_log_errors": "grep -E '^\\[.*\\].*ERROR' %s || true",
+    "pv_node_key_hostname": "hostname -s",
+    "pv_node_key_ipv4": "hostname -I | awk '{print $1}'",
+    "pv_node_key_instance": (
+        "cloud-init query instance_id 2>/dev/null || "
+        "cat /var/lib/cloud/data/instance-id 2>/dev/null || hostname"
+    ),
+    "pv_permissions_check": "stat -c '%%U:%%G:%%a' %s",
 }
 
 KUBERNETES_REQUIRED_POD_PREFIXES: tuple[str, ...] = (
@@ -607,3 +696,16 @@ SLURM_ROLE_SERVICES: dict[str, tuple[str, ...]] = {
     SLURM_LOGIN_PREFIX: ("slurmd", "munge"),
     SLURM_COMPILER_PREFIX: ("slurmd", "munge"),
 }
+
+# =============================================================================
+# PowerVault iSCSI Storage Constants
+# =============================================================================
+POWERVAULT_DEFAULT_ISCSI_PORT = 3260
+POWERVAULT_DEFAULT_FS_TYPE = "xfs"
+POWERVAULT_DEFAULT_MOUNT_OPTS = "defaults,_netdev,noatime"
+POWERVAULT_DEFAULT_NODE_KEY = "local_hostname"
+POWERVAULT_LOG_TEMPLATE = "/var/log/omnia_iscsi_setup_{name}.log"
+POWERVAULT_LOG_COMPLETE_MSG = "iSCSI/multipath setup complete"
+POWERVAULT_PORT_CHECK_TIMEOUT = 5
+POWERVAULT_STORAGE_CONFIG_PATH = "/opt/omnia/input/project_default/storage_config.yml"
+POWERVAULT_ISCSI_INITIATOR_PATH = "/etc/iscsi/initiatorname.iscsi"

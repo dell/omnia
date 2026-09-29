@@ -732,6 +732,181 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify benchmark staging is idempotent",
         "component": "HPC benchmarks staging idempotency",
     },
+    "coredns_container_state": {
+        "id": "ORCH_FVT_PXEBOOT_V114",
+        "title": "Verify coresmd container state matches dns_enabled dataset",
+        "component": "CoreDNS/CoreDHCP container state",
+    },
+    "coredns_forward_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V115",
+        "title": "Verify CoreDNS forward resolution from OIM for mapped nodes",
+        "component": "CoreDNS forward resolution",
+    },
+    "coredns_reverse_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V116",
+        "title": "Verify CoreDNS reverse resolution from OIM for mapped admin IPs",
+        "component": "CoreDNS reverse resolution",
+    },
+    "coredhcp_multisubnet_running_image": {
+        "id": "ORCH_FVT_PXEBOOT_V117",
+        "title": "Verify multi-subnet coresmd containers use expected image",
+        "component": "CoreDHCP multi-subnet running image",
+    },
+    "dns_compute_resolv_conf": {
+        "id": "ORCH_FVT_PXEBOOT_V118",
+        "title": "Verify /etc/resolv.conf on every compute uses CoreDNS as primary",
+        "component": "Compute /etc/resolv.conf",
+    },
+    "dns_compute_forward_getent": {
+        "id": "ORCH_FVT_PXEBOOT_V119",
+        "title": "Verify every compute resolves peers via getent hosts",
+        "component": "Compute getent hosts resolution",
+    },
+    "coredns_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V120",
+        "title": "Verify CoreDNS/CoreDHCP state is stable across a settle window",
+        "component": "CoreDNS idempotency snapshot",
+    },
+    "dns_node_addition_pipeline": {
+        "id": "ORCH_FVT_PXEBOOT_V121",
+        "title": "Verify SMD-to-CoreDNS pipeline resolves every mapped node",
+        "component": "CoreDNS node-addition pipeline",
+    },
+    "dns_smd_unreachable_cached_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V122",
+        "title": "Verify CoreDNS serves cached records when SMD is unavailable",
+        "component": "CoreDNS SMD-unavailable cached resolution",
+    },
+    "powervault_iscsi_service": {
+        "id": "ORCH_FVT_PXEBOOT_V123",
+        "title": "Verify iscsid is active and enabled on all PowerVault target nodes",
+        "component": "PowerVault iSCSI service",
+    },
+    "powervault_iscsi_initiator_name": {
+        "id": "ORCH_FVT_PXEBOOT_V124",
+        "title": "Verify iSCSI initiator name matches config on all target nodes",
+        "component": "PowerVault iSCSI initiator name",
+    },
+    "powervault_iscsi_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V125",
+        "title": "Verify iSCSI target discovery succeeds from all portal IPs",
+        "component": "PowerVault iSCSI target discovery",
+    },
+    "powervault_iscsi_sessions": {
+        "id": "ORCH_FVT_PXEBOOT_V126",
+        "title": "Verify iSCSI sessions are active on all target nodes",
+        "component": "PowerVault iSCSI sessions",
+    },
+    "powervault_iscsi_startup_automatic": {
+        "id": "ORCH_FVT_PXEBOOT_V127",
+        "title": "Verify iSCSI node startup is automatic on all target nodes",
+        "component": "PowerVault iSCSI startup automatic",
+    },
+    "powervault_portal_reachability": {
+        "id": "ORCH_FVT_PXEBOOT_V128",
+        "title": "Verify iSCSI portal ports are reachable and sessions healthy",
+        "component": "PowerVault portal reachability",
+    },
+    "powervault_multipath_service": {
+        "id": "ORCH_FVT_PXEBOOT_V129",
+        "title": "Verify multipathd is active and enabled on all target nodes",
+        "component": "PowerVault multipathd service",
+    },
+    "powervault_multipath_device": {
+        "id": "ORCH_FVT_PXEBOOT_V130",
+        "title": "Verify multipath device exists and matches volume_id",
+        "component": "PowerVault multipath device",
+    },
+    "powervault_multipath_redundancy": {
+        "id": "ORCH_FVT_PXEBOOT_V131",
+        "title": "Verify multipath device has multiple paths for redundancy",
+        "component": "PowerVault multipath redundancy",
+    },
+    "powervault_gpt_partition": {
+        "id": "ORCH_FVT_PXEBOOT_V132",
+        "title": "Verify GPT partition exists on multipath device",
+        "component": "PowerVault GPT partition",
+    },
+    "powervault_filesystem_type": {
+        "id": "ORCH_FVT_PXEBOOT_V133",
+        "title": "Verify filesystem formatted with correct type",
+        "component": "PowerVault filesystem type",
+    },
+    "powervault_mount_point_directory": {
+        "id": "ORCH_FVT_PXEBOOT_V134",
+        "title": "Verify mount point directory exists on all target nodes",
+        "component": "PowerVault mount point directory",
+    },
+    "powervault_volume_mounted": {
+        "id": "ORCH_FVT_PXEBOOT_V135",
+        "title": "Verify PowerVault volume is actively mounted on all target nodes",
+        "component": "PowerVault volume mounted",
+    },
+    "powervault_mount_options": {
+        "id": "ORCH_FVT_PXEBOOT_V136",
+        "title": "Verify mount options applied correctly on all target nodes",
+        "component": "PowerVault mount options",
+    },
+    "powervault_fstab_entry": {
+        "id": "ORCH_FVT_PXEBOOT_V137",
+        "title": "Verify persistent fstab entry created on all target nodes",
+        "component": "PowerVault fstab entry",
+    },
+    "powervault_node_subdirectory": {
+        "id": "ORCH_FVT_PXEBOOT_V138",
+        "title": "Verify per-node subdirectory exists under mount point",
+        "component": "PowerVault node subdirectory",
+    },
+    "powervault_bind_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V139",
+        "title": "Verify bind mount targets are active on all target nodes",
+        "component": "PowerVault bind mounts",
+    },
+    "powervault_bind_fstab_entries": {
+        "id": "ORCH_FVT_PXEBOOT_V140",
+        "title": "Verify bind mount fstab entries are persistent on all target nodes",
+        "component": "PowerVault bind fstab entries",
+    },
+    "powervault_bind_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V141",
+        "title": "Verify per-node data separation via bind mounts",
+        "component": "PowerVault bind isolation",
+    },
+    "powervault_functional_group_targeting": {
+        "id": "ORCH_FVT_PXEBOOT_V142",
+        "title": "Verify PV mount only on correct functional groups",
+        "component": "PowerVault functional group targeting",
+    },
+    "powervault_multiple_prefix_targeting": {
+        "id": "ORCH_FVT_PXEBOOT_V143",
+        "title": "Verify multiple prefixes target all groups correctly",
+        "component": "PowerVault multiple prefix targeting",
+    },
+    "powervault_setup_log": {
+        "id": "ORCH_FVT_PXEBOOT_V144",
+        "title": "Verify cloud-init runcmd log exists and shows completion",
+        "component": "PowerVault setup log",
+    },
+    "powervault_cloud_init_groups_dict": {
+        "id": "ORCH_FVT_PXEBOOT_V145",
+        "title": "Verify cloud_init_groups_dict contains powervault_scripts",
+        "component": "PowerVault cloud-init groups dict",
+    },
+    "powervault_no_duplicate_fstab": {
+        "id": "ORCH_FVT_PXEBOOT_V146",
+        "title": "Verify no duplicate fstab entries on all target nodes",
+        "component": "PowerVault no duplicate fstab",
+    },
+    "powervault_all_mounts_writable": {
+        "id": "ORCH_FVT_PXEBOOT_V147",
+        "title": "Verify all PV mounts (main + bind) are writable",
+        "component": "PowerVault mounts writable",
+    },
+    "powervault_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V148",
+        "title": "Verify permissions on mount point match config",
+        "component": "PowerVault permissions",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
