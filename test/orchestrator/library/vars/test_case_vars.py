@@ -647,6 +647,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Apptainer artifacts after compute reboot",
         "component": "Apptainer artifact recovery",
     },
+    "slurm_node_remove": {
+        "id": "ORCH_FVT_PXEBOOT_V095",
+        "title": "Verify Slurm compute node removal lifecycle",
+        "component": "Slurm node removal",
+    },
+    "slurm_node_add": {
+        "id": "ORCH_FVT_PXEBOOT_V096",
+        "title": "Verify Slurm compute node re-addition lifecycle",
+        "component": "Slurm node re-addition",
+    },
     "node_architecture": {
         "id": "ORCH_FVT_PXEBOOT_V097",
         "title": "Verify live node architecture matches functional group",
