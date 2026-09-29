@@ -372,10 +372,8 @@
           failure_count: 0
           unverified_count: 0
           timestamp: ""
-          report: pxeboot_status.yml
       artifacts:
         provisioning_report: provisioning_report.yml
-        pxeboot_status: pxeboot_status.yml
         failed_nodes: failed_nodes.json
   when: >-
     ansible_run_tags | default([])

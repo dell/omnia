@@ -1009,31 +1009,6 @@
             orchestrator_overall_status: >-
               {{ 'failed' if (failed_nodes_list | default([]) | length > 0) else 'success' }}
 
-        - name: Build PXE phase status report
-          ansible.builtin.set_fact:
-            pxeboot_status_report:
-              schema_version: "1.0"
-              phase: pxeboot
-              run_id: "{{ ansible_date_time.epoch }}"
-              overall_status: "{{ orchestrator_overall_status }}"
-              timestamp: "{{ ansible_date_time.iso8601 }}"
-              total_nodes: "{{ groups['bmc'] | length }}"
-              success_count: "{{ groups['bmc'] | length | int - (failed_nodes_list | default([]) | length | int) }}"
-              failure_count: "{{ (failed_nodes_list | default([])) | length }}"
-              verification_enabled: "{{ enable_node_registration | bool }}"
-              unverified_count: >-
-                {{ 0 if enable_node_registration | bool
-                   else groups['bmc'] | length - (pxe_boot_failed_bmc_ips | length) }}
-              custom_inventory: "{{ pxeboot_using_custom_inventory | default(false) | bool }}"
-              inventory_source: "{{ pxeboot_inventory_source }}"
-              nodes: "{{ all_nodes_status | default([]) }}"
-
-        - name: Write pxeboot_status.yml
-          ansible.builtin.copy:
-            content: "{{ pxeboot_status_report | to_nice_yaml }}"
-            dest: "{{ orchestrator_output_dir }}/pxeboot_status.yml"
-            mode: "0644"
-
         - name: Build aggregate orchestrator status report
           ansible.builtin.set_fact:
             orchestrator_status_report:
@@ -1080,10 +1055,8 @@
                     {{ 0 if enable_node_registration | bool
                        else groups['bmc'] | length - (pxe_boot_failed_bmc_ips | length) }}
                   timestamp: "{{ ansible_date_time.iso8601 }}"
-                  report: pxeboot_status.yml
               artifacts:
                 provisioning_report: provisioning_report.yml
-                pxeboot_status: pxeboot_status.yml
                 failed_nodes: failed_nodes.json
 
         - name: Write aggregate orchestrator_status.yml

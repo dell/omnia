@@ -152,20 +152,17 @@ The play writes all lifecycle reports under
 `$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/`, including on a
 successful run:
 
-- `pxeboot_status.yml`: PXE and verification result for every node attempted
-  by the current run.
 - `failed_nodes.json`: failure-only report; `failed_nodes` is an
   empty array when all nodes succeed.
 - `orchestrator_status.yml`: stable aggregate of provisioning and PXE phase
   status. An existing `provisioning_report.yml` is retained and correlated by
   XNAME only when its `inventory_source` matches the active PXE inventory.
 
-During a standard pending-node retry, `pxeboot_status.yml` and
-`failed_nodes.json` describe only the attempted subset, while
-`orchestrator_status.yml` retains the latest records for nodes that were not
-selected and replaces the records for nodes that were retried. This prevents a
-one-node retry from erasing successful lifecycle state for the rest of the
-cluster.
+During a standard pending-node retry, `failed_nodes.json` describes failures
+only in the attempted subset, while `orchestrator_status.yml` retains the latest
+records for nodes that were not selected and replaces the records for nodes that
+were retried. This prevents a one-node retry from erasing successful lifecycle
+state for the rest of the cluster.
 
 The aggregate schema is not replaced by a phase-specific schema. Its
 `last_completed_phase` changes to `pxeboot`, and its `phases` map retains the
@@ -174,7 +171,7 @@ provisioning status and adds the PXE status.
 ### Success
 
 - Exit code: `0`
-- `pxeboot_status.yml` reports `overall_status: success`.
+- `orchestrator_status.yml` records a successful PXE phase.
 - `failed_nodes.json` contains an empty `failed_nodes` array.
 
 ### Failure
@@ -325,8 +322,8 @@ ansible-playbook orchestrator.yml --tags pxeboot
 4. **PXE Boot**: Set PXE boot on each iDRAC and restart nodes
 5. **Report**: Collect PXE boot failures
 6. **Node Registration**: Verify fresh boot and cloud-init concurrently (if enabled)
-7. **Final Report**: Generate `pxeboot_status.yml`, `failed_nodes.json`, and
-   the aggregate `orchestrator_status.yml`, then exit
+7. **Final Report**: Generate `failed_nodes.json` and the aggregate
+   `orchestrator_status.yml`, then exit
 
 ### Roles Used
 

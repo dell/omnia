@@ -117,15 +117,13 @@ Provisioning and PXE boot publish versioned, phase-specific reports under:
 | File | Producer | Contract |
 |------|----------|----------|
 | `provisioning_report.yml` | Provision validation | SMD, Boot Service, Metadata Service, interface, and hostname registration results |
-| `pxeboot_status.yml` | PXE boot | PXE initiation and optional fresh-boot/cloud-init verification for every selected node |
-| `failed_nodes.json` | PXE boot | Failure-only view of the PXE report; written even when no node fails |
+| `failed_nodes.json` | PXE boot | Failure-only view of the latest attempted subset; written even when no node fails |
 | `orchestrator_status.yml` | Provision and PXE boot | Stable aggregate view containing the latest provisioning and PXE phase states |
 
-`provisioning_report.yml`, `pxeboot_status.yml`, and
-`orchestrator_status.yml` use `schema_version: "1.0"`. The failure-only report
-also uses schema 1.0 for BuildStream compatibility. A later phase updates the stable
-aggregate report, retains the provisioning result when available, and adds the
-latest PXE result.
+`provisioning_report.yml` and `orchestrator_status.yml` use
+`schema_version: "1.0"`. The failure-only report also uses schema 1.0 for
+BuildStream compatibility. A later phase updates the stable aggregate report,
+retains the provisioning result when available, and adds the latest PXE result.
 
 ### 4.1 Provisioning report
 
@@ -140,32 +138,12 @@ Important fields include `overall_status`, `total_expected_nodes`,
 `metadata_changed_nodes`, `reprovision_required_nodes`,
 `stale_metadata_groups_deleted`, `inventory_source`, and `timestamp`.
 
-### 4.2 PXE status and failed-node report
+### 4.2 PXE failed-node report
 
-When at least one node is selected, `pxeboot_status.yml` is written and its
-`nodes` list includes every node attempted by that PXE run. When standard
-pending-node selection finds no work, PXE exits successfully without replacing
-the existing reports. Each node uses the compact lifecycle contract:
-
-```yaml
-schema_version: "1.0"
-phase: pxeboot
-overall_status: failed
-verification_enabled: true
-nodes:
-  - xname: x1000c0s1b0n0
-    hostname: node1
-    admin_ip: 192.168.1.54
-    bmc_ip: 172.20.44.54
-    status: failed
-    reprovision_required: true
-    provisioning_status: success
-    pxeboot:
-      status: failed
-      state: cloud_init_error
-      trigger_method: orchestrator
-      verification_method: ssh_cloud_init
-```
+When at least one node is selected, `failed_nodes.json` is written for the
+attempted subset. It contains an empty `failed_nodes` array when the attempted
+nodes succeed. When standard pending-node selection finds no work, PXE exits
+successfully without replacing the existing failure report.
 
 `failed_nodes.json` preserves its BuildStream-compatible failure envelope.
 Its `error` field contains only a compact state or generic verification
@@ -180,9 +158,9 @@ operating-system boots.
 ### 4.3 Aggregate Orchestrator status
 
 `orchestrator_status.yml` has one stable schema across phases. The `phases` map
-records status, counts, timestamps, and report filenames. Per-node records keep
-only identity, overall lifecycle state, the reprovision gate, provisioning
-status, and the latest PXE machine state.
+records status, counts, and timestamps. Per-node records keep only identity,
+overall lifecycle state, the reprovision gate, provisioning status, and the
+latest PXE machine state.
 
 After provisioning, the PXE phase is `not_run`. After PXE boot, the aggregate
 status is failed when either the retained provisioning phase or the current
@@ -214,9 +192,9 @@ The standard PXE workflow internally defaults to pending-node selection. It
 selects a node only when `reprovision_required` is true. Every failed or
 unverified attempt retains that value, while verified success clears it. A
 retry therefore does not reboot nodes that already completed verified PXE and
-cloud-init. The current `pxeboot_status.yml` remains a phase report for
-the attempted subset, while `orchestrator_status.yml` merges those results with
-the retained records for unselected nodes. The extra variable
+cloud-init. `failed_nodes.json` describes failures in the attempted subset,
+while `orchestrator_status.yml` merges the latest results with retained records
+for unselected nodes. The extra variable
 `-e pxeboot_scope=all` explicitly requests all mapped nodes; no additional
 project input is required. Explicit custom inventories and BuildStream retain
 their existing inventory-selection behavior.

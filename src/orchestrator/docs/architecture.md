@@ -306,7 +306,7 @@ When `enable_pxe_boot` is true, Orchestrator:
 5. Optionally connects to each node over SSH.
 6. Verifies that the boot timestamp is newer than the PXE request.
 7. Verifies cloud-init completion with the node-local `node_boot_status` module.
-8. Writes `pxeboot_status.yml`, `failed_nodes.json`, and the aggregate status.
+8. Writes `failed_nodes.json` and the aggregate lifecycle status.
 
 A successful verified boot clears pending metadata application state. A boot
 without node verification is reported as initiated but unverified.
@@ -457,7 +457,6 @@ orchestrator/
 |   +-- .data/functional_groups_config.yml
 |   +-- orchestrator_state.yml
 |   +-- provisioning_report.yml
-|   +-- pxeboot_status.yml
 |   +-- orchestrator_status.yml
 |   +-- failed_nodes.json
 +-- log/
@@ -493,8 +492,8 @@ is not automatically observed.
 | `functional_groups_config.yml` | Functional-group generation | Provisioning and validation |
 | `orchestrator_state.yml` | Setup lifecycle | Standalone provision phases |
 | `provisioning_report.yml` | Provision validation | PXE and operators |
-| `pxeboot_status.yml` | PXE workflow | Operators and automation |
 | `orchestrator_status.yml` | Provision and PXE workflows | Resume, reporting, and operators |
+| `failed_nodes.json` | PXE workflow | Failure-only consumers and BuildStream |
 | Generated inventories | Inventory generation | Kubernetes, Slurm, telemetry, and validation |
 
 See [`contracts/input-contract.md`](contracts/input-contract.md) and

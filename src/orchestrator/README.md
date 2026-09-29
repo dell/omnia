@@ -113,7 +113,6 @@ a boot started before the failed PXE workflow finishes is treated as stale.
 | `.data/functional_groups_config.yml` | Generated functional-group model |
 | `orchestrator_state.yml` | Persisted domain state used by standalone phases |
 | `provisioning_report.yml` | SMD, Boot Service, and Metadata Service validation result |
-| `pxeboot_status.yml` | Per-node PXE and cloud-init verification result |
 | `orchestrator_status.yml` | Aggregate provisioning and PXE lifecycle state |
 | `failed_nodes.json` | Failure-only PXE report |
 
@@ -250,8 +249,8 @@ For deployments moving from Omnia 2.2:
   and changed nodes remain `reprovision_required` until a verified fresh boot.
 - PXE completion uses the `node_registration_*` controls and verifies SSH boot
   freshness plus structured cloud-init state.
-- Lifecycle automation should consume `provisioning_report.yml`,
-  `pxeboot_status.yml`, and the aggregate `orchestrator_status.yml`.
+- Lifecycle automation should consume `provisioning_report.yml`, the aggregate
+  `orchestrator_status.yml`, and `failed_nodes.json` for PXE failures.
 - The OpenCHAMI `0.1.7-1` to `0.2.0-1` upgrade is one-way in this release;
   take a full system backup because the `rollback` tag is not operational.
 

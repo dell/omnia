@@ -221,22 +221,8 @@
           {{ external_all_nodes_status
              | selectattr('status', 'equalto', 'failed') | list | length }}
 
-    - name: Build external verification reports
+    - name: Build external verification failure report
       ansible.builtin.set_fact:
-        external_pxeboot_report:
-          schema_version: "1.0"
-          phase: pxeboot
-          run_id: "{{ ansible_date_time.epoch }}"
-          overall_status: "{{ 'success' if external_failure_count | int == 0 else 'failed' }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
-          total_nodes: "{{ external_selected_statuses | length }}"
-          success_count: "{{ external_success_count }}"
-          failure_count: "{{ external_failure_count }}"
-          verification_enabled: true
-          unverified_count: 0
-          custom_inventory: false
-          inventory_source: "{{ external_previous_status.inventory_source }}"
-          nodes: "{{ external_selected_statuses }}"
         external_failed_report:
           schema_version: "1.0"
           phase: pxeboot
@@ -279,19 +265,12 @@
                        'success_count': external_success_count,
                        'failure_count': external_failure_count,
                        'unverified_count': 0,
-                       'timestamp': ansible_date_time.iso8601,
-                       'report': 'pxeboot_status.yml'
+                       'timestamp': ansible_date_time.iso8601
                      }
                    }
                  },
                  recursive=True
                ) }}
-
-    - name: Write external verification PXE status
-      ansible.builtin.copy:
-        content: "{{ external_pxeboot_report | to_nice_yaml }}"
-        dest: "{{ orchestrator_output_dir }}/pxeboot_status.yml"
-        mode: "0644"
 
     - name: Write external verification failed-node report
       ansible.builtin.copy:

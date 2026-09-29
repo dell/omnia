@@ -192,7 +192,8 @@ Verify the BMC IP, credentials, network reachability, and iDRAC readiness.
 PXE processing records the failed node and continues according to the playbook
 strategy; it does not treat an unreachable BMC as a successful boot.
 
-Review `pxeboot_status.yml` and `failed_nodes.json` before retrying the PXE tag.
+Review `orchestrator_status.yml` and `failed_nodes.json` before retrying the PXE
+tag.
 
 ---
 
@@ -252,7 +253,6 @@ it does not replace component cleanup.
 | Phase logs | `/var/log/omnia/orchestrator/{precheck,prepare,deploy,provision,pxeboot,validate,cleanup,upgrade,rollback}.log` |
 | Domain logs | `<ORCHESTRATOR_DATA_PATH>/log/` |
 | Provision report | `<ORCHESTRATOR_DATA_PATH>/output/<project>/provisioning_report.yml` |
-| PXE report | `<ORCHESTRATOR_DATA_PATH>/output/<project>/pxeboot_status.yml` |
 | Aggregate status | `<ORCHESTRATOR_DATA_PATH>/output/<project>/orchestrator_status.yml` |
 | Failed-node view | `<ORCHESTRATOR_DATA_PATH>/output/<project>/failed_nodes.json` |
 
