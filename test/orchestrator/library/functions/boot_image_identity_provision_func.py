@@ -245,16 +245,16 @@ def _extract_rootfs_url(spec: dict[str, Any]) -> str | None:
     """Extract the rootfs URL from Boot Service spec.params.
 
     The rootfs is embedded as a kernel argument in the form
-    ``root=live:<url>``. Returns None if not found or malformed.
+    ``root=live:<url>`` within the params string. Returns None if
+    not found or malformed.
     """
     params = spec.get("params") if isinstance(spec, dict) else None
-    if not isinstance(params, dict):
+    if not isinstance(params, str):
         return None
-    for param_value in params.values():
-        if not isinstance(param_value, str):
-            continue
-        if param_value.startswith("root=live:"):
-            url = param_value[10:]  # Strip "root=live:" prefix
+    # Parse the params string to find root=live:<url>
+    for token in params.split():
+        if token.startswith("root=live:"):
+            url = token[10:]  # Strip "root=live:" prefix
             return url if url else None
     return None
 
