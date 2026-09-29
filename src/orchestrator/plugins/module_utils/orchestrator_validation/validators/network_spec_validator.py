@@ -67,11 +67,15 @@ def network_from_config(config: dict[str, Any]) -> ipaddress.IPv4Network | None:
 def ib_network_from_config(config: dict[str, Any]) -> ipaddress.IPv4Network | None:
     """Return the strict IPv4 network declared by an ib_network entry.
 
-    Reads ``ipv4_subnet``/``ipv4_netmask_bits`` keys (ib_network format).
+    Reads ``ipv4_subnet``/``ipv4_netmask_bits`` keys first (new format),
+    falling back to ``subnet``/``netmask_bits`` (legacy format) for
+    backward compatibility with existing configurations.
     """
+    subnet = config.get('ipv4_subnet') or config.get('subnet', '')
+    netmask = config.get('ipv4_netmask_bits') or config.get('netmask_bits', '')
     try:
         network = ipaddress.ip_network(
-            f"{config.get('ipv4_subnet', '')}/{config.get('ipv4_netmask_bits', '')}",
+            f"{subnet}/{netmask}",
             strict=True,
         )
     except (TypeError, ValueError):
