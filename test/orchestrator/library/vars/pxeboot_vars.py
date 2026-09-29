@@ -186,7 +186,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "apptainer_srun_non_root": (
         "timeout %s runuser -u %s -- srun --nodes=1 --ntasks=1 "
-        "--chdir=/tmp --nodelist=%s apptainer exec %s hostname -s"
+        "--chdir=/tmp --nodelist=%s apptainer exec %s sh -c "
+        '\'printf "OMNIA_JOB_ID=%%s\\n" "$SLURM_JOB_ID"; hostname -s\''
     ),
     "apptainer_multi_srun": (
         "timeout %s srun --nodes=%s --ntasks=%s apptainer exec %s hostname -s"
