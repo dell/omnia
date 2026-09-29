@@ -147,6 +147,57 @@ def _wait_for_job_accounting(host, control, job_id):
     }
 
 
+def _wait_for_array_accounting(host, control, job_id, expected_tasks):
+    """Wait for Slurm accounting to publish terminal state for all array tasks.
+
+    Unlike _wait_for_job_accounting which checks a single record via head -1,
+    this queries all array task records and requires every one to complete.
+    """
+    _TERMINAL_STATES = {
+        "CANCELLED",
+        "COMPLETED",
+        "FAILED",
+        "NODE_FAIL",
+        "OUT_OF_MEMORY",
+        "TIMEOUT",
+    }
+    deadline = time.monotonic() + SLURM_ACCOUNTING_TIMEOUT_SECONDS
+    task_states = {}
+    while time.monotonic() < deadline:
+        result = remote_command(
+            host,
+            control,
+            PXEBOOT_COMMANDS["slurm_array_job_details"] % job_id,
+        )
+        if result.rc == 0 and result.stdout.strip():
+            task_states = {}
+            for line in result.stdout.strip().splitlines():
+                parts = line.strip().split("|", 2)
+                if len(parts) >= 2:
+                    raw_id = parts[0].strip()
+                    state = parts[1].strip().split("+", 1)[0].upper()
+                    # Skip the parent array record (e.g. "123_") and
+                    # step records (e.g. "123_0.0")
+                    if "_" in raw_id and "." not in raw_id:
+                        task_states[raw_id] = state
+            all_terminal = task_states and all(
+                s in _TERMINAL_STATES for s in task_states.values()
+            )
+            if all_terminal and len(task_states) >= expected_tasks:
+                break
+        time.sleep(SLURM_ACCOUNTING_POLL_SECONDS)
+    all_completed = all(s == "COMPLETED" for s in task_states.values())
+    return {
+        "task_count": len(task_states),
+        "states": task_states,
+        "all_completed": all_completed and len(task_states) >= expected_tasks,
+        "summary": (
+            f"{sum(1 for s in task_states.values() if s == 'COMPLETED')}"
+            f"/{len(task_states)} COMPLETED"
+        ),
+    }
+
+
 def run_targeted_container(host, control, compute, image_path: str, username=""):
     """Run one synchronous Apptainer job on an exact mapped compute node."""
     node = safe_node_name(compute["HOSTNAME"])

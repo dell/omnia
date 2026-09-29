@@ -26,6 +26,7 @@ from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
 )
 from ._apptainer_helpers import (
+    _wait_for_array_accounting,
     _wait_for_job_accounting,
     apptainer_context,
     command_error,
@@ -198,6 +199,7 @@ def check_apptainer_concurrent_jobs(host):
             return image_or_result
         image = image_or_result
         targets = computes[: min(len(computes), APPTAINER_CONCURRENT_JOB_COUNT)]
+        job_name = "omnia-fvt-concurrent"
         fragments = []
         output_paths = []
         for index, row in enumerate(targets):
@@ -209,7 +211,7 @@ def check_apptainer_concurrent_jobs(host):
                 f'"omnia-apptainer-{node}.XXXXXX") || exit 1;'
             )
             fragments.append(
-                "srun --nodes=1 --ntasks=1 --nodelist="
+                f"srun --nodes=1 --ntasks=1 --job-name={job_name} --nodelist="
                 f"{node} apptainer exec {quoted_image(image['path'])} hostname -s "
                 f'>"${{{output_variable}}}" 2>&1 &'
             )
@@ -232,9 +234,10 @@ def check_apptainer_concurrent_jobs(host):
         expected = [row["HOSTNAME"] for row in targets]
         output_ok = result.rc == 0 and sorted(reported) == sorted(expected)
 
-        # Verify no orphan jobs remain in the scheduler queue
+        # Verify no orphan jobs from this test remain in the scheduler queue
         final_queue = remote_command(
-            host, control, PXEBOOT_COMMANDS["slurm_queue_snapshot"]
+            host, control,
+            PXEBOOT_COMMANDS["slurm_queue_snapshot_by_name"] % job_name,
         )
         queue_entries = [
             line.strip() for line in final_queue.stdout.splitlines() if line.strip()
@@ -464,19 +467,27 @@ def check_apptainer_job_array(host):
 
         # Verify scheduler accounting for every array task
         accounting = (
-            _wait_for_job_accounting(host, control, job_id)
+            _wait_for_array_accounting(
+                host, control, job_id, APPTAINER_ARRAY_SIZE
+            )
             if valid_id
-            else {"state": "unavailable", "state_ok": False, "allocated_node": "missing"}
+            else {
+                "task_count": 0,
+                "states": {},
+                "all_completed": False,
+                "summary": "unavailable",
+            }
         )
-        ok = submit_ok and accounting["state_ok"]
+        ok = submit_ok and accounting["all_completed"]
         return runtime_result(
             ok,
             summary,
             [
-                ("Array tasks", APPTAINER_ARRAY_SIZE),
+                ("Array tasks requested", APPTAINER_ARRAY_SIZE),
                 ("Job ID", job_id or "not reported"),
-                ("All tasks completed", submit_ok),
-                ("Scheduler state", accounting["state"]),
+                ("Submission", "ok" if submit_ok else "failed"),
+                ("Tasks accounted", accounting["task_count"]),
+                ("Array accounting", accounting["summary"]),
             ],
             command_error(result) if not ok else "",
         )

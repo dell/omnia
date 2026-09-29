@@ -15,8 +15,11 @@
 """Additional cloud-init post-boot verification for stateless nodes."""
 
 import os
+import shlex
+
 import yaml
 
+from ..vars.pxeboot_vars import PXEBOOT_COMMANDS
 from ..vars.provision_vars import ADDITIONAL_METADATA_PREFIX
 from ._pxeboot_helpers import (
     remote_command,
@@ -310,7 +313,9 @@ def check_additional_cloud_init_write_files(host):
             node_errors = []
             for filepath in common_files:
                 result = remote_command(
-                    host, row, f"test -f {filepath} && echo EXISTS"
+                    host, row,
+                    PXEBOOT_COMMANDS["cloud_init_file_check"]
+                    % shlex.quote(filepath),
                 )
                 if result.rc != 0 or "EXISTS" not in result.stdout:
                     node_errors.append(f"{filepath} not found")
@@ -339,7 +344,9 @@ def check_additional_cloud_init_write_files(host):
                 node_errors = []
                 for filepath in file_paths:
                     result = remote_command(
-                        host, row, f"test -f {filepath} && echo EXISTS"
+                        host, row,
+                        PXEBOOT_COMMANDS["cloud_init_file_check"]
+                        % shlex.quote(filepath),
                     )
                     if result.rc != 0 or "EXISTS" not in result.stdout:
                         node_errors.append(f"{filepath} not found")
@@ -451,14 +458,15 @@ def check_additional_cloud_init_runcmd(host):
                 for log_path in common_log_paths:
                     result = remote_command(
                         host, row,
-                        f"test -f {log_path} && echo EXISTS",
+                        PXEBOOT_COMMANDS["cloud_init_file_check"]
+                        % shlex.quote(log_path),
                     )
                     if result.rc != 0 or "EXISTS" not in result.stdout:
                         node_errors.append(f"{log_path} not found")
             else:
                 # No verifiable log paths; fall back to cloud-init status
                 result = remote_command(
-                    host, row, "cloud-init status --long",
+                    host, row, PXEBOOT_COMMANDS["cloud_init_status"],
                 )
                 if result.rc != 0:
                     node_errors.append("cloud-init status unavailable")
@@ -482,8 +490,6 @@ def check_additional_cloud_init_runcmd(host):
 
         # Check per-FG runcmd log files on matching nodes
         for fg_name, log_paths in fg_log_paths.items():
-            if not log_paths:
-                continue
             matching_rows = [
                 row for row in rows
                 if row.get("EXPECTED_FUNCTIONAL_GROUP", "") == fg_name
@@ -492,13 +498,24 @@ def check_additional_cloud_init_runcmd(host):
             fg_verified = 0
             for row in matching_rows:
                 node_errors = []
-                for log_path in log_paths:
+                if log_paths:
+                    for log_path in log_paths:
+                        result = remote_command(
+                            host, row,
+                            PXEBOOT_COMMANDS["cloud_init_file_check"]
+                            % shlex.quote(log_path),
+                        )
+                        if result.rc != 0 or "EXISTS" not in result.stdout:
+                            node_errors.append(f"{log_path} not found")
+                else:
+                    # No extractable log paths; fall back to cloud-init status
                     result = remote_command(
-                        host, row,
-                        f"test -f {log_path} && echo EXISTS",
+                        host, row, PXEBOOT_COMMANDS["cloud_init_status"],
                     )
-                    if result.rc != 0 or "EXISTS" not in result.stdout:
-                        node_errors.append(f"{log_path} not found")
+                    if result.rc != 0:
+                        node_errors.append("cloud-init status unavailable")
+                    elif "done" not in result.stdout.lower():
+                        node_errors.append("cloud-init not done")
                 if node_errors:
                     failures.append(
                         f"{row['HOSTNAME']}({fg_name}): {'; '.join(node_errors)}"
