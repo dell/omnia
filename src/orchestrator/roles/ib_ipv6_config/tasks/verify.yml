@@ -21,6 +21,7 @@
       Verifying {{ _ib_ipv6_render.nodes_needing_update | length }} node(s)
 
 - name: Capture OpenSM pre-snapshot (if enabled)
+  when: ib_ipv6_opensm_check | bool
   block:
     - name: Read OpenSM config
       ansible.builtin.slurp:
@@ -46,7 +47,6 @@
           config: "{{ _opensm_config_raw.content | default('') | b64decode | default('') }}"
           lid_gid: "{{ _opensm_lid_gid_raw.stdout | default('') }}"
           pkey: "{{ _opensm_pkey_raw.stdout | default('') }}"
-  when: ib_ipv6_opensm_check | bool
 
 - name: Verify IPoIB IPv6 state on updated nodes
   verify_ib_ipv6_state:
