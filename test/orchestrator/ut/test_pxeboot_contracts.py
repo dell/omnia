@@ -24,6 +24,7 @@ from library.functions import _workload_helpers as workload
 from library.functions import apptainer_runtime_pxeboot_func as apptainer_runtime
 from library.functions import kubernetes_pxeboot_func as kubernetes
 from library.functions import kubernetes_runtime_pxeboot_func as kubernetes_runtime
+from library.functions import pxeboot_func as pxeboot
 from library.functions import slurm_auth_pxeboot_func as slurm_auth
 from library.functions import slurm_configuration_pxeboot_func as slurm_config
 from library.functions import slurm_pxeboot_func as slurm
@@ -592,3 +593,70 @@ def test_apptainer_without_slurm_compute_skips_before_node_probe(monkeypatch):
     assert dict(result["details"]["fields"])["Reason"] == (
         "No Slurm compute nodes are mapped"
     )
+
+
+def test_cloud_init_uses_only_mapped_administrative_addresses(monkeypatch):
+    """ORCH_UT_040: Cloud-init probes every IP from the PXE mapping context."""
+    rows = [
+        {
+            "HOSTNAME": "nid001",
+            "ADMIN_IP": "192.0.2.11",
+            "EXPECTED_FUNCTIONAL_GROUP": "slurm_node_rhel_10_0_x86_64",
+        },
+        {
+            "HOSTNAME": "nid002",
+            "ADMIN_IP": "192.0.2.12",
+            "EXPECTED_FUNCTIONAL_GROUP": "slurm_node_rhel_10_0_x86_64",
+        },
+    ]
+    probed = []
+    monkeypatch.setattr(
+        pxeboot,
+        "load_context",
+        lambda _host: {
+            "mapping_path": "/omnia/orchestrator/input/project/pxe_mapping_file.csv",
+            "rows": rows,
+        },
+    )
+
+    def direct_probe(_host, row):
+        probed.append(row["ADMIN_IP"])
+        return True, "cloud-init done"
+
+    monkeypatch.setattr(pxeboot, "direct_cloud_init_probe", direct_probe)
+
+    result = pxeboot.check_node_cloud_init(object())
+
+    fields = dict(result["details"]["fields"][:3])
+    assert result["success"]
+    assert probed == ["192.0.2.11", "192.0.2.12"]
+    assert fields["Mapping"].endswith("/pxe_mapping_file.csv")
+    assert fields["Mapped nodes"] == 2
+    assert fields["Verification mode"] == "direct SSH probe"
+
+
+def test_cloud_init_fails_when_a_mapped_node_probe_fails(monkeypatch):
+    """ORCH_UT_041: A failed mapped-node cloud-init probe fails the contract."""
+    row = {
+        "HOSTNAME": "nid001",
+        "ADMIN_IP": "192.0.2.11",
+        "EXPECTED_FUNCTIONAL_GROUP": "slurm_node_rhel_10_0_x86_64",
+    }
+    monkeypatch.setattr(
+        pxeboot,
+        "load_context",
+        lambda _host: {
+            "mapping_path": "/omnia/orchestrator/input/project/pxe_mapping_file.csv",
+            "rows": [row],
+        },
+    )
+    monkeypatch.setattr(
+        pxeboot,
+        "direct_cloud_init_probe",
+        lambda _host, _row: (False, "cloud-init status=running"),
+    )
+
+    result = pxeboot.check_node_cloud_init(object())
+
+    assert not result["success"]
+    assert result["error"] == "Cloud-init verification failed for: nid001"
