@@ -32,7 +32,7 @@ Read concrete definitions recursively under this checkout's
 `src/main/samples/catalogs/`; account for legacy `<version>/`, newer
 `<family>/<version>/`, and `hybrid/` layouts. An explicitly operator-designated
 catalog root/worktree may provide reference data, but record its revision/path
-and disclose unmerged status. It does not change the active schema/runtime or
+and distinguish it from the active checkout. It does not change the active schema/runtime or
 authorize loading skills from another directory.
 
 The reference table is a snapshot. For a tuple absent from it, require matching
@@ -43,8 +43,8 @@ means unresolved, not an invented default or a silent substitution. Existing
 override them. Read the relevant consumer contracts before proposing a new
 family, not just a free-form schema `os` field.
 
-PR #5374's ten hybrid examples establish RHEL 10.2/10.0 role mappings; they do
-not establish multiple-family runtime support. The inspected schema has no
+RHEL 10.2/10.0 hybrid examples demonstrate multi-version role mappings, not
+multiple-family runtime support. The inspected schema has no
 `deb` package type, and the image-build parser returns one `cluster_os_type`
 and indexes base packages by version only. Recheck the active checkout before
 accepting a multi-family request. If these limits remain, retain the requested
@@ -73,6 +73,13 @@ own supported tuple. Do not create a role/platform cross-product.
    several, including explicit opt-outs such as None for GPU. A `planned`/
    `unsupported` option only enters the conversation if the operator
    explicitly names it themselves, which is Step 5 below, not this step.
+   For the OS configuration prompt, explicitly offer single-version choices
+   and "Both RHEL 10.0 and 10.2 — hybrid" when those versions are supported
+   (adapt the versions to the reference data). Hybrid is a request to combine
+   selections, not a new A.1 row or approval of every role/platform tuple;
+   resolve role placement and verify the combination before emitting groups.
+   A free-text invitation to specify another family/version is allowed as
+   requirements gathering, clearly marked as needing support verification.
 1. **Read the A.1 Selection Catalogue table** from
    `references/master_reference_file.md` in this package. Read the whole
    table, not just the row you expect to match — you need every row on
@@ -80,6 +87,9 @@ own supported tuple. Do not create a role/platform cross-product.
 2. **Find the row** whose `axis` and `option` match the operator's request
    (case-insensitive, e.g. "amd" and "AMD / ROCm" are the same option).
    For the GPU prompt, map "none"/"CPU-only" to `None (CPU-only catalog)`.
+   For OS selections, expand "both"/"hybrid" into the requested versions and
+   check each role's tuple; clarify ambiguous version sets instead of selecting
+   one version or looking for a literal `hybrid` support-status row.
    For the InfiniBand yes/no prompt, map Yes to `InfiniBand (DOCA OFED)`
    and No to `No InfiniBand`. Do not present an Ethernet choice.
    Map normalized stack `mixed` to `slurm + service_k8s`. For PowerScale,
@@ -129,8 +139,8 @@ own supported tuple. Do not create a role/platform cross-product.
 6. **Disclose offline mode** whenever you resolve step 4 or step 5 without
    online package-repository access: state which master-reference rows, catalog
    files/revisions and consumer contracts support the decision, rather than
-   implying live source verification (NFR-5). Never describe an unmerged sample
-   as released support or schema validation as deployment verification.
+   implying live source verification (NFR-5). Do not equate sample availability
+   with deployment support or schema validation with deployment verification.
 
 ## Worked examples
 
@@ -171,8 +181,8 @@ own supported tuple. Do not create a role/platform cross-product.
 **Hybrid OS versions (verify each role):**
 > Operator requests RHEL 10.2/x86_64 Slurm controller and Kubernetes roles,
 > RHEL 10.0/aarch64 Slurm compute/compiler, and RHEL 10.0/x86_64 login.
-> With the PR #5374 catalog root explicitly authorized, inspect its combined
-> hybrid sample: it uses those assignments, three `os` layers, and distinct
+> Inspect `slurm_service_k8s_hybrid_10_2_10_0_combined.json` under the approved
+> catalog root: it uses those assignments, three `os` layers, and distinct
 > `baseos_group_10.2`/`baseos_group_10.0` dictionary keys. Check the active
 > schema/consumers and requested GPU/InfiniBand/storage choices separately;
 > the sample is role-mapping evidence, not permission to enable all its groups.

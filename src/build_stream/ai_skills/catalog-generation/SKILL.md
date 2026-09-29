@@ -28,8 +28,8 @@ checkout differs from the capture; do not repair unrelated reference data during
 generation. Discover catalogs recursively: both the older `<version>/` layout
 and the newer `<family>/<version>/` plus `hybrid/` layout may be present.
 Default to this checkout. An operator may explicitly designate another catalog
-root/worktree as reference data, including an unmerged PR; record its path and
-revision, disclose that it is not the active release, and use only its catalog
+root/worktree as reference data; record its path and revision, distinguish it
+from the active checkout, and use only its catalog
 data as authorized. Never load companion skills from that root, silently switch
 validation/runtime checkouts, or search other checkouts for missing inputs.
 The storage and role-architecture rules below refine the older reference capture:
@@ -45,8 +45,8 @@ architecture, and hybrid OS (multiple family/version pairs). A request may combi
 them. Ask for OS family and version, not just a version number, and preserve all
 requested families in the working record even when some need more evidence.
 
-PR #5374's ten `hybrid/` examples mix **RHEL 10.2 and RHEL 10.0**. They demonstrate
-multi-version role mapping, not Ubuntu/Rocky/SLES support. For every additional
+Hybrid examples mixing **RHEL 10.2 and RHEL 10.0** demonstrate multi-version
+role mapping, not Ubuntu/Rocky/SLES support. For every additional
 family/version/architecture, require concrete base-group/package definitions,
 supported package types and sources, and evidence that the active catalog
 consumers preserve that tuple through repository resolution and image building.
@@ -93,6 +93,35 @@ are included only when requested; their architecture still follows the Compute
 rules. A complete hybrid request needs explicit `(role, os_family, os_version,
 architecture)` assignments, not a cross-product of every role and platform.
 
+### OS configuration prompt — explicitly offer hybrid
+
+When OS selection is unanswered, ask "Which OS configuration do you need?"
+Do not present supported versions as an implicitly single-choice list. When
+the reference data supports RHEL 10.0 and RHEL 10.2, explicitly offer:
+
+- RHEL 10.0 only
+- RHEL 10.2 only
+- Both RHEL 10.0 and 10.2 — hybrid
+
+Also invite free-text input: "For another OS family/version or combination,
+specify what you need; support needs verification." This is a request for
+requirements, not a claim that other families are supported. Adapt the named
+versions to the available reference data; keep the explicit hybrid choice
+when multiple supported versions are available.
+
+Accept "both", "hybrid", or an explicit list of versions without making the
+operator pick just one. If more than two versions are offered, clarify which
+ones "both" means. Reuse an already supplied single-OS or hybrid selection.
+Choosing hybrid records intent, not proof that every role/platform combination
+is supported; apply the hybrid evidence checks before assembly.
+
+For hybrid, next resolve which selected OS each controller and compute pool
+uses, then any requested login/compiler and Kubernetes roles. If the stack is
+unknown, resolve it first so only applicable roles are asked about. For Slurm,
+offer "controller on RHEL 10.2, compute on RHEL 10.0" as an example, not an
+automatic assignment. Reuse supplied role mappings and apply the defaults and
+compatibility checks below to the missing OS/architecture assignments.
+
 ### Compute roles and platform assignments
 
 - Slurm requires `os`, `slurm_control_node`, and `slurm_node`; Kubernetes requires
@@ -120,7 +149,8 @@ architecture)` assignments, not a cross-product of every role and platform.
 Example: controller x86_64, compute aarch64 → compiler aarch64; login defaults to
 aarch64 but the operator can change it to x86_64. Kubernetes stays on x86_64.
 
-The PR #5374 combined hybrid example maps roles as follows (example, not defaults):
+The `slurm_service_k8s_hybrid_10_2_10_0_combined.json` catalog maps roles as follows
+(example, not defaults; locate it under the approved catalog root):
 
 | Role | OS family/version | Architecture | Base-group key |
 |---|---|---|---|
