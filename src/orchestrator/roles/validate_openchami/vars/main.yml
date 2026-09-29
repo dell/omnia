@@ -9,4 +9,3 @@ openchami_base_url: >-
       ''
     )
   }}:8443
-openchami_validate_certs: false

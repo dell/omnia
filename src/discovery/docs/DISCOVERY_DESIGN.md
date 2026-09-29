@@ -239,13 +239,18 @@ Owns the Discovery cleanup boundary:
   `$DISCOVERY_DATA_PATH/output/$OMNIA_PROJECT_NAME`; when the directory
   exists, it removes every entry, including hidden entries, and leaves the
   empty directory in place;
+- resets `$DISCOVERY_DATA_PATH/log/$OMNIA_PROJECT_NAME` to an empty directory
+  by default;
+- removes `/var/log/omnia/discovery` by default;
+- preserves project runtime and Ansible execution logs when
+  `cleanup_logs=false`;
 - removes `discovery_credentials.yml` and `.discovery_credentials_key` by
   default;
 - preserves those two credential artifacts when
   `cleanup_credentials=false`;
 - preserves every other Discovery input file;
 - validates the resolved data root, project name, derived paths, and Boolean
-  cleanup option before deleting anything.
+  cleanup options before deleting anything.
 
 ---
 
@@ -329,7 +334,7 @@ credential deletion explicit. Running without tags executes: setup → validate
 | `credentials` | ✅ Active | `credentials/discovery_credentials.yml` | Validate config, then load stored or collect missing OME credentials |
 | `prepare` | Placeholder | `prepare/prepare_discovery.yml` | Prepare discovery environment |
 | `execute` | ✅ Active | `execute/execute_discovery.yml` | Run BMC discovery via OME |
-| `cleanup` | ✅ Active | `cleanup/cleanup_discovery.yml` | Cleanup project outputs and credentials |
+| `cleanup` | ✅ Active | `cleanup/cleanup_discovery.yml` | Cleanup project outputs, runtime logs, and credentials |
 | `cleanup_credentials` | ✅ Active | `cleanup/cleanup_discovery.yml` | Cleanup credentials only |
 | `upgrade` | Placeholder | `upgrade/upgrade_discovery.yml` | Upgrade flow |
 | `rollback` | Placeholder | `rollback/rollback_discovery.yml` | Rollback flow |

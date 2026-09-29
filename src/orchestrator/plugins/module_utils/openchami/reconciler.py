@@ -86,6 +86,127 @@ class OpenChamiReconciler:
             checks[name] = {"status": response.status, "path": path}
         return {"changed": False, "checks": checks}
 
+    def list_boot_configurations(self):
+        """Return the Boot Service configurations through the verified client."""
+        return {
+            "changed": False,
+            "boot_configurations": self.boot.boot_configurations(),
+        }
+
+    def reconcile_boot_configurations(
+        self,
+        desired: Iterable[dict[str, Any]],
+        check_mode=False,
+    ):
+        """Create or replace Boot Service configurations by metadata name."""
+        existing_by_name = {}
+        for resource in self.boot.boot_configurations():
+            name = str(resource.get("metadata", {}).get("name", "")).strip()
+            if name:
+                existing_by_name.setdefault(name, []).append(resource)
+
+        created = []
+        updated = []
+        unchanged = []
+        deleted_duplicate_uids = []
+        seen = set()
+
+        for item in desired:
+            name, desired_spec = self._desired_resource(
+                item, "Boot Service configuration"
+            )
+            if name in seen:
+                raise ValueError(
+                    f"Duplicate desired Boot Service configuration {name!r}"
+                )
+            seen.add(name)
+            matches = existing_by_name.get(name, [])
+            matching = [
+                resource
+                for resource in matches
+                if self._boot_spec(resource.get("spec") or {})
+                == self._boot_spec(desired_spec)
+            ]
+
+            if matching:
+                canonical = sorted(
+                    matching,
+                    key=lambda resource: str(
+                        resource.get("metadata", {}).get("uid", "")
+                    ),
+                )[0]
+                self._resource_uid(
+                    canonical, "Boot Service configuration", name
+                )
+                duplicate_resources = [
+                    resource for resource in matches if resource is not canonical
+                ]
+                for duplicate in duplicate_resources:
+                    uid = self._resource_uid(
+                        duplicate, "Boot Service configuration", name
+                    )
+                    if not check_mode:
+                        self.boot.delete_boot_configuration(uid)
+                    deleted_duplicate_uids.append(uid)
+                unchanged.append(name)
+                continue
+
+            for current in matches:
+                uid = self._resource_uid(
+                    current, "Boot Service configuration", name
+                )
+                if not check_mode:
+                    self.boot.delete_boot_configuration(uid)
+
+            payload = {
+                "metadata": {"name": name},
+                "spec": desired_spec,
+            }
+            if not check_mode:
+                self.boot.create_boot_configuration(payload)
+            (updated if matches else created).append(name)
+
+        if not check_mode:
+            self._verify_boot_configurations(desired)
+        return {
+            "changed": bool(created or updated or deleted_duplicate_uids),
+            "created": created,
+            "updated": updated,
+            "unchanged": unchanged,
+            "deleted_duplicate_uids": deleted_duplicate_uids,
+        }
+
+    def prune_boot_configurations(
+        self,
+        desired_names: Iterable[str],
+        target_macs: Iterable[str],
+        check_mode=False,
+    ):
+        """Delete stale non-target boot configurations that claim target MACs."""
+        desired = set(self._unique(desired_names))
+        managed_macs = {normalize_mac(value) for value in target_macs if value}
+        deleted = []
+
+        for resource in self.boot.boot_configurations():
+            metadata = resource.get("metadata") or {}
+            name = str(metadata.get("name", "")).strip()
+            if not name or name in desired:
+                continue
+            spec = resource.get("spec") or {}
+            resource_macs = {
+                normalize_mac(value) for value in (spec.get("macs") or [])
+            }
+            if not managed_macs.intersection(resource_macs):
+                continue
+            uid = self._resource_uid(
+                resource, "Boot Service configuration", name
+            )
+            if not check_mode:
+                self.boot.delete_boot_configuration(uid)
+            deleted.append({"name": name, "uid": uid})
+
+        return {"changed": bool(deleted), "deleted": deleted}
+
     def resolve_identities(
         self,
         nodes,
@@ -652,6 +773,41 @@ class OpenChamiReconciler:
             "nid_length": int(spec.get("nid_length", 0) or 0),
             "public_keys": list(spec.get("public_keys") or []),
         }
+
+    @staticmethod
+    def _boot_spec(spec):
+        if not isinstance(spec, dict):
+            raise TypeError("Boot Service configuration spec must be a mapping")
+        normalized = dict(spec)
+        macs = normalized.get("macs") or []
+        if not isinstance(macs, list):
+            raise TypeError("Boot Service configuration spec.macs must be a list")
+        normalized["macs"] = sorted(normalize_mac(value) for value in macs)
+        return normalized
+
+    def _verify_boot_configurations(self, desired):
+        existing_by_name = {}
+        for resource in self.boot.boot_configurations():
+            name = str(resource.get("metadata", {}).get("name", "")).strip()
+            if name:
+                existing_by_name.setdefault(name, []).append(resource)
+
+        for item in desired:
+            name, desired_spec = self._desired_resource(
+                item, "Boot Service configuration"
+            )
+            matches = existing_by_name.get(name, [])
+            if len(matches) != 1:
+                raise ValueError(
+                    "Boot Service must contain exactly one configuration named "
+                    f"{name!r}; found {len(matches)}"
+                )
+            if self._boot_spec(matches[0].get("spec") or {}) != self._boot_spec(
+                desired_spec
+            ):
+                raise ValueError(
+                    f"Boot Service configuration {name!r} does not match desired spec"
+                )
 
     def _verify_metadata_groups(self, desired, ownership):
         existing = self._resources_by_name(

@@ -70,33 +70,6 @@
         loop_var: additional_group_fg_name
       when: additional_metadata_svc_groups_enabled | default(false) | bool
 
-    - name: Fetch existing boot configurations for cleanup
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200]
-        validate_certs: false
-        return_content: true
-      register: existing_boot_configs_cleanup
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-    - name: Delete boot configurations matching target functional groups
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
-        method: DELETE
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200, 404]
-        validate_certs: false
-      loop: >-
-        {{ existing_boot_configs_cleanup.json | default([])
-           | selectattr('metadata.name', 'in', target_fg_names) | list }}
-      loop_control:
-        label: "{{ item.metadata.name }}"
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
     # When a node moves between categories (e.g. from kubernetes to slurm),
     # stale boot configs from the previous category still reference its MAC.
     # Boot-service returns whichever config it matches first, so the node
@@ -108,39 +81,17 @@
           {{ _category_nodes | map(attribute='ADMIN_MAC') | map('lower') | list }}
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-    - name: Find stale boot configs from other categories referencing current MACs
-      ansible.builtin.set_fact:
-        _stale_boot_configs: >-
-          {% set stale = [] -%}
-          {% for cfg in (existing_boot_configs_cleanup.json | default([])) -%}
-            {% if cfg.metadata.name not in target_fg_names -%}
-              {% set cfg_macs = cfg.spec.macs | default([]) | map('lower') | list -%}
-              {% for mac in _category_mac_list -%}
-                {% if mac in cfg_macs -%}
-                  {% if cfg not in stale -%}
-                    {% set _ = stale.append(cfg) -%}
-                  {% endif -%}
-                {% endif -%}
-              {% endfor -%}
-            {% endif -%}
-          {% endfor -%}
-          {{ stale }}
+    - name: Prune stale Boot Service configurations for current node MACs
+      openchami_reconcile:
+        action: prune_boot_configurations
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: "{{ ochami_env[cluster_env_key] }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        boot_configuration_names: "{{ target_fg_names }}"
+        boot_configuration_macs: "{{ _category_mac_list }}"
+      register: _stale_boot_config_prune
+      no_log: true
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-    - name: Delete stale boot configs from other categories that reference current MACs
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
-        method: DELETE
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200, 404]
-        validate_certs: false
-      loop: "{{ _stale_boot_configs | default([]) }}"
-      loop_control:
-        label: "{{ item.metadata.name }} (stale — contains MAC from current category)"
-      when:
-        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-        - _stale_boot_configs | default([]) | length > 0
 
     - name: Configure boot-service boot params for each functional group
       ansible.builtin.include_tasks: configure_boot_svc.yml
@@ -148,21 +99,21 @@
       loop_control:
         loop_var: fg_name
 
-    - name: Verify boot configurations set
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200]
-        validate_certs: false
-        return_content: true
+    - name: Read Boot Service configurations through the verified API client
+      openchami_reconcile:
+        action: list_boot_configurations
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: "{{ ochami_env[cluster_env_key] }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
       register: boot_configs_output
+      no_log: true
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Display boot configurations
       ansible.builtin.debug:
-        msg: "{{ boot_configs_output.json | default([]) | map(attribute='metadata.name') | list }}"
+        msg: >-
+          {{ boot_configs_output.boot_configurations | default([])
+             | map(attribute='metadata.name') | list }}
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Create metadata-service directory

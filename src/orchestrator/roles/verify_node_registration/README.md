@@ -84,10 +84,11 @@ After execution, the following fact is available on every host in
 |------|-------------|
 | `verify_node_registration_result` | Node identity, status, state, detail, terminal flag, attempts, verification method, and structured `cloud_init` data |
 
-The nested `cloud_init` object preserves `status`, `extended_status`,
-`boot_status_code`, `errors`, and `recoverable_errors` from `cloud-init status
---format json`. The node-local module falls back to the `--long` status fields
-when the installed cloud-init version does not return valid JSON.
+The nested `cloud_init` object publishes only the normalized `status` required
+by automation. The node-local module evaluates the complete `cloud-init status
+--format json` response internally, but raw errors, warnings, Python paths, and
+command output are not returned or persisted. Operators can inspect detailed
+diagnostics directly in the node's cloud-init logs.
 
 ## Tasks
 

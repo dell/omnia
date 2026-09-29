@@ -22,11 +22,16 @@ discovery_cleanup_input_dir: >-
   {{ hostvars['localhost']['discovery_input_dir'] | ansible.builtin.normpath }}
 discovery_cleanup_output_dir: >-
   {{ hostvars['localhost']['discovery_output_dir'] | ansible.builtin.normpath }}
+discovery_cleanup_log_dir: >-
+  {{ hostvars['localhost']['log_dir'] | ansible.builtin.normpath }}
+discovery_cleanup_ansible_log_dir: "/var/log/omnia/discovery"
 
 discovery_cleanup_expected_input_dir: >-
   {{ discovery_cleanup_data_path }}/input/{{ discovery_cleanup_project_name }}
 discovery_cleanup_expected_output_dir: >-
   {{ discovery_cleanup_data_path }}/output/{{ discovery_cleanup_project_name }}
+discovery_cleanup_expected_log_dir: >-
+  {{ discovery_cleanup_data_path }}/log/{{ discovery_cleanup_project_name }}
 
 discovery_cleanup_credential_paths:
   - "{{ discovery_cleanup_input_dir }}/discovery_credentials.yml"
@@ -35,7 +40,7 @@ discovery_cleanup_credential_paths:
 discovery_cleanup_invalid_configuration_msg: >-
   Invalid Discovery cleanup configuration. DISCOVERY_DATA_PATH must resolve
   to a safe absolute component data root, OMNIA_PROJECT_NAME must be one path
-  segment, and cleanup_credentials accepts only true or false.
+  segment, and cleanup_credentials and cleanup_logs accept only true or false.
 discovery_cleanup_invalid_output_type_msg: >-
   Refusing Discovery cleanup because the resolved output path exists but is
   not a regular directory: {{ discovery_cleanup_output_dir }}
@@ -45,6 +50,12 @@ discovery_cleanup_output_scan_failed_msg: >-
 discovery_cleanup_output_not_empty_msg: >-
   Discovery cleanup could not preserve and empty the project output directory:
   {{ discovery_cleanup_output_dir }}
+discovery_cleanup_invalid_log_type_msg: >-
+  Refusing Discovery cleanup because the resolved log path exists but is not
+  a regular directory: {{ discovery_cleanup_log_dir }}
+discovery_cleanup_log_not_empty_msg: >-
+  Discovery cleanup could not reset the project log directory:
+  {{ discovery_cleanup_log_dir }}
 
 discovery_cleanup_started_msg: "Starting Discovery cleanup..."
 discovery_cleanup_summary_header: >-
@@ -57,6 +68,14 @@ discovery_cleanup_output_check_mode_msg: >-
   would be removed from {{ discovery_cleanup_output_dir }}; directory would be preserved
 discovery_cleanup_output_removed_msg: >-
   removed from {{ discovery_cleanup_output_dir }}; directory preserved
+discovery_cleanup_logs_preserved_msg: >-
+  preserved (cleanup_logs=false or credential-only cleanup)
+discovery_cleanup_logs_check_mode_msg: >-
+  would be removed from {{ discovery_cleanup_log_dir }} and
+  {{ discovery_cleanup_ansible_log_dir }}; project log directory would be recreated
+discovery_cleanup_logs_removed_msg: >-
+  removed from {{ discovery_cleanup_log_dir }} and
+  {{ discovery_cleanup_ansible_log_dir }}; project log directory recreated
 discovery_cleanup_credentials_check_mode_msg: "would be removed"
 discovery_cleanup_credentials_removed_msg: "removed"
 discovery_cleanup_credentials_preserved_msg: >-
