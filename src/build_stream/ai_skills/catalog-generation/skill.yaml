@@ -1,0 +1,17 @@
+name: catalog-generation
+version: 1.0.0
+description: "Generates schema-valid Omnia catalogs from operator-described functional groups, base OS, and package lists. Use when creating new catalogs for cluster configurations (Slurm, Kubernetes, or mixed-stack deployments)."
+author: Omnia Build Stream Team
+role: engineering
+domain: catalog-authoring
+tags:
+  - catalog
+  - generation
+  - omnia
+  - slurm
+  - kubernetes
+  - schema-validation
+dependencies: []
+status: active
+created: 2026-09-29
+updated: 2026-09-29

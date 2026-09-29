@@ -1,6 +1,6 @@
 ---
-name: diff-changelog
-description: Standalone AI skill that produces a deterministic, reversible machine-readable diff between two catalog versions, plus a separate human-readable changelog (text and rich HTML) summarizing the change. Channel-agnostic (FR-5.1).
+name: catalog-diff
+description: Produces deterministic, reversible machine-readable diffs between catalog versions plus human-readable changelogs. Use when comparing catalog versions or generating upgrade documentation.
 ---
 
 ## Purpose

@@ -1,6 +1,6 @@
 ---
-name: edit-catalog
-description: Standalone AI skill that applies a single-catalog edit (add/remove a package, pin a version, correct metadata) with correct section placement, subject to the Pre-Edit Impact & Compatibility Gate. Channel-agnostic (FR-5.1).
+name: catalog-editing
+description: Applies single-catalog edits (add/remove packages, pin versions, correct metadata) with correct section placement and impact gating. Use when modifying existing Omnia catalogs with validation and compatibility checks.
 ---
 
 ## Purpose
