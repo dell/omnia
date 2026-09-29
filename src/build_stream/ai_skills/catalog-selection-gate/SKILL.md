@@ -43,6 +43,15 @@ selection on one of the axes in `references/master_reference_file.md`'s
    For the GPU prompt, map "none"/"CPU-only" to `None (CPU-only catalog)`.
    For the InfiniBand yes/no prompt, map Yes to `InfiniBand (DOCA OFED)`
    and No to `No InfiniBand`. Do not present an Ethernet choice.
+   Map normalized stack `mixed` to `slurm + service_k8s`. For PowerScale,
+   distinguish NFS export access from Kubernetes CSI; if the access method
+   is unspecified, ask rather than silently choosing CSI. The older capture
+   has no separate PowerScale NFS row: for plain NFS export access, use the
+   supported Generic NFS path and retain PowerScale as the declared provider.
+   `src/orchestrator/roles/mount_config/tasks/process_single_mount.yml` processes
+   these vendor-neutral mounts; this does not authorize a CSI group.
+   An explicit storage
+   opt-out emits no conditional storage group and needs no fabricated A.1 row.
 3. **No matching row found:**
    - Do NOT fabricate a decision or a value.
    - Tell the operator the selection is not recorded in the master
@@ -51,6 +60,16 @@ selection on one of the axes in `references/master_reference_file.md`'s
 4. **Matching row found, `support_status: supported`:**
    - Allow the selection. Proceed to emit the functional group or package
      set using this table row (and the A.2–A.8 tables it depends on).
+   - Apply compatibility to role/architecture assignments, not just the
+     global architecture set: Kubernetes roles must be x86_64, while mixed
+     clusters can have aarch64 Slurm compute. Storage choices are scoped by
+     purpose/access method; PowerScale NFS does not imply PowerScale CSI.
+     These generation refinements supersede the capture's aggregate "x86_64
+     only when Kubernetes is included" note and automatic storage defaults:
+     `src/main/samples/catalogs/10.2/slurm_service_k8s_combined.json` demonstrates
+     the split-role architecture. Ask about existing cluster storage rather
+     than assuming VAST or PowerScale CSI. Keep broader reference-table updates
+     separate from this instruction-only change.
 5. **Matching row found, `support_status: planned` or `support_status:
    unsupported`:**
    - Refuse the selection. Do NOT emit a functional group or package set

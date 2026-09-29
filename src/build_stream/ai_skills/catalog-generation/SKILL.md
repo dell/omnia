@@ -4,508 +4,310 @@ description: Generates schema-valid Omnia catalogs from operator-described funct
 ---
 
 Before starting, read `../shared/skill_scope.md` and use only this bundle's
-companion skills and shared instructions.
+companion skills and shared instructions. This skill generates new catalogs;
+editing, bulk changes, and general impact analysis belong to the corresponding
+skills in this same bundle. Do not commit or push as part of generation.
+Keep this workflow instruction-driven: do not create Python helpers, scripts,
+schemas, or rule files. Reuse only the existing catalog validation command below.
 
-## Purpose
+## Required inputs
 
-Generate a schema-valid catalog from an operator's description, by running the
-Appendix B selection interview in dependency order, expanding the resulting
-selections through the master reference file's Appendix A tables, and never
-fabricating a package, version, or repository URL that isn't recoverable
-from an online source or the master reference file
-(`ER-BSM-001-nersc-ai-skills-catalog-authoring`, FR-1.1, FR-2, AC-005,
-AC-009).
+Read before making selections:
 
-This skill implements FR-1.0 (consumption side) and FR-1.1/FR-2 of the parent
-ER. It is channel-agnostic: apply every step identically whether you are
-running as a coding agent with file-system access or as a browser-based AI
-assistant that can only exchange text with the operator. When you lack
-file-system access, produce the full catalog JSON as text for the operator
-to save themselves, and skip the shell-validation step (state that you could
-not run it in this channel).
+- `../catalog-selection-gate/SKILL.md` and its
+  `references/master_reference_file.md`: supported selections and Appendix A
+  role/group/source tables. Use the selection gate when offering choices.
+- `../shared/connectivity_layer.md`: approved source lookup and fallback disclosure.
+- `../shared/working_directory.md`: invocation-specific draft workspace.
+- `src/repo_manager/schemas/catalog_schema.json`: the existing catalog schema.
 
-## Inputs You Must Read First
+The shipped catalogs under `src/main/samples/catalogs/` are authoritative for
+concrete group membership and package definitions. The reference tables are a
+snapshot, not a substitute for those files. Recheck relevant rows when the
+checkout differs from the capture; do not repair unrelated reference data during
+generation. Do not search another checkout or installed skill for missing inputs.
+The storage and role-architecture rules below refine the older reference capture:
+PowerScale NFS is distinct from CSI, existing storage is asked rather than assumed,
+and the Kubernetes architecture restriction applies to its roles, not every role
+in a mixed cluster. Leave unrelated reference-table reconciliation deferred.
 
-1. `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` —
-   the 8 Appendix A tables (Selection Catalogue, Node-Role, Functional-Layer
-   Composition, Stack-Storage Compatibility, Package Source Defaults, Pinned
-   Version, Supported Hardware, Constraint/Co-Requisite).
-2. `src/build_stream/ai_skills/catalog-selection-gate/SKILL.md` — the shared
-   `support_status` Selection Catalogue gate (allow/refuse/no-silent-
-   substitution). Apply it at every decision point below.
-3. `src/build_stream/ai_skills/shared/connectivity_layer.md` — the shared
-   online/offline fallback procedure. Apply it whenever you resolve package
-   metadata, a compatibility fact, or a version that is not already fixed
-   by A.5/A.6.
-4. `src/repo_manager/schemas/catalog_schema.json` — the catalog JSON Schema
-   the generated output must conform to.
-5. `src/build_stream/ai_skills/shared/working_directory.md` — where to put
-   the draft catalog while it's still being assembled/validated (Steps 4-6),
-   before it is written to its final location.
+## Step 1 — Normalize the request and ask only missing questions
 
-**Topology dependency:** every A.1–A.8 table row assumes the catalog
-topology `references/master_reference_file.md` was last captured against
-(see that file's "Topology scope of this capture" note). If
-`src/main/samples/catalogs/` now has a versioned `rhel/<os_version>/`
-subtree, a `hybrid/` subtree, or a different catalog count than that
-capture recorded, treat every count/row here as needing re-verification
-before you rely on it — the discovery commands below (`grep -rl`, etc.)
-are already recursive and keep working regardless, but the hand-tabulated
-rows themselves are not automatically current.
+Start briefly: explain that you will resolve missing cluster details, confirm
+the configuration, then generate and validate the catalog. Extract supplied
+answers into the seven domains before asking anything:
 
-**A.3's known limitation:** the Functional-Layer Composition Table records
-which *groups* a role includes, not which *packages* each group actually
-contains — the master reference file is explicit about this
-(`master_reference_file.md`'s header: "Master catalogs remain the
-authoritative source for the concrete package set of an already-shipped
-configuration"). A group's package membership only exists in the shipped
-catalog JSON files (`src/main/samples/catalogs/**/*.json`) themselves. Step
-4b below is the resolution procedure for that gap — read it before you
-reach Step 4, since it changes what "the group's packages" means in
-practice.
+| Domain | Resolve | Defaults and dependencies |
+|---|---|---|
+| Platform | RHEL version and architecture set | OS version needs a choice; propose x86_64 only when architecture is deferred |
+| Software Stack | Slurm, Kubernetes, or mixed | No default; mixed means both stacks with explicit role assignments |
+| Compute | Roles, role-to-architecture assignments, NVIDIA or None | Derive mandatory roles; apply the architecture rules below |
+| Storage | Existing controller/job storage and Kubernetes access methods | No assumed VAST or CSI; ask about the actual environment |
+| Network | Include InfiniBand: Yes / No | Propose Yes only when explicitly deferred; No does not mean Ethernet-only |
+| Packages and Sources | Additional packages and their target roles, custom roles, source overrides | Reuse supplied answers; propose no additions/overrides only when deferred |
+| Output | Display name, identifier, version, description, destination | Reuse explicit values; offer names and disclose metadata defaults |
 
-## Step 1 — Selection Interview (Appendix B order)
+Keep a working selection record in the conversation, organized by these domains;
+it is not a new schema or fields added to the catalog. Distinguish explicit
+choices, derived values, defaults, conflicts, and unanswered questions.
+Ask one missing decision at a time; accept answers that resolve several domains. Do not ask again
+for an already supplied choice, including additional packages, role assignments,
+or a catalog name. "Minimal" alone does not answer storage or hardware questions.
+An explicit "no additional packages" does answer that question. Silence is not
+consent to a default. Disclose applied defaults and include them in confirmation.
 
-Elicit selections from the operator in exactly this order. Each step's valid
-option set is narrowed by the steps before it — do not reorder this, and do
-not ask for a later-step selection before an earlier one is resolved.
+Mandatory roles are derived from the stack and disclosed. Optional login roles
+are included only when requested; their architecture still follows the Compute
+rules. A complete multi-architecture request needs explicit role assignments,
+not every role multiplied by every architecture.
 
-| # | Decision | Depends on | Default when deferred | Reference table |
-|---|----------|-----------|------------------------|------------------|
-| 1 | OS version | — | none — operator must choose | A.1, A.5 |
-| 2 | Architecture(s) | 1 | x86_64 | A.1, A.5 |
-| 3 | Stack | 1 | none — operator must choose | A.1, A.2, A.4 |
-| 4 | Node roles | 2, 3 | all mandatory roles for the stack (A.2) | A.2 |
-| 5 | GPU: NVIDIA or None (CPU-only catalog) | 4 | None, only if explicitly deferred | A.1, A.3, A.7 |
-| 6 | Storage | 3 | default_for the chosen stack, from A.4 | A.4 |
-| 7 | Include InfiniBand support? Yes / No | 4 | Yes, only if explicitly deferred | A.1, A.3 |
-| 8 | Source overrides | 1, 2, 5, 6 | defaults from A.5 | A.5 |
-| 9 | Additional packages / custom functional roles | 1–8 | none | Step 4a |
+### Compute roles and architecture
 
-**Step 4 (Node roles) is not a prompted decision:** Do not ask the operator
-to choose node roles. Instead, automatically select all roles marked
-`mandatory: yes` in the A.2 Node-Role table for the chosen stack, and
-disclose which roles you selected. For example, for the Slurm stack, state:
-"I've selected the mandatory roles for Slurm: os, slurm_control_node, and
-slurm_node." Optional roles (those with `mandatory: no`) are only included
-if the operator explicitly requests them in Step 9 (custom roles).
+- Slurm requires `os`, `slurm_control_node`, and `slurm_node`; Kubernetes requires
+  `os`, `service_kube_control_plane`, and `service_kube_node`. Mixed requires both
+  sets. `os` covers every selected architecture.
+- With one architecture, assign standard roles to it subject to compatibility.
+  With multiple architectures, ask which run Slurm controllers and computes;
+  controller architecture is independent of compute. Kubernetes roles must be
+  x86_64, but a mixed cluster may have aarch64 Slurm compute.
+- When requested, `login_compiler_node` must match the Slurm compute architecture
+  set. With both compute architectures, provide a matching compiler layer for
+  each. A mismatch requires clarification, not an implicit cross-compilation mode.
+- When requested, `login_node` defaults to the compute architecture set, not the
+  controller architecture. Disclose this default; allow an explicit override to
+  another supported platform architecture. Neither login role becomes mandatory.
 
-For every selection at steps 1, 2, 3, 5, 6, 7:
-- Apply the Selection Catalogue gate (`catalog-selection-gate/SKILL.md`) before
-  offering or accepting the option. Per that gate's Step 0, the menu you
-  present lists **only** `supported` rows for the axis, filtered by prior
-  selections — never include a `planned` or `unsupported` row in the
-  presented choices, even as a labeled "not yet available" entry. A
-  `planned`/`unsupported` option is handled reactively (the gate's Step 5)
-  only if the operator names it themselves.
-- If the operator defers a decision that has a recorded default (see table
-  above), apply that default and state that you did so.
-- If the operator gives a partial description up front (e.g. "minimal
-  Slurm-only cluster on RHEL 10.0"), resolve as many steps as the
-  description allows before asking about the rest, still in this order.
+Example: controller x86_64, compute aarch64 → compiler aarch64; login defaults to
+aarch64 but the operator can change it to x86_64. Kubernetes stays on x86_64.
 
-**Step 2 → Step 3 ordering is load-bearing:** resolve architecture before
-stack. Kubernetes (`service_k8s`) is `supported` only on `x86_64` (A.1). If
-the operator has already selected `aarch64` when they request
-`service_k8s`, do not silently switch either value — see "Constraint
-Rejection" below.
+### Hardware prompts
 
-**Step 3 → Step 6 ordering is load-bearing:** resolve stack before storage.
-Storage options are stack-scoped (A.4 Stack-Storage Compatibility Table).
-Never offer a storage option that A.4 does not list as valid for the
-already-chosen stack.
+When unanswered, ask "GPU support: NVIDIA, or None (CPU-only catalog, without
+NVIDIA GPU driver/CUDA groups)?" None describes the configured software, not
+whether the machines physically contain GPUs. Propose None only when the
+operator explicitly defers. NVIDIA applies only to eligible Slurm compute and
+login/compiler roles. If no selected role is eligible, explain the conflict;
+do not attach GPU groups to controller, login-only, OS, or Kubernetes roles.
 
-**Step 4 gates Steps 5 and 7:** GPU and InfiniBand groups attach per
-functional layer (per node role), not per catalog. Do not process GPU or
-network selection before node roles are resolved.
+When unanswered, ask "Include InfiniBand support? Yes / No." Yes includes its
+group on eligible roles; No omits it without asserting which other network
+interfaces the site uses. Do not present Ethernet as a separate choice.
 
-**GPU prompt:** when the request has not already answered Step 5, ask:
-"GPU support: NVIDIA, or None (CPU-only catalog, without NVIDIA GPU
-driver/CUDA groups)?" Explain that None describes the software being
-configured, not whether GPUs are physically present in the machines. NVIDIA
-adds the NVIDIA group only to eligible `gpu_capable` roles; None omits it.
-If no selected role is GPU-capable, explain that constraint rather than
-silently attaching GPU software to an ineligible role. If custom packages
-would reintroduce GPU software after None was chosen, clarify that conflict
-before assembly.
+### Catalog identity
 
-**InfiniBand prompt:** when the request has not already answered Step 7,
-ask "Include InfiniBand support? Yes / No." Yes selects A.1's
-`InfiniBand (DOCA OFED)` and includes `infiniband_stack_driver_groupv1`
-where A.3 permits it. No selects `No InfiniBand` and omits that group.
-Do not present a separate Ethernet option; No makes no assertion about
-the site's other network interfaces. Apply a default only when the
-operator explicitly defers the question, and disclose it.
+Reuse a supplied catalog name. Otherwise suggest two or three names reflecting
+the selected OS/stack/architecture, and offer custom input in the same prompt.
+For example: `slurm_cpu_rhel_10_2_aarch64`, `hpc_slurm_rhel_10_2_aarch64`, or a
+custom name. Do not imply GPU/InfiniBand support when omitted.
 
-Once steps 1–7 are resolved, and before restating the selection set for
-confirmation, **always ask Step 9 explicitly**: "Would you like to add any
-packages beyond the standard functional-layer composition, or define a
-custom functional role not covered by the node roles above?" Do not skip
-this question because the operator's initial description sounded complete —
-a "minimal Slurm cluster" request may still turn out to need one extra
-package or role once asked. If the operator declines or doesn't answer,
-proceed with none added and say so. See Step 4a for how an answer here is
-applied once catalog assembly reaches functional-layer expansion.
+Accept schema-valid display names with spaces. Propose a separate identifier and
+filename stem by lowercasing, replacing runs outside `[a-z0-9_-]` with `_`, and
+trimming leading/trailing `_`/`-`; use `catalog` if empty. Show this mapping.
+Propose version `1.0.0` for a new catalog and a description derived from the
+confirmed configuration. Honor explicit metadata and paths. The default path is
+`src/main/samples/catalogs/<os_version>/<identifier>.json`. Resolve filename
+collisions before confirmation; silence does not accept a name or other default.
 
-Once steps 1–9 are resolved, resolve the catalog name below, then **restate
-the full selection set, catalog name, and output filename for confirmation**
-before catalog assembly. Reuse selections and names already supplied by the
-operator instead of asking for them again.
+## Step 2 — Resolve storage by environment and purpose
 
-### Catalog name
+If not already answered, ask: "What storage is available in your cluster
+environment?" Then resolve only missing purpose/access details:
 
-If the operator supplied a name, use it as `catalog.name`. Otherwise offer
-two or three names based on the confirmed OS, architecture, and stack and
-allow a custom name in the same prompt. For example, for a CPU-only Slurm
-catalog on RHEL 10.2 x86_64: "Choose a catalog name: `slurm_cpu_rhel_10_2_x86_64`,
-`hpc_slurm_rhel_10_2_x86_64`, or enter your own name." Suggestions must match
-the actual selections; do not imply GPU or InfiniBand support when omitted.
+- Slurm controller: PowerVault when present, otherwise explicitly no PowerVault.
+- Job/compute storage: VAST, Generic NFS, and/or PowerScale NFS. Multiple existing
+  backends may coexist. Do not automatically select VAST or treat PowerVault as
+  an alternative to job storage. If no job storage is selected, disclose the
+  outstanding shared-storage requirement before deployment.
+- Kubernetes: record any Generic NFS/PowerScale NFS backend separately, then ask
+  whether PowerScale CSI is required. Do not infer CSI from owning a PowerScale
+  array or using its NFS exports. Plain NFS remains available without CSI.
 
-Accept any non-empty name that satisfies the catalog schema, including a
-human-readable name with spaces. Keep that display name separate from a
-proposed filesystem-safe filename stem and `catalog.identifier`; show the
-mapping in the final selection confirmation. Do not interpret a display name
-as a directory or shell command. Honor an explicitly supplied output path.
-If a proposed filename already exists, resolve a new filename or an explicit
-edit request before generation. If the operator asks you to choose, use the
-first matching suggestion and disclose it; silence alone does not select a
-name.
+PowerScale NFS and Generic NFS use existing base NFS client packages and runtime
+mount configuration; neither adds a PowerScale CSI group. PowerVault uses existing
+iSCSI/multipath packages and controller-targeted runtime configuration, not a new
+catalog group. VAST adds its client group on applicable Slurm compute/login roles.
+CSI adds `powerscale_csi_group` only on Kubernetes roles and still needs explicit
+Orchestrator enablement. Do not change deployment files during catalog generation.
 
-## Step 2 — Stack-Storage Filter and Default Pre-Selection (AC-009)
+These choices describe storage use, not exclusive vendors: PowerVault controller
+storage and VAST/NFS job storage can coexist. "No PowerVault" does not mean the
+controller has no disks or mounts. Generic mounts can also target controllers
+and Kubernetes; the catalog-generation policy does not restrict the mount engine.
 
-When presenting storage options at Step 6:
+Derive runtime behavior from this checkout's
+`src/orchestrator/input/storage_config.yml`,
+`src/orchestrator/roles/mount_config/tasks/process_single_mount.yml`,
+`src/orchestrator/roles/slurm_config/tasks/create_slurm_dir.yml`, and
+`src/orchestrator/roles/k8s_config/README.md`:
+plain NFS uses vendor-neutral mounts, absent VAST selection reuses Slurm NFS
+storage, and CSI has separate enablement. Retain/check base `nfs_utils` and
+`nfs4_acl_tools` for NFS clients and existing `iscsi_initiator_utils` and
+`device_mapper_multipath` for a PowerVault controller. Do not invent a storage
+group just to represent runtime configuration. Report required exports, mount
+targets, and deployment settings without collecting secrets or editing them.
 
-1. Read the A.4 Stack-Storage Compatibility Table.
-2. Offer only the storage options whose `valid_for_<chosen stack>` column is
-   `yes`. For example, when the stack is `slurm`, offer VAST (NFS/RDMA),
-   PowerVault (iSCSI), and Generic NFS — never PowerScale (CSI), which A.4
-   marks valid only for `service_k8s`.
-3. Pre-select the A.4 `default_for` value that matches the chosen stack
-   (VAST for a Slurm functional cluster, PowerScale for a Kubernetes
-   functional cluster) and disclose that you are proposing this default.
-4. Allow the operator to override the default. If the operator explicitly
-   asks for an option A.4 excludes for the chosen stack, state the specific
-   reason (citing the A.4 row) rather than silently substituting or
-   silently complying.
-5. Remember that PowerVault and Generic NFS contribute **no catalog
-   group** — they are orchestrator-side, runtime-discovered configuration.
-   Do not add a group to the catalog for either.
+## Step 3 — Cross-domain preflight and confirmation
 
-## Step 3 — Architecture/Stack Constraint Rejection
+Review the working record against the reference data and the rules in this skill:
 
-Before accepting the combination of Step 2 (architecture) and Step 3
-(stack):
+| Relationship | Check before assembly |
+|---|---|
+| Platform ↔ Stack | Supported OS and architectures; Kubernetes roles x86_64; mixed Slurm roles may be aarch64 |
+| Stack ↔ Compute | Mandatory roles present; optional/custom roles explicit; no implicit role/architecture cross-product |
+| Compute ↔ Login/compiler | Compiler matches compute; login defaults to compute but explicit overrides are preserved |
+| Compute ↔ GPU | NVIDIA only on eligible roles; None conflicts with custom NVIDIA driver/CUDA requests |
+| Storage ↔ Role/access method | PowerVault controller use; VAST on applicable compute/login roles; plain NFS distinct from Kubernetes CSI |
+| Network ↔ Role/architecture | InfiniBand only on applicable roles with matching driver sources; No must not be undone by a custom package |
+| Packages ↔ Platform/Stack | Source coverage for consuming architectures/OS and compatible stack version pins |
 
-1. Check A.1: `stack=service_k8s` has `support_status: supported` with the
-   note "x86_64 only".
-2. If the operator has selected (or is selecting) `aarch64` **and**
-   `service_k8s` together:
-   - Reject the combination. Do not emit a catalog for it.
-   - State plainly: "Kubernetes is supported only on x86_64 in this
-     release."
-   - Offer exactly two corrective options: change architecture to
-     `x86_64`, or change the stack to `slurm`. Wait for the operator's
-     choice — do not pick one for them.
-3. This check re-applies if the operator changes either selection later in
-   the interview (e.g. adds `service_k8s` to an already-`aarch64` catalog
-   request).
+This is an instruction-driven review, not an executable preflight. For a conflict,
+state the affected domain/field, requested value, violated rule, reason, and
+supported alternatives. Ask the operator to resolve it; do not silently switch
+choices or drop an architecture. If evidence is missing, mark the item unresolved.
 
-## Step 4 — Functional-Layer Expansion (A.3)
+Restate all seven domains, including role/architecture mappings, storage purpose
+and access method, defaults, custom content, catalog identity, and output path.
+Ask for confirmation once the configuration is complete. Only after approval
+begin assembly. Later changes invalidate confirmation
+and require rechecking affected dependencies and reconfirming the changed record.
 
-Once steps 1–8 are confirmed:
+Without shell access, perform the same interview and review, but disclose that
+schema validation cannot run. Any resulting JSON remains an unvalidated draft.
 
-1. For every selected node role (Step 4) and every selected architecture
-   (Step 2), emit one functional layer named per the A.2
-   `layer_name_pattern` (`<role>_rhel_<os_version>_<architecture>`, with
-   dots in `os_version` replaced by underscores, matching the shipped
-   catalogs, e.g. `slurm_node_rhel_10_0_x86_64`).
-2. Populate that layer's `components` array by reading the A.3 row for the
-   role:
-   - Include every group whose `inclusion` is `always`.
-   - Include a `conditional` group only when its `governed_by` selection
-     was actually chosen (e.g. include `nvidia_stack_driver_groupv1` only
-     when GPU=NVIDIA was selected for a `gpu_capable` role; include
-     `vast_stack_driver_groupv1` only when storage=VAST was selected).
-3. Do not invent a group name that does not appear in A.3 for that role.
-   If the operator asks for something A.3 has no row for **and it was not
-   raised as a Step 9 additional-package/custom-role answer**, treat it as
-   Step 5 of the master-reference Selection Catalogue gate: flag it, do
-   not fabricate a group. A Step 9 answer is handled by Step 4a below
-   instead of being flagged, because the operator explicitly asked for it
-   and it is disclosed as operator-defined rather than presented as if A.3
-   already recorded it.
+## Step 4 — Expand approved assignments and resolve group membership
 
-## Step 4a — Custom Functional Roles and Additional Packages (Step 9 Answers)
+Emit exactly one layer for each approved `(role, architecture)` pair, named
+`<role>_rhel_<os_version_with_underscores>_<architecture>`. Emit `os` for every
+selected architecture; do not duplicate layer names. Read A.3's always groups
+and apply these conditional group rules; preserve the fixed `baseos_group` key:
 
-This step only runs when Step 9 of the interview produced an answer other
-than "none." It has two independent parts — an operator may ask for either
-or both.
+| Group | Required selection | Eligible roles |
+|---|---|---|
+| `nvidia_stack_driver_groupv1` | NVIDIA | Slurm compute, login/compiler |
+| `infiniband_stack_driver_groupv1` | InfiniBand Yes | Slurm controller/compute/login/compiler and Kubernetes control-plane/worker |
+| `vast_stack_driver_groupv1` | VAST job storage | Slurm compute, login, login/compiler |
+| `powerscale_csi_group` | Explicit PowerScale CSI | Kubernetes control-plane/worker only |
 
-### Additional packages on an existing group
+Do not attach these groups to the standalone `os` layer. PowerScale NFS does not
+satisfy the CSI selection even though the older A.3 capture says `storage=PowerScale`.
 
-When the operator names a specific package to add beyond a role's standard
-A.3 composition (e.g. "also include `htop` on the login nodes"):
+For each standard group, search shipped catalogs for that exact key (`rg -l`
+or direct file reads). Read actual component lists, not just the group's name:
 
-1. Resolve the package the same way Step 5 (Package Source Resolution)
-   does for every other package — connectivity layer first, A.5/A.6
-   offline, never fabricated.
-2. Add it to an existing group already included on that layer when one is
-   a reasonable fit (e.g. a small utility on `admin_debug_group` rather
-   than creating a new group for one package). Name the group you chose
-   when you report back what you did.
-3. If no existing group is a reasonable fit, treat it as a "new custom
-   group" and follow the next section instead of forcing it into an
-   unrelated group.
+1. If all matching instances agree, reuse that package-key set.
+2. If they differ, use the instance matching OS, stack and assigned architectures.
+   For mixed/multi-architecture generation inspect the combined catalogs. Merge
+   compatible source entries by package key; do not overwrite one architecture
+   with another. Conflicting versions or definitions require resolution, not a
+   guessed union. Keep architecture-specific image-builder artifacts for their
+   selected build architectures; do not invent cross-architecture sources.
+3. If no exact instance exists, establish compatible composition from available
+   definitions and disclose its provenance; a "closest" catalog alone is not
+   evidence. Missing group/package definitions remain unresolved. Ask for the
+   missing reference or an explicit operator-defined package list.
 
-### Custom / flexible functional roles and groups
+Record the source catalog for each group and any departures from its composition.
+Do not fabricate packages when shipped references are unavailable.
 
-When the operator names a functional role or group A.2/A.3 has no row for
-(e.g. a site-specific monitoring role, or a group bundling packages no
-existing group covers):
+For additional packages, preserve the requested target roles. If modifying a
+shared group would add packages to unrequested roles, use an operator-defined
+group attached only to the requested layers. Record each additional package key
+and its target roles in the confirmed Packages and Sources record.
 
-1. **This is operator-defined content, not a master-reference-file lookup.**
-   State that plainly — do not present a custom group as if A.3 already
-   recorded it, and do not silently fold it into an existing standard group
-   that would misrepresent its purpose.
-2. **Validate the custom role's functional-layer name against A.2's
-   `layer_name_pattern` before emitting it** — every role in every shipped
-   catalog (`os`, `login_node`, `login_compiler_node`,
-   `slurm_control_node`, `slurm_node`, `service_kube_control_plane`,
-   `service_kube_node`; verified across all 24 shipped functional layers)
-   follows the same `<role>_rhel_<os_version>_<architecture>` pattern with
-   no exception, so a custom role's layer name must too (e.g.
-   `<custom_role>_rhel_10_2_x86_64`). Do not invent a different
-   layer-naming scheme for a custom role, and do not let a custom role's
-   name collide with an existing one in A.2.
-3. **`baseos_group` is the one naming exception, and it works the other
-   way — the group name, not the layer name, stays fixed.** Every shipped
-   catalog's base-OS group is named exactly `baseos_group` (`type:
-   base_os`) regardless of architecture, OS version, or stack — there is no
-   per-arch or per-stack variant of this specific group name anywhere in
-   `src/main/samples/catalogs/**/*.json` (its *functional layer*, `os_rhel_
-   <os_version>_<architecture>`, still follows the normal pattern from
-   point 2 above; only the group inside it is invariant). If a custom
-   role needs base-OS-level packages, add them to the existing
-   `baseos_group` rather than inventing a variant name (e.g.
-   `baseos_slurm_group`, `base_os_group`) — flag it to the operator and
-   confirm first if their request genuinely seems to call for a separate
-   base-OS group.
-4. **A custom group that isn't base-OS** is named `snake_case`, ends in
-   `_group` (or `_stack_driver_groupv1` if it is specifically a
-   hardware/driver stack addition, matching
-   `nvidia_stack_driver_groupv1`/`vast_stack_driver_groupv1`'s pattern),
-   and does not collide with any name already in A.3 or in the catalog
-   being assembled.
-5. Resolve every package the new group references the same way Step 5
-   resolves every other package (connectivity layer, then A.5/A.6, never
-   fabricated).
-6. Include the new group in the relevant functional layer's `components`
-   array, following the same `always`/`conditional` inclusion logic Step 4
-   uses for standard groups.
-7. Report the custom group/role explicitly as operator-defined when you
-   restate the final selection set and when Step 7's catalog-assembly
-   output is presented — this is not something a future diff/changelog
-   reader should have to guess at.
+Custom roles/groups are explicitly operator-defined, not claimed as supported
+reference entries. Record custom role architectures and group keys before
+confirmation. Use the same layer-name pattern, avoid standard-role collisions,
+and use non-colliding snake_case group keys ending in `_group` (or
+`_stack_driver_groupv1` for driver groups). Include `baseos_group` in every custom
+layer. The standard conditional groups retain their defined role eligibility;
+do not invent eligibility for a custom role. Resolve custom packages as in Step 5.
 
-## Step 4b — Group Package Composition Resolution
+## Step 5 — Resolve package definitions and sources
 
-This step resolves, for every **standard** (non-custom) group Step 4
-included, which packages actually belong to it — the piece A.3 does not
-record. Do this before Step 5, which resolves each package's *version and
-source*, not which packages exist in the first place. (Step 4a's custom
-groups already have their package list stated by the operator and do not
-go through this step.)
+Use the selected shipped definitions and fixed A.5/A.6 values where available.
+For metadata not already fixed, or an explicit source/version override, use the
+shared connectivity procedure and disclose fallback. Do not silently upgrade
+pinned packages. Preserve valid unpinned RPM definitions: package `version` is
+not universally required, and `sources[].version` for RHEL is the OS selector,
+not the RPM version. Images use their schema-required `tag`.
 
-1. **Search every shipped catalog for this exact group name**, not just the
-   catalog nearest the requested stack/arch/os_version. This search is
-   already recursive and topology-agnostic — it does not assume catalogs
-   live at any fixed directory depth below `catalogs/`, so it still finds
-   every match whether the shipped layout is flat (`<os_version>/*.json`),
-   versioned (`rhel/<os_version>/*.json`), or includes a `hybrid/*.json`
-   subtree:
-   ```bash
-   grep -rl '"<group_name>"' src/main/samples/catalogs/
-   ```
-   or read each candidate file directly if you don't have shell access.
-   Collect every instance's `components` package-key set.
-2. **No shipped catalog contains this group name at all** (e.g. every
-   catalog under `src/main/samples/catalogs/` has been removed, moved, or
-   this combination was simply never shipped):
-   - Do NOT borrow another group's, another stack's, or another
-     architecture's package list as a stand-in, and do NOT fabricate a
-     plausible-sounding package set for it.
-   - State plainly that this group's concrete package composition has no
-     offline source: the master reference file only has its structural
-     inclusion (A.3), and no shipped catalog is available to read its
-     packages from.
-   - Ask the operator to supply this group's package list directly, or to
-     restore/point at a catalog file that has it, before this group can be
-     populated. Leave it explicitly flagged as unresolved in the meantime —
-     do not silently narrow the catalog's scope by dropping the group, and
-     do not proceed as if a different stack's package list were an
-     acceptable substitute.
-3. **Exactly one distinct package-key set exists across every instance
-   found** (verified, not assumed — e.g. `common_pks`, `admin_debug_group`,
-   and `ldms_group` each have exactly one component-set across all 22
-   shipped catalogs that reference them): use it. It does not matter which
-   specific catalog file it came from, since every instance already agrees.
-4. **More than one distinct package-key set exists across instances found**
-   (this does happen for real — e.g. `baseos_group` has 3 distinct
-   variants across shipped catalogs, differing only by one
-   architecture-specific `image_build_<arch>` package key): pick the
-   instance from the catalog file whose stack, architecture, and OS version
-   most closely match the one being generated, in that priority order
-   (an exact stack+arch+os_version match beats an arch-only match). Name
-   the specific source catalog file you used, and if it is not an exact
-   match on every axis, disclose exactly which axis differs and why you
-   judged it a safe approximation (e.g. "sourced from `slurm_x86_64.json`;
-   this catalog's architecture differs from the requested `aarch64`, but
-   `baseos_group`'s only variation across shipped catalogs is the
-   architecture-specific image-build package, which Step 5 will resolve
-   correctly for the target architecture regardless of source file").
-5. **Record the source catalog file for every group**, whether it was an
-   exact match, a safe identical-composition reuse, or a disclosed
-   approximation — this is what lets an operator or a later diff/changelog
-   trace where each group's packages came from, and is required in Step
-   7's final report alongside the repository-name reminder.
+Every node package must have a matching source for each consuming layer's
+architecture and OS (or an applicable `noarch` source). Shared architecture-specific
+image-builder artifacts are checked against their build architecture instead.
+Check stack version co-requisites against A.8 and review explicit source overrides;
+schema validation alone does not prove upstream version compatibility.
 
-## Step 5 — Package Source Resolution (A.5, A.6) and Unresolved-Package Handling
+Operator-supplied repositories such as `slurm_custom`, `ldms` and `vast` have no
+default URL by design. Preserve `reponame`; report missing URL mappings before
+sync instead of inventing them. That action is distinct from an unresolved package.
 
-For every package referenced by an included group:
+If a requested package/group cannot be resolved, retain it in the record's
+unresolved-items list and disclose a partial draft. Never remove the request just to
+pass validation or insert placeholders into the catalog. A schema-valid subset
+is not a complete deliverable.
 
-1. First check whether the online/offline connectivity layer
-   (`shared/connectivity_layer.md`) can resolve version and source
-   metadata for it. Prefer that path.
-2. If offline, resolve `pinned_version` and `pin_location` from A.6, and
-   `source_kind`/`default_url`/`gpgkey` from A.5, keyed by the resolved
-   `os_version` and `architecture`.
-3. **`operator_supplied_repo` sources (`slurm_custom`, `ldms`, `vast`)
-   have no default URL by design.** Emit the package referencing the
-   repository by name (`reponame`), and separately report that repository
-   as requiring an operator-supplied URL before the catalog can sync. Do
-   not invent a URL for it.
-4. If a requested package is absent from both the online source and the
-   master reference file (A.5/A.6):
-   - Do NOT fabricate its version, architecture, or repository/registry.
-   - Still emit the rest of the catalog.
-   - Flag that specific package in the output for manual review, and
-     state that resolution was attempted only against the master
-     reference file (when offline) or which online source was consulted
-     (when online).
-5. Every emitted package entry SHALL include resolved `version`,
-   `architecture` (inside its `sources[]` entries), and repository/registry
-   source metadata — matching the shape already used by shipped catalogs
-   under `src/main/samples/catalogs/**/*.json` (see `packagetype`,
-   `sources[].architecture`, `sources[].reponame` or `sources[].registry`).
+## Step 6 — Assemble and validate before publication
 
-## Step 6 — Assemble and Validate the Catalog
+Assemble the confirmed identity, `schema_version: 2`, layers, groups and packages
+in `$WORKDIR/draft_catalog.json`. Follow surviving layer → group → package
+references before pruning unused groups/packages; never delete a dependency just
+because one group was excluded. Custom requests conflicting with GPU=None or
+InfiniBand=No need clarification, not silent reinsertion of driver packages.
 
-1. Assemble the full catalog JSON using the confirmed `catalog.name`,
-   filename, and identifier: `catalog.version`,
-   `catalog.schema_version` (`2`, matching every shipped catalog),
-   `catalog.identifier`, `catalog.description`, `catalog.functionallayer`,
-   `catalog.groups`, `catalog.packages`. If you have shell access, write this
-   draft into this invocation's working directory per
-   `shared/working_directory.md` (e.g. `$WORKDIR/draft_catalog.json`) rather
-   than directly at its final path — it is not yet validated, so it is not
-   yet a deliverable.
-2. **Validate before presenting as final.** If you have shell access, run
-   the existing catalog validation tool against the draft — do not write a
-   new validation script:
+Run Omnia's existing catalog schema/business-rule validator; do not write a new
+validation helper or generate a script to perform these checks:
 
-   ```bash
-   python3 src/repo_manager/plugins/module_utils/catalog/catalog_manager.py \
-     validate --catalog $WORKDIR/draft_catalog.json \
-     --schema src/repo_manager/schemas/catalog_schema.json
-   ```
+```bash
+python3 src/repo_manager/plugins/module_utils/catalog/catalog_manager.py \
+  validate --catalog "$WORKDIR/draft_catalog.json" \
+  --schema src/repo_manager/schemas/catalog_schema.json
+```
 
-   - Exit code `0`, no `[ERROR]` lines, and schema validation actually ran:
-     the catalog is schema-valid. A missing `jsonschema` library or an
-     unreadable/missing schema is a blocking validation failure, not a
-     successful offline fallback. Do not omit `--schema` to get past it.
-     Proceed to Step 7.
-   - Any `[ERROR]` line: do NOT present the catalog as final. Report the
-     specific violation(s) verbatim and either fix the offending section
-     and re-run validation, or (if the violation traces to an unresolved
-     package from Step 5) leave that entry flagged rather than
-     inventing a fix.
-3. If you do not have shell access in this channel (browser-based
-   assistant), state that schema validation could not be executed in this
-   channel and that the operator (or a channel with shell access) should
-   run the command above before syncing. Label any returned JSON as an
-   unvalidated draft, never as a schema-valid final catalog.
-4. Once validation passes, copy the draft from `$WORKDIR` to the expected
-   catalog path (`src/main/samples/catalogs/<os_version>/<name>.json`
-   pattern, or the path the operator specifies) with no manual post-editing
-   required, when you have file-system access. When you do not, return the
-   full catalog JSON as text. Either way, remove `$WORKDIR` once the final
-   copy has succeeded, per `shared/working_directory.md`.
+Require exit code 0, no `[ERROR]` lines, and evidence that schema validation ran.
+A missing `jsonschema` library or unreadable/missing schema blocks validation;
+do not omit `--schema` to bypass it.
 
-## Step 7 — Repository-Name Consistency Reminder and Group-Source Traceability
+Then inspect the actual draft against the confirmed record. The existing validator
+does **not** enforce all of the following; this is a separate model-performed review:
 
-Every generated catalog output SHALL end with a note reminding the operator
-to verify that every repository name referenced in the catalog's package
-sources is mapped in `repo_manager_config.yml` before syncing — this is the
-same reminder required by FR-1.1's last Gherkin scenario. Restate the list
-of operator-supplied repositories (from Step 5.3) that still need a URL.
+1. Identity matches the confirmed name/identifier/version/description; schema
+   version is 2. The publication destination matches the confirmed path.
+2. Layer names are unique and exactly cover approved role/architecture pairs,
+   including mandatory roles. Compiler/login assignments follow the above rules.
+3. Mandatory A.3 groups are present. Each conditional group is present only where
+   selected and applicable, with its actual shipped package composition—not an
+   empty placeholder. Plain NFS/PowerVault do not invent new storage groups.
+4. Every node package has an applicable source for its consuming layer's OS and
+   architecture, or an applicable `noarch` source. Check the OS selector separately
+   from package version. Shared base groups may contain the architecture-specific
+   build artifacts `docker_io/dellhpcomniaaisolution/image_build_el10` and
+   `docker_io/dellhpcomniaaisolution/image_build_aarch64`: check each against its
+   selected build architecture instead of requiring both on every node. Do not
+   extend this exception to other packages without evidence.
+5. GPU=None and InfiniBand=No have not been undone by driver packages placed in
+   another group. PowerScale NFS has not pulled in PowerScale CSI artifacts. Trace
+   surviving dependencies before removing packages: generic utilities such as Helm
+   may be explicitly needed elsewhere even when CSI is not selected.
+6. NFS/iSCSI client packages and requested additions exist on their intended
+   layers with appropriate sources. No dangling references or unused groups/packages
+   remain after pruning. No requested package/group was silently omitted.
 
-Alongside that reminder, restate Step 4b's per-group source record: which
-catalog file each standard group's package composition was read from, and
-call out explicitly any group that was an approximation (a non-exact-match
-source) or that remains unresolved for lack of any shipped catalog.
+Report schema-validation results separately from this selection review. Do not
+claim these semantic checks ran automatically. Any unresolved or failed check
+leaves a draft; explain the affected selection and resolve it without changing
+confirmed intent. Neither review proves live repository access or readiness to sync.
 
-## Worked Example (Appendix B.4)
+After all checks pass, publish to the confirmed output path without overwriting
+an existing catalog. Honor explicit paths; do not interpret display names as shell
+commands. Without shell access return JSON labelled **unvalidated draft**, never
+claim executable validation passed. Clean only this invocation's scratch workspace
+per the shared working-directory procedure, preserving requested deliverables.
 
-> Operator: "Generate a catalog for a minimal Slurm-only cluster on RHEL
-> 10.0."
+## Step 7 — Completion summary
 
-| Step | Resolution | Basis |
-|------|-----------|-------|
-| 1 | RHEL 10.0 | stated |
-| 2 | x86_64 | default applied, confirmed |
-| 3 | slurm | stated ("Slurm-only") |
-| 4 | os, slurm_control_node, slurm_node | mandatory roles; login roles omitted as "minimal" |
-| 5 | None (CPU-only catalog) | operator chose None when prompted |
-| 6 | none | not stated; skill notes VAST is available for this stack |
-| 7 | Yes — include InfiniBand | operator chose Yes when prompted |
-| 8 | `slurm_custom` and `ldms` URLs outstanding | A.5 — operator-supplied by design |
-| 9 | none | operator declined when asked |
-| Name | slurm_cpu_rhel_10_0_x86_64 | operator selected a suggested name; custom input was also offered |
-
-Output: three functional layers (`os_rhel_10_0_x86_64`,
-`slurm_control_node_rhel_10_0_x86_64`, `slurm_node_rhel_10_0_x86_64`), each
-expanded per A.3 with the conditional NVIDIA and VAST groups omitted and the
-InfiniBand group included, plus an explicit report that the `slurm_custom`
-and `ldms` repository URLs must be supplied before the catalog can sync. No
-Slurm version is asserted anywhere, because A.6 records none. Step 4b
-resolves every included group (`baseos_group`, `common_pks`,
-`admin_debug_group`, `ldms_group`, `openldap_group`, `openmpi_group`,
-`slurm_custom_group`, `ucx_group`, `slurm_control_node_group`,
-`slurm_node_group`, `infiniband_stack_driver_groupv1`) against
-`slurm_x86_64.json`, the exact stack+arch+os_version match — every group
-report cites that one source file, with no approximation needed.
-
-**Worked example — no shipped catalog available (Step 4b's gap-disclosure
-path):** the same request, but every catalog under
-`src/main/samples/catalogs/` has been removed or is otherwise unreadable.
-Step 4b finds no instance of `slurm_control_node_group`, `slurm_node_group`,
-or any other group this request needs, anywhere. The correct response is
-**not** to substitute a different stack's or architecture's package
-composition (e.g. reusing `service_k8s_x86_64.json`'s `baseos_group` package
-set is only safe when at least one shipped instance actually exists to
-verify the composition against — with zero shipped catalogs present, there
-is nothing to verify against at all). Instead: report that every group's
-package composition is unresolved for lack of any offline source, and ask
-the operator to restore a reference catalog or supply the package lists
-directly before the catalog can be assembled — do not emit a catalog with
-fabricated or borrowed-from-an-unrelated-configuration package lists.
-
-## What This Skill Does Not Do
-
-- Editing an already-generated catalog, bulk edits across catalogs, and the
-  Pre-Edit Impact & Compatibility Gate are out of scope here — see
-  `ER-BSM-001-catalog-editing-skill` (not yet implemented).
-- Impact Analysis and Compatibility & Dependency Analysis are out of scope
-  here — see `ER-BSM-001-analysis-skills` (not yet implemented). This
-  skill's connectivity layer (`shared/connectivity_layer.md`) is the shared
-  foundation that Story depends on.
+Report the output path/name, the seven-domain configuration, actual validation
+status, unresolved items (if any), and per-group source provenance. Distinguish
+catalog-managed groups from runtime-only mount/PowerVault configuration. For CSI,
+remind the operator that catalog artifacts do not set `enable_powerscale_csi`.
+List referenced repository names needing mappings in `repo_manager_config.yml`
+before sync. Do not call an unresolved or unvalidated draft a completed catalog.
