@@ -337,7 +337,6 @@ def check_additional_cloud_init_write_files(host):
             matching_rows = [
                 row for row in rows
                 if row.get("EXPECTED_FUNCTIONAL_GROUP", "") == fg_name
-                or row.get("FUNCTIONAL_GROUP_NAME", "").startswith(fg_name)
             ]
             fg_verified = 0
             for row in matching_rows:
@@ -488,13 +487,34 @@ def check_additional_cloud_init_runcmd(host):
 
         fields.append(("  Common runcmd verified", f"{verified}/{len(rows)}"))
 
-        # Check per-FG runcmd log files on matching nodes
+        # Load metadata templates so command presence can be verified
+        # when no log-path artifact is available.
+        metadata_groups = resource_list(api_json(host, "metadata_groups"))
+        fg_templates = {}
+        for fg_name in fg_log_paths:
+            expected = f"{ADDITIONAL_METADATA_PREFIX}_{fg_name}"
+            matches = [
+                item for item in metadata_groups
+                if metadata_name(item) == expected
+            ]
+            if matches:
+                spec = matches[0].get("spec") or {}
+                fg_templates[fg_name] = str(spec.get("template") or "")
+
+        # Check per-FG runcmd on matching nodes
         for fg_name, log_paths in fg_log_paths.items():
             matching_rows = [
                 row for row in rows
                 if row.get("EXPECTED_FUNCTIONAL_GROUP", "") == fg_name
-                or row.get("FUNCTIONAL_GROUP_NAME", "").startswith(fg_name)
             ]
+            if not matching_rows:
+                failures.append(
+                    f"FG {fg_name}: no matching nodes in PXE mapping"
+                )
+                fields.append(
+                    (f"  FG {fg_name}", "✗ no matching nodes")
+                )
+                continue
             fg_verified = 0
             for row in matching_rows:
                 node_errors = []
@@ -508,14 +528,24 @@ def check_additional_cloud_init_runcmd(host):
                         if result.rc != 0 or "EXISTS" not in result.stdout:
                             node_errors.append(f"{log_path} not found")
                 else:
-                    # No extractable log paths; fall back to cloud-init status
-                    result = remote_command(
-                        host, row, PXEBOOT_COMMANDS["cloud_init_status"],
-                    )
-                    if result.rc != 0:
-                        node_errors.append("cloud-init status unavailable")
-                    elif "done" not in result.stdout.lower():
-                        node_errors.append("cloud-init not done")
+                    # No extractable log paths; verify the configured
+                    # commands are present in the rendered metadata template
+                    # and that cloud-init completed on this node.
+                    template = fg_templates.get(fg_name, "")
+                    for cmd in fg_cmds.get(fg_name, []):
+                        if isinstance(cmd, str) and cmd not in template:
+                            node_errors.append(
+                                f"command not in metadata template: "
+                                f"{cmd[:80]}"
+                            )
+                    if not node_errors:
+                        result = remote_command(
+                            host, row, PXEBOOT_COMMANDS["cloud_init_status"],
+                        )
+                        if result.rc != 0:
+                            node_errors.append("cloud-init status unavailable")
+                        elif "done" not in result.stdout.lower():
+                            node_errors.append("cloud-init not done")
                 if node_errors:
                     failures.append(
                         f"{row['HOSTNAME']}({fg_name}): {'; '.join(node_errors)}"

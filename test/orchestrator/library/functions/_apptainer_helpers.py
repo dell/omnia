@@ -151,7 +151,9 @@ def _wait_for_array_accounting(host, control, job_id, expected_tasks):
     """Wait for Slurm accounting to publish terminal state for all array tasks.
 
     Unlike _wait_for_job_accounting which checks a single record via head -1,
-    this queries all array task records and requires every one to complete.
+    this queries all array task records, validates the exact expected set of
+    task IDs (``<job_id>_0`` through ``<job_id>_<n-1>``), and requires every
+    task to reach COMPLETED.
     """
     _TERMINAL_STATES = {
         "CANCELLED",
@@ -161,8 +163,10 @@ def _wait_for_array_accounting(host, control, job_id, expected_tasks):
         "OUT_OF_MEMORY",
         "TIMEOUT",
     }
+    expected_ids = {f"{job_id}_{i}" for i in range(expected_tasks)}
     deadline = time.monotonic() + SLURM_ACCOUNTING_TIMEOUT_SECONDS
     task_states = {}
+    timed_out = True
     while time.monotonic() < deadline:
         result = remote_command(
             host,
@@ -183,18 +187,45 @@ def _wait_for_array_accounting(host, control, job_id, expected_tasks):
             all_terminal = task_states and all(
                 s in _TERMINAL_STATES for s in task_states.values()
             )
-            if all_terminal and len(task_states) >= expected_tasks:
+            if all_terminal and set(task_states.keys()) == expected_ids:
+                timed_out = False
                 break
         time.sleep(SLURM_ACCOUNTING_POLL_SECONDS)
-    all_completed = all(s == "COMPLETED" for s in task_states.values())
+
+    exact_match = set(task_states.keys()) == expected_ids
+    all_completed = exact_match and all(
+        s == "COMPLETED" for s in task_states.values()
+    )
+    completed_count = sum(1 for s in task_states.values() if s == "COMPLETED")
+    failed_tasks = {
+        tid: s for tid, s in task_states.items() if s != "COMPLETED"
+    }
+    error = ""
+    if timed_out:
+        error = (
+            f"Accounting timed out after {SLURM_ACCOUNTING_TIMEOUT_SECONDS}s; "
+            f"found {len(task_states)}/{expected_tasks} tasks"
+        )
+    elif not exact_match:
+        missing = expected_ids - set(task_states.keys())
+        extra = set(task_states.keys()) - expected_ids
+        parts = []
+        if missing:
+            parts.append(f"missing={sorted(missing)}")
+        if extra:
+            parts.append(f"extra={sorted(extra)}")
+        error = f"Task ID mismatch: {'; '.join(parts)}"
+    elif failed_tasks:
+        error = (
+            f"{len(failed_tasks)} task(s) not COMPLETED: "
+            + ", ".join(f"{tid}={s}" for tid, s in sorted(failed_tasks.items()))
+        )
     return {
         "task_count": len(task_states),
         "states": task_states,
-        "all_completed": all_completed and len(task_states) >= expected_tasks,
-        "summary": (
-            f"{sum(1 for s in task_states.values() if s == 'COMPLETED')}"
-            f"/{len(task_states)} COMPLETED"
-        ),
+        "all_completed": all_completed,
+        "summary": f"{completed_count}/{expected_tasks} COMPLETED",
+        "error": error,
     }
 
 

@@ -476,9 +476,15 @@ def check_apptainer_job_array(host):
                 "states": {},
                 "all_completed": False,
                 "summary": "unavailable",
+                "error": "no valid job ID from submission",
             }
         )
         ok = submit_ok and accounting["all_completed"]
+        error = ""
+        if not submit_ok:
+            error = command_error(result)
+        elif not accounting["all_completed"]:
+            error = accounting.get("error", "array tasks did not all complete")
         return runtime_result(
             ok,
             summary,
@@ -489,7 +495,7 @@ def check_apptainer_job_array(host):
                 ("Tasks accounted", accounting["task_count"]),
                 ("Array accounting", accounting["summary"]),
             ],
-            command_error(result) if not ok else "",
+            error,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
