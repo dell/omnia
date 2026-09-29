@@ -1,6 +1,6 @@
 ---
 name: catalog-generation
-description: Standalone AI skill that turns an operator-described functional group, base OS, and package list (or a cluster-type description) into a schema-valid Omnia catalog. Channel-agnostic — usable from a coding agent or a browser-based AI assistant (FR-5.1).
+description: Generates schema-valid Omnia catalogs from operator-described functional groups, base OS, and package lists. Use when creating new catalogs for cluster configurations (Slurm, Kubernetes, or mixed-stack deployments).
 ---
 
 ## Purpose

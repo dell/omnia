@@ -1,6 +1,6 @@
 ---
 name: impact-analysis
-description: Standalone AI skill that traces the operational impact of a proposed package/group/layer/OS change within a single catalog — package, role, cluster, and user/workload tiers, with severity rating and a customer-facing summary. Online-preferred (local dnf/live-repo/upstream-doc lookup for every target, not gated on the master reference file), with a disclosed offline fallback. Channel-agnostic (FR-5.1).
+description: Traces operational impact of proposed package/group/layer/OS changes within catalogs across package, role, cluster, and workload tiers with severity ratings. Use when analyzing change impact before catalog modifications or upgrades.
 ---
 
 ## Purpose
