@@ -677,6 +677,113 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify additional cloud-init runcmd on nodes",
         "component": "Additional cloud-init runcmd",
     },
+    # mount_config NFS test cases (order 500+)
+    "mount_config_mount_point": {
+        "id": "ORCH_FVT_PXEBOOT_V101",
+        "title": "Verify NFS mount point directories exist on target nodes",
+        "component": "NFS mount point directory",
+    },
+    "mount_config_volume_mounted": {
+        "id": "ORCH_FVT_PXEBOOT_V102",
+        "title": "Verify NFS volumes are actively mounted on target nodes",
+        "component": "NFS volume mounted",
+    },
+    "mount_config_mount_options": {
+        "id": "ORCH_FVT_PXEBOOT_V103",
+        "title": "Verify NFS mount options match storage_config.yml",
+        "component": "NFS mount options",
+    },
+    "mount_config_fstab": {
+        "id": "ORCH_FVT_PXEBOOT_V104",
+        "title": "Verify NFS fstab entries are persistent on target nodes",
+        "component": "NFS fstab entry",
+    },
+    "mount_config_bind_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V105",
+        "title": "Verify NFS bind mount targets are active on target nodes",
+        "component": "NFS bind mounts",
+    },
+    "mount_config_bind_fstab": {
+        "id": "ORCH_FVT_PXEBOOT_V106",
+        "title": "Verify NFS bind mount fstab entries are persistent",
+        "component": "NFS bind fstab entries",
+    },
+    "mount_config_node_subdirectory": {
+        "id": "ORCH_FVT_PXEBOOT_V107",
+        "title": "Verify per-node subdirectory exists under NFS mount",
+        "component": "NFS per-node subdirectory",
+    },
+    "mount_config_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V108",
+        "title": "Verify NFS mount permissions match storage_config.yml",
+        "component": "NFS mount permissions",
+    },
+    "mount_config_fg_targeting": {
+        "id": "ORCH_FVT_PXEBOOT_V109",
+        "title": "Verify NFS mounts are present on target FGs and absent on others",
+        "component": "NFS functional-group targeting",
+    },
+    "mount_config_no_duplicate_fstab": {
+        "id": "ORCH_FVT_PXEBOOT_V110",
+        "title": "Verify no duplicate NFS fstab entries on target nodes",
+        "component": "NFS fstab uniqueness",
+    },
+    "mount_config_writable": {
+        "id": "ORCH_FVT_PXEBOOT_V111",
+        "title": "Verify NFS mounts are writable on target nodes",
+        "component": "NFS mount writability",
+    },
+    "mount_config_oim_mount": {
+        "id": "ORCH_FVT_PXEBOOT_V112",
+        "title": "Verify NFS storage is mounted on the OIM",
+        "component": "OIM NFS mount",
+    },
+    # minimal_os test cases (order 600+)
+    "minimal_os_base_packages": {
+        "id": "ORCH_FVT_PXEBOOT_V113",
+        "title": "Verify base OS packages on OS-only nodes",
+        "component": "Minimal OS base packages",
+    },
+    "minimal_os_ldms_packages": {
+        "id": "ORCH_FVT_PXEBOOT_V114",
+        "title": "Verify LDMS monitoring packages on OS-only nodes",
+        "component": "Minimal OS LDMS packages",
+    },
+    "minimal_os_required_services": {
+        "id": "ORCH_FVT_PXEBOOT_V115",
+        "title": "Verify required services are active on OS-only nodes",
+        "component": "Minimal OS required services",
+    },
+    "minimal_os_ldms_service_state": {
+        "id": "ORCH_FVT_PXEBOOT_V116",
+        "title": "Verify LDMS service is inactive at handoff on OS-only nodes",
+        "component": "Minimal OS LDMS service state",
+    },
+    "minimal_os_excluded_packages": {
+        "id": "ORCH_FVT_PXEBOOT_V117",
+        "title": "Verify workload packages are absent on OS-only nodes",
+        "component": "Minimal OS excluded packages",
+    },
+    "minimal_os_excluded_services": {
+        "id": "ORCH_FVT_PXEBOOT_V118",
+        "title": "Verify workload services are inactive on OS-only nodes",
+        "component": "Minimal OS excluded services",
+    },
+    "minimal_os_package_manager": {
+        "id": "ORCH_FVT_PXEBOOT_V119",
+        "title": "Verify package manager is functional on OS-only nodes",
+        "component": "Minimal OS package manager",
+    },
+    "minimal_os_kernel_version": {
+        "id": "ORCH_FVT_PXEBOOT_V120",
+        "title": "Verify kernel version consistency on OS-only nodes",
+        "component": "Minimal OS kernel version",
+    },
+    "minimal_os_network_identity": {
+        "id": "ORCH_FVT_PXEBOOT_V121",
+        "title": "Verify admin IP is configured on OS-only nodes",
+        "component": "Minimal OS network identity",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {

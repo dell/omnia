@@ -493,6 +493,34 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "cloud_init_file_check": "test -f %s && echo EXISTS",
     "cloud_init_status": "cloud-init status --long",
+    # mount_config NFS verification commands
+    "mount_config_dir_exists": (
+        "test -d %s && echo EXISTS || echo MISSING"
+    ),
+    "mount_config_mountpoint_check": (
+        "mountpoint -q %s 2>/dev/null && echo MOUNTED || echo NOT_MOUNTED"
+    ),
+    "mount_config_proc_mounts": "cat /proc/mounts",
+    "mount_config_fstab_read": "cat /etc/fstab",
+    "mount_config_stat": "stat -c '%%a|%%U|%%G' %s 2>/dev/null",
+    "mount_config_node_key_value": (
+        "cloud-init query %s 2>/dev/null || hostname -s"
+    ),
+    "mount_config_write_test": (
+        "_mp=%s; "
+        "touch \"${_mp}/.omnia_fvt_write_probe_$$\" 2>/dev/null && "
+        "rm -f \"${_mp}/.omnia_fvt_write_probe_$$\" && echo WRITABLE || echo NOT_WRITABLE"
+    ),
+    # minimal_os verification commands
+    "minimal_os_rpm_check": "rpm -q %s >/dev/null 2>&1",
+    "minimal_os_binary_check": "command -v %s 2>/dev/null",
+    "minimal_os_rpm_query_grep": "rpm -qa 2>/dev/null | grep -iE '%s'",
+    "minimal_os_pkg_mgr_check": (
+        "command -v dnf >/dev/null 2>&1 && dnf --version >/dev/null 2>&1 || "
+        "command -v yum >/dev/null 2>&1 && yum --version >/dev/null 2>&1"
+    ),
+    "minimal_os_kernel_version": "uname -r",
+    "minimal_os_ip_addr": "ip -o addr show 2>/dev/null",
 }
 
 KUBERNETES_REQUIRED_POD_PREFIXES: tuple[str, ...] = (
