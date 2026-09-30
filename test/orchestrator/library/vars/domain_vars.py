@@ -47,6 +47,7 @@ MARKERS: list[str] = [
     "kubernetes",
     "slurm",
     "apptainer",
+    "additional_cloud_init",
     "image_download",
     "negative",
     "non_disruptive",
@@ -85,6 +86,7 @@ SUITES: dict[str, list[str]] = {
         "slurm_infiniband",
         "slurm_recovery",
         "slurm_apptainer",
+        "additional_cloud_init",
     ],
     "cleanup": [
         "openchami",

@@ -11,12 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-
-# Full Discovery cleanup removes the encrypted credential file and vault key.
-# Set this to false only when those credentials must survive cleanup.
-cleanup_credentials: true
-
-# Full Discovery cleanup removes the current project's runtime log contents.
-# Set this to false only when those logs must survive cleanup.
-cleanup_logs: true
