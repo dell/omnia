@@ -253,21 +253,21 @@ repositories:
           sslcacert: ""
           sslclientkey: ""
           sslclientcert: ""
-          priority: 100
+          priority: 10
         ldms:
           url: ""
           gpgkey: ""
           sslcacert: ""
           sslclientkey: ""
           sslclientcert: ""
-          priority: 100
+          priority: 10
         vast:
           url: ""
           gpgkey: ""
           sslcacert: ""
           sslclientkey: ""
           sslclientcert: ""
-          priority: 100
+          priority: 10
     aarch64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
       baseos:
@@ -329,21 +329,21 @@ repositories:
           sslcacert: ""
           sslclientkey: ""
           sslclientcert: ""
-          priority: 100
+          priority: 10
         ldms:
           url: ""
           gpgkey: ""
           sslcacert: ""
           sslclientkey: ""
           sslclientcert: ""
-          priority: 100
+          priority: 10
         vast:
           url: ""
           gpgkey: ""
           sslcacert: ""
           sslclientkey: ""
           sslclientcert: ""
-          priority: 100
+          priority: 10
   "10.2":
     x86_64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
