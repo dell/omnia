@@ -171,7 +171,6 @@ repositories:
   "10.0":
     x86_64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
-      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
       baseos:
         url: ""
         gpgkey: ""
@@ -277,7 +276,6 @@ repositories:
           priority: 100
     aarch64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
-      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
       baseos:
         url: ""
         gpgkey: ""
@@ -361,7 +359,6 @@ repositories:
   "10.2":
     x86_64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
-      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
       baseos:
         url: ""
         gpgkey: ""
@@ -459,7 +456,6 @@ repositories:
           priority: 10
     aarch64:
       # RHEL SUBSCRIPTION REPOS (optional if subscription enabled, mandatory otherwise)
-      # Example format: { url: "", gpgkey: "", policy: "partial", caching: true, sslcacert: "", sslclientkey: "", sslclientcert: "" }
       baseos:
         url: ""
         gpgkey: ""
