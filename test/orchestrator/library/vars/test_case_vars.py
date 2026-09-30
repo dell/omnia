@@ -637,6 +637,21 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Apptainer artifacts after compute reboot",
         "component": "Apptainer artifact recovery",
     },
+    "slurm_benchmark_prerequisites": {
+        "id": "ORCH_FVT_PXEBOOT_V095",
+        "title": "Verify Slurm benchmark script and exact shared mount",
+        "component": "Slurm benchmarks",
+    },
+    "slurm_benchmark_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V096",
+        "title": "Verify Slurm benchmark download and idempotency",
+        "component": "Slurm benchmarks",
+    },
+    "slurm_benchmark_concurrency": {
+        "id": "ORCH_FVT_PXEBOOT_V097",
+        "title": "Verify Slurm benchmark concurrent download reuse",
+        "component": "Slurm benchmarks",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {

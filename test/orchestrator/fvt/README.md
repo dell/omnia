@@ -28,7 +28,7 @@ ORCH_FVT_<LIFECYCLE>_<TYPE><NUMBER>
 | `precheck` | `ORCH_FVT_PRECHECK_E001` | `V001`–`V007` | `environment`, `storage`, `dependencies`, `inputs` |
 | `prepare` | `ORCH_FVT_PREPARE_E001` | `V001`–`V013` | `openchami`, `network`, `openldap` |
 | `provision` | `ORCH_FVT_PROVISION_E001` | `V001`–`V008` | `openchami` |
-| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V094` | `connectivity`, `cloudinit`, `kubernetes_*`, `slurm_*` |
+| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V097` | `connectivity`, `cloudinit`, `kubernetes_*`, `slurm_*` |
 | `cleanup` | `ORCH_FVT_CLEANUP_E001` | `V001`–`V006` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
 
 The detailed registry below is the authoritative inventory. Its `Order`
@@ -51,7 +51,7 @@ explicit recovery operation.
 PXE capability suites are flat directories. Kubernetes runs as
 `kubernetes_cluster`, `kubernetes_etcd`, `kubernetes_storage`, and
 `kubernetes_recovery`. Slurm runs as `slurm_cluster`, `slurm_jobs`,
-`slurm_ldap`, `slurm_gpu`, `slurm_openmpi`, `slurm_ucx`,
+`slurm_ldap`, `slurm_gpu`, `slurm_benchmarks`, `slurm_openmpi`, `slurm_ucx`,
 `slurm_infiniband`, `slurm_recovery`, and `slurm_apptainer`.
 
 Cleanup is never part of an implicit lifecycle run.
@@ -269,6 +269,9 @@ selected by mapped functional groups.
 | 292 | `ORCH_FVT_PXEBOOT_V092` | `test_apptainer_reboot_storage` | `slurm_apptainer` | `apptainer`, `disruptive`, `reboot` | Reboot one compute and verify the shared mount and SIF checksum. | The node returns within the bounded wait and every stated post-reboot check passes. |
 | 293 | `ORCH_FVT_PXEBOOT_V093` | `test_apptainer_reboot_job` | `slurm_apptainer` | `apptainer`, `disruptive`, `reboot` | Run an exact-node container job after the authorized reboot. | The node returns within the bounded wait and every stated post-reboot check passes. |
 | 294 | `ORCH_FVT_PXEBOOT_V094` | `test_apptainer_reboot_artifacts` | `slurm_apptainer` | `apptainer`, `disruptive`, `reboot` | Verify downloader artifacts and policy after the authorized reboot. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 295 | `ORCH_FVT_PXEBOOT_V095` | `test_slurm_benchmark_prerequisites` | `slurm_benchmarks` | `sanity`, `functional`, `slurm`, `benchmark`, `non_disruptive` | Verify script presence/executability, platform helper, tool list, configured NFS export, and exact `/hpc_tools` bind mount. | Every mapped compute passes before downloads begin. |
+| 296 | `ORCH_FVT_PXEBOOT_V096` | `test_slurm_benchmark_idempotency` | `slurm_benchmarks` | `functional`, `slurm`, `benchmark`, `non_disruptive` | Pull all applicable tools per live platform; validate tarballs and repeat. | Initial downloads succeed; the rerun performs zero downloads and preserves SHA-256, size, and nanosecond mtime. |
+| 297 | `ORCH_FVT_PXEBOOT_V097` | `test_slurm_benchmark_concurrency` | `slurm_benchmarks` | `functional`, `slurm`, `benchmark`, `non_disruptive` | Start two same-platform compute pulls together on shared storage. | One process downloads each tool once; both see the same archives. |
 
 Image download has a 20-minute ceiling with polling progress every 20
 seconds. The reboot cases share one reboot state instead of rebooting the
@@ -350,3 +353,61 @@ Run `provision test`, `pxeboot test`, or cleanup only against the intended
 active project and with the corresponding operational authorization. A failed
 execution case prevents the verification phase from being reported as a
 successful lifecycle run.
+
+## Benchmark tool delivery
+
+From `test/orchestrator/`, check script and mount prerequisites only:
+
+```bash
+./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_benchmarks --marker sanity+slurm+benchmark
+```
+
+Run prerequisites followed by real Pulp downloads, idempotency, and concurrency:
+
+```bash
+./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_benchmarks --marker benchmark
+```
+
+All three cases carry `slurm`, `benchmark`, and `functional`. Select
+`--marker benchmark` (or `--marker slurm+benchmark`) to run the full suite.
+The prerequisite case also carries `sanity`; adding `sanity` selects only
+that case. Download checks require explicit `benchmark` selection.
+
+The suite uses the deployed `/hpc_tools/scripts/pull_benchmarks.sh`, platform
+helper, and complete `benchmark_tools.list`. Downloads go into a unique
+`/hpc_tools/.omnia_fvt/benchmark-<id>` workspace, preserving existing tools.
+Prerequisites are also enforced inside each download case, even when selected
+individually. The configured `vast_storage_name` (falling back to
+`nfs_storage_name`) must resolve to an NFS/NFS4 export mounted at its configured
+path; `<mount_point>/slurm/hpc_tools` must be the same mounted directory as
+`/hpc_tools`. A directory alone or a different export fails the check. Mount verification
+runs first; a failure reports `MOUNT FAILED` and prevents script checks and
+downloads. Once the mount is verified, the report explicitly lists
+`/hpc_tools/scripts/pull_benchmarks.sh` as `PRESENT`, executable, and valid Bash.
+A missing, empty, non-executable, or syntactically invalid script fails the
+prerequisite check with its path and reason.
+
+Tools covered: osu-micro-benchmarks, imb, likwid, papi, geopm, sionlib, and
+msr-safe (x86_64 only). Each downloaded archive is reported with its full workspace path, byte size,
+and tar integrity result before the idempotency rerun. Missing, empty, corrupt,
+or symlinked archives fail verification. Archives are validated without building
+or running performance workloads. Downloads run once per detected OS/version/architecture.
+Failures identify the affected node/platform and workspace. Idempotency and
+concurrency mismatches report expected/actual download counts or the archive path
+and changed SHA-256, size, or modification time. Archive validation reports the
+specific missing, empty, corrupt, or symlinked file condition.
+Concurrency requires two same-platform nodes in one functional group and skips
+with an explicit reason when that topology is unavailable.
+
+Set `cleanup_benchmark_tools: true` in `test_config.yml` to delete FVT tools
+after checks, including failures. Set it to `false` to retain them. Reports
+include retained paths and downloader logs under `<report_path>/benchmarks/`.
+Logs are preserved before deletion; a log-save or cleanup failure fails the case.
+Each script invocation has a 30-minute timeout. The NFS directory lock is scoped
+to the workspace/platform and released on normal exit, failure, SIGINT, or
+SIGTERM; after SIGKILL, verify the owner has stopped before removing a stale lock.
+
+The deployed downloader must include the environment overrides and platform
+lock from the current template. If an older script is detected, the suite fails
+with a redeployment message before downloading. FVT does not deploy or rewrite
+production scripts. Ordinary sanity runs never download benchmark tools.

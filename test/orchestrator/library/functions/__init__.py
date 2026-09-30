@@ -134,6 +134,11 @@ from .pxeboot_func import (
     check_node_ping,
     check_node_ssh,
 )
+from .slurm_benchmark_pxeboot_func import (
+    check_slurm_benchmark_prerequisites,
+    check_slurm_benchmark_idempotency,
+    check_slurm_benchmark_concurrency,
+)
 from .slurm_auth_pxeboot_func import (
     check_slurm_compiler_ldap_authentication,
     check_slurm_compiler_ldap_invalid_password,
@@ -287,6 +292,9 @@ __all__ = [
     "check_slurm_compiler_ldap_invalid_password",
     "check_slurm_compiler_ldap_jobs",
     "check_slurm_compiler_node_jobs",
+    "check_slurm_benchmark_prerequisites",
+    "check_slurm_benchmark_idempotency",
+    "check_slurm_benchmark_concurrency",
     "check_slurm_compiler_pam_job_access",
     "check_slurm_concurrent_jobs",
     "check_slurm_configless_mode",

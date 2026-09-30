@@ -236,6 +236,7 @@ def pytest_configure(config):
         "cloudinit": "Node cloud-init completion checks",
         "kubernetes": "Kubernetes post-boot checks",
         "slurm": "Slurm post-boot checks",
+        "benchmark": "Benchmark prerequisites and isolated tool downloads",
         "apptainer": "Apptainer runtime, image, and Slurm integration checks",
         "image_download": "Explicitly authorized Apptainer image download checks",
         "negative": "Expected-failure and rejection behavior checks",
@@ -289,6 +290,7 @@ def pytest_collection_modifyitems(session, config, items):
             "sanity",
             "functional",
             "slurm",
+            "benchmark",
             "kubernetes",
             "openldap",
             "non_disruptive",
@@ -353,6 +355,14 @@ def pytest_collection_modifyitems(session, config, items):
             ):
                 match = False
 
+            if (
+                match
+                and _item_has_marker(item, "benchmark")
+                and "benchmark" not in explicitly_enabled
+                and not _item_has_marker(item, "sanity")
+            ):
+                match = False
+
             (selected if match else deselected).append(item)
 
         if deselected:
@@ -383,6 +393,7 @@ def pytest_runtest_setup(item):
         & {
             "functional",
             "slurm",
+            "benchmark",
             "kubernetes",
             "openldap",
             "non_disruptive",
@@ -400,6 +411,8 @@ def pytest_runtest_setup(item):
         "image_download" in selected or sanity_authorized
     ):
         authorized.add("image_download")
+    if _item_has_marker(item, "benchmark") and "benchmark" in selected:
+        authorized.add("benchmark")
     if authorized:
         os.environ["OMNIA_FVT_AUTHORIZED_MARKERS"] = ",".join(sorted(authorized))
     else:
