@@ -2166,6 +2166,9 @@ summary:
     - job: cleanup_telemetry
       artifacts: true
       optional: true
+    - job: cleanup_utils
+      artifacts: true
+      optional: true
     - job: cleanup_omnia
       artifacts: true
       optional: true
@@ -2372,15 +2375,18 @@ summary:
 
     # Copy test reports from remote target to CI runner
     - |
-      echo "Fetching test reports from target..."
-      LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
-      mkdir -p "$LOCAL_REPORTS_PATH"
-      if [ "$DOMAINS" = "default" ]; then
-        REPORT_DOMAINS="main repo_manager image_build_manager orchestrator telemetry"
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Skipping test report fetching"
       else
-        # Handle both comma and pipe separators for domain lists
-        REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',|' ' ')"
-      fi
+        echo "Fetching test reports from target..."
+        LOCAL_REPORTS_PATH="pipeline_reports/test_reports/$CI_JOB_ID"
+        mkdir -p "$LOCAL_REPORTS_PATH"
+        if [ "$DOMAINS" = "default" ]; then
+          REPORT_DOMAINS="main repo_manager image_build_manager orchestrator telemetry"
+        else
+          # Handle both comma and pipe separators for domain lists
+          REPORT_DOMAINS="main $(echo "$DOMAINS" | tr ',|' ' ')"
+        fi
 
       # Check which test stages actually executed successfully
       echo "Checking which test stages executed..."
@@ -2441,6 +2447,7 @@ summary:
         $SSH_CMD $TARGET "ls -1t $REMOTE_PATH/*.json 2>/dev/null | head -20" || true
 
         # Search for reports using exact name from test_config.yml
+        # Only fetch reports with current pipeline ID to avoid picking up old reports from previous runs
         LATEST_JSON=""
         # Pattern 1: <pipeline_id>_<report_name>.json (CI naming: exact match)
         REPORT_GLOB="${CI_PIPELINE_ID}_${REPORT_BASE_NAME}.json"
@@ -2448,18 +2455,10 @@ summary:
         LATEST_JSON=$($SSH_CMD $TARGET \
           "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
 
-        # Pattern 2: <report_name>.json (CLI naming: no pipeline prefix)
-        if [ -z "$LATEST_JSON" ]; then
-          REPORT_GLOB="${REPORT_BASE_NAME}.json"
-          echo "  Trying pattern 2: $REPORT_GLOB"
-          LATEST_JSON=$($SSH_CMD $TARGET \
-            "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
-        fi
-
-        # Pattern 3: *<pipeline_id>*<report_name>*.json (broad fallback)
+        # Pattern 2: *<pipeline_id>*<report_name>*.json (broad fallback with pipeline ID)
         if [ -z "$LATEST_JSON" ]; then
           REPORT_GLOB="*${CI_PIPELINE_ID}*${REPORT_BASE_NAME}*.json"
-          echo "  Trying pattern 3: $REPORT_GLOB"
+          echo "  Trying pattern 2: $REPORT_GLOB"
           LATEST_JSON=$($SSH_CMD $TARGET \
             "ls -1t $REMOTE_PATH/$REPORT_GLOB 2>/dev/null | head -1")
         fi
@@ -2490,6 +2489,7 @@ summary:
       done
       echo "  Reports copied to $LOCAL_REPORTS_PATH/"
       ls -la "$LOCAL_REPORTS_PATH/" 2>/dev/null
+      fi
 
     - export PIPELINE_MODE
     - export DOMAINS
