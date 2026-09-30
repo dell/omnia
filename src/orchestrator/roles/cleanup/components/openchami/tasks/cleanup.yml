@@ -125,31 +125,6 @@
   when: container_check.rc | default(1) == 0
   tags: openchami
 
-- name: Check which OpenCHAMI pods exist
-  ansible.builtin.command:
-    cmd: podman pod exists {{ openchami_pod_name }}
-  register: cleanup_openchami_pod_checks
-  check_mode: false
-  changed_when: false
-  failed_when: cleanup_openchami_pod_checks.rc not in [0, 1]
-  loop: "{{ openchami_config.pods }}"
-  loop_control:
-    loop_var: openchami_pod_name
-  when: cleanup_openchami_podman_check.rc == 0
-  tags: openchami
-
-- name: Remove existing OpenCHAMI pods
-  ansible.builtin.command:
-    cmd: podman pod rm -f {{ pod_check.openchami_pod_name }}
-  register: cleanup_openchami_pod_removal
-  changed_when: true
-  loop: "{{ cleanup_openchami_pod_checks.results | default([]) }}"
-  loop_control:
-    loop_var: pod_check
-    label: "{{ pod_check.openchami_pod_name }}"
-  when: pod_check.rc | default(1) == 0
-  tags: openchami
-
 - name: Check OpenCHAMI data volume unit load states
   ansible.builtin.systemd:
     name: "{{ openchami_volume_service }}"
@@ -268,20 +243,6 @@
   loop: "{{ openchami_config.containers }}"
   loop_control:
     loop_var: openchami_container_name
-  when:
-    - not (dry_run | default(false) | bool)
-    - cleanup_openchami_podman_check.rc == 0
-  tags: openchami
-
-- name: Verify OpenCHAMI pods were removed
-  ansible.builtin.command:
-    cmd: podman pod exists {{ openchami_pod_name }}
-  register: cleanup_openchami_removed_pod_checks
-  changed_when: false
-  failed_when: cleanup_openchami_removed_pod_checks.rc != 1
-  loop: "{{ openchami_config.pods }}"
-  loop_control:
-    loop_var: openchami_pod_name
   when:
     - not (dry_run | default(false) | bool)
     - cleanup_openchami_podman_check.rc == 0

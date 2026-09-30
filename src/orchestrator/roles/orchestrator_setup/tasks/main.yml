@@ -570,9 +570,9 @@
   when:
     - oim_group | default(false) | bool
 
-# Step 10: Persist orchestrator state for downstream playbooks
-# This file is consumed by provision playbooks (provision_kubernetes.yml, etc.)
-# that run on the oim host and need access to support flags set on localhost.
+# Step 10: Persist catalog-derived state for downstream playbooks.
+# Catalog-independent operational flows must preserve the last derived state
+# instead of replacing support flags with their in-memory fallback values.
 - name: Write orchestrator_state.yml
   ansible.builtin.copy:
     content: |
@@ -590,4 +590,6 @@
       domain_name: "{{ domain_name | default('') }}"
     dest: "{{ orchestrator_output_dir }}/orchestrator_state.yml"
     mode: "0644"
-  when: _orchestrator_initialization_required | bool
+  when:
+    - _orchestrator_initialization_required | bool
+    - _catalog_required | bool

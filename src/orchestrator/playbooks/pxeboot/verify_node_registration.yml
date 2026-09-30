@@ -19,7 +19,9 @@
   hosts: localhost
   connection: local
   gather_facts: true
-  tags: [verify-node-registration]
+  tags:
+    - never
+    - verify_node_registration
   roles:
     - role: external_boot_verification
 
@@ -28,7 +30,9 @@
   connection: ssh
   gather_facts: false
   strategy: free
-  tags: [verify-node-registration]
+  tags:
+    - never
+    - verify_node_registration
   pre_tasks:
     - name: Skip when no nodes require external verification
       ansible.builtin.meta: end_play
@@ -40,7 +44,9 @@
   hosts: localhost
   connection: local
   gather_facts: true
-  tags: [verify-node-registration]
+  tags:
+    - never
+    - verify_node_registration
   pre_tasks:
     - name: Skip reporting when no nodes required verification
       ansible.builtin.meta: end_play

@@ -204,7 +204,7 @@ status is missing, malformed, or lacks an XNAME from the current mapping. This
 prevents an uncertain retry from silently becoming a full-cluster reboot.
 
 For a VM or a physical node booted manually, the
-`verify-node-registration` tag selects the same pending nodes but performs no
+`verify_node_registration` tag selects the same pending nodes but performs no
 Redfish operation. It verifies that each observed boot is newer than the
 persisted lifecycle state and that cloud-init completed through the existing
 SSH verifier. A successful result continues to use `pxeboot.state: success`;

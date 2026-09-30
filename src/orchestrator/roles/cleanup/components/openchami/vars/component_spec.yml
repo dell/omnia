@@ -50,8 +50,6 @@ openchami_config:
     - "smd-init"
     - "step-ca"
     - "tokensmith"
-  pods:
-    - "openchami-pod"
   data_volume_services:
     - "boot-service-data-volume.service"
     - "metadata-service-data-volume.service"
