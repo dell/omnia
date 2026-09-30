@@ -82,9 +82,7 @@ ansible-playbook playbooks/telemetry.yml
 
 | Tag | Scope |
 |-----|-------|
-| `cleanup_kafka` | Kafka runtime + Strimzi operator; preserve sink volumes by default |
-| `cleanup_victoria_metrics` | VictoriaMetrics + vmagent-vector |
-| `cleanup_victoria_logs` | VictoriaLogs + vlagent-vector |
+| `cleanup_sinks` | Selective sink cleanup with dependency checking (`-e sinks=kafka,victoria_metrics,victoria_logs` or short-form `-e kafka -e victoria_logs`) |
 | `cleanup_idrac` | iDRAC telemetry (receiver, pumps, DB) |
 | `cleanup_ldms` | LDMS + Vector-LDMS bridge |
 | `cleanup_ome` | OME + Vector-OME bridge |
@@ -201,10 +199,6 @@ telemetry/
 │   │       └── deploy_sfm.yml
 │   ├── cleanup/
 │   │   ├── cleanup.yml            # Cleanup orchestrator
-│   │   ├── sinks/                 # Sink cleanup playbooks
-│   │   │   ├── cleanup_kafka.yml
-│   │   │   ├── cleanup_victoria_metrics.yml
-│   │   │   └── cleanup_victoria_logs.yml
 │   │   └── sources/               # Per-source cleanup playbooks
 │   │       ├── cleanup_idrac.yml
 │   │       ├── cleanup_ldms.yml

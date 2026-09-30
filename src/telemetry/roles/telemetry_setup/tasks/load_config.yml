@@ -46,10 +46,10 @@
   ansible.builtin.set_fact:
     telemetry_cleanup_context: >-
       {{ (ansible_run_tags | default([])
-          | intersect(['cleanup', 'cleanup_idrac', 'cleanup_ldms',
+          | intersect(['cleanup', 'cleanup_sinks',
+                       'cleanup_idrac', 'cleanup_ldms',
                        'cleanup_ome', 'cleanup_powerscale', 'cleanup_ufm',
-                       'cleanup_vast', 'cleanup_kafka',
-                       'cleanup_victoria_metrics', 'cleanup_victoria_logs'])
+                       'cleanup_vast'])
           | length) > 0 }}
     cacheable: true
 
