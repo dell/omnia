@@ -58,6 +58,12 @@
 # the IPoIB cloud-init script configures dual-stack (IPv4 + IPv6) on each
 # IB interface. The per-node IPv6 address comes from IB_IPV6 in the PXE
 # mapping file. Leave ipv6_subnet empty to keep IPv4-only behavior.
+#
+# ib_ipv6_mode controls the IPoIB IPv6 configuration mode:
+# - "dual-stack": Both IPv4 and IPv6 on IPoIB (requires ipv6_subnet set)
+# - "ipv6-only": IPv6 only on IPoIB (requires ipv6_subnet set)
+# - "ipv4-only": IPv4 only on IPoIB (legacy behavior; ipv6_subnet ignored)
+# Default: "ipv4-only" (if not set, IPv6 pipeline is skipped)
 
 Networks:
   - admin_network:
@@ -78,3 +84,4 @@ Networks:
       dns: []
       ipv6_subnet: "fd00:1b::"
       ipv6_netmask_bits: "64"
+      ib_ipv6_mode: "dual-stack"
