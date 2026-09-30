@@ -486,18 +486,23 @@ def verify_feature_flags(host):
         dict with keys: success, flags, details, error.
     """
     config = load_telemetry_config_from_target(host)
-    ps_config = config.get("powerscale_configurations", {})
+    
+    # Read metrics and logs from telemetry_sources.powerscale
+    ps_config = config.get("telemetry_sources", {}).get("powerscale", {})
+    
+    # Read csm_observability_values_file_path from powerscale_configurations
+    ps_config_legacy = config.get("powerscale_configurations", {})
 
     flags = {
         "metrics_enabled": ps_config.get("metrics_enabled", False),
         "logs_enabled": ps_config.get("logs_enabled", False),
-        "csm_observability_values_file_path": bool(ps_config.get("csm_observability_values_file_path", "")),
+        "csm_observability_values_file_path": ps_config_legacy.get("csm_observability_values_file_path", ""),
     }
 
     details = [
         f"metrics_enabled: {flags['metrics_enabled']}",
         f"logs_enabled: {flags['logs_enabled']}",
-        f"csm_observability_configured: {flags['csm_observability_values_file_path']}",
+        f"csm_observability_values_file_path: {flags['csm_observability_values_file_path']}",
     ]
 
     return {
@@ -601,8 +606,8 @@ def verify_scrape_interval(host):
         dict with keys: success, interval, details, error.
     """
     config = load_telemetry_config_from_target(host)
-    ps_config = config.get("powerscale_configurations", {})
-    interval_str = ps_config.get("scrape_interval", "30s")
+    ps_config_legacy = config.get("powerscale_configurations", {})
+    interval_str = ps_config_legacy.get("scrape_interval", "30s")
 
     # Parse interval (e.g., "30s" -> 30)
     import re
@@ -632,8 +637,8 @@ def verify_csi_authorization_mode(host):
     """
     # Read Helm values to determine auth mode
     config = load_telemetry_config_from_target(host)
-    ps_config = config.get("powerscale_configurations", {})
-    values_path = ps_config.get("csm_observability_values_file_path", "")
+    ps_config_legacy = config.get("powerscale_configurations", {})
+    values_path = ps_config_legacy.get("csm_observability_values_file_path", "")
 
     if not values_path:
         return {
