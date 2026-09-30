@@ -554,6 +554,36 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "minimal_os_kernel_version": "uname -r",
     "minimal_os_ip_addr": "ip -o addr show 2>/dev/null",
+    # ── DCGM / CUDA verification ──────────────────────────────────────
+    "dcgm_nvidia_smi": "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
+    "dcgm_cuda_version": (
+        "nvcc --version 2>/dev/null | grep -oP 'release \\K[0-9]+\\.[0-9]+'"
+    ),
+    "dcgm_cuda_toolkit_path": (
+        "test -d /hpc_tools/cuda && ls /hpc_tools/cuda/ 2>/dev/null"
+    ),
+    "dcgm_cuda_lock_check": (
+        "test -f /hpc_tools/cuda/.install_lock && echo LOCKED || echo UNLOCKED"
+    ),
+    "dcgm_rpm_check": "rpm -q datacenter-gpu-manager 2>/dev/null",
+    "dcgm_binary_check": "command -v dcgmi 2>/dev/null && dcgmi --version 2>/dev/null",
+    "dcgm_service_active": "systemctl is-active nvidia-dcgm 2>/dev/null",
+    "dcgm_service_enabled": "systemctl is-enabled nvidia-dcgm 2>/dev/null",
+    "dcgm_discovery": "dcgmi discovery -l 2>/dev/null",
+    "dcgm_dmon": "timeout 10 dcgmi dmon -e 150,155,203 -c 3 2>/dev/null",
+    "dcgm_multi_gpu_count": (
+        "nvidia-smi --query-gpu=gpu_uuid --format=csv,noheader 2>/dev/null | wc -l"
+    ),
+    "dcgm_nfs_mount_check": "findmnt -n -o SOURCE,FSTYPE,TARGET /hpc_tools",
+    "dcgm_os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
+    "dcgm_service_pid": "systemctl show nvidia-dcgm --property=MainPID --value",
+    "dcgm_service_restart_check": (
+        "systemctl show nvidia-dcgm --property=NRestarts --value 2>/dev/null"
+    ),
+    "dcgm_socket_path": (
+        "test -S /var/run/nvidia-dcgm/nv-hostengine.sock && echo EXISTS || "
+        "test -S /tmp/nv-hostengine.sock && echo EXISTS || echo MISSING"
+    ),
 }
 
 KUBERNETES_REQUIRED_POD_PREFIXES: tuple[str, ...] = (

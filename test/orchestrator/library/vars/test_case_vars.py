@@ -697,6 +697,97 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Slurm compute node re-addition lifecycle",
         "component": "Slurm node re-addition",
     },
+    # ── DCGM / CUDA verification (ORCH_FVT_PXEBOOT_V101-V118) ─────────
+    "dcgm_cuda_validation": {
+        "id": "ORCH_FVT_PXEBOOT_V101",
+        "title": "Verify NVIDIA driver and CUDA toolkit on GPU nodes",
+        "component": "CUDA driver and toolkit validation",
+    },
+    "dcgm_cuda_atomic_lock": {
+        "id": "ORCH_FVT_PXEBOOT_V102",
+        "title": "Verify CUDA toolkit installed via atomic lock",
+        "component": "CUDA atomic lock installation",
+    },
+    "dcgm_package_installed": {
+        "id": "ORCH_FVT_PXEBOOT_V103",
+        "title": "Verify datacenter-gpu-manager RPM and DCGM binaries",
+        "component": "DCGM package installation",
+    },
+    "dcgm_daemon_running": {
+        "id": "ORCH_FVT_PXEBOOT_V104",
+        "title": "Verify nvidia-dcgm service is active and enabled",
+        "component": "DCGM daemon status",
+    },
+    "dcgm_gpu_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V105",
+        "title": "Verify dcgmi discovery enumerates GPUs with unique UUIDs",
+        "component": "DCGM GPU discovery",
+    },
+    "dcgm_gpu_metrics": {
+        "id": "ORCH_FVT_PXEBOOT_V106",
+        "title": "Verify dcgmi dmon returns metric samples for each GPU",
+        "component": "DCGM GPU metrics monitoring",
+    },
+    "dcgm_cuda_login_compiler": {
+        "id": "ORCH_FVT_PXEBOOT_V107",
+        "title": "Verify CUDA toolkit accessible on login_compiler nodes",
+        "component": "CUDA login_compiler installation",
+    },
+    "dcgm_cuda_compute_node": {
+        "id": "ORCH_FVT_PXEBOOT_V108",
+        "title": "Verify CUDA toolkit and driver on compute nodes",
+        "component": "CUDA compute node installation",
+    },
+    "dcgm_multi_gpu_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V109",
+        "title": "Verify dcgmi discovery on multi-GPU nodes",
+        "component": "DCGM multi-GPU discovery",
+    },
+    "dcgm_multi_gpu_no_login_compiler": {
+        "id": "ORCH_FVT_PXEBOOT_V110",
+        "title": "Verify GPU nodes work without login_compiler present",
+        "component": "Multi-GPU without login_compiler",
+    },
+    "dcgm_multi_login_compiler_lock": {
+        "id": "ORCH_FVT_PXEBOOT_V111",
+        "title": "Verify CUDA toolkit install uses atomic lock with multiple login_compilers",
+        "component": "Multi login_compiler atomic lock",
+    },
+    "dcgm_toolkit_nfs_storage": {
+        "id": "ORCH_FVT_PXEBOOT_V112",
+        "title": "Verify /hpc_tools is NFS-mounted and CUDA toolkit accessible",
+        "component": "CUDA NFS shared storage",
+    },
+    "dcgm_rhel_compatibility": {
+        "id": "ORCH_FVT_PXEBOOT_V113",
+        "title": "Verify GPU node OS is a supported RHEL version",
+        "component": "GPU RHEL compatibility",
+    },
+    "dcgm_cuda_version_compatibility": {
+        "id": "ORCH_FVT_PXEBOOT_V114",
+        "title": "Verify CUDA toolkit and DCGM daemon version compatibility",
+        "component": "CUDA version compatibility",
+    },
+    "dcgm_neg_cuda_prerequisite": {
+        "id": "ORCH_FVT_PXEBOOT_V115",
+        "title": "Verify DCGM deployment requires CUDA prerequisites",
+        "component": "CUDA prerequisite enforcement",
+    },
+    "dcgm_neg_daemon_recovery": {
+        "id": "ORCH_FVT_PXEBOOT_V116",
+        "title": "Verify DCGM daemon auto-recovery after SIGKILL",
+        "component": "DCGM daemon crash recovery",
+    },
+    "dcgm_neg_socket_inaccessible": {
+        "id": "ORCH_FVT_PXEBOOT_V117",
+        "title": "Verify dcgmi returns clear error when socket is removed",
+        "component": "DCGM socket inaccessible",
+    },
+    "dcgm_neg_package_install_failure": {
+        "id": "ORCH_FVT_PXEBOOT_V118",
+        "title": "Verify error handling when DCGM package is unavailable",
+        "component": "DCGM package install failure",
+    },
     "additional_cloud_init_smd_groups": {
         "id": "ORCH_FVT_PXEBOOT_V095",
         "title": "Verify additional cloud-init SMD groups",

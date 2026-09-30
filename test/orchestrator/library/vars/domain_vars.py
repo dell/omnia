@@ -83,6 +83,7 @@ SUITES: dict[str, list[str]] = {
         "slurm_jobs",
         "slurm_ldap",
         "slurm_gpu",
+        "slurm_dcgm",
         "slurm_openmpi",
         "slurm_ucx",
         "slurm_infiniband",
