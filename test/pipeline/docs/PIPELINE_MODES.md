@@ -90,7 +90,7 @@ pipeline:
 
 ## Domains
 
-The pipeline manages 4 independent domains. Each domain has its own cleanup, deploy, and test stages. You can run all domains or select specific ones.
+The pipeline manages 5 independent domains. Each domain has its own cleanup, deploy, and test stages. You can run all domains or select specific ones.
 
 | Domain | Purpose | Credential file |
 |---|---|---|
@@ -98,6 +98,7 @@ The pipeline manages 4 independent domains. Each domain has its own cleanup, dep
 | **image_build_manager** | Container image building and registry | `image_build_credentials.yml` |
 | **orchestrator** | Kubernetes and container orchestration | `orchestrator_credentials.yml` |
 | **telemetry** | Monitoring, logging, and observability | `telemetry_credentials.yml` |
+| **build_stream** | Build stream image provisioning and deployment | `build_stream_credentials.yml` |
 
 ### Domain Selection
 
@@ -105,13 +106,14 @@ Set via `domains` in `pipeline_config.yml` or the `CLUSTER1_DOMAINS` CI/CD varia
 
 | Setting | Domains that run | When to use |
 |---|---|---|
-| `"default"` | All 4 domains | Full deployment |
+| `"default"` | All 5 domains | Full deployment |
 | `"repo_manager"` | repo_manager only | Initial repo setup or repo update |
 | `"orchestrator"` | orchestrator only | Deploy/redeploy Kubernetes |
 | `"telemetry"` | telemetry only | Deploy monitoring stack |
 | `"image_build_manager"` | image_build_manager only | Deploy image builder |
+| `"build_stream"` | build_stream only | Deploy build stream images |
 | `"repo_manager\|orchestrator"` | repo_manager + orchestrator | Deploy two domains together |
-| `"repo_manager\|image_build_manager\|telemetry"` | Three domains (skip orchestrator) | Everything except orchestrator |
+| `"repo_manager\|image_build_manager\|telemetry"` | Three domains (skip orchestrator & build_stream) | Subset of domains |
 
 ---
 
@@ -216,7 +218,7 @@ skip_stages: "image_build_manager,telemetry"
 ```
 
 **Valid values for `skip_stages`:**
-- `repo_manager`, `image_build_manager`, `orchestrator`, `telemetry` — skips cleanup + deploy + test for that domain
+- `repo_manager`, `image_build_manager`, `orchestrator`, `telemetry`, `build_stream` — skips cleanup + deploy + test for that domain
 - `setup_environment`, `setup_main`, `cleanup_omnia` — skips that specific stage
 
 ---
@@ -230,22 +232,23 @@ The pipeline runs these stages in order. Which stages actually execute depends o
  ─────────────────────────────────────────────────────────────────
  1. initialization                  Y            Y        Y
  2. setup_environment               Y          (opt)    (opt)
- 3. cleanup_repo_manager            Y                     Y
- 4. cleanup_image_build_manager     Y                     Y
- 5. cleanup_orchestrator            Y                     Y
- 6. cleanup_telemetry               Y                     Y
- 7. cleanup_omnia                   Y                     Y
- 8. setup_main                      Y
- 9. test_main_installation        (test)       (test)
-10. repo_manager                    Y            Y
-11. test_repo_manager             (test)       (test)
-12. image_build_manager             Y            Y
-13. test_image_build_manager      (test)       (test)
-14. orchestrator                    Y            Y
-15. test_orchestrator             (test)       (test)
-16. telemetry                       Y            Y
-17. test_telemetry                (test)       (test)
-18. summary                         Y            Y        Y
+ 3. cleanup_build_stream            Y                     Y
+ 4. cleanup_repo_manager            Y                     Y
+ 5. cleanup_image_build_manager     Y                     Y
+ 6. cleanup_orchestrator            Y                     Y
+ 7. cleanup_telemetry               Y                     Y
+ 8. cleanup_omnia                   Y                     Y
+ 9. setup_main                      Y
+10. test_main_installation        (test)       (test)
+11. repo_manager                    Y            Y
+12. test_repo_manager             (test)       (test)
+13. image_build_manager             Y            Y
+14. test_image_build_manager      (test)       (test)
+15. orchestrator                    Y            Y
+16. test_orchestrator             (test)       (test)
+17. telemetry                       Y            Y
+18. test_telemetry                (test)       (test)
+19. summary                         Y            Y        Y
 ```
 
 Legend:

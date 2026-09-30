@@ -12,56 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Orchestrator — Variables Package."""
+"""Orchestrator-suite variables exposed to tests and report hooks."""
 
-from .common_vars import (
-    MODULE_ROOT,
-    MONOREPO_ROOT,
-    SRC_ORCHESTRATOR_DIR,
-    DOMAIN_NAME,
-    PLAYBOOK_ENTRY_POINT,
-    PLAYBOOK_WORKDIR,
-    PLAYBOOK_TAGS,
-    CMDS,
+from .openldap_vars import (
+    LDAP_DEFAULT_PORT,
+    LDAP_PROXY_CONTAINER,
+    LDAP_PROXY_SERVICE,
+    LDAP_READY_DELAY_SECONDS,
+    LDAP_READY_RETRIES,
 )
-from .slurm_vars import (
-    SLURM_SERVICES,
-    SLURM_DIRECTORIES,
-    SLURM_CONFIG_FILES,
-    SLURM_PROVISION_PLAYBOOK,
-    SLURM_PROVISION_WORKDIR,
-    TEST_CASES as SLURM_TEST_CASES,
-)
-from .k8s_vars import (
-    K8S_SERVICES,
-    K8S_DIRECTORIES,
-    K8S_CONFIG_FILES,
-    K8S_PROVISION_PLAYBOOK,
-    K8S_PROVISION_WORKDIR,
-    K8S_SYSTEM_PODS,
-    TEST_CASES as K8S_TEST_CASES,
+from .test_case_vars import (
+    CLEANUP_TEST_CASES,
+    NFT_TEST_CASES,
+    PRECHECK_TEST_CASES,
+    PREPARE_TEST_CASES,
+    PROVISION_TEST_CASES,
+    PXEBOOT_TEST_CASES,
+    TEST_CASES,
 )
 
 __all__ = [
-    "MODULE_ROOT",
-    "MONOREPO_ROOT",
-    "SRC_ORCHESTRATOR_DIR",
-    "DOMAIN_NAME",
-    "PLAYBOOK_ENTRY_POINT",
-    "PLAYBOOK_WORKDIR",
-    "PLAYBOOK_TAGS",
-    "CMDS",
-    "SLURM_SERVICES",
-    "SLURM_DIRECTORIES",
-    "SLURM_CONFIG_FILES",
-    "SLURM_PROVISION_PLAYBOOK",
-    "SLURM_PROVISION_WORKDIR",
-    "SLURM_TEST_CASES",
-    "K8S_SERVICES",
-    "K8S_DIRECTORIES",
-    "K8S_CONFIG_FILES",
-    "K8S_PROVISION_PLAYBOOK",
-    "K8S_PROVISION_WORKDIR",
-    "K8S_SYSTEM_PODS",
-    "K8S_TEST_CASES",
+    "CLEANUP_TEST_CASES",
+    "LDAP_DEFAULT_PORT",
+    "LDAP_PROXY_CONTAINER",
+    "LDAP_PROXY_SERVICE",
+    "LDAP_READY_DELAY_SECONDS",
+    "LDAP_READY_RETRIES",
+    "NFT_TEST_CASES",
+    "PRECHECK_TEST_CASES",
+    "PREPARE_TEST_CASES",
+    "PROVISION_TEST_CASES",
+    "PXEBOOT_TEST_CASES",
+    "TEST_CASES",
 ]

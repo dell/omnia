@@ -48,6 +48,50 @@
 - name: Generate inventories and validate provisioning
   hosts: oim
   connection: ssh
+  pre_tasks:
+    - name: Resolve validation identities from SMD Hardware Inventory
+      openchami_reconcile:
+        action: resolve_identities
+        cluster_uri: >-
+          https://{{ hostvars['localhost']['oim_node_name'] }}.{{
+          hostvars['localhost']['domain_name'] }}:8443
+        access_token: "{{ openchami_access_token }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        nodes: >-
+          {{ hostvars['localhost']['read_mapping_file']['dict']
+             | dict2items | map(attribute='value') | list }}
+      check_mode: true
+      register: _validation_identity_result
+      no_log: true
+
+    - name: Require provisioned SMD Service Tag identities
+      ansible.builtin.assert:
+        that:
+          - _validation_identity_result.planned_inventory_xnames | length == 0
+        fail_msg: >-
+          SMD Hardware Inventory is missing Service Tag identities for:
+          {{ _validation_identity_result.planned_inventory_xnames | join(', ') }}.
+          Run the provision phase to bootstrap the identity records.
+
+    - name: Index validation nodes by admin MAC
+      ansible.builtin.set_fact:
+        _validation_nodes_by_mac: >-
+          {% set resolved = {} -%}
+          {% for node in _validation_identity_result.nodes -%}
+          {% set _ = resolved.update({node.ADMIN_MAC: node}) -%}
+          {% endfor -%}
+          {{ resolved }}
+
+    - name: Publish SMD-resolved identities for validation
+      ansible.builtin.set_fact:
+        read_mapping_file: >-
+          {{ hostvars['localhost']['read_mapping_file']
+             | combine({
+                 'dict': hostvars['localhost']['read_mapping_file']['dict']
+                         | combine(_validation_nodes_by_mac)
+               }) }}
+      delegate_to: localhost
+      delegate_facts: true
   roles:
     - generate_inventories
     - validate_provisioning

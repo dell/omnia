@@ -51,7 +51,8 @@
     headers:
       Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200]
-    validate_certs: false
+    ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    validate_certs: true
     return_content: true
   register: existing_boot_configs_cleanup
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
@@ -63,7 +64,8 @@
     headers:
       Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200, 404]
-    validate_certs: false
+    ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    validate_certs: true
   loop: "{{ existing_boot_configs_cleanup.json | default([]) }}"
   loop_control:
     label: "{{ item.metadata.name }}"
@@ -81,7 +83,8 @@
     headers:
       Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
     status_code: [200]
-    validate_certs: false
+    ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    validate_certs: true
     return_content: true
   register: boot_configs_output
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
@@ -156,7 +159,8 @@
         public_keys: "{{ ms_defaults_data['public_keys'] | default([]) }}"
         cloud_provider: "OpenCHAMI"
     status_code: [200, 201, 409]
-    validate_certs: false
+    ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    validate_certs: true
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Configure metadata-service group
@@ -206,7 +210,8 @@
         hostname: "{{ item['local-hostname'] }}"
         local_hostname: "{{ item['local-hostname'] }}"
     status_code: [200, 201, 409]
-    validate_certs: false
+    ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    validate_certs: true
   loop: "{{ reapply_hostname_entries | default([]) }}"
   loop_control:
     label: "{{ item.id }}"

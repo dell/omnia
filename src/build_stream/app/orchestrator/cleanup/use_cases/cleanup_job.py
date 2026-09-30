@@ -439,12 +439,18 @@ class CleanupJobUseCase:
             return False
 
         try:
+            # Resolve composite ID from the job (ER-BSM-002)
+            composite_id = ctx.image_group_id_str
+            if hasattr(ctx.job, "composite_image_group_id") and ctx.job.composite_image_group_id:
+                composite_id = ctx.job.composite_image_group_id
+
             request = PlaybookRequest(
                 job_id=str(ctx.image_group.job_id),
                 stage_name="cleanup",
                 playbook_path=PlaybookPath(CLEANUP_PLAYBOOK_NAME),
                 extra_vars=ExtraVars(values={
                     "cleanup_image_pattern": ctx.image_group_id_str,
+                    "composite_image_group_id": composite_id,
                     # Required so the playbook's interactive approval
                     # prompt (ansible.builtin.pause) is bypassed. The
                     # playbook watcher runs headlessly (no TTY), so without

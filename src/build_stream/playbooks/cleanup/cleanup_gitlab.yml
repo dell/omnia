@@ -40,6 +40,10 @@
   connection: local
   gather_facts: false
   tasks:
+    - name: Load GitLab cleanup variables
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../roles/cleanup_gitlab/vars/main.yml"
+
     - name: Load build_stream credential paths
       ansible.builtin.include_vars:
         file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
@@ -50,16 +54,49 @@
         bs_credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
         bs_credential_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
 
-    - name: Decrypt and include build_stream credentials
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../roles/credential_utility/tasks/decrypt_include_encrypt.yml"
-      vars:
-        credential_file_path: "{{ bs_credential_file_path }}"
-        vault_password_file: "{{ bs_credential_vault_path }}"
+    - name: Set initial GitLab cleanup credential availability
+      ansible.builtin.set_fact:
+        gitlab_cleanup_credentials_available: >-
+          {{ bs_credential_file_path is file }}
+
+    - name: Load BuildStream credentials when they remain usable
+      block:
+        - name: Decrypt and include build_stream credentials
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../../roles/credential_utility/tasks/decrypt_include_encrypt.yml"
+          vars:
+            credential_file_path: "{{ bs_credential_file_path }}"
+            vault_password_file: "{{ bs_credential_vault_path }}"
+          when: gitlab_cleanup_credentials_available | bool
+      rescue:
+        - name: Mark GitLab cleanup credentials unavailable
+          ansible.builtin.set_fact:
+            gitlab_cleanup_credentials_available: false
+
+        - name: Report unusable GitLab cleanup credentials
+          ansible.builtin.debug:
+            msg: "{{ gitlab_cleanup_credentials_unusable_msg }}"
+
+    - name: Confirm GitLab cleanup credentials are usable
+      ansible.builtin.set_fact:
+        gitlab_cleanup_credentials_available: >-
+          {{
+            gitlab_cleanup_credentials_available | bool
+            and (gitlab_ssh_password | default('') | string | length > 0)
+          }}
 
 - name: Prepare GitLab host credentials for cleanup
   hosts: localhost
   gather_facts: false
   tasks:
+    - name: Skip GitLab cleanup when credentials are unavailable
+      ansible.builtin.debug:
+        msg: "{{ gitlab_cleanup_credentials_unavailable_msg }}"
+      when: not gitlab_cleanup_credentials_available
+
+    - name: End GitLab cleanup preparation when credentials are unavailable
+      ansible.builtin.meta: end_play
+      when: not gitlab_cleanup_credentials_available
+
     - name: Load BuildStream configuration inputs
       ansible.builtin.include_vars:
         file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
@@ -72,12 +109,6 @@
           - gitlab_host is defined
           - gitlab_host | string | length > 0
         fail_msg: "gitlab_host is not set. Provide gitlab_host in input/build_stream_config.yml"
-
-    - name: Ensure GitLab SSH password is available
-      ansible.builtin.assert:
-        that:
-          - hostvars['localhost']['gitlab_ssh_password'] | default('') | length > 0
-        fail_msg: "GitLab SSH password not found. Run build_stream credential utility to populate gitlab_ssh_password."
 
     - name: Register GitLab SSH credentials for cleanup
       ansible.builtin.add_host:
@@ -95,6 +126,10 @@
   become: true
   gather_facts: true
   pre_tasks:
+    - name: Skip remote GitLab cleanup when credentials are unavailable
+      ansible.builtin.meta: end_play
+      when: not hostvars.localhost.gitlab_cleanup_credentials_available
+
     - name: Load BuildStream configuration inputs
       ansible.builtin.include_vars:
         file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
