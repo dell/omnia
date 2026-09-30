@@ -243,8 +243,8 @@ current directories.
 Registered selectors include:
 
 - Baseline and capability: `sanity`, `functional`, `connectivity`,
-  `cloudinit`, `kubernetes`, `slurm`, `openldap`, and `apptainer`.
-- Controlled mutation: `image_download`, `negative`, and `non_disruptive`.
+  `cloudinit`, `kubernetes`, `slurm`, `benchmark`, `openldap`, and `apptainer`.
+- Controlled mutation: `image_download`, `benchmark`, `negative`, and `non_disruptive`.
 - Maintenance-window operations: `disruptive`, `reboot`, and
   `scheduler_state`.
 - Cleanup authorization: `destructive`.
@@ -449,3 +449,19 @@ Additional documentation:
 - [Dataset generator](datasets/generator/README.md)
 - [Standalone utilities](utility/README.md)
 - [Unit contracts](ut/README.md)
+
+### Benchmark tool delivery FVT
+
+The `pxeboot/slurm_benchmarks` suite first verifies the deployed pull script
+and the configured NFS/VAST export plus its exact `/hpc_tools` bind mount.
+Functional checks reuse `pull_benchmarks.sh` to download all supported tools,
+verify archive integrity and rerun idempotency, and test concurrent reuse.
+See [the FVT guide](fvt/README.md#benchmark-tool-delivery) and
+[cleanup configuration](docs/test_config.md#benchmark-fvt-cleanup).
+
+Benchmark FVT follows the framework separation: thin cases in
+`fvt/pxeboot/slurm_benchmarks/`, verification and cleanup behavior in
+`library/functions/slurm_benchmark_pxeboot_func.py`, and paths, tool names,
+timeouts, and remote command templates in `library/vars/slurm_benchmark_vars.py`.
+Test IDs remain in `test_case_vars.py`; suite/marker registration remains in
+`domain_vars.py`. Results use the shared `verify_pxeboot()` reporting contract.
