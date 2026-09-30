@@ -6,7 +6,7 @@
 oim_server_ip: ""
 
 # Path on the remote server where the project repo is synced (remote mode only).
-clone_path: "/root/omnia"
+clone_path: "/root/rohit/new/new/working/omnia"
 
 # Report output path.
 report_path: "/opt/omnia/reports"
