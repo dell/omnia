@@ -1421,6 +1421,13 @@ _resolve_catalog_source() {
     local sources=()
     mapfile -t sources < <(_catalog_sources)
 
+    # Preserve legacy selectors after catalogs moved below the rhel directory.
+    case "$selection" in
+        10.0/*|10.2/*)
+            selection="rhel/${selection}"
+            ;;
+    esac
+
     if [[ "$selection" =~ ^[0-9]+$ ]]; then
         if [ "$selection" -lt 1 ] || [ "$selection" -gt "${#sources[@]}" ]; then
             return 1
@@ -1904,7 +1911,7 @@ EXAMPLES:
   # Select the active catalog:
   ./omnia.sh --list-catalogs
   ./omnia.sh --select-catalog                   # Interactive selection
-  ./omnia.sh --select-catalog 10.0/slurm_x86_64_no_vast.json
+  ./omnia.sh --select-catalog rhel/10.0/slurm_x86_64_no_vast.json
 
   # Init specific domains (re-stage input files or reinstall deps):
   ./omnia.sh -i                                # All domains
