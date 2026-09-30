@@ -435,11 +435,10 @@
           "quay.io/metallb/speaker",
           "kubectl_1_35_1",
           "prettytable==3_14_0",
-          "python3_3_12_9",
+          "python3",
           "git",
           "kubernetes==33_1_0",
-          "PyMySQL==1_1_2",
-          "python3_3_12_14"
+          "PyMySQL==1_1_2"
         ]
       },
       "service_kube_control_plane_group": {
@@ -467,11 +466,10 @@
           "nfs_subdir_external_provisioner_4_0_18",
           "kubectl_1_35_1",
           "prettytable==3_14_0",
-          "python3_3_12_9",
+          "python3",
           "git",
           "kubernetes==33_1_0",
-          "PyMySQL==1_1_2",
-          "python3_3_12_14"
+          "PyMySQL==1_1_2"
         ]
       },
       "service_kube_node_group": {
@@ -3448,28 +3446,6 @@
           }
         ]
       },
-      "python3_3_12_9": {
-        "name": "python3-3.12.9",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
       "sionlib": {
         "name": "sionlib",
         "packagetype": "tarball",
@@ -4943,28 +4919,6 @@
           }
         ]
       },
-      "python3": {
-        "name": "python3-3.12.9",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "reponame": "baseos"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "reponame": "baseos"
-          }
-        ]
-      },
       "strace": {
         "name": "strace",
         "packagetype": "rpm",
@@ -5409,8 +5363,8 @@
           }
         ]
       },
-      "python3_3_12_14": {
-        "name": "python3-3.12.14",
+      "python3": {
+        "name": "python3",
         "packagetype": "rpm",
         "sources": [
           {

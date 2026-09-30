@@ -464,8 +464,7 @@
           "quay.io/metallb/speaker",
           "kubectl_1_35_1",
           "prettytable==3_14_0",
-          "python3_3_12_9",
-          "python3_3_12_14",
+          "python3",
           "git",
           "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
@@ -496,8 +495,7 @@
           "nfs_subdir_external_provisioner_4_0_18",
           "kubectl_1_35_1",
           "prettytable==3_14_0",
-          "python3_3_12_9",
-          "python3_3_12_14",
+          "python3",
           "git",
           "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
@@ -782,34 +780,6 @@
       },
       "cryptsetup": {
         "name": "cryptsetup",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
-      "python3_3_12_9": {
-        "name": "python3-3.12.9",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
-      "python3_3_12_14": {
-        "name": "python3-3.12.14",
         "packagetype": "rpm",
         "sources": [
           {
@@ -1357,7 +1327,7 @@
         "tag": "1.1.0-kafka-4.3.0"
       },
       "python3": {
-        "name": "python3-3.12.9",
+        "name": "python3",
         "packagetype": "rpm",
         "sources": [
           {
