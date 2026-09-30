@@ -237,6 +237,7 @@ def pytest_configure(config):
         "kubernetes": "Kubernetes post-boot checks",
         "slurm": "Slurm post-boot checks",
         "apptainer": "Apptainer runtime, image, and Slurm integration checks",
+        "additional_cloud_init": "Additional cloud-init post-boot verification checks",
         "image_download": "Explicitly authorized Apptainer image download checks",
         "negative": "Expected-failure and rejection behavior checks",
         "non_disruptive": "Checks that do not reboot or drain cluster nodes",

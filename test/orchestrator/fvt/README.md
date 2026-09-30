@@ -122,6 +122,8 @@ state with the active PXE mapping.
 | 106 | `ORCH_FVT_PROVISION_V006` | `test_metadata_service_groups` | `openchami` | `sanity` | Verify one usable cloud-init template per functional group. | All stated checks pass for every applicable target. |
 | 107 | `ORCH_FVT_PROVISION_V007` | `test_metadata_service_instances` | `openchami` | `sanity` | Verify unique per-node hostname metadata. | All stated checks pass for every applicable target. |
 | 108 | `ORCH_FVT_PROVISION_V008` | `test_coredhcp_and_coredns_inventory` | `openchami` | `sanity` | Verify the SMD identity records consumed by CoreDHCP/CoreDNS. | All stated checks pass for every applicable target. |
+| 109 | `ORCH_FVT_PROVISION_V009` | `test_boot_image_identity` | `openchami` | `sanity` | Verify Boot Service kernel/initrd paths match build_status.yml per functional group. | All stated checks pass for every applicable target. |
+| 110 | `ORCH_FVT_PROVISION_V010` | `test_boot_image_architecture` | `openchami` | `sanity` | Verify build_status.yml architecture keys are consistent with functional group name suffixes. | All stated checks pass for every applicable target. |
 
 Provision verification is read-only. It resolves XNAMEs from live SMD
 interfaces and groups and obtains fresh OpenCHAMI credentials for API reads.
@@ -152,6 +154,13 @@ is rejected. Reboot and scheduler-state cases require their explicit markers.
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
 | 204 | `ORCH_FVT_PXEBOOT_V004` | `test_node_cloud_init` | `cloudinit` | `cloudinit`, `sanity` | Verify PXE report freshness and direct cloud-init JSON state. | All stated checks pass for every applicable target. |
+
+### Architecture and OS identity
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 295 | `ORCH_FVT_PXEBOOT_V097` | `test_node_architecture` | `connectivity` | `connectivity`, `sanity` | Verify each node's live architecture matches its functional group name suffix. | All stated checks pass for every applicable target. |
+| 296 | `ORCH_FVT_PXEBOOT_V098` | `test_node_os_version` | `connectivity` | `connectivity`, `sanity` | Verify each node's live OS version matches the expected image from build_status.yml. | All stated checks pass for every applicable target. |
 
 Cloud-init is accepted only when its structured status satisfies the
 product contract. A generated script success message is not treated as
@@ -274,6 +283,22 @@ Image download has a 20-minute ceiling with polling progress every 20
 seconds. The reboot cases share one reboot state instead of rebooting the
 same compute node independently for each postcondition.
 
+### Additional cloud-init
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 297 | `ORCH_FVT_PXEBOOT_V095` | `test_additional_cloud_init_smd_groups` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify SMD groups exist for additional cloud-init configuration. | All stated checks pass for every applicable target. |
+| 298 | `ORCH_FVT_PXEBOOT_V096` | `test_additional_cloud_init_metadata_groups` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify metadata-service groups and templates for additional cloud-init. | All stated checks pass for every applicable target. |
+| 299 | `ORCH_FVT_PXEBOOT_V099` | `test_additional_cloud_init_write_files` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify write_files entries were applied on provisioned nodes. | All stated checks pass for every applicable target. |
+| 300 | `ORCH_FVT_PXEBOOT_V100` | `test_additional_cloud_init_runcmd` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify runcmd entries executed during cloud-init on provisioned nodes. | All stated checks pass for every applicable target. |
+
+Additional cloud-init tests skip automatically when
+`additional_cloud_init_config_file` is empty or not configured in
+`orchestrator_config.yml`. When enabled, V095 and V096 verify controller-side
+state (SMD groups and metadata-service templates); V099 and V100 verify
+node-side artifacts (files created by `write_files` and cloud-init completion
+confirming `runcmd` execution).
+
 ## Cleanup test cases
 
 These cases execute the explicitly selected full cleanup and verify each
@@ -298,7 +323,7 @@ input file, credential, or externally managed data path must always be deleted.
 |---|---|
 | `sanity` | Default positive PXE and lifecycle coverage |
 | `functional` | Temporary workload or job behavior |
-| `openldap`, `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer` | Capability selectors |
+| `openldap`, `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `additional_cloud_init` | Capability selectors |
 | `image_download` | Explicit authorization to modify shared Apptainer image storage |
 | `negative` | Expected rejection and error-path behavior |
 | `non_disruptive` | Work that does not reboot or drain cluster nodes |
@@ -332,6 +357,7 @@ class, while `slurm+non_disruptive` selects tests carrying both markers.
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_cluster
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_ldap
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_apptainer
+./run_validation.sh fvt_orchestrator pxeboot verify --suite additional_cloud_init
 
 # Marker examples.
 ./run_validation.sh fvt_orchestrator pxeboot verify --marker sanity,functional
