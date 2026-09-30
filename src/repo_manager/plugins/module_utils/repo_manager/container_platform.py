@@ -44,9 +44,18 @@ def _manifest_platforms(manifest_href, logger, executor, depth=0):
         executor,
     )
     if present is not True:
+        logger.error("Container manifest is absent or its metadata is unreadable")
         return present, set()
     if not isinstance(details, dict):
+        logger.error("Container manifest metadata is not an object")
         return None, set()
+
+    # OCI attestations may have an empty config with no architecture or OS.
+    if (
+            details.get("type") == "artifact"
+            and details.get("media_type") == "application/vnd.oci.image.manifest.v1+json"
+    ):
+        return True, set()
 
     architecture = details.get("architecture")
     operating_system = details.get("os")
@@ -57,11 +66,13 @@ def _manifest_platforms(manifest_href, logger, executor, depth=0):
 
     listed_manifests = details.get("listed_manifests")
     if not isinstance(listed_manifests, list) or not listed_manifests:
+        logger.error("Container manifest has no architecture or child manifests")
         return None, set()
 
     platforms = set()
     for child_href in listed_manifests:
         if not isinstance(child_href, str) or not child_href:
+            logger.error("Container index contains an invalid child manifest reference")
             return None, set()
         child_state, child_platforms = _manifest_platforms(
             child_href, logger, executor, depth + 1
@@ -106,6 +117,7 @@ def verify_container_reference(
     if matches is None:
         return None
     if len(matches) != 1 or not isinstance(matches[0], dict):
+        logger.error("Container reference '%s' is absent or ambiguous", reference)
         return False
 
     manifest_href = (
@@ -127,6 +139,7 @@ def verify_container_reference(
         manifest_href, logger, executor
     )
     if manifest_state is not True:
+        logger.error("Unable to verify manifests for container reference '%s'", reference)
         return manifest_state
     if expected_architecture not in platforms:
         logger.error(
