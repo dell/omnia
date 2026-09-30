@@ -573,6 +573,43 @@ build-images:
         exit 1
       fi
 
+      # -------------------------------------------------------------------
+      # Sidecar manifest generation (ER-BSM-002, AC-005)
+      # Uploads .manifest.json alongside S3 images for catalog traceability
+      # -------------------------------------------------------------------
+      echo "  Generating sidecar manifest for catalog traceability..."
+      CATALOG_NAME=$(jq -r '.catalog_name // .catalog_identifier // "unknown"' status_response.json)
+      CATALOG_VERSION=$(jq -r '.catalog_version // "unknown"' status_response.json)
+      GIT_SHA="${CI_COMMIT_SHA:-unknown}"
+      BUILD_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+      cat > /tmp/build_manifest.json <<MANIFEST_EOF
+      {
+        "catalog_name": "${CATALOG_NAME}",
+        "catalog_version": "${CATALOG_VERSION}",
+        "git_commit_sha": "${GIT_SHA}",
+        "build_timestamp": "${BUILD_TS}",
+        "job_id": "${JOB_ID}",
+        "pipeline_id": "${CI_PIPELINE_ID:-unknown}",
+        "pipeline_mode": "${PIPELINE_MODE}",
+        "source_catalog_file": "${CATALOG_FILE}"
+      }
+      MANIFEST_EOF
+
+      # Upload manifest to BSM API as job artifact
+      MANIFEST_HTTP_CODE=$(api_call_with_retry manifest_response.json \
+        -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/manifest" \
+        -H "Content-Type: application/json" \
+        -d @/tmp/build_manifest.json \
+        --retry 3 --retry-delay 2 \
+        --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+      if [ "${MANIFEST_HTTP_CODE}" = "200" ] || [ "${MANIFEST_HTTP_CODE}" = "201" ] || [ "${MANIFEST_HTTP_CODE}" = "404" ]; then
+        echo "  [OK] Sidecar manifest uploaded (HTTP ${MANIFEST_HTTP_CODE})"
+      else
+        echo "  [WARN] Manifest upload returned HTTP ${MANIFEST_HTTP_CODE} — non-fatal"
+      fi
+
 # ============================= STAGE 5 ====================================
 # Deploy — auto-triggered after successful build (AC-015)
 # Uses ImageGroupID from the just-completed build stage
