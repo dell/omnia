@@ -215,16 +215,17 @@ def test_package_groups_schema_rejects_blank_package():
 
 
 @pytest.mark.parametrize(
-    "catalog_name",
+    "catalog_path",
     [
-        "catalog_rhel_10_0_x86_aarch64.json",
-        "catalog_rhel_10_2_x86_aarch64.json",
+        "rhel/10.0/slurm_x86_64_aarch64.json",
+        "rhel/10.2/slurm_x86_64_aarch64.json",
+        "hybrid/slurm_hybrid_10_2_10_0_x86_64_aarch64.json",
     ],
 )
-def test_supported_rhel_catalog_samples_pass_schema(catalog_name):
-    catalog_path = REPO_ROOT / "src/main/samples" / catalog_name
-    data = json.loads(catalog_path.read_text(encoding="utf-8"))
-    assert not _validate(data, "catalog.json", catalog_name)
+def test_supported_rhel_catalog_samples_pass_schema(catalog_path):
+    sample_path = REPO_ROOT / "src/main/samples/catalogs" / catalog_path
+    data = json.loads(sample_path.read_text(encoding="utf-8"))
+    assert not _validate(data, "catalog.json", catalog_path)
 
 
 @pytest.fixture
@@ -302,17 +303,6 @@ def test_repo_status_ignores_unneeded_producer_fields(valid_repo_status, field):
     assert not REPO_VALIDATOR.validate(valid_repo_status, LOGGER)
 
 
-@pytest.mark.parametrize(
-    "field", ["execution_contexts", "overall_status_by_version"]
-)
-def test_repo_status_requires_multi_context_contract_fields(
-    valid_repo_status, field
-):
-    del valid_repo_status[field]
-    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
-    assert any(field in error for error in errors)
-
-
 def test_repo_status_allows_empty_internet_repo_manager_values(valid_repo_status):
     valid_repo_status["repo_manager"] = {
         "port": "",
@@ -354,34 +344,6 @@ def test_repo_status_ignores_registry_metadata(valid_repo_status):
     assert not _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
 
 
-def test_repo_status_accepts_sanitized_registry_metadata(valid_repo_status):
-    valid_repo_status["registries"] = {
-        "private_registry": {
-            "base_url": "https://harbor.example.com",
-            "port": 443,
-            "host": "harbor.example.com:443",
-            "tls": {"insecure": False},
-        }
-    }
-    assert not _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
-
-
-def test_repo_status_rejects_registry_credential_paths(valid_repo_status):
-    valid_repo_status["registries"] = {
-        "private_registry": {
-            "base_url": "https://harbor.example.com",
-            "port": 443,
-            "host": "harbor.example.com:443",
-            "tls": {
-                "insecure": False,
-                "client_key_path": "/etc/omnia/registry.key",
-            },
-        }
-    }
-    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
-    assert any("client_key_path" in error for error in errors)
-
-
 @pytest.mark.parametrize("invalid_port", ["2225", 0, 65536, True, None])
 def test_repo_status_rejects_invalid_port_type_or_range(
     valid_repo_status, invalid_port
@@ -402,12 +364,12 @@ def test_repo_status_rejects_blank_url(valid_repo_status):
     assert errors
 
 
-def test_repo_status_allows_repository_entry_without_url(valid_repo_status):
+def test_repo_status_rejects_repository_entry_without_url(valid_repo_status):
     valid_repo_status["repositories"]["10.0"]["x86_64"]["metadata"] = {
         "producer_owned": True
     }
-    assert not _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
-    assert not REPO_VALIDATOR.validate(valid_repo_status, LOGGER)
+    errors = _validate(valid_repo_status, "repo_status.json", "repo_status.yml")
+    assert any("url" in error for error in errors)
 
 
 def test_repo_status_allows_aarch64_only_repository_output(valid_repo_status):

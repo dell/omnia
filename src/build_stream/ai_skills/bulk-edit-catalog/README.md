@@ -43,8 +43,8 @@ Add curl to every catalog with a base_os group
 ## Write-Path Security
 
 Only writes to catalog files under:
-- `src/main/samples/catalogs/**/*.json` (recursively — flat, versioned, or
-  `hybrid/` subtrees are all covered by the same root)
+- `src/main/samples/catalogs/**/*.json` (recursively — the shipped
+  `rhel/<os_version>/` and `hybrid/` subtrees are covered by the same root)
 
 Every resolved path is validated with `resolve_and_validate_catalog_path()` (see `catalog-editing/SKILL.md`'s Write-Path Boundary section) before any write, for every catalog in the bulk set.
 

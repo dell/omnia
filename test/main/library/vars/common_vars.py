@@ -151,6 +151,8 @@ VALID_CLI_COMMANDS: List[str] = [
     "--init", "-i",
     "--prepare-base",
     "--run", "-r",
+    "--list-catalogs",
+    "--select-catalog",
     "--cleanup",
     "--check-deps",
     "--help", "-h",
@@ -263,6 +265,10 @@ CMDS: Dict[str, str] = {
     "omnia_sh_check_deps": (
         "cd {clone_path} && bash {omnia_sh}"
         " --check-deps 2>&1"
+    ),
+    "omnia_sh_list_catalogs": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --list-catalogs 2>&1"
     ),
     "omnia_sh_init_domain": (
         "cd {clone_path} && bash {omnia_sh}"

@@ -25,8 +25,9 @@ The shipped catalogs under `src/main/samples/catalogs/` are authoritative for
 concrete group membership and package definitions. The reference tables are a
 snapshot, not a substitute for those files. Recheck relevant rows when the
 checkout differs from the capture; do not repair unrelated reference data during
-generation. Discover catalogs recursively: both the older `<version>/` layout
-and the newer `<family>/<version>/` plus `hybrid/` layout may be present.
+generation. Discover catalogs recursively. The shipped tree uses
+`rhel/<version>/` for single-version catalogs and `hybrid/` for mixed-version
+role mappings; do not assume every catalog has the same directory depth.
 Default to this checkout. An operator may explicitly designate another catalog
 root/worktree as reference data; record its path and revision, distinguish it
 from the active checkout, and use only its catalog
@@ -205,8 +206,8 @@ trimming leading/trailing `_`/`-`; use `catalog` if empty. Show the mapping only
 when the display name, identifier, or filename stem differ.
 Propose version `1.0.0` for a new catalog and a description derived from the
 confirmed configuration. Honor explicit metadata and paths. For a single OS
-family/version (even with multiple architectures), follow the active checkout's existing `<family>/<version>/` or
-legacy `<version>/` directory layout. For multiple family/version pairs, propose
+family/version (even with multiple architectures), follow the active checkout's
+existing `rhel/<version>/` directory layout. For multiple family/version pairs, propose
 `src/main/samples/catalogs/hybrid/<identifier>.json` in the active checkout, or an
 operator-chosen path. Do not publish into a read-only reference worktree. Confirm
 new destination directories and resolve filename collisions; silence does not

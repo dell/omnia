@@ -22,11 +22,11 @@ CATALOG_MANAGER = str(
 )
 SCHEMA = str(REPO_MANAGER_ROOT / "schemas" / "catalog_schema.json")
 SAMPLE_CURRENT = str(
-    REPOSITORY_ROOT / "src" / "main" / "samples" / "catalogs" / "10.0"
+    REPOSITORY_ROOT / "src" / "main" / "samples" / "catalogs" / "rhel" / "10.0"
     / "service_k8s_x86_64.json"
 )
 SAMPLE_FUTURE = str(
-    REPOSITORY_ROOT / "src" / "main" / "samples" / "catalogs" / "10.2"
+    REPOSITORY_ROOT / "src" / "main" / "samples" / "catalogs" / "rhel" / "10.2"
     / "service_k8s_x86_64.json"
 )
 

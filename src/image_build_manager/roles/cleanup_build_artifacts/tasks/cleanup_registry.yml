@@ -38,7 +38,12 @@
     daemon_reload: true
 
 - name: Remove registry container image
-  ansible.builtin.command: podman rmi --force registry:2
+  ansible.builtin.command:
+    argv:
+      - podman
+      - rmi
+      - --force
+      - "{{ registry_image }}:{{ registry_tag }}"
   failed_when: false
   changed_when: true
 

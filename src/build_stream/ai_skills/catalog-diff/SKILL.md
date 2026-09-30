@@ -144,8 +144,8 @@ output is the fact record, per the no-fabrication rule (NFR-3).
 > `service_k8s_x86_64` catalogs?"
 
 Running Step 1 against the real shipped sample catalogs
-(`src/main/samples/catalogs/10.0/service_k8s_x86_64.json` and
-`src/main/samples/catalogs/10.2/service_k8s_x86_64.json`) produces a
+(`src/main/samples/catalogs/rhel/10.0/service_k8s_x86_64.json` and
+`src/main/samples/catalogs/rhel/10.2/service_k8s_x86_64.json`) produces a
 198-operation forward diff (and an exactly-inverse 198-operation reverse
 diff — the reversibility invariant holds), 0 package additions/removals
 (every package key persists across versions; several package *values*

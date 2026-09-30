@@ -15,8 +15,8 @@
 
 import json
 import pathlib
+import re
 import sys
-import tempfile
 
 
 # ut/test_catalog... -> ut/ -> image_build_manager/ -> test/ -> omnia-bsm/
@@ -30,6 +30,21 @@ SCHEMA_DIR = (
 SAMPLE_CATALOG = (
     REPO_ROOT / "src" / "main" / "samples" / "catalog_rhel.json"
 )
+CATALOG_SAMPLES_DIR = REPO_ROOT / "src" / "main" / "samples"
+THRILLHOUSE_PACKAGE_KEY = "ghcr_io/openchami/image_thrillhouse"
+EXPECTED_THRILLHOUSE_TAG = "v0.0.26"
+THRILLHOUSE_RUNTIME_VARS: dict[str, tuple[pathlib.Path, str]] = {
+    "x86_64": (
+        REPO_ROOT
+        / "src/image_build_manager/roles/build_os_images/vars/main.yml",
+        "_thrillhouse_container_image",
+    ),
+    "aarch64": (
+        REPO_ROOT
+        / "src/image_build_manager/roles/prepare_aarch64_node/vars/main.yml",
+        "_thrillhouse_aarch64_image",
+    ),
+}
 
 # Add the src path so we can import the validator directly
 _SRC_PLUGINS = (
@@ -41,6 +56,17 @@ _SRC_PLUGINS = (
 _MOCK_PATH = str(REPO_ROOT / "src" / "image_build_manager" / "plugins")
 if _MOCK_PATH not in sys.path:
     sys.path.insert(0, _MOCK_PATH)
+
+
+def _read_thrillhouse_tag(vars_file: pathlib.Path, variable: str) -> str:
+    """Read a pinned Thrillhouse tag from a role variables file."""
+    match = re.search(
+        rf'^{re.escape(variable)}:\s*"[^"]+:(v[^"]+)"\s*$',
+        vars_file.read_text(encoding="utf-8"),
+        flags=re.MULTILINE,
+    )
+    assert match, f"Unable to read {variable} from {vars_file}"
+    return match.group(1)
 
 
 class TestCatalogSchemaFile:
@@ -178,3 +204,41 @@ class TestSampleCatalogStructure:
         assert not no_sources, (
             f"Packages without sources: {no_sources[:10]}"
         )
+
+
+def test_all_catalogs_match_thrillhouse_runtime_version():
+    """Runtime pins and all bundled catalogs must use Thrillhouse v0.0.26."""
+    runtime_tags = {
+        architecture: _read_thrillhouse_tag(vars_file, variable)
+        for architecture, (vars_file, variable) in THRILLHOUSE_RUNTIME_VARS.items()
+    }
+
+    assert set(runtime_tags.values()) == {EXPECTED_THRILLHOUSE_TAG}, (
+        f"Thrillhouse runtime pins are not aligned: {runtime_tags}"
+    )
+
+    catalog_files = [
+        SAMPLE_CATALOG,
+        CATALOG_SAMPLES_DIR / "cadence_catalog_rhel.json",
+    ]
+    catalog_files.extend(
+        sorted((CATALOG_SAMPLES_DIR / "catalogs").rglob("*.json"))
+    )
+    assert catalog_files, f"No catalog files found under {CATALOG_SAMPLES_DIR}"
+
+    mismatches = []
+    for catalog_file in catalog_files:
+        with catalog_file.open("r", encoding="utf-8") as stream:
+            packages = json.load(stream)["catalog"]["packages"]
+        package = packages.get(THRILLHOUSE_PACKAGE_KEY)
+        relative_path = catalog_file.relative_to(CATALOG_SAMPLES_DIR)
+        if package is None:
+            mismatches.append(f"{relative_path}: package is missing")
+        elif package.get("tag") != EXPECTED_THRILLHOUSE_TAG:
+            mismatches.append(
+                f"{relative_path}: tag={package.get('tag')!r}"
+            )
+
+    assert not mismatches, "Thrillhouse catalog pin mismatch:\n" + "\n".join(
+        mismatches
+    )

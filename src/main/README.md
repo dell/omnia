@@ -120,7 +120,7 @@ variants and intentionally select one with:
 ```bash
 ./omnia.sh --list-catalogs
 ./omnia.sh --select-catalog
-./omnia.sh --select-catalog 10.0/slurm_x86_64_no_vast.json
+./omnia.sh --select-catalog rhel/10.0/slurm_x86_64_no_vast.json
 ```
 
 Without a selector, `--select-catalog` prompts with the numbered list. The list
@@ -130,6 +130,12 @@ client inclusion, and functional-layer count. The selected JSON is validated
 and atomically copied to `CATALOG_FILE_PATH`
 (default: `$OMNIA_DATA_PATH/catalog/catalog_rhel.json`). Replacing an existing
 catalog requires confirmation and creates a timestamped backup beside it.
+Catalog selectors are relative to `samples/catalogs/` and retain the catalog
+family plus any version directory, for example
+`rhel/10.0/slurm_x86_64_no_vast.json` or
+`hybrid/slurm_hybrid_10_2_10_0_x86_64.json`. All bundled catalogs pin
+`ghcr.io/openchami/image-thrillhouse:v0.0.26`, aligned with Image Build Manager
+on x86_64 and AArch64.
 
 Each domain provides a `domain-init.sh` script that handles the copy. Input files
 live flat in the source `input/` directory (no project subdirectory); the project
@@ -274,7 +280,8 @@ After loading it, use Tab completion with either interface, for example
 `omnia-cli st<Tab>` or `./omnia.sh --run image_<Tab>`. The `omnia.sh`
 completion covers command-specific options, comma-separated domain lists, and
 only the tags supported by the selected domain. It also completes catalog
-selectors and Telemetry cleanup values after `-e`/`--extra-vars`. If the system's Bash completion
+selectors by recursively reading `samples/catalogs/` and Telemetry cleanup
+values after `-e`/`--extra-vars`. If the system's Bash completion
 loader has not picked up the new file in a fresh shell, source the installed
 completion file or run
 `source "${OMNIA_DATA_PATH:-/opt/omnia}/activate-omnia.sh"` to load newly

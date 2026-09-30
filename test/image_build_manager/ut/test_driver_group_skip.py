@@ -21,7 +21,6 @@ not baked into the OS image.
 import json
 import pathlib
 import sys
-import types
 
 import pytest
 
@@ -30,30 +29,13 @@ import pytest
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 SAMPLE_CATALOG = (
-    REPO_ROOT / "src" / "main" / "samples"
-    / "catalog_rhel_10_0_x86_aarch64.json"
+    REPO_ROOT / "src" / "main" / "samples" / "catalogs" / "rhel" / "10.0"
+    / "slurm_x86_64_aarch64.json"
 )
 RHEL_10_2_CATALOG = (
-    REPO_ROOT / "src" / "main" / "samples"
-    / "catalog_rhel_10_2_x86_aarch64.json"
+    REPO_ROOT / "src" / "main" / "samples" / "catalogs" / "rhel" / "10.2"
+    / "slurm_x86_64_aarch64.json"
 )
-
-# ---------------------------------------------------------------------------
-# Mock ansible imports so parse_catalog.py can be imported outside Ansible
-# ---------------------------------------------------------------------------
-if "ansible" not in sys.modules:
-    _ansible = types.ModuleType("ansible")
-    _ansible_mu = types.ModuleType("ansible.module_utils")
-    _ansible_mu_basic = types.ModuleType("ansible.module_utils.basic")
-
-    class _FakeAnsibleModule:  # noqa: D101 — minimal stub
-        pass
-
-    _ansible_mu_basic.AnsibleModule = _FakeAnsibleModule
-    _ansible.module_utils = _ansible_mu
-    sys.modules["ansible"] = _ansible
-    sys.modules["ansible.module_utils"] = _ansible_mu
-    sys.modules["ansible.module_utils.basic"] = _ansible_mu_basic
 
 # Add parse_catalog module to path
 _PLUGINS_DIR = (

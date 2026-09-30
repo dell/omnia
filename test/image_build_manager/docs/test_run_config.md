@@ -181,23 +181,22 @@ names execute the same complete pytest directory for NFT or UT. Use `test` as
 the conventional and least ambiguous value.
 
 Leave the NFT and UT marker empty unless their tests carry the selected marker
-expression.
-NFT tests use `nft`; UT tests do not define the FVT quality or architecture
-markers. A marker that matches nothing can produce an all-skipped run.
+expression. NFT tests use `nft`; UT tests do not define the FVT quality or
+architecture markers. A marker that matches nothing can produce an all-skipped
+run.
 
-NFT is destructive: it runs repeated prepare plus timed prepare, build, and
-cleanup operations. Its final test executes full cleanup. Do not enable FVT
-`cleanup` and NFT in the same unattended batch unless domain credentials are
-re-provisioned between them, because FVT cleanup removes the credentials that
-the later NFT build needs. Re-provision them by running
-`./setup_env.sh --set-domain-creds` on the execution OIM.
+The default NFT entry is non-destructive: it runs repeated prepare plus timed
+prepare and build operations, while the cleanup performance case is skipped.
+Set `marker: "destructive"` only for an intentional cleanup-only NFT run. FVT
+`cleanup` remains the end-to-end cleanup flow because it executes cleanup and
+then verifies its postconditions.
 
 ---
 
 ## Complete FVT Batch Example
 
 This example exercises every applicable FVT case and both cleanup tags in
-dependency order. NFT remains a separate destructive run.
+dependency order. The default NFT entry remains a separate non-destructive run.
 
 ```yaml
 fvt_image_build_manager:
