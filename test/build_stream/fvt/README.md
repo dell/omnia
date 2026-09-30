@@ -1,6 +1,6 @@
 # Build Stream — FVT Test Cases
 
-## Section A: BuildStream Installation & Infrastructure (23 test cases)
+## Section A: BuildStream Installation & Infrastructure (24 test cases)
 
 | TC ID | Test Function | Description |
 |-------|---------------|-------------|
@@ -27,6 +27,7 @@
 | BSM_FVT_BUILDSTREAM_INSTALL_V020 | test_gitlab_cleanup_child_template_exists | Verify cleanup child template (2.3) |
 | BSM_FVT_BUILDSTREAM_INSTALL_V021 | test_omnia_env_exists | Verify omnia.env in GitLab repo (2.3) |
 | BSM_FVT_BUILDSTREAM_INSTALL_V022 | test_domain_input_dirs_in_repo | Verify domain input dirs in repo (2.3) |
+| BSM_FVT_BUILDSTREAM_INSTALL_V032 | test_gitlab_ci_cadence_file_exists | Verify .gitlab-ci-cadence.yml exists (2.3) |
 
 ## Section B: BuildStream Service Health (9 test cases)
 
@@ -87,6 +88,33 @@ run accidentally.
 | BSM_FVT_DEPLOY_PIPELINE_V008 | test_deploy_final_state | Verify job COMPLETED and image group PASSED | --test/--verify |
 | BSM_FVT_DEPLOY_PIPELINE_V009 | test_deploy_pipeline_summary | Verify summary reports PASSED | --test/--verify |
 
+## Section E.1: Unified Cadence Pipeline (16 test cases)
+
+The cadence action signals the running watcher. The watcher runs
+`repo_sync.yml`, validates the exact-mirror result, bumps
+`cadence_catalog_rhel.json`, and pushes the commit that starts the unified
+pipeline. The action then persists its exact `job_id`. Verification never
+falls back to the latest job or image group.
+
+| TC ID | Test Function | Description | Mode |
+|-------|---------------|-------------|------|
+| BSM_FVT_CADENCE_PIPELINE_E001 | test_execute_cadence_pipeline | Trigger the watcher cadence cycle and wait for the pipeline | --test/--exec |
+| BSM_FVT_CADENCE_PIPELINE_V017 | test_cadence_gitlab_jobs | Verify all eight GitLab jobs succeeded | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V018 | test_cadence_catalog_identity | Verify job and composite image-group identity | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V019 | test_cadence_build_stages | Verify parse, repository, and build DB stages | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V020 | test_cadence_registry_artifacts | Verify registry artifacts for requested roles | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V021 | test_cadence_job_accessible | Verify BSM health and exact job access | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V022 | test_cadence_repo_resync_status | Verify pre-pipeline repo_resync_status.yml exact-mirror contract | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V023 | test_cadence_deploy_stage | Verify deploy DB stage completed | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V024 | test_cadence_restart_stage | Verify restart DB stage completed | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V025 | test_cadence_validate_stage | Verify validate DB stage completed | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V026 | test_cadence_restart_results | Verify restart node-result artifacts | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V027 | test_cadence_final_state | Verify successful job and image-group states | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V028 | test_cadence_summary | Verify DB and GitLab summary completion | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V029 | test_cadence_local_repo_status | Verify pipeline repo_status.yml matches the cadence catalog | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V030 | test_cadence_build_status | Verify versioned and latest build_status.yml contracts | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V031 | test_cadence_s3_artifacts | Verify all S3 boot artifacts for requested roles | --test/--verify |
+
 ## Execution
 
 ## Manual pipeline tests
@@ -119,6 +147,30 @@ Manual deploy uses that exact `job_id` and triggers with
   --suite manual --marker manual
 ./run_validation.sh fvt_build_stream deploy_pipeline test \
   --suite manual --marker manual
+```
+
+## Cadence pipeline sanity suite
+
+BuildStream installation and the cadence configuration must already be
+deployed. `exec`/`test` signals the watcher, which performs repository sync and
+commits the catalog version bump that triggers a real unified pipeline.
+`verify` is read-only and uses the exact `job_id` recorded in
+`test_config.yml`.
+
+The action requires `cadence.enabled: true` and `cadence.force_build: true` in
+deployed `build_stream_config.yml`, plus active watcher and Pulp services, the
+configured Git worktree, and a registered `repo_sync.yml`. This makes a sanity
+run deterministic even when the upstream repositories have no package delta.
+
+The cadence catalog is always `cadence_catalog_rhel.json`; `catalog_path` is
+only for the separate build-pipeline tests. Cadence `exec` and `test` save the
+new JobID automatically. Before a standalone cadence `verify`, `job_id` must
+contain the JobID from the cadence pipeline being checked.
+
+```bash
+./run_validation.sh fvt_build_stream cadence_pipeline exec --marker sanity
+./run_validation.sh fvt_build_stream cadence_pipeline verify --marker sanity
+./run_validation.sh fvt_build_stream cadence_pipeline test --marker sanity
 ```
 
 `generate-input-files` is retained as an explicit compatibility case but is
@@ -166,8 +218,12 @@ vi test_config.yml    # Set catalog_path, oim_server_ip
 # Build pipeline exec/test overwrites job_id with the newly created build job;
 # verify reads the existing job_id without changing it.
 
-# Complete sanity lifecycle: install -> build -> deploy
+# Default sanity lifecycle: install -> cadence
 ./run_validation.sh fvt_build_stream test --marker sanity
+
+# Alternate sanity lifecycle: install -> build -> deploy
+./run_validation.sh fvt_build_stream build_deploy_lifecycle test \
+  --marker sanity
 
 # Cleanup is explicit and requires exactly one selected suite
 ./run_validation.sh fvt_build_stream buildstream_cleanup test \
@@ -180,3 +236,7 @@ vi test_config.yml    # Set catalog_path, oim_server_ip
 # Deploy only (job_id is mandatory and resolves the image group)
 ./run_validation.sh fvt_build_stream deploy_pipeline test --marker sanity
 ```
+
+The default lifecycle collects 49 sanity cases: 33 installation cases and 16
+cadence cases. The alternate lifecycle collects 55: 33 installation, 12 build,
+and 10 deploy cases. Manual, cleanup, and NFT cases are excluded from both.

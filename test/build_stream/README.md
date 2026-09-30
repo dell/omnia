@@ -11,14 +11,16 @@ The automation covers the complete BuildStream lifecycle:
 | Scenario | Purpose | Selection |
 |---|---|---|
 | `buildstream_install` | Install and validate BuildStream, PostgreSQL, GitLab, the runner, TLS, queue access, and repository content | Default lifecycle |
-| `build_pipeline` | Upload a catalog, build images, and validate database, registry, and S3 artifacts | Default lifecycle |
-| `deploy_pipeline` | Select the image group bound to `job_id`, run deploy/restart/validate, and verify the final state | Default lifecycle |
+| `build_pipeline` | Upload a catalog, build images, and validate database, registry, and S3 artifacts | Build/deploy lifecycle |
+| `deploy_pipeline` | Select the image group bound to `job_id`, run deploy/restart/validate, and verify the final state | Build/deploy lifecycle |
+| `cadence_pipeline` | Trigger the cadence watcher and validate its repository sync plus unified eight-job lifecycle | Default lifecycle |
 | `buildstream_cleanup` | Remove and validate GitLab and BuildStream resources | Explicit tag |
 | `cleanup_pipeline` | Delete one built image group's database, S3, and registry artifacts through GitLab CI | Explicit suite |
 | `manual` | Trigger build or deploy with `PIPELINE_TYPE` instead of a catalog-change pipeline | Explicit suite |
 
-The cleanup scenario is excluded from the default lifecycle. Manual cases use
-the separate `manual` marker and therefore do not run with `--marker sanity`.
+The separate build/deploy lifecycle and cleanup scenario are excluded from the
+default lifecycle. Manual cases use the separate `manual` marker and therefore
+do not run with `--marker sanity`.
 
 ## First use
 
@@ -91,6 +93,36 @@ are:
 | `resilience` | Recovery and fault-injection NFT coverage |
 | `disruptive` | Requires a matching `nft_allow_*` safety control |
 
+## Cadence inputs and JobID handling
+
+Cadence automation deliberately has no separate catalog selector in
+`test_config.yml`. The GitLab cadence contract uses only
+`cadence_catalog_rhel.json`; cadence `exec` and `test` send a one-shot trigger
+to the running watcher. The watcher runs `repo_sync.yml`, evaluates repository
+updates (or `cadence.force_build`), increments the catalog version, and pushes
+the commit that starts the pipeline. The normal `catalog_path` setting is used
+only by build-pipeline automation.
+
+For deterministic sanity execution, the deployed `build_stream_config.yml`
+must set `cadence.enabled: true`, `cadence.force_build: true`,
+`cadence.catalog_filename: cadence_catalog_rhel.json`, and
+`cadence.playbook_name: repo_sync.yml`. The watcher and Pulp services, local
+cadence Git worktree, and `repo_sync.yml` registration are validated before
+the action starts.
+
+The shared `job_id` remains the single source of truth:
+
+- Cadence `exec` or `test` extracts the exact JobID from its initialization job
+  and writes it to `test_config.yml`.
+- Cadence `verify` reads that mandatory JobID and never discovers the latest
+  job as a fallback.
+- The JobID is used to resolve exactly one composite ImageGroupID and the
+  corresponding cadence child pipeline.
+
+Cadence service controls such as `enabled`, `force_build`, polling intervals,
+and `catalog_filename` remain product configuration in
+`build_stream_config.yml`; the test configuration does not duplicate them.
+
 ## FVT scenarios
 
 | Scenario | Purpose | Suites |
@@ -99,14 +131,25 @@ are:
 | `buildstream_install` | Install and verify GitLab and BuildStream services | `health`, `buildstream_install` |
 | `build_pipeline` | Trigger and verify the image build pipeline | `build_pipeline`, `manual` |
 | `deploy_pipeline` | Deploy the image group mapped to `job_id`, restart, validate, and verify | `deploy_pipeline`, `manual` |
+| `cadence_pipeline` | Trigger and verify the unified cadence pipeline | `cadence_pipeline` |
 
-An untagged FVT command runs the `sanity` lifecycle in this order:
-`buildstream_install`, `build_pipeline`, then `deploy_pipeline`. For `test`,
+An untagged FVT command runs the default `sanity` lifecycle in this order:
+`buildstream_install`, then `cadence_pipeline`. For `test`,
 each scenario is executed and verified before the runner advances. The
 lifecycle stops at the first failure. Cleanup is excluded from untagged
 commands and requires exactly one explicit `buildstream_cleanup` suite. This
 prevents GitLab cleanup, BuildStream cleanup, and image cleanup from running
 together accidentally.
+
+The named `build_deploy_lifecycle` group runs `buildstream_install`,
+`build_pipeline`, then `deploy_pipeline` through the same ordered execution,
+verification, stop-on-failure, and combined-reporting path.
+
+| Lifecycle | Ordered scenarios | Sanity cases |
+|---|---|---:|
+| Default | `buildstream_install` → `cadence_pipeline` | 49 |
+| `build_deploy_lifecycle` | `buildstream_install` → `build_pipeline` → `deploy_pipeline` | 55 |
+
 The same lifecycle and explicit-only labels are displayed by both
 `./run_validation.sh --help` and
 `./run_validation.sh fvt_build_stream list`.
@@ -124,14 +167,21 @@ The same lifecycle and explicit-only labels are displayed by both
 # Trigger and verify the existing build pipeline automation
 ./run_validation.sh fvt_build_stream build_pipeline test --marker sanity
 
-# Run the complete ordered lifecycle
+# Run the default installation + cadence lifecycle
 ./run_validation.sh fvt_build_stream test --marker sanity
+
+# Run installation + separate build and deploy pipelines
+./run_validation.sh fvt_build_stream build_deploy_lifecycle test \
+  --marker sanity
 
 # Verify an existing build job using job_id from test_config.yml
 ./run_validation.sh fvt_build_stream build_pipeline verify --marker sanity
 
 # Deploy the unique image group mapped to mandatory job_id
 ./run_validation.sh fvt_build_stream deploy_pipeline test --marker sanity
+
+# Trigger watcher repo sync and verify all eight cadence jobs
+./run_validation.sh fvt_build_stream cadence_pipeline test --marker sanity
 
 # Explicit GitLab cleanup
 ./run_validation.sh fvt_build_stream buildstream_cleanup test \
@@ -162,29 +212,24 @@ source .venv/bin/activate
 ./run_validation.sh fvt_build_stream buildstream_cleanup test \
   --suite buildstream_cleanup --marker sanity
 
-# 2. Install and verify GitLab, runner, API, DB, TLS, queue, and watcher
-./run_validation.sh fvt_build_stream buildstream_install test --marker sanity
-
-# 3. Upload catalog_path, build images, and verify DB/registry/S3 state
-./run_validation.sh fvt_build_stream build_pipeline test --marker sanity
-
-# 4. Deploy the job-bound image group and run restart plus validate
-./run_validation.sh fvt_build_stream deploy_pipeline test --marker sanity
+# 2. Install BuildStream and run the complete unified cadence pipeline
+./run_validation.sh fvt_build_stream test --marker sanity
 ```
 
-The non-destructive installation/build/deploy lifecycle can also be run with:
+The separate build and deploy pipeline lifecycle can be run with:
 
 ```bash
-./run_validation.sh fvt_build_stream test --marker sanity
+./run_validation.sh fvt_build_stream build_deploy_lifecycle test \
+  --marker sanity
 ```
 
 To generate a clean final-state report without repeating any action, set a new
 `run_id` in `test_config.yml` and run the three read-only verification phases:
 
 ```bash
-./run_validation.sh fvt_build_stream buildstream_install verify --marker sanity
-./run_validation.sh fvt_build_stream build_pipeline verify --marker sanity
-./run_validation.sh fvt_build_stream deploy_pipeline verify --marker sanity
+./run_validation.sh fvt_build_stream verify --marker sanity
+./run_validation.sh fvt_build_stream build_deploy_lifecycle verify \
+  --marker sanity
 ```
 
 Reports retain earlier failures and retries for auditability. Use a new

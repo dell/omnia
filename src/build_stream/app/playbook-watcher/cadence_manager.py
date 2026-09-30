@@ -165,6 +165,7 @@ def load_cadence_config(
     config = {
         # Cadence polling control
         "enabled": DEFAULT_CADENCE_ENABLED,
+        "force_build": False,
         "interval_seconds": DEFAULT_CADENCE_INTERVAL_SECONDS,
         # Cadence catalog configuration
         "catalog_filename": DEFAULT_CADENCE_CATALOG_FILENAME,
@@ -242,7 +243,7 @@ def _load_unified_config(
             return config
 
         # Only these parameters are user-configurable; the rest stay fixed
-        bool_keys = ("enabled",)
+        bool_keys = ("enabled", "force_build")
         int_keys = (
             "interval_seconds",
             "sync_timeout_seconds",
@@ -293,6 +294,7 @@ def _load_unified_config(
             "info",
             f"Cadence config loaded from build_stream_config.yml: "
             f"enabled={config['enabled']}, "
+            f"force_build={config.get('force_build', False)}, "
             f"interval={config['interval_seconds']}s"
         )
     except (OSError, ValueError, ImportError):
@@ -825,6 +827,7 @@ class CadenceTimerThread(Thread):
         results_dir: NFS playbook queue results directory.
         processing_dir: NFS playbook queue processing directory.
         stop_event: Event to signal graceful shutdown.
+        trigger_event: Event to request an immediate cadence cycle.
     """
 
     def __init__(
@@ -952,23 +955,34 @@ class CadenceTimerThread(Thread):
             return
 
         job_id = str(sync_result["job_id"])
-        updates_detected = sync_result["updates_detected"]
-
-        if updates_detected:
-            log_secure_info(
-                "info", "Package updates detected in cadence sync"
+        updates_detected = bool(sync_result["updates_detected"])
+        force_build = bool(self.config.get("force_build", False))
+        if not updates_detected and not force_build:
+            log_secure_info("info", "No package updates for cadence catalog")
+            emit_audit_event(
+                CADENCE_SYNC_COMPLETED,
+                {
+                    "job_id": job_id,
+                    "catalog_filename": self.catalog_filename,
+                    "sync_status": "success",
+                    "updates_detected": False,
+                    "force_build": False,
+                },
             )
-        else:
+            return
+
+        if not updates_detected:
             log_secure_info(
                 "info",
-                "No package diff detected, but bumping catalog version "
-                "anyway — upstream package versions may have changed"
+                "No package updates; cadence force build is enabled",
             )
 
-        # Always bump version and trigger pipeline after successful sync.
-        # Even when the package count is unchanged, individual package
-        # versions may have been updated upstream, so a rebuild is required.
-        self._bump_and_push(job_id)
+        # Step 4-6: Bump version, push, and emit audit event
+        self._bump_and_push(
+            job_id,
+            updates_detected=updates_detected,
+            force_build=force_build,
+        )
 
     def _sync_packages(self) -> Optional[Dict[str, Any]]:
         """Submit repo sync and wait for completion.
@@ -1033,11 +1047,19 @@ class CadenceTimerThread(Thread):
             "repo_resync_status": repo_resync_status,
         }
 
-    def _bump_and_push(self, job_id: str) -> None:
+    def _bump_and_push(
+        self,
+        job_id: str,
+        *,
+        updates_detected: bool,
+        force_build: bool,
+    ) -> None:
         """Bump catalog version, push to GitLab, and emit audit event.
 
         Args:
             job_id: The cadence sync job identifier.
+            updates_detected: Whether repository synchronization found changes.
+            force_build: Whether cadence pipeline triggering was forced.
         """
         # Read the current catalog from CATALOG_FILE_PATH
         catalog_file_path = os.getenv("CATALOG_FILE_PATH")
@@ -1100,6 +1122,8 @@ class CadenceTimerThread(Thread):
                 "catalog_filename": self.catalog_filename,
                 "new_version": new_version,
                 "sync_status": "success",
+                "updates_detected": updates_detected,
+                "force_build": force_build,
             },
         )
 

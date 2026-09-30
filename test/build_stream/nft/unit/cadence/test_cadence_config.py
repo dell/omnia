@@ -16,17 +16,31 @@
 Unit tests for cadence configuration loading (UT-001).
 """
 
+import json
 import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
+from jsonschema import Draft7Validator
 
 from cadence_manager import (
     load_cadence_config,
     _validate_catalog_filename,
     _load_unified_config,
+)
+
+
+CONFIG_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[5]
+    / "src"
+    / "build_stream"
+    / "plugins"
+    / "module_utils"
+    / "input_validation"
+    / "schema"
+    / "build_stream_config.json"
 )
 
 
@@ -72,9 +86,9 @@ class TestUnifiedConfigLoading:
         config_file.write_text("""
 cadence:
   enabled: true
+  force_build: true
   interval_seconds: 43200
   catalog_filename: "cadence_catalog_rhel.json"
-  gitlab_repo_path: "/tmp/test_repo"
   playbook_name: "repo_sync.yml"
   sync_timeout_seconds: 1800
   sync_poll_interval_seconds: 5
@@ -84,9 +98,9 @@ cadence:
         result = _load_unified_config(str(config_file), defaults)
 
         assert result["enabled"] is True
+        assert result["force_build"] is True
         assert result["interval_seconds"] == 43200
         assert result["catalog_filename"] == "cadence_catalog_rhel.json"
-        assert result["gitlab_repo_path"] == "/tmp/test_repo"  # nosec B108
         assert result["playbook_name"] == "repo_sync.yml"
         assert result["sync_timeout_seconds"] == 1800
         assert result["sync_poll_interval_seconds"] == 5
@@ -104,7 +118,6 @@ cadence:
             "enabled": False,
             "interval_seconds": 86400,
             "catalog_filename": "cadence_catalog_rhel.json",
-            "gitlab_repo_path": "",
             "playbook_name": "repo_sync.yml",
             "sync_timeout_seconds": 3600,
             "sync_poll_interval_seconds": 10,
@@ -117,12 +130,12 @@ cadence:
         assert result["playbook_name"] == "repo_sync.yml"  # Default
 
     def test_load_unified_config_invalid_interval(self, temp_dir):
-        """TC-UT-001-005: Enforce minimum polling interval (3600 seconds)."""
+        """TC-UT-001-005: Enforce minimum polling interval (60 seconds)."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text("""
 cadence:
   enabled: true
-  interval_seconds: 1800
+  interval_seconds: 30
   catalog_filename: "cadence_catalog_rhel.json"
 """)
 
@@ -133,7 +146,7 @@ cadence:
         }
         result = _load_unified_config(str(config_file), defaults)
 
-        assert result["interval_seconds"] == 3600  # Minimum enforced
+        assert result["interval_seconds"] == 60  # Minimum enforced
 
     def test_load_unified_config_invalid_filename(self, temp_dir):
         """TC-UT-001-004: Validate catalog filename pattern."""
@@ -203,6 +216,34 @@ cadence:
         assert result["interval_seconds"] == 7200
 
 
+class TestCadenceForceBuildSchema:
+    """UT-001: Validate the public force-build configuration contract."""
+
+    @staticmethod
+    def _validator():
+        schema = json.loads(CONFIG_SCHEMA_PATH.read_text(encoding="utf-8"))
+        return Draft7Validator(schema)
+
+    def test_force_build_accepts_boolean(self):
+        """TC-UT-001-009: Accept a boolean cadence force-build setting."""
+        config = {
+            "enable_build_stream": False,
+            "cadence": {"force_build": True},
+        }
+
+        assert list(self._validator().iter_errors(config)) == []
+
+    def test_force_build_rejects_non_boolean(self):
+        """TC-UT-001-010: Reject string values for cadence force-build."""
+        config = {
+            "enable_build_stream": False,
+            "cadence": {"force_build": "true"},
+        }
+
+        errors = list(self._validator().iter_errors(config))
+        assert any(list(error.path)[-1:] == ["force_build"] for error in errors)
+
+
 class TestConfigLoadingPriority:
     """UT-001-001 through UT-001-003: Configuration loading resolution."""
 
@@ -227,6 +268,7 @@ cadence:
             result = load_cadence_config()
 
         assert result["enabled"] is False
+        assert result["force_build"] is False
         assert result["interval_seconds"] == 86400
         assert result["catalog_filename"] == "cadence_catalog_rhel.json"
 

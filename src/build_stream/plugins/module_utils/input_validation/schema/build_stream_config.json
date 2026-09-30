@@ -81,6 +81,10 @@
                     "type": "boolean",
                     "description": "Enable or disable cadence polling for periodic package sync"
                 },
+                "force_build": {
+                    "type": "boolean",
+                    "description": "Trigger the cadence pipeline after a successful sync even when no package updates are detected"
+                },
                 "interval_seconds": {
                     "type": "integer",
                     "minimum": 60,

@@ -159,6 +159,10 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "BSM_FVT_BUILDSTREAM_INSTALL_V031",
         "title": "Verify playbook watcher running",
     },
+    "gitlab_ci_cadence_file_exists": {
+        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V032",
+        "title": "Verify .gitlab-ci-cadence.yml exists",
+    },
 
     # =================================================================
     # SECTION C: Combined BuildStream Cleanup
@@ -475,6 +479,75 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     "manual_deploy_stage_validate_db_verify": {
         "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V006",
         "title": "Verify validate stage status in database",
+    },
+
+    # =================================================================
+    # SECTION E.1: Unified Cadence Pipeline
+    # =================================================================
+
+    "execute_cadence_pipeline": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_E001",
+        "title": "Trigger watcher cadence cycle and unified pipeline",
+    },
+    "cadence_gitlab_jobs": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V017",
+        "title": "Verify all eight cadence GitLab jobs succeeded",
+    },
+    "cadence_catalog_identity": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V018",
+        "title": "Verify job and image-group identity match cadence catalog",
+    },
+    "cadence_build_stages": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V019",
+        "title": "Verify parse, repository, and build DB stages completed",
+    },
+    "cadence_registry_artifacts": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V020",
+        "title": "Verify registry artifacts for requested roles",
+    },
+    "cadence_job_accessible": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V021",
+        "title": "Verify cadence job is healthy and API-accessible",
+    },
+    "cadence_repo_resync_status": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V022",
+        "title": "Verify exact-mirror Repo Manager output contract",
+    },
+    "cadence_deploy_stage": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V023",
+        "title": "Verify cadence deploy DB stage completed",
+    },
+    "cadence_restart_stage": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V024",
+        "title": "Verify cadence restart DB stage completed",
+    },
+    "cadence_validate_stage": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V025",
+        "title": "Verify cadence validate DB stage completed",
+    },
+    "cadence_restart_results": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V026",
+        "title": "Verify cadence restart node-result artifacts",
+    },
+    "cadence_final_state": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V027",
+        "title": "Verify cadence job and image group reached success",
+    },
+    "cadence_summary": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V028",
+        "title": "Verify cadence summary reports completion",
+    },
+    "cadence_local_repo_status": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V029",
+        "title": "Verify local repository status for cadence catalog",
+    },
+    "cadence_build_status": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V030",
+        "title": "Verify Image Build Manager output contract",
+    },
+    "cadence_s3_artifacts": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V031",
+        "title": "Verify S3 boot artifacts for requested roles",
     },
 
     # --- Cleanup pipeline (sanity marker; explicit suite only) ---
