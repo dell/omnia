@@ -190,6 +190,11 @@
                         "type": "string",
                         "pattern": "^$|^([1-9]|[1-9][0-9]|1[01][0-9]|12[0-8])$",
                         "description": "IPv6 CIDR prefix length (e.g. '64'). Required when ipv6_subnet is set."
+                      },
+                      "ib_ipv6_mode": {
+                        "type": "string",
+                        "enum": ["dual-stack", "ipv6-only", "ipv4-only"],
+                        "description": "IPoIB IPv6 configuration mode. Default: ipv4-only (if not set, IPv6 pipeline is skipped)."
                       }
                     },
                     "additionalProperties": false
@@ -217,6 +222,11 @@
                             }
                           }
                         ]
+                      },
+                      "ib_ipv6_mode": {
+                        "type": "string",
+                        "enum": ["dual-stack", "ipv6-only", "ipv4-only"],
+                        "description": "IPoIB IPv6 configuration mode. Default: ipv4-only (if not set, IPv6 pipeline is skipped)."
                       }
                     },
                     "additionalProperties": false
