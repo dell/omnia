@@ -2679,7 +2679,7 @@ def push_catalog_from_examples(  # pylint: disable=too-many-locals
         result["error"] = (
             "catalog_path must be a relative JSON path below "
             "src/main/samples/catalogs (for example, "
-            "10.0/slurm_x86_64_no_vast.json)"
+            "rhel/10.0/slurm_x86_64_no_vast.json)"
         )
         return result
 

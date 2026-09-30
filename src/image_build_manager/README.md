@@ -214,6 +214,9 @@ See `samples/` for example input and output files.
 - `image-thrillhouse` uses `ghcr.io/openchami/image-thrillhouse:v0.0.26` on both
   architectures. `image-builder` uses the architecture-specific Omnia images
   `image-build-el10:1.3` and `image-build-aarch64:1.3` from Docker Hub.
+- The default, cadence, RHEL 10.0, RHEL 10.2, and hybrid catalogs under
+  `src/main/samples/` pin the same Image Thrillhouse `v0.0.26` tag. Unit tests
+  recursively enforce this catalog/runtime alignment.
 - Separate hosts are required for each architecture
 
 ### Configuration

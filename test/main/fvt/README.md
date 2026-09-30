@@ -148,6 +148,7 @@ The Omnia production venv remains owned by `omnia.sh --setup-venv`.
 | MAIN_FVT_CLI_V032 | `test_prepare_base_dry_run_skip_multiple` | prepare_base/ | sanity | Verify --prepare-base --dry-run --skip with 2 domains leaves only one |
 | MAIN_FVT_CLI_V033 | `test_generic_tags_in_help` | tags/ | sanity | Verify omnia.sh help shows generic tags (precheck, validate, prepare, execute, cleanup) |
 | MAIN_FVT_CLI_V034 | `test_execution_order_in_help` | tags/ | sanity | Verify execution order in help text |
+| MAIN_FVT_CLI_V035 | `test_list_catalogs_versioned_tree` | commands/ | sanity | Execute `--list-catalogs` and verify default, RHEL 10.0, RHEL 10.2, and hybrid selectors are discovered from the nested catalog tree |
 
 ---
 

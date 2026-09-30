@@ -21,10 +21,9 @@ there is no "apply an edit" path here that skips it (FR-6.1).
 
 **Only ever write to a catalog file under the known catalog repository
 root** (`src/main/samples/catalogs/**/*.json` — recursively, at whatever
-depth the shipped catalog topology actually uses today, e.g. a flat
-`<os_version>/*.json` layout, a versioned `rhel/<os_version>/*.json`
-layout, or a `hybrid/*.json` tree — or the exact path the operator
-explicitly names within that tree). Never assume a fixed directory
+depth the shipped catalog topology actually uses today: the
+`rhel/<os_version>/*.json` and `hybrid/*.json` trees — or the exact path the
+operator explicitly names within that tree). Never assume a fixed directory
 depth; the boundary is the repository root itself, not any one level
 beneath it. This is now a
 **code-level control, not just an instruction**: always pass
@@ -160,7 +159,7 @@ is not preserved verbatim; its logical content is what must match).
 ## Worked Example (real, verified 2026-09-27)
 
 > Operator: "Add curl to the base-os catalog"
-> (target: `src/main/samples/catalogs/10.2/service_k8s_x86_64.json`)
+> (target: `src/main/samples/catalogs/rhel/10.2/service_k8s_x86_64.json`)
 
 First investigate dependencies for the target platform and assess the affected
 group's consumers. The following input illustrates the requested `curl` entry

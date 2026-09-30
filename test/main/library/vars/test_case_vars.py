@@ -159,6 +159,10 @@ TEST_CASES = {
         "id": "MAIN_FVT_CLI_V034",
         "title": 'Verify execution order in help',
     },
+    "list_catalogs_versioned_tree": {
+        "id": "MAIN_FVT_CLI_V035",
+        "title": 'Verify catalog listing discovers RHEL and hybrid trees',
+    },
     "help_output": {
         "id": "MAIN_FVT_CLI_E001",
         "title": 'Verify omnia.sh --help returns usage text',

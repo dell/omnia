@@ -21,9 +21,8 @@ it's the gate applied per catalog with per-catalog approval.
 Applies per catalog, identically to the `catalog-editing` skill: only write
 to a catalog file under the known catalog repository root
 (`src/main/samples/catalogs/**/*.json`, recursively — never assume a fixed
-directory depth, since the shipped topology may be flat
-(`<os_version>/*.json`), versioned (`rhel/<os_version>/*.json`), or include
-a `hybrid/*.json` tree), and every resolved path is validated with
+directory depth; the shipped topology includes `rhel/<os_version>/*.json`
+and `hybrid/*.json` trees), and every resolved path is validated with
 `resolve_and_validate_catalog_path()` (see
 `src/build_stream/ai_skills/catalog-editing/SKILL.md`'s Write-Path
 Boundary section) before any write, for every catalog in the bulk set,
@@ -138,7 +137,7 @@ never leaves the failing one itself half-applied either.
 > Operator: "Pin RHEL from 10.0 to 10.2 for `service_k8s_x86_64` and
 > `slurm_aarch64`"
 
-Two real catalogs from `src/main/samples/catalogs/10.0/`, both with a
+Two real catalogs from `src/main/samples/catalogs/rhel/10.0/`, both with a
 `baseos_group` (`type: base_os`) pinned to `os_version: "10.0"`. One
 (`slurm_aarch64`, in this trace) is deliberately missing its `os` field
 to demonstrate the isolation path with a genuine schema failure, not a

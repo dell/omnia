@@ -51,9 +51,9 @@ Pin RHEL to 10.2 in the slurm catalog
 ## Write-Path Security
 
 Only writes to catalog files under:
-- `src/main/samples/catalogs/**/*.json` (recursively — a flat
-  `<os_version>/*.json` layout, a versioned `rhel/<os_version>/*.json`
-  layout, and a `hybrid/*.json` tree are all covered by the same root)
+- `src/main/samples/catalogs/**/*.json` (recursively — the shipped
+  `rhel/<os_version>/*.json` and `hybrid/*.json` trees are both covered by
+  the same root)
 
 Every `add`/`delete` invocation passes `--catalog-root`, which
 `catalog_io.resolve_and_validate_catalog_path()` enforces at the code level

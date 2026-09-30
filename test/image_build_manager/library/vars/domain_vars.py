@@ -54,6 +54,7 @@ MARKERS: List[str] = [
     "functional",
     "regression",
     "deploy",
+    "destructive",
 ]
 
 # =====================================================================

@@ -195,6 +195,7 @@ def pytest_configure(config):
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "nft": "Non-functional tests (performance, idempotency)",
+        "destructive": "Opt-in tests that remove deployed state",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -273,6 +274,25 @@ def pytest_collection_modifyitems(session, config, items):
                     )
                     filtered.append(item)
         items[:] = filtered
+
+    # Destructive NFT cases are retained for explicit performance testing but
+    # must never run as part of the default NFT suite.
+    destructive_opt_in = "destructive" in markers
+    for item in items:
+        node_parts = item.nodeid.replace("\\", "/").split("/")
+        if (
+            "nft" in node_parts
+            and _item_has_marker(item, "destructive")
+            and not destructive_opt_in
+        ):
+            item.add_marker(
+                pytest.mark.skip(
+                    reason=(
+                        "Destructive NFT cleanup is opt-in; rerun with "
+                        "--marker destructive"
+                    )
+                )
+            )
 
     def _get_order(item):
         marker = item.get_closest_marker("order")
