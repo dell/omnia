@@ -162,7 +162,6 @@ src/orchestrator/
 | `omnia.orchestrator.passwordless_ssh` | SSH key distribution and host list management |
 | `omnia.orchestrator.deploy_openchami` | Deploy OpenCHAMI containers on OIM |
 | `omnia.orchestrator.deploy_openldap` | Deploy the OpenLDAP container on OIM |
-| `omnia.orchestrator.configure_ochami` | Configure OpenCHAMI groups, nodes, Boot Service, and Metadata Service |
 | `omnia.orchestrator.generate_inventories` | Generate downstream Ansible and BMC inventories |
 | `omnia.orchestrator.k8s_config` | Kubernetes cluster configuration |
 | `omnia.orchestrator.slurm_config` | Slurm workload manager configuration |
@@ -171,6 +170,7 @@ src/orchestrator/
 | `omnia.orchestrator.idrac_pxe_boot` | Configure Dell iDRAC PXE boot via Redfish API |
 | `omnia.orchestrator.precheck_environment` | Validate OIM environment prerequisites |
 | `omnia.orchestrator.provision_common` | Prepare common provisioning data and Metadata Service content |
+| `omnia.orchestrator.orchestrator_node_topology` | Publish shared node and functional-group topology facts |
 | `omnia.orchestrator.validate_openchami` | Validate OpenCHAMI service and artifact readiness |
 | `omnia.orchestrator.validate_preamble` | Prepare shared facts for deployment validation |
 | `omnia.orchestrator.validate_provisioning` | Validate provisioned node and service state |

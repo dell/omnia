@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # ── slurm.conf path validation ───────────────────────────────────────
 
 - name: Validate slurm.conf path parameters are absolute
   ansible.builtin.fail:
-    msg: "slurm.conf {{ item }} must be an absolute path (start with /). Current value: {{ slurm_merged_dict.get(item) }}"
+    msg: "{{ slurm_conf_path_fail_msg }}"
   when:
     - slurm_merged_dict is defined
     - slurm_merged_dict.get(item) is defined
@@ -64,7 +63,7 @@
 
 - name: Validate slurmdbd.conf path parameters are absolute
   ansible.builtin.fail:
-    msg: "slurmdbd.conf {{ item }} must be an absolute path (start with /). Current value: {{ slurmdbd_merged_dict.get(item) }}"
+    msg: "{{ slurmdbd_conf_path_fail_msg }}"
   when:
     - slurmdbd_merged_dict is defined
     - slurmdbd_merged_dict.get(item) is defined
@@ -88,7 +87,7 @@
 
 - name: Validate cgroup.conf path parameters are absolute
   ansible.builtin.fail:
-    msg: "cgroup.conf {{ item }} must be an absolute path (start with /). Current value: {{ cgroup_merged_dict.get(item) }}"
+    msg: "{{ cgroup_conf_path_fail_msg }}"
   when:
     - cgroup_merged_dict is defined
     - cgroup_merged_dict.get(item) is defined

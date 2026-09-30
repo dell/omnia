@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,104 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Verify nodes booted outside Orchestrator, such as VMs or a physical node
-# manually rebooted after an iDRAC failure. No Redfish operation is performed.
+# Verify nodes booted outside Orchestrator, such as VMs or physical nodes
+# manually rebooted after an automated boot-trigger failure.
 
 - name: Select externally booted nodes for verification
   hosts: localhost
   connection: local
   gather_facts: true
   tags: [verify-node-registration]
-  tasks:
-    - name: Check for aggregate Orchestrator status
-      ansible.builtin.stat:
-        path: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
-      register: external_status_stat
-
-    - name: Require provisioning lifecycle status
-      ansible.builtin.assert:
-        that:
-          - external_status_stat.stat.exists
-        fail_msg: >-
-          Cannot verify externally booted nodes because orchestrator_status.yml
-          does not exist. Run the provision phase before booting the nodes.
-
-    - name: Load aggregate Orchestrator status
-      ansible.builtin.slurp:
-        src: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
-      register: external_status_raw
-
-    - name: Decode aggregate Orchestrator status
-      ansible.builtin.set_fact:
-        external_previous_status: >-
-          {{ external_status_raw.content | b64decode | from_yaml }}
-
-    - name: Validate aggregate Orchestrator status
-      ansible.builtin.assert:
-        that:
-          - external_previous_status | type_debug == 'dict'
-          - external_previous_status.nodes | default([]) | type_debug == 'list'
-          - external_previous_status.inventory_source | default('') == pxe_mapping_file_path
-        fail_msg: >-
-          orchestrator_status.yml is malformed or belongs to a different PXE
-          mapping. Run the provision phase before external boot verification.
-
-    - name: Select nodes that still require reprovisioning
-      ansible.builtin.set_fact:
-        external_verification_nodes: >-
-          {{ external_previous_status.nodes
-             | selectattr('reprovision_required', 'defined')
-             | selectattr('reprovision_required', 'equalto', true)
-             | list }}
-        verification_start_epoch: "{{ external_status_stat.stat.mtime | int }}"
-        verification_trigger_method: external
-        node_registration_retries: "{{ node_registration_retries | default(120) | int }}"
-        node_registration_delay: "{{ node_registration_delay | default(15) | int }}"
-        external_verification_skip: false
-        cacheable: true
-
-    - name: Validate pending node verification data
-      ansible.builtin.assert:
-        that:
-          - item.xname | default('') | length > 0
-          - item.admin_ip | default('') | length > 0
-          - item.admin_ip != 'N/A'
-        fail_msg: >-
-          Pending node status must contain a permanent XNAME and ADMIN_IP.
-      loop: "{{ external_verification_nodes }}"
-      loop_control:
-        label: "{{ item.xname | default('unknown') }}"
-
-    - name: Build external node-registration inventory
-      ansible.builtin.add_host:
-        hostname: "{{ item.admin_ip }}"
-        groups: external_node_registration_targets
-        ansible_user: root
-        ansible_python_interpreter: /usr/bin/python3
-        ansible_ssh_timeout: 5
-        ansible_ssh_retries: 0
-        bmc_ip: "{{ item.bmc_ip | default('') }}"
-        xname: "{{ item.xname }}"
-        hostname_node: "{{ item.hostname | default('') }}"
-      loop: "{{ external_verification_nodes }}"
-      loop_control:
-        label: "{{ item.admin_ip }}"
-
-    - name: Report when no nodes require verification
-      ansible.builtin.debug:
-        msg: No nodes require external boot verification.
-      when: external_verification_nodes | length == 0
-
-    - name: Skip external verification when no nodes are pending
-      ansible.builtin.set_fact:
-        external_verification_skip: true
-        cacheable: true
-      when: external_verification_nodes | length == 0
+  roles:
+    - role: external_boot_verification
 
 - name: Verify externally booted nodes over SSH
   hosts: external_node_registration_targets
   connection: ssh
   gather_facts: false
+  strategy: free
   tags: [verify-node-registration]
   pre_tasks:
     - name: Skip when no nodes require external verification
@@ -128,165 +46,7 @@
       ansible.builtin.meta: end_play
       when: external_verification_skip | default(false) | bool
   tasks:
-    - name: Initialize external verification results
-      ansible.builtin.set_fact:
-        external_results_by_xname: {}
-        external_failed_nodes: []
-        external_all_nodes_status: []
-
-    - name: Index external verification results by XNAME
-      ansible.builtin.set_fact:
-        external_results_by_xname: >-
-          {{ external_results_by_xname
-             | combine({hostvars[item].xname: hostvars[item].verify_node_registration_result}) }}
-      loop: "{{ groups['external_node_registration_targets'] | default([]) }}"
-      loop_control:
-        label: "{{ hostvars[item].xname | default(item) }}"
-      when: hostvars[item].verify_node_registration_result is defined
-
-    - name: Merge external verification into aggregate node status
-      ansible.builtin.set_fact:
-        external_all_nodes_status: "{{ external_all_nodes_status + [external_node] }}"
-      loop: "{{ external_previous_status.nodes }}"
-      loop_control:
-        label: "{{ item.xname | default('unknown') }}"
-      vars:
-        external_result: "{{ external_results_by_xname.get(item.xname | default(''), {}) }}"
-        external_selected: >-
-          {{ item.xname | default('') in
-             (external_verification_nodes | map(attribute='xname') | list) }}
-        external_success: >-
-          {{ external_selected
-             and external_result.get('status', 'failed') == 'success' }}
-        external_node: >-
-          {{ item
-             | combine(
-                 {
-                   'status': 'success' if external_success else 'failed',
-                   'reprovision_required': not external_success,
-                   'pxeboot': {
-                     'status': 'success' if external_success else 'failed',
-                     'state': 'success' if external_success
-                              else external_result.get('state', 'verification_result_missing'),
-                     'trigger_method': 'external',
-                     'verification_method': 'ssh_cloud_init'
-                   }
-                 },
-                 recursive=True
-               )
-             if external_selected else item }}
-
-    - name: Select current external verification node statuses
-      ansible.builtin.set_fact:
-        external_selected_statuses: >-
-          {{ external_all_nodes_status
-             | selectattr(
-                 'xname',
-                 'in',
-                 external_verification_nodes | map(attribute='xname') | list
-               )
-             | list }}
-
-    - name: Build compact external verification failure list
-      ansible.builtin.set_fact:
-        external_failed_nodes: "{{ external_failed_nodes + [failed_node] }}"
-      loop: "{{ external_selected_statuses }}"
-      loop_control:
-        label: "{{ item.xname }}"
-      vars:
-        failed_node:
-          xname: "{{ item.xname }}"
-          hostname: "{{ item.hostname | default('') }}"
-          admin_ip: "{{ item.admin_ip | default('') }}"
-          bmc_ip: "{{ item.bmc_ip | default('') }}"
-          failure_stage: node_registration
-          verification_state: "{{ item.pxeboot.state }}"
-          trigger_method: external
-          verification_method: ssh_cloud_init
-          status: failed
-      when: item.status != 'success'
-
-    - name: Compute external and aggregate lifecycle counts
-      ansible.builtin.set_fact:
-        external_success_count: >-
-          {{ external_selected_statuses
-             | selectattr('status', 'equalto', 'success') | list | length }}
-        external_failure_count: >-
-          {{ external_selected_statuses
-             | rejectattr('status', 'equalto', 'success') | list | length }}
-        external_aggregate_success_count: >-
-          {{ external_all_nodes_status
-             | selectattr('status', 'equalto', 'success') | list | length }}
-        external_aggregate_failure_count: >-
-          {{ external_all_nodes_status
-             | selectattr('status', 'equalto', 'failed') | list | length }}
-
-    - name: Build external verification failure report
-      ansible.builtin.set_fact:
-        external_failed_report:
-          schema_version: "1.0"
-          phase: pxeboot
-          run_id: "{{ ansible_date_time.epoch }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
-          total_nodes: "{{ external_selected_statuses | length }}"
-          success_count: "{{ external_success_count }}"
-          failure_count: "{{ external_failure_count }}"
-          verification_enabled: true
-          unverified_count: 0
-          inventory_source: "{{ external_previous_status.inventory_source }}"
-          failed_nodes: "{{ external_failed_nodes }}"
-
-    - name: Build updated aggregate Orchestrator status
-      ansible.builtin.set_fact:
-        external_orchestrator_status: >-
-          {{ external_previous_status
-             | combine(
-                 {
-                   'schema_version': '1.0',
-                   'run_id': ansible_date_time.epoch,
-                   'overall_status': 'success'
-                                     if external_aggregate_failure_count | int == 0
-                                     else 'failed',
-                   'last_completed_phase': 'pxeboot',
-                   'timestamp': ansible_date_time.iso8601,
-                   'total_nodes': external_all_nodes_status | length,
-                   'success_count': external_aggregate_success_count,
-                   'failure_count': external_aggregate_failure_count,
-                   'verification_enabled': true,
-                   'unverified_count': 0,
-                   'custom_inventory': false,
-                   'nodes': external_all_nodes_status,
-                   'phases': {
-                     'pxeboot': {
-                       'status': 'success'
-                                 if external_failure_count | int == 0
-                                 else 'failed',
-                       'total_nodes': external_selected_statuses | length,
-                       'success_count': external_success_count,
-                       'failure_count': external_failure_count,
-                       'unverified_count': 0,
-                       'timestamp': ansible_date_time.iso8601
-                     }
-                   }
-                 },
-                 recursive=True
-               ) }}
-
-    - name: Write external verification failed-node report
-      ansible.builtin.copy:
-        content: "{{ external_failed_report | to_nice_json }}"
-        dest: "{{ orchestrator_output_dir }}/failed_nodes.json"
-        mode: "0644"
-
-    - name: Write updated aggregate Orchestrator status
-      ansible.builtin.copy:
-        content: "{{ external_orchestrator_status | to_nice_yaml }}"
-        dest: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
-        mode: "0644"
-
-    - name: Fail when external node verification did not succeed
-      ansible.builtin.fail:
-        msg: >-
-          External boot verification failed for XNAME(s):
-          {{ external_failed_nodes | map(attribute='xname') | join(', ') }}
-      when: external_failure_count | int > 0
+    - name: Reconcile external boot verification results
+      ansible.builtin.include_role:
+        name: external_boot_verification
+        tasks_from: report.yml

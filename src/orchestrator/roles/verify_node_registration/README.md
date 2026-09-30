@@ -23,19 +23,12 @@ condition. Every other cloud-init error or recoverable warning fails the node.
 
 ## Role Variables
 
-Available variables are listed below (see `vars/main.yml`):
+Polling defaults are listed below (see `defaults/main.yml`):
 
 ```yaml
-# Pause before polling (minutes)
-node_registration_pause_minutes: 3
-
-# Polling configuration
-node_registration_retries: 120
-node_registration_delay: 15
-
-# Status indicators
-verify_node_registration_status_ok: "OK Node boot verified:"
-verify_node_registration_status_failed: "FAILED Node boot verification:"
+verify_node_registration_retries: 120
+verify_node_registration_delay: 15
+verify_node_registration_connect_timeout: 5
 ```
 
 ## Required Facts
@@ -45,8 +38,8 @@ These facts must be set by the calling playbook before invoking this role:
 | Fact | Description |
 |------|-------------|
 | `hostvars['localhost']['verification_start_epoch']` or `pxe_start_epoch` | Epoch timestamp before the expected fresh boot |
-| `hostvars['localhost']['node_registration_retries']` | Maximum attempts per node |
-| `hostvars['localhost']['node_registration_delay']` | Delay between attempts |
+| `hostvars['localhost']['node_registration_retries']` | Optional maximum attempts per node; the role default is used when absent |
+| `hostvars['localhost']['node_registration_delay']` | Optional delay between attempts; the role default is used when absent |
 | `verification_trigger_method` | `orchestrator` (default) or `external` |
 | `bmc_ip` | BMC address; required only for the `orchestrator` trigger method |
 

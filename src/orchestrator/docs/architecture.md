@@ -594,7 +594,7 @@ continue from a known desired-state input.
 | `roles/orchestrator_setup/` | Environment, path, tag, inventory, and persisted-state setup |
 | `roles/orchestrator_validations/` | Cross-file, image, storage, mapping, and environment prerequisites |
 | `roles/provision_common/` | Active category registration and OpenCHAMI publication |
-| `roles/configure_ochami/` | Shared OpenCHAMI templates and service task library |
+| `roles/orchestrator_node_topology/` | Shared node, address, functional-group, and Slurm topology facts |
 | `roles/<category>_config/` | Kubernetes, Slurm, mount, LDAP, and other bolt-on configuration |
 | `roles/validate_provisioning/` | Desired-state readback and lifecycle reports |
 | `roles/idrac_pxe_boot/` | Dell iDRAC one-time boot and reset operation |
@@ -605,9 +605,11 @@ continue from a known desired-state input.
 | `containers/omnia_auth/` | Optional OpenLDAP container source |
 | `docs/contracts/` | Maintained input and output interfaces |
 
-`configure_ochami` owns reusable templates and focused service tasks.
-`provision_common` coordinates those resources through the category
-provisioning workflow; it is the supported lifecycle entry point.
+`provision_common` owns the reusable OpenCHAMI templates and focused service
+tasks used by the category provisioning workflow. Inventory-only templates
+remain with `generate_inventories`. Shared topology calculation is exposed
+through `orchestrator_node_topology`, while `slurm_config` publishes its
+metadata-rendering context through a named role task interface.
 
 ### Ansible Plugin and Dependency Boundaries
 

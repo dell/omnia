@@ -23,6 +23,12 @@
          | default(hostvars['localhost']['pxe_start_epoch'] | default('')) }}
     verify_node_registration_trigger_method: >-
       {{ hostvars['localhost']['verification_trigger_method'] | default('orchestrator') }}
+    verify_node_registration_retries_effective: >-
+      {{ hostvars['localhost']['node_registration_retries']
+         | default(verify_node_registration_retries) | int }}
+    verify_node_registration_delay_effective: >-
+      {{ hostvars['localhost']['node_registration_delay']
+         | default(verify_node_registration_delay) | int }}
 
 - name: "[Node-Registration] Validate per-node verification context"
   ansible.builtin.assert:
@@ -34,14 +40,15 @@
         verify_node_registration_trigger_method == 'external'
         or (bmc_ip is defined and bmc_ip | string | length > 0)
     fail_msg: "{{ verify_node_registration_fail_msg }}"
+    quiet: true
 
 - name: "[Node-Registration] Wait for passwordless SSH after PXE boot"
   ansible.builtin.wait_for_connection:
-    connect_timeout: 5
-    sleep: "{{ hostvars['localhost']['node_registration_delay'] }}"
+    connect_timeout: "{{ verify_node_registration_connect_timeout }}"
+    sleep: "{{ verify_node_registration_delay_effective }}"
     timeout: >-
-      {{ (hostvars['localhost']['node_registration_retries'] | int)
-         * (hostvars['localhost']['node_registration_delay'] | int) }}
+      {{ verify_node_registration_retries_effective
+         * verify_node_registration_delay_effective }}
   register: verify_node_registration_ssh_wait
   changed_when: false
   ignore_errors: true
@@ -54,8 +61,8 @@
   until:
     - not (verify_node_registration_poll_result.unreachable | default(false) | bool)
     - verify_node_registration_poll_result.terminal | default(false) | bool
-  retries: "{{ hostvars['localhost']['node_registration_retries'] }}"
-  delay: "{{ hostvars['localhost']['node_registration_delay'] }}"
+  retries: "{{ verify_node_registration_retries_effective }}"
+  delay: "{{ verify_node_registration_delay_effective }}"
   changed_when: false
   failed_when: false
   ignore_errors: true

@@ -57,8 +57,8 @@ generated inventory artifacts.
 ## 2. OpenCHAMI Configuration Artifacts
 
 Produced by `provision_common` and the category provisioning plays on the OIM
-host. These flows reuse templates and task files housed under
-`configure_ochami`.
+host. `provision_common` owns the Boot Service, Metadata Service, and
+cloud-init templates used by these flows.
 
 ### 2.1 Boot Service Parameters
 
