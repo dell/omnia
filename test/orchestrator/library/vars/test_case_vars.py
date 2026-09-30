@@ -647,6 +647,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Apptainer artifacts after compute reboot",
         "component": "Apptainer artifact recovery",
     },
+    "additional_cloud_init_smd_groups": {
+        "id": "ORCH_FVT_PXEBOOT_V095",
+        "title": "Verify additional cloud-init SMD groups",
+        "component": "Additional cloud-init SMD groups",
+    },
+    "additional_cloud_init_metadata_groups": {
+        "id": "ORCH_FVT_PXEBOOT_V096",
+        "title": "Verify additional cloud-init metadata-service groups",
+        "component": "Additional cloud-init metadata-service groups",
+    },
     "node_architecture": {
         "id": "ORCH_FVT_PXEBOOT_V097",
         "title": "Verify live node architecture matches functional group",
@@ -656,6 +666,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V098",
         "title": "Verify live node OS version matches functional group",
         "component": "Node OS version",
+    },
+    "additional_cloud_init_write_files": {
+        "id": "ORCH_FVT_PXEBOOT_V099",
+        "title": "Verify additional cloud-init write_files on nodes",
+        "component": "Additional cloud-init write_files",
+    },
+    "additional_cloud_init_runcmd": {
+        "id": "ORCH_FVT_PXEBOOT_V100",
+        "title": "Verify additional cloud-init runcmd on nodes",
+        "component": "Additional cloud-init runcmd",
     },
 }
 
