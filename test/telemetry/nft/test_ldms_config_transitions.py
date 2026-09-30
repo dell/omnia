@@ -19,6 +19,11 @@ Verifies that LDMS and Vector-LDMS can be enabled/disabled independently
 through configuration changes, and that the deployment correctly handles
 all transition scenarios in a single comprehensive test flow.
 
+Prerequisites:
+    - LDMS sampler password must be configured in telemetry_credentials
+      (run: bash setup_env.sh --set-creds)
+    - Password must be 8-512 characters (no random generation)
+
 Test Flow (Single Test):
     1. LDMS enabled, Vector-LDMS enabled (baseline)
     2. LDMS enabled, Vector-LDMS disabled (transition)
@@ -29,8 +34,7 @@ Each transition:
     - Modifies telemetry_config.yml
     - Runs telemetry playbook (deploy tag)
     - Verifies expected pod states
-    - Runs cleanup_ldms to prepare for next transition
-    - Verifies cleanup completed
+    - Note: cleanup_ldms is NOT run (would require interactive credentials)
 
 Test case:
     TEL_NFT_LDMS_001: LDMS configuration transitions (all 4 states)
@@ -206,12 +210,8 @@ def _verify_ldms_state(host, ldms_enabled, vector_enabled):
     else:
         pod_count = get_pod_count_by_prefix(host, VECTOR_LDMS_APP_NAME)
         if pod_count > 0:
-            # Vector-LDMS not scaled to 0, but don't fail the test
-            # This is a known limitation - disable.yml may not scale Vector-LDMS
-            details.append(
-                f"⚠ Vector-LDMS: Expected 0 pods, found {pod_count} "
-                f"(disable limitation)"
-            )
+            all_success = False
+            details.append(f"✗ Vector-LDMS: Expected 0 pods, found {pod_count}")
         else:
             details.append("✓ Vector-LDMS: Scaled to 0 (disabled)")
 

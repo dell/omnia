@@ -79,7 +79,7 @@
 - name: Set LDMS deployment mode
   ansible.builtin.set_fact:
     ldms_is_reenable: "{{ ldms_helm_exists.rc == 0 or ldms_existing_pvcs.stdout | default('') | length > 0 }}"
-    ldms_existing_pvc_uids: "{{ ldms_existing_pvcs.stdout.split() | default([]) }}"
+    ldms_existing_pvc_uids: "{{ ldms_existing_pvcs.stdout | default('') | split() }}"
 
 - name: Log LDMS deployment mode
   ansible.builtin.debug:

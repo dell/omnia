@@ -22,59 +22,6 @@
 # (Kafka-to-VictoriaMetrics ingestion pipeline).
 # All K8s tasks execute on the kube_vip host.
 
-- name: Check LDMS State and Disable if Needed
-  hosts: kube_vip_group
-  gather_facts: false
-  any_errors_fatal: true
-  vars_files:
-    - ../../../vars/telemetry_common.yml
-  tasks:
-    - name: Load telemetry config
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: load_telemetry_config
-      when: telemetry_config is not defined
-
-    - name: Check if LDMS is disabled
-      ansible.builtin.set_fact:
-        ldms_metrics_enabled: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
-
-    - name: Generate LDMS sampler password once (when enabled)
-      when: ldms_metrics_enabled | bool
-      block:
-        - name: Get LDMS sampler password from credentials
-          ansible.builtin.set_fact:
-            ldms_sampler_password_from_creds: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
-          when:
-            - telemetry_credentials is defined
-            - telemetry_credentials.ldms_sampler_password is defined
-          no_log: true
-
-        - name: Use LDMS sampler password from credentials if available
-          ansible.builtin.set_fact:
-            ldms_sampler_password: "{{ ldms_sampler_password_from_creds | default('') }}"
-          when: ldms_sampler_password_from_creds is defined
-          no_log: true
-
-        - name: Fail if LDMS sampler password is not provided
-          ansible.builtin.fail:
-            msg: "LDMS sampler password must be provided in telemetry_credentials (ldms_sampler_password)"
-          when: ldms_sampler_password is not defined or ldms_sampler_password | length == 0
-
-        - name: Validate LDMS sampler password length
-          ansible.builtin.assert:
-            that:
-              - ldms_sampler_password | length >= 8
-              - ldms_sampler_password | length <= 512
-            fail_msg: "LDMS sampler password must be between 8 and 512 characters"
-            success_msg: "LDMS sampler password validated"
-
-    - name: Disable LDMS if metrics_enabled is false
-      ansible.builtin.include_role:
-        name: deploy_ldms
-        tasks_from: disable
-      when: not (ldms_metrics_enabled | bool)
-
 - name: Deploy LDMS Telemetry
   hosts: kube_vip_group
   gather_facts: true
@@ -88,9 +35,19 @@
         tasks_from: load_telemetry_config
       when: telemetry_config is not defined
 
-    - name: Check if LDMS is enabled
+    - name: Check if LDMS is disabled
       ansible.builtin.set_fact:
         ldms_metrics_enabled: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+
+    - name: Disable LDMS if metrics_enabled is false
+      ansible.builtin.include_role:
+        name: deploy_ldms
+        tasks_from: disable
+      when: not (ldms_metrics_enabled | bool)
+
+    - name: End play if LDMS is disabled (skip deployment)
+      ansible.builtin.meta: end_play
+      when: not (ldms_metrics_enabled | bool)
 
     - name: Derive sink support flags (only if not already derived)
       ansible.builtin.include_role:
@@ -399,10 +356,6 @@
           aggregator cannot be configured safely without current
           authentication material.
   tasks:
-    - name: End play if LDMS is disabled
-      ansible.builtin.meta: end_play
-      when: not (ldms_metrics_enabled | bool)
-
     - name: Deploy Kafka (handles both cluster deployment and topic management)
       ansible.builtin.include_role:
         name: deploy_kafka
@@ -424,6 +377,7 @@
         skip_sampler_config: true
         skip_aggregator_config: true
         skip_ldms_verify: true
+      when: ldms_metrics_enabled | bool
 
 - name: Prepare LDMS Authentication and Shared Sampler Configuration
   hosts: ldms_deploy_aggregator_control
@@ -447,6 +401,12 @@
         telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
         slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
       when: hostvars['localhost']['telemetry_config'] is defined
+
+    - name: Set ldms_sampler_password from localhost (exposed by telemetry_prereq)
+      ansible.builtin.set_fact:
+        ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
+      no_log: true
+      when: hostvars['localhost']['ldms_sampler_password'] is defined
 
     - name: Prepare LDMS aggregator authentication from control node
       ansible.builtin.include_role:
@@ -493,28 +453,11 @@
           hostvars[_ldms_deploy_aggregator_control_host]['munge_key_check_result']
           is defined
 
-    - name: Set ldms_sampler_password from slurm control node
+    - name: Set ldms_sampler_password from localhost (exposed by telemetry_prereq)
       ansible.builtin.set_fact:
-        ldms_sampler_password: >-
-          {{
-            hostvars[_ldms_deploy_aggregator_control_host]['ldms_sampler_password']
-            | default('')
-          }}
+        ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
       no_log: true
-      when:
-        - _ldms_deploy_aggregator_control_host | default('') | length > 0
-        - >-
-          hostvars[_ldms_deploy_aggregator_control_host]['ldms_sampler_password']
-          is defined
-
-    - name: Set ldms_sampler_password from telemetry_credentials as fallback
-      ansible.builtin.set_fact:
-        ldms_sampler_password: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
-      no_log: true
-      when:
-        - telemetry_credentials is defined
-        - telemetry_credentials.ldms_sampler_password is defined
-        - ldms_sampler_password is not defined or ldms_sampler_password == ''
+      when: hostvars['localhost']['ldms_sampler_password'] is defined
 
     - name: Deploy LDMS aggregator on kube_vip host
       ansible.builtin.include_role:
@@ -555,6 +498,12 @@
         k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
         slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
       when: hostvars['localhost']['telemetry_config'] is defined
+
+    - name: Set ldms_sampler_password from localhost (exposed by telemetry_prereq)
+      ansible.builtin.set_fact:
+        ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
+      no_log: true
+      when: hostvars['localhost']['ldms_sampler_password'] is defined
 
     - name: Configure LDMS sampler on reachable nodes
       ansible.builtin.include_role:
