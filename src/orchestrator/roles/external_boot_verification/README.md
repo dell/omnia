@@ -7,7 +7,10 @@ physical nodes.
 ## Responsibilities
 
 - Load and validate the project `orchestrator_status.yml`.
-- Select only nodes with `reprovision_required: true`.
+- Select nodes with `reprovision_required: true` and verify only nodes whose
+  `provisioning_status` is `success`.
+- Fail before SSH when a mapped node has failed, unknown, or missing
+  provisioning state.
 - Build the dynamic `external_node_registration_targets` inventory.
 - Use the lifecycle status modification time as the fresh-boot boundary.
 - Reconcile verification results and persist compact lifecycle reports.

@@ -44,7 +44,7 @@
 
 - name: Select nodes that still require reprovisioning
   ansible.builtin.set_fact:
-    external_verification_nodes: >-
+    external_pending_nodes: >-
       {{ external_previous_status.nodes
          | selectattr('reprovision_required', 'defined')
          | selectattr('reprovision_required', 'equalto', true)
@@ -57,6 +57,31 @@
       {{ node_registration_delay | default(external_boot_verification_delay) | int }}
     external_verification_skip: false
     cacheable: true
+
+- name: Separate externally verifiable and provisioning-blocked nodes
+  ansible.builtin.set_fact:
+    external_verification_nodes: >-
+      {{ external_pending_nodes
+         | selectattr('provisioning_status', 'defined')
+         | selectattr('provisioning_status', 'equalto', 'success')
+         | list }}
+    external_blocked_nodes: >-
+      {{ external_previous_status.nodes
+         | rejectattr('provisioning_status', 'defined')
+         | list
+         + external_previous_status.nodes
+         | selectattr('provisioning_status', 'defined')
+         | rejectattr('provisioning_status', 'equalto', 'success')
+         | list }}
+
+- name: Fail before SSH verification when provisioning is incomplete
+  ansible.builtin.assert:
+    that:
+      - external_blocked_nodes | length == 0
+    fail_msg: >-
+      {{ external_boot_verification_blocked_nodes_msg }}
+      {{ external_blocked_nodes | map(attribute='xname') | join(', ') }}
+    quiet: true
 
 - name: Validate pending node verification data
   ansible.builtin.assert:
@@ -88,10 +113,10 @@
 - name: Report when no nodes require verification
   ansible.builtin.debug:
     msg: "{{ external_boot_verification_no_nodes_msg }}"
-  when: external_verification_nodes | length == 0
+  when: external_pending_nodes | length == 0
 
 - name: Skip external verification when no nodes are pending
   ansible.builtin.set_fact:
     external_verification_skip: true
     cacheable: true
-  when: external_verification_nodes | length == 0
+  when: external_pending_nodes | length == 0

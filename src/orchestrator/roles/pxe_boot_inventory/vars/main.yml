@@ -50,6 +50,10 @@ pxe_boot_inventory_missing_lifecycle_msg: >-
   XNAME(s): {{ _pxeboot_identity_result.nodes | map(attribute='XNAME') | list
   | difference(_pxeboot_selection_status_by_xname.keys() | list) | join(', ') }}.
   Run provision again, or explicitly use -e pxeboot_scope=all.
+pxe_boot_inventory_provisioning_incomplete_msg: >-
+  Cannot safely start PXE because provisioning is incomplete for XNAME(s):
+  {{ _pxeboot_provisioning_blocked_xnames | join(', ') }}. Run provision again
+  and resolve all failed nodes before PXE boot.
 pxe_boot_inventory_selection_msg: >-
   Selected {{ pxeboot_effective_nodes | length }} of
   {{ _pxeboot_identity_result.nodes | length }} mapped nodes that require

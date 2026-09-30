@@ -129,7 +129,7 @@ def reconcile_pxeboot_status(
         "overall_status": (
             "failed"
             if aggregate_failure_count
-            or (not external_mode and provisioning.get("failure_count", 0))
+            or provisioning.get("failure_count", 0)
             else "success"
         ),
         "last_completed_phase": "pxeboot",

@@ -22,5 +22,8 @@ external_boot_verification_invalid_status_msg: >-
 external_boot_verification_invalid_node_msg: >-
   Pending node status must contain a permanent XNAME and ADMIN_IP.
 external_boot_verification_no_nodes_msg: No nodes require external boot verification.
+external_boot_verification_blocked_nodes_msg: >-
+  External boot verification cannot start because provisioning is incomplete
+  for XNAME(s). Run provisioning successfully before boot verification:
 external_boot_verification_failed_msg: >-
   External boot verification failed for XNAME(s):

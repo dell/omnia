@@ -1,6 +1,6 @@
 # Orchestrator -- Output Contract
 
-**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 24, 2026
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: October 1, 2026
 
 This document defines all output artifacts produced by the `orchestrator` domain.
 
@@ -181,18 +181,22 @@ Each aggregate per-node record also exposes:
 | `pxeboot.status` | Latest PXE attempt result: `not_run`, `success`, `failed`, or `unverified`. |
 | `pxeboot.state` | Short machine state such as `success`, `idrac_unreachable`, `ssh_unreachable`, or `cloud_init_error`. |
 | `pxeboot.trigger_method` | Boot origin: `orchestrator`, `external`, or `not_run`. This field distinguishes an Orchestrator-triggered boot from a manual or hypervisor-triggered boot without changing the state vocabulary. |
-| `pxeboot.verification_method` | Verification path: `ssh_cloud_init` or `not_run`. |
+| `pxeboot.verification_method` | Verification path: `ssh_cloud_init`, `not_started`, or `not_run`. `not_started` means verification was blocked before an SSH attempt, while `not_run` means no verification workflow was selected. |
 
 Provisioning preserves a previously pending `reprovision_required` value even
-when a later reconciliation is idempotent. Only a successful PXE run with
-node-registration/cloud-init verification clears it. A PXE request without
-verification does not claim that the running operating system was updated.
+when a later reconciliation is idempotent. Only successful provisioning
+followed by a successful PXE run with node-registration/cloud-init verification
+clears it. A PXE request without verification does not claim that the running
+operating system was updated.
 
 The standard PXE workflow internally defaults to pending-node selection. It
-selects a node only when `reprovision_required` is true. Every failed or
-unverified attempt retains that value, while verified success clears it. A
-retry therefore does not reboot nodes that already completed verified PXE and
-cloud-init. `failed_nodes.json` describes failures in the attempted subset,
+selects a node only when `reprovision_required` is true and
+`provisioning_status` is `success`. Failed, unknown, or missing provisioning
+state for any mapped node stops selection before Redfish. Every failed or
+unverified attempt retains the pending value, while verified success after
+successful provisioning clears it. A retry therefore does not reboot nodes
+that already completed verified PXE and cloud-init. `failed_nodes.json`
+describes failures in the attempted subset,
 while `orchestrator_status.yml` merges the latest results with retained records
 for unselected nodes. The extra variable
 `-e pxeboot_scope=all` explicitly requests all mapped nodes; no additional
@@ -204,8 +208,10 @@ status is missing, malformed, or lacks an XNAME from the current mapping. This
 prevents an uncertain retry from silently becoming a full-cluster reboot.
 
 For a VM or a physical node booted manually, the
-`verify_node_registration` tag selects the same pending nodes but performs no
-Redfish operation. It verifies that each observed boot is newer than the
+`verify_node_registration` tag selects the same pending, successfully
+provisioned nodes but performs no Redfish operation. Failed, unknown, or
+missing provisioning state for any mapped node stops the workflow before SSH.
+For eligible nodes, it verifies that each observed boot is newer than the
 persisted lifecycle state and that cloud-init completed through the existing
 SSH verifier. A successful result continues to use `pxeboot.state: success`;
 `pxeboot.trigger_method: external` is the only field that distinguishes the

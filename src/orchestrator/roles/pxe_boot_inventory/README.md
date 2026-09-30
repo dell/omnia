@@ -8,6 +8,8 @@ and node-registration host groups.
 
 - OpenCHAMI services and TokenSmith authentication must be available.
 - Every Service Tag must already have a persistent SMD identity.
+- Every mapped node in the standard Orchestrator flow must have
+  `provisioning_status: success`; otherwise selection fails before Redfish.
 - The inventory must contain the required named columns.
 
 ## Role variables

@@ -183,6 +183,25 @@
             fail_msg: "{{ pxe_boot_inventory_missing_lifecycle_msg }}"
             quiet: true
 
+        - name: Identify pending nodes blocked by incomplete provisioning
+          ansible.builtin.set_fact:
+            _pxeboot_provisioning_blocked_xnames: >-
+              {% set blocked = [] -%}
+              {% for node in _pxeboot_identity_result.nodes -%}
+              {% set state = _pxeboot_selection_status_by_xname[node.XNAME] -%}
+              {% if state.provisioning_status | default('unknown') != 'success' -%}
+              {% set _ = blocked.append(node.XNAME) -%}
+              {% endif -%}
+              {% endfor -%}
+              {{ blocked }}
+
+        - name: Fail before Redfish when provisioning is incomplete
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_provisioning_blocked_xnames | length == 0
+            fail_msg: "{{ pxe_boot_inventory_provisioning_incomplete_msg }}"
+            quiet: true
+
         - name: Reset effective PXE node list for pending selection
           ansible.builtin.set_fact:
             pxeboot_effective_nodes: []
@@ -196,7 +215,9 @@
           loop: "{{ _pxeboot_identity_result.nodes }}"
           loop_control:
             label: "{{ item.XNAME }}"
-          when: _node_state.reprovision_required | default(false) | bool
+          when:
+            - _node_state.reprovision_required | default(false) | bool
+            - _node_state.provisioning_status | default('unknown') == 'success'
 
         - name: Report pending-node PXE selection
           ansible.builtin.debug:

@@ -55,6 +55,14 @@ def _index_nodes(nodes: list[dict[str, Any]], field: str) -> dict[str, dict[str,
     return indexed
 
 
+def _provisioning_status(node: dict[str, Any]) -> str:
+    """Return the normalized desired-state provisioning status."""
+    provisioning = mapping(node.get("provisioning"))
+    return str(
+        node.get("provisioning_status", provisioning.get("status", "unknown"))
+    )
+
+
 def normalize_node(node: dict[str, Any]) -> dict[str, Any]:
     """Return the stable compact node status schema."""
     xname = _required_xname(node, "node status")
@@ -74,7 +82,6 @@ def normalize_node(node: dict[str, Any]) -> dict[str, Any]:
     status = "failed" if raw_status == "failed" else (
         "pending" if reprovision_required else "success"
     )
-    provisioning = mapping(node.get("provisioning"))
     return {
         "xname": xname,
         "hostname": node.get("hostname", "N/A"),
@@ -82,9 +89,7 @@ def normalize_node(node: dict[str, Any]) -> dict[str, Any]:
         "bmc_ip": node.get("bmc_ip", "N/A"),
         "status": status,
         "reprovision_required": reprovision_required,
-        "provisioning_status": node.get(
-            "provisioning_status", provisioning.get("status", "unknown")
-        ),
+        "provisioning_status": _provisioning_status(node),
         "pxeboot": {
             "status": pxeboot_status,
             "state": pxeboot_state,
@@ -118,6 +123,9 @@ def merge_nodes(
     return merged
 
 
+# The external path keeps the verification and lifecycle outcomes separate so
+# a successful boot cannot overwrite an incomplete provisioning result.
+# pylint: disable=too-many-locals
 def external_current_nodes(
     previous_nodes: list[dict[str, Any]],
     selected_xnames: list[str],
@@ -141,32 +149,63 @@ def external_current_nodes(
     for xname in selected:
         previous = previous_by_xname[xname]
         result = results_by_xname.get(xname, {})
-        success = result.get("status") == "success"
-        state = str(result.get("state", "verification_result_missing"))
+        provisioning_succeeded = _provisioning_status(previous) == "success"
+        verification_succeeded = result.get("status") == "success"
+        lifecycle_succeeded = provisioning_succeeded and verification_succeeded
+        blocked_by_provisioning = not provisioning_succeeded
+        state = (
+            "blocked_by_provisioning"
+            if blocked_by_provisioning
+            else str(result.get("state", "verification_result_missing"))
+        )
         current.append(
             {
                 **previous,
-                "status": "success" if success else "failed",
-                "reprovision_required": not success,
+                "status": "success" if lifecycle_succeeded else "failed",
+                "reprovision_required": not lifecycle_succeeded,
                 "pxeboot": {
-                    "status": "success" if success else "failed",
-                    "state": "success" if success else state,
-                    "trigger_method": "external",
-                    "verification_method": "ssh_cloud_init",
+                    "status": (
+                        "not_run"
+                        if blocked_by_provisioning
+                        else ("success" if verification_succeeded else "failed")
+                    ),
+                    "state": (
+                        state
+                        if blocked_by_provisioning
+                        else ("success" if verification_succeeded else state)
+                    ),
+                    "trigger_method": (
+                        "not_run" if blocked_by_provisioning else "external"
+                    ),
+                    "verification_method": (
+                        "not_started"
+                        if blocked_by_provisioning
+                        else "ssh_cloud_init"
+                    ),
                 },
             }
         )
-        if not success:
+        if not lifecycle_succeeded:
             failures.append(
                 {
                     "xname": xname,
                     "hostname": previous.get("hostname", ""),
                     "admin_ip": previous.get("admin_ip", ""),
                     "bmc_ip": previous.get("bmc_ip", ""),
-                    "failure_stage": "node_registration",
+                    "failure_stage": (
+                        "provisioning"
+                        if blocked_by_provisioning
+                        else "node_registration"
+                    ),
                     "verification_state": state,
-                    "trigger_method": "external",
-                    "verification_method": "ssh_cloud_init",
+                    "trigger_method": (
+                        "not_run" if blocked_by_provisioning else "external"
+                    ),
+                    "verification_method": (
+                        "not_started"
+                        if blocked_by_provisioning
+                        else "ssh_cloud_init"
+                    ),
                     "status": "failed",
                 }
             )
