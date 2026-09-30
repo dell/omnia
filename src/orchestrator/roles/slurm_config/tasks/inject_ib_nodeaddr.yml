@@ -99,7 +99,10 @@
     - name: Determine target address family for NodeAddr
       ansible.builtin.set_fact:
         _ib_nodeaddr_af: >-
-          {% if _ib_addr_mode == 'ipv4-only' %}ipv4{% elif _ib_addr_mode == 'ipv6-only' %}ipv6{% elif _ib_addr_mode == 'dual-stack' %}{{ _ib_slurm_pref_af }}{% else %}none{% endif %}
+          {% if _ib_addr_mode == 'ipv4-only' %}ipv4
+          {% elif _ib_addr_mode == 'ipv6-only' %}ipv6
+          {% elif _ib_addr_mode == 'dual-stack' %}{{ _ib_slurm_pref_af }}
+          {% else %}none{% endif %}
       when: _ib_addr_mode | length > 0
 
     - name: Display NodeAddr address family selection
