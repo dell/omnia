@@ -826,13 +826,19 @@ class ResultPoller:
                 new_status=ImageGroupStatus.DEPLOYED,
             )
 
+            # ER-BSM-002 Story 4: Increment deploy_count for retention safety
+            self._image_group_repo.increment_deploy_count(
+                image_group_id=image_group.id,
+            )
+
             if hasattr(self._image_group_repo, 'session'):
                 self._image_group_repo.session.commit()
 
             log_secure_info(
                 "info",
                 f"Deploy SUCCESS for job={result.job_id}. "
-                f"ImageGroup '{image_group.id}' -> DEPLOYED.",
+                f"ImageGroup '{image_group.id}' -> DEPLOYED "
+                f"(deploy_count incremented).",
                 job_id=str(result.job_id),
             )
         except Exception as exc:  # pylint: disable=broad-except
