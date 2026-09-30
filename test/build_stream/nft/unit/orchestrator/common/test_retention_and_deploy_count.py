@@ -25,7 +25,7 @@ Covers:
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -533,7 +533,11 @@ class TestRetentionConfigLoading:
 
     def test_default_values_when_no_config(self):
         """When config file doesn't exist, defaults are returned."""
-        from cleanup_cron import _load_retention_config, DEFAULT_RETENTION_AGE_DAYS, DEFAULT_MIN_KEEP_COUNT
+        from cleanup_cron import (
+            _load_retention_config,
+            DEFAULT_RETENTION_AGE_DAYS,
+            DEFAULT_MIN_KEEP_COUNT,
+        )
 
         with patch("cleanup_cron.Path.exists", return_value=False):
             config = _load_retention_config()
