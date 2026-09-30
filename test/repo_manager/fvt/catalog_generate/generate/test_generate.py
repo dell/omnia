@@ -15,8 +15,6 @@ RM_FVT_CATALOG_GENERATE_V006: Verify catalog has packages
 RM_FVT_CATALOG_GENERATE_V007: Verify catalog log file exists
 """
 
-import os
-
 import pytest
 
 from library.functions import (
@@ -30,6 +28,7 @@ from library.functions import (
     check_catalog_log_file_exists,
 )
 from library.vars import TEST_CASES as TC
+from library.vars.common_vars import _get_catalog_path
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
@@ -66,9 +65,7 @@ def test_catalog_file_exists(host):
     if result["success"]:
         tl.passed(LOG["catalog_file_ok"], result["details"])
     else:
-        catalog_path = os.environ.get(
-            "CATALOG_FILE_PATH", "/opt/omnia/catalog/catalog_rhel.json"
-        )
+        catalog_path = _get_catalog_path()
         tl.failed(
             LOG["catalog_file_missing"],
             f"Catalog file not found at {catalog_path}\n"
