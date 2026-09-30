@@ -163,6 +163,9 @@ _TC_ID_MAP.update(
         "test_idrac_data_lifecycle": TEST_CASES[
             "nft_idrac_data_lifecycle"
         ]["id"],
+        "test_ome_channel_data_lifecycle": TEST_CASES[
+            "nft_ome_channel_lifecycle"
+        ]["id"],
         "test_full_lifecycle": TEST_CASES["nft_full_lifecycle"]["id"],
         "test_operator_pod_recovery": TEST_CASES["nft_operator_recovery"][
             "id"

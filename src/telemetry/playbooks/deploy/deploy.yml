@@ -104,9 +104,6 @@
 - name: "Phase 2 | Deploy OME telemetry"
   ansible.builtin.import_playbook: sources/deploy_ome.yml
   tags: deploy
-  when: >-
-    hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
-    hostvars['localhost']['telemetry_config'].telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
 
 # ── Phase 3: Verification — check pod status and detect errors ───────────────
 - name: "Verify telemetry deployment"
@@ -267,6 +264,20 @@
       changed_when: false
       failed_when: false
 
+    - name: Check OME metrics forwarding pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app=vmagent-vector --no-headers
+      register: _vmagent_vector_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Check OME logs forwarding pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} -l app=vlagent-vector --no-headers
+      register: _vlagent_vector_pods
+      changed_when: false
+      failed_when: false
+
     - name: Check Vector-LDMS pods
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }} -l app=vector-ldms --no-headers
@@ -298,6 +309,8 @@
           _ufm_check: "{{ _ufm_check }}"
           _vast_check: "{{ _vast_check }}"
           _vector_ome_pods: "{{ _vector_ome_pods }}"
+          _vmagent_vector_pods: "{{ _vmagent_vector_pods }}"
+          _vlagent_vector_pods: "{{ _vlagent_vector_pods }}"
           _vector_ldms_pods: "{{ _vector_ldms_pods }}"
           _vlagent_pods: "{{ _vlagent_pods }}"
         cacheable: true
@@ -417,10 +430,20 @@
         _ufm_ok: "{{ _kv['_ufm_check'].rc | default(1) == 0 }}"
         _vast_m_on: "{{ _cfg.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
         _vast_l_on: "{{ _cfg.telemetry_sources.vast.logs_enabled | default(false) | bool }}"
-        _ome_m_on: "{{ _cfg.telemetry_sources.ome.metrics_enabled | default(false) | bool }}"
-        _ome_l_on: "{{ _cfg.telemetry_sources.ome.logs_enabled | default(false) | bool }}"
+        _ome_m_on: >-
+          {{ (_cfg.telemetry_sources.ome.metrics_enabled | default(false) | bool)
+             and (_cfg.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool) }}
+        _ome_l_on: >-
+          {{ (_cfg.telemetry_sources.ome.logs_enabled | default(false) | bool)
+             and (_cfg.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool) }}
         _vome_running: >-
           {{ (_kv['_vector_ome_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+        _ome_metrics_forwarder_running: >-
+          {{ (_kv['_vmagent_vector_pods'].stdout_lines | default([])
+             | select('search', 'Running') | list | length) > 0 }}
+        _ome_logs_forwarder_running: >-
+          {{ (_kv['_vlagent_vector_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
       ansible.builtin.set_fact:
         _deploy_result_powerscale_metrics: >-
@@ -440,11 +463,13 @@
         _deploy_result_vast_logs: >-
           {{ 'skipped' if not (_vast_l_on | bool) else 'deployed' }}
         _deploy_result_ome_metrics: >-
-          {{ 'skipped' if not (_ome_m_on | bool)
-             else ('deployed' if (_vome_running | bool) else 'failed') }}
+          {{ 'disabled' if not (_ome_m_on | bool)
+             else ('deployed' if ((_vome_running | bool)
+             and (_ome_metrics_forwarder_running | bool)) else 'failed') }}
         _deploy_result_ome_logs: >-
-          {{ 'skipped' if not (_ome_l_on | bool)
-             else ('deployed' if (_vome_running | bool) else 'failed') }}
+          {{ 'disabled' if not (_ome_l_on | bool)
+             else ('deployed' if ((_vome_running | bool)
+             and (_ome_logs_forwarder_running | bool)) else 'failed') }}
 
     # -- Bridges --------------------------------------------------------------
     # Bridge status depends on both bridge config AND source config
@@ -469,7 +494,7 @@
           {{ 'skipped' if not ((_vldms_bridge_on | bool) and (_ldms_src_on | bool))
              else ('deployed' if (_vldms_running | bool) else 'failed') }}
         _deploy_result_vector_ome: >-
-          {{ 'skipped' if not ((_vome_m | bool) or (_vome_l | bool))
+          {{ 'disabled' if not ((_vome_m | bool) or (_vome_l | bool))
              else ('deployed' if (_vome_running | bool) else 'failed') }}
 
 # ── Phase 5: Write telemetry_status.yml ───────────────────────────────────────

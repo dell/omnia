@@ -4,6 +4,19 @@ Unit Tests (UT) for telemetry validate individual functions and components in is
 
 UT IDs use `TEL_UT_<SEQ>`: `TEL` is the stable Telemetry domain code, `UT` identifies the test level, and `SEQ` is a stable three-digit sequence.
 
+Every current unit-test function has a stable ID in the range `TEL_UT_001`
+through `TEL_UT_049`. The centralized mapping is maintained in
+`library/vars/ut_test_case_vars.py`; descriptive pytest function names remain
+unchanged.
+
+| ID range | Test file | Coverage |
+|----------|-----------|----------|
+| `TEL_UT_001`–`TEL_UT_022` | `test_ome_func.py` | OME pipeline selection, Kafka configuration, safe API/PFX arguments, exported endpoints, and retry behavior |
+| `TEL_UT_023`–`TEL_UT_028` | `test_ome_victoria_func.py` | Victoria metric timestamps, identifiers, disabled pipelines, and log parsing |
+| `TEL_UT_029`–`TEL_UT_036` | `test_idrac_lifecycle.py` | iDRAC enable/disable routing, retained-state restore, status, and fresh Kafka-flow contracts |
+| `TEL_UT_037`–`TEL_UT_039` | `test_sink_enablement.py` | Direct source targets and Vector-OME/Vector-LDMS derived sink enablement |
+| `TEL_UT_040`–`TEL_UT_046` | `test_ome_lifecycle.py` | OME independent metrics/logs reconciliation, dependency validation, retained-state restore, isolation, and status contracts |
+| `TEL_UT_047`–`TEL_UT_049` | `test_kafka_topic_lifecycle.py` | Non-destructive topic-manifest cleanup, enabled-source application, and readiness gating |
 ## Test Categories
 
 | Category | Description | Marker |

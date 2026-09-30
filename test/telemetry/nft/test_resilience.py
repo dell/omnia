@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=too-many-lines
+
 """
 Telemetry -- Non-Functional Resilience Tests.
 
@@ -39,9 +41,10 @@ Test cases:
     TEL_NFT_010: Service endpoint availability (order 115)
     TEL_NFT_011: Data ingestion after sink restart (order 116)
     TEL_NFT_012: Node reboot recovery (order 117)
-    TEL_NFT_020: iDRAC enable/disable/re-enable data lifecycle (order 118)
-    TEL_NFT_013: Full lifecycle (cleanup -> redeploy) (order 119)
-    TEL_NFT_014: Operator pod recovery (order 120)
+    TEL_NFT_023: iDRAC enable/disable/re-enable data lifecycle (order 118)
+    TEL_NFT_024: OME metrics/logs channel lifecycle (order 119)
+    TEL_NFT_013: Full lifecycle (cleanup -> redeploy) (order 120)
+    TEL_NFT_014: Operator pod recovery (order 121)
 """
 
 import time
@@ -70,6 +73,7 @@ from library.functions.telemetry_func import (
     is_source_enabled,
     is_sink_enabled,
     is_sink_enabled_for_source,
+    load_telemetry_config_from_target,
     resolve_kube_vip_ip,
 )
 from library.functions.k8s_func import verify_all_pods_running
@@ -82,6 +86,16 @@ from library.functions.idrac_func import (
     wait_for_fresh_idrac_vm_samples,
     wait_for_idrac_replicas,
 )
+from library.functions.ome_lifecycle_func import (
+    get_ome_lifecycle_state,
+    get_ome_telemetry_config_path,
+    publish_ome_lifecycle_records,
+    query_ome_lifecycle_data,
+    set_ome_channel_state,
+    wait_for_ome_lifecycle_data,
+    wait_for_ome_workloads,
+)
+from library.functions.ome_func import get_ome_pipeline_context
 from library.functions.resilience_func import (
     verify_pod_recreation,
     verify_all_pvcs_bound,
@@ -578,7 +592,7 @@ def test_node_reboot_recovery(host):
 
 
 # =========================================================================
-# TEL_NFT_020: iDRAC Enable -> Disable -> Re-enable Data Lifecycle
+# TEL_NFT_023: iDRAC Enable -> Disable -> Re-enable Data Lifecycle
 # =========================================================================
 
 
@@ -797,12 +811,257 @@ def test_idrac_data_lifecycle(host):  # pylint: disable=too-many-locals,too-many
 
 
 # =========================================================================
+# TEL_NFT_024: OME Metrics/Logs Channel Lifecycle
+# =========================================================================
+
+
+def _assert_ome_resource_identity(baseline, current, phase):
+    """Assert OME retained resources and shared infrastructure were reused."""
+    assert current["retained"] == baseline["retained"], (
+        f"OME retained resource identity changed during {phase}: "
+        f"before={baseline['retained']}, after={current['retained']}"
+    )
+    assert current["shared_resources"] == baseline["shared_resources"], (
+        f"Shared Kafka/Victoria resource identity changed during {phase}: "
+        f"before={baseline['shared_resources']}, "
+        f"after={current['shared_resources']}"
+    )
+
+
+@pytest.mark.nft
+@pytest.mark.resilience
+@pytest.mark.order(119)
+@pytest.mark.ome
+def test_ome_channel_data_lifecycle(host):  # pylint: disable=too-many-locals,too-many-statements
+    """Exercise all OME channel states with unique records on every topic.
+
+    OME is external, so disabling an Omnia channel stops Vector routing rather
+    than stopping OME's Kafka producer. Each phase publishes a unique fixture
+    record to all five pre-existing OME topics, then verifies only enabled
+    channels reach Victoria. The original input is restored byte-for-byte.
+    """
+    context = get_ome_pipeline_context(host)
+    if not context["metrics_pipeline_enabled"]:
+        pytest.skip("OME metrics pipeline must initially be enabled")
+    if not context["logs_pipeline_enabled"]:
+        pytest.skip("OME logs pipeline must initially be enabled")
+
+    tc = TC["nft_ome_channel_lifecycle"]
+    tl = TestLogger(tc["title"], tc["id"])
+    config_path = get_ome_telemetry_config_path(host)
+    backup_path = f"{config_path}.ome-lifecycle-{uuid4().hex}.bak"
+
+    baseline = get_ome_lifecycle_state(host)
+    assert baseline["success"], baseline["error"]
+    vector_replicas = baseline["deployments"]["vector-ome"]["replicas"]
+    metrics_replicas = baseline["deployments"]["vmagent-vector"]["replicas"]
+    logs_replicas = baseline["deployments"]["vlagent-vector"]["replicas"]
+    assert vector_replicas > 0, "vector-ome is not enabled at test start"
+    assert metrics_replicas > 0, "vmagent-vector is not enabled at test start"
+    assert logs_replicas > 0, "vlagent-vector is not enabled at test start"
+
+    config = load_telemetry_config_from_target(host)
+    ldms_source = config.get("telemetry_sources", {}).get("ldms", {})
+    ldms_bridge = config.get("telemetry_bridges", {}).get(
+        "vector_ldms", {},
+    )
+    ldms_uses_vmagent = (
+        ldms_source.get("metrics_enabled") is True
+        and ldms_bridge.get("metrics_enabled") is True
+    )
+
+    backup = run_on_host(  # pylint: disable=too-many-function-args
+        host, "cp --preserve=all -- %s %s", config_path, backup_path,
+    )
+    assert backup.rc == 0, f"Unable to back up {config_path}: {backup.stderr}"
+
+    previous_config = baseline["vector_config"]
+    stage_results = {}
+    completed = False
+
+    def exercise_stage(label, metrics_enabled, logs_enabled):  # pylint: disable=too-many-locals
+        nonlocal previous_config
+        tl.check(
+            f"Reconciling OME {label}: metrics={metrics_enabled}, "
+            f"logs={logs_enabled}"
+        )
+        update = set_ome_channel_state(
+            host, metrics_enabled, logs_enabled,
+        )
+        assert update["success"], update["error"]
+        deploy = run_playbook(
+            playbook=PLAYBOOK_ENTRY_POINT,
+            playbook_workdir=PLAYBOOK_WORKDIR,
+            tag="execute",
+            timeout=LIFECYCLE_DEPLOY_TIMEOUT,
+        )
+        assert deploy["rc"] == 0, (
+            f"OME {label} deploy failed: "
+            f"{deploy.get('output', '')[-2000:]}"
+        )
+
+        desired_vector = vector_replicas if (
+            metrics_enabled or logs_enabled
+        ) else 0
+        desired_metrics = metrics_replicas if (
+            metrics_enabled or ldms_uses_vmagent
+        ) else 0
+        desired_logs = logs_replicas if logs_enabled else 0
+        wait = wait_for_ome_workloads(
+            host,
+            desired_vector,
+            desired_metrics,
+            desired_logs,
+            timeout=600,
+        )
+        assert wait["success"], wait["error"]
+        state = wait["state"]
+        _assert_ome_resource_identity(baseline, state, label)
+
+        if metrics_enabled or logs_enabled:
+            assert (
+                ("[sinks.victoria_metrics]" in state["vector_config"])
+                is metrics_enabled
+            ), f"Unexpected OME metrics sink in {label} configuration"
+            assert (
+                ("[sinks.victoria_logs]" in state["vector_config"])
+                is logs_enabled
+            ), f"Unexpected OME logs sink in {label} configuration"
+        else:
+            assert state["vector_config"] == previous_config, (
+                "Fully disabled OME must retain the last generated ConfigMap"
+            )
+
+        marker = f"ome-nft-{label}-{uuid4().hex}"
+        marker_started = time.time() - 1
+        published = publish_ome_lifecycle_records(host, marker)
+        assert published["success"], published["error"]
+        assert len(published["topics"]) == 5, (
+            f"Expected all five OME topics, got {published['topics']}"
+        )
+        assert all(
+            result["success"] for result in published["topics"].values()
+        ), f"One or more OME Kafka topic writes failed: {published['topics']}"
+
+        if metrics_enabled or logs_enabled:
+            routed = wait_for_ome_lifecycle_data(
+                host,
+                marker,
+                marker_started,
+                expect_metrics=metrics_enabled,
+                expect_logs=logs_enabled,
+                timeout=120,
+            )
+            assert routed["success"], routed["error"]
+
+        # Give an incorrectly retained route enough time to expose itself.
+        time.sleep(20)
+        observed = query_ome_lifecycle_data(
+            host, marker, marker_started, time.time(),
+        )
+        assert observed["success"], observed["error"]
+        if metrics_enabled:
+            assert all(observed["metric_counts"].values()), (
+                f"Not all OME metric topics reached VictoriaMetrics in {label}: "
+                f"{observed['metric_counts']}"
+            )
+        else:
+            assert not any(observed["metric_counts"].values()), (
+                f"Disabled OME metrics reached VictoriaMetrics in {label}: "
+                f"{observed['metric_counts']}"
+            )
+        if logs_enabled:
+            assert all(observed["log_counts"].values()), (
+                f"Not all OME log topics reached VictoriaLogs in {label}: "
+                f"{observed['log_counts']}"
+            )
+        else:
+            assert not any(observed["log_counts"].values()), (
+                f"Disabled OME logs reached VictoriaLogs in {label}: "
+                f"{observed['log_counts']}"
+            )
+
+        previous_config = state["vector_config"]
+        stage_results[label] = {
+            "marker": marker,
+            "started": marker_started,
+            "published_topics": sorted(published["topics"]),
+            "observed": observed,
+            "replicas": {
+                name: value["replicas"]
+                for name, value in state["deployments"].items()
+            },
+        }
+        return state
+
+    try:
+        # Same-state apply proves idempotent reconciliation before transitions.
+        exercise_stage("both", True, True)
+        exercise_stage("metrics-only", True, False)
+        exercise_stage("logs-only", False, True)
+        disabled = exercise_stage("disabled", False, False)
+        assert disabled["deployments"]["vector-ome"]["replicas"] == 0
+
+        baseline_marker = stage_results["both"]
+        historical = query_ome_lifecycle_data(
+            host,
+            baseline_marker["marker"],
+            baseline_marker["started"],
+            time.time(),
+        )
+        assert historical["success"], historical["error"]
+        assert all(historical["metric_counts"].values()), (
+            "OME metric history disappeared while fully disabled"
+        )
+        assert all(historical["log_counts"].values()), (
+            "OME log history disappeared while fully disabled"
+        )
+
+        restored_state = exercise_stage("restored", True, True)
+        assert (
+            restored_state["deployments"]["vector-ome"]["replicas"]
+            == vector_replicas
+        ), "vector-ome did not return to its configured replica count"
+        completed = True
+    finally:
+        restore = run_on_host(  # pylint: disable=too-many-function-args
+            host, "cp --preserve=all -- %s %s", backup_path, config_path,
+        )
+        remove_backup_rc = -1
+        restore_run_rc = -1
+        if restore.rc == 0:
+            remove_backup = run_on_host(  # pylint: disable=too-many-function-args
+                host, "rm -f -- %s", backup_path,
+            )
+            remove_backup_rc = remove_backup.rc
+            restore_run = run_playbook(
+                playbook=PLAYBOOK_ENTRY_POINT,
+                playbook_workdir=PLAYBOOK_WORKDIR,
+                tag="execute",
+                timeout=LIFECYCLE_DEPLOY_TIMEOUT,
+            )
+            restore_run_rc = restore_run["rc"]
+        if restore.rc != 0 or remove_backup_rc != 0 or restore_run_rc != 0:
+            pytest.fail(
+                "Failed to restore original OME configuration/state: "
+                f"copy_rc={restore.rc}, remove_rc={remove_backup_rc}, "
+                f"deploy_rc={restore_run_rc}, backup={backup_path}"
+            )
+
+    assert completed, "OME channel lifecycle did not complete"
+    tl.passed(
+        "OME channel disable/re-enable preserved identities and routing",
+        str(stage_results),
+    )
+
+
+# =========================================================================
 # TEL_NFT_013: Full Lifecycle (Cleanup -> Redeploy -> Verify)
 # =========================================================================
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(119)
+@pytest.mark.order(120)
 def test_full_lifecycle(host):
     """TEL_NFT_013: Complete cleanup and redeployment cycle.
 
@@ -901,7 +1160,7 @@ def test_full_lifecycle(host):
 
 @pytest.mark.nft
 @pytest.mark.resilience
-@pytest.mark.order(120)
+@pytest.mark.order(121)
 def test_operator_pod_recovery(host):
     """TEL_NFT_014: Delete operator pods and verify CR reconciliation.
 

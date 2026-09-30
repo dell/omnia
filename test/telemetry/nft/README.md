@@ -60,7 +60,8 @@ cleanup phase, producing correct results.
 | TEL_NFT_010 | Service endpoint availability after pod restart | N/A | nft, resilience |
 | TEL_NFT_011 | Data ingestion after sink restart | N/A | nft, resilience |
 | TEL_NFT_012 | Node reboot recovery (all pods Running) | 600s | nft, resilience |
-| TEL_NFT_020 | iDRAC enable/disable/re-enable data lifecycle | 1200s | nft, resilience |
+| TEL_NFT_023 | iDRAC enable/disable/re-enable data lifecycle | 1200s | nft, resilience |
+| TEL_NFT_024 | OME metrics/logs channel lifecycle across all four combinations | 3600s | nft, resilience, ome |
 | TEL_NFT_013 | Full lifecycle (cleanup -> redeploy -> verify) | 720s | nft, resilience |
 | TEL_NFT_014 | Operator pod recovery (VM/Strimzi operators) | 300s | nft, resilience |
 
@@ -71,6 +72,7 @@ cleanup phase, producing correct results.
 - **Data continuity**: VictoriaMetrics must retain queryable data after storage pod restart
 - **Node reboot**: All pods must return to Running state after node reboot
 - **iDRAC data lifecycle**: Fresh Kafka and VictoriaMetrics data stops while disabled, resumes after re-enable, and StatefulSet/PVC/PV identities plus historical metrics are preserved
+- **OME channel lifecycle**: All five Kafka topics accept unique records in every state, only enabled channels reach Victoria, identities and history survive disable, and both channels resume after restore
 - **Full lifecycle**: Complete cleanup and redeployment must produce a healthy stack
 - **Operator recovery**: Operator pods must be recreated and CRs must reconcile.
   VMCluster health is verified via `.status.updateStatus` (expected: `operational`);
@@ -117,6 +119,9 @@ This consolidated approach eliminates the need to run the NFT suite twice with d
 
 # Run only resilience tests
 ./run_validation.sh nft_telemetry test --marker resilience
+# Run only the OME channel lifecycle NFT
+./run_validation.sh nft_telemetry test --marker ome+resilience
+
 
 # Run resilience + performance together
 ./run_validation.sh nft_telemetry test --marker resilience,performance
@@ -273,7 +278,7 @@ Phase 2: Cleanup WITH volume deletion (all PVCs deleted)
    |-- Wait for all telemetry pods to reach Running (600s timeout)
    +-- Assert: All pods Running after reboot
 
-8. TEL_NFT_020: iDRAC data lifecycle
+8. TEL_NFT_023: iDRAC data lifecycle
    |-- Capture StatefulSet UID and iDRAC PVC UID/PV bindings
    |-- Require fresh Kafka and raw VictoriaMetrics samples while enabled
    |-- Disable iDRAC and assert replicas=0, no pods, same storage identity
@@ -281,16 +286,22 @@ Phase 2: Cleanup WITH volume deletion (all PVCs deleted)
    |-- Re-enable and assert the original StatefulSet/PVC/PVs are reused
    +-- Require fresh data plus queryable pre-disable VictoriaMetrics history
 
-9. TEL_NFT_013: Full lifecycle
-   |-- Run cleanup playbook (teardown)
-   |-- Run deploy playbook (redeploy)
-8. TEL_NFT_013: Full lifecycle
+9. TEL_NFT_024: OME metrics/logs channel lifecycle
+   |-- Capture Vector-OME, KafkaUser, secret, ConfigMap, and shared sink identities
+   |-- Exercise both, metrics-only, logs-only, and fully-disabled states
+   |-- Publish unique records to telemetry, inventory, health, alerts,
+   |   and auditlogs Kafka topics in every state
+   |-- Assert only enabled channels deliver their markers to Victoria
+   |-- Assert vector-ome=0 when fully disabled and retained history is queryable
+   +-- Re-enable both channels and restore the original input byte-for-byte
+
+10. TEL_NFT_013: Full lifecycle
    |-- Run cleanup playbook (teardown, -e cleanup_credentials=false)
    |-- Run deploy playbook (redeploy, reuses preserved credentials)
    |-- Verify all pods Running
    +-- Assert: Complete cycle succeeds
 
-10. TEL_NFT_014: Operator pod recovery
+11. TEL_NFT_014: Operator pod recovery
    |-- Delete victoria-metrics-operator pod
    |-- Wait for recreation, check VMCluster CR .status.updateStatus = operational
    |-- Delete strimzi-cluster-operator pod
