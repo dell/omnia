@@ -220,7 +220,7 @@ def test_cleanup_setting_preserves_logs_and_unrelated_tools(
 
     def local(_host, _row, command):
         result = subprocess.run(
-            command, shell=True, capture_output=True, text=True, check=False
+            shlex.split(command), capture_output=True, text=True, check=False
         )
         return SimpleNamespace(
             rc=result.returncode, stdout=result.stdout, stderr=result.stderr
@@ -316,8 +316,7 @@ def test_fvt_idempotency_uses_real_snapshot_and_downloader(downloader, monkeypat
 
     def remote(_host, _row, command):
         result = subprocess.run(
-            command,
-            shell=True,
+            shlex.split(command),
             env=environment,
             capture_output=True,
             text=True,
