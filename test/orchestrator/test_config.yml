@@ -278,3 +278,8 @@ report_name: orchestrator_test_report
 # Leave empty to auto-generate from timestamp.
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
 run_id: ""
+
+# Remove only tools downloaded in benchmark FVT workspaces, after all checks.
+# Applies on success and failure. Logs are saved under report_path/benchmarks.
+# False retains downloads and reports the workspace path for inspection.
+cleanup_benchmark_tools: true

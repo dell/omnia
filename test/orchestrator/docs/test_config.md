@@ -65,6 +65,16 @@ always passed to the cleanup playbook:
 | `cleanup_slurm` | Delete Slurm shared data, then detach storage. | Preserve data, then detach storage. |
 | `cleanup_k8s` | Delete Kubernetes shared data, then detach storage. | Preserve data, then detach storage. |
 
+## Benchmark FVT cleanup
+
+`cleanup_benchmark_tools` is a boolean, defaulting to `true`. It applies only
+to the `pxeboot/slurm_benchmarks` download cases (not full Slurm cleanup).
+After each case, including failures, downloader logs are copied to
+`<report_path>/benchmarks/` and the test-owned tools/workspace are removed.
+With `false`, downloads are retained and their path is included in the report.
+Pre-existing benchmark tools and the deployed scripts are preserved. If logs
+cannot be saved, the test fails and retains its workspace for diagnosis.
+
 ## NFT performance thresholds
 
 `nft_performance_threshold_seconds` is a required mapping when NFT executes.

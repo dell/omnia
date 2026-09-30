@@ -287,6 +287,7 @@ def validate_test_config() -> dict[str, Any]:
         "cleanup_credentials",
         "cleanup_slurm",
         "cleanup_k8s",
+        "cleanup_benchmark_tools",
     ):
         if field in config and not isinstance(config[field], bool):
             errors.append(f"'{field}' must be true or false")
