@@ -301,6 +301,7 @@ UT_TEST_CASE_IDS = {
             142: "test_restore_failure_preserves_recovery_artifacts",
             143: "test_stale_absence_marker_recovers_absent_baseline",
             144: "test_stale_backup_recovers_baseline_before_snapshot",
+            152: "test_selective_mutation_skips_layers_without_unique_groups",
         },
     ),
     **_module_cases(
@@ -316,6 +317,13 @@ UT_TEST_CASE_IDS = {
         "test_catalog_validation.py",
         {
             149: "test_all_catalogs_match_thrillhouse_runtime_version",
+            153: "test_all_bundled_catalogs_pass_schema_and_reference_checks",
+        },
+    ),
+    **_module_cases(
+        "test_driver_group_skip.py",
+        {
+            154: "test_all_bundled_catalogs_resolve_nonempty_build_inputs",
         },
     ),
     **_module_cases(

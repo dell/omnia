@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import base64
 from copy import deepcopy
+import hashlib
 import json
 import os
 import posixpath
@@ -49,6 +50,13 @@ class CatalogReuseContext:
             DOMAIN,
             "OMNIA_DATA_PATH",
             domain_data_path_var="IMAGE_BUILD_MANAGER_DATA_PATH",
+        )
+        recovery_key = hashlib.sha256(
+            f"{self.data_root}\0{self.project}".encode("utf-8")
+        ).hexdigest()[:16]
+        self.recovery_dir = (
+            "/var/tmp/omnia-test/image-build-manager/"
+            f"catalog-reuse/{recovery_key}"
         )
         self.catalog_path = read_remote_env(host, "CATALOG_FILE_PATH")
         self.config_path = (
@@ -184,13 +192,16 @@ class CatalogReuseContext:
         )
 
     # -- backup and restoration ------------------------------------------
-    @staticmethod
-    def _backup_path(path: str) -> str:
-        return f"{path}.catalog-reuse-backup"
+    def _recovery_path(self, path: str, suffix: str) -> str:
+        """Return isolated recovery metadata outside product input paths."""
+        path_key = hashlib.sha256(path.encode("utf-8")).hexdigest()
+        return f"{self.recovery_dir}/{path_key}.{suffix}"
 
-    @staticmethod
-    def _absence_marker_path(path: str) -> str:
-        return f"{path}.catalog-reuse-absent"
+    def _backup_path(self, path: str) -> str:
+        return self._recovery_path(path, "backup")
+
+    def _absence_marker_path(self, path: str) -> str:
+        return self._recovery_path(path, "absent")
 
     def _recover_runtime_state(self, path: str) -> None:
         """Recover one baseline file after an interrupted earlier suite."""
@@ -217,7 +228,10 @@ class CatalogReuseContext:
     def _create_backup(self, path: str) -> None:
         backup = self._backup_path(path)
         result = self.run_command(
-            f"cp -f -- {shlex.quote(path)} {shlex.quote(backup)}"
+            f"mkdir -p {shlex.quote(self.recovery_dir)} && "
+            f"chmod 0700 {shlex.quote(self.recovery_dir)} && "
+            f"cp -f -- {shlex.quote(path)} {shlex.quote(backup)} && "
+            f"chmod 0600 {shlex.quote(backup)}"
         )
         if result.rc != 0:
             raise RuntimeError(f"Unable to create runtime backup: {path}")
@@ -228,7 +242,8 @@ class CatalogReuseContext:
         parent = shlex.quote(posixpath.dirname(marker))
         quoted_marker = shlex.quote(marker)
         result = self.run_command(
-            f"mkdir -p {parent} && : > {quoted_marker} && "
+            f"mkdir -p {parent} && chmod 0700 {parent} && "
+            f": > {quoted_marker} && "
             f"chmod 0600 {quoted_marker}"
         )
         if result.rc != 0:
@@ -313,6 +328,14 @@ class CatalogReuseContext:
                     self.remove(artifact)
                 except RuntimeError as exc:
                     errors.append(str(exc))
+        if not errors and self.exists(self.recovery_dir):
+            result = self.run_command(
+                f"rmdir -- {shlex.quote(self.recovery_dir)}"
+            )
+            if result.rc != 0 and self.exists(self.recovery_dir):
+                errors.append(
+                    f"Unable to remove recovery directory: {self.recovery_dir}"
+                )
         if errors:
             raise RuntimeError("; ".join(errors))
 
@@ -459,36 +482,59 @@ class CatalogReuseContext:
             )
 
     def mutate_one_functional_group(self) -> tuple[dict[str, Any], str]:
-        """Add one valid RPM alias to a group unique to the first layer."""
+        """Add one valid RPM alias to a group used by exactly one layer."""
         document = self.catalog
         root = document["catalog"]
         layers = [
             layer for layer in root["functionallayer"]
             if str(layer.get("name", "")).endswith("_x86_64")
         ]
-        target_layer = layers[0]
         component_counts: dict[str, int] = {}
         for layer in layers:
             for component in layer.get("components", []):
                 component_counts[component] = component_counts.get(component, 0) + 1
-        group_name = next(
-            component for component in target_layer.get("components", [])
-            if component_counts.get(component) == 1
-            and isinstance(root.get("groups", {}).get(component), dict)
-            and isinstance(root["groups"][component].get("components"), list)
-        )
+
+        target_layer = None
+        group_name = ""
+        for layer in layers:
+            for component in layer.get("components", []):
+                group = root.get("groups", {}).get(component)
+                if (
+                    component_counts.get(component) == 1
+                    and isinstance(group, dict)
+                    and isinstance(group.get("components"), list)
+                ):
+                    target_layer = layer
+                    group_name = component
+                    break
+            if target_layer is not None:
+                break
+
+        if target_layer is None:
+            raise RuntimeError(
+                "Catalog has no x86_64 layer with a uniquely mutable group"
+            )
+
         existing = set(root["groups"][group_name]["components"])
         package_alias = next(
-            alias for alias, package in root.get("packages", {}).items()
-            if alias not in existing
-            and isinstance(package, dict)
-            and package.get("packagetype") == "rpm"
-            and any(
-                source.get("architecture") == "x86_64"
-                for source in package.get("sources", [])
-                if isinstance(source, dict)
-            )
+            (
+                alias
+                for alias, package in root.get("packages", {}).items()
+                if alias not in existing
+                and isinstance(package, dict)
+                and package.get("packagetype") == "rpm"
+                and any(
+                    source.get("architecture") == "x86_64"
+                    for source in package.get("sources", [])
+                    if isinstance(source, dict)
+                )
+            ),
+            "",
         )
+        if not package_alias:
+            raise RuntimeError(
+                "Catalog has no additional x86_64 RPM for selective mutation"
+            )
         root["groups"][group_name]["components"].append(package_alias)
         return document, target_layer["name"]
 

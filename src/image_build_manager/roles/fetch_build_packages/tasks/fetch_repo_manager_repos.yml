@@ -69,10 +69,7 @@
 
     - name: Fail when repo_status has no repos for a required OS version
       ansible.builtin.fail:
-        msg: >-
-          repo_status.yml has no repositories for {{ build_arch }}
-          RHEL {{ item }}.  Available versions in repo_status:
-          {{ rhel_arch_repos_by_version | default({}) | list | join(', ') }}.
+        msg: "{{ repo_status_version_missing_fail_msg }}"
       when: (item | string) not in (rhel_arch_repos_by_version | default({}))
       loop: "{{ _required_os_versions }}"
 
@@ -114,9 +111,7 @@
 
     - name: Fail when Pulp has no matching fallback distributions
       ansible.builtin.fail:
-        msg: >-
-          Pulp has no RPM distributions for {{ build_arch }}
-          RHEL {{ item }}.
+        msg: "{{ pulp_distributions_missing_fail_msg }}"
       when: (rhel_arch_repos_by_version[item | string] | default([]) | length) == 0
       loop: "{{ _required_os_versions }}"
 

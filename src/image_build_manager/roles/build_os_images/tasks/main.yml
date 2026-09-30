@@ -230,9 +230,7 @@
       - (_s3_artifacts.get(item.key, {}).get('kernel', '') | length) > 0
       - (_s3_artifacts.get(item.key, {}).get('initrd', '') | length) > 0
       - (_s3_artifacts.get(item.key, {}).get('rootfs', '') | length) > 0
-    fail_msg: >-
-      Failed to resolve exact kernel, initrd, and rootfs S3 object keys for
-      functional group {{ item.key }} using {{ _image_build_type }}.
+    fail_msg: "{{ s3_artifact_resolution_fail_msg }}"
     quiet: true
   loop: "{{ compute_images_dict | dict2items }}"
   loop_control:

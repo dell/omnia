@@ -4,6 +4,18 @@ Validates build-specific configuration immediately before an architecture
 build. Despite the historical role name, it does not check installed Python,
 Podman, or Ansible versions.
 
+## Structure
+
+- `tasks/main.yml` validates storage, architecture, and repository status.
+- `tasks/powerscale_check.yml` validates an external PowerScale endpoint.
+- `tasks/validate_aarch64_host.yml` validates and registers the ARM build host.
+
+## Requirements
+
+- Configuration facts loaded by `image_build_setup`.
+- Network access to an external PowerScale endpoint when that provider is selected.
+- ICMP reachability to the aarch64 build host when ARM builds are enabled.
+
 ## Checks
 
 - `s3_configurations.provider` exists and is `minio` or `powerscale`.
@@ -25,15 +37,18 @@ remain in `boot-images`.
 
 See `vars/main.yml` for fixed bucket names and validation messages.
 
-## Orchestration Prerequisite
+## Dependencies
 
 No dependency is declared in `meta/main.yml`; callers must first run
 `image_build_setup` so configuration and upstream status facts exist.
 
-## Example
+## Example Playbook
 
 ```yaml
-- hosts: localhost
+- name: Validate Image Build Manager runtime inputs
+  hosts: localhost
+  connection: local
+  gather_facts: false
   roles:
-    - validate_build_runtime
+    - role: validate_build_runtime
 ```

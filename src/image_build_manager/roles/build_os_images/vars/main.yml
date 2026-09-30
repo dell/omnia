@@ -176,3 +176,34 @@ s3_backup_success_msg: "Backed up {{ _backup_count }} compute image groups (root
 s3_backup_failure_msg: >-
   S3 backup failed for some groups. Check s3cmd configuration and S3 bucket accessibility.
   Builds will continue but rollback may not be possible.
+
+# Artifact validation messages
+s3_configurations_missing_fail_msg: >-
+  s3_configurations is not defined. Ensure image_build_config.yml is loaded before this role.
+podman_verify_error_fail_msg: >-
+  {{ podman_verify_fail_msg }} Error: {{ _podman_verify.stderr | default('unknown') }}
+base_registry_missing_fail_msg: >-
+  Failed to build base osimage {{ host_name }}/{{ rhel_arch_base_image_name }}.
+  Check log: {{ image_build_log_dir }}/{{ build_arch }}_base_image_*{{ _build_type_suffix }}.log
+base_registry_tag_missing_fail_msg: >-
+  Base image {{ host_name }}/{{ rhel_arch_base_image_name }} is missing
+  tag '{{ item }}' in registry. Expected tags for versions:
+  {{ _base_image_versions | join(', ') }}.
+  Available tags: {{ _base_tag_check.stdout_lines | default([]) | join(', ') }}.
+  Check logs: {{ image_build_log_dir }}/{{ build_arch }}_base_image_*{{ _build_type_suffix }}.log
+compute_registry_missing_fail_msg: >-
+  Compute image not found in registry for group {{ item.key }}.
+  Expected prefix: {{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}.
+  Registry repos: {{ verify_compute_osimages.stdout_lines | default([]) }}.
+  Check logs: ls {{ image_build_log_dir }}/{{ item.key }}*_compute_image.log
+compute_registry_tags_missing_fail_msg: >-
+  Compute image {{ host_name }}/rhel-{{ item.item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}
+  exists in registry but has no tags.
+  Check logs: ls {{ image_build_log_dir }}/{{ item.item.key }}*_compute_image.log
+compute_s3_missing_fail_msg: >-
+  Compute image for group {{ item.item.key }} not found in
+  s3://{{ s3_configurations.bucket | default('boot-images') }}/{{ item.item.key }}/.
+  Check logs: ls {{ image_build_log_dir }}/{{ item.item.key }}*_compute_image.log
+s3_artifact_resolution_fail_msg: >-
+  Failed to resolve exact kernel, initrd, and rootfs S3 object keys for
+  functional group {{ item.key }} using {{ _image_build_type }}.

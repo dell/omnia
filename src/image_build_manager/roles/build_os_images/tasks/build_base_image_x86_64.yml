@@ -202,9 +202,7 @@
 
 - name: Fail if x86_64 base osimage not created
   ansible.builtin.fail:
-    msg: >-
-      Failed to build base osimage {{ host_name }}/{{ rhel_arch_base_image_name }}.
-      Check log: {{ image_build_log_dir }}/{{ build_arch }}_base_image_*{{ _build_type_suffix }}.log
+    msg: "{{ base_registry_missing_fail_msg }}"
   when: (host_name + '/' + rhel_arch_base_image_name) not in verify_base_osimage.stdout_lines
 
 - name: Verify x86_64 base image has tags for each OS version
@@ -218,12 +216,7 @@
 
 - name: Fail if x86_64 base image is missing a required version tag
   ansible.builtin.fail:
-    msg: >-
-      Base image {{ host_name }}/{{ rhel_arch_base_image_name }} is missing
-      tag '{{ item }}' in registry. Expected tags for versions:
-      {{ _base_image_versions | join(', ') }}.
-      Available tags: {{ _base_tag_check.stdout_lines | default([]) | join(', ') }}.
-      Check logs: {{ image_build_log_dir }}/{{ build_arch }}_base_image_*{{ _build_type_suffix }}.log
+    msg: "{{ base_registry_tag_missing_fail_msg }}"
   when: item not in (_base_tag_check.stdout_lines | default([]))
   loop: "{{ _base_image_versions }}"
 

@@ -7,7 +7,7 @@ Manager.
 ## Test identification
 
 Each unit-test method has a stable ID in the range `IMGBM_UT_001` through
-`IMGBM_UT_151`. The centralized mapping is maintained in
+`IMGBM_UT_154`. The centralized mapping is maintained in
 `library/vars/ut_test_case_vars.py`; pytest method names remain descriptive
 and unchanged.
 
@@ -28,6 +28,9 @@ and unchanged.
 | `IMGBM_UT_145`–`148` | `test_runner_lifecycle_safety.py` | Non-destructive defaults, cleanup opt-in, and E2E suite ownership |
 | `IMGBM_UT_149` | `test_catalog_validation.py` | Image Thrillhouse v0.0.26 alignment across x86_64/AArch64 runtime pins and every bundled catalog |
 | `IMGBM_UT_150`–`151` | `test_registry_version_contract.py` | Registry 3.1.2 pin alignment across deploy/cleanup and active-service reconciliation |
+| `IMGBM_UT_152` | `test_catalog_reuse_state.py` | Selective catalog mutation skips layers without a uniquely mutable package group |
+| `IMGBM_UT_153` | `test_catalog_validation.py` | Schema and referential-integrity validation for every bundled catalog |
+| `IMGBM_UT_154` | `test_driver_group_skip.py` | Non-empty build-input resolution for every bundled catalog/architecture pair |
 
 The runner resolves each ID from the test file, class, and method portion of
 the pytest node ID and displays it in the summary and generated reports.

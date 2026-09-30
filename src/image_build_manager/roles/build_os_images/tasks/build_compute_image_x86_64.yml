@@ -32,11 +32,7 @@
         compute_image_suffix: "{{ _image_tag_suffix | default('', true) }}"
       when: (_image_tag_suffix | default('', true) | length) > 0
 
-    # --- Pre-build setup ---
-    # 1. Ensure workdir + log directories exist
-    # 2. Create per-group log files (touched so orchestrator can append)
-    # 3. Render per-group config YAMLs from Jinja2 templates
-    #    (each gets its own releasever from os_version for multi-version builds)
+    # Prepare directories, logs, and per-group multi-version configurations.
     - name: Ensure workdir images directory exists
       ansible.builtin.file:
         path: "{{ openchami_work_dir }}/images"
@@ -295,101 +291,8 @@
         msg: "Build summary: {{ orchestrator_result.summary }}"
       when: orchestrator_result is defined and orchestrator_result.summary is defined
 
-    # --- Save compute image package hashes for cache ---
     - name: Save compute image package hashes
-      ansible.builtin.copy:
-        content: "{{ _compute_pkg_hashes[item.key] }}"
-        dest: "{{ image_build_log_dir }}/.compute_pkg_hash_{{ item.key }}"
-        mode: "{{ dir_permissions_644 }}"
-      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
-      loop_control:
-        loop_var: item
-        label: "{{ item.key }}"
-      when:
-        - _pkg_source == 'config'
-        - orchestrator_result is defined
-        - (orchestrator_result.summary.failed | default(0) | int) == 0
+      ansible.builtin.include_tasks: save_compute_image_hashes.yml
 
-    # --- Registry verification ---
-    - name: List x86_64 compute osimages in registry
-      ansible.builtin.command:
-        cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ registry_host }}:5000"
-      changed_when: false
-      register: verify_compute_osimages
-
-    - name: Display verified x86_64 compute images
-      ansible.builtin.debug:
-        msg: "{{ verify_compute_osimages.stdout_lines }}"
-
-    # Registry verification uses prefix matching to handle catalog ID changes.
-    # When a build is cached (packages unchanged), old images remain in the
-    # registry with the previous catalog suffix. Exact-name matching would
-    # fail because compute_image_suffix reflects the *current* catalog ID.
-    # Prefix match: host_name/rhel-{group_key}_omnia_{version}  covers any suffix.
-    - name: Verify each x86_64 compute image exists in registry
-      ansible.builtin.fail:
-        msg: >-
-          Compute image not found in registry for group {{ item.key }}.
-          Expected prefix: {{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}.
-          Registry repos: {{ verify_compute_osimages.stdout_lines | default([]) }}.
-          Check logs: ls {{ image_build_log_dir }}/{{ item.key }}*_compute_image.log
-      when: >-
-        verify_compute_osimages.stdout_lines | default([])
-        | select('match', '^' + host_name + '/rhel-' + item.key + omnia_suffix + '.*' + _build_type_suffix + '$')
-        | list | length == 0
-      loop: "{{ compute_images_dict | dict2items }}"
-      loop_control:
-        loop_var: item
-        label: "{{ item.key }}"
-
-    - name: Verify x86_64 compute images have tags in registry
-      ansible.builtin.shell: |
-        /usr/local/bin/regctl tag ls \
-          {{ registry_host }}:5000/{{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }} \
-          2>/dev/null
-      changed_when: false
-      failed_when: false
-      register: _compute_tag_check
-      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
-      loop_control:
-        loop_var: item
-        label: "{{ item.key }}"
-
-    - name: Fail if x86_64 compute image has no tags
-      ansible.builtin.fail:
-        msg: >-
-          Compute image {{ host_name }}/rhel-{{ item.item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }}
-          exists in registry but has no tags.
-          Check logs: ls {{ image_build_log_dir }}/{{ item.item.key }}*_compute_image.log
-      when: item.stdout_lines | default([]) | length == 0
-      loop: "{{ _compute_tag_check.results | default([]) }}"
-      loop_control:
-        label: "{{ item.item.key }}"
-
-    # --- S3 verification ---
-    - name: Verify x86_64 compute images exist in S3
-      ansible.builtin.shell: |
-        set -o pipefail
-        s3cmd ls -r \
-          s3://{{ s3_configurations.bucket | default('boot-images') }}/{{ item.key }}/ \
-          2>/dev/null | grep -c 'rhel-{{ item.key }}' || echo 0
-      args:
-        executable: /bin/bash
-      changed_when: false
-      failed_when: false
-      register: _compute_s3_check
-      loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
-      loop_control:
-        loop_var: item
-        label: "{{ item.key }}"
-
-    - name: Fail if x86_64 compute image not in S3
-      ansible.builtin.fail:
-        msg: >-
-          Compute image for group {{ item.item.key }} not found in
-          s3://{{ s3_configurations.bucket | default('boot-images') }}/{{ item.item.key }}/.
-          Check logs: ls {{ image_build_log_dir }}/{{ item.item.key }}*_compute_image.log
-      when: (item.stdout | default('0') | trim | int) == 0
-      loop: "{{ _compute_s3_check.results | default([]) }}"
-      loop_control:
-        label: "{{ item.item.key }}"
+    - name: Verify x86_64 compute image artifacts
+      ansible.builtin.include_tasks: verify_compute_image_x86_64.yml

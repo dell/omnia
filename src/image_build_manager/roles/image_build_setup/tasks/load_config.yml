@@ -58,10 +58,7 @@
 
 - name: Fail if OMNIA_VERSION is not set
   ansible.builtin.fail:
-    msg: >-
-      OMNIA_VERSION is not set. Export it before running:
-        export OMNIA_VERSION=2.2.0.0
-      This version string is embedded in image names (e.g., rhel-<group>_omnia_2.2.0.0).
+    msg: "{{ omnia_version_missing_fail_msg }}"
   when:
     - not (image_build_cleanup_context | bool)
     - omnia_version | length == 0
@@ -166,6 +163,6 @@
 
     - name: Fail if any required directory is missing
       ansible.builtin.fail:
-        msg: "Required directory does not exist: {{ item.item }}"
+        msg: "{{ required_directory_missing_fail_msg }}"
       when: not item.stat.exists
       loop: "{{ _dir_checks.results }}"
