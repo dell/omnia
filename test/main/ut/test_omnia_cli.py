@@ -732,11 +732,51 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("utils:slurm_config_cleanup", result.stdout)
         self.assertIn("utils:slurm_config_rollback", result.stdout)
 
+    def test_omnia_sh_completion_matches_nested_catalog_tree(self):
+        completion_script = f'''
+source "{OMNIA_COMPLETION}"
+COMP_WORDS=("{OMNIA_SH}" --select-catalog '')
+COMP_CWORD=2
+_omnia_sh_completions
+printf '%s\n' "${{COMPREPLY[@]}}"
+'''
+        result = subprocess.run(
+            ["bash", "-c", completion_script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        expected = ["default"]
+        catalogs_dir = REPO_ROOT / "src/main/samples/catalogs"
+        expected.extend(
+            str(path.relative_to(catalogs_dir))
+            for path in sorted(catalogs_dir.rglob("*.json"))
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), expected)
+
+        fallback_script = f'''
+source "{OMNIA_COMPLETION}"
+COMP_WORDS=(/nonexistent/omnia.sh)
+_omnia_catalog_choices
+'''
+        fallback = subprocess.run(
+            ["bash", "-c", fallback_script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(fallback.returncode, 0, fallback.stderr)
+        self.assertEqual(fallback.stdout.split(), expected)
+
     def test_catalog_selection_copies_variant_and_setup_preserves_it(self):
         catalog_target = self.data_path / "catalog" / "catalog_rhel.json"
         selected_source = (
             REPO_ROOT
-            / "src/main/samples/catalogs/10.0/slurm_x86_64_no_vast.json"
+            / "src/main/samples/catalogs/rhel/10.0/slurm_x86_64_no_vast.json"
         )
         env = os.environ.copy()
         env.update(
@@ -747,7 +787,7 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         )
         script = (
             f'source "{OMNIA_SH}"; '
-            "select_catalog 10.0/slurm_x86_64_no_vast.json; copy_catalog"
+            "select_catalog rhel/10.0/slurm_x86_64_no_vast.json; copy_catalog"
         )
 
         result = subprocess.run(
@@ -779,7 +819,7 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         catalog_target = self.data_path / "catalog" / "catalog_rhel.json"
         selected_source = (
             REPO_ROOT
-            / "src/main/samples/catalogs/10.2/service_k8s_x86_64.json"
+            / "src/main/samples/catalogs/rhel/10.2/service_k8s_x86_64.json"
         )
         env = os.environ.copy()
         env.update(
@@ -801,7 +841,7 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
                 script,
                 "omnia.sh",
                 "--select-catalog",
-                "10.2/service_k8s_x86_64.json",
+                "rhel/10.2/service_k8s_x86_64.json",
             ],
             check=False,
             capture_output=True,
@@ -812,7 +852,10 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(catalog_target.read_bytes(), selected_source.read_bytes())
         output = ANSI_ESCAPE.sub("", result.stdout)
-        self.assertIn("Selected catalog: 10.2/service_k8s_x86_64.json", output)
+        self.assertIn(
+            "Selected catalog: rhel/10.2/service_k8s_x86_64.json",
+            output,
+        )
         self.assertIn("Workloads: service Kubernetes", output)
 
     def test_catalog_list_describes_and_analyzes_each_variant(self):
@@ -844,7 +887,11 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("Workloads: Slurm + service Kubernetes", result.stdout)
         self.assertIn("Architectures: x86_64 + aarch64", result.stdout)
         self.assertIn("VAST client: not included", result.stdout)
-        self.assertIn("10.2/slurm_x86_64.json", result.stdout)
+        self.assertIn("rhel/10.2/slurm_x86_64.json", result.stdout)
+        self.assertIn(
+            "hybrid/slurm_hybrid_10_2_10_0_x86_64.json",
+            result.stdout,
+        )
         self.assertIn("VAST client: included", result.stdout)
 
     def test_catalog_replacement_requires_confirmation_and_keeps_backup(self):
@@ -861,17 +908,20 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         )
         script = (
             f'source "{OMNIA_SH}"; '
-            "select_catalog 10.0/slurm_x86_64_no_vast.json"
+            "select_catalog rhel/10.0/slurm_x86_64_no_vast.json"
         )
 
-        result = subprocess.run(
-            ["bash", "-c", script],
-            input="yes\n",
-            check=False,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as confirmation:
+            confirmation.write("yes\n")
+            confirmation.seek(0)
+            result = subprocess.run(
+                ["bash", "-c", script],
+                stdin=confirmation,
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
 
         backups = list(catalog_target.parent.glob("catalog_rhel.json.backup.*"))
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -29,8 +29,8 @@ OS version rows are not a catalog-wide constraint or evidence for another family
 
 Distinguish mixed stack, mixed architecture, and multiple OS family/version pairs.
 Read concrete definitions recursively under this checkout's
-`src/main/samples/catalogs/`; account for legacy `<version>/`, newer
-`<family>/<version>/`, and `hybrid/` layouts. An explicitly operator-designated
+`src/main/samples/catalogs/`; account for the shipped `rhel/<version>/` and
+`hybrid/` layouts. An explicitly operator-designated
 catalog root/worktree may provide reference data, but record its revision/path
 and distinguish it from the active checkout. It does not change the active schema/runtime or
 authorize loading skills from another directory.

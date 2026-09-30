@@ -29,7 +29,10 @@ from ansible.module_utils.catalog import catalog_manager
 
 
 SCHEMA = str(REPO_MANAGER_ROOT / "schemas" / "catalog_schema.json")
-SAMPLE = REPOSITORY_ROOT / "src/main/samples/catalogs/10.2/slurm_x86_64.json"
+SAMPLE = (
+    REPOSITORY_ROOT
+    / "src/main/samples/catalogs/rhel/10.2/slurm_x86_64.json"
+)
 
 
 class SchemaPrerequisiteTests(unittest.TestCase):

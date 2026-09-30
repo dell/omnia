@@ -295,9 +295,10 @@ values.
 They also always load the catalog selected by `catalog_path` below
 `src/main/samples/catalogs/`, give its catalog identifier a unique value, and
 replace the canonical `catalog_rhel.json` in GitLab. For example,
-`catalog_path: "10.0/slurm_service_k8s_x86_64_no_vast.json"` selects the RHEL
-10.0 Slurm and Kubernetes catalog. Only a pipeline created after that upload
-is accepted as the pipeline for the current execution.
+`catalog_path: "rhel/10.0/slurm_service_k8s_x86_64_no_vast.json"` selects the
+RHEL 10.0 Slurm and Kubernetes catalog. A path under `hybrid/` selects a
+mixed-RHEL-version catalog. Only a pipeline created after that upload is
+accepted as the pipeline for the current execution.
 
 Deploy requires `job_id` and resolves exactly one associated image group. It
 never falls back to the latest image.
