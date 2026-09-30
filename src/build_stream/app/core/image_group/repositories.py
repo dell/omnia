@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=W2301
+# W2301: Unnecessary ellipsis constant - ABC methods use ... as body (pattern)
+
 """Repository port interfaces for ImageGroup domain.
 
 These define the contracts that infrastructure implementations must satisfy.
