@@ -898,3 +898,151 @@ def verify_logs_deleted(host) -> Dict[str, Any]:
         result["details"] = f"Error checking log directory: {str(e)}"
 
     return result
+
+
+# =============================================================================
+# SINK DEPENDENCY CHECK VERIFICATION
+# =============================================================================
+
+def verify_sink_running(host, sink_name, namespace=None) -> Dict[str, Any]:
+    """Verify a specific sink has running pods (is deployed and active).
+
+    Used to confirm a sink is still present after a blocked cleanup
+    or to verify it was cleaned after an allowed cleanup.
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        sink_name: 'kafka', 'victoria_metrics', or 'victoria_logs'.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), running (bool),
+                        pod_count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    prefix_map = {
+        "kafka": [
+            KAFKA_POD_PREFIXES["broker"],
+            KAFKA_POD_PREFIXES["controller"],
+        ],
+        "victoria_metrics": [
+            VM_POD_PREFIXES["vmstorage"],
+            VM_POD_PREFIXES["vminsert"],
+            VM_POD_PREFIXES["vmselect"],
+        ],
+        "victoria_logs": [
+            VL_POD_PREFIXES["vlstorage"],
+            VL_POD_PREFIXES["vlinsert"],
+            VL_POD_PREFIXES["vlselect"],
+        ],
+    }
+
+    prefixes = prefix_map.get(sink_name, [])
+    total_count = 0
+    for prefix in prefixes:
+        total_count += _get_pod_count_by_prefix(host, prefix, ns)
+
+    running = total_count > 0
+    return {
+        "success": True,
+        "details": (
+            f"{sink_name}: {total_count} pod(s) running"
+            if running
+            else f"{sink_name}: no pods running"
+        ),
+        "running": running,
+        "pod_count": total_count,
+    }
+
+
+def verify_source_running(host, source_label, namespace=None) -> Dict[str, Any]:
+    """Verify a specific source has running pods.
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        source_label: K8s pod label (e.g. 'app=idrac-telemetry').
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), running (bool), pod_count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    cmd = (
+        f"kubectl get pods -n {ns} -l {source_label} "
+        f"--no-headers --ignore-not-found -o name"
+    )
+    result = run_on_kube_vip(host, cmd)
+    if result.rc != 0:
+        return {"success": False, "running": False, "pod_count": 0}
+
+    lines = [
+        line.strip()
+        for line in result.stdout.strip().split("\n")
+        if line.strip()
+    ]
+    pod_count = len(lines)
+    return {
+        "success": True,
+        "running": pod_count > 0,
+        "pod_count": pod_count,
+    }
+
+
+def verify_sink_pvcs_exist(host, sink_name, namespace=None) -> Dict[str, Any]:
+    """Verify PVCs for a specific sink exist (are preserved).
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        sink_name: 'kafka', 'victoria_metrics', or 'victoria_logs'.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), pvc_count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    pvc_prefix_map = {
+        "kafka": ["kafka"],
+        "victoria_metrics": ["vmstorage", "victoria-metrics"],
+        "victoria_logs": ["vlstorage", "vlagent"],
+    }
+
+    prefixes = pvc_prefix_map.get(sink_name, [])
+    total = 0
+    for prefix in prefixes:
+        cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
+        r = run_on_kube_vip(host, cmd)
+        if r.rc == 0:
+            try:
+                total += int(r.stdout.strip())
+            except (ValueError, AttributeError):
+                pass
+
+    return {
+        "success": total > 0,
+        "details": f"{sink_name}: {total} PVC(s) found",
+        "pvc_count": total,
+    }
+
+
+def verify_sink_pvcs_gone(host, sink_name, namespace=None) -> Dict[str, Any]:
+    """Verify PVCs for a specific sink have been deleted.
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        sink_name: 'kafka', 'victoria_metrics', or 'victoria_logs'.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), pvc_count (int).
+    """
+    result = verify_sink_pvcs_exist(host, sink_name, namespace)
+    gone = result["pvc_count"] == 0
+    return {
+        "success": gone,
+        "details": (
+            f"{sink_name}: all PVCs deleted"
+            if gone
+            else f"{sink_name}: {result['pvc_count']} PVC(s) still present"
+        ),
+        "pvc_count": result["pvc_count"],
+    }

@@ -37,7 +37,8 @@
 #   rollback    — Rollback telemetry components (placeholder)
 #
 # Granular cleanup tags (opt-in — requires explicit --tags):
-#   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs,
+#   cleanup_sinks  — Selective sink cleanup with dependency checking
+#                    (-e sinks=kafka,victoria_metrics,victoria_logs)
 #   cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
 #   cleanup_ufm, cleanup_vast
 #
@@ -128,22 +129,22 @@
 # Each source has its own tag (cleanup_idrac, cleanup_ldms, cleanup_ome, etc.).
 # --tags cleanup runs ALL cleanups (sources + sinks).
 # Individual source tags (cleanup_powerscale, etc.) clean only that source.
-# Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared infrastructure
-# and are ONLY cleaned with --tags cleanup (full cleanup).
+# --tags cleanup_sinks selectively cleans sinks with dependency checking.
+# Accepts -e sinks=kafka,victoria_metrics or short-form -e kafka -e victoria_logs.
+# Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared infrastructure;
+# cleanup_sinks checks for running dependent sources before removing them.
 - name: "Cleanup | Remove telemetry components"
   ansible.builtin.import_playbook: cleanup/cleanup.yml
   tags:
     - never
     - cleanup
+    - cleanup_sinks
     - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
     - cleanup_ufm
     - cleanup_vast
-    - cleanup_kafka
-    - cleanup_victoria_metrics
-    - cleanup_victoria_logs
 
 
 # =========================================================================
