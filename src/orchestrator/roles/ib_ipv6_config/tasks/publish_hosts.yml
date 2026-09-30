@@ -36,6 +36,75 @@
     create: false
   when: _ib_ipv6_hosts_content | length > 0
 
+- name: Build list of compute node hostnames for IPoIB hosts distribution
+  ansible.builtin.set_fact:
+    _ib_ipv6_compute_hosts: >-
+      {{ _ib_ipv6_validation.normalized_nodes | dict2items
+         | map(attribute='value') | map('dict2items')
+         | flatten | map(attribute='value') | flatten
+         | selectattr('hostname', 'defined')
+         | map(attribute='hostname') | unique | list }}
+
+- name: Copy IPoIB hosts block file to compute nodes
+  ansible.builtin.shell: >
+    scp -o StrictHostKeyChecking=no -o ConnectTimeout=10
+    "{{ _ib_ipv6_render.hosts_block_file }}"
+    "{{ item }}:/tmp/_ib_ipv6_hosts_block.txt"
+  loop: "{{ _ib_ipv6_compute_hosts }}"
+  changed_when: true
+  failed_when: false
+  when:
+    - _ib_ipv6_hosts_content | length > 0
+    - _ib_ipv6_compute_hosts | default([]) | length > 0
+
+- name: Merge IPoIB hosts block into /etc/hosts on compute nodes
+  ansible.builtin.shell: |
+    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "{{ item }}" bash -s <<'REMOTE_SCRIPT'
+    python3 <<'PY_SCRIPT'
+    import re, os
+    marker_begin = "# BEGIN Omnia IPoIB managed block"
+    marker_end = "# END Omnia IPoIB managed block"
+    block_file = "/tmp/_ib_ipv6_hosts_block.txt"
+    with open(block_file) as f:
+        raw = f.read().strip()
+    lines = raw.split("\n")
+    block = "\n".join(l for l in lines if not l.startswith("# BEGIN") and not l.startswith("# END"))
+    with open("/etc/hosts") as f:
+        hosts = f.read()
+    if marker_begin in hosts:
+        hosts = re.sub(
+            re.escape(marker_begin) + ".*?" + re.escape(marker_end),
+            marker_begin + "\n" + block + "\n" + marker_end,
+            hosts, flags=re.DOTALL)
+    else:
+        hosts = hosts.rstrip("\n") + "\n" + marker_begin + "\n" + block + "\n" + marker_end + "\n"
+    with open("/etc/hosts", "w") as f:
+        f.write(hosts)
+    os.remove(block_file)
+    import socket
+    print("Updated /etc/hosts on " + socket.gethostname())
+    PY_SCRIPT
+    REMOTE_SCRIPT
+  loop: "{{ _ib_ipv6_compute_hosts }}"
+  register: _ib_ipv6_hosts_distribute
+  changed_when: true
+  failed_when: false
+  when:
+    - _ib_ipv6_hosts_content | length > 0
+    - _ib_ipv6_compute_hosts | default([]) | length > 0
+
+- name: Report hosts distribution failures
+  ansible.builtin.debug:
+    msg: "[IB-IPv6] WARNING: Failed to update /etc/hosts on {{ item.item }}: {{ item.stderr | default('unknown error') }}"
+  loop: "{{ _ib_ipv6_hosts_distribute.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item | default('unknown') }}"
+  when:
+    - item.rc is defined
+    - item.rc != 0
+
 - name: Display hosts publication status
   ansible.builtin.debug:
-    msg: "[IB-IPv6] Managed hosts block updated in /etc/hosts"
+    msg: >-
+      [IB-IPv6] Managed hosts block updated in /etc/hosts on OIM
+      and {{ _ib_ipv6_compute_hosts | default([]) | length }} compute node(s)

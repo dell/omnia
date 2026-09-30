@@ -45,6 +45,7 @@ supported_tags:
   - cleanup_credentials
   - upgrade
   - rollback
+  - ib_ipv6
 
 skip_credential_tags:
   - precheck

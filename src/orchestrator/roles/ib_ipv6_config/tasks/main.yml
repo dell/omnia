@@ -44,6 +44,7 @@
     allocation_file: "{{ ib_ipv6_allocation_file }}"
     approved_prefixes: "{{ ib_ipv6_approved_prefixes }}"
     log_dir: "{{ ib_ipv6_log_dir }}"
+    schema_file: "{{ hostvars['localhost']['_domain_root_dir'] }}/plugins/module_utils/orchestrator_validation/schema/ib_ipv6_allocation.json"
   register: _ib_ipv6_validation
   delegate_to: localhost
 
@@ -146,5 +147,5 @@
 - name: Record IPoIB IPv6 configuration complete
   ansible.builtin.set_fact:
     _ib_ipv6_configured: true
-    _ib_ipv6_mode: "{{ _ib_ipv6_validation.ib_mode }}"
+    _ib_addr_mode: "{{ _ib_ipv6_validation.ib_mode }}"
     _ib_ipv6_config_hashes: "{{ _ib_ipv6_render.config_hashes }}"

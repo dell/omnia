@@ -186,6 +186,12 @@
       - "Total node_params entries: {{ node_params | length }}"
       - "node_params: {{ node_params }}"
 
+- name: Inject IB NodeAddr into node_params (if IPoIB allocation exists)
+  ansible.builtin.include_tasks: inject_ib_nodeaddr.yml
+  when:
+    - node_params | length > 0
+    - "'slurm' in conf_files"
+
 - name: Build slurm.conf
   ansible.builtin.include_tasks: build_slurm_conf.yml
   when: "'slurm' in conf_files"
