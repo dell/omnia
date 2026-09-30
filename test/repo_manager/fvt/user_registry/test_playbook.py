@@ -18,15 +18,12 @@ import pytest
 
 from library.functions import TestLogger, run_playbook
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import _get_input_path
 
 
 @pytest.mark.deploy
 @pytest.mark.order(1)
 def test_deploy_user_registry(host):
     """Deploy repo_manager --tags user_registry."""
-    from library.functions import run_playbook
-
     tc = TC["deploy_user_registry"]
     tl = TestLogger(tc["title"], tc["id"])
     result = run_playbook(
