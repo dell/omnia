@@ -195,11 +195,11 @@
 - name: Display scale up status
   ansible.builtin.debug:
     msg: "Scaled up PowerScale metrics components from 0 replicas"
-    when:
-      - powerscale_enabled | bool
-      - (karavi_replicas_check.rc == 0 and karavi_replicas_check.stdout == "0")
-        or (otel_replicas_check.rc == 0 and otel_replicas_check.stdout == "0")
-        or (csi_replicas_check.rc == 0 and csi_replicas_check.stdout == "0")
+  when:
+    - powerscale_enabled | bool
+    - (karavi_replicas_check.rc == 0 and karavi_replicas_check.stdout == "0")
+      or (otel_replicas_check.rc == 0 and otel_replicas_check.stdout == "0")
+      or (csi_replicas_check.rc == 0 and csi_replicas_check.stdout == "0")
 
 # --- Deploy karavi-observability Helm chart ---
 # Only deploy when metrics are enabled and deployments don't exist
