@@ -93,6 +93,11 @@ def _resolve_mount_params(
     }
 
 
+# NFS options silently dropped by modern kernels (RHEL 10+ / kernel 6.x+).
+# These must not cause a comparison failure.
+_DEPRECATED_NFS_OPTIONS = {"intr", "nointr"}
+
+
 def _target_rows(
     context: dict[str, Any],
     mount_item: dict[str, Any],
@@ -247,7 +252,10 @@ def check_mount_config_mount_options(host):
                 if not actual_opts:
                     outcomes[key] = (False, "mount not found in /proc/mounts")
                 else:
-                    expected_set = set(expected_opts.split(","))
+                    expected_set = (
+                        set(expected_opts.split(","))
+                        - _DEPRECATED_NFS_OPTIONS
+                    )
                     actual_set = set(actual_opts.split(","))
                     if expected_set <= actual_set:
                         outcomes[key] = (True, actual_opts)
@@ -655,9 +663,10 @@ def check_mount_config_no_duplicate_fstab(host):
                 count = 0
                 for line in cmd.stdout.strip().split("\n"):
                     stripped = line.strip()
-                    if stripped.startswith("#"):
+                    if stripped.startswith("#") or not stripped:
                         continue
-                    if mount_point in stripped:
+                    fields = stripped.split()
+                    if len(fields) >= 2 and fields[1] == mount_point:
                         count += 1
                 if count == 1:
                     outcomes[key] = (True, "single entry")
