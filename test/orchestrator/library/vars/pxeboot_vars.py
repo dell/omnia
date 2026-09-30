@@ -186,7 +186,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "apptainer_srun_non_root": (
         "timeout %s runuser -u %s -- srun --nodes=1 --ntasks=1 "
-        "--nodelist=%s apptainer exec %s hostname -s"
+        "--chdir=/tmp --nodelist=%s apptainer exec %s sh -c "
+        '\'printf "OMNIA_JOB_ID=%%s\\n" "$SLURM_JOB_ID"; hostname -s\''
     ),
     "apptainer_multi_srun": (
         "timeout %s srun --nodes=%s --ntasks=%s apptainer exec %s hostname -s"
@@ -352,7 +353,11 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "slurm_job_details": (
         "sacct --noheader --parsable2 --jobs=%s --format=State,NodeList | head -1"
     ),
+    "slurm_array_job_details": (
+        "sacct --noheader --parsable2 --jobs=%s --format=JobID,State"
+    ),
     "slurm_queue_snapshot": "squeue --noheader --format='%i|%T|%N|%R'",
+    "slurm_queue_snapshot_by_name": "squeue --noheader --name=%s --format='%%i|%%T|%%N|%%R'",
     "slurm_submit_concurrent_job": (
         "sbatch --parsable --nodes=1 --ntasks=1 --exclusive --nodelist=%s "
         "--output=/tmp/omnia-fvt-concurrent-%%j.out "
@@ -486,6 +491,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "then module=available; fi; "
         'printf \'%s|%s|%s\' "$policy" "$usepam" "$module"'
     ),
+    "cloud_init_file_check": "test -f %s && echo EXISTS",
+    "cloud_init_status": "cloud-init status --long",
 }
 
 KUBERNETES_REQUIRED_POD_PREFIXES: tuple[str, ...] = (
