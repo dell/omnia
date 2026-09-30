@@ -196,7 +196,8 @@ def check_mount_config_volume_mounted(host):
                     % mount_point,
                 )
                 key = f"{row['HOSTNAME']}:{mount_point}"
-                if cmd.rc == 0 and "mounted" in cmd.stdout.strip().lower():
+                output = cmd.stdout.strip().upper()
+                if output == "MOUNTED":
                     outcomes[key] = (True, "mounted")
                 else:
                     outcomes[key] = (False, "not mounted")
@@ -365,7 +366,8 @@ def check_mount_config_bind_mounts(host):
                         % target,
                     )
                     key = f"{row['HOSTNAME']}:{target}"
-                    if cmd.rc == 0 and "mounted" in cmd.stdout.strip().lower():
+                    output = cmd.stdout.strip().upper()
+                    if output == "MOUNTED":
                         outcomes[key] = (True, "bind mounted")
                     else:
                         outcomes[key] = (False, "bind not mounted")
@@ -605,7 +607,8 @@ def check_mount_config_fg_targeting(host):
                     % mount_point,
                 )
                 key = f"{row['HOSTNAME']}:{mount_point}:target"
-                if cmd.rc == 0 and "mounted" in cmd.stdout.strip().lower():
+                output = cmd.stdout.strip().upper()
+                if output == "MOUNTED":
                     outcomes[key] = (True, "correctly mounted")
                 else:
                     outcomes[key] = (False, "target node missing mount")
@@ -618,7 +621,8 @@ def check_mount_config_fg_targeting(host):
                     % mount_point,
                 )
                 key = f"{row['HOSTNAME']}:{mount_point}:non-target"
-                if cmd.rc == 0 and "mounted" in cmd.stdout.strip().lower():
+                output = cmd.stdout.strip().upper()
+                if output == "MOUNTED":
                     outcomes[key] = (False, "non-target has mount (should not)")
                 else:
                     outcomes[key] = (True, "correctly absent")
@@ -759,9 +763,9 @@ def check_mount_config_oim_mount(host):
             key = f"OIM:{mount_point}"
             mp_cmd = run_on_host(
                 host,
-                f"mountpoint -q {mount_point} && echo mounted || echo not_mounted",
+                f"mountpoint -q {mount_point} && echo MOUNTED || echo NOT_MOUNTED",
             )
-            if "mounted" in mp_cmd.stdout.strip().lower().split("\n")[-1]:
+            if mp_cmd.stdout.strip().splitlines()[-1].strip().upper() == "MOUNTED":
                 src_cmd = run_on_host(
                     host,
                     f"findmnt -rn -o SOURCE {mount_point}",
