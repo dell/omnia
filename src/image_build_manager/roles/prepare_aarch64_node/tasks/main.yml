@@ -143,7 +143,7 @@
 # ---------------------------------------------------------------------------
 # The builder image can exist locally under any of three names:
 #   1. local_tag           — the build-time tag (e.g. aarch64-image-thrillhouse/ochami)
-#   2. repo_builder_image  — upstream name (e.g. ghcr.io/.../image-thrillhouse:v0.0.24)
+#   2. repo_builder_image  — upstream name (e.g. ghcr.io/.../image-thrillhouse:v0.0.26)
 #   3. builder_image_path  — Pulp mirror path (e.g. 10.20.0.1:2225/openchami/...)
 # If the image is found under ANY name, we tag it as local_tag and skip pulling.
 # ---------------------------------------------------------------------------
