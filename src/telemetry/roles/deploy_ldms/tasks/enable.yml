@@ -62,7 +62,7 @@
 
 - name: Check if LDMS Helm release exists
   ansible.builtin.command: >
-    helm status nersc-ldms-aggr -n {{ telemetry_namespace }}
+    helm status {{ ldms_aggregator_name }} -n {{ telemetry_namespace }}
   register: ldms_helm_exists
   changed_when: false
   failed_when: false
@@ -105,7 +105,7 @@
 
 - name: Get configured LDMS aggregator replica count from Helm values
   ansible.builtin.command: >
-    helm get values nersc-ldms-aggr -n {{ telemetry_namespace }} -o json
+    helm get values {{ ldms_aggregator_name }} -n {{ telemetry_namespace }} -o json
   register: ldms_helm_values
   changed_when: false
   failed_when: false
@@ -136,12 +136,12 @@
   register: ldms_store_statefulsets
   changed_when: false
   failed_when: false
-  when: ldms_is_reenable
+  when: ldms_is_reenable | bool
 
 - name: Set LDMS store target replicas (default to 1)
   ansible.builtin.set_fact:
     ldms_store_target_replicas: 1
-  when: ldms_is_reenable
+  when: ldms_is_reenable | bool
 
 - name: Restore LDMS store replicas (re-enable)
   ansible.builtin.command: >
@@ -161,7 +161,7 @@
       Restored LDMS workloads:
         - Aggregator: {{ ldms_aggregator_target_replicas }} replica(s)
         - Store: {{ ldms_store_target_replicas }} replica(s) across {{ ldms_store_statefulsets.stdout.split() | length }} StatefulSet(s)
-  when: ldms_is_reenable
+  when: ldms_is_reenable | bool
 
 # =============================================================================
 # Phase 4: Re-enable LDMS sampler services
@@ -255,7 +255,7 @@
   register: ldms_current_pvcs
   changed_when: false
   failed_when: false
-  when: ldms_is_reenable
+  when: ldms_is_reenable | bool
 
 - name: Verify PVC UID preservation
   ansible.builtin.assert:
