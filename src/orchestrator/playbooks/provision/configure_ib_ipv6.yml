@@ -22,7 +22,7 @@
 #
 # Prerequisites:
 #   - provision_preamble.yml must have run (orchestrator_setup, functional groups)
-#   - network_spec.yml must define ib_ipv6_mode and ib_ipv6_allocation_file
+#   - network_spec.yml must define ib_addr_mode and ib_ipv6_allocation_file
 #   - Allocation export JSON must exist at the configured path
 #
 # Usage:
@@ -70,21 +70,42 @@
 
     - name: Load network spec data
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_dir'] }}/network_spec.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
         name: network_spec_data
+      delegate_to: localhost
+
+    - name: Normalize network spec into flat dict
+      ansible.builtin.set_fact:
+        _ib_ipv6_network_data: >-
+          {{ network_spec_data.Networks
+             | default([])
+             | ansible.builtin.combine }}
       delegate_to: localhost
 
     - name: Check if IPoIB IPv6 is enabled
       ansible.builtin.set_fact:
         _ib_ipv6_enabled: >-
-          {{ network_spec_data.ib_ipv6_mode | default('') in ['ipv6-only', 'dual-stack'] }}
+          {{ (_ib_ipv6_network_data.ib_network.ib_addr_mode | default(''))
+             in ['ipv6-only', 'dual-stack'] }}
 
     - name: Skip IPoIB IPv6 when not enabled
       ansible.builtin.debug:
         msg: >-
-          [IB-IPv6] Skipping — ib_ipv6_mode is
-          '{{ network_spec_data.ib_ipv6_mode | default("not set") }}'
+          [IB-IPv6] Skipping — ib_addr_mode is
+          '{{ _ib_ipv6_network_data.ib_network.ib_addr_mode | default("not set") }}'
       when: not _ib_ipv6_enabled
+
+    - name: Pin OpenCHAMI cluster identity for SMD publication
+      ansible.builtin.set_fact:
+        cluster_name: >-
+          {{ lookup('file', hostvars['localhost']['omnia_data_path']
+             + '/openchami/configs_vars.yaml')
+             | from_yaml | json_query('cluster_name') }}
+        cluster_domain: >-
+          {{ lookup('file', hostvars['localhost']['omnia_data_path']
+             + '/openchami/configs_vars.yaml')
+             | from_yaml | json_query('cluster_domain') }}
+      when: _ib_ipv6_enabled
 
   roles:
     - role: ib_ipv6_config

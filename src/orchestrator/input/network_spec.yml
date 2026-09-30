@@ -59,11 +59,19 @@
 # IB interface. The per-node IPv6 address comes from IB_IPV6 in the PXE
 # mapping file. Leave ipv6_subnet empty to keep IPv4-only behavior.
 #
-# ib_ipv6_mode controls the IPoIB IPv6 configuration mode:
+# ib_addr_mode controls the IPoIB addressing mode:
 # - "dual-stack": Both IPv4 and IPv6 on IPoIB (requires ipv6_subnet set)
 # - "ipv6-only": IPv6 only on IPoIB (requires ipv6_subnet set)
 # - "ipv4-only": IPv4 only on IPoIB (legacy behavior; ipv6_subnet ignored)
 # Default: "ipv4-only" (if not set, IPv6 pipeline is skipped)
+#
+# slurm_preferred_addr_family (required when ib_addr_mode is "dual-stack"):
+# Slurm NodeAddr accepts only one address per node. In dual-stack mode both
+# IPv4 and IPv6 are available on the IB interface, so you must choose which
+# one Slurm uses for inter-daemon communication.
+# - "ipv4": Slurm communicates over the IB IPv4 address
+# - "ipv6": Slurm communicates over the IB IPv6 address
+# Ignored when ib_addr_mode is "ipv4-only" or "ipv6-only" (auto-derived).
 
 Networks:
   - admin_network:
@@ -84,4 +92,5 @@ Networks:
       dns: []
       ipv6_subnet: "fd00:1b::"
       ipv6_netmask_bits: "64"
-      ib_ipv6_mode: "dual-stack"
+      ib_addr_mode: "dual-stack"
+      slurm_preferred_addr_family: "ipv4"

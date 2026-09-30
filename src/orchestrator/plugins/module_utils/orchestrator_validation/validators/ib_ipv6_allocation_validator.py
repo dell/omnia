@@ -23,6 +23,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import pkgutil
 from collections import defaultdict
 from logging import Logger
 from pathlib import Path
@@ -79,8 +80,20 @@ def normalize_address(address: str, family: str) -> str | None:
 # Schema loading
 # ---------------------------------------------------------------------------
 
-def _load_schema() -> dict[str, Any]:
-    """Load the allocation export JSON Schema from the co-located file."""
+def _load_schema(schema_file: str = "") -> dict[str, Any]:
+    """Load the allocation export JSON Schema.
+
+    Args:
+        schema_file: Optional explicit filesystem path to the schema JSON.
+            When provided, the schema is loaded from this path directly,
+            bypassing relative-path resolution. This is required when the
+            module runs inside Ansible's zip-packaged execution context
+            where ``Path(__file__)`` points inside a zip archive.
+    """
+    if schema_file:
+        with open(schema_file, encoding="utf-8") as fh:
+            return json.load(fh)
+    # Fallback to filesystem path relative to this source file
     schema_path = (
         Path(__file__).resolve().parent.parent
         / "schema"
@@ -123,12 +136,14 @@ def load_allocation_file(path: str) -> tuple[dict[str, Any] | None, str | None]:
 def validate_schema(
     data: dict[str, Any],
     logger: Logger | None = None,
+    schema_file: str = "",
 ) -> list[str]:
     """Validate allocation export against the JSON Schema (L1).
 
     Args:
         data: Parsed allocation export JSON.
         logger: Optional validation logger.
+        schema_file: Optional explicit filesystem path to the schema JSON.
 
     Returns:
         List of schema validation error messages.
@@ -139,7 +154,7 @@ def validate_schema(
 
     errors: list[str] = []
     try:
-        schema_def = _load_schema()
+        schema_def = _load_schema(schema_file)
     except (OSError, json.JSONDecodeError) as exc:
         msg = f"ib_ipv6_allocation: failed to load schema: {exc}"
         errors.append(msg)

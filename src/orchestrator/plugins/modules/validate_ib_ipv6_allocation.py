@@ -164,10 +164,12 @@ def run_module() -> None:
                 "default": [],
             },
             "log_dir": {"type": "str", "required": False, "default": ""},
+            "schema_file": {"type": "str", "required": False, "default": ""},
         },
         supports_check_mode=True,
     )
     allocation_file = os.path.realpath(module.params["allocation_file"])
+    schema_file = module.params["schema_file"]
     configured_log_dir = module.params["log_dir"] or os.path.join(
         os.getenv("OMNIA_DATA_PATH", "/opt/omnia"),
         "log", "core", "playbooks",
@@ -206,7 +208,7 @@ def run_module() -> None:
     )
 
     # --- L1 schema validation ---
-    schema_errors = validator.validate_schema(data, logger)
+    schema_errors = validator.validate_schema(data, logger, schema_file)
     if schema_errors:
         module.exit_json(
             changed=False,
@@ -249,8 +251,19 @@ def run_module() -> None:
         for records in ifaces.values()
     )
 
-    ib_mode = validator.detect_ib_mode(data)
-    legacy_ib_ip = validator.legacy_ib_ip_adapter(normalized_nodes)
+    # detect_ib_mode operates per-node; pick the first node's mode
+    if normalized_nodes:
+        first_node_ifaces = next(iter(normalized_nodes.values()))
+        ib_mode = validator.detect_ib_mode(first_node_ifaces)
+    else:
+        ib_mode = "unknown"
+    # Build legacy IB_IPV4 map: {node_id: {"IB_IPV4": "..."}} for nodes
+    # with a single-interface single-IPv4 allocation.
+    legacy_ib_ip = {}
+    for node_id, node_ifaces in normalized_nodes.items():
+        projection = validator.legacy_ib_ip_projection(node_ifaces)
+        if projection is not None:
+            legacy_ib_ip[node_id] = projection
 
     rejection_errors = []
     for node_id, reasons in rejected_nodes.items():

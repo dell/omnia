@@ -15,14 +15,14 @@
 # IPoIB IPv6 configuration defaults
 
 # Path to the allocation export JSON file
-ib_ipv6_allocation_file: "{{ hostvars['localhost']['input_dir'] }}/ib_ipv6_allocation.json"
+ib_ipv6_allocation_file: "{{ hostvars['localhost']['input_project_dir'] }}/ib_ipv6_allocation.json"
 
 # Approved IPv6 prefixes (from network_spec.yml)
 ib_ipv6_approved_prefixes: "{{ hostvars['localhost']['network_spec_data']['ib_ipv6_approved_prefixes'] | default([]) }}"
 
-# IPoIB addressing mode override (auto-detected if not set)
+# IPoIB addressing mode override (auto-detected from network_spec if not set)
 # Valid: dual-stack, ipv6-only, ipv4-only
-ib_ipv6_mode: ""
+ib_addr_mode: ""
 
 # Output directory for rendered artifacts
 ib_ipv6_output_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/ib_ipv6"
