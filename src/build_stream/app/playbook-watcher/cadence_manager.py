@@ -17,7 +17,7 @@
 
 Implements the cadence polling loop that:
 1. Periodically invokes repo_manager to sync packages for the cadence catalog
-2. On successful sync, bumps the catalog version and pushes to GitLab
+2. On successful sync, bumps the catalog version and pushes to GitLab via API
 3. GitLab CI triggers the unified cadence pipeline (build + deploy)
 4. Skips cadence sync when a build pipeline is already executing
 
@@ -26,11 +26,12 @@ Architecture:
 - Polling interval is configurable (default: 86400 seconds / 24 hours)
 - Pipeline idle check uses the NFS processing queue presence
 - Catalog version bump follows semver patch increment (e.g., 1.0 -> 1.1)
-- Git operations use subprocess to commit and push cadence_catalog_rhel.json
+- GitLab API operations use requests library to update cadence_catalog_rhel.json
 
 ER Reference: ER-BSM-002 — AC-008, AC-009, AC-015
 """
 
+import base64
 import json
 import logging
 import os
@@ -41,6 +42,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Thread, Event
 from typing import Optional, Dict, Any
+from urllib.parse import quote
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +56,32 @@ DEFAULT_CADENCE_ENABLED = False
 
 # Audit event type for cadence sync completion
 CADENCE_SYNC_COMPLETED = "CADENCE_SYNC_COMPLETED"
+
+
+def _default_build_stream_config_path() -> Path:
+    """Return the project-scoped BuildStream configuration path."""
+    omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
+    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    return (
+        omnia_data_path
+        / "build_stream"
+        / "input"
+        / project_name
+        / "build_stream_config.yml"
+    )
+
+
+def _repo_resync_status_path() -> Path:
+    """Return the project-scoped Repo Manager resync result path."""
+    omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
+    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    return (
+        omnia_data_path
+        / "repo_manager"
+        / "output"
+        / project_name
+        / "repo_resync_status.yml"
+    )
 
 
 def log_secure_info(
@@ -99,15 +129,20 @@ def _validate_catalog_filename(filename: str) -> bool:
     return True
 
 
-def load_cadence_config(config_path: Optional[str] = None) -> Dict[str, Any]:
+def load_cadence_config(
+    config_path: Optional[str] = None,
+    credentials_path: Optional[str] = None,
+) -> Dict[str, Any]:
     """Load cadence polling configuration from build_stream_config.yml.
 
     build_stream_config.yml is the single source of truth for cadence
     configuration; all settings are read from its "cadence" group.
+    GitLab API credentials are loaded from build_stream_credentials.yml.
 
     Args:
         config_path: Path to config file. If None, uses environment
                     variables or default locations.
+        credentials_path: Path to credentials file. If None, uses default.
 
     Returns:
         Dictionary with cadence configuration values.
@@ -118,11 +153,13 @@ def load_cadence_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     if config_path is None:
         config_path = os.getenv(
             "BUILD_STREAM_CONFIG_PATH",
-            os.path.join(
-                os.getenv("OMNIA_DATA_PATH", "/opt/omnia"),
-                "build_stream", "build_stream_config.yml"
-            ),
+            str(_default_build_stream_config_path()),
         )
+    
+    if credentials_path is None:
+        # Default credentials path (same directory as config)
+        config_dir = Path(config_path).parent
+        credentials_path = config_dir / "build_stream_credentials.yml"
 
     # Default configuration with operational parameters only
     config = {
@@ -131,28 +168,40 @@ def load_cadence_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         "interval_seconds": DEFAULT_CADENCE_INTERVAL_SECONDS,
         # Cadence catalog configuration
         "catalog_filename": DEFAULT_CADENCE_CATALOG_FILENAME,
-        "gitlab_repo_path": "",
         # Package sync playbook configuration
         "playbook_name": "repo_sync.yml",
         # Timing parameters (configurable)
         "sync_timeout_seconds": 3600,
         "sync_poll_interval_seconds": 10,
+        # GitLab API configuration (loaded from build_stream_config.yml)
+        "gitlab_host": "",
+        "gitlab_https_port": 443,
+        "gitlab_project_name": "omnia-catalog",
+        "gitlab_default_branch": "main",
         # Fixed values (not configurable)
         "auto_bump_version": True,
         "version_bump_strategy": "patch",
-        "git_author_name": "BuildStream Cadence",
-        "git_author_email": "buildstream@omnia.local",
         "emit_audit_events": True,
         "log_level": "info",
     }
 
     if Path(config_path).exists():
-        return _load_unified_config(config_path, config)
-
-    log_secure_info(
-        "info",
-        "No build_stream_config.yml found, using cadence defaults"
-    )
+        config = _load_unified_config(config_path, config)
+    else:
+        log_secure_info(
+            "info",
+            "No build_stream_config.yml found, using cadence defaults"
+        )
+    
+    # Load GitLab credentials if available
+    if Path(credentials_path).exists():
+        _load_gitlab_credentials(credentials_path, config)
+    else:
+        log_secure_info(
+            "info",
+            "No build_stream_credentials.yml found, GitLab API disabled"
+        )
+    
     return config
 
 
@@ -201,7 +250,6 @@ def _load_unified_config(
         )
         str_keys = (
             "catalog_filename",
-            "gitlab_repo_path",
             "playbook_name",
         )
 
@@ -212,17 +260,28 @@ def _load_unified_config(
         for key in int_keys:
             if key in cadence_section:
                 value = int(cadence_section[key])
-                if key == "interval_seconds" and value < 3600:
+                if key == "interval_seconds" and value < 60:
                     log_secure_info(
                         "warning",
-                        f"Cadence interval {value}s < 1 hour; using minimum"
+                        f"Cadence interval {value}s < 1 minute; using minimum 60s"
                     )
-                    value = 3600
+                    value = 60
                 config[key] = value
 
         for key in str_keys:
             if key in cadence_section:
                 config[key] = str(cadence_section[key])
+
+        # Load GitLab configuration from root level (not cadence section)
+        gitlab_config_keys = {
+            "gitlab_host": str,
+            "gitlab_https_port": int,
+            "gitlab_project_name": str,
+            "gitlab_default_branch": str,
+        }
+        for key, type_converter in gitlab_config_keys.items():
+            if key in data:
+                config[key] = type_converter(data[key])
 
         # Validate catalog filename
         if not _validate_catalog_filename(config["catalog_filename"]):
@@ -245,6 +304,89 @@ def _load_unified_config(
         return dict(defaults)
 
     return config
+
+
+def _load_gitlab_credentials(credentials_path: str, config: Dict[str, Any]) -> None:
+    """Load GitLab API credentials from build_stream_credentials.yml.
+
+    Handles both encrypted (Ansible Vault) and plain YAML files.
+    For encrypted files, uses ansible-vault command with vault key file.
+
+    Args:
+        credentials_path: Path to build_stream_credentials.yml
+        config: Config dictionary to update with credentials
+    """
+    try:
+        import yaml  # pylint: disable=import-outside-toplevel
+        
+        # Check if file is Ansible Vault encrypted
+        with open(credentials_path, "r", encoding="utf-8") as fh:
+            first_line = fh.readline()
+        
+        if first_line.startswith("$ANSIBLE_VAULT"):
+            # Encrypted - use ansible-vault to decrypt
+            vault_key_path = Path(credentials_path).parent / ".build_stream_credentials_key"
+            
+            if not vault_key_path.exists():
+                log_secure_info(
+                    "warning",
+                    f"Vault key not found at {vault_key_path}. "
+                    "Cannot decrypt credentials. GitLab API disabled."
+                )
+                return
+            
+            # Decrypt using ansible-vault view command
+            try:
+                result = subprocess.run(
+                    [
+                        "ansible-vault",
+                        "view",
+                        str(credentials_path),
+                        "--vault-password-file",
+                        str(vault_key_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=True,
+                )
+                creds = yaml.safe_load(result.stdout)
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                log_secure_info(
+                    "warning",
+                    "Failed to decrypt credentials with ansible-vault",
+                    exc_info=True,
+                )
+                return
+        else:
+            # Plain YAML - load directly
+            with open(credentials_path, "r", encoding="utf-8") as fh:
+                creds = yaml.safe_load(fh)
+        
+        if not isinstance(creds, dict):
+            log_secure_info("warning", "Credentials file is not a dictionary")
+            return
+        
+        # Load GitLab API credentials (if present)
+        if "gitlab_root_token" in creds:
+            config["gitlab_root_token"] = str(creds["gitlab_root_token"])
+        
+        if "gitlab_project_id" in creds:
+            config["gitlab_project_id"] = str(creds["gitlab_project_id"])
+        
+        log_secure_info(
+            "info",
+            f"GitLab credentials loaded: "
+            f"token={'present' if config.get('gitlab_root_token') else 'missing'}, "
+            f"project_id={'present' if config.get('gitlab_project_id') else 'missing'}"
+        )
+    
+    except (OSError, ValueError, ImportError):
+        log_secure_info(
+            "warning",
+            "Failed to load GitLab credentials",
+            exc_info=True,
+        )
 
 
 def is_pipeline_busy(processing_dir: Path) -> bool:
@@ -324,187 +466,89 @@ def bump_catalog_version(catalog_path: Path) -> Optional[str]:
         return None
 
 
-def _validate_git_repo(repo_path: str) -> bool:
-    """Validate that repo_path is a valid git repository with write access.
-
-    Args:
-        repo_path: Path to validate.
-
-    Returns:
-        True if valid and writable, False otherwise.
-    """
-    git_dir = Path(repo_path) / ".git"
-    if not git_dir.exists():
-        log_secure_info(
-            "error",
-            f"Not a git repository (missing .git): {repo_path}"
-        )
-        return False
-
-    # Test write permission with a safe, reversible operation
-    try:
-        test_file = Path(repo_path) / ".gitkeep"
-        test_file.touch()
-        test_file.unlink()
-    except OSError:
-        log_secure_info(
-            "error",
-            f"No write permission in repository: {repo_path}"
-        )
-        return False
-
-    return True
-
-
-def _git_push_with_retry(
-    repo_path: str,
-    max_retries: int = 3,
+def update_catalog_via_gitlab_api(
+    gitlab_url: str,
+    gitlab_token: str,
+    project_id: str,
+    catalog_filename: str,
+    catalog_content: str,
+    new_version: str,
+    branch: str = "main",
 ) -> bool:
-    """Push to git with exponential backoff retry for transient failures.
+    """Update cadence catalog in GitLab via API.
 
     Args:
-        repo_path: Path to the git repository.
-        max_retries: Maximum number of retry attempts.
+        gitlab_url: GitLab base URL (e.g., https://gitlab.example.com)
+        gitlab_token: GitLab API token
+        project_id: GitLab project ID
+        catalog_filename: Filename in repo (e.g., cadence_catalog_rhel.json)
+        catalog_content: New file content (JSON string)
+        new_version: Version for commit message
+        branch: Target branch (default: main)
 
     Returns:
-        True if push succeeded, False otherwise.
+        True if update succeeded, False otherwise.
     """
-    for attempt in range(max_retries):
-        result = subprocess.run(
-            ["git", "push"],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
-            shell=False,
+    # URL-encode the filename (replace / with %2F)
+    encoded_filename = quote(catalog_filename, safe='')
+    api_url = (
+        f"{gitlab_url}/api/v4/projects/{project_id}"
+        f"/repository/files/{encoded_filename}"
+    )
+
+    headers = {
+        "PRIVATE-TOKEN": gitlab_token,
+        "Content-Type": "application/json"
+    }
+
+    # Base64 encode the content
+    content_base64 = base64.b64encode(catalog_content.encode()).decode()
+
+    payload = {
+        "branch": branch,
+        "encoding": "base64",
+        "content": content_base64,
+        "commit_message": f"chore(cadence): bump catalog version to {new_version}"
+    }
+
+    try:
+        # Use PUT to update existing file
+        response = requests.put(
+            api_url,
+            headers=headers,
+            json=payload,
+            verify=False,  # nosec B501 - Match existing TLS behavior in GitLab roles
+            timeout=30
         )
-        if result.returncode == 0:
+
+        if response.status_code in [200, 201]:
             log_secure_info(
                 "info",
-                "git push succeeded"
+                f"Cadence catalog updated via GitLab API: v{new_version}"
             )
             return True
-
-        # Log the failure with full context
-        log_secure_info(
-            "warning" if attempt < max_retries - 1 else "error",
-            f"git push failed (attempt {attempt + 1}/{max_retries}): "
-            f"stdout={result.stdout.strip()}, "
-            f"stderr={result.stderr.strip()}"
-        )
-
-        # Retry with exponential backoff (1s, 2s, 4s, ...)
-        if attempt < max_retries - 1:
-            backoff_seconds = 2 ** attempt
-            log_secure_info(
-                "info",
-                f"Retrying git push in {backoff_seconds}s"
-            )
-            time.sleep(backoff_seconds)
-
-    return False
-
-
-def git_commit_and_push(
-    repo_path: str,
-    catalog_filename: str,
-    new_version: str,
-) -> bool:
-    """Commit the updated cadence catalog and push to GitLab.
-
-    Args:
-        repo_path: Path to the GitLab repository clone.
-        catalog_filename: Name of the cadence catalog file.
-        new_version: The new catalog version string for the commit message.
-
-    Returns:
-        True if git commit and push succeeded, False otherwise.
-    """
-    # Validate repository before proceeding
-    if not _validate_git_repo(repo_path):
-        return False
-
-    try:
-        env = os.environ.copy()
-        env["GIT_AUTHOR_NAME"] = "BuildStream Cadence"
-        env["GIT_AUTHOR_EMAIL"] = "buildstream@omnia.local"
-        env["GIT_COMMITTER_NAME"] = "BuildStream Cadence"
-        env["GIT_COMMITTER_EMAIL"] = "buildstream@omnia.local"
-
-        # Stage the catalog file
-        result = subprocess.run(
-            ["git", "add", catalog_filename],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-            shell=False,
-            env=env,
-        )
-        if result.returncode != 0:
+        else:
             log_secure_info(
                 "error",
-                f"git add failed: stdout={result.stdout.strip()}, "
-                f"stderr={result.stderr.strip()}"
+                f"GitLab API update failed: {response.status_code} "
+                f"{response.text[:200]}"
             )
             return False
 
-        # Commit
-        commit_msg = (
-            f"cadence: bump catalog version to {new_version}\n\n"
-            f"Automated cadence sync — periodic package update"
-        )
-        result = subprocess.run(
-            ["git", "commit", "-m", commit_msg],
-            cwd=repo_path,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-            shell=False,
-            env=env,
-        )
-        if result.returncode != 0:
-            # Check if nothing to commit (no changes)
-            if "nothing to commit" in result.stdout:
-                log_secure_info(
-                    "info",
-                    "No changes to commit for cadence catalog"
-                )
-                return True
-            log_secure_info(
-                "error",
-                f"git commit failed: stdout={result.stdout.strip()}, "
-                f"stderr={result.stderr.strip()}"
-            )
-            return False
-
-        # Push with retry logic for transient failures
-        if not _git_push_with_retry(repo_path, max_retries=3):
-            return False
-
-        log_secure_info(
-            "info",
-            f"Cadence catalog committed and pushed: v{new_version}"
-        )
-        return True
-
-    except (subprocess.TimeoutExpired, OSError):
+    except requests.RequestException:
         log_secure_info(
             "error",
-            "Git operation timed out or failed",
-            exc_info=True,
+            "GitLab API request failed",
+            exc_info=True
         )
         return False
 
 
 def copy_cadence_catalog_to_default_path(
     cadence_catalog_path: Path,
-    default_catalog_path: Path,
+    catalog_path: Path,
 ) -> bool:
-    """Copy cadence catalog to the default CATALOG_FILE_PATH.
+    """Copy the cadence catalog to the configured CATALOG_FILE_PATH.
 
     The repo_sync.yml playbook uses CATALOG_FILE_PATH to determine which
     packages to sync. This function ensures the cadence catalog is available
@@ -512,7 +556,7 @@ def copy_cadence_catalog_to_default_path(
 
     Args:
         cadence_catalog_path: Path to the cadence_catalog_rhel.json file.
-        default_catalog_path: Path to ${OMNIA_DATA_PATH}/catalog/catalog_rhel.json.
+        catalog_path: Path selected by the CATALOG_FILE_PATH environment variable.
 
     Returns:
         True if copy succeeded, False otherwise.
@@ -526,13 +570,13 @@ def copy_cadence_catalog_to_default_path(
             return False
 
         # Ensure target directory exists
-        default_catalog_path.parent.mkdir(parents=True, exist_ok=True)
+        catalog_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Copy cadence catalog to default path
+        # Copy cadence catalog to the configured path
         with open(cadence_catalog_path, "r", encoding="utf-8") as src:
             catalog_data = json.load(src)
 
-        with open(default_catalog_path, "w", encoding="utf-8") as dst:
+        with open(catalog_path, "w", encoding="utf-8") as dst:
             json.dump(catalog_data, dst, indent=2)
             dst.write("\n")
 
@@ -545,7 +589,7 @@ def copy_cadence_catalog_to_default_path(
     except (OSError, json.JSONDecodeError):
         log_secure_info(
             "error",
-            "Failed to copy cadence catalog to default path",
+            "Failed to copy cadence catalog to CATALOG_FILE_PATH",
             exc_info=True,
         )
         return False
@@ -623,11 +667,18 @@ def wait_for_sync_result(
         The result data dictionary if found, None on timeout.
     """
     request_filename = f"cadence-sync-{job_id}.json"
-    result_path = results_dir / request_filename
+    result_paths = (
+        results_dir / request_filename,
+        results_dir.parent / "archive" / "results" / request_filename,
+    )
     start_time = time.monotonic()
 
     while (time.monotonic() - start_time) < timeout_seconds:
-        if result_path.exists():
+        result_path = next(
+            (path for path in result_paths if path.exists()),
+            None,
+        )
+        if result_path is not None:
             try:
                 with open(result_path, "r", encoding="utf-8") as fh:
                     result_data = json.load(fh)
@@ -654,6 +705,81 @@ def wait_for_sync_result(
         job_id,
     )
     return None
+
+
+def load_repo_resync_status(status_path: Path) -> Optional[Dict[str, Any]]:
+    """Load and validate the Repo Manager exact-mirror result contract."""
+    try:
+        import yaml  # pylint: disable=import-outside-toplevel
+
+        with open(status_path, "r", encoding="utf-8") as status_file:
+            status = yaml.safe_load(status_file)
+    except (OSError, ImportError, yaml.YAMLError):
+        log_secure_info(
+            "error",
+            f"Failed to read Repo Manager resync status: {status_path}",
+            exc_info=True,
+        )
+        return None
+
+    if not isinstance(status, dict):
+        log_secure_info("error", "Repo Manager resync status is not a mapping")
+        return None
+
+    repositories = status.get("repositories")
+    if (
+        status.get("overall_status") != "success"
+        or status.get("orphan_cleanup") != "success"
+        or not isinstance(repositories, dict)
+        or not repositories
+    ):
+        log_secure_info(
+            "error",
+            "Repo Manager resync status does not report aggregate success",
+        )
+        return None
+
+    for repository_name, repository_result in repositories.items():
+        if not isinstance(repository_result, dict):
+            log_secure_info(
+                "error",
+                f"Invalid resync result for repository {repository_name}",
+            )
+            return None
+        if (
+            repository_result.get("sync_status") != "success"
+            or repository_result.get("cleanup_status") != "success"
+            or repository_result.get("stale_packages_remaining") != 0
+        ):
+            log_secure_info(
+                "error",
+                f"Repository reconciliation is incomplete: {repository_name}",
+            )
+            return None
+        for metric in ("packages_added", "packages_removed"):
+            metric_value = repository_result.get(metric)
+            if (
+                not isinstance(metric_value, int)
+                or isinstance(metric_value, bool)
+                or metric_value < 0
+            ):
+                log_secure_info(
+                    "error",
+                    f"Invalid {metric} value for repository {repository_name}",
+                )
+                return None
+
+    return status
+
+
+def repo_resync_has_package_updates(status: Dict[str, Any]) -> bool:
+    """Return whether the exact-mirror result added or removed RPM packages."""
+    repositories = status.get("repositories", {})
+    return any(
+        int(result.get("packages_added", 0)) > 0
+        or int(result.get("packages_removed", 0)) > 0
+        for result in repositories.values()
+    )
 
 
 def emit_audit_event(
@@ -691,7 +817,10 @@ class CadenceTimerThread(Thread):
     Attributes:
         interval_seconds: Polling interval in seconds.
         catalog_filename: Name of the cadence catalog file in GitLab.
-        gitlab_repo_path: Path to the GitLab repository clone on disk.
+        gitlab_url: GitLab base URL.
+        gitlab_token: GitLab API token.
+        gitlab_project_id: GitLab project ID.
+        gitlab_branch: GitLab branch name.
         requests_dir: NFS playbook queue requests directory.
         results_dir: NFS playbook queue results directory.
         processing_dir: NFS playbook queue processing directory.
@@ -714,7 +843,7 @@ class CadenceTimerThread(Thread):
             processing_dir: Path to NFS processing directory.
 
         Raises:
-            ValueError: If required configuration is missing or invalid.
+            ValueError: If required GitLab configuration is missing.
         """
         super().__init__(name="CadenceTimerThread", daemon=True)
         self.interval_seconds: int = config.get(
@@ -723,21 +852,41 @@ class CadenceTimerThread(Thread):
         self.catalog_filename: str = config.get(
             "catalog_filename", DEFAULT_CADENCE_CATALOG_FILENAME
         )
-        self.gitlab_repo_path: str = config.get("gitlab_repo_path", "")
         self.config: Dict[str, Any] = config
         self.requests_dir: Path = requests_dir
         self.results_dir: Path = results_dir
         self.processing_dir: Path = processing_dir
         self.stop_event: Event = Event()
+        self.trigger_event: Event = Event()
 
-        # Validate required configuration
-        if not self.gitlab_repo_path:
-            raise ValueError(
-                "cadence.gitlab_repo_path is required and must not be empty"
+        # Load GitLab configuration from build_stream_config.yml
+        gitlab_host = config.get("gitlab_host", "")
+        gitlab_port = config.get("gitlab_https_port", 443)
+        self.gitlab_url: str = f"https://{gitlab_host}:{gitlab_port}" if gitlab_host else ""
+        self.gitlab_project_name: str = config.get("gitlab_project_name", "omnia-catalog")
+        self.gitlab_branch: str = config.get("gitlab_default_branch", "main")
+        
+        # GitLab token must be loaded from credentials file
+        # For now, we'll make it optional and log a warning if missing
+        self.gitlab_token: str = config.get("gitlab_root_token", "")
+        self.gitlab_project_id: str = config.get("gitlab_project_id", "")
+
+        # Validate required GitLab configuration (warning only, not fatal)
+        if not self.gitlab_url or not self.gitlab_token or not self.gitlab_project_id:
+            log_secure_info(
+                "warning",
+                "GitLab configuration incomplete for cadence polling. "
+                "Catalog updates to GitLab will be skipped. "
+                "Configure gitlab_host, gitlab_root_token, and gitlab_project_id "
+                "in build_stream_config.yml or build_stream_credentials.yml"
             )
 
     def run(self) -> None:
-        """Main cadence polling loop."""
+        """Main cadence polling loop.
+
+        Waits for either the configured interval to elapse or a manual
+        trigger (via SIGUSR1 / ``trigger()``), whichever comes first.
+        """
         log_secure_info(
             "info",
             f"CadenceTimerThread started: "
@@ -746,13 +895,23 @@ class CadenceTimerThread(Thread):
         )
 
         while not self.stop_event.is_set():
-            # Sleep for the configured interval (interruptible)
-            if self.stop_event.wait(timeout=self.interval_seconds):
+            # Wait for interval OR manual trigger, whichever comes first
+            triggered = self.trigger_event.wait(
+                timeout=self.interval_seconds
+            )
+            if self.stop_event.is_set():
                 log_secure_info(
                     "info",
                     "CadenceTimerThread shutdown requested"
                 )
                 break
+            if triggered:
+                self.trigger_event.clear()
+                log_secure_info(
+                    "info",
+                    "Manual cadence trigger received — "
+                    "executing cycle immediately"
+                )
 
             self._execute_cadence_cycle()
 
@@ -761,6 +920,19 @@ class CadenceTimerThread(Thread):
     def stop(self) -> None:
         """Signal the cadence timer to stop."""
         self.stop_event.set()
+        # Wake up the trigger_event so the thread exits promptly
+        self.trigger_event.set()
+
+    def trigger(self) -> None:
+        """Trigger an immediate cadence cycle.
+
+        Called from the SIGUSR1 signal handler to bypass the polling
+        interval and execute a cadence cycle right away.
+        """
+        log_secure_info(
+            "info", "Cadence manual trigger requested via SIGUSR1"
+        )
+        self.trigger_event.set()
 
     def _execute_cadence_cycle(self) -> None:
         """Execute one cadence polling cycle."""
@@ -775,14 +947,30 @@ class CadenceTimerThread(Thread):
             return
 
         # Step 2-3: Sync packages via repo_manager
-        job_id = self._sync_packages()
-        if job_id is None:
+        sync_result = self._sync_packages()
+        if sync_result is None:
             return
 
-        # Step 4-6: Bump version, push, and emit audit event
+        job_id = str(sync_result["job_id"])
+        updates_detected = sync_result["updates_detected"]
+
+        if updates_detected:
+            log_secure_info(
+                "info", "Package updates detected in cadence sync"
+            )
+        else:
+            log_secure_info(
+                "info",
+                "No package diff detected, but bumping catalog version "
+                "anyway — upstream package versions may have changed"
+            )
+
+        # Always bump version and trigger pipeline after successful sync.
+        # Even when the package count is unchanged, individual package
+        # versions may have been updated upstream, so a rebuild is required.
         self._bump_and_push(job_id)
 
-    def _sync_packages(self) -> Optional[str]:
+    def _sync_packages(self) -> Optional[Dict[str, Any]]:
         """Submit repo sync and wait for completion.
 
         Steps:
@@ -791,33 +979,34 @@ class CadenceTimerThread(Thread):
         3. Wait for sync completion
 
         Returns:
-            The job_id string on success, None on failure.
+            Sync outcome on success, None on failure.
         """
         job_id = f"cadence-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
 
-        # Step 1: Copy cadence catalog to default CATALOG_FILE_PATH
-        omnia_data_path = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
-        default_catalog_path = Path(omnia_data_path) / "catalog" / "catalog_rhel.json"
-        cadence_catalog_path = Path(self.gitlab_repo_path) / self.catalog_filename
+        # Note: The cadence catalog is already at CATALOG_FILE_PATH
+        # The playbook-watcher copies it from GitLab during polling
+        # No need to copy from a local git clone
 
-        if not copy_cadence_catalog_to_default_path(
-            cadence_catalog_path, default_catalog_path
-        ):
-            log_secure_info(
-                "error",
-                "Failed to copy cadence catalog to CATALOG_FILE_PATH"
-            )
-            return None
-
-        # Step 2: Submit repo_sync.yml playbook request
+        # Step 1: Submit repo_sync.yml playbook request
         if not submit_repo_sync_request(
-            self.requests_dir, job_id, playbook_name="repo_sync.yml"
+            self.requests_dir,
+            job_id,
+            playbook_name=self.config.get("playbook_name", "repo_sync.yml"),
         ):
             log_secure_info("error", "Failed to submit repo sync request")
             return None
 
-        # Step 3: Wait for sync completion
-        result = wait_for_sync_result(self.results_dir, job_id)
+        # Step 2: Wait for sync completion
+        result = wait_for_sync_result(
+            self.results_dir,
+            job_id,
+            timeout_seconds=int(
+                self.config.get("sync_timeout_seconds", 3600)
+            ),
+            poll_interval=int(
+                self.config.get("sync_poll_interval_seconds", 10)
+            ),
+        )
         if result is None:
             log_secure_info("error", "Repo sync did not complete in time")
             return None
@@ -830,7 +1019,19 @@ class CadenceTimerThread(Thread):
             )
             return None
 
-        return job_id
+        repo_resync_status = load_repo_resync_status(
+            _repo_resync_status_path()
+        )
+        if repo_resync_status is None:
+            return None
+
+        return {
+            "job_id": job_id,
+            "updates_detected": repo_resync_has_package_updates(
+                repo_resync_status
+            ),
+            "repo_resync_status": repo_resync_status,
+        }
 
     def _bump_and_push(self, job_id: str) -> None:
         """Bump catalog version, push to GitLab, and emit audit event.
@@ -838,33 +1039,59 @@ class CadenceTimerThread(Thread):
         Args:
             job_id: The cadence sync job identifier.
         """
-        if not self.gitlab_repo_path:
+        # Read the current catalog from CATALOG_FILE_PATH
+        catalog_file_path = os.getenv("CATALOG_FILE_PATH")
+        if not catalog_file_path:
             log_secure_info(
                 "error",
-                "GitLab repo path not configured for cadence builds"
+                "CATALOG_FILE_PATH environment variable not set"
             )
             return
 
-        catalog_path = Path(self.gitlab_repo_path) / self.catalog_filename
+        catalog_path = Path(catalog_file_path)
         if not catalog_path.exists():
             log_secure_info(
                 "error",
-                f"Cadence catalog not found: {self.catalog_filename}"
+                f"Cadence catalog not found: {catalog_path}"
             )
             return
 
+        # Bump version in the local catalog file
         new_version = bump_catalog_version(catalog_path)
         if new_version is None:
             log_secure_info("error", "Failed to bump cadence catalog version")
             return
 
-        if not git_commit_and_push(
-            self.gitlab_repo_path,
-            self.catalog_filename,
-            new_version,
-        ):
-            log_secure_info("error", "Failed to push cadence catalog to GitLab")
+        # Read the updated catalog content
+        try:
+            with open(catalog_path, "r", encoding="utf-8") as fh:
+                catalog_content = fh.read()
+        except OSError:
+            log_secure_info(
+                "error",
+                "Failed to read updated cadence catalog",
+                exc_info=True
+            )
             return
+
+        # Push to GitLab via API (skip if GitLab not configured)
+        if not self.gitlab_url or not self.gitlab_token or not self.gitlab_project_id:
+            log_secure_info(
+                "warning",
+                f"GitLab not configured, skipping catalog push for v{new_version}"
+            )
+        else:
+            if not update_catalog_via_gitlab_api(
+                self.gitlab_url,
+                self.gitlab_token,
+                self.gitlab_project_id,
+                self.catalog_filename,
+                catalog_content,
+                new_version,
+                self.gitlab_branch,
+            ):
+                log_secure_info("error", "Failed to push cadence catalog to GitLab")
+                return
 
         emit_audit_event(
             CADENCE_SYNC_COMPLETED,

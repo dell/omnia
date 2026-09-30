@@ -12,9 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Reconcile every RPM repository referenced by the active catalog exactly with
-# its upstream. This is a repository-only operation and requires the normal
-# download workflow to have created the Pulp serving chain first.
+# =============================================================================
+# REPOSITORY SYNC PLAYBOOK
+# =============================================================================
+# Reconciles every RPM repository referenced by the active catalog exactly with
+# its upstream. This playbook supports two modes:
+#
+# 1. STANDALONE MODE: Standard repo sync using repo_manager_config.yml
+#    - Called manually or by other playbooks
+#    - Uses catalog execution contexts from repo_manager_config
+#    - No playbook-watcher API integration
+#
+# 2. CADENCE MODE: Called by cadence_manager for periodic package sync
+#    - Environment variables set by cadence_manager:
+#      - CATALOG_FILE_PATH: Path to cadence catalog
+#      - PLAYBOOK_WATCHER_API_URL: API endpoint for validation/restart
+#    - Calls playbook-watcher APIs after sync completion
+#    - Used by ER-BSM-002 cadence polling feature
+#
+# Environment Variables (CADENCE MODE only):
+#   CATALOG_FILE_PATH: Path to catalog file (set by cadence_manager)
+#   PLAYBOOK_WATCHER_API_URL: API endpoint for restart/validate operations
+#
+# ER Reference: ER-BSM-002 — AC-008, AC-009, AC-015, AC-020 through AC-030
+# =============================================================================
+
 - name: Reconcile catalog RPM repositories exactly with upstream sources
   hosts: localhost
   connection: local
@@ -22,9 +44,27 @@
   vars_files:
     - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
     - "{{ playbook_dir | dirname | dirname }}/vars/pulp_cli_commands.yml"
+  vars:
+    # Cadence mode detection
+    catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default('') }}"
+    watcher_api_url: "{{ lookup('env', 'PLAYBOOK_WATCHER_API_URL') | default('') }}"
+    is_cadence_mode: "{{ catalog_file_path | length > 0 }}"
   environment:
     PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
   tasks:
+    - name: "[Cadence Mode] Display catalog file location"
+      ansible.builtin.debug:
+        msg: "Catalog file path: {{ catalog_file_path }}"
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Verify catalog file exists"
+      ansible.builtin.stat:
+        path: "{{ catalog_file_path }}"
+      register: catalog_stat
+      failed_when: not catalog_stat.stat.exists
+      changed_when: false
+      when: is_cadence_mode
+
     - name: Load Repo Manager runtime configuration
       ansible.builtin.include_role:
         name: ../../roles/repo_manager_setup
@@ -79,6 +119,7 @@
         repo_resync_error: ""
         repo_resync_status_path: >-
           {{ output_project_dir }}/repo_resync_status.yml
+        sync_timestamp: "{{ ansible_date_time.iso8601 }}"
 
     - name: Publish in-progress exact-mirror status
       ansible.builtin.copy:
@@ -154,3 +195,76 @@
           Catalog RPM reconciliation failed. Review
           {{ repo_resync_status_path }} and the Repo Manager logs.
       when: repo_resync_overall_status != 'success'
+
+    # =========================================================================
+    # CADENCE MODE: Call playbook-watcher APIs after successful sync
+    # =========================================================================
+    - name: "[Cadence Mode] Load catalog content for API calls"
+      ansible.builtin.slurp:
+        src: "{{ catalog_file_path }}"
+      register: catalog_content
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Parse catalog JSON"
+      ansible.builtin.set_fact:
+        catalog_data: "{{ catalog_content['content'] | b64decode | from_json }}"
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Call validate API to confirm sync state"
+      ansible.builtin.uri:
+        url: "{{ watcher_api_url }}/api/validate"
+        method: POST
+        body_format: json
+        body:
+          action: "validate_cadence_sync"
+          catalog_version: "{{ catalog_data.get('catalog', {}).get('version', 'unknown') }}"
+          timestamp: "{{ sync_timestamp }}"
+        timeout: 30
+        status_code: [200, 201, 202]
+      register: validate_response
+      ignore_errors: true
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Log validate API response"
+      ansible.builtin.debug:
+        msg: "Validate API response: {{ validate_response.status | default('no response') }}"
+      when: is_cadence_mode and validate_response is defined
+
+    - name: "[Cadence Mode] Call restart API to restart services"
+      ansible.builtin.uri:
+        url: "{{ watcher_api_url }}/api/restart"
+        method: POST
+        body_format: json
+        body:
+          action: "restart_services_after_sync"
+          services:
+            - name: "pulp"
+              reason: "New packages synchronized"
+            - name: "playbook_watcher"
+              reason: "Sync operation complete"
+          timestamp: "{{ sync_timestamp }}"
+        timeout: 60
+        status_code: [200, 201, 202]
+      register: restart_response
+      ignore_errors: true
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Log restart API response"
+      ansible.builtin.debug:
+        msg: "Restart API response: {{ restart_response.status | default('no response') }}"
+      when: is_cadence_mode and restart_response is defined
+
+    - name: "[Cadence Mode] Log sync completion"
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Cadence Repository Sync - Status: SUCCESS
+          ========================================
+          Catalog: {{ catalog_file_path }}
+          Version: {{ catalog_data.get('catalog', {}).get('version', 'unknown') }}
+          Sync Result: {{ repo_resync_overall_status }}
+          Timestamp: {{ sync_timestamp }}
+          Validate API: {{ validate_response.status | default('skipped') }}
+          Restart API: {{ restart_response.status | default('skipped') }}
+          ========================================
+      when: is_cadence_mode

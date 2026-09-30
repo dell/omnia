@@ -309,7 +309,7 @@ PULP_DISTRIBUTION_ROOT = _normalize_relative_config_path(
     'pulp_content_paths.distribution_root',
 )
 PULP_DISTRIBUTION_ROOT_PARTS = tuple(PULP_DISTRIBUTION_ROOT.split('/'))
-AGGREGATED_REPO_SUFFIX = "repo_manager-additional"
+AGGREGATED_REPO_SUFFIX = "additional"
 AGGREGATED_BASE_PATH_TEMPLATE = (
     f"{PULP_DISTRIBUTION_ROOT}/"
     "{arch}/{os_type}/{os_version}/rpms/{repo_name}"

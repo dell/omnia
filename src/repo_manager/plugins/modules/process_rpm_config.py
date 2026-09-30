@@ -26,6 +26,7 @@ This module handles:
 
 
 # pylint: disable=import-error,no-name-in-module,too-many-lines,too-many-branches,too-many-statements,too-many-locals,too-many-return-statements,too-many-arguments,too-many-positional-arguments
+import configparser
 import json
 import multiprocessing
 import os
@@ -33,6 +34,7 @@ import platform
 import re
 import shlex
 import subprocess
+import tempfile
 from datetime import datetime
 from functools import partial
 import time
@@ -72,7 +74,11 @@ from ansible.module_utils.repo_manager.config import (
     MIRROR_INDEX_FILENAME,
 )
 from ansible.module_utils.repo_manager.pulp_commands import (
+    build_pulp_entity_command,
+    build_rpm_remote_command,
     build_rpm_publication_list_command,
+    build_rpm_repository_content_list_command,
+    build_rpm_repository_content_modify_command,
     build_rpm_repository_version_list_command,
     build_pulp_task_list_command,
     pulp_common_commands,
@@ -2086,6 +2092,57 @@ def build_repo_priority_map(rpm_config):
     return priorities
 
 
+def build_complete_repo_priority_map(
+        rpm_config, repo_file_path, cluster_os_type, cluster_os_version,
+        architectures, log, extra_priorities=None):
+    """Return priorities for the active context plus earlier contexts.
+
+    The sequential catalog flow rewrites one shared ``pulp.repo`` after every
+    OS-version context. Preserve validated priorities belonging to other
+    contexts so a later context cannot silently remove an earlier context's
+    settings. Priorities for the active context always come from the current
+    input, which also makes removing or changing one take effect immediately.
+    """
+    current_priorities = build_repo_priority_map(rpm_config)
+    current_priorities.update(extra_priorities or {})
+    active_prefixes = tuple(
+        f"{arch}_{cluster_os_type}_{cluster_os_version}_"
+        for arch in (architectures or [])
+    )
+    preserved_priorities = {}
+
+    if repo_file_path and os.path.isfile(repo_file_path):
+        parser = configparser.ConfigParser(
+            interpolation=None, strict=False
+        )
+        try:
+            with open(repo_file_path, "r", encoding="utf-8") as repo_file:
+                parser.read_file(repo_file)
+            for section in parser.sections():
+                repo_name = validate_repository_id(section)
+                if active_prefixes and repo_name.startswith(active_prefixes):
+                    continue
+                if not parser.has_option(section, "priority"):
+                    continue
+                priority = parser.getint(section, "priority")
+                if 1 <= priority <= 100:
+                    preserved_priorities[repo_name] = priority
+                else:
+                    log.warning(
+                        "Ignoring out-of-range DNF priority for repository %s",
+                        repo_name,
+                    )
+        except (OSError, configparser.Error, ValueError) as error:
+            log.warning(
+                "Unable to preserve priorities from the existing DNF file "
+                "(%s); current context priorities will still be applied",
+                type(error).__name__,
+            )
+
+    preserved_priorities.update(current_priorities)
+    return preserved_priorities
+
+
 def create_yum_repo_file(
         distributions, log, sslcacert=None, repo_priorities=None,
         pulp_base_url=None, repo_file_path=None):
@@ -2627,6 +2684,120 @@ def _resolve_aggregated_remote_policy(repo_entry):
     return validate_pulp_policy(resolved_policy)
 
 
+def _selected_additional_architectures(additional_repos_config,
+                                       selected_architectures):
+    """Return configured architectures in stable execution order."""
+    configured = set((additional_repos_config or {}).keys())
+    requested = list(selected_architectures or [])
+    if requested:
+        return [arch for arch in requested if arch in configured]
+    ordered = [arch for arch in ARCH_SUFFIXES if arch in configured]
+    return ordered + sorted(configured - set(ordered))
+
+
+def validate_additional_repo_contract(
+        additional_repos_config, selected_architectures, rpm_config,
+        cluster_os_type, cluster_os_version):
+    """Validate one aggregate's policy, priority and source identity contract.
+
+    This check runs before any Pulp mutation so a conflicting aggregate cannot
+    partially change repository state.
+    """
+    active_architectures = []
+    aggregate_priorities = {}
+    configured_repository_names = {
+        _configured_repository_name(repo) for repo in rpm_config
+    }
+
+    for arch in _selected_additional_architectures(
+            additional_repos_config, selected_architectures):
+        repos = (additional_repos_config or {}).get(arch) or []
+        if not repos:
+            continue
+        if not isinstance(repos, list):
+            raise ValueError(
+                f"additional_repos_config.{arch} must be a list"
+            )
+
+        aggregate_name = validate_repository_id(build_repo_name(
+            arch, cluster_os_type, cluster_os_version,
+            AGGREGATED_REPO_SUFFIX,
+        ))
+        if aggregate_name in configured_repository_names:
+            raise ValueError(
+                f"Repository name '{aggregate_name}' is reserved for "
+                "additional_repos"
+            )
+
+        effective_policies = set()
+        effective_priorities = set()
+        source_names = set()
+        for repo_entry in repos:
+            if not isinstance(repo_entry, dict):
+                raise ValueError(
+                    f"additional_repos_config.{arch} entries must be mappings"
+                )
+            source_name = validate_repository_id(
+                repo_entry.get("original_name") or repo_entry.get("name")
+            )
+            if source_name in source_names:
+                raise ValueError(
+                    f"Duplicate additional repository source '{source_name}' "
+                    f"for architecture '{arch}'"
+                )
+            source_names.add(source_name)
+            validate_repository_url(repo_entry.get("url"))
+            effective_policies.add(
+                _resolve_aggregated_remote_policy(repo_entry)
+            )
+
+            priority = repo_entry.get("priority")
+            if priority is None:
+                priority = 99
+            if (isinstance(priority, bool) or not isinstance(priority, int)
+                    or priority < 1 or priority > 100):
+                raise ValueError(
+                    f"Additional repository '{source_name}' priority must be "
+                    "an integer from 1 through 100"
+                )
+            effective_priorities.add(priority)
+
+            client_cert = (
+                repo_entry.get("sslclientcert")
+                or repo_entry.get("client_cert")
+            )
+            client_key = (
+                repo_entry.get("sslclientkey")
+                or repo_entry.get("client_key")
+            )
+            if bool(client_cert) != bool(client_key):
+                raise ValueError(
+                    f"Additional repository '{source_name}' must configure "
+                    "sslclientcert and sslclientkey together"
+                )
+
+        if len(effective_policies) != 1:
+            raise ValueError(
+                f"Additional repositories for '{arch}' must use one effective "
+                "Pulp policy; found " + ", ".join(sorted(effective_policies))
+            )
+        if len(effective_priorities) != 1:
+            raise ValueError(
+                f"Additional repositories for '{arch}' must use one effective "
+                "DNF priority; found "
+                + ", ".join(
+                    str(value) for value in sorted(effective_priorities)
+                )
+            )
+
+        active_architectures.append(arch)
+        aggregate_priorities[aggregate_name] = next(
+            iter(effective_priorities)
+        )
+
+    return active_architectures, aggregate_priorities
+
+
 def create_aggregated_remote(repo_entry, repo_name, log):
     """
     Create or update a remote for an additional repo entry.
@@ -2640,37 +2811,38 @@ def create_aggregated_remote(repo_entry, repo_name, log):
         tuple: (success, remote_name)
     """
     repo_name = validate_repository_id(repo_name)
-    name = validate_repository_id(repo_entry["name"])
+    name = validate_repository_id(
+        repo_entry.get("original_name") or repo_entry["name"]
+    )
     url = validate_repository_url(repo_entry["url"])
     policy = _resolve_aggregated_remote_policy(repo_entry)
-    remote_name = validate_repository_id(f"{repo_name}-{name}")
+    remote_name = validate_repository_id(f"{repo_name}-source-{name}")
 
     log.info("Creating or updating aggregated remote '%s'.", remote_name)
 
-    ca_cert = repo_entry.get("ca_cert", "")
-    client_key = repo_entry.get("client_key", "")
-    client_cert = repo_entry.get("client_cert", "")
+    ca_cert = repo_entry.get("sslcacert") or repo_entry.get("ca_cert", "")
+    client_key = (
+        repo_entry.get("sslclientkey") or repo_entry.get("client_key", "")
+    )
+    client_cert = (
+        repo_entry.get("sslclientcert") or repo_entry.get("client_cert", "")
+    )
 
     remote_exists = show_rpm_remote(remote_name, log)
     if remote_exists is None:
         log.error("Unable to determine remote state: %s", remote_name)
         return False, remote_name
 
-    if ca_cert and client_key and client_cert:
-        ca_cert_arg = f"@{ca_cert}"
-        client_cert_arg = f"@{client_cert}"
-        client_key_arg = f"@{client_key}"
-
-        action = "create" if not remote_exists else "update"
-        command = pulp_rpm_commands[f"{action}_remote_cert"] % (
-            remote_name, url, policy,
-            ca_cert_arg, client_cert_arg, client_key_arg,
-        )
-    else:
-        action = "create" if not remote_exists else "update"
-        command = pulp_rpm_commands[f"{action}_remote"] % (
-            remote_name, url, policy,
-        )
+    action = "create" if not remote_exists else "update"
+    command = build_rpm_remote_command(
+        action,
+        name=remote_name,
+        url=url,
+        policy=policy,
+        ca_cert=f"@{ca_cert}" if ca_cert else None,
+        client_cert=f"@{client_cert}" if client_cert else None,
+        client_key=f"@{client_key}" if client_key else None,
+    )
 
     result = execute_command(command, log)
     if not result:
@@ -2906,13 +3078,6 @@ def manage_aggregated_repos(
             sync_failures = []
 
             for repo_entry in repos:
-                # Ensure repo name is normalized
-                repo_name_entry = repo_entry["name"]
-                expected_prefix = f"{arch}_{cluster_os_type}_{cluster_os_version}_"
-                if not repo_name_entry.startswith(expected_prefix):
-                    repo_name_entry = normalize_repo_name(repo_name_entry, arch, cluster_os_type, cluster_os_version)
-                    repo_entry["name"] = repo_name_entry  # Update the entry
-
                 # Create remote
                 log.info(f"Step 2: Creating remote for '{repo_entry['name']}'")
                 success, remote_name = create_aggregated_remote(repo_entry, repo_name, log)
@@ -3274,6 +3439,324 @@ def _verify_exact_repository_state(
         raise RuntimeError("Published metadata failed final validation")
 
 
+def _aggregate_repository_name(
+        arch, cluster_os_type, cluster_os_version):
+    """Return the stable public identity for one additional-repo aggregate."""
+    return validate_repository_id(build_repo_name(
+        arch,
+        cluster_os_type,
+        cluster_os_version,
+        AGGREGATED_REPO_SUFFIX,
+    ))
+
+
+def _aggregate_source_repository_name(aggregate_name, repo_entry):
+    """Return one private source repository/remote identity."""
+    source_name = validate_repository_id(
+        repo_entry.get("original_name") or repo_entry.get("name")
+    )
+    return validate_repository_id(f"{aggregate_name}-source-{source_name}")
+
+
+def _list_repository_content_hrefs(repo_name, version_href, log):
+    """Return the complete validated content set for one RPM repo version."""
+    repo_name = validate_repository_id(repo_name)
+    version = _repository_version_number_from_href(version_href)
+    content_hrefs = set()
+    offset = 0
+    seen_pages = set()
+    while True:
+        command = build_rpm_repository_content_list_command(
+            repo_name,
+            version,
+            limit=_PULP_LIST_PAGE_SIZE,
+            offset=offset,
+        )
+        result = _run_pulp_cli(command, log, repo_name=repo_name)
+        if result is None or result.returncode != 0:
+            raise RuntimeError("Unable to list repository content")
+        page = _parse_pulp_list_page(result, "repository-content")
+        if not page:
+            break
+        page_hrefs = []
+        for item in page:
+            if not isinstance(item, dict) or not item.get("pulp_href"):
+                raise RuntimeError("Pulp content response has no HREF")
+            page_hrefs.append(validate_pulp_href(item["pulp_href"]))
+        page_identity = tuple(page_hrefs)
+        if page_identity in seen_pages:
+            raise RuntimeError("Pulp content pagination did not advance")
+        seen_pages.add(page_identity)
+        content_hrefs.update(page_hrefs)
+        if len(page) < _PULP_LIST_PAGE_SIZE:
+            break
+        offset += len(page)
+    return content_hrefs
+
+
+def _write_content_change_file(content_hrefs):
+    """Write a private temporary Pulp content-change JSON file."""
+    file_descriptor, file_path = tempfile.mkstemp(
+        prefix="repo-manager-rpm-content-", suffix=".json"
+    )
+    try:
+        os.fchmod(file_descriptor, 0o600)
+        with os.fdopen(file_descriptor, "w", encoding="utf-8") as stream:
+            json.dump(
+                [{"pulp_href": href} for href in sorted(content_hrefs)],
+                stream,
+            )
+    except Exception:
+        try:
+            os.close(file_descriptor)
+        except OSError:
+            pass
+        try:
+            os.unlink(file_path)
+        except OSError:
+            pass
+        raise
+    return file_path
+
+
+def _modify_aggregate_content(
+        aggregate_name, base_version_href, add_hrefs, remove_hrefs, log):
+    """Create one aggregate version containing the exact requested delta."""
+    add_file = None
+    remove_file = None
+    try:
+        if add_hrefs:
+            add_file = _write_content_change_file(add_hrefs)
+        if remove_hrefs:
+            remove_file = _write_content_change_file(remove_hrefs)
+        command = build_rpm_repository_content_modify_command(
+            aggregate_name,
+            _repository_version_number_from_href(base_version_href),
+            add_content_file=add_file,
+            remove_content_file=remove_file,
+        )
+        repository_href = _get_repository_href(aggregate_name, log)
+        if not repository_href:
+            raise RuntimeError("Aggregate repository HREF is unavailable")
+        success, _, error_message = _execute_pulp_task(
+            command,
+            log,
+            aggregate_name,
+            repository_href=repository_href,
+            require_task=True,
+        )
+        if not success:
+            raise RuntimeError(
+                error_message or "Aggregate content modification failed"
+            )
+    finally:
+        for file_path in (add_file, remove_file):
+            if file_path:
+                try:
+                    os.unlink(file_path)
+                except OSError:
+                    pass
+
+
+def _list_owned_source_objects(aggregate_name, resource, log):
+    """Return private RPM source objects owned by one aggregate."""
+    prefix = f"{validate_repository_id(aggregate_name)}-source-"
+    objects = []
+    offset = 0
+    seen_pages = set()
+    while True:
+        command = build_pulp_entity_command(
+            "rpm",
+            resource,
+            "list",
+            fields=("name",),
+            limit=_PULP_LIST_PAGE_SIZE,
+            offset=offset,
+        )
+        result = _run_pulp_cli(command, log, repo_name=aggregate_name)
+        if result is None or result.returncode != 0:
+            raise RuntimeError(
+                f"Unable to list aggregate source {resource}s: "
+                f"{_command_output(result) or 'no CLI response'}"
+            )
+        page = _parse_pulp_list_page(result, f"aggregate-source-{resource}")
+        if not page:
+            break
+        names = tuple(str(item.get("name") or "") for item in page)
+        if names in seen_pages:
+            raise RuntimeError("Pulp source-object pagination did not advance")
+        seen_pages.add(names)
+        for item in page:
+            name = item.get("name") if isinstance(item, dict) else None
+            if name and str(name).startswith(prefix):
+                objects.append(validate_repository_id(name))
+        if len(page) < _PULP_LIST_PAGE_SIZE:
+            break
+        offset += len(page)
+    return sorted(set(objects))
+
+
+def _destroy_rpm_source_object(resource, name, log):
+    """Destroy and verify one private aggregate source object."""
+    name = validate_repository_id(name)
+    command = build_pulp_entity_command(
+        "rpm", resource, "destroy", name=name
+    )
+    success, _, error_message = _execute_pulp_task(
+        command, log, name, require_task=False
+    )
+    if not success:
+        raise RuntimeError(
+            error_message or f"Unable to delete aggregate source {resource}"
+        )
+    state = _query_object_exists(
+        build_pulp_entity_command("rpm", resource, "show", name=name),
+        log,
+        name,
+    )
+    if state is not False:
+        raise RuntimeError(f"Aggregate source {resource} deletion is unverified")
+
+
+def _prune_private_source_versions(repo_name, current_version_href, log):
+    """Retain only the exact version used to compose the public aggregate."""
+    current_version = _repository_version_number_from_href(
+        current_version_href
+    )
+    for version in sorted(
+            (
+                value for value in _list_repository_versions(repo_name, log)
+                if value > 0 and value != current_version
+            ),
+            reverse=True):
+        success, _, error_message = _execute_pulp_task(
+            pulp_rpm_commands["repository_version_destroy"] % (
+                repo_name, version
+            ),
+            log,
+            repo_name,
+            require_task=False,
+        )
+        if not success:
+            raise RuntimeError(
+                error_message or "Unable to prune aggregate source version"
+            )
+
+
+def _cleanup_stale_aggregate_sources(
+        aggregate_name, desired_source_names, log):
+    """Delete private repositories before their remotes after public commit."""
+    desired = set(desired_source_names)
+    repositories = set(_list_owned_source_objects(
+        aggregate_name, "repository", log
+    ))
+    remotes = set(_list_owned_source_objects(aggregate_name, "remote", log))
+    for repository_name in sorted(repositories - desired):
+        _destroy_rpm_source_object(
+            "repository", repository_name, log
+        )
+    for remote_name in sorted(remotes - desired):
+        _destroy_rpm_source_object("remote", remote_name, log)
+
+
+def _validate_exact_aggregate_target(
+        aggregate_name, repo_entries, pulp_base_url, log):
+    """Validate one public aggregate and safely classify source state."""
+    repository_href = _get_repository_href(aggregate_name, log)
+    if not repository_href:
+        raise RuntimeError(
+            "Aggregate repository is unavailable; run the download workflow "
+            "before repo_sync"
+        )
+    publication_href, version_href = _distribution_served_state(
+        aggregate_name, log
+    )
+    if not version_href.startswith(f"{repository_href}versions/"):
+        raise RuntimeError(
+            "Aggregate distribution publication belongs to another repository"
+        )
+    if _repository_version_number_from_href(version_href) <= 0:
+        raise RuntimeError("Aggregate distribution does not serve content")
+    metadata_valid, metadata_error = _validate_served_repomd(
+        aggregate_name, pulp_base_url, log
+    )
+    if not metadata_valid:
+        raise RuntimeError(metadata_error)
+
+    for repo_entry in repo_entries:
+        validate_repository_url(repo_entry.get("url"))
+        _resolve_aggregated_remote_policy(repo_entry)
+        source_name = _aggregate_source_repository_name(
+            aggregate_name, repo_entry
+        )
+        remote_exists, remote_state = _get_rpm_remote_state(source_name, log)
+        if remote_exists is None:
+            raise RuntimeError("Aggregate source remote state is unavailable")
+        if remote_exists:
+            try:
+                validate_repository_url(remote_state.get("url"))
+                validate_pulp_policy(remote_state.get("policy"))
+            except (TypeError, ValueError) as error:
+                raise RuntimeError(
+                    "Aggregate source remote state is invalid"
+                ) from error
+        repository_exists = show_rpm_repository(source_name, log)
+        if repository_exists is None:
+            raise RuntimeError(
+                "Aggregate source repository state is unavailable"
+            )
+    return publication_href, version_href
+
+
+def preflight_exact_additional_repositories(
+        additional_repos_config, selected_architectures, pulp_base_url, log,
+        cluster_os_type, cluster_os_version):
+    """Validate every URL-backed aggregate without mutating Pulp."""
+    repositories = {}
+    active_architectures = _selected_additional_architectures(
+        additional_repos_config, selected_architectures
+    )
+    for index, arch in enumerate(active_architectures):
+        repo_entries = (additional_repos_config or {}).get(arch) or []
+        if not repo_entries:
+            continue
+        aggregate_name = _aggregate_repository_name(
+            arch, cluster_os_type, cluster_os_version
+        )
+        try:
+            _, version_href = _validate_exact_aggregate_target(
+                aggregate_name, repo_entries, pulp_base_url, log
+            )
+            repositories[aggregate_name] = {
+                "preflight_status": "success",
+                "sync_status": "not_run",
+                "cleanup_status": "not_run",
+                "version_href": version_href,
+            }
+        except (RuntimeError, TypeError, ValueError) as error:
+            repositories[aggregate_name] = {
+                "preflight_status": "failed",
+                "sync_status": "not_run",
+                "cleanup_status": "not_run",
+                "error": str(error),
+            }
+            for pending_arch in active_architectures[index + 1:]:
+                pending_entries = (
+                    additional_repos_config or {}
+                ).get(pending_arch) or []
+                if pending_entries:
+                    pending_name = _aggregate_repository_name(
+                        pending_arch, cluster_os_type, cluster_os_version
+                    )
+                    repositories[pending_name] = {
+                        "preflight_status": "not_run",
+                        "sync_status": "not_run",
+                        "cleanup_status": "not_run",
+                    }
+            return False, repositories, str(error)
+    return True, repositories, "Additional-repository preflight completed"
+
+
 def _validate_exact_mirror_target(repo, pulp_base_url, log):
     """Validate one existing repository chain without mutating Pulp."""
     repo_name = _configured_repository_name(repo)
@@ -3587,6 +4070,321 @@ def _exact_mirror_repository(
         return False, status
 
 
+def _sync_exact_aggregate_source(repo_entry, aggregate_name, log):
+    """Exact-sync one URL into its private source repository."""
+    source_name = _aggregate_source_repository_name(
+        aggregate_name, repo_entry
+    )
+    repository_created, _ = create_aggregated_repository(source_name, log)
+    if not repository_created:
+        raise RuntimeError("Aggregate source repository could not be created")
+    remote_created, remote_name = create_aggregated_remote(
+        repo_entry, aggregate_name, log
+    )
+    if not remote_created or remote_name != source_name:
+        raise RuntimeError("Aggregate source remote could not be reconciled")
+    source_config = {
+        "package": source_name,
+        "name": source_name,
+        "url": repo_entry.get("url"),
+        "policy": _resolve_aggregated_remote_policy(repo_entry),
+    }
+    sync_result = sync_rpm_repository_with_monitoring(
+        source_config,
+        log,
+        resync_repos="all",
+        sync_policy="mirror_content_only",
+    )
+    if not sync_result[0]:
+        raise RuntimeError("Aggregate source synchronization failed")
+    version_href = get_repository_latest_version_href(source_name, log)
+    if not version_href:
+        raise RuntimeError("Aggregate source version is unavailable")
+    return source_name, version_href
+
+
+def _exact_aggregate_repository(
+        arch, repo_entries, pulp_base_url, mirror_index_path,
+        cluster_os_type, cluster_os_version, rpm_config, log):
+    """Publish the exact union of private URL-backed source repositories."""
+    aggregate_name = _aggregate_repository_name(
+        arch, cluster_os_type, cluster_os_version
+    )
+    status = {
+        "sync_status": "failed",
+        "old_version": None,
+        "new_version": None,
+        "packages_added": 0,
+        "packages_removed": 0,
+        "content_added": 0,
+        "content_removed": 0,
+        "source_count": len(repo_entries),
+        "publication_updated": False,
+        "cleanup_status": "not_run",
+    }
+    stage = "preflight"
+    old_publication = None
+    old_version_href = None
+    committed_version_href = None
+    distribution_switched = False
+    replacement_validated = False
+    try:
+        old_publication, old_version_href = _validate_exact_aggregate_target(
+            aggregate_name, repo_entries, pulp_base_url, log
+        )
+        committed_version_href = old_version_href
+        old_version = _repository_version_number_from_href(old_version_href)
+        status["old_version"] = old_version
+
+        stage = "initial_checkpoint"
+        if not _persist_exact_repository_checkpoint(
+                mirror_index_path, rpm_config, aggregate_name, "pending",
+                old_version_href, log, cluster_os_type, cluster_os_version):
+            raise RuntimeError("Unable to persist aggregate checkpoint")
+
+        stage = "source_synchronization"
+        desired_content = set()
+        source_versions = {}
+        desired_source_names = set()
+        for repo_entry in repo_entries:
+            source_name, source_version_href = _sync_exact_aggregate_source(
+                repo_entry, aggregate_name, log
+            )
+            desired_source_names.add(source_name)
+            source_versions[source_name] = source_version_href
+            desired_content.update(_list_repository_content_hrefs(
+                source_name, source_version_href, log
+            ))
+
+        stage = "content_reconciliation"
+        current_content = _list_repository_content_hrefs(
+            aggregate_name, old_version_href, log
+        )
+        add_hrefs = desired_content - current_content
+        remove_hrefs = current_content - desired_content
+        status["content_added"] = len(add_hrefs)
+        status["content_removed"] = len(remove_hrefs)
+        status["packages_added"] = sum(
+            "/content/rpm/packages/" in href for href in add_hrefs
+        )
+        status["packages_removed"] = sum(
+            "/content/rpm/packages/" in href for href in remove_hrefs
+        )
+
+        if add_hrefs or remove_hrefs:
+            _modify_aggregate_content(
+                aggregate_name,
+                old_version_href,
+                add_hrefs,
+                remove_hrefs,
+                log,
+            )
+            new_version_href = get_repository_latest_version_href(
+                aggregate_name, log
+            )
+            if not new_version_href or new_version_href == old_version_href:
+                raise RuntimeError("Aggregate replacement version is unavailable")
+            replacement_content = _list_repository_content_hrefs(
+                aggregate_name, new_version_href, log
+            )
+            if replacement_content != desired_content:
+                raise RuntimeError("Aggregate replacement content is incomplete")
+        else:
+            new_version_href = old_version_href
+
+        new_version = _repository_version_number_from_href(new_version_href)
+        status["new_version"] = new_version
+        status["sync_status"] = "success"
+
+        stage = "publication"
+        publication_created, new_publication = (
+            create_aggregated_publication(aggregate_name, log)
+        )
+        if not publication_created or not new_publication:
+            raise RuntimeError("Aggregate replacement publication failed")
+
+        stage = "distribution_switch"
+        if old_publication != new_publication:
+            distribution_switched = True
+            switch_ok, _switch_error = _switch_distribution_publication(
+                aggregate_name, new_publication, log
+            )
+            if not switch_ok:
+                raise RuntimeError("Aggregate distribution switch failed")
+        status["publication_updated"] = distribution_switched
+
+        stage = "replacement_validation"
+        metadata_valid, _metadata_error = _validate_served_repomd(
+            aggregate_name, pulp_base_url, log
+        )
+        if not metadata_valid:
+            raise RuntimeError("Aggregate replacement metadata is invalid")
+        served_publication, served_version_href = _distribution_served_state(
+            aggregate_name, log
+        )
+        if (
+                served_publication != new_publication
+                or served_version_href != new_version_href):
+            raise RuntimeError("Aggregate distribution serves another version")
+        replacement_validated = True
+        committed_version_href = new_version_href
+
+        stage = "replacement_checkpoint"
+        if not _persist_exact_repository_checkpoint(
+                mirror_index_path, rpm_config, aggregate_name, "pending",
+                new_version_href, log, cluster_os_type, cluster_os_version,
+                invalidate_packages=new_version_href != old_version_href):
+            raise RuntimeError("Unable to persist aggregate replacement state")
+
+        stage = "pruning"
+        _prune_superseded_repository_state(
+            aggregate_name, new_publication, new_version, log
+        )
+        for source_name, source_version_href in source_versions.items():
+            _prune_private_source_versions(
+                source_name, source_version_href, log
+            )
+        _cleanup_stale_aggregate_sources(
+            aggregate_name, desired_source_names, log
+        )
+
+        stage = "final_validation"
+        _verify_exact_repository_state(
+            aggregate_name,
+            new_publication,
+            new_version_href,
+            pulp_base_url,
+            log,
+        )
+
+        stage = "ready_checkpoint"
+        if not _persist_exact_repository_checkpoint(
+                mirror_index_path, rpm_config, aggregate_name, "ready",
+                new_version_href, log, cluster_os_type, cluster_os_version):
+            raise RuntimeError("Unable to persist ready aggregate checkpoint")
+        status["stale_packages_remaining"] = 0
+        status["cleanup_status"] = "success"
+        return True, status
+    except (OSError, RuntimeError, TypeError, ValueError):
+        _log(
+            log,
+            "error",
+            aggregate_name,
+            f"Exact aggregate reconciliation failed during {stage}",
+        )
+        if (
+                distribution_switched
+                and not replacement_validated
+                and old_publication):
+            rollback_ok, _rollback_error = _switch_distribution_publication(
+                aggregate_name, old_publication, log
+            )
+            if rollback_ok:
+                committed_version_href = old_version_href
+            else:
+                status["rollback_error"] = "Distribution rollback failed"
+        try:
+            _active_publication, active_version_href = (
+                _distribution_served_state(aggregate_name, log)
+            )
+            committed_version_href = active_version_href
+        except RuntimeError:
+            pass
+        checkpoint_saved = _persist_exact_repository_checkpoint(
+            mirror_index_path,
+            rpm_config,
+            aggregate_name,
+            "failed",
+            committed_version_href,
+            log,
+            cluster_os_type,
+            cluster_os_version,
+        )
+        if not checkpoint_saved:
+            _log(
+                log,
+                "error",
+                aggregate_name,
+                "Unable to persist failed aggregate checkpoint",
+            )
+        status["error"] = (
+            f"Exact aggregate reconciliation failed during {stage}"
+        )
+        return False, status
+
+
+def manage_exact_additional_repositories(
+        additional_repos_config, selected_architectures, log, pulp_base_url,
+        mirror_index_path, cluster_os_type, cluster_os_version, rpm_config,
+        run_orphan_cleanup=False):
+    """Reconcile public additional aggregates in deterministic order."""
+    repositories = {}
+    active_architectures = _selected_additional_architectures(
+        additional_repos_config, selected_architectures
+    )
+    for index, arch in enumerate(active_architectures):
+        repo_entries = (additional_repos_config or {}).get(arch) or []
+        if not repo_entries:
+            continue
+        aggregate_name = _aggregate_repository_name(
+            arch, cluster_os_type, cluster_os_version
+        )
+        success, repository_status = _exact_aggregate_repository(
+            arch,
+            repo_entries,
+            pulp_base_url,
+            mirror_index_path,
+            cluster_os_type,
+            cluster_os_version,
+            rpm_config,
+            log,
+        )
+        repositories[aggregate_name] = repository_status
+        if not success:
+            for pending_arch in active_architectures[index + 1:]:
+                pending_entries = (
+                    additional_repos_config or {}
+                ).get(pending_arch) or []
+                if pending_entries:
+                    pending_name = _aggregate_repository_name(
+                        pending_arch, cluster_os_type, cluster_os_version
+                    )
+                    repositories[pending_name] = {
+                        "sync_status": "not_run",
+                        "cleanup_status": "not_run",
+                    }
+            return (
+                False,
+                repositories,
+                repository_status.get(
+                    "error", "Exact aggregate reconciliation failed"
+                ),
+                "not_run",
+            )
+
+    if run_orphan_cleanup:
+        success, _, _error_message = _execute_pulp_task(
+            pulp_rpm_commands["orphan_cleanup"],
+            log,
+            "pulp_orphans",
+            require_task=False,
+        )
+        if not success:
+            return False, repositories, "Pulp orphan cleanup failed", "failed"
+        return (
+            True,
+            repositories,
+            "Exact aggregate reconciliation completed",
+            "success",
+        )
+    return (
+        True,
+        repositories,
+        "Exact aggregate reconciliation completed",
+        "not_run",
+    )
+
+
 def manage_exact_mirror_repositories(
         rpm_config, log, pulp_base_url, mirror_index_path,
         cluster_os_type, cluster_os_version, run_orphan_cleanup=False):
@@ -3659,7 +4457,8 @@ def manage_rpm_repositories_multiprocess(
         thread_pool_size=RPM_THREAD_POOL_SIZE,
         pulp_base_url=None,
         repo_file_path=None,
-        mirror_index_path=None):
+        mirror_index_path=None,
+        write_repo_file=True):
     """
     Manage RPM repositories using multiprocessing.
 
@@ -3678,6 +4477,8 @@ def manage_rpm_repositories_multiprocess(
         pulp_base_url (str): Trusted public Pulp HTTPS origin.
         repo_file_path (str): Destination path for the generated DNF file.
         mirror_index_path (str): Per-version mirror state used for sync recovery.
+        write_repo_file (bool): Write the DNF file after regular repositories.
+            Aggregate callers defer this until all additional sources succeed.
     Returns:
         tuple: (bool, str) indicating success and a message
     """
@@ -3726,17 +4527,25 @@ def manage_rpm_repositories_multiprocess(
                 "Repositories required by this context are incomplete: "
                 + ", ".join(readiness_failures)
             )
-        base_urls = get_base_urls(log, pulp_base_url)
-        if not base_urls:
-            return False, "Base URLs fetch failed — repo file not created."
-        if not create_yum_repo_file(
-                base_urls, log,
-                repo_priorities=build_repo_priority_map(rpm_config),
-                pulp_base_url=pulp_base_url,
-                repo_file_path=repo_file_path):
-            return False, (
-                "Failed to atomically create the DNF repository file"
-            )
+        if write_repo_file:
+            base_urls = get_base_urls(log, pulp_base_url)
+            if not base_urls:
+                return False, "Base URLs fetch failed — repo file not created."
+            if not create_yum_repo_file(
+                    base_urls, log,
+                    repo_priorities=build_complete_repo_priority_map(
+                        rpm_config,
+                        repo_file_path,
+                        cluster_os_type,
+                        cluster_os_version,
+                        sw_archs,
+                        log,
+                    ),
+                    pulp_base_url=pulp_base_url,
+                    repo_file_path=repo_file_path):
+                return False, (
+                    "Failed to atomically create the DNF repository file"
+                )
         return True, "No targeted repositories for this execution context"
 
     # Validate resync_repos contains valid repository names
@@ -3947,22 +4756,32 @@ def manage_rpm_repositories_multiprocess(
     # This handles the scenario where omnia_core upgrade deletes pulp.repo
     # and local_repo.yml runs again with already-synced repos.
     # Distributions must exist before we can fetch base_urls.
-    log.info("Step 6: Ensuring pulp.repo file exists")
-    base_urls = get_base_urls(log, pulp_base_url)
-    if not base_urls:
-        log.error("No base URLs retrieved from Pulp. Cannot create repo file.")
-        return False, "Base URLs fetch failed — repo file not created."
+    if write_repo_file:
+        log.info("Step 6: Ensuring pulp.repo file exists")
+        base_urls = get_base_urls(log, pulp_base_url)
+        if not base_urls:
+            log.error("No base URLs retrieved from Pulp. Cannot create repo file.")
+            return False, "Base URLs fetch failed — repo file not created."
 
-    log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
-    repo_file_created = create_yum_repo_file(
-        base_urls, log,
-        repo_priorities=build_repo_priority_map(rpm_config),
-        pulp_base_url=pulp_base_url,
-        repo_file_path=repo_file_path,
-    )
-    if not repo_file_created:
-        return False, "Failed to atomically create the DNF repository file"
-    log.info("Successfully created/updated pulp.repo file with fetched base URLs.")
+        log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
+        repo_file_created = create_yum_repo_file(
+            base_urls, log,
+            repo_priorities=build_complete_repo_priority_map(
+                rpm_config,
+                repo_file_path,
+                cluster_os_type,
+                cluster_os_version,
+                sw_archs,
+                log,
+            ),
+            pulp_base_url=pulp_base_url,
+            repo_file_path=repo_file_path,
+        )
+        if not repo_file_created:
+            return False, "Failed to atomically create the DNF repository file"
+        log.info(
+            "Successfully created/updated pulp.repo file with fetched base URLs."
+        )
 
     if not _persist_repository_checkpoints(
             mirror_index_path,
@@ -3975,6 +4794,42 @@ def manage_rpm_repositories_multiprocess(
     _log_summary(log, sync_results, all_failures, total_start_time)
 
     return True, "All repositories processed successfully"
+
+
+def write_complete_repo_file(
+        rpm_config, aggregate_priorities, active_additional_architectures,
+        cluster_os_type, cluster_os_version, pulp_base_url, repo_file_path,
+        log):
+    """Atomically publish DNF configuration after aggregate success."""
+    distributions = get_base_urls(log, pulp_base_url)
+    if not distributions:
+        return False, "Base URLs fetch failed — repo file not created."
+
+    legacy_names = {
+        build_repo_name(
+            arch, cluster_os_type, cluster_os_version,
+            "repo_manager-additional",
+        )
+        for arch in active_additional_architectures
+    }
+    distributions = [
+        distribution for distribution in distributions
+        if distribution.get("name") not in legacy_names
+    ]
+    priorities = build_complete_repo_priority_map(
+        rpm_config,
+        repo_file_path,
+        cluster_os_type,
+        cluster_os_version,
+        active_additional_architectures,
+        log,
+        extra_priorities=aggregate_priorities,
+    )
+    if not create_yum_repo_file(
+            distributions, log, repo_priorities=priorities,
+            pulp_base_url=pulp_base_url, repo_file_path=repo_file_path):
+        return False, "Failed to atomically create the DNF repository file"
+    return True, "DNF repository file includes additional repositories"
 
 
 def main():
@@ -4115,25 +4970,46 @@ def main():
                 rpm_config.append(user_repo_entry)
                 log.info(f"Added user repo: {original_name} -> {normalized_name} for arch {arch} with policy: {resolved_policy}")
 
-    if exact_mirror:
-        aggregated_repositories = [
-            repo
-            for repositories in (additional_repos_config or {}).values()
-            for repo in (repositories or [])
-        ]
-        if aggregated_repositories:
-            module.fail_json(
-                msg=(
-                    "Exact-mirror reconciliation does not support aggregated "
-                    "additional repositories"
-                )
+    try:
+        active_additional_architectures, aggregate_priorities = (
+            validate_additional_repo_contract(
+                additional_repos_config,
+                sw_archs,
+                rpm_config,
+                cluster_os_type,
+                cluster_os_version,
             )
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        module.fail_json(
+            changed=False,
+            msg=f"Invalid additional_repos configuration: {error}",
+        )
 
+    if exact_mirror:
         if exact_mirror_preflight:
-            success, repositories, message = (
+            regular_success, regular_repositories, regular_message = (
                 preflight_exact_mirror_repositories(
                     rpm_config, pulp_base_url, log
                 )
+            )
+            additional_success, additional_repositories, additional_message = (
+                preflight_exact_additional_repositories(
+                    additional_repos_config,
+                    active_additional_architectures,
+                    pulp_base_url,
+                    log,
+                    cluster_os_type,
+                    cluster_os_version,
+                )
+            )
+            repositories = dict(regular_repositories)
+            repositories.update(additional_repositories)
+            success = regular_success and additional_success
+            message = (
+                regular_message if not regular_success
+                else additional_message if not additional_success
+                else "Exact-mirror preflight completed"
             )
             preflight_result = {
                 "repositories": repositories,
@@ -4150,7 +5026,12 @@ def main():
                 )
             module.exit_json(changed=False, result=preflight_result)
 
-        success, repositories, message, orphan_cleanup = (
+        (
+            regular_success,
+            regular_repositories,
+            regular_message,
+            orphan_cleanup_status,
+        ) = (
             manage_exact_mirror_repositories(
                 rpm_config,
                 log,
@@ -4158,13 +5039,48 @@ def main():
                 mirror_index_path,
                 cluster_os_type,
                 cluster_os_version,
-                run_orphan_cleanup=run_orphan_cleanup,
+                run_orphan_cleanup=(
+                    run_orphan_cleanup
+                    and not active_additional_architectures
+                ),
             )
         )
+        repositories = dict(regular_repositories)
+        success = regular_success
+        message = regular_message
+        if regular_success and active_additional_architectures:
+            (
+                additional_success,
+                additional_repositories,
+                additional_message,
+                orphan_cleanup_status,
+            ) = manage_exact_additional_repositories(
+                additional_repos_config,
+                active_additional_architectures,
+                log,
+                pulp_base_url,
+                mirror_index_path,
+                cluster_os_type,
+                cluster_os_version,
+                rpm_config,
+                run_orphan_cleanup=run_orphan_cleanup,
+            )
+            repositories.update(additional_repositories)
+            success = additional_success
+            message = additional_message
+        elif not regular_success:
+            for arch in active_additional_architectures:
+                aggregate_name = _aggregate_repository_name(
+                    arch, cluster_os_type, cluster_os_version
+                )
+                repositories[aggregate_name] = {
+                    "sync_status": "not_run",
+                    "cleanup_status": "not_run",
+                }
         exact_result = {
             "repositories": repositories,
             "overall_status": "success" if success else "failed",
-            "orphan_cleanup": orphan_cleanup,
+            "orphan_cleanup": orphan_cleanup_status,
         }
         if not success:
             exact_result["error"] = message
@@ -4212,21 +5128,38 @@ def main():
         pulp_base_url=pulp_base_url,
         repo_file_path=repo_file_path,
         mirror_index_path=mirror_index_path,
+        write_repo_file=not bool(active_additional_architectures),
     )
 
     if result is False:
         module.fail_json(msg=f"Error {output}, check {standard_log_path}")
 
-    # Handle aggregated repos if additional_repos_config is provided
-    if additional_repos_config:
+    # Handle only non-empty aggregate definitions. Missing or empty
+    # additional_repos remains a complete no-op.
+    if active_additional_architectures:
         log.info("Processing additional_repos aggregated repositories")
         result, output = manage_aggregated_repos(
             additional_repos_config, log, cluster_os_type,
-            cluster_os_version, sw_archs or []
+            cluster_os_version, active_additional_architectures
         )
         if result is False:
             module.fail_json(msg=f"Error in aggregated repos: {output}, check {standard_log_path}")
         log.info("Successfully processed additional_repos aggregated repositories")
+
+        result, output = write_complete_repo_file(
+            rpm_config,
+            aggregate_priorities,
+            active_additional_architectures,
+            cluster_os_type,
+            cluster_os_version,
+            pulp_base_url,
+            repo_file_path,
+            log,
+        )
+        if result is False:
+            module.fail_json(
+                msg=f"Error {output}, check {standard_log_path}"
+            )
 
     module.exit_json(changed=True, result=output)
 

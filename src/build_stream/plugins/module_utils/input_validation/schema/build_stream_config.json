@@ -83,18 +83,14 @@
                 },
                 "interval_seconds": {
                     "type": "integer",
-                    "minimum": 3600,
-                    "description": "Cadence polling interval in seconds (minimum 1 hour)"
+                    "minimum": 60,
+                    "description": "Cadence polling interval in seconds (minimum 1 minute for testing)"
                 },
                 "catalog_filename": {
                     "type": "string",
                     "minLength": 1,
                     "pattern": "^[a-zA-Z0-9._-]+\\.json$",
                     "description": "Cadence catalog filename in GitLab repository"
-                },
-                "gitlab_repo_path": {
-                    "type": "string",
-                    "description": "Path to local GitLab repository clone"
                 },
                 "playbook_name": {
                     "type": "string",
@@ -113,28 +109,7 @@
                     "description": "Poll interval while waiting for sync result"
                 }
             },
-            "allOf": [
-                {
-                    "if": {
-                        "properties": {
-                            "enabled": {
-                                "const": true
-                            }
-                        },
-                        "required": ["enabled"]
-                    },
-                    "then": {
-                        "required": [
-                            "gitlab_repo_path"
-                        ],
-                        "properties": {
-                            "gitlab_repo_path": {
-                                "minLength": 1
-                            }
-                        }
-                    }
-                }
-            ],
+
             "additionalProperties": false
         }
     },
