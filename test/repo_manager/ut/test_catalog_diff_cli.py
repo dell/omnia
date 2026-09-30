@@ -97,6 +97,44 @@ class DiffSchemaRequiredTests(unittest.TestCase):
             content = fh.read()
         self.assertIn("SCHEMA-DEGRADED", content)
 
+    def test_component_append_emits_compact_patch_and_changed_group_report(self):
+        """A real schema-validated catalog addition uses one membership operation."""
+        with open(SAMPLE_CURRENT, encoding="utf-8") as source:
+            future_catalog = json.load(source)
+        body = future_catalog["catalog"]
+        group = body["groups"]["admin_debug_group"]
+        insertion_index = len(group["components"])
+        body["packages"]["htop"] = {
+            "name": "htop", "packagetype": "rpm",
+            "sources": [{"architecture": "x86_64", "reponame": "baseos",
+                         "name": "rhel", "version": ["10.0"]}],
+        }
+        group["components"].append("htop")
+        future = os.path.join(self._tmp.name, "future.json")
+        with open(future, "w", encoding="utf-8") as output:
+            json.dump(future_catalog, output)
+        forward, reverse = self._outputs()
+        changelog = os.path.join(self._tmp.name, "changelog.md")
+        result = _run("diff", "--current", SAMPLE_CURRENT, "--future", future,
+                      "--schema", SCHEMA, "--output-forward", forward,
+                      "--output-reverse", reverse, "--output-changelog", changelog)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        with open(forward, encoding="utf-8") as output:
+            ops = json.load(output)
+        self.assertEqual(len(ops), 2)
+        self.assertEqual(ops[1], {
+            "op": "insert_component",
+            "path": ["catalog", "groups", "admin_debug_group", "components"],
+            "index": insertion_index, "value": "htop",
+        })
+        with open(reverse, encoding="utf-8") as output:
+            reverse_ops = json.load(output)
+        self.assertEqual(reverse_ops[1], {**ops[1], "op": "remove_component"})
+        with open(changelog, encoding="utf-8") as output:
+            report = output.read()
+        self.assertIn("Groups (0 added, 0 removed, 1 changed)", report)
+        self.assertEqual(report.count("- ~ admin_debug_group"), 1)
+
 
 @unittest.skipUnless(
     os.path.isfile(SAMPLE_CURRENT) and os.path.isfile(SAMPLE_FUTURE),

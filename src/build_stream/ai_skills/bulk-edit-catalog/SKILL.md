@@ -3,6 +3,9 @@ name: bulk-edit-catalog
 description: Applies a requested change consistently across every catalog it affects, with per-catalog schema-validation failure isolation, subject to the Pre-Edit Impact & Compatibility Gate. Use when an edit must be applied identically across more than one catalog, not just a single file.
 ---
 
+Before starting, read `../shared/skill_scope.md` and use only this bundle's
+companion skills and shared instructions.
+
 ## Purpose
 
 Apply the same logical change — "pin RHEL from 10.0 to 10.2 across all
@@ -56,6 +59,13 @@ with a `base_os` group whose `os_version` is `10.0`). List every match
 before proceeding — do not apply to a partial set silently.
 
 ### Step 2 — Run the Pre-Edit Gate per catalog
+
+For package additions, use `catalog-editing/SKILL.md`'s dependency-discovery
+requirement for each catalog and consuming platform before presenting approvals.
+Reuse evidence only for matching package/version/source/platform tuples; check
+already-satisfied dependencies and group reachability separately in each catalog.
+Show the requested-plus-dependency proposal per catalog, not one assumed common
+dependency set. An unpinned or same-repository addition is not exempt.
 
 Run Impact Analysis / Compatibility & Dependency Analysis for the
 proposed change against **each** matching catalog independently, per

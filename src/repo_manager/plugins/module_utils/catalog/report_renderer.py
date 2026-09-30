@@ -91,8 +91,16 @@ def summarize(current_body: dict, future_body: dict, forward_diff: list) -> dict
         "functionallayer": {"added": [], "removed": [], "changed": []},
     }
 
+    seen_components = set()
     for op in forward_diff:
         path = op["path"]
+        if op["op"] in ("insert_component", "remove_component"):
+            identity = tuple(path[:3])
+            if identity in seen_components:
+                continue
+            seen_components.add(identity)
+            # Membership operations change the owner; they do not add/remove it.
+            op = {**op, "op": "set"}
         if path[:2] == ["catalog", "packages"]:
             key = path[2]
             _append_change(summary["packages"], op, key,

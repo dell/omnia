@@ -44,7 +44,7 @@ What is the impact of removing ldms_group from compute nodes?
 | Multi-Tier Analysis | Traces impact across package, role, cluster, and workload tiers |
 | Severity Rating | Assigns CRITICAL, HIGH, MEDIUM, LOW severity to changes |
 | Online-Preferred | Uses live dnf/repo lookups before falling back to offline data |
-| Dependency Tracing | Identifies reverse dependencies and required-by relationships |
+| Dependency Tracing | Checks surviving dependency paths per affected layer after the full proposed change |
 | Customer Summaries | Generates plain-English impact reports |
 | Single-Catalog Scope | Analyzes within one catalog (not cross-catalog) |
 
@@ -75,7 +75,7 @@ What is the impact of removing ldms_group from compute nodes?
 
 1. **Parse Request**: Extract target (package/group/layer/OS) and catalog
 2. **Online Lookup**: Query local dnf, live repos, upstream docs
-3. **Dependency Trace**: Build forward and reverse dependency graph
+3. **Dependency Trace**: Expand before/after layers and verify surviving dependency paths for the target OS, architecture, and versions
 4. **Tier Analysis**: Assess impact at package/role/cluster/workload levels
 5. **Severity Rating**: Assign severity based on scope and criticality
 6. **Report**: Generate technical and customer-facing summaries
@@ -86,3 +86,7 @@ What is the impact of removing ldms_group from compute nodes?
 - Requires connectivity layer for best results
 - Offline mode uses master reference file (may be incomplete)
 - Does not apply changes (analysis only)
+- A package definition or dependent in another layer does not prove retention;
+  incomplete evidence is reported as unresolved. Retention does not cap the
+  risk of a version/source/OS change at Low.
+- Uses companion skills only from this bundle (`../shared/skill_scope.md`).

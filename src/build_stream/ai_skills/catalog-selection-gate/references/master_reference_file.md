@@ -42,6 +42,7 @@ One row per selectable option across every decision axis.
 | stack | service_k8s | supported | Kubernetes is not supported on aarch64 in this release (x86_64 only — no service_k8s_aarch64.json ships in any inspected catalogs/<os_version>/ directory) | src/main/samples/catalogs/**/service_k8s_*.json (captured 2026-09-25) |
 | stack | slurm + service_k8s | supported | Mixed-stack catalogs are a shipped configuration; x86_64 only when Kubernetes is included | src/main/samples/catalogs/**/slurm_service_k8s_*.json (captured 2026-09-25) |
 | gpu | NVIDIA | supported |  | src/main/samples/catalogs (nvidia_stack_driver_groupv1); src/orchestrator/plugins/modules/bulk_discover_node_specs.py (_detect_gpus_from_processors/_detect_gpus_from_pcie) (captured 2026-09-25) |
+| gpu | None (CPU-only catalog) | supported | Omit NVIDIA GPU driver/CUDA groups; describes catalog software, not physical GPU inventory | A.3 conditional gpu=NVIDIA group inclusion |
 | gpu | AMD / ROCm | planned | Version pins exist in repository configuration; no functional group ships today and hardware detection only regex-matches NVIDIA | src/repo_manager/plugins/module_utils/input_validation/core/config.py expected_versions['amdgpu'/'rocm'] (captured 2026-09-25) |
 | storage | VAST (NFS/RDMA) | supported | Slurm-scoped — see A.4 | src/main/samples/catalogs (vast_stack_driver_groupv1, Slurm layers only) (captured 2026-09-25) |
 | storage | PowerScale (CSI) | supported | Kubernetes-scoped — see A.4 | src/main/samples/catalogs (powerscale_csi_group, service_k8s layers only) (captured 2026-09-25) |
@@ -49,7 +50,7 @@ One row per selectable option across every decision axis.
 | storage | Generic NFS | supported | Stack-neutral; no catalog group | src/orchestrator/roles/mount_config/tasks/cloud_init.yml (captured 2026-09-25) |
 | storage | BeeGFS | planned | Version pin only; no functional group or role found in any inspected catalog | src/repo_manager/plugins/module_utils/input_validation/core/config.py expected_versions['beegfs'] (captured 2026-09-25) |
 | network | InfiniBand (DOCA OFED) | supported | Additive per functional layer, not a vendor choice | src/main/samples/catalogs (infiniband_stack_driver_groupv1); src/orchestrator/roles/configure_ochami/templates/doca-ofed/doca-install.sh.j2 (captured 2026-09-25) |
-| network | Ethernet-only | supported | Absence of the InfiniBand group; no dedicated group | src/main/samples/catalogs (absence of infiniband group) (captured 2026-09-25) |
+| network | No InfiniBand | supported | Explicit No response to the InfiniBand yes/no prompt; omit the InfiniBand group, with no assertion about other interfaces | src/main/samples/catalogs (absence of infiniband group) (captured 2026-09-25) |
 
 ---
 
@@ -253,4 +254,3 @@ Per OS version and architecture, the repositories/registries a package source ma
 | CON-006 | operator-supplied repository | An operator-supplied repository referenced by any package must have a URL before sync | blocking | src/repo_manager/input/repo_manager_config.yml user_repos (slurm_custom, ldms, vast ship with an empty url by design) (captured 2026-09-25) |
 | CON-007 | functional layer, group removal | Removing a group that another selected role also references affects both roles | warning | A.3 Functional-Layer Composition Table (captured 2026-09-25) |
 | CON-008 | driver group, repository configuration | Adding a driver group pulls in a repository that may not yet be configured | warning | A.5 Package Source Defaults Table; A.3 Functional-Layer Composition Table (captured 2026-09-25) |
-

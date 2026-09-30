@@ -21,6 +21,7 @@ reverse_diff == current) can be verified exactly rather than hoped for.
 """
 
 from copy import deepcopy
+from difflib import SequenceMatcher
 from typing import Any
 
 CATALOG_SCALAR_FIELDS = ("name", "version", "schema_version", "identifier", "description")
@@ -78,6 +79,34 @@ def _index_functional_layer(layers: list) -> dict:
     return indexed
 
 
+def _component_ops(old_value: dict, new_value: dict, path: list):
+    """Return ordered list edits, or None when whole-object replacement is needed."""
+    if not isinstance(old_value, dict) or not isinstance(new_value, dict):
+        return None
+    old_items, new_items = old_value.get("components"), new_value.get("components")
+    if not isinstance(old_items, list) or not isinstance(new_items, list):
+        return None
+    if not all(isinstance(item, str) for item in old_items + new_items):
+        return None
+    if ({key: value for key, value in old_value.items() if key != "components"}
+            != {key: value for key, value in new_value.items() if key != "components"}):
+        return None
+
+    ops = []
+    # Walk right-to-left so earlier indices remain valid after each edit.
+    matcher = SequenceMatcher(a=old_items, b=new_items, autojunk=False)
+    for tag, start, end, new_start, new_end in reversed(matcher.get_opcodes()):
+        if tag == "equal":
+            continue
+        for index in range(end - 1, start - 1, -1):
+            ops.append({"op": "remove_component", "path": path + ["components"],
+                        "index": index, "value": old_items[index]})
+        for offset, value in enumerate(new_items[new_start:new_end]):
+            ops.append({"op": "insert_component", "path": path + ["components"],
+                        "index": start + offset, "value": value})
+    return ops
+
+
 def _build_map_ops(old_map: dict, new_map: dict, path_prefix: list) -> list:
     """Build forward ops (old -> new) for a single dict-keyed collection.
 
@@ -88,16 +117,22 @@ def _build_map_ops(old_map: dict, new_map: dict, path_prefix: list) -> list:
             ["catalog", "packages"].
 
     Returns:
-        A list of {'op', 'path', 'value'} dicts. 'op' is one of
-        'add'/'remove'/'set'; 'path' is path_prefix + [key]; 'value' is
-        omitted for 'remove'.
+        Whole-object add/remove/set operations, or indexed component operations
+        for component-only changes in groups and functional layers.
     """
     ops = []
     for key, old_val in old_map.items():
         if key not in new_map:
             ops.append({"op": "remove", "path": path_prefix + [key]})
         elif old_val != new_map[key]:
-            ops.append({"op": "set", "path": path_prefix + [key], "value": deepcopy(new_map[key])})
+            component_ops = None
+            if path_prefix[1] in ("groups", "functionallayer_by_name"):
+                component_ops = _component_ops(old_val, new_map[key], path_prefix + [key])
+            if component_ops is not None:
+                ops.extend(component_ops)
+            else:
+                ops.append({"op": "set", "path": path_prefix + [key],
+                            "value": deepcopy(new_map[key])})
     for key, new_val in new_map.items():
         if key not in old_map:
             ops.append({"op": "add", "path": path_prefix + [key], "value": deepcopy(new_val)})
@@ -152,6 +187,30 @@ def build_ops(old_catalog: dict, new_catalog: dict) -> list:
     return ops
 
 
+def _apply_component_op(cat: dict, layers_by_name: dict, op: dict) -> None:
+    """Apply one checked list edit; reject invalid indices and stale removals."""
+    path = op.get("path")
+    if not isinstance(path, list) or len(path) != 4:
+        raise CatalogFormatError("Invalid component operation path")
+    if (path[0] != "catalog" or path[1] not in ("groups", "functionallayer_by_name")
+            or not isinstance(path[2], str) or path[3] != "components"):
+        raise CatalogFormatError("Invalid component operation path")
+    collection = layers_by_name if path[1] == "functionallayer_by_name" else cat.get("groups", {})
+    entry = collection.get(path[2])
+    items = entry.get("components") if isinstance(entry, dict) else None
+    index, value = op.get("index"), op.get("value")
+    valid_index = isinstance(index, int) and not isinstance(index, bool)
+    if (not isinstance(items, list) or not valid_index
+            or not isinstance(value, str) or index < 0 or index > len(items)):
+        raise CatalogFormatError("Invalid component operation target, index or value")
+    if op["op"] == "remove_component":
+        if index == len(items) or items[index] != value:
+            raise CatalogFormatError("Component removal does not match the source at its index")
+        items.pop(index)
+    else:
+        items.insert(index, value)
+
+
 def apply_patch(source_catalog: dict, ops: list) -> dict:
     """Apply a self-contained op-list (from `build_ops`) to a catalog.
 
@@ -172,6 +231,11 @@ def apply_patch(source_catalog: dict, ops: list) -> dict:
     order = list(layers_by_name.keys())
 
     for op in ops:
+        if op["op"] in ("insert_component", "remove_component"):
+            _apply_component_op(cat, layers_by_name, op)
+            continue
+        if op["op"] not in ("add", "remove", "set"):
+            raise CatalogFormatError("Unknown patch operation")
         path = op["path"]
         if path[:2] == ["catalog", "functionallayer_by_name"]:
             name = path[2]
