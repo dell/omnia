@@ -23,7 +23,10 @@ postgres_container_name: omnia_postgres
 # ── System paths ────────────────────────────────────────────────────
 quadlet_dir: "/etc/containers/systemd"
 omnia_target: "/etc/systemd/system/omnia.target"
-playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
+watcher_systemd_path: "/etc/systemd/system"
+watcher_service_name: "playbook-watcher.service"
+playbook_watcher_service_file: >-
+  {{ watcher_systemd_path }}/{{ watcher_service_name }}
 
 # ── NFS cleanup directories ────────────────────────────────────────
 # NOTE: Do NOT delete the input directory - it contains user configuration
@@ -80,8 +83,8 @@ build_stream_cleanup_failure_msg:
   - "[Manual Intervention Required]"
   - "Logout of core container and perform below operations in OIM"
   - "1. Force stop the playbook watcher service:"
-  - "   - systemctl stop playbook_watcher.service"
-  - "   - systemctl disable playbook_watcher.service"
+  - "   - systemctl stop {{ watcher_service_name }}"
+  - "   - systemctl disable {{ watcher_service_name }}"
   - "2. Check for processes using the directory: Example:"
   - "   - lsof +D {{ omnia_nfs_share }}/log/build_stream"
   - "3. Force remove these directories:"
@@ -111,7 +114,7 @@ cleanup_summary_msg: |
   BuildStream Domain Cleanup Complete
   Cleaned:
     - omnia_build_stream container and quadlet service
-    - playbook_watcher service
+    - {{ watcher_service_name }}
     - automation framework
     - omnia_postgres container and quadlet service
     - build_stream output, queues, runtime logs, and Python caches

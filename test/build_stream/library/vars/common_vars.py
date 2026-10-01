@@ -248,8 +248,10 @@ BUILD_STREAM_CONFIG_FILE = "build_stream_config.yml"
 
 QUADLET_DIR = "/etc/containers/systemd"
 OMNIA_TARGET_PATH = "/etc/systemd/system/omnia.target"
-PLAYBOOK_WATCHER_SERVICE_FILE = "/etc/systemd/system/playbook_watcher.service"
-PLAYBOOK_WATCHER_SERVICE_NAME = "playbook_watcher.service"
+PLAYBOOK_WATCHER_SERVICE_NAME = "playbook-watcher.service"
+PLAYBOOK_WATCHER_SERVICE_FILE = (
+    f"/etc/systemd/system/{PLAYBOOK_WATCHER_SERVICE_NAME}"
+)
 
 # Credential files removed during cleanup
 BUILDSTREAM_CREDENTIAL_FILES: List[str] = [

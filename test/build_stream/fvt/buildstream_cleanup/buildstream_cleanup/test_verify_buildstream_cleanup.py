@@ -19,7 +19,7 @@ Validates that cleanup_build_stream.yml removed all artifacts:
   omnia_build_stream container stopped and removed
   omnia_build_stream quadlet files removed
   omnia_build_stream systemd services stopped
-  playbook_watcher service stopped, disabled, file removed
+  playbook-watcher service stopped, disabled, file removed
   omnia_postgres container stopped and removed
   omnia_postgres quadlet files removed
   omnia_postgres systemd services stopped
@@ -52,6 +52,7 @@ from library.functions import (
     check_buildstream_oauth_credentials_removed,
 )
 from library.vars import TEST_CASES as TC
+from library.vars.common_vars import PLAYBOOK_WATCHER_SERVICE_NAME
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
@@ -172,7 +173,7 @@ def test_buildstream_services_stopped(host):
 @pytest.mark.sanity
 @pytest.mark.order(13)
 def test_playbook_watcher_service_stopped(host):
-    """Verify playbook_watcher service is stopped."""
+    """Verify playbook-watcher service is stopped."""
     tc = TC["playbook_watcher_service_stopped"]
     tl = TestLogger(tc["title"], tc["id"])
     result = check_playbook_watcher_service_stopped(host)
@@ -180,27 +181,27 @@ def test_playbook_watcher_service_stopped(host):
     if result["success"]:
         tl.passed(
             LOG["service_inactive"].format(
-                service="playbook_watcher.service",
+                service=PLAYBOOK_WATCHER_SERVICE_NAME,
             ),
             result["details"],
         )
     else:
         tl.failed(
             LOG["service_still_active"].format(
-                service="playbook_watcher.service",
+                service=PLAYBOOK_WATCHER_SERVICE_NAME,
             ),
             result.get("error", ""),
         )
 
     assert result["success"], ASSERT["service_still_active"].format(
-        service="playbook_watcher.service",
+        service=PLAYBOOK_WATCHER_SERVICE_NAME,
     )
 
 
 @pytest.mark.sanity
 @pytest.mark.order(14)
 def test_playbook_watcher_service_disabled(host):
-    """Verify playbook_watcher service is disabled."""
+    """Verify playbook-watcher service is disabled."""
     tc = TC["playbook_watcher_service_disabled"]
     tl = TestLogger(tc["title"], tc["id"])
     result = check_playbook_watcher_service_disabled(host)
@@ -208,14 +209,14 @@ def test_playbook_watcher_service_disabled(host):
     if result["success"]:
         tl.passed(
             LOG["service_disabled"].format(
-                service="playbook_watcher.service",
+                service=PLAYBOOK_WATCHER_SERVICE_NAME,
             ),
             result["details"],
         )
     else:
         tl.failed(
             LOG["service_still_enabled"].format(
-                service="playbook_watcher.service",
+                service=PLAYBOOK_WATCHER_SERVICE_NAME,
             ),
             result.get("error", ""),
         )
@@ -228,7 +229,7 @@ def test_playbook_watcher_service_disabled(host):
 @pytest.mark.sanity
 @pytest.mark.order(15)
 def test_playbook_watcher_service_file_removed(host):
-    """Verify playbook_watcher.service file is removed."""
+    """Verify playbook-watcher.service file is removed."""
     tc = TC["playbook_watcher_service_file_removed"]
     tl = TestLogger(tc["title"], tc["id"])
     result = check_playbook_watcher_service_file_removed(host)
@@ -377,7 +378,7 @@ def test_buildstream_directories_removed(host):
 @pytest.mark.sanity
 @pytest.mark.order(21)
 def test_buildstream_runtime_caches_removed(host):
-    """Verify generated Python caches are removed from runtime source."""
+    """Verify runtime content is preserved and Python caches are removed."""
     tc = TC["buildstream_runtime_caches_removed"]
     tl = TestLogger(tc["title"], tc["id"])
     result = check_buildstream_runtime_caches_removed(host)

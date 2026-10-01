@@ -54,7 +54,7 @@ run accidentally.
 | BSM_FVT_BUILDSTREAM_CLEANUP_E002 | test_deploy_buildstream_cleanup | Execute BuildStream cleanup |
 | BSM_FVT_BUILDSTREAM_CLEANUP_V001–V008 | GitLab cleanup verification tests | Verify GitLab packages, runner, services, directories, URL, and port cleanup |
 | BSM_FVT_BUILDSTREAM_CLEANUP_V009–V020, V022, V024–V025 | BuildStream cleanup verification tests | Verify BSM, watcher, PostgreSQL backup preservation, runtime directory cleanup, and credential cleanup |
-| BSM_FVT_BUILDSTREAM_CLEANUP_V021 | test_buildstream_runtime_caches_removed | Verify generated Python caches are removed |
+| BSM_FVT_BUILDSTREAM_CLEANUP_V021 | test_buildstream_runtime_caches_removed | Verify application source and project input remain while generated Python caches are removed |
 
 ## Section D: Build Pipeline (12 test cases)
 

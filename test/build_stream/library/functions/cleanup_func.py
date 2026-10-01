@@ -21,7 +21,7 @@ volumes are properly removed after running cleanup playbooks.
 """
 
 import shlex
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from omnia_auto import run_on_host
 
@@ -568,7 +568,7 @@ def check_buildstream_services_stopped(host) -> Dict[str, Any]:
 
 
 def check_playbook_watcher_service_stopped(host) -> Dict[str, Any]:
-    """Verify playbook_watcher service is stopped.
+    """Verify playbook-watcher service is stopped.
 
     Args:
         host: Testinfra host connection.
@@ -598,7 +598,7 @@ def check_playbook_watcher_service_stopped(host) -> Dict[str, Any]:
 
 
 def check_playbook_watcher_service_disabled(host) -> Dict[str, Any]:
-    """Verify playbook_watcher service is disabled.
+    """Verify playbook-watcher service is disabled.
 
     Args:
         host: Testinfra host connection.
@@ -630,7 +630,7 @@ def check_playbook_watcher_service_disabled(host) -> Dict[str, Any]:
 def check_playbook_watcher_service_file_removed(
     host,
 ) -> Dict[str, Any]:
-    """Verify playbook_watcher.service unit file is removed.
+    """Verify playbook-watcher.service unit file is removed.
 
     Args:
         host: Testinfra host connection.
@@ -949,17 +949,49 @@ def check_buildstream_directories_removed(host) -> Dict[str, Any]:
 
 
 def check_buildstream_runtime_caches_removed(host) -> Dict[str, Any]:
-    """Verify generated Python caches are absent from BuildStream runtime."""
+    """Verify runtime source/input remain while Python caches are absent."""
     data_path = resolve_build_stream_data_path(host)
     directory_check = run_on_host(
         host, CMDS["dir_exists"].format(path=data_path)
     )
     if directory_check.stdout.strip() != "exists":
         return {
-            "success": True,
+            "success": False,
             "remaining": [],
-            "details": "BuildStream runtime is absent; no caches remain",
-            "error": "",
+            "preserved": [],
+            "details": "",
+            "error": (
+                "BuildStream runtime root was removed instead of preserving "
+                f"application source and input: {data_path}"
+            ),
+        }
+
+    input_dir = resolve_build_stream_input_path(host)
+    required_paths = [
+        f"{data_path}/playbook-watcher/playbook_watcher_service.py",
+        f"{input_dir}/build_stream_config.yml",
+    ]
+    preserved = []
+    missing = []
+    for path in required_paths:
+        path_check = run_on_host(
+            host, CMDS["file_exists"].format(path=path)
+        )
+        if path_check.stdout.strip() == "exists":
+            preserved.append(path)
+        else:
+            missing.append(path)
+
+    if missing:
+        return {
+            "success": False,
+            "remaining": [],
+            "preserved": preserved,
+            "details": "",
+            "error": (
+                "Preserved BuildStream runtime content is missing: "
+                + ", ".join(missing)
+            ),
         }
 
     command = (
@@ -978,7 +1010,12 @@ def check_buildstream_runtime_caches_removed(host) -> Dict[str, Any]:
     return {
         "success": success,
         "remaining": remaining,
-        "details": "No generated Python caches remain" if success else "",
+        "preserved": preserved,
+        "details": (
+            "Application source and input are preserved; no generated "
+            "Python caches remain"
+            if success else ""
+        ),
         "error": (
             "Generated Python caches remain: " + ", ".join(remaining)
             if remaining
