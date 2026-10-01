@@ -386,14 +386,24 @@ def _query_marker_metrics(host, marker, start_epoch, end_epoch, identifier):
     return counts, ""
 
 
-def query_ome_lifecycle_data(host, marker, start_epoch, end_epoch=None):  # pylint: disable=too-many-locals
+def query_ome_lifecycle_data(  # pylint: disable=too-many-locals
+    host,
+    marker,
+    start_epoch,
+    end_epoch=None,
+    check_metrics=True,
+    check_logs=True,
+):
     """Count one lifecycle marker in every OME Victoria destination."""
     context = get_ome_pipeline_context(host)
     identifier = context["identifier"]
     end_epoch = end_epoch or time.time()
-    metric_counts, metric_error = _query_marker_metrics(
-        host, marker, start_epoch, end_epoch, identifier,
-    )
+    metric_counts = {}
+    metric_error = ""
+    if check_metrics:
+        metric_counts, metric_error = _query_marker_metrics(
+            host, marker, start_epoch, end_epoch, identifier,
+        )
 
     # Import here to avoid exposing endpoint discovery through this module.
     from .telemetry_func import get_vlselect_endpoint  # pylint: disable=import-outside-toplevel
@@ -401,7 +411,9 @@ def query_ome_lifecycle_data(host, marker, start_epoch, end_epoch=None):  # pyli
     vlselect_ip, vlselect_port = get_vlselect_endpoint(host)
     log_counts = {}
     log_error = ""
-    if not vlselect_ip or not vlselect_port:
+    if not check_logs:
+        pass
+    elif not vlselect_ip or not vlselect_port:
         log_error = "vlselect endpoint not found"
     else:
         endpoint = {"ip": vlselect_ip, "port": vlselect_port}

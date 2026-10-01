@@ -148,6 +148,10 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V018",
         "title": "Verify iDRAC telemetry data in VictoriaMetrics",
     },
+    "idrac_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V019",
+        "title": "Verify configured-disabled iDRAC state",
+    },
     # -- Sources: Install Mode (unified online/offline) -----------------------
     "install_mode_config": {
         "id": "TEL_FVT_DEPLOY_V110",
@@ -246,6 +250,10 @@ TEST_CASES = {
     "powerscale_health_metrics": {
         "id": "TEL_FVT_DEPLOY_V038",
         "title": "Verify PowerScale health metrics",
+    },
+    "powerscale_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V039",
+        "title": "Verify configured-disabled PowerScale metrics state",
     },
     "powerscale_tls_enforcement": {
         "id": "TEL_FVT_DEPLOY_V040",
@@ -421,6 +429,10 @@ TEST_CASES = {
     "ome_auditlogs_logs_in_vl": {
         "id": "TEL_FVT_DEPLOY_V087",
         "title": "Verify OME audit logs in VictoriaLogs",
+    },
+    "ome_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V088",
+        "title": "Verify configured-disabled OME state",
     },
     # -- Sources: SFM -------------------------------------------------------
     "sfm_omnia_pods": {
