@@ -28,7 +28,7 @@ from library.functions import (
 
 
 @pytest.mark.sanity
-@pytest.mark.order(303)
+@pytest.mark.order(316)
 @pytest.mark.powervault_binds
 def test_powervault_node_subdirectory(host):
     """Verify per-node subdirectory exists under mount point."""
@@ -36,7 +36,7 @@ def test_powervault_node_subdirectory(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(304)
+@pytest.mark.order(317)
 @pytest.mark.powervault_binds
 def test_powervault_bind_mounts(host):
     """Verify bind mount targets are active on all target nodes."""
@@ -44,7 +44,7 @@ def test_powervault_bind_mounts(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(305)
+@pytest.mark.order(318)
 @pytest.mark.powervault_binds
 def test_powervault_bind_fstab_entries(host):
     """Verify bind mount fstab entries are persistent on all target nodes."""
@@ -52,7 +52,7 @@ def test_powervault_bind_fstab_entries(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(306)
+@pytest.mark.order(319)
 @pytest.mark.powervault_binds
 def test_powervault_bind_isolation(host):
     """Verify per-node data separation via bind mounts."""
@@ -60,7 +60,7 @@ def test_powervault_bind_isolation(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(307)
+@pytest.mark.order(320)
 @pytest.mark.powervault_binds
 def test_powervault_functional_group_targeting(host):
     """Verify PV mount only on correct functional groups."""
@@ -68,7 +68,7 @@ def test_powervault_functional_group_targeting(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(308)
+@pytest.mark.order(321)
 @pytest.mark.powervault_binds
 def test_powervault_multiple_prefix_targeting(host):
     """Verify multiple prefixes target all groups correctly."""

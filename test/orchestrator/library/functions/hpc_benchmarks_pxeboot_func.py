@@ -328,6 +328,7 @@ def check_hpc_benchmarks_msr_safe_arch_boundary(host):
                 f"{HPC_BENCHMARKS_MSR_SAFE_PACKAGE} not declared in benchmark_tools.list",
             )
         violations: list[str] = []
+        x86_staged = False
         for host_name, arch in sorted(arch_map.items()):
             row_for = next(item for item in computes if item["HOSTNAME"] == host_name)
             base = f"{HPC_TOOLS_BASE}/{HPC_BENCHMARKS_MSR_SAFE_PACKAGE}"
@@ -338,6 +339,12 @@ def check_hpc_benchmarks_msr_safe_arch_boundary(host):
             )
             if arch == "aarch64" and present:
                 violations.append(f"{host_name}: msr-safe staged on aarch64")
+            if arch == "x86_64" and present:
+                x86_staged = True
+            if arch == "x86_64" and not present:
+                violations.append(
+                    f"{host_name}: msr-safe declared but not staged on x86_64"
+                )
         return runtime_result(
             not violations,
             summary,
@@ -511,8 +518,14 @@ def check_hpc_benchmarks_per_tool_staging_report(host):
 # TC-09: END-TO-END PROVISIONING (composite)
 # ---------------------------------------------------------------------------
 def check_hpc_benchmarks_e2e_provisioning(host):
-    """Combine tool-declaration, offline sync, layout, artifacts, and NFS."""
+    """Combine tool-declaration, offline sync, layout, artifacts, and NFS.
+
+    Mandatory stages (tool_list, tools_dirs, nfs) must not be skipped.
+    A skipped mandatory stage is treated as a failure to prevent false-green
+    results when prerequisites are missing.
+    """
     summary = "HPC benchmarks end-to-end provisioning"
+    _MANDATORY_STAGES = {"tool_list", "tools_dirs", "nfs"}
     try:
         results = {
             "tool_list": check_hpc_benchmarks_json_declaration(host),
@@ -537,6 +550,17 @@ def check_hpc_benchmarks_e2e_provisioning(host):
             for stage, outcome in results.items()
             if not outcome.get("skipped") and not outcome.get("success")
         ]
+        # Mandatory stages must not be skipped in an E2E check
+        skipped_mandatory = [
+            stage
+            for stage, outcome in results.items()
+            if stage in _MANDATORY_STAGES and outcome.get("skipped")
+        ]
+        if skipped_mandatory:
+            failures.extend(
+                f"{stage} (mandatory stage was skipped)"
+                for stage in skipped_mandatory
+            )
         return runtime_result(
             not failures,
             summary,
@@ -728,7 +752,12 @@ def _invariance_snapshot(host, row, path: str) -> tuple[dict, dict]:
 
 
 def _invariance_check(host, path: str, summary: str):
-    """Shared before/after invariance harness across a staging run."""
+    """Shared before/after invariance harness across a staging run.
+
+    Requires the staging script to exit successfully before comparing
+    snapshots. A script that fails before changing anything must not
+    produce a false 'unchanged' pass.
+    """
     _context, _control, computes, skipped = computes_or_skip(host, summary)
     if skipped:
         return skipped
@@ -741,7 +770,15 @@ def _invariance_check(host, path: str, summary: str):
             fields.append((f"  {row['HOSTNAME']}", "directory absent"))
             continue
         touched += 1
-        run_pull_script(host, row, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS)
+        staging_result = run_pull_script(host, row, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS)
+        if staging_result.rc != 0:
+            failures.append(
+                f"{row['HOSTNAME']}: staging script failed (rc={staging_result.rc})"
+            )
+            fields.append(
+                (f"  {row['HOSTNAME']}", f"staging failed (rc={staging_result.rc})")
+            )
+            continue
         after_stat, after_children = _invariance_snapshot(host, row, path)
         unchanged = before_stat == after_stat and before_children == after_children
         fields.append(

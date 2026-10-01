@@ -31,7 +31,7 @@ from library.functions import (
 
 
 @pytest.mark.sanity
-@pytest.mark.order(288)
+@pytest.mark.order(301)
 @pytest.mark.powervault_infrastructure
 def test_powervault_iscsi_service(host):
     """Verify iscsid is active and enabled on all PowerVault target nodes."""
@@ -39,7 +39,7 @@ def test_powervault_iscsi_service(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(289)
+@pytest.mark.order(302)
 @pytest.mark.powervault_infrastructure
 def test_powervault_iscsi_initiator_name(host):
     """Verify iSCSI initiator name matches config on all target nodes."""
@@ -47,7 +47,7 @@ def test_powervault_iscsi_initiator_name(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(290)
+@pytest.mark.order(303)
 @pytest.mark.powervault_infrastructure
 def test_powervault_iscsi_discovery(host):
     """Verify iSCSI target discovery succeeds from all portal IPs."""
@@ -55,7 +55,7 @@ def test_powervault_iscsi_discovery(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(291)
+@pytest.mark.order(304)
 @pytest.mark.powervault_infrastructure
 def test_powervault_iscsi_sessions(host):
     """Verify iSCSI sessions are active on all target nodes."""
@@ -63,7 +63,7 @@ def test_powervault_iscsi_sessions(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(292)
+@pytest.mark.order(305)
 @pytest.mark.powervault_infrastructure
 def test_powervault_iscsi_startup_automatic(host):
     """Verify iSCSI node startup is automatic on all target nodes."""
@@ -71,7 +71,7 @@ def test_powervault_iscsi_startup_automatic(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(293)
+@pytest.mark.order(306)
 @pytest.mark.powervault_infrastructure
 def test_powervault_portal_reachability(host):
     """Verify iSCSI portal ports are reachable and sessions healthy."""
@@ -79,7 +79,7 @@ def test_powervault_portal_reachability(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(294)
+@pytest.mark.order(307)
 @pytest.mark.powervault_infrastructure
 def test_powervault_multipath_service(host):
     """Verify multipathd is active and enabled on all target nodes."""
@@ -87,7 +87,7 @@ def test_powervault_multipath_service(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(295)
+@pytest.mark.order(308)
 @pytest.mark.powervault_infrastructure
 def test_powervault_multipath_device(host):
     """Verify multipath device exists and matches volume_id."""
@@ -95,7 +95,7 @@ def test_powervault_multipath_device(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(296)
+@pytest.mark.order(309)
 @pytest.mark.powervault_infrastructure
 def test_powervault_multipath_redundancy(host):
     """Verify multipath device has multiple paths for redundancy."""

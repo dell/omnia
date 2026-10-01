@@ -28,7 +28,7 @@ from library.functions import (
 
 
 @pytest.mark.sanity
-@pytest.mark.order(297)
+@pytest.mark.order(310)
 @pytest.mark.powervault_mounts
 def test_powervault_gpt_partition(host):
     """Verify GPT partition exists on multipath device."""
@@ -36,7 +36,7 @@ def test_powervault_gpt_partition(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(298)
+@pytest.mark.order(311)
 @pytest.mark.powervault_mounts
 def test_powervault_filesystem_type(host):
     """Verify filesystem formatted with correct type."""
@@ -44,7 +44,7 @@ def test_powervault_filesystem_type(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(299)
+@pytest.mark.order(312)
 @pytest.mark.powervault_mounts
 def test_powervault_mount_point_directory(host):
     """Verify mount point directory exists on all target nodes."""
@@ -52,7 +52,7 @@ def test_powervault_mount_point_directory(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(300)
+@pytest.mark.order(313)
 @pytest.mark.powervault_mounts
 def test_powervault_volume_mounted(host):
     """Verify PowerVault volume is actively mounted on all target nodes."""
@@ -60,7 +60,7 @@ def test_powervault_volume_mounted(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(301)
+@pytest.mark.order(314)
 @pytest.mark.powervault_mounts
 def test_powervault_mount_options(host):
     """Verify mount options applied correctly on all target nodes."""
@@ -68,7 +68,7 @@ def test_powervault_mount_options(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(302)
+@pytest.mark.order(315)
 @pytest.mark.powervault_mounts
 def test_powervault_fstab_entry(host):
     """Verify persistent fstab entry created on all target nodes."""

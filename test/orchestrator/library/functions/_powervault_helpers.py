@@ -33,13 +33,14 @@ from typing import Any
 
 import yaml
 
-from omnia_auto import run_on_host
+from omnia_auto import run_on_host, run_ssh_command
 
 from ..vars.pxeboot_vars import (
     POWERVAULT_DEFAULT_FS_TYPE,
     POWERVAULT_DEFAULT_ISCSI_PORT,
     POWERVAULT_DEFAULT_MOUNT_OPTS,
     POWERVAULT_DEFAULT_NODE_KEY,
+    POWERVAULT_ISCSI_INITIATOR_PATH,
     POWERVAULT_LOG_COMPLETE_MSG,
     POWERVAULT_LOG_TEMPLATE,
     POWERVAULT_PORT_CHECK_TIMEOUT,
@@ -53,6 +54,15 @@ from ._pxeboot_helpers import (
     error_result,
     optional_skip,
 )
+
+
+def _run_on_node(host, node_ip: str, command: str):
+    """Execute a command on a remote target node via SSH.
+
+    Node-specific probes (iSCSI, multipath, mount, fstab, log, permissions)
+    must run on the actual deployed node, not on the OIM.
+    """
+    return run_ssh_command(host, node_ip, command)
 
 
 # =============================================================================
@@ -241,7 +251,7 @@ def resolve_node_key_value(host, node_ip: str, node_key: str) -> str:
     else:
         cmd = PXEBOOT_COMMANDS["pv_node_key_hostname"]
 
-    result = run_on_host(host, cmd)
+    result = _run_on_node(host, node_ip, cmd)
     if result.rc == 0 and result.stdout.strip():
         return result.stdout.strip().split()[0]
     return ""
@@ -258,8 +268,8 @@ def verify_iscsi_service(host, node_ip: str) -> dict[str, Any]:
     Returns:
         {"success": bool, "error": str, "details": {"active": str, "enabled": str}}
     """
-    active_cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_iscsid_active"])
-    enabled_cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_iscsid_enabled"])
+    active_cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_iscsid_active"])
+    enabled_cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_iscsid_enabled"])
 
     active = active_cmd.stdout.strip()
     enabled = enabled_cmd.stdout.strip()
@@ -278,7 +288,7 @@ def verify_initiator_name(host, node_ip: str, expected_iqn: str) -> dict[str, An
     Returns:
         {"success": bool, "error": str, "details": {"actual": str, "expected": str}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_iscsi_initiator_read"] % POWERVAULT_STORAGE_CONFIG_PATH)
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_iscsi_initiator_read"] % POWERVAULT_ISCSI_INITIATOR_PATH)
     if cmd.rc != 0:
         return {
             "success": False,
@@ -307,8 +317,8 @@ def verify_iscsi_discovery(host, node_ip: str, ip_list: list[str], port: int) ->
     portal_results = []
 
     for portal_ip in ip_list:
-        cmd = run_on_host(
-            host,
+        cmd = _run_on_node(
+            host, node_ip,
             PXEBOOT_COMMANDS["pv_iscsi_discovery"] % (portal_ip, port),
         )
         output = cmd.stdout.strip()
@@ -344,7 +354,7 @@ def verify_iscsi_sessions(host, node_ip: str) -> dict[str, Any]:
     Returns:
         {"success": bool, "error": str, "details": {"session_count": int, "sessions": list}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_iscsi_sessions"])
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_iscsi_sessions"])
     output = cmd.stdout.strip()
 
     sessions = []
@@ -371,8 +381,8 @@ def verify_iscsi_startup_automatic(host, node_ip: str) -> dict[str, Any]:
     Returns:
         {"success": bool, "error": str, "details": {"startup_value": str}}
     """
-    cmd = run_on_host(
-        host,
+    cmd = _run_on_node(
+        host, node_ip,
         f"{PXEBOOT_COMMANDS['pv_iscsi_node_show']} 2>/dev/null | grep 'node.startup'",
     )
     output = cmd.stdout.strip()
@@ -408,7 +418,7 @@ def _get_portal_session_states(host, node_ip: str) -> dict[str, str]:
         dict mapping portal_ip -> session_state (e.g., "LOGGED_IN", "FREE", "TRANSPORT WAIT")
         Empty dict if no sessions found.
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_iscsi_session_detail"])
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_iscsi_session_detail"])
     output = cmd.stdout.strip()
     if not output:
         return {}
@@ -444,8 +454,8 @@ def verify_portal_reachability(host, node_ip: str, ip_list: list[str], port: int
     portal_states = _get_portal_session_states(host, node_ip)
 
     for portal_ip in ip_list:
-        cmd = run_on_host(
-            host,
+        cmd = _run_on_node(
+            host, node_ip,
             PXEBOOT_COMMANDS["pv_port_check"] % (POWERVAULT_PORT_CHECK_TIMEOUT, portal_ip, port),
         )
         reachable = "reachable" in cmd.stdout.strip()
@@ -488,8 +498,8 @@ def verify_multipath_service(host, node_ip: str) -> dict[str, Any]:
     Returns:
         {"success": bool, "error": str, "details": {"active": str, "enabled": str}}
     """
-    active_cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_multipathd_active"])
-    enabled_cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_multipathd_enabled"])
+    active_cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_multipathd_active"])
+    enabled_cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_multipathd_enabled"])
 
     active = active_cmd.stdout.strip()
     enabled = enabled_cmd.stdout.strip()
@@ -514,7 +524,7 @@ def verify_multipath_device(host, node_ip: str, volume_id: str) -> dict[str, Any
     Returns:
         {"success": bool, "error": str, "details": {"mpath_device": str, "match_method": str}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_multipath_list"])
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_multipath_list"])
     output = cmd.stdout.strip()
 
     if not output:
@@ -582,7 +592,7 @@ def verify_multipath_paths(host, node_ip: str, mpath_device: str, expected_paths
     Returns:
         {"success": bool, "error": str, "details": {"path_count": int}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_multipath_list"])
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_multipath_list"])
     output = cmd.stdout.strip()
 
     path_count = 0
@@ -612,7 +622,7 @@ def verify_gpt_partition(host, node_ip: str, mpath_device: str) -> dict[str, Any
         {"success": bool, "error": str, "details": {"partition_device": str}}
     """
     part_dev = f"/dev/mapper/{mpath_device}1"
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_parted_print"] % mpath_device)
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_parted_print"] % mpath_device)
     output = cmd.stdout.strip()
 
     has_gpt = "gpt" in output.lower()
@@ -632,7 +642,7 @@ def verify_filesystem_type(host, node_ip: str, device: str, expected_fs: str) ->
     Returns:
         {"success": bool, "error": str, "details": {"actual_fs": str}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_blkid_fstype"] % device)
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_blkid_fstype"] % device)
     actual_fs = cmd.stdout.strip()
 
     success = actual_fs == expected_fs
@@ -651,7 +661,7 @@ def verify_mount_point_exists(host, node_ip: str, mount_point: str) -> dict[str,
     Returns:
         {"success": bool, "error": str, "details": {}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_dir_exists"] % mount_point)
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_dir_exists"] % mount_point)
     exists = cmd.stdout.strip() == "exists"
 
     success = exists
@@ -670,7 +680,7 @@ def verify_volume_mounted(host, node_ip: str, mount_point: str) -> dict[str, Any
     Returns:
         {"success": bool, "error": str, "details": {}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_mountpoint_check"] % mount_point)
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_mountpoint_check"] % mount_point)
     mounted = cmd.stdout.strip() == "mounted"
 
     success = mounted
@@ -689,7 +699,7 @@ def verify_mount_options(host, node_ip: str, mount_point: str, expected_opts: st
     Returns:
         {"success": bool, "error": str, "details": {"actual_opts": str}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_proc_mounts_read"])
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_proc_mounts_read"])
     output = cmd.stdout.strip()
 
     actual_opts = ""
@@ -716,7 +726,7 @@ def verify_fstab_entry(host, node_ip: str, mount_point: str) -> dict[str, Any]:
     Returns:
         {"success": bool, "error": str, "details": {"fstab_line": str}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_fstab_read"])
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_fstab_read"])
     output = cmd.stdout.strip()
 
     found = False
@@ -757,7 +767,7 @@ def verify_node_subdirectory(host, node_ip: str, mount_point: str, node_key: str
         }
 
     node_subdir = f"{mount_point}/{node_value}"
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_dir_exists"] % node_subdir)
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_dir_exists"] % node_subdir)
     exists = cmd.stdout.strip() == "exists"
 
     success = exists
@@ -789,7 +799,7 @@ def verify_bind_mounts(host, node_ip: str, mount_point: str, node_key: str, bind
     for target in bind_targets:
         target_stripped = target.lstrip("/")
         bind_source = f"{mount_point}/{node_value}/{target_stripped}"
-        cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_mountpoint_check"] % target)
+        cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_mountpoint_check"] % target)
         mounted = cmd.stdout.strip() == "mounted"
         bind_status[target] = mounted
         if not mounted:
@@ -819,7 +829,7 @@ def verify_bind_fstab_entries(host, node_ip: str, mount_point: str, node_key: st
             "details": {"fstab_status": {}},
         }
 
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_fstab_read"])
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_fstab_read"])
     output = cmd.stdout.strip()
 
     fstab_status = {}
@@ -857,7 +867,7 @@ def verify_bind_isolation(host, node_ip: str, mount_point: str, node_key: str) -
         }
 
     node_subdir = f"{mount_point}/{node_value}"
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_dir_exists"] % node_subdir)
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_dir_exists"] % node_subdir)
     exists = cmd.stdout.strip() == "exists"
 
     success = exists
@@ -883,7 +893,7 @@ def verify_setup_log(host, node_ip: str, pv_name: str) -> dict[str, Any]:
     """
     log_path = POWERVAULT_LOG_TEMPLATE.format(name=pv_name)
 
-    exists_cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_log_exists"] % log_path)
+    exists_cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_log_exists"] % log_path)
     log_exists = exists_cmd.stdout.strip() == "exists"
 
     if not log_exists:
@@ -893,10 +903,10 @@ def verify_setup_log(host, node_ip: str, pv_name: str) -> dict[str, Any]:
             "details": {"log_exists": False, "complete": False, "errors": []},
         }
 
-    complete_cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_log_complete"] % (POWERVAULT_LOG_COMPLETE_MSG, log_path))
+    complete_cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_log_complete"] % (POWERVAULT_LOG_COMPLETE_MSG, log_path))
     complete = "found" in complete_cmd.stdout.strip()
 
-    error_cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_log_errors"] % log_path)
+    error_cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_log_errors"] % log_path)
     error_lines = [l.strip() for l in error_cmd.stdout.strip().split("\n") if l.strip()]
 
     success = log_exists and complete and len(error_lines) == 0
@@ -956,7 +966,7 @@ def verify_no_duplicate_fstab(host, node_ip: str) -> dict[str, Any]:
     Returns:
         {"success": bool, "error": str, "details": {"duplicate_count": int}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_fstab_read"])
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_fstab_read"])
     output = cmd.stdout.strip()
 
     lines = [line.strip() for line in output.split("\n") if line.strip() and not line.strip().startswith("#")]
@@ -983,7 +993,7 @@ def verify_all_mounts_writable(host, node_ip: str, mount_point: str, node_key: s
     all_ok = True
 
     # Check main mount point
-    cmd = run_on_host(host, f"test -w {mount_point} && echo writable || echo not_writable")
+    cmd = _run_on_node(host, node_ip, f"test -w {mount_point} && echo writable || echo not_writable")
     main_writable = cmd.stdout.strip() == "writable"
     writable_status[mount_point] = main_writable
     if not main_writable:
@@ -994,7 +1004,7 @@ def verify_all_mounts_writable(host, node_ip: str, mount_point: str, node_key: s
         node_value = resolve_node_key_value(host, node_ip, node_key)
         if node_value:
             node_subdir = f"{mount_point}/{node_value}"
-            cmd = run_on_host(host, f"test -w {node_subdir} && echo writable || echo not_writable")
+            cmd = _run_on_node(host, node_ip, f"test -w {node_subdir} && echo writable || echo not_writable")
             subdir_writable = cmd.stdout.strip() == "writable"
             writable_status[node_subdir] = subdir_writable
             if not subdir_writable:
@@ -1016,7 +1026,7 @@ def verify_permissions(host, node_ip: str, path: str, expected_owner: str, expec
     Returns:
         {"success": bool, "error": str, "details": {"actual": str}}
     """
-    cmd = run_on_host(host, PXEBOOT_COMMANDS["pv_permissions_check"] % path)
+    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_permissions_check"] % path)
     actual = cmd.stdout.strip()
     expected = f"{expected_owner}:{expected_group}:{expected_mode}"
 

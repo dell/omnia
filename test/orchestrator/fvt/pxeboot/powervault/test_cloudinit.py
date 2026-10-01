@@ -27,7 +27,7 @@ from library.functions import (
 
 
 @pytest.mark.sanity
-@pytest.mark.order(309)
+@pytest.mark.order(322)
 @pytest.mark.powervault_cloudinit
 def test_powervault_setup_log(host):
     """Verify cloud-init runcmd log exists and shows completion."""
@@ -35,7 +35,7 @@ def test_powervault_setup_log(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(310)
+@pytest.mark.order(323)
 @pytest.mark.powervault_cloudinit
 def test_powervault_cloud_init_groups_dict(host):
     """Verify cloud_init_groups_dict contains powervault_scripts."""
@@ -43,7 +43,7 @@ def test_powervault_cloud_init_groups_dict(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(311)
+@pytest.mark.order(324)
 @pytest.mark.powervault_cloudinit
 def test_powervault_no_duplicate_fstab(host):
     """Verify no duplicate fstab entries on all target nodes."""
@@ -51,7 +51,7 @@ def test_powervault_no_duplicate_fstab(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(312)
+@pytest.mark.order(325)
 @pytest.mark.powervault_cloudinit
 def test_powervault_all_mounts_writable(host):
     """Verify all PV mounts (main + bind) are writable."""
@@ -59,7 +59,7 @@ def test_powervault_all_mounts_writable(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(313)
+@pytest.mark.order(326)
 @pytest.mark.powervault_cloudinit
 def test_powervault_permissions(host):
     """Verify permissions on mount point match config."""

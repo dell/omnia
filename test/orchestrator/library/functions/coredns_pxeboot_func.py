@@ -39,6 +39,7 @@ from typing import Any
 from omnia_auto import run_on_host
 
 from ..vars.pxeboot_vars import (
+    COREDHCP_CONFIG_PATH,
     COREDNS_IDEMPOTENCY_SETTLE_SECONDS,
     COREDNS_QUERY_SAMPLE_SIZE,
     COREDNS_SMD_UNREACHABLE_HOLD_SECONDS,
@@ -322,7 +323,18 @@ def check_coredns_reverse_resolution(host) -> dict[str, Any]:
 
 
 def check_coredhcp_multisubnet_running_image(host) -> dict[str, Any]:
-    """Verify the running coresmd-coredhcp image on multi-subnet datasets."""
+    """Verify coresmd containers and rendered subnet config on multi-subnet datasets.
+
+    Checks:
+    1. coresmd-coredhcp and coresmd-coredns are running with expected images
+    2. Each configured additional_subnet has a rendered entry in coredhcp.yaml
+    3. At least one deployed node per additional subnet resolves via CoreDNS
+
+    NOTE: This test validates container images and rendered configuration but
+    does NOT verify live DHCP responses per subnet. A full multi-subnet
+    behavioral test requires physical or VLAN-segmented infrastructure.
+    Defect 843 remains partially open for the behavioral gap.
+    """
     try:
         ctx = coredns_context(host)
         if not ctx["additional_subnets"]:
@@ -361,9 +373,33 @@ def check_coredhcp_multisubnet_running_image(host) -> dict[str, Any]:
             failures.append(
                 "coresmd-coredns and coresmd-coredhcp use different image tags"
             )
+
+        # Validate rendered subnet configuration in coredhcp.yaml
+        coredhcp_cfg = run_on_host(host, f"cat {COREDHCP_CONFIG_PATH} 2>/dev/null")
+        coredhcp_content = coredhcp_cfg.stdout if coredhcp_cfg.rc == 0 else ""
+        for subnet in ctx["additional_subnets"]:
+            subnet_cidr = subnet.get("cidr", subnet.get("subnet", ""))
+            subnet_name = subnet.get("name", subnet_cidr or "unnamed")
+            if subnet_cidr and subnet_cidr in coredhcp_content:
+                fields.append(
+                    (f"Subnet {subnet_name}", f"✓ rendered in coredhcp.yaml")
+                )
+            elif subnet_cidr:
+                failures.append(
+                    f"Subnet {subnet_name} ({subnet_cidr}) not found in "
+                    f"rendered coredhcp.yaml"
+                )
+                fields.append(
+                    (f"Subnet {subnet_name}", "✗ missing from coredhcp.yaml")
+                )
+            else:
+                fields.append(
+                    (f"Subnet {subnet_name}", "no CIDR to validate")
+                )
+
         return runtime_result(
             not failures,
-            "Multi-subnet coresmd containers use the expected image tag",
+            "Multi-subnet coresmd containers and rendered configuration are valid",
             fields,
             "; ".join(failures) if failures else "",
         )
@@ -557,13 +593,19 @@ def check_coredns_idempotency(host) -> dict[str, Any]:
 
 
 def check_dns_node_addition_pipeline(host) -> dict[str, Any]:
-    """Every SMD-registered node must resolve via CoreDNS candidate FQDNs.
+    """Verify SMD-to-CoreDNS pipeline readiness for all registered nodes.
 
-    Safe stand-in for a live node-addition dataset: after any provision run
-    that adds nodes to SMD, this check must pass. If it fails the
-    SMD-to-CoreDNS pipeline is broken and future node additions will not
-    resolve. Destructive because full 2.2 semantics require live SMD POST
-    which risks persistent state; run with OMNIA_COREDNS_DESTRUCTIVE=1.
+    Validates that every node already registered in SMD resolves via CoreDNS
+    candidate FQDNs. This confirms the SMD-to-CoreDNS pipeline is functional
+    and would handle future node additions correctly.
+
+    NOTE: This check does NOT add a node or observe an add-node transition.
+    It verifies existing registrations only. A live node-addition scenario
+    (POST to SMD, wait for propagation, verify resolution) is not implemented
+    due to the risk of persistent state changes. Defect 843 remains open for
+    the live node-addition behavioral gap.
+
+    Requires OMNIA_COREDNS_DESTRUCTIVE=1 as it queries live SMD state.
     """
     try:
         ctx = coredns_context(host)
@@ -714,6 +756,11 @@ def check_dns_smd_unreachable_cached_resolution(host) -> dict[str, Any]:
             failures.append(
                 f"CoreDNS did not serve cached {matched} while SMD was paused"
             )
+        if not cached_after_hold:
+            failures.append(
+                f"CoreDNS did not serve cached {matched} after "
+                f"{min(COREDNS_SMD_UNREACHABLE_HOLD_SECONDS, 10)}s hold"
+            )
         return runtime_result(
             not failures,
             "CoreDNS continues to serve cached records while SMD is unavailable",
@@ -725,14 +772,26 @@ def check_dns_smd_unreachable_cached_resolution(host) -> dict[str, Any]:
     finally:
         if smd_paused:
             try:
-                run_on_host(
+                unpause_result = run_on_host(
                     host, PXEBOOT_COMMANDS["coresmd_container_unpause"],
                     safe_container_name(SMD_CONTAINER_NAME),
                 )
-            except Exception:  # nosec B110  # noqa: BLE001
-                # Cleanup must not mask the original result; the operator will
-                # see any lingering paused state on the next SMD interaction.
-                pass
+                if unpause_result.rc != 0:
+                    raise RuntimeError(
+                        f"CRITICAL: Failed to unpause SMD container "
+                        f"(rc={unpause_result.rc}). Run "
+                        f"'podman unpause {SMD_CONTAINER_NAME}' manually to "
+                        f"restore SMD availability."
+                    )
+            except RuntimeError:
+                raise
+            except Exception as cleanup_exc:  # noqa: BLE001
+                raise RuntimeError(
+                    f"CRITICAL: SMD container unpause raised an exception: "
+                    f"{cleanup_exc}. Run "
+                    f"'podman unpause {SMD_CONTAINER_NAME}' manually to "
+                    f"restore SMD availability."
+                ) from cleanup_exc
 
 
 __all__ = [

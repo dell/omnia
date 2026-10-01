@@ -84,6 +84,21 @@ def _node_label(node: dict) -> str:
     return f"{hostname} ({ip})" if hostname else ip
 
 
+def _require_targets(
+    target_nodes: list, prefixes: list, failures: list[str], fields: list
+) -> None:
+    """Record a failure if no target nodes matched the configured prefixes.
+
+    An empty target set means the functional_group_prefix is invalid or stale,
+    so reporting success would be a false green.
+    """
+    if not target_nodes:
+        prefix_str = ", ".join(prefixes) if prefixes else "<none>"
+        msg = f"No target nodes matched functional_group_prefix [{prefix_str}]"
+        failures.append(msg)
+        fields.append((f"prefix [{prefix_str}]", "✗ zero targets"))
+
+
 # =============================================================================
 # Category 1: iSCSI Infrastructure Validation (Target Nodes)
 # =============================================================================
@@ -112,6 +127,7 @@ def check_powervault_iscsi_service(host) -> dict[str, Any]:
                 continue
 
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
             for node in target_nodes:
                 node_ip = node["admin_ip"]
                 label = _node_label(node)
@@ -156,6 +172,7 @@ def check_powervault_iscsi_initiator_name(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -202,6 +219,7 @@ def check_powervault_iscsi_discovery(host) -> dict[str, Any]:
             port = pv.get("port", POWERVAULT_DEFAULT_ISCSI_PORT)
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -243,6 +261,7 @@ def check_powervault_iscsi_sessions(host) -> dict[str, Any]:
         for pv in pv_entries:
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -285,6 +304,7 @@ def check_powervault_iscsi_startup_automatic(host) -> dict[str, Any]:
         for pv in pv_entries:
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -331,6 +351,7 @@ def check_powervault_portal_reachability(host) -> dict[str, Any]:
             port = pv.get("port", POWERVAULT_DEFAULT_ISCSI_PORT)
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -377,6 +398,7 @@ def check_powervault_multipath_service(host) -> dict[str, Any]:
         for pv in pv_entries:
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -422,6 +444,7 @@ def check_powervault_multipath_device(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -469,6 +492,7 @@ def check_powervault_multipath_redundancy(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -524,6 +548,7 @@ def check_powervault_gpt_partition(host) -> dict[str, Any]:
             volume_id = pv.get("volume_id", "")
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -574,6 +599,7 @@ def check_powervault_filesystem_type(host) -> dict[str, Any]:
             volume_id = pv.get("volume_id", "")
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -626,6 +652,7 @@ def check_powervault_mount_point_directory(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -671,6 +698,7 @@ def check_powervault_volume_mounted(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -718,6 +746,7 @@ def check_powervault_mount_options(host) -> dict[str, Any]:
             expected_opts = resolve_pv_mount_opts(pv, mount_params)
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -763,6 +792,7 @@ def check_powervault_fstab_entry(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -814,6 +844,7 @@ def check_powervault_node_subdirectory(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -862,6 +893,7 @@ def check_powervault_bind_mounts(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -911,6 +943,7 @@ def check_powervault_bind_fstab_entries(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -959,6 +992,7 @@ def check_powervault_bind_isolation(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -1010,6 +1044,7 @@ def check_powervault_functional_group_targeting(host) -> dict[str, Any]:
                 continue
 
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
             non_target_nodes = get_non_target_nodes(host, prefixes)
 
             # Verify target nodes have the mount
@@ -1129,6 +1164,7 @@ def check_powervault_setup_log(host) -> dict[str, Any]:
             pv_name = pv.get("name", "")
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -1210,6 +1246,7 @@ def check_powervault_no_duplicate_fstab(host) -> dict[str, Any]:
         for pv in pv_entries:
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -1256,6 +1293,7 @@ def check_powervault_all_mounts_writable(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
@@ -1306,6 +1344,7 @@ def check_powervault_permissions(host) -> dict[str, Any]:
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
 
             for node in target_nodes:
                 node_ip = node["admin_ip"]
