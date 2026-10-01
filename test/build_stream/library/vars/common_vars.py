@@ -204,6 +204,7 @@ GITLAB_CI_PIPELINE_FILE = ".gitlab-ci.yml"
 GITLAB_CI_BUILD_FILE = ".gitlab-ci-build.yml"
 GITLAB_CI_DEPLOY_FILE = ".gitlab-ci-deploy.yml"
 GITLAB_CI_CLEANUP_FILE = ".gitlab-ci-cleanup.yml"
+GITLAB_CI_CADENCE_FILE = ".gitlab-ci-cadence.yml"
 GITLAB_CI_DEPLOY_CHILD_TEMPLATE = ".gitlab-ci-deploy-child-template.yml"
 GITLAB_CI_CLEANUP_CHILD_TEMPLATE = ".gitlab-ci-cleanup-child-template.yml"
 
@@ -212,6 +213,7 @@ GITLAB_CI_ALL_FILES: List[str] = [
     GITLAB_CI_BUILD_FILE,
     GITLAB_CI_DEPLOY_FILE,
     GITLAB_CI_CLEANUP_FILE,
+    GITLAB_CI_CADENCE_FILE,
     GITLAB_CI_DEPLOY_CHILD_TEMPLATE,
     GITLAB_CI_CLEANUP_CHILD_TEMPLATE,
 ]
@@ -270,6 +272,7 @@ BUILDSTREAM_OAUTH_CREDENTIAL_FILES: List[str] = [
 # src/build_stream/app/core/jobs/value_objects.py
 STAGE_CREATE_LOCAL_REPO = "create-local-repository"
 STAGE_BUILD_IMAGE = "build-image"
+STAGE_PARSE_CATALOG = "parse-catalog"
 STAGE_VALIDATE = "validate"
 STAGE_RESTART = "restart"
 STAGE_UPLOAD = "upload"
@@ -341,6 +344,18 @@ PIPELINE_TYPE_CLEANUP = "cleanup"
 
 # Catalog file path in GitLab repo (2.3)
 CATALOG_FILE_PATH = "catalog_rhel.json"
+CADENCE_CATALOG_FILE_PATH = "cadence_catalog_rhel.json"
+
+GITLAB_CI_CADENCE_JOBS: List[str] = [
+    "initialization",
+    "parse-catalog",
+    "configure-local-repository",
+    "build-images",
+    "deploy",
+    "restart",
+    "validate",
+    "summary",
+]
 
 # =============================================================================
 # POLLING CONFIGURATION
@@ -542,6 +557,18 @@ CMDS: Dict[str, str] = {
         "curl -sk --header 'PRIVATE-TOKEN: {token}'"
         " '{api_url}/projects/{project_id}/repository/files/"
         "{file_path}?ref={branch}' 2>/dev/null"
+    ),
+    "gitlab_api_get_commit": (
+        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/repository/commits/{commit_id}'"
+        " 2>/dev/null"
+    ),
+
+    # --- Cadence validation artifacts ---
+    "find_latest_validate_report": (
+        "find {path} -mindepth 2 -maxdepth 2 -type f"
+        " -path '*/attempt_*/test_report.json' -printf '%T@ %p\\n'"
+        " 2>/dev/null | sort -nr | head -n 1"
     ),
 
     # --- Database (psql via podman) ---

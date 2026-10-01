@@ -101,6 +101,8 @@ gitlab_sidekiq_concurrency: 10
 #   cadence settings live under the "cadence" group below.
 #
 #   Fixed/internal parameters (not user-configurable):
+#         - Catalog filename (hardcoded: "cadence_catalog_rhel.json")
+#         - Repo sync playbook (hardcoded: "repo_sync.yml")
 #         - Auto version bumping strategy (hardcoded: "patch")
 #         - Git author metadata (hardcoded: "BuildStream Cadence")
 #         - Audit event emission (hardcoded: enabled)
@@ -114,19 +116,12 @@ cadence:
   # Default: false
   enabled: true
 
-  # Polling interval for cadence syncs in seconds
-  # Accepted values: integer >= 3600 (1 hour minimum)
-  # Default: 86400 (24 hours)
-  interval_seconds: 21600
+  # Polling interval for cadence syncs in days
+  # Accepted values: integer >= 1
+  # Default: 7
+  interval_days: 7
 
-  # Cadence catalog filename in the GitLab repository
-  # This file is version-bumped after successful package sync via GitLab API
-  # Default: "cadence_catalog_rhel.json"
-  catalog_filename: "cadence_catalog_rhel.json"
-
-  # Package sync playbook name to invoke during cadence cycles
-  # Default: "repo_sync.yml"
-  playbook_name: "repo_sync.yml"
+  # cadence_catalog_rhel.json and repo_sync.yml are fixed system contracts.
 
   # Timeout for repo sync playbook execution in seconds
   # Default: 3600 (1 hour)
