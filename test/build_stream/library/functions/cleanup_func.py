@@ -25,6 +25,14 @@ from typing import Any, Dict
 
 from omnia_auto import run_on_host
 
+from library.cleanup_inspection import (
+    INSPECTION_ERROR,
+    PATH_ABSENT,
+    PATH_EXISTS,
+    classify_path_probe,
+    is_expected_disabled_state,
+    is_expected_stopped_state,
+)
 from ._config_helpers import (
     resolve_build_stream_data_path,
     resolve_build_stream_input_path,
@@ -590,13 +598,7 @@ def check_playbook_watcher_service_stopped(host) -> Dict[str, Any]:
             "error": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: still active",
         }
 
-    expected_stopped_states = {
-        (3, "inactive"),
-        (3, "failed"),
-        (4, "unknown"),
-        (4, "not-found"),
-    }
-    if (cmd_result.rc, status) in expected_stopped_states:
+    if is_expected_stopped_state(cmd_result.rc, status):
         return {
             "success": True,
             "status": status,
@@ -638,11 +640,7 @@ def check_playbook_watcher_service_disabled(host) -> Dict[str, Any]:
             "error": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: still enabled",
         }
 
-    expected_disabled_states = {
-        (1, "disabled"),
-        (1, "not-found"),
-    }
-    if (cmd_result.rc, status) in expected_disabled_states:
+    if is_expected_disabled_state(cmd_result.rc, status):
         return {
             "success": True,
             "status": status,
@@ -675,8 +673,9 @@ def check_playbook_watcher_service_file_removed(
     cmd = CMDS["file_exists"].format(path=PLAYBOOK_WATCHER_SERVICE_FILE)
     cmd_result = run_on_host(host, cmd)
 
-    exists = cmd_result.stdout.strip() if cmd_result.stdout else ""
-    if cmd_result.rc == 0 and exists == "exists":
+    output = cmd_result.stdout.strip() if cmd_result.stdout else ""
+    path_state = classify_path_probe(cmd_result.rc, output)
+    if path_state == PATH_EXISTS:
         return {
             "success": False,
             "path": PLAYBOOK_WATCHER_SERVICE_FILE,
@@ -686,7 +685,7 @@ def check_playbook_watcher_service_file_removed(
                 f"{PLAYBOOK_WATCHER_SERVICE_FILE}"
             ),
         }
-    if cmd_result.rc == 1 and not exists:
+    if path_state == PATH_ABSENT:
         return {
             "success": True,
             "path": PLAYBOOK_WATCHER_SERVICE_FILE,
@@ -701,7 +700,7 @@ def check_playbook_watcher_service_file_removed(
         "details": "",
         "error": (
             "Unable to inspect playbook-watcher service file "
-            f"(rc={cmd_result.rc}, output={exists or 'empty'})"
+            f"(rc={cmd_result.rc}, output={output or 'empty'})"
         ),
     }
 
@@ -978,11 +977,12 @@ def check_buildstream_directories_removed(host) -> Dict[str, Any]:
         cmd = CMDS["dir_exists"].format(path=dir_path)
         cmd_result = run_on_host(host, cmd)
         output = cmd_result.stdout.strip() if cmd_result.stdout else ""
-        if cmd_result.rc == 0 and output == "exists":
+        path_state = classify_path_probe(cmd_result.rc, output)
+        if path_state == PATH_EXISTS:
             result["still_exist"].append(dir_path)
-        elif cmd_result.rc == 1 and not output:
+        elif path_state == PATH_ABSENT:
             result["removed"].append(dir_path)
-        else:
+        elif path_state == INSPECTION_ERROR:
             result["inspection_errors"].append(
                 f"{dir_path} (rc={cmd_result.rc}, "
                 f"output={output or 'empty'})"
