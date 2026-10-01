@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Initialize external verification results
+  ansible.builtin.set_fact:
+    external_verification_results: []
+
+- name: Collect external verification results
+  ansible.builtin.set_fact:
+    external_verification_results: >-
+      {{ external_verification_results
+         + [hostvars[item].verify_node_registration_result] }}
+  loop: "{{ groups['external_node_registration_targets'] | default([]) }}"
+  loop_control:
+    label: "{{ hostvars[item].xname | default(item) }}"
+  when: hostvars[item].verify_node_registration_result is defined
+
+- name: Reconcile external verification lifecycle status
+  orchestrator_status_reconcile:
+    previous_status: "{{ external_previous_status }}"
+    inventory_source: "{{ external_previous_status.inventory_source }}"
+    timestamp: "{{ ansible_date_time.iso8601 }}"
+    run_id: "{{ ansible_date_time.epoch }}"
+    verification_enabled: true
+    custom_inventory: false
+    preserve_unselected: true
+    unverified_count: 0
+    selected_xnames: "{{ external_verification_nodes | map(attribute='xname') | list }}"
+    verification_results: "{{ external_verification_results | default([]) }}"
+  register: external_lifecycle_status
+
+- name: Write external verification lifecycle reports
+  ansible.builtin.include_role:
+    name: orchestrator_lifecycle_status
+  vars:
+    orchestrator_lifecycle_status_result: "{{ external_lifecycle_status }}"
+
+- name: Fail when external node verification did not succeed
+  ansible.builtin.fail:
+    msg: >-
+      {{ external_boot_verification_failed_msg }}
+      {{ external_lifecycle_status.failed_xnames | join(', ') }}
+  when: external_lifecycle_status.failed_xnames | length > 0

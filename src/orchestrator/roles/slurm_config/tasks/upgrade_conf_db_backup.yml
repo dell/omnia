@@ -21,7 +21,7 @@
 
 - name: Fail if upgrade_manifest is not found
   ansible.builtin.fail:
-    msg: "Slurm backup: Reading of upgrade_manifest.yml failed: {{ upgrade_manifest_result.msg }}"
+    msg: "{{ upgrade_manifest_fail_msg }}"
   when: upgrade_manifest_result is not defined or upgrade_manifest_result is failed
 
 - name: Include variable file omnia_config.yml

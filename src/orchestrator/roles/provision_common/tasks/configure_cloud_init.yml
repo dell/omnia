@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 # Configure cloud-init for a single functional group.
-# Extracted from configure_ochami/tasks/configure_cloud_init_group.yml.
 # Called in a loop with fg_name set by the caller.
 # Uses delete-then-set for idempotency.
 

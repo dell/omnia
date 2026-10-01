@@ -67,6 +67,7 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 | `execute` | Run provisioning and conditional PXE boot |
 | `validate-deployment` | Validate deployed OpenCHAMI and OpenLDAP services |
 | `pxeboot` | Run iDRAC PXE boot and optional node/cloud-init verification |
+| `verify_node_registration` | Verify pending manually or hypervisor-booted nodes over SSH without iDRAC |
 | `cleanup` | Remove enabled components and credentials by default |
 | `cleanup_credentials` | Remove only the Orchestrator credential file and vault key |
 | `upgrade` | Run the opt-in OpenCHAMI and OpenLDAP upgrade workflows |
@@ -77,6 +78,19 @@ boot. Cleanup, credential cleanup, upgrade, and rollback are opt-in. The
 rollback route is intentionally non-operational in v2.3 because the OpenCHAMI
 upgrade is one-way. Unsupported and conflicting tag combinations fail
 during setup.
+
+After an operator or hypervisor boots pending nodes, verify and record their
+fresh boot and cloud-init completion with:
+
+```bash
+./omnia.sh --run orchestrator --tags verify_node_registration
+```
+
+For a node whose Orchestrator-triggered PXE attempt failed, first allow the
+`pxeboot` workflow to finish and write `orchestrator_status.yml`. Then boot the
+node manually or through the hypervisor and run the verification tag. The
+external verifier requires a boot newer than the persisted lifecycle status;
+a boot started before the failed PXE workflow finishes is treated as stale.
 
 ## Input / Output
 
@@ -99,7 +113,6 @@ during setup.
 | `.data/functional_groups_config.yml` | Generated functional-group model |
 | `orchestrator_state.yml` | Persisted domain state used by standalone phases |
 | `provisioning_report.yml` | SMD, Boot Service, and Metadata Service validation result |
-| `pxeboot_status.yml` | Per-node PXE and cloud-init verification result |
 | `orchestrator_status.yml` | Aggregate provisioning and PXE lifecycle state |
 | `failed_nodes.json` | Failure-only PXE report |
 
@@ -149,7 +162,6 @@ src/orchestrator/
 | `omnia.orchestrator.passwordless_ssh` | SSH key distribution and host list management |
 | `omnia.orchestrator.deploy_openchami` | Deploy OpenCHAMI containers on OIM |
 | `omnia.orchestrator.deploy_openldap` | Deploy the OpenLDAP container on OIM |
-| `omnia.orchestrator.configure_ochami` | Configure OpenCHAMI groups, nodes, Boot Service, and Metadata Service |
 | `omnia.orchestrator.generate_inventories` | Generate downstream Ansible and BMC inventories |
 | `omnia.orchestrator.k8s_config` | Kubernetes cluster configuration |
 | `omnia.orchestrator.slurm_config` | Slurm workload manager configuration |
@@ -158,6 +170,7 @@ src/orchestrator/
 | `omnia.orchestrator.idrac_pxe_boot` | Configure Dell iDRAC PXE boot via Redfish API |
 | `omnia.orchestrator.precheck_environment` | Validate OIM environment prerequisites |
 | `omnia.orchestrator.provision_common` | Prepare common provisioning data and Metadata Service content |
+| `omnia.orchestrator.orchestrator_node_topology` | Publish shared node and functional-group topology facts |
 | `omnia.orchestrator.validate_openchami` | Validate OpenCHAMI service and artifact readiness |
 | `omnia.orchestrator.validate_preamble` | Prepare shared facts for deployment validation |
 | `omnia.orchestrator.validate_provisioning` | Validate provisioned node and service state |
@@ -236,8 +249,8 @@ For deployments moving from Omnia 2.2:
   and changed nodes remain `reprovision_required` until a verified fresh boot.
 - PXE completion uses the `node_registration_*` controls and verifies SSH boot
   freshness plus structured cloud-init state.
-- Lifecycle automation should consume `provisioning_report.yml`,
-  `pxeboot_status.yml`, and the aggregate `orchestrator_status.yml`.
+- Lifecycle automation should consume `provisioning_report.yml`, the aggregate
+  `orchestrator_status.yml`, and `failed_nodes.json` for PXE failures.
 - The OpenCHAMI `0.1.7-1` to `0.2.0-1` upgrade is one-way in this release;
   take a full system backup because the `rollback` tag is not operational.
 
