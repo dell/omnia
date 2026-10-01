@@ -118,7 +118,12 @@ cleanup_summary_msg: |
     - automation framework
     - omnia_postgres container and quadlet service
     - build_stream output, queues, runtime logs, and Python caches
+    - host Ansible logs under /var/log/omnia/build_stream
     - build_stream NFS runtime directories
     - build_stream credential files
   Postgres data: {{ 'PRESERVED (use -e postgres_backup=false to delete)' if postgres_backup | default(true) | bool else 'DELETED' }}
-  To redeploy run: cd /omnia/build_stream && ansible-playbook build_stream.yml
+  Before redeploying, reinitialize the BuildStream domain to recreate its
+  runtime and log directories, then run the deployment:
+    cd <omnia-repository>/src/main
+    ./omnia.sh --init build_stream
+    ./omnia.sh --run build_stream

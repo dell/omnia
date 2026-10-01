@@ -9,6 +9,18 @@ initializer-owned application source and non-credential input files so the
 domain can be redeployed. PostgreSQL data is preserved unless
 `postgres_backup=false` is supplied.
 
+Successful cleanup also removes host Ansible logs under
+`/var/log/omnia/build_stream`. Before redeploying, run the supported domain
+initializer and then the BuildStream deployment from `src/main`:
+
+```bash
+sudo ./omnia.sh --init build_stream
+sudo ./omnia.sh --run build_stream
+```
+
+The initialization command invokes `src/build_stream/domain-init.sh` and
+recreates the required runtime and log directories.
+
 ## Requirements
 
 - Ansible >= 2.14
