@@ -31,7 +31,7 @@ pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 
 @pytest.mark.sanity
-@pytest.mark.order(260)
+@pytest.mark.order(331)
 def test_hpc_benchmarks_json_declaration(host):
     """TC-01: Verify benchmark_tools.list is deployed and non-empty per arch."""
     verify_pxeboot(
@@ -40,7 +40,7 @@ def test_hpc_benchmarks_json_declaration(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(261)
+@pytest.mark.order(332)
 def test_hpc_benchmarks_local_repo_sync(host):
     """TC-02: Verify each declared tool has files under the Pulp offline URL."""
     verify_pxeboot(
@@ -49,7 +49,7 @@ def test_hpc_benchmarks_local_repo_sync(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(262)
+@pytest.mark.order(333)
 def test_hpc_benchmarks_tools_dir_creation(host):
     """TC-03: Verify /hpc_tools directory layout and 0755 permissions."""
     verify_pxeboot(
@@ -60,7 +60,7 @@ def test_hpc_benchmarks_tools_dir_creation(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(263)
+@pytest.mark.order(334)
 def test_hpc_benchmarks_artifact_copy(host):
     """TC-04: Verify declared benchmark artifacts are staged per tool."""
     verify_pxeboot(
@@ -69,7 +69,7 @@ def test_hpc_benchmarks_artifact_copy(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(264)
+@pytest.mark.order(335)
 def test_hpc_benchmarks_msr_safe_arch_boundary(host):
     """TC-05: Verify msr-safe is staged only for x86_64 nodes."""
     verify_pxeboot(
@@ -80,7 +80,7 @@ def test_hpc_benchmarks_msr_safe_arch_boundary(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(265)
+@pytest.mark.order(336)
 def test_hpc_benchmarks_post_staging_validation(host):
     """TC-12: Verify post-staging validation of benchmark tool directories."""
     verify_pxeboot(
@@ -91,7 +91,7 @@ def test_hpc_benchmarks_post_staging_validation(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(266)
+@pytest.mark.order(337)
 def test_hpc_benchmarks_rhel_compatibility(host):
     """TC-13: Verify every compute node runs the targeted RHEL major."""
     verify_pxeboot(

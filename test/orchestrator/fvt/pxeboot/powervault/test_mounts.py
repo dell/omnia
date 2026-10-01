@@ -24,6 +24,7 @@ from library.functions import (
     check_powervault_volume_mounted,
     check_powervault_mount_options,
     check_powervault_fstab_entry,
+    check_powervault_io_write_read,
 )
 
 
@@ -73,3 +74,11 @@ def test_powervault_mount_options(host):
 def test_powervault_fstab_entry(host):
     """Verify persistent fstab entry created on all target nodes."""
     verify_pxeboot(host, "powervault_fstab_entry", check_powervault_fstab_entry)
+
+
+@pytest.mark.sanity
+@pytest.mark.order(327)
+@pytest.mark.powervault_mounts
+def test_powervault_io_write_read(host):
+    """Verify write-read I/O succeeds on every PV mount point."""
+    verify_pxeboot(host, "powervault_io_write_read", check_powervault_io_write_read)

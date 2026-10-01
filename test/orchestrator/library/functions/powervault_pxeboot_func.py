@@ -41,6 +41,7 @@ from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
 )
 from ._powervault_helpers import (
+    SLURM_MANDATORY_BIND_TARGETS,
     error_result,
     get_mount_params,
     get_non_target_nodes,
@@ -53,6 +54,7 @@ from ._powervault_helpers import (
     skip_if_no_powervault,
     verify_all_mounts_writable,
     verify_bind_fstab_entries,
+    verify_bind_io,
     verify_bind_isolation,
     verify_bind_mounts,
     verify_cloud_init_groups_dict,
@@ -60,6 +62,7 @@ from ._powervault_helpers import (
     verify_filesystem_type,
     verify_gpt_partition,
     verify_initiator_name,
+    verify_io_write_read,
     verify_iscsi_discovery,
     verify_iscsi_service,
     verify_iscsi_sessions,
@@ -501,6 +504,7 @@ def check_powervault_multipath_redundancy(host) -> dict[str, Any]:
                 label = _node_label(node)
                 mpath_result = verify_multipath_device(host, node_ip, volume_id)
                 if not mpath_result["success"]:
+                    failures.append(mpath_result["error"])
                     fields.append((label, "✗ mpath not found"))
                     continue
 
@@ -557,6 +561,7 @@ def check_powervault_gpt_partition(host) -> dict[str, Any]:
                 label = _node_label(node)
                 mpath_result = verify_multipath_device(host, node_ip, volume_id)
                 if not mpath_result["success"]:
+                    failures.append(mpath_result["error"])
                     fields.append((label, "✗ mpath not found"))
                     continue
 
@@ -608,6 +613,7 @@ def check_powervault_filesystem_type(host) -> dict[str, Any]:
                 label = _node_label(node)
                 mpath_result = verify_multipath_device(host, node_ip, volume_id)
                 if not mpath_result["success"]:
+                    failures.append(mpath_result["error"])
                     fields.append((label, "✗ mpath not found"))
                     continue
 
@@ -971,42 +977,66 @@ def check_powervault_bind_fstab_entries(host) -> dict[str, Any]:
 
 
 def check_powervault_bind_isolation(host) -> dict[str, Any]:
-    """Verify per-node data separation via bind mounts on all target nodes.
+    """Verify per-node data separation via cross-node write/read test.
 
-    TC-PV-019 equivalent.
+    TC-PV-019 equivalent.  For each PV entry with bind targets, writes
+    a unique marker from every node via its bind mount, then verifies
+    each node's PV-backing subdirectory contains only its own marker.
     """
     try:
         if skip_if_no_powervault(host):
             return optional_skip(
                 "PowerVault bind isolation check skipped",
-                "powervault_config is absent or empty in storage_config.yml",
+                "powervault_config is absent or empty in "
+                "storage_config.yml",
             )
 
         pv_entries = get_powervault_entries(host)
-        failures = []
+        failures: list[str] = []
         fields: list[tuple[str, object]] = []
 
         for pv in pv_entries:
             mount_point = pv.get("mount_point", "")
             node_key = pv.get("node_key", "")
+            bind_targets = pv.get("node_mount_point", [])
+            if isinstance(bind_targets, str):
+                bind_targets = [bind_targets]
             if not mount_point or not node_key:
                 continue
 
             prefixes = pv.get("functional_group_prefix", [])
             target_nodes = get_target_nodes(host, prefixes)
-            _require_targets(target_nodes, prefixes, failures, fields)
+            _require_targets(
+                target_nodes, prefixes, failures, fields,
+            )
+            if not target_nodes:
+                continue
 
-            for node in target_nodes:
-                node_ip = node["admin_ip"]
-                label = _node_label(node)
-                result = verify_bind_isolation(host, node_ip, mount_point, node_key)
+            pv_name = pv.get("name", "unnamed")
+            result = verify_bind_isolation(
+                host, mount_point, node_key,
+                bind_targets, target_nodes,
+            )
 
-                if not result["success"]:
-                    failures.append(result["error"])
-                    fields.append((label, "✗ not isolated"))
+            if not result["success"]:
+                failures.append(result["error"])
+                fields.append(
+                    (pv_name, "✗ isolation failure")
+                )
+            else:
+                node_count = len(
+                    result["details"].get("node_info", [])
+                )
+                note = result["details"].get("note", "")
+                if note:
+                    fields.append(
+                        (pv_name, f"✓ {node_count} node(s) ({note})")
+                    )
                 else:
-                    node_value = result["details"]["node_value"]
-                    fields.append((label, f"✓ {node_value}"))
+                    fields.append(
+                        (pv_name,
+                         f"✓ {node_count} nodes isolated")
+                    )
 
         return runtime_result(
             not failures,
@@ -1015,7 +1045,9 @@ def check_powervault_bind_isolation(host) -> dict[str, Any]:
             "; ".join(failures) if failures else "",
         )
     except Exception as exc:
-        return error_result("PowerVault bind isolation check failed", str(exc))
+        return error_result(
+            "PowerVault bind isolation check failed", str(exc),
+        )
 
 
 # =============================================================================
@@ -1062,7 +1094,7 @@ def check_powervault_functional_group_targeting(host) -> dict[str, Any]:
                     fields.append((label, "✓ mounted"))
 
             # Verify non-target nodes do NOT have the mount
-            for node in non_target_nodes[:3]:  # Sample first 3 non-targets
+            for node in non_target_nodes:
                 node_ip = node["admin_ip"]
                 label = _node_label(node)
                 result = verify_volume_mounted(host, node_ip, mount_point)
@@ -1118,6 +1150,8 @@ def check_powervault_multiple_prefix_targeting(host) -> dict[str, Any]:
                 if ip not in seen_ips:
                     seen_ips.add(ip)
                     unique_targets.append(node)
+
+            _require_targets(unique_targets, prefixes, failures, fields)
 
             # Verify all unique targets have the mount
             for node in unique_targets:
@@ -1303,6 +1337,9 @@ def check_powervault_all_mounts_writable(host) -> dict[str, Any]:
         for pv in pv_entries:
             mount_point = pv.get("mount_point", "")
             node_key = pv.get("node_key", "")
+            bind_targets = pv.get("node_mount_point", [])
+            if isinstance(bind_targets, str):
+                bind_targets = [bind_targets]
             if not mount_point:
                 continue
 
@@ -1313,7 +1350,10 @@ def check_powervault_all_mounts_writable(host) -> dict[str, Any]:
             for node in target_nodes:
                 node_ip = node["admin_ip"]
                 label = _node_label(node)
-                result = verify_all_mounts_writable(host, node_ip, mount_point, node_key)
+                result = verify_all_mounts_writable(
+                    host, node_ip, mount_point,
+                    node_key, bind_targets,
+                )
 
                 if not result["success"]:
                     failures.append(result["error"])
@@ -1382,6 +1422,235 @@ def check_powervault_permissions(host) -> dict[str, Any]:
         return error_result("PowerVault permissions check failed", str(exc))
 
 
+# =============================================================================
+# Category 8: I/O and Mandatory Bind Mount Validation
+# =============================================================================
+
+
+def check_powervault_io_write_read(host) -> dict[str, Any]:
+    """Write-read I/O test on every PV mount point.
+
+    TC-PV-027 equivalent (2.2 io_write_read).
+    """
+    try:
+        if skip_if_no_powervault(host):
+            return optional_skip(
+                "PowerVault I/O write-read check skipped",
+                "powervault_config is absent or empty in "
+                "storage_config.yml",
+            )
+
+        pv_entries = get_powervault_entries(host)
+        failures: list[str] = []
+        fields: list[tuple[str, object]] = []
+
+        for pv in pv_entries:
+            mount_point = pv.get("mount_point", "")
+            if not mount_point:
+                continue
+            prefixes = pv.get("functional_group_prefix", [])
+            target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
+
+            for node in target_nodes:
+                node_ip = node["admin_ip"]
+                label = _node_label(node)
+                result = verify_io_write_read(
+                    host, node_ip, mount_point,
+                )
+                if not result["success"]:
+                    failures.append(result["error"])
+                    fields.append((label, "✗ I/O failed"))
+                else:
+                    fields.append((label, "✓ I/O ok"))
+
+        return runtime_result(
+            not failures,
+            "write-read I/O verified on all PV mount points",
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except Exception as exc:
+        return error_result(
+            "PowerVault I/O write-read check failed", str(exc),
+        )
+
+
+def check_powervault_bind_io(host) -> dict[str, Any]:
+    """Write through bind mounts and verify data reaches the PV.
+
+    TC-PV-028 equivalent (2.2 bind_io).
+    """
+    try:
+        if skip_if_no_powervault(host):
+            return optional_skip(
+                "PowerVault bind I/O check skipped",
+                "powervault_config is absent or empty in "
+                "storage_config.yml",
+            )
+
+        pv_entries = get_powervault_entries(host)
+        failures: list[str] = []
+        fields: list[tuple[str, object]] = []
+
+        for pv in pv_entries:
+            mount_point = pv.get("mount_point", "")
+            node_key = pv.get("node_key", "")
+            bind_targets = pv.get("node_mount_point", [])
+            if not mount_point or not node_key or not bind_targets:
+                continue
+            prefixes = pv.get("functional_group_prefix", [])
+            target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
+
+            for node in target_nodes:
+                node_ip = node["admin_ip"]
+                label = _node_label(node)
+                for bt in bind_targets:
+                    result = verify_bind_io(
+                        host, node_ip, mount_point, node_key, bt,
+                    )
+                    tag = f"{label}:{bt}"
+                    if not result["success"]:
+                        failures.append(result["error"])
+                        fields.append((tag, "✗ bind I/O failed"))
+                    else:
+                        fields.append((tag, "✓ bind I/O ok"))
+
+        return runtime_result(
+            not failures,
+            "bind-mount I/O verified on all PV targets",
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except Exception as exc:
+        return error_result(
+            "PowerVault bind I/O check failed", str(exc),
+        )
+
+
+def check_powervault_slurm_mandatory_bind_mounts(
+    host,
+) -> dict[str, Any]:
+    """Verify /var/lib/mysql and /var/spool/slurm are configured.
+
+    TC-PV-029 equivalent (2.2 slurm_mandatory_bind_mounts).
+    Checks that every PV entry whose functional_group_prefix matches
+    a Slurm control-plane group includes the mandatory bind targets
+    in its ``node_mount_point`` list.
+    """
+    try:
+        if skip_if_no_powervault(host):
+            return optional_skip(
+                "PowerVault mandatory bind-mount check skipped",
+                "powervault_config is absent or empty in "
+                "storage_config.yml",
+            )
+
+        pv_entries = get_powervault_entries(host)
+        failures: list[str] = []
+        fields: list[tuple[str, object]] = []
+
+        for pv in pv_entries:
+            bind_targets = pv.get("node_mount_point", [])
+            if isinstance(bind_targets, str):
+                bind_targets = [bind_targets]
+            pv_name = pv.get("name", "unnamed")
+            for required in SLURM_MANDATORY_BIND_TARGETS:
+                if required in bind_targets:
+                    fields.append(
+                        (f"{pv_name}:{required}", "✓ configured")
+                    )
+                else:
+                    failures.append(
+                        f"{pv_name}: mandatory bind target "
+                        f"{required} not in node_mount_point"
+                    )
+                    fields.append(
+                        (f"{pv_name}:{required}", "✗ missing")
+                    )
+
+        return runtime_result(
+            not failures,
+            "mandatory Slurm/MySQL bind targets are configured",
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except Exception as exc:
+        return error_result(
+            "PowerVault mandatory bind-mount check failed",
+            str(exc),
+        )
+
+
+def check_powervault_mysql_data_on_mount(host) -> dict[str, Any]:
+    """Verify MySQL/MariaDB datadir lives on a PV mount.
+
+    TC-PV-030 equivalent (2.2 mysql_data_on_mount).
+    On each target node that has ``/var/lib/mysql`` as a bind target,
+    confirms that ``/var/lib/mysql`` is an active mount point backed
+    by the PowerVault volume.
+    """
+    try:
+        if skip_if_no_powervault(host):
+            return optional_skip(
+                "PowerVault MySQL datadir check skipped",
+                "powervault_config is absent or empty in "
+                "storage_config.yml",
+            )
+
+        pv_entries = get_powervault_entries(host)
+        failures: list[str] = []
+        fields: list[tuple[str, object]] = []
+        mysql_path = "/var/lib/mysql"
+
+        for pv in pv_entries:
+            bind_targets = pv.get("node_mount_point", [])
+            if isinstance(bind_targets, str):
+                bind_targets = [bind_targets]
+            if mysql_path not in bind_targets:
+                continue
+            prefixes = pv.get("functional_group_prefix", [])
+            target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
+
+            for node in target_nodes:
+                node_ip = node["admin_ip"]
+                label = _node_label(node)
+                result = verify_volume_mounted(
+                    host, node_ip, mysql_path,
+                )
+                if not result["success"]:
+                    failures.append(
+                        f"{label}: {mysql_path} is not mounted"
+                    )
+                    fields.append(
+                        (label, "✗ mysql not on PV")
+                    )
+                else:
+                    fields.append(
+                        (label, "✓ mysql on PV mount")
+                    )
+
+        if not fields:
+            return optional_skip(
+                "PowerVault MySQL datadir check skipped",
+                f"no PV entry includes {mysql_path} in "
+                "node_mount_point",
+            )
+
+        return runtime_result(
+            not failures,
+            "MySQL/MariaDB datadir is on PowerVault mount",
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except Exception as exc:
+        return error_result(
+            "PowerVault MySQL datadir check failed", str(exc),
+        )
+
+
 __all__ = [
     "check_powervault_iscsi_service",
     "check_powervault_iscsi_initiator_name",
@@ -1409,4 +1678,8 @@ __all__ = [
     "check_powervault_no_duplicate_fstab",
     "check_powervault_all_mounts_writable",
     "check_powervault_permissions",
+    "check_powervault_io_write_read",
+    "check_powervault_bind_io",
+    "check_powervault_slurm_mandatory_bind_mounts",
+    "check_powervault_mysql_data_on_mount",
 ]

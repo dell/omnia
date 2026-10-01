@@ -24,6 +24,9 @@ from library.functions import (
     check_powervault_bind_isolation,
     check_powervault_functional_group_targeting,
     check_powervault_multiple_prefix_targeting,
+    check_powervault_bind_io,
+    check_powervault_slurm_mandatory_bind_mounts,
+    check_powervault_mysql_data_on_mount,
 )
 
 
@@ -73,3 +76,31 @@ def test_powervault_functional_group_targeting(host):
 def test_powervault_multiple_prefix_targeting(host):
     """Verify multiple prefixes target all groups correctly."""
     verify_pxeboot(host, "powervault_multiple_prefix_targeting", check_powervault_multiple_prefix_targeting)
+
+
+@pytest.mark.sanity
+@pytest.mark.order(328)
+@pytest.mark.powervault_binds
+def test_powervault_bind_io(host):
+    """Verify bind-mount I/O reaches the PV backing store."""
+    verify_pxeboot(host, "powervault_bind_io", check_powervault_bind_io)
+
+
+@pytest.mark.sanity
+@pytest.mark.order(329)
+@pytest.mark.powervault_binds
+def test_powervault_slurm_mandatory_bind_mounts(host):
+    """Verify /var/lib/mysql and /var/spool/slurm configured as bind targets."""
+    verify_pxeboot(
+        host,
+        "powervault_slurm_mandatory_bind_mounts",
+        check_powervault_slurm_mandatory_bind_mounts,
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(330)
+@pytest.mark.powervault_binds
+def test_powervault_mysql_data_on_mount(host):
+    """Verify MySQL/MariaDB datadir is on a PowerVault mount."""
+    verify_pxeboot(host, "powervault_mysql_data_on_mount", check_powervault_mysql_data_on_mount)

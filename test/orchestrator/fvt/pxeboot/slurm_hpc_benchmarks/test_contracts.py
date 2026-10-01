@@ -27,7 +27,7 @@ pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 
 @pytest.mark.sanity
-@pytest.mark.order(267)
+@pytest.mark.order(338)
 def test_hpc_benchmarks_container_first_guidance(host):
     """TC-06: Verify pull_benchmarks.sh and benchmark_tools.list are deployed.
 
@@ -43,7 +43,7 @@ def test_hpc_benchmarks_container_first_guidance(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(268)
+@pytest.mark.order(339)
 def test_hpc_benchmarks_source_only_delivery(host):
     """TC-07: Verify no compile/build commands are staged with the artifacts."""
     verify_pxeboot(
@@ -54,7 +54,7 @@ def test_hpc_benchmarks_source_only_delivery(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(269)
+@pytest.mark.order(340)
 def test_hpc_benchmarks_nfs_accessibility(host):
     """TC-10: Verify /hpc_tools NFS is mounted and readable on compute nodes."""
     verify_pxeboot(

@@ -520,12 +520,12 @@ def check_hpc_benchmarks_per_tool_staging_report(host):
 def check_hpc_benchmarks_e2e_provisioning(host):
     """Combine tool-declaration, offline sync, layout, artifacts, and NFS.
 
-    Mandatory stages (tool_list, tools_dirs, nfs) must not be skipped.
-    A skipped mandatory stage is treated as a failure to prevent false-green
-    results when prerequisites are missing.
+    Mandatory stages (tool_list, tools_dirs, artifacts, nfs) must not be
+    skipped.  A skipped mandatory stage is treated as a failure to prevent
+    false-green results when prerequisites are missing.
     """
     summary = "HPC benchmarks end-to-end provisioning"
-    _MANDATORY_STAGES = {"tool_list", "tools_dirs", "nfs"}
+    _MANDATORY_STAGES = {"tool_list", "tools_dirs", "artifacts", "nfs"}
     try:
         results = {
             "tool_list": check_hpc_benchmarks_json_declaration(host),
@@ -851,32 +851,86 @@ def check_hpc_benchmarks_openmpi_unaffected(host):
         context, _rows, control, _computes, _config = hpc_benchmarks_context(host)
         if control is None:
             return optional_skip(summary, "No Slurm control node is mapped")
-        if not context["features"].get("openmpi", False) and not context["features"].get(
-            "ucx", False
-        ):
+        if not context["features"].get("openmpi", False) \
+                and not context["features"].get("ucx", False):
             return optional_skip(
-                summary, "OpenMPI/UCX are not selected for this Slurm topology"
+                summary,
+                "OpenMPI/UCX are not selected for this Slurm topology",
             )
-        openmpi_before = remote_command(host, control, PXEBOOT_COMMANDS["openmpi"])
-        ucx_before = remote_command(host, control, PXEBOOT_COMMANDS["ucx"])
-        _ctx2, _ctrl2, computes, skipped = computes_or_skip(host, summary)
+
+        failures: list[str] = []
+
+        openmpi_before = remote_command(
+            host, control, PXEBOOT_COMMANDS["openmpi"],
+        )
+        ucx_before = remote_command(
+            host, control, PXEBOOT_COMMANDS["ucx"],
+        )
+        if openmpi_before.rc != 0:
+            failures.append(
+                f"OpenMPI pre-probe failed: {command_error(openmpi_before)}"
+            )
+        if ucx_before.rc != 0:
+            failures.append(
+                f"UCX pre-probe failed: {command_error(ucx_before)}"
+            )
+
+        _ctx2, _ctrl2, computes, skipped = computes_or_skip(
+            host, summary,
+        )
         if skipped is None and computes:
-            run_pull_script(host, computes[0], HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS)
+            staging = run_pull_script(
+                host, computes[0],
+                HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS,
+            )
+            if staging.rc != 0:
+                failures.append(
+                    f"Staging failed (rc={staging.rc}): "
+                    f"{command_error(staging)}"
+                )
         time.sleep(1)
-        openmpi_after = remote_command(host, control, PXEBOOT_COMMANDS["openmpi"])
-        ucx_after = remote_command(host, control, PXEBOOT_COMMANDS["ucx"])
-        openmpi_ok = openmpi_before.stdout == openmpi_after.stdout
-        ucx_ok = ucx_before.stdout == ucx_after.stdout
+
+        openmpi_after = remote_command(
+            host, control, PXEBOOT_COMMANDS["openmpi"],
+        )
+        ucx_after = remote_command(
+            host, control, PXEBOOT_COMMANDS["ucx"],
+        )
+        if openmpi_after.rc != 0:
+            failures.append(
+                f"OpenMPI post-probe failed: "
+                f"{command_error(openmpi_after)}"
+            )
+        if ucx_after.rc != 0:
+            failures.append(
+                f"UCX post-probe failed: {command_error(ucx_after)}"
+            )
+
+        openmpi_ok = (
+            openmpi_before.rc == 0
+            and openmpi_after.rc == 0
+            and openmpi_before.stdout == openmpi_after.stdout
+        )
+        ucx_ok = (
+            ucx_before.rc == 0
+            and ucx_after.rc == 0
+            and ucx_before.stdout == ucx_after.stdout
+        )
+        if not openmpi_ok and not any("OpenMPI" in f for f in failures):
+            failures.append("OpenMPI discovery output drifted")
+        if not ucx_ok and not any("UCX" in f for f in failures):
+            failures.append("UCX discovery output drifted")
+
         fields = [
             ("Control node", control["HOSTNAME"]),
             ("OpenMPI unchanged", openmpi_ok),
             ("UCX unchanged", ucx_ok),
         ]
         return runtime_result(
-            openmpi_ok and ucx_ok,
+            not failures,
             summary,
             fields,
-            "" if openmpi_ok and ucx_ok else "OpenMPI or UCX discovery output drifted",
+            "; ".join(failures) if failures else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -889,24 +943,43 @@ def check_hpc_benchmarks_existing_dirs_preserved(host):
     """Verify pre-existing /hpc_tools subdirectories survive a staging run."""
     summary = "HPC benchmarks existing directory preservation"
     try:
-        _context, _control, computes, skipped = computes_or_skip(host, summary)
+        _context, _control, computes, skipped = computes_or_skip(
+            host, summary,
+        )
         if skipped:
             return skipped
         fields: list[tuple[str, object]] = []
         failures: list[str] = []
         for row in computes:
             before = snapshot_directories(host, row)
-            run_pull_script(host, row, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS)
+            staging = run_pull_script(
+                host, row, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS,
+            )
+            if staging.rc != 0:
+                failures.append(
+                    f"{row['HOSTNAME']}: staging failed "
+                    f"(rc={staging.rc}): "
+                    f"{command_error(staging)}"
+                )
+                fields.append(
+                    (f"  {row['HOSTNAME']}", f"✗ staging rc={staging.rc}"),
+                )
+                continue
             after = snapshot_directories(host, row)
-            removed = tuple(name for name in before if name not in after)
+            removed = tuple(
+                name for name in before if name not in after
+            )
             fields.append(
                 (
                     f"  {row['HOSTNAME']}",
-                    f"before={len(before)} after={len(after)} removed={len(removed)}",
+                    f"before={len(before)} after={len(after)} "
+                    f"removed={len(removed)}",
                 )
             )
             if removed:
-                failures.append(f"{row['HOSTNAME']}:{','.join(removed[:3])}")
+                failures.append(
+                    f"{row['HOSTNAME']}:{','.join(removed[:3])}"
+                )
         return runtime_result(
             not failures,
             summary,

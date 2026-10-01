@@ -175,11 +175,26 @@ def resolve_pv_mount_opts(pv_entry: dict, mount_params: dict) -> str:
 # =============================================================================
 
 
+def _effective_group(row: dict) -> str:
+    """Return the computed functional group for a PXE row.
+
+    Uses ``EXPECTED_FUNCTIONAL_GROUP`` (the post-promotion value set by
+    Ansible's ``determine_target_groups.yml``) and falls back to
+    ``FUNCTIONAL_GROUP_NAME`` for rows that pre-date the promotion step.
+    """
+    return str(
+        row.get("EXPECTED_FUNCTIONAL_GROUP")
+        or row.get("FUNCTIONAL_GROUP_NAME")
+        or ""
+    )
+
+
 def get_target_nodes(host, functional_group_prefix: list[str] | str) -> list[dict[str, str]]:
     """Return nodes matching any of the given functional_group_prefix values.
 
-    Uses prefix matching against all functional groups in PXE mapping,
-    mirroring the Ansible determine_target_groups.yml logic.
+    Uses prefix matching against ``EXPECTED_FUNCTIONAL_GROUP`` (the
+    post-promotion computed group) in the PXE mapping, mirroring the
+    Ansible determine_target_groups.yml logic.
 
     Args:
         host: Testinfra host object
@@ -194,7 +209,7 @@ def get_target_nodes(host, functional_group_prefix: list[str] | str) -> list[dic
     pxe_rows = load_context(host)["rows"]
     matching_groups = set()
     for row in pxe_rows:
-        group = row.get("FUNCTIONAL_GROUP_NAME", "")
+        group = _effective_group(row)
         for prefix in functional_group_prefix:
             if group.startswith(prefix):
                 matching_groups.add(group)
@@ -203,20 +218,23 @@ def get_target_nodes(host, functional_group_prefix: list[str] | str) -> list[dic
     nodes = []
     seen_ips = set()
     for row in pxe_rows:
-        if row.get("FUNCTIONAL_GROUP_NAME") in matching_groups:
+        if _effective_group(row) in matching_groups:
             ip = row.get("ADMIN_IP", "")
             if ip and ip not in seen_ips:
                 seen_ips.add(ip)
                 nodes.append({
                     "admin_ip": ip,
                     "hostname": row.get("HOSTNAME", ""),
-                    "functional_group": row.get("FUNCTIONAL_GROUP_NAME", ""),
+                    "functional_group": _effective_group(row),
                 })
     return nodes
 
 
 def get_non_target_nodes(host, functional_group_prefix: list[str] | str) -> list[dict[str, str]]:
     """Return nodes that do NOT match any of the functional_group_prefix values.
+
+    Uses ``EXPECTED_FUNCTIONAL_GROUP`` for consistency with
+    ``get_target_nodes``.
 
     Args:
         host: Testinfra host object
@@ -231,7 +249,7 @@ def get_non_target_nodes(host, functional_group_prefix: list[str] | str) -> list
     pxe_rows = load_context(host)["rows"]
     non_matching_groups = set()
     for row in pxe_rows:
-        group = row.get("FUNCTIONAL_GROUP_NAME", "")
+        group = _effective_group(row)
         matched = False
         for prefix in functional_group_prefix:
             if group.startswith(prefix):
@@ -243,14 +261,14 @@ def get_non_target_nodes(host, functional_group_prefix: list[str] | str) -> list
     nodes = []
     seen_ips = set()
     for row in pxe_rows:
-        if row.get("FUNCTIONAL_GROUP_NAME") in non_matching_groups:
+        if _effective_group(row) in non_matching_groups:
             ip = row.get("ADMIN_IP", "")
             if ip and ip not in seen_ips:
                 seen_ips.add(ip)
                 nodes.append({
                     "admin_ip": ip,
                     "hostname": row.get("HOSTNAME", ""),
-                    "functional_group": row.get("FUNCTIONAL_GROUP_NAME", ""),
+                    "functional_group": _effective_group(row),
                 })
     return nodes
 
@@ -610,8 +628,17 @@ def verify_multipath_device(host, node_ip: str, volume_id: str) -> dict[str, Any
     }
 
 
-def verify_multipath_paths(host, node_ip: str, mpath_device: str, expected_paths: int) -> dict[str, Any]:
+def verify_multipath_paths(
+    host, node_ip: str, mpath_device: str, expected_paths: int,
+) -> dict[str, Any]:
     """Verify multipath device has expected number of paths.
+
+    Counts actual I/O path lines (``sd*`` devices) within the stanza for
+    *mpath_device* in ``multipath -ll`` output.  Path lines contain a
+    SCSI H:C:T:L address followed by the block device name, e.g.::
+
+        |- 3:0:0:1 sdb 8:16 active ready running
+        `- 4:0:0:1 sdc 8:32 active ready running
 
     Returns:
         {"success": bool, "error": str, "details": {"path_count": int}}
@@ -619,13 +646,33 @@ def verify_multipath_paths(host, node_ip: str, mpath_device: str, expected_paths
     cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_multipath_list"])
     output = cmd.stdout.strip()
 
+    # Isolate the stanza for the target device: from the header line
+    # containing mpath_device up to the next header or end-of-output.
+    # Header lines start at column 0 with the alias; body lines are
+    # indented or start with tree chars (|, `, \, [, +).
+    in_stanza = False
     path_count = 0
+    _TREE_CHARS = (" ", "|", "`", "\\", "[", "+")
     for line in output.split("\n"):
-        if mpath_device in line:
-            path_count += 1
+        if not line.strip():
+            continue
+        is_indented = line.startswith(_TREE_CHARS)
+        if not is_indented:
+            # This is a header line for some device.
+            in_stanza = mpath_device in line
+            continue
+        if in_stanza:
+            # Path lines contain a SCSI H:C:T:L address (e.g. 3:0:0:1)
+            # followed by a block device like sdb/sdc.
+            parts = line.strip().lstrip("|-`+\\ ").split()
+            if len(parts) >= 2 and ":" in parts[0] and parts[1].startswith("sd"):
+                path_count += 1
 
     success = path_count >= expected_paths
-    error = "" if success else f"Expected {expected_paths} paths, found {path_count} on {node_ip}"
+    error = (
+        "" if success
+        else f"Expected {expected_paths} paths, found {path_count} on {node_ip}"
+    )
 
     return {
         "success": success,
@@ -640,18 +687,37 @@ def verify_multipath_paths(host, node_ip: str, mpath_device: str, expected_paths
 
 
 def verify_gpt_partition(host, node_ip: str, mpath_device: str) -> dict[str, Any]:
-    """Verify GPT partition exists on multipath device.
+    """Verify GPT label *and* partition 1 exist on multipath device.
+
+    Parses ``parted -s <dev> print`` output.  Requires both:
+    - ``Partition Table: gpt``
+    - A numbered partition line starting with ``1`` (e.g.
+      ``1  1049kB  1000GB  1000GB  xfs  primary``)
 
     Returns:
         {"success": bool, "error": str, "details": {"partition_device": str}}
     """
     part_dev = f"/dev/mapper/{mpath_device}1"
-    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_parted_print"] % mpath_device)
+    cmd = _run_on_node(
+        host, node_ip,
+        PXEBOOT_COMMANDS["pv_parted_print"] % mpath_device,
+    )
     output = cmd.stdout.strip()
 
     has_gpt = "gpt" in output.lower()
-    success = has_gpt
-    error = "" if success else f"No GPT partition on {mpath_device} on {node_ip}"
+    # Partition lines start with a number after optional whitespace.
+    has_part1 = any(
+        line.strip().startswith("1")
+        and len(line.split()) >= 3
+        for line in output.split("\n")
+    )
+    success = has_gpt and has_part1
+    if not has_gpt:
+        error = f"No GPT label on {mpath_device} on {node_ip}"
+    elif not has_part1:
+        error = f"GPT label present but partition 1 missing on {mpath_device} on {node_ip}"
+    else:
+        error = ""
 
     return {
         "success": success,
@@ -717,8 +783,32 @@ def verify_volume_mounted(host, node_ip: str, mount_point: str) -> dict[str, Any
     }
 
 
-def verify_mount_options(host, node_ip: str, mount_point: str, expected_opts: str) -> dict[str, Any]:
+def _kernel_visible_opts(opts_str: str) -> set[str]:
+    """Return the subset of mount options that appear in /proc/mounts.
+
+    ``defaults`` is a mount(8) shorthand for ``rw,suid,dev,exec,auto,nouser,
+    async`` — it never appears literally in /proc/mounts.  ``_netdev`` is a
+    userspace scheduling hint consumed by systemd/mount and likewise absent
+    from the kernel mount table.  This helper strips those so the comparison
+    only covers options the kernel actually records.
+    """
+    _USERSPACE_ONLY = frozenset({"defaults", "_netdev", "auto", "noauto", "user", "nouser"})
+    return {
+        opt for opt in opts_str.split(",")
+        if opt and opt not in _USERSPACE_ONLY
+    }
+
+
+def verify_mount_options(
+    host, node_ip: str, mount_point: str, expected_opts: str,
+) -> dict[str, Any]:
     """Verify mount options applied correctly.
+
+    Compares only kernel-visible options: userspace-only hints like
+    ``defaults`` and ``_netdev`` are stripped from the expected set
+    before matching against /proc/mounts.  The actual options from
+    /proc/mounts must be a superset of the expected kernel-visible
+    options (the kernel may add additional defaults like ``relatime``).
 
     Returns:
         {"success": bool, "error": str, "details": {"actual_opts": str}}
@@ -728,14 +818,24 @@ def verify_mount_options(host, node_ip: str, mount_point: str, expected_opts: st
 
     actual_opts = ""
     for line in output.split("\n"):
-        if mount_point in line:
-            parts = line.split()
-            if len(parts) >= 4:
-                actual_opts = parts[3]
-                break
+        parts = line.split()
+        if len(parts) >= 4 and parts[1] == mount_point:
+            actual_opts = parts[3]
+            break
 
-    success = actual_opts == expected_opts
-    error = "" if success else f"Expected mount opts {expected_opts}, found {actual_opts} on {node_ip}"
+    expected_set = _kernel_visible_opts(expected_opts)
+    actual_set = set(actual_opts.split(",")) if actual_opts else set()
+    missing = expected_set - actual_set
+    success = not missing and bool(actual_opts)
+    if not actual_opts:
+        error = f"Mount point {mount_point} not found in /proc/mounts on {node_ip}"
+    elif missing:
+        error = (
+            f"Missing mount opts {','.join(sorted(missing))} on "
+            f"{mount_point} on {node_ip} (actual: {actual_opts})"
+        )
+    else:
+        error = ""
 
     return {
         "success": success,
@@ -876,31 +976,148 @@ def verify_bind_fstab_entries(host, node_ip: str, mount_point: str, node_key: st
     }
 
 
-def verify_bind_isolation(host, node_ip: str, mount_point: str, node_key: str) -> dict[str, Any]:
+def verify_bind_isolation(
+    host,
+    mount_point: str,
+    node_key: str,
+    bind_targets: list[str],
+    target_nodes: list[dict[str, str]],
+) -> dict[str, Any]:
     """Verify per-node data separation via bind mounts.
 
+    Performs a real cross-node write/read isolation test:
+
+    1. Resolve each node's identity (``node_key`` → ``node_value``).
+    2. For the first configured bind target, each node writes a unique
+       marker to its bind-mounted path.
+    3. From the OIM, verify each node's PV-backing subdirectory
+       contains *only* that node's marker and none of the others.
+    4. Clean up all markers.
+
+    Falls back to a directory-existence check when fewer than two
+    nodes are available (isolation is meaningless with a single node).
+
     Returns:
-        {"success": bool, "error": str, "details": {"node_value": str}}
+        {"success": bool, "error": str, "details": {…}}
     """
-    node_value = resolve_node_key_value(host, node_ip, node_key)
-    if not node_value:
+    _MARKER_PREFIX = ".pv_isolation_test"
+    failures: list[str] = []
+    node_info: list[dict[str, str]] = []
+
+    # Phase 1: resolve node values and verify subdirectories exist
+    for node in target_nodes:
+        node_ip = node["admin_ip"]
+        nv = resolve_node_key_value(host, node_ip, node_key)
+        if not nv:
+            failures.append(
+                f"Cannot resolve node_key {node_key} on {node_ip}"
+            )
+            continue
+        subdir = f"{mount_point}/{nv}"
+        cmd = _run_on_node(
+            host, node_ip,
+            PXEBOOT_COMMANDS["pv_dir_exists"] % subdir,
+        )
+        if cmd.stdout.strip() != "exists":
+            failures.append(
+                f"Isolation subdir {subdir} missing on {node_ip}"
+            )
+            continue
+        node_info.append({
+            "ip": node_ip,
+            "node_value": nv,
+            "subdir": subdir,
+        })
+
+    if failures:
         return {
             "success": False,
-            "error": f"Unable to resolve node_key {node_key} on {node_ip}",
-            "details": {"node_value": ""},
+            "error": "; ".join(failures),
+            "details": {"node_info": node_info},
         }
 
-    node_subdir = f"{mount_point}/{node_value}"
-    cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_dir_exists"] % node_subdir)
-    exists = cmd.stdout.strip() == "exists"
+    # With <2 nodes isolation is trivially satisfied; verify subdir only
+    if len(node_info) < 2:
+        return {
+            "success": True,
+            "error": "",
+            "details": {"node_info": node_info, "note": "single node"},
+        }
 
-    success = exists
-    error = "" if success else f"Node isolation subdirectory {node_subdir} does not exist on {node_ip}"
+    # Pick the first bind target for the isolation probe
+    probe_target = bind_targets[0] if bind_targets else None
+    if not probe_target:
+        return {
+            "success": True,
+            "error": "",
+            "details": {
+                "node_info": node_info,
+                "note": "no bind targets to probe",
+            },
+        }
+
+    # Phase 2: each node writes a unique marker via its bind mount
+    marker_name = f"{_MARKER_PREFIX}_{id(host)}"
+    for ni in node_info:
+        token = f"isolation_{ni['node_value']}"
+        marker_path = f"{probe_target}/{marker_name}"
+        cmd_str = f"echo {token} > {marker_path}"
+        _run_on_node(host, ni["ip"], cmd_str)
+
+    # Phase 3: cross-check from OIM via the PV backing paths
+    try:
+        for ni in node_info:
+            expected_token = f"isolation_{ni['node_value']}"
+            target_stripped = probe_target.lstrip("/")
+            backing = (
+                f"{ni['subdir']}/{target_stripped}/{marker_name}"
+            )
+            # Read this node's marker from the PV backing store
+            read_cmd = _run_on_node(
+                host, ni["ip"], f"cat {backing} 2>/dev/null",
+            )
+            actual = read_cmd.stdout.strip()
+            if actual != expected_token:
+                failures.append(
+                    f"{ni['ip']}: marker mismatch in {backing} "
+                    f"(expected '{expected_token}', "
+                    f"got '{actual}')"
+                )
+                continue
+
+            # Verify other nodes' markers are NOT visible
+            for other in node_info:
+                if other["ip"] == ni["ip"]:
+                    continue
+                other_stripped = probe_target.lstrip("/")
+                other_backing = (
+                    f"{other['subdir']}/{other_stripped}"
+                    f"/{marker_name}"
+                )
+                # Read via the OIM to check the PV backing path
+                peek = _run_on_node(
+                    host, ni["ip"],
+                    f"cat {other_backing} 2>/dev/null",
+                )
+                peek_val = peek.stdout.strip()
+                if peek_val == expected_token:
+                    failures.append(
+                        f"{ni['ip']}: can read own marker "
+                        f"from {other['ip']}'s backing path "
+                        f"{other_backing} — isolation breach"
+                    )
+    finally:
+        # Phase 4: clean up markers
+        for ni in node_info:
+            marker_path = f"{probe_target}/{marker_name}"
+            _run_on_node(
+                host, ni["ip"], f"rm -f {marker_path}",
+            )
 
     return {
-        "success": success,
-        "error": error,
-        "details": {"node_value": node_value, "node_subdir": node_subdir},
+        "success": not failures,
+        "error": "; ".join(failures) if failures else "",
+        "details": {"node_info": node_info},
     }
 
 
@@ -1041,38 +1258,61 @@ def verify_no_duplicate_fstab(host, node_ip: str) -> dict[str, Any]:
     }
 
 
-def verify_all_mounts_writable(host, node_ip: str, mount_point: str, node_key: str | None = None) -> dict[str, Any]:
-    """Verify all PV mounts (main + bind) are writable.
+def verify_all_mounts_writable(
+    host, node_ip: str, mount_point: str,
+    node_key: str | None = None,
+    bind_targets: list[str] | None = None,
+) -> dict[str, Any]:
+    """Verify all PV mounts (main + node subdir + bind targets) are writable.
+
+    Checks:
+    - The main mount point
+    - The per-node subdirectory (when *node_key* is set)
+    - Every configured bind-mount target path in *bind_targets*
 
     Returns:
         {"success": bool, "error": str, "details": {"writable_status": dict}}
     """
-    writable_status = {}
+    writable_status: dict[str, bool] = {}
     all_ok = True
+    _W_CMD = "test -w %s && echo writable || echo not_writable"
 
     # Check main mount point
-    cmd = _run_on_node(host, node_ip, f"test -w {mount_point} && echo writable || echo not_writable")
+    cmd = _run_on_node(host, node_ip, _W_CMD % mount_point)
     main_writable = cmd.stdout.strip() == "writable"
     writable_status[mount_point] = main_writable
     if not main_writable:
         all_ok = False
 
-    # Check bind mounts if node_key is set
+    # Check node subdirectory if node_key is set
     if node_key:
         node_value = resolve_node_key_value(host, node_ip, node_key)
         if node_value:
             node_subdir = f"{mount_point}/{node_value}"
-            cmd = _run_on_node(host, node_ip, f"test -w {node_subdir} && echo writable || echo not_writable")
+            cmd = _run_on_node(
+                host, node_ip, _W_CMD % node_subdir,
+            )
             subdir_writable = cmd.stdout.strip() == "writable"
             writable_status[node_subdir] = subdir_writable
             if not subdir_writable:
                 all_ok = False
 
-    success = all_ok
-    error = "" if success else f"Some mounts not writable on {node_ip}"
+    # Check each bind-mount target path
+    for bt in bind_targets or []:
+        cmd = _run_on_node(host, node_ip, _W_CMD % bt)
+        bt_writable = cmd.stdout.strip() == "writable"
+        writable_status[bt] = bt_writable
+        if not bt_writable:
+            all_ok = False
+
+    not_writable = [p for p, w in writable_status.items() if not w]
+    error = (
+        "" if all_ok
+        else f"Not writable on {node_ip}: {', '.join(not_writable)}"
+    )
 
     return {
-        "success": success,
+        "success": all_ok,
         "error": error,
         "details": {"writable_status": writable_status},
     }
@@ -1096,3 +1336,115 @@ def verify_permissions(host, node_ip: str, path: str, expected_owner: str, expec
         "error": error,
         "details": {"actual": actual, "expected": expected},
     }
+
+
+# =============================================================================
+# I/O VERIFICATION FUNCTIONS
+# =============================================================================
+
+
+def verify_io_write_read(
+    host, node_ip: str, path: str,
+) -> dict[str, Any]:
+    """Write a test file, read it back, verify content, and clean up.
+
+    Creates ``<path>/.pv_io_test_<pid>`` with a known payload, reads it
+    back, and removes the file.  Proves the mount is usable for real I/O
+    (not just stat-level checks).
+
+    Returns:
+        {"success": bool, "error": str, "details": {…}}
+    """
+    marker = "omnia_pv_io_verify"
+    test_file = f"{path}/.pv_io_test_$$"
+    write_cmd = (
+        f"f={test_file} && echo {marker} > \"$f\" "
+        f"&& cat \"$f\" && rm -f \"$f\""
+    )
+    cmd = _run_on_node(host, node_ip, write_cmd)
+    readback = cmd.stdout.strip() if cmd.rc == 0 else ""
+    success = readback == marker
+
+    if cmd.rc != 0:
+        error = f"I/O write/read failed (rc={cmd.rc}) at {path} on {node_ip}"
+    elif readback != marker:
+        error = (
+            f"I/O readback mismatch at {path} on {node_ip}: "
+            f"expected '{marker}', got '{readback}'"
+        )
+    else:
+        error = ""
+
+    return {
+        "success": success,
+        "error": error,
+        "details": {"path": path, "readback": readback},
+    }
+
+
+def verify_bind_io(
+    host, node_ip: str, mount_point: str, node_key: str,
+    bind_target: str,
+) -> dict[str, Any]:
+    """Write through a bind mount and verify the data lands on the PV.
+
+    Writes a token to ``<bind_target>/.<testfile>``, then reads the
+    same file from the backing PV path
+    ``<mount_point>/<node_value><bind_target>/.<testfile>`` to prove
+    the bind mount is functional, not just present.
+
+    Returns:
+        {"success": bool, "error": str, "details": {…}}
+    """
+    node_value = resolve_node_key_value(host, node_ip, node_key)
+    if not node_value:
+        return {
+            "success": False,
+            "error": f"Cannot resolve node_key {node_key} on {node_ip}",
+            "details": {},
+        }
+
+    marker = "omnia_bind_io_verify"
+    test_name = ".pv_bind_io_test_$$"
+    bind_file = f"{bind_target}/{test_name}"
+    backing_file = f"{mount_point}/{node_value}{bind_target}/{test_name}"
+    cmd_str = (
+        f"echo {marker} > {bind_file} "
+        f"&& cat {backing_file} "
+        f"&& rm -f {bind_file}"
+    )
+    cmd = _run_on_node(host, node_ip, cmd_str)
+    readback = cmd.stdout.strip() if cmd.rc == 0 else ""
+    success = readback == marker
+
+    if cmd.rc != 0:
+        error = (
+            f"Bind I/O failed (rc={cmd.rc}) for "
+            f"{bind_target} on {node_ip}"
+        )
+    elif readback != marker:
+        error = (
+            f"Bind readback mismatch: wrote to {bind_file}, "
+            f"read from {backing_file} on {node_ip}: "
+            f"expected '{marker}', got '{readback}'"
+        )
+    else:
+        error = ""
+
+    return {
+        "success": success,
+        "error": error,
+        "details": {
+            "bind_target": bind_target,
+            "backing_path": backing_file,
+            "readback": readback,
+        },
+    }
+
+
+# Mandatory Slurm/MySQL bind-mount targets that 2.3 documents for
+# PowerVault-backed control-plane nodes.
+SLURM_MANDATORY_BIND_TARGETS: tuple[str, ...] = (
+    "/var/lib/mysql",
+    "/var/spool/slurm",
+)

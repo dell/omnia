@@ -32,7 +32,7 @@ pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 
 @pytest.mark.sanity
-@pytest.mark.order(284)
+@pytest.mark.order(355)
 def test_dns_compute_resolv_conf(host):
     """TC-05: /etc/resolv.conf on every compute has CoreDNS as primary."""
     verify_pxeboot(host, "dns_compute_resolv_conf", check_dns_compute_resolv_conf)
@@ -40,7 +40,7 @@ def test_dns_compute_resolv_conf(host):
 
 @pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(285)
+@pytest.mark.order(356)
 def test_dns_compute_forward_getent(host):
     """TC-06: getent hosts on every compute resolves every mapped peer."""
     verify_pxeboot(

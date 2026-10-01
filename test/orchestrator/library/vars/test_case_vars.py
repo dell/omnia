@@ -781,8 +781,8 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
     },
     "coredns_idempotency": {
         "id": "ORCH_FVT_PXEBOOT_V126",
-        "title": "Verify CoreDNS/CoreDHCP state is stable across a settle window",
-        "component": "CoreDNS idempotency snapshot",
+        "title": "Verify CoreDNS/CoreDHCP state stability (no-drift)",
+        "component": "CoreDNS state stability",
     },
     "dns_node_addition_pipeline": {
         "id": "ORCH_FVT_PXEBOOT_V127",
@@ -926,6 +926,29 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V154",
         "title": "Verify permissions on mount point match config",
         "component": "PowerVault permissions",
+    },
+    "powervault_io_write_read": {
+        "id": "ORCH_FVT_PXEBOOT_V155",
+        "title": "Verify write-read I/O on PV mount points",
+        "component": "PowerVault I/O write-read",
+    },
+    "powervault_bind_io": {
+        "id": "ORCH_FVT_PXEBOOT_V156",
+        "title": "Verify bind-mount I/O reaches PV backing store",
+        "component": "PowerVault bind I/O",
+    },
+    "powervault_slurm_mandatory_bind_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V157",
+        "title": (
+            "Verify /var/lib/mysql and /var/spool/slurm "
+            "configured as bind targets"
+        ),
+        "component": "PowerVault mandatory Slurm bind mounts",
+    },
+    "powervault_mysql_data_on_mount": {
+        "id": "ORCH_FVT_PXEBOOT_V158",
+        "title": "Verify MySQL datadir is on PowerVault mount",
+        "component": "PowerVault MySQL datadir",
     },
     "additional_cloud_init_smd_groups": {
         "id": "ORCH_FVT_PXEBOOT_V095",

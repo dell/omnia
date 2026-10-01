@@ -50,7 +50,7 @@ pytestmark = [pytest.mark.slurm, pytest.mark.destructive]
 
 
 @pytest.mark.functional
-@pytest.mark.order(271)
+@pytest.mark.order(342)
 def test_hpc_benchmarks_cuda_flow_unaffected(host):
     """TC-14: Verify /hpc_tools/cuda is unchanged after benchmark staging."""
     verify_pxeboot(
@@ -61,7 +61,7 @@ def test_hpc_benchmarks_cuda_flow_unaffected(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(272)
+@pytest.mark.order(343)
 def test_hpc_benchmarks_nvhpc_flow_unaffected(host):
     """TC-15: Verify /hpc_tools/nvidia_sdk is unchanged after staging."""
     verify_pxeboot(
@@ -72,7 +72,7 @@ def test_hpc_benchmarks_nvhpc_flow_unaffected(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(273)
+@pytest.mark.order(344)
 def test_hpc_benchmarks_container_image_unaffected(host):
     """TC-16: Verify /hpc_tools/container_images is unchanged after staging."""
     verify_pxeboot(
@@ -83,7 +83,7 @@ def test_hpc_benchmarks_container_image_unaffected(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(274)
+@pytest.mark.order(345)
 def test_hpc_benchmarks_openmpi_unaffected(host):
     """TC-17: Verify OpenMPI/UCX discovery is stable across a staging run."""
     verify_pxeboot(
@@ -96,7 +96,7 @@ def test_hpc_benchmarks_openmpi_unaffected(host):
 # --- Direct staging execution checks ---
 
 
-@pytest.mark.order(275)
+@pytest.mark.order(346)
 def test_hpc_benchmarks_per_tool_staging_report(host):
     """TC-08: Rerun pull_benchmarks.sh and verify per-tool SUCCESS/SKIP report."""
     verify_pxeboot(
@@ -106,7 +106,7 @@ def test_hpc_benchmarks_per_tool_staging_report(host):
     )
 
 
-@pytest.mark.order(276)
+@pytest.mark.order(347)
 def test_hpc_benchmarks_airgapped_staging(host):
     """TC-11: Verify staging succeeds while external egress is unavailable."""
     verify_pxeboot(
@@ -116,7 +116,7 @@ def test_hpc_benchmarks_airgapped_staging(host):
     )
 
 
-@pytest.mark.order(277)
+@pytest.mark.order(348)
 def test_hpc_benchmarks_existing_dirs_preserved(host):
     """TC-18: Verify pre-existing /hpc_tools subdirs survive a staging run."""
     verify_pxeboot(
@@ -126,7 +126,7 @@ def test_hpc_benchmarks_existing_dirs_preserved(host):
     )
 
 
-@pytest.mark.order(278)
+@pytest.mark.order(349)
 def test_hpc_benchmarks_staging_idempotency(host):
     """TC-19: Verify a second staging run keeps the /hpc_tools snapshot stable."""
     verify_pxeboot(

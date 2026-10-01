@@ -31,7 +31,7 @@ pytestmark = [pytest.mark.destructive]
 
 
 @pytest.mark.functional
-@pytest.mark.order(286)
+@pytest.mark.order(357)
 def test_dns_node_addition_pipeline(host):
     """TC-08: prove SMD-to-CoreDNS pipeline resolves every mapped node."""
     verify_pxeboot(
@@ -40,7 +40,7 @@ def test_dns_node_addition_pipeline(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(287)
+@pytest.mark.order(358)
 def test_dns_smd_unreachable_cached_resolution(host):
     """TC-09: pause SMD briefly; CoreDNS must keep serving cached records."""
     verify_pxeboot(

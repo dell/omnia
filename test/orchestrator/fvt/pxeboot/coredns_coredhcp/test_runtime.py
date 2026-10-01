@@ -35,7 +35,7 @@ pytestmark = [pytest.mark.non_disruptive]
 
 
 @pytest.mark.sanity
-@pytest.mark.order(279)
+@pytest.mark.order(350)
 def test_coredns_container_state(host):
     """TC-01: coresmd containers match the dns_enabled dataset (enabled+disabled)."""
     verify_pxeboot(host, "coredns_container_state", check_coredns_container_state)
@@ -43,7 +43,7 @@ def test_coredns_container_state(host):
 
 @pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(280)
+@pytest.mark.order(351)
 def test_coredns_forward_resolution(host):
     """TC-02: dig FQDN from OIM for every mapped node; compare to ADMIN_IP."""
     verify_pxeboot(
@@ -53,7 +53,7 @@ def test_coredns_forward_resolution(host):
 
 @pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(281)
+@pytest.mark.order(352)
 def test_coredns_reverse_resolution(host):
     """TC-03: dig -x from OIM for every mapped ADMIN_IP; compare to FQDN."""
     verify_pxeboot(
@@ -62,7 +62,7 @@ def test_coredns_reverse_resolution(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(282)
+@pytest.mark.order(353)
 def test_coredhcp_multisubnet_running_image(host):
     """TC-04: multi-subnet dataset -> coresmd containers use expected image."""
     verify_pxeboot(
@@ -73,7 +73,7 @@ def test_coredhcp_multisubnet_running_image(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(283)
+@pytest.mark.order(354)
 def test_coredns_idempotency(host):
-    """TC-07: coresmd images + config hashes stable across a settle window."""
+    """TC-07: coresmd state stability (no-drift) across a settle window."""
     verify_pxeboot(host, "coredns_idempotency", check_coredns_idempotency)

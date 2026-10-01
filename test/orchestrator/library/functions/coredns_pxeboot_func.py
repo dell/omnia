@@ -33,6 +33,7 @@ Source of truth for the deployed contract (2.3):
   nameserver on the OIM and on compute nodes.
 """
 
+import ipaddress
 import time
 from typing import Any
 
@@ -41,7 +42,6 @@ from omnia_auto import run_on_host
 from ..vars.pxeboot_vars import (
     COREDHCP_CONFIG_PATH,
     COREDNS_IDEMPOTENCY_SETTLE_SECONDS,
-    COREDNS_QUERY_SAMPLE_SIZE,
     COREDNS_SMD_UNREACHABLE_HOLD_SECONDS,
     CORESMD_IMAGE_REPO,
     PXEBOOT_COMMANDS,
@@ -63,7 +63,6 @@ from ._coredns_helpers import (
     resolve_coredns_container,
     resolve_coresmd_containers,
     safe_container_name,
-    sample_rows,
 )
 from ._pxeboot_helpers import runtime_result
 
@@ -200,11 +199,13 @@ def check_coredns_forward_resolution(host) -> dict[str, Any]:
                 "SMD map is empty; run provision to populate "
                 "EthernetInterfaces and Components first",
             )
-        rows = sample_rows(ctx["node_rows"], COREDNS_QUERY_SAMPLE_SIZE)
+        rows = sorted(
+            ctx["node_rows"], key=lambda r: str(r.get("HOSTNAME") or "")
+        )
         fields: list[tuple[str, object]] = [
             ("CoreDNS server", ctx["admin_ip"]),
             ("cluster_domain", ctx["domain"]),
-            ("Sample size", len(rows)),
+            ("Nodes queried", len(rows)),
         ]
         failures: list[str] = []
         for row in rows:
@@ -274,10 +275,12 @@ def check_coredns_reverse_resolution(host) -> dict[str, Any]:
                 "SMD map is empty; run provision to populate "
                 "EthernetInterfaces and Components first",
             )
-        rows = sample_rows(ctx["node_rows"], COREDNS_QUERY_SAMPLE_SIZE)
+        rows = sorted(
+            ctx["node_rows"], key=lambda r: str(r.get("HOSTNAME") or "")
+        )
         fields: list[tuple[str, object]] = [
             ("CoreDNS server", ctx["admin_ip"]),
-            ("Sample size", len(rows)),
+            ("Nodes queried", len(rows)),
         ]
         failures: list[str] = []
         for row in rows:
@@ -322,18 +325,34 @@ def check_coredns_reverse_resolution(host) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def _nodes_in_subnet(
+    rows: list[dict[str, str]], cidr: str,
+) -> list[dict[str, str]]:
+    """Return PXE rows whose ADMIN_IP falls within *cidr*."""
+    try:
+        network = ipaddress.ip_network(cidr, strict=False)
+    except ValueError:
+        return []
+    return [
+        row for row in rows
+        if row.get("ADMIN_IP")
+        and ipaddress.ip_address(row["ADMIN_IP"]) in network
+    ]
+
+
 def check_coredhcp_multisubnet_running_image(host) -> dict[str, Any]:
-    """Verify coresmd containers and rendered subnet config on multi-subnet datasets.
+    """Verify coresmd containers, rendered subnet config, and per-subnet DNS.
 
     Checks:
     1. coresmd-coredhcp and coresmd-coredns are running with expected images
     2. Each configured additional_subnet has a rendered entry in coredhcp.yaml
     3. At least one deployed node per additional subnet resolves via CoreDNS
 
-    NOTE: This test validates container images and rendered configuration but
-    does NOT verify live DHCP responses per subnet. A full multi-subnet
-    behavioral test requires physical or VLAN-segmented infrastructure.
-    Defect 843 remains partially open for the behavioral gap.
+    NOTE: This test validates container images, rendered configuration, and
+    per-subnet DNS resolution but does NOT verify live DHCP responses per
+    subnet. A full multi-subnet behavioral test requires physical or
+    VLAN-segmented infrastructure. Defect 843 remains partially open for
+    the behavioral gap.
     """
     try:
         ctx = coredns_context(host)
@@ -375,14 +394,25 @@ def check_coredhcp_multisubnet_running_image(host) -> dict[str, Any]:
             )
 
         # Validate rendered subnet configuration in coredhcp.yaml
-        coredhcp_cfg = run_on_host(host, f"cat {COREDHCP_CONFIG_PATH} 2>/dev/null")
-        coredhcp_content = coredhcp_cfg.stdout if coredhcp_cfg.rc == 0 else ""
+        coredhcp_cfg = run_on_host(
+            host, f"cat {COREDHCP_CONFIG_PATH} 2>/dev/null"
+        )
+        coredhcp_content = (
+            coredhcp_cfg.stdout if coredhcp_cfg.rc == 0 else ""
+        )
+
+        smd_map = ctx["smd_map"]
+        all_rows = ctx["node_rows"]
+
         for subnet in ctx["additional_subnets"]:
             subnet_cidr = subnet.get("cidr", subnet.get("subnet", ""))
             subnet_name = subnet.get("name", subnet_cidr or "unnamed")
+
+            # Check 2: CIDR rendered in coredhcp.yaml
             if subnet_cidr and subnet_cidr in coredhcp_content:
                 fields.append(
-                    (f"Subnet {subnet_name}", f"✓ rendered in coredhcp.yaml")
+                    (f"Subnet {subnet_name}",
+                     "✓ rendered in coredhcp.yaml")
                 )
             elif subnet_cidr:
                 failures.append(
@@ -390,16 +420,56 @@ def check_coredhcp_multisubnet_running_image(host) -> dict[str, Any]:
                     f"rendered coredhcp.yaml"
                 )
                 fields.append(
-                    (f"Subnet {subnet_name}", "✗ missing from coredhcp.yaml")
+                    (f"Subnet {subnet_name}",
+                     "✗ missing from coredhcp.yaml")
                 )
             else:
                 fields.append(
                     (f"Subnet {subnet_name}", "no CIDR to validate")
                 )
+                continue
+
+            # Check 3: at least one node in this subnet resolves via CoreDNS
+            if not subnet_cidr or not ctx["admin_ip"] or not smd_map:
+                continue
+            subnet_rows = _nodes_in_subnet(all_rows, subnet_cidr)
+            if not subnet_rows:
+                fields.append(
+                    (f"Subnet {subnet_name} DNS",
+                     "no deployed nodes in subnet")
+                )
+                continue
+            resolved_any = False
+            for row in subnet_rows:
+                record = smd_map.get(row["ADMIN_IP"])
+                if not record:
+                    continue
+                matched, _ = _forward_match(
+                    host, ctx["admin_ip"],
+                    record["candidate_fqdns"], row["ADMIN_IP"],
+                )
+                if matched:
+                    resolved_any = True
+                    fields.append(
+                        (f"Subnet {subnet_name} DNS",
+                         f"✓ {_hostname_short(matched)} → "
+                         f"{row['ADMIN_IP']}")
+                    )
+                    break
+            if not resolved_any:
+                failures.append(
+                    f"Subnet {subnet_name}: no node in {subnet_cidr} "
+                    f"resolves via CoreDNS"
+                )
+                fields.append(
+                    (f"Subnet {subnet_name} DNS",
+                     f"✗ 0/{len(subnet_rows)} resolved")
+                )
 
         return runtime_result(
             not failures,
-            "Multi-subnet coresmd containers and rendered configuration are valid",
+            "Multi-subnet coresmd containers, rendered config, and "
+            "per-subnet DNS resolution are valid",
             fields,
             "; ".join(failures) if failures else "",
         )
@@ -483,7 +553,9 @@ def check_dns_compute_forward_getent(host) -> dict[str, Any]:
                 "dns_enabled=false in orchestrator_config.yml",
             )
         computes = ctx["compute_rows"]
-        peers = sample_rows(ctx["node_rows"], COREDNS_QUERY_SAMPLE_SIZE)
+        peers = sorted(
+            ctx["node_rows"], key=lambda r: str(r.get("HOSTNAME") or "")
+        )
         smd_map = ctx["smd_map"]
         if not computes:
             return optional_skip(
@@ -502,7 +574,7 @@ def check_dns_compute_forward_getent(host) -> dict[str, Any]:
             )
         fields: list[tuple[str, object]] = [
             ("Compute nodes queried", len(computes)),
-            ("Peer sample size", len(peers)),
+            ("Peers queried", len(peers)),
             ("cluster_domain", ctx["domain"]),
         ]
         failures: list[str] = []
@@ -541,12 +613,20 @@ def check_dns_compute_forward_getent(host) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# TC-07 — Repeated-deployment stability (idempotency snapshot)
+# TC-07 — State stability (no-drift snapshot)
 # ---------------------------------------------------------------------------
 
 
 def check_coredns_idempotency(host) -> dict[str, Any]:
-    """Snapshot coresmd images + config hashes twice; require identical state."""
+    """Verify coresmd state stability across a settle window.
+
+    Takes two snapshots of container image IDs and config file hashes,
+    separated by a settle interval, and requires they are identical.
+    This proves the running state does not drift spontaneously.
+
+    NOTE: This does NOT re-run deploy_openchami; it verifies no-drift,
+    not true idempotency of a repeated deployment.
+    """
     try:
         ctx = coredns_context(host)
         # Both containers are always deployed; skip on truly unpopulated OIMs.

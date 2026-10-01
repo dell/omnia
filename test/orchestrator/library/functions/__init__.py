@@ -107,6 +107,10 @@ from .powervault_pxeboot_func import (
     check_powervault_portal_reachability,
     check_powervault_setup_log,
     check_powervault_volume_mounted,
+    check_powervault_io_write_read,
+    check_powervault_bind_io,
+    check_powervault_slurm_mandatory_bind_mounts,
+    check_powervault_mysql_data_on_mount,
 )
 from .hpc_benchmarks_pxeboot_func import (
     check_hpc_benchmarks_airgapped_staging,
@@ -351,6 +355,10 @@ __all__ = [
     "check_powervault_portal_reachability",
     "check_powervault_setup_log",
     "check_powervault_volume_mounted",
+    "check_powervault_io_write_read",
+    "check_powervault_bind_io",
+    "check_powervault_slurm_mandatory_bind_mounts",
+    "check_powervault_mysql_data_on_mount",
     "check_hpc_benchmarks_airgapped_staging",
     "check_hpc_benchmarks_artifact_copy",
     "check_hpc_benchmarks_container_first_guidance",
