@@ -153,6 +153,13 @@ from .nft_func import (
     resolve_nft_thresholds,
 )
 from .postgres_prepare_func import check_prepare_postgresql_readiness
+from .mount_config_precheck_func import (
+    check_precheck_mount_invalid_mount_params,
+    check_precheck_mount_missing_mount_point,
+    check_precheck_mount_missing_source,
+    check_precheck_mount_missing_targeting,
+    check_precheck_mount_node_key_without_mount_point,
+)
 from .precheck_func import (
     check_precheck_admin_ipv4,
     check_precheck_dependencies,
@@ -338,6 +345,11 @@ __all__ = [
     "check_precheck_hostname_domain",
     "check_precheck_idempotency",
     "check_precheck_inputs",
+    "check_precheck_mount_invalid_mount_params",
+    "check_precheck_mount_missing_mount_point",
+    "check_precheck_mount_missing_source",
+    "check_precheck_mount_missing_targeting",
+    "check_precheck_mount_node_key_without_mount_point",
     "check_precheck_nfs_servers",
     "check_precheck_repositories",
     "check_precheck_s3_artifacts",

@@ -87,6 +87,8 @@ SUITES: dict[str, list[str]] = {
         "slurm_recovery",
         "slurm_apptainer",
         "additional_cloud_init",
+        "mount_config",
+        "minimal_os",
     ],
     "cleanup": [
         "openchami",

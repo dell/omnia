@@ -658,16 +658,19 @@ def check_mount_config_fg_targeting(host):
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
-        fg_mounts = [
+        targeted_mounts = [
             m for m in mounts
-            if m.get("functional_group_prefix")
-            and isinstance(m.get("functional_group_prefix"), list)
+            if (isinstance(m.get("functional_group_prefix"), list)
+                and m["functional_group_prefix"])
+            or (isinstance(m.get("groups"), list) and m["groups"])
         ]
-        if not fg_mounts:
-            return _skip(summary, "No NFS mounts with functional_group_prefix")
+        if not targeted_mounts:
+            return _skip(
+                summary, "No NFS mounts with targeting (prefix or groups)"
+            )
 
         outcomes = {}
-        for mount_item in fg_mounts:
+        for mount_item in targeted_mounts:
             mount_point = mount_item.get("mount_point", "")
             if not mount_point:
                 continue

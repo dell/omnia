@@ -54,6 +54,31 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify published repository reachability",
         "component": "Published repositories",
     },
+    "precheck_mount_missing_mount_point": {
+        "id": "ORCH_FVT_PRECHECK_V008",
+        "title": "Verify mount entries have valid mount_point",
+        "component": "Mount config mount_point",
+    },
+    "precheck_mount_missing_targeting": {
+        "id": "ORCH_FVT_PRECHECK_V009",
+        "title": "Verify mount entries have targeting configured",
+        "component": "Mount config targeting",
+    },
+    "precheck_mount_invalid_mount_params": {
+        "id": "ORCH_FVT_PRECHECK_V010",
+        "title": "Verify mount_params profiles resolve correctly",
+        "component": "Mount config mount_params",
+    },
+    "precheck_mount_missing_source": {
+        "id": "ORCH_FVT_PRECHECK_V011",
+        "title": "Verify mount entries have non-empty source",
+        "component": "Mount config source",
+    },
+    "precheck_mount_node_key_without_mount_point": {
+        "id": "ORCH_FVT_PRECHECK_V012",
+        "title": "Verify node_mount_point is set when node_key is specified",
+        "component": "Mount config node_key consistency",
+    },
 }
 
 PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
