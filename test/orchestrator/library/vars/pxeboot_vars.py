@@ -14,6 +14,7 @@
 
 """Immutable contracts for PXE boot and post-boot cluster verification."""
 
+PXEBOOT_STATUS = "pxeboot_status.yml"
 OMNIA_CONFIG = "omnia_config.yml"
 STORAGE_CONFIG = "storage_config.yml"
 ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"

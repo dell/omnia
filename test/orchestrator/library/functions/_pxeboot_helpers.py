@@ -32,6 +32,7 @@ from ..vars.pxeboot_vars import (
     KUBERNETES_PRIMARY_CONTROL_PLANE_PREFIX,
     OMNIA_CONFIG,
     PXEBOOT_COMMANDS,
+    PXEBOOT_STATUS,
     STORAGE_CONFIG,
 )
 from ._prepare_helpers import read_yaml_mapping
@@ -61,8 +62,22 @@ def runtime_exception(summary: str, exc: Exception) -> dict[str, Any]:
 
 
 def load_runtime_context(host) -> dict[str, Any]:
-    """Load desired nodes directly from the configured PXE mapping file."""
-    return load_context(host)
+    """Load desired nodes and the latest PXE status.
+
+    When ``pxeboot_status.yml`` has not been generated yet (e.g. the
+    verify suite runs after provision but before a PXE boot lifecycle),
+    the context is still usable — connectivity and cloud-init checks
+    fall back to direct probes sourced from the PXE mapping file.
+    """
+    context = load_context(host)
+    try:
+        context["pxeboot_status"] = read_yaml_mapping(
+            host,
+            os.path.join(context["output_dir"], PXEBOOT_STATUS),
+        )
+    except (ValueError, TypeError):
+        context["pxeboot_status"] = None
+    return context
 
 
 def _catalog_feature_tokens(

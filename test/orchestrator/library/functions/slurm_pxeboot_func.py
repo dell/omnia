@@ -20,7 +20,6 @@ import re
 from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
     SLURM_COMPUTE_PREFIX,
-    SLURM_LOGIN_PREFIXES,
     SLURM_ROLE_SERVICES,
 )
 from ._pxeboot_helpers import (
@@ -43,7 +42,7 @@ def _parse_slurm_nodes(output: str) -> dict[str, dict[str, str]]:
 
 
 def check_slurm_membership(host):
-    """Verify scheduler membership, node state, and compute hardware."""
+    """Verify compute membership, scheduler state, and discovered hardware."""
     summary = "Slurm membership and hardware"
     try:
         _runtime, rows, control, config = _context(host)
@@ -56,49 +55,34 @@ def check_slurm_membership(host):
         ]
         if not compute_rows:
             return _skip(summary, "No Slurm compute nodes are mapped")
-        scheduler_rows = [
-            row
-            for row in rows
-            if row["EXPECTED_FUNCTIONAL_GROUP"].startswith(
-                (SLURM_COMPUTE_PREFIX, *SLURM_LOGIN_PREFIXES)
-            )
-        ]
         result = remote_command(host, control, PXEBOOT_COMMANDS["slurm_nodes"])
         if result.rc != 0:
             raise RuntimeError("scontrol could not read Slurm node state")
         actual = _parse_slurm_nodes(result.stdout)
         node_results = []
         unhealthy_states = {"down", "drain", "fail", "unknown", "future"}
-        for row in scheduler_rows:
-            hardware_required = row["EXPECTED_FUNCTIONAL_GROUP"].startswith(
-                SLURM_COMPUTE_PREFIX
-            )
+        for row in compute_rows:
             node = actual.get(row["HOSTNAME"])
             if node is None:
-                node_results.append(
-                    (row, False, "not registered", "", "", hardware_required)
-                )
+                node_results.append((row, False, "not registered", "", ""))
                 continue
             state = str(node.get("State", "unknown")).split("+", 1)[0].lower()
             cpus = str(node.get("CPUTot") or node.get("CPUs") or "")
             memory = str(node.get("RealMemory") or "")
-            hardware_valid = not hardware_required or bool(cpus and memory)
+            hardware_valid = bool(cpus and memory)
             ok = state not in unhealthy_states and hardware_valid
-            node_results.append(
-                (row, ok, state, cpus, memory, hardware_required)
-            )
-        expected_nodes = {row["HOSTNAME"] for row in scheduler_rows}
-        unexpected = sorted(set(actual) - expected_nodes)
+            node_results.append((row, ok, state, cpus, memory))
+        unexpected = sorted(set(actual) - {row["HOSTNAME"] for row in compute_rows})
         failed = [
             row["HOSTNAME"]
-            for row, ok, _state, _cpus, _memory, _hardware_required in node_results
+            for row, ok, _state, _cpus, _memory in node_results
             if not ok
         ]
         mode = str(config.get("node_discovery_mode", "heterogeneous"))
         fields = [
             ("Discovery mode", mode),
-            ("Desired Slurm scheduler nodes", len(scheduler_rows)),
-            ("Registered Slurm scheduler nodes", len(actual)),
+            ("Desired Slurm compute nodes", len(compute_rows)),
+            ("Registered Slurm compute nodes", len(actual)),
             ("Unexpected nodes", ", ".join(unexpected) or "none"),
         ]
         grouped = {}
@@ -107,16 +91,11 @@ def check_slurm_membership(host):
                 result_item
             )
         for group_name, group_nodes in grouped.items():
-            valid = sum(
-                1
-                for _row, ok, _state, _cpus, _memory, _hardware_required
-                in group_nodes
-                if ok
-            )
+            valid = sum(1 for _row, ok, _state, _cpus, _memory in group_nodes if ok)
             fields.append(
                 ("Functional group", f"[{group_name}] ({valid}/{len(group_nodes)})")
             )
-            for row, ok, state, cpus, memory, hardware_required in group_nodes:
+            for row, ok, state, cpus, memory in group_nodes:
                 registered = state != "not registered"
                 state_ok = registered and state not in unhealthy_states
                 fields.extend(
@@ -129,21 +108,16 @@ def check_slurm_membership(host):
                             "    State",
                             f"{'✓' if state_ok else '✗'} {state}",
                         ),
+                        (
+                            "    CPUs",
+                            f"{'✓' if cpus else '✗'} {cpus or 'missing'}",
+                        ),
+                        (
+                            "    RealMemory",
+                            f"{'✓' if memory else '✗'} {memory or 'missing'}",
+                        ),
                     ]
                 )
-                if hardware_required:
-                    fields.extend(
-                        [
-                            (
-                                "    CPUs",
-                                f"{'✓' if cpus else '✗'} {cpus or 'missing'}",
-                            ),
-                            (
-                                "    RealMemory",
-                                f"{'✓' if memory else '✗'} {memory or 'missing'}",
-                            ),
-                        ]
-                    )
         return runtime_result(
             not failed and not unexpected,
             summary,

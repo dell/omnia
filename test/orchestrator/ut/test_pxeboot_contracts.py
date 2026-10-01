@@ -567,50 +567,8 @@ def test_slurm_control_without_compute_skips_before_scheduler_probe(monkeypatch)
     )
 
 
-def test_slurm_membership_accepts_login_roles_as_scheduler_nodes(monkeypatch):
-    """ORCH_UT_039: Login roles are expected Slurm NodeName members."""
-    control = _row("control-01", "slurm_control_node_rhel_10_0_x86_64")
-    compute = _row("compute-01", "slurm_node_rhel_10_0_x86_64")
-    login = _row("login-01", "login_node_rhel_10_0_x86_64")
-    compiler = _row(
-        "compiler-01",
-        "login_compiler_node_rhel_10_0_x86_64",
-    )
-    rows = [control, compute, login, compiler]
-    monkeypatch.setattr(
-        slurm,
-        "_context",
-        lambda _host: (
-            {},
-            rows,
-            control,
-            {"node_discovery_mode": "heterogeneous"},
-        ),
-    )
-    monkeypatch.setattr(
-        slurm,
-        "remote_command",
-        lambda *_args, **_kwargs: SimpleNamespace(
-            rc=0,
-            stdout=(
-                "NodeName=compute-01 State=IDLE CPUTot=64 RealMemory=128000\n"
-                "NodeName=login-01 State=IDLE\n"
-                "NodeName=compiler-01 State=IDLE\n"
-            ),
-        ),
-    )
-
-    result = slurm.check_slurm_membership(object())
-
-    assert result["success"]
-    fields = dict(result["details"]["fields"])
-    assert fields["Desired Slurm scheduler nodes"] == 3
-    assert fields["Registered Slurm scheduler nodes"] == 3
-    assert fields["Unexpected nodes"] == "none"
-
-
 def test_apptainer_without_slurm_compute_skips_before_node_probe(monkeypatch):
-    """ORCH_UT_040: Apptainer skips when no Slurm compute role is mapped."""
+    """ORCH_UT_039: Apptainer skips when no Slurm compute role is mapped."""
     control = _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64")
     monkeypatch.setattr(
         apptainer_runtime,

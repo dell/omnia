@@ -476,15 +476,19 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("Latest PXE mapping missing", output)
         self.assertIn("Timestamped discovery report CSV missing", output)
 
-    def test_completed_orchestrator_pxe_phase_requires_failure_report(self):
+    def test_completed_orchestrator_pxe_phase_requires_both_reports(self):
         output_dir = self.runtime_dir("orchestrator", "output")
         (output_dir / "orchestrator_status.yml").write_text(
             "---\noverall_status: success\nlast_completed_phase: pxeboot\n",
             encoding="utf-8",
         )
+        (output_dir / "pxeboot_status.yml").write_text(
+            "---\noverall_status: success\n", encoding="utf-8"
+        )
 
         result, output = self.invoke_cli("orchestrator")
         self.assertNotEqual(result.returncode, 0)
+        self.assertIn("PXE report: pxeboot_status.yml", output)
         self.assertIn("failed_nodes.json missing for completed PXE phase", output)
 
         (output_dir / "failed_nodes.json").write_text(
