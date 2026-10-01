@@ -28,7 +28,7 @@ kube_vip: "192.168.13.150"
 
 packages:
   install_mode: "offline"
-  repo_url: "https://192.168.13.111:2225/pulp/content/.../rhel/10.0"
+  repo_url: "https://192.168.13.111:2225/pulp/content/.../rhel/10.2"
 
 sinks:
   kafka: "deployed"
