@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # Paths derived after tasks/main.yml resolves the environment configuration.
 upgrade_lock_file: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
 default_build_status_path: >-
@@ -41,6 +40,7 @@ supported_tags:
   - execute
   - validate-deployment
   - pxeboot
+  - verify_node_registration
   - cleanup
   - cleanup_credentials
   - upgrade
@@ -52,6 +52,7 @@ skip_credential_tags:
   - cleanup_credentials
   - validate-deployment
   - validate
+  - verify_node_registration
 
 # Flows that consume repositories, offline content, or the Pulp certificate.
 # Cleanup and input-only/credential-only flows must remain runnable without
@@ -90,6 +91,7 @@ state_initialization_tags:
   - provision
   - execute
   - pxeboot
+  - verify_node_registration
   - upgrade
 
 # Lifecycle flows that validate local project inputs before setup dereferences
@@ -114,6 +116,7 @@ invalid_tag_combinations:
   - [provision, cleanup]
   - [execute, cleanup]
   - [pxeboot, cleanup]
+  - [verify_node_registration, cleanup]
   - [cleanup, upgrade]
   - [cleanup, rollback]
   - [precheck, cleanup_credentials]
@@ -125,6 +128,7 @@ invalid_tag_combinations:
   - [provision, cleanup_credentials]
   - [execute, cleanup_credentials]
   - [pxeboot, cleanup_credentials]
+  - [verify_node_registration, cleanup_credentials]
   - [cleanup_credentials, upgrade]
   - [cleanup_credentials, rollback]
   - [precheck, upgrade]
@@ -135,7 +139,12 @@ invalid_tag_combinations:
   - [deploy, upgrade]
   - [provision, upgrade]
   - [execute, upgrade]
+  - [verify_node_registration, upgrade]
   - [upgrade, rollback]
+  - [verify_node_registration, rollback]
+  - [pxeboot, verify_node_registration]
+  - [execute, verify_node_registration]
+  - [provision, verify_node_registration]
 
 # OIM host group
 oim_host_port: "22"
@@ -172,3 +181,21 @@ catalog_invalid_fail_msg: >-
   Invalid catalog at '{{ catalog_file_path }}'. The catalog must contain
   catalog.groups, catalog.functionallayer, catalog.packages, and a base_os
   group with non-empty os and os_version values.
+# Centralized failure messages
+unsupported_tag_fail_msg: >-
+  Unsupported tag '{{ item }}' specified.
+  Supported tags: {{ supported_tags | join(', ') }}
+conflicting_tags_fail_msg: >-
+  Conflicting tags specified: {{ item | join(' + ') }}.
+  These tags cannot be used together.
+input_templates_fail_msg: >-
+  Orchestrator project input directory '{{ input_project_dir }}' is
+  missing, and source templates were not found at
+  '{{ _domain_root_dir }}/input'.
+orchestrator_config_missing_fail_msg: >-
+  Required Orchestrator configuration was not found at
+  '{{ input_project_dir }}/orchestrator_config.yml'. Run domain-init.sh or
+  restore the project input before this flow.
+catalog_kubernetes_version_fail_msg: >-
+  The catalog enables Kubernetes but does not contain a versioned
+  kubeadm package. Add a kubeadm package such as kubeadm_1_35_1.

@@ -24,9 +24,7 @@
     that:
       - cluster_os_type is defined
       - cluster_os_version is defined
-    fail_msg: >-
-      Catalog-derived facts are not available. Ensure orchestrator_setup has
-      run successfully and loaded the catalog file.
+    fail_msg: "{{ catalog_facts_fail_msg }}"
     quiet: true
 
 - name: Parse network_spec data

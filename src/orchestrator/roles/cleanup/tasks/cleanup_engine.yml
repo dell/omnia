@@ -21,7 +21,7 @@
       - cleanup_components is defined
       - cleanup_execution_order is defined
       - cleanup_execution_order | length > 0
-    fail_msg: "Invalid cleanup configuration or empty execution order"
+    fail_msg: "{{ cleanup_config_fail_msg }}"
 
 - name: Initialize cleanup results
   ansible.builtin.set_fact:
@@ -48,9 +48,5 @@
 
 - name: Fail when cleanup is incomplete
   ansible.builtin.fail:
-    msg: |-
-      Orchestrator cleanup completed with {{ cleanup_failures | length }} failed component(s):
-      {% for failure in cleanup_failures %}
-      - {{ failure.component }}: {{ failure.error }}
-      {% endfor %}
+    msg: "{{ cleanup_incomplete_fail_msg }}"
   when: cleanup_failures | length > 0

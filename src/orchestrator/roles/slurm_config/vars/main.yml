@@ -160,3 +160,9 @@ pull_benchmarks_script_path: "{{ hpc_tools_path }}/scripts/pull_benchmarks.sh"
 benchmark_tools_list_path: "{{ hpc_tools_path }}/scripts/benchmark_tools.list"
 
 backup_dir: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"
+# Centralized failure messages
+controller_reachability_fail_msg: "Failed to connect to {{ ctld }}."
+upgrade_manifest_fail_msg: "Slurm backup: Reading of upgrade_manifest.yml failed: {{ upgrade_manifest_result.msg }}"
+slurm_conf_path_fail_msg: "slurm.conf {{ item }} must be an absolute path (start with /). Current value: {{ slurm_merged_dict.get(item) }}"
+slurmdbd_conf_path_fail_msg: "slurmdbd.conf {{ item }} must be an absolute path (start with /). Current value: {{ slurmdbd_merged_dict.get(item) }}"
+cgroup_conf_path_fail_msg: "cgroup.conf {{ item }} must be an absolute path (start with /). Current value: {{ cgroup_merged_dict.get(item) }}"
