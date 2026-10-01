@@ -88,7 +88,7 @@ run accidentally.
 | BSM_FVT_DEPLOY_PIPELINE_V008 | test_deploy_final_state | Verify job COMPLETED and image group PASSED | --test/--verify |
 | BSM_FVT_DEPLOY_PIPELINE_V009 | test_deploy_pipeline_summary | Verify summary reports PASSED | --test/--verify |
 
-## Section E.1: Unified Cadence Pipeline (16 test cases)
+## Section E.1: Unified Cadence Pipeline (24 test cases)
 
 The cadence action signals the running watcher. The watcher runs
 `repo_sync.yml`, validates the exact-mirror result, bumps
@@ -114,6 +114,14 @@ falls back to the latest job or image group.
 | BSM_FVT_CADENCE_PIPELINE_V029 | test_cadence_local_repo_status | Verify pipeline repo_status.yml matches the cadence catalog | --test/--verify |
 | BSM_FVT_CADENCE_PIPELINE_V030 | test_cadence_build_status | Verify versioned and latest build_status.yml contracts | --test/--verify |
 | BSM_FVT_CADENCE_PIPELINE_V031 | test_cadence_s3_artifacts | Verify all S3 boot artifacts for requested roles | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V032 | test_cadence_catalog_commit_integrity | Verify one catalog version increment and matching pipeline commit | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V033 | test_cadence_expected_functional_groups | Verify catalog, database, and build-status roles match | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V034 | test_cadence_artifact_identity | Verify versioned status and engine-specific artifact identity | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V035 | test_cadence_validate_report | Verify validation executed tests with no failures or errors | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V036 | test_cadence_validation_feature_selection | Verify Slurm/Kubernetes selection follows the PXE mapping | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V037 | test_cadence_restart_node_coverage | Verify every PXE node has one successful restart result | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V038 | test_cadence_uploaded_input_snapshot | Verify canonical catalog and required domain inputs | --test/--verify |
+| BSM_FVT_CADENCE_PIPELINE_V039 | test_cadence_stage_attempt_freshness | Verify stage timestamps and logs belong to the current job | --test/--verify |
 
 ## Execution
 
@@ -237,6 +245,6 @@ vi test_config.yml    # Set catalog_path, oim_server_ip
 ./run_validation.sh fvt_build_stream deploy_pipeline test --marker sanity
 ```
 
-The default lifecycle collects 49 sanity cases: 33 installation cases and 16
+The default lifecycle collects 57 sanity cases: 33 installation cases and 24
 cadence cases. The alternate lifecycle collects 55: 33 installation, 12 build,
 and 10 deploy cases. Manual, cleanup, and NFT cases are excluded from both.

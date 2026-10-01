@@ -558,6 +558,18 @@ CMDS: Dict[str, str] = {
         " '{api_url}/projects/{project_id}/repository/files/"
         "{file_path}?ref={branch}' 2>/dev/null"
     ),
+    "gitlab_api_get_commit": (
+        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
+        " '{api_url}/projects/{project_id}/repository/commits/{commit_id}'"
+        " 2>/dev/null"
+    ),
+
+    # --- Cadence validation artifacts ---
+    "find_latest_validate_report": (
+        "find {path} -mindepth 2 -maxdepth 2 -type f"
+        " -path '*/attempt_*/test_report.json' -printf '%T@ %p\\n'"
+        " 2>/dev/null | sort -nr | head -n 1"
+    ),
 
     # --- Database (psql via podman) ---
     "psql_query": (

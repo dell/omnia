@@ -147,7 +147,7 @@ verification, stop-on-failure, and combined-reporting path.
 
 | Lifecycle | Ordered scenarios | Sanity cases |
 |---|---|---:|
-| Default | `buildstream_install` → `cadence_pipeline` | 49 |
+| Default | `buildstream_install` → `cadence_pipeline` | 57 |
 | `build_deploy_lifecycle` | `buildstream_install` → `build_pipeline` → `deploy_pipeline` | 55 |
 
 The same lifecycle and explicit-only labels are displayed by both

@@ -19,14 +19,16 @@ Functions for triggering, monitoring, and verifying build pipelines.
 Covers auto-trigger (catalog commit) and manual trigger (PIPELINE_TYPE).
 """
 
-import json
-import sys
-import time
 import base64
+import csv
 import datetime
+import io
+import json
 import os
 import re
 import shlex
+import sys
+import time
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Dict, List, Optional
 
@@ -3103,6 +3105,619 @@ def check_build_status(
         f"Build status succeeded for {len(actual_roles)} roles using "
         f"{status['image_build_type']}"
     )
+    return result
+
+
+# =============================================================================
+# CADENCE PIPELINE INTEGRITY VERIFICATION
+# =============================================================================
+
+def _catalog_functional_groups(catalog: Dict[str, Any]) -> set[str]:
+    """Return the functional-layer names declared by a catalog."""
+    section = catalog.get("catalog") or catalog.get("Catalog") or {}
+    layers = section.get("functionallayer") or section.get(
+        "FunctionalLayer", []
+    )
+    return {
+        str(layer.get("name") or layer.get("Name") or "").strip()
+        for layer in layers
+        if isinstance(layer, dict)
+        and str(layer.get("name") or layer.get("Name") or "").strip()
+    }
+
+
+def _read_remote_text(host, path: str) -> Dict[str, Any]:
+    """Read a required remote text file."""
+    response = run_on_host(host, CMDS["cat_file"].format(path=path))
+    if response.rc != 0:
+        return {
+            "success": False,
+            "content": "",
+            "error": f"Unable to read required file: {path}",
+        }
+    return {
+        "success": True,
+        "content": response.stdout,
+        "error": "",
+    }
+
+
+def _parse_iso_timestamp(value: str) -> Optional[datetime.datetime]:
+    """Parse an API ISO-8601 timestamp into an aware datetime."""
+    if not value:
+        return None
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1]
+        if not re.search(r"[+-]\d{2}:\d{2}$", normalized):
+            normalized += "+00:00"
+    try:
+        return datetime.datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+
+
+def check_cadence_catalog_commit_integrity(
+    host, pipeline_sha: str,
+) -> Dict[str, Any]:
+    """Verify that one cadence commit preserved identity and bumped version."""
+    result = {"success": False, "details": "", "error": ""}
+    if not re.fullmatch(r"[0-9a-fA-F]{7,64}", pipeline_sha or ""):
+        result["error"] = f"Invalid cadence pipeline SHA: {pipeline_sha!r}"
+        return result
+
+    api_base = _get_gitlab_api_base(host)
+    if not api_base["success"]:
+        result["error"] = api_base["error"]
+        return result
+    command = CMDS["gitlab_api_get_commit"].format(
+        token=api_base["token"],
+        api_url=api_base["api_url"],
+        project_id=api_base["project_id"],
+        commit_id=pipeline_sha,
+    )
+    response = run_on_host(host, command)
+    if response.rc != 0:
+        result["error"] = "Unable to read cadence commit from GitLab"
+        return result
+    try:
+        commit = json.loads(response.stdout)
+    except json.JSONDecodeError as exc:
+        result["error"] = f"Cadence commit response is invalid JSON: {exc}"
+        return result
+    parents = commit.get("parent_ids") or []
+    if len(parents) != 1:
+        result["error"] = (
+            "Cadence catalog update must have exactly one parent commit"
+        )
+        return result
+
+    current = get_cadence_catalog(host, ref=pipeline_sha)
+    previous = get_cadence_catalog(host, ref=str(parents[0]))
+    if not current["success"]:
+        result["error"] = current["error"]
+        return result
+    if not previous["success"]:
+        result["error"] = previous["error"]
+        return result
+    if current["last_commit_id"] != pipeline_sha:
+        result["error"] = (
+            "Pipeline SHA does not match the cadence catalog commit"
+        )
+        return result
+    if current["identifier"] != previous["identifier"]:
+        result["error"] = "Cadence changed the catalog identifier"
+        return result
+
+    current_match = re.fullmatch(r"(\d+)\.(\d+)", current["version"])
+    previous_match = re.fullmatch(r"(\d+)\.(\d+)", previous["version"])
+    if not current_match or not previous_match:
+        result["error"] = "Cadence catalog version is not in major.minor form"
+        return result
+    expected_version = (
+        f"{int(previous_match.group(1))}."
+        f"{int(previous_match.group(2)) + 1}"
+    )
+    if current["version"] != expected_version:
+        result["error"] = (
+            f"Expected one cadence version increment to {expected_version}; "
+            f"found {current['version']}"
+        )
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"Catalog {current['identifier']} advanced exactly once: "
+            f"{previous['version']} -> {current['version']}"
+        ),
+    })
+    return result
+
+
+def check_cadence_functional_group_coverage(
+    host, job_id: str, catalog_ref: str,
+) -> Dict[str, Any]:
+    """Compare catalog roles with both database and build-status roles."""
+    result = {"success": False, "details": "", "error": ""}
+    catalog = get_cadence_catalog(host, ref=catalog_ref)
+    if not catalog["success"]:
+        result["error"] = catalog["error"]
+        return result
+    expected = _catalog_functional_groups(catalog["catalog"])
+    if not expected:
+        result["error"] = "Cadence catalog contains no functional groups"
+        return result
+
+    database = get_images_for_job(host, job_id)
+    if not database["success"]:
+        result["error"] = database["error"]
+        return result
+    database_roles = {
+        str(image.get("role", "")).strip()
+        for image in database["images"]
+        if str(image.get("role", "")).strip()
+    }
+    build_status = _get_build_status_images(host, job_id)
+    if not build_status["success"]:
+        result["error"] = build_status["error"]
+        return result
+    status_roles = set(build_status["images"])
+
+    problems = []
+    for source, actual in (
+        ("database", database_roles),
+        ("build_status.yml", status_roles),
+    ):
+        missing = sorted(expected - actual)
+        unexpected = sorted(actual - expected)
+        if missing or unexpected:
+            problems.append(
+                f"{source}: missing={missing}, unexpected={unexpected}"
+            )
+    if problems:
+        result["error"] = "Functional-group mismatch: " + "; ".join(
+            problems
+        )
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"Catalog, database, and build status contain the same "
+            f"{len(expected)} functional groups"
+        ),
+    })
+    return result
+
+
+def check_cadence_artifact_identity(
+    host, job_id: str, catalog_ref: str,
+) -> Dict[str, Any]:
+    """Validate the current versioned status and engine-specific paths."""
+    result = {"success": False, "details": "", "error": ""}
+    catalog = get_cadence_catalog(host, ref=catalog_ref)
+    if not catalog["success"]:
+        result["error"] = catalog["error"]
+        return result
+    build_status = _get_build_status_images(host, job_id)
+    if not build_status["success"]:
+        result["error"] = build_status["error"]
+        return result
+
+    expected_group = catalog["composite_image_group_id"]
+    if build_status["image_group_id"] != expected_group:
+        result["error"] = (
+            f"Versioned build status belongs to "
+            f"{build_status['image_group_id']}, expected {expected_group}"
+        )
+        return result
+    if f"/{expected_group}/build_status.yml" not in build_status["path"]:
+        result["error"] = "Build status is not stored under catalog identity"
+        return result
+
+    engine = build_status["data"].get("image_build_type")
+    engine_token = {
+        "image-builder": "-imgbld",
+        "image-thrillhouse": "-imgth",
+    }.get(engine)
+    if not engine_token:
+        result["error"] = f"Unsupported image build engine: {engine!r}"
+        return result
+
+    invalid = []
+    all_paths = []
+    expected_files = {
+        "image": "rootfs.squashfs",
+        "kernel": "vmlinuz",
+        "initrd": "initramfs.img",
+    }
+    for role, image in build_status["images"].items():
+        for key, filename in expected_files.items():
+            path = str(image.get(key, ""))
+            all_paths.append(path)
+            parts = PurePosixPath(path).parts
+            if (
+                not path
+                or len(parts) < 4
+                or role not in parts
+                or engine_token not in path
+                or parts[-1] != filename
+            ):
+                invalid.append(f"{role}:{key}:{path}")
+    if invalid:
+        result["error"] = (
+            "Artifact paths do not match role/engine contract: "
+            f"{invalid}"
+        )
+        return result
+    if len(all_paths) != len(set(all_paths)):
+        result["error"] = "Artifact contract contains duplicate object paths"
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"{len(build_status['images'])} role contracts select unique "
+            f"{engine} artifacts for {expected_group}"
+        ),
+    })
+    return result
+
+
+def get_cadence_validation_report(host, job_id: str) -> Dict[str, Any]:
+    """Load the newest attempt-isolated validation report for a job."""
+    result = {
+        "success": False,
+        "path": "",
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "tests": [],
+        "error": "",
+    }
+    if not re.fullmatch(
+        r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}",
+        job_id or "",
+    ):
+        result["error"] = f"Invalid cadence job_id: {job_id!r}"
+        return result
+    validate_dir = (
+        f"{resolve_omnia_data_path(host)}/build_stream_root/artifacts/"
+        f"{job_id}/validate"
+    )
+    found = run_on_host(
+        host,
+        CMDS["find_latest_validate_report"].format(path=validate_dir),
+    )
+    report_path = ""
+    if found.rc == 0 and found.stdout.strip():
+        _, separator, report_path = found.stdout.strip().partition(" ")
+        if not separator:
+            report_path = ""
+    if not report_path:
+        report_path = f"{validate_dir}/test_report.json"
+
+    report_file = _read_remote_text(host, report_path)
+    if not report_file["success"]:
+        result["error"] = report_file["error"]
+        return result
+    try:
+        report = json.loads(report_file["content"])
+    except json.JSONDecodeError as exc:
+        result["error"] = f"Validation report is invalid JSON: {exc}"
+        return result
+
+    tests = []
+    for server in (report.get("servers") or {}).values():
+        runs = server.get("runs") if isinstance(server, dict) else []
+        for run in runs or []:
+            for module in run.get("modules", []):
+                tests.extend(module.get("results", []))
+    statuses = [
+        str(test.get("status", "")).upper()
+        for test in tests if isinstance(test, dict)
+    ]
+    result.update({
+        "path": report_path,
+        "total": len(statuses),
+        "passed": statuses.count("PASSED"),
+        "failed": statuses.count("FAILED"),
+        "errors": statuses.count("ERROR"),
+        "skipped": statuses.count("SKIPPED"),
+        "tests": tests,
+    })
+    if not statuses:
+        result["error"] = "Validation report contains zero test results"
+    elif result["failed"] or result["errors"]:
+        result["error"] = (
+            f"Validation report contains {result['failed']} failures and "
+            f"{result['errors']} errors"
+        )
+    else:
+        result["success"] = True
+    return result
+
+
+def _read_cadence_pxe_rows(host, job_id: str) -> Dict[str, Any]:
+    """Read the PXE snapshot uploaded to a cadence job."""
+    path = (
+        f"{resolve_omnia_data_path(host)}/build_stream_root/artifacts/"
+        f"{job_id}/pxe_mapping_file.csv"
+    )
+    source = _read_remote_text(host, path)
+    if not source["success"]:
+        return {"success": False, "rows": [], "error": source["error"]}
+    rows = list(csv.DictReader(io.StringIO(source["content"])))
+    if not rows:
+        return {
+            "success": False,
+            "rows": [],
+            "error": "PXE mapping snapshot contains no nodes",
+        }
+    return {"success": True, "rows": rows, "error": ""}
+
+
+def check_cadence_validation_feature_selection(
+    host, job_id: str,
+) -> Dict[str, Any]:
+    """Ensure validation selected Slurm and Kubernetes from PXE groups."""
+    result = {"success": False, "details": "", "error": ""}
+    mapping = _read_cadence_pxe_rows(host, job_id)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+    report = get_cadence_validation_report(host, job_id)
+    if not report["success"]:
+        result["error"] = report["error"]
+        return result
+
+    groups = {
+        str(row.get("FUNCTIONAL_GROUP_NAME", "")).strip().lower()
+        for row in mapping["rows"]
+    }
+    expected = {
+        "kubernetes": any(group.startswith("service_kube") for group in groups),
+        "slurm": any(
+            group.startswith(("slurm_", "login_")) for group in groups
+        ),
+    }
+
+    def _feature_for(test_name: str) -> str:
+        if test_name.startswith((
+            "test_k8s_", "test_kubernetes_", "test_kubelet_",
+            "test_containerd_",
+        )):
+            return "kubernetes"
+        if test_name.startswith((
+            "test_slurm", "test_srun", "test_sbatch", "test_munge",
+            "test_login_nodes",
+        )):
+            return "slurm"
+        return ""
+
+    passed = {"kubernetes": [], "slurm": []}
+    for test in report["tests"]:
+        if not isinstance(test, dict):
+            continue
+        feature = _feature_for(str(test.get("test_name", "")))
+        if feature and str(test.get("status", "")).upper() == "PASSED":
+            passed[feature].append(test.get("test_name"))
+
+    problems = []
+    for feature, is_expected in expected.items():
+        if is_expected and not passed[feature]:
+            problems.append(f"{feature} configured but no test passed")
+        if not is_expected and passed[feature]:
+            problems.append(
+                f"{feature} absent but tests passed: {passed[feature]}"
+            )
+    if problems:
+        result["error"] = "Feature-selection mismatch: " + "; ".join(
+            problems
+        )
+        return result
+
+    selected = [name for name, enabled in expected.items() if enabled]
+    result.update({
+        "success": True,
+        "details": (
+            f"Validation selected {', '.join(selected)} according to "
+            f"{len(mapping['rows'])} PXE-mapped nodes"
+        ),
+    })
+    return result
+
+
+def check_cadence_restart_node_coverage(
+    host, job_id: str,
+) -> Dict[str, Any]:
+    """Compare successful restart results with the exact PXE snapshot."""
+    result = {"success": False, "details": "", "error": ""}
+    mapping = _read_cadence_pxe_rows(host, job_id)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+    artifact = get_bsm_artifact_json(host, job_id, "node-results")
+    if not artifact["success"] or not artifact["exists"]:
+        result["error"] = artifact["error"] or "node_results.json is missing"
+        return result
+
+    expected_tags = [
+        str(row.get("SERVICE_TAG", "")).strip()
+        for row in mapping["rows"]
+    ]
+    nodes = artifact["data"].get("nodes", [])
+    actual_tags = [
+        str(node.get("service_tag", "")).strip()
+        for node in nodes if isinstance(node, dict)
+    ]
+    if (
+        not all(expected_tags)
+        or len(expected_tags) != len(set(expected_tags))
+    ):
+        result["error"] = "PXE mapping contains empty or duplicate service tags"
+        return result
+    if not all(actual_tags) or len(actual_tags) != len(set(actual_tags)):
+        result["error"] = "Restart results contain empty or duplicate nodes"
+        return result
+    if set(expected_tags) != set(actual_tags):
+        result["error"] = (
+            "Restart node coverage mismatch: "
+            f"missing={sorted(set(expected_tags) - set(actual_tags))}, "
+            f"unexpected={sorted(set(actual_tags) - set(expected_tags))}"
+        )
+        return result
+    failed = [
+        node.get("service_tag") if isinstance(node, dict) else "invalid-entry"
+        for node in nodes
+        if not isinstance(node, dict) or node.get("status") != "success"
+    ]
+    node_data = artifact["data"]
+    if failed or node_data.get("failure_count") != 0:
+        result["error"] = f"Restart contains failed nodes: {failed}"
+        return result
+    if (
+        node_data.get("total_nodes") != len(expected_tags)
+        or node_data.get("success_count") != len(expected_tags)
+    ):
+        result["error"] = "Restart summary counts do not match PXE mapping"
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"All {len(expected_tags)} PXE-mapped nodes have one successful "
+            f"restart result"
+        ),
+    })
+    return result
+
+
+def check_cadence_input_snapshot(
+    host, job_id: str, catalog_ref: str,
+) -> Dict[str, Any]:
+    """Verify the canonical catalog and mandatory domain input snapshot."""
+    result = {"success": False, "details": "", "error": ""}
+    artifact_root = (
+        f"{resolve_omnia_data_path(host)}/build_stream_root/artifacts/{job_id}"
+    )
+    required = {
+        "catalog_rhel.json",
+        "repo_manager_config.yml",
+        "repo_manager_endpoint_config.yml",
+        "image_build_config.yml",
+        "omnia_config.yml",
+        "orchestrator_config.yml",
+        "network_spec.yml",
+        "pxe_mapping_file.csv",
+    }
+    missing = []
+    for filename in sorted(required):
+        exists = run_on_host(
+            host,
+            CMDS["file_exists"].format(
+                path=f"{artifact_root}/{filename}"
+            ),
+        )
+        if exists.stdout.strip() != "exists":
+            missing.append(filename)
+    if missing:
+        result["error"] = f"Cadence input snapshot is missing: {missing}"
+        return result
+
+    uploaded = _read_remote_text(host, f"{artifact_root}/catalog_rhel.json")
+    if not uploaded["success"]:
+        result["error"] = uploaded["error"]
+        return result
+    expected = get_cadence_catalog(host, ref=catalog_ref)
+    if not expected["success"]:
+        result["error"] = expected["error"]
+        return result
+    try:
+        uploaded_catalog = json.loads(uploaded["content"])
+    except json.JSONDecodeError as exc:
+        result["error"] = f"Uploaded catalog is invalid JSON: {exc}"
+        return result
+    if uploaded_catalog != expected["catalog"]:
+        result["error"] = (
+            "Uploaded catalog_rhel.json does not match the cadence commit"
+        )
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"Canonical cadence catalog and {len(required) - 1} mandatory "
+            f"domain inputs are present"
+        ),
+    })
+    return result
+
+
+def check_cadence_stage_freshness(host, job_id: str) -> Dict[str, Any]:
+    """Verify completed stages and their logs are scoped to this job."""
+    result = {"success": False, "details": "", "error": ""}
+    response = get_bsm_job_details(host, job_id)
+    if not response["success"]:
+        result["error"] = response["error"]
+        return result
+    job = response["job"]
+    created_at = _parse_iso_timestamp(str(job.get("created_at", "")))
+    if not created_at:
+        result["error"] = "Cadence job has no valid creation timestamp"
+        return result
+
+    required = {
+        "parse-catalog",
+        "create-local-repository",
+        "build-image",
+        "deploy",
+        "restart",
+        "validate",
+    }
+    stages = {
+        stage.get("stage_name"): stage
+        for stage in job.get("stages", [])
+        if isinstance(stage, dict) and stage.get("stage_name") in required
+    }
+    if set(stages) != required:
+        result["error"] = (
+            f"Current job is missing stages: {sorted(required - set(stages))}"
+        )
+        return result
+
+    problems = []
+    for name, stage in stages.items():
+        started = _parse_iso_timestamp(str(stage.get("started_at", "")))
+        ended = _parse_iso_timestamp(str(stage.get("ended_at", "")))
+        if stage.get("stage_state") != STAGE_STATE_COMPLETED:
+            problems.append(f"{name}: not completed")
+        if not started or not ended or started < created_at or ended < started:
+            problems.append(f"{name}: invalid or stale timestamps")
+        log_path = str(stage.get("log_file_path") or "")
+        if log_path:
+            if job_id not in log_path:
+                problems.append(f"{name}: log path is not job-scoped")
+            else:
+                exists = run_on_host(
+                    host, CMDS["file_exists"].format(path=log_path)
+                )
+                if exists.stdout.strip() != "exists":
+                    problems.append(f"{name}: stage log does not exist")
+    if problems:
+        result["error"] = "Stage freshness failures: " + "; ".join(problems)
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"All {len(required)} mandatory DB stages and available logs "
+            f"belong to job {job_id}"
+        ),
+    })
     return result
 
 

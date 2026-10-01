@@ -549,6 +549,38 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "BSM_FVT_CADENCE_PIPELINE_V031",
         "title": "Verify S3 boot artifacts for requested roles",
     },
+    "cadence_catalog_commit_integrity": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V032",
+        "title": "Verify cadence catalog commit integrity",
+    },
+    "cadence_expected_functional_groups": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V033",
+        "title": "Verify expected functional-group coverage",
+    },
+    "cadence_artifact_identity": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V034",
+        "title": "Verify current catalog artifact identity",
+    },
+    "cadence_validate_report": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V035",
+        "title": "Verify cadence validation report",
+    },
+    "cadence_validation_feature_selection": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V036",
+        "title": "Verify Slurm and Kubernetes validation selection",
+    },
+    "cadence_restart_node_coverage": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V037",
+        "title": "Verify restart coverage for every PXE node",
+    },
+    "cadence_uploaded_input_snapshot": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V038",
+        "title": "Verify cadence uploaded input snapshot",
+    },
+    "cadence_stage_attempt_freshness": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V039",
+        "title": "Verify current job stage and log freshness",
+    },
 
     # --- Cleanup pipeline (sanity marker; explicit suite only) ---
     "cleanup_gitlab_server_running": {

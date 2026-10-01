@@ -19,11 +19,19 @@ import pytest
 from library.functions import (
     TestLogger,
     check_build_status,
+    check_cadence_artifact_identity,
+    check_cadence_catalog_commit_integrity,
+    check_cadence_functional_group_coverage,
+    check_cadence_input_snapshot,
     check_cadence_local_repo_status,
+    check_cadence_restart_node_coverage,
+    check_cadence_stage_freshness,
+    check_cadence_validation_feature_selection,
     check_repo_resync_status,
     get_bsm_artifact_json,
     get_catalog_identity_for_job,
     get_bsm_job_details,
+    get_cadence_validation_report,
     get_gitlab_job_trace,
     get_gitlab_pipeline_jobs,
     get_images_for_job,
@@ -385,3 +393,108 @@ def test_cadence_s3_artifacts(host, cadence_pipeline_state):
         or f"Missing S3 roles: {result.get('missing_roles', [])}"
     )
     tl.passed(f"S3 boot artifacts verified for {len(roles)} roles")
+
+
+@pytest.mark.sanity
+@pytest.mark.order(32)
+def test_cadence_catalog_commit_integrity(host, cadence_pipeline_state):
+    """V032: Cadence preserved identity and incremented version once."""
+    tl = _logger("cadence_catalog_commit_integrity")
+    result = check_cadence_catalog_commit_integrity(
+        host, cadence_pipeline_state.pipeline_sha,
+    )
+    assert result["success"], result["error"]
+    tl.passed(result["details"])
+
+
+@pytest.mark.sanity
+@pytest.mark.order(33)
+def test_cadence_expected_functional_groups(host, cadence_pipeline_state):
+    """V033: Catalog, database, and build output contain identical roles."""
+    tl = _logger("cadence_expected_functional_groups")
+    result = check_cadence_functional_group_coverage(
+        host,
+        cadence_pipeline_state.job_id,
+        cadence_pipeline_state.pipeline_sha,
+    )
+    assert result["success"], result["error"]
+    tl.passed(result["details"])
+
+
+@pytest.mark.sanity
+@pytest.mark.order(34)
+def test_cadence_artifact_identity(host, cadence_pipeline_state):
+    """V034: Current catalog status selects engine-consistent artifacts."""
+    tl = _logger("cadence_artifact_identity")
+    result = check_cadence_artifact_identity(
+        host,
+        cadence_pipeline_state.job_id,
+        cadence_pipeline_state.pipeline_sha,
+    )
+    assert result["success"], result["error"]
+    tl.passed(result["details"])
+
+
+@pytest.mark.sanity
+@pytest.mark.order(35)
+def test_cadence_validate_report(host, cadence_pipeline_state):
+    """V035: Validate generated non-empty results without failures/errors."""
+    tl = _logger("cadence_validate_report")
+    result = get_cadence_validation_report(
+        host, cadence_pipeline_state.job_id,
+    )
+    assert result["success"], result["error"]
+    tl.passed(
+        f"Validation report contains {result['total']} tests: "
+        f"{result['passed']} passed, {result['skipped']} skipped"
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(36)
+def test_cadence_validation_feature_selection(host, cadence_pipeline_state):
+    """V036: Validate selected Slurm/Kubernetes from the PXE mapping."""
+    tl = _logger("cadence_validation_feature_selection")
+    result = check_cadence_validation_feature_selection(
+        host, cadence_pipeline_state.job_id,
+    )
+    assert result["success"], result["error"]
+    tl.passed(result["details"])
+
+
+@pytest.mark.sanity
+@pytest.mark.order(37)
+def test_cadence_restart_node_coverage(host, cadence_pipeline_state):
+    """V037: Every mapped PXE node has exactly one successful result."""
+    tl = _logger("cadence_restart_node_coverage")
+    result = check_cadence_restart_node_coverage(
+        host, cadence_pipeline_state.job_id,
+    )
+    assert result["success"], result["error"]
+    tl.passed(result["details"])
+
+
+@pytest.mark.sanity
+@pytest.mark.order(38)
+def test_cadence_uploaded_input_snapshot(host, cadence_pipeline_state):
+    """V038: Cadence uploaded the canonical catalog and required inputs."""
+    tl = _logger("cadence_uploaded_input_snapshot")
+    result = check_cadence_input_snapshot(
+        host,
+        cadence_pipeline_state.job_id,
+        cadence_pipeline_state.pipeline_sha,
+    )
+    assert result["success"], result["error"]
+    tl.passed(result["details"])
+
+
+@pytest.mark.sanity
+@pytest.mark.order(39)
+def test_cadence_stage_attempt_freshness(host, cadence_pipeline_state):
+    """V039: Mandatory stage timestamps and logs belong to this job."""
+    tl = _logger("cadence_stage_attempt_freshness")
+    result = check_cadence_stage_freshness(
+        host, cadence_pipeline_state.job_id,
+    )
+    assert result["success"], result["error"]
+    tl.passed(result["details"])
