@@ -165,10 +165,10 @@ commits the catalog version bump that triggers a real unified pipeline.
 `verify` is read-only and uses the exact `job_id` recorded in
 `test_config.yml`.
 
-The action requires `cadence.enabled: true` and `cadence.force_build: true` in
-deployed `build_stream_config.yml`, plus active watcher and Pulp services, the
-configured Git worktree, and a registered `repo_sync.yml`. This makes a sanity
-run deterministic even when the upstream repositories have no package delta.
+The action requires `cadence.enabled: true` in deployed
+`build_stream_config.yml`, plus active watcher and Pulp services, the configured
+Git worktree, and a registered `repo_sync.yml`. Every successful repository
+reconciliation triggers cadence, including syncs with no package-count delta.
 
 The cadence catalog is always `cadence_catalog_rhel.json`; `catalog_path` is
 only for the separate build-pipeline tests. Cadence `exec` and `test` save the

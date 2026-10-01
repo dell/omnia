@@ -137,7 +137,6 @@ Per-domain configuration. Key sections:
 - **`gitlab_host`** — Target host for GitLab deployment
 - **`gitlab_project_name`** — GitLab project name (default: `omnia-catalog`)
 - **`cadence.enabled`** — Enable periodic repository reconciliation and catalog-driven pipelines
-- **`cadence.force_build`** — Trigger the cadence pipeline after a successful repository sync even when no package changes are detected; this does not force Image Build Manager to rebuild images
 - **`cadence.interval_seconds`** — Poll interval for cadence cycles (minimum 3600 seconds)
 - **`cadence.catalog_filename`** — GitLab cadence catalog (default: `cadence_catalog_rhel.json`)
 - **`cadence.playbook_name`** — Registered exact-mirror repository playbook (default: `repo_sync.yml`)
@@ -149,18 +148,17 @@ Per-domain configuration. Key sections:
 When cadence is enabled, the playbook-watcher runs the registered
 `repo_sync.yml` playbook and validates `repo_resync_status.yml`. A failed sync,
 a non-zero stale-package count, or incomplete cleanup stops the cycle before
-the catalog is changed. When package changes are detected—or
-`cadence.force_build` is `true`—the watcher increments the catalog version and
-pushes exactly one GitLab commit. That commit starts the unified pipeline:
+the catalog is changed. After every successful reconciliation, the watcher
+increments the catalog version and pushes exactly one GitLab commit. That
+commit starts the unified pipeline:
 
 `initialization` → `parse-catalog` → `configure-local-repository` →
 `build-images` → `deploy` → `restart` → `validate` → `summary`
 
-With `cadence.force_build: false`, a successful sync that finds no package
-changes completes without a version bump or pipeline. With
-`cadence.force_build: true`, the version bump and pipeline still occur, while
-Image Build Manager retains its own catalog-level reuse and `force_rebuild`
-behavior.
+Cadence never suppresses the pipeline based on `packages_added` or
+`packages_removed`. Those counts cannot reveal a package-version replacement
+that leaves the total package count unchanged. A successful exact-mirror sync
+therefore always advances the full cadence pipeline.
 
 ## High-Level Workflow
 

@@ -16,31 +16,17 @@
 Unit tests for cadence configuration loading (UT-001).
 """
 
-import json
 import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
-from jsonschema import Draft7Validator
 
 from cadence_manager import (
     load_cadence_config,
     _validate_catalog_filename,
     _load_unified_config,
-)
-
-
-CONFIG_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[5]
-    / "src"
-    / "build_stream"
-    / "plugins"
-    / "module_utils"
-    / "input_validation"
-    / "schema"
-    / "build_stream_config.json"
 )
 
 
@@ -86,7 +72,6 @@ class TestUnifiedConfigLoading:
         config_file.write_text("""
 cadence:
   enabled: true
-  force_build: true
   interval_seconds: 43200
   catalog_filename: "cadence_catalog_rhel.json"
   playbook_name: "repo_sync.yml"
@@ -98,7 +83,6 @@ cadence:
         result = _load_unified_config(str(config_file), defaults)
 
         assert result["enabled"] is True
-        assert result["force_build"] is True
         assert result["interval_seconds"] == 43200
         assert result["catalog_filename"] == "cadence_catalog_rhel.json"
         assert result["playbook_name"] == "repo_sync.yml"
@@ -216,34 +200,6 @@ cadence:
         assert result["interval_seconds"] == 7200
 
 
-class TestCadenceForceBuildSchema:
-    """UT-001: Validate the public force-build configuration contract."""
-
-    @staticmethod
-    def _validator():
-        schema = json.loads(CONFIG_SCHEMA_PATH.read_text(encoding="utf-8"))
-        return Draft7Validator(schema)
-
-    def test_force_build_accepts_boolean(self):
-        """TC-UT-001-009: Accept a boolean cadence force-build setting."""
-        config = {
-            "enable_build_stream": False,
-            "cadence": {"force_build": True},
-        }
-
-        assert list(self._validator().iter_errors(config)) == []
-
-    def test_force_build_rejects_non_boolean(self):
-        """TC-UT-001-010: Reject string values for cadence force-build."""
-        config = {
-            "enable_build_stream": False,
-            "cadence": {"force_build": "true"},
-        }
-
-        errors = list(self._validator().iter_errors(config))
-        assert any(list(error.path)[-1:] == ["force_build"] for error in errors)
-
-
 class TestConfigLoadingPriority:
     """UT-001-001 through UT-001-003: Configuration loading resolution."""
 
@@ -268,7 +224,6 @@ cadence:
             result = load_cadence_config()
 
         assert result["enabled"] is False
-        assert result["force_build"] is False
         assert result["interval_seconds"] == 86400
         assert result["catalog_filename"] == "cadence_catalog_rhel.json"
 

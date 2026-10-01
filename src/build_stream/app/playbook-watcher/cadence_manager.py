@@ -165,7 +165,6 @@ def load_cadence_config(
     config = {
         # Cadence polling control
         "enabled": DEFAULT_CADENCE_ENABLED,
-        "force_build": False,
         "interval_seconds": DEFAULT_CADENCE_INTERVAL_SECONDS,
         # Cadence catalog configuration
         "catalog_filename": DEFAULT_CADENCE_CATALOG_FILENAME,
@@ -243,7 +242,7 @@ def _load_unified_config(
             return config
 
         # Only these parameters are user-configurable; the rest stay fixed
-        bool_keys = ("enabled", "force_build")
+        bool_keys = ("enabled",)
         int_keys = (
             "interval_seconds",
             "sync_timeout_seconds",
@@ -294,7 +293,6 @@ def _load_unified_config(
             "info",
             f"Cadence config loaded from build_stream_config.yml: "
             f"enabled={config['enabled']}, "
-            f"force_build={config.get('force_build', False)}, "
             f"interval={config['interval_seconds']}s"
         )
     except (OSError, ValueError, ImportError):
@@ -956,33 +954,20 @@ class CadenceTimerThread(Thread):
 
         job_id = str(sync_result["job_id"])
         updates_detected = bool(sync_result["updates_detected"])
-        force_build = bool(self.config.get("force_build", False))
-        if not updates_detected and not force_build:
-            log_secure_info("info", "No package updates for cadence catalog")
-            emit_audit_event(
-                CADENCE_SYNC_COMPLETED,
-                {
-                    "job_id": job_id,
-                    "catalog_filename": self.catalog_filename,
-                    "sync_status": "success",
-                    "updates_detected": False,
-                    "force_build": False,
-                },
+        if updates_detected:
+            log_secure_info(
+                "info", "Package count changes detected in cadence sync"
             )
-            return
-
-        if not updates_detected:
+        else:
             log_secure_info(
                 "info",
-                "No package updates; cadence force build is enabled",
+                "No package count change detected; running the full cadence "
+                "pipeline because upstream package versions may have changed",
             )
 
-        # Step 4-6: Bump version, push, and emit audit event
-        self._bump_and_push(
-            job_id,
-            updates_detected=updates_detected,
-            force_build=force_build,
-        )
+        # Always bump and trigger after successful exact-mirror reconciliation.
+        # Package add/remove counts cannot detect version-only RPM updates.
+        self._bump_and_push(job_id)
 
     def _sync_packages(self) -> Optional[Dict[str, Any]]:
         """Submit repo sync and wait for completion.
@@ -1047,19 +1032,11 @@ class CadenceTimerThread(Thread):
             "repo_resync_status": repo_resync_status,
         }
 
-    def _bump_and_push(
-        self,
-        job_id: str,
-        *,
-        updates_detected: bool,
-        force_build: bool,
-    ) -> None:
+    def _bump_and_push(self, job_id: str) -> None:
         """Bump catalog version, push to GitLab, and emit audit event.
 
         Args:
             job_id: The cadence sync job identifier.
-            updates_detected: Whether repository synchronization found changes.
-            force_build: Whether cadence pipeline triggering was forced.
         """
         # Read the current catalog from CATALOG_FILE_PATH
         catalog_file_path = os.getenv("CATALOG_FILE_PATH")
@@ -1122,8 +1099,6 @@ class CadenceTimerThread(Thread):
                 "catalog_filename": self.catalog_filename,
                 "new_version": new_version,
                 "sync_status": "success",
-                "updates_detected": updates_detected,
-                "force_build": force_build,
             },
         )
 

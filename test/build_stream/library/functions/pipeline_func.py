@@ -1019,8 +1019,8 @@ def check_cadence_runtime(host) -> Dict[str, Any]:
 
     Cadence product settings remain in ``build_stream_config.yml``.  The FVT
     reads that deployed configuration instead of duplicating it in
-    ``test_config.yml`` and requires ``force_build`` so a no-update repository
-    sync still produces a pipeline during a sanity run.
+    ``test_config.yml``. Every successful repository reconciliation triggers
+    the cadence pipeline, regardless of package add/remove counts.
     """
     result = {
         "success": False,
@@ -1048,10 +1048,6 @@ def check_cadence_runtime(host) -> Dict[str, Any]:
     errors = []
     if cadence.get("enabled") is not True:
         errors.append("cadence.enabled must be true")
-    if cadence.get("force_build") is not True:
-        errors.append(
-            "cadence.force_build must be true for deterministic sanity runs"
-        )
     if cadence.get("catalog_filename") != CADENCE_CATALOG_FILE_PATH:
         errors.append(
             "cadence.catalog_filename must be "

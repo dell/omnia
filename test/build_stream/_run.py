@@ -114,7 +114,7 @@ def _print_manual_pipeline_help():
     print("CADENCE TEST INPUT CONTRACT")
     print("  Catalog: cadence_catalog_rhel.json (fixed GitLab CI contract)")
     print("  exec/test: signals the watcher to sync, bump, and push catalog")
-    print("  product config: cadence.enabled=true and force_build=true")
+    print("  product config: cadence.enabled=true")
     print("  prerequisites: watcher, Pulp, Git worktree, repo_sync.yml")
     print("  verify: reads mandatory job_id; never selects the latest job")
     print("  sanity coverage: 1 execution + 23 verification cases")

@@ -459,10 +459,10 @@ class TestCadenceExactMirrorFlow:
             temp_dir / "processing",
         )
 
-    def test_no_package_change_does_not_bump_without_force(
+    def test_no_package_change_still_triggers_full_pipeline(
         self, sample_cadence_config, temp_dir
     ):
-        """TC-UT-011-001: A successful no-op sync does not trigger a build."""
+        """TC-UT-011-001: A successful sync always triggers cadence."""
         thread = self._thread(sample_cadence_config, temp_dir)
         outcome = {
             "job_id": "cadence-1",
@@ -473,50 +473,20 @@ class TestCadenceExactMirrorFlow:
             thread, "_sync_packages", return_value=outcome
         ), patch.object(thread, "_bump_and_push") as bump, patch(
             "cadence_manager.log_secure_info"
-        ) as log, patch("cadence_manager.emit_audit_event") as audit:
-            thread._execute_cadence_cycle()  # pylint: disable=protected-access
-        bump.assert_not_called()
-        audit.assert_called_once()
-        assert audit.call_args.args[1]["updates_detected"] is False
-        assert audit.call_args.args[1]["force_build"] is False
-        log.assert_any_call("info", "No package updates for cadence catalog")
-
-    def test_force_build_bumps_catalog_without_package_change(
-        self, sample_cadence_config, temp_dir
-    ):
-        """TC-UT-011-004: A successful no-op sync can trigger the pipeline."""
-        config = dict(sample_cadence_config)
-        config["force_build"] = True
-        thread = self._thread(config, temp_dir)
-        outcome = {
-            "job_id": "cadence-force-1",
-            "updates_detected": False,
-            "repo_resync_status": {},
-        }
-        with patch("cadence_manager.is_pipeline_busy", return_value=False), patch.object(
-            thread, "_sync_packages", return_value=outcome
-        ), patch.object(thread, "_bump_and_push") as bump, patch(
-            "cadence_manager.log_secure_info"
         ) as log:
             thread._execute_cadence_cycle()  # pylint: disable=protected-access
-
-        bump.assert_called_once_with(
-            "cadence-force-1",
-            updates_detected=False,
-            force_build=True,
-        )
+        bump.assert_called_once_with("cadence-1")
         log.assert_any_call(
             "info",
-            "No package updates; cadence force build is enabled",
+            "No package count change detected; running the full cadence "
+            "pipeline because upstream package versions may have changed",
         )
 
-    def test_force_build_does_not_override_repo_sync_failure(
+    def test_repo_sync_failure_does_not_trigger_pipeline(
         self, sample_cadence_config, temp_dir
     ):
-        """TC-UT-011-005: Force mode remains gated by successful Repo Sync."""
-        config = dict(sample_cadence_config)
-        config["force_build"] = True
-        thread = self._thread(config, temp_dir)
+        """TC-UT-011-004: A failed reconciliation never triggers cadence."""
+        thread = self._thread(sample_cadence_config, temp_dir)
         with patch("cadence_manager.is_pipeline_busy", return_value=False), patch.object(
             thread, "_sync_packages", return_value=None
         ), patch.object(thread, "_bump_and_push") as bump:
@@ -524,13 +494,11 @@ class TestCadenceExactMirrorFlow:
 
         bump.assert_not_called()
 
-    def test_force_build_does_not_override_active_pipeline_guard(
+    def test_active_pipeline_suppresses_cadence_cycle(
         self, sample_cadence_config, temp_dir
     ):
-        """TC-UT-011-006: Force mode cannot start concurrent pipelines."""
-        config = dict(sample_cadence_config)
-        config["force_build"] = True
-        thread = self._thread(config, temp_dir)
+        """TC-UT-011-005: Cadence never overlaps an active pipeline."""
+        thread = self._thread(sample_cadence_config, temp_dir)
         with patch("cadence_manager.is_pipeline_busy", return_value=True), patch.object(
             thread, "_sync_packages"
         ) as sync, patch.object(thread, "_bump_and_push") as bump:
@@ -538,34 +506,6 @@ class TestCadenceExactMirrorFlow:
 
         sync.assert_not_called()
         bump.assert_not_called()
-
-    def test_force_build_is_recorded_in_success_audit(
-        self, sample_cadence_config, temp_dir
-    ):
-        """TC-UT-011-007: Audit output identifies a forced cadence run."""
-        config = dict(sample_cadence_config)
-        config["force_build"] = True
-        catalog_path = temp_dir / config["catalog_filename"]
-        catalog_path.write_text(
-            '{"catalog": {"version": "1.0"}}',
-            encoding="utf-8",
-        )
-        thread = self._thread(config, temp_dir)
-        with patch.dict(
-            "os.environ", {"CATALOG_FILE_PATH": str(catalog_path)}
-        ), patch(
-            "cadence_manager.bump_catalog_version", return_value="1.1"
-        ), patch("cadence_manager.emit_audit_event") as audit:
-            thread._bump_and_push(  # pylint: disable=protected-access
-                "cadence-force-2",
-                updates_detected=False,
-                force_build=True,
-            )
-
-        details = audit.call_args.args[1]
-        assert details["updates_detected"] is False
-        assert details["force_build"] is True
-        assert details["new_version"] == "1.1"
 
     def test_package_change_bumps_existing_catalog(
         self, sample_cadence_config, temp_dir
@@ -581,11 +521,7 @@ class TestCadenceExactMirrorFlow:
             thread, "_sync_packages", return_value=outcome
         ), patch.object(thread, "_bump_and_push") as bump:
             thread._execute_cadence_cycle()  # pylint: disable=protected-access
-        bump.assert_called_once_with(
-            "cadence-2",
-            updates_detected=True,
-            force_build=False,
-        )
+        bump.assert_called_once_with("cadence-2")
 
     def test_sync_uses_configured_playbook_and_polling_contract(
         self, sample_cadence_config, temp_dir

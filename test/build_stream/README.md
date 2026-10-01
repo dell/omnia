@@ -98,13 +98,13 @@ are:
 Cadence automation deliberately has no separate catalog selector in
 `test_config.yml`. The GitLab cadence contract uses only
 `cadence_catalog_rhel.json`; cadence `exec` and `test` send a one-shot trigger
-to the running watcher. The watcher runs `repo_sync.yml`, evaluates repository
-updates (or `cadence.force_build`), increments the catalog version, and pushes
-the commit that starts the pipeline. The normal `catalog_path` setting is used
-only by build-pipeline automation.
+to the running watcher. After `repo_sync.yml` succeeds, the watcher always
+increments the catalog version and pushes the commit that starts the pipeline.
+Package add/remove counts are informational and never suppress cadence. The
+normal `catalog_path` setting is used only by build-pipeline automation.
 
 For deterministic sanity execution, the deployed `build_stream_config.yml`
-must set `cadence.enabled: true`, `cadence.force_build: true`,
+must set `cadence.enabled: true`,
 `cadence.catalog_filename: cadence_catalog_rhel.json`, and
 `cadence.playbook_name: repo_sync.yml`. The watcher and Pulp services, local
 cadence Git worktree, and `repo_sync.yml` registration are validated before
@@ -119,8 +119,8 @@ The shared `job_id` remains the single source of truth:
 - The JobID is used to resolve exactly one composite ImageGroupID and the
   corresponding cadence child pipeline.
 
-Cadence service controls such as `enabled`, `force_build`, polling intervals,
-and `catalog_filename` remain product configuration in
+Cadence service controls such as `enabled`, polling intervals, and
+`catalog_filename` remain product configuration in
 `build_stream_config.yml`; the test configuration does not duplicate them.
 
 ## FVT scenarios

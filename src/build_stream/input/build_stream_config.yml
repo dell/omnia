@@ -114,13 +114,6 @@ cadence:
   # Default: false
   enabled: true
 
-  # Trigger the cadence pipeline even when repository synchronization finds
-  # no package additions or removals. Repo sync must still succeed.
-  # This controls pipeline triggering; it does not force image rebuilding.
-  # Accepted values: true | false
-  # Default: false
-  force_build: false
-
   # Polling interval for cadence syncs in seconds
   # Accepted values: integer >= 3600 (1 hour minimum)
   # Default: 86400 (24 hours)
