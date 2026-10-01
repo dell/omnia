@@ -232,8 +232,9 @@ def pxe_mapping_header_contract_msg(
     """Return an exact PXE mapping header-contract error message."""
     return (
         f"orchestrator_config: Mapping file '{path}' has header {actual}; "
-        f"expected exactly {expected}. Preserve all columns in this order, "
-        "including IB_NIC_NAME and IB_IP."
+        f"expected {expected} (or legacy 11-column format with IB_IP). "
+        "Preserve all columns in this order, "
+        "including IB_NIC_NAME and IB_IPV4."
     )
 
 
@@ -342,7 +343,7 @@ def pxe_mapping_ib_pair_msg(row: int) -> str:
     """Return an incomplete InfiniBand mapping pair error message."""
     return (
         f"orchestrator_config: Mapping row {row} must set both IB_NIC_NAME "
-        "and IB_IP, or leave both empty."
+        "and IB_IPV4, or leave both empty."
     )
 
 
@@ -505,6 +506,47 @@ def ib_admin_subnet_overlap_msg(
     return (
         f"network_spec: {ib_label} subnet {ib_network} overlaps "
         f"{admin_label} subnet {admin_network}."
+    )
+
+
+def ib_ipv6_subnet_invalid_msg(label: str) -> str:
+    """Return an invalid IB IPv6 subnet error message."""
+    return (
+        f"network_spec: {label}.ipv6_subnet is not a valid IPv6 network "
+        "address."
+    )
+
+
+def ib_ipv6_netmask_required_msg(label: str) -> str:
+    """Return a missing IB IPv6 netmask error when subnet is set."""
+    return (
+        f"network_spec: {label}.ipv6_netmask_bits is required when "
+        "ipv6_subnet is set."
+    )
+
+
+def ib_ipv6_subnet_required_msg(label: str) -> str:
+    """Return a missing IB IPv6 subnet error when netmask is set."""
+    return (
+        f"network_spec: {label}.ipv6_subnet is required when "
+        "ipv6_netmask_bits is set."
+    )
+
+
+def pxe_mapping_invalid_ipv6_msg(field: str, value: str, row: int) -> str:
+    """Return an invalid IPv6 address in the PXE mapping."""
+    return (
+        f"orchestrator_config: {field} '{value}' at mapping row {row} "
+        "is not a valid IPv6 address."
+    )
+
+
+def pxe_mapping_ib_ipv6_without_nic_msg(row: int) -> str:
+    """Return an IB_IPV6 set without IB_NIC_NAME error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} has IB_IPV6 set but "
+        "IB_NIC_NAME is empty; IB_NIC_NAME is required for IPv6 "
+        "configuration."
     )
 
 

@@ -73,16 +73,14 @@ the feature flags derived by the latest catalog-backed lifecycle phase.
 | `BMC_MAC` | string | Yes | Unique BMC/iDRAC MAC address used for existing-node identity evidence and discovery |
 | `BMC_IP` | string | Yes | Unique BMC/iDRAC IP address |
 | `IB_NIC_NAME` | string | No | InfiniBand NIC FQDD |
-| `IB_IP` | string | No | InfiniBand IP |
+| `IB_IPV4` | string | No | InfiniBand IPv4 address |
+| `IB_IPV6` | string | No | InfiniBand IPv6 address |
 
-The header must contain these exact 11 uppercase column names in the order
-shown, including `IB_NIC_NAME` and `IB_IP`. Optional values remain present as
-empty CSV cells. `PARENT_SERVICE_TAG`, `IB_NIC_NAME`, and `IB_IP` values are
-optional. `SERVICE_TAG`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, and `BMC_IP` must
-be populated and unique. Users do not supply XNAME; Omnia resolves the
-permanent Service Tag-to-XNAME mapping from SMD Hardware Inventory. User-owned
-and Discovery-generated mappings are accepted; Discovery may place a
-`service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
+The header must contain these exact 12 uppercase column names in the order
+shown, including `IB_NIC_NAME`, `IB_IPV4`, and `IB_IPV6`. Optional values remain present as
+empty CSV cells. `SERVICE_TAG` and `PARENT_SERVICE_TAG` values are optional.
+Both legacy mappings and Discovery-generated mappings are accepted; Discovery
+may place a `service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
 
 ---
 
@@ -112,8 +110,10 @@ and Discovery-generated mappings are accepted; Discovery may place a
 | `Networks.admin_network.additional_subnets[].netmask_bits` | string | Yes, per entry | Additional network CIDR prefix length |
 | `Networks.admin_network.additional_subnets[].router` | string | Yes, per entry | Gateway supplied as DHCP option 3 |
 | `Networks.admin_network.additional_subnets[].dynamic_range` | string | Yes, per entry | DHCP pool contained by the additional subnet |
-| `Networks.ib_network.subnet` | string | Yes, when configured | InfiniBand network address |
-| `Networks.ib_network.netmask_bits` | string | Yes, when configured | InfiniBand CIDR prefix length |
+| `Networks.ib_network.ipv4_subnet` | string | Yes, when configured | InfiniBand IPv4 network address |
+| `Networks.ib_network.ipv4_netmask_bits` | string | Yes, when configured | InfiniBand IPv4 CIDR prefix length |
+| `Networks.ib_network.ipv6_subnet` | string | No | InfiniBand IPv6 network address |
+| `Networks.ib_network.ipv6_netmask_bits` | string | No | InfiniBand IPv6 CIDR prefix length |
 | `Networks.ib_network.dns` | list | No | InfiniBand DNS server addresses |
 
 ---

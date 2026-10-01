@@ -33,6 +33,37 @@
     slurm_metadata_nodes_yaml: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
     slurm_metadata_target_category: "{{ target_category }}"
 
+# Build IPoIB host entries for cloud-init /etc/hosts injection.
+# Uses the rendered hosts block from the ib_ipv6_config pipeline (if available).
+- name: Check if IPoIB managed hosts block exists
+  ansible.builtin.stat:
+    path: >-
+      {{ hostvars['localhost']['orchestrator_output_dir'] }}/ib_ipv6/managed_hosts_block.txt
+  register: _ib_hosts_block_stat
+  delegate_to: localhost
+
+- name: Load IPoIB hosts block for cloud-init injection
+  ansible.builtin.slurp:
+    src: >-
+      {{ hostvars['localhost']['orchestrator_output_dir'] }}/ib_ipv6/managed_hosts_block.txt
+  register: _ib_hosts_block_raw
+  delegate_to: localhost
+  when: _ib_hosts_block_stat.stat.exists
+
+- name: Set IPoIB hosts entries for metadata-service templates
+  ansible.builtin.set_fact:
+    ib_hosts_entries: >-
+      {{ (_ib_hosts_block_raw.content | b64decode).splitlines()
+         | reject('match', '^#')
+         | reject('match', '^\s*$')
+         | list }}
+  when: _ib_hosts_block_stat.stat.exists
+
+- name: Default to empty IPoIB hosts entries
+  ansible.builtin.set_fact:
+    ib_hosts_entries: []
+  when: not _ib_hosts_block_stat.stat.exists
+
 - name: Load storage config for NFS paths
   ansible.builtin.include_vars:
     file: "{{ input_project_dir }}/storage_config.yml"
