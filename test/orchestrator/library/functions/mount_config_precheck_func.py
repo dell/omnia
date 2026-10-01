@@ -113,17 +113,36 @@ def validate_mount_params(
     mounts: list[dict[str, Any]],
     mount_params: dict[str, Any],
 ) -> list[str]:
-    """Return violation descriptions for unresolvable mount_params profiles."""
+    """Validate mount_params profile consistency.
+
+    Aligned with the Omnia 2.3 production behaviour: a missing profile
+    is **not** an error (production falls back to defaults).  Instead,
+    this validator checks that referenced profiles that **do** exist
+    contain valid string values for the expected fields.
+    """
+    _PROFILE_FIELDS = {"fs_type", "mnt_opts", "dump_freq", "fsck_pass"}
     violations = []
     for idx, mount in enumerate(mounts):
         name = mount.get("name", f"entry[{idx}]")
         profile_name = mount.get("mount_params")
         if not profile_name:
             continue
+        # Missing profile is accepted (production falls back to defaults)
         if profile_name not in mount_params:
+            continue
+        profile = mount_params[profile_name]
+        if not isinstance(profile, dict):
             violations.append(
-                f"{name}: mount_params='{profile_name}' not found"
+                f"{name}: mount_params='{profile_name}' is not a mapping"
             )
+            continue
+        for field in _PROFILE_FIELDS:
+            value = profile.get(field)
+            if value is not None and not isinstance(value, (str, int)):
+                violations.append(
+                    f"{name}: mount_params='{profile_name}'.{field} "
+                    f"has invalid type {type(value).__name__}"
+                )
     return violations
 
 
@@ -296,12 +315,19 @@ def check_precheck_mount_missing_targeting(host) -> dict[str, Any]:
 
 
 def check_precheck_mount_invalid_mount_params(host) -> dict[str, Any]:
-    """TC-CI-NEG-003: Verify mount_params references resolve to existing profiles.
+    """TC-CI-NEG-003: Verify mount_params profile consistency.
 
-    Validates the live config, then exercises the validator against a
-    controlled malformed fixture with a nonexistent profile reference.
+    Aligned with Omnia 2.3 production: a missing profile is accepted
+    (the runtime falls back to defaults).  This test validates that
+    **existing** profiles contain valid field types.
+
+    Phase 1: validate the live config.
+    Phase 2: exercise the validator against controlled malformed fixtures:
+      - A profile that is not a mapping (string instead of dict).
+      - A profile whose ``fs_type`` has an invalid type (list).
+      - A mount referencing a missing profile (must be accepted).
     """
-    summary = "Mount params profile resolution"
+    summary = "Mount params profile consistency"
     try:
         storage_config = _load_storage_config(host)
         mounts = _get_mounts(storage_config)
@@ -322,16 +348,44 @@ def check_precheck_mount_invalid_mount_params(host) -> dict[str, Any]:
         if not live_violations and mounts:
             fields.append(("  Live config", "OK"))
 
-        bad_mounts = [
-            {"name": "fixture_bad_profile", "mount_point": "/mnt/x",
-             "source": "10.0.0.1:/x", "mount_params": "nonexistent_profile"},
+        # Fixture: profile is not a mapping
+        bad_mounts_1 = [
+            {"name": "fixture_not_a_dict", "mount_point": "/mnt/x",
+             "source": "10.0.0.1:/x", "mount_params": "broken_profile"},
         ]
-        fixture_violations = validate_mount_params(bad_mounts, mount_params)
-        fixture_ok = len(fixture_violations) == 1
+        bad_params_1 = {"broken_profile": "this-is-a-string-not-a-dict"}
+        v1 = validate_mount_params(bad_mounts_1, bad_params_1)
+
+        # Fixture: profile field has invalid type
+        bad_mounts_2 = [
+            {"name": "fixture_bad_field", "mount_point": "/mnt/y",
+             "source": "10.0.0.1:/y", "mount_params": "bad_fields"},
+        ]
+        bad_params_2 = {"bad_fields": {"fs_type": ["nfs", "nfs4"]}}
+        v2 = validate_mount_params(bad_mounts_2, bad_params_2)
+
+        # Fixture: missing profile must be accepted (production fallback)
+        missing_mounts = [
+            {"name": "fixture_missing_ok", "mount_point": "/mnt/z",
+             "source": "10.0.0.1:/z", "mount_params": "does_not_exist"},
+        ]
+        v3 = validate_mount_params(missing_mounts, mount_params)
+
+        fixture_ok = len(v1) == 1 and len(v2) == 1 and len(v3) == 0
         fields.append((
-            "  Fixture rejection",
-            f"{'OK' if fixture_ok else 'FAIL'}: "
-            f"{len(fixture_violations)}/1 violations detected",
+            "  Fixture: not-a-dict rejected",
+            f"{'OK' if len(v1) == 1 else 'FAIL'}: "
+            f"{len(v1)}/1 violations",
+        ))
+        fields.append((
+            "  Fixture: bad field rejected",
+            f"{'OK' if len(v2) == 1 else 'FAIL'}: "
+            f"{len(v2)}/1 violations",
+        ))
+        fields.append((
+            "  Fixture: missing profile accepted",
+            f"{'OK' if len(v3) == 0 else 'FAIL'}: "
+            f"{len(v3)} violations (expect 0)",
         ))
 
         all_ok = not live_violations and fixture_ok
@@ -339,7 +393,7 @@ def check_precheck_mount_invalid_mount_params(host) -> dict[str, Any]:
         if live_violations:
             error = "Live: " + "; ".join(live_violations)
         if not fixture_ok:
-            error += ("; " if error else "") + "Fixture rejection failed"
+            error += ("; " if error else "") + "Fixture validation failed"
 
         return prepare_result(all_ok, summary, fields, error)
     except (OSError, TypeError, ValueError) as exc:

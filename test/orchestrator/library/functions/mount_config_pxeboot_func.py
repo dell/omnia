@@ -310,7 +310,12 @@ def check_mount_config_volume_mounted(host):
                         actual_fstype = parts[2]
                         break
 
-                if expected_source and actual_source:
+                if not actual_source:
+                    problems.append(
+                        "mounted but /proc/mounts has no entry "
+                        "(cannot verify source)"
+                    )
+                elif expected_source:
                     norm_expected = _normalize_nfs_source(expected_source)
                     norm_actual = _normalize_nfs_source(actual_source)
                     if norm_actual != norm_expected:
@@ -322,16 +327,34 @@ def check_mount_config_volume_mounted(host):
                 # 3. Filesystem type check
                 # When configured as "nfs", modern kernels may negotiate
                 # NFS4 and report "nfs4" in /proc/mounts. Both are valid.
+                # For this NFS suite, the observed type must be NFS-family
+                # even when the configured type is "auto".
                 _NFS_FAMILY = {"nfs", "nfs4"}
-                fstype_match = (
-                    not expected_fstype
-                    or expected_fstype == "auto"
-                    or not actual_fstype
-                    or actual_fstype == expected_fstype
-                    or (expected_fstype in _NFS_FAMILY
-                        and actual_fstype in _NFS_FAMILY)
-                )
-                if not fstype_match:
+                if not actual_fstype:
+                    problems.append(
+                        "mounted but filesystem type not determined"
+                    )
+                elif actual_fstype not in _NFS_FAMILY:
+                    if (
+                        expected_fstype
+                        and expected_fstype != "auto"
+                        and actual_fstype != expected_fstype
+                    ):
+                        problems.append(
+                            f"fstype={actual_fstype}, "
+                            f"expected={expected_fstype}"
+                        )
+                    else:
+                        problems.append(
+                            f"fstype={actual_fstype}, "
+                            f"expected NFS-family (nfs/nfs4)"
+                        )
+                elif (
+                    expected_fstype
+                    and expected_fstype != "auto"
+                    and expected_fstype not in _NFS_FAMILY
+                    and actual_fstype != expected_fstype
+                ):
                     problems.append(
                         f"fstype={actual_fstype}, "
                         f"expected={expected_fstype}"
@@ -536,8 +559,35 @@ def check_mount_config_fstab(host):
         return runtime_exception(summary, exc)
 
 
+def _resolve_node_key(host, row, node_key: str) -> str:
+    """Resolve node_key to its runtime value via cloud-init on the node."""
+    cmd = remote_command(
+        host, row,
+        PXEBOOT_COMMANDS["mount_config_node_key_value"] % node_key,
+    )
+    return cmd.stdout.strip()
+
+
+def _expected_bind_source(
+    mount_point: str, node_value: str, target: str,
+) -> str:
+    """Build the expected fstab/findmnt source for a bind mount.
+
+    Mirrors the production ``process_single_mount.yml`` pattern:
+      ``<mount_point>/<node_value><target>``
+    where *target* is an absolute path (starts with ``/``).
+    """
+    return f"{mount_point}/{node_value}{target}"
+
+
 def check_mount_config_bind_mounts(host):
-    """Verify NFS bind mount targets are active on all target nodes."""
+    """Verify NFS bind mount targets are active with correct source.
+
+    For each bind target on each node:
+    1. Checks that the target path is an active mountpoint.
+    2. Uses ``findmnt`` to verify the bind source matches the expected
+       per-node path ``<mount_point>/<node_key_value><target>``.
+    """
     summary = "NFS bind mounts"
     try:
         context = load_runtime_context(host)
@@ -556,23 +606,62 @@ def check_mount_config_bind_mounts(host):
         outcomes = {}
         for mount_item in bind_mounts:
             mount_point = mount_item.get("mount_point", "")
+            node_key = mount_item.get("node_key", "local_hostname")
             node_mount_points = mount_item.get("node_mount_point", [])
             if isinstance(node_mount_points, str):
                 node_mount_points = [node_mount_points]
             rows = _target_rows(context, mount_item)
             for row in rows:
+                node_value = _resolve_node_key(host, row, node_key)
+                if not node_value:
+                    for target in node_mount_points:
+                        key = f"{row['HOSTNAME']}:{target}"
+                        outcomes[key] = (
+                            False,
+                            f"cannot resolve node_key={node_key}",
+                        )
+                    continue
+
                 for target in node_mount_points:
-                    cmd = remote_command(
+                    key = f"{row['HOSTNAME']}:{target}"
+                    problems = []
+
+                    # 1. Active mountpoint check
+                    mp_cmd = remote_command(
                         host, row,
                         PXEBOOT_COMMANDS["mount_config_mountpoint_check"]
                         % target,
                     )
-                    key = f"{row['HOSTNAME']}:{target}"
-                    output = cmd.stdout.strip().upper()
-                    if output == "MOUNTED":
-                        outcomes[key] = (True, "bind mounted")
-                    else:
+                    if mp_cmd.stdout.strip().upper() != "MOUNTED":
                         outcomes[key] = (False, "bind not mounted")
+                        continue
+
+                    # 2. Verify bind source via findmnt
+                    expected_src = _expected_bind_source(
+                        mount_point, node_value, target,
+                    )
+                    findmnt_cmd = remote_command(
+                        host, row,
+                        f"findmnt -rn -o SOURCE {target}",
+                    )
+                    actual_src = findmnt_cmd.stdout.strip()
+                    if not actual_src:
+                        problems.append(
+                            "mounted but findmnt returned no source"
+                        )
+                    elif actual_src.rstrip("/") != expected_src.rstrip("/"):
+                        problems.append(
+                            f"source={actual_src}, "
+                            f"expected={expected_src}"
+                        )
+
+                    if problems:
+                        outcomes[key] = (False, "; ".join(problems))
+                    else:
+                        outcomes[key] = (
+                            True,
+                            f"bind mounted from {actual_src}",
+                        )
 
         failed = [k for k, v in outcomes.items() if not v[0]]
         fields = [("Bind mount checks", len(outcomes))]
@@ -590,7 +679,15 @@ def check_mount_config_bind_mounts(host):
 
 
 def check_mount_config_bind_fstab(host):
-    """Verify NFS bind mount fstab entries are persistent on target nodes."""
+    """Verify NFS bind mount fstab entries are persistent on target nodes.
+
+    Parses ``/etc/fstab`` fields and compares the exact per-node source
+    (field 0), bind target (field 1), and bind option (field 3).
+
+    Expected fstab source mirrors the production
+    ``process_single_mount.yml`` pattern:
+      ``<mount_point>/<node_key_value><target>``
+    """
     summary = "NFS bind fstab entries"
     try:
         context = load_runtime_context(host)
@@ -609,11 +706,22 @@ def check_mount_config_bind_fstab(host):
         outcomes = {}
         for mount_item in bind_mounts:
             mount_point = mount_item.get("mount_point", "")
+            node_key = mount_item.get("node_key", "local_hostname")
             node_mount_points = mount_item.get("node_mount_point", [])
             if isinstance(node_mount_points, str):
                 node_mount_points = [node_mount_points]
             rows = _target_rows(context, mount_item)
             for row in rows:
+                node_value = _resolve_node_key(host, row, node_key)
+                if not node_value:
+                    for target in node_mount_points:
+                        key = f"{row['HOSTNAME']}:{target}"
+                        outcomes[key] = (
+                            False,
+                            f"cannot resolve node_key={node_key}",
+                        )
+                    continue
+
                 cmd = remote_command(
                     host, row,
                     PXEBOOT_COMMANDS["mount_config_fstab_read"],
@@ -621,24 +729,39 @@ def check_mount_config_bind_fstab(host):
                 fstab_content = cmd.stdout.strip()
                 for target in node_mount_points:
                     key = f"{row['HOSTNAME']}:{target}"
+                    expected_src = _expected_bind_source(
+                        mount_point, node_value, target,
+                    )
                     found = False
+                    source_mismatch = ""
                     for line in fstab_content.split("\n"):
                         stripped = line.strip()
                         if not stripped or stripped.startswith("#"):
                             continue
                         flds = stripped.split()
+                        if len(flds) < 4:
+                            continue
+                        if flds[1] != target or "bind" not in flds[3]:
+                            continue
+                        # Found a bind entry for this target; verify source
                         if (
-                            len(flds) >= 4
-                            and flds[1] == target
-                            and "bind" in flds[3]
+                            flds[0].rstrip("/")
+                            == expected_src.rstrip("/")
                         ):
                             found = True
-                            break
-                    outcomes[key] = (
-                        (True, "bind fstab present")
-                        if found
-                        else (False, "bind fstab missing")
-                    )
+                        else:
+                            source_mismatch = flds[0]
+                        break
+                    if found:
+                        outcomes[key] = (True, "bind fstab present")
+                    elif source_mismatch:
+                        outcomes[key] = (
+                            False,
+                            f"bind fstab source={source_mismatch}, "
+                            f"expected={expected_src}",
+                        )
+                    else:
+                        outcomes[key] = (False, "bind fstab missing")
 
         failed = [k for k, v in outcomes.items() if not v[0]]
         fields = [("Bind fstab checks", len(outcomes))]
