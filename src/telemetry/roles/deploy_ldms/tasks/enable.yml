@@ -117,6 +117,18 @@
   ansible.builtin.set_fact:
     ldms_aggregator_target_replicas: 1
 
+- name: Get current LDMS aggregator replica count
+  ansible.builtin.command: >
+    kubectl get statefulset {{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }}
+    -o jsonpath='{.spec.replicas}'
+  register: ldms_aggregator_current_replicas
+  changed_when: false
+  failed_when: false
+  when:
+    - ldms_is_reenable
+    - ldms_aggregator_exists.rc == 0
+
 - name: Restore LDMS aggregator replicas (re-enable)
   ansible.builtin.command: >
     kubectl scale statefulset {{ ldms_aggregator_name }}
@@ -127,6 +139,7 @@
   when:
     - ldms_is_reenable
     - ldms_aggregator_exists.rc == 0
+    - (ldms_aggregator_current_replicas.stdout | default('0') | int) != (ldms_aggregator_target_replicas | int)
 
 - name: Get all LDMS store StatefulSets
   ansible.builtin.command: >
@@ -143,17 +156,35 @@
     ldms_store_target_replicas: 1
   when: ldms_is_reenable | bool
 
+- name: Get current LDMS store replica counts
+  ansible.builtin.command: >
+    kubectl get statefulset {{ item }}
+    -n {{ telemetry_namespace }}
+    -o jsonpath='{.spec.replicas}'
+  register: ldms_store_current_replicas
+  changed_when: false
+  failed_when: false
+  loop: "{{ ldms_store_statefulsets.stdout.split() }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - ldms_is_reenable | bool
+    - ldms_store_statefulsets.stdout | default('') | length > 0
+
 - name: Restore LDMS store replicas (re-enable)
   ansible.builtin.command: >
-    kubectl scale statefulset {{ item }}
+    kubectl scale statefulset {{ item.item }}
     -n {{ telemetry_namespace }}
     --replicas={{ ldms_store_target_replicas }}
-  loop: "{{ ldms_store_statefulsets.stdout.split() }}"
   register: restore_store_result
   changed_when: "'scaled' in restore_store_result.stdout"
+  loop: "{{ ldms_store_current_replicas.results }}"
+  loop_control:
+    label: "{{ item.item }}"
   when:
-    - ldms_is_reenable
+    - ldms_is_reenable | bool
     - ldms_store_statefulsets.stdout | default('') | length > 0
+    - (item.stdout | default('0') | int) != (ldms_store_target_replicas | int)
 
 - name: Log LDMS workload restoration
   ansible.builtin.debug:
@@ -213,9 +244,6 @@
   register: vector_ldms_exists
   changed_when: false
   failed_when: false
-  when:
-    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
-    - victoria_metrics_support | default(false) | bool
 
 - name: Get configured Vector-LDMS replica count
   ansible.builtin.set_fact:
@@ -242,6 +270,17 @@
   when:
     - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
     - victoria_metrics_support | default(false) | bool
+
+- name: Scale down Vector-LDMS when disabled
+  ansible.builtin.command: >
+    kubectl scale deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }} --replicas=0
+  register: scale_down_vector_result
+  changed_when: "'scaled' in scale_down_vector_result.stdout"
+  failed_when: false
+  when:
+    - not (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool)
+    - vector_ldms_exists.rc == 0
 
 # =============================================================================
 # Phase 6: Verify PVC UID preservation (re-enable only)

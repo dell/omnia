@@ -18,22 +18,18 @@
 # =============================================================================
 # Disables LDMS telemetry by:
 #   1. Scaling down LDMS aggregator and store workloads to zero
-#   2. Stopping and disabling LDMS sampler services on managed nodes
-#   3. Stopping Vector-LDMS bridge
-#   4. Preserving all PVCs, secrets, and configuration for future re-enablement
+#   2. Scaling down Vector-LDMS bridge to zero
+#   3. Preserving all PVCs, secrets, and configuration for future re-enablement
 #
-# This stops LDMS telemetry while preserving its configuration and data.
+# Note: LDMS sampler services on slurm nodes are NOT stopped during disable.
+# They continue running but won't be able to send data to the scaled-down aggregator.
+# This stops LDMS telemetry collection while preserving configuration and data.
 # =============================================================================
 
 - name: Load telemetry configuration
   ansible.builtin.include_role:
     name: common
     tasks_from: load_telemetry_config
-
-- name: Derive sink support flags
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: derive_sink_support_flags
 
 # =============================================================================
 # Phase 1: Scale down LDMS aggregator workloads
@@ -63,6 +59,13 @@
     -n {{ telemetry_namespace }} --replicas=0
   register: scale_down_aggregator_result
   changed_when: "'scaled' in scale_down_aggregator_result.stdout"
+  when:
+    - ldms_aggregator_check.rc == 0
+    - ldms_aggregator_replicas.stdout | default('0') | int > 0
+
+- name: Wait for LDMS aggregator pods to terminate
+  ansible.builtin.pause:
+    seconds: 30
   when:
     - ldms_aggregator_check.rc == 0
     - ldms_aggregator_replicas.stdout | default('0') | int > 0
@@ -103,57 +106,18 @@
   changed_when: "'scaled' in scale_down_store_result.stdout"
   when: ldms_store_statefulsets.stdout | default('') | length > 0
 
+- name: Wait for LDMS store pods to terminate
+  ansible.builtin.pause:
+    seconds: 30
+  when: ldms_store_statefulsets.stdout | default('') | length > 0
+
 - name: Log LDMS store scale down
   ansible.builtin.debug:
     msg: "Scaled down LDMS store StatefulSets: {{ ldms_store_statefulsets.stdout.split() | join(', ') }}"
   when: ldms_store_statefulsets.stdout | default('') | length > 0
 
 # =============================================================================
-# Phase 3: Stop and disable LDMS sampler services on managed nodes
-# =============================================================================
-
-- name: Load slurm inventory for sampler node targeting
-  when:
-    - slurm_inventory_file | default('') | length > 0
-    - not (skip_sampler_config | default(false) | bool)
-  block:
-    - name: Read slurm inventory
-      ansible.builtin.include_vars:
-        file: "{{ slurm_inventory_file }}"
-        name: slurm_inv
-
-    - name: Set slurm node group from inventory
-      ansible.builtin.set_fact:
-        _slurm_node_group: "{{ slurm_inv.all.children | default([]) }}"
-      delegate_to: localhost
-
-- name: Stop LDMS sampler services on managed nodes
-  ansible.builtin.systemd:
-    name: "{{ ldms_sampler.service_name }}"
-    state: stopped
-  delegate_to: "{{ item }}"
-  loop: "{{ _slurm_node_group | default([]) }}"
-  register: sampler_stop_result
-  failed_when: false
-  when: _slurm_node_group | default([]) | length > 0
-
-- name: Disable LDMS sampler services on managed nodes
-  ansible.builtin.systemd:
-    name: "{{ ldms_sampler.service_name }}"
-    enabled: false
-  delegate_to: "{{ item }}"
-  loop: "{{ _slurm_node_group | default([]) }}"
-  register: sampler_disable_result
-  failed_when: false
-  when: _slurm_node_group | default([]) | length > 0
-
-- name: Log LDMS sampler service disable
-  ansible.builtin.debug:
-    msg: "Stopped and disabled LDMS sampler services on {{ _slurm_node_group | default([]) | length }} managed node(s)"
-  when: _slurm_node_group | default([]) | length > 0
-
-# =============================================================================
-# Phase 4: Stop Vector-LDMS bridge
+# Phase 3: Stop Vector-LDMS bridge
 # =============================================================================
 
 - name: Check if Vector-LDMS deployment exists
@@ -184,6 +148,13 @@
     - vector_ldms_check.rc == 0
     - vector_ldms_replicas.stdout | default('0') | int > 0
 
+- name: Wait for Vector-LDMS pods to terminate
+  ansible.builtin.pause:
+    seconds: 30
+  when:
+    - vector_ldms_check.rc == 0
+    - vector_ldms_replicas.stdout | default('0') | int > 0
+
 - name: Log Vector-LDMS scale down
   ansible.builtin.debug:
     msg: "Scaled down Vector-LDMS bridge ({{ vector.ldms.app_name }}) from {{ vector_ldms_replicas.stdout | default('0') }} to 0 replicas"
@@ -192,7 +163,7 @@
     - vector_ldms_replicas.stdout | default('0') | int > 0
 
 # =============================================================================
-# Phase 5: Update status
+# Phase 4: Update status
 # =============================================================================
 
 - name: Update LDMS telemetry status

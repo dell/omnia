@@ -34,6 +34,7 @@ Each transition:
     - Modifies telemetry_config.yml
     - Runs telemetry playbook (deploy tag)
     - Verifies expected pod states
+    - Verifies status reporting (deployed/disabled/skipped)
     - Note: cleanup_ldms is NOT run (would require interactive credentials)
 
 Test case:
@@ -85,6 +86,15 @@ def _get_config_path(host):
         domain_data_path_var=ENV_TELEMETRY_DATA_PATH,
     )
     return f"{input_path}/{TELEMETRY_CONFIG_FILE}"
+
+
+def _get_status_path(host):
+    """Get the full path to telemetry_status.yml on the target host."""
+    # Status file is in <OMNIA_DATA_PATH>/<domain>/output/<project_name>/telemetry_status.yml
+    # Not in input directory like config files
+    data_path = host.check_output(f"echo ${ENV_OMNIA_DATA_PATH}").strip()
+    project_name = host.check_output(f"echo ${ENV_OMNIA_PROJECT_NAME}").strip()
+    return f"{data_path}/{DOMAIN_NAME}/output/{project_name}/telemetry_status.yml"
 
 
 def _update_ldms_config(host, ldms_enabled, vector_enabled):
@@ -160,6 +170,120 @@ def _update_ldms_config(host, ldms_enabled, vector_enabled):
     return {
         "success": True,
         "message": f"Updated config: LDMS={ldms_enabled}, Vector-LDMS={vector_enabled}"
+    }
+
+
+def _verify_status_reporting(host, ldms_enabled, vector_enabled):
+    """Verify LDMS and Vector-LDMS status in telemetry_status.yml.
+
+    Args:
+        host: Testinfra host connection
+        ldms_enabled: bool - Expected LDMS state
+        vector_enabled: bool - Expected Vector-LDMS state
+
+    Returns:
+        dict: Result with 'success', 'details', and 'message' keys
+    """
+    status_path = _get_status_path(host)
+
+    # Read status file
+    read_cmd = f"cat {status_path}"
+    result = run_on_host(host, read_cmd)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Failed to read status file: {result.stderr}",
+            "message": "Status file read failed"
+        }
+
+    try:
+        status_data = yaml.safe_load(result.stdout)
+    except yaml.YAMLError as e:
+        return {
+            "success": False,
+            "details": f"Failed to parse YAML: {e}",
+            "message": "Status file parse failed"
+        }
+
+    details = []
+    all_success = True
+
+    # Extract LDMS status (actual YAML structure is nested)
+    ldms_status = None
+    sources = status_data.get("sources", {})
+    if "ldms" in sources:
+        ldms_source = sources["ldms"]
+        # Structure: ldms: { metrics: "deployed" }
+        if isinstance(ldms_source, dict):
+            ldms_status = ldms_source.get("metrics")
+        else:
+            # Fallback for flat format
+            if "metrics=" in str(ldms_source):
+                ldms_status = str(ldms_source).split("metrics=")[1].split(",")[0].strip()
+
+    # Extract Vector-LDMS status
+    vector_status = None
+    bridges = status_data.get("bridges", {})
+    if "vector_ldms" in bridges:
+        vector_status = bridges["vector_ldms"]
+
+    # Determine expected status based on configuration
+    # Note: For first deployment with disabled, status is "skipped"
+    # For disabled after deployment, status is "disabled"
+    # Since we don't track deployment history, we accept both "disabled" and "skipped" when disabled
+    if ldms_enabled:
+        expected_ldms = "deployed"
+    else:
+        expected_ldms = ["disabled", "skipped"]  # Accept either when disabled
+
+    if vector_enabled and ldms_enabled:
+        expected_vector = "deployed"
+    else:
+        expected_vector = ["disabled", "skipped"]  # Accept either when disabled
+
+    # Verify LDMS status
+    if isinstance(expected_ldms, list):
+        if ldms_status not in expected_ldms:
+            all_success = False
+            details.append(
+                f"✗ LDMS status: Expected one of {expected_ldms}, got '{ldms_status}'"
+            )
+        else:
+            details.append(f"✓ LDMS status: {ldms_status}")
+    else:
+        if ldms_status != expected_ldms:
+            all_success = False
+            details.append(
+                f"✗ LDMS status: Expected '{expected_ldms}', got '{ldms_status}'"
+            )
+        else:
+            details.append(f"✓ LDMS status: {ldms_status}")
+
+    # Verify Vector-LDMS status
+    if isinstance(expected_vector, list):
+        if vector_status not in expected_vector:
+            all_success = False
+            details.append(
+                f"✗ Vector-LDMS status: Expected one of {expected_vector}, got '{vector_status}'"
+            )
+        else:
+            details.append(f"✓ Vector-LDMS status: {vector_status}")
+    else:
+        if vector_status != expected_vector:
+            all_success = False
+            details.append(
+                f"✗ Vector-LDMS status: Expected '{expected_vector}', got '{vector_status}'"
+            )
+        else:
+            details.append(f"✓ Vector-LDMS status: {vector_status}")
+
+    return {
+        "success": all_success,
+        "details": "\n".join(details),
+        "message": (
+            "Status reporting matches expected state" if all_success
+            else "Status reporting does not match expected state"
+        )
     }
 
 
@@ -284,6 +408,21 @@ def _run_transition(host, tl, transition_num, ldms_enabled, vector_enabled):
         + verify_result["details"]
     )
 
+    # Verify status reporting
+    status_result = _verify_status_reporting(host, ldms_enabled, vector_enabled)
+
+    if not status_result["success"]:
+        tl.failed(
+            f"Transition {transition_num} failed: Status reporting incorrect",
+            status_result["details"]
+        )
+        pytest.fail(status_result["message"])
+
+    tl.info(
+        f"Transition {transition_num} status reporting verified:\n"
+        + status_result["details"]
+    )
+
     return True
 
 
@@ -304,8 +443,9 @@ def test_ldms_config_transitions(host):
       3. Transition: LDMS=false, Vector=false (both disabled)
       4. Restore: LDMS=true, Vector=true (both re-enabled)
 
-    Each transition verifies pod states and runs cleanup to prepare for
-    the next state.
+    Each transition verifies:
+      - Pod states (scaled to 0 when disabled, running when enabled)
+      - Status reporting (deployed/disabled/skipped)
     """
     tc = TC.get("nft_ldms_transitions", {
         "id": "TEL_NFT_LDMS_001",
