@@ -82,13 +82,13 @@
              | ansible.builtin.combine }}
       delegate_to: localhost
 
-    - name: Check if IPoIB IPv6 is enabled
+    - name: Check if IPoIB addressing is enabled
       ansible.builtin.set_fact:
         _ib_ipv6_enabled: >-
           {{ (_ib_ipv6_network_data.ib_network.ib_addr_mode | default(''))
-             in ['ipv6-only', 'dual-stack'] }}
+             in ['ipv4-only', 'ipv6-only', 'dual-stack'] }}
 
-    - name: Skip IPoIB IPv6 when not enabled
+    - name: Skip IPoIB configuration when not enabled
       ansible.builtin.debug:
         msg: >-
           [IB-IPv6] Skipping — ib_addr_mode is
