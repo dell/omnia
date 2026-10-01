@@ -39,7 +39,7 @@
 
     - name: Check slurmctld is reachable
       ansible.builtin.fail:
-        msg: "Failed to connect to {{ ctld }}."
+        msg: "{{ controller_reachability_fail_msg }}"
       when: service_facts is unreachable
 
     - name: Update ctld_state if slurmctld is running
@@ -112,6 +112,4 @@
   rescue:
     - name: Fail if slurmctld is not running on any host
       ansible.builtin.debug:
-        msg: "Failed to 'scontrol reconfigure' on {{ ctld }}.
-         As task '{{ ansible_failed_task.name }}' failed.
-         results: {{ ansible_failed_result }}"
+        msg: "Failed to 'scontrol reconfigure' on {{ ctld }}. As task '{{ ansible_failed_task.name }}' failed. results: {{ ansible_failed_result }}"

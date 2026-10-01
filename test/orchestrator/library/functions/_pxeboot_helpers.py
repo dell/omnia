@@ -524,3 +524,68 @@ def wait_for_remote_command(
         )
         time.sleep(poll_seconds)
     return False, detail
+
+
+# ---------------------------------------------------------------------------
+# Functional-group identity parsing
+# ---------------------------------------------------------------------------
+
+# Architectures and OS names recognised by the Orchestrator.  These values
+# match the canonical list in
+# ``src/orchestrator/plugins/modules/generate_functional_groups.py``.
+SUPPORTED_ARCHITECTURES: tuple[str, ...] = ("x86_64", "aarch64")
+SUPPORTED_OS_NAMES: tuple[str, ...] = ("rhel", "rocky", "ubuntu", "sles")
+
+_ARCH_RE = re.compile(
+    r"_(?P<arch>" + "|".join(SUPPORTED_ARCHITECTURES) + r")$"
+)
+_OS_VERSION_RE = re.compile(
+    r"_(?P<os>" + "|".join(SUPPORTED_OS_NAMES) + r")"
+    r"(?P<ver>(?:_[0-9]+)+)"
+    r"(?=_(?:" + "|".join(SUPPORTED_ARCHITECTURES) + r")$)"
+)
+
+
+def parse_fg_identity(
+    fg_name: str,
+) -> tuple[str | None, str | None, str | None]:
+    """Extract ``(architecture, os_id, os_version)`` from a functional-group name.
+
+    Examples::
+
+        >>> parse_fg_identity("slurm_node_rhel_10_0_x86_64")
+        ('x86_64', 'rhel', '10.0')
+        >>> parse_fg_identity("slurm_node_x86_64")
+        ('x86_64', None, None)
+        >>> parse_fg_identity("custom_group")
+        (None, None, None)
+
+    Returns ``(None, None, None)`` when the name does not end with a
+    recognised architecture suffix.
+    """
+    arch_match = _ARCH_RE.search(fg_name)
+    if not arch_match:
+        return None, None, None
+    architecture = arch_match.group("arch")
+
+    os_match = _OS_VERSION_RE.search(fg_name)
+    if not os_match:
+        return architecture, None, None
+    os_id = os_match.group("os")
+    os_version = os_match.group("ver").lstrip("_").replace("_", ".")
+    return architecture, os_id, os_version
+
+
+def fg_prefix_without_os(fg_name: str) -> str:
+    """Return the role prefix by stripping the optional OS version and arch suffix.
+
+    Examples::
+
+        >>> fg_prefix_without_os("slurm_control_node_rhel_10_0_x86_64")
+        'slurm_control_node'
+        >>> fg_prefix_without_os("slurm_control_node_x86_64")
+        'slurm_control_node'
+    """
+    stripped = _OS_VERSION_RE.sub("", fg_name)
+    stripped = _ARCH_RE.sub("", stripped)
+    return stripped

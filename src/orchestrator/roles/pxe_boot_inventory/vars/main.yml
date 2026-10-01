@@ -1,0 +1,63 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+pxe_boot_inventory_required_columns:
+  - BMC_IP
+  - ADMIN_IP
+  - BMC_MAC
+  - ADMIN_MAC
+  - HOSTNAME
+  - SERVICE_TAG
+pxe_boot_inventory_custom_inventory_msg: >-
+  Using custom PXE boot inventory: {{ pxeboot_inventory_source }}
+pxe_boot_inventory_missing_file_msg: >-
+  PXE inventory file not found at {{ pxeboot_inventory_source }}.
+pxe_boot_inventory_empty_file_msg: >-
+  PXE inventory {{ pxeboot_inventory_source }} does not contain node records.
+pxe_boot_inventory_missing_column_msg: >-
+  PXE inventory {{ pxeboot_inventory_source }} is missing required column
+  {{ item }}.
+pxe_boot_inventory_invalid_address_msg: >-
+  Invalid PXE inventory row for {{ item.HOSTNAME | default('unknown host') }}.
+  BMC_IP and ADMIN_IP must contain valid IP addresses.
+pxe_boot_inventory_duplicate_address_msg: >-
+  PXE inventory {{ pxeboot_inventory_source }} contains duplicate BMC_IP or
+  ADMIN_IP values. Every node must have unique addresses.
+pxe_boot_inventory_missing_identity_msg: >-
+  SMD Hardware Inventory is missing Service Tag identities for:
+  {{ _pxeboot_identity_result.planned_inventory_xnames | join(', ') }}. Run the
+  provision phase before PXE boot.
+pxe_boot_inventory_missing_status_msg: >-
+  Cannot safely select pending PXE nodes because
+  {{ orchestrator_output_dir }}/orchestrator_status.yml does not exist. Run the
+  provision phase first, or explicitly use -e pxeboot_scope=all.
+pxe_boot_inventory_invalid_status_msg: >-
+  Cannot safely select pending PXE nodes because orchestrator_status.yml is
+  malformed. Run provision again, or explicitly use -e pxeboot_scope=all.
+pxe_boot_inventory_missing_lifecycle_msg: >-
+  Cannot safely select pending PXE nodes because lifecycle state is missing for
+  XNAME(s): {{ _pxeboot_identity_result.nodes | map(attribute='XNAME') | list
+  | difference(_pxeboot_selection_status_by_xname.keys() | list) | join(', ') }}.
+  Run provision again, or explicitly use -e pxeboot_scope=all.
+pxe_boot_inventory_provisioning_incomplete_msg: >-
+  Cannot safely start PXE because provisioning is incomplete for XNAME(s):
+  {{ _pxeboot_provisioning_blocked_xnames | join(', ') }}. Run provision again
+  and resolve all failed nodes before PXE boot.
+pxe_boot_inventory_selection_msg: >-
+  Selected {{ pxeboot_effective_nodes | length }} of
+  {{ _pxeboot_identity_result.nodes | length }} mapped nodes that require
+  reprovisioning.
+pxe_boot_inventory_no_hosts_msg: >-
+  No BMC hosts found in {{ pxeboot_inventory_source }}. Ensure the BMC_IP column
+  is populated.

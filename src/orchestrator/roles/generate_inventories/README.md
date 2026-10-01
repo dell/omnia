@@ -17,7 +17,7 @@ node registration.
 - Nodes registered in SMD and the in-memory mapping populated with XNAMEs.
 - `functional_groups_config.yml` generated for the active project.
 - Orchestrator output paths and permission facts established by setup.
-- Access to the shared inventory templates under `configure_ochami`.
+- Inventory templates owned by this role.
 
 ## Role Variables
 

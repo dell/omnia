@@ -306,10 +306,21 @@ When `enable_pxe_boot` is true, Orchestrator:
 5. Optionally connects to each node over SSH.
 6. Verifies that the boot timestamp is newer than the PXE request.
 7. Verifies cloud-init completion with the node-local `node_boot_status` module.
-8. Writes `pxeboot_status.yml`, `failed_nodes.json`, and the aggregate status.
+8. Writes `failed_nodes.json` and the aggregate lifecycle status.
 
 A successful verified boot clears pending metadata application state. A boot
 without node verification is reported as initiated but unverified.
+
+VMs and manually booted physical nodes use the separate
+`verify_node_registration` tag. It skips Redfish, selects pending nodes from
+the aggregate status, and applies the same fresh-boot and cloud-init checks over
+SSH. Successful results retain `state: success` and record
+`trigger_method: external`.
+
+For recovery after an Orchestrator PXE failure, the PXE workflow must finish
+and persist its aggregate status before the operator starts the external boot.
+That persisted timestamp is the external verifier's freshness boundary, so an
+earlier boot is rejected as stale and does not clear the reprovision gate.
 
 ### Step 6: Cleanup
 
@@ -446,7 +457,6 @@ orchestrator/
 |   +-- .data/functional_groups_config.yml
 |   +-- orchestrator_state.yml
 |   +-- provisioning_report.yml
-|   +-- pxeboot_status.yml
 |   +-- orchestrator_status.yml
 |   +-- failed_nodes.json
 +-- log/
@@ -482,8 +492,8 @@ is not automatically observed.
 | `functional_groups_config.yml` | Functional-group generation | Provisioning and validation |
 | `orchestrator_state.yml` | Setup lifecycle | Standalone provision phases |
 | `provisioning_report.yml` | Provision validation | PXE and operators |
-| `pxeboot_status.yml` | PXE workflow | Operators and automation |
 | `orchestrator_status.yml` | Provision and PXE workflows | Resume, reporting, and operators |
+| `failed_nodes.json` | PXE workflow | Failure-only consumers and BuildStream |
 | Generated inventories | Inventory generation | Kubernetes, Slurm, telemetry, and validation |
 
 See [`contracts/input-contract.md`](contracts/input-contract.md) and
@@ -584,7 +594,7 @@ continue from a known desired-state input.
 | `roles/orchestrator_setup/` | Environment, path, tag, inventory, and persisted-state setup |
 | `roles/orchestrator_validations/` | Cross-file, image, storage, mapping, and environment prerequisites |
 | `roles/provision_common/` | Active category registration and OpenCHAMI publication |
-| `roles/configure_ochami/` | Shared OpenCHAMI templates and service task library |
+| `roles/orchestrator_node_topology/` | Shared node, address, functional-group, and Slurm topology facts |
 | `roles/<category>_config/` | Kubernetes, Slurm, mount, LDAP, and other bolt-on configuration |
 | `roles/validate_provisioning/` | Desired-state readback and lifecycle reports |
 | `roles/idrac_pxe_boot/` | Dell iDRAC one-time boot and reset operation |
@@ -595,9 +605,11 @@ continue from a known desired-state input.
 | `containers/omnia_auth/` | Optional OpenLDAP container source |
 | `docs/contracts/` | Maintained input and output interfaces |
 
-`configure_ochami` owns reusable templates and focused service tasks.
-`provision_common` coordinates those resources through the category
-provisioning workflow; it is the supported lifecycle entry point.
+`provision_common` owns the reusable OpenCHAMI templates and focused service
+tasks used by the category provisioning workflow. Inventory-only templates
+remain with `generate_inventories`. Shared topology calculation is exposed
+through `orchestrator_node_topology`, while `slurm_config` publishes its
+metadata-rendering context through a named role task interface.
 
 ### Ansible Plugin and Dependency Boundaries
 
