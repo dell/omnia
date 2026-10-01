@@ -63,6 +63,9 @@ ansible-playbook orchestrator.yml --tags pxeboot
 
 # Explicitly PXE boot every mapped node instead of only pending/failed nodes
 ansible-playbook orchestrator.yml --tags pxeboot -e pxeboot_scope=all
+
+# Verify pending nodes after a manual or hypervisor-triggered boot
+ansible-playbook orchestrator.yml --tags verify_node_registration
 ```
 
 By default, the standard Orchestrator flow reads `orchestrator_status.yml` and
@@ -79,6 +82,21 @@ Run provisioning to regenerate lifecycle state, or pass the extra variable
 An explicit `pxeboot_inventory` remains an operator-selected subset and is not
 filtered again. The BuildStream job flow continues using its existing generated
 effective inventory and restart-state behavior.
+
+The `verify_node_registration` tag is intended for VMs without iDRAC and for
+physical nodes booted manually after an iDRAC operation fails. It selects only
+nodes still marked `reprovision_required`, performs no Redfish operation, and
+uses the existing SSH/cloud-init verifier. On success, both boot paths record
+`pxeboot.state: success`; `pxeboot.trigger_method` is `orchestrator` for the normal
+PXE path and `external` for this verification-only path.
+This verification flow is opt-in and is skipped when `orchestrator.yml` is run
+without tags.
+
+When recovering from a failed Orchestrator PXE attempt, wait for the `pxeboot`
+workflow to finish and persist `orchestrator_status.yml` before manually
+booting the affected node. The external verifier uses the persisted lifecycle
+status timestamp as its freshness boundary. A node booted before that report
+is finalized remains `reprovision_required` and is reported as a stale boot.
 
 ## Configuration
 
@@ -136,20 +154,17 @@ The play writes all lifecycle reports under
 `$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/`, including on a
 successful run:
 
-- `pxeboot_status.yml`: PXE and verification result for every node attempted
-  by the current run.
 - `failed_nodes.json`: failure-only report; `failed_nodes` is an
   empty array when all nodes succeed.
 - `orchestrator_status.yml`: stable aggregate of provisioning and PXE phase
   status. An existing `provisioning_report.yml` is retained and correlated by
   XNAME only when its `inventory_source` matches the active PXE inventory.
 
-During a standard pending-node retry, `pxeboot_status.yml` and
-`failed_nodes.json` describe only the attempted subset, while
-`orchestrator_status.yml` retains the latest records for nodes that were not
-selected and replaces the records for nodes that were retried. This prevents a
-one-node retry from erasing successful lifecycle state for the rest of the
-cluster.
+During a standard pending-node retry, `failed_nodes.json` describes failures
+only in the attempted subset, while `orchestrator_status.yml` retains the latest
+records for nodes that were not selected and replaces the records for nodes that
+were retried. This prevents a one-node retry from erasing successful lifecycle
+state for the rest of the cluster.
 
 The aggregate schema is not replaced by a phase-specific schema. Its
 `last_completed_phase` changes to `pxeboot`, and its `phases` map retains the
@@ -158,7 +173,7 @@ provisioning status and adds the PXE status.
 ### Success
 
 - Exit code: `0`
-- `pxeboot_status.yml` reports `overall_status: success`.
+- `orchestrator_status.yml` records a successful PXE phase.
 - `failed_nodes.json` contains an empty `failed_nodes` array.
 
 ### Failure
@@ -309,8 +324,8 @@ ansible-playbook orchestrator.yml --tags pxeboot
 4. **PXE Boot**: Set PXE boot on each iDRAC and restart nodes
 5. **Report**: Collect PXE boot failures
 6. **Node Registration**: Verify fresh boot and cloud-init concurrently (if enabled)
-7. **Final Report**: Generate `pxeboot_status.yml`, `failed_nodes.json`, and
-   the aggregate `orchestrator_status.yml`, then exit
+7. **Final Report**: Generate `failed_nodes.json` and the aggregate
+   `orchestrator_status.yml`, then exit
 
 ### Roles Used
 

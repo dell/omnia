@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # Usage: deploy_openchami.yml
 openchami_share_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/openchami"
 dir_permissions_755: "0755"
@@ -166,3 +165,37 @@ coredhcp_custom_ipxe: "default"
 coredhcp_tftp_single_port_mode: true
 
 # Legacy (pre-fabrica) service lists moved to playbooks/upgrade/upgrade_openchami.yml
+# Centralized failure messages
+pg_init_script_fail_msg: >-
+  The OpenCHAMI PostgreSQL initialization script is missing or unreadable.
+  It could not be restored from
+  {{ openchami_work_dir }}/{{ openchami_rpm_name }}. Refusing to start
+  OpenCHAMI because the SMD database and role would not be initialized.
+postgres_service_fail_msg: >-
+  postgres is not running after {{ max_retries }} retries
+  (state={{ openchami_postgres_status.status.ActiveState }}).
+  Logs: {{ postgres_logs.stdout | default('unavailable') }}
+  {{ postgres_logs.stderr | default('') }}
+boot_service_fail_msg: >-
+  boot-service is not running after {{ max_retries }} retries.
+smd_service_fail_msg: >-
+  smd.service is not active after {{ max_retries }} retries
+  (state={{ openchami_smd_service_status.status.ActiveState }}).
+  Container logs: {{ smd_container_logs.stdout | default('unavailable') }}
+  {{ smd_container_logs.stderr | default('') }}
+smd_status_fail_msg: >-
+  ochami smd service is not running after {{ max_retries }} retries.
+  {{ openchami_smd_status.stderr | default('') }}
+  Run 'podman logs smd' and 'podman logs haproxy' on the OIM host for details.
+cert_renewal_units_fail_msg: >-
+  Required certificate renewal unit {{ item.item }} is missing. Reinstall
+  the supported OpenCHAMI RPM before continuing.
+haproxy_cert_volume_fail_msg: >-
+  The {{ openchami_haproxy_cert_volume }} volume is unavailable. Re-run
+  OpenCHAMI deployment before configuring certificate renewal.
+cert_renewal_health_fail_msg: >-
+  OpenCHAMI certificate renewal is not healthy. Verify
+  {{ openchami_cert_renewal_service }},
+  {{ openchami_cert_renewal_timer }}, and the certificate at
+  {{ _openchami_haproxy_cert_path }}.
+image_pull_fail_msg: "Failed to pull OpenCHAMI image: {{ item.item }}. Error: {{ item.stderr }}"

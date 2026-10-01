@@ -92,6 +92,14 @@
   failed_when: false
   tags: openchami
 
+- name: Fail when Podman cannot be queried for OpenCHAMI cleanup
+  ansible.builtin.fail:
+    msg: >-
+      Podman is unavailable. OpenCHAMI container, pod, and volume cleanup
+      cannot be completed or verified.
+  when: cleanup_openchami_podman_check.rc != 0
+  tags: openchami
+
 - name: Check which OpenCHAMI containers exist
   ansible.builtin.command:
     cmd: podman container exists {{ openchami_container_name }}
@@ -115,31 +123,6 @@
     loop_var: container_check
     label: "{{ container_check.openchami_container_name }}"
   when: container_check.rc | default(1) == 0
-  tags: openchami
-
-- name: Check which OpenCHAMI pods exist
-  ansible.builtin.command:
-    cmd: podman pod exists {{ openchami_pod_name }}
-  register: cleanup_openchami_pod_checks
-  check_mode: false
-  changed_when: false
-  failed_when: cleanup_openchami_pod_checks.rc not in [0, 1]
-  loop: "{{ openchami_config.pods }}"
-  loop_control:
-    loop_var: openchami_pod_name
-  when: cleanup_openchami_podman_check.rc == 0
-  tags: openchami
-
-- name: Remove existing OpenCHAMI pods
-  ansible.builtin.command:
-    cmd: podman pod rm -f {{ pod_check.openchami_pod_name }}
-  register: cleanup_openchami_pod_removal
-  changed_when: true
-  loop: "{{ cleanup_openchami_pod_checks.results | default([]) }}"
-  loop_control:
-    loop_var: pod_check
-    label: "{{ pod_check.openchami_pod_name }}"
-  when: pod_check.rc | default(1) == 0
   tags: openchami
 
 - name: Check OpenCHAMI data volume unit load states

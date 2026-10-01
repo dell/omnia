@@ -46,6 +46,9 @@ consume the catalog contract and can run without the file. Standalone
 credential collection requires it because Slurm and OpenLDAP feature flags
 determine which credentials are mandatory.
 
+Catalog-independent flows do not refresh `orchestrator_state.yml`; they retain
+the feature flags derived by the latest catalog-backed lifecycle phase.
+
 ---
 
 ## 2. pxe_mapping_file.csv (External Contract from Discovery)
