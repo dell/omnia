@@ -14,6 +14,10 @@
 
 """Canonical registry for Orchestrator lifecycle test cases."""
 
+# pylint: disable=too-many-lines
+# This is a data registry file that grows with test cases; the line count
+# reflects the number of test cases, not code complexity.
+
 PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
     "deploy_precheck": {
         "id": "ORCH_FVT_PRECHECK_E001",
@@ -759,7 +763,10 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
     },
     "coredhcp_multisubnet_running_image": {
         "id": "ORCH_FVT_PXEBOOT_V123",
-        "title": "Verify multi-subnet coresmd containers and rendered subnet configuration (defect 843 open for live subnet validation)",
+        "title": (
+            "Verify multi-subnet coresmd containers and rendered subnet "
+            "configuration (defect 843 open for live subnet validation)"
+        ),
         "component": "CoreDHCP multi-subnet image and config",
     },
     "dns_compute_resolv_conf": {
@@ -779,7 +786,10 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
     },
     "dns_node_addition_pipeline": {
         "id": "ORCH_FVT_PXEBOOT_V127",
-        "title": "Verify SMD-to-CoreDNS pipeline readiness (existing registrations only; defect 843 open for live add-node)",
+        "title": (
+            "Verify SMD-to-CoreDNS pipeline readiness (existing registrations "
+            "only; defect 843 open for live add-node)"
+        ),
         "component": "CoreDNS node-addition pipeline readiness",
     },
     "dns_smd_unreachable_cached_resolution": {
@@ -899,8 +909,8 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
     },
     "powervault_cloud_init_groups_dict": {
         "id": "ORCH_FVT_PXEBOOT_V151",
-        "title": "Verify cloud_init_groups_dict contains powervault_scripts",
-        "component": "PowerVault cloud-init groups dict",
+        "title": "Verify rendered iSCSI setup scripts deployed on target nodes",
+        "component": "PowerVault metadata-service scripts",
     },
     "powervault_no_duplicate_fstab": {
         "id": "ORCH_FVT_PXEBOOT_V152",

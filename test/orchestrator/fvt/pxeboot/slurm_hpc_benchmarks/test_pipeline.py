@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""HPC benchmarks end-to-end and adjacent-flow invariance checks."""
+"""HPC benchmarks end-to-end provisioning composite (non-disruptive).
+
+The adjacent-flow invariance checks (TC-14 through TC-17) execute
+``pull_benchmarks.sh`` and therefore live in ``test_destructive.py``
+behind the ``--run-destructive`` gate.
+"""
 
 import pytest
 from library.functions import (
-    check_hpc_benchmarks_container_image_unaffected,
-    check_hpc_benchmarks_cuda_flow_unaffected,
     check_hpc_benchmarks_e2e_provisioning,
-    check_hpc_benchmarks_nvhpc_flow_unaffected,
-    check_hpc_benchmarks_openmpi_unaffected,
 )
 
 from fvt.result import verify_pxeboot
@@ -34,48 +35,4 @@ def test_hpc_benchmarks_e2e_provisioning(host):
     """TC-09: Verify the end-to-end benchmark provisioning pipeline."""
     verify_pxeboot(
         host, "hpc_benchmarks_e2e_provisioning", check_hpc_benchmarks_e2e_provisioning
-    )
-
-
-@pytest.mark.functional
-@pytest.mark.order(271)
-def test_hpc_benchmarks_cuda_flow_unaffected(host):
-    """TC-14: Verify /hpc_tools/cuda is unchanged after benchmark staging."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_cuda_flow_unaffected",
-        check_hpc_benchmarks_cuda_flow_unaffected,
-    )
-
-
-@pytest.mark.functional
-@pytest.mark.order(272)
-def test_hpc_benchmarks_nvhpc_flow_unaffected(host):
-    """TC-15: Verify /hpc_tools/nvidia_sdk is unchanged after staging."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_nvhpc_flow_unaffected",
-        check_hpc_benchmarks_nvhpc_flow_unaffected,
-    )
-
-
-@pytest.mark.functional
-@pytest.mark.order(273)
-def test_hpc_benchmarks_container_image_unaffected(host):
-    """TC-16: Verify /hpc_tools/container_images is unchanged after staging."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_container_image_unaffected",
-        check_hpc_benchmarks_container_image_unaffected,
-    )
-
-
-@pytest.mark.functional
-@pytest.mark.order(274)
-def test_hpc_benchmarks_openmpi_unaffected(host):
-    """TC-17: Verify OpenMPI/UCX discovery is stable across a staging run."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_openmpi_unaffected",
-        check_hpc_benchmarks_openmpi_unaffected,
     )

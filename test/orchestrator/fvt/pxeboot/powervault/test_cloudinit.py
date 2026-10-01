@@ -38,7 +38,7 @@ def test_powervault_setup_log(host):
 @pytest.mark.order(323)
 @pytest.mark.powervault_cloudinit
 def test_powervault_cloud_init_groups_dict(host):
-    """Verify cloud_init_groups_dict contains powervault_scripts."""
+    """Verify rendered iSCSI setup scripts deployed on target nodes."""
     verify_pxeboot(host, "powervault_cloud_init_groups_dict", check_powervault_cloud_init_groups_dict)
 
 

@@ -23,12 +23,20 @@ skipped by default. Enable with either:
 or by exporting ``OMNIA_HPC_BENCHMARKS_DESTRUCTIVE=1`` before the run. The
 gate is implemented in the suite-local conftest so no other suite is
 affected.
+
+Includes the adjacent-flow invariance checks (TC-14 through TC-17) which
+run ``pull_benchmarks.sh`` to verify that staging does not disturb CUDA,
+NVHPC, container-image, or OpenMPI/UCX directories.
 """
 
 import pytest
 from library.functions import (
     check_hpc_benchmarks_airgapped_staging,
+    check_hpc_benchmarks_container_image_unaffected,
+    check_hpc_benchmarks_cuda_flow_unaffected,
     check_hpc_benchmarks_existing_dirs_preserved,
+    check_hpc_benchmarks_nvhpc_flow_unaffected,
+    check_hpc_benchmarks_openmpi_unaffected,
     check_hpc_benchmarks_per_tool_staging_report,
     check_hpc_benchmarks_staging_idempotency,
 )
@@ -36,6 +44,56 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 pytestmark = [pytest.mark.slurm, pytest.mark.destructive]
+
+
+# --- Invariance checks (staging run + snapshot diff) ---
+
+
+@pytest.mark.functional
+@pytest.mark.order(271)
+def test_hpc_benchmarks_cuda_flow_unaffected(host):
+    """TC-14: Verify /hpc_tools/cuda is unchanged after benchmark staging."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_cuda_flow_unaffected",
+        check_hpc_benchmarks_cuda_flow_unaffected,
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.order(272)
+def test_hpc_benchmarks_nvhpc_flow_unaffected(host):
+    """TC-15: Verify /hpc_tools/nvidia_sdk is unchanged after staging."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_nvhpc_flow_unaffected",
+        check_hpc_benchmarks_nvhpc_flow_unaffected,
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.order(273)
+def test_hpc_benchmarks_container_image_unaffected(host):
+    """TC-16: Verify /hpc_tools/container_images is unchanged after staging."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_container_image_unaffected",
+        check_hpc_benchmarks_container_image_unaffected,
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.order(274)
+def test_hpc_benchmarks_openmpi_unaffected(host):
+    """TC-17: Verify OpenMPI/UCX discovery is stable across a staging run."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_openmpi_unaffected",
+        check_hpc_benchmarks_openmpi_unaffected,
+    )
+
+
+# --- Direct staging execution checks ---
 
 
 @pytest.mark.order(275)

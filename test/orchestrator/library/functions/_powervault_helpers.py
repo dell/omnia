@@ -28,6 +28,7 @@ Excluded (not in 2.3 source):
 - Slurm-specific tests (TC-PV-027, TC-PV-028)
 """
 
+import posixpath
 import re
 from typing import Any
 
@@ -44,16 +45,21 @@ from ..vars.pxeboot_vars import (
     POWERVAULT_LOG_COMPLETE_MSG,
     POWERVAULT_LOG_TEMPLATE,
     POWERVAULT_PORT_CHECK_TIMEOUT,
-    POWERVAULT_STORAGE_CONFIG_PATH,
     PXEBOOT_COMMANDS,
 )
-from ._pxeboot_helpers import (
-    observe_pxe_mapping,
-    observe_smd_ethernet_interfaces,
-    observe_smd_components,
-    error_result,
-    optional_skip,
-)
+from ._provision_helpers import load_context
+from ._pxeboot_helpers import runtime_result
+from .project_func import resolve_target_input_project_path
+
+
+def optional_skip(summary: str, reason: str) -> dict[str, Any]:
+    """Return the canonical skip result consumed by verify_pxeboot."""
+    return runtime_result(True, summary, [("Reason", reason)], "", skipped=True)
+
+
+def error_result(summary: str, error: str) -> dict[str, Any]:
+    """Return a bounded failed result for a probe or exception."""
+    return runtime_result(False, summary, [], error[:400])
 
 
 def _run_on_node(host, node_ip: str, command: str):
@@ -71,21 +77,39 @@ def _run_on_node(host, node_ip: str, command: str):
 
 
 def read_storage_config(host) -> dict[str, Any]:
-    """Read and parse storage_config.yml from the OIM.
+    """Read and parse storage_config.yml from the active 2.3 project.
+
+    Resolves the storage path dynamically through the project framework
+    so non-default projects are discovered correctly.
 
     Args:
         host: Testinfra host object
 
     Returns:
-        Parsed storage_config dict or empty dict on failure
+        Parsed storage_config dict, or empty dict when the file is absent
+        (PowerVault not configured for this project).
+
+    Raises:
+        RuntimeError: When the file exists but cannot be read or parsed —
+            an unreadable configured file is an error, not an absent feature.
     """
-    cmd = run_on_host(host, f"cat {POWERVAULT_STORAGE_CONFIG_PATH}")
-    if cmd.rc != 0:
+    input_dir = resolve_target_input_project_path(host)
+    storage_path = posixpath.join(input_dir, "storage_config.yml")
+    probe = run_on_host(host, f"test -f {storage_path} && echo exists || echo absent")
+    if probe.stdout.strip() != "exists":
         return {}
+    cmd = run_on_host(host, f"cat {storage_path}")
+    if cmd.rc != 0:
+        raise RuntimeError(
+            f"storage_config.yml exists at {storage_path} but cannot be read "
+            f"(rc={cmd.rc}): {cmd.stderr.strip()}"
+        )
     try:
         return yaml.safe_load(cmd.stdout) or {}
-    except yaml.YAMLError:
-        return {}
+    except yaml.YAMLError as exc:
+        raise RuntimeError(
+            f"storage_config.yml at {storage_path} contains invalid YAML: {exc}"
+        ) from exc
 
 
 def get_powervault_entries(host) -> list[dict[str, Any]]:
@@ -167,7 +191,7 @@ def get_target_nodes(host, functional_group_prefix: list[str] | str) -> list[dic
     if isinstance(functional_group_prefix, str):
         functional_group_prefix = [functional_group_prefix]
 
-    pxe_rows = observe_pxe_mapping(host)
+    pxe_rows = load_context(host)["rows"]
     matching_groups = set()
     for row in pxe_rows:
         group = row.get("FUNCTIONAL_GROUP_NAME", "")
@@ -204,7 +228,7 @@ def get_non_target_nodes(host, functional_group_prefix: list[str] | str) -> list
     if isinstance(functional_group_prefix, str):
         functional_group_prefix = [functional_group_prefix]
 
-    pxe_rows = observe_pxe_mapping(host)
+    pxe_rows = load_context(host)["rows"]
     non_matching_groups = set()
     for row in pxe_rows:
         group = row.get("FUNCTIONAL_GROUP_NAME", "")
@@ -918,40 +942,74 @@ def verify_setup_log(host, node_ip: str, pv_name: str) -> dict[str, Any]:
     }
 
 
-def verify_cloud_init_groups_dict(host, pv_entry: dict) -> dict[str, Any]:
-    """Verify cloud_init_groups_dict contains powervault_scripts for matching groups.
+def verify_cloud_init_groups_dict(host, pv_entry: dict, target_nodes: list[dict]) -> dict[str, Any]:
+    """Verify the 2.3 metadata-service generated iSCSI setup script for a PV entry.
+
+    Asserts that every target node received the rendered
+    ``/usr/local/bin/setup_iscsi_storage_<name>.sh`` with the correct
+    portal IPs and PV name marker.  This tests the *generated* metadata
+    state — not the source-tree Ansible templates.
+
+    Args:
+        host: Testinfra host object
+        pv_entry: A single powervault_config entry dict
+        target_nodes: List of node dicts (from get_target_nodes) with admin_ip
 
     Returns:
-        {"success": bool, "error": str, "details": {}}
+        {"success": bool, "error": str, "details": {…}}
     """
     pv_name = pv_entry.get("name", "")
+    script_path = f"/usr/local/bin/setup_iscsi_storage_{pv_name}.sh"
+    portal_ips = pv_entry.get("ip", [])
 
-    template_check = run_on_host(
-        host,
-        "test -f /omnia/provision/roles/mount_config/templates/setup_iscsi_storage.sh.j2 && echo exists || echo not_exists",
-    )
-    template_exists = template_check.stdout.strip() == "exists"
+    details: dict[str, Any] = {"script_path": script_path, "nodes": {}}
+    failures: list[str] = []
 
-    task_check = run_on_host(
-        host,
-        "test -f /omnia/provision/roles/mount_config/tasks/process_single_powervault.yml && echo exists || echo not_exists",
-    )
-    task_exists = task_check.stdout.strip() == "exists"
+    for node in target_nodes:
+        node_ip = node["admin_ip"]
+        label = node.get("hostname") or node_ip
 
-    config = read_storage_config(host)
-    pv_entries = config.get("powervault_config", []) or []
-    name_found = any(e.get("name") == pv_name for e in pv_entries)
+        # Check script exists and is executable
+        probe = _run_on_node(
+            host, node_ip,
+            f"test -f {script_path} && test -x {script_path} && echo ok || echo missing",
+        )
+        script_ok = probe.stdout.strip() == "ok"
 
-    success = template_exists and task_exists and name_found
+        if not script_ok:
+            details["nodes"][label] = {"present": False}
+            failures.append(f"{label}: {script_path} missing or not executable")
+            continue
+
+        # Read script content and verify expected markers
+        content_cmd = _run_on_node(host, node_ip, f"cat {script_path}")
+        content = content_cmd.stdout if content_cmd.rc == 0 else ""
+
+        name_marker = f"setup complete for {pv_name}" in content
+        portal_found = [ip for ip in portal_ips if ip in content]
+
+        node_detail: dict[str, Any] = {
+            "present": True,
+            "name_marker": name_marker,
+            "portals_found": len(portal_found),
+            "portals_expected": len(portal_ips),
+        }
+        details["nodes"][label] = node_detail
+
+        if not name_marker:
+            failures.append(
+                f"{label}: script missing PV name marker '{pv_name}'"
+            )
+        if portal_ips and len(portal_found) < len(portal_ips):
+            missing = [ip for ip in portal_ips if ip not in content]
+            failures.append(
+                f"{label}: missing portal IPs in script: {', '.join(missing)}"
+            )
 
     return {
-        "success": success,
-        "error": "" if success else f"Cloud-init groups dict incomplete for {pv_name}",
-        "details": {
-            "template_exists": template_exists,
-            "task_exists": task_exists,
-            "name_found": name_found,
-        },
+        "success": not failures,
+        "error": "; ".join(failures) if failures else "",
+        "details": details,
     }
 
 

@@ -41,10 +41,12 @@ from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
 )
 from ._powervault_helpers import (
+    error_result,
     get_mount_params,
     get_non_target_nodes,
     get_powervault_entries,
     get_target_nodes,
+    optional_skip,
     resolve_node_key_value,
     resolve_pv_fs_type,
     resolve_pv_mount_opts,
@@ -74,7 +76,7 @@ from ._powervault_helpers import (
     verify_setup_log,
     verify_volume_mounted,
 )
-from ._pxeboot_helpers import runtime_result, error_result, optional_skip
+from ._pxeboot_helpers import runtime_result
 
 
 def _node_label(node: dict) -> str:
@@ -1188,9 +1190,11 @@ def check_powervault_setup_log(host) -> dict[str, Any]:
 
 
 def check_powervault_cloud_init_groups_dict(host) -> dict[str, Any]:
-    """Verify cloud_init_groups_dict contains powervault_scripts for matching groups.
+    """Verify rendered iSCSI setup scripts are deployed on target nodes.
 
-    TC-PV-025 equivalent.
+    TC-PV-025 equivalent.  Tests the generated 2.3 metadata-service state
+    (``/usr/local/bin/setup_iscsi_storage_<name>.sh``) on each target node
+    rather than verifying source-tree Ansible templates on the OIM.
     """
     try:
         if skip_if_no_powervault(host):
@@ -1204,17 +1208,28 @@ def check_powervault_cloud_init_groups_dict(host) -> dict[str, Any]:
         fields: list[tuple[str, object]] = []
 
         for pv in pv_entries:
-            result = verify_cloud_init_groups_dict(host, pv)
+            prefixes = pv.get("functional_group_prefix", pv.get("prefix", []))
+            if isinstance(prefixes, str):
+                prefixes = [prefixes]
+            target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
+            result = verify_cloud_init_groups_dict(host, pv, target_nodes)
 
             if not result["success"]:
                 failures.append(result["error"])
-                fields.append((pv["name"], "✗ incomplete"))
+                node_count = len(result["details"].get("nodes", {}))
+                fields.append(
+                    (pv["name"], f"✗ script missing/invalid ({node_count} node(s))")
+                )
             else:
-                fields.append((pv["name"], "✓ in groups dict"))
+                node_count = len(result["details"].get("nodes", {}))
+                fields.append(
+                    (pv["name"], f"✓ script deployed ({node_count} node(s))")
+                )
 
         return runtime_result(
             not failures,
-            "cloud_init_groups_dict contains powervault_scripts",
+            "PowerVault iSCSI setup scripts deployed on target nodes",
             fields,
             "; ".join(failures) if failures else "",
         )
