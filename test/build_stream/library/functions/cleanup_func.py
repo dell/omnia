@@ -582,18 +582,36 @@ def check_playbook_watcher_service_stopped(host) -> Dict[str, Any]:
     cmd_result = run_on_host(host, cmd)
     status = cmd_result.stdout.strip() if cmd_result.stdout else "unknown"
 
-    if status == "active":
+    if cmd_result.rc == 0 and status == "active":
         return {
             "success": False,
             "status": status,
             "details": "",
             "error": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: still active",
         }
+
+    expected_stopped_states = {
+        (3, "inactive"),
+        (3, "failed"),
+        (4, "unknown"),
+        (4, "not-found"),
+    }
+    if (cmd_result.rc, status) in expected_stopped_states:
+        return {
+            "success": True,
+            "status": status,
+            "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
+            "error": "",
+        }
+
     return {
-        "success": True,
+        "success": False,
         "status": status,
-        "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
-        "error": "",
+        "details": "",
+        "error": (
+            f"Unable to verify {PLAYBOOK_WATCHER_SERVICE_NAME} is stopped "
+            f"(rc={cmd_result.rc}, status={status})"
+        ),
     }
 
 
@@ -612,18 +630,34 @@ def check_playbook_watcher_service_disabled(host) -> Dict[str, Any]:
     cmd_result = run_on_host(host, cmd)
     status = cmd_result.stdout.strip() if cmd_result.stdout else "unknown"
 
-    if status == "enabled":
+    if cmd_result.rc == 0 and status == "enabled":
         return {
             "success": False,
             "status": status,
             "details": "",
             "error": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: still enabled",
         }
+
+    expected_disabled_states = {
+        (1, "disabled"),
+        (1, "not-found"),
+    }
+    if (cmd_result.rc, status) in expected_disabled_states:
+        return {
+            "success": True,
+            "status": status,
+            "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
+            "error": "",
+        }
+
     return {
-        "success": True,
+        "success": False,
         "status": status,
-        "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
-        "error": "",
+        "details": "",
+        "error": (
+            f"Unable to verify {PLAYBOOK_WATCHER_SERVICE_NAME} is disabled "
+            f"(rc={cmd_result.rc}, status={status})"
+        ),
     }
 
 
@@ -641,7 +675,8 @@ def check_playbook_watcher_service_file_removed(
     cmd = CMDS["file_exists"].format(path=PLAYBOOK_WATCHER_SERVICE_FILE)
     cmd_result = run_on_host(host, cmd)
 
-    if cmd_result.stdout.strip() == "exists":
+    exists = cmd_result.stdout.strip() if cmd_result.stdout else ""
+    if cmd_result.rc == 0 and exists == "exists":
         return {
             "success": False,
             "path": PLAYBOOK_WATCHER_SERVICE_FILE,
@@ -651,13 +686,23 @@ def check_playbook_watcher_service_file_removed(
                 f"{PLAYBOOK_WATCHER_SERVICE_FILE}"
             ),
         }
+    if cmd_result.rc == 1 and not exists:
+        return {
+            "success": True,
+            "path": PLAYBOOK_WATCHER_SERVICE_FILE,
+            "details": (
+                f"Service file removed: {PLAYBOOK_WATCHER_SERVICE_FILE}"
+            ),
+            "error": "",
+        }
     return {
-        "success": True,
+        "success": False,
         "path": PLAYBOOK_WATCHER_SERVICE_FILE,
-        "details": (
-            f"Service file removed: {PLAYBOOK_WATCHER_SERVICE_FILE}"
+        "details": "",
+        "error": (
+            "Unable to inspect playbook-watcher service file "
+            f"(rc={cmd_result.rc}, output={exists or 'empty'})"
         ),
-        "error": "",
     }
 
 
@@ -924,6 +969,7 @@ def check_buildstream_directories_removed(host) -> Dict[str, Any]:
         "success": False,
         "removed": [],
         "still_exist": [],
+        "inspection_errors": [],
         "details": "",
         "error": "",
     }
@@ -931,20 +977,33 @@ def check_buildstream_directories_removed(host) -> Dict[str, Any]:
     for dir_path in dirs:
         cmd = CMDS["dir_exists"].format(path=dir_path)
         cmd_result = run_on_host(host, cmd)
-        if cmd_result.stdout.strip() == "exists":
+        output = cmd_result.stdout.strip() if cmd_result.stdout else ""
+        if cmd_result.rc == 0 and output == "exists":
             result["still_exist"].append(dir_path)
-        else:
+        elif cmd_result.rc == 1 and not output:
             result["removed"].append(dir_path)
+        else:
+            result["inspection_errors"].append(
+                f"{dir_path} (rc={cmd_result.rc}, "
+                f"output={output or 'empty'})"
+            )
 
     total = len(dirs)
-    result["success"] = len(result["still_exist"]) == 0
+    result["success"] = (
+        not result["still_exist"] and not result["inspection_errors"]
+    )
     result["details"] = (
         f"Removed: {len(result['removed'])}/{total}"
     )
+    errors = []
     if result["still_exist"]:
-        result["error"] = (
-            f"Still exist: {', '.join(result['still_exist'])}"
+        errors.append(f"Still exist: {', '.join(result['still_exist'])}")
+    if result["inspection_errors"]:
+        errors.append(
+            "Inspection failed: "
+            + ", ".join(result["inspection_errors"])
         )
+    result["error"] = "; ".join(errors)
     return result
 
 
