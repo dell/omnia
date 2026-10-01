@@ -25,8 +25,6 @@ from library.messages import (
 )
 from library.vars import TEST_CASES as TC
 
-pytestmark = [pytest.mark.sanity]
-
 
 def _assert_result(test_log, component, result):
     """Record one structured prepare result and enforce its postcondition."""
@@ -46,6 +44,7 @@ def _assert_result(test_log, component, result):
     )
 
 
+@pytest.mark.sanity
 @pytest.mark.order(1)
 def test_openchami_containers_running(host):
     """Verify all long-running OpenCHAMI containers."""
@@ -58,6 +57,7 @@ def test_openchami_containers_running(host):
     )
 
 
+@pytest.mark.sanity
 @pytest.mark.order(2)
 def test_openchami_services_ready(host):
     """Verify OpenCHAMI units and successful SMD initialization."""
@@ -84,6 +84,7 @@ def test_openchami_apis_ready(host):
     )
 
 
+@pytest.mark.sanity
 @pytest.mark.order(4)
 def test_openchami_persistent_storage_and_tls(host):
     """Verify persistent data volumes and HAProxy certificates."""
@@ -96,6 +97,7 @@ def test_openchami_persistent_storage_and_tls(host):
     )
 
 
+@pytest.mark.sanity
 @pytest.mark.order(5)
 def test_openchami_packages_and_artifacts(host):
     """Verify installed packages and generated configuration files."""

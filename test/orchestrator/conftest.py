@@ -144,6 +144,9 @@ _TC_ID_MAP.update(
         "test_kubernetes_nfs_dynamic_provisioning": TEST_CASES[
             "kubernetes_nfs_dynamic"
         ]["id"],
+        "test_kubernetes_nfs_provisioner_contract": TEST_CASES[
+            "kubernetes_nfs_contract"
+        ]["id"],
         "test_kubernetes_csi_dynamic_provisioning": TEST_CASES[
             "kubernetes_csi_dynamic"
         ]["id"],
@@ -576,8 +579,7 @@ def pytest_runtest_makereport(item, call):
     doc = getattr(item.obj, "__doc__", "") or ""
     tc_id = _registered_test_case_id(item)
     doc_id = re.match(
-        r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})"
-        r"|TC_K8_\d{3})\s*:",
+        r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})" r"|TC_K8_\d{3})\s*:",
         doc.strip(),
     )
     if doc_id and not tc_id:

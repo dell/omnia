@@ -149,6 +149,7 @@ def load_workload_context(
     catalog = catalog_document.get("catalog", {})
     if not isinstance(catalog, dict) or not isinstance(catalog.get("groups"), dict):
         raise TypeError(f"Catalog groups are invalid in {catalog_path}")
+    context["catalog"] = catalog
     feature_tokens = _catalog_feature_tokens(catalog, context["rows"])
     context["features"] = {
         "openldap": any("openldap" in token for token in feature_tokens),
@@ -521,9 +522,7 @@ def wait_for_remote_command(
 SUPPORTED_ARCHITECTURES: tuple[str, ...] = ("x86_64", "aarch64")
 SUPPORTED_OS_NAMES: tuple[str, ...] = ("rhel", "rocky", "ubuntu", "sles")
 
-_ARCH_RE = re.compile(
-    r"_(?P<arch>" + "|".join(SUPPORTED_ARCHITECTURES) + r")$"
-)
+_ARCH_RE = re.compile(r"_(?P<arch>" + "|".join(SUPPORTED_ARCHITECTURES) + r")$")
 _OS_VERSION_RE = re.compile(
     r"_(?P<os>" + "|".join(SUPPORTED_OS_NAMES) + r")"
     r"(?P<ver>(?:_[0-9]+)+)"

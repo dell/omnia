@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Artifact postconditions produced by full Orchestrator cleanup."""
+"""Kubernetes NFS provisioner and selected-backend contracts."""
 
 import pytest
-from library.functions import check_cleanup_artifacts
+from library.functions import check_kubernetes_nfs_provisioner_contract
 
-from fvt.result import verify_cleanup
+from fvt.result import verify_pxeboot
 
 
 @pytest.mark.sanity
-@pytest.mark.destructive
-@pytest.mark.order(5)
-def test_artifacts_removed_and_inputs_preserved(host):
-    """Verify generated state is removed without deleting required inputs."""
-    verify_cleanup(
-        host, "cleanup_artifacts", "Artifact cleanup", check_cleanup_artifacts
+@pytest.mark.kubernetes
+@pytest.mark.order(221)
+def test_kubernetes_nfs_provisioner_contract(host):
+    """Verify the NFS StorageClass, provisioner backend, and node mounts."""
+    verify_pxeboot(
+        host,
+        "kubernetes_nfs_contract",
+        check_kubernetes_nfs_provisioner_contract,
     )

@@ -24,6 +24,7 @@ from library.functions import _workload_helpers as workload
 from library.functions import apptainer_runtime_pxeboot_func as apptainer_runtime
 from library.functions import kubernetes_pxeboot_func as kubernetes
 from library.functions import kubernetes_runtime_pxeboot_func as kubernetes_runtime
+from library.functions import kubernetes_storage_pxeboot_func as kubernetes_storage
 from library.functions import slurm_auth_pxeboot_func as slurm_auth
 from library.functions import slurm_configuration_pxeboot_func as slurm_config
 from library.functions import slurm_pxeboot_func as slurm
@@ -49,6 +50,74 @@ def test_version_skew_policy_is_directional():
     assert kubernetes_runtime._within_minor_skew((1, 30), server, older=1, newer=0)
     assert not kubernetes_runtime._within_minor_skew((1, 32), server, older=1, newer=0)
     assert not kubernetes_runtime._within_minor_skew((2, 31), server, older=1, newer=0)
+
+
+def test_catalog_kubernetes_version_uses_the_single_kubeadm_package():
+    """ORCH_UT_061: Configured Kubernetes version follows the product catalog."""
+    catalog = {
+        "packages": {
+            "bash": {"name": "bash-5.2"},
+            "kubeadm_1_35_1": {"name": "kubeadm-1.35.1"},
+        }
+    }
+    assert kubernetes_runtime._catalog_kubernetes_version(catalog) == "1.35.1"
+
+
+def test_catalog_kubernetes_version_rejects_ambiguous_packages():
+    """ORCH_UT_062: Multiple kubeadm contracts fail instead of guessing."""
+    catalog = {
+        "packages": {
+            "kubeadm_1_34_0": {"name": "kubeadm-1.34.0"},
+            "kubeadm_1_35_1": {"name": "kubeadm-1.35.1"},
+        }
+    }
+    with pytest.raises(ValueError, match="exactly one kubeadm package"):
+        kubernetes_runtime._catalog_kubernetes_version(catalog)
+
+
+def test_kubernetes_nfs_storage_resolves_selected_mount():
+    """ORCH_UT_063: Kubernetes NFS uses the active cluster storage reference."""
+    context = {
+        "storage_config": {
+            "mounts": [
+                {
+                    "name": "nfs_k8s",
+                    "source": "192.0.2.10:/exports/kubernetes",
+                    "mount_point": "/mnt/kubernetes",
+                }
+            ]
+        }
+    }
+    assert kubernetes_storage._kubernetes_nfs_storage(
+        context,
+        {"nfs_storage_name": "nfs_k8s"},
+    ) == {
+        "name": "nfs_k8s",
+        "source": "192.0.2.10:/exports/kubernetes",
+        "server": "192.0.2.10",
+        "export": "/exports/kubernetes",
+        "mount_point": "/mnt/kubernetes",
+    }
+
+
+def test_kubernetes_nfs_storage_rejects_non_nfs_source():
+    """ORCH_UT_064: The NFS contract rejects an unrelated local mount."""
+    context = {
+        "storage_config": {
+            "mounts": [
+                {
+                    "name": "nfs_k8s",
+                    "source": "/dev/sdb1",
+                    "mount_point": "/mnt/kubernetes",
+                }
+            ]
+        }
+    }
+    with pytest.raises(ValueError, match="must use an NFS source"):
+        kubernetes_storage._kubernetes_nfs_storage(
+            context,
+            {"nfs_storage_name": "nfs_k8s"},
+        )
 
 
 def test_slurm_node_and_config_hash_parsers_ignore_malformed_records():
@@ -610,7 +679,7 @@ def test_slurm_membership_accepts_login_roles_as_scheduler_nodes(monkeypatch):
 
 
 def test_apptainer_without_slurm_compute_skips_before_node_probe(monkeypatch):
-    """ORCH_UT_040: Apptainer skips when no Slurm compute role is mapped."""
+    """ORCH_UT_065: Apptainer skips when no Slurm compute role is mapped."""
     control = _row("slurm-control", "slurm_control_node_rhel_10_0_x86_64")
     monkeypatch.setattr(
         apptainer_runtime,

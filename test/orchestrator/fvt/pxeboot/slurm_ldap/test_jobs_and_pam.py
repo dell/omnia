@@ -26,22 +26,24 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.functional,
-    pytest.mark.sanity,
-    pytest.mark.openldap,
-    pytest.mark.slurm,
-    pytest.mark.non_disruptive,
-]
 
-
-@pytest.mark.order(248)
+@pytest.mark.functional
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(251)
 def test_slurm_control_ldap_jobs(host):
     """Submit and complete an LDAP-owned job from the control node."""
     verify_pxeboot(host, "slurm_control_ldap_jobs", check_slurm_control_ldap_jobs)
 
 
-@pytest.mark.order(249)
+@pytest.mark.functional
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(252)
 def test_slurm_control_pam_job_access(host):
     """Verify control-submitted PAM access during and after a job."""
     verify_pxeboot(
@@ -51,13 +53,23 @@ def test_slurm_control_pam_job_access(host):
     )
 
 
-@pytest.mark.order(250)
+@pytest.mark.functional
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(253)
 def test_slurm_login_ldap_jobs(host):
     """Submit and complete an LDAP-owned job from every login node."""
     verify_pxeboot(host, "slurm_login_ldap_jobs", check_slurm_login_ldap_jobs)
 
 
-@pytest.mark.order(251)
+@pytest.mark.functional
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(254)
 def test_slurm_login_pam_job_access(host):
     """Verify login-node PAM access during and after a job."""
     verify_pxeboot(
@@ -67,13 +79,23 @@ def test_slurm_login_pam_job_access(host):
     )
 
 
-@pytest.mark.order(252)
+@pytest.mark.functional
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(255)
 def test_slurm_compiler_ldap_jobs(host):
     """Submit an LDAP-owned job from every login-compiler node."""
     verify_pxeboot(host, "slurm_compiler_ldap_jobs", check_slurm_compiler_ldap_jobs)
 
 
-@pytest.mark.order(253)
+@pytest.mark.functional
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(256)
 def test_slurm_compiler_pam_job_access(host):
     """Verify login-compiler PAM access during and after a job."""
     verify_pxeboot(

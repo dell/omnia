@@ -19,9 +19,9 @@ from library.functions import check_cleanup_credentials
 
 from fvt.result import verify_cleanup
 
-pytestmark = [pytest.mark.sanity, pytest.mark.destructive]
 
-
+@pytest.mark.sanity
+@pytest.mark.destructive
 @pytest.mark.order(6)
 def test_credentials_follow_selected_policy(host):
     """Verify credentials are removed or preserved as selected."""
