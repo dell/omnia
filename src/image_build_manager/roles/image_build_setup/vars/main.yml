@@ -102,6 +102,12 @@ tag_combination_fail_msg: |
 env_admin_nic_ip_missing_fail_msg: >-
   SYSTEM_ADMIN_NIC_IPV4 is not set. Export it before running:
     export SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>
+omnia_version_missing_fail_msg: >-
+  OMNIA_VERSION is not set. Export it before running:
+    export OMNIA_VERSION=2.3.0.0
+  This version string is embedded in image names (e.g., rhel-<group>_omnia_2.3.0.0).
+required_directory_missing_fail_msg: >-
+  Required directory does not exist: {{ item.item }}
 # --- Prerequisite validation messages ---
 project_dir_not_exist_fail_msg: >-
   The project directory at {{ input_project_dir }} does not exist.

@@ -7,6 +7,13 @@ The role is skipped for the external PowerScale provider. For local MinIO it
 also installs/configures `s3cmd`, creates `boot-images` and `efi`, and applies
 the public-read policy to `boot-images`.
 
+## Structure
+
+- `tasks/main.yml` installs and starts the MinIO Quadlet service.
+- `tasks/s3_bucket.yml` creates and validates required buckets.
+- `tasks/policy_update.yml` applies the public-read bucket policy.
+- `templates/` contains managed service and client configuration files.
+
 ## Requirements
 
 - Podman 5.0+
@@ -14,14 +21,15 @@ the public-read policy to `boot-images`.
 
 ## Role Variables
 
-See `vars/main.yml`; this role has no `defaults/main.yml`.
+See `vars/main.yml` for internal deployment constants and messages. The role
+does not currently expose user-overridable defaults.
 
 Key variables:
 - `health_check_retries` / `health_check_delay` — MinIO readiness polling
 - `image_pull_retries` / `image_pull_delay` — MinIO container image pull retries
 - `download_retries` / `download_delay` — `s3cmd` RPM download retries
 
-## Orchestration Prerequisites
+## Dependencies
 
 No role dependencies are declared in `meta/main.yml`. The playbook invokes
 these roles first:
@@ -29,10 +37,13 @@ these roles first:
 - `image_build_setup` — environment and config loading
 - `collect_build_credentials` — S3 credentials
 
-## Example
+## Example Playbook
 
 ```yaml
-- hosts: localhost
+- name: Deploy Image Build Manager object storage
+  hosts: localhost
+  connection: local
+  gather_facts: false
   roles:
-    - deploy_minio
+    - role: deploy_minio
 ```

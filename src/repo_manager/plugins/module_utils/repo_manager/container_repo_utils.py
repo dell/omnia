@@ -261,8 +261,9 @@ def sync_container_repository(
             )
             if reference_state is not True:
                 logger.error(
-                    "Container reference is absent, incompatible, or unknown "
-                    "after sync"
+                    "Container reference '%s' is %s after sync",
+                    tag,
+                    "unknown" if reference_state is None else "absent or incompatible",
                 )
                 return False
         logger.info(

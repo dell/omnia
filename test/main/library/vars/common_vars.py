@@ -422,7 +422,7 @@ CMDS: Dict[str, str] = {
         " nonexistent_cmd 2>&1"
     ),
     "omnia_cli_log_dirs_source": (
-        "grep -F 'ansible_log_dirs' -- {omnia_cli}"
+        "! grep -F '${{base}}/log' -- {omnia_cli}"
     ),
     # --- omnia-cli logs ---
     "omnia_cli_logs_help": (
