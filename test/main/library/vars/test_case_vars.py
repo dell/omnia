@@ -62,7 +62,7 @@ TEST_CASES = {
     },
     "check_deps_runs": {
         "id": "MAIN_FVT_CLI_V011",
-        "title": 'Verify --check-deps runs successfully',
+        "title": 'Verify --check-deps reports aligned dependencies',
     },
     "skip_catalog_accepted": {
         "id": "MAIN_FVT_CLI_V012",

@@ -278,21 +278,24 @@ def test_force_deps_invalid(host):
 @pytest.mark.sanity
 @pytest.mark.order(11)
 def test_check_deps_runs(host):
-    """MAIN_FVT_CLI_V011: Verify --check-deps command runs."""
+    """MAIN_FVT_CLI_V011: Verify --check-deps reports aligned dependencies."""
     tc = TC["check_deps_runs"]
     tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_check_deps")
     fields = command_result_fields(
         result,
-        expected="return code 0 (aligned) or 1 (mismatches reported)",
+        expected="return code 0 and no dependency version mismatches",
     )
 
-    # --check-deps may exit 0 (no mismatches) or 1 (mismatches found).
-    # Both are valid executions.  We check that it produces output.
     output = result.get("output", "")
-    ran = "Dependency Version Audit" in output
+    audit_clean = (
+        result["success"]
+        and "Dependency Version Audit" in output
+        and "All dependency versions are consistent across domains." in output
+        and "MISMATCH:" not in output
+    )
 
-    if ran:
+    if audit_clean:
         tl.passed_fields(LOG["check_deps_ok"], fields)
     else:
         tl.failed_fields(
@@ -300,7 +303,7 @@ def test_check_deps_runs(host):
             fields,
         )
 
-    assert ran, ASSERT["check_deps_failed"].format(
+    assert audit_clean, ASSERT["check_deps_failed"].format(
         rc=result["rc"],
     )
 
