@@ -69,6 +69,95 @@
       snapshot={{ _ib_ipv6_validation.snapshot_id }}
 
 # -----------------------------------------------------------------------
+# Phase 1b: Discover actual IB interface names on compute nodes
+# -----------------------------------------------------------------------
+# The allocation JSON may use generic names (e.g., "ib0") but the actual
+# kernel interface names use predictable naming (e.g., "ibp181s0") based
+# on PCI topology. Discover the real names and patch normalized_nodes.
+
+- name: Build hostname list from normalized nodes
+  ansible.builtin.set_fact:
+    _ib_discover_hosts: >-
+      {{ _ib_ipv6_validation.normalized_nodes | dict2items
+         | map(attribute='value') | map('dict2items')
+         | flatten | map(attribute='value') | flatten
+         | selectattr('hostname', 'defined')
+         | map(attribute='hostname') | unique | list }}
+
+- name: Discover IB interface names on compute nodes
+  ansible.builtin.shell: >
+    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10
+    "{{ item }}" "ls /sys/class/net/ | grep '^ib'"
+  loop: "{{ _ib_discover_hosts }}"
+  register: _ib_discover_results
+  changed_when: false
+  failed_when: false
+
+- name: Build hostname-to-interface mapping
+  ansible.builtin.set_fact:
+    _ib_discovered_interfaces: >-
+      {{ _ib_discovered_interfaces | default({})
+         | combine({item.item:
+             (item.stdout_lines | default([]))}) }}
+  loop: "{{ _ib_discover_results.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc == 0
+
+- name: Display discovered IB interfaces
+  ansible.builtin.debug:
+    msg: >-
+      [IB-IPv6] Discovered IB interfaces:
+      {% for host, ifaces in (_ib_discovered_interfaces | default({})).items() %}
+      {{ host }}={{ ifaces | join(',') }}
+      {% endfor %}
+
+- name: Write node and interface data for patching
+  ansible.builtin.copy:
+    content: |
+      {{ {'nodes': _ib_ipv6_validation.normalized_nodes,
+          'iface_map': _ib_discovered_interfaces}
+         | to_json }}
+    dest: "{{ ib_ipv6_output_dir }}/.patch_input.json"
+    mode: "0600"
+  delegate_to: localhost
+
+- name: Patch normalized_nodes with discovered interface names
+  ansible.builtin.shell: |
+    python3 -c "
+    import json
+    with open('{{ ib_ipv6_output_dir }}/.patch_input.json') as f:
+        data = json.load(f)
+    nodes, iface_map = data['nodes'], data['iface_map']
+    result = {}
+    for nid, nifaces in nodes.items():
+        first_rec = next(iter(next(iter(nifaces.values()))))
+        hostname = first_rec.get('hostname', '')
+        discovered = iface_map.get(hostname, [])
+        if discovered:
+            new_ifaces = {}
+            for idx, old_key in enumerate(nifaces):
+                new_key = discovered[idx] if idx < len(discovered) else old_key
+                updated = [dict(r, interface_id=new_key) for r in nifaces[old_key]]
+                new_ifaces[new_key] = updated
+            result[nid] = new_ifaces
+        else:
+            result[nid] = nifaces
+    print(json.dumps(result))
+    "
+  register: _ib_patched_nodes_raw
+  delegate_to: localhost
+  changed_when: false
+
+- name: Apply patched normalized_nodes
+  ansible.builtin.set_fact:
+    _ib_ipv6_validation: >-
+      {{ _ib_ipv6_validation | combine({
+           'normalized_nodes':
+             (_ib_patched_nodes_raw.stdout | from_json)
+         }) }}
+
+# -----------------------------------------------------------------------
 # Phase 2: Render NM/SMD/hosts artifacts (Story 2)
 # -----------------------------------------------------------------------
 
