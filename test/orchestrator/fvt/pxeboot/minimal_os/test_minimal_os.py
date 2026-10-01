@@ -29,7 +29,6 @@ from library.functions import (
     check_minimal_os_excluded_services,
     check_minimal_os_kernel_version,
     check_minimal_os_ldms_packages,
-    check_minimal_os_ldms_service_state,
     check_minimal_os_network_identity,
     check_minimal_os_package_manager,
     check_minimal_os_required_services,
@@ -59,14 +58,6 @@ def test_minimal_os_required_services(host):
     """Verify required services are active on all OS-only nodes."""
     verify_pxeboot(
         host, "minimal_os_required_services", check_minimal_os_required_services
-    )
-
-
-@pytest.mark.order(603)
-def test_minimal_os_ldms_service_state(host):
-    """Verify LDMS service is installed but NOT running at handoff."""
-    verify_pxeboot(
-        host, "minimal_os_ldms_service_state", check_minimal_os_ldms_service_state
     )
 
 

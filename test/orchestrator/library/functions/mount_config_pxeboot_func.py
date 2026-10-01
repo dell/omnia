@@ -147,6 +147,10 @@ def _resolve_mount_params(
 # These must not cause a comparison failure.
 _DEPRECATED_NFS_OPTIONS = {"intr", "nointr"}
 
+# Options that are fstab/userspace directives and do NOT appear in
+# /proc/mounts.  These must be validated against /etc/fstab instead.
+_FSTAB_ONLY_OPTIONS = {"defaults", "nofail", "_netdev", "noauto", "x-systemd.automount"}
+
 
 def _target_rows(
     context: dict[str, Any],
@@ -291,7 +295,13 @@ def check_mount_config_volume_mounted(host):
 
 
 def check_mount_config_mount_options(host):
-    """Verify NFS mount options match storage_config.yml profile on nodes."""
+    """Verify NFS mount options match storage_config.yml profile on nodes.
+
+    Kernel-visible options are validated against ``/proc/mounts``.
+    Fstab-only / userspace directives (``defaults``, ``nofail``,
+    ``_netdev``, ``noauto``) are validated against ``/etc/fstab``.
+    Deprecated NFS options (``intr``, ``nointr``) are excluded from both.
+    """
     summary = "NFS mount options"
     try:
         context = load_runtime_context(host)
@@ -310,35 +320,74 @@ def check_mount_config_mount_options(host):
                 continue
             resolved = _resolve_mount_params(mount_item, mount_params)
             expected_opts = resolved["mnt_opts"]
+
+            all_expected = (
+                set(expected_opts.split(",")) - _DEPRECATED_NFS_OPTIONS
+            )
+            # Split into kernel-visible and fstab-only sets
+            fstab_expected = all_expected & _FSTAB_ONLY_OPTIONS
+            kernel_expected = all_expected - _FSTAB_ONLY_OPTIONS
+
             rows = _target_rows(context, mount_item)
             for row in rows:
-                cmd = remote_command(
+                key = f"{row['HOSTNAME']}:{mount_point}"
+                problems = []
+
+                # --- Kernel options: check /proc/mounts ---
+                proc_cmd = remote_command(
                     host, row,
                     PXEBOOT_COMMANDS["mount_config_proc_mounts"],
                 )
-                key = f"{row['HOSTNAME']}:{mount_point}"
-                actual_opts = ""
-                for line in cmd.stdout.strip().split("\n"):
+                actual_kernel_opts = ""
+                for line in proc_cmd.stdout.strip().split("\n"):
                     parts = line.split()
                     if len(parts) >= 4 and parts[1] == mount_point:
-                        actual_opts = parts[3]
+                        actual_kernel_opts = parts[3]
                         break
-                if not actual_opts:
-                    outcomes[key] = (False, "mount not found in /proc/mounts")
-                else:
-                    expected_set = (
-                        set(expected_opts.split(","))
-                        - _DEPRECATED_NFS_OPTIONS
-                    )
-                    actual_set = set(actual_opts.split(","))
-                    if expected_set <= actual_set:
-                        outcomes[key] = (True, actual_opts)
-                    else:
-                        missing = expected_set - actual_set
-                        outcomes[key] = (
-                            False,
-                            f"missing options: {','.join(sorted(missing))}",
+                if not actual_kernel_opts:
+                    problems.append("mount not found in /proc/mounts")
+                elif kernel_expected:
+                    actual_set = set(actual_kernel_opts.split(","))
+                    missing_kernel = kernel_expected - actual_set
+                    if missing_kernel:
+                        problems.append(
+                            f"/proc/mounts missing: "
+                            f"{','.join(sorted(missing_kernel))}"
                         )
+
+                # --- Fstab-only options: check /etc/fstab ---
+                if fstab_expected:
+                    fstab_cmd = remote_command(
+                        host, row,
+                        PXEBOOT_COMMANDS["mount_config_fstab_read"],
+                    )
+                    fstab_opts = ""
+                    for line in fstab_cmd.stdout.strip().split("\n"):
+                        fields_line = line.split()
+                        if (
+                            len(fields_line) >= 4
+                            and not line.startswith("#")
+                            and fields_line[1] == mount_point
+                        ):
+                            fstab_opts = fields_line[3]
+                            break
+                    if not fstab_opts:
+                        problems.append(
+                            f"fstab entry not found for {mount_point}"
+                        )
+                    else:
+                        fstab_set = set(fstab_opts.split(","))
+                        missing_fstab = fstab_expected - fstab_set
+                        if missing_fstab:
+                            problems.append(
+                                f"/etc/fstab missing: "
+                                f"{','.join(sorted(missing_fstab))}"
+                            )
+
+                if problems:
+                    outcomes[key] = (False, "; ".join(problems))
+                else:
+                    outcomes[key] = (True, actual_kernel_opts)
 
         failed = [k for k, v in outcomes.items() if not v[0]]
         fields = [("Mapped mounts", len(outcomes))]
@@ -813,8 +862,29 @@ def check_mount_config_writable(host):
         return runtime_exception(summary, exc)
 
 
+def _normalize_nfs_source(source: str) -> str:
+    """Normalize an NFS source for comparison.
+
+    Strips trailing slashes from the export path so that
+    ``10.0.0.1:/export/`` and ``10.0.0.1:/export`` compare equal.
+    """
+    if ":" in source:
+        server, export = source.split(":", 1)
+        return f"{server}:{export.rstrip('/')}"
+    return source.rstrip("/")
+
+
 def check_mount_config_oim_mount(host):
-    """Verify NFS storage is mounted on the OIM when mount_on_oim is true."""
+    """Verify NFS storage is mounted on the OIM when mount_on_oim is true.
+
+    Checks:
+    1. Mount point is active (mountpoint -q).
+    2. The mounted source matches the configured source (full
+       server + export comparison after normalization).
+    3. A persistent /etc/fstab entry exists for the mount (the 2.3
+       production role uses ``ansible.posix.mount state=mounted``
+       which always creates an fstab entry).
+    """
     summary = "OIM NFS mount"
     try:
         storage_config = _load_storage_config(host)
@@ -838,42 +908,59 @@ def check_mount_config_oim_mount(host):
             if not mount_point:
                 continue
             key = f"OIM:{mount_point}"
+            problems = []
+
+            # --- 1. Active mount check ---
             mp_cmd = run_on_host(
                 host,
                 f"mountpoint -q {mount_point} && echo MOUNTED || echo NOT_MOUNTED",
             )
-            if mp_cmd.stdout.strip().splitlines()[-1].strip().upper() == "MOUNTED":
-                src_cmd = run_on_host(
-                    host,
-                    f"findmnt -rn -o SOURCE {mount_point}",
-                )
-                actual_source = src_cmd.stdout.strip()
-                if not actual_source:
-                    outcomes[key] = (
-                        False,
-                        "mounted but findmnt returned no source",
-                    )
-                elif actual_source == source:
-                    outcomes[key] = (True, f"mounted from {actual_source}")
-                else:
-                    # NFS4 may resolve to a subpath or different export format;
-                    # check if configured source is a prefix of the actual.
-                    # e.g. config "10.0.0.1:/export" vs actual "10.0.0.1:/export"
-                    # Accept if the server IP/hostname and root path match.
-                    cfg_server = source.split(":")[0] if ":" in source else ""
-                    act_server = actual_source.split(":")[0] if ":" in actual_source else ""
-                    if cfg_server and cfg_server == act_server:
-                        outcomes[key] = (
-                            True,
-                            f"mounted from {actual_source} (server matches config)",
-                        )
-                    else:
-                        outcomes[key] = (
-                            False,
-                            f"source mismatch: expected={source}, actual={actual_source}",
-                        )
-            else:
+            is_mounted = (
+                mp_cmd.stdout.strip().splitlines()[-1].strip().upper()
+                == "MOUNTED"
+            )
+            if not is_mounted:
                 outcomes[key] = (False, "not mounted on OIM")
+                continue
+
+            # --- 2. Source identity check (full server + export) ---
+            src_cmd = run_on_host(
+                host,
+                f"findmnt -rn -o SOURCE {mount_point}",
+            )
+            actual_source = src_cmd.stdout.strip()
+            if not actual_source:
+                problems.append("mounted but findmnt returned no source")
+            else:
+                norm_expected = _normalize_nfs_source(source)
+                norm_actual = _normalize_nfs_source(actual_source)
+                if norm_actual != norm_expected:
+                    problems.append(
+                        f"source mismatch: expected={source}, "
+                        f"actual={actual_source}"
+                    )
+
+            # --- 3. Persistent fstab entry check ---
+            fstab_cmd = run_on_host(host, "cat /etc/fstab")
+            fstab_found = False
+            for line in fstab_cmd.stdout.strip().split("\n"):
+                fstab_fields = line.split()
+                if (
+                    len(fstab_fields) >= 2
+                    and not line.lstrip().startswith("#")
+                    and fstab_fields[1] == mount_point
+                ):
+                    fstab_found = True
+                    break
+            if not fstab_found:
+                problems.append(
+                    f"no /etc/fstab entry for {mount_point}"
+                )
+
+            if problems:
+                outcomes[key] = (False, "; ".join(problems))
+            else:
+                outcomes[key] = (True, f"mounted from {actual_source}")
 
         failed = [k for k, v in outcomes.items() if not v[0]]
         fields = [("OIM mount checks", len(outcomes))]

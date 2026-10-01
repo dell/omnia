@@ -48,6 +48,8 @@ MARKERS: list[str] = [
     "slurm",
     "apptainer",
     "additional_cloud_init",
+    "mount_config",
+    "minimal_os",
     "image_download",
     "negative",
     "non_disruptive",

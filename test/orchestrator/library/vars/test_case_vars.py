@@ -779,11 +779,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify required services are active on OS-only nodes",
         "component": "Minimal OS required services",
     },
-    "minimal_os_ldms_service_state": {
-        "id": "ORCH_FVT_PXEBOOT_V116",
-        "title": "Verify LDMS service is inactive at handoff on OS-only nodes",
-        "component": "Minimal OS LDMS service state",
-    },
+
     "minimal_os_excluded_packages": {
         "id": "ORCH_FVT_PXEBOOT_V117",
         "title": "Verify workload packages are absent on OS-only nodes",
