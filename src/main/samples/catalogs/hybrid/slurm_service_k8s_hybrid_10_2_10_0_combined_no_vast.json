@@ -10,6 +10,8 @@
         "name": "os_rhel_10_2_x86_64",
         "components": [
           "baseos_group_10.2",
+          "image_builder_x86_64_group",
+          "imagethrillhouse",
           "ldms_group"
         ]
       },
@@ -74,6 +76,8 @@
         "name": "os_rhel_10_0_x86_64",
         "components": [
           "baseos_group_10.0",
+          "image_builder_x86_64_group",
+          "imagethrillhouse",
           "ldms_group"
         ]
       },
@@ -81,6 +85,8 @@
         "name": "os_rhel_10_0_aarch64",
         "components": [
           "baseos_group_10.0",
+          "image_builder_aarch64_group",
+          "imagethrillhouse",
           "ldms_group"
         ]
       },
@@ -185,8 +191,7 @@
           "cffi==1_17_1",
           "cryptography==45_0_7",
           "omsdk==1_2_518",
-          "prettytable==3_14_0",
-          "nvcr.io/nvidia/hpc-benchmarks"
+          "prettytable==3_14_0"
         ]
       },
       "slurm_custom_group": {
@@ -195,7 +200,6 @@
         "description": "Common Slurm packages shared across all Slurm functional layers",
         "components": [
           "munge",
-          "firewalld",
           "python3_firewall",
           "pmix",
           "nvcr.io/nvidia/hpc-benchmarks",
@@ -208,7 +212,6 @@
           "osu_micro_benchmarks",
           "likwid",
           "geopm",
-          "papi",
           "msr_safe",
           "sionlib"
         ]
@@ -254,9 +257,7 @@
         "components": [
           "openmpi",
           "pmix_devel",
-          "munge_devel",
-          "gcc_c++",
-          "make"
+          "munge_devel"
         ]
       },
       "ucx_group": {
@@ -264,9 +265,7 @@
         "type": "group",
         "description": "UCX unified communication framework packages",
         "components": [
-          "ucx",
-          "gcc_c++",
-          "make"
+          "ucx"
         ]
       },
       "slurm_node_group": {
@@ -406,7 +405,6 @@
           "quay.io/strimzi/kafka-bridge",
           "strimzi_kafka_operator_helm_3_chart",
           "pymysql",
-          "gcc_cpp",
           "python3",
           "python3_pymysql",
           "papi_rpm"
@@ -522,6 +520,33 @@
           "nvhpc"
         ]
       },
+      "image_builder_x86_64_group": {
+        "name": "image_builder_x86_64_group",
+        "type": "group",
+        "os": "rhel",
+        "description": "Image builder for x86_64",
+        "components": [
+          "docker_io/dellhpcomniaaisolution/image_build_el10"
+        ]
+      },
+      "image_builder_aarch64_group": {
+        "name": "image_builder_aarch64_group",
+        "type": "group",
+        "os": "rhel",
+        "description": "Image builder for AArch64",
+        "components": [
+          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
+        ]
+      },
+      "imagethrillhouse": {
+        "name": "imagethrillhouse",
+        "type": "group",
+        "os": "rhel",
+        "description": "OpenCHAMI image builder for x86_64 and AArch64",
+        "components": [
+          "ghcr_io/openchami/image_thrillhouse"
+        ]
+      },
       "baseos_group_10.0": {
         "name": "baseos_group",
         "type": "base_os",
@@ -562,10 +587,7 @@
           "wget",
           "cloud_init",
           "glibc_langpack_en",
-          "gedit",
-          "ghcr_io/openchami/image_thrillhouse",
-          "docker_io/dellhpcomniaaisolution/image_build_el10",
-          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
+          "gedit"
         ]
       },
       "baseos_group_10.2": {
@@ -608,10 +630,7 @@
           "wget",
           "cloud_init",
           "glibc_langpack_en",
-          "gedit",
-          "ghcr_io/openchami/image_thrillhouse",
-          "docker_io/dellhpcomniaaisolution/image_build_el10",
-          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
+          "gedit"
         ]
       }
     },
@@ -1493,7 +1512,7 @@
       "ghcr_io/openchami/image_thrillhouse": {
         "name": "ghcr.io/openchami/image-thrillhouse",
         "packagetype": "image",
-        "tag": "v0.0.26",
+        "tag": "v0.0.24",
         "sources": [
           {
             "architecture": "x86_64",
@@ -5101,28 +5120,6 @@
             "version": [
               "10.2",
               "10.0"
-            ]
-          }
-        ]
-      },
-      "gcc_cpp": {
-        "name": "gcc-c++",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "appstream",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "reponame": "appstream",
-            "name": "rhel",
-            "version": [
-              "10.2"
             ]
           }
         ]

@@ -10,6 +10,8 @@
         "name": "os_rhel_10_2_x86_64",
         "components": [
           "baseos_group",
+          "image_builder_x86_64_group",
+          "imagethrillhouse",
           "ldms_group"
         ]
       },
@@ -45,6 +47,8 @@
         "name": "os_rhel_10_2_aarch64",
         "components": [
           "baseos_group",
+          "image_builder_aarch64_group",
+          "imagethrillhouse",
           "ldms_group"
         ]
       },
@@ -122,10 +126,34 @@
           "wget",
           "cloud_init",
           "glibc_langpack_en",
-          "gedit",
-          "ghcr_io/openchami/image_thrillhouse",
-          "docker_io/dellhpcomniaaisolution/image_build_el10",
+          "gedit"
+        ]
+      },
+      "image_builder_x86_64_group": {
+        "name": "image_builder_x86_64_group",
+        "type": "group",
+        "os": "rhel",
+        "description": "Image builder for x86_64",
+        "components": [
+          "docker_io/dellhpcomniaaisolution/image_build_el10"
+        ]
+      },
+      "image_builder_aarch64_group": {
+        "name": "image_builder_aarch64_group",
+        "type": "group",
+        "os": "rhel",
+        "description": "Image builder for AArch64",
+        "components": [
           "docker_io/dellhpcomniaaisolution/image_build_aarch64"
+        ]
+      },
+      "imagethrillhouse": {
+        "name": "imagethrillhouse",
+        "type": "group",
+        "os": "rhel",
+        "description": "OpenCHAMI image builder for x86_64 and AArch64",
+        "components": [
+          "ghcr_io/openchami/image_thrillhouse"
         ]
       },
       "admin_debug_group": {
@@ -196,8 +224,7 @@
           "cryptography==45_0_7",
           "kubernetes==33_1_0",
           "omsdk==1_2_518",
-          "prettytable==3_14_0",
-          "nvcr.io/nvidia/hpc-benchmarks"
+          "prettytable==3_14_0"
         ]
       },
       "slurm_custom_group": {
@@ -821,7 +848,7 @@
       "ghcr_io/openchami/image_thrillhouse": {
         "name": "ghcr.io/openchami/image-thrillhouse",
         "packagetype": "image",
-        "tag": "v0.0.26",
+        "tag": "v0.0.24",
         "sources": [
           {
             "architecture": "x86_64",

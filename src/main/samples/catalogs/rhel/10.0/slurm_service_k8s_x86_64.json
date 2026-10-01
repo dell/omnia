@@ -220,8 +220,7 @@
           "cryptography==45_0_7",
           "kubernetes==33_1_0",
           "omsdk==1_2_518",
-          "prettytable==3_14_0",
-          "nvcr.io/nvidia/hpc-benchmarks"
+          "prettytable==3_14_0"
         ]
       },
       "slurm_custom_group": {
@@ -3007,7 +3006,7 @@
       "ghcr_io/openchami/image_thrillhouse": {
         "name": "ghcr.io/openchami/image-thrillhouse",
         "packagetype": "image",
-        "tag": "v0.0.26",
+        "tag": "v0.0.24",
         "sources": [
           {
             "architecture": "x86_64",

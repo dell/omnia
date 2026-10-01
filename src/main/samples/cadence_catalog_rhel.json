@@ -10,6 +10,8 @@
         "name": "os_rhel_10_0_x86_64",
         "components": [
           "baseos_group",
+          "image_builder_x86_64_group",
+          "image_thrillhouse_group",
           "ldms_group"
         ]
       },
@@ -46,6 +48,8 @@
         "name": "os_rhel_10_0_aarch64",
         "components": [
           "baseos_group",
+          "image_builder_aarch64_group",
+          "image_thrillhouse_group",
           "ldms_group"
         ]
       },
