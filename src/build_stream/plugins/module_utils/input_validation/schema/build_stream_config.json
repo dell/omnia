@@ -83,8 +83,8 @@
                 },
                 "interval_seconds": {
                     "type": "integer",
-                    "minimum": 60,
-                    "description": "Cadence polling interval in seconds (minimum 1 minute for testing)"
+                    "minimum": 3600,
+                    "description": "Cadence polling interval in seconds (minimum 1 hour)"
                 },
                 "catalog_filename": {
                     "type": "string",

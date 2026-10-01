@@ -260,12 +260,13 @@ def _load_unified_config(
         for key in int_keys:
             if key in cadence_section:
                 value = int(cadence_section[key])
-                if key == "interval_seconds" and value < 60:
+                if key == "interval_seconds" and value < 3600:
                     log_secure_info(
                         "warning",
-                        f"Cadence interval {value}s < 1 minute; using minimum 60s"
+                        f"Cadence interval {value}s < 1 hour; "
+                        "using minimum 3600s"
                     )
-                    value = 60
+                    value = 3600
                 config[key] = value
 
         for key in str_keys:

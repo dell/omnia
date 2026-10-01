@@ -110,24 +110,26 @@ def test_cadence_catalog_identity(host, cadence_pipeline_state):
         host, cadence_pipeline_state.job_id,
     )
     assert identity["success"], identity["error"]
-    # The ImageGroup ID is the canonical composite catalog identity. Older
-    # migrated Job rows may not duplicate that value in
-    # composite_image_group_id, so validate it when present without rejecting
-    # an otherwise consistent Job/ImageGroup relationship.
-    if identity["job_composite_id"]:
-        assert identity["job_composite_id"] == expected
+    assert identity["job_composite_id"], (
+        "New cadence Job is missing composite_image_group_id"
+    )
+    assert identity["job_composite_id"] == expected
     assert identity["image_group_id"] == expected
-    if identity["job_catalog_identifier"]:
-        assert identity["job_catalog_identifier"] == (
-            cadence_pipeline_state.catalog_identifier
-        )
+    assert identity["job_catalog_identifier"], (
+        "New cadence Job is missing catalog_identifier"
+    )
+    assert identity["job_catalog_identifier"] == (
+        cadence_pipeline_state.catalog_identifier
+    )
     assert identity["group_catalog_identifier"] == (
         cadence_pipeline_state.catalog_identifier
     )
-    if identity["job_catalog_version"]:
-        assert identity["job_catalog_version"] == (
-            cadence_pipeline_state.catalog_version
-        )
+    assert identity["job_catalog_version"], (
+        "New cadence Job is missing catalog_version"
+    )
+    assert identity["job_catalog_version"] == (
+        cadence_pipeline_state.catalog_version
+    )
     assert identity["group_catalog_version"] == (
         cadence_pipeline_state.catalog_version
     )

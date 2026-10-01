@@ -34,6 +34,9 @@ from typing import Any, Callable, Dict, List, Optional
 
 from omnia_auto import load_test_config, read_remote_yaml, run_on_host
 
+from library.cadence_artifact_contract import (
+    artifact_basenames_match_engine,
+)
 from library.vars.common_vars import (
     BSM_HEALTH_PATH,
     BSM_HOST_IP_KEY,
@@ -3323,14 +3326,11 @@ def check_cadence_artifact_identity(
 
     invalid = []
     all_paths = []
-    expected_files = {
-        "image": "rootfs.squashfs",
-        "kernel": "vmlinuz",
-        "initrd": "initramfs.img",
-    }
     for role, image in build_status["images"].items():
-        for key, filename in expected_files.items():
+        role_paths = {}
+        for key in ("image", "kernel", "initrd"):
             path = str(image.get(key, ""))
+            role_paths[key] = path
             all_paths.append(path)
             parts = PurePosixPath(path).parts
             if (
@@ -3338,9 +3338,10 @@ def check_cadence_artifact_identity(
                 or len(parts) < 4
                 or role not in parts
                 or engine_token not in path
-                or parts[-1] != filename
             ):
                 invalid.append(f"{role}:{key}:{path}")
+        if not artifact_basenames_match_engine(engine, role_paths):
+            invalid.append(f"{role}:engine-filenames:{role_paths}")
     if invalid:
         result["error"] = (
             "Artifact paths do not match role/engine contract: "

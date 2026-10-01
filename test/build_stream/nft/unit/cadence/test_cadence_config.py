@@ -113,8 +113,9 @@ cadence:
         assert result["catalog_filename"] == "cadence_catalog_rhel.json"  # Default
         assert result["playbook_name"] == "repo_sync.yml"  # Default
 
+    @pytest.mark.unit
     def test_load_unified_config_invalid_interval(self, temp_dir):
-        """TC-UT-001-005: Enforce minimum polling interval (60 seconds)."""
+        """TC-UT-001-005: Enforce minimum polling interval (3600 seconds)."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text("""
 cadence:
@@ -130,7 +131,7 @@ cadence:
         }
         result = _load_unified_config(str(config_file), defaults)
 
-        assert result["interval_seconds"] == 60  # Minimum enforced
+        assert result["interval_seconds"] == 3600  # Minimum enforced
 
     def test_load_unified_config_invalid_filename(self, temp_dir):
         """TC-UT-001-004: Validate catalog filename pattern."""
