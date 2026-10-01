@@ -72,6 +72,7 @@ PLAYBOOK_TAGS = [
     "precheck",
     "validate",
     "deploy",
+    "deploy_sinks",
     "cleanup",
     "upgrade",
     "rollback",

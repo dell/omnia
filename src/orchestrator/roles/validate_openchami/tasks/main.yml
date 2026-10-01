@@ -24,31 +24,17 @@
       register: openchami_target_status
       failed_when: openchami_target_status.status.ActiveState != "active"
 
-    - name: Verify SMD API is reachable
-      ansible.builtin.uri:
-        url: "{{ openchami_base_url }}/hsm/v2/service/ready"
-        method: GET
-        status_code: 200
-        validate_certs: "{{ openchami_validate_certs | default(true) }}"
-        headers:
-          Authorization: "Bearer {{ openchami_access_token }}"
-      register: smd_health
+    - name: Verify OpenCHAMI APIs with JWT and CA trust
+      openchami_reconcile:
+        action: check_apis
+        cluster_uri: "{{ openchami_base_url }}"
+        access_token: "{{ openchami_access_token }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+      register: openchami_api_checks
       retries: 3
       delay: 5
-      until: smd_health.status == 200
-
-    - name: Verify boot-service is reachable
-      ansible.builtin.uri:
-        url: "{{ openchami_base_url }}/boot-service/nodes"
-        method: GET
-        status_code: 200
-        validate_certs: "{{ openchami_validate_certs | default(true) }}"
-        headers:
-          Authorization: "Bearer {{ openchami_access_token }}"
-      register: boot_service_health
-      retries: 3
-      delay: 5
-      until: boot_service_health.status == 200
+      until: openchami_api_checks is success
+      no_log: true
 
     - name: Verify tokensmith is reachable
       ansible.builtin.systemd:
@@ -59,19 +45,6 @@
       retries: 3
       delay: 5
       until: tokensmith_health.status.ActiveState == "active"
-
-    - name: Verify metadata-service is reachable
-      ansible.builtin.uri:
-        url: "{{ openchami_base_url }}/metadata-service/health"
-        method: GET
-        status_code: 200
-        validate_certs: "{{ openchami_validate_certs | default(true) }}"
-        headers:
-          Authorization: "Bearer {{ openchami_access_token }}"
-      register: metadata_service_health
-      retries: 3
-      delay: 5
-      until: metadata_service_health.status == 200
 
     - name: Verify ACME certificate service is active
       ansible.builtin.systemd:
@@ -122,8 +95,8 @@
       ansible.builtin.fail:
         msg: >-
           OpenCHAMI is not ready for provisioning. Check that all services are
-          running and accessible. SMD: {{ smd_health.status | default('N/A') }},
-          Boot-Service: {{ boot_service_health.status | default('N/A') }},
-          Metadata-Service: {{ metadata_service_health.status | default('N/A') }},
+          running and accessible through the CA-verified gateway.
+          API checks: {{ 'passed' if openchami_api_checks is defined and
+          openchami_api_checks is success else 'failed' }},
           Tokensmith: {{ tokensmith_health.status.ActiveState | default('N/A') }},
           ACME: {{ acme_health.status.ActiveState | default('N/A') }}.

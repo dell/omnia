@@ -10,6 +10,7 @@ verify that every node performed a fresh boot and completed cloud-init.
 - **CSV-based input**: Parses the named fields in `pxe_mapping_file.csv` and validates unique BMC and admin addresses
 - **Orchestrator credential integration**: Reuses BMC credentials from orchestrator credential store
 - **Parallel node verification**: Checks SSH, boot freshness, and cloud-init independently across nodes
+- **Safe retry selection**: Standard runs reboot only nodes marked `reprovision_required`
 - **Structured failures**: Records unreachable, stale-boot, pending, terminal cloud-init, and timeout states
 - **Conditional execution**: Can be enabled/disabled via configuration flag
 - **Tag-based execution**: Run standalone or as part of orchestrator workflow
@@ -59,7 +60,25 @@ cd src/orchestrator/playbooks
 
 # Run orchestrator with pxeboot tag
 ansible-playbook orchestrator.yml --tags pxeboot
+
+# Explicitly PXE boot every mapped node instead of only pending/failed nodes
+ansible-playbook orchestrator.yml --tags pxeboot -e pxeboot_scope=all
 ```
+
+By default, the standard Orchestrator flow reads `orchestrator_status.yml` and
+selects only nodes where `reprovision_required` is true. Failed and unverified
+attempts retain that value; verified success clears it. Nodes that already
+completed a verified PXE boot are not rebooted. If nothing is pending, the
+workflow exits successfully without changing the existing lifecycle reports.
+
+Pending selection fails before Redfish operations when the aggregate status
+file is absent, malformed, or does not cover every XNAME in the active mapping.
+Run provisioning to regenerate lifecycle state, or pass the extra variable
+`-e pxeboot_scope=all` when a deliberate full-cluster PXE boot is required.
+
+An explicit `pxeboot_inventory` remains an operator-selected subset and is not
+filtered again. The BuildStream job flow continues using its existing generated
+effective inventory and restart-state behavior.
 
 ## Configuration
 
@@ -78,8 +97,6 @@ force_restart: true
 boot_source_override_enabled: continuous  # or: once, disabled
 boot_source_override_target: pxe         # or: uefi_http, hdd, etc.
 ```
-
-**Note**: Legacy variable names (`enable_phone_home`, `phone_home_pause_minutes`, etc.) are supported for backward compatibility but deprecated.
 
 `continuous` preserves the established Omnia behavior, but it also makes later
 restarts select PXE until the iDRAC override is changed. Use `once` when only
@@ -101,12 +118,17 @@ slurm_node_x86_64,grp1,ABCD34,,node2,aa:bb:cc:dd:ee:gg,172.16.1.11,xx:yy:zz:aa:b
 `HOSTNAME`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, `BMC_IP`, `IB_NIC_NAME`,
 `IB_IP`.
 
-All headers must be present even when an optional field, such as
-`SERVICE_TAG`, `PARENT_SERVICE_TAG`, `BMC_MAC`, `IB_NIC_NAME`, or `IB_IP`, is
-empty for a row.
+All headers must be present. `PARENT_SERVICE_TAG`, `IB_NIC_NAME`, and `IB_IP`
+may be empty. `SERVICE_TAG`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, and `BMC_IP`
+must be populated and unique.
 
 The parser follows CSV quoting rules. Invalid or duplicate BMC/admin addresses
 fail before any Redfish operation is attempted.
+
+The mapping does not contain an XNAME column. Before any Redfish operation,
+the play resolves each Service Tag to its permanent XNAME in SMD Hardware
+Inventory using the TokenSmith JWT and configured OpenCHAMI CA certificate.
+Missing identities fail closed with an instruction to run provision first.
 
 ## Output
 
@@ -114,12 +136,20 @@ The play writes all lifecycle reports under
 `$ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/`, including on a
 successful run:
 
-- `pxeboot_status.yml`: complete PXE and verification result for every node.
-- `failed_nodes.json`: failure-only compatibility report; `failed_nodes` is an
+- `pxeboot_status.yml`: PXE and verification result for every node attempted
+  by the current run.
+- `failed_nodes.json`: failure-only report; `failed_nodes` is an
   empty array when all nodes succeed.
 - `orchestrator_status.yml`: stable aggregate of provisioning and PXE phase
   status. An existing `provisioning_report.yml` is retained and correlated by
   XNAME only when its `inventory_source` matches the active PXE inventory.
+
+During a standard pending-node retry, `pxeboot_status.yml` and
+`failed_nodes.json` describe only the attempted subset, while
+`orchestrator_status.yml` retains the latest records for nodes that were not
+selected and replaces the records for nodes that were retried. This prevents a
+one-node retry from erasing successful lifecycle state for the rest of the
+cluster.
 
 The aggregate schema is not replaced by a phase-specific schema. Its
 `last_completed_phase` changes to `pxeboot`, and its `phases` map retains the
@@ -157,9 +187,9 @@ provisioning status and adds the PXE status.
       "failure_stage": "pxe_boot",
       "status": "failed",
       "verification_method": "not_started",
-      "verification_state": "not_started",
+      "verification_state": "idrac_unreachable",
       "cloud_init": {},
-      "error": "iDRAC timeout"
+      "error": "idrac_unreachable"
     },
     {
       "bmc_ip": "172.17.1.11",
@@ -172,24 +202,20 @@ provisioning status and adds the PXE status.
       "verification_method": "ssh_cloud_init",
       "verification_state": "cloud_init_error",
       "cloud_init": {
-        "status": "done",
-        "extended_status": "degraded done",
-        "errors": [],
-        "recoverable_errors": {}
+        "status": "error"
       },
-      "error": "status: error;errors: scripts_user failed"
+      "error": "Node verification failed"
     }
   ]
 }
 ```
 
-Per-node status values in `orchestrator_status.yml` and `pxeboot_status.yml`
-are:
-
-- `success`: PXE initiation, fresh boot, and cloud-init completion verified.
-- `failed`: iDRAC PXE or node-registration verification failed.
-- `pxe_initiated_unverified`: iDRAC accepted the operation while verification
-  was intentionally disabled.
+The lifecycle reports use `status: success`, `pending`, or `failed` and retain
+only `xname`, hostname, admin/BMC addresses, `reprovision_required`,
+`provisioning_status`, and the nested `pxeboot.status` and `pxeboot.state`.
+Detailed node errors are not copied into these reports. `failed_nodes.json`
+retains its established BuildStream-compatible envelope, but its `error` field
+contains only a compact state or generic verification failure.
 
 ## Node-Registration Verification
 
@@ -293,19 +319,6 @@ ansible-playbook orchestrator.yml --tags pxeboot
 - `idrac_pxe_boot`: iDRAC PXE boot configuration and restart
 - `verify_node_registration`: Cloud-init node-registration verification
 
-## Migration from utils Domain
-
-This utility was moved from `src/utils` to `src/orchestrator` in Omnia 2.2+.
-
-**Old path**: `src/utils/playbooks/set_pxe_boot.yml`
-**New path**: `src/orchestrator/playbooks/pxeboot/pxeboot.yml`
-
-**Key changes**:
-- Uses `pxe_mapping_file.csv` instead of inventory files
-- Uses orchestrator credentials (no separate credential collection)
-- Conditional execution via `enable_pxe_boot` flag
-- Tag-based execution: `--tags pxeboot`
-
 ## Node completion signal
 
 Omnia does not publish a generic cloud-init `phone_home` fragment. The
@@ -317,7 +330,7 @@ fresh-boot validation, and cloud-init state.
 ## Verification-disabled status
 
 With `enable_node_registration: false`, a successful iDRAC operation is stored
-as `pxe_initiated_unverified`. The overall play can complete successfully, but
+as `pxeboot.status: unverified`. The overall play can complete successfully, but
 the report does not claim that the operating system booted or cloud-init
 completed.
 

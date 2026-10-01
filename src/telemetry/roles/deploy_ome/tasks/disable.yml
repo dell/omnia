@@ -21,10 +21,12 @@
   ansible.builtin.include_role:
     name: common
     tasks_from: load_telemetry_config
+  when: telemetry_config is not defined
 
 - name: Check if OME Vector resources exist
   ansible.builtin.command: >
     kubectl get deployment vector-ome -n {{ telemetry_namespace }}
+    --ignore-not-found -o jsonpath='{.spec.replicas}'
   register: ome_check
   changed_when: false
   failed_when: false
@@ -35,14 +37,22 @@
     -n {{ telemetry_namespace }} --replicas=0
   register: scale_down_result
   changed_when: "'scaled' in scale_down_result.stdout"
-  when: ome_check.rc == 0
+  when:
+    - ome_check.rc == 0
+    - ome_check.stdout | trim | length > 0
+    - ome_check.stdout | trim | int > 0
+
+- name: Stop forwarding workloads for disabled OME channels
+  ansible.builtin.include_tasks: reconcile_disabled_channels.yml
 
 - name: Display scale down result
   ansible.builtin.debug:
     msg: "Scaling down OME telemetry to 0 replicas"
-  when: ome_check.rc == 0
+  when:
+    - ome_check.rc == 0
+    - ome_check.stdout | trim | length > 0
 
 - name: OME resources not found
   ansible.builtin.debug:
     msg: "OME telemetry resources not found, nothing to scale down"
-  when: ome_check.rc != 0
+  when: ome_check.rc != 0 or ome_check.stdout | trim | length == 0

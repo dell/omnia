@@ -17,6 +17,12 @@
   when:
     - not (hostvars['localhost']['_cleanup_abort'] | bool)
     - hostvars['localhost']['_cleanup_active_component'] | length == 0
+    # Skip full verification for selective-only sink cleanup — only partial
+    # resources are removed.  When _cleanup_all is true, full verification
+    # still runs even if cleanup_sinks tag is also present.
+    - >-
+      hostvars['localhost']['_cleanup_all'] | bool
+      or not (hostvars['localhost']['_cleanup_sinks'] | default(false) | bool)
   block:
     - name: Mark cleanup verification as attempted
       ansible.builtin.set_fact:

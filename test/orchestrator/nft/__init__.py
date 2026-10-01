@@ -12,8 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Orchestrator — Non-Functional Tests (NFT)
-
-Non-functional testing for performance, idempotency, and security.
-"""
+"""Orchestrator non-functional tests."""

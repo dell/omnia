@@ -64,6 +64,47 @@ UT_TEST_CASE_IDS = {
             28: "test_extract_log_fields_returns_readable_key_values",
         },
     ),
+    **_module_cases(
+        "test_idrac_lifecycle.py",
+        {
+            29: "test_idrac_role_selects_enable_and_disable_paths",
+            30: "test_full_deploy_always_invokes_idrac_reconciliation",
+            31: "test_idrac_disable_is_noop_safe_and_idempotent",
+            32: "test_idrac_disable_is_non_destructive_and_isolated",
+            33: "test_idrac_reenable_restores_retained_state",
+            34: "test_idrac_status_supports_deployed_disabled_and_failed",
+            35: "test_idrac_kafka_fvt_requires_a_fresh_record",
+            36: "test_idrac_kafka_probe_sends_valid_consumer_json",
+        },
+    ),
+    **_module_cases(
+        "test_sink_enablement.py",
+        {
+            37: "test_sink_enablement_keeps_direct_source_targets",
+            38: "test_vector_ome_bridge_derives_required_sinks",
+            39: "test_vector_ldms_bridge_requires_enabled_ldms_source",
+        },
+    ),
+    **_module_cases(
+        "test_ome_lifecycle.py",
+        {
+            40: "test_full_deploy_always_invokes_ome_reconciliation",
+            41: "test_ome_dependency_validation_precedes_cluster_changes",
+            42: "test_all_ome_channel_combinations_render_expected_vector_routes",
+            43: "test_ome_disable_is_idempotent_and_non_destructive",
+            44: "test_ome_restore_reconciles_configured_replicas_without_creation",
+            45: "test_ome_disabled_forwarders_protect_shared_ldms_vmagent",
+            46: "test_ome_status_reports_each_channel_as_deployed_or_disabled",
+        },
+    ),
+    **_module_cases(
+        "test_kafka_topic_lifecycle.py",
+        {
+            47: "test_disabled_sources_remove_only_stale_topic_manifests",
+            48: "test_topic_deployment_never_discovers_stale_manifests_by_wildcard",
+            49: "test_topic_readiness_wait_is_limited_to_enabled_sources",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

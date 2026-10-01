@@ -13,12 +13,12 @@
 # limitations under the License.
 ---
 
-# Enable iDRAC Telemetry
+# Reconcile iDRAC Telemetry
 # Usage: Called from telemetry.yml or standalone with kube_vip
 #   ansible-playbook telemetry.yml -e kube_vip=<VIP_IP> --tags deploy_idrac_telemetry
 #
-# Deploys shared infrastructure (Kafka, VictoriaMetrics) if not present,
-# then deploys iDRAC telemetry components (receiver, kafkapump, victoriapump).
+# Enables or non-destructively disables iDRAC telemetry according to
+# telemetry_sources.idrac.metrics_enabled.
 # All K8s tasks execute on the kube_vip host.
 
 - name: Deploy iDRAC Telemetry
@@ -39,6 +39,12 @@
         name: common
         tasks_from: derive_sink_support_flags
       when: kafka_support is not defined
+
+    - name: Determine configured iDRAC state
+      ansible.builtin.set_fact:
+        idrac_source_enabled: >-
+          {{ telemetry_config.telemetry_sources.idrac.metrics_enabled
+             | default(false) | bool }}
 
     - name: Add kube_vip to inventory (only if not already added)
       ansible.builtin.add_host:
@@ -74,6 +80,7 @@
       ansible.builtin.include_role:
         name: deploy_kafka
       when:
+        - idrac_source_enabled | bool
         - kafka_support | default(false) | bool
         - not (hostvars['localhost']['kafka_deployed'] | default(false) | bool)
 
@@ -81,6 +88,7 @@
       ansible.builtin.include_role:
         name: deploy_victoria
       when:
+        - idrac_source_enabled | bool
         - (victoria_metrics_support | default(false) | bool and not (hostvars['localhost']['victoria_metrics_deployed'] | default(false) | bool)) or
           (victoria_logs_support | default(false) | bool and not (hostvars['localhost']['victoria_logs_deployed'] | default(false) | bool))
 

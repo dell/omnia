@@ -55,6 +55,7 @@ from library.messages.telemetry_msgs import (
 from library.functions.k8s_func import verify_deploy_pods_detail
 from library.functions.telemetry_func import (
     is_source_enabled,
+    is_metrics_enabled,
     is_logs_enabled,
     is_sink_enabled_for_source,
 )
@@ -309,6 +310,9 @@ def test_powerscale_secret_valid(host):
 def test_powerscale_metrics_in_vm(host):
     """Verify PowerScale metrics in VictoriaMetrics."""
     _skip_if_powerscale_disabled(host)
+    # Skip if metrics not enabled
+    if not is_metrics_enabled(host, "powerscale"):
+        pytest.skip("PowerScale metrics not enabled in config")
     # Skip if PowerScale does not target VictoriaMetrics sink
     if not is_sink_enabled_for_source(host, "powerscale", "victoria_metrics"):
         pytest.skip("PowerScale source does not target VictoriaMetrics sink")

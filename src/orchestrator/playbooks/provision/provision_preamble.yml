@@ -67,11 +67,6 @@
         normalized_pxe_mapping_path: /tmp/omnia_provision_mapping.csv
       when: read_mapping_file is not defined
 
-    - name: Generate xnames in temp mapping file
-      generate_xname_in_mapping_file:
-        mapping_file_path: /tmp/omnia_provision_mapping.csv
-      when: read_mapping_file is not defined
-
     - name: Read PXE mapping CSV into temp var
       community.general.read_csv:
         path: /tmp/omnia_provision_mapping.csv

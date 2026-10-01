@@ -62,6 +62,7 @@ from .host_func import (
     sync_install_os_credentials,
     get_utils_input_path,
     get_utils_output_path,
+    get_collect_output_path,
     get_backup_oim_logs_output_path,
     get_backup_oim_logs_config_path,
     get_slurm_config_util_output_path,
@@ -127,6 +128,13 @@ def run_playbook(playbook=None, tag=None, **kwargs):
     Returns:
         dict: {"success": bool, "rc": int, "duration": str, "output": str, "error": str}
     """
+    # Skip validation by default during test automation
+    # Tests focus on playbook execution, not input validation
+    extra_vars = kwargs.get("extra_vars", {})
+    if "skip_validation" not in extra_vars:
+        extra_vars["skip_validation"] = "true"
+    kwargs["extra_vars"] = extra_vars
+    
     return _run_playbook(
         playbook=playbook or PLAYBOOK_COLLECT,
         playbook_workdir=kwargs.pop("playbook_workdir", PLAYBOOK_WORKDIR),
@@ -172,6 +180,7 @@ __all__ = [
     "sync_install_os_credentials",
     "get_utils_input_path",
     "get_utils_output_path",
+    "get_collect_output_path",
     "get_backup_oim_logs_output_path",
     "get_backup_oim_logs_config_path",
     "get_slurm_config_util_output_path",

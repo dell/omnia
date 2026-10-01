@@ -16,6 +16,7 @@
   ansible.builtin.set_fact:
     reboot_failed: false
     reboot_status: ""
+    reboot_state: not_started
 
 - name: Get LC status of iDRAC
   ansible.builtin.uri:
@@ -88,6 +89,10 @@
   ansible.builtin.set_fact:
     reboot_failed: true
     reboot_status: "{{ lc_check_fail_msg }}"
+    reboot_state: >-
+      {{ 'idrac_unreachable'
+         if idrac_status.status | default(-1) | int == -1
+         else 'idrac_unavailable' }}
   when: >
     idrac_status is failed or
     (idrac_status.json is not defined) or
@@ -98,6 +103,10 @@
   ansible.builtin.set_fact:
     reboot_failed: true
     reboot_status: "{{ pxe_provisioning_fail_msg }}"
+    reboot_state: >-
+      {{ 'idrac_unreachable'
+         if pxe_provisioning.unreachable | default(false) | bool
+         else 'pxe_request_failed' }}
   when:
     - not reboot_failed
     - pxe_provisioning is defined
@@ -107,6 +116,7 @@
   ansible.builtin.set_fact:
     reboot_failed: true
     reboot_status: "{{ unreachable_idrac_msg }}"
+    reboot_state: idrac_unreachable
   when:
     - not reboot_failed
     - pxe_provisioning is defined
@@ -116,6 +126,7 @@
   ansible.builtin.set_fact:
     reboot_failed: true
     reboot_status: "Power operation failed on {{ inventory_hostname }}. Failed to restart server."
+    reboot_state: power_operation_failed
   when:
     - not reboot_failed
     - hostvars['localhost']['restart_host'] | default(true)
@@ -125,6 +136,7 @@
 - name: Summarize PXE boot and power operation results
   ansible.builtin.set_fact:
     reboot_failed: false
+    reboot_state: pxe_initiated
     reboot_status: >-
       PXE Boot: {{ 'OK' if pxe_provisioning is success else ('UNREACHABLE' if pxe_provisioning is unreachable else 'FAILED') }} |
       Power: {{ 'Restart OK' if (restart_op is defined and restart_op is changed)

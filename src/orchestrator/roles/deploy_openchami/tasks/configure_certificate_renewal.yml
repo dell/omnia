@@ -1,0 +1,194 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Verify packaged OpenCHAMI certificate renewal units exist
+  ansible.builtin.stat:
+    path: "/usr/lib/systemd/system/{{ item }}"
+  loop:
+    - "{{ openchami_cert_renewal_service }}"
+    - "{{ openchami_cert_renewal_timer }}"
+  register: _openchami_cert_renewal_units
+
+- name: Require packaged OpenCHAMI certificate renewal units
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg
+    fail_msg: >-
+      Required certificate renewal unit {{ item.item }} is missing. Reinstall
+      the supported OpenCHAMI RPM before continuing.
+  loop: "{{ _openchami_cert_renewal_units.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Inspect HAProxy certificate volume
+  containers.podman.podman_volume_info:
+    name: "{{ openchami_haproxy_cert_volume }}"
+  register: _openchami_haproxy_cert_volume
+
+- name: Require HAProxy certificate volume
+  ansible.builtin.assert:
+    that:
+      - _openchami_haproxy_cert_volume.volumes | default([]) | length == 1
+      - _openchami_haproxy_cert_volume.volumes[0].Mountpoint | default('') | length > 0
+    fail_msg: >-
+      The {{ openchami_haproxy_cert_volume }} volume is unavailable. Re-run
+      OpenCHAMI deployment before configuring certificate renewal.
+
+- name: Resolve deployed OpenCHAMI certificate path
+  ansible.builtin.set_fact:
+    _openchami_fqdn: "{{ cluster_name }}.{{ cluster_domain }}"
+    _openchami_haproxy_cert_path: >-
+      {{ _openchami_haproxy_cert_volume.volumes[0].Mountpoint
+         }}/{{ cluster_name }}.{{ cluster_domain }}.pem
+
+- name: Check deployed OpenCHAMI certificate
+  ansible.builtin.stat:
+    path: "{{ _openchami_haproxy_cert_path }}"
+  register: _openchami_haproxy_cert
+
+- name: Check OpenCHAMI certificate renewal threshold
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -checkend
+      - "{{ openchami_cert_renewal_threshold_seconds | string }}"
+      - -noout
+      - -in
+      - "{{ _openchami_haproxy_cert_path }}"
+  register: _openchami_cert_expiry
+  changed_when: false
+  failed_when: false
+  when: _openchami_haproxy_cert.stat.exists
+
+- name: Check OpenCHAMI certificate identity
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -checkhost
+      - "{{ _openchami_fqdn }}"
+      - -noout
+      - -in
+      - "{{ _openchami_haproxy_cert_path }}"
+  register: _openchami_cert_identity
+  changed_when: false
+  failed_when: false
+  when: _openchami_haproxy_cert.stat.exists
+
+- name: Determine whether immediate OpenCHAMI certificate renewal is required
+  ansible.builtin.set_fact:
+    _openchami_cert_renewal_required: >-
+      {{ not _openchami_haproxy_cert.stat.exists
+         or (_openchami_cert_expiry.rc | default(1) | int != 0)
+         or (_openchami_cert_identity.rc | default(1) | int != 0) }}
+
+- name: Enable packaged OpenCHAMI certificate renewal timer
+  ansible.builtin.systemd_service:
+    name: "{{ openchami_cert_renewal_timer }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Read initial OpenCHAMI certificate renewal timer state
+  ansible.builtin.systemd_service:
+    name: "{{ openchami_cert_renewal_timer }}"
+  register: _openchami_cert_renewal_timer_initial
+  changed_when: false
+
+- name: Determine whether the packaged renewal timer requires initialization
+  ansible.builtin.set_fact:
+    _openchami_cert_timer_schedule_missing: >-
+      {{ _openchami_cert_renewal_timer_initial.status.get(
+           'NextElapseUSecRealtime', 'infinity'
+         ) in ['', 'infinity']
+         and _openchami_cert_renewal_timer_initial.status.get(
+           'NextElapseUSecMonotonic', 'infinity'
+         ) in ['', 'infinity'] }}
+
+- name: Renew and deploy OpenCHAMI certificate when required
+  ansible.builtin.systemd_service:
+    name: "{{ openchami_cert_renewal_service }}"
+    state: started
+    daemon_reload: true
+  when:
+    - >-
+      _openchami_cert_renewal_required | bool
+      or _openchami_cert_timer_schedule_missing | bool
+
+- name: Restart packaged timer after initializing its monotonic schedule
+  ansible.builtin.systemd_service:
+    name: "{{ openchami_cert_renewal_timer }}"
+    state: restarted
+    daemon_reload: true
+  when: _openchami_cert_timer_schedule_missing | bool
+
+- name: Read effective OpenCHAMI certificate renewal timer state
+  ansible.builtin.systemd_service:
+    name: "{{ openchami_cert_renewal_timer }}"
+  register: _openchami_cert_renewal_timer_status
+  changed_when: false
+  retries: 5
+  delay: 1
+  until:
+    - _openchami_cert_renewal_timer_status.status.ActiveState == 'active'
+    - _openchami_cert_renewal_timer_status.status.UnitFileState == 'enabled'
+    - >-
+      _openchami_cert_renewal_timer_status.status.get(
+        'NextElapseUSecRealtime', 'infinity'
+      ) not in ['', 'infinity']
+      or _openchami_cert_renewal_timer_status.status.get(
+        'NextElapseUSecMonotonic', 'infinity'
+      ) not in ['', 'infinity']
+
+- name: Verify renewed OpenCHAMI certificate file
+  ansible.builtin.stat:
+    path: "{{ _openchami_haproxy_cert_path }}"
+  register: _openchami_renewed_cert
+
+- name: Verify renewed OpenCHAMI certificate validity window
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -checkend
+      - "{{ openchami_cert_renewal_threshold_seconds | string }}"
+      - -noout
+      - -in
+      - "{{ _openchami_haproxy_cert_path }}"
+  register: _openchami_renewed_cert_expiry
+  changed_when: false
+  when: _openchami_renewed_cert.stat.exists
+
+- name: Verify OpenCHAMI certificate renewal state
+  ansible.builtin.assert:
+    that:
+      - _openchami_renewed_cert.stat.exists
+      - _openchami_renewed_cert_expiry.rc | default(1) | int == 0
+      - _openchami_cert_renewal_timer_status.status.ActiveState == 'active'
+      - _openchami_cert_renewal_timer_status.status.UnitFileState == 'enabled'
+      - >-
+        _openchami_cert_renewal_timer_status.status.get(
+          'NextElapseUSecRealtime', 'infinity'
+        ) not in ['', 'infinity']
+        or _openchami_cert_renewal_timer_status.status.get(
+          'NextElapseUSecMonotonic', 'infinity'
+        ) not in ['', 'infinity']
+    fail_msg: >-
+      OpenCHAMI certificate renewal is not healthy. Verify
+      {{ openchami_cert_renewal_service }},
+      {{ openchami_cert_renewal_timer }}, and the certificate at
+      {{ _openchami_haproxy_cert_path }}.

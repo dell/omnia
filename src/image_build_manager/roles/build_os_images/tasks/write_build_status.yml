@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Writes build_status.yml to {{ output_project_dir }}/
+# Every successful build writes the latest build_status.yml to
+# {{ output_project_dir }}/, regardless of input mode. Catalog mode additionally
+# writes the same status below the composite catalog identity. Config mode has
+# no catalog identity and therefore writes only the project-level contract.
 # This output file is consumed by the provision domain for BSS template
 # rendering (S3 paths for kernel, initrd, image per functional group).
 #
@@ -33,9 +36,30 @@
 # layout that produced this manifest, even if the input is changed later.
 
 - name: Set output paths
+  vars:
+    _status_package_source: >-
+      {{ hostvars['localhost']['functional_groups_source']
+         | default('config') }}
+    _status_catalog_identifier: >-
+      {{ hostvars['localhost']['catalog_identifier']
+         | default('', true) }}
+    _status_catalog_version: >-
+      {{ hostvars['localhost']['catalog_version']
+         | default('', true) }}
+    _status_catalog_image_group_id: >-
+      {{ _status_catalog_identifier ~ '-v' ~ _status_catalog_version }}
   ansible.builtin.set_fact:
     _output_base: "{{ output_project_dir }}"
-    _output_domain: "{{ output_project_dir }}"
+    _output_domain: >-
+      {{ output_project_dir ~ '/' ~ _status_catalog_image_group_id
+         if (_status_package_source == 'catalog'
+             and (_status_catalog_identifier | length) > 0
+             and (_status_catalog_version | length) > 0)
+         else output_project_dir }}
+    _catalog_status_output: >-
+      {{ _status_package_source == 'catalog'
+         and (_status_catalog_identifier | length) > 0
+         and (_status_catalog_version | length) > 0 }}
     _omnia_version: "{{ omnia_version }}"
 
 - name: Ensure output directories exist
@@ -47,7 +71,7 @@
     - "{{ _output_base }}"
     - "{{ _output_domain }}"
 
-- name: Write build_status.yml (latest — always overwritten)
+- name: Write latest project-level build_status.yml
   ansible.builtin.template:
     src: "{{ role_path }}/templates/build_status.yml.j2"
     dest: "{{ _output_base }}/build_status.yml"
@@ -57,6 +81,18 @@
     status_image_build_type: >-
       {{ hostvars['localhost']['image_build_type']
          | default('image-thrillhouse') }}
+
+- name: Write catalog-version build_status.yml
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/build_status.yml.j2"
+    dest: "{{ _output_domain }}/build_status.yml"
+    mode: "0644"
+  vars:
+    build_completed_images: "{{ hostvars['localhost']['build_completed_images'] | default({}) }}"
+    status_image_build_type: >-
+      {{ hostvars['localhost']['image_build_type']
+         | default('image-thrillhouse') }}
+  when: _catalog_status_output | bool
 
 - name: Build versioned output path
   ansible.builtin.set_fact:
@@ -76,5 +112,9 @@
 - name: Display build status output locations
   ansible.builtin.debug:
     msg:
-      - "Latest: {{ _output_base }}/build_status.yml"
-      - "Versioned: {{ _versioned_build_status }}"
+      - "Latest build contract: {{ _output_base }}/build_status.yml"
+      - >-
+        {{ 'Catalog contract: ' ~ _output_domain ~ '/build_status.yml'
+           if (_catalog_status_output | bool)
+           else 'Config contract: ' ~ _output_base ~ '/build_status.yml' }}
+      - "Timestamped: {{ _versioned_build_status }}"
