@@ -227,6 +227,31 @@ class InMemoryImageGroupRepository(ImageGroupRepository):
         filtered.sort(key=lambda x: x.created_at)
         return filtered
 
+    def increment_deploy_count(self, image_group_id: ImageGroupId) -> None:
+        """Increment deploy_count and set last_deployed_at."""
+        ig = self._store.get(str(image_group_id))
+        if ig:
+            ig.deploy_count = (ig.deploy_count or 0) + 1
+            from datetime import datetime, timezone
+            ig.last_deployed_at = datetime.now(timezone.utc)
+
+    def list_eligible_for_retention(
+        self, max_age_days: int, min_keep_count: int
+    ) -> List[ImageGroup]:
+        """List ImageGroups eligible for age-based retention cleanup."""
+        from datetime import datetime, timedelta, timezone
+        cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+        return [
+            ig for ig in self._store.values()
+            if not ig.is_protected
+            and ig.deploy_count == 0
+            and ig.created_at < cutoff
+            and ig.status not in (
+                ImageGroupStatus.CLEANED,
+                ImageGroupStatus.CLEANING,
+            )
+        ]
+
 
 class InMemoryImageRepository(ImageRepository):
     """In-memory implementation of ImageRepository for development/testing."""

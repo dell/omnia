@@ -32,7 +32,7 @@ explicitly excluded from aggregate FVT execution.
 
 ## Test cases
 
-### Cleanup contract (`test_cleanup_contract.py`) -- 24 tests
+### Cleanup contract (`test_cleanup_contract.py`) -- 27 tests
 
 #### CleanupContextTests
 
@@ -78,7 +78,7 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_026 | `test_catalog_path_falls_back_below_omnia_data_path` | Legacy environments retain their data-root-derived default. |
 | RM_UT_027 | `test_catalog_path_uses_explicit_catalog_file` | The selected versioned catalog takes precedence over defaults. |
 
-### Container reconciliation (`test_container_reconciliation.py`) -- 8 tests
+### Container reconciliation (`test_container_reconciliation.py`) -- 20 tests
 
 #### ContainerReconciliationTests
 
@@ -157,7 +157,7 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_079 | `test_verify_only_targets_are_not_configured_for_execution` | Targets without deploy triggers fail closed at configuration time. |
 | RM_UT_126 | `test_report_names_are_isolated_by_category` | FVT, NFT, and UT runs cannot overwrite one another's reports. |
 
-### FVT policy helpers (`test_fvt_policy_helpers.py`) -- 6 tests
+### FVT policy helpers (`test_fvt_policy_helpers.py`) -- 9 tests
 
 #### FvtPolicyHelperTests
 
@@ -170,7 +170,7 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_084 | `test_repo_caching_uses_lowercase_global_key` | Per-repo fallback reads caching_policy and defaults to true. |
 | RM_UT_085 | `test_repository_source_type_uses_configured_url` | Source-type checks distinguish URL and subscription repositories. |
 
-### Mirror state (`test_mirror_state.py`) -- 9 tests
+### Mirror state (`test_mirror_state.py`) -- 16 tests
 
 #### MirrorStateTests
 
@@ -235,7 +235,7 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_116 | `test_valid_integer_environment_override` | A valid numeric override is returned as an integer. |
 | RM_UT_117 | `test_yaml_value_is_used_when_environment_is_absent` | Declarative configuration takes precedence over the fallback. |
 
-### Status contract (`test_status_contract.py`) -- 8 tests
+### Status contract (`test_status_contract.py`) -- 11 tests
 
 #### StatusBuilderTests
 
@@ -252,8 +252,8 @@ explicitly excluded from aggregate FVT execution.
 | TC ID | Test | Description |
 |-------|------|-------------|
 | RM_UT_123 | `test_atomic_write_preserves_previous_status_on_replace_failure` | An interrupted publication retains the last complete public status. |
-| RM_UT_124 | `test_failed_status_contains_no_consumable_repository_urls` | A failed run publishes empty repository maps and legacy URLs. |
-| RM_UT_125 | `test_removed_file_repos_by_version_field_is_not_reintroduced` | The current output contract owns only the common file_repos field. |
+| RM_UT_124 | `test_failed_status_contains_no_consumable_repository_urls` | A failed run publishes empty repository and content-base maps. |
+| RM_UT_125 | `test_separate_file_repos_by_version_field_is_not_introduced` | The version-first `file_repos` contract remains the single public mapping. |
 
 ### Dataset contract (`test_dataset_contract.py`) -- 17 tests
 
@@ -279,21 +279,136 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_142 | `test_sync_staging_copies_only_public_input_allowlist` | Defense in depth prevents extra files from entering sync staging. |
 | RM_UT_143 | `test_named_dataset_reaches_remote_sync_staging` | The selected dataset supplies the exact files sent to the target. |
 
+### Multi-version and artifact reconciliation extensions -- 64 tests
+
+#### Artifact reuse and direct RPM processing (`test_artifact_reuse.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_144 | `test_content_architecture_is_read_from_managed_path` | Reuse derives architecture from the managed artifact path. |
+| RM_UT_145 | `test_shell_reuses_verified_bytes_without_network_download` | Verified shell content is reused without another transfer. |
+| RM_UT_146 | `test_galaxy_reuses_exact_collection_version` | Galaxy reuse requires the exact collection and version. |
+| RM_UT_147 | `test_iso_cache_identity_is_architecture_scoped` | ISO reuse cannot cross incompatible architecture identities. |
+| RM_UT_148 | `test_distribution_reconciliation_uses_exact_repository` | Standalone RPM publication binds to the exact repository. |
+| RM_UT_149 | `test_failed_download_leaves_no_partial_rpm` | Failed RPM transfers cannot leave reusable partial content. |
+
+#### Cleanup recovery extensions (`test_cleanup_contract.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_150 | `test_repository_removal_also_clears_its_retry_checkpoint` | Exact cleanup removes only the selected repository checkpoint. |
+| RM_UT_151 | `test_file_cleanup_stops_when_owner_state_cannot_be_saved` | Shared-content cleanup fails closed when ownership state cannot persist. |
+| RM_UT_152 | `test_configured_registry_repo_matches_endpoint_mirror_rows` | Registry cleanup matches the normalized endpoint identity. |
+
+#### Container reconciliation extensions (`test_container_reconciliation.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_153 | `test_direct_manifest_requires_target_architecture` | A single-platform manifest must match the requested architecture. |
+| RM_UT_154 | `test_wrong_container_architecture_is_incomplete` | A mismatched image cannot be reported ready. |
+| RM_UT_155 | `test_multiarch_index_supports_arm64_context` | A multi-architecture index satisfies an ARM64 context when present. |
+| RM_UT_156 | `test_digest_image_is_synced_and_architecture_verified` | Digest-pinned images retain platform verification. |
+| RM_UT_157 | `test_ready_public_image_skips_upstream_tag_validation` | A verified ready tag does not require another upstream query. |
+| RM_UT_158 | `test_ready_configured_image_reconciles_without_tag_validation` | Configured ready images reconcile through local Pulp state. |
+| RM_UT_159 | `test_incomplete_public_image_validates_and_synchronizes` | Missing local content is validated before synchronization. |
+| RM_UT_160 | `test_invalid_public_tag_is_rejected_before_persistent_mutation` | Invalid tags fail before Pulp objects are changed. |
+| RM_UT_161 | `test_second_os_context_reuses_first_image_sync` | Identical image content is synchronized once across OS minor contexts. |
+| RM_UT_162 | `test_process_image_preserves_positional_logger_compatibility` | Existing image-worker call compatibility remains stable. |
+| RM_UT_163 | `test_remote_query_error_does_not_trigger_create` | Unknown remote state fails closed. |
+| RM_UT_164 | `test_confirmed_missing_remote_is_created` | Only confirmed absence creates a remote. |
+
+#### Context resolution (`test_context_resolution.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_165 | `test_cases_one_to_six_resolve_exact_contexts` | Cases 1-6 resolve the intended version/architecture combinations. |
+| RM_UT_166 | `test_single_version_preserves_legacy_os_version` | Single-version catalogs retain the compatibility field. |
+| RM_UT_167 | `test_multiple_versions_require_execution_contexts` | Multi-version catalogs avoid an ambiguous scalar version. |
+| RM_UT_168 | `test_numeric_version_sort_does_not_use_lexical_order` | Minor versions use numeric ordering. |
+| RM_UT_169 | `test_invalid_functional_layer_fails_closed` | Invalid catalog context data is rejected. |
+
+#### RPM mirror and rerun selection (`test_mirror_state.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_170 | `test_repository_checkpoint_preserves_last_good_version_on_failure` | A failed sync retains the last usable HREF. |
+| RM_UT_171 | `test_resync_checkpoint_marks_only_selected_packages_pending` | Targeted resync invalidates only the selected repository packages. |
+| RM_UT_172 | `test_normal_rerun_does_not_requeue_successful_rpms` | Successful RPMs remain skipped on an unchanged rerun. |
+| RM_UT_173 | `test_targeted_resync_selects_only_packages_from_exact_repository` | Targeted resync selects one exact context and repository. |
+| RM_UT_174 | `test_resync_all_selects_every_successful_rpm` | Resync-all requeues all applicable RPM work. |
+| RM_UT_175 | `test_failed_repository_checkpoint_selects_its_packages` | Failed repository work remains retryable. |
+| RM_UT_176 | `test_policy_transition_selects_affected_repository_only` | Policy changes invalidate only affected repository work. |
+
+#### Pulp object state (`test_pulp_object_state.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_177 | `test_successful_json_query_is_present` | Valid object output establishes presence. |
+| RM_UT_178 | `test_explicit_not_found_query_is_absent` | Only explicit not-found establishes absence. |
+| RM_UT_179 | `test_operational_query_failure_is_unknown` | Transport and authentication failures remain unknown. |
+| RM_UT_180 | `test_unknown_file_repository_state_causes_no_mutation` | Unknown File repository state is non-mutating. |
+| RM_UT_181 | `test_file_content_reuses_digest_without_upload` | Matching File content is reused by digest. |
+| RM_UT_182 | `test_python_content_reuses_digest_without_upload` | Matching Python content is reused by digest. |
+| RM_UT_183 | `test_unknown_content_query_causes_no_mutation` | Unknown content state cannot trigger upload. |
+| RM_UT_184 | `test_distribution_accepts_expected_repository_binding` | Correct distribution bindings are retained. |
+| RM_UT_185 | `test_distribution_rejects_wrong_repository_binding` | Incorrect distribution bindings are reconciled. |
+
+#### Shared artifact and Git state (`test_shared_artifact_state.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_186 | `test_record_and_restore_verify_bytes_and_track_owner` | Reuse validates bytes and records every owning context. |
+| RM_UT_187 | `test_digest_tamper_disables_reuse` | Digest mismatch forces recovery. |
+| RM_UT_188 | `test_source_validator_mismatch_disables_reuse` | Changed source identity disables reuse. |
+| RM_UT_189 | `test_symlink_state_directory_is_rejected` | Shared state cannot escape through a symlink. |
+| RM_UT_190 | `test_corrupt_state_fails_closed_without_overwrite` | Corrupt state is preserved for diagnosis and rejected. |
+| RM_UT_191 | `test_failed_atomic_replace_preserves_previous_state` | Atomic-write failure retains the last good state. |
+| RM_UT_192 | `test_path_outside_data_root_is_rejected` | Shared artifact paths remain inside the managed root. |
+| RM_UT_193 | `test_malformed_entry_fails_closed` | Malformed shared state cannot authorize reuse. |
+| RM_UT_194 | `test_removing_one_owner_retains_another_verified_path` | Removing one owner preserves content used elsewhere. |
+| RM_UT_195 | `test_removing_final_owner_drops_private_cache_record` | Final-owner cleanup removes the private reuse record. |
+| RM_UT_196 | `test_absent_owner_is_a_successful_noop` | Repeated owner cleanup is idempotent. |
+| RM_UT_197 | `test_owner_removal_reports_atomic_write_failure` | Ownership persistence failures remain visible. |
+| RM_UT_198 | `test_type_cleanup_removes_only_selected_cache_hints` | Type cleanup preserves unrelated reuse metadata. |
+| RM_UT_199 | `test_weak_etag_without_other_validators_disables_reuse` | Weak validators alone cannot establish immutable identity. |
+| RM_UT_200 | `test_annotated_tag_prefers_peeled_commit` | Annotated Git tags resolve to their immutable commit. |
+| RM_UT_201 | `test_ambiguous_branch_and_tag_fail_closed` | Ambiguous Git refs are rejected. |
+
+#### Status publication extensions (`test_status_contract.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_202 | `test_file_repositories_are_published_by_version` | File/Python artifact and content-base endpoints are version-first. |
+| RM_UT_203 | `test_missing_repository_fails_only_the_affected_version` | Missing RPM repositories fail only their context. |
+| RM_UT_204 | `test_status_failure_message_receives_missing_contexts` | Standalone status preserves exact failure context, module paths, and output permissions. |
+
+#### Policy context helpers (`test_fvt_policy_helpers.py`)
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_205 | `test_configured_repository_contexts_cover_every_selected_context` | Policy checks enumerate every selected version and architecture. |
+| RM_UT_206 | `test_deployed_repository_contexts_fail_closed` | A malformed selected context cannot be hidden by a valid one. |
+| RM_UT_207 | `test_content_access_uses_literal_curl_status_token` | HTTPS metadata validation preserves curl's literal HTTP-status token. |
+
 ## Registry summary
 
 | Suite | Count | Coverage |
 |-------|------:|----------|
-| `test_cleanup_contract.py` | 24 | Cases 1-6 scope, exact identities, fail-closed state, idempotency and ordering |
+| `test_artifact_reuse.py` | 6 | Verified immutable reuse and standalone RPM processing |
+| `test_cleanup_contract.py` | 27 | Cases 1-6 scope, exact identities, fail-closed state, idempotency and ordering |
 | `test_common_vars.py` | 3 | Environment-derived path resolution and fallback |
-| `test_container_reconciliation.py` | 8 | Ready/incomplete/unknown state and tag union |
+| `test_container_reconciliation.py` | 20 | Ready/incomplete/unknown state, platform validation, reuse and tag union |
+| `test_context_resolution.py` | 5 | Cases 1-6 context discovery, ordering and compatibility |
 | `test_dataset_generator.py` | 6 | Contained output, explicit inputs, and secret-free overrides |
 | `test_dataset_contract.py` | 17 | Consumer, generator, publication, and sync contracts |
 | `test_dnf_retry.py` | 7 | Transient-only bounded retries and integrity failures |
 | `test_framework_contract.py` | 30 | Commands, public tags, suites, entrypoint imports, filtering and dispatch |
-| `test_fvt_policy_helpers.py` | 6 | Policy config keys, Pulp JSON parsing, catalog-selected repos and repo source types |
-| `test_mirror_state.py` | 9 | Rerun selection, ambiguity, corruption and atomic replacement |
+| `test_fvt_policy_helpers.py` | 9 | Policy config keys, Pulp JSON parsing, selected contexts and HTTPS verification |
+| `test_mirror_state.py` | 16 | Rerun/resync selection, checkpoints, ambiguity, corruption and atomic replacement |
 | `test_pulp_command_contract.py` | 13 | Central structured argv and allowlisted grammar |
+| `test_pulp_object_state.py` | 9 | Tri-state Pulp queries, digest reuse and distribution bindings |
 | `test_repo_file_state.py` | 3 | Atomic, read-only and symlink-safe DNF repo files |
 | `test_repo_settings.py` | 7 | Configuration precedence and typed environment values |
-| `test_status_contract.py` | 8 | Multi-version aggregation and fail-closed publication |
-| **Total** | **141** | |
+| `test_shared_artifact_state.py` | 16 | Integrity-verified reuse, ownership, atomic persistence and Git resolution |
+| `test_status_contract.py` | 11 | Multi-version aggregation, version-first endpoints and fail-closed publication |
+| **Total** | **205** | |

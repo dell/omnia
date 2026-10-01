@@ -136,6 +136,42 @@
         - cluster_inv.all.children.kube_vip_group.hosts is defined
         - cluster_inv.all.children.kube_vip_group.hosts | length > 0
 
+    - name: Derive OS version from orchestrator inventory group names
+      ansible.builtin.set_fact:
+        pulp_os_version: >-
+          {%- set ns = namespace(version='') -%}
+          {%- for group_name in cluster_inv.all.children.keys() -%}
+            {%- if ns.version == '' -%}
+              {%- set match = group_name | regex_search('_rhel_(\d+)_(\d+)_') -%}
+              {%- if match -%}
+                {%- set ver = match | regex_replace('^_rhel_', '') | regex_replace('_$', '') | regex_replace('_', '.') -%}
+                {%- set ns.version = ver -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ ns.version }}
+        cacheable: true
+      when:
+        - cluster_inv is defined
+        - cluster_inv.all.children is defined
+
+    - name: Fail if OS version could not be determined
+      ansible.builtin.fail:
+        msg: >
+          Could not determine OS version for Pulp repository URL.
+          {% if cluster_inv is not defined -%}
+          The orchestrator inventory file was not found at: {{ _cluster_inv_path | default('(not set)') }}.
+          Ensure orchestrator has been run and the inventory file exists,
+          or set repo_url explicitly in telemetry_packages.yml.
+          {%- else -%}
+          No group matching the pattern '*_rhel_<major>_<minor>_*' was found in the orchestrator inventory
+          (e.g., service_kube_control_plane_first_rhel_10_2_x86_64).
+          Found groups: {{ cluster_inv.all.children.keys() | list }}
+          {%- endif %}
+      when:
+        - (_pkg_raw.repo_url | default('')) | length == 0
+        - (pulp_os_version | default('')) | length == 0
+
     - name: Set kube_vip from telemetry_config (fallback)
       ansible.builtin.set_fact:
         kube_vip: "{{ telemetry_config.kube_vip }}"
@@ -246,7 +282,7 @@
 
           2. OR explicitly set repo_url in telemetry_packages.yml:
              install_mode: "offline"
-             repo_url: "https://<pulp_server_ip>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0"
+             repo_url: "https://<pulp_server_ip>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/<os_version>"
 
           3. OR set admin_nic_ip in roles/common/vars/main.yml:
              admin_nic_ip: "<pulp_server_ip>"

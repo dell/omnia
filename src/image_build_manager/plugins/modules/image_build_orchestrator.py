@@ -170,9 +170,10 @@ def _run_build(
         # injection).
         argv = shlex.split(cmd)
         with open(log_path, "w", encoding="utf-8") as log_file:
+            log_fd = log_file.fileno()
             proc = subprocess.run(
                 argv,
-                stdout=log_file,
+                stdout=log_fd,
                 stderr=subprocess.STDOUT,
                 timeout=timeout,
                 check=False,

@@ -29,7 +29,8 @@ def _task(name):
 @pytest.mark.parametrize("architecture", ["x86_64", "aarch64"])
 def test_compute_hash_includes_repository_and_engine(architecture):
     content = _task(f"build_compute_image_{architecture}.yml")
-    assert "~ '|repos:' ~ _repo_config_hash" in content
+    assert "_repo_config_hash_by_version.get" in content
+    assert "~ '|repos:' ~ ver_repo_hash" in content
     assert "~ '|image_build_type:' ~ _image_build_type" in content
 
 

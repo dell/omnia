@@ -30,9 +30,6 @@ local_repo_py_module_vars:
     timeout: 7200  # Timeout in seconds for each thread
 
 sw_download_msg: "The specified software packages have already been downloaded."
-# Repository metadata state
-meta_dest: "{{ repo_manager_offline_repo_dir }}/.data"
-metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
 folder_mode: "0755"
 
 # =============================================================================

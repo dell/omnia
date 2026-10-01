@@ -66,7 +66,7 @@
 # Available markers:
 #   Architecture:  x86_64, aarch64
 #   Quality:       sanity, functional
-#   Execution:     deploy, nft
+#   Execution:     deploy, nft, destructive
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
@@ -74,7 +74,8 @@
 #   precheck:       connectivity
 #   validate:       status
 #   prepare:        container, s3
-#   build:          s3, registry, naming, aarch64, image_verification
+#   build:          s3, registry, naming, aarch64, image_verification,
+#                   catalog_reuse
 #   cleanup:        cleanup
 #   cleanup_images: cleanup_images
 #
@@ -158,6 +159,7 @@ fvt_image_build_manager:
 nft_image_build_manager:
   run: false
   command: "test"
+  # Set marker to "destructive" only for an intentional cleanup-only run.
   marker: ""
 
 # =============================================================================

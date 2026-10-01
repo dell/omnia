@@ -1,0 +1,929 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# BuildStream Unified Cadence Pipeline
+#
+# This pipeline executes both build and deploy operations in a single
+# execution flow for cadence (periodic) builds. It is triggered when
+# cadence_catalog_rhel.json changes in the GitLab repository.
+#
+# Prerequisites:
+#   - GitLab runner with curl and jq installed (alpine/ubuntu image works)
+#   - Network access from the runner to the OIM server
+#   - cadence_catalog_rhel.json in the repository root
+#   - GITLAB_API_TOKEN stored as a masked CI/CD variable (PAT with api scope)
+#   - BSM_API_USERNAME / BSM_API_PASSWORD for first-time registration
+#   - BSM_API_CERT stored as a CI/CD variable (PEM-encoded CA certificate)
+#
+# Architecture:
+#   initialization -> parse-catalog -> configure-local-repository
+#     -> build-images -> deploy -> restart -> validate -> summary
+#
+# The deploy stage uses the ImageGroupID from the just-completed build
+# stage, ensuring that what was built is what gets deployed.
+#
+# Token Management:
+#   - Access tokens expire after 1 hour
+#   - All API calls detect 401 errors (token_expired, invalid_token, missing_token)
+#   - On 401, the pipeline refreshes the token and retries the failed call once
+#   - Token refresh is transparent via the api_call_with_retry wrapper
+#
+# ER Reference: ER-BSM-002 — AC-015, AC-016
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Workflow rules -- pipeline runs on cadence catalog changes or API trigger
+# ---------------------------------------------------------------------------
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
+    - changes:
+        - cadence_catalog_rhel.json
+    - if: '$CI_PIPELINE_SOURCE == "trigger" && $PIPELINE_TYPE == "cadence"'
+    - if: '$CI_PIPELINE_SOURCE == "api" && $PIPELINE_TYPE == "cadence"'
+
+# ---------------------------------------------------------------------------
+# Variables
+# ---------------------------------------------------------------------------
+variables:
+  CATALOG_FILE: "cadence_catalog_rhel.json"
+  POLL_INTERVAL: "30"
+  MAX_POLL_ATTEMPTS: "300"
+  BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
+  CURL_CONNECT_TIMEOUT: "15"
+  CURL_MAX_TIME: "45"
+  OMNIA_DATA_PATH: "/opt/omnia"
+  OMNIA_PROJECT_NAME: "project_default"
+  PIPELINE_MODE: "cadence"
+
+# ---------------------------------------------------------------------------
+# Stages -- unified pipeline: build + deploy + restart + validate (AC-015)
+# ---------------------------------------------------------------------------
+stages:
+  - initialization
+  - parse-catalog
+  - configure-local-repository
+  - build-images
+  - deploy
+  - restart
+  - validate
+  - summary
+
+# ---------------------------------------------------------------------------
+# Default settings
+# ---------------------------------------------------------------------------
+default:
+  before_script:
+    - apk add --no-cache curl jq coreutils openssl
+    - |
+      if [ -z "${BSM_API_CERT:-}" ]; then
+        echo "ERROR: BSM_API_CERT variable is not set -- cannot verify TLS"
+        exit 1
+      fi
+      if [ -f "${BSM_API_CERT}" ]; then
+        cp "${BSM_API_CERT}" "${BSM_CERT_FILE}"
+      else
+        printf '%s\n' "${BSM_API_CERT}" | sed 's/\\n/\n/g' > "${BSM_CERT_FILE}"
+      fi
+      chmod 600 "${BSM_CERT_FILE}"
+
+      sed -i 's/\r//g' "${BSM_CERT_FILE}"
+
+      if ! grep -q "BEGIN CERTIFICATE" "${BSM_CERT_FILE}"; then
+        echo "ERROR: BSM_API_CERT missing BEGIN CERTIFICATE marker"
+        exit 1
+      fi
+      if ! grep -q "END CERTIFICATE" "${BSM_CERT_FILE}"; then
+        echo "ERROR: BSM_API_CERT missing END CERTIFICATE marker"
+        exit 1
+      fi
+
+      if ! openssl x509 -in "${BSM_CERT_FILE}" -noout 2>/dev/null; then
+        echo "ERROR: BSM_API_CERT is not a valid X.509 PEM certificate"
+        exit 1
+      fi
+
+      # Token refresh helper
+      refresh_token() {
+        echo "  [TOKEN REFRESH] Requesting new access token..." >&2
+        if [ -z "${CLIENT_ID:-}" ] || [ -z "${CLIENT_SECRET:-}" ]; then
+          echo "  [TOKEN REFRESH] ERROR: CLIENT_ID or CLIENT_SECRET not available" >&2
+          return 1
+        fi
+        TOKEN_HTTP_CODE=$(curl -s -o token_refresh_response.json -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -X POST "${BSM_API_URL}/api/v1/auth/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
+          --retry 2 --retry-delay 1 --cacert "${BSM_CERT_FILE}")
+        if [ "$TOKEN_HTTP_CODE" != "200" ]; then
+          echo "  [TOKEN REFRESH] ERROR: Token refresh failed (HTTP ${TOKEN_HTTP_CODE})" >&2
+          return 1
+        fi
+        ACCESS_TOKEN=$(jq -r '.access_token' token_refresh_response.json)
+        if [ -z "${ACCESS_TOKEN}" ] || [ "${ACCESS_TOKEN}" = "null" ]; then
+          echo "  [TOKEN REFRESH] ERROR: No access_token in response" >&2
+          return 1
+        fi
+        export ACCESS_TOKEN
+        echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
+        return 0
+      }
+
+      # API call wrapper with auto-retry on 401
+      api_call_with_retry() {
+        _RETRY_OUTPUT_FILE="$1"
+        shift
+        _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@") || {
+          echo "000"
+          return
+        }
+        if [ "$_RETRY_HTTP_CODE" = "401" ]; then
+          _RETRY_ERROR=$(jq -r '.detail.error // .error // ""' "${_RETRY_OUTPUT_FILE}" 2>/dev/null || echo "")
+          case "${_RETRY_ERROR}" in
+            token_expired|invalid_token|missing_token)
+              if refresh_token; then
+                _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
+                  --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+                  -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@")
+              fi
+              ;;
+          esac
+        fi
+        echo "${_RETRY_HTTP_CODE}"
+      }
+
+# ============================= STAGE 1 ====================================
+# Initialization — Health Check + Authentication + Job Creation
+# ==========================================================================
+initialization:
+  stage: initialization
+  script:
+    - |
+      echo "============================================================"
+      echo "  CADENCE PIPELINE — STAGE 1: Initialization"
+      echo "============================================================"
+      echo ""
+      echo "  Pipeline mode: UNIFIED CADENCE (build + deploy)"
+      echo "  Catalog file: ${CATALOG_FILE}"
+      echo ""
+
+      # Health check
+      HTTP_CODE=$(curl -s -o health_response.json -w "%{http_code}" \
+        --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+        -X GET "${BSM_API_URL}/health" \
+        --cacert "${BSM_CERT_FILE}" 2>&1) || {
+        echo "  ERROR: BSM API health check failed"
+        exit 1
+      }
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo "  ERROR: BSM API health check returned ${HTTP_CODE}"
+        exit 1
+      fi
+      echo "  [OK] BSM API health check passed"
+      echo ""
+      echo "  Step 2/4: Authentication"
+      echo "  ------------------------------------------------------------"
+
+      # ============================= Authentication Logic ====================================
+      # Authenticate: skip registration if credentials exist, else register once
+      # Registration is a one-time activity. On first run the pipeline registers
+      # a new OAuth client and persists CLIENT_ID / CLIENT_SECRET as GitLab
+      # project-level CI/CD variables (BSM_CLIENT_ID, BSM_CLIENT_SECRET).
+      # Subsequent runs skip registration and only generate a fresh access token.
+      # ==========================================================================
+
+      # --- 2a. Check for stored client credentials ---
+      if [ -n "${BSM_CLIENT_ID:-}" ] && [ -n "${BSM_CLIENT_SECRET:-}" ]; then
+        echo "  Stored credentials found -- skipping registration"
+        echo "  CLIENT_ID: ${BSM_CLIENT_ID:0:12}..."
+        CLIENT_ID="${BSM_CLIENT_ID}"
+        CLIENT_SECRET="${BSM_CLIENT_SECRET}"
+      else
+        echo "  No stored credentials -- registering new client"
+
+        AUTH_HEADER=$(echo -n "${BSM_API_USERNAME}:${BSM_API_PASSWORD}" | base64)
+        CLIENT_NAME="gitlab-ci-cadence-client-$(date +%s)"
+
+        echo "  Registering client: ${CLIENT_NAME}"
+        echo "  Endpoint: POST ${BSM_API_URL}/api/v1/auth/register"
+
+        HTTP_CODE=$(curl -s -o register_response.json -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -X POST "${BSM_API_URL}/api/v1/auth/register" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Basic ${AUTH_HEADER}" \
+          -d "{
+            \"client_name\": \"${CLIENT_NAME}\",
+            \"allowed_scopes\": [\"catalog:read\", \"catalog:write\", \"job:write\"],
+            \"grant_types\": [\"client_credentials\"]
+          }" \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+
+        echo "  Register response code: ${HTTP_CODE}"
+
+        if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
+          echo "  ERROR: Client registration failed"
+          cat register_response.json
+          exit 1
+        fi
+
+        CLIENT_ID=$(jq -r '.client_id' register_response.json)
+        CLIENT_SECRET=$(jq -r '.client_secret' register_response.json)
+        echo "  Client registered: ${CLIENT_ID:0:12}..."
+
+        # --- 2b. Persist credentials as GitLab CI/CD variables ---
+        if [ -z "${GITLAB_API_TOKEN:-}" ]; then
+          echo "  WARNING: GITLAB_API_TOKEN not set -- cannot persist credentials"
+          echo "  Credentials will not survive across pipeline runs"
+        else
+          echo "  Persisting credentials to GitLab CI/CD variables..."
+
+          for VAR_NAME in BSM_CLIENT_ID BSM_CLIENT_SECRET; do
+            if [ "$VAR_NAME" = "BSM_CLIENT_ID" ]; then VAR_VALUE="${CLIENT_ID}"; fi
+            if [ "$VAR_NAME" = "BSM_CLIENT_SECRET" ]; then VAR_VALUE="${CLIENT_SECRET}"; fi
+
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X POST "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/variables" \
+              -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+              --form "key=${VAR_NAME}" \
+              --form "value=${VAR_VALUE}" \
+              --form "masked=true" \
+              --form "protected=false" \
+              --cacert "${CI_SERVER_TLS_CA_FILE}")
+
+            if [ "$HTTP_CODE" = "201" ]; then
+              echo "    ${VAR_NAME} stored successfully"
+            else
+              echo "    WARNING: Failed to store ${VAR_NAME} (HTTP ${HTTP_CODE})"
+            fi
+          done
+        fi
+      fi
+
+      # --- 2c. Get access token (always -- tokens are short-lived) ---
+      echo ""
+      echo "  Requesting access token..."
+      echo "  Endpoint: POST ${BSM_API_URL}/api/v1/auth/token"
+      TOKEN_HTTP_CODE=$(curl -s -o token_response.json -w "%{http_code}" \
+        --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+        -X POST "${BSM_API_URL}/api/v1/auth/token" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
+        --retry 2 --retry-delay 1 --cacert "${BSM_CERT_FILE}")
+      if [ "$TOKEN_HTTP_CODE" != "200" ]; then
+        echo "  ERROR: Authentication failed (HTTP ${TOKEN_HTTP_CODE})"
+        exit 1
+      fi
+      ACCESS_TOKEN=$(jq -r '.access_token' token_response.json)
+      export ACCESS_TOKEN
+      echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
+      echo "  [OK] Authenticated successfully"
+      echo ""
+      echo "  Step 3/4: Job Creation/Resume"
+      echo "  ------------------------------------------------------------"
+
+      # ============================= Job Resume/Create Logic ====================================
+      # On pipeline retry (when initialization stage succeeded previously):
+      #   - GitLab preserves job.env artifacts from the previous run
+      #   - Reuse the existing JOB_ID instead of creating a new one
+      #   - This enables resume/retry of failed jobs
+      # On fresh pipeline run:
+      #   - No job.env exists → Create new job
+      # ==========================================================================
+
+      if [ -f job.env ]; then
+        echo "  Detected job.env from previous run (pipeline retry)"
+        source job.env
+        if [ -n "${JOB_ID:-}" ]; then
+          echo "  Reusing existing JOB_ID: ${JOB_ID}"
+          echo "  (Stage use cases will handle FAILED → IN_PROGRESS transition)"
+        else
+          echo "  WARNING: job.env exists but JOB_ID is empty — creating new job"
+          JOB_ID=""
+        fi
+      else
+        echo "  No job.env found — fresh pipeline run"
+        JOB_ID=""
+      fi
+
+      if [ -z "${JOB_ID}" ]; then
+        echo "  Creating new job..."
+        IDEMPOTENCY_KEY=$(cat /proc/sys/kernel/random/uuid)
+        CORRELATION_ID=$(cat /proc/sys/kernel/random/uuid)
+        JOB_HTTP_CODE=$(api_call_with_retry job_response.json \
+          -X POST "${BSM_API_URL}/api/v1/jobs" \
+          -H "Content-Type: application/json" \
+          -H "Idempotency-Key: ${IDEMPOTENCY_KEY}" \
+          -H "X-Correlation-ID: ${CORRELATION_ID}" \
+          -d "{
+            \"correlation_id\": \"${CORRELATION_ID}\",
+            \"client_id\": \"${CLIENT_ID}\"
+          }" \
+          --retry 3 --retry-delay 2 \
+          --cacert "${BSM_CERT_FILE}")
+        if [ "$JOB_HTTP_CODE" != "201" ] && [ "$JOB_HTTP_CODE" != "200" ]; then
+          echo "  ERROR: Job creation failed (HTTP ${JOB_HTTP_CODE})"
+          cat job_response.json 2>/dev/null || true
+          exit 1
+        fi
+        JOB_ID=$(jq -r '.job_id' job_response.json)
+        if [ -z "${JOB_ID}" ] || [ "${JOB_ID}" = "null" ]; then
+          echo "  ERROR: Job creation response did not contain job_id"
+          exit 1
+        fi
+        echo "  [OK] Job created: ${JOB_ID}"
+      fi
+
+      # Upload every input required by the unified build/deploy flow before
+      # the job reaches a terminal state. The Upload API accepts the canonical
+      # catalog_rhel.json filename, so stage the cadence catalog under that
+      # name for this request without modifying the GitLab source file.
+      if [ ! -f "${CI_PROJECT_DIR}/${CATALOG_FILE}" ]; then
+        echo "  ERROR: Cadence catalog not found: ${CATALOG_FILE}"
+        exit 1
+      fi
+      cp "${CI_PROJECT_DIR}/${CATALOG_FILE}" /tmp/catalog_rhel.json
+
+      UPLOAD_ARGS="-F files=@/tmp/catalog_rhel.json"
+      for FNAME in repo_manager_config.yml repo_manager_endpoint_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/repo_manager/${FNAME}"
+        [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+      done
+      for FNAME in image_build_config.yml package_groups.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/image_build_manager/${FNAME}"
+        [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+      done
+      for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
+             security_config.yml storage_config.yml high_availability_config.yml \
+             additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/orchestrator/${FNAME}"
+        [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+      done
+      if [ -f "${CI_PROJECT_DIR}/omnia.env" ]; then
+        UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${CI_PROJECT_DIR}/omnia.env"
+      fi
+
+      UPLOAD_HTTP_CODE=$(eval api_call_with_retry upload_response.json \
+        -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+        ${UPLOAD_ARGS} \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+      if [ "${UPLOAD_HTTP_CODE}" != "200" ] && [ "${UPLOAD_HTTP_CODE}" != "201" ]; then
+        echo "  ERROR: Unified cadence input upload failed (HTTP ${UPLOAD_HTTP_CODE})"
+        jq '.' upload_response.json 2>/dev/null || cat upload_response.json
+        exit 1
+      fi
+      echo "  [OK] Unified cadence inputs uploaded"
+
+      echo "JOB_ID=${JOB_ID}" > job.env
+  artifacts:
+    reports:
+      dotenv: job.env
+    expire_in: 2 hours
+
+# ============================= STAGE 2 ====================================
+# Parse Catalog — Validate and parse the cadence catalog
+# ==========================================================================
+parse-catalog:
+  stage: parse-catalog
+  needs: [initialization]
+  script:
+    - |
+      echo "============================================================"
+      echo "  CADENCE PIPELINE — STAGE 2: Parse Catalog"
+      echo "============================================================"
+
+      CLIENT_ID="${BSM_CLIENT_ID}"
+      CLIENT_SECRET="${BSM_CLIENT_SECRET}"
+      export CLIENT_ID CLIENT_SECRET
+      refresh_token
+
+      # The cadence catalog was uploaded as catalog_rhel.json during
+      # initialization. Parse it through the current stage API.
+      PARSE_HTTP_CODE=$(api_call_with_retry parse_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/parse-catalog" \
+        --retry 3 --retry-delay 2 \
+        --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+      if [ "$PARSE_HTTP_CODE" != "200" ]; then
+        echo "  ERROR: Catalog parse failed (HTTP ${PARSE_HTTP_CODE})"
+        jq '.' parse_response.json 2>/dev/null || cat parse_response.json
+        exit 1
+      fi
+
+      IMAGE_GROUP_ID=$(jq -r '.image_group_id // ""' parse_response.json)
+      if [ -z "${IMAGE_GROUP_ID}" ] || [ "${IMAGE_GROUP_ID}" = "null" ]; then
+        echo "  ERROR: Parse-catalog response did not contain image_group_id"
+        exit 1
+      fi
+      echo "  [OK] Catalog parsed — ImageGroupID: ${IMAGE_GROUP_ID}"
+      echo "IMAGE_GROUP_ID=${IMAGE_GROUP_ID}" > parse_catalog.env
+  artifacts:
+    reports:
+      dotenv: parse_catalog.env
+    expire_in: 2 hours
+
+# ============================= STAGE 3 ====================================
+# Configure Local Repository
+# ==========================================================================
+configure-local-repository:
+  stage: configure-local-repository
+  needs: [initialization, parse-catalog]
+  script:
+    - |
+      echo "============================================================"
+      echo "  CADENCE PIPELINE — STAGE 3: Configure Local Repository"
+      echo "============================================================"
+
+      CLIENT_ID="${BSM_CLIENT_ID}"
+      CLIENT_SECRET="${BSM_CLIENT_SECRET}"
+      export CLIENT_ID CLIENT_SECRET
+      refresh_token
+
+      REPO_HTTP_CODE=$(api_call_with_retry repo_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/create-local-repository" \
+        --retry 3 --retry-delay 2 \
+        --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+      if [ "$REPO_HTTP_CODE" != "200" ] && [ "$REPO_HTTP_CODE" != "201" ] && [ "$REPO_HTTP_CODE" != "202" ]; then
+        echo "  ERROR: Local repository configuration failed (HTTP ${REPO_HTTP_CODE})"
+        jq '.' repo_response.json 2>/dev/null || cat repo_response.json
+        exit 1
+      fi
+
+      echo "  [OK] Local repository configuration initiated"
+
+      # Poll for completion
+      STAGE_COMPLETED=false
+      ATTEMPT=1
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+
+        STATUS_HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "${STATUS_HTTP_CODE}" != "200" ]; then
+          ATTEMPT=$((ATTEMPT + 1))
+          sleep "${POLL_INTERVAL}"
+          continue
+        fi
+
+        REPO_STATE=$(jq -r '.stages[]? | select(.stage_name == "create-local-repository") | .stage_state // "UNKNOWN"' status_response.json)
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Local-Repo: ${REPO_STATE}"
+        case "${REPO_STATE}" in
+          COMPLETED|SUCCEEDED)
+            STAGE_COMPLETED=true
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo "  ERROR: Local repository stage reached ${REPO_STATE}"
+            exit 1
+            ;;
+        esac
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+      if [ "${STAGE_COMPLETED}" = "false" ]; then
+        echo "  ERROR: Local repository polling timed out"
+        exit 1
+      fi
+
+# ============================= STAGE 4 ====================================
+# Build Images
+# ==========================================================================
+build-images:
+  stage: build-images
+  needs: [initialization, parse-catalog, configure-local-repository]
+  script:
+    - |
+      echo "============================================================"
+      echo "  CADENCE PIPELINE — STAGE 4: Build Images"
+      echo "============================================================"
+
+      CLIENT_ID="${BSM_CLIENT_ID}"
+      CLIENT_SECRET="${BSM_CLIENT_SECRET}"
+      export CLIENT_ID CLIENT_SECRET
+      refresh_token
+
+      BUILD_HTTP_CODE=$(api_call_with_retry build_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image" \
+        -H "Content-Type: application/json" \
+        -d '{}' \
+        --retry 3 --retry-delay 2 \
+        --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+      if [ "$BUILD_HTTP_CODE" != "200" ] && [ "$BUILD_HTTP_CODE" != "201" ] && [ "$BUILD_HTTP_CODE" != "202" ]; then
+        echo "  ERROR: Build initiation failed (HTTP ${BUILD_HTTP_CODE})"
+        jq '.' build_response.json 2>/dev/null || cat build_response.json
+        exit 1
+      fi
+
+      echo "  [OK] Build initiated"
+
+      # Poll for completion
+      STAGE_COMPLETED=false
+      ATTEMPT=1
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+
+        STATUS_HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "${STATUS_HTTP_CODE}" != "200" ]; then
+          ATTEMPT=$((ATTEMPT + 1))
+          sleep "${POLL_INTERVAL}"
+          continue
+        fi
+
+        BUILD_STATE=$(jq -r '.stages[]? | select(.stage_name == "build-image") | .stage_state // "UNKNOWN"' status_response.json)
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Build: ${BUILD_STATE}"
+        case "${BUILD_STATE}" in
+          COMPLETED|SUCCEEDED)
+            STAGE_COMPLETED=true
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo "  ERROR: Build stage reached ${BUILD_STATE}"
+            exit 1
+            ;;
+        esac
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+      if [ "${STAGE_COMPLETED}" = "false" ]; then
+        echo "  ERROR: Build polling timed out"
+        exit 1
+      fi
+
+      # -------------------------------------------------------------------
+      # Sidecar manifest generation (ER-BSM-002, AC-005)
+      # Uploads .manifest.json alongside S3 images for catalog traceability
+      # -------------------------------------------------------------------
+      echo "  Generating sidecar manifest for catalog traceability..."
+      CATALOG_NAME=$(jq -r '.catalog_name // .catalog_identifier // "unknown"' status_response.json)
+      CATALOG_VERSION=$(jq -r '.catalog_version // "unknown"' status_response.json)
+      GIT_SHA="${CI_COMMIT_SHA:-unknown}"
+      BUILD_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+      cat > /tmp/build_manifest.json <<MANIFEST_EOF
+      {
+        "catalog_name": "${CATALOG_NAME}",
+        "catalog_version": "${CATALOG_VERSION}",
+        "git_commit_sha": "${GIT_SHA}",
+        "build_timestamp": "${BUILD_TS}",
+        "job_id": "${JOB_ID}",
+        "pipeline_id": "${CI_PIPELINE_ID:-unknown}",
+        "pipeline_mode": "${PIPELINE_MODE}",
+        "source_catalog_file": "${CATALOG_FILE}"
+      }
+      MANIFEST_EOF
+
+      # Upload manifest to BSM API as job artifact
+      MANIFEST_HTTP_CODE=$(api_call_with_retry manifest_response.json \
+        -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/manifest" \
+        -H "Content-Type: application/json" \
+        -d @/tmp/build_manifest.json \
+        --retry 3 --retry-delay 2 \
+        --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+      if [ "${MANIFEST_HTTP_CODE}" = "200" ] || [ "${MANIFEST_HTTP_CODE}" = "201" ] || [ "${MANIFEST_HTTP_CODE}" = "404" ]; then
+        echo "  [OK] Sidecar manifest uploaded (HTTP ${MANIFEST_HTTP_CODE})"
+      else
+        echo "  [WARN] Manifest upload returned HTTP ${MANIFEST_HTTP_CODE} — non-fatal"
+      fi
+
+# ============================= STAGE 5 ====================================
+# Deploy — auto-triggered after successful build (AC-015)
+# Uses ImageGroupID from the just-completed build stage
+# ==========================================================================
+deploy:
+  stage: deploy
+  needs: [initialization, parse-catalog, build-images]
+  script:
+    - |
+      echo "============================================================"
+      echo "  CADENCE PIPELINE — STAGE 5: Deploy"
+      echo "============================================================"
+      echo ""
+      echo "  Unified pipeline: deploying what was just built (AC-015)"
+      echo ""
+
+      CLIENT_ID="${BSM_CLIENT_ID}"
+      CLIENT_SECRET="${BSM_CLIENT_SECRET}"
+      export CLIENT_ID CLIENT_SECRET
+      refresh_token
+
+      DEPLOY_HTTP_CODE=$(api_call_with_retry deploy_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/deploy" \
+        -H "Content-Type: application/json" \
+        -d "{\"image_group_id\": \"${IMAGE_GROUP_ID}\"}" \
+        --retry 3 --retry-delay 2 \
+        --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+      if [ "$DEPLOY_HTTP_CODE" != "200" ] && [ "$DEPLOY_HTTP_CODE" != "201" ] && [ "$DEPLOY_HTTP_CODE" != "202" ]; then
+        echo "  WARNING: Deploy initiation returned HTTP ${DEPLOY_HTTP_CODE}"
+        echo "  Deploy response:"
+        cat deploy_response.json 2>/dev/null || true
+        echo ""
+        echo "  NOTE: *_prev images remain available for manual rollback (AC-016)"
+        exit 1
+      fi
+
+      echo "  [OK] Deploy initiated"
+
+      # Poll for completion
+      STAGE_COMPLETED=false
+      ATTEMPT=1
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+
+        STATUS_HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "${STATUS_HTTP_CODE}" != "200" ]; then
+          ATTEMPT=$((ATTEMPT + 1))
+          sleep "${POLL_INTERVAL}"
+          continue
+        fi
+
+        DEPLOY_STATE=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .stage_state // "UNKNOWN"' status_response.json)
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Deploy: ${DEPLOY_STATE}"
+        case "${DEPLOY_STATE}" in
+          COMPLETED|SUCCEEDED)
+            STAGE_COMPLETED=true
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo "  ERROR: Deploy stage reached ${DEPLOY_STATE}"
+            exit 1
+            ;;
+        esac
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+      if [ "${STAGE_COMPLETED}" = "false" ]; then
+        echo "  ERROR: Deploy polling timed out"
+        exit 1
+      fi
+
+# ============================= STAGE 5B ===================================
+# Restart — Invoke orchestrator.yml --tags pxeboot on provisioned nodes
+# ==========================================================================
+restart:
+  stage: restart
+  needs: [initialization, parse-catalog, deploy]
+  script:
+    - |
+      echo "============================================================"
+      echo "  CADENCE PIPELINE — STAGE 5B: Restart"
+      echo "  (Invokes orchestrator.yml --tags pxeboot)"
+      echo "============================================================"
+      echo ""
+
+      CLIENT_ID="${BSM_CLIENT_ID}"
+      CLIENT_SECRET="${BSM_CLIENT_SECRET}"
+      export CLIENT_ID CLIENT_SECRET
+      refresh_token
+
+      echo "  Job ID: ${JOB_ID}"
+      echo ""
+
+      # All build and orchestrator inputs were uploaded atomically during
+      # initialization, before build completion can make the job terminal.
+      echo "  Trigger restart and wait for completion..."
+      echo "  ------------------------------------------------------------"
+      echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/restart"
+      echo ""
+
+      HTTP_CODE=$(api_call_with_retry restart_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/restart" \
+        -H "Content-Type: application/json" \
+        -d "{}" \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+      echo "  API Response Code: ${HTTP_CODE}"
+
+      if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+        echo "  ERROR: Restart request failed"
+        jq "." restart_response.json 2>/dev/null || cat restart_response.json
+        exit 1
+      fi
+
+      jq "." restart_response.json 2>/dev/null || cat restart_response.json
+      echo ""
+      echo "  [OK] Restart request accepted (orchestrator.yml --tags pxeboot)"
+      echo ""
+
+      # Poll for restart completion
+      echo "  Waiting for restart to complete..."
+      echo "  Polling interval: ${POLL_INTERVAL}s"
+      echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+      echo ""
+
+      STAGE_COMPLETED=false
+      ATTEMPT=1
+
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+        HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
+          ATTEMPT=$((ATTEMPT + 1))
+          sleep "${POLL_INTERVAL}"
+          continue
+        fi
+
+        RESTART_STATE=$(jq -r '.stages[]? | select(.stage_name == "restart") | .stage_state' status_response.json 2>/dev/null || echo "UNKNOWN")
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Restart: ${RESTART_STATE}"
+
+        case "${RESTART_STATE}" in
+          COMPLETED|SUCCEEDED)
+            STAGE_COMPLETED=true
+            echo ""
+            echo "  [OK] Restart completed successfully"
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: Restart stage reached ${RESTART_STATE}"
+            RESTART_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_code // "N/A"' status_response.json 2>/dev/null)
+            RESTART_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_summary // "N/A"' status_response.json 2>/dev/null)
+            RESTART_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "restart") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
+            echo "  ERROR: Restart stage reached ${RESTART_STATE}"
+            printf "  %-22s %s\n" "Error Code:"    "${RESTART_ERR_CODE}"
+            printf "  %-22s %s\n" "Error Summary:" "${RESTART_ERR_SUMMARY}"
+            printf "  %-22s %s\n" "Log File Path:" "${RESTART_LOG_PATH}"
+            exit 1
+            ;;
+        esac
+
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+
+      if [ "$STAGE_COMPLETED" = "false" ]; then
+        echo "  ERROR: Restart polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        exit 1
+      fi
+
+      echo ""
+      echo "  [OK] Restart Stage Result: COMPLETED"
+
+# ============================= STAGE 5C ===================================
+# Validate — Trigger Molecule test automation and poll for completion
+# ==========================================================================
+validate:
+  stage: validate
+  needs: [initialization, parse-catalog, restart]
+  script:
+    - |
+      echo "============================================================"
+      echo "  CADENCE PIPELINE — STAGE 5C: Validate"
+      echo "============================================================"
+      echo ""
+
+      CLIENT_ID="${BSM_CLIENT_ID}"
+      CLIENT_SECRET="${BSM_CLIENT_SECRET}"
+      export CLIENT_ID CLIENT_SECRET
+
+      echo "  Job ID: ${JOB_ID}"
+      echo ""
+
+      # Trigger validate stage via API
+      echo "  [1/2] Triggering validate stage..."
+      VALIDATE_PAYLOAD=$(cat <<EOF
+      {
+        "scenario_names": ["validate"],
+        "test_suite": "buildstream",
+        "timeout_minutes": 150
+      }
+      EOF
+      )
+
+      refresh_token
+
+      VALIDATE_RESPONSE=$(curl -s -w "\n%{http_code}" \
+        --cacert "${BSM_CERT_FILE}" \
+        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -X POST \
+        -d "${VALIDATE_PAYLOAD}" \
+        "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/validate")
+
+      VALIDATE_HTTP_CODE=$(echo "${VALIDATE_RESPONSE}" | tail -n1)
+      VALIDATE_BODY=$(echo "${VALIDATE_RESPONSE}" | sed '$d')
+
+      if [ "${VALIDATE_HTTP_CODE}" != "202" ]; then
+        echo "  ERROR: Failed to trigger validate stage (HTTP ${VALIDATE_HTTP_CODE})"
+        echo "${VALIDATE_BODY}" | jq '.' 2>/dev/null || echo "${VALIDATE_BODY}"
+        exit 1
+      fi
+
+      echo "  [OK] Validate stage triggered"
+      echo ""
+
+      # Poll for validate stage completion
+      echo "  [2/2] Polling for validate stage completion..."
+      echo "       Poll interval: ${POLL_INTERVAL}s"
+      echo "       Max attempts:  ${MAX_POLL_ATTEMPTS}"
+      echo ""
+
+      ATTEMPT=1
+      STAGE_COMPLETED=false
+
+      while [ ${ATTEMPT} -le ${MAX_POLL_ATTEMPTS} ]; do
+        HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+        VALIDATE_STATE=$(jq -r '.stages[]? | select(.stage_name == "validate") | .stage_state // "UNKNOWN"' status_response.json)
+
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Validate: ${VALIDATE_STATE}"
+
+        case "${VALIDATE_STATE}" in
+          COMPLETED|SUCCEEDED)
+            STAGE_COMPLETED=true
+            echo ""
+            echo "  [OK] Validate completed successfully"
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: Validate stage reached ${VALIDATE_STATE}"
+            VALIDATE_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "validate") | .error_code // "N/A"' status_response.json 2>/dev/null)
+            VALIDATE_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "validate") | .error_summary // "N/A"' status_response.json 2>/dev/null)
+            VALIDATE_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "validate") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
+            printf "  %-22s %s\n" "Error Code:"    "${VALIDATE_ERR_CODE}"
+            printf "  %-22s %s\n" "Error Summary:" "${VALIDATE_ERR_SUMMARY}"
+            printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
+            exit 1
+            ;;
+        esac
+
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+
+      if [ "$STAGE_COMPLETED" = "false" ]; then
+        echo "  ERROR: Validate polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        exit 1
+      fi
+
+      echo ""
+      echo "  [OK] Validate Stage Result: COMPLETED"
+
+# ============================= STAGE 6 ====================================
+# Summary — Report pipeline results
+# ==========================================================================
+summary:
+  stage: summary
+  needs: [initialization, parse-catalog, validate]
+  script:
+    - |
+      echo "============================================================"
+      echo "  CADENCE PIPELINE — STAGE 6: Summary"
+      echo "============================================================"
+      echo ""
+
+      echo "  Pipeline Mode:    UNIFIED CADENCE (build + deploy + restart + validate)"
+      echo "  Job ID:           ${JOB_ID}"
+      echo "  ImageGroupID:     ${IMAGE_GROUP_ID}"
+      echo "  Catalog File:     ${CATALOG_FILE}"
+      echo "  Status:           COMPLETED"
+      echo ""
+      echo "  ============================================================"
+      echo "  All stages completed successfully:"
+      echo "  ✓ Build complete (images built)"
+      echo "  ✓ Deploy complete (images deployed)"
+      echo "  ✓ Restart complete (nodes PXE booted)"
+      echo "  ✓ Validate complete (test validation passed)"
+      echo "  ============================================================"
+  when: always

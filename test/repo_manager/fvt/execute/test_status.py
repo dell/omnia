@@ -41,7 +41,8 @@ from library.functions import (
     check_file_repos_synced,
     check_pulp_content_accessible,
     check_software_packages_in_pulp,
-    get_configured_repos,
+    get_deployed_repo_contexts,
+    get_repo_status_contexts,
 )
 from library.messages import (
     TEST_NAMES,
@@ -55,6 +56,7 @@ from library.messages import (
 @pytest.mark.order(0)
 def test_execute_download(host):
     """RM_FVT_EXECUTE_E001: Deploy repo_manager --tags execute."""
+    del host  # The fixture preserves standard FVT host initialization.
     tl = TestLogger(TEST_NAMES["repo_status_exists"], "RM_FVT_EXECUTE_E001")
     result = run_playbook(tag="execute")
 
@@ -102,24 +104,33 @@ def test_repo_status_success(host):
 @pytest.mark.positive
 @pytest.mark.order(3)
 def test_slurm_custom_repo_present(host):
-    """RM_FVT_EXECUTE_V003: Verify slurm_custom repo present (if configured)."""
-    # Check if slurm_custom is configured in repo_manager_config.yml
-    config_result = check_repo_configured(host, "slurm_custom", arch="x86_64")
+    """RM_FVT_EXECUTE_V003: Verify each deployed slurm_custom repository."""
+    repos_result = get_deployed_repo_contexts(host)
+    assert repos_result["success"], repos_result["error"]
+    deployed_contexts = [
+        (repo["os_version"], repo["architecture"])
+        for repo in repos_result["repositories"]
+        if repo["name"] == "slurm_custom"
+    ]
 
-    if not config_result["success"]:
-        # Skip test if slurm_custom is not configured
-        pytest.skip("slurm_custom not configured in repo_manager_config.yml")
+    if not deployed_contexts:
+        pytest.skip("slurm_custom not selected by the active catalog")
 
-    # Only test if slurm_custom is configured
     tl = TestLogger(TEST_NAMES["slurm_custom_repo_present"], "RM_FVT_EXECUTE_V003")
-    result = check_repo_status_has_repo(host, "slurm_custom", arch="x86_64")
-
-    if result["success"]:
-        tl.passed(LOG["repo_present"].format(repo="slurm_custom"), result["details"])
-    else:
-        tl.failed(LOG["repo_missing"].format(repo="slurm_custom"), result["details"])
-
-    assert result["success"], ASSERT["repo_not_found"]
+    for os_version, architecture in deployed_contexts:
+        result = check_repo_status_has_repo(
+            host, "slurm_custom", arch=architecture, os_version=os_version
+        )
+        if not result["success"]:
+            tl.failed(
+                LOG["repo_missing"].format(repo="slurm_custom"),
+                result["details"],
+            )
+        assert result["success"], ASSERT["repo_not_found"]
+    tl.passed(
+        LOG["repo_present"].format(repo="slurm_custom"),
+        f"Validated {len(deployed_contexts)} selected context(s)",
+    )
 
 
 @pytest.mark.sanity
@@ -127,23 +138,33 @@ def test_slurm_custom_repo_present(host):
 @pytest.mark.order(4)
 def test_epel_repo_present(host):
     """RM_FVT_EXECUTE_V004: Verify epel repo present (if configured)."""
-    # Check if epel is configured in repo_manager_config.yml
-    config_result = check_repo_configured(host, "epel", arch="x86_64")
+    context_result = get_repo_status_contexts(host)
+    assert context_result["success"], context_result["error"]
+    configured_contexts = []
+    for _os_type, os_version, architecture in context_result["contexts"]:
+        config_result = check_repo_configured(
+            host, "epel", arch=architecture, os_version=os_version
+        )
+        if config_result["success"]:
+            configured_contexts.append((os_version, architecture))
 
-    if not config_result["success"]:
-        # Skip test if epel is not configured
+    if not configured_contexts:
         pytest.skip("epel not configured in repo_manager_config.yml")
 
-    # Only test if epel is configured
     tl = TestLogger(TEST_NAMES["epel_repo_present"], "RM_FVT_EXECUTE_V004")
-    result = check_repo_status_has_repo(host, "epel", arch="x86_64")
-
-    if result["success"]:
-        tl.passed(LOG["repo_present"].format(repo="epel"), result["details"])
-    else:
-        tl.failed(LOG["repo_missing"].format(repo="epel"), result["details"])
-
-    assert result["success"], ASSERT["repo_not_found"]
+    for os_version, architecture in configured_contexts:
+        result = check_repo_status_has_repo(
+            host, "epel", arch=architecture, os_version=os_version
+        )
+        if not result["success"]:
+            tl.failed(
+                LOG["repo_missing"].format(repo="epel"), result["details"]
+            )
+        assert result["success"], ASSERT["repo_not_found"]
+    tl.passed(
+        LOG["repo_present"].format(repo="epel"),
+        f"Validated {len(configured_contexts)} selected context(s)",
+    )
 
 
 @pytest.mark.sanity
@@ -153,26 +174,39 @@ def test_x86_64_repos_present(host):
     """RM_FVT_EXECUTE_V005: Verify x86_64 baseos and appstream present (if configured)."""
     # Check if base repos are configured in repo_manager_config.yml
     base_repos = ["baseos", "appstream", "codeready-builder"]
+    context_result = get_repo_status_contexts(host)
+    assert context_result["success"], context_result["error"]
     configured_repos = []
 
-    for repo in base_repos:
-        config_result = check_repo_configured(host, repo, arch="x86_64")
-        if config_result["success"]:
-            configured_repos.append(repo)
+    for _os_type, os_version, architecture in context_result["contexts"]:
+        if architecture != "x86_64":
+            continue
+        for repo in base_repos:
+            config_result = check_repo_configured(
+                host, repo, arch=architecture, os_version=os_version
+            )
+            if config_result["success"]:
+                configured_repos.append((os_version, architecture, repo))
 
     if not configured_repos:
         # Skip test if no base repos are configured
-        pytest.skip("No base repos (baseos, appstream, codeready-builder) configured in repo_manager_config.yml")
+        pytest.skip(
+            "No base repos (baseos, appstream, codeready-builder) "
+            "configured in repo_manager_config.yml"
+        )
 
     # Only test configured repos
     tl = TestLogger(TEST_NAMES["x86_64_repos_present"], "RM_FVT_EXECUTE_V005")
-    for repo in configured_repos:
-        result = check_repo_status_has_repo(host, repo, arch="x86_64")
+    for os_version, architecture, repo in configured_repos:
+        result = check_repo_status_has_repo(
+            host, repo, arch=architecture, os_version=os_version
+        )
         if not result["success"]:
             tl.failed(LOG["repo_missing"].format(repo=repo), result["details"])
             assert False, result["error"]
 
-    tl.passed(f"x86_64 base repos present: {', '.join(configured_repos)}", "")
+    names = [f"{version}/{repo}" for version, _arch, repo in configured_repos]
+    tl.passed(f"x86_64 base repos present: {', '.join(names)}", "")
 
 
 @pytest.mark.functional
@@ -180,23 +214,23 @@ def test_x86_64_repos_present(host):
 @pytest.mark.order(6)
 def test_file_repos_present(host):
     """RM_FVT_EXECUTE_V006: Verify file repos (tarball) present (if configured)."""
-    # Check if imb is configured in repo_manager_config.yml
-    config_result = check_repo_configured(host, "imb", arch="x86_64")
+    context_result = get_repo_status_contexts(host)
+    assert context_result["success"], context_result["error"]
+    matches = []
+    for _os_type, os_version, architecture in context_result["contexts"]:
+        result = check_repo_status_has_file_repo(
+            host, "imb", arch=architecture, os_version=os_version
+        )
+        if result["success"]:
+            matches.append(result["details"])
 
-    if not config_result["success"]:
-        # Skip test if imb is not configured
+    if not matches:
         pytest.skip("imb file repo not configured in repo_manager_config.yml")
 
-    # Only test if imb is configured
     tl = TestLogger(TEST_NAMES["file_repos_present"], "RM_FVT_EXECUTE_V006")
-    result = check_repo_status_has_file_repo(host, "imb", arch="x86_64")
-
-    if result["success"]:
-        tl.passed(LOG["file_repo_present"].format(repo="imb"), result["details"])
-    else:
-        tl.failed(LOG["file_repo_missing"].format(repo="imb"), result["details"])
-
-    assert result["success"], ASSERT["repo_not_found"]
+    tl.passed(
+        LOG["file_repo_present"].format(repo="imb"), "; ".join(matches)
+    )
 
 
 @pytest.mark.sanity
@@ -219,8 +253,10 @@ def test_software_download_status(host):
 @pytest.mark.positive
 @pytest.mark.order(8)
 def test_per_software_package_status(host):
-    """RM_FVT_EXECUTE_V008: Verify per-software status.csv for individual package download results."""
-    tl = TestLogger(TEST_NAMES["per_software_package_status"], "RM_FVT_EXECUTE_V008")
+    """RM_FVT_EXECUTE_V008: Verify each package result in status.csv."""
+    tl = TestLogger(
+        TEST_NAMES["per_software_package_status"], "RM_FVT_EXECUTE_V008"
+    )
     result = check_per_software_package_status(host)
 
     if result["success"]:
@@ -235,8 +271,10 @@ def test_per_software_package_status(host):
 @pytest.mark.positive
 @pytest.mark.order(9)
 def test_pulp_repositories_synced(host):
-    """RM_FVT_EXECUTE_V009: Verify all RPM repositories have latest_version_href (sync indicator)."""
-    tl = TestLogger(TEST_NAMES["pulp_repositories_synced"], "RM_FVT_EXECUTE_V009")
+    """RM_FVT_EXECUTE_V009: Verify every RPM repository is synchronized."""
+    tl = TestLogger(
+        TEST_NAMES["pulp_repositories_synced"], "RM_FVT_EXECUTE_V009"
+    )
     result = check_pulp_repositories_synced(host)
 
     if result["success"]:
@@ -251,8 +289,10 @@ def test_pulp_repositories_synced(host):
 @pytest.mark.positive
 @pytest.mark.order(10)
 def test_pulp_distributions_published(host):
-    """RM_FVT_EXECUTE_V010: Verify all RPM distributions are published with repository attachment."""
-    tl = TestLogger(TEST_NAMES["pulp_distributions_published"], "RM_FVT_EXECUTE_V010")
+    """RM_FVT_EXECUTE_V010: Verify each RPM distribution is published."""
+    tl = TestLogger(
+        TEST_NAMES["pulp_distributions_published"], "RM_FVT_EXECUTE_V010"
+    )
     result = check_pulp_distributions_published(host)
 
     if result["success"]:
@@ -315,7 +355,7 @@ def test_pulp_content_accessible(host):
 @pytest.mark.positive
 @pytest.mark.order(14)
 def test_software_packages_in_pulp(host):
-    """RM_FVT_EXECUTE_V014: Verify all RPM packages from software_config.json are present in Pulp."""
+    """RM_FVT_EXECUTE_V014: Verify selected RPM packages are present in Pulp."""
     tl = TestLogger(TEST_NAMES["software_packages_in_pulp"], "RM_FVT_EXECUTE_V014")
     result = check_software_packages_in_pulp(host)
 

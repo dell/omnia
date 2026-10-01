@@ -547,4 +547,37 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "Verify authentication secrets are absent from logs",
     },
 
+    # =================================================================
+    # SECTION G: Retention & Traceability (ER-BSM-002 Story 4)
+    # =================================================================
+
+    "retention_deploy_count_incremented": {
+        "id": "BSM_FVT_RETENTION_V001",
+        "title": "Verify deploy_count incremented after successful deploy",
+    },
+    "retention_last_deployed_at_set": {
+        "id": "BSM_FVT_RETENTION_V002",
+        "title": "Verify last_deployed_at timestamp set after deploy",
+    },
+    "retention_undeployed_image_group_zero_count": {
+        "id": "BSM_FVT_RETENTION_V003",
+        "title": "Verify undeployed image group has deploy_count=0",
+    },
+    "retention_deployed_image_protected_from_cleanup": {
+        "id": "BSM_FVT_RETENTION_V004",
+        "title": "Verify deployed image group is protected from retention cleanup",
+    },
+    "retention_audit_event_exists": {
+        "id": "BSM_FVT_RETENTION_V005",
+        "title": "Verify RETENTION_DELETED audit event recorded for aged images",
+    },
+    "retention_config_loaded": {
+        "id": "BSM_FVT_RETENTION_V006",
+        "title": "Verify retention config (age, min_keep_count) loaded from config",
+    },
+    "retention_sidecar_manifest_present": {
+        "id": "BSM_FVT_RETENTION_V007",
+        "title": "Verify sidecar manifest uploaded for build artifacts",
+    },
+
 }

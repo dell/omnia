@@ -5,7 +5,7 @@
 
 """
 Test Category 5: Pulp Mode Verification
-Tests that repo_status.yml reflects correct Pulp mode and actual Pulp repositories have correct policy.
+Tests that status and actual Pulp repositories use the resolved policy.
 """
 
 import pytest
@@ -15,7 +15,7 @@ from library.functions import (
     TestLogger,
     check_repo_policy,
     check_repo_caching,
-    get_configured_repos,
+    get_configured_repo_contexts,
 )
 from library.messages.repo_manager_msgs import (
     TEST_NAMES,
@@ -32,21 +32,26 @@ def test_pulp_mode_in_repo_status(host: Host):
     tl = TestLogger(TEST_NAMES["pulp_mode_in_repo_status"], "RM_FVT_POLICY_V014")
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
     
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
     
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
     
     # Test with multiple repos to verify repo_status.yml reflects correct modes
     results = []
     repos_checked = 0
 
-    for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if not repo_policy["success"] or not repo_caching["success"]:
             results.append(f"{repo_name}: Cannot determine settings")
@@ -86,19 +91,24 @@ def test_actual_pulp_repository_policy(host: Host):
     tl = TestLogger(TEST_NAMES["actual_pulp_repository_policy"], "RM_FVT_POLICY_V015")
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
     
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
     
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
     
     # Check that at least one repo has a valid policy/caching combination
     valid_combinations = 0
-    for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if not repo_policy["success"] or not repo_caching["success"]:
             continue
@@ -115,7 +125,8 @@ def test_actual_pulp_repository_policy(host: Host):
                  f"{valid_combinations} repos have valid policy/caching combinations")
     else:
         tl.passed("configuration_different",
-                 f"No repos with expected policy/caching combinations found among {len(configured_repos)} repos")
+                  "No repos with expected policy/caching combinations found "
+                  f"among {len(configured_repos)} repos")
         pytest.skip("No repos have expected policy/caching combinations")
 
     assert valid_combinations > 0, "No repos with valid policy/caching combinations"
@@ -132,19 +143,24 @@ def test_disk_space_savings(host: Host):
     # compared to repos with immediate policy
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
     
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
     
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
 
     # Check that on-demand repos are configured to save space
     on_demand_count = 0
-    for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if repo_policy["success"] and repo_caching["success"]:
             policy = repo_policy.get("policy")
@@ -157,11 +173,14 @@ def test_disk_space_savings(host: Host):
     # Verify we have on-demand repos configured
     if on_demand_count > 0:
         tl.passed(LOG["disk_space_saved"],
-                 f"{on_demand_count} repos configured with on-demand policy to save disk space")
+                  f"{on_demand_count} repos configured with on-demand policy "
+                  "to save disk space")
     else:
         # Skip if no on-demand repos are configured
         tl.passed("no_on_demand_repos",
-                 f"No repos configured with on-demand policy among {len(configured_repos)} repos (not required for basic functionality)")
+                  "No repos configured with on-demand policy among "
+                  f"{len(configured_repos)} repos (not required for basic "
+                  "functionality)")
         pytest.skip("No repos configured with on-demand policy")
 
     assert on_demand_count > 0, ASSERT["on_demand_must_save_disk_space"]

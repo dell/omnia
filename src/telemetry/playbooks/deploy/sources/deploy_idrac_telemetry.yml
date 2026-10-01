@@ -59,10 +59,17 @@
             name: "{{ item.value.ansible_host | default(item.key) }}"
             groups: service_kube_node
             ansible_user: root
-          loop: "{{ hostvars['localhost']['cluster_inv'].all.children.service_kube_node_x86_64.hosts | default({}) | dict2items }}"
+          loop: >-
+            {{ hostvars['localhost']['cluster_inv'].all.children | default({})
+               | dict2items
+               | selectattr('key', 'match', '^service_kube_node')
+               | map(attribute='value.hosts')
+               | map('default', {})
+               | map('dict2items')
+               | flatten
+               | list }}
           loop_control:
             label: "{{ item.key }}"
-          when: hostvars['localhost']['cluster_inv'].all.children.service_kube_node_x86_64.hosts is defined
   tasks:
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:

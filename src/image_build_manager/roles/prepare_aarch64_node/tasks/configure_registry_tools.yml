@@ -1,0 +1,71 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Check if regctl already exists on aarch64 node
+  ansible.builtin.stat:
+    path: "{{ regctl_bin_path }}"
+  register: _regctl_remote_stat
+
+- name: Install regctl on aarch64 node
+  when: not _regctl_remote_stat.stat.exists
+  block:
+    - name: Copy regctl binary from OIM staging directory
+      ansible.builtin.copy:
+        src: "{{ regctl_oim_staging_path }}"
+        dest: "{{ regctl_bin_path }}"
+        mode: "{{ dir_permissions_755 }}"
+      become: true
+      register: _regctl_copy_result
+
+  rescue:
+    - name: Download regctl binary directly on aarch64 node (fallback)
+      ansible.builtin.get_url:
+        url: "{{ regctl_download_url }}"
+        dest: "{{ regctl_bin_path }}"
+        mode: "{{ dir_permissions_755 }}"
+        timeout: 120
+      become: true
+      register: _regctl_download_result
+      retries: 3
+      delay: 10
+      until: _regctl_download_result is succeeded
+      failed_when: false
+
+    - name: Fail if regctl cannot be obtained
+      ansible.builtin.fail:
+        msg: "{{ regctl_not_found_msg }}"
+      when: _regctl_download_result is failed
+
+- name: Verify regctl binary is functional
+  ansible.builtin.command: "{{ regctl_bin_path }} version"
+  register: _regctl_version
+  changed_when: false
+  failed_when: _regctl_version.rc != 0
+
+- name: Display regctl version
+  ansible.builtin.debug:
+    msg: "regctl version: {{ _regctl_version.stdout | trim }}"
+
+- name: Compute aarch64 registry host
+  ansible.builtin.set_fact:
+    _aarch64_registry_host: >-
+      {{ hostvars['localhost']['admin_nic_ip']
+         if hostvars['localhost']['standalone_mode'] | default(false) | bool
+         else hostvars['localhost']['oim_hostname'] }}
+
+- name: Configure regctl to use HTTP for local registry
+  ansible.builtin.command: "{{ regctl_bin_path }} registry set --tls disabled {{ _aarch64_registry_host }}:5000"
+  register: regctl_result
+  changed_when: regctl_result.rc == 0
+  become: true

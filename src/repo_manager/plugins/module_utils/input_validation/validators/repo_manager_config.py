@@ -35,6 +35,7 @@ from ansible.module_utils.input_validation.messages.common_messages import (
     DUPLICATE_REPO_NAME_IN_ARCH_MSG,
     PRIORITY_MUST_BE_INTEGER_MSG, PRIORITY_MUST_BE_IN_RANGE_MSG,
     ADDITIONAL_REPO_PRIORITY_CONFLICT_MSG,
+    ADDITIONAL_REPO_POLICY_CONFLICT_MSG,
     MISSING_REPO_CONFIGURATION_MSG, MISSING_REPO_URL_MSG,
     MISSING_ARCH_SOURCE_MSG, RPM_REPO_NEVER_POLICY_MSG,
 )
@@ -50,6 +51,8 @@ from ansible.module_utils.repo_manager.catalog_resolver import (
     select_package_source,
 )
 from ansible.module_utils.repo_manager.repo_settings import (
+    AGGREGATED_REPO_SUFFIX,
+    POLICY_CACHING_MAP,
     SUBSCRIPTION_REPOSITORIES,
     iterate_all_repos,
 )
@@ -59,6 +62,10 @@ from ansible.module_utils.repo_manager.rhel_subscription import (
 from ansible.module_utils.repo_manager.security_utils import (
     redact_url_credentials,
     validate_repository_url,
+)
+from ansible.module_utils.repo_manager.yaml_safety import (
+    YamlSafetyError,
+    validate_runtime_yaml_data,
 )
 
 
@@ -83,6 +90,15 @@ def validate(
     """
     errors = []
     repo_manager_config_yml = create_file_path(input_file_path, files["repo_manager_config"])
+
+    try:
+        validate_runtime_yaml_data(data)
+    except YamlSafetyError as exc:
+        errors.append(create_error_msg(
+            repo_manager_config_yml,
+            exc.location,
+            "Jinja template syntax is not allowed in runtime configuration",
+        ))
 
     errors.extend(_validate_registry_configs(data, repo_manager_config_yml))
 
@@ -183,6 +199,7 @@ def validate(
             _validate_repo_priorities(
                 repos_section, cluster_os_version, arch, errors,
                 referenced_repo_names=referenced_repo_names,
+                config_data=data,
             )
 
         errors.extend(_validate_catalog_repo_mapping(
@@ -379,8 +396,8 @@ def _validate_priority(repo_config, repo_path, errors):
 
 
 def _validate_repo_priorities(repos_section, cluster_os_version, arch, errors,
-                              referenced_repo_names=None):
-    """Validate priorities for the selected catalog repository scope."""
+                              referenced_repo_names=None, config_data=None):
+    """Validate catalog priorities and the independent aggregate contract."""
     base_path = f"repositories.{cluster_os_version}.{arch}"
     referenced = (
         set(referenced_repo_names)
@@ -392,7 +409,8 @@ def _validate_repo_priorities(repos_section, cluster_os_version, arch, errors,
             if not isinstance(repo_config, dict):
                 continue
             for nested_name, nested_config in repo_config.items():
-                if referenced is not None and nested_name not in referenced:
+                if (repo_name == "user_repos" and referenced is not None
+                        and nested_name not in referenced):
                     continue
                 _validate_priority(
                     nested_config, f"{repo_path}.{nested_name}", errors
@@ -407,13 +425,27 @@ def _validate_repo_priorities(repos_section, cluster_os_version, arch, errors,
         return
 
     effective_priorities = set()
+    effective_policies = set()
+    configured_sources = []
+    config_data = config_data or {}
     for repo_name, repo_config in additional_repos.items():
-        if referenced is not None and repo_name not in referenced:
-            continue
         if not isinstance(repo_config, dict):
             continue
-        if not str(repo_config.get("url") or "").strip():
+        repo_path = f"{base_path}.additional_repos.{repo_name}"
+        url = repo_config.get("url")
+        if not str(url or "").strip():
+            # Subscription-discovered repositories intentionally omit the
+            # URL. Their catalog/subscription validation is handled later;
+            # only URL-backed entries participate in the aggregate contract.
             continue
+        configured_sources.append(repo_name)
+        try:
+            validate_repository_url(url)
+        except ValueError as error:
+            errors.append(create_error_msg(
+                f"{repo_path}.url", "<redacted URL>", str(error)
+            ))
+
         priority = repo_config.get("priority")
         if priority is None:
             effective_priorities.add(99)
@@ -421,12 +453,46 @@ def _validate_repo_priorities(repos_section, cluster_os_version, arch, errors,
               and 1 <= priority <= 100):
             effective_priorities.add(priority)
 
+        policy = str(repo_config.get(
+            "policy", config_data.get("repo_config", "partial")
+        )).lower()
+        caching = repo_config.get(
+            "caching", config_data.get("caching_policy", True)
+        )
+        if isinstance(caching, bool):
+            effective_policy = POLICY_CACHING_MAP.get((policy, caching))
+            if effective_policy:
+                effective_policies.add(effective_policy)
+
     if len(effective_priorities) > 1:
         errors.append(ADDITIONAL_REPO_PRIORITY_CONFLICT_MSG.format(
             repo_path=f"{base_path}.additional_repos",
             priorities=", ".join(
                 str(value) for value in sorted(effective_priorities)
             ),
+        ))
+
+    if len(effective_policies) > 1:
+        errors.append(ADDITIONAL_REPO_POLICY_CONFLICT_MSG.format(
+            repo_path=f"{base_path}.additional_repos",
+            policies=", ".join(sorted(effective_policies)),
+        ))
+
+    aggregate_collisions = []
+    if configured_sources:
+        if AGGREGATED_REPO_SUFFIX in (repos_section or {}):
+            aggregate_collisions.append(AGGREGATED_REPO_SUFFIX)
+        user_repos = (repos_section or {}).get("user_repos") or {}
+        if (isinstance(user_repos, dict)
+                and AGGREGATED_REPO_SUFFIX in user_repos):
+            aggregate_collisions.append(
+                f"user_repos.{AGGREGATED_REPO_SUFFIX}"
+            )
+    if aggregate_collisions:
+        errors.append(create_error_msg(
+            f"{base_path}.additional_repos",
+            ", ".join(aggregate_collisions),
+            "The reserved aggregate repository name 'additional' is already configured",
         ))
 
 

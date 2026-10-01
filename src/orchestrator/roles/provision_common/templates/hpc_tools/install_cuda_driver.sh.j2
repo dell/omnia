@@ -1,7 +1,11 @@
 #!/bin/bash
 # Local NVIDIA driver install. Always runs on Slurm nodes. Idempotent.
-# Never touches NFS lock artifacts. Never touches /hpc_tools/cuda contents.
+# Never touches NFS lock artifacts or shared CUDA toolkit contents.
 set -euo pipefail
+
+PLATFORM_HELPER="/hpc_tools/scripts/omnia_platform.sh"
+. "$PLATFORM_HELPER" || exit 1
+omnia_detect_platform || exit 1
 
 # NVIDIA driver version defaults.
 #
@@ -69,7 +73,8 @@ nvidia-smi -pm 1 || true
 
 # Mount shared toolkit at /usr/local/cuda (harmless if already mounted)
 mkdir -p /usr/local/cuda
-CUDA_NFS="/hpc_tools/cuda"
+CUDA_NFS="${OMNIA_PLATFORM_ROOT}/cuda"
+mkdir -p "$CUDA_NFS"
 if ! mountpoint -q /usr/local/cuda; then
     mount --bind "$CUDA_NFS" /usr/local/cuda || true
 fi
