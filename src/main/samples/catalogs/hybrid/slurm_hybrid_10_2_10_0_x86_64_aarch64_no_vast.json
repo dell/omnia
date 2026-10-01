@@ -938,7 +938,7 @@
       "ghcr_io/openchami/image_thrillhouse": {
         "name": "ghcr.io/openchami/image-thrillhouse",
         "packagetype": "image",
-        "tag": "v0.0.24",
+        "tag": "v0.0.26",
         "sources": [
           {
             "architecture": "x86_64",
