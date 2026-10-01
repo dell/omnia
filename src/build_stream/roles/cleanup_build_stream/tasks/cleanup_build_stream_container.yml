@@ -112,6 +112,49 @@
         msg: |
           {{ build_stream_cleanup_failure_msg }}
 
+- name: Check BuildStream runtime directory for generated Python caches
+  ansible.builtin.stat:
+    path: "{{ build_stream_runtime_directory }}"
+  register: build_stream_runtime_directory_stat
+
+- name: Find generated Python cache directories
+  ansible.builtin.find:
+    paths: "{{ build_stream_runtime_directory }}"
+    patterns: "{{ build_stream_python_cache_directories }}"
+    file_type: directory
+    recurse: true
+    hidden: true
+    follow: false
+  register: build_stream_python_cache_dirs
+  when: build_stream_runtime_directory_stat.stat.isdir | default(false)
+
+- name: Remove generated Python cache directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ build_stream_python_cache_dirs.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Find generated Python bytecode files
+  ansible.builtin.find:
+    paths: "{{ build_stream_runtime_directory }}"
+    patterns: "{{ build_stream_python_cache_files }}"
+    file_type: file
+    recurse: true
+    hidden: true
+    follow: false
+  register: build_stream_python_cache_files_found
+  when: build_stream_runtime_directory_stat.stat.isdir | default(false)
+
+- name: Remove generated Python bytecode files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ build_stream_python_cache_files_found.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path }}"
+
 - name: Check if target file exists
   ansible.builtin.stat:
     path: "{{ omnia_target }}"

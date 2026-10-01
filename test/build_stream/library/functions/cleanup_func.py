@@ -20,6 +20,7 @@ Checks that containers, services, directories, credentials, and
 volumes are properly removed after running cleanup playbooks.
 """
 
+import shlex
 from typing import Any, Dict, List
 
 from omnia_auto import run_on_host
@@ -907,12 +908,16 @@ def check_buildstream_directories_removed(host) -> Dict[str, Any]:
     # Build dynamic list based on config
     dirs = [
         f"{omnia_path}/build_stream/log",
+        f"{omnia_path}/build_stream/logs",
+        f"{omnia_path}/build_stream/output",
         f"{omnia_path}/build_stream/playbook_queue",
+        f"{omnia_path}/playbook_queue",
+        f"{omnia_path}/log/build_stream",
         f"{omnia_path}/build_stream_ssl",
         f"{omnia_path}/build_stream_root",
         f"{omnia_path}/build_stream_inv",
         f"{omnia_path}/build_stream_enabled",
-        f"{omnia_path}/build_stream",
+        "/var/log/omnia/build_stream",
     ]
 
     result = {
@@ -941,6 +946,45 @@ def check_buildstream_directories_removed(host) -> Dict[str, Any]:
             f"Still exist: {', '.join(result['still_exist'])}"
         )
     return result
+
+
+def check_buildstream_runtime_caches_removed(host) -> Dict[str, Any]:
+    """Verify generated Python caches are absent from BuildStream runtime."""
+    data_path = resolve_build_stream_data_path(host)
+    directory_check = run_on_host(
+        host, CMDS["dir_exists"].format(path=data_path)
+    )
+    if directory_check.stdout.strip() != "exists":
+        return {
+            "success": True,
+            "remaining": [],
+            "details": "BuildStream runtime is absent; no caches remain",
+            "error": "",
+        }
+
+    command = (
+        f"find -P {shlex.quote(data_path)} "
+        "\\( -type d \\( -name __pycache__ -o -name pycache \\) "
+        "-o -type f \\( -name '*.pyc' -o -name '*.pyo' \\) \\) "
+        "-print 2>/dev/null"
+    )
+    cmd_result = run_on_host(host, command)
+    remaining = [
+        path.strip()
+        for path in cmd_result.stdout.splitlines()
+        if path.strip()
+    ]
+    success = cmd_result.rc == 0 and not remaining
+    return {
+        "success": success,
+        "remaining": remaining,
+        "details": "No generated Python caches remain" if success else "",
+        "error": (
+            "Generated Python caches remain: " + ", ".join(remaining)
+            if remaining
+            else f"Unable to inspect BuildStream runtime caches (rc={cmd_result.rc})"
+        ) if not success else "",
+    }
 
 
 def check_buildstream_credentials_removed(host) -> Dict[str, Any]:

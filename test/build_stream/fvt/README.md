@@ -42,7 +42,7 @@
 | BSM_FVT_BUILDSTREAM_INSTALL_V030 | test_nfs_queue_directory_accessible | Verify NFS queue dir (2.3) |
 | BSM_FVT_BUILDSTREAM_INSTALL_V031 | test_playbook_watcher_running | Verify watcher service (2.3) |
 
-## Section C: Explicit cleanup suites (24 test cases)
+## Section C: Explicit cleanup suites (26 test cases)
 
 Cleanup is not part of the default lifecycle. Select exactly one suite so an
 operation cannot remove GitLab, BuildStream, and image artifacts in the same
@@ -53,7 +53,8 @@ run accidentally.
 | BSM_FVT_BUILDSTREAM_CLEANUP_E001 | test_deploy_gitlab_cleanup | Execute GitLab cleanup |
 | BSM_FVT_BUILDSTREAM_CLEANUP_E002 | test_deploy_buildstream_cleanup | Execute BuildStream cleanup |
 | BSM_FVT_BUILDSTREAM_CLEANUP_V001–V008 | GitLab cleanup verification tests | Verify GitLab packages, runner, services, directories, URL, and port cleanup |
-| BSM_FVT_BUILDSTREAM_CLEANUP_V009–V019, V022, V024–V025 | BuildStream cleanup verification tests | Verify BSM, watcher, PostgreSQL backup preservation, and credential cleanup |
+| BSM_FVT_BUILDSTREAM_CLEANUP_V009–V020, V022, V024–V025 | BuildStream cleanup verification tests | Verify BSM, watcher, PostgreSQL backup preservation, runtime directory cleanup, and credential cleanup |
+| BSM_FVT_BUILDSTREAM_CLEANUP_V021 | test_buildstream_runtime_caches_removed | Verify generated Python caches are removed |
 
 ## Section D: Build Pipeline (12 test cases)
 

@@ -253,6 +253,14 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V019",
         "title": "Verify omnia_postgres services stopped",
     },
+    "buildstream_directories_removed": {
+        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V020",
+        "title": "Verify BuildStream runtime directories removed",
+    },
+    "buildstream_runtime_caches_removed": {
+        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V021",
+        "title": "Verify BuildStream Python caches removed",
+    },
     "postgres_volumes_preserved_with_backup": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V022",
         "title": "Verify Postgres volumes preserved (backup)",

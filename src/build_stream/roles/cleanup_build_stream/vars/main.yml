@@ -31,11 +31,29 @@ playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
 omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] }}"
 build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream/log"
+  - "{{ omnia_nfs_share }}/build_stream/logs"
+  - "{{ omnia_nfs_share }}/build_stream/output"
   - "{{ omnia_nfs_share }}/build_stream/playbook_queue"
+  - "{{ omnia_nfs_share }}/playbook_queue"
+  - "{{ omnia_nfs_share }}/log/build_stream"
   - "{{ omnia_nfs_share }}/build_stream_ssl"
   - "{{ omnia_nfs_share }}/build_stream_root"
   - "{{ omnia_nfs_share }}/build_stream_inv"
   - "{{ omnia_nfs_share }}/build_stream_enabled"
+
+# Remove the cleanup playbook's own host log only after every cleanup task has
+# succeeded, so failures remain diagnosable.
+build_stream_host_log_directory: "/var/log/omnia/build_stream"
+
+# Python bytecode is generated inside the initializer-owned application tree.
+# Preserve the application source and input, but remove generated caches.
+build_stream_runtime_directory: "{{ omnia_nfs_share }}/build_stream"
+build_stream_python_cache_directories:
+  - "__pycache__"
+  - "pycache"
+build_stream_python_cache_files:
+  - "*.pyc"
+  - "*.pyo"
 
 # ── Postgres cleanup ───────────────────────────────────────────────
 postgres_cleanup_directory:
@@ -96,7 +114,8 @@ cleanup_summary_msg: |
     - playbook_watcher service
     - automation framework
     - omnia_postgres container and quadlet service
-    - build_stream NFS directories
+    - build_stream output, queues, runtime logs, and Python caches
+    - build_stream NFS runtime directories
     - build_stream credential files
   Postgres data: {{ 'PRESERVED (use -e postgres_backup=false to delete)' if postgres_backup | default(true) | bool else 'DELETED' }}
   To redeploy run: cd /omnia/build_stream && ansible-playbook build_stream.yml

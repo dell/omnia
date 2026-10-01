@@ -23,6 +23,8 @@ Validates that cleanup_build_stream.yml removed all artifacts:
   omnia_postgres container stopped and removed
   omnia_postgres quadlet files removed
   omnia_postgres systemd services stopped
+  BuildStream output, queue, and log directories removed
+  Generated BuildStream Python caches removed
   Postgres volumes preserved when backup is enabled
   build_stream credentials removed
   build_stream OAuth credentials removed
@@ -36,6 +38,8 @@ from library.functions import (
     check_buildstream_container_removed,
     check_buildstream_quadlet_files_removed,
     check_buildstream_services_stopped,
+    check_buildstream_directories_removed,
+    check_buildstream_runtime_caches_removed,
     check_playbook_watcher_service_stopped,
     check_playbook_watcher_service_disabled,
     check_playbook_watcher_service_file_removed,
@@ -352,6 +356,38 @@ def test_postgres_services_stopped(host):
     assert result["success"], ASSERT["service_still_active"].format(
         service="omnia_postgres",
     )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(20)
+def test_buildstream_directories_removed(host):
+    """Verify all BuildStream-generated runtime directories are removed."""
+    tc = TC["buildstream_directories_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_buildstream_directories_removed(host)
+
+    if result["success"]:
+        tl.passed(result["details"])
+    else:
+        tl.failed(result["error"])
+
+    assert result["success"], result["error"]
+
+
+@pytest.mark.sanity
+@pytest.mark.order(21)
+def test_buildstream_runtime_caches_removed(host):
+    """Verify generated Python caches are removed from runtime source."""
+    tc = TC["buildstream_runtime_caches_removed"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_buildstream_runtime_caches_removed(host)
+
+    if result["success"]:
+        tl.passed(result["details"])
+    else:
+        tl.failed(result["error"])
+
+    assert result["success"], result["error"]
 
 
 @pytest.mark.sanity
