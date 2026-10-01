@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Verify packaged OpenCHAMI certificate renewal units exist
   ansible.builtin.stat:
     path: "/usr/lib/systemd/system/{{ item }}"
@@ -26,9 +25,7 @@
     that:
       - item.stat.exists
       - item.stat.isreg
-    fail_msg: >-
-      Required certificate renewal unit {{ item.item }} is missing. Reinstall
-      the supported OpenCHAMI RPM before continuing.
+    fail_msg: "{{ cert_renewal_units_fail_msg }}"
   loop: "{{ _openchami_cert_renewal_units.results }}"
   loop_control:
     label: "{{ item.item }}"
@@ -43,10 +40,7 @@
     that:
       - _openchami_haproxy_cert_volume.volumes | default([]) | length == 1
       - _openchami_haproxy_cert_volume.volumes[0].Mountpoint | default('') | length > 0
-    fail_msg: >-
-      The {{ openchami_haproxy_cert_volume }} volume is unavailable. Re-run
-      OpenCHAMI deployment before configuring certificate renewal.
-
+    fail_msg: "{{ haproxy_cert_volume_fail_msg }}"
 - name: Resolve deployed OpenCHAMI certificate path
   ansible.builtin.set_fact:
     _openchami_fqdn: "{{ cluster_name }}.{{ cluster_domain }}"
@@ -187,8 +181,4 @@
         or _openchami_cert_renewal_timer_status.status.get(
           'NextElapseUSecMonotonic', 'infinity'
         ) not in ['', 'infinity']
-    fail_msg: >-
-      OpenCHAMI certificate renewal is not healthy. Verify
-      {{ openchami_cert_renewal_service }},
-      {{ openchami_cert_renewal_timer }}, and the certificate at
-      {{ _openchami_haproxy_cert_path }}.
+    fail_msg: "{{ cert_renewal_health_fail_msg }}"

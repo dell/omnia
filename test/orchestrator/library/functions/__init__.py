@@ -18,6 +18,12 @@ from omnia_auto import TestLogger
 from omnia_auto import run_playbook as _run_playbook
 
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
+from .additional_cloud_init_pxeboot_func import (
+    check_additional_cloud_init_metadata_groups,
+    check_additional_cloud_init_runcmd,
+    check_additional_cloud_init_smd_groups,
+    check_additional_cloud_init_write_files,
+)
 from .apptainer_accelerator_pxeboot_func import (
     check_apptainer_cuda_workload,
     check_apptainer_gpu_access,
@@ -58,6 +64,10 @@ from .apptainer_runtime_pxeboot_func import (
     check_apptainer_sif_integrity,
     check_apptainer_sif_permissions,
 )
+from .boot_image_identity_provision_func import (
+    check_boot_image_architecture,
+    check_boot_image_identity,
+)
 from .boot_service_provision_func import check_boot_configurations, check_boot_nodes
 from .cleanup_func import (
     check_cleanup_artifacts,
@@ -97,6 +107,30 @@ from .kubernetes_storage_pxeboot_func import (
     check_kubernetes_snapshot_controller,
     check_kubernetes_workload_scheduling,
 )
+from .minimal_os_pxeboot_func import (
+    check_minimal_os_base_packages,
+    check_minimal_os_excluded_packages,
+    check_minimal_os_excluded_services,
+    check_minimal_os_kernel_version,
+    check_minimal_os_ldms_packages,
+    check_minimal_os_network_identity,
+    check_minimal_os_package_manager,
+    check_minimal_os_required_services,
+)
+from .mount_config_pxeboot_func import (
+    check_mount_config_bind_fstab,
+    check_mount_config_bind_mounts,
+    check_mount_config_fg_targeting,
+    check_mount_config_fstab,
+    check_mount_config_mount_options,
+    check_mount_config_mount_point,
+    check_mount_config_no_duplicate_fstab,
+    check_mount_config_node_subdirectory,
+    check_mount_config_oim_mount,
+    check_mount_config_permissions,
+    check_mount_config_volume_mounted,
+    check_mount_config_writable,
+)
 from .metadata_service_provision_func import (
     check_metadata_groups,
     check_metadata_instances,
@@ -118,6 +152,13 @@ from .nft_func import (
     resolve_nft_thresholds,
 )
 from .postgres_prepare_func import check_prepare_postgresql_readiness
+from .mount_config_precheck_func import (
+    check_precheck_mount_invalid_mount_params,
+    check_precheck_mount_missing_mount_point,
+    check_precheck_mount_missing_source,
+    check_precheck_mount_missing_targeting,
+    check_precheck_mount_node_key_without_mount_point,
+)
 from .precheck_func import (
     check_precheck_admin_ipv4,
     check_precheck_dependencies,
@@ -129,8 +170,10 @@ from .precheck_func import (
 )
 from .provision_status_func import check_provision_reports
 from .pxeboot_func import (
+    check_node_architecture,
     check_node_cloud_init,
     check_node_hostname_ssh,
+    check_node_os_version,
     check_node_ping,
     check_node_ssh,
 )
@@ -232,6 +275,8 @@ __all__ = [
     "check_apptainer_single_node_job",
     "check_apptainer_slurm_environment",
     "check_boot_configurations",
+    "check_boot_image_architecture",
+    "check_boot_image_identity",
     "check_boot_nodes",
     "check_clean_baseline",
     "check_cleanup_artifacts",
@@ -266,9 +311,31 @@ __all__ = [
     "check_log_file_permissions",
     "check_metadata_groups",
     "check_metadata_instances",
+    "check_minimal_os_base_packages",
+    "check_minimal_os_excluded_packages",
+    "check_minimal_os_excluded_services",
+    "check_minimal_os_kernel_version",
+    "check_minimal_os_ldms_packages",
+    "check_minimal_os_network_identity",
+    "check_minimal_os_package_manager",
+    "check_minimal_os_required_services",
+    "check_mount_config_bind_fstab",
+    "check_mount_config_bind_mounts",
+    "check_mount_config_fg_targeting",
+    "check_mount_config_fstab",
+    "check_mount_config_mount_options",
+    "check_mount_config_mount_point",
+    "check_mount_config_no_duplicate_fstab",
+    "check_mount_config_node_subdirectory",
+    "check_mount_config_oim_mount",
+    "check_mount_config_permissions",
+    "check_mount_config_volume_mounted",
+    "check_mount_config_writable",
     "check_network_inventory",
+    "check_node_architecture",
     "check_node_cloud_init",
     "check_node_hostname_ssh",
+    "check_node_os_version",
     "check_node_ping",
     "check_node_ssh",
     "check_precheck_admin_ipv4",
@@ -276,6 +343,11 @@ __all__ = [
     "check_precheck_hostname_domain",
     "check_precheck_idempotency",
     "check_precheck_inputs",
+    "check_precheck_mount_invalid_mount_params",
+    "check_precheck_mount_missing_mount_point",
+    "check_precheck_mount_missing_source",
+    "check_precheck_mount_missing_targeting",
+    "check_precheck_mount_node_key_without_mount_point",
     "check_precheck_nfs_servers",
     "check_precheck_repositories",
     "check_precheck_s3_artifacts",

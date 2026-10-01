@@ -81,21 +81,10 @@
                     "type": "boolean",
                     "description": "Enable or disable cadence polling for periodic package sync"
                 },
-                "interval_seconds": {
+                "interval_days": {
                     "type": "integer",
-                    "minimum": 60,
-                    "description": "Cadence polling interval in seconds (minimum 1 minute for testing)"
-                },
-                "catalog_filename": {
-                    "type": "string",
-                    "minLength": 1,
-                    "pattern": "^[a-zA-Z0-9._-]+\\.json$",
-                    "description": "Cadence catalog filename in GitLab repository"
-                },
-                "playbook_name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "description": "Package sync playbook name"
+                    "minimum": 1,
+                    "description": "Cadence polling interval in days (minimum 1 day)"
                 },
                 "sync_timeout_seconds": {
                     "type": "integer",

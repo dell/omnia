@@ -2191,14 +2191,15 @@ def scan_and_process_requests() -> int:
 
 
 def _start_cadence_timer():
-    """Start the cadence polling timer thread if enabled.
+    """Start the cadence polling timer thread.
 
     Reads cadence configuration and starts CadenceTimerThread as a
     daemon thread that periodically triggers repo_manager syncs
-    for the cadence catalog.
+    for the cadence catalog. The timer remains alive while cadence is
+    disabled so configuration reload can enable it without a service restart.
 
     Returns:
-        CadenceTimerThread instance if started, None otherwise.
+        CadenceTimerThread instance if the cadence module is available.
     """
     try:
         from cadence_manager import (  # pylint: disable=import-outside-toplevel
@@ -2213,13 +2214,6 @@ def _start_cadence_timer():
         return None
 
     config = load_cadence_config()
-    if not config.get("enabled", False):
-        log_secure_info(
-            "info",
-            "Cadence polling is disabled in configuration"
-        )
-        return None
-
     cadence_thread = CadenceTimerThread(
         config=config,
         requests_dir=REQUESTS_DIR,
@@ -2230,7 +2224,8 @@ def _start_cadence_timer():
     log_secure_info(
         "info",
         f"Cadence timer started: "
-        f"interval={config.get('interval_seconds', 86400)}s"
+        f"enabled={config.get('enabled', False)}, "
+        f"interval={config.get('interval_days', 7)}d"
     )
     return cadence_thread
 

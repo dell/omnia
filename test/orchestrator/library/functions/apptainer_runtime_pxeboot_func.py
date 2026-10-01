@@ -148,11 +148,6 @@ def check_apptainer_image_inventory(host):
                 "No SIF image has been downloaded to /hpc_tools/container_images",
             )
         outcomes = {}
-        if not any(image_inventory(host, row) for row in computes):
-            return optional_skip(
-                summary,
-                "No SIF image has been downloaded to /hpc_tools/container_images",
-            )
         for row in computes:
             names = {
                 image["name"]

@@ -16,10 +16,6 @@
 # Slurm Pre-Cleanup Task
 # Validates prerequisites, reads configuration, and creates cleanup checkpoint
 
-- name: Set role path
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-
 - name: Load Slurm component configuration
   ansible.builtin.include_vars:
     file: "{{ role_path }}/components/slurm/vars/component_spec.yml"
@@ -53,7 +49,7 @@
 
 - name: Fail if Slurm not configured and cleanup is required
   ansible.builtin.fail:
-    msg: "Slurm cluster not configured in omnia_config.yml - cannot cleanup"
+    msg: "{{ slurm_cleanup_prerequisite_fail_msg }}"
   when: not slurm_configured | bool and component_config.requires_confirmation | default(false) | bool
 
 - name: Read storage_config for mount information

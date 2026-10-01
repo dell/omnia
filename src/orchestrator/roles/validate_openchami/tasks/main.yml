@@ -62,10 +62,7 @@
       ansible.builtin.assert:
         that:
           - haproxy_cert_volume.volumes | default([]) | length > 0
-        fail_msg: >-
-          HAProxy certificate volume 'haproxy-certs' is missing. Re-run
-          OpenCHAMI preparation before provisioning.
-
+        fail_msg: "{{ haproxy_volume_fail_msg }}"
     - name: Verify HAProxy TLS certificates are present
       ansible.builtin.find:
         paths: "{{ haproxy_cert_volume.volumes[0].Mountpoint }}"
@@ -76,9 +73,7 @@
       ansible.builtin.assert:
         that:
           - haproxy_certs.matched | default(0) | int > 0
-        fail_msg: >-
-          HAProxy certificate volume 'haproxy-certs' does not contain a PEM
-          certificate. Re-run OpenCHAMI preparation before provisioning.
+        fail_msg: "{{ haproxy_certificate_fail_msg }}"
         success_msg: >-
           HAProxy TLS certificate verified in the haproxy-certs volume.
 
@@ -93,10 +88,4 @@
 
     - name: Fail with OpenCHAMI readiness error
       ansible.builtin.fail:
-        msg: >-
-          OpenCHAMI is not ready for provisioning. Check that all services are
-          running and accessible through the CA-verified gateway.
-          API checks: {{ 'passed' if openchami_api_checks is defined and
-          openchami_api_checks is success else 'failed' }},
-          Tokensmith: {{ tokensmith_health.status.ActiveState | default('N/A') }},
-          ACME: {{ acme_health.status.ActiveState | default('N/A') }}.
+        msg: "{{ openchami_readiness_fail_msg }}"

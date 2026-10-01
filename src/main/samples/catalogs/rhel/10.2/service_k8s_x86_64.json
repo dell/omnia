@@ -157,8 +157,7 @@
           "cryptography==45_0_7",
           "kubernetes==33_1_0",
           "omsdk==1_2_518",
-          "prettytable==3_14_0",
-          "nvcr.io/nvidia/hpc-benchmarks"
+          "prettytable==3_14_0"
         ]
       },
       "service_k8s_common_group": {
@@ -3026,21 +3025,6 @@
           {
             "architecture": "x86_64",
             "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
-      "nvcr.io/nvidia/hpc-benchmarks": {
-        "name": "nvcr.io/nvidia/hpc-benchmarks",
-        "packagetype": "image",
-        "tag": "25.09",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "nvcr.io",
             "name": "rhel",
             "version": [
               "10.2"

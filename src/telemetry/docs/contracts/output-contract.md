@@ -28,7 +28,7 @@ kube_vip: "192.168.13.150"
 
 packages:
   install_mode: "offline"
-  repo_url: "https://192.168.13.111:2225/pulp/content/.../rhel/10.0"
+  repo_url: "https://192.168.13.111:2225/pulp/content/.../rhel/<os_version>"
 
 sinks:
   kafka: "deployed"
@@ -73,7 +73,7 @@ deploy_unreachable_nodes:
 | `namespace` | string | K8s namespace (always `"telemetry"`) |
 | `kube_vip` | string | K8s control plane VIP used for deployment |
 | `packages.install_mode` | string | `"offline"` or `"online"` |
-| `packages.repo_url` | string | Pulp base URL (offline mode) |
+| `packages.repo_url` | string | Pulp base URL (offline mode); OS version is auto-derived from orchestrator inventory group names at runtime |
 | `sinks.<name>` | string | `"deployed"`, `"failed"`, or `"skipped"` |
 | `sources.<name>.metrics` | string | Metrics outcome: `"deployed"`, `"failed"`, or `"skipped"` |
 | `sources.<name>.logs` | string | Logs outcome when supported: `"deployed"`, `"failed"`, or `"skipped"` |
