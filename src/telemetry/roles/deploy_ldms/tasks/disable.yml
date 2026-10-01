@@ -58,7 +58,7 @@
     kubectl scale statefulset {{ ldms_aggregator_name }}
     -n {{ telemetry_namespace }} --replicas=0
   register: scale_down_aggregator_result
-  changed_when: "'scaled' in scale_down_aggregator_result.stdout"
+  changed_when: false
   when:
     - ldms_aggregator_check.rc == 0
     - ldms_aggregator_replicas.stdout | default('0') | int > 0
@@ -103,7 +103,7 @@
     -n {{ telemetry_namespace }} --replicas=0
   loop: "{{ ldms_store_statefulsets.stdout.split() }}"
   register: scale_down_store_result
-  changed_when: "'scaled' in scale_down_store_result.stdout"
+  changed_when: false
   when: ldms_store_statefulsets.stdout | default('') | length > 0
 
 - name: Wait for LDMS store pods to terminate
@@ -143,7 +143,7 @@
     kubectl scale deployment {{ vector.ldms.app_name }}
     -n {{ telemetry_namespace }} --replicas=0
   register: scale_down_vector_result
-  changed_when: "'scaled' in scale_down_vector_result.stdout"
+  changed_when: false
   when:
     - vector_ldms_check.rc == 0
     - vector_ldms_replicas.stdout | default('0') | int > 0
@@ -173,10 +173,9 @@
   ansible.builtin.set_fact:
     ldms_disable_changes_made: >-
       {{
-        (scale_down_aggregator_result is changed) or
-        (scale_down_store_result is changed) or
-        (sampler_stop_result is changed) or
-        (scale_down_vector_result is changed)
+        (scale_down_aggregator_result is defined and scale_down_aggregator_result.changed) or
+        (scale_down_store_result is defined and scale_down_store_result.changed) or
+        (scale_down_vector_result is defined and scale_down_vector_result.changed)
       }}
 
 - name: Log LDMS disable complete
@@ -185,7 +184,6 @@
       LDMS telemetry disabled {{ 'successfully' if ldms_disable_changes_made else '(already disabled - idempotent operation)' }}:
         - LDMS aggregator: scaled to 0 replicas
         - LDMS store: scaled to 0 replicas
-        - LDMS sampler services: stopped and disabled on {{ _slurm_node_group | default([]) | length }} node(s)
         - Vector-LDMS bridge: scaled to 0 replicas
         - Configuration and data: preserved (PVCs, secrets, configs retained)
         - Changes made: {{ 'Yes' if ldms_disable_changes_made else 'No (already disabled)' }}

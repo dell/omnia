@@ -440,7 +440,17 @@
              and (_idrac_pod_count | int) == 0) else 'failed' }}
           {% endif %}
         _deploy_result_ldms_metrics: >-
-          {{ 'deployed' if (_ldms_on | bool) and ((_ldms_aggregator_sts_exists | bool) and (_ldms_aggregator_desired | int) > 0 and (_ldms_aggregator_running | bool) and (_ldms_store_running | bool)) else ('disabled' if (not (_ldms_on | bool)) and ((_ldms_aggregator_sts_exists | bool) and (_ldms_aggregator_desired | int) == 0 and not (_ldms_aggregator_running | bool) and not (_ldms_store_running | bool)) else ('failed' if (_ldms_on | bool) else 'skipped')) }}
+          {%- if _ldms_on | bool -%}
+          {{ 'deployed' if (_ldms_aggregator_sts_exists | bool)
+             and (_ldms_aggregator_desired | int) > 0
+             and (_ldms_aggregator_running | bool)
+             and (_ldms_store_running | bool) else 'failed' | trim }}
+          {%- else -%}
+          {{ 'disabled' if (_ldms_aggregator_sts_exists | bool)
+             and (_ldms_aggregator_desired | int) == 0
+             and not (_ldms_aggregator_running | bool)
+             and not (_ldms_store_running | bool) else 'skipped' | trim }}
+          {%- endif %}
 
     # -- Sources (metrics + logs) ---------------------------------------------
     - name: Set source metrics+logs results
@@ -522,10 +532,18 @@
              | select('search', 'Running') | list | length) > 0 }}
       ansible.builtin.set_fact:
         _deploy_result_vector_ldms: >-
-          {{ 'deployed' if ((_vldms_bridge_on | bool) and (_ldms_src_on | bool)) and ((_vldms_deployment_exists | bool) and (_vldms_desired | int) > 0 and (_vldms_running | bool)) else ('disabled' if (not (_vldms_bridge_on | bool) or not (_ldms_src_on | bool)) and ((_vldms_deployment_exists | bool) and (_vldms_desired | int) == 0 and not (_vldms_running | bool)) else ('failed' if ((_vldms_bridge_on | bool) and (_ldms_src_on | bool)) else 'skipped')) }}
+          {%- if (_vldms_bridge_on | bool) and (_ldms_src_on | bool) -%}
+          {{ 'deployed' if (_vldms_deployment_exists | bool)
+             and (_vldms_desired | int) > 0
+             and (_vldms_running | bool) else 'failed' | trim }}
+          {%- elif not (_vldms_bridge_on | bool) or not (_ldms_src_on | bool) -%}
+          {{ 'disabled' if (_vldms_deployment_exists | bool)
+             and (_vldms_desired | int) == 0
+             and not (_vldms_running | bool) else 'skipped' | trim }}
+          {%- endif %}
         _deploy_result_vector_ome: >-
           {{ 'disabled' if not ((_vome_m | bool) or (_vome_l | bool))
-             else ('deployed' if (_vome_running | bool) else 'failed') }}
+             else ('deployed' if (_vome_running | bool) else 'failed') | trim }}
 
 # ── Phase 5: Write telemetry_status.yml ───────────────────────────────────────
 - name: "Write telemetry deployment status"
