@@ -53,7 +53,7 @@
 - name: Set IPoIB hosts entries for metadata-service templates
   ansible.builtin.set_fact:
     ib_hosts_entries: >-
-      {{ (_ib_hosts_block_raw.content | b64decode).split('\n')
+      {{ (_ib_hosts_block_raw.content | b64decode).splitlines()
          | reject('match', '^#')
          | reject('match', '^\s*$')
          | list }}
