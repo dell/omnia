@@ -100,6 +100,7 @@
 #
 #   # Remove selected File/Python artifacts by their exact catalog names.
 #   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_files=helm-charts-2.17.0,helm-v3.20.1-amd64"
+#   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_files=PyMySQL==1.1.2"
 #
 #   # Remove all artifacts of one type. force=true skips the confirmation prompt.
 #   ansible-playbook repo_manager.yml --tags cleanup_repos -e "cleanup_repos=all" -e "force=true"
