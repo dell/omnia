@@ -19,10 +19,10 @@ Unit tests for cadence manager (UT-003 through UT-010).
 import json
 import os
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import Event
-from unittest.mock import patch, MagicMock, Mock
-from datetime import datetime, timezone
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -31,6 +31,7 @@ from cadence_manager import (
     _repo_resync_status_path,
     is_pipeline_busy,
     copy_cadence_catalog_to_default_path,
+    fetch_cadence_catalog_from_gitlab,
     bump_catalog_version,
     submit_repo_sync_request,
     wait_for_sync_result,
@@ -142,6 +143,82 @@ class TestCatalogCopy:
             assert result is False
             mock_log.assert_called()
 
+
+@pytest.mark.unit
+class TestGitLabCatalogFetch:
+    """UT-004A: GitLab catalog download and atomic replacement tests."""
+
+    @staticmethod
+    def _fetch(target_file, response):
+        with patch("cadence_manager.requests.get", return_value=response):
+            return fetch_cadence_catalog_from_gitlab(
+                "https://gitlab.example.test",
+                "test-token",
+                "42",
+                "cadence_catalog_rhel.json",
+                "main",
+                target_file,
+            )
+
+    def test_fetch_replaces_local_catalog_after_validation(
+        self,
+        temp_dir,
+        sample_catalog_json,
+    ):
+        """TC-UT-004A-001: Valid GitLab JSON atomically replaces local data."""
+        target_file = temp_dir / "catalog" / "catalog_rhel.json"
+        target_file.parent.mkdir()
+        target_file.write_text('{"catalog":{"version":"old"}}')
+        response = Mock(status_code=200, text=json.dumps(sample_catalog_json))
+
+        result = self._fetch(target_file, response)
+
+        assert result is True
+        assert json.loads(target_file.read_text()) == sample_catalog_json
+
+    def test_malformed_fetch_preserves_existing_catalog(self, temp_dir):
+        """TC-UT-004A-002: Malformed GitLab JSON cannot replace fallback."""
+        target_file = temp_dir / "catalog.json"
+        original = '{"catalog":{"version":"1.0"}}'
+        target_file.write_text(original)
+        response = Mock(status_code=200, text="{broken")
+
+        result = self._fetch(target_file, response)
+
+        assert result is False
+        assert target_file.read_text() == original
+
+    def test_http_failure_preserves_existing_catalog(self, temp_dir):
+        """TC-UT-004A-003: GitLab HTTP failure leaves local data untouched."""
+        target_file = temp_dir / "catalog.json"
+        original = '{"catalog":{"version":"1.0"}}'
+        target_file.write_text(original)
+        response = Mock(status_code=503, text="unavailable")
+
+        result = self._fetch(target_file, response)
+
+        assert result is False
+        assert target_file.read_text() == original
+
+    def test_atomic_write_failure_preserves_existing_catalog(
+        self,
+        temp_dir,
+        sample_catalog_json,
+    ):
+        """TC-UT-004A-004: Failed atomic install preserves local data."""
+        target_file = temp_dir / "catalog.json"
+        original = '{"catalog":{"version":"1.0"}}'
+        target_file.write_text(original)
+        response = Mock(status_code=200, text=json.dumps(sample_catalog_json))
+
+        with patch(
+            "cadence_manager._write_text_atomically",
+            return_value=False,
+        ):
+            result = self._fetch(target_file, response)
+
+        assert result is False
+        assert target_file.read_text() == original
 
 class TestVersionBumping:
     """UT-005: Version bumping tests."""
@@ -556,6 +633,142 @@ class TestCadenceExactMirrorFlow:
             "poll_interval": 17,
         }
 
+    @pytest.mark.unit
+    def test_cycle_refreshes_catalog_before_reconciliation(
+        self,
+        sample_cadence_config,
+        temp_dir,
+    ):
+        """TC-UT-011-006: Eligible cadence fetches GitLab before repo sync."""
+        thread = self._thread(sample_cadence_config, temp_dir)
+        calls = []
+
+        with patch(
+            "cadence_manager.is_pipeline_busy",
+            return_value=False,
+        ), patch.object(
+            thread,
+            "_refresh_catalog_from_gitlab",
+            side_effect=lambda: calls.append("fetch"),
+        ), patch.object(
+            thread,
+            "_sync_packages",
+            side_effect=lambda: calls.append("sync"),
+        ):
+            thread._execute_cadence_cycle()  # pylint: disable=protected-access
+
+        assert calls == ["fetch", "sync"]
+
+
+@pytest.mark.unit
+class TestCadencePushTransaction:
+    """UT-012: Catalog bump and GitLab push transaction tests."""
+
+    @staticmethod
+    def _thread(sample_cadence_config, temp_dir, configured=True):
+        config = dict(sample_cadence_config)
+        if configured:
+            config.update(
+                {
+                    "gitlab_host": "gitlab.example.test",
+                    "gitlab_https_port": 443,
+                    "gitlab_default_branch": "main",
+                    "gitlab_root_token": "test-token",
+                    "gitlab_project_id": "42",
+                }
+            )
+        return CadenceTimerThread(
+            config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+
+    def test_missing_gitlab_config_does_not_mutate_or_audit(
+        self,
+        sample_cadence_config,
+        temp_dir,
+        sample_catalog_json,
+    ):
+        """TC-UT-012-001: Missing GitLab values block mutation and success."""
+        catalog_path = temp_dir / "catalog.json"
+        original = json.dumps(sample_catalog_json)
+        catalog_path.write_text(original)
+        thread = self._thread(sample_cadence_config, temp_dir, configured=False)
+
+        with patch.dict(
+            os.environ,
+            {"CATALOG_FILE_PATH": str(catalog_path)},
+        ), patch("cadence_manager.update_catalog_via_gitlab_api") as update, patch(
+            "cadence_manager.emit_audit_event"
+        ) as audit:
+            result = thread._bump_and_push(  # pylint: disable=protected-access
+                "cadence-1"
+            )
+
+        assert result is False
+        assert catalog_path.read_text() == original
+        update.assert_not_called()
+        audit.assert_not_called()
+
+    def test_failed_gitlab_push_preserves_local_catalog_and_no_success_audit(
+        self,
+        sample_cadence_config,
+        temp_dir,
+        sample_catalog_json,
+    ):
+        """TC-UT-012-002: Failed PUT preserves the original catalog."""
+        catalog_path = temp_dir / "catalog.json"
+        original = json.dumps(sample_catalog_json)
+        catalog_path.write_text(original)
+        thread = self._thread(sample_cadence_config, temp_dir)
+
+        def reject_update(*_args, **_kwargs):
+            assert catalog_path.read_text() == original
+            return False
+
+        with patch.dict(
+            os.environ,
+            {"CATALOG_FILE_PATH": str(catalog_path)},
+        ), patch(
+            "cadence_manager.update_catalog_via_gitlab_api",
+            side_effect=reject_update,
+        ), patch("cadence_manager.emit_audit_event") as audit:
+            result = thread._bump_and_push(  # pylint: disable=protected-access
+                "cadence-2"
+            )
+
+        assert result is False
+        assert catalog_path.read_text() == original
+        audit.assert_not_called()
+
+    def test_successful_gitlab_push_commits_local_bump_and_audits(
+        self,
+        sample_cadence_config,
+        temp_dir,
+        sample_catalog_json,
+    ):
+        """TC-UT-012-003: Success is emitted only after remote PUT succeeds."""
+        catalog_path = temp_dir / "catalog.json"
+        catalog_path.write_text(json.dumps(sample_catalog_json))
+        thread = self._thread(sample_cadence_config, temp_dir)
+
+        with patch.dict(
+            os.environ,
+            {"CATALOG_FILE_PATH": str(catalog_path)},
+        ), patch(
+            "cadence_manager.update_catalog_via_gitlab_api",
+            return_value=True,
+        ) as update, patch("cadence_manager.emit_audit_event") as audit:
+            result = thread._bump_and_push(  # pylint: disable=protected-access
+                "cadence-3"
+            )
+
+        assert result is True
+        assert json.loads(update.call_args.args[4])["catalog"]["version"] == "1.1"
+        assert json.loads(catalog_path.read_text())["catalog"]["version"] == "1.1"
+        audit.assert_called_once()
+
 
 class TestCadenceTimerThread:
     """UT-010: CadenceTimerThread tests."""
@@ -730,3 +943,83 @@ class TestCadenceTimerThread:
 
         sync.assert_not_called()
         assert thread.enabled is False
+
+    @pytest.mark.unit
+    def test_malformed_credentials_retain_last_known_good_state(
+        self,
+        sample_cadence_config,
+        temp_dir,
+    ):
+        """TC-UT-010-009: Real reload path contains malformed credential YAML."""
+        config_file = temp_dir / "build_stream_config.yml"
+        credentials_file = temp_dir / "build_stream_credentials.yml"
+        config_file.write_text(
+            "cadence:\n  enabled: true\n  interval_days: 2\n",
+            encoding="utf-8",
+        )
+        credentials_file.write_text("gitlab_root_token: [broken", encoding="utf-8")
+        original_config = dict(sample_cadence_config)
+        original_config.update(
+            {
+                "gitlab_root_token": "old-token",
+                "gitlab_project_id": "42",
+            }
+        )
+        thread = CadenceTimerThread(
+            original_config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+
+        with patch.dict(
+            os.environ,
+            {"BUILD_STREAM_CONFIG_PATH": str(config_file)},
+        ):
+            result = thread._reload_config()  # pylint: disable=protected-access
+
+        assert result is False
+        assert thread.interval_days == 1
+        assert thread.gitlab_token == "old-token"
+        assert thread.gitlab_project_id == "42"
+
+    @pytest.mark.unit
+    def test_malformed_credentials_do_not_terminate_running_thread(
+        self,
+        sample_cadence_config,
+        temp_dir,
+    ):
+        """TC-UT-010-010: A malformed credential reload cannot kill cadence."""
+        config_file = temp_dir / "build_stream_config.yml"
+        credentials_file = temp_dir / "build_stream_credentials.yml"
+        config_file.write_text(
+            "cadence:\n  enabled: true\n  interval_days: 2\n",
+            encoding="utf-8",
+        )
+        credentials_file.write_text("gitlab_root_token: [broken", encoding="utf-8")
+        cycle_reached = Event()
+        thread = CadenceTimerThread(
+            sample_cadence_config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+
+        with patch.dict(
+            os.environ,
+            {"BUILD_STREAM_CONFIG_PATH": str(config_file)},
+        ), patch.object(
+            thread,
+            "_sync_packages",
+            side_effect=lambda: cycle_reached.set(),
+        ):
+            thread.start()
+            try:
+                thread.trigger()
+                assert cycle_reached.wait(timeout=2)
+                assert thread.is_alive()
+            finally:
+                thread.stop()
+                thread.join(timeout=5)
+
+        assert not thread.is_alive()

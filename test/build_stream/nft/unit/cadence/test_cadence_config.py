@@ -64,8 +64,8 @@ cadence:
         assert result["sync_poll_interval_seconds"] == 5
 
     @pytest.mark.unit
-    def test_fixed_catalog_and_playbook_cannot_be_overridden(self, temp_dir):
-        """TC-UT-001-002: Product-owned filenames remain constants."""
+    def test_fixed_catalog_and_playbook_are_rejected(self, temp_dir):
+        """TC-UT-001-002: Unknown cadence inputs match schema rejection."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text(
             """
@@ -78,26 +78,31 @@ cadence:
             encoding="utf-8",
         )
 
-        result = _load_unified_config(str(config_file), _defaults())
-
-        assert "catalog_filename" not in result
-        assert "playbook_name" not in result
+        with pytest.raises(ValueError, match="Unsupported cadence"):
+            _load_unified_config(
+                str(config_file),
+                _defaults(),
+                strict=True,
+            )
 
     @pytest.mark.unit
-    def test_interval_days_has_one_day_defensive_minimum(self, temp_dir):
-        """TC-UT-001-003: Runtime clamps an invalid sub-day interval."""
+    def test_interval_days_below_one_is_rejected(self, temp_dir):
+        """TC-UT-001-003: Runtime matches the schema minimum of one day."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text(
             "cadence:\n  enabled: true\n  interval_days: 0\n",
             encoding="utf-8",
         )
 
-        result = _load_unified_config(str(config_file), _defaults())
-
-        assert result["interval_days"] == 1
+        with pytest.raises(ValueError, match="interval_days"):
+            _load_unified_config(
+                str(config_file),
+                _defaults(),
+                strict=True,
+            )
 
     @pytest.mark.unit
-    def test_legacy_seconds_and_top_level_keys_are_ignored(self, temp_dir):
+    def test_legacy_seconds_falls_back_to_safe_defaults(self, temp_dir):
         """TC-UT-001-004: Removed cadence inputs cannot alter runtime state."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text(
@@ -115,7 +120,7 @@ cadence:
         result = _load_unified_config(str(config_file), _defaults())
 
         assert result["enabled"] is False
-        assert result["interval_days"] == 2
+        assert result["interval_days"] == DEFAULT_CADENCE_INTERVAL_DAYS
         assert "interval_seconds" not in result
 
     @pytest.mark.unit
@@ -148,6 +153,40 @@ cadence:
         config_file.write_text("enable_build_stream: true\n", encoding="utf-8")
 
         with pytest.raises(ValueError, match="Failed to load cadence"):
+            _load_unified_config(
+                str(config_file),
+                _defaults(),
+                strict=True,
+            )
+
+    @pytest.mark.parametrize(
+        "field,value,error",
+        [
+            ("gitlab_host", 123, "gitlab_host"),
+            ("gitlab_https_port", "443", "gitlab_https_port"),
+            ("gitlab_https_port", 65536, "gitlab_https_port"),
+            ("gitlab_project_name", "bad project", "gitlab_project_name"),
+            ("gitlab_default_branch", "", "gitlab_default_branch"),
+        ],
+    )
+    @pytest.mark.unit
+    def test_strict_gitlab_fields_match_schema_types(
+        self,
+        temp_dir,
+        field,
+        value,
+        error,
+    ):
+        """TC-UT-001-012: Reload rejects invalid root GitLab fields."""
+        config_file = temp_dir / "build_stream_config.yml"
+        config_file.write_text(
+            "cadence:\n  enabled: true\n  interval_days: 1\n",
+            encoding="utf-8",
+        )
+        with config_file.open("a", encoding="utf-8") as config_stream:
+            config_stream.write(f"{field}: {value!r}\n")
+
+        with pytest.raises(ValueError, match=error):
             _load_unified_config(
                 str(config_file),
                 _defaults(),
@@ -214,3 +253,21 @@ class TestConfigLoadingResolution:
 
         assert result["enabled"] is True
         assert result["interval_days"] == 5
+
+    @pytest.mark.unit
+    def test_malformed_credentials_raise_in_strict_reload(self, temp_dir):
+        """TC-UT-001-013: Malformed credential YAML cannot escape reload."""
+        config_file = temp_dir / "build_stream_config.yml"
+        credentials_file = temp_dir / "build_stream_credentials.yml"
+        config_file.write_text(
+            "cadence:\n  enabled: true\n  interval_days: 1\n",
+            encoding="utf-8",
+        )
+        credentials_file.write_text("gitlab_root_token: [broken", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="GitLab credentials"):
+            load_cadence_config(
+                str(config_file),
+                str(credentials_file),
+                strict=True,
+            )
