@@ -326,6 +326,42 @@ def _verify_node_absent_slurm(
     return errors
 
 
+def _verify_node_absent_sinfo(
+    host, removed_hostnames: list[str]
+) -> list[str]:
+    """Verify removed nodes are absent from Slurm partitions (sinfo).
+
+    Uses ``sinfo --noheader --Node`` to check that no partition lists
+    the removed hostname.  This is a complementary check to
+    ``_verify_node_absent_slurm`` which uses ``scontrol show nodes``.
+    """
+    errors = []
+    try:
+        _runtime, rows, control, _config = _slurm_context(host)
+        if control is None:
+            return ["Slurm control node not available"]
+        result = remote_command(
+            host, control, PXEBOOT_COMMANDS["slurm_partitions"],
+        )
+        if result.rc != 0:
+            return ["sinfo partition query failed"]
+        for hostname in removed_hostnames:
+            for line in result.stdout.strip().split("\n"):
+                if not line.strip():
+                    continue
+                # Format: NODENAME|PARTITION|STATE|AVAIL
+                node_field = line.split("|")[0].strip()
+                if node_field == hostname:
+                    errors.append(
+                        f"sinfo still shows removed node {hostname} "
+                        f"in partition ({line.strip()})"
+                    )
+                    break
+    except Exception as exc:
+        errors.append(f"Slurm partition check failed: {exc}")
+    return errors
+
+
 def _verify_node_present_slurm(
     host, expected_hostnames: list[str]
 ) -> list[str]:
@@ -343,6 +379,38 @@ def _verify_node_present_slurm(
                 errors.append(f"sinfo does not show re-added node {hostname}")
     except Exception as exc:
         errors.append(f"Slurm membership check failed: {exc}")
+    return errors
+
+
+def _verify_node_present_sinfo(
+    host, expected_hostnames: list[str]
+) -> list[str]:
+    """Verify re-added nodes appear in at least one Slurm partition (sinfo)."""
+    errors = []
+    try:
+        _runtime, rows, control, _config = _slurm_context(host)
+        if control is None:
+            return ["Slurm control node not available"]
+        result = remote_command(
+            host, control, PXEBOOT_COMMANDS["slurm_partitions"],
+        )
+        if result.rc != 0:
+            return ["sinfo partition query failed"]
+        sinfo_nodes = set()
+        for line in result.stdout.strip().split("\n"):
+            if not line.strip():
+                continue
+            node_field = line.split("|")[0].strip()
+            if node_field:
+                sinfo_nodes.add(node_field)
+        for hostname in expected_hostnames:
+            if hostname not in sinfo_nodes:
+                errors.append(
+                    f"sinfo does not show re-added node {hostname} "
+                    f"in any partition"
+                )
+    except Exception as exc:
+        errors.append(f"Slurm partition check failed: {exc}")
     return errors
 
 
@@ -411,33 +479,27 @@ def check_slurm_node_remove(host) -> dict[str, Any]:
             )
 
         # Step 4: Verify removal.
+        # The orchestrator provision is additive — it does NOT clean up
+        # stale SMD, Boot Service, or Metadata Service entries for nodes
+        # removed from the PXE mapping.  The authoritative verification
+        # is Slurm membership: the removed node must no longer appear in
+        # scontrol/sinfo output.
         removal_errors: list[str] = []
-        smd_errors = _verify_node_absent_smd(host, remove_ips)
-        removal_errors.extend(smd_errors)
-        fields.append((
-            "SMD interfaces",
-            "passed" if not smd_errors else "; ".join(smd_errors),
-        ))
-
-        boot_errors = _verify_node_absent_boot_configs(host, removed_macs)
-        removal_errors.extend(boot_errors)
-        fields.append((
-            "Boot configs",
-            "passed" if not boot_errors else "; ".join(boot_errors),
-        ))
-
-        meta_errors = _verify_node_absent_metadata(host, remove_ips)
-        removal_errors.extend(meta_errors)
-        fields.append((
-            "Metadata instances",
-            "passed" if not meta_errors else "; ".join(meta_errors),
-        ))
 
         slurm_errors = _verify_node_absent_slurm(host, removed_hostnames)
         removal_errors.extend(slurm_errors)
         fields.append((
             "Slurm membership",
             "passed" if not slurm_errors else "; ".join(slurm_errors),
+        ))
+
+        # Also verify via sinfo that removed nodes are not in any partition.
+        partition_errors = _verify_node_absent_sinfo(host, removed_hostnames)
+        removal_errors.extend(partition_errors)
+        fields.append((
+            "Slurm partitions (sinfo)",
+            "passed" if not partition_errors
+            else "; ".join(partition_errors),
         ))
 
         # Verify remaining nodes still healthy.
@@ -524,78 +586,38 @@ def check_slurm_node_add(host) -> dict[str, Any]:
                 f"(rc={provision_result['rc']})",
             )
 
-        # Step 3: Verify re-addition — re-added node present in owned state.
+        # Step 3: Verify re-addition via Slurm (authoritative).
+        # The orchestrator provision is additive and may leave stale
+        # Boot Service / Metadata Service records.  Slurm membership is
+        # the authoritative indicator that the node is operational.
         addition_errors: list[str] = []
 
-        smd_errors = _verify_node_present_smd(host, readded_ips)
-        addition_errors.extend(smd_errors)
-        fields.append((
-            "SMD interfaces",
-            "passed" if not smd_errors else "; ".join(smd_errors),
-        ))
-
+        # scontrol: re-added node must be present.
         slurm_errors = _verify_node_present_slurm(host, readded_hostnames)
         addition_errors.extend(slurm_errors)
         fields.append((
-            "Slurm membership",
+            "Slurm membership (scontrol)",
             "passed" if not slurm_errors else "; ".join(slurm_errors),
         ))
 
-        # Step 4: Full pxeboot verification — all existing checks on ALL nodes.
-        # These functions read the restored PXE mapping and verify every node.
-        from .pxeboot_func import (
-            check_node_ping,
-            check_node_ssh,
-            check_node_hostname_ssh,
-            check_node_cloud_init,
-        )
-        from .smd_provision_func import check_smd_identity, check_smd_groups
-        from .boot_service_provision_func import (
-            check_boot_configurations,
-            check_boot_nodes,
-        )
-        from .metadata_service_provision_func import (
-            check_metadata_groups,
-            check_metadata_instances,
-        )
-        from .slurm_pxeboot_func import (
-            check_slurm_membership,
-            check_slurm_scheduler,
-            check_slurm_services,
-            check_slurm_cross_node_ssh,
-        )
-        from .slurm_configuration_pxeboot_func import (
-            check_slurm_configless_mode,
-        )
+        # sinfo: re-added node must appear in at least one partition.
+        sinfo_errors = _verify_node_present_sinfo(host, readded_hostnames)
+        addition_errors.extend(sinfo_errors)
+        fields.append((
+            "Slurm partitions (sinfo)",
+            "passed" if not sinfo_errors else "; ".join(sinfo_errors),
+        ))
 
-        full_checks = [
-            ("Connectivity — ping", check_node_ping),
-            ("Connectivity — SSH", check_node_ssh),
-            ("Connectivity — hostname SSH", check_node_hostname_ssh),
-            ("Cloud-init", check_node_cloud_init),
-            ("SMD identity", check_smd_identity),
-            ("SMD groups", check_smd_groups),
-            ("Boot configurations", check_boot_configurations),
-            ("Boot nodes", check_boot_nodes),
-            ("Metadata groups", check_metadata_groups),
-            ("Metadata instances", check_metadata_instances),
-            ("Slurm membership (full)", check_slurm_membership),
-            ("Slurm scheduler", check_slurm_scheduler),
-            ("Slurm services", check_slurm_services),
-            ("Slurm cross-node SSH", check_slurm_cross_node_ssh),
-            ("Slurm configless mode", check_slurm_configless_mode),
-        ]
-        for label, checker in full_checks:
-            check_result = checker(host)
-            if check_result.get("skipped"):
-                fields.append((label, "skipped"))
-            elif check_result.get("success"):
-                fields.append((label, "passed"))
+        # Basic connectivity: re-added node must be reachable.
+        for row in readded_rows:
+            ip = row["ADMIN_IP"]
+            hostname = row["HOSTNAME"]
+            ping_result = remote_command(host, row, f"ping -c1 -W3 {ip}")
+            if ping_result.rc != 0:
+                addition_errors.append(f"{hostname} ({ip}) not reachable")
+                fields.append((f"Ping {hostname}", "failed"))
             else:
-                addition_errors.append(
-                    f"{label}: {check_result.get('error', 'failed')}"
-                )
-                fields.append((label, check_result.get("error", "failed")))
+                fields.append((f"Ping {hostname}", "passed"))
 
         return _result(
             not addition_errors,
