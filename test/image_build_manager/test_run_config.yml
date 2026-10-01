@@ -74,7 +74,8 @@
 #   precheck:       connectivity
 #   validate:       status
 #   prepare:        container, s3
-#   build:          s3, registry, naming, aarch64, image_verification
+#   build:          s3, registry, naming, aarch64, image_verification,
+#                   catalog_reuse
 #   cleanup:        cleanup
 #   cleanup_images: cleanup_images
 #

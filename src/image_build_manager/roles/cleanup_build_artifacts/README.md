@@ -22,6 +22,13 @@ supports role sub-tags such as `minio`, `registry`, `output`, `s3cmd`,
 
 Full cleanup does not delete objects from external PowerScale S3.
 
+## Structure
+
+- `tasks/main.yml` selects the requested cleanup lifecycle.
+- `tasks/cleanup_images.yml` discovers artifacts, obtains approval, and cleans S3.
+- `tasks/cleanup_registry_images.yml` deletes and verifies registry manifests.
+- The remaining task files isolate service, credential, output, data, and log cleanup.
+
 ## Requirements
 
 - Root privileges for file and service cleanup
@@ -35,7 +42,18 @@ See `vars/main.yml` for the full list.
 No automatic role dependencies are declared. The top-level cleanup playbook
 runs `image_build_setup` first to resolve paths and provider configuration.
 
-## Examples
+## Example Playbook
+
+```yaml
+- name: Clean Image Build Manager artifacts
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: cleanup_build_artifacts
+```
+
+## Command Examples
 
 ```bash
 # Public full cleanup

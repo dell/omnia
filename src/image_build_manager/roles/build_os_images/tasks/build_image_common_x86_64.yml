@@ -15,7 +15,7 @@
 
 - name: Fail if s3_configurations not loaded
   ansible.builtin.fail:
-    msg: "s3_configurations is not defined. Ensure image_build_config.yml is loaded before this role."
+    msg: "{{ s3_configurations_missing_fail_msg }}"
   when: s3_configurations is not defined
 
 - name: Set facts for x86_64 image templates vars
@@ -123,5 +123,5 @@
 
 - name: Fail if Podman container runtime is broken
   ansible.builtin.fail:
-    msg: "{{ podman_verify_fail_msg }} Error: {{ _podman_verify.stderr | default('unknown') }}"
+    msg: "{{ podman_verify_error_fail_msg }}"
   when: _podman_verify.rc != 0

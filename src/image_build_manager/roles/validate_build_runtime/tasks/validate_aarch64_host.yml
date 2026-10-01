@@ -50,10 +50,7 @@
     - aarch64_build_enabled | bool
     - _aarch64_ping.rc | default(1) != 0
   ansible.builtin.fail:
-    msg: >
-      Cannot reach aarch64 build host at {{ aarch64_inventory_host_ip }}.
-      Verify the IP is correct and the host is powered on and network-reachable.
-      Ping stderr: {{ _aarch64_ping.stderr | default('no output') }}
+    msg: "{{ aarch64_unreachable_fail_msg }}"
 
 - name: Display aarch64 host reachability
   when: aarch64_build_enabled | bool

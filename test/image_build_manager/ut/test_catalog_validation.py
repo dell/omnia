@@ -18,6 +18,8 @@ import pathlib
 import re
 import sys
 
+import jsonschema
+
 
 # ut/test_catalog... -> ut/ -> image_build_manager/ -> test/ -> omnia-bsm/
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -31,6 +33,7 @@ SAMPLE_CATALOG = (
     REPO_ROOT / "src" / "main" / "samples" / "catalog_rhel.json"
 )
 CATALOG_SAMPLES_DIR = REPO_ROOT / "src" / "main" / "samples"
+CATALOG_FILES = tuple(sorted(CATALOG_SAMPLES_DIR.rglob("*.json")))
 THRILLHOUSE_PACKAGE_KEY = "ghcr_io/openchami/image_thrillhouse"
 EXPECTED_THRILLHOUSE_TAG = "v0.0.26"
 THRILLHOUSE_RUNTIME_VARS: dict[str, tuple[pathlib.Path, str]] = {
@@ -146,14 +149,7 @@ class TestSampleCatalogStructure:
         assert len(catalog["functionallayer"]) > 0
 
     def test_sample_groups_reference_valid_packages(self):
-        """All package keys in groups.components must exist in packages.
-
-        Known gap: ldms_group references ovis_ldms which is not yet
-        defined in the sample catalog packages section.
-        """
-        # Known dangling references in the sample catalog (tracked for fix)
-        known_gaps = {"ovis_ldms"}
-
+        """All package keys in groups.components must exist in packages."""
         with open(SAMPLE_CATALOG, "r", encoding="utf-8") as f:
             catalog = json.load(f)["catalog"]
         groups = catalog.get("groups", {})
@@ -161,7 +157,7 @@ class TestSampleCatalogStructure:
         dangling = []
         for group_name, group_data in groups.items():
             for pkg_key in group_data.get("components", []):
-                if pkg_key not in packages and pkg_key not in known_gaps:
+                if pkg_key not in packages:
                     dangling.append(f"{group_name} -> {pkg_key}")
         assert not dangling, (
             f"Dangling package references in sample catalog: {dangling}"
@@ -217,17 +213,10 @@ def test_all_catalogs_match_thrillhouse_runtime_version():
         f"Thrillhouse runtime pins are not aligned: {runtime_tags}"
     )
 
-    catalog_files = [
-        SAMPLE_CATALOG,
-        CATALOG_SAMPLES_DIR / "cadence_catalog_rhel.json",
-    ]
-    catalog_files.extend(
-        sorted((CATALOG_SAMPLES_DIR / "catalogs").rglob("*.json"))
-    )
-    assert catalog_files, f"No catalog files found under {CATALOG_SAMPLES_DIR}"
+    assert CATALOG_FILES, f"No catalog files found under {CATALOG_SAMPLES_DIR}"
 
     mismatches = []
-    for catalog_file in catalog_files:
+    for catalog_file in CATALOG_FILES:
         with catalog_file.open("r", encoding="utf-8") as stream:
             packages = json.load(stream)["catalog"]["packages"]
         package = packages.get(THRILLHOUSE_PACKAGE_KEY)
@@ -242,3 +231,45 @@ def test_all_catalogs_match_thrillhouse_runtime_version():
     assert not mismatches, "Thrillhouse catalog pin mismatch:\n" + "\n".join(
         mismatches
     )
+
+
+def test_all_bundled_catalogs_pass_schema_and_reference_checks():
+    """Every selectable catalog must satisfy the runtime input contract."""
+    schema_file = SCHEMA_DIR / "catalog.json"
+    schema = json.loads(schema_file.read_text(encoding="utf-8"))
+    failures = []
+
+    for catalog_file in CATALOG_FILES:
+        relative_path = catalog_file.relative_to(CATALOG_SAMPLES_DIR)
+        document = json.loads(catalog_file.read_text(encoding="utf-8"))
+        try:
+            jsonschema.validate(document, schema)
+        except jsonschema.ValidationError as exc:
+            failures.append(f"{relative_path}: schema: {exc.message}")
+            continue
+
+        catalog = document["catalog"]
+        groups = catalog["groups"]
+        packages = catalog["packages"]
+        missing_groups = sorted({
+            component
+            for layer in catalog["functionallayer"]
+            for component in layer.get("components", [])
+            if component not in groups
+        })
+        missing_packages = sorted({
+            package
+            for group in groups.values()
+            for package in group.get("components", [])
+            if package not in packages
+        })
+        if missing_groups:
+            failures.append(
+                f"{relative_path}: undefined groups: {missing_groups}"
+            )
+        if missing_packages:
+            failures.append(
+                f"{relative_path}: undefined packages: {missing_packages}"
+            )
+
+    assert not failures, "Invalid bundled catalogs:\n" + "\n".join(failures)

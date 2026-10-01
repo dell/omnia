@@ -3,7 +3,7 @@
 Prepares a native ARM64 (aarch64) host for image building over SSH. This is
 remote orchestration, not cross-compilation or emulation.
 
-## Architecture
+## Structure
 
 The playbook invokes the role's SSH/data-gathering task files on the OIM and
 its `main.yml` directly on the dynamically created `admin_aarch64` host.
@@ -28,6 +28,7 @@ and does not honor `IMAGE_BUILD_MANAGER_DATA_PATH`.
 | `setup_ssh.yml` | localhost | SSH keygen + known_hosts + ssh-copy-id + verify |
 | `gather_oim_data.yml` | localhost | Inventory checks + OIM network facts |
 | `main.yml` | admin_aarch64 | Node preparation (arch check, dirs, images, regctl, registry) |
+| `configure_registry_tools.yml` | admin_aarch64 | regctl installation and local registry configuration |
 
 ### Phases (main.yml)
 
@@ -73,7 +74,7 @@ Key variables in `image_build_credentials.yml`:
 |----------|----------|-------------|
 | `aarch64_ssh_password` | Yes when enabled | SSH password for initial key setup; current validation requires it even when passwordless SSH already works |
 
-## Orchestration Prerequisites
+## Dependencies
 
 No dependencies are declared in `meta/main.yml`. The top-level aarch64 build
 play runs these stages first:
@@ -82,7 +83,17 @@ play runs these stages first:
 - `collect_build_credentials` — aarch64 SSH credentials
 - `validate_build_runtime` — aarch64 host validation and dynamic inventory group creation
 
-## Invocation
+## Example Playbook
+
+```yaml
+- name: Prepare the aarch64 image-build host
+  hosts: admin_aarch64
+  gather_facts: false
+  roles:
+    - role: prepare_aarch64_node
+```
+
+## Command Example
 
 ```bash
 cd src/image_build_manager/playbooks
