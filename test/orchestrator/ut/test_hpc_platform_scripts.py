@@ -24,9 +24,6 @@ import pytest
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 ORCHESTRATOR_ROOT = REPOSITORY_ROOT / "src" / "orchestrator"
 SLURM_ROLE = ORCHESTRATOR_ROOT / "roles" / "slurm_config"
-CONFIGURE_HPC = (
-    ORCHESTRATOR_ROOT / "roles" / "configure_ochami" / "templates" / "hpc_tools"
-)
 PROVISION_HPC = (
     ORCHESTRATOR_ROOT / "roles" / "provision_common" / "templates" / "hpc_tools"
 )
@@ -75,13 +72,13 @@ def test_os_dependent_scripts_do_not_use_global_cluster_version():
     """ORCH_UT_041: Slurm HPC scripts avoid the global OS version."""
     scripts = (
         SLURM_ROLE / "templates" / "pull_benchmarks.sh.j2",
-        CONFIGURE_HPC / "install_ucx.sh.j2",
-        CONFIGURE_HPC / "install_openmpi.sh.j2",
-        CONFIGURE_HPC / "configure_ucx_openmpi_env.sh.j2",
-        CONFIGURE_HPC / "cuda_lock_manager.sh.j2",
-        CONFIGURE_HPC / "install_cuda_toolkit.sh.j2",
-        CONFIGURE_HPC / "install_cuda_driver.sh.j2",
-        CONFIGURE_HPC / "slurm_cuda_coordinator.sh.j2",
+        PROVISION_HPC / "install_ucx.sh.j2",
+        PROVISION_HPC / "install_openmpi.sh.j2",
+        PROVISION_HPC / "configure_ucx_openmpi_env.sh.j2",
+        PROVISION_HPC / "cuda_lock_manager.sh.j2",
+        PROVISION_HPC / "install_cuda_toolkit.sh.j2",
+        PROVISION_HPC / "install_cuda_driver.sh.j2",
+        PROVISION_HPC / "slurm_cuda_coordinator.sh.j2",
     )
     for script in scripts:
         text = script.read_text(encoding="utf-8")
@@ -89,9 +86,9 @@ def test_os_dependent_scripts_do_not_use_global_cluster_version():
         assert "cluster_os_version" not in text
 
 
-def test_runtime_templates_remain_identical():
-    """ORCH_UT_042: Mirrored runtime templates remain byte-identical."""
-    for name in (
+def test_runtime_templates_are_owned_by_provision_common():
+    """ORCH_UT_042: Runtime templates are owned by the provisioning role."""
+    template_names = (
         "install_ucx.sh.j2",
         "install_openmpi.sh.j2",
         "configure_ucx_openmpi_env.sh.j2",
@@ -99,8 +96,10 @@ def test_runtime_templates_remain_identical():
         "install_cuda_toolkit.sh.j2",
         "install_cuda_driver.sh.j2",
         "slurm_cuda_coordinator.sh.j2",
-    ):
-        assert (CONFIGURE_HPC / name).read_bytes() == (PROVISION_HPC / name).read_bytes()
+    )
+    assert not (ORCHESTRATOR_ROOT / "roles" / "configure_ochami").exists()
+    for name in template_names:
+        assert (PROVISION_HPC / name).is_file()
 
 
 def test_custom_mpi_installers_are_not_automatically_run():
@@ -108,7 +107,7 @@ def test_custom_mpi_installers_are_not_automatically_run():
     metadata_root = (
         ORCHESTRATOR_ROOT
         / "roles"
-        / "configure_ochami"
+        / "provision_common"
         / "templates"
         / "metadata_svc"
     )
