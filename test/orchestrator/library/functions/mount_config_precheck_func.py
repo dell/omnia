@@ -25,6 +25,10 @@ Each check validates one mandatory-field or consistency rule:
   - targeting (functional_group_prefix OR groups) is present
   - mount_params profile reference resolves to an existing profile
   - node_mount_point is present when node_key is set
+
+The validation logic is also exercised against controlled malformed fixtures
+(see ``validate_*`` helpers) so that negative tests can prove the validators
+reject bad input.
 """
 
 import os
@@ -57,96 +61,187 @@ def _get_mounts(storage_config: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Public check functions
+# Pure validation helpers (testable without a host)
+# ---------------------------------------------------------------------------
+
+
+def validate_mount_points(mounts: list[dict[str, Any]]) -> list[str]:
+    """Return violation descriptions for mounts missing a valid mount_point."""
+    violations = []
+    for idx, mount in enumerate(mounts):
+        name = mount.get("name", f"entry[{idx}]")
+        mp = mount.get("mount_point")
+        if not mp or not isinstance(mp, str):
+            violations.append(f"{name}: mount_point is missing or empty")
+        elif not mp.startswith("/"):
+            violations.append(f"{name}: mount_point '{mp}' is not absolute")
+    return violations
+
+
+def validate_sources(mounts: list[dict[str, Any]]) -> list[str]:
+    """Return violation descriptions for mounts missing a non-empty source."""
+    violations = []
+    for idx, mount in enumerate(mounts):
+        name = mount.get("name", f"entry[{idx}]")
+        source = mount.get("source")
+        if not source or not isinstance(source, str):
+            violations.append(f"{name}: source is missing or empty")
+    return violations
+
+
+def validate_targeting(mounts: list[dict[str, Any]]) -> list[str]:
+    """Return violation descriptions for mounts without valid targeting."""
+    violations = []
+    for idx, mount in enumerate(mounts):
+        name = mount.get("name", f"entry[{idx}]")
+        fgp = mount.get("functional_group_prefix")
+        grp = mount.get("groups")
+        has_fgp = isinstance(fgp, list) and bool(fgp)
+        has_grp = isinstance(grp, list) and bool(grp)
+        if has_fgp and has_grp:
+            violations.append(
+                f"{name}: both functional_group_prefix and groups set"
+            )
+        elif not has_fgp and not has_grp:
+            violations.append(
+                f"{name}: neither functional_group_prefix nor groups set"
+            )
+    return violations
+
+
+def validate_mount_params(
+    mounts: list[dict[str, Any]],
+    mount_params: dict[str, Any],
+) -> list[str]:
+    """Return violation descriptions for unresolvable mount_params profiles."""
+    violations = []
+    for idx, mount in enumerate(mounts):
+        name = mount.get("name", f"entry[{idx}]")
+        profile_name = mount.get("mount_params")
+        if not profile_name:
+            continue
+        if profile_name not in mount_params:
+            violations.append(
+                f"{name}: mount_params='{profile_name}' not found"
+            )
+    return violations
+
+
+def validate_node_key_consistency(
+    mounts: list[dict[str, Any]],
+) -> list[str]:
+    """Return violation descriptions for node_key without node_mount_point."""
+    violations = []
+    for idx, mount in enumerate(mounts):
+        name = mount.get("name", f"entry[{idx}]")
+        node_key = mount.get("node_key")
+        if not node_key:
+            continue
+        nmp = mount.get("node_mount_point")
+        if not isinstance(nmp, list) or not nmp:
+            violations.append(
+                f"{name}: node_key='{node_key}' set but "
+                f"node_mount_point is missing or empty"
+            )
+        else:
+            bad_paths = [p for p in nmp if not str(p).startswith("/")]
+            if bad_paths:
+                violations.append(
+                    f"{name}: node_mount_point contains "
+                    f"non-absolute paths: {bad_paths}"
+                )
+    return violations
+
+
+# ---------------------------------------------------------------------------
+# Public check functions (read live config, delegate to validators)
 # ---------------------------------------------------------------------------
 
 
 def check_precheck_mount_missing_mount_point(host) -> dict[str, Any]:
-    """TC-CI-NEG-001: Verify every mount entry has a valid mount_point."""
+    """TC-CI-NEG-001: Verify every mount entry has a valid mount_point.
+
+    First validates the live config on the OIM, then exercises the
+    validator against a controlled malformed fixture to prove the
+    rejection path works.
+    """
     summary = "Mount entry mount_point validation"
     try:
         storage_config = _load_storage_config(host)
         mounts = _get_mounts(storage_config)
-        if not mounts:
-            return prepare_result(
-                True,
-                summary,
-                [("Mount entries", 0), ("Validation", "skipped (no mounts)")],
-            )
 
+        # --- Phase 1: validate live config ---
         fields: list[tuple[str, object]] = [("Mount entries", len(mounts))]
-        violations = []
-        for idx, mount in enumerate(mounts):
-            name = mount.get("name", f"entry[{idx}]")
-            mp = mount.get("mount_point")
-            if not mp or not isinstance(mp, str):
-                violations.append(name)
-                fields.append((
-                    f"  {name}",
-                    "FAIL: mount_point is missing or empty",
-                ))
-            elif not mp.startswith("/"):
-                violations.append(name)
-                fields.append((
-                    f"  {name}",
-                    f"FAIL: mount_point '{mp}' is not an absolute path",
-                ))
-            else:
-                fields.append((f"  {name}", f"OK: {mp}"))
+        live_violations = validate_mount_points(mounts) if mounts else []
+        for v in live_violations:
+            fields.append(("  Live", f"FAIL: {v}"))
+        if not live_violations and mounts:
+            fields.append(("  Live config", "OK"))
 
-        return prepare_result(
-            not violations,
-            summary,
-            fields,
-            (
-                f"Mount entries missing valid mount_point: "
-                f"{', '.join(violations)}"
-            )
-            if violations
-            else "",
-        )
+        # --- Phase 2: controlled malformed fixture ---
+        bad_mounts = [
+            {"name": "fixture_no_mp", "source": "10.0.0.1:/x"},
+            {"name": "fixture_relative_mp", "source": "10.0.0.1:/x",
+             "mount_point": "relative/path"},
+        ]
+        fixture_violations = validate_mount_points(bad_mounts)
+        fixture_ok = len(fixture_violations) == 2
+        fields.append((
+            "  Fixture rejection",
+            f"{'OK' if fixture_ok else 'FAIL'}: "
+            f"{len(fixture_violations)}/2 violations detected",
+        ))
+
+        all_ok = not live_violations and fixture_ok
+        error = ""
+        if live_violations:
+            error = "Live: " + "; ".join(live_violations)
+        if not fixture_ok:
+            error += ("; " if error else "") + "Fixture rejection failed"
+
+        return prepare_result(all_ok, summary, fields, error)
     except (OSError, TypeError, ValueError) as exc:
         return prepare_result(False, summary, [], str(exc))
 
 
 def check_precheck_mount_missing_source(host) -> dict[str, Any]:
-    """TC-CI-NEG-004: Verify every mount entry has a non-empty source."""
+    """TC-CI-NEG-004: Verify every mount entry has a non-empty source.
+
+    Validates the live config, then exercises the validator against a
+    controlled malformed fixture.
+    """
     summary = "Mount entry source validation"
     try:
         storage_config = _load_storage_config(host)
         mounts = _get_mounts(storage_config)
-        if not mounts:
-            return prepare_result(
-                True,
-                summary,
-                [("Mount entries", 0), ("Validation", "skipped (no mounts)")],
-            )
 
         fields: list[tuple[str, object]] = [("Mount entries", len(mounts))]
-        violations = []
-        for idx, mount in enumerate(mounts):
-            name = mount.get("name", f"entry[{idx}]")
-            source = mount.get("source")
-            if not source or not isinstance(source, str):
-                violations.append(name)
-                fields.append((
-                    f"  {name}",
-                    "FAIL: source is missing or empty",
-                ))
-            else:
-                fields.append((f"  {name}", f"OK: {source}"))
+        live_violations = validate_sources(mounts) if mounts else []
+        for v in live_violations:
+            fields.append(("  Live", f"FAIL: {v}"))
+        if not live_violations and mounts:
+            fields.append(("  Live config", "OK"))
 
-        return prepare_result(
-            not violations,
-            summary,
-            fields,
-            (
-                f"Mount entries missing source: "
-                f"{', '.join(violations)}"
-            )
-            if violations
-            else "",
-        )
+        bad_mounts = [
+            {"name": "fixture_no_src", "mount_point": "/mnt/x"},
+            {"name": "fixture_empty_src", "mount_point": "/mnt/y", "source": ""},
+        ]
+        fixture_violations = validate_sources(bad_mounts)
+        fixture_ok = len(fixture_violations) == 2
+        fields.append((
+            "  Fixture rejection",
+            f"{'OK' if fixture_ok else 'FAIL'}: "
+            f"{len(fixture_violations)}/2 violations detected",
+        ))
+
+        all_ok = not live_violations and fixture_ok
+        error = ""
+        if live_violations:
+            error = "Live: " + "; ".join(live_violations)
+        if not fixture_ok:
+            error += ("; " if error else "") + "Fixture rejection failed"
+
+        return prepare_result(all_ok, summary, fields, error)
     except (OSError, TypeError, ValueError) as exc:
         return prepare_result(False, summary, [], str(exc))
 
@@ -157,65 +252,55 @@ def check_precheck_mount_missing_targeting(host) -> dict[str, Any]:
     Each mount must have either ``functional_group_prefix`` (list) or
     ``groups`` (list).  Both being absent or both being present is a
     configuration error.
+
+    Validates the live config, then exercises the validator against
+    controlled malformed fixtures.
     """
     summary = "Mount entry targeting validation"
     try:
         storage_config = _load_storage_config(host)
         mounts = _get_mounts(storage_config)
-        if not mounts:
-            return prepare_result(
-                True,
-                summary,
-                [("Mount entries", 0), ("Validation", "skipped (no mounts)")],
-            )
 
         fields: list[tuple[str, object]] = [("Mount entries", len(mounts))]
-        violations = []
-        for idx, mount in enumerate(mounts):
-            name = mount.get("name", f"entry[{idx}]")
-            fgp = mount.get("functional_group_prefix")
-            grp = mount.get("groups")
-            has_fgp = isinstance(fgp, list) and bool(fgp)
-            has_grp = isinstance(grp, list) and bool(grp)
+        live_violations = validate_targeting(mounts) if mounts else []
+        for v in live_violations:
+            fields.append(("  Live", f"FAIL: {v}"))
+        if not live_violations and mounts:
+            fields.append(("  Live config", "OK"))
 
-            if has_fgp and has_grp:
-                violations.append(name)
-                fields.append((
-                    f"  {name}",
-                    "FAIL: both functional_group_prefix and groups set "
-                    "(mutually exclusive)",
-                ))
-            elif not has_fgp and not has_grp:
-                violations.append(name)
-                fields.append((
-                    f"  {name}",
-                    "FAIL: neither functional_group_prefix nor groups set",
-                ))
-            elif has_fgp:
-                fields.append((
-                    f"  {name}",
-                    f"OK: functional_group_prefix={fgp}",
-                ))
-            else:
-                fields.append((f"  {name}", f"OK: groups={grp}"))
+        bad_mounts = [
+            {"name": "fixture_no_targeting", "mount_point": "/mnt/x",
+             "source": "10.0.0.1:/x"},
+            {"name": "fixture_both", "mount_point": "/mnt/y",
+             "source": "10.0.0.1:/y",
+             "functional_group_prefix": ["slurm_"], "groups": ["grp0"]},
+        ]
+        fixture_violations = validate_targeting(bad_mounts)
+        fixture_ok = len(fixture_violations) == 2
+        fields.append((
+            "  Fixture rejection",
+            f"{'OK' if fixture_ok else 'FAIL'}: "
+            f"{len(fixture_violations)}/2 violations detected",
+        ))
 
-        return prepare_result(
-            not violations,
-            summary,
-            fields,
-            (
-                f"Mount entries with targeting issues: "
-                f"{', '.join(violations)}"
-            )
-            if violations
-            else "",
-        )
+        all_ok = not live_violations and fixture_ok
+        error = ""
+        if live_violations:
+            error = "Live: " + "; ".join(live_violations)
+        if not fixture_ok:
+            error += ("; " if error else "") + "Fixture rejection failed"
+
+        return prepare_result(all_ok, summary, fields, error)
     except (OSError, TypeError, ValueError) as exc:
         return prepare_result(False, summary, [], str(exc))
 
 
 def check_precheck_mount_invalid_mount_params(host) -> dict[str, Any]:
-    """TC-CI-NEG-003: Verify mount_params references resolve to existing profiles."""
+    """TC-CI-NEG-003: Verify mount_params references resolve to existing profiles.
+
+    Validates the live config, then exercises the validator against a
+    controlled malformed fixture with a nonexistent profile reference.
+    """
     summary = "Mount params profile resolution"
     try:
         storage_config = _load_storage_config(host)
@@ -224,139 +309,85 @@ def check_precheck_mount_invalid_mount_params(host) -> dict[str, Any]:
         if not isinstance(mount_params, dict):
             mount_params = {}
 
-        if not mounts:
-            return prepare_result(
-                True,
-                summary,
-                [("Mount entries", 0), ("Validation", "skipped (no mounts)")],
-            )
-
-        # Only check entries that reference a profile
-        profiled = [
-            m for m in mounts if m.get("mount_params")
-        ]
-        if not profiled:
-            return prepare_result(
-                True,
-                summary,
-                [
-                    ("Mount entries", len(mounts)),
-                    ("With mount_params", 0),
-                    ("Validation", "skipped (no profiles referenced)"),
-                ],
-            )
-
         fields: list[tuple[str, object]] = [
             ("Mount entries", len(mounts)),
-            ("With mount_params", len(profiled)),
             ("Available profiles", ", ".join(sorted(mount_params.keys()))
              if mount_params else "(none)"),
         ]
-        violations = []
-        for idx, mount in enumerate(mounts):
-            name = mount.get("name", f"entry[{idx}]")
-            profile_name = mount.get("mount_params")
-            if not profile_name:
-                continue
-            if profile_name in mount_params:
-                fields.append((
-                    f"  {name}",
-                    f"OK: mount_params='{profile_name}' resolved",
-                ))
-            else:
-                violations.append(name)
-                fields.append((
-                    f"  {name}",
-                    f"FAIL: mount_params='{profile_name}' not found in "
-                    f"mount_params section",
-                ))
-
-        return prepare_result(
-            not violations,
-            summary,
-            fields,
-            (
-                f"Unresolvable mount_params profiles: "
-                f"{', '.join(violations)}"
-            )
-            if violations
-            else "",
+        live_violations = (
+            validate_mount_params(mounts, mount_params) if mounts else []
         )
+        for v in live_violations:
+            fields.append(("  Live", f"FAIL: {v}"))
+        if not live_violations and mounts:
+            fields.append(("  Live config", "OK"))
+
+        bad_mounts = [
+            {"name": "fixture_bad_profile", "mount_point": "/mnt/x",
+             "source": "10.0.0.1:/x", "mount_params": "nonexistent_profile"},
+        ]
+        fixture_violations = validate_mount_params(bad_mounts, mount_params)
+        fixture_ok = len(fixture_violations) == 1
+        fields.append((
+            "  Fixture rejection",
+            f"{'OK' if fixture_ok else 'FAIL'}: "
+            f"{len(fixture_violations)}/1 violations detected",
+        ))
+
+        all_ok = not live_violations and fixture_ok
+        error = ""
+        if live_violations:
+            error = "Live: " + "; ".join(live_violations)
+        if not fixture_ok:
+            error += ("; " if error else "") + "Fixture rejection failed"
+
+        return prepare_result(all_ok, summary, fields, error)
     except (OSError, TypeError, ValueError) as exc:
         return prepare_result(False, summary, [], str(exc))
 
 
 def check_precheck_mount_node_key_without_mount_point(host) -> dict[str, Any]:
-    """TC-CI-NEG-005: Verify node_mount_point is set when node_key is specified."""
+    """TC-CI-NEG-005: Verify node_mount_point is set when node_key is specified.
+
+    Validates the live config, then exercises the validator against a
+    controlled malformed fixture.
+    """
     summary = "Mount node_key / node_mount_point consistency"
     try:
         storage_config = _load_storage_config(host)
         mounts = _get_mounts(storage_config)
-        if not mounts:
-            return prepare_result(
-                True,
-                summary,
-                [("Mount entries", 0), ("Validation", "skipped (no mounts)")],
-            )
 
-        # Only check entries with node_key
-        keyed = [m for m in mounts if m.get("node_key")]
-        if not keyed:
-            return prepare_result(
-                True,
-                summary,
-                [
-                    ("Mount entries", len(mounts)),
-                    ("With node_key", 0),
-                    ("Validation", "skipped (no node_key entries)"),
-                ],
-            )
-
-        fields: list[tuple[str, object]] = [
-            ("Mount entries", len(mounts)),
-            ("With node_key", len(keyed)),
-        ]
-        violations = []
-        for idx, mount in enumerate(mounts):
-            name = mount.get("name", f"entry[{idx}]")
-            node_key = mount.get("node_key")
-            if not node_key:
-                continue
-            nmp = mount.get("node_mount_point")
-            if not isinstance(nmp, list) or not nmp:
-                violations.append(name)
-                fields.append((
-                    f"  {name}",
-                    f"FAIL: node_key='{node_key}' set but node_mount_point "
-                    f"is missing or empty",
-                ))
-            else:
-                # Validate each entry is an absolute path
-                bad_paths = [p for p in nmp if not str(p).startswith("/")]
-                if bad_paths:
-                    violations.append(name)
-                    fields.append((
-                        f"  {name}",
-                        f"FAIL: node_mount_point contains non-absolute paths: "
-                        f"{bad_paths}",
-                    ))
-                else:
-                    fields.append((
-                        f"  {name}",
-                        f"OK: node_key='{node_key}', "
-                        f"node_mount_point={nmp}",
-                    ))
-
-        return prepare_result(
-            not violations,
-            summary,
-            fields,
-            (
-                f"node_key entries missing valid node_mount_point: "
-                f"{', '.join(violations)}"
-            )
-            if violations
-            else "",
+        fields: list[tuple[str, object]] = [("Mount entries", len(mounts))]
+        live_violations = (
+            validate_node_key_consistency(mounts) if mounts else []
         )
+        for v in live_violations:
+            fields.append(("  Live", f"FAIL: {v}"))
+        if not live_violations and mounts:
+            fields.append(("  Live config", "OK"))
+
+        bad_mounts = [
+            {"name": "fixture_key_no_nmp", "mount_point": "/mnt/x",
+             "source": "10.0.0.1:/x", "node_key": "ds.meta-data.local-hostname"},
+            {"name": "fixture_key_relative_nmp", "mount_point": "/mnt/y",
+             "source": "10.0.0.1:/y", "node_key": "ds.meta-data.local-hostname",
+             "node_mount_point": ["relative/path"]},
+        ]
+        fixture_violations = validate_node_key_consistency(bad_mounts)
+        fixture_ok = len(fixture_violations) == 2
+        fields.append((
+            "  Fixture rejection",
+            f"{'OK' if fixture_ok else 'FAIL'}: "
+            f"{len(fixture_violations)}/2 violations detected",
+        ))
+
+        all_ok = not live_violations and fixture_ok
+        error = ""
+        if live_violations:
+            error = "Live: " + "; ".join(live_violations)
+        if not fixture_ok:
+            error += ("; " if error else "") + "Fixture rejection failed"
+
+        return prepare_result(all_ok, summary, fields, error)
     except (OSError, TypeError, ValueError) as exc:
         return prepare_result(False, summary, [], str(exc))

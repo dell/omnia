@@ -251,7 +251,15 @@ def check_mount_config_mount_point(host):
 
 
 def check_mount_config_volume_mounted(host):
-    """Verify NFS volumes are actively mounted on all target nodes."""
+    """Verify NFS volumes are actively mounted with correct source on nodes.
+
+    Checks three properties for each configured mount on each target node:
+    1. The mount point is active (``mountpoint -q``).
+    2. The mounted source matches the configured NFS ``source`` (full
+       server + export identity, normalised for trailing slashes).
+    3. The filesystem type matches the resolved ``fs_type`` from the
+       mount_params profile (or explicit entry override).
+    """
     summary = "NFS volume mounted"
     try:
         context = load_runtime_context(host)
@@ -260,24 +268,82 @@ def check_mount_config_volume_mounted(host):
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
+        mount_params = storage_config.get("mount_params", {})
+        if not isinstance(mount_params, dict):
+            mount_params = {}
+
         outcomes = {}
         for mount_item in mounts:
             mount_point = mount_item.get("mount_point", "")
+            expected_source = mount_item.get("source", "")
             if not mount_point:
                 continue
+            resolved = _resolve_mount_params(mount_item, mount_params)
+            expected_fstype = resolved["fs_type"]
             rows = _target_rows(context, mount_item)
             for row in rows:
-                cmd = remote_command(
+                key = f"{row['HOSTNAME']}:{mount_point}"
+                problems = []
+
+                # 1. Active mount check
+                mp_cmd = remote_command(
                     host, row,
                     PXEBOOT_COMMANDS["mount_config_mountpoint_check"]
                     % mount_point,
                 )
-                key = f"{row['HOSTNAME']}:{mount_point}"
-                output = cmd.stdout.strip().upper()
-                if output == "MOUNTED":
-                    outcomes[key] = (True, "mounted")
-                else:
+                output = mp_cmd.stdout.strip().upper()
+                if output != "MOUNTED":
                     outcomes[key] = (False, "not mounted")
+                    continue
+
+                # 2. Source identity check via /proc/mounts
+                proc_cmd = remote_command(
+                    host, row,
+                    PXEBOOT_COMMANDS["mount_config_proc_mounts"],
+                )
+                actual_source = ""
+                actual_fstype = ""
+                for line in proc_cmd.stdout.strip().split("\n"):
+                    parts = line.split()
+                    if len(parts) >= 3 and parts[1] == mount_point:
+                        actual_source = parts[0]
+                        actual_fstype = parts[2]
+                        break
+
+                if expected_source and actual_source:
+                    norm_expected = _normalize_nfs_source(expected_source)
+                    norm_actual = _normalize_nfs_source(actual_source)
+                    if norm_actual != norm_expected:
+                        problems.append(
+                            f"source={actual_source}, "
+                            f"expected={expected_source}"
+                        )
+
+                # 3. Filesystem type check
+                # When configured as "nfs", modern kernels may negotiate
+                # NFS4 and report "nfs4" in /proc/mounts. Both are valid.
+                _NFS_FAMILY = {"nfs", "nfs4"}
+                fstype_match = (
+                    not expected_fstype
+                    or expected_fstype == "auto"
+                    or not actual_fstype
+                    or actual_fstype == expected_fstype
+                    or (expected_fstype in _NFS_FAMILY
+                        and actual_fstype in _NFS_FAMILY)
+                )
+                if not fstype_match:
+                    problems.append(
+                        f"fstype={actual_fstype}, "
+                        f"expected={expected_fstype}"
+                    )
+
+                if problems:
+                    outcomes[key] = (False, "; ".join(problems))
+                else:
+                    detail = f"mounted from {actual_source}"
+                    if actual_fstype:
+                        detail += f" ({actual_fstype})"
+                    outcomes[key] = (True, detail)
 
         failed = [k for k, v in outcomes.items() if not v[0]]
         fields = [("Mapped mounts", len(outcomes))]
@@ -288,7 +354,7 @@ def check_mount_config_volume_mounted(host):
             not failed,
             summary,
             fields,
-            "Not mounted: " + ", ".join(failed) if failed else "",
+            "Mount issues: " + ", ".join(failed) if failed else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -405,7 +471,12 @@ def check_mount_config_mount_options(host):
 
 
 def check_mount_config_fstab(host):
-    """Verify NFS fstab entries are persistent on all target nodes."""
+    """Verify NFS fstab entries are persistent on all target nodes.
+
+    Parses ``/etc/fstab`` fields and compares the exact normalised source
+    (field 0) and mount point (field 1) rather than substring matching,
+    preventing ``/share2`` from satisfying a ``/share`` expectation.
+    """
     summary = "NFS fstab entry"
     try:
         context = load_runtime_context(host)
@@ -420,6 +491,7 @@ def check_mount_config_fstab(host):
             source = mount_item.get("source", "")
             if not mount_point or not source:
                 continue
+            norm_source = _normalize_nfs_source(source)
             rows = _target_rows(context, mount_item)
             for row in rows:
                 cmd = remote_command(
@@ -430,9 +502,17 @@ def check_mount_config_fstab(host):
                 found = False
                 for line in cmd.stdout.strip().split("\n"):
                     stripped = line.strip()
-                    if stripped.startswith("#"):
+                    if not stripped or stripped.startswith("#"):
                         continue
-                    if source in stripped and mount_point in stripped:
+                    fields = stripped.split()
+                    if len(fields) < 2:
+                        continue
+                    fstab_source = fields[0]
+                    fstab_mp = fields[1]
+                    if (
+                        fstab_mp == mount_point
+                        and _normalize_nfs_source(fstab_source) == norm_source
+                    ):
                         found = True
                         break
                 outcomes[key] = (
@@ -442,14 +522,14 @@ def check_mount_config_fstab(host):
                 )
 
         failed = [k for k, v in outcomes.items() if not v[0]]
-        fields = [("Mapped mounts", len(outcomes))]
+        fields_out = [("Mapped mounts", len(outcomes))]
         for key, (ok, detail) in outcomes.items():
-            fields.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
+            fields_out.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
 
         return runtime_result(
             not failed,
             summary,
-            fields,
+            fields_out,
             "Missing fstab: " + ", ".join(failed) if failed else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
@@ -541,11 +621,19 @@ def check_mount_config_bind_fstab(host):
                 fstab_content = cmd.stdout.strip()
                 for target in node_mount_points:
                     key = f"{row['HOSTNAME']}:{target}"
-                    found = any(
-                        target in line and "bind" in line
-                        for line in fstab_content.split("\n")
-                        if not line.strip().startswith("#")
-                    )
+                    found = False
+                    for line in fstab_content.split("\n"):
+                        stripped = line.strip()
+                        if not stripped or stripped.startswith("#"):
+                            continue
+                        flds = stripped.split()
+                        if (
+                            len(flds) >= 4
+                            and flds[1] == target
+                            and "bind" in flds[3]
+                        ):
+                            found = True
+                            break
                     outcomes[key] = (
                         (True, "bind fstab present")
                         if found
@@ -698,7 +786,12 @@ def check_mount_config_permissions(host):
 
 
 def check_mount_config_fg_targeting(host):
-    """Verify NFS mounts are present on target FGs and absent on others."""
+    """Verify NFS mounts are present on target FGs and absent on others.
+
+    Fails actionably when a configured mount resolves to zero target rows
+    (instead of silently passing).  Checks every mapped non-target node,
+    not just a subset.
+    """
     summary = "NFS functional-group targeting"
     try:
         context = load_runtime_context(host)
@@ -721,10 +814,21 @@ def check_mount_config_fg_targeting(host):
         outcomes = {}
         for mount_item in targeted_mounts:
             mount_point = mount_item.get("mount_point", "")
+            mount_name = mount_item.get("name", mount_point)
             if not mount_point:
                 continue
 
             target_rows = _target_rows(context, mount_item)
+
+            # Fail when targeting resolves to zero nodes
+            if not target_rows:
+                outcomes[f"{mount_name}:{mount_point}:no-targets"] = (
+                    False,
+                    "targeting resolved to zero nodes "
+                    "(check functional_group_prefix / groups)",
+                )
+                continue
+
             for row in target_rows:
                 cmd = remote_command(
                     host, row,
@@ -738,8 +842,9 @@ def check_mount_config_fg_targeting(host):
                 else:
                     outcomes[key] = (False, "target node missing mount")
 
+            # Check ALL non-target nodes (no subset limit)
             non_targets = _non_target_rows(context, mount_item)
-            for row in non_targets[:3]:
+            for row in non_targets:
                 cmd = remote_command(
                     host, row,
                     PXEBOOT_COMMANDS["mount_config_mountpoint_check"]

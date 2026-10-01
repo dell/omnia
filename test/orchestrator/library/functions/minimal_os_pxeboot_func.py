@@ -483,8 +483,32 @@ def check_minimal_os_kernel_version(host):
         return runtime_exception(summary, exc)
 
 
+def _parse_ip_addresses(ip_output: str) -> set[str]:
+    """Extract exact IP addresses from ``ip -o addr show`` output.
+
+    Each line has the form:
+        ``<idx> <dev> <family> <addr>/<prefix> ...``
+    Returns a set of bare IP addresses (no CIDR prefix).
+    """
+    addresses: set[str] = set()
+    for line in ip_output.strip().split("\n"):
+        parts = line.split()
+        # ip -o addr: field 0=index, 1=iface, 2=family, 3=addr/prefix
+        if len(parts) >= 4:
+            addr_field = parts[3]
+            # Strip CIDR prefix (e.g. "10.0.0.10/24" -> "10.0.0.10")
+            bare_ip = addr_field.split("/")[0]
+            if bare_ip:
+                addresses.add(bare_ip)
+    return addresses
+
+
 def check_minimal_os_network_identity(host):
-    """Verify admin IP is configured on all OS-only nodes."""
+    """Verify admin IP is configured on all OS-only nodes.
+
+    Parses ``ip -o addr show`` output and compares exact normalised
+    IP addresses, preventing ``10.0.0.1`` from matching ``10.0.0.10/24``.
+    """
     summary = "Minimal OS network identity"
     try:
         context = load_runtime_context(host)
@@ -500,7 +524,8 @@ def check_minimal_os_network_identity(host):
                 PXEBOOT_COMMANDS["minimal_os_ip_addr"],
             )
             key = row["HOSTNAME"]
-            if expected_ip and expected_ip in cmd.stdout:
+            node_ips = _parse_ip_addresses(cmd.stdout)
+            if expected_ip and expected_ip in node_ips:
                 outcomes[key] = (True, f"admin IP {expected_ip} configured")
             else:
                 outcomes[key] = (
