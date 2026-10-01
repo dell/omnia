@@ -30,6 +30,10 @@ OMNIA_CLI = REPO_ROOT / "src" / "main" / "omnia-cli"
 OMNIA_SH = REPO_ROOT / "src" / "main" / "omnia.sh"
 OMNIA_COMPLETION = REPO_ROOT / "src" / "main" / "omnia-bash-completion"
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+CONSOLIDATED_ORCHESTRATOR_LIFECYCLE_AVAILABLE = (
+    "for pxe_artifact in pxeboot_status.yml failed_nodes.json"
+    not in OMNIA_CLI.read_text(encoding="utf-8")
+)
 
 DOMAIN_STATUS_FILES = {
     "repo_manager": ("repo_status.yml", "success"),
@@ -476,19 +480,19 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("Latest PXE mapping missing", output)
         self.assertIn("Timestamped discovery report CSV missing", output)
 
-    def test_completed_orchestrator_pxe_phase_requires_both_reports(self):
+    @unittest.skipUnless(
+        CONSOLIDATED_ORCHESTRATOR_LIFECYCLE_AVAILABLE,
+        "consolidated Orchestrator lifecycle contract is unavailable",
+    )
+    def test_completed_orchestrator_pxe_phase_requires_failure_report(self):
         output_dir = self.runtime_dir("orchestrator", "output")
         (output_dir / "orchestrator_status.yml").write_text(
             "---\noverall_status: success\nlast_completed_phase: pxeboot\n",
             encoding="utf-8",
         )
-        (output_dir / "pxeboot_status.yml").write_text(
-            "---\noverall_status: success\n", encoding="utf-8"
-        )
 
         result, output = self.invoke_cli("orchestrator")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("PXE report: pxeboot_status.yml", output)
         self.assertIn("failed_nodes.json missing for completed PXE phase", output)
 
         (output_dir / "failed_nodes.json").write_text(

@@ -25,8 +25,8 @@ TEST_LOG_MSGS = {
 TEST_ASSERT_MSGS = {
     "playbook_failed": (
         "orchestrator.yml --tags pxeboot failed with rc={rc} after "
-        "{duration:.1f}s. Review pxeboot_status.yml, failed_nodes.json, and "
-        "the failed node's cloud-init output before retrying."
+        "{duration:.1f}s. Review orchestrator_status.yml, failed_nodes.json, "
+        "and the failed node's cloud-init output before retrying."
     ),
     "verification_failed": (
         "{component} verification failed: {error}. Review the role-wise "
