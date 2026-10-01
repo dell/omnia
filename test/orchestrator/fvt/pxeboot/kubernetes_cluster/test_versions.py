@@ -12,34 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Explicitly authorized Kubernetes reboot and recovery contracts."""
+"""Kubernetes configured-version and runtime-compatibility contracts."""
 
 import pytest
 from library.functions import (
-    check_kubernetes_control_plane_recovery,
-    check_kubernetes_local_etcd_recovery,
+    check_kubernetes_configured_versions,
+    check_kubernetes_version_compatibility,
 )
 
 from fvt.result import verify_pxeboot
 
 
-@pytest.mark.disruptive
-@pytest.mark.reboot
+@pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(224)
-def test_kubernetes_local_etcd_recovery(host):
-    """Reboot a control plane and prove its local-etcd UUID is preserved."""
+@pytest.mark.order(207)
+def test_kubernetes_version_compatibility(host):
+    """Verify Kubernetes, kubeadm, and CRI-O version alignment."""
+    verify_pxeboot(host, "kubernetes_versions", check_kubernetes_version_compatibility)
+
+
+@pytest.mark.sanity
+@pytest.mark.kubernetes
+@pytest.mark.order(208)
+def test_kubernetes_configured_versions(host):
+    """Verify deployed component versions against the selected catalog."""
     verify_pxeboot(
         host,
-        "kubernetes_local_etcd_recovery",
-        check_kubernetes_local_etcd_recovery,
+        "kubernetes_configured_versions",
+        check_kubernetes_configured_versions,
     )
-
-
-@pytest.mark.disruptive
-@pytest.mark.reboot
-@pytest.mark.kubernetes
-@pytest.mark.order(225)
-def test_kubernetes_control_plane_recovery(host):
-    """Reboot the VIP owner and verify control-plane recovery."""
-    verify_pxeboot(host, "kubernetes_recovery", check_kubernetes_control_plane_recovery)

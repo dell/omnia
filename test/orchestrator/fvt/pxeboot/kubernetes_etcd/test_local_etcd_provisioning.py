@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Artifact postconditions produced by full Orchestrator cleanup."""
+"""Kubernetes local-etcd disk provisioning contracts."""
 
 import pytest
-from library.functions import check_cleanup_artifacts
+from library.functions import check_kubernetes_local_etcd_provisioning
 
-from fvt.result import verify_cleanup
+from fvt.result import verify_pxeboot
 
 
 @pytest.mark.sanity
-@pytest.mark.destructive
-@pytest.mark.order(5)
-def test_artifacts_removed_and_inputs_preserved(host):
-    """Verify generated state is removed without deleting required inputs."""
-    verify_cleanup(
-        host, "cleanup_artifacts", "Artifact cleanup", check_cleanup_artifacts
+@pytest.mark.kubernetes
+@pytest.mark.order(217)
+def test_kubernetes_local_etcd_provisioning(host):
+    """Verify GPT selection, scripts, logs, and the selected etcd disk."""
+    verify_pxeboot(
+        host,
+        "kubernetes_local_etcd_provisioning",
+        check_kubernetes_local_etcd_provisioning,
     )

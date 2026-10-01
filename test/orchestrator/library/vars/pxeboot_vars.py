@@ -14,7 +14,6 @@
 
 """Immutable contracts for PXE boot and post-boot cluster verification."""
 
-PXEBOOT_STATUS = "pxeboot_status.yml"
 OMNIA_CONFIG = "omnia_config.yml"
 STORAGE_CONFIG = "storage_config.yml"
 ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
@@ -247,6 +246,9 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "kubernetes_storage_classes": (
         "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get storageclass -o json"
     ),
+    "kubernetes_deployments": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get deployments -A -o json"
+    ),
     "kubernetes_client_version": (
         "KUBECONFIG=/etc/kubernetes/admin.conf kubectl version -o json"
     ),
@@ -324,7 +326,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "etcd_mount_identity": "findmnt -n -o SOURCE,UUID,FSTYPE /var/lib/etcd",
     "etcd_block_devices": (
         "lsblk -J -b -o NAME,PATH,PKNAME,TYPE,FSTYPE,LABEL,UUID,"
-        "MOUNTPOINTS,MODEL,ROTA,TRAN"
+        "MOUNTPOINTS,MODEL,ROTA,TRAN,PTTYPE"
     ),
     "etcd_root_source": "findmnt -n -o SOURCE /",
     "etcd_fstab": (
@@ -340,6 +342,18 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "stat -c '%Y' /var/log/diskless-etcd-mount.log 2>/dev/null || "
         "stat -c '%Y' /var/log/etcd-disk-setup.log"
     ),
+    "etcd_setup_script": "test -x /usr/local/bin/etcd-disk-setup.sh",
+    "etcd_update_script": "test -x /usr/local/bin/etcd-fstab-update.sh",
+    "etcd_setup_log": "grep -Fq '[OK] ===== DONE =====' /var/log/etcd-disk-setup.log",
+    "etcd_update_log": (
+        "grep -Fq '[OK] ===== DONE =====' /var/log/diskless-etcd-mount.log"
+    ),
+    "etcd_selection_log": (
+        "grep -Eh 'BOSS disk found:|Fallback candidate:|Selected disk:' "
+        "/var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log "
+        "2>/dev/null | tail -20"
+    ),
+    "mount_contract": "findmnt -J -T %s",
     "node_boot_time": 'date -d "$(uptime -s)" +%s',
     "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
     "slurm_nodes": "scontrol show nodes --oneliner",

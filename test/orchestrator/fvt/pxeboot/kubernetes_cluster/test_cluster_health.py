@@ -20,46 +20,47 @@ from library.functions import (
     check_kubernetes_node_services,
     check_kubernetes_nodes,
     check_kubernetes_system_pods,
-    check_kubernetes_version_compatibility,
     check_kubernetes_virtual_ip,
 )
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.sanity, pytest.mark.kubernetes]
 
-
+@pytest.mark.sanity
+@pytest.mark.kubernetes
 @pytest.mark.order(205)
 def test_kubernetes_nodes(host):
     """Verify mapped Kubernetes membership and Ready state."""
     verify_pxeboot(host, "kubernetes_nodes", check_kubernetes_nodes)
 
 
+@pytest.mark.sanity
+@pytest.mark.kubernetes
 @pytest.mark.order(206)
 def test_kubernetes_node_services(host):
     """Verify required services on every Kubernetes role."""
     verify_pxeboot(host, "kubernetes_services", check_kubernetes_node_services)
 
 
-@pytest.mark.order(207)
-def test_kubernetes_version_compatibility(host):
-    """Verify Kubernetes, kubeadm, and CRI-O version alignment."""
-    verify_pxeboot(host, "kubernetes_versions", check_kubernetes_version_compatibility)
-
-
-@pytest.mark.order(208)
+@pytest.mark.sanity
+@pytest.mark.kubernetes
+@pytest.mark.order(209)
 def test_kubernetes_control_plane(host):
     """Verify API readiness and the configured control plane."""
     verify_pxeboot(host, "kubernetes_control_plane", check_kubernetes_control_plane)
 
 
-@pytest.mark.order(209)
+@pytest.mark.sanity
+@pytest.mark.kubernetes
+@pytest.mark.order(210)
 def test_kubernetes_system_pods(host):
     """Verify required system, CNI, storage, and HA workloads."""
     verify_pxeboot(host, "kubernetes_system_pods", check_kubernetes_system_pods)
 
 
-@pytest.mark.order(210)
+@pytest.mark.sanity
+@pytest.mark.kubernetes
+@pytest.mark.order(211)
 def test_kubernetes_virtual_ip(host):
     """Verify exactly one owner for the configured Kubernetes VIP."""
     verify_pxeboot(host, "kubernetes_virtual_ip", check_kubernetes_virtual_ip)
