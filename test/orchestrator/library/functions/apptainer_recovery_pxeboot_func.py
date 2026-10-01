@@ -115,7 +115,18 @@ def _prepare_recovery(host):
         )
         return _RECOVERY_STATE
     row = computes[0]
-    image = primary_image(host, row)
+    try:
+        image = primary_image(host, row)
+    except FileNotFoundError as exc:
+        _RECOVERY_STATE.update(
+            {
+                "skipped_result": optional_skip(
+                    "Apptainer compute-node reboot",
+                    str(exc),
+                )
+            }
+        )
+        return _RECOVERY_STATE
     before_checksum = remote_command(
         host,
         row,

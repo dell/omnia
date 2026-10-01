@@ -395,6 +395,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "slurm_drain_node": ("scontrol update NodeName=%s State=DRAIN Reason=%s"),
     "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
     "slurm_cancel_job": "scancel %s",
+    "slurm_sbatch": "sbatch --parsable --wait --wrap='hostname'",
     "slurm_job_accounting": (
         "sacct --noheader --parsable2 --jobs=%s --format=State | head -1"
     ),
