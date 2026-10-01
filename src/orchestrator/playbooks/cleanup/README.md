@@ -9,8 +9,8 @@ selection, confirmation, execution, and reporting to the same cleanup role.
 |-------------|---------|----------------|
 | `playbooks/orchestrator.yml` | Full cleanup of every component | `cleanup`, `cleanup_credentials` |
 | `playbooks/cleanup/cleanup_orchestrator.yml` | Cleanup of individual components | `cleanup`, `cleanup_credentials`, plus one tag per component |
-| `playbooks/cleanup/cleanup_openchami.yml` | Compatibility wrapper selecting OpenCHAMI | No tag required |
-| `playbooks/cleanup/cleanup_openldap.yml` | Compatibility wrapper selecting OpenLDAP | No tag required |
+| `playbooks/cleanup/cleanup_openchami.yml` | Component wrapper selecting OpenCHAMI | No tag required |
+| `playbooks/cleanup/cleanup_openldap.yml` | Component wrapper selecting OpenLDAP | No tag required |
 
 Component-level tags are deliberately **not** accepted by `orchestrator.yml` — run
 `cleanup_orchestrator.yml` directly when you need to clean a single component.
@@ -187,8 +187,7 @@ ansible-playbook playbooks/orchestrator.yml --tags cleanup \
 
 An omitted value is intentionally interactive. Non-interactive automation must
 set both extra variables or use `SKIP_APPROVAL=true`. `SKIP_APPROVAL=true`
-selects any omitted Slurm or Kubernetes cleanup, preserving the historical
-non-interactive full-cleanup behavior:
+selects any omitted Slurm or Kubernetes cleanup for non-interactive execution:
 
 ```bash
 SKIP_APPROVAL=true ansible-playbook playbooks/orchestrator.yml --tags cleanup

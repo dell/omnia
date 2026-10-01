@@ -100,13 +100,6 @@
     - read_mapping_file is not defined
     - pxe_mapping_file_path | default('') | length > 0
 
-- name: Generate xnames in temp mapping file
-  generate_xname_in_mapping_file:
-    mapping_file_path: /tmp/omnia_validate_mapping.csv
-  when:
-    - read_mapping_file is not defined
-    - pxe_mapping_file_path | default('') | length > 0
-
 - name: Read PXE mapping CSV into temp var
   community.general.read_csv:
     path: /tmp/omnia_validate_mapping.csv

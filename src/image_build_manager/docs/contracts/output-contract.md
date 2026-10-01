@@ -8,7 +8,14 @@
 
 **Purpose**: Reports image build results with S3 artifact paths per functional group.
 
-**Location**: `<IMAGE_BUILD_MANAGER_DATA_PATH>/output/<project>/build_status.yml`.
+**Location**:
+
+- Catalog mode: `<IMAGE_BUILD_MANAGER_DATA_PATH>/output/<project>/<catalog-id>-v<version>/build_status.yml`
+- Config mode: `<IMAGE_BUILD_MANAGER_DATA_PATH>/output/<project>/build_status.yml`
+
+During the catalog contract migration, catalog mode also refreshes the
+project-level `build_status.yml` as a latest compatibility copy for consumers
+that have not yet moved to composite catalog identity lookup.
 When `IMAGE_BUILD_MANAGER_DATA_PATH` is unset, the root defaults to
 `<OMNIA_DATA_PATH>/image_build_manager`; with standard defaults the file is
 `/opt/omnia/image_build_manager/output/project_default/build_status.yml`.
@@ -182,3 +189,11 @@ For a PowerScale provider, full cleanup skips MinIO cleanup and does not erase
 objects from external S3. `cleanup_images` can remove matching objects from the
 `boot-images` bucket when `s3cmd` and `/root/.s3cfg` are already available; it
 also removes matching registry tags while retaining the infrastructure.
+
+Catalog-mode builds also maintain
+`output/<project>/image_group_dictionary.json`. Each entry records the package
+hash, functional group, architecture, owning image-group identifier, exact S3
+artifact paths, and timestamps. Updates use an atomic replacement and retain a
+validated `.json.bak` recovery copy. Exact image-group cleanup removes matching
+dictionary entries; dictionary cleanup warnings do not make successful artifact
+cleanup fail.

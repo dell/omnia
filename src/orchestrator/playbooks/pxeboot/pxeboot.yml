@@ -102,6 +102,11 @@
         force_restart: "{{ force_restart | default(true) }}"
         boot_source_override_enabled: "{{ boot_source_override_enabled | default('continuous') }}"
         boot_source_override_target: "{{ boot_source_override_target | default('pxe') }}"
+        pxeboot_scope_effective: "{{ pxeboot_scope | default('pending') | string | lower }}"
+        pxeboot_buildstream_active: >-
+          {{ (enable_build_stream | default(false) | bool)
+             and (job_id is defined)
+             and (job_id | default('') | string | length > 0) }}
         cacheable: true
 
     - name: Validate PXE boot configuration
@@ -115,6 +120,7 @@
           - force_restart is boolean or (force_restart is string and force_restart | lower in ['true', 'false'])
           - boot_source_override_enabled in ['once', 'continuous', 'disabled']
           - boot_source_override_target in ['pxe', 'uefi_http', 'hdd', 'cd', 'floppy', 'sd_card', 'utilities', 'bios_setup', 'none']
+          - pxeboot_scope_effective in ['pending', 'all']
         fail_msg: >-
           Invalid set_pxe_boot_config.yml. Use booleans for enable/restart
           options, non-negative numeric pause, positive integer retries and
@@ -300,6 +306,8 @@
           loop:
             - BMC_IP
             - ADMIN_IP
+            - BMC_MAC
+            - ADMIN_MAC
             - HOSTNAME
             - SERVICE_TAG
 
@@ -328,6 +336,144 @@
               PXE inventory {{ pxeboot_inventory_source }} contains duplicate
               BMC_IP or ADMIN_IP values. Every node must have unique addresses.
 
+        - name: Generate access token for SMD identity lookup
+          ansible.builtin.command: sudo bash -lc 'gen_access_token'
+          register: _pxeboot_identity_token
+          changed_when: false
+          retries: 3
+          delay: 5
+          until: >-
+            _pxeboot_identity_token.rc == 0
+            and _pxeboot_identity_token.stdout not in ['', 'null']
+          no_log: true
+
+        - name: Resolve PXE identities from SMD Hardware Inventory
+          openchami_reconcile:
+            action: resolve_identities
+            cluster_uri: >-
+              https://{{ oim_node_name }}.{{ domain_name }}:8443
+            access_token: "{{ _pxeboot_identity_token.stdout }}"
+            ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            nodes: "{{ _pxeboot_csv.list }}"
+          check_mode: true
+          register: _pxeboot_identity_result
+          no_log: true
+
+        - name: Require provisioned SMD Service Tag identities for PXE boot
+          ansible.builtin.assert:
+            that:
+              - _pxeboot_identity_result.planned_inventory_xnames | length == 0
+            fail_msg: >-
+              SMD Hardware Inventory is missing Service Tag identities for:
+              {{ _pxeboot_identity_result.planned_inventory_xnames | join(', ') }}.
+              Run the provision phase before PXE boot.
+
+        - name: Initialize effective PXE node selection
+          ansible.builtin.set_fact:
+            pxeboot_effective_nodes: "{{ _pxeboot_identity_result.nodes }}"
+
+        - name: Select pending nodes for standard Orchestrator PXE
+          when:
+            - not (pxeboot_buildstream_active | default(false) | bool)
+            - not (pxeboot_using_custom_inventory | bool)
+            - pxeboot_scope_effective == 'pending'
+          block:
+            - name: Check for aggregate Orchestrator status
+              ansible.builtin.stat:
+                path: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+              register: _pxeboot_selection_status_stat
+
+            - name: Require aggregate status for pending-node selection
+              ansible.builtin.assert:
+                that:
+                  - _pxeboot_selection_status_stat.stat.exists
+                fail_msg: >-
+                  Cannot safely select pending PXE nodes because
+                  {{ orchestrator_output_dir }}/orchestrator_status.yml does
+                  not exist. Run the provision phase first, or explicitly use
+                  -e pxeboot_scope=all to PXE boot every mapped node.
+
+            - name: Load aggregate Orchestrator status for node selection
+              ansible.builtin.slurp:
+                src: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+              register: _pxeboot_selection_status_raw
+
+            - name: Decode aggregate Orchestrator status for node selection
+              ansible.builtin.set_fact:
+                _pxeboot_selection_status: >-
+                  {{ _pxeboot_selection_status_raw.content
+                     | b64decode | from_yaml }}
+
+            - name: Validate aggregate Orchestrator status structure
+              ansible.builtin.assert:
+                that:
+                  - _pxeboot_selection_status | type_debug == 'dict'
+                  - _pxeboot_selection_status.nodes | default([]) | type_debug == 'list'
+                fail_msg: >-
+                  Cannot safely select pending PXE nodes because
+                  orchestrator_status.yml is malformed. Run the provision
+                  phase again, or explicitly use -e pxeboot_scope=all.
+
+            - name: Index aggregate node status by XNAME
+              ansible.builtin.set_fact:
+                _pxeboot_selection_status_by_xname: >-
+                  {% set result = {} -%}
+                  {% for node in _pxeboot_selection_status.nodes | default([]) -%}
+                  {% if node.xname | default('') | length > 0 -%}
+                  {% set _ = result.update({node.xname: node}) -%}
+                  {% endif -%}
+                  {% endfor -%}
+                  {{ result }}
+
+            - name: Require lifecycle state for every mapped node
+              ansible.builtin.assert:
+                that:
+                  - >-
+                    (_pxeboot_identity_result.nodes
+                     | map(attribute='XNAME') | list
+                     | difference(_pxeboot_selection_status_by_xname.keys() | list)
+                     | length) == 0
+                fail_msg: >-
+                  Cannot safely select pending PXE nodes because lifecycle
+                  state is missing for XNAME(s):
+                  {{ _pxeboot_identity_result.nodes
+                     | map(attribute='XNAME') | list
+                     | difference(_pxeboot_selection_status_by_xname.keys() | list)
+                     | join(', ') }}. Run the provision phase again, or
+                  explicitly use -e pxeboot_scope=all.
+
+            - name: Reset effective PXE node list for pending selection
+              ansible.builtin.set_fact:
+                pxeboot_effective_nodes: []
+
+            - name: Add reprovision-required nodes to PXE selection
+              ansible.builtin.set_fact:
+                pxeboot_effective_nodes: "{{ pxeboot_effective_nodes + [item] }}"
+              vars:
+                _node_state: >-
+                  {{ _pxeboot_selection_status_by_xname[item.XNAME] }}
+              loop: "{{ _pxeboot_identity_result.nodes }}"
+              loop_control:
+                label: "{{ item.XNAME }}"
+              when: _node_state.reprovision_required | default(false) | bool
+
+            - name: Report pending-node PXE selection
+              ansible.builtin.debug:
+                msg: >-
+                  Selected {{ pxeboot_effective_nodes | length }} of
+                  {{ _pxeboot_identity_result.nodes | length }} mapped nodes
+                  that require reprovisioning.
+
+            - name: Mark PXE workflow complete when no nodes are pending
+              ansible.builtin.set_fact:
+                pxe_boot_skip: true
+                cacheable: true
+              when: pxeboot_effective_nodes | length == 0
+
+            - name: End inventory build when no nodes are pending
+              ansible.builtin.meta: end_play
+              when: pxeboot_effective_nodes | length == 0
+
         - name: Build BMC host group from named CSV fields
           ansible.builtin.add_host:
             hostname: "{{ item.BMC_IP | trim }}"
@@ -336,7 +482,7 @@
             xname: "{{ item.XNAME | default('') | trim }}"
             hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
             service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
-          loop: "{{ _pxeboot_csv.list }}"
+          loop: "{{ pxeboot_effective_nodes }}"
           loop_control:
             label: "{{ item.BMC_IP | trim }}"
 
@@ -344,11 +490,15 @@
           ansible.builtin.add_host:
             hostname: "{{ item.ADMIN_IP | trim }}"
             groups: node_registration_targets
+            ansible_user: root
+            ansible_python_interpreter: /usr/bin/python3
+            ansible_ssh_timeout: 5
+            ansible_ssh_retries: 0
             bmc_ip: "{{ item.BMC_IP | trim }}"
             xname: "{{ item.XNAME | default('') | trim }}"
             hostname_node: "{{ item.HOSTNAME | default('') | trim }}"
             service_tag: "{{ item.SERVICE_TAG | default('') | trim }}"
-          loop: "{{ _pxeboot_csv.list }}"
+          loop: "{{ pxeboot_effective_nodes }}"
           loop_control:
             label: "{{ item.ADMIN_IP | trim }}"
 
@@ -367,7 +517,9 @@
 
         - name: Build target admin IPs for node-registration verification
           ansible.builtin.set_fact:
-            target_node_admin_ips: "{{ _pxeboot_csv.list | map(attribute='ADMIN_IP') | map('trim') | list }}"
+            target_node_admin_ips: >-
+              {{ pxeboot_effective_nodes
+                 | map(attribute='ADMIN_IP') | map('trim') | list }}
             cacheable: true
           when: enable_node_registration | default(true) | bool
 
@@ -402,17 +554,17 @@
   tasks:
     - name: Report iDRAC reboot failure
       ansible.builtin.debug:
-        msg: "[FAILED] {{ inventory_hostname }}: {{ reboot_status }}"
+        msg: "[FAILED] {{ inventory_hostname }}: {{ reboot_state }}"
       when: reboot_failed
 
     - name: Show passed iDRACs
       ansible.builtin.debug:
-        msg: "[OK] {{ inventory_hostname }}: {{ reboot_status }}"
+        msg: "[OK] {{ inventory_hostname }}: {{ reboot_state }}"
       when: not reboot_failed
 
     - name: Fail if reboot failed (when node-registration disabled)
       ansible.builtin.fail:
-        msg: "{{ reboot_status }}"
+        msg: "PXE boot failed for {{ inventory_hostname }}: {{ reboot_state }}"
       when:
         - reboot_failed
         - not (hostvars['localhost']['enable_node_registration'] | default(true) | bool)
@@ -478,7 +630,7 @@
 # ─────────────────────────────────────────────────────────────────────────
 - name: Verify cloud-init node-registration
   hosts: node_registration_targets
-  connection: local
+  connection: ssh
   gather_facts: false
   tags: [pxeboot]
   pre_tasks:
@@ -537,6 +689,40 @@
                  and pxeboot_provisioning_report_candidate.inventory_source | default('')
                      == pxeboot_inventory_source
                  else {} }}
+
+        - name: Check for the existing aggregate orchestrator status
+          ansible.builtin.stat:
+            path: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+          register: pxeboot_orchestrator_status_stat
+
+        - name: Load the existing aggregate orchestrator status
+          ansible.builtin.slurp:
+            src: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
+          register: pxeboot_orchestrator_status_raw
+          when: pxeboot_orchestrator_status_stat.stat.exists
+
+        - name: Decode existing aggregate Orchestrator status
+          ansible.builtin.set_fact:
+            pxeboot_previous_status: >-
+              {{ (pxeboot_orchestrator_status_raw.content | b64decode | from_yaml)
+                 if pxeboot_orchestrator_status_stat.stat.exists else {} }}
+
+        - name: Retain existing aggregate node statuses
+          ansible.builtin.set_fact:
+            pxeboot_previous_node_statuses: >-
+              {{ pxeboot_previous_status.nodes | default([])
+                 if pxeboot_previous_status | type_debug == 'dict' else [] }}
+
+        - name: Index existing per-node metadata state by XNAME
+          ansible.builtin.set_fact:
+            pxeboot_previous_node_status_by_xname: >-
+              {% set result = {} -%}
+              {% for node in pxeboot_previous_node_statuses -%}
+              {% if node.xname | default('') | length > 0 -%}
+              {% set _ = result.update({node.xname: node}) -%}
+              {% endif -%}
+              {% endfor -%}
+              {{ result }}
 
         - name: Collect structured node-registration results
           ansible.builtin.set_fact:
@@ -600,11 +786,11 @@
                 {{ 'not_started' if item in (pxe_boot_failed_bmc_ips | default([]))
                    else node_registration_results_by_bmc[item].get('verification_method', 'ssh_cloud_init') }}
               error: >-
-                {{ hostvars[item].reboot_status
+                {{ hostvars[item].reboot_state | default('pxe_request_failed')
                    if item in (pxe_boot_failed_bmc_ips | default([]))
-                   else node_registration_results_by_bmc[item].detail }}
+                   else 'Node verification failed' }}
               verification_state: >-
-                {{ 'not_started'
+                {{ hostvars[item].reboot_state | default('pxe_request_failed')
                    if item in (pxe_boot_failed_bmc_ips | default([]))
                    else node_registration_results_by_bmc[item].state }}
               cloud_init: >-
@@ -659,78 +845,146 @@
             _admin_ip: "{{ hostvars[item].admin_ip | default('N/A') }}"
             _xname: "{{ hostvars[item].xname | default('') }}"
             _hostname: "{{ hostvars[item].hostname_node | default('N/A') }}"
-            _svc_tag: "{{ hostvars[item].service_tag | default('N/A') }}"
             _registration_result: "{{ node_registration_results_by_bmc.get(item, {}) }}"
             _pxe_status: >-
               {{ 'failed'
                  if item in (pxe_boot_failed_bmc_ips | default([]))
                  or item in (node_registration_failed_bmc_ips | default([]))
                  else ('success' if enable_node_registration | bool
-                       else 'pxe_initiated_unverified') }}
-            _failure_stage: >-
-              {{ 'pxe_boot'
+                       else 'unverified') }}
+            _pxe_state: >-
+              {{ hostvars[item].reboot_state | default('pxe_request_failed')
                  if item in (pxe_boot_failed_bmc_ips | default([]))
-                 else ('node_registration'
+                 else (_registration_result.get('state', 'verification_result_missing')
                        if item in (node_registration_failed_bmc_ips | default([]))
-                       else '') }}
-            _verification_state: >-
-              {{ 'not_started'
-                 if item in (pxe_boot_failed_bmc_ips | default([]))
-                 else (_registration_result.get('state', 'not_requested')
-                       if enable_node_registration | bool else 'disabled') }}
-            _detail: >-
-              {{ hostvars[item].reboot_status
-                 if item in (pxe_boot_failed_bmc_ips | default([]))
-                 else (_registration_result.get('detail', '')
-                       if enable_node_registration | bool
-                       else 'PXE boot was initiated; operating-system boot and cloud-init were not verified') }}
+                       else ('success' if enable_node_registration | bool else 'unverified')) }}
+            _metadata_applied: >-
+              {{ (_pxe_status == 'success')
+                 and (enable_node_registration | bool)
+                 and (_registration_result.get('status', '') == 'success') }}
+            _provisioning_status: >-
+              {{ 'unknown'
+                 if pxeboot_provisioning_report | default({}) | length == 0
+                 or _xname | length == 0
+                 else ('failed'
+                       if _xname in (pxeboot_provisioning_report.missing_nodes | default([]))
+                       else 'success') }}
             node_entry:
               bmc_ip: "{{ item }}"
               admin_ip: "{{ _admin_ip }}"
               xname: "{{ _xname }}"
               hostname: "{{ _hostname }}"
-              service_tag: "{{ _svc_tag }}"
-              status: "{{ _pxe_status }}"
-              failure_reason: >-
-                {{ 'not registered in SMD'
-                   if pxeboot_provisioning_report | default({}) | length > 0
-                   and _xname | length > 0
-                   and _xname in (pxeboot_provisioning_report.missing_nodes | default([]))
-                   else '' }}
-              failure_stage: "{{ _failure_stage }}"
-              verification_state: "{{ _verification_state }}"
-              verification_method: >-
-                {{ 'not_started'
-                   if item in (pxe_boot_failed_bmc_ips | default([]))
-                   else (_registration_result.get('verification_method', 'ssh_cloud_init')
-                         if enable_node_registration | bool else 'disabled') }}
-              detail: "{{ _detail }}"
-              cloud_init: "{{ _registration_result.get('cloud_init', {}) }}"
-              provisioning:
-                status: >-
-                  {{ 'unknown'
-                     if pxeboot_provisioning_report | default({}) | length == 0
-                     or _xname | length == 0
-                     else ('failed'
-                           if _xname in (pxeboot_provisioning_report.missing_nodes | default([]))
-                           else 'success') }}
-                failure_reason: >-
-                  {{ 'not registered in SMD'
-                     if pxeboot_provisioning_report | default({}) | length > 0
-                     and _xname | length > 0
-                     and _xname in (pxeboot_provisioning_report.missing_nodes | default([]))
-                     else '' }}
+              status: >-
+                {{ 'success' if _metadata_applied | bool
+                   else ('failed' if _pxe_status == 'failed' else 'pending') }}
+              reprovision_required: "{{ not (_metadata_applied | bool) }}"
+              provisioning_status: "{{ _provisioning_status }}"
               pxeboot:
                 status: "{{ _pxe_status }}"
-                failure_stage: "{{ _failure_stage }}"
-                verification_state: "{{ _verification_state }}"
-                verification_method: >-
-                  {{ 'not_started'
-                     if item in (pxe_boot_failed_bmc_ips | default([]))
-                     else (_registration_result.get('verification_method', 'ssh_cloud_init')
-                           if enable_node_registration | bool else 'disabled') }}
-                detail: "{{ _detail }}"
-                cloud_init: "{{ _registration_result.get('cloud_init', {}) }}"
+                state: "{{ _pxe_state }}"
+
+        - name: Index current PXE node statuses by XNAME
+          ansible.builtin.set_fact:
+            pxeboot_current_node_status_by_xname: >-
+              {% set result = {} -%}
+              {% for node in all_nodes_status | default([]) -%}
+              {% if node.xname | default('') | length > 0 -%}
+              {% set _ = result.update({node.xname: node}) -%}
+              {% endif -%}
+              {% endfor -%}
+              {{ result }}
+
+        - name: Initialize aggregate node statuses from current PXE run
+          ansible.builtin.set_fact:
+            orchestrator_all_nodes_status: "{{ all_nodes_status | default([]) }}"
+
+        - name: Preserve unselected node statuses during standard pending retry
+          ansible.builtin.set_fact:
+            orchestrator_all_nodes_status: >-
+              {% set result = [] -%}
+              {% set previous_xnames = pxeboot_previous_node_status_by_xname.keys() | list -%}
+              {% for node in pxeboot_previous_node_statuses -%}
+              {% set xname = node.xname | default('') -%}
+              {% set _ = result.append(pxeboot_current_node_status_by_xname.get(xname, node)) -%}
+              {% endfor -%}
+              {% for node in all_nodes_status | default([]) -%}
+              {% if node.xname | default('') not in previous_xnames -%}
+              {% set _ = result.append(node) -%}
+              {% endif -%}
+              {% endfor -%}
+              {{ result }}
+          when:
+            - not (pxeboot_buildstream_active | default(false) | bool)
+            - not (pxeboot_using_custom_inventory | default(false) | bool)
+            - pxeboot_scope_effective | default('pending') == 'pending'
+
+        - name: Initialize compact aggregate node status
+          ansible.builtin.set_fact:
+            orchestrator_compact_nodes: []
+
+        - name: Normalize aggregate nodes to compact schema
+          ansible.builtin.set_fact:
+            orchestrator_compact_nodes: >-
+              {{ orchestrator_compact_nodes + [compact_node] }}
+          loop: "{{ orchestrator_all_nodes_status }}"
+          loop_control:
+            label: "{{ item.xname | default('unknown') }}"
+          vars:
+            _legacy_pxeboot: "{{ item.get('pxeboot', {}) }}"
+            _compact_pxeboot_status: >-
+              {{ _legacy_pxeboot.get('status', 'not_run') }}
+            _compact_pxeboot_state: >-
+              {{ _legacy_pxeboot.get(
+                   'state',
+                   _legacy_pxeboot.get(
+                     'verification_state',
+                     'not_run' if _compact_pxeboot_status == 'not_run'
+                     else _compact_pxeboot_status
+                   )
+                 ) }}
+            _compact_reprovision_required: >-
+              {{ item.reprovision_required | default(false) | bool }}
+            _compact_status: >-
+              {{ 'failed' if item.status | default('') == 'failed'
+                 else ('pending' if _compact_reprovision_required else 'success') }}
+            compact_node:
+              xname: "{{ item.xname | default('') }}"
+              hostname: "{{ item.hostname | default('N/A') }}"
+              admin_ip: "{{ item.admin_ip | default('N/A') }}"
+              bmc_ip: "{{ item.bmc_ip | default('N/A') }}"
+              status: "{{ _compact_status }}"
+              reprovision_required: "{{ _compact_reprovision_required }}"
+              provisioning_status: >-
+                {{ item.get(
+                     'provisioning_status',
+                     item.get('provisioning', {}).get('status', 'unknown')
+                   ) }}
+              pxeboot:
+                status: "{{ _compact_pxeboot_status }}"
+                state: "{{ _compact_pxeboot_state }}"
+
+        - name: Publish compact aggregate node status
+          ansible.builtin.set_fact:
+            orchestrator_all_nodes_status: "{{ orchestrator_compact_nodes }}"
+
+        - name: Compute aggregate lifecycle counts
+          ansible.builtin.set_fact:
+            orchestrator_aggregate_total_nodes: >-
+              {{ orchestrator_all_nodes_status | length }}
+            orchestrator_aggregate_failure_count: >-
+              {{ orchestrator_all_nodes_status
+                 | selectattr('status', 'equalto', 'failed') | list | length }}
+            orchestrator_aggregate_success_count: >-
+              {{ orchestrator_all_nodes_status
+                 | selectattr('status', 'equalto', 'success') | list | length }}
+            orchestrator_aggregate_unverified_count: >-
+              {% set count = namespace(value=0) -%}
+              {% for node in orchestrator_all_nodes_status -%}
+              {% if node.pxeboot.state | default('') == 'unverified' -%}
+              {% set count.value = count.value + 1 -%}
+              {% endif -%}
+              {% endfor -%}
+              {{ count.value }}
 
         - name: Compute overall status
           ansible.builtin.set_fact:
@@ -769,20 +1023,18 @@
               run_id: "{{ ansible_date_time.epoch }}"
               overall_status: >-
                 {{ 'failed'
-                   if orchestrator_overall_status == 'failed'
+                   if orchestrator_aggregate_failure_count | int > 0
                    or pxeboot_provisioning_report.missing_nodes | default([]) | length > 0
                    else 'success' }}
               last_completed_phase: pxeboot
               timestamp: "{{ ansible_date_time.iso8601 }}"
-              total_nodes: "{{ groups['bmc'] | length }}"
-              success_count: "{{ groups['bmc'] | length | int - (failed_nodes_list | default([]) | length | int) }}"
-              failure_count: "{{ (failed_nodes_list | default([])) | length }}"
+              total_nodes: "{{ orchestrator_aggregate_total_nodes }}"
+              success_count: "{{ orchestrator_aggregate_success_count }}"
+              failure_count: "{{ orchestrator_aggregate_failure_count }}"
               verification_enabled: "{{ enable_node_registration | bool }}"
-              unverified_count: >-
-                {{ 0 if enable_node_registration | bool
-                   else groups['bmc'] | length - (pxe_boot_failed_bmc_ips | length) }}
+              unverified_count: "{{ orchestrator_aggregate_unverified_count }}"
               custom_inventory: "{{ pxeboot_using_custom_inventory | default(false) | bool }}"
-              nodes: "{{ all_nodes_status | default([]) }}"
+              nodes: "{{ orchestrator_all_nodes_status }}"
               inventory_source: "{{ pxeboot_inventory_source }}"
               phases:
                 provisioning:

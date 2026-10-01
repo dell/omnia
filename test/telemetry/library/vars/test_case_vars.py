@@ -148,6 +148,10 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V018",
         "title": "Verify iDRAC telemetry data in VictoriaMetrics",
     },
+    "idrac_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V019",
+        "title": "Verify configured-disabled iDRAC state",
+    },
     # -- Sources: Install Mode (unified online/offline) -----------------------
     "install_mode_config": {
         "id": "TEL_FVT_DEPLOY_V110",
@@ -246,6 +250,10 @@ TEST_CASES = {
     "powerscale_health_metrics": {
         "id": "TEL_FVT_DEPLOY_V038",
         "title": "Verify PowerScale health metrics",
+    },
+    "powerscale_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V039",
+        "title": "Verify configured-disabled PowerScale metrics state",
     },
     "powerscale_tls_enforcement": {
         "id": "TEL_FVT_DEPLOY_V040",
@@ -422,6 +430,10 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V087",
         "title": "Verify OME audit logs in VictoriaLogs",
     },
+    "ome_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V088",
+        "title": "Verify configured-disabled OME state",
+    },
     # -- Sources: SFM -------------------------------------------------------
     "sfm_omnia_pods": {
         "id": "TEL_FVT_DEPLOY_V100",
@@ -464,6 +476,120 @@ TEST_CASES = {
     "cleanup_victoria_logs": {
         "id": "TEL_FVT_CLEANUP_V005",
         "title": "Verify VictoriaLogs pods removed after cleanup",
+    },
+    # -- Cleanup: Sink dependency checking ----------------------------------
+    "cleanup_sinks_kafka_no_deps": {
+        "id": "TEL_FVT_CLEANUP_V019",
+        "title": "Verify Kafka cleanup allowed when no dependent sources running",
+    },
+    "cleanup_sinks_kafka_blocked": {
+        "id": "TEL_FVT_CLEANUP_V020",
+        "title": "Verify Kafka cleanup blocked when dependent source running",
+    },
+    "cleanup_sinks_kafka_multi_blocked": {
+        "id": "TEL_FVT_CLEANUP_V021",
+        "title": "Verify Kafka cleanup blocked by multiple dependent sources",
+    },
+    "cleanup_sinks_kafka_volumes_preserved": {
+        "id": "TEL_FVT_CLEANUP_V022",
+        "title": "Verify Kafka volumes preserved by default",
+    },
+    "cleanup_sinks_kafka_volumes_deleted": {
+        "id": "TEL_FVT_CLEANUP_V023",
+        "title": "Verify Kafka volumes deleted with delete_sinks_volume=true",
+    },
+    "cleanup_sinks_vm_no_deps": {
+        "id": "TEL_FVT_CLEANUP_V024",
+        "title": "Verify VictoriaMetrics cleanup allowed when no dependent sources",
+    },
+    "cleanup_sinks_vm_blocked": {
+        "id": "TEL_FVT_CLEANUP_V025",
+        "title": "Verify VictoriaMetrics cleanup blocked by dependent source",
+    },
+    "cleanup_sinks_vm_multi_blocked": {
+        "id": "TEL_FVT_CLEANUP_V026",
+        "title": "Verify VictoriaMetrics cleanup blocked by multiple sources",
+    },
+    "cleanup_sinks_vl_no_deps": {
+        "id": "TEL_FVT_CLEANUP_V027",
+        "title": "Verify VictoriaLogs cleanup allowed when no dependent sources",
+    },
+    "cleanup_sinks_vl_blocked": {
+        "id": "TEL_FVT_CLEANUP_V028",
+        "title": "Verify VictoriaLogs cleanup blocked by dependent source",
+    },
+    "cleanup_sinks_vl_multi_blocked": {
+        "id": "TEL_FVT_CLEANUP_V049",
+        "title": "Verify VictoriaLogs cleanup blocked by multiple dependent sources",
+    },
+    "cleanup_sinks_dep_check_fail": {
+        "id": "TEL_FVT_CLEANUP_V029",
+        "title": "Verify sinks preserved on dependency check failure",
+    },
+    "cleanup_sinks_unrelated_running": {
+        "id": "TEL_FVT_CLEANUP_V030",
+        "title": "Verify unrelated sources do not block sink cleanup",
+    },
+    "cleanup_sinks_repeated": {
+        "id": "TEL_FVT_CLEANUP_V031",
+        "title": "Verify repeated sink cleanup is idempotent",
+    },
+    "cleanup_sinks_selective_isolation": {
+        "id": "TEL_FVT_CLEANUP_V032",
+        "title": "Verify selective sink cleanup does not affect other sinks",
+    },
+    "cleanup_sinks_blocked_volumes_protected": {
+        "id": "TEL_FVT_CLEANUP_V033",
+        "title": "Verify volumes protected during blocked cleanup with delete_sinks_volume=true",
+    },
+    "cleanup_sinks_all_or_nothing": {
+        "id": "TEL_FVT_CLEANUP_V034",
+        "title": "Verify all-or-nothing: blocked sink prevents cleanup of other sinks",
+    },
+    "cleanup_sinks_blocked_playbook_fails": {
+        "id": "TEL_FVT_CLEANUP_V035",
+        "title": "Verify playbook fails with non-zero rc when sinks are blocked",
+    },
+    # -- Cleanup: Sinks Short-Form Parameter Support -------------------------
+    "cleanup_sinks_short_form_single": {
+        "id": "TEL_FVT_CLEANUP_V036",
+        "title": "Verify short-form parameter -e kafka works correctly",
+    },
+    "cleanup_sinks_short_form_comma_separated": {
+        "id": "TEL_FVT_CLEANUP_V037",
+        "title": "Verify comma-separated parameter -e kafka,victoria_metrics works",
+    },
+    "cleanup_sinks_short_form_all_three": {
+        "id": "TEL_FVT_CLEANUP_V038",
+        "title": "Verify comma-separated all three sinks -e kafka,victoria_metrics,victoria_logs",
+    },
+    "cleanup_sinks_short_form_separate_flags": {
+        "id": "TEL_FVT_CLEANUP_V039",
+        "title": "Verify separate flags -e kafka -e victoria_metrics work correctly",
+    },
+    "cleanup_sinks_short_form_vs_explicit": {
+        "id": "TEL_FVT_CLEANUP_V040",
+        "title": "Verify short-form and explicit form produce same results",
+    },
+    "cleanup_sinks_short_form_normalization": {
+        "id": "TEL_FVT_CLEANUP_V041",
+        "title": "Verify parameter normalization in omnia.sh",
+    },
+    "cleanup_sinks_actual_resource_cleanup": {
+        "id": "TEL_FVT_CLEANUP_V042",
+        "title": "Verify actual resource cleanup for all sinks",
+    },
+    "cleanup_sinks_dependency_blocking_short_form": {
+        "id": "TEL_FVT_CLEANUP_V043",
+        "title": "Verify dependency checking with short-form parameters",
+    },
+    "cleanup_sinks_all_or_nothing_short_form": {
+        "id": "TEL_FVT_CLEANUP_V044",
+        "title": "Verify all-or-nothing behavior with short-form parameters",
+    },
+    "cleanup_sinks_volume_preservation_short_form": {
+        "id": "TEL_FVT_CLEANUP_V045",
+        "title": "Verify volume preservation with short-form parameters",
     },
     # -- Cleanup: Sources ---------------------------------------------------
     "cleanup_idrac": {
@@ -600,8 +726,12 @@ TEST_CASES = {
         "title": "Node reboot recovery (all pods Running)",
     },
     "nft_idrac_data_lifecycle": {
-        "id": "TEL_NFT_020",
+        "id": "TEL_NFT_023",
         "title": "iDRAC enable/disable/re-enable data lifecycle",
+    },
+    "nft_ome_channel_lifecycle": {
+        "id": "TEL_NFT_024",
+        "title": "OME metrics/logs channel lifecycle",
     },
     "nft_full_lifecycle": {
         "id": "TEL_NFT_013",

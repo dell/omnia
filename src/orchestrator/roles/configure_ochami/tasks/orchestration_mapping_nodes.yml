@@ -108,7 +108,8 @@
             url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
             method: GET
             status_code: 200
-            validate_certs: false
+            ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            validate_certs: true
           register: metadata_svc_health_status
           retries: "{{ service_retries }}"
           delay: "{{ service_retry_interval }}"
@@ -134,7 +135,8 @@
             url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/health"
             method: GET
             status_code: 200
-            validate_certs: false
+            ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+            validate_certs: true
           register: metadata_svc_health_status
           retries: "{{ service_retries }}"
           delay: "{{ service_retry_interval }}"
@@ -253,7 +255,8 @@
             hostname: "{{ item['local-hostname'] }}"
             local_hostname: "{{ item['local-hostname'] }}"
         status_code: [200, 201, 409]
-        validate_certs: false
+        ca_path: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        validate_certs: true
       loop: "{{ hostname_entries }}"
       loop_control:
         label: "{{ item.id }}"

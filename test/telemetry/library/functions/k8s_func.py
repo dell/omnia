@@ -23,13 +23,17 @@ All commands run on kube_vip via SSH from the OIM.
 
 import json
 
-from .telemetry_func import run_on_kube_vip
-
 from ..vars.common_vars import (
     CMDS,
-    TELEMETRY_NAMESPACE,
     KAFKA_CR_NAME,
+    KAFKA_POD_PREFIXES,
+    TELEMETRY_NAMESPACE,
+    VL_POD_PREFIXES,
+    VLAGENT_POD_PREFIX,
+    VM_POD_PREFIXES,
+    VMAGENT_POD_PREFIX,
 )
+from .telemetry_func import run_on_kube_vip
 
 
 def verify_all_pods_running(host, namespace=None):
@@ -225,6 +229,190 @@ def verify_deploy_ready(host, name, namespace=None, expected=1):
         "success": ready >= expected,
         "ready_replicas": ready,
         "expected": expected,
+    }
+
+
+def verify_workloads_stopped(host, workloads, namespace=None):
+    """Verify source-owned controllers are absent or fully scaled down.
+
+    ``workloads`` is an iterable of dictionaries containing ``kind``, ``name``,
+    and ``selector``.  A retained controller is valid when its desired and
+    active replica counts are zero and no selected pods remain.  A controller
+    that was never deployed is also valid, provided it has no orphaned pods.
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    states = []
+
+    for workload in workloads:
+        kind = workload["kind"].lower()
+        name = workload["name"]
+        selector = workload["selector"]
+        if kind not in {"deployment", "statefulset"}:
+            states.append({
+                "kind": kind,
+                "name": name,
+                "exists": False,
+                "replicas": 0,
+                "active_replicas": 0,
+                "pods": [],
+                "success": False,
+                "error": f"Unsupported controller kind: {kind}",
+            })
+            continue
+
+        controller_result = run_on_kube_vip(
+            host,
+            f"kubectl get {kind} {name} -n {ns} --ignore-not-found -o json",
+        )
+        pod_result = run_on_kube_vip(
+            host,
+            f"kubectl get pods -n {ns} -l {selector} "
+            "--ignore-not-found -o json",
+        )
+
+        error = ""
+        controller = {}
+        pod_document = {}
+        if controller_result.rc != 0:
+            error = controller_result.stderr.strip() or (
+                f"Failed to read {kind}/{name}"
+            )
+        elif controller_result.stdout.strip():
+            try:
+                controller = json.loads(controller_result.stdout)
+            except json.JSONDecodeError as exc:
+                error = f"Invalid JSON for {kind}/{name}: {exc}"
+
+        if pod_result.rc != 0 and not error:
+            error = pod_result.stderr.strip() or (
+                f"Failed to read pods matching {selector}"
+            )
+        elif pod_result.stdout.strip():
+            try:
+                pod_document = json.loads(pod_result.stdout)
+            except json.JSONDecodeError as exc:
+                if not error:
+                    error = f"Invalid pod JSON for {kind}/{name}: {exc}"
+
+        spec = controller.get("spec", {})
+        status = controller.get("status", {})
+        replicas = int(spec.get("replicas") or 0)
+        active_replicas = max(
+            int(status.get("currentReplicas") or 0),
+            int(status.get("readyReplicas") or 0),
+            int(status.get("availableReplicas") or 0),
+        )
+        pods = [
+            item.get("metadata", {}).get("name", "")
+            for item in pod_document.get("items", [])
+        ]
+        stopped = not error and replicas == 0 and active_replicas == 0 and not pods
+        states.append({
+            "kind": kind,
+            "name": name,
+            "exists": bool(controller),
+            "replicas": replicas,
+            "active_replicas": active_replicas,
+            "pods": pods,
+            "success": stopped,
+            "error": error,
+        })
+
+    failures = [state for state in states if not state["success"]]
+    return {
+        "success": not failures,
+        "workloads": states,
+        "error": "; ".join(
+            state["error"] or (
+                f"{state['kind']}/{state['name']} has "
+                f"replicas={state['replicas']}, "
+                f"active={state['active_replicas']}, pods={state['pods']}"
+            )
+            for state in failures
+        ),
+    }
+
+
+def verify_enabled_shared_sinks(host, namespace=None):
+    """Verify shared sinks still required by other sources remain healthy.
+
+    Sinks not required by the deployed telemetry configuration are recorded as
+    unchecked rather than treated as failures.  The Vector-specific agents are
+    excluded from the shared vmagent/vlagent checks.
+    """
+    # Local import avoids a module-level telemetry_func -> k8s_func cycle.
+    from .telemetry_func import (
+        is_sink_enabled,  # pylint: disable=import-outside-toplevel
+    )
+
+    ns = namespace or TELEMETRY_NAMESPACE
+    sink_results = {}
+
+    def _prefix_health(prefix, excluded_prefix=""):
+        result = verify_pods_by_prefix(host, prefix, namespace=ns, min_count=1)
+        pods = [
+            pod for pod in result["pods"]
+            if not excluded_prefix or not pod["name"].startswith(excluded_prefix)
+        ]
+        return {
+            "success": bool(pods) and all(pod["running"] for pod in pods),
+            "pods": pods,
+        }
+
+    for sink_name in ("kafka", "victoria_metrics", "victoria_logs"):
+        if not is_sink_enabled(host, sink_name):
+            sink_results[sink_name] = {
+                "checked": False,
+                "success": True,
+                "components": {},
+                "details": "not required by any enabled source or bridge",
+            }
+            continue
+
+        components = {}
+        if sink_name == "kafka":
+            for role, prefix in KAFKA_POD_PREFIXES.items():
+                components[role] = _prefix_health(prefix)
+            kafka_ready = verify_kafka_ready(host, namespace=ns)
+            components["cluster_ready"] = kafka_ready
+        elif sink_name == "victoria_metrics":
+            for role, prefix in VM_POD_PREFIXES.items():
+                components[role] = _prefix_health(prefix)
+            components["vmagent"] = _prefix_health(
+                VMAGENT_POD_PREFIX, excluded_prefix="vmagent-vector",
+            )
+        else:
+            for role, prefix in VL_POD_PREFIXES.items():
+                components[role] = _prefix_health(prefix)
+            components["vlagent"] = _prefix_health(
+                VLAGENT_POD_PREFIX, excluded_prefix="vlagent-vector",
+            )
+
+        unhealthy_components = [
+            name for name, component in components.items()
+            if not component["success"]
+        ]
+        healthy = not unhealthy_components
+        sink_results[sink_name] = {
+            "checked": True,
+            "success": healthy,
+            "components": components,
+            "details": (
+                "healthy" if healthy else
+                f"unhealthy components: {', '.join(unhealthy_components)}"
+            ),
+        }
+
+    failures = [
+        name for name, result in sink_results.items() if not result["success"]
+    ]
+    return {
+        "success": not failures,
+        "sinks": sink_results,
+        "error": (
+            f"Unhealthy required shared sinks: {', '.join(failures)}"
+            if failures else ""
+        ),
     }
 
 
@@ -606,4 +794,3 @@ def verify_services_detail(host, service_names, namespace=None):
         "missing": missing,
         "services": services,
     }
-

@@ -45,6 +45,14 @@ global:
   # Default: "default_logs"
   utils_mode: "default_logs"
 
+  # ---- Build Stream Pipeline Control (Optional) ----
+  # Enable build_stream pipeline mode instead of the standard domain deployment pipeline.
+  # When "true", each cluster triggers .gitlab-ci-build-stream.yml which runs
+  # prepare_base, domain tests, then build_stream deployment and testing.
+  # Mutually exclusive with utils_enable — build_stream takes priority.
+  # Default: "false"
+  build_stream_enable: "false"
+
   # ---- Email Notifications (Optional) ----
   # Configure email alerts when pipeline stages complete or fail.
   # Leave all fields empty to disable email notifications.
@@ -129,9 +137,12 @@ cluster1:
     pipeline_mode: "default"
 
     # Which domains to deploy (controls which stages run):
-    #   "default"  = All domains (repo_manager, image_build_manager, orchestrator, telemetry)
+    #   "default"  = All domains
+    #     Cluster pipeline: repo_manager, image_build_manager, orchestrator, telemetry
+    #     Build stream pipeline: repo_manager, image_build_manager, orchestrator, build_stream
     #   "repo_manager"  = Deploy only repo_manager
     #   "orchestrator"  = Deploy only orchestrator
+    #   "build_stream"  = Deploy only build_stream (build_stream pipeline only)
     #   "repo_manager|orchestrator"  = Deploy repo_manager OR orchestrator (regex pattern)
     # Default: "default"
     domains: "default"
@@ -162,7 +173,7 @@ cluster1:
     # Stages to skip (comma-separated list)
     # Useful for disabling specific domains or stages without modifying config
     # Valid values:
-    #   - repo_manager, image_build_manager, orchestrator, telemetry (skip cleanup+deploy+test)
+    #   - repo_manager, image_build_manager, orchestrator, telemetry, build_stream (skip cleanup+deploy+test)
     #   - setup_environment, setup_main, cleanup_omnia (skip specific stages)
     # Example: "repo_manager,telemetry" (skip both domains entirely)
     # Default: "" (skip nothing)
@@ -190,6 +201,10 @@ cluster1:
     # Examples: "deploy", "validate"
     telemetry: ""
 
+    # Build Stream deployment tags
+    # Examples: "deploy", "validate"
+    build_stream: ""
+
   # ---- Test Commands ----
   # Full test commands to execute for each domain's test stage.
   # These are passed directly to the target server via SSH.
@@ -214,6 +229,9 @@ cluster1:
 
     # Telemetry test command
     telemetry: "./run_validation.sh fvt_telemetry verify"
+
+    # Build Stream test command
+    build_stream: "./run_validation.sh fvt_build_stream test"
 
     # Utils test command
     utils: "./run_validation.sh fvt_utils verify"

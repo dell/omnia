@@ -28,6 +28,11 @@ Handles:
 """
 
 import base64
+import json
+import re
+import time
+import urllib.parse
+from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
 import yaml
@@ -44,8 +49,14 @@ from ..vars.common_vars import (
     TELEMETRY_NAMESPACE,
     POWERSCALE_SECRET_NAME,
     POWERSCALE_CSI_EXPORTER_METRICS,
+    POWERSCALE_KARAVI_METRICS,
     SVC_VLAGENT,
 )
+
+POWERSCALE_CSI_EVENT_CONDITIONED_METRICS = {
+    "powerscale_volume_abnormal_events_total": "VolumeConditionAbnormal",
+    "powerscale_node_failure_events_total": "NodeFailure",
+}
 from .telemetry_func import (
     load_telemetry_config_from_target,
     run_on_kube_vip,
@@ -53,6 +64,7 @@ from .telemetry_func import (
     query_vm_metric_names,
     query_vm_instant,
     get_vlselect_endpoint,
+    get_vmselect_endpoint,
 )
 from .k8s_func import get_service
 
@@ -186,6 +198,59 @@ def verify_powerscale_metrics(host, expected_metrics):
     }
 
 
+def query_powerscale_vm_samples(host, start_epoch, end_epoch):
+    """Count PowerScale-owned metric samples in an exact time window."""
+    vmselect_ip, vmselect_port = get_vmselect_endpoint(host)
+    if not vmselect_ip or not vmselect_port:
+        return {
+            "success": False,
+            "sample_count": 0,
+            "metric_counts": {},
+            "error": "vmselect endpoint not found",
+        }
+
+    names = sorted(set(
+        POWERSCALE_KARAVI_METRICS + POWERSCALE_CSI_EXPORTER_METRICS
+    ))
+    selector = '{__name__=~"' + "|".join(names) + '"}'
+    command = (
+        f"curl -kfsS --max-time 30 -G "
+        f"'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/export' "
+        f"--data-urlencode 'match[]={selector}' "
+        f"--data-urlencode 'start={float(start_epoch)}' "
+        f"--data-urlencode 'end={float(end_epoch)}'"
+    )
+    result = run_on_kube_vip(host, command)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "sample_count": 0,
+            "metric_counts": {},
+            "error": result.stderr.strip() or "VictoriaMetrics export failed",
+        }
+
+    metric_counts = {}
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        metric = item.get("metric", {}).get("__name__", "")
+        count = len(item.get("timestamps", []))
+        if metric and count:
+            metric_counts[metric] = metric_counts.get(metric, 0) + count
+
+    return {
+        "success": True,
+        "sample_count": sum(metric_counts.values()),
+        "metric_counts": metric_counts,
+        "error": "",
+    }
+
+
 # -------------------------------------------------------------------------
 # PowerScale — VictoriaLogs
 # -------------------------------------------------------------------------
@@ -226,6 +291,90 @@ def verify_powerscale_logs(host, hostname_pattern):
             sample = lines[0][:120]
 
     return {"success": count > 0, "count": count, "sample_log": sample}
+
+
+def trigger_powerscale_test_event(host, cluster, marker):
+    """Ask OneFS to create one uniquely identifiable test event."""
+    if not re.fullmatch(r"[a-z0-9-]{1,96}", marker):
+        return {"success": False, "error": "Invalid PowerScale test marker"}
+
+    endpoint = str(cluster.get("endpoint", "")).strip()
+    user = str(cluster.get("username", "")).strip()
+    pwd = str(cluster.get("password", ""))  # gitleaks:allow
+    if not endpoint or not user:
+        return {"success": False, "error": "PowerScale endpoint or user missing"}
+    try:
+        parsed = urlsplit(endpoint if "://" in endpoint else f"//{endpoint}")
+        target = parsed.hostname or endpoint
+    except ValueError:
+        target = endpoint
+
+    command = f"isi event test create {marker}"
+    triggered_at = time.time()
+    try:
+        result = run_ssh_command(
+            host, target=target, user=user, command=command,
+        )
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+    if result.rc != 0 and pwd:
+        result = run_on_host(
+            host,
+            CMDS["powerscale_get_privileges_password"],
+            pwd,
+            f"{user}@{target}",
+            command,
+        )
+    return {
+        "success": result.rc == 0,
+        "triggered_at": triggered_at,
+        "marker": marker,
+        "error": result.stderr.strip() if result.rc != 0 else "",
+    }
+
+
+def query_powerscale_test_event(host, marker, start_epoch):
+    """Return uniquely marked PowerScale events received after the trigger."""
+    if not re.fullmatch(r"[a-z0-9-]{1,96}", marker):
+        return {"success": False, "count": 0, "error": "Invalid marker"}
+    vlselect_ip, vlselect_port = get_vlselect_endpoint(host)
+    if not vlselect_ip or not vlselect_port:
+        return {
+            "success": False,
+            "count": 0,
+            "error": "vlselect endpoint not found",
+        }
+
+    query_start = datetime.fromtimestamp(
+        float(start_epoch) - 2, tz=timezone.utc,
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    command = CMDS["vast_vl_query_logs"].format(
+        vlselect_ip=vlselect_ip,
+        vlselect_port=vlselect_port,
+        query=urllib.parse.quote(f"_msg:{marker}", safe=""),
+        limit=100,
+        start=urllib.parse.quote(query_start, safe=""),
+        timeout=30,
+    )
+    result = run_on_kube_vip(host, command)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "count": 0,
+            "error": result.stderr.strip() or "VictoriaLogs query failed",
+        }
+
+    count = 0
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if marker in json.dumps(entry, sort_keys=True):
+            count += 1
+    return {"success": True, "count": count, "error": ""}
 
 
 # -------------------------------------------------------------------------
@@ -486,18 +635,23 @@ def verify_feature_flags(host):
         dict with keys: success, flags, details, error.
     """
     config = load_telemetry_config_from_target(host)
-    ps_config = config.get("powerscale_configurations", {})
+    
+    # Read metrics and logs from telemetry_sources.powerscale
+    ps_config = config.get("telemetry_sources", {}).get("powerscale", {})
+    
+    # Read csm_observability_values_file_path from powerscale_configurations
+    ps_config_legacy = config.get("powerscale_configurations", {})
 
     flags = {
         "metrics_enabled": ps_config.get("metrics_enabled", False),
         "logs_enabled": ps_config.get("logs_enabled", False),
-        "csm_observability_values_file_path": bool(ps_config.get("csm_observability_values_file_path", "")),
+        "csm_observability_values_file_path": ps_config_legacy.get("csm_observability_values_file_path", ""),
     }
 
     details = [
         f"metrics_enabled: {flags['metrics_enabled']}",
         f"logs_enabled: {flags['logs_enabled']}",
-        f"csm_observability_configured: {flags['csm_observability_values_file_path']}",
+        f"csm_observability_values_file_path: {flags['csm_observability_values_file_path']}",
     ]
 
     return {
@@ -508,32 +662,107 @@ def verify_feature_flags(host):
     }
 
 
+def _k8s_event_exists(host, reason):
+    """Check if any Kubernetes event with the given reason exists."""
+    cmd = (
+        f"kubectl get events --all-namespaces "
+        f"--field-selector reason={reason} "
+        f"-o jsonpath='{{.items[*].reason}}'"
+    )
+    result = run_on_kube_vip(host, cmd)
+    if result.rc != 0:
+        return False
+    return reason in result.stdout.strip().split()
+
+
 def verify_health_metrics(host):
     """Verify PowerScale CSI volume exporter health metrics are being collected.
 
+    Distinguishes continuously available state/resource metrics from
+    event-conditioned metrics. Skips verification when the CSI volume exporter
+    is intentionally not deployed because the external-health-monitor
+    prerequisite is unavailable.
+
     Returns:
-        dict with keys: success, metrics_found, missing_metrics, details, error.
+        dict with keys: success, skipped, skip_reason, metrics_found,
+        missing_metrics, details, error.
     """
-    # All CSI Volume Exporter health monitor metrics must be collected
-    # If any of these metrics are missing, the verification fails
-    health_metrics = POWERSCALE_CSI_EXPORTER_METRICS
+    dependency = verify_csi_exporter_skipped_without_health_monitor(host)
+    exporter_deployed = dependency["exporter_deployed"]
+    health_monitor_available = dependency["health_monitor_available"]
 
-    result = verify_powerscale_metrics(host, health_metrics)
-    details = f"Found {len(result['found'])}/{len(health_metrics)} CSI health metrics"
-
-    # Fail if any metrics are missing - CSI volume exporter must be working
-    if len(result["missing"]) > 0:
+    if not exporter_deployed:
+        if not health_monitor_available:
+            return {
+                "success": True,
+                "skipped": True,
+                "skip_reason": (
+                    "CSI volume exporter not deployed: "
+                    "external-health-monitor-controller is unavailable"
+                ),
+                "metrics_found": [],
+                "missing_metrics": [],
+                "details": (
+                    "CSI volume exporter skipped because "
+                    "external-health-monitor-controller is unavailable"
+                ),
+                "error": "",
+            }
         return {
             "success": False,
-            "metrics_found": result["found"],
-            "missing_metrics": result["missing"],
-            "details": f"CSI health metrics verification failed. Missing: {result['missing']}",
-            "error": f"CSI volume exporter not collecting required metrics: {result['missing']}",
+            "skipped": False,
+            "skip_reason": "",
+            "metrics_found": [],
+            "missing_metrics": [],
+            "details": (
+                "CSI volume exporter not deployed but "
+                "external-health-monitor-controller is available"
+            ),
+            "error": (
+                "CSI volume exporter expected but not found; "
+                "health monitor is available"
+            ),
+        }
+
+    stable_metrics = [
+        m
+        for m in POWERSCALE_CSI_EXPORTER_METRICS
+        if m not in POWERSCALE_CSI_EVENT_CONDITIONED_METRICS
+    ]
+    stable_result = verify_powerscale_metrics(host, stable_metrics)
+    all_found = list(stable_result["found"])
+    all_missing = list(stable_result["missing"])
+
+    required_event_metrics = [
+        metric
+        for metric, reason in POWERSCALE_CSI_EVENT_CONDITIONED_METRICS.items()
+        if _k8s_event_exists(host, reason)
+    ]
+
+    if required_event_metrics:
+        event_result = verify_powerscale_metrics(host, required_event_metrics)
+        all_found.extend(event_result["found"])
+        all_missing.extend(event_result["missing"])
+
+    total_expected = len(stable_metrics) + len(required_event_metrics)
+    details = f"Found {len(all_found)}/{total_expected} CSI health metrics"
+
+    if all_missing:
+        return {
+            "success": False,
+            "skipped": False,
+            "skip_reason": "",
+            "metrics_found": all_found,
+            "missing_metrics": all_missing,
+            "details": f"CSI health metrics verification failed. Missing: {all_missing}",
+            "error": f"CSI volume exporter not collecting required metrics: {all_missing}",
         }
 
     return {
         "success": True,
-        "metrics_found": result["found"],
+        "skipped": False,
+        "skip_reason": "",
+        "metrics_found": all_found,
         "missing_metrics": [],
         "details": details,
         "error": "",
@@ -601,8 +830,8 @@ def verify_scrape_interval(host):
         dict with keys: success, interval, details, error.
     """
     config = load_telemetry_config_from_target(host)
-    ps_config = config.get("powerscale_configurations", {})
-    interval_str = ps_config.get("scrape_interval", "30s")
+    ps_config_legacy = config.get("powerscale_configurations", {})
+    interval_str = ps_config_legacy.get("scrape_interval", "30s")
 
     # Parse interval (e.g., "30s" -> 30)
     import re
@@ -632,8 +861,8 @@ def verify_csi_authorization_mode(host):
     """
     # Read Helm values to determine auth mode
     config = load_telemetry_config_from_target(host)
-    ps_config = config.get("powerscale_configurations", {})
-    values_path = ps_config.get("csm_observability_values_file_path", "")
+    ps_config_legacy = config.get("powerscale_configurations", {})
+    values_path = ps_config_legacy.get("csm_observability_values_file_path", "")
 
     if not values_path:
         return {

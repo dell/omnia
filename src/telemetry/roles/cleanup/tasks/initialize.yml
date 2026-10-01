@@ -16,15 +16,13 @@
 - name: Derive cleanup scope from run tags
   ansible.builtin.set_fact:
     _cleanup_all: "{{ 'cleanup' in ansible_run_tags }}"
+    _cleanup_sinks: "{{ 'cleanup_sinks' in ansible_run_tags }}"
     _cleanup_idrac: "{{ 'cleanup_idrac' in ansible_run_tags }}"
     _cleanup_ldms: "{{ 'cleanup_ldms' in ansible_run_tags }}"
     _cleanup_ome: "{{ 'cleanup_ome' in ansible_run_tags }}"
     _cleanup_powerscale: "{{ 'cleanup_powerscale' in ansible_run_tags }}"
     _cleanup_ufm: "{{ 'cleanup_ufm' in ansible_run_tags }}"
     _cleanup_vast: "{{ 'cleanup_vast' in ansible_run_tags }}"
-    _cleanup_kafka: "{{ 'cleanup_kafka' in ansible_run_tags }}"
-    _cleanup_victoria_metrics: "{{ 'cleanup_victoria_metrics' in ansible_run_tags }}"
-    _cleanup_victoria_logs: "{{ 'cleanup_victoria_logs' in ansible_run_tags }}"
     cacheable: true
 
 - name: Initialize cleanup state
@@ -68,6 +66,75 @@
     _cleanup_preserve_logs: >-
       {{ not (cleanup_logs | default(true) | bool) }}
 
+- name: Normalize sinks variable for cleanup_sinks
+  ansible.builtin.set_fact:
+    _cleanup_sinks_requested: >-
+      {%- set _raw = Sinks | default(sinks | default('')) -%}
+      {%- if _raw is string and _raw | trim | length > 0 -%}
+        {%- set _trimmed = _raw | trim -%}
+        {%- if _trimmed | first == '[' -%}
+          {{ _trimmed | from_yaml }}
+        {%- else -%}
+          {{ _trimmed.split(',') | map('trim') | select | list }}
+        {%- endif -%}
+      {%- elif _raw is iterable and _raw is not string and _raw | list | length > 0 -%}
+        {{ _raw | list }}
+      {%- else -%}
+        {#- Short-form: detect -e kafka / -e victoria_metrics / -e victoria_logs     -#}
+        {#- When Ansible receives "-e kafka", it overrides the default null value     -#}
+        {#- to true. We detect CLI values by checking if the variable is NOT null    -#}
+        {#- and NOT a mapping (dict). This allows -e kafka to work correctly.        -#}
+        {%- set _short = [] -%}
+        {%- if kafka is not none and kafka is not mapping -%}
+          {%- set _ = _short.append('kafka') -%}
+        {%- endif -%}
+        {%- if Kafka is not none and Kafka is not mapping -%}
+          {%- set _ = _short.append('kafka') -%}
+        {%- endif -%}
+        {%- if victoria_metrics is not none and victoria_metrics is not mapping -%}
+          {%- set _ = _short.append('victoria_metrics') -%}
+        {%- endif -%}
+        {%- if Victoria_metrics is not none and Victoria_metrics is not mapping -%}
+          {%- set _ = _short.append('victoria_metrics') -%}
+        {%- endif -%}
+        {%- if victoria_logs is not none and victoria_logs is not mapping -%}
+          {%- set _ = _short.append('victoria_logs') -%}
+        {%- endif -%}
+        {%- if Victoria_logs is not none and Victoria_logs is not mapping -%}
+          {%- set _ = _short.append('victoria_logs') -%}
+        {%- endif -%}
+        {%- if _short | unique | list | length > 0 -%}
+          {{ _short | unique | list }}
+        {%- else -%}
+          {{ _cleanup_sinks_default }}
+        {%- endif -%}
+      {%- endif -%}
+  when: _cleanup_sinks | bool
+
+- name: Set empty sinks list when not cleanup_sinks
+  ansible.builtin.set_fact:
+    _cleanup_sinks_requested: []
+  when: not (_cleanup_sinks | bool)
+
+- name: Validate requested sink names
+  ansible.builtin.assert:
+    that:
+      - _cleanup_sinks_requested | length > 0
+    fail_msg: "{{ cleanup_sinks_empty_msg }}"
+  when: _cleanup_sinks | bool
+
+- name: Reject invalid sink names
+  vars:
+    _invalid_sinks: >-
+      {{ _cleanup_sinks_requested | difference(_cleanup_sinks_valid_names) }}
+  ansible.builtin.assert:
+    that:
+      - _invalid_sinks | length == 0
+    fail_msg: >-
+      {{ cleanup_sinks_invalid_name_msg
+         | replace('{invalid}', _invalid_sinks | join(', ')) }}
+  when: _cleanup_sinks | bool
+
 - name: Validate persistent volume cleanup option
   vars:
     _cleanup_boolean_values:
@@ -100,11 +167,12 @@
       - delete_sinks_volumes is not defined
     fail_msg: "{{ cleanup_invalid_sink_volume_option_msg }}"
 
-- name: Reject sink volume option for granular cleanup
+- name: Reject sink volume option for source-only granular cleanup
   ansible.builtin.assert:
     that:
       - >-
         (_cleanup_all | bool)
+        or (_cleanup_sinks | bool)
         or (
           Delete_sinks_volume is not defined
           and delete_sinks_volume is not defined

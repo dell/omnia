@@ -384,14 +384,14 @@ mode) — so 14 run when `DELETE_SINKS_VOLUME=true`, 13 run otherwise.
 |------|-----|--------|
 | Performance | 4 | nft + performance |
 | Idempotency | 7 | nft + idempotency |
-| Resilience | 9 | nft + resilience |
-| **NFT Total** | **20** | |
+| Resilience | 10 | nft + resilience |
+| **NFT Total** | **21** | |
 
 NFT cleanup tests run in two phases: Phase 1 (without volume deletion,
 PVCs preserved) and Phase 2 (with volume deletion, all PVCs deleted).
-All 20 tests execute in a single `./run_validation.sh nft_telemetry test` run.
+All 21 tests execute in a single `./run_validation.sh nft_telemetry test` run.
 
-### Grand Total
+### Grand Total: **134 reportable IDs across 131 test functions**
 
 Optional-source configuration determines which source-related cases
 run or skip in a particular environment.

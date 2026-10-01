@@ -34,9 +34,11 @@ Test cases:
     TEL_FVT_DEPLOY_V016: Verify iDRAC VictoriaPump metrics endpoint
     TEL_FVT_DEPLOY_V017: Verify iDRAC telemetry service exists
     TEL_FVT_DEPLOY_V018: Verify iDRAC telemetry data in VictoriaMetrics
+    TEL_FVT_DEPLOY_V019: Verify configured-disabled iDRAC state
 """
 
 from datetime import datetime
+import time
 
 import pytest
 
@@ -55,11 +57,13 @@ from library.messages.telemetry_msgs import (
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
 from library.functions.k8s_func import (
+    verify_enabled_shared_sinks,
     verify_sts_ready,
     verify_pod_containers,
     verify_kafka_topic_ready,
-    verify_services_exist,
     verify_pods_by_prefix,
+    verify_services_exist,
+    verify_workloads_stopped,
 )
 from library.functions.telemetry_func import (
     is_source_enabled,
@@ -70,6 +74,7 @@ from library.functions.telemetry_func import (
 )
 from library.functions.idrac_func import (
     probe_fresh_idrac_kafka_records,
+    query_idrac_vm_samples,
     verify_idrac_pod_count,
     verify_mysql_data_in_pods,
     verify_receiver_collecting,
@@ -625,3 +630,98 @@ def test_idrac_vm_data(host):
     assert result["success"], ASSERT_MSGS["idrac_vm_data_missing"].format(
         missing=result["missing_tags"],
     )
+
+
+# =========================================================================
+# TEL_FVT_DEPLOY_V019: Verify configured-disabled iDRAC state
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.sanity
+@pytest.mark.order(49)
+def test_idrac_disabled_state(host):
+    """Verify disabled iDRAC owns no active pods and leaves shared sinks healthy."""
+    if is_source_enabled(host, "idrac"):
+        pytest.skip("iDRAC source is enabled; disabled-state check is not applicable")
+
+    tc = TC["idrac_disabled_state"]
+    tl = TestLogger(tc["title"], tc["id"])
+    tl.check("Verifying the configured-disabled iDRAC reconciliation state")
+
+    stopped = verify_workloads_stopped(host, [{
+        "kind": "statefulset",
+        "name": IDRAC_STS_NAME,
+        "selector": f"app={IDRAC_STS_NAME}",
+    }])
+    shared = verify_enabled_shared_sinks(host)
+
+    quiet_started = time.time()
+    kafka_quiet = probe_fresh_idrac_kafka_records(
+        host, timeout_seconds=20,
+    )
+    quiet_ended = time.time()
+    vm_quiet = query_idrac_vm_samples(host, quiet_started, quiet_ended)
+    kafka_error = kafka_quiet.get("error", "")
+    kafka_data_stopped = (
+        not kafka_quiet.get("records")
+        and (
+            not kafka_error
+            or kafka_error == "Kafka Bridge endpoint not found"
+        )
+    )
+    vm_data_stopped = (
+        vm_quiet["success"] and vm_quiet["sample_count"] == 0
+    ) or vm_quiet.get("error") == "vmselect endpoint not found"
+
+    state = stopped["workloads"][0]
+    details = "\n".join([
+        "Configured state: metrics_enabled=false",
+        (
+            f"iDRAC StatefulSet: {'retained' if state['exists'] else 'absent'}, "
+            f"desired={state['replicas']}, active={state['active_replicas']}, "
+            f"pods={len(state['pods'])}"
+        ),
+        (
+            f"Kafka quiet window ({quiet_ended - quiet_started:.1f}s): "
+            f"new_records={len(kafka_quiet.get('records', []))}"
+        ),
+        (
+            "VictoriaMetrics quiet window: "
+            f"new_samples={vm_quiet.get('sample_count', 0)}"
+        ),
+        *[
+            f"Shared {name}: {result['details']}"
+            for name, result in shared["sinks"].items()
+        ],
+    ])
+    success = (
+        stopped["success"]
+        and shared["success"]
+        and kafka_data_stopped
+        and vm_data_stopped
+    )
+
+    if success:
+        tl.passed("iDRAC disabled state is correctly reconciled", details)
+    else:
+        data_errors = []
+        if not kafka_data_stopped:
+            data_errors.append(
+                kafka_error or "fresh iDRAC Kafka records arrived while disabled"
+            )
+        if not vm_data_stopped:
+            data_errors.append(
+                vm_quiet.get("error")
+                or "fresh iDRAC VictoriaMetrics samples arrived while disabled"
+            )
+        tl.failed(
+            "iDRAC disabled-state reconciliation is incorrect",
+            "\n".join(filter(None, [
+                details, stopped["error"], shared["error"], *data_errors,
+            ])),
+        )
+
+    assert success, "; ".join(filter(None, [
+        stopped["error"], shared["error"],
+        *(data_errors if not success else []),
+    ]))

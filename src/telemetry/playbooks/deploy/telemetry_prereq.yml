@@ -28,6 +28,14 @@
         tasks_from: load_telemetry_config
       when: telemetry_config is not defined
 
+    # The validation play is not selected by an explicit --tags deploy run.
+    # Keep dependency checks in Phase 0 so invalid bridge/source pairs fail
+    # before Phase 1 can reconcile shared sink infrastructure.
+    - name: Validate OME source-to-bridge dependencies
+      ansible.builtin.include_role:
+        name: deploy_ome
+        tasks_from: validate_dependencies
+
     - name: Derive sink support flags
       ansible.builtin.include_role:
         name: common

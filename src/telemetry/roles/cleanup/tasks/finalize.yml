@@ -133,12 +133,12 @@
         _pvc_status_display: >-
           {{ _cleanup_volume_status | default('preserved') }}
         _sink_volume_status_display: >-
-          {% if not (_cleanup_all | default(false) | bool) %}
-          SKIPPED - granular cleanup does not select shared sinks
-          {% elif _cleanup_delete_sinks_volume | default(false) | bool %}
-          deleted
+          {% if _cleanup_all | default(false) | bool %}
+          {% if _cleanup_delete_sinks_volume | default(false) | bool %}deleted{% else %}preserved{% endif %}
+          {% elif _cleanup_sinks | default(false) | bool %}
+          selective — see sink cleanup summary
           {% else %}
-          preserved
+          SKIPPED - granular source cleanup does not select shared sinks
           {% endif %}
         _credentials_status_display: >-
           {% if not (_cleanup_all | default(false) | bool) %}
@@ -189,21 +189,88 @@
         - _kube_hostvars.remaining_pvcs is defined
         - _kube_hostvars.remaining_svcs is defined
 
-    - name: Explain shared sink volume preservation for granular cleanup
+    - name: Explain shared sink volume preservation for source-only granular cleanup
       ansible.builtin.debug:
         msg:
           - "Shared sink volume cleanup: SKIPPED"
           - >-
             Reason: {{ ansible_run_tags | reject('equalto', 'always') | join(', ') }}
-            is a granular component cleanup and does not select the shared Kafka,
+            is a granular source cleanup and does not select the shared Kafka,
             VictoriaMetrics, or VictoriaLogs sinks. These sinks may still be used
             by other telemetry sources.
+          - >-
+            To selectively clean sinks, run:
+            ./omnia.sh --run telemetry --tags cleanup_sinks -e sinks=kafka,victoria_metrics,victoria_logs
+            or: ./omnia.sh --run telemetry --tags cleanup_sinks -e kafka -e victoria_metrics -e victoria_logs
           - >-
             To remove all telemetry components and shared sink volumes, run:
             ./omnia.sh --run telemetry --tags cleanup -e Delete_sinks_volume=true
       when:
         - not (_cleanup_all | default(false) | bool)
+        - not (_cleanup_sinks | default(false) | bool)
         - _cleanup_status != 'failed'
+
+    - name: Display selective sink cleanup summary
+      vars:
+        _requested_sinks: "{{ _cleanup_sinks_requested | default([]) }}"
+        _any_blocked: "{{ _cleanup_sinks_any_blocked | default(false) | bool }}"
+        _blocked_sinks: >-
+          {{
+            ([]
+             + (['kafka'] if (_kafka_cleanup_blocked | default(false) | bool) else [])
+             + (['victoria_metrics'] if (_vm_cleanup_blocked | default(false) | bool) else [])
+             + (['victoria_logs'] if (_vl_cleanup_blocked | default(false) | bool) else [])
+            )
+          }}
+        _cleaned_sinks: >-
+          {{ [] if _any_blocked else (_requested_sinks | difference(_blocked_sinks)) }}
+        _dep_failed: "{{ _sink_dependency_check_failed | default(false) | bool }}"
+      ansible.builtin.debug:
+        msg:
+          - "======================================================"
+          - "Selective Sink Cleanup Summary"
+          - "======================================================"
+          - "Requested sinks: {{ _requested_sinks | join(', ') }}"
+          - "Cleaned:  {{ _cleaned_sinks | join(', ') | default('none', true) }}"
+          - "Blocked:  {{ _blocked_sinks | join(', ') | default('none', true) }}"
+          - >-
+            {% if _any_blocked | bool %}Result: BLOCKED — no sinks were cleaned because
+            one or more requested sinks have running dependent sources.{% endif %}
+          - "{% if _dep_failed | bool %}Dependency check: FAILED — all sinks preserved{% endif %}"
+          - "{% if _kafka_cleanup_blocked | default(false) | bool %}Kafka blocked by: {{ _kafka_blocking_sources | default([]) | join(', ') }}{% endif %}"
+          - "{% if _vm_cleanup_blocked | default(false) | bool %}VictoriaMetrics blocked by: {{ _vm_blocking_sources | default([]) | join(', ') }}{% endif %}"
+          - "{% if _vl_cleanup_blocked | default(false) | bool %}VictoriaLogs blocked by: {{ _vl_blocking_sources | default([]) | join(', ') }}{% endif %}"
+          - >-
+            Volume option: {{ 'not applicable (blocked)' if _any_blocked
+            else ('deleted' if (_cleanup_delete_sinks_volume | default(false) | bool) else 'preserved') }}
+          - "======================================================"
+      when:
+        - _cleanup_sinks | default(false) | bool
+        - not (_cleanup_all | default(false) | bool)
+
+    - name: Fail selective sink cleanup — blocked by running sources
+      vars:
+        _blocked_sinks: >-
+          {{
+            ([]
+             + (['kafka'] if (_kafka_cleanup_blocked | default(false) | bool) else [])
+             + (['victoria_metrics'] if (_vm_cleanup_blocked | default(false) | bool) else [])
+             + (['victoria_logs'] if (_vl_cleanup_blocked | default(false) | bool) else [])
+            )
+          }}
+      ansible.builtin.fail:
+        msg: >-
+          Sink cleanup aborted — {{ _blocked_sinks | join(', ') }} blocked by
+          running dependent sources.
+          {% if _kafka_cleanup_blocked | default(false) | bool %}Kafka blocked by: {{ _kafka_blocking_sources | default([]) | join(', ') }}. {% endif %}
+          {% if _vm_cleanup_blocked | default(false) | bool %}VictoriaMetrics blocked by: {{ _vm_blocking_sources | default([]) | join(', ') }}. {% endif %}
+          {% if _vl_cleanup_blocked | default(false) | bool %}VictoriaLogs blocked by: {{ _vl_blocking_sources | default([]) | join(', ') }}. {% endif %}
+          Stop or clean up the listed source(s) before retrying.
+          Status was written to {{ _output_base }}/telemetry_status.yml.
+      when:
+        - _cleanup_sinks | default(false) | bool
+        - not (_cleanup_all | default(false) | bool)
+        - _cleanup_sinks_any_blocked | default(false) | bool
 
     - name: Fail telemetry cleanup after status is written
       vars:
