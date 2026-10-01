@@ -161,9 +161,9 @@ def check_minimal_os_ldms_packages(host):
                     missing.append(package)
             binary_cmd = remote_command(
                 host, row,
-                PXEBOOT_COMMANDS["minimal_os_binary_check"] % "ldmsd",
+                PXEBOOT_COMMANDS["minimal_os_binary_check"],
             )
-            binary_ok = binary_cmd.rc == 0 and binary_cmd.stdout.strip()
+            binary_ok = binary_cmd.rc == 0
             key = row["HOSTNAME"]
             if missing:
                 outcomes[key] = (False, f"missing: {', '.join(missing)}")
@@ -249,13 +249,24 @@ def check_minimal_os_ldms_service_state(host):
                 PXEBOOT_COMMANDS["node_services"] % "ldmsd",
             )
             key = row["HOSTNAME"]
-            output = cmd.stdout.strip()
-            if "inactive" in output or "dead" in output or cmd.rc != 0:
+            output = cmd.stdout.strip().lower()
+            if cmd.rc > 4:
+                # rc > 4 indicates transport/SSH failure, not systemctl state
+                outcomes[key] = (
+                    False,
+                    f"SSH or command failure (rc={cmd.rc})",
+                )
+            elif output in ("inactive", "dead", "unknown") or cmd.rc == 3:
                 outcomes[key] = (True, "ldmsd inactive (expected)")
+            elif output == "active":
+                outcomes[key] = (
+                    False,
+                    "ldmsd is active (should be inactive at handoff)",
+                )
             else:
                 outcomes[key] = (
                     False,
-                    f"ldmsd is active (should be inactive at handoff)",
+                    f"unexpected state: {output} (rc={cmd.rc})",
                 )
 
         failed = [k for k, v in outcomes.items() if not v[0]]
@@ -285,15 +296,25 @@ def check_minimal_os_excluded_packages(host):
         outcomes = {}
         for row in rows:
             found = []
+            ssh_failed = False
             for pattern, label in EXCLUDED_PACKAGE_PATTERNS.items():
                 cmd = remote_command(
                     host, row,
                     PXEBOOT_COMMANDS["minimal_os_rpm_query_grep"] % pattern,
                 )
+                if cmd.rc > 1:
+                    # rc > 1 indicates SSH/transport failure, not grep result
+                    ssh_failed = True
+                    break
                 if cmd.rc == 0 and cmd.stdout.strip():
                     found.append(label)
             key = row["HOSTNAME"]
-            if found:
+            if ssh_failed:
+                outcomes[key] = (
+                    False,
+                    f"SSH or command failure (rc={cmd.rc})",
+                )
+            elif found:
                 outcomes[key] = (
                     False,
                     f"found: {', '.join(found)}",
@@ -330,15 +351,25 @@ def check_minimal_os_excluded_services(host):
         outcomes = {}
         for row in rows:
             active = []
+            ssh_failed = False
             for service in EXCLUDED_SERVICES:
                 cmd = remote_command(
                     host, row,
                     PXEBOOT_COMMANDS["node_services"] % service,
                 )
-                if cmd.rc == 0 and "active" in cmd.stdout.strip():
+                if cmd.rc > 4:
+                    # rc > 4 indicates SSH/transport failure
+                    ssh_failed = True
+                    break
+                if cmd.rc == 0 and cmd.stdout.strip().lower() == "active":
                     active.append(service)
             key = row["HOSTNAME"]
-            if active:
+            if ssh_failed:
+                outcomes[key] = (
+                    False,
+                    f"SSH or command failure (rc={cmd.rc})",
+                )
+            elif active:
                 outcomes[key] = (
                     False,
                     f"active: {', '.join(active)}",

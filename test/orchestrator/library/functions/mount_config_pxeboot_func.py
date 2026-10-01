@@ -26,6 +26,7 @@ import re
 from typing import Any
 
 from ..vars.pxeboot_vars import (
+    OMNIA_CONFIG,
     PXEBOOT_COMMANDS,
     STORAGE_CONFIG,
 )
@@ -57,14 +58,63 @@ def _load_storage_config(host) -> dict[str, Any]:
     return read_yaml_mapping(host, path)
 
 
-def _nfs_mounts(storage_config: dict[str, Any]) -> list[dict[str, Any]]:
-    """Return only NFS-type mount entries (exclude powervault_config)."""
+def _effective_mounts(
+    host,
+    storage_config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return the production-equivalent effective mount set.
+
+    Replicates the filtering logic from ``mount_config/tasks/main.yml``:
+    1. Select entries from ``mounts:`` that have a ``source`` (excludes
+       powervault_config and malformed entries).
+    2. Load ``omnia_config.yml`` and resolve ``vast_storage_name``.
+    3. Identify entries named ``vast_storage`` and exclude them when the
+       configured ``vast_storage_name`` does not reference them.
+    """
     mounts = storage_config.get("mounts")
     if not isinstance(mounts, list):
         return []
+    all_mounts = [
+        m for m in mounts
+        if isinstance(m, dict) and m.get("source")
+    ]
+
+    # Resolve configured VAST storage name from omnia_config.yml
+    input_dir = resolve_target_input_project_path(host)
+    omnia_path = os.path.join(input_dir, OMNIA_CONFIG)
+    try:
+        omnia_config = read_yaml_mapping(host, omnia_path)
+    except (OSError, ValueError, TypeError):
+        omnia_config = {}
+
+    slurm_clusters = omnia_config.get("slurm_cluster")
+    if isinstance(slurm_clusters, list) and slurm_clusters:
+        active_cluster = slurm_clusters[0] if slurm_clusters else {}
+    else:
+        active_cluster = {}
+    if not isinstance(active_cluster, dict):
+        active_cluster = {}
+
+    configured_vast = str(
+        active_cluster.get("vast_storage_name") or ""
+    ).strip()
+
+    # Identify VAST-managed entries (name == "vast_storage")
+    managed_vast_names = list({
+        m["name"] for m in all_mounts
+        if m.get("name") == "vast_storage"
+    })
+
+    # Disabled VAST entries: managed names not matching the configured one
+    disabled_vast = [
+        name for name in managed_vast_names
+        if name != configured_vast
+    ]
+
+    # Filter out disabled VAST entries
     return [
-        mount for mount in mounts
-        if isinstance(mount, dict) and mount.get("source")
+        m for m in all_mounts
+        if m.get("name") not in disabled_vast
     ]
 
 
@@ -102,12 +152,27 @@ def _target_rows(
     context: dict[str, Any],
     mount_item: dict[str, Any],
 ) -> list[dict[str, str]]:
-    """Select mapping rows targeted by this mount entry."""
+    """Select mapping rows targeted by this mount entry.
+
+    Supports both ``functional_group_prefix`` (FG name prefix match) and
+    ``groups`` (exact PXE GROUP_NAME match).  The two are mutually exclusive
+    in ``storage_config.yml``.  When neither is present the mount is assumed
+    to target every mapped node.
+    """
     prefixes = mount_item.get("functional_group_prefix")
-    if not isinstance(prefixes, list) or not prefixes:
-        return context["rows"]
-    prefix_tuple = tuple(str(p) for p in prefixes)
-    return rows_matching(context, prefix_tuple)
+    if isinstance(prefixes, list) and prefixes:
+        prefix_tuple = tuple(str(p) for p in prefixes)
+        return rows_matching(context, prefix_tuple)
+
+    groups = mount_item.get("groups")
+    if isinstance(groups, list) and groups:
+        group_set = {str(g) for g in groups}
+        return [
+            row for row in context["rows"]
+            if row.get("GROUP_NAME", "") in group_set
+        ]
+
+    return context["rows"]
 
 
 def _non_target_rows(
@@ -115,15 +180,23 @@ def _non_target_rows(
     mount_item: dict[str, Any],
 ) -> list[dict[str, str]]:
     """Select mapping rows NOT targeted by this mount entry."""
+    targeted = _target_rows(context, mount_item)
+    targeted_hosts = {row["HOSTNAME"] for row in targeted}
+
+    # When neither prefix nor groups is set, all nodes are targeted
     prefixes = mount_item.get("functional_group_prefix")
-    if not isinstance(prefixes, list) or not prefixes:
+    groups = mount_item.get("groups")
+    has_targeting = (
+        (isinstance(prefixes, list) and bool(prefixes))
+        or (isinstance(groups, list) and bool(groups))
+    )
+    if not has_targeting:
         return []
-    targeted = set()
-    for row in context["rows"]:
-        fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
-        if any(fg.startswith(str(p)) for p in prefixes):
-            targeted.add(row["HOSTNAME"])
-    return [row for row in context["rows"] if row["HOSTNAME"] not in targeted]
+
+    return [
+        row for row in context["rows"]
+        if row["HOSTNAME"] not in targeted_hosts
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +210,7 @@ def check_mount_config_mount_point(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -179,7 +252,7 @@ def check_mount_config_volume_mounted(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -223,7 +296,7 @@ def check_mount_config_mount_options(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         mount_params = storage_config.get("mount_params", {})
         if not isinstance(mount_params, dict):
             mount_params = {}
@@ -288,7 +361,7 @@ def check_mount_config_fstab(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -340,7 +413,7 @@ def check_mount_config_bind_mounts(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -393,7 +466,7 @@ def check_mount_config_bind_fstab(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -451,7 +524,7 @@ def check_mount_config_node_subdirectory(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -512,7 +585,7 @@ def check_mount_config_permissions(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -581,7 +654,7 @@ def check_mount_config_fg_targeting(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -648,7 +721,7 @@ def check_mount_config_no_duplicate_fstab(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -700,7 +773,7 @@ def check_mount_config_writable(host):
     try:
         context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -716,7 +789,8 @@ def check_mount_config_writable(host):
                     PXEBOOT_COMMANDS["mount_config_write_test"] % mount_point,
                 )
                 key = f"{row['HOSTNAME']}:{mount_point}"
-                if cmd.rc == 0:
+                output = cmd.stdout.strip().upper()
+                if output == "WRITABLE":
                     outcomes[key] = (True, "writable")
                 else:
                     outcomes[key] = (False, "not writable")
@@ -741,7 +815,7 @@ def check_mount_config_oim_mount(host):
     summary = "OIM NFS mount"
     try:
         storage_config = _load_storage_config(host)
-        mounts = _nfs_mounts(storage_config)
+        mounts = _effective_mounts(host, storage_config)
         if not mounts:
             return _skip(summary, "No NFS mounts configured in storage_config.yml")
 
@@ -771,13 +845,30 @@ def check_mount_config_oim_mount(host):
                     f"findmnt -rn -o SOURCE {mount_point}",
                 )
                 actual_source = src_cmd.stdout.strip()
-                if actual_source == source:
+                if not actual_source:
+                    outcomes[key] = (
+                        False,
+                        "mounted but findmnt returned no source",
+                    )
+                elif actual_source == source:
                     outcomes[key] = (True, f"mounted from {actual_source}")
                 else:
-                    outcomes[key] = (
-                        True,
-                        f"mounted (source={actual_source})",
-                    )
+                    # NFS4 may resolve to a subpath or different export format;
+                    # check if configured source is a prefix of the actual.
+                    # e.g. config "10.0.0.1:/export" vs actual "10.0.0.1:/export"
+                    # Accept if the server IP/hostname and root path match.
+                    cfg_server = source.split(":")[0] if ":" in source else ""
+                    act_server = actual_source.split(":")[0] if ":" in actual_source else ""
+                    if cfg_server and cfg_server == act_server:
+                        outcomes[key] = (
+                            True,
+                            f"mounted from {actual_source} (server matches config)",
+                        )
+                    else:
+                        outcomes[key] = (
+                            False,
+                            f"source mismatch: expected={source}, actual={actual_source}",
+                        )
             else:
                 outcomes[key] = (False, "not mounted on OIM")
 

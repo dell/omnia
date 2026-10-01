@@ -513,7 +513,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     # minimal_os verification commands
     "minimal_os_rpm_check": "rpm -q %s >/dev/null 2>&1",
-    "minimal_os_binary_check": "command -v %s 2>/dev/null",
+    "minimal_os_binary_check": "test -x /opt/ovis-ldms/sbin/ldmsd || command -v ldmsd 2>/dev/null",
     "minimal_os_rpm_query_grep": "rpm -qa 2>/dev/null | grep -iE '%s'",
     "minimal_os_pkg_mgr_check": (
         "command -v dnf >/dev/null 2>&1 && dnf --version >/dev/null 2>&1 || "
