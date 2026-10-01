@@ -16,8 +16,13 @@
 # =============================================================================
 # deploy_ldms — Enable LDMS telemetry
 # =============================================================================
-# Configures LDMS sampler and aggregator on compute nodes, deploys the
-# Vector-LDMS bridge (Kafka-to-VictoriaMetrics ingestion pipeline).
+# Enables LDMS telemetry by:
+#   1. Detecting existing LDMS deployment (fresh vs re-enable)
+#   2. Configuring LDMS sampler and aggregator
+#   3. Restoring configured replicas for aggregator and store
+#   4. Re-enabling and starting sampler services
+#   5. Restoring Vector-LDMS bridge when enabled
+#   6. Verifying PVC UID preservation on re-enablement
 #
 # LDMS Architecture:
 #   Compute nodes (LDMS sampler) → LDMS aggregator (K8s) → Kafka 'ldms' topic
@@ -43,6 +48,49 @@
     name: common
     tasks_from: derive_sink_support_flags
 
+# =============================================================================
+# Phase 1: Detect existing LDMS deployment
+# =============================================================================
+
+- name: Check if LDMS aggregator StatefulSet exists
+  ansible.builtin.command: >
+    kubectl get statefulset {{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }}
+  register: ldms_aggregator_exists
+  changed_when: false
+  failed_when: false
+
+- name: Check if LDMS Helm release exists
+  ansible.builtin.command: >
+    helm status {{ ldms_aggregator_name }} -n {{ telemetry_namespace }}
+  register: ldms_helm_exists
+  changed_when: false
+  failed_when: false
+
+- name: Check for existing LDMS PVCs
+  ansible.builtin.command: >
+    kubectl get pvc -n {{ telemetry_namespace }}
+    -l app={{ ldms_aggregator_name }}
+    -o jsonpath='{.items[*].metadata.uid}'
+  register: ldms_existing_pvcs
+  changed_when: false
+  failed_when: false
+
+- name: Set LDMS deployment mode
+  ansible.builtin.set_fact:
+    ldms_is_reenable: "{{ ldms_helm_exists.rc == 0 or ldms_existing_pvcs.stdout | default('') | length > 0 }}"
+    ldms_existing_pvc_uids: "{{ ldms_existing_pvcs.stdout | default('') | split() }}"
+
+- name: Log LDMS deployment mode
+  ansible.builtin.debug:
+    msg: |
+      LDMS deployment mode: {{ 'RE-ENABLE (existing deployment detected)' if ldms_is_reenable else 'FRESH INSTALL' }}
+      Existing PVCs: {{ ldms_existing_pvc_uids | length }}
+
+# =============================================================================
+# Phase 2: Configure LDMS components
+# =============================================================================
+
 - name: Configure LDMS sampler
   ansible.builtin.include_tasks: configure_ldms_sampler.yml
   when: not (skip_sampler_config | default(false) | bool)
@@ -51,17 +99,227 @@
   ansible.builtin.include_tasks: configure_ldms_aggregator.yml
   when: not (skip_aggregator_config | default(false) | bool)
 
+# =============================================================================
+# Phase 3: Restore LDMS aggregator and store replicas
+# =============================================================================
+
+- name: Get configured LDMS aggregator replica count from Helm values
+  ansible.builtin.command: >
+    helm get values {{ ldms_aggregator_name }} -n {{ telemetry_namespace }} -o json
+  register: ldms_helm_values
+  changed_when: false
+  failed_when: false
+  when:
+    - ldms_is_reenable
+    - ldms_helm_exists.rc == 0
+
+- name: Set LDMS aggregator target replicas (default to 1)
+  ansible.builtin.set_fact:
+    ldms_aggregator_target_replicas: 1
+
+- name: Get current LDMS aggregator replica count
+  ansible.builtin.command: >
+    kubectl get statefulset {{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }}
+    -o jsonpath='{.spec.replicas}'
+  register: ldms_aggregator_current_replicas
+  changed_when: false
+  failed_when: false
+  when:
+    - ldms_is_reenable
+    - ldms_aggregator_exists.rc == 0
+
+- name: Restore LDMS aggregator replicas (re-enable)
+  ansible.builtin.command: >
+    kubectl scale statefulset {{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }}
+    --replicas={{ ldms_aggregator_target_replicas }}
+  register: restore_aggregator_result
+  changed_when: "'scaled' in restore_aggregator_result.stdout"
+  when:
+    - ldms_is_reenable
+    - ldms_aggregator_exists.rc == 0
+    - (ldms_aggregator_current_replicas.stdout | default('0') | int) != (ldms_aggregator_target_replicas | int)
+
+- name: Get all LDMS store StatefulSets
+  ansible.builtin.command: >
+    kubectl get statefulset -n {{ telemetry_namespace }}
+    -l app={{ ldms_store_name }}
+    -o jsonpath='{.items[*].metadata.name}'
+  register: ldms_store_statefulsets
+  changed_when: false
+  failed_when: false
+  when: ldms_is_reenable | bool
+
+- name: Set LDMS store target replicas (default to 1)
+  ansible.builtin.set_fact:
+    ldms_store_target_replicas: 1
+  when: ldms_is_reenable | bool
+
+- name: Get current LDMS store replica counts
+  ansible.builtin.command: >
+    kubectl get statefulset {{ item }}
+    -n {{ telemetry_namespace }}
+    -o jsonpath='{.spec.replicas}'
+  register: ldms_store_current_replicas
+  changed_when: false
+  failed_when: false
+  loop: "{{ ldms_store_statefulsets.stdout.split() }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - ldms_is_reenable | bool
+    - ldms_store_statefulsets.stdout | default('') | length > 0
+
+- name: Restore LDMS store replicas (re-enable)
+  ansible.builtin.command: >
+    kubectl scale statefulset {{ item.item }}
+    -n {{ telemetry_namespace }}
+    --replicas={{ ldms_store_target_replicas }}
+  register: restore_store_result
+  changed_when: "'scaled' in restore_store_result.stdout"
+  loop: "{{ ldms_store_current_replicas.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - ldms_is_reenable | bool
+    - ldms_store_statefulsets.stdout | default('') | length > 0
+    - (item.stdout | default('0') | int) != (ldms_store_target_replicas | int)
+
+- name: Log LDMS workload restoration
+  ansible.builtin.debug:
+    msg: |
+      Restored LDMS workloads:
+        - Aggregator: {{ ldms_aggregator_target_replicas }} replica(s)
+        - Store: {{ ldms_store_target_replicas }} replica(s) across {{ ldms_store_statefulsets.stdout.split() | length }} StatefulSet(s)
+  when: ldms_is_reenable | bool
+
+# =============================================================================
+# Phase 4: Re-enable LDMS sampler services
+# =============================================================================
+
+- name: Prepare LDMS sampler configuration (to get node inventory)
+  ansible.builtin.include_tasks: prepare_ldms_sampler_config.yml
+  when: not (skip_sampler_config | default(false) | bool)
+
+- name: Enable LDMS sampler services on managed nodes
+  ansible.builtin.systemd:
+    name: "{{ ldms_sampler.service_name }}"
+    enabled: true
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['slurm_node_group'] | default([]) }}"
+  register: sampler_enable_result
+  failed_when: false
+  when: groups['slurm_node_group'] | default([]) | length > 0
+
+- name: Start LDMS sampler services on managed nodes
+  ansible.builtin.systemd:
+    name: "{{ ldms_sampler.service_name }}"
+    state: started
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['slurm_node_group'] | default([]) }}"
+  register: sampler_start_result
+  failed_when: false
+  when: groups['slurm_node_group'] | default([]) | length > 0
+
+- name: Log LDMS sampler service enable
+  ansible.builtin.debug:
+    msg: "Enabled and started LDMS sampler services on {{ groups['slurm_node_group'] | default([]) | length }} managed node(s)"
+  when: groups['slurm_node_group'] | default([]) | length > 0
+
+# =============================================================================
+# Phase 5: Deploy/Restore Vector-LDMS bridge
+# =============================================================================
+
 - name: Generate Vector-LDMS manifests
   ansible.builtin.include_tasks: generate_vector_ldms_manifests.yml
   when:
     - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
     - victoria_metrics_support | default(false) | bool
 
-- name: Deploy Vector-LDMS bridge
+- name: Check if Vector-LDMS deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }}
+  register: vector_ldms_exists
+  changed_when: false
+  failed_when: false
+
+- name: Get configured Vector-LDMS replica count
+  ansible.builtin.set_fact:
+    vector_ldms_target_replicas: "{{ vector.ldms.replicas | default(2) }}"
+  when:
+    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
+    - victoria_metrics_support | default(false) | bool
+
+- name: Restore Vector-LDMS replicas (re-enable)
+  ansible.builtin.command: >
+    kubectl scale deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }}
+    --replicas={{ vector_ldms_target_replicas }}
+  register: restore_vector_result
+  changed_when: "'scaled' in restore_vector_result.stdout"
+  when:
+    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
+    - victoria_metrics_support | default(false) | bool
+    - ldms_is_reenable
+    - vector_ldms_exists.rc == 0
+
+- name: Deploy Vector-LDMS bridge (fresh or update)
   ansible.builtin.include_tasks: deploy_vector_ldms.yml
   when:
     - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
     - victoria_metrics_support | default(false) | bool
+
+- name: Scale down Vector-LDMS when disabled
+  ansible.builtin.command: >
+    kubectl scale deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }} --replicas=0
+  register: scale_down_vector_result
+  changed_when: "'scaled' in scale_down_vector_result.stdout"
+  failed_when: false
+  when:
+    - not (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool)
+    - vector_ldms_exists.rc == 0
+
+# =============================================================================
+# Phase 6: Verify PVC UID preservation (re-enable only)
+# =============================================================================
+
+- name: Get current LDMS PVC UIDs (re-enable verification)
+  ansible.builtin.command: >
+    kubectl get pvc -n {{ telemetry_namespace }}
+    -l app={{ ldms_aggregator_name }}
+    -o jsonpath='{.items[*].metadata.uid}'
+  register: ldms_current_pvcs
+  changed_when: false
+  failed_when: false
+  when: ldms_is_reenable | bool
+
+- name: Verify PVC UID preservation
+  ansible.builtin.assert:
+    that:
+      - ldms_current_pvcs.stdout.split() | sort == ldms_existing_pvc_uids | sort
+    fail_msg: "PVC UIDs changed during re-enablement - data may be lost!"
+    success_msg: "PVC UIDs preserved - existing data retained"
+  when:
+    - ldms_is_reenable
+    - ldms_existing_pvc_uids | length > 0
+
+- name: Log PVC preservation status
+  ansible.builtin.debug:
+    msg: |
+      PVC preservation verified:
+        - Existing PVCs: {{ ldms_existing_pvc_uids | length }}
+        - Current PVCs: {{ ldms_current_pvcs.stdout.split() | length }}
+        - UIDs match: {{ ldms_current_pvcs.stdout.split() | sort == ldms_existing_pvc_uids | sort }}
+  when:
+    - ldms_is_reenable
+    - ldms_existing_pvc_uids | length > 0
+
+# =============================================================================
+# Phase 7: Verify LDMS telemetry
+# =============================================================================
 
 - name: Verify LDMS telemetry
   ansible.builtin.include_tasks: verify_ldms.yml

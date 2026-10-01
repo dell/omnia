@@ -37,12 +37,16 @@
   when: status_file_check.stat.exists
   failed_when: false
 
+- name: Determine LDMS deployment status
+  ansible.builtin.set_fact:
+    ldms_metrics_enabled: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+
 - name: Set LDMS telemetry status
   ansible.builtin.set_fact:
     ldms_status:
-      status: "deployed"
+      status: "{{ 'deployed' if ldms_metrics_enabled else 'disabled' }}"
       timestamp: "{{ ansible_date_time.iso8601 }}"
-      vector_ldms_bridge: "{{ 'deployed' if (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool and victoria_metrics_support | default(false) | bool) else 'disabled' }}"   # noqa: yaml[line-length]
+      vector_ldms_bridge: "{{ 'deployed' if (ldms_metrics_enabled and telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool and victoria_metrics_support | default(false) | bool) else 'disabled' }}"   # noqa: yaml[line-length]
 
 - name: Build full telemetry status structure
   ansible.builtin.set_fact:

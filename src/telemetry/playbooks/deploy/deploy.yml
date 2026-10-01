@@ -84,7 +84,6 @@
 - name: "Phase 2 | Deploy LDMS telemetry"
   ansible.builtin.import_playbook: sources/deploy_ldms.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.ldms.metrics_enabled | default(false) | bool
 
 - name: "Phase 2 | Deploy PowerScale telemetry"
   ansible.builtin.import_playbook: sources/deploy_powerscale.yml
@@ -220,11 +219,29 @@
         - _idrac_namespace.rc == 0
         - _idrac_namespace.stdout | trim | length > 0
 
+    - name: Check LDMS aggregator StatefulSet existence
+      ansible.builtin.command: >
+        kubectl get statefulset nersc-ldms-aggr
+        -n {{ telemetry_namespace }}
+        -o jsonpath='{.spec.replicas}'
+      register: _ldms_aggregator_sts
+      changed_when: false
+      failed_when: false
+
     - name: Check LDMS aggregator pod readiness
       ansible.builtin.command: >
         kubectl wait --for=condition=Ready pod
         -n {{ telemetry_namespace }} -l app=nersc-ldms-aggr --timeout=1s
       register: _ldms_aggregator_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Check LDMS store StatefulSet existence
+      ansible.builtin.command: >
+        kubectl get statefulset -n {{ telemetry_namespace }}
+        -l app=nersc-ldms-store
+        -o jsonpath='{.items[*].metadata.name}'
+      register: _ldms_store_sts
       changed_when: false
       failed_when: false
 
@@ -264,6 +281,12 @@
       changed_when: false
       failed_when: false
 
+    - name: Check Vector-LDMS deployment existence
+      ansible.builtin.command: >
+        kubectl get deployment vector-ldms
+        -n {{ telemetry_namespace }}
+        -o jsonpath='{.spec.replicas}'
+      register: _vector_ldms_deployment
     - name: Check OME metrics forwarding pods
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }} -l app=vmagent-vector --no-headers
@@ -303,12 +326,15 @@
           _idrac_sts: "{{ _idrac_sts }}"
           _idrac_pods: "{{ _idrac_pods }}"
           _idrac_reconcile_failed: "{{ idrac_reconcile_failed | default(false) | bool }}"
+          _ldms_aggregator_sts: "{{ _ldms_aggregator_sts }}"
           _ldms_aggregator_pods: "{{ _ldms_aggregator_pods }}"
+          _ldms_store_sts: "{{ _ldms_store_sts }}"
           _ldms_store_pods: "{{ _ldms_store_pods }}"
           _powerscale_pods: "{{ _powerscale_pods }}"
           _ufm_check: "{{ _ufm_check }}"
           _vast_check: "{{ _vast_check }}"
           _vector_ome_pods: "{{ _vector_ome_pods }}"
+          _vector_ldms_deployment: "{{ _vector_ldms_deployment }}"
           _vmagent_vector_pods: "{{ _vmagent_vector_pods }}"
           _vlagent_vector_pods: "{{ _vlagent_vector_pods }}"
           _vector_ldms_pods: "{{ _vector_ldms_pods }}"
@@ -392,7 +418,11 @@
         _idrac_pod_count: "{{ _kv['_idrac_pods'].stdout_lines | default([]) | length }}"
         _idrac_operation_ok: "{{ not (_kv['_idrac_reconcile_failed'] | default(false) | bool) }}"
         _ldms_on: "{{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+        _ldms_aggregator_sts_value: "{{ _kv['_ldms_aggregator_sts'].stdout | default('') | trim }}"
+        _ldms_aggregator_sts_exists: "{{ _kv['_ldms_aggregator_sts'].rc | default(1) == 0 }}"
+        _ldms_aggregator_desired: "{{ _ldms_aggregator_sts_value | default('0') | int }}"
         _ldms_aggregator_running: "{{ _kv['_ldms_aggregator_pods'].rc | default(1) == 0 }}"
+        _ldms_store_sts_exists: "{{ _kv['_ldms_store_sts'].stdout | default('') | trim | length > 0 }}"
         _ldms_store_running: "{{ _kv['_ldms_store_pods'].rc | default(1) == 0 }}"
       ansible.builtin.set_fact:
         _deploy_result_idrac_metrics: >-
@@ -410,9 +440,17 @@
              and (_idrac_pod_count | int) == 0) else 'failed' }}
           {% endif %}
         _deploy_result_ldms_metrics: >-
-          {{ 'skipped' if not (_ldms_on | bool)
-             else ('deployed' if ((_ldms_aggregator_running | bool)
-             and (_ldms_store_running | bool)) else 'failed') }}
+          {%- if _ldms_on | bool -%}
+          {{ 'deployed' if (_ldms_aggregator_sts_exists | bool)
+             and (_ldms_aggregator_desired | int) > 0
+             and (_ldms_aggregator_running | bool)
+             and (_ldms_store_running | bool) else 'failed' | trim }}
+          {%- else -%}
+          {{ 'disabled' if (_ldms_aggregator_sts_exists | bool)
+             and (_ldms_aggregator_desired | int) == 0
+             and not (_ldms_aggregator_running | bool)
+             and not (_ldms_store_running | bool) else 'skipped' | trim }}
+          {%- endif %}
 
     # -- Sources (metrics + logs) ---------------------------------------------
     - name: Set source metrics+logs results
@@ -479,6 +517,9 @@
           {{ _cfg.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool }}
         _ldms_src_on: >-
           {{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}
+        _vldms_deployment_value: "{{ _kv['_vector_ldms_deployment'].stdout | default('') | trim }}"
+        _vldms_deployment_exists: "{{ _kv['_vector_ldms_deployment'].rc | default(1) == 0 }}"
+        _vldms_desired: "{{ _vldms_deployment_value | default('0') | int }}"
         _vldms_running: >-
           {{ (_kv['_vector_ldms_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
@@ -491,11 +532,18 @@
              | select('search', 'Running') | list | length) > 0 }}
       ansible.builtin.set_fact:
         _deploy_result_vector_ldms: >-
-          {{ 'skipped' if not ((_vldms_bridge_on | bool) and (_ldms_src_on | bool))
-             else ('deployed' if (_vldms_running | bool) else 'failed') }}
+          {%- if (_vldms_bridge_on | bool) and (_ldms_src_on | bool) -%}
+          {{ 'deployed' if (_vldms_deployment_exists | bool)
+             and (_vldms_desired | int) > 0
+             and (_vldms_running | bool) else 'failed' | trim }}
+          {%- elif not (_vldms_bridge_on | bool) or not (_ldms_src_on | bool) -%}
+          {{ 'disabled' if (_vldms_deployment_exists | bool)
+             and (_vldms_desired | int) == 0
+             and not (_vldms_running | bool) else 'skipped' | trim }}
+          {%- endif %}
         _deploy_result_vector_ome: >-
           {{ 'disabled' if not ((_vome_m | bool) or (_vome_l | bool))
-             else ('deployed' if (_vome_running | bool) else 'failed') }}
+             else ('deployed' if (_vome_running | bool) else 'failed') | trim }}
 
 # ── Phase 5: Write telemetry_status.yml ───────────────────────────────────────
 - name: "Write telemetry deployment status"

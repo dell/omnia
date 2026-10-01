@@ -35,6 +35,20 @@
         tasks_from: load_telemetry_config
       when: telemetry_config is not defined
 
+    - name: Check if LDMS is disabled
+      ansible.builtin.set_fact:
+        ldms_metrics_enabled: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+
+    - name: Disable LDMS if metrics_enabled is false
+      ansible.builtin.include_role:
+        name: deploy_ldms
+        tasks_from: disable
+      when: not (ldms_metrics_enabled | bool)
+
+    - name: End play if LDMS is disabled (skip deployment)
+      ansible.builtin.meta: end_play
+      when: not (ldms_metrics_enabled | bool)
+
     - name: Derive sink support flags (only if not already derived)
       ansible.builtin.include_role:
         name: common
@@ -363,97 +377,93 @@
         skip_sampler_config: true
         skip_aggregator_config: true
         skip_ldms_verify: true
+      when: ldms_metrics_enabled | bool
 
 - name: Prepare LDMS Authentication and Shared Sampler Configuration
   hosts: ldms_deploy_aggregator_control
   gather_facts: false
   any_errors_fatal: true
   tasks:
-    - name: Set telemetry credentials from localhost
-      ansible.builtin.set_fact:
-        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
-      no_log: true
-      when: hostvars['localhost']['telemetry_credentials'] is defined
+    - name: Prepare LDMS authentication and sampler config
+      when: hostvars[groups['kube_vip_group'][0]]['ldms_metrics_enabled'] | default(false) | bool
+      block:
+        - name: Set telemetry credentials from localhost
+          ansible.builtin.set_fact:
+            telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+          no_log: true
+          when: hostvars['localhost']['telemetry_credentials'] is defined
 
-    - name: Set required variables from localhost
-      ansible.builtin.set_fact:
-        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
-        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
-      when: hostvars['localhost']['telemetry_config'] is defined
+        - name: Set required variables from localhost
+          ansible.builtin.set_fact:
+            telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+            slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
+          when: hostvars['localhost']['telemetry_config'] is defined
 
-    - name: Prepare LDMS aggregator authentication from control node
-      ansible.builtin.include_role:
-        name: deploy_ldms
-        tasks_from: configure_ldms_aggregator
+        - name: Set ldms_sampler_password from localhost (exposed by telemetry_prereq)
+          ansible.builtin.set_fact:
+            ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
+          no_log: true
+          when: hostvars['localhost']['ldms_sampler_password'] is defined
 
-    - name: Prepare shared LDMS sampler configuration
-      ansible.builtin.include_role:
-        name: deploy_ldms
-        tasks_from: prepare_ldms_sampler_config
+        - name: Prepare LDMS aggregator authentication from control node
+          ansible.builtin.include_role:
+            name: deploy_ldms
+            tasks_from: configure_ldms_aggregator
+
+        - name: Prepare shared LDMS sampler configuration
+          ansible.builtin.include_role:
+            name: deploy_ldms
+            tasks_from: prepare_ldms_sampler_config
 
 - name: Deploy LDMS Aggregator on Kube VIP Host
   hosts: kube_vip_group
   gather_facts: true
   any_errors_fatal: true
   tasks:
-    - name: Set telemetry credentials from localhost
-      ansible.builtin.set_fact:
-        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
-      no_log: true
-      when: hostvars['localhost']['telemetry_credentials'] is defined
+    - name: Deploy LDMS aggregator
+      when: ldms_metrics_enabled | default(false) | bool
+      block:
+        - name: Set telemetry credentials from localhost
+          ansible.builtin.set_fact:
+            telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+          no_log: true
+          when: hostvars['localhost']['telemetry_credentials'] is defined
 
-    - name: Set required variables from localhost
-      ansible.builtin.set_fact:
-        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
-        k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
-        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
-      when: hostvars['localhost']['telemetry_config'] is defined
+        - name: Set required variables from localhost
+          ansible.builtin.set_fact:
+            telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+            k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
+            slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
+          when: hostvars['localhost']['telemetry_config'] is defined
 
-    - name: Set munge key check result from slurm control node
-      ansible.builtin.set_fact:
-        munge_key_check_result: >-
-          {{
-            hostvars[_ldms_deploy_aggregator_control_host]['munge_key_check_result']
-            | default(false)
-          }}
-      when:
-        - _ldms_deploy_aggregator_control_host | default('') | length > 0
-        - >-
-          hostvars[_ldms_deploy_aggregator_control_host]['munge_key_check_result']
-          is defined
+        - name: Set munge key check result from slurm control node
+          ansible.builtin.set_fact:
+            munge_key_check_result: >-
+              {{
+                hostvars[_ldms_deploy_aggregator_control_host]['munge_key_check_result']
+                | default(false)
+              }}
+          when:
+            - _ldms_deploy_aggregator_control_host | default('') | length > 0
+            - >-
+              hostvars[_ldms_deploy_aggregator_control_host]['munge_key_check_result']
+              is defined
 
-    - name: Set ldms_sampler_password from slurm control node
-      ansible.builtin.set_fact:
-        ldms_sampler_password: >-
-          {{
-            hostvars[_ldms_deploy_aggregator_control_host]['ldms_sampler_password']
-            | default('')
-          }}
-      no_log: true
-      when:
-        - _ldms_deploy_aggregator_control_host | default('') | length > 0
-        - >-
-          hostvars[_ldms_deploy_aggregator_control_host]['ldms_sampler_password']
-          is defined
+        - name: Set ldms_sampler_password from localhost (exposed by telemetry_prereq)
+          ansible.builtin.set_fact:
+            ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
+          no_log: true
+          when: hostvars['localhost']['ldms_sampler_password'] is defined
 
-    - name: Set ldms_sampler_password from telemetry_credentials as fallback
-      ansible.builtin.set_fact:
-        ldms_sampler_password: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
-      no_log: true
-      when:
-        - telemetry_credentials is defined
-        - telemetry_credentials.ldms_sampler_password is defined
-        - ldms_sampler_password is not defined or ldms_sampler_password == ''
+        - name: Deploy LDMS aggregator on kube_vip host
+          ansible.builtin.include_role:
+            name: deploy_ldms
+            tasks_from: deploy_ldms_aggregator_k8s
 
-    - name: Deploy LDMS aggregator on kube_vip host
-      ansible.builtin.include_role:
-        name: deploy_ldms
-        tasks_from: deploy_ldms_aggregator_k8s
-
-    - name: Verify deployed LDMS aggregator
-      ansible.builtin.include_role:
-        name: deploy_ldms
-        tasks_from: verify_ldms
+        - name: Verify deployed LDMS aggregator
+          ansible.builtin.include_role:
+            name: deploy_ldms
+            tasks_from: verify_ldms
 
 # =============================================================================
 # LDMS Sampler Configuration on reachable LDMS-enabled nodes
@@ -466,166 +476,178 @@
   max_fail_percentage: 100
   ignore_unreachable: true
   tasks:
-    - name: Set telemetry credentials from localhost
-      ansible.builtin.set_fact:
-        telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
-      no_log: true
-      when: hostvars['localhost']['telemetry_credentials'] is defined
+    - name: Configure LDMS sampler
+      when: hostvars[groups['kube_vip_group'][0]]['ldms_metrics_enabled'] | default(false) | bool
+      block:
+        - name: Set telemetry credentials from localhost
+          ansible.builtin.set_fact:
+            telemetry_credentials: "{{ hostvars['localhost']['telemetry_credentials'] }}"
+          no_log: true
+          when: hostvars['localhost']['telemetry_credentials'] is defined
 
-    - name: Set required variables from localhost
-      ansible.builtin.set_fact:
-        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
-        k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
-        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
-      when: hostvars['localhost']['telemetry_config'] is defined
+        - name: Set required variables from localhost
+          ansible.builtin.set_fact:
+            telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
+            k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
+            slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
+          when: hostvars['localhost']['telemetry_config'] is defined
 
-    - name: Configure LDMS sampler on reachable nodes
-      ansible.builtin.include_role:
-        name: deploy_ldms
-        tasks_from: configure_ldms_sampler
+        - name: Set ldms_sampler_password from localhost (exposed by telemetry_prereq)
+          ansible.builtin.set_fact:
+            ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
+          no_log: true
+          when: hostvars['localhost']['ldms_sampler_password'] is defined
+
+        - name: Configure LDMS sampler on reachable nodes
+          ansible.builtin.include_role:
+            name: deploy_ldms
+            tasks_from: configure_ldms_sampler
 
 - name: Finalize LDMS Deployment Node Reachability
   hosts: kube_vip_group
   gather_facts: false
   any_errors_fatal: true
   tasks:
-    - name: Initialize runtime LDMS unreachable nodes
-      ansible.builtin.set_fact:
-        _ldms_deploy_runtime_unreachable_hosts: []
+    - name: Finalize LDMS deployment
+      when: ldms_metrics_enabled | default(false) | bool
+      block:
+        - name: Initialize runtime LDMS unreachable nodes
+          ansible.builtin.set_fact:
+            _ldms_deploy_runtime_unreachable_hosts: []
 
-    - name: Collect nodes unreachable during sampler configuration
-      ansible.builtin.set_fact:
-        _ldms_deploy_runtime_unreachable_hosts: >-
-          {{
-            (_ldms_deploy_runtime_unreachable_hosts + [item])
-            | unique | sort
-          }}
-      loop: "{{ _ldms_deploy_reachable_hosts | default([]) }}"
-      loop_control:
-        label: "{{ item }}"
-      when: >-
-        hostvars[item]['_ldms_sampler_unreachable_during_deploy']
-        | default(false) | bool
+        - name: Collect nodes unreachable during sampler configuration
+          ansible.builtin.set_fact:
+            _ldms_deploy_runtime_unreachable_hosts: >-
+              {{
+                (_ldms_deploy_runtime_unreachable_hosts + [item])
+                | unique | sort
+              }}
+          loop: "{{ _ldms_deploy_reachable_hosts | default([]) }}"
+          loop_control:
+            label: "{{ item }}"
+          when: >-
+            hostvars[item]['_ldms_sampler_unreachable_during_deploy']
+            | default(false) | bool
 
-    - name: Inspect configured LDMS sampler services
-      ansible.builtin.service_facts:
-      delegate_to: "{{ item }}"
-      loop: "{{ _ldms_deploy_reachable_hosts | default([]) }}"
-      loop_control:
-        label: "{{ item }}"
-      register: _ldms_deploy_sampler_services
-      failed_when: false
-      ignore_unreachable: true
+        - name: Inspect configured LDMS sampler services
+          ansible.builtin.service_facts:
+          delegate_to: "{{ item }}"
+          loop: "{{ _ldms_deploy_reachable_hosts | default([]) }}"
+          loop_control:
+            label: "{{ item }}"
+          register: _ldms_deploy_sampler_services
+          failed_when: false
+          ignore_unreachable: true
 
-    - name: Verify configured LDMS sampler ports
-      vars:
-        _ldms_services: >-
-          {{ (item.ansible_facts | default({})).services | default({}) }}
-      ansible.builtin.wait_for:
-        host: "0.0.0.0"
-        port: "{{ hostvars['localhost']['telemetry_config'].ldms_configurations.sampler_port }}"
-        state: started
-        timeout: 10
-      delegate_to: "{{ item.item }}"
-      loop: "{{ _ldms_deploy_sampler_services.results | default([]) }}"
-      loop_control:
-        label: "{{ item.item }}"
-      when:
-        - not (item.unreachable | default(false) | bool)
-        - not (item.failed | default(false) | bool)
-        - "'ldmsd.service' in _ldms_services or 'ldmsd' in _ldms_services"
-      register: _ldms_deploy_sampler_ports
-      failed_when: false
-      ignore_unreachable: true
+        - name: Verify configured LDMS sampler ports
+          vars:
+            _ldms_services: >-
+              {{ (item.ansible_facts | default({})).services | default({}) }}
+          ansible.builtin.wait_for:
+            host: "0.0.0.0"
+            port: "{{ hostvars['localhost']['telemetry_config'].ldms_configurations.sampler_port }}"
+            state: started
+            timeout: 10
+          delegate_to: "{{ item.item }}"
+          loop: "{{ _ldms_deploy_sampler_services.results | default([]) }}"
+          loop_control:
+            label: "{{ item.item }}"
+          when:
+            - not (item.unreachable | default(false) | bool)
+            - not (item.failed | default(false) | bool)
+            - "'ldmsd.service' in _ldms_services or 'ldmsd' in _ldms_services"
+          register: _ldms_deploy_sampler_ports
+          failed_when: false
+          ignore_unreachable: true
 
-    - name: Consolidate unreachable LDMS deployment nodes
-      vars:
-        _ldms_unreachable_from_services: >-
-          {{
-            (_ldms_deploy_sampler_services.results | default([]))
-            | selectattr('unreachable', 'defined')
-            | selectattr('unreachable')
-            | map(attribute='item') | list
-          }}
-        _ldms_unreachable_from_ports: >-
-          {{
-            (_ldms_deploy_sampler_ports.results | default([]))
-            | selectattr('unreachable', 'defined')
-            | selectattr('unreachable')
-            | map(attribute='item.item') | list
-          }}
-      ansible.builtin.set_fact:
-        _ldms_deploy_unreachable_hosts: >-
-          {{
-            (
-              (_ldms_deploy_unreachable_hosts | default([]))
-              + _ldms_deploy_runtime_unreachable_hosts
-              + _ldms_unreachable_from_services
-              + _ldms_unreachable_from_ports
-            ) | unique | sort
-          }}
-
-    - name: Publish final unreachable LDMS deployment nodes
-      vars:
-        _current_deploy_unreachable_nodes: >-
-          {{
-            hostvars['localhost']['_deploy_unreachable_nodes']
-            | default({'ldms': []}, true)
-          }}
-      ansible.builtin.set_fact:
-        _deploy_unreachable_nodes: >-
-          {{
-            _current_deploy_unreachable_nodes
-            | combine({
-                'ldms': (
-                  (_current_deploy_unreachable_nodes.ldms | default([]))
-                  + (_ldms_deploy_unreachable_hosts | default([]))
+        - name: Consolidate unreachable LDMS deployment nodes
+          vars:
+            _ldms_unreachable_from_services: >-
+              {{
+                (_ldms_deploy_sampler_services.results | default([]))
+                | selectattr('unreachable', 'defined')
+                | selectattr('unreachable')
+                | map(attribute='item') | list
+              }}
+            _ldms_unreachable_from_ports: >-
+              {{
+                (_ldms_deploy_sampler_ports.results | default([]))
+                | selectattr('unreachable', 'defined')
+                | selectattr('unreachable')
+                | map(attribute='item.item') | list
+              }}
+          ansible.builtin.set_fact:
+            _ldms_deploy_unreachable_hosts: >-
+              {{
+                (
+                  (_ldms_deploy_unreachable_hosts | default([]))
+                  + _ldms_deploy_runtime_unreachable_hosts
+                  + _ldms_unreachable_from_services
+                  + _ldms_unreachable_from_ports
                 ) | unique | sort
-              })
-          }}
-      delegate_to: localhost
-      delegate_facts: true
+              }}
 
-    - name: Display skipped unreachable LDMS deployment nodes
-      ansible.builtin.debug:
-        msg: >-
-          Unreachable LDMS sampler nodes were skipped (non-fatal):
-          {{ _ldms_deploy_unreachable_hosts | join(', ') }}.
-          Deployment continued on all reachable LDMS nodes.
-      when: _ldms_deploy_unreachable_hosts | length > 0
+        - name: Publish final unreachable LDMS deployment nodes
+          vars:
+            _current_deploy_unreachable_nodes: >-
+              {{
+                hostvars['localhost']['_deploy_unreachable_nodes']
+                | default({'ldms': []}, true)
+              }}
+          ansible.builtin.set_fact:
+            _deploy_unreachable_nodes: >-
+              {{
+                _current_deploy_unreachable_nodes
+                | combine({
+                    'ldms': (
+                      (_current_deploy_unreachable_nodes.ldms | default([]))
+                      + (_ldms_deploy_unreachable_hosts | default([]))
+                    ) | unique | sort
+                  })
+              }}
+          delegate_to: localhost
+          delegate_facts: true
 
-    - name: Validate configured LDMS sampler services
-      vars:
-        _ldms_services: >-
-          {{ (item.ansible_facts | default({})).services | default({}) }}
-        _ldms_service: >-
-          {{
-            _ldms_services['ldmsd.service']
-            | default(_ldms_services['ldmsd'] | default({}))
-          }}
-      ansible.builtin.assert:
-        that:
-          - not (item.failed | default(false) | bool)
-          - _ldms_service | length > 0
-          - _ldms_service.state | default('') == 'running'
-        fail_msg: >-
-          LDMS sampler verification failed on reachable node {{ item.item }}:
-          {{ item.msg | default('ldmsd.service is not running') }}
-      loop: "{{ _ldms_deploy_sampler_services.results | default([]) }}"
-      loop_control:
-        label: "{{ item.item }}"
-      when: not (item.unreachable | default(false) | bool)
+        - name: Display skipped unreachable LDMS deployment nodes
+          ansible.builtin.debug:
+            msg: >-
+              Unreachable LDMS sampler nodes were skipped (non-fatal):
+              {{ _ldms_deploy_unreachable_hosts | join(', ') }}.
+              Deployment continued on all reachable LDMS nodes.
+          when: _ldms_deploy_unreachable_hosts | length > 0
 
-    - name: Validate configured LDMS sampler ports
-      ansible.builtin.assert:
-        that:
-          - item.state | default('') == 'started'
-        fail_msg: >-
-          LDMS sampler port verification failed on reachable node
-          {{ item.item.item }}: {{ item.msg | default('sampler port is not listening') }}
-      loop: "{{ _ldms_deploy_sampler_ports.results | default([]) }}"
-      loop_control:
-        label: "{{ item.item.item }}"
-      when:
-        - not (item.skipped | default(false) | bool)
-        - not (item.unreachable | default(false) | bool)
+        - name: Validate configured LDMS sampler services
+          vars:
+            _ldms_services: >-
+              {{ (item.ansible_facts | default({})).services | default({}) }}
+            _ldms_service: >-
+              {{
+                _ldms_services['ldmsd.service']
+                | default(_ldms_services['ldmsd'] | default({}))
+              }}
+          ansible.builtin.assert:
+            that:
+              - not (item.failed | default(false) | bool)
+              - _ldms_service | length > 0
+              - _ldms_service.state | default('') == 'running'
+            fail_msg: >-
+              LDMS sampler verification failed on reachable node {{ item.item }}:
+              {{ item.msg | default('ldmsd.service is not running') }}
+          loop: "{{ _ldms_deploy_sampler_services.results | default([]) }}"
+          loop_control:
+            label: "{{ item.item }}"
+          when: not (item.unreachable | default(false) | bool)
+
+        - name: Validate configured LDMS sampler ports
+          ansible.builtin.assert:
+            that:
+              - item.state | default('') == 'started'
+            fail_msg: >-
+              LDMS sampler port verification failed on reachable node
+              {{ item.item.item }}: {{ item.msg | default('sampler port is not listening') }}
+          loop: "{{ _ldms_deploy_sampler_ports.results | default([]) }}"
+          loop_control:
+            label: "{{ item.item.item }}"
+          when:
+            - not (item.skipped | default(false) | bool)
+            - not (item.unreachable | default(false) | bool)

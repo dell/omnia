@@ -41,12 +41,10 @@
     dest: "/tmp/munge.key"
     flat: true
 
-- name: Ensure ldms_sampler_password is available for aggregator
+- name: Use LDMS sampler password from kube_vip host
   ansible.builtin.set_fact:
-    ldms_sampler_password: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
-  when:
-    - telemetry_credentials is defined
-    - telemetry_credentials.ldms_sampler_password is defined
+    ldms_sampler_password: "{{ hostvars[groups['kube_vip_group'][0]]['ldms_sampler_password'] }}"
+  when: hostvars[groups['kube_vip_group'][0]]['ldms_sampler_password'] is defined
   no_log: true
 
 - name: Set munge key check result for kube_vip tasks
