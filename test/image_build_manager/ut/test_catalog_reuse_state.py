@@ -23,7 +23,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from fvt.build.catalog_reuse.conftest import CatalogReuseContext
+from fvt.build.catalog_reuse.conftest import (
+    CatalogReuseContext,
+    _catalog_recovery_directory,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -41,7 +44,9 @@ def _restore_context(build_status_existed):
     context.dictionary_path = "/data/output/image_group_dictionary.json"
     context.dictionary_backup_path = f"{context.dictionary_path}.bak"
     context.output_dir = "/data/output"
-    context.recovery_dir = "/var/tmp/omnia-test/catalog-reuse/unit-test"
+    context.recovery_dir = (
+        "/data/.test-recovery/catalog-reuse/unit-test"
+    )
 
     context.original_config_text = "original config"
     context.original_catalog_text = "original catalog"
@@ -71,6 +76,22 @@ def _restore_context(build_status_existed):
     context.remove_tree = lambda path: files.pop(path, None)
     context.run_command = lambda command: SimpleNamespace(rc=0)
     return context, files
+
+
+def test_recovery_directory_is_private_to_domain_data_root():
+    recovery_path = _catalog_recovery_directory(
+        "/opt/omnia/image_build_manager",
+        "project_default",
+    )
+
+    assert recovery_path.startswith(
+        "/opt/omnia/image_build_manager/.test-recovery/catalog-reuse/"
+    )
+    assert "/input/" not in recovery_path
+    assert recovery_path != _catalog_recovery_directory(
+        "/opt/omnia/image_build_manager",
+        "another_project",
+    )
 
 
 def test_restore_reinstates_original_build_status():
@@ -116,6 +137,26 @@ def test_restore_failure_preserves_recovery_artifacts():
     assert backup in files
     assert not backup.startswith(context.config_path)
     assert backup.startswith(context.recovery_dir)
+
+
+def test_restore_prunes_empty_recovery_directories():
+    context, files = _restore_context(build_status_existed=True)
+    recovery_directories = (
+        context.recovery_dir,
+        str(Path(context.recovery_dir).parent),
+        str(Path(context.recovery_dir).parent.parent),
+    )
+    files.update({directory: "directory" for directory in recovery_directories})
+
+    def remove_empty_directory(command):
+        if command.startswith("rmdir -- "):
+            files.pop(command.removeprefix("rmdir -- "), None)
+        return SimpleNamespace(rc=0)
+
+    context.run_command = remove_empty_directory
+    context.restore()
+
+    assert all(directory not in files for directory in recovery_directories)
 
 
 def test_stale_absence_marker_recovers_absent_baseline():

@@ -281,8 +281,9 @@ the following command to validate a previous catalog-reuse run:
 The suite updates the configured catalog, Image Build Manager configuration,
 and repository status files atomically in place, then restores their original
 content. Interrupt-recovery copies are isolated under
-`/var/tmp/omnia-test/image-build-manager/catalog-reuse/`; the suite does not
-create backup files beside production inputs.
+`<image_build_manager_data_path>/.test-recovery/catalog-reuse/`; the suite
+does not create backup files beside production inputs or in a shared temporary
+directory.
 
 The suite covers the first build, dictionary reuse, selective package and
 repository rebuilds, forced rebuild, missing S3 artifact recovery, switching
@@ -785,7 +786,7 @@ test/image_build_manager/
     ├── README.md                   # UT ID ranges and execution
     ├── conftest.py
     ├── test_catalog_validation.py    # IMGBM_UT_001–014, 149, 153
-    ├── test_catalog_reuse_state.py   # IMGBM_UT_140–144, 152
+    ├── test_catalog_reuse_state.py   # IMGBM_UT_140–144, 152, 155–156
     ├── test_registry_version_contract.py # IMGBM_UT_150–151
     ├── test_driver_group_skip.py     # IMGBM_UT_015–032, 114, 154
     ├── test_functional_group_packages.py

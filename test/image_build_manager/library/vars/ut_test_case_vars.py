@@ -302,6 +302,8 @@ UT_TEST_CASE_IDS = {
             143: "test_stale_absence_marker_recovers_absent_baseline",
             144: "test_stale_backup_recovers_baseline_before_snapshot",
             152: "test_selective_mutation_skips_layers_without_unique_groups",
+            155: "test_recovery_directory_is_private_to_domain_data_root",
+            156: "test_restore_prunes_empty_recovery_directories",
         },
     ),
     **_module_cases(
