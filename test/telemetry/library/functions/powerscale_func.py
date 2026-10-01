@@ -28,6 +28,11 @@ Handles:
 """
 
 import base64
+import json
+import re
+import time
+import urllib.parse
+from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
 import yaml
@@ -44,6 +49,7 @@ from ..vars.common_vars import (
     TELEMETRY_NAMESPACE,
     POWERSCALE_SECRET_NAME,
     POWERSCALE_CSI_EXPORTER_METRICS,
+    POWERSCALE_KARAVI_METRICS,
     SVC_VLAGENT,
 )
 
@@ -58,6 +64,7 @@ from .telemetry_func import (
     query_vm_metric_names,
     query_vm_instant,
     get_vlselect_endpoint,
+    get_vmselect_endpoint,
 )
 from .k8s_func import get_service
 
@@ -191,6 +198,59 @@ def verify_powerscale_metrics(host, expected_metrics):
     }
 
 
+def query_powerscale_vm_samples(host, start_epoch, end_epoch):
+    """Count PowerScale-owned metric samples in an exact time window."""
+    vmselect_ip, vmselect_port = get_vmselect_endpoint(host)
+    if not vmselect_ip or not vmselect_port:
+        return {
+            "success": False,
+            "sample_count": 0,
+            "metric_counts": {},
+            "error": "vmselect endpoint not found",
+        }
+
+    names = sorted(set(
+        POWERSCALE_KARAVI_METRICS + POWERSCALE_CSI_EXPORTER_METRICS
+    ))
+    selector = '{__name__=~"' + "|".join(names) + '"}'
+    command = (
+        f"curl -kfsS --max-time 30 -G "
+        f"'https://{vmselect_ip}:{vmselect_port}"
+        "/select/0/prometheus/api/v1/export' "
+        f"--data-urlencode 'match[]={selector}' "
+        f"--data-urlencode 'start={float(start_epoch)}' "
+        f"--data-urlencode 'end={float(end_epoch)}'"
+    )
+    result = run_on_kube_vip(host, command)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "sample_count": 0,
+            "metric_counts": {},
+            "error": result.stderr.strip() or "VictoriaMetrics export failed",
+        }
+
+    metric_counts = {}
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        metric = item.get("metric", {}).get("__name__", "")
+        count = len(item.get("timestamps", []))
+        if metric and count:
+            metric_counts[metric] = metric_counts.get(metric, 0) + count
+
+    return {
+        "success": True,
+        "sample_count": sum(metric_counts.values()),
+        "metric_counts": metric_counts,
+        "error": "",
+    }
+
+
 # -------------------------------------------------------------------------
 # PowerScale — VictoriaLogs
 # -------------------------------------------------------------------------
@@ -231,6 +291,90 @@ def verify_powerscale_logs(host, hostname_pattern):
             sample = lines[0][:120]
 
     return {"success": count > 0, "count": count, "sample_log": sample}
+
+
+def trigger_powerscale_test_event(host, cluster, marker):
+    """Ask OneFS to create one uniquely identifiable test event."""
+    if not re.fullmatch(r"[a-z0-9-]{1,96}", marker):
+        return {"success": False, "error": "Invalid PowerScale test marker"}
+
+    endpoint = str(cluster.get("endpoint", "")).strip()
+    user = str(cluster.get("username", "")).strip()
+    pwd = str(cluster.get("password", ""))  # gitleaks:allow
+    if not endpoint or not user:
+        return {"success": False, "error": "PowerScale endpoint or user missing"}
+    try:
+        parsed = urlsplit(endpoint if "://" in endpoint else f"//{endpoint}")
+        target = parsed.hostname or endpoint
+    except ValueError:
+        target = endpoint
+
+    command = f"isi event test create {marker}"
+    triggered_at = time.time()
+    try:
+        result = run_ssh_command(
+            host, target=target, user=user, command=command,
+        )
+    except ValueError as exc:
+        return {"success": False, "error": str(exc)}
+    if result.rc != 0 and pwd:
+        result = run_on_host(
+            host,
+            CMDS["powerscale_get_privileges_password"],
+            pwd,
+            f"{user}@{target}",
+            command,
+        )
+    return {
+        "success": result.rc == 0,
+        "triggered_at": triggered_at,
+        "marker": marker,
+        "error": result.stderr.strip() if result.rc != 0 else "",
+    }
+
+
+def query_powerscale_test_event(host, marker, start_epoch):
+    """Return uniquely marked PowerScale events received after the trigger."""
+    if not re.fullmatch(r"[a-z0-9-]{1,96}", marker):
+        return {"success": False, "count": 0, "error": "Invalid marker"}
+    vlselect_ip, vlselect_port = get_vlselect_endpoint(host)
+    if not vlselect_ip or not vlselect_port:
+        return {
+            "success": False,
+            "count": 0,
+            "error": "vlselect endpoint not found",
+        }
+
+    query_start = datetime.fromtimestamp(
+        float(start_epoch) - 2, tz=timezone.utc,
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    command = CMDS["vast_vl_query_logs"].format(
+        vlselect_ip=vlselect_ip,
+        vlselect_port=vlselect_port,
+        query=urllib.parse.quote(f"_msg:{marker}", safe=""),
+        limit=100,
+        start=urllib.parse.quote(query_start, safe=""),
+        timeout=30,
+    )
+    result = run_on_kube_vip(host, command)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "count": 0,
+            "error": result.stderr.strip() or "VictoriaLogs query failed",
+        }
+
+    count = 0
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if marker in json.dumps(entry, sort_keys=True):
+            count += 1
+    return {"success": True, "count": count, "error": ""}
 
 
 # -------------------------------------------------------------------------

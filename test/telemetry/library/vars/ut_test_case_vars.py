@@ -105,6 +105,18 @@ UT_TEST_CASE_IDS = {
             49: "test_topic_readiness_wait_is_limited_to_enabled_sources",
         },
     ),
+    **_module_cases(
+        "test_disabled_state_fvt.py",
+        {
+            50: "test_retained_zero_replica_workload_is_stopped",
+            51: "test_disabled_workload_fails_when_a_pod_remains",
+            52: "test_shared_sink_check_only_requires_configured_sinks",
+            53: "test_shared_sink_check_rejects_vector_agent_as_shared_agent",
+            54: "test_powerscale_quiet_window_counts_only_returned_samples",
+            55: "test_powerscale_test_event_uses_unique_marker",
+            56: "test_powerscale_log_query_matches_only_marker",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):
