@@ -77,10 +77,8 @@ def sample_cadence_config(tmp_path):  # pylint: disable=redefined-outer-name
     """Sample cadence configuration."""
     return {
         "enabled": True,
-        "interval_seconds": 3600,
-        "catalog_filename": "cadence_catalog_rhel.json",
+        "interval_days": 1,
         "gitlab_repo_path": str(tmp_path / "test_repo"),
-        "playbook_name": "repo_sync.yml",
         "sync_timeout_seconds": 1800,
         "sync_poll_interval_seconds": 5,
         "auto_bump_version": True,

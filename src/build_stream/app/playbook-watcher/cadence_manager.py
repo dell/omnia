@@ -23,7 +23,8 @@ Implements the cadence polling loop that:
 
 Architecture:
 - CadenceTimerThread runs as a daemon alongside the main request watcher
-- Polling interval is configurable (default: 86400 seconds / 24 hours)
+- Polling interval is configurable in days (default: 7 days)
+- Configuration is reloaded at the start of every cadence cycle
 - Pipeline idle check uses the NFS processing queue presence
 - Catalog version bump follows semver patch increment (e.g., 1.0 -> 1.1)
 - GitLab API operations use requests library to update cadence_catalog_rhel.json
@@ -45,13 +46,19 @@ from typing import Optional, Dict, Any
 from urllib.parse import quote
 
 import requests
+import yaml
 
 logger = logging.getLogger(__name__)
 
 
-# Cadence configuration defaults
-DEFAULT_CADENCE_INTERVAL_SECONDS = 86400  # 24 hours
+# Cadence configuration defaults and fixed system contracts
+SECONDS_PER_DAY = 86400
+DEFAULT_CADENCE_INTERVAL_DAYS = 7
+DEFAULT_CADENCE_INTERVAL_SECONDS = (
+    DEFAULT_CADENCE_INTERVAL_DAYS * SECONDS_PER_DAY
+)
 DEFAULT_CADENCE_CATALOG_FILENAME = "cadence_catalog_rhel.json"
+DEFAULT_CADENCE_PLAYBOOK_NAME = "repo_sync.yml"
 DEFAULT_CADENCE_ENABLED = False
 
 # Audit event type for cadence sync completion
@@ -106,32 +113,10 @@ def log_secure_info(
     log_func(log_message, exc_info=exc_info)
 
 
-def _validate_catalog_filename(filename: str) -> bool:
-    """Validate catalog filename against safe pattern.
-
-    Prevents path traversal and injection attacks. Only allows
-    alphanumeric, dots, dashes, underscores (no slashes, no double dots).
-
-    Args:
-        filename: Filename to validate.
-
-    Returns:
-        True if valid, False otherwise.
-    """
-    if not filename:
-        return False
-    # Allow: letters, digits, ., -, _; must end with .json
-    if not re.match(r'^[a-zA-Z0-9._-]+\.json$', filename):
-        return False
-    # Explicit check: no path separators, no parent directory references
-    if '/' in filename or '\\' in filename or '..' in filename:
-        return False
-    return True
-
-
 def load_cadence_config(
     config_path: Optional[str] = None,
     credentials_path: Optional[str] = None,
+    strict: bool = False,
 ) -> Dict[str, Any]:
     """Load cadence polling configuration from build_stream_config.yml.
 
@@ -143,6 +128,8 @@ def load_cadence_config(
         config_path: Path to config file. If None, uses environment
                     variables or default locations.
         credentials_path: Path to credentials file. If None, uses default.
+        strict: Raise when the main configuration cannot be loaded. Reload
+            callers use this to retain their last-known-good configuration.
 
     Returns:
         Dictionary with cadence configuration values.
@@ -155,7 +142,7 @@ def load_cadence_config(
             "BUILD_STREAM_CONFIG_PATH",
             str(_default_build_stream_config_path()),
         )
-    
+
     if credentials_path is None:
         # Default credentials path (same directory as config)
         config_dir = Path(config_path).parent
@@ -165,11 +152,7 @@ def load_cadence_config(
     config = {
         # Cadence polling control
         "enabled": DEFAULT_CADENCE_ENABLED,
-        "interval_seconds": DEFAULT_CADENCE_INTERVAL_SECONDS,
-        # Cadence catalog configuration
-        "catalog_filename": DEFAULT_CADENCE_CATALOG_FILENAME,
-        # Package sync playbook configuration
-        "playbook_name": "repo_sync.yml",
+        "interval_days": DEFAULT_CADENCE_INTERVAL_DAYS,
         # Timing parameters (configurable)
         "sync_timeout_seconds": 3600,
         "sync_poll_interval_seconds": 10,
@@ -186,13 +169,17 @@ def load_cadence_config(
     }
 
     if Path(config_path).exists():
-        config = _load_unified_config(config_path, config)
+        config = _load_unified_config(config_path, config, strict=strict)
     else:
+        if strict:
+            raise ValueError(
+                f"BuildStream configuration does not exist: {config_path}"
+            )
         log_secure_info(
             "info",
             "No build_stream_config.yml found, using cadence defaults"
         )
-    
+
     # Load GitLab credentials if available
     if Path(credentials_path).exists():
         _load_gitlab_credentials(credentials_path, config)
@@ -201,41 +188,48 @@ def load_cadence_config(
             "info",
             "No build_stream_credentials.yml found, GitLab API disabled"
         )
-    
+
     return config
 
 
 def _load_unified_config(
     config_path: str,
     defaults: Dict[str, Any],
+    strict: bool = False,
 ) -> Dict[str, Any]:
     """Load cadence config from the "cadence" group of build_stream_config.yml.
 
     Args:
         config_path: Path to build_stream_config.yml
         defaults: Default configuration to merge with
+        strict: Raise when the document or cadence mapping is invalid.
 
     Returns:
         Merged configuration dictionary.
     """
     config = dict(defaults)
     try:
-        import yaml  # pylint: disable=import-outside-toplevel
         with open(config_path, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
 
         if not isinstance(data, dict):
+            if strict:
+                raise ValueError("BuildStream configuration is not a mapping")
             log_secure_info("warning", "Config is not a dictionary")
             return config
 
         cadence_section = data.get("cadence")
         if cadence_section is None:
+            if strict:
+                raise ValueError("BuildStream configuration has no cadence mapping")
             log_secure_info(
                 "info",
                 "No 'cadence' group in build_stream_config.yml, using defaults"
             )
             return config
         if not isinstance(cadence_section, dict):
+            if strict:
+                raise ValueError("BuildStream cadence configuration is not a mapping")
             log_secure_info(
                 "warning", "'cadence' group is not a mapping, using defaults"
             )
@@ -244,34 +238,40 @@ def _load_unified_config(
         # Only these parameters are user-configurable; the rest stay fixed
         bool_keys = ("enabled",)
         int_keys = (
-            "interval_seconds",
+            "interval_days",
             "sync_timeout_seconds",
             "sync_poll_interval_seconds",
-        )
-        str_keys = (
-            "catalog_filename",
-            "playbook_name",
         )
 
         for key in bool_keys:
             if key in cadence_section:
-                config[key] = bool(cadence_section[key])
+                value = cadence_section[key]
+                if not isinstance(value, bool):
+                    raise ValueError(f"Cadence {key} must be a boolean")
+                config[key] = value
 
         for key in int_keys:
             if key in cadence_section:
-                value = int(cadence_section[key])
-                if key == "interval_seconds" and value < 3600:
+                value = cadence_section[key]
+                if not isinstance(value, int) or isinstance(value, bool):
+                    raise ValueError(f"Cadence {key} must be an integer")
+                if key == "interval_days" and value < 1:
                     log_secure_info(
                         "warning",
-                        f"Cadence interval {value}s < 1 hour; "
-                        "using minimum 3600s"
+                        f"Cadence interval {value}d < 1 day; "
+                        "using minimum 1d"
                     )
-                    value = 3600
+                    value = 1
+                if key == "sync_timeout_seconds" and value < 60:
+                    raise ValueError(
+                        "Cadence sync_timeout_seconds must be at least 60"
+                    )
+                if key == "sync_poll_interval_seconds" and not 1 <= value <= 300:
+                    raise ValueError(
+                        "Cadence sync_poll_interval_seconds must be between "
+                        "1 and 300"
+                    )
                 config[key] = value
-
-        for key in str_keys:
-            if key in cadence_section:
-                config[key] = str(cadence_section[key])
 
         # Load GitLab configuration from root level (not cadence section)
         gitlab_config_keys = {
@@ -284,19 +284,17 @@ def _load_unified_config(
             if key in data:
                 config[key] = type_converter(data[key])
 
-        # Validate catalog filename
-        if not _validate_catalog_filename(config["catalog_filename"]):
-            raise ValueError(
-                f"Invalid catalog_filename: {config['catalog_filename']}"
-            )
-
         log_secure_info(
             "info",
             f"Cadence config loaded from build_stream_config.yml: "
             f"enabled={config['enabled']}, "
-            f"interval={config['interval_seconds']}s"
+            f"interval={config['interval_days']}d"
         )
-    except (OSError, ValueError, ImportError):
+    except (OSError, ValueError, TypeError, yaml.YAMLError) as exc:
+        if strict:
+            raise ValueError(
+                f"Failed to load cadence configuration: {config_path}"
+            ) from exc
         log_secure_info(
             "error",
             "Failed to load cadence config, using defaults",
@@ -318,16 +316,14 @@ def _load_gitlab_credentials(credentials_path: str, config: Dict[str, Any]) -> N
         config: Config dictionary to update with credentials
     """
     try:
-        import yaml  # pylint: disable=import-outside-toplevel
-        
         # Check if file is Ansible Vault encrypted
         with open(credentials_path, "r", encoding="utf-8") as fh:
             first_line = fh.readline()
-        
+
         if first_line.startswith("$ANSIBLE_VAULT"):
             # Encrypted - use ansible-vault to decrypt
             vault_key_path = Path(credentials_path).parent / ".build_stream_credentials_key"
-            
+
             if not vault_key_path.exists():
                 log_secure_info(
                     "warning",
@@ -335,7 +331,7 @@ def _load_gitlab_credentials(credentials_path: str, config: Dict[str, Any]) -> N
                     "Cannot decrypt credentials. GitLab API disabled."
                 )
                 return
-            
+
             # Decrypt using ansible-vault view command
             try:
                 result = subprocess.run(
@@ -363,25 +359,25 @@ def _load_gitlab_credentials(credentials_path: str, config: Dict[str, Any]) -> N
             # Plain YAML - load directly
             with open(credentials_path, "r", encoding="utf-8") as fh:
                 creds = yaml.safe_load(fh)
-        
+
         if not isinstance(creds, dict):
             log_secure_info("warning", "Credentials file is not a dictionary")
             return
-        
+
         # Load GitLab API credentials (if present)
         if "gitlab_root_token" in creds:
             config["gitlab_root_token"] = str(creds["gitlab_root_token"])
-        
+
         if "gitlab_project_id" in creds:
             config["gitlab_project_id"] = str(creds["gitlab_project_id"])
-        
+
         log_secure_info(
             "info",
             f"GitLab credentials loaded: "
             f"token={'present' if config.get('gitlab_root_token') else 'missing'}, "
             f"project_id={'present' if config.get('gitlab_project_id') else 'missing'}"
         )
-    
+
     except (OSError, ValueError, ImportError):
         log_secure_info(
             "warning",
@@ -599,7 +595,6 @@ def copy_cadence_catalog_to_default_path(
 def submit_repo_sync_request(
     requests_dir: Path,
     job_id: str,
-    playbook_name: str = "repo_sync.yml",
 ) -> bool:
     """Submit a repo sync request to the NFS playbook queue.
 
@@ -610,15 +605,13 @@ def submit_repo_sync_request(
     Args:
         requests_dir: Path to the NFS playbook queue requests directory.
         job_id: Unique job ID for this cadence sync request.
-        playbook_name: Name of the sync playbook (default: repo_sync.yml).
-
     Returns:
         True if the request was submitted successfully, False otherwise.
     """
     request_data = {
         "job_id": job_id,
         "stage_name": "cadence-repo-sync",
-        "playbook_path": playbook_name,
+        "playbook_path": DEFAULT_CADENCE_PLAYBOOK_NAME,
         "correlation_id": job_id,
         "extra_vars": {
             "job_id": job_id,
@@ -711,8 +704,6 @@ def wait_for_sync_result(
 def load_repo_resync_status(status_path: Path) -> Optional[Dict[str, Any]]:
     """Load and validate the Repo Manager exact-mirror result contract."""
     try:
-        import yaml  # pylint: disable=import-outside-toplevel
-
         with open(status_path, "r", encoding="utf-8") as status_file:
             status = yaml.safe_load(status_file)
     except (OSError, ImportError, yaml.YAMLError):
@@ -808,16 +799,17 @@ class CadenceTimerThread(Thread):
     """Daemon thread that periodically triggers cadence builds.
 
     The cadence timer:
-    1. Sleeps for the configured interval (default: 24 hours)
-    2. Checks if a build pipeline is currently executing
-    3. If idle, submits a repo_manager sync request
-    4. Waits for sync completion
-    5. On success, bumps catalog version and pushes to GitLab
-    6. Emits CADENCE_SYNC_COMPLETED audit event
+    1. Sleeps for the configured interval (default: 7 days)
+    2. Reloads cadence configuration and credentials
+    3. Checks if a build pipeline is currently executing
+    4. If idle, submits a repo_manager sync request
+    5. Waits for sync completion
+    6. On success, bumps catalog version and pushes to GitLab
+    7. Emits CADENCE_SYNC_COMPLETED audit event
 
     Attributes:
-        interval_seconds: Polling interval in seconds.
-        catalog_filename: Name of the cadence catalog file in GitLab.
+        interval_seconds: Polling interval converted from configured days.
+        catalog_filename: Fixed cadence catalog file in GitLab.
         gitlab_url: GitLab base URL.
         gitlab_token: GitLab API token.
         gitlab_project_id: GitLab project ID.
@@ -848,30 +840,47 @@ class CadenceTimerThread(Thread):
             ValueError: If required GitLab configuration is missing.
         """
         super().__init__(name="CadenceTimerThread", daemon=True)
-        self.interval_seconds: int = config.get(
-            "interval_seconds", DEFAULT_CADENCE_INTERVAL_SECONDS
-        )
-        self.catalog_filename: str = config.get(
-            "catalog_filename", DEFAULT_CADENCE_CATALOG_FILENAME
-        )
-        self.config: Dict[str, Any] = config
         self.requests_dir: Path = requests_dir
         self.results_dir: Path = results_dir
         self.processing_dir: Path = processing_dir
         self.stop_event: Event = Event()
         self.trigger_event: Event = Event()
+        self.catalog_filename = DEFAULT_CADENCE_CATALOG_FILENAME
+        self.config: Dict[str, Any] = {}
+        self.enabled = DEFAULT_CADENCE_ENABLED
+        self.interval_days = DEFAULT_CADENCE_INTERVAL_DAYS
+        self.interval_seconds = DEFAULT_CADENCE_INTERVAL_SECONDS
+        self.gitlab_url = ""
+        self.gitlab_project_name = "omnia-catalog"
+        self.gitlab_branch = "main"
+        self.gitlab_token = ""
+        self.gitlab_project_id = ""
+        self._apply_config(config)
+
+    def _apply_config(self, config: Dict[str, Any]) -> None:
+        """Apply one validated cadence configuration snapshot."""
+        self.config = dict(config)
+        self.enabled = bool(config.get("enabled", DEFAULT_CADENCE_ENABLED))
+        self.interval_days = int(
+            config.get("interval_days", DEFAULT_CADENCE_INTERVAL_DAYS)
+        )
+        self.interval_seconds = self.interval_days * SECONDS_PER_DAY
 
         # Load GitLab configuration from build_stream_config.yml
         gitlab_host = config.get("gitlab_host", "")
         gitlab_port = config.get("gitlab_https_port", 443)
-        self.gitlab_url: str = f"https://{gitlab_host}:{gitlab_port}" if gitlab_host else ""
-        self.gitlab_project_name: str = config.get("gitlab_project_name", "omnia-catalog")
-        self.gitlab_branch: str = config.get("gitlab_default_branch", "main")
-        
+        self.gitlab_url = (
+            f"https://{gitlab_host}:{gitlab_port}" if gitlab_host else ""
+        )
+        self.gitlab_project_name = config.get(
+            "gitlab_project_name", "omnia-catalog"
+        )
+        self.gitlab_branch = config.get("gitlab_default_branch", "main")
+
         # GitLab token must be loaded from credentials file
         # For now, we'll make it optional and log a warning if missing
-        self.gitlab_token: str = config.get("gitlab_root_token", "")
-        self.gitlab_project_id: str = config.get("gitlab_project_id", "")
+        self.gitlab_token = config.get("gitlab_root_token", "")
+        self.gitlab_project_id = config.get("gitlab_project_id", "")
 
         # Validate required GitLab configuration (warning only, not fatal)
         if not self.gitlab_url or not self.gitlab_token or not self.gitlab_project_id:
@@ -883,6 +892,51 @@ class CadenceTimerThread(Thread):
                 "in build_stream_config.yml or build_stream_credentials.yml"
             )
 
+    def _reload_config(self) -> bool:
+        """Reload cadence settings while retaining the last-known-good state."""
+        try:
+            reloaded = load_cadence_config(strict=True)
+        except ValueError as exc:
+            log_secure_info(
+                "warning",
+                f"Cadence configuration reload failed; retaining running "
+                f"values: {exc}",
+            )
+            return False
+
+        # A temporarily unreadable credentials file must not erase credentials
+        # already held by the running watcher.
+        for key in ("gitlab_root_token", "gitlab_project_id"):
+            if not reloaded.get(key) and self.config.get(key):
+                reloaded[key] = self.config[key]
+
+        previous = (
+            self.enabled,
+            self.interval_days,
+            self.config.get("sync_timeout_seconds"),
+            self.config.get("sync_poll_interval_seconds"),
+            self.gitlab_url,
+            self.gitlab_project_name,
+            self.gitlab_branch,
+        )
+        self._apply_config(reloaded)
+        current = (
+            self.enabled,
+            self.interval_days,
+            self.config.get("sync_timeout_seconds"),
+            self.config.get("sync_poll_interval_seconds"),
+            self.gitlab_url,
+            self.gitlab_project_name,
+            self.gitlab_branch,
+        )
+        if current != previous:
+            log_secure_info(
+                "info",
+                "Cadence configuration reloaded: "
+                f"enabled={self.enabled}, interval={self.interval_days}d",
+            )
+        return True
+
     def run(self) -> None:
         """Main cadence polling loop.
 
@@ -892,7 +946,7 @@ class CadenceTimerThread(Thread):
         log_secure_info(
             "info",
             f"CadenceTimerThread started: "
-            f"interval={self.interval_seconds}s, "
+            f"interval={self.interval_days}d, "
             f"catalog={self.catalog_filename}"
         )
 
@@ -940,7 +994,16 @@ class CadenceTimerThread(Thread):
         """Execute one cadence polling cycle."""
         log_secure_info("info", "Cadence polling cycle started")
 
-        # Step 1: Check if pipeline is busy (AC-009)
+        # Step 1: Reload operator settings without restarting the service.
+        self._reload_config()
+        if not self.enabled:
+            log_secure_info(
+                "info",
+                "Cadence polling is disabled; cycle skipped and timer remains active",
+            )
+            return
+
+        # Step 2: Check if pipeline is busy (AC-009)
         if is_pipeline_busy(self.processing_dir):
             log_secure_info(
                 "info",
@@ -948,7 +1011,7 @@ class CadenceTimerThread(Thread):
             )
             return
 
-        # Step 2-3: Sync packages via repo_manager
+        # Step 3-4: Sync packages via repo_manager
         sync_result = self._sync_packages()
         if sync_result is None:
             return
@@ -991,7 +1054,6 @@ class CadenceTimerThread(Thread):
         if not submit_repo_sync_request(
             self.requests_dir,
             job_id,
-            playbook_name=self.config.get("playbook_name", "repo_sync.yml"),
         ):
             log_secure_info("error", "Failed to submit repo sync request")
             return None

@@ -137,11 +137,14 @@ Per-domain configuration. Key sections:
 - **`gitlab_host`** — Target host for GitLab deployment
 - **`gitlab_project_name`** — GitLab project name (default: `omnia-catalog`)
 - **`cadence.enabled`** — Enable periodic repository reconciliation and catalog-driven pipelines
-- **`cadence.interval_seconds`** — Poll interval for cadence cycles (minimum 3600 seconds)
-- **`cadence.catalog_filename`** — GitLab cadence catalog (default: `cadence_catalog_rhel.json`)
-- **`cadence.playbook_name`** — Registered exact-mirror repository playbook (default: `repo_sync.yml`)
+- **`cadence.interval_days`** — Poll interval for cadence cycles (default 7 days, minimum 1 day)
 - **`cadence.sync_timeout_seconds`** — Maximum wait for repository synchronization
 - **`cadence.sync_poll_interval_seconds`** — Poll interval while waiting for repository synchronization
+
+The cadence catalog (`cadence_catalog_rhel.json`) and reconciliation playbook
+(`repo_sync.yml`) are fixed system contracts. Cadence settings are reloaded at
+the start of each cycle. Disabling cadence suppresses work but keeps the timer
+alive so it can be re-enabled without restarting `playbook-watcher.service`.
 
 ### Cadence Pipeline
 

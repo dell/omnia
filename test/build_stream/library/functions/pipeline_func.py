@@ -1051,13 +1051,13 @@ def check_cadence_runtime(host) -> Dict[str, Any]:
     errors = []
     if cadence.get("enabled") is not True:
         errors.append("cadence.enabled must be true")
-    if cadence.get("catalog_filename") != CADENCE_CATALOG_FILE_PATH:
-        errors.append(
-            "cadence.catalog_filename must be "
-            f"{CADENCE_CATALOG_FILE_PATH}"
-        )
-    if cadence.get("playbook_name") != "repo_sync.yml":
-        errors.append("cadence.playbook_name must be repo_sync.yml")
+    interval_days = cadence.get("interval_days")
+    if (
+        not isinstance(interval_days, int)
+        or isinstance(interval_days, bool)
+        or interval_days < 1
+    ):
+        errors.append("cadence.interval_days must be an integer >= 1")
 
     if errors:
         result["error"] = "; ".join(errors)

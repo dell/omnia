@@ -235,17 +235,17 @@ class TestPlaybookRequest:
             assert result is False
             mock_log.assert_called()
 
-    def test_configurable_playbook_name(self, temp_dir):
-        """TC-UT-007-004: Configurable playbook name."""
+    def test_repo_sync_playbook_name_is_fixed(self, temp_dir):
+        """TC-UT-007-004: Cadence always submits repo_sync.yml."""
         requests_dir = temp_dir / "requests"
         requests_dir.mkdir()
         job_id = "cadence-20260924120000"
 
-        submit_repo_sync_request(requests_dir, job_id, playbook_name="custom_sync.yml")
+        submit_repo_sync_request(requests_dir, job_id)
 
         request_file = requests_dir / f"cadence-sync-{job_id}.json"
         request_data = json.loads(request_file.read_text())
-        assert request_data["playbook_path"] == "custom_sync.yml"
+        assert request_data["playbook_path"] == "repo_sync.yml"
 
 
 class TestSyncResultPolling:
@@ -523,14 +523,14 @@ class TestCadenceExactMirrorFlow:
             thread._execute_cadence_cycle()  # pylint: disable=protected-access
         bump.assert_called_once_with("cadence-2")
 
-    def test_sync_uses_configured_playbook_and_polling_contract(
+    def test_sync_uses_fixed_playbook_and_configured_polling_contract(
         self, sample_cadence_config, temp_dir
     ):
-        """TC-UT-011-003: Queue request and polling honor cadence settings."""
+        """TC-UT-011-003: Queue uses fixed playbook plus timing settings."""
         config = dict(sample_cadence_config)
         config.update(
             {
-                "playbook_name": "repo_sync.yml",
+                "playbook_name": "untrusted.yml",
                 "sync_timeout_seconds": 1234,
                 "sync_poll_interval_seconds": 17,
             }
@@ -550,7 +550,7 @@ class TestCadenceExactMirrorFlow:
         ):
             outcome = thread._sync_packages()  # pylint: disable=protected-access
         assert outcome["updates_detected"] is True
-        assert submit.call_args.kwargs["playbook_name"] == "repo_sync.yml"
+        submit.assert_called_once()
         assert wait.call_args.kwargs == {
             "timeout_seconds": 1234,
             "poll_interval": 17,
@@ -580,7 +580,6 @@ class TestCadenceTimerThread:
     def test_thread_graceful_shutdown(self, sample_cadence_config, temp_dir):
         """TC-UT-010-002: Thread graceful shutdown."""
         config = sample_cadence_config
-        config["interval_seconds"] = 1  # Short interval for testing
         requests_dir = temp_dir / "requests"
         results_dir = temp_dir / "results"
         processing_dir = temp_dir / "processing"
@@ -591,6 +590,7 @@ class TestCadenceTimerThread:
             results_dir,
             processing_dir
         )
+        thread.interval_seconds = 1
 
         thread.start()
         thread.stop()
@@ -601,7 +601,6 @@ class TestCadenceTimerThread:
     def test_polling_loop_respects_interval(self, sample_cadence_config, temp_dir):
         """TC-UT-010-003: Polling loop respects interval."""
         config = sample_cadence_config
-        config["interval_seconds"] = 0.5  # Short interval for testing
         requests_dir = temp_dir / "requests"
         results_dir = temp_dir / "results"
         processing_dir = temp_dir / "processing"
@@ -612,6 +611,7 @@ class TestCadenceTimerThread:
             results_dir,
             processing_dir
         )
+        thread.interval_seconds = 0.5
 
         with patch.object(thread, "_execute_cadence_cycle") as mock_cycle:
             thread.start()
@@ -627,7 +627,6 @@ class TestCadenceTimerThread:
     ):
         """TC-UT-010-004: A one-shot trigger wakes the scheduled timer."""
         config = dict(sample_cadence_config)
-        config["interval_seconds"] = 3600
         executed = Event()
         thread = CadenceTimerThread(
             config,
@@ -651,3 +650,83 @@ class TestCadenceTimerThread:
 
         cycle.assert_called_once_with()
         assert not thread.is_alive()
+
+    @pytest.mark.unit
+    def test_reload_applies_interval_and_enabled_state(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-010-005: A cycle applies the latest operator settings."""
+        thread = CadenceTimerThread(
+            sample_cadence_config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+        reloaded = dict(sample_cadence_config)
+        reloaded.update(
+            {
+                "enabled": False,
+                "interval_days": 5,
+                "gitlab_host": "gitlab.example.test",
+                "gitlab_https_port": 8443,
+                "gitlab_project_name": "cadence-project",
+                "gitlab_default_branch": "cadence",
+            }
+        )
+
+        with patch(
+            "cadence_manager.load_cadence_config",
+            return_value=reloaded,
+        ):
+            assert thread._reload_config() is True  # pylint: disable=protected-access
+
+        assert thread.enabled is False
+        assert thread.interval_days == 5
+        assert thread.interval_seconds == 5 * 86400
+        assert thread.gitlab_url == "https://gitlab.example.test:8443"
+        assert thread.gitlab_project_name == "cadence-project"
+        assert thread.gitlab_branch == "cadence"
+
+    @pytest.mark.unit
+    def test_reload_failure_retains_last_known_good_config(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-010-006: Malformed reload cannot reset a running cadence."""
+        thread = CadenceTimerThread(
+            sample_cadence_config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+
+        with patch(
+            "cadence_manager.load_cadence_config",
+            side_effect=ValueError("malformed"),
+        ):
+            assert thread._reload_config() is False  # pylint: disable=protected-access
+
+        assert thread.enabled is True
+        assert thread.interval_days == 1
+
+    @pytest.mark.unit
+    def test_disabled_reload_skips_work_but_keeps_thread_available(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-010-007: Runtime disablement suppresses only the cycle."""
+        thread = CadenceTimerThread(
+            sample_cadence_config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+        disabled = dict(sample_cadence_config)
+        disabled["enabled"] = False
+
+        with patch(
+            "cadence_manager.load_cadence_config",
+            return_value=disabled,
+        ), patch.object(thread, "_sync_packages") as sync:
+            thread._execute_cadence_cycle()  # pylint: disable=protected-access
+
+        sync.assert_not_called()
+        assert thread.enabled is False

@@ -104,11 +104,10 @@ Package add/remove counts are informational and never suppress cadence. The
 normal `catalog_path` setting is used only by build-pipeline automation.
 
 For deterministic sanity execution, the deployed `build_stream_config.yml`
-must set `cadence.enabled: true`,
-`cadence.catalog_filename: cadence_catalog_rhel.json`, and
-`cadence.playbook_name: repo_sync.yml`. The watcher and Pulp services, local
-cadence Git worktree, and `repo_sync.yml` registration are validated before
-the action starts.
+must set `cadence.enabled: true` and a valid `cadence.interval_days`. The
+catalog (`cadence_catalog_rhel.json`) and playbook (`repo_sync.yml`) are fixed
+system contracts. The watcher and Pulp services, local cadence Git worktree,
+and `repo_sync.yml` registration are validated before the action starts.
 
 The shared `job_id` remains the single source of truth:
 
@@ -119,9 +118,9 @@ The shared `job_id` remains the single source of truth:
 - The JobID is used to resolve exactly one composite ImageGroupID and the
   corresponding cadence child pipeline.
 
-Cadence service controls such as `enabled`, polling intervals, and
-`catalog_filename` remain product configuration in
-`build_stream_config.yml`; the test configuration does not duplicate them.
+Cadence service controls such as `enabled` and polling intervals remain product
+configuration in `build_stream_config.yml`; the test configuration does not
+duplicate them.
 
 ## FVT scenarios
 
