@@ -251,6 +251,25 @@ cd src/main
 sudo ./omnia.sh --run build_stream --tags cleanup
 ```
 
+BuildStream cleanup removes its project output, validation and watcher logs,
+active and archived playbook queues, API logs, TLS/runtime data, host playbook
+logs under `/var/log/omnia/build_stream`, and generated Python bytecode caches.
+The initializer-owned application source and non-credential input files remain
+available for redeployment.
+PostgreSQL data is preserved by default; pass `-e postgres_backup=false` when
+the database data must also be deleted.
+
+Because cleanup removes the initializer-managed runtime and host log
+directories, reinitialize the BuildStream domain before redeploying. Use the
+public `omnia.sh` commands; `--init build_stream` invokes `domain-init.sh` and
+recreates the required directories:
+
+```bash
+cd src/main
+sudo ./omnia.sh --init build_stream
+sudo ./omnia.sh --run build_stream
+```
+
 `src/build_stream/domain-init.sh --cleanup` is a non-interactive initializer
 helper. It removes only `$OMNIA_DATA_PATH/build_stream/input`, the domain runtime
 log directory, and `/var/log/omnia/build_stream`; it does not clean deployed
