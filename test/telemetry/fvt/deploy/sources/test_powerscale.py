@@ -617,6 +617,13 @@ def test_powerscale_health_metrics(host):
     tl.check("Verifying PowerScale health metrics")
     result = verify_health_metrics(host)
 
+    if result.get("skipped", False):
+        tl.skipped(
+            "CSI volume exporter not deployed",
+            result["skip_reason"],
+        )
+        pytest.skip(result["skip_reason"])
+
     if result["success"]:
         tl.passed(
             LOG_MSGS["health_metrics"],
