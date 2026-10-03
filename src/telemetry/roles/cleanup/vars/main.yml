@@ -21,7 +21,7 @@
 telemetry_namespace: "telemetry"
 # Preserve sink volumes (Kafka, VictoriaMetrics, VictoriaLogs) unless the user explicitly requests deletion.
 # Both -e delete_sinks_volume=true and -e Delete_sinks_volume=true are accepted.
-# Source volumes (iDRAC, LDMS, PowerScale, etc.) are always deleted.
+# Source volumes (currently iDRAC and PowerScale) are always deleted.
 _cleanup_delete_sinks_volume_enabled: >-
   {{
     (hostvars['localhost'] | default({}))['_cleanup_delete_sinks_volume']
@@ -30,6 +30,68 @@ _cleanup_delete_sinks_volume_enabled: >-
   }}
 _cleanup_preserve_sink_volumes: >-
   {{ not (_cleanup_delete_sinks_volume_enabled | bool) }}
+cleanup_granular_sink_volume_option_fail_msg: >-
+  delete_sinks_volume is not supported with telemetry source-only cleanup
+  tags. Remove this extra variable, or use --tags cleanup or
+  --tags cleanup_sinks when deleting sink volumes.
+cleanup_invalid_sink_volume_option_msg: >-
+  delete_sinks_volumes is not a supported telemetry variable. Use the singular
+  name delete_sinks_volume with --tags cleanup or --tags cleanup_sinks.
+
+# --- cleanup_sinks settings ---
+# Valid sink names accepted by the sinks extra variable.
+_cleanup_sinks_valid_names:
+  - kafka
+  - victoria_metrics
+  - victoria_logs
+
+# Default sinks list when --tags cleanup_sinks is used without -e sinks=...
+_cleanup_sinks_default:
+  - kafka
+  - victoria_metrics
+  - victoria_logs
+
+# Short-form sink selection markers (for -e kafka, -e victoria_metrics, -e victoria_logs)
+# Set to null by default. When user passes -e kafka, Ansible overrides to true.
+# The short-form detection logic checks "is not none" to detect CLI overrides.
+kafka: null
+Kafka: null
+victoria_metrics: null
+Victoria_metrics: null
+victoria_logs: null
+Victoria_logs: null
+
+# Error messages for cleanup_sinks validation
+cleanup_sinks_invalid_name_msg: >-
+  Invalid sink name(s) in sinks variable: {invalid}.
+  Accepted values are: kafka, victoria_metrics, victoria_logs.
+  Example: -e sinks=kafka,victoria_metrics
+
+cleanup_sinks_empty_msg: >-
+  The sinks variable resolved to an empty list.
+  Provide at least one valid sink name: kafka, victoria_metrics, victoria_logs.
+  Example: -e sinks=kafka
+
+cleanup_sinks_dependency_check_failed_msg: >-
+  Sink dependency validation failed. Cannot determine whether dependent
+  sources are running. No sink resources or volumes were modified.
+  Resolve the cluster connectivity issue and retry.
+
+cleanup_sinks_blocked_msg: >-
+  Cleanup of {sink} is blocked by running telemetry source(s): {sources}.
+  Stop or clean up the listed source(s) before retrying sink cleanup.
+
+# --- Credential and log preservation settings ---
+# Use -e cleanup_credentials=false to preserve credentials during cleanup
+# without volume. Use -e cleanup_logs=false to preserve logs during cleanup
+# without volume. When Delete_sinks_volume=true these flags are overridden
+# and credentials and logs are always removed.
+cleanup_credentials_invalid_msg: >-
+  cleanup_credentials accepts only true or false. Use
+  -e cleanup_credentials=false to preserve credentials during cleanup.
+cleanup_logs_invalid_msg: >-
+  cleanup_logs accepts only true or false. Use
+  -e cleanup_logs=false to preserve logs during cleanup.
 cleanup_resource_grace_period: 0
 cleanup_post_delete_pause: 5
 cleanup_helm_timeout: "5m"
@@ -90,8 +152,9 @@ kafka_pod_labels:
 
 # =============================================================================
 # VictoriaMetrics cleanup resources
+# NOTE: prefixed with _ to avoid collision with CLI -e victoria_metrics flag
 # =============================================================================
-victoria_metrics:
+_vm_resources:
   crd_resources:
     - { type: "vmcluster", name: "victoria-cluster" }
     - { type: "vmagent", name: "vmagent" }
@@ -156,8 +219,9 @@ victoria_operator_helm_release: "victoria-metrics-operator"
 
 # =============================================================================
 # VictoriaLogs cleanup resources
+# NOTE: prefixed with _ to avoid collision with CLI -e victoria_logs flag
 # =============================================================================
-victoria_logs:
+_vl_resources:
   crd_resources:
     - { type: "vlcluster", name: "victoria-logs-cluster" }
     - { type: "vlagent", name: "vlagent" }
@@ -244,7 +308,6 @@ ldms_secret_resources:
   - { type: "secret", name: "nersc-munge-key" }
 
 ldms_configmap_label: "app=nersc-ldms"
-ldms_pvc_label: "app=nersc-ldms"
 ldms_pod_labels:
   - "app=nersc-ldms-aggr"
   - "app=nersc-ldms-store"

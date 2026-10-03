@@ -34,9 +34,12 @@ playbooks/telemetry.yml (entry point)
   |    - Auto-copy input files from source if runtime dir is missing
   |    - Create runtime directories
   |
-  |  DEFAULT FLOW (no tags = validate + deploy):
+  |  DEFAULT FLOW (no tags = validate + precheck + deploy):
   |
   +-- validate/validation.yml          [tag: validate]      L1 + L2 validation
+  +-- precheck/precheck.yml            [tags: precheck, deploy, execute]
+  |     +-- K8s API, nodes, control plane, workers, and pod health
+  |     +-- Slurm nodes and services when LDMS is enabled
   +-- deploy/deploy.yml                [tag: deploy]
   |     +-- telemetry_prereq.yml       Phase 0: config, flags, kube_vip
   |     +-- sinks/deploy_sinks.yml     Phase 1: Kafka, VM, VL
@@ -46,22 +49,22 @@ playbooks/telemetry.yml (entry point)
   |
   |  OPT-IN FLOWS (require explicit --tags):
   |
-  +-- precheck/precheck.yml            [tag: precheck]      K8s readiness
   +-- cleanup/cleanup.yml              [tag: cleanup]       Runtime removal
   |     +-- Delete_volume=false        Preserve PVCs + Kafka identity (default)
   |     +-- Delete_volume=true         Delete PVCs + Kafka identity
   |     +-- sources/cleanup_*.yml      Per-source cleanup (vars from ../../vars/cleanup.yml)
-  |     +-- sinks/cleanup_kafka.yml    Per-sink cleanup (vars from ../../vars/cleanup.yml)
-  |     +-- sinks/cleanup_victoria_*.yml
+  |     +-- cleanup_sinks             [tag: cleanup_sinks]  Selective sink cleanup with dependency checking (-e sinks=... or -e kafka)
   +-- upgrade/upgrade.yml              [tag: upgrade]       Placeholder
   +-- rollback/rollback.yml            [tag: rollback]      Placeholder
 ```
 
 ### Tag Safety
 
-Opt-in flows (`precheck`, `cleanup`, `upgrade`, `rollback`) use Ansible's
-`never` tag — they **never** execute unless explicitly requested with `--tags`.
-Running `telemetry.yml` without tags is always safe: setup + validate + deploy.
+Opt-in recovery/destructive flows (`cleanup`, `upgrade`, `rollback`) use
+Ansible's `never` tag and execute only when explicitly requested. Precheck is a
+mandatory gate for the default, `deploy`, and `execute` flows; `--tags precheck`
+runs the same checks without deploying. Validation-only, cleanup, rollback, and
+utility-only flows intentionally do not require the cluster to be fully healthy.
 
 ## Environment Configuration (omnia.env)
 
@@ -97,7 +100,10 @@ Derived paths:
 ## Configuration
 
 All configuration is read from `input/telemetry_config.yml`. Only sources with
-`metrics_enabled: true` (or `logs_enabled: true`) are deployed.
+`metrics_enabled: true` (or `logs_enabled: true`) are deployed. iDRAC is also
+reconciled when `metrics_enabled: false`: an existing `idrac-telemetry`
+StatefulSet is scaled to zero while its definition, PVCs, secrets, generated
+configuration, and MySQL data are retained for re-enable.
 
 ## Kubernetes Integration
 

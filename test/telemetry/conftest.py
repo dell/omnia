@@ -120,6 +120,21 @@ _TC_ID_MAP.update(
         "test_cleanup_idempotency_no_pods": TEST_CASES[
             "nft_cleanup_no_pods"
         ]["id"],
+        "test_cleanup_pvcs_preserved": TEST_CASES[
+            "nft_cleanup_pvcs_preserved"
+        ]["id"],
+        "test_cleanup_with_volume_performance": TEST_CASES[
+            "nft_cleanup_vol_perf"
+        ]["id"],
+        "test_cleanup_with_volume_idempotency": TEST_CASES[
+            "nft_cleanup_vol_idempotent"
+        ]["id"],
+        "test_cleanup_with_volume_no_pods": TEST_CASES[
+            "nft_cleanup_vol_no_pods"
+        ]["id"],
+        "test_cleanup_with_volume_no_pvcs": TEST_CASES[
+            "nft_cleanup_no_pvcs"
+        ]["id"],
         "test_validate_performance": TEST_CASES["nft_validate_perf"]["id"],
         "test_deploy_performance": TEST_CASES["nft_deploy_perf"]["id"],
         "test_cleanup_performance": TEST_CASES["nft_cleanup_perf"]["id"],
@@ -145,13 +160,16 @@ _TC_ID_MAP.update(
             "nft_data_after_restart"
         ]["id"],
         "test_node_reboot_recovery": TEST_CASES["nft_node_reboot"]["id"],
+        "test_idrac_data_lifecycle": TEST_CASES[
+            "nft_idrac_data_lifecycle"
+        ]["id"],
+        "test_ome_channel_data_lifecycle": TEST_CASES[
+            "nft_ome_channel_lifecycle"
+        ]["id"],
         "test_full_lifecycle": TEST_CASES["nft_full_lifecycle"]["id"],
         "test_operator_pod_recovery": TEST_CASES["nft_operator_recovery"][
             "id"
         ],
-        "test_nft_final_cluster_state_warning": TEST_CASES[
-            "nft_final_warning"
-        ]["id"],
     }
 )
 
@@ -187,22 +205,12 @@ def _registered_test_case_id(item):
         deploy_key = "deploy_deploy" if deploy_tag else "deploy_telemetry"
         return TEST_CASES[deploy_key]["id"]
 
-    if item.name in {
-        "test_no_pvcs_after_full_cleanup",
-        "test_cleanup_idempotency_no_pvcs",
-    }:
-        if item.name == "test_no_pvcs_after_full_cleanup":
-            case_key = (
-                "no_pvcs_after_full_cleanup"
-                if _delete_sinks_volume_enabled(item.config)
-                else "pvcs_preserved_after_cleanup"
-            )
-        else:
-            case_key = (
-                "nft_cleanup_no_pvcs"
-                if _delete_sinks_volume_enabled(item.config)
-                else "nft_cleanup_pvcs_preserved"
-            )
+    if item.name == "test_no_pvcs_after_full_cleanup":
+        case_key = (
+            "no_pvcs_after_full_cleanup"
+            if _delete_sinks_volume_enabled(item.config)
+            else "pvcs_preserved_after_cleanup"
+        )
         return TEST_CASES[case_key]["id"]
 
     return _TC_ID_MAP.get(item.name, "")
@@ -232,7 +240,7 @@ def pytest_addoption(parser):
             "Control sink (Kafka, VictoriaMetrics, VictoriaLogs) PVC/volume deletion during cleanup. "
             "When 'true', cleanup deletes all PVCs including sink volumes. "
             "When 'false' or omitted (default), sink PVCs are preserved. "
-            "Source volumes (iDRAC, LDMS, PowerScale, etc.) are always deleted. "
+            "Source volumes (currently iDRAC and PowerScale) are always deleted. "
             "Also accepts DELETE_SINKS_VOLUME environment variable."
         ),
     )
@@ -599,3 +607,6 @@ def delete_sinks_volume(request):
         return env_value.lower() in ("true", "1", "yes")
 
     return False
+
+
+

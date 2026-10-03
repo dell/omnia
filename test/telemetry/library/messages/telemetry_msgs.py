@@ -81,6 +81,20 @@ TEST_LOG_MSGS = {
     "vl_cleaned": "No VictoriaLogs pods remaining",
     "vl_not_cleaned": "{count} VictoriaLogs pod(s) still present",
 
+    # Cleanup - Sink dependency checking
+    "sink_cleanup_allowed": "Sink cleanup allowed — no dependent sources running for {sink}",
+    "sink_cleanup_blocked": "Sink cleanup blocked — {sources} depend on {sink}",
+    "sink_dep_check_failed": "Sink dependency check failed — all sinks preserved",
+    "sink_unchanged": "Sink {sink} unchanged after blocked cleanup",
+    "sink_volumes_preserved": "Sink {sink} volumes preserved (default)",
+    "sink_volumes_deleted": "Sink {sink} volumes deleted (delete_sinks_volume=true)",
+    "sink_other_sinks_unchanged": "Other sinks unchanged after selective {sink} cleanup",
+    "sink_all_or_nothing_pass": "All-or-nothing: all sinks preserved when {sink} is blocked",
+    "sink_all_or_nothing_fail": (
+        "All-or-nothing violation: sinks were cleaned despite {sink} being blocked"
+    ),
+    "sink_playbook_fail_on_block": "Playbook correctly fails when sinks are blocked",
+
     # Cleanup - Final State
     "no_pods_remaining": "No pods remaining in telemetry namespace",
     "pods_remaining": "{count} pod(s) still present in telemetry namespace",
@@ -440,19 +454,42 @@ TEST_ASSERT_MSGS = {
         "{count} Kafka pod(s) still present after cleanup\n"
         "HOW TO FIX:\n"
         "  1. kubectl get pods -n telemetry | grep kafka\n"
-        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_sinks -e sinks=kafka\n"
     ),
     "vm_not_cleaned": (
         "{count} VictoriaMetrics pod(s) still present after cleanup\n"
         "HOW TO FIX:\n"
         "  1. kubectl get pods -n telemetry | grep vm\n"
-        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_sinks "
+        "-e sinks=victoria_metrics\n"
     ),
     "vl_not_cleaned": (
         "{count} VictoriaLogs pod(s) still present after cleanup\n"
         "HOW TO FIX:\n"
         "  1. kubectl get pods -n telemetry | grep vl\n"
-        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup\n"
+        "  2. Re-run cleanup: ansible-playbook telemetry.yml --tags cleanup_sinks "
+        "-e sinks=victoria_logs\n"
+    ),
+    # Cleanup - Sink dependency
+    "sink_cleanup_should_be_blocked": (
+        "Sink {sink} cleanup was not properly blocked despite running dependent sources.\n"
+        "Expected the cleanup to be blocked when dependent sources are active.\n"
+    ),
+    "sink_should_remain_unchanged": (
+        "Sink {sink} resources were modified despite cleanup being blocked.\n"
+        "Expected all resources and volumes to remain unchanged.\n"
+    ),
+    "other_sinks_modified": (
+        "Other sinks were modified during selective {sink} cleanup.\n"
+        "Expected only the targeted sink to be affected.\n"
+    ),
+    "all_or_nothing_violation": (
+        "All-or-nothing violation: when {sink} is blocked by running sources, "
+        "all requested sinks must remain unchanged. No sink should be cleaned.\n"
+    ),
+    "playbook_should_fail_on_block": (
+        "Playbook should exit with non-zero return code when any requested sink "
+        "is blocked by running dependent sources.\n"
     ),
 
     # Cleanup - Final State

@@ -87,6 +87,12 @@ def test_collect_metric_results_keeps_metrics_with_identical_labels():
 
 def test_verify_metrics_normalizes_custom_ome_identifier(monkeypatch):
     """Use the configured identifier for both subsystem and topic labels."""
+    # Mock is_sink_enabled_for_source to return True
+    monkeypatch.setattr(
+        "library.functions.ome_victoria_func.is_sink_enabled_for_source",
+        lambda *_args: True,
+    )
+    # Mock _pipeline_context to return the expected context
     monkeypatch.setattr(
         ome_victoria_func,
         "_pipeline_context",
@@ -98,11 +104,11 @@ def test_verify_metrics_normalizes_custom_ome_identifier(monkeypatch):
     )
     captured = {}
 
-    def _poll(_verification, _host, topic, identifier):
+    def _verify_metric_topic_once(_host, topic, identifier):
         captured.update(topic=topic, identifier=identifier)
         return {"success": True, "details": "ok", "error": ""}
 
-    monkeypatch.setattr(ome_victoria_func, "_poll", _poll)
+    monkeypatch.setattr(ome_victoria_func, "_verify_metric_topic_once", _verify_metric_topic_once)
 
     result = ome_victoria_func.verify_ome_metrics_in_victoria(
         object(),
@@ -118,6 +124,12 @@ def test_verify_metrics_normalizes_custom_ome_identifier(monkeypatch):
 
 def test_verify_logs_skips_when_bridge_is_disabled(monkeypatch):
     """An intentionally disabled logs path is skipped rather than failed."""
+    # Mock is_sink_enabled_for_source to return True
+    monkeypatch.setattr(
+        "library.functions.ome_victoria_func.is_sink_enabled_for_source",
+        lambda *_args: True,
+    )
+    # Mock _pipeline_context to return the expected context with bridge disabled
     monkeypatch.setattr(
         ome_victoria_func,
         "_pipeline_context",
@@ -135,8 +147,9 @@ def test_verify_logs_skips_when_bridge_is_disabled(monkeypatch):
 
     assert result["success"] is True
     assert result["skipped"] is True
-    assert result["source_enabled"] is True
-    assert result["bridge_enabled"] is False
+    # The _disabled_result function includes these keys in the result
+    assert result.get("source_enabled") is True
+    assert result.get("bridge_enabled") is False
 
 
 def test_parse_log_timestamp_accepts_iso_and_nanoseconds():
