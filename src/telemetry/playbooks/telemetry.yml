@@ -29,8 +29,6 @@
 #   credentials — Collect telemetry credentials only (opt-in only)
 #   execute     — Deploy all enabled telemetry (alias: deploy)
 #   cleanup     — Cleanup all telemetry components and stored credentials
-#   upgrade     — Upgrade telemetry components (placeholder)
-#   rollback    — Rollback telemetry components (placeholder)
 #
 # Granular cleanup tags (opt-in — requires explicit --tags):
 #   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs,
@@ -46,10 +44,10 @@
 #   Step 3: Full deployment (prerequisites + sinks + sources + kustomize apply)
 #
 # Tag safety:
-#   - cleanup, upgrade, rollback use 'never' tag — NEVER run by default
+#   - cleanup uses 'never' tag — NEVER run by default
 #   - Only --tags cleanup (or granular cleanup_*) triggers cleanup
 #   - Precheck automatically gates the default, deploy, and execute flows
-#   - Validation, cleanup, rollback, and utility-only flows do not require a healthy cluster
+#   - Validation, cleanup, and utility-only flows do not require a healthy cluster
 #
 # Configuration:
 #   telemetry_config.yml → kube_vip, sources, sinks, credentials
@@ -131,25 +129,6 @@
     - cleanup_victoria_metrics
     - cleanup_victoria_logs
 
-
-# =========================================================================
-# FLOW: upgrade — Upgrade telemetry (opt-in only, placeholder)
-# =========================================================================
-- name: "Upgrade | Upgrade telemetry components"
-  ansible.builtin.import_playbook: upgrade/upgrade.yml
-  tags:
-    - never
-    - upgrade
-
-# =========================================================================
-# FLOW: rollback — Rollback telemetry (opt-in only, placeholder)
-# =========================================================================
-- name: "Rollback | Rollback telemetry components"
-  ansible.builtin.import_playbook: rollback/rollback.yml
-  tags:
-    - never
-    - rollback
-
 # =========================================================================
 # UTILITY: external_kafka — Fetch Kafka connection details (opt-in only)
 # =========================================================================
@@ -174,7 +153,7 @@
 - name: "Summary | Display telemetry deployment status location"
   hosts: localhost
   gather_facts: false
-  tags: [deploy, upgrade, rollback]
+  tags: [deploy]
   tasks:
     - name: Display deployment status summary
       ansible.builtin.include_role:

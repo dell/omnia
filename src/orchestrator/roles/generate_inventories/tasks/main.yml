@@ -28,10 +28,10 @@
   ansible.builtin.include_vars:
     file: "{{ role_path }}/../../vars/functional_group_classification.yml"
 
-# Inventory templates and output paths (from configure_ochami/vars/main.yml)
+# Inventory templates and output paths
 - name: Set inventory variables
   ansible.builtin.set_fact:
-    ochami_template_dir: "{{ role_path }}/../configure_ochami/templates"
+    ochami_template_dir: "{{ role_path }}/templates"
     orchestrator_output_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}"
     file_permissions_644: "{{ hostvars['localhost']['file_permissions_644'] }}"
     dir_permissions_755: "{{ hostvars['localhost']['dir_permissions_755'] }}"

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # Step 0: Tag validation — reject unsupported or conflicting tags
 - name: Set omnia_run_tags from ansible_run_tags
   ansible.builtin.set_fact:
@@ -26,9 +25,7 @@
 
 - name: Validate tags are supported
   ansible.builtin.fail:
-    msg: >-
-      Unsupported tag '{{ item }}' specified.
-      Supported tags: {{ supported_tags | join(', ') }}
+    msg: "{{ unsupported_tag_fail_msg }}"
   when:
     - omnia_run_tags | length > 0
     - "'all' not in omnia_run_tags"
@@ -37,9 +34,7 @@
 
 - name: Validate no conflicting tag combinations
   ansible.builtin.fail:
-    msg: >-
-      Conflicting tags specified: {{ item | join(' + ') }}.
-      These tags cannot be used together.
+    msg: "{{ conflicting_tags_fail_msg }}"
   when:
     - omnia_run_tags | length > 0
     - item | intersect(omnia_run_tags) | length == item | length
@@ -64,21 +59,6 @@
       {{ lookup('env', 'IMAGE_BUILD_MANAGER_DATA_PATH')
          | default(omnia_data_path + '/image_build_manager', true) }}
     cacheable: true
-
-# Step 2: Upgrade guard — block if upgrade is in progress
-- name: Check upgrade lock file
-  ansible.builtin.stat:
-    path: "{{ upgrade_lock_file }}"
-  register: upgrade_lock
-
-- name: Block playbook while upgrade is in progress
-  ansible.builtin.fail:
-    msg: "{{ upgrade_in_progress_msg }}"
-  when:
-    - upgrade_lock.stat.exists
-    - not (upgrade_mode | default(false) | bool)
-    - "'upgrade' not in (ansible_run_tags | default([]))"
-    - "'rollback' not in (ansible_run_tags | default([]))"
 
 - name: Set domain root directory
   ansible.builtin.set_fact:
@@ -131,10 +111,7 @@
 
     - name: Fail when source input templates are unavailable
       ansible.builtin.fail:
-        msg: >-
-          Orchestrator project input directory '{{ input_project_dir }}' is
-          missing, and source templates were not found at
-          '{{ _domain_root_dir }}/input'.
+        msg: "{{ input_templates_fail_msg }}"
       when: not _orchestrator_source_input_stat.stat.exists
 
     - name: Create project input directory
@@ -203,10 +180,7 @@
 
 - name: Fail when required orchestrator configuration is missing
   ansible.builtin.fail:
-    msg: >-
-      Required Orchestrator configuration was not found at
-      '{{ input_project_dir }}/orchestrator_config.yml'. Run domain-init.sh or
-      restore the project input before this flow.
+    msg: "{{ orchestrator_config_missing_fail_msg }}"
   when:
     - not (_orchestrator_config_stat.stat.exists | default(false))
     - not (_orchestrator_cleanup_context | bool)
@@ -543,9 +517,7 @@
       ansible.builtin.assert:
         that:
           - service_k8s_version | default('') | length > 0
-        fail_msg: >-
-          The catalog enables Kubernetes but does not contain a versioned
-          kubeadm package. Add a kubeadm package such as kubeadm_1_35_1.
+        fail_msg: "{{ catalog_kubernetes_version_fail_msg }}"
         quiet: true
       when: service_k8s_support | bool
 
@@ -583,9 +555,9 @@
   when:
     - oim_group | default(false) | bool
 
-# Step 10: Persist orchestrator state for downstream playbooks
-# This file is consumed by provision playbooks (provision_kubernetes.yml, etc.)
-# that run on the oim host and need access to support flags set on localhost.
+# Step 10: Persist catalog-derived state for downstream playbooks.
+# Catalog-independent operational flows must preserve the last derived state
+# instead of replacing support flags with their in-memory fallback values.
 - name: Write orchestrator_state.yml
   ansible.builtin.copy:
     content: |
@@ -603,4 +575,6 @@
       domain_name: "{{ domain_name | default('') }}"
     dest: "{{ orchestrator_output_dir }}/orchestrator_state.yml"
     mode: "0644"
-  when: _orchestrator_initialization_required | bool
+  when:
+    - _orchestrator_initialization_required | bool
+    - _catalog_required | bool

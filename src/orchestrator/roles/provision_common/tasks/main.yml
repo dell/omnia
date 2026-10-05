@@ -36,10 +36,10 @@
       when: not (provision_common_registration_complete | default(false) | bool)
 
     - name: Fetch additional images
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/fetch_additional_images.yml"
+      ansible.builtin.include_tasks: fetch_additional_images.yml
 
     - name: Validate additional metadata-service configuration
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/validate_additional_metadata_svc.yml"
+      ansible.builtin.include_tasks: validate_additional_metadata_svc.yml
 
     - name: Scope additional metadata-service groups to the registered category
       ansible.builtin.set_fact:
@@ -79,7 +79,6 @@
       ansible.builtin.set_fact:
         _category_mac_list: >-
           {{ _category_nodes | map(attribute='ADMIN_MAC') | map('lower') | list }}
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Prune stale Boot Service configurations for current node MACs
       openchami_reconcile:
@@ -91,7 +90,6 @@
         boot_configuration_macs: "{{ _category_mac_list }}"
       register: _stale_boot_config_prune
       no_log: true
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Configure boot-service boot params for each functional group
       ansible.builtin.include_tasks: configure_boot_svc.yml
@@ -107,14 +105,12 @@
         ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
       register: boot_configs_output
       no_log: true
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Display boot configurations
       ansible.builtin.debug:
         msg: >-
           {{ boot_configs_output.boot_configurations | default([])
              | map(attribute='metadata.name') | list }}
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Create metadata-service directory
       ansible.builtin.file:
@@ -166,13 +162,11 @@
       ansible.builtin.slurp:
         src: "{{ ms_defaults_dest }}"
       register: ms_defaults_raw
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
       no_log: true
 
     - name: Parse metadata-service defaults YAML
       ansible.builtin.set_fact:
         ms_defaults_data: "{{ ms_defaults_raw.content | b64decode | from_yaml }}"
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
       no_log: true
 
     - name: Reconcile metadata-service cluster defaults
@@ -194,14 +188,12 @@
             public_keys: "{{ ms_defaults_data['public_keys'] | default([]) }}"
             cloud_provider: "OpenCHAMI"
       register: _metadata_cluster_defaults_reconcile
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
       no_log: true
 
     - name: Mark global metadata change for cluster defaults
       ansible.builtin.set_fact:
         omnia_metadata_global_changed: true
       when:
-        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
         - >-
           ((_metadata_cluster_defaults_reconcile.created | default([]))
            + (_metadata_cluster_defaults_reconcile.updated | default([]))) | length > 0
@@ -216,7 +208,7 @@
         loop_var: fg_name
 
     - name: Configure additional metadata-service
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/configure_metadata_svc_additional.yml"
+      ansible.builtin.include_tasks: configure_metadata_svc_additional.yml
       when: additional_metadata_svc_enabled | default(false) | bool
 
     - name: Final SELinux context for generated files

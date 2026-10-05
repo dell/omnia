@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 # Configure BSS boot params for a single functional group.
-# Extracted from configure_ochami/tasks/configure_bss_group.yml.
 # Called in a loop with fg_name set by the caller.
 # Uses delete-then-set for idempotency.
 
@@ -44,11 +43,9 @@
     -d @{{ bss_dir }}/bss-{{ fg_name }}.yaml
   changed_when: true
   failed_when: false
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Set boot configuration - {{ fg_name }}
   ansible.builtin.command: >
     /usr/bin/ochami bss boot params set -f yaml
     -d @{{ bss_dir }}/bss-{{ fg_name }}.yaml
   changed_when: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

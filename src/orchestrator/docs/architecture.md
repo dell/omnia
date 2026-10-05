@@ -53,8 +53,7 @@ Orchestrator deliberately does not:
 - infer a new hardware identity from CSV row position on later runs;
 - delete an SMD Hardware Inventory identity merely because a row is absent;
 - claim metadata is active on a running node before a verified new boot;
-- continuously monitor Kubernetes, Slurm, CSI, or application health; or
-- provide an in-place rollback for the v2.3 one-way OpenCHAMI upgrade.
+- continuously monitor Kubernetes, Slurm, CSI, or application health.
 
 ## Architectural Principles
 
@@ -153,12 +152,10 @@ state needed by independently selected phases.
 | `pxeboot` | iDRAC boot and optional node verification | No prompt | Yes |
 | `cleanup` | Selected component teardown | No prompt | Depends on target |
 | `cleanup_credentials` | Remove credential and vault-key files | No | No |
-| `upgrade` | Supported component upgrades | Existing | Yes |
-| `rollback` | Reserved; report that rollback is unsupported | Existing | Yes |
 
 The setup role rejects unsupported tags and known conflicting combinations.
-Cleanup, credential cleanup, upgrade, and rollback carry `never` and cannot run
-accidentally during the default lifecycle.
+Cleanup and credential cleanup carry `never` and cannot run accidentally during
+the default lifecycle.
 
 ### Public Tag Composition
 
@@ -188,7 +185,6 @@ prerequisites needed before deployment or provisioning.
 
 - Resolve `OMNIA_DATA_PATH`, `ORCHESTRATOR_DATA_PATH`, and project identity.
 - Reject unsupported or conflicting tags.
-- Enforce the upgrade-in-progress guard.
 - Initialize a missing project input directory from source templates.
 - Load domain variables and the selected project configuration.
 - Validate inputs before later setup tasks dereference them.
@@ -306,10 +302,21 @@ When `enable_pxe_boot` is true, Orchestrator:
 5. Optionally connects to each node over SSH.
 6. Verifies that the boot timestamp is newer than the PXE request.
 7. Verifies cloud-init completion with the node-local `node_boot_status` module.
-8. Writes `pxeboot_status.yml`, `failed_nodes.json`, and the aggregate status.
+8. Writes `failed_nodes.json` and the aggregate lifecycle status.
 
 A successful verified boot clears pending metadata application state. A boot
 without node verification is reported as initiated but unverified.
+
+VMs and manually booted physical nodes use the separate
+`verify_node_registration` tag. It skips Redfish, selects pending nodes from
+the aggregate status, and applies the same fresh-boot and cloud-init checks over
+SSH. Successful results retain `state: success` and record
+`trigger_method: external`.
+
+For recovery after an Orchestrator PXE failure, the PXE workflow must finish
+and persist its aggregate status before the operator starts the external boot.
+That persisted timestamp is the external verifier's freshness boundary, so an
+earlier boot is rejected as stale and does not clear the reprovision gate.
 
 ### Step 6: Cleanup
 
@@ -317,21 +324,6 @@ The top-level cleanup route runs the canonical aggregate cleanup and reports
 the result of every selected component. Component-specific cleanup is available
 through `playbooks/cleanup/cleanup_orchestrator.yml` for Slurm, Kubernetes,
 OpenCHAMI, OpenLDAP, storage mounts, artifacts, and credentials.
-
-### Step 7: Upgrade and Rollback
-
-Upgrade is an opt-in component workflow. The setup guard blocks normal
-lifecycle operations while an upgrade lock exists. The OpenCHAMI upgrade path
-detects the installed version, backs up configuration and SMD data, performs
-the supported one-way upgrade, restarts services, verifies readiness, and
-removes the lock after success. The OpenLDAP upgrade moves a deployed
-`omnia_auth` service to the configured target image and verifies LDAP health.
-
-Rollback is reserved for a future release. Both v2.3 rollback
-playbooks fail explicitly without modifying the deployment. Recovery from an
-unsuccessful one-way upgrade therefore depends on a full system backup taken
-before the upgrade; the existence of pre-upgrade artifacts does not make the
-`rollback` tag operational.
 
 ## OpenCHAMI Integration
 
@@ -446,7 +438,6 @@ orchestrator/
 |   +-- .data/functional_groups_config.yml
 |   +-- orchestrator_state.yml
 |   +-- provisioning_report.yml
-|   +-- pxeboot_status.yml
 |   +-- orchestrator_status.yml
 |   +-- failed_nodes.json
 +-- log/
@@ -454,7 +445,7 @@ orchestrator/
 
 Ansible execution logs are stored under `/var/log/omnia/orchestrator/`, with
 separate files for the top-level, cleanup, credentials, deploy, prepare,
-provision, PXE, rollback, upgrade, and validation flows.
+provision, PXE, and validation flows.
 
 ### Desired State Versus Applied State
 
@@ -482,8 +473,8 @@ is not automatically observed.
 | `functional_groups_config.yml` | Functional-group generation | Provisioning and validation |
 | `orchestrator_state.yml` | Setup lifecycle | Standalone provision phases |
 | `provisioning_report.yml` | Provision validation | PXE and operators |
-| `pxeboot_status.yml` | PXE workflow | Operators and automation |
 | `orchestrator_status.yml` | Provision and PXE workflows | Resume, reporting, and operators |
+| `failed_nodes.json` | PXE workflow | Failure-only consumers and BuildStream |
 | Generated inventories | Inventory generation | Kubernetes, Slurm, telemetry, and validation |
 
 See [`contracts/input-contract.md`](contracts/input-contract.md) and
@@ -569,7 +560,6 @@ the lifecycle finishes.
 | Unreachable iDRAC | Node is reported failed at `pxe_boot` | Restore BMC access and rerun PXE |
 | SSH not yet ready | Action plugin returns retryable `unreachable` | Allow built-in retries or rerun PXE verification |
 | Cloud-init terminal failure | Node remains failed/reprovision-required | Correct metadata or node issue, then perform a fresh verified boot |
-| Interrupted upgrade | Upgrade lock blocks normal lifecycle | Resume supported upgrade or restore a full pre-upgrade backup |
 
 Provisioning is convergent, not transactional across every external service.
 Reports identify the last completed phase and per-node result so a rerun can
@@ -580,11 +570,11 @@ continue from a known desired-state input.
 | Path | Responsibility |
 |------|----------------|
 | `playbooks/orchestrator.yml` | Canonical lifecycle and public tag composition |
-| `playbooks/<phase>/` | Focused prepare, deploy, provision, validate, PXE, cleanup, upgrade, and reserved rollback plays |
+| `playbooks/<phase>/` | Focused prepare, deploy, provision, validate, PXE, and cleanup plays |
 | `roles/orchestrator_setup/` | Environment, path, tag, inventory, and persisted-state setup |
 | `roles/orchestrator_validations/` | Cross-file, image, storage, mapping, and environment prerequisites |
 | `roles/provision_common/` | Active category registration and OpenCHAMI publication |
-| `roles/configure_ochami/` | Shared OpenCHAMI templates and service task library |
+| `roles/orchestrator_node_topology/` | Shared node, address, functional-group, and Slurm topology facts |
 | `roles/<category>_config/` | Kubernetes, Slurm, mount, LDAP, and other bolt-on configuration |
 | `roles/validate_provisioning/` | Desired-state readback and lifecycle reports |
 | `roles/idrac_pxe_boot/` | Dell iDRAC one-time boot and reset operation |
@@ -595,9 +585,11 @@ continue from a known desired-state input.
 | `containers/omnia_auth/` | Optional OpenLDAP container source |
 | `docs/contracts/` | Maintained input and output interfaces |
 
-`configure_ochami` owns reusable templates and focused service tasks.
-`provision_common` coordinates those resources through the category
-provisioning workflow; it is the supported lifecycle entry point.
+`provision_common` owns the reusable OpenCHAMI templates and focused service
+tasks used by the category provisioning workflow. Inventory-only templates
+remain with `generate_inventories`. Shared topology calculation is exposed
+through `orchestrator_node_topology`, while `slurm_config` publishes its
+metadata-rendering context through a named role task interface.
 
 ### Ansible Plugin and Dependency Boundaries
 

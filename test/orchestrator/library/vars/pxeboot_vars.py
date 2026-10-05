@@ -14,6 +14,7 @@
 
 """Immutable contracts for PXE boot and post-boot cluster verification."""
 
+ORCHESTRATOR_STATUS = "orchestrator_status.yml"
 OMNIA_CONFIG = "omnia_config.yml"
 STORAGE_CONFIG = "storage_config.yml"
 ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
@@ -246,9 +247,6 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "kubernetes_storage_classes": (
         "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get storageclass -o json"
     ),
-    "kubernetes_deployments": (
-        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get deployments -A -o json"
-    ),
     "kubernetes_client_version": (
         "KUBECONFIG=/etc/kubernetes/admin.conf kubectl version -o json"
     ),
@@ -326,7 +324,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "etcd_mount_identity": "findmnt -n -o SOURCE,UUID,FSTYPE /var/lib/etcd",
     "etcd_block_devices": (
         "lsblk -J -b -o NAME,PATH,PKNAME,TYPE,FSTYPE,LABEL,UUID,"
-        "MOUNTPOINTS,MODEL,ROTA,TRAN,PTTYPE"
+        "MOUNTPOINTS,MODEL,ROTA,TRAN"
     ),
     "etcd_root_source": "findmnt -n -o SOURCE /",
     "etcd_fstab": (
@@ -342,18 +340,6 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "stat -c '%Y' /var/log/diskless-etcd-mount.log 2>/dev/null || "
         "stat -c '%Y' /var/log/etcd-disk-setup.log"
     ),
-    "etcd_setup_script": "test -x /usr/local/bin/etcd-disk-setup.sh",
-    "etcd_update_script": "test -x /usr/local/bin/etcd-fstab-update.sh",
-    "etcd_setup_log": "grep -Fq '[OK] ===== DONE =====' /var/log/etcd-disk-setup.log",
-    "etcd_update_log": (
-        "grep -Fq '[OK] ===== DONE =====' /var/log/diskless-etcd-mount.log"
-    ),
-    "etcd_selection_log": (
-        "grep -Eh 'BOSS disk found:|Fallback candidate:|Selected disk:' "
-        "/var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log "
-        "2>/dev/null | tail -20"
-    ),
-    "mount_contract": "findmnt -J -T %s",
     "node_boot_time": 'date -d "$(uptime -s)" +%s',
     "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
     "slurm_nodes": "scontrol show nodes --oneliner",
@@ -507,6 +493,34 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "cloud_init_file_check": "test -f %s && echo EXISTS",
     "cloud_init_status": "cloud-init status --long",
+    # mount_config NFS verification commands
+    "mount_config_dir_exists": (
+        "test -d %s && echo EXISTS || echo MISSING"
+    ),
+    "mount_config_mountpoint_check": (
+        "mountpoint -q %s 2>/dev/null && echo MOUNTED || echo NOT_MOUNTED"
+    ),
+    "mount_config_proc_mounts": "cat /proc/mounts",
+    "mount_config_fstab_read": "cat /etc/fstab",
+    "mount_config_stat": "stat -c '%%a|%%U|%%G' %s 2>/dev/null",
+    "mount_config_node_key_value": (
+        "cloud-init query %s 2>/dev/null || hostname -s"
+    ),
+    "mount_config_write_test": (
+        "_mp=%s; "
+        "touch \"${_mp}/.omnia_fvt_write_probe_$$\" 2>/dev/null && "
+        "rm -f \"${_mp}/.omnia_fvt_write_probe_$$\" && echo WRITABLE || echo NOT_WRITABLE"
+    ),
+    # minimal_os verification commands
+    "minimal_os_rpm_check": "rpm -q %s >/dev/null 2>&1",
+    "minimal_os_binary_check": "test -x /opt/ovis-ldms/sbin/ldmsd || command -v ldmsd 2>/dev/null",
+    "minimal_os_rpm_query_grep": "rpm -qa 2>/dev/null | grep -iE '%s'",
+    "minimal_os_pkg_mgr_check": (
+        "command -v dnf >/dev/null 2>&1 && dnf --version >/dev/null 2>&1 || "
+        "command -v yum >/dev/null 2>&1 && yum --version >/dev/null 2>&1"
+    ),
+    "minimal_os_kernel_version": "uname -r",
+    "minimal_os_ip_addr": "ip -o addr show 2>/dev/null",
 }
 
 KUBERNETES_REQUIRED_POD_PREFIXES: tuple[str, ...] = (

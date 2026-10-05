@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 # Configure the common cloud-init group.
-# Extracted from configure_ochami/tasks/configure_cloud_init_common.yml.
 
 - name: Delete ci group configuration - common
   ansible.builtin.command: >
@@ -21,7 +20,6 @@
     -d @{{ ci_group_common_dest }}
   changed_when: true
   failed_when: false
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Render ci group common template
   ansible.builtin.template:
@@ -32,4 +30,3 @@
 - name: Set ci group configuration - common
   ansible.builtin.command: /usr/bin/ochami cloud-init group set -f yaml -d @{{ ci_group_common_dest }}
   changed_when: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

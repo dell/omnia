@@ -41,10 +41,13 @@ execution, `precheck`, `credentials`, `prepare`, `deploy`, `provision`,
 PowerScale CSI enablement is not derived from the catalog. It is controlled by
 `service_k8s_cluster[].enable_powerscale_csi` in `omnia_config.yml`.
 
-Input-only `validate`, PXE-only, cleanup, upgrade, and rollback flows do not
+Input-only `validate`, PXE-only, and cleanup flows do not
 consume the catalog contract and can run without the file. Standalone
 credential collection requires it because Slurm and OpenLDAP feature flags
 determine which credentials are mandatory.
+
+Catalog-independent flows do not refresh `orchestrator_state.yml`; they retain
+the feature flags derived by the latest catalog-backed lifecycle phase.
 
 ---
 
@@ -257,12 +260,11 @@ offline_iso_path: "https://<admin_ip>:2225/pulp/content/.../iso/"
 ### Validation Rules
 
 For flows that consume repository content (the default/full lifecycle,
-`precheck`, `provision`, `execute`, `pxeboot`, and `upgrade`), Orchestrator
+`precheck`, `provision`, `execute`, and `pxeboot`), Orchestrator
 requires the file to exist, requires `overall_status: success`, validates its
 core mapping and certificate fields, and verifies that the public certificate
 exists. `prepare` and `deploy` can reconcile the OIM services without this
-file. Cleanup, credential-only, input-validation, rollback, and
-deployment-health flows also remain runnable without `repo_status.yml`.
+file. Cleanup, credential-only, input-validation, and deployment-health flows also remain runnable without `repo_status.yml`.
 
 ### Facts Set from repo_status.yml
 

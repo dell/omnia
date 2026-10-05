@@ -75,4 +75,43 @@ k8s_manifest_dir: "{{ omnia_shared_path }}/k8s/manifests"
 functional_groups_config: >-
   {{ orchestrator_output_dir }}/.data/functional_groups_config.yml
 orchestrator_state_file: "{{ orchestrator_output_dir }}/orchestrator_state.yml"
-upgrade_lock_file: "{{ omnia_shared_path }}/.data/upgrade_in_progress.lock"
+# Centralized failure messages
+k8s_storage_contract_fail_msg: >-
+  K8s cleanup cannot safely resolve service_k8s_cluster[0].nfs_storage_name
+  '{{ cleanup_k8s_storage_name }}' to exactly one complete mount entry in
+  storage_config.yml.
+k8s_cleanup_data_unavailable_fail_msg: >-
+  Kubernetes shared data cleanup was requested, but neither the mount
+  point '{{ cleanup_k8s_mount_point }}' nor local export '{{ cleanup_k8s_export_path }}'
+  is available. Mount the share and rerun cleanup, or remove its data
+  directly on the NFS server.
+k8s_cleanup_path_fail_msg: >-
+  Refusing to remove Kubernetes data from unsafe path
+  '{{ cleanup_k8s_clean_base }}'. Correct the matching mount_point or NFS
+  export in storage_config.yml.
+k8s_data_remaining_fail_msg: >-
+  Kubernetes shared data remains under '{{ cleanup_k8s_clean_base }}'.
+  The storage will not be unmounted until the directory is empty.
+openldap_cleanup_prerequisite_fail_msg: "OpenLDAP not deployed - cannot cleanup"
+slurm_storage_contract_fail_msg: >-
+  Slurm cleanup cannot safely resolve slurm_cluster[0].nfs_storage_name
+  '{{ cleanup_slurm_storage_name }}' to exactly one complete mount entry in
+  storage_config.yml.
+slurm_cleanup_data_unavailable_fail_msg: >-
+  Slurm shared data cleanup was requested, but neither the mount point
+  '{{ cleanup_slurm_mount_point }}' nor local export '{{ cleanup_slurm_export_path }}'
+  is available. Mount the share and rerun cleanup, or remove its data
+  directly on the NFS server.
+slurm_cleanup_prerequisite_fail_msg: "Slurm cluster not configured in omnia_config.yml - cannot cleanup"
+storage_config_missing_fail_msg: "storage_config.yml not found. Cannot determine mounts to clean."
+storage_reference_fail_msg: >-
+  Component cleanup cannot safely resolve omnia_config.yml storage
+  reference '{{ cleanup_storage_name }}' to exactly one complete mount
+  entry with an absolute mount_point in storage_config.yml.
+storage_mounts_missing_fail_msg: "storage_config.yml has no mounts. Cannot determine mounts to clean."
+cleanup_config_fail_msg: "Invalid cleanup configuration or empty execution order"
+cleanup_incomplete_fail_msg: |-
+  Orchestrator cleanup completed with {{ cleanup_failures | length }} failed component(s):
+  {% for failure in cleanup_failures %}
+  - {{ failure.component }}: {{ failure.error }}
+  {% endfor %}

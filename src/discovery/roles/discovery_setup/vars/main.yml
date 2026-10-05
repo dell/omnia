@@ -13,17 +13,6 @@
 # limitations under the License.
 ---
 
-# --- Upgrade guard ---
-upgrade_lock_file: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
-upgrade_in_progress_msg: >-
-  Upgrade is not completed fully.
-  Please run upgrade.yml to complete upgrade before running any other playbook
-  using the command below:
-  "ansible-playbook /omnia/src/playbooks/upgrade/upgrade.yml"
-  If you don't require input files to be migrated, reconfigure the default
-  input files and remove the lock file using the following command:
-  "rm {{ upgrade_lock_file }}" and then proceed.
-
 # --- Base paths ---
 # Domain-scoped paths: <DISCOVERY_DATA_PATH>/input/<project>/
 # DISCOVERY_DATA_PATH falls back to <OMNIA_DATA_PATH>/discovery.
@@ -37,8 +26,6 @@ supported_tags:
   - execute
   - cleanup
   - cleanup_credentials
-  - upgrade
-  - rollback
 
 skip_credential_tags:
   - precheck
@@ -51,27 +38,14 @@ invalid_tag_combinations:
   - [prepare, cleanup]
   - [execute, cleanup_credentials]
   - [prepare, cleanup_credentials]
-  - [prepare, upgrade]
-  - [execute, upgrade]
-  - [cleanup, upgrade]
-  - [cleanup_credentials, upgrade]
-  - [prepare, rollback]
-  - [execute, rollback]
-  - [cleanup, rollback]
-  - [cleanup_credentials, rollback]
-  - [upgrade, rollback]
   - [precheck, prepare]
   - [precheck, execute]
   - [precheck, cleanup]
   - [precheck, cleanup_credentials]
-  - [precheck, upgrade]
-  - [precheck, rollback]
   - [credentials, prepare]
   - [credentials, execute]
   - [credentials, cleanup]
   - [credentials, cleanup_credentials]
-  - [credentials, upgrade]
-  - [credentials, rollback]
   - [credentials, precheck]
   - [validate, cleanup]
   - [validate, cleanup_credentials]

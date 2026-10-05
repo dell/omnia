@@ -34,7 +34,7 @@
 
     - name: Fail if OpenLDAP container is not running
       ansible.builtin.fail:
-        msg: "OpenLDAP container is not running. See error details above."
+        msg: "{{ openldap_container_fail_msg }}"
       when: openldap_container_missing | bool
 
     - name: Verify OpenLDAP accepts LDAP requests
@@ -57,10 +57,7 @@
 
     - name: Fail if OpenLDAP does not accept LDAP requests
       ansible.builtin.fail:
-        msg: >-
-          OpenLDAP container is running but its LDAP endpoint is not healthy.
-          ldapwhoami exited with rc={{ openldap_health_check.rc | default('N/A') }}.
-          Check container logs with 'podman logs omnia_auth'.
+        msg: "{{ openldap_health_fail_msg }}"
       when:
         - not openldap_container_missing | bool
         - openldap_health_check.rc | default(1) != 0

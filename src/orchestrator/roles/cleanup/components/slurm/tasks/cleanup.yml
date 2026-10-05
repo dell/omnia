@@ -60,10 +60,7 @@
       - cleanup_slurm_storage_matches[0].mount_point | default('') | length > 0
       - cleanup_slurm_storage_matches[0].mount_point is match('^/')
       - cleanup_slurm_storage_matches[0].source | default('') | length > 0
-    fail_msg: >-
-      Slurm cleanup cannot safely resolve slurm_cluster[0].nfs_storage_name
-      '{{ cleanup_slurm_storage_name }}' to exactly one complete mount entry in
-      storage_config.yml.
+    fail_msg: "{{ slurm_storage_contract_fail_msg }}"
   tags: slurm
 
 - name: Set Slurm cleanup storage paths
@@ -161,11 +158,7 @@
 
 - name: Fail when requested Slurm shared data cleanup is incomplete
   ansible.builtin.fail:
-    msg: >-
-      Slurm shared data cleanup was requested, but neither the mount point
-      '{{ cleanup_slurm_mount_point }}' nor local export '{{ cleanup_slurm_export_path }}'
-      is available. Mount the share and rerun cleanup, or remove its data
-      directly on the NFS server.
+    msg: "{{ slurm_cleanup_data_unavailable_fail_msg }}"
   when:
     - cleanup_slurm_approved | default(true) | bool
     - slurm_config.cleanup_nfs_server | default(false) | bool
