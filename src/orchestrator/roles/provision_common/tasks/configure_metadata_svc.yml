@@ -13,15 +13,8 @@
 # limitations under the License.
 ---
 # Configure metadata-service for a single functional group.
-# Extracted from configure_ochami/tasks/configure_metadata_svc_group.yml.
 # Called in a loop with fg_name set by the caller.
 # Reconciles resources in place so Metadata Service UIDs remain stable.
-
-# Validate repo_status configuration is available - needed for node configuration
-- name: Load repository configuration messages
-  ansible.builtin.include_vars:
-    file: "{{ role_path }}/../orchestrator_common/vars/s3_config_messages.yml"
-  run_once: true
 
 - name: Validate repo_manager configuration is available for node configuration
   ansible.builtin.assert:
@@ -31,41 +24,14 @@
       - hostvars['localhost']['cluster_os_type'] | default('') | length > 0
     fail_msg: "{{ repo_config_not_available_msg }}"
 
-- name: Include vars from slurm defaults
-  ansible.builtin.include_vars: "{{ default_file_path }}"
-
-- name: Include vars from slurm_config role
-  ansible.builtin.include_vars:
-    file: "{{ role_path }}/../slurm_config/vars/main.yml"
-  failed_when: false
-
-# Re-load openchami configs_vars to restore cluster_name / cluster_domain
-# which slurm_config/vars/main.yml clobbers with its own cluster_name.
-- name: Reload openchami cluster vars after slurm_config include
-  ansible.builtin.include_vars: "{{ openchami_config_vars_path }}"
-
-- name: Include vars from configure_ochami role
-  ansible.builtin.include_vars:
-    file: "{{ role_path }}/../configure_ochami/vars/main.yml"
-  failed_when: false
-
-- name: Initialize apply_config from slurm defaults
-  ansible.builtin.set_fact:
-    apply_config: "{{ __default_config }}"
-  when: apply_config is not defined
-
-- name: Initialize slurm_conf_dict from defaults
-  ansible.builtin.set_fact:
-    slurm_conf_dict: "{{ __default_config.slurm }}"
-  when: slurm_conf_dict is not defined
-
-- name: Read slurm hostnames to set ip_name_map
-  ansible.builtin.include_tasks:
-    file: "{{ role_path }}/../slurm_config/tasks/read_slurm_hostnames.yml"
+- name: Publish Slurm metadata context through the role interface
+  ansible.builtin.include_role:
+    name: slurm_config
+    tasks_from: publish_metadata_context.yml
+    public: true
   vars:
-    # Keep the category-specific path local to this include. A host fact would
-    # leak from Kubernetes metadata processing into the later Slurm role.
-    nodes_yaml: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+    slurm_metadata_nodes_yaml: "{{ nodes_dir }}/nodes_{{ target_category }}.yaml"
+    slurm_metadata_target_category: "{{ target_category }}"
 
 - name: Load storage config for NFS paths
   ansible.builtin.include_vars:
@@ -112,11 +78,7 @@
       - metadata_slurm_vast_storage_matches[0].source | default('') | length > 0
       - metadata_slurm_vast_storage_matches[0].mount_point | default('') | length > 0
       - metadata_slurm_vast_storage_matches[0].mount_point is match('^/')
-    fail_msg: >-
-      Slurm metadata configuration cannot resolve nfs_storage_name
-      '{{ metadata_slurm_nfs_storage_name }}' and vast_storage_name
-      '{{ metadata_slurm_vast_storage_name }}' to exactly one complete entry
-      each in storage_config.yml.
+    fail_msg: "{{ slurm_storage_contract_fail_msg }}"
   when: target_category | default('') == 'slurm'
 
 - name: Set Slurm metadata storage paths
@@ -237,10 +199,7 @@
       - metadata_k8s_storage_matches[0].mount_point | default('') | length > 0
       - metadata_k8s_storage_matches[0].mount_point is match('^/')
       - metadata_k8s_storage_matches[0].source | default('') | length > 0
-    fail_msg: >-
-      K8s metadata configuration cannot resolve nfs_storage_name
-      '{{ metadata_k8s_storage_name }}' to exactly one complete entry in
-      storage_config.yml.
+    fail_msg: "{{ k8s_storage_contract_fail_msg }}"
   when: target_category | default('') == 'kubernetes'
 
 - name: Set K8s NFS paths from resolved storage entry
@@ -382,17 +341,14 @@
     src: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
   register: ms_fg_group_raw
   no_log: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Parse FG group entries - {{ fg_name }}
   ansible.builtin.set_fact:
     ms_fg_group_entries: "{{ ms_fg_group_raw.content | b64decode | from_yaml }}"
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Initialize metadata-service bodies for {{ fg_name }}
   ansible.builtin.set_fact:
     _ms_fg_bodies: []
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Build metadata-service group body for FG entries - {{ fg_name }}
   ansible.builtin.set_fact:
@@ -414,7 +370,6 @@
   loop_control:
     loop_var: entry
     label: "{{ entry.name }}"
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
   no_log: true
 
 - name: Reconcile metadata-service group configuration for {{ fg_name }}
@@ -426,7 +381,6 @@
     project_name: "{{ hostvars['localhost']['project_name'] }}"
     metadata_groups: "{{ _ms_fg_bodies | default([]) }}"
   register: _metadata_fg_reconcile
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
   no_log: true
 
 - name: Track desired metadata-service groups for {{ fg_name }}
@@ -435,7 +389,6 @@
       {{ ((omnia_metadata_desired_group_names | default([]))
           + (_ms_fg_bodies | default([]) | map(attribute='metadata.name') | list))
          | unique | list }}
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Track nodes affected by metadata-service group changes for {{ fg_name }}
   ansible.builtin.set_fact:
@@ -446,7 +399,6 @@
              | map(attribute='XNAME') | list))
          | unique | list }}
   when:
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
     - >-
       ((_metadata_fg_reconcile.created | default([]))
        + (_metadata_fg_reconcile.updated | default([]))) | length > 0

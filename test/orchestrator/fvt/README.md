@@ -283,6 +283,22 @@ Image download has a 20-minute ceiling with polling progress every 20
 seconds. The reboot cases share one reboot state instead of rebooting the
 same compute node independently for each postcondition.
 
+### Additional cloud-init
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 297 | `ORCH_FVT_PXEBOOT_V095` | `test_additional_cloud_init_smd_groups` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify SMD groups exist for additional cloud-init configuration. | All stated checks pass for every applicable target. |
+| 298 | `ORCH_FVT_PXEBOOT_V096` | `test_additional_cloud_init_metadata_groups` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify metadata-service groups and templates for additional cloud-init. | All stated checks pass for every applicable target. |
+| 299 | `ORCH_FVT_PXEBOOT_V099` | `test_additional_cloud_init_write_files` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify write_files entries were applied on provisioned nodes. | All stated checks pass for every applicable target. |
+| 300 | `ORCH_FVT_PXEBOOT_V100` | `test_additional_cloud_init_runcmd` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify runcmd entries executed during cloud-init on provisioned nodes. | All stated checks pass for every applicable target. |
+
+Additional cloud-init tests skip automatically when
+`additional_cloud_init_config_file` is empty or not configured in
+`orchestrator_config.yml`. When enabled, V095 and V096 verify controller-side
+state (SMD groups and metadata-service templates); V099 and V100 verify
+node-side artifacts (files created by `write_files` and cloud-init completion
+confirming `runcmd` execution).
+
 ## Cleanup test cases
 
 These cases execute the explicitly selected full cleanup and verify each
@@ -307,7 +323,7 @@ input file, credential, or externally managed data path must always be deleted.
 |---|---|
 | `sanity` | Default positive PXE and lifecycle coverage |
 | `functional` | Temporary workload or job behavior |
-| `openldap`, `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer` | Capability selectors |
+| `openldap`, `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `additional_cloud_init` | Capability selectors |
 | `image_download` | Explicit authorization to modify shared Apptainer image storage |
 | `negative` | Expected rejection and error-path behavior |
 | `non_disruptive` | Work that does not reboot or drain cluster nodes |
@@ -341,6 +357,7 @@ class, while `slurm+non_disruptive` selects tests carrying both markers.
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_cluster
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_ldap
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_apptainer
+./run_validation.sh fvt_orchestrator pxeboot verify --suite additional_cloud_init
 
 # Marker examples.
 ./run_validation.sh fvt_orchestrator pxeboot verify --marker sanity,functional

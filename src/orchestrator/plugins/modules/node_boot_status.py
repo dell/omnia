@@ -29,6 +29,7 @@ DOCUMENTATION = r"""
 ---
 module: node_boot_status
 short_description: Verify a fresh PXE boot and cloud-init completion
+version_added: "2.3.0"
 description:
   - Reads the local node uptime and verifies that it booted after a supplied
     PXE request epoch.
@@ -47,7 +48,7 @@ author:
 
 EXAMPLES = r"""
 - name: Inspect a node after PXE boot
-  node_boot_status:
+  omnia.orchestrator.node_boot_status:
     pxe_start_epoch: 1789723000
   register: node_boot_result
 """

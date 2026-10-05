@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 # Configure cloud-init for a single functional group.
-# Extracted from configure_ochami/tasks/configure_cloud_init_group.yml.
 # Called in a loop with fg_name set by the caller.
 # Uses delete-then-set for idempotency.
 
@@ -30,7 +29,6 @@
     -d @{{ cloud_init_dir }}/ci-group-{{ fg_name }}.yaml
   changed_when: true
   failed_when: false
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Load ci group template - {{ fg_name }}
   block:
@@ -49,18 +47,15 @@
     /usr/bin/ochami cloud-init group set -f yaml
     -d @{{ cloud_init_dir }}/ci-group-{{ fg_name }}.yaml
   changed_when: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Verify ci group configuration - {{ fg_name }}
   ansible.builtin.command: /usr/bin/ochami cloud-init group get config {{ fg_name }}
   changed_when: false
   register: ci_group_output
   no_log: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Verify ci group output - {{ fg_name }}
   ansible.builtin.debug:
     msg: "{{ ci_group_output.stdout_lines }}"
     verbosity: 2
   no_log: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
