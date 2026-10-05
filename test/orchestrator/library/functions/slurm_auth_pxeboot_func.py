@@ -1109,8 +1109,12 @@ def _check_slurm_role_pam_job_access(
                         control,
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
-                except (OSError, RuntimeError, TypeError, ValueError):
-                    pass
+                except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                    print(
+                        f"    ! cleanup: failed to cancel PAM job {job_id}: "
+                        f"{str(exc)[:100]}",
+                        flush=True,
+                    )
         if control is not None and workspace_info is not None and username:
             try:
                 _cleanup_ldap_workspace(
@@ -1119,8 +1123,12 @@ def _check_slurm_role_pam_job_access(
                     workspace_info["path"],
                     username,
                 )
-            except (OSError, RuntimeError, TypeError, ValueError):
-                pass
+            except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                print(
+                    f"    ! cleanup: LDAP workspace removal failed: "
+                    f"{str(exc)[:100]}",
+                    flush=True,
+                )
 
 
 def check_slurm_control_pam_job_access(host):
@@ -1400,8 +1408,12 @@ def _check_slurm_role_ldap_jobs(
                         control,
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
-                except (OSError, RuntimeError, TypeError, ValueError):
-                    pass
+                except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                    print(
+                        f"    ! cleanup: failed to cancel LDAP job {job_id}: "
+                        f"{str(exc)[:100]}",
+                        flush=True,
+                    )
         if control is not None and workspace_info is not None and username:
             try:
                 _cleanup_ldap_workspace(
@@ -1410,8 +1422,12 @@ def _check_slurm_role_ldap_jobs(
                     workspace_info["path"],
                     username,
                 )
-            except (OSError, RuntimeError, TypeError, ValueError):
-                pass
+            except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                print(
+                    f"    ! cleanup: LDAP workspace removal failed: "
+                    f"{str(exc)[:100]}",
+                    flush=True,
+                )
 
 
 def check_slurm_control_ldap_jobs(host):

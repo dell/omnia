@@ -283,15 +283,33 @@ def check_kubernetes_nfs_provisioner_contract(host):
         ]
         fields.extend(group_fields(rows, mount_outcomes))
         ok = storage_class_ok and backend_ok and not mount_failures
+        error_parts = []
+        if not storage_class_ok:
+            sc_problems = []
+            if "nfs" not in provisioner.lower():
+                sc_problems.append(f"provisioner={provisioner or 'missing'}")
+            if reclaim_policy != "Retain":
+                sc_problems.append(f"reclaimPolicy={reclaim_policy}")
+            if binding_mode != "Immediate":
+                sc_problems.append(f"bindingMode={binding_mode}")
+            error_parts.append(
+                "StorageClass mismatch: " + ", ".join(sc_problems)
+            )
+        if not backend_ok:
+            error_parts.append(
+                f"provisioner backend mismatch: "
+                f"NFS_SERVER={environment.get('NFS_SERVER', 'missing')} "
+                f"NFS_PATH={environment.get('NFS_PATH', 'missing')}"
+            )
+        if mount_failures:
+            error_parts.append(
+                "NFS mount source mismatch on: " + ", ".join(mount_failures)
+            )
         return runtime_result(
             ok,
             summary,
             fields,
-            (
-                "NFS provisioner, backend, or node mount does not match configuration"
-                if not ok
-                else ""
-            ),
+            "; ".join(error_parts),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -473,10 +491,19 @@ def _run_functional_manifest(host, control, storage_class: str = ""):
                     PXEBOOT_COMMANDS["kubernetes_delete_test_pv"] % volume_name,
                 )
                 cleanup_ok = cleanup_ok and pv_cleanup.rc == 0
-            fields.append(("Cleanup", "passed" if cleanup_ok else "failed"))
+            fields.append(("Cleanup", "passed" if cleanup_ok else "FAILED"))
             if not cleanup_ok:
-                success = False
-                error = "The isolated validation namespace was not removed"
+                cleanup_error = (
+                    "cleanup: namespace/PV removal failed "
+                    f"(ns rc={cleanup.rc}"
+                    + (f", pv rc={pv_cleanup.rc}" if volume_name else "")
+                    + ")"
+                )
+                if not success:
+                    error = f"{error}; {cleanup_error}"
+                else:
+                    success = False
+                    error = cleanup_error
     return success, fields, error
 
 

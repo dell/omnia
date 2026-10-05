@@ -71,20 +71,35 @@ def check_slurm_membership(host):
         node_results = []
         unhealthy_states = {"down", "drain", "fail", "unknown", "future"}
         for row in scheduler_rows:
-            hardware_required = row["EXPECTED_FUNCTIONAL_GROUP"].startswith(
+            is_compute = row["EXPECTED_FUNCTIONAL_GROUP"].startswith(
                 SLURM_COMPUTE_PREFIX
             )
+            hardware_required = is_compute
             node = actual.get(row["HOSTNAME"])
             if node is None:
-                node_results.append(
-                    (row, False, "not registered", "", "", hardware_required)
-                )
+                # Login/compiler nodes may not appear in scontrol output
+                # when using configless slurm — they are submission hosts,
+                # not schedulable resources.
+                if not is_compute:
+                    node_results.append(
+                        (row, True, "submission-only", "", "", False)
+                    )
+                else:
+                    node_results.append(
+                        (row, False, "not registered", "", "", hardware_required)
+                    )
                 continue
             state = str(node.get("State", "unknown")).split("+", 1)[0].lower()
             cpus = str(node.get("CPUTot") or node.get("CPUs") or "")
             memory = str(node.get("RealMemory") or "")
             hardware_valid = not hardware_required or bool(cpus and memory)
-            ok = state not in unhealthy_states and hardware_valid
+            # Login/compiler nodes only need to be registered — their
+            # scheduler state is not meaningful because they are not
+            # schedulable compute resources.
+            if is_compute:
+                ok = state not in unhealthy_states and hardware_valid
+            else:
+                ok = True
             node_results.append(
                 (row, ok, state, cpus, memory, hardware_required)
             )
@@ -192,7 +207,15 @@ def check_slurm_services(host):
                     row,
                     PXEBOOT_COMMANDS["node_services"] % service,
                 )
-                states[service] = result.stdout.strip() if result.rc == 0 else "failed"
+                if result.rc == 0:
+                    states[service] = result.stdout.strip()
+                else:
+                    detail = (result.stderr or result.stdout or "").strip()
+                    states[service] = (
+                        f"failed (rc={result.rc}"
+                        + (f": {detail[:80]}" if detail else "")
+                        + ")"
+                    )
             ok = bool(states) and all(state == "active" for state in states.values())
             node_results.append((row, ok, states))
 
@@ -222,12 +245,22 @@ def check_slurm_services(host):
                     for service, state in states.items()
                 )
 
-        failed = [row["HOSTNAME"] for row, ok, _states in node_results if not ok]
+        failed_detail = []
+        for row, ok, states in node_results:
+            if not ok:
+                bad = [
+                    svc for svc, st in states.items() if st != "active"
+                ]
+                failed_detail.append(
+                    f"{row['HOSTNAME']}({','.join(bad)})"
+                )
         return runtime_result(
-            not failed,
+            not failed_detail,
             summary,
             fields,
-            "Service failures: " + ", ".join(failed) if failed else "",
+            "Service failures: " + "; ".join(failed_detail)
+            if failed_detail
+            else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)

@@ -384,7 +384,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "slurm_insufficient_resources": (
         "nodes=$(sinfo --noheader --Node | wc -l); "
-        "sbatch --immediate=5 --nodes=$((nodes + 1)) --wrap='hostname'"
+        "srun --immediate=5 --nodes=$((nodes + 1)) hostname"
     ),
     "slurm_submit_drain_job": (
         "job=$(sbatch --parsable --nodelist=%s --wrap='sleep 60'); "
@@ -495,7 +495,10 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader"
     ),
     "gpu_memory_stress": (
-        "set -eu; work=$(mktemp -d /tmp/omnia-gpu-check-XXXXXX); "
+        "set -eu; "
+        "shared=/hpc_tools; "
+        "test -d \"$shared\" || shared=/tmp; "
+        "work=$(mktemp -d \"$shared/omnia-gpu-check-XXXXXX\"); "
         "trap 'rm -rf \"$work\"' EXIT; "
         "printf '%%s' '%s' | base64 -d > \"$work/stress.cu\"; "
         'nvcc -O2 -o "$work/stress" "$work/stress.cu"; '

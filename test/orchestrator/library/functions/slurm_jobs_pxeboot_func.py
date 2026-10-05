@@ -573,6 +573,13 @@ def check_slurm_concurrent_jobs(host):
                         control,
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
+                except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                    print(
+                        f"    ! cleanup: failed to cancel job {job_id}: "
+                        f"{str(exc)[:100]}",
+                        flush=True,
+                    )
+                try:
                     remote_command(
                         host,
                         row,
@@ -598,14 +605,40 @@ def check_slurm_insufficient_resources(host):
             control,
             PXEBOOT_COMMANDS["slurm_insufficient_resources"],
         )
+        output = (result.stderr or result.stdout or "").lower()
+        resource_rejection_patterns = (
+            "unable to allocate",
+            "batch job submission failed",
+            "immediate execution impossible",
+            "requested node configuration is not available",
+        )
+        is_resource_rejection = result.rc != 0 and any(
+            pattern in output for pattern in resource_rejection_patterns
+        )
         rejected = result.rc != 0
+        error = ""
+        if not rejected:
+            error = "Slurm accepted a request larger than the available node count"
+        elif not is_resource_rejection:
+            error = (
+                f"srun failed (rc={result.rc}) but not due to resource limits: "
+                + re.sub(r"\s+", " ", output.strip())[:200]
+            )
         return runtime_result(
-            rejected,
+            is_resource_rejection,
             summary,
-            [("Impossible allocation", "rejected" if rejected else "accepted")],
-            "Slurm accepted a request larger than the available node count"
-            if not rejected
-            else "",
+            [
+                (
+                    "Impossible allocation",
+                    "correctly rejected" if is_resource_rejection
+                    else ("accepted" if not rejected else "failed for other reason"),
+                ),
+                (
+                    "Rejection detail",
+                    re.sub(r"\s+", " ", output.strip())[:200] or "none",
+                ),
+            ],
+            error,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -1059,8 +1092,12 @@ def check_slurm_job_queueing(host):
                         control,
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
-                except (OSError, RuntimeError, TypeError, ValueError):
-                    pass
+                except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                    print(
+                        f"    ! cleanup: failed to cancel job {job_id}: "
+                        f"{str(exc)[:100]}",
+                        flush=True,
+                    )
             for row in computes:
                 for job_id in jobs:
                     try:
@@ -1456,12 +1493,25 @@ def check_slurm_openmpi_job(host):
             and workspace.startswith("/")
             and "/.omnia_fvt/openmpi-" in workspace
         ):
-            remote_command(
-                host,
-                control,
-                f"find {shlex.quote(workspace)} -mindepth 1 -delete 2>/dev/null; "
-                f"rmdir {shlex.quote(workspace)} 2>/dev/null || true",
-            )
+            try:
+                cleanup = remote_command(
+                    host,
+                    control,
+                    f"find {shlex.quote(workspace)} -mindepth 1 -delete 2>/dev/null; "
+                    f"rmdir {shlex.quote(workspace)} 2>/dev/null || true",
+                )
+                if cleanup.rc != 0:
+                    print(
+                        f"    ! cleanup: OpenMPI workspace {workspace} removal "
+                        f"returned rc={cleanup.rc}",
+                        flush=True,
+                    )
+            except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                print(
+                    f"    ! cleanup: OpenMPI workspace removal failed: "
+                    f"{str(exc)[:100]}",
+                    flush=True,
+                )
 
 
 def check_slurm_gpu_job(host):
@@ -1481,17 +1531,33 @@ def check_slurm_gpu_job(host):
             control,
             PXEBOOT_COMMANDS["gpu_job"] % gpu_row["HOSTNAME"],
         )
-        ok = result.rc == 0 and bool(result.stdout.strip())
+        has_output = bool(result.stdout.strip())
+        ok = result.rc == 0 and has_output
+        error = ""
+        if not ok:
+            if result.rc != 0 and not has_output:
+                error = (
+                    f"Slurm GPU allocation failed (rc={result.rc}): "
+                    + re.sub(r"\s+", " ", (result.stderr or "").strip())[:200]
+                )
+            elif result.rc == 0 and not has_output:
+                error = "GPU allocation succeeded but nvidia-smi returned no output"
+            else:
+                error = (
+                    f"GPU query failed (rc={result.rc}): "
+                    + re.sub(r"\s+", " ", (result.stderr or result.stdout or "").strip())[:200]
+                )
         return runtime_result(
             ok,
             summary,
             [
                 ("Target node", f"{gpu_row['HOSTNAME']} | {gpu_row['ADMIN_IP']}"),
                 ("Scheduler GRES", gres),
-                ("GPU allocation", "passed" if ok else "failed"),
-                ("GPU output", result.stdout.strip() or "none"),
+                ("GPU allocation", "passed" if result.rc == 0 else "FAILED"),
+                ("GPU query", "passed" if has_output else "FAILED"),
+                ("GPU output", result.stdout.strip()[:300] or "none"),
             ],
-            "Slurm could not allocate and query a GPU" if not ok else "",
+            error,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -1507,7 +1573,13 @@ def check_slurm_gpu_memory_stress(host):
         _context_data, rows, control, _config = _context(host)
         if not _gpu_rows(host, control, _compute_rows(rows)):
             return _skip(summary, "Slurm reports no GPU GRES on mapped compute nodes")
-        compiler = first_row(rows, SLURM_COMPILER_PREFIX) or control
+        compiler = first_row(rows, SLURM_COMPILER_PREFIX)
+        if compiler is None:
+            return _skip(
+                summary,
+                "No login-compiler node is mapped — CUDA compilation requires "
+                "a compiler node with nvcc and shared NFS storage",
+            )
         asset = Path(__file__).parents[1] / "assets" / "gpu_memory_stress.cu"
         payload = base64.b64encode(asset.read_bytes()).decode("ascii")
         if not re.fullmatch(r"[A-Za-z0-9+/=]+", payload):
@@ -1517,16 +1589,34 @@ def check_slurm_gpu_memory_stress(host):
             compiler,
             PXEBOOT_COMMANDS["gpu_memory_stress"] % payload,
         )
-        ok = result.rc == 0 and "GPU_MEMORY_STRESS_OK" in result.stdout
+        compiled = result.rc == 0 or "GPU_MEMORY_STRESS_OK" in result.stdout
+        probe_ok = "GPU_MEMORY_STRESS_OK" in result.stdout
+        ok = result.rc == 0 and probe_ok
+        error = ""
+        if not ok:
+            if result.rc != 0 and not probe_ok:
+                error = (
+                    f"CUDA compilation or submission failed (rc={result.rc}): "
+                    + re.sub(r"\s+", " ", (result.stderr or "").strip())[:200]
+                )
+            elif not probe_ok:
+                error = (
+                    "CUDA compiled but GPU memory probe did not emit success marker; "
+                    "output: " + re.sub(r"\s+", " ", result.stdout.strip())[:200]
+                )
         return runtime_result(
             ok,
             summary,
             [
                 ("Submission node", compiler["HOSTNAME"]),
-                ("CUDA compilation", "passed" if result.rc == 0 else "failed"),
-                ("GPU memory probe", "passed" if ok else "failed"),
+                ("CUDA compilation", "passed" if compiled else "FAILED"),
+                ("GPU memory probe", "passed" if probe_ok else "FAILED"),
+                (
+                    "Probe output",
+                    result.stdout.strip()[:200] or result.stderr.strip()[:200] or "none",
+                ),
             ],
-            "The bounded CUDA memory probe did not complete" if not ok else "",
+            error,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)

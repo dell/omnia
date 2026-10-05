@@ -183,15 +183,21 @@ def check_kubernetes_version_compatibility(host):
                         ("    CRI-O", f"{icon} {outcome['crio']}"),
                     ]
                 )
+        error_parts = []
+        if not compatible:
+            error_parts.append(
+                f"kubectl client/server version skew unsupported "
+                f"(client={client or 'unknown'} server={server or 'unknown'})"
+            )
+        if failed:
+            error_parts.append(
+                "version mismatch on: " + ", ".join(failed)
+            )
         return runtime_result(
             compatible and not failed,
             summary,
             fields,
-            (
-                "Kubernetes, kubeadm, or CRI-O versions are incompatible"
-                if not compatible or failed
-                else ""
-            ),
+            "; ".join(error_parts),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)

@@ -454,18 +454,46 @@ def check_slurm_infiniband_configuration(host):
 
 
 def check_slurm_infiniband_connectivity(host):
-    """Verify every mapped Slurm IB endpoint can reach every peer."""
+    """Verify every mapped Slurm IB endpoint can reach every peer.
+
+    Nodes whose IB interface is not operational (RDMA device missing or
+    link DOWN) are excluded from the connectivity mesh rather than
+    poisoning every pair they touch.  They are reported as excluded so
+    the operator knows they were not tested.
+    """
     summary = "Slurm InfiniBand peer connectivity"
     try:
         _runtime, rows, _control, _config = _context(host)
         ib_rows = _ib_rows(rows)
         if len(ib_rows) < 2:
             return _skip(summary, "At least two mapped IB endpoints are required")
+
+        # Pre-filter: verify each node has a reachable IB interface by
+        # pinging itself (or checking link state).  Nodes without a
+        # working IB stack are excluded from the mesh.
+        active_rows = []
+        excluded = []
+        for row in ib_rows:
+            ib_ip = str(ipaddress.ip_address(row["IB_IP"].split("/", 1)[0]))
+            probe = remote_command(
+                host, row, PXEBOOT_COMMANDS["infiniband_ping"] % ib_ip,
+            )
+            if probe.rc == 0:
+                active_rows.append(row)
+            else:
+                excluded.append(row)
+        if len(active_rows) < 2:
+            return _skip(
+                summary,
+                f"Only {len(active_rows)} node(s) have a working IB interface "
+                f"(excluded: {', '.join(r['HOSTNAME'] for r in excluded)})",
+            )
+
         source_results = []
         failures = []
-        for source in ib_rows:
+        for source in active_rows:
             target_results = []
-            for target in ib_rows:
+            for target in active_rows:
                 if source["HOSTNAME"] == target["HOSTNAME"]:
                     continue
                 target_ip = str(ipaddress.ip_address(target["IB_IP"].split("/", 1)[0]))
@@ -485,7 +513,16 @@ def check_slurm_infiniband_connectivity(host):
                     target_results,
                 )
             )
-        fields = [("IB pairs checked", len(ib_rows) * (len(ib_rows) - 1))]
+        fields = [
+            ("IB pairs checked", len(active_rows) * (len(active_rows) - 1)),
+        ]
+        if excluded:
+            fields.append(
+                (
+                    "Excluded (no IB)",
+                    ", ".join(r["HOSTNAME"] for r in excluded),
+                )
+            )
         grouped = {}
         for source_result in source_results:
             grouped.setdefault(
