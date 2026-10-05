@@ -200,6 +200,10 @@ from .slurm_configuration_pxeboot_func import (
     check_slurm_reconfigure,
 )
 from .slurm_discovery_pxeboot_func import check_slurm_hardware_discovery
+from .slurm_lifecycle_pxeboot_func import (
+    check_slurm_node_add,
+    check_slurm_node_remove,
+)
 from .slurm_fabric_pxeboot_func import (
     check_slurm_gpu_inventory,
     check_slurm_infiniband_configuration,
@@ -386,6 +390,8 @@ __all__ = [
     "check_slurm_login_node_jobs",
     "check_slurm_login_pam_job_access",
     "check_slurm_membership",
+    "check_slurm_node_add",
+    "check_slurm_node_remove",
     "check_slurm_openmpi_installation",
     "check_slurm_openmpi_job",
     "check_slurm_pam_no_job_access",
