@@ -238,23 +238,26 @@ registries:
       insecure: false
 
 file_repos:
-  x86_64:
-    git:
-      helm_charts: "https://<admin_ip>:2225/pulp/content/.../git/helm-charts/"
-    tarball:
-      helm_v3_20_1_amd64: "https://<admin_ip>:2225/pulp/content/.../tarball/helm-v3.20.1-amd64/"
-    manifest:
-      calico_v3_31_4: "https://<admin_ip>:2225/pulp/content/.../manifest/calico-v3.31.4/"
-    pip_module:
-      kubernetes_33_1_0: "https://<admin_ip>:2225/pypi/.../pip_module/kubernetes==33.1.0/"
-  aarch64: {}
+  "10.0":
+    x86_64:
+      git:
+        helm_charts: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/git/helm-charts/"
+      tarball:
+        helm_v3_20_1_amd64: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/tarball/helm-v3.20.1-amd64/"
+      manifest:
+        calico_v3_31_4: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/manifest/calico-v3.31.4/"
+      pip_module:
+        kubernetes_33_1_0: "https://<admin_ip>:2225/pypi/.../rhel/10.0/pip_module/kubernetes==33.1.0/"
+    aarch64: {}
 
-offline_tarball_path: "https://<admin_ip>:2225/pulp/content/.../tarball/"
-offline_manifest_path: "https://<admin_ip>:2225/pulp/content/.../manifest/"
-offline_git_path: "https://<admin_ip>:2225/pulp/content/.../git/"
-offline_pip_module_path: "https://<admin_ip>:2225/pypi/.../pip_module/"
-offline_shell_path: "https://<admin_ip>:2225/pulp/content/.../shell/"
-offline_iso_path: "https://<admin_ip>:2225/pulp/content/.../iso/"
+base_urls:
+  "10.0":
+    x86_64:
+      git: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/git/"
+      tarball: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/tarball/"
+      manifest: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/manifest/"
+      pip_module: "https://<admin_ip>:2225/pypi/.../rhel/10.0/pip_module/"
+    aarch64: {}
 ```
 
 ### Validation Rules
@@ -276,10 +279,15 @@ deployment-health flows also remain runnable without `repo_status.yml`.
 | `pulp_cert_path` | `repo_manager.certificates.server_crt` | `k8s_config`, `slurm_config` (cert copy to nodes) |
 | `repositories` | `repositories.<version>.<arch>.<repo>.url` | RPM repo URLs keyed by OS version and arch |
 | `registries` | `registries` | Container registry mirror configuration |
-| `file_repos` | `file_repos.<arch>.<type>.<name>` | Git, tarball, manifest, pip URLs |
-| `offline_tarball_path` | `offline_tarball_path` | `k8s_config` (helm, CUDA downloads) |
-| `offline_manifest_path` | `offline_manifest_path` | `k8s_config` (Calico, MetalLB manifests) |
-| `offline_git_path` | `offline_git_path` | `k8s_config` (whereabouts, helm-charts) |
+| `file_repos` | `file_repos.<version>.<arch>.<type>.<name>` | Version-qualified Git, tarball, manifest, and pip artifact URLs |
+| `base_urls` | `base_urls.<version>.<arch>.<type>` | Version-qualified type-level URL selected using the catalog OS version |
+
+Repo Manager does not publish the removed flat `offline_*_path` or
+`*_base_url` aliases. For Kubernetes, Orchestrator derives the OS type, exact
+minor version, and architecture from the `base_os` group referenced by the
+catalog's `service_kube_*` functional layers. It selects that exact
+version/architecture from `base_urls` and does not fall back to another
+version.
 
 ---
 
