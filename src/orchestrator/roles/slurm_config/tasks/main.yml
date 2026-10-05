@@ -24,7 +24,8 @@
     - (hostvars['localhost']['functional_groups'] | map(attribute='name') | select('match', '^slurm_control_node_') | list | length) > 0
 
 - name: Get the slurm hostnames
-  ansible.builtin.include_tasks: read_slurm_hostnames.yml
+  ansible.builtin.include_role:
+    name: orchestrator_node_topology
   when: slurm_support
 
 - name: Backup slurm conf if upgrade

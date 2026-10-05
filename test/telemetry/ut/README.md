@@ -4,8 +4,8 @@ Unit Tests (UT) for telemetry validate individual functions and components in is
 
 UT IDs use `TEL_UT_<SEQ>`: `TEL` is the stable Telemetry domain code, `UT` identifies the test level, and `SEQ` is a stable three-digit sequence.
 
-Every current unit-test function has a stable ID in the range `TEL_UT_001`
-through `TEL_UT_049`. The centralized mapping is maintained in
+Every registered unit-test function has a stable ID in the range `TEL_UT_001`
+through `TEL_UT_056`. The centralized mapping is maintained in
 `library/vars/ut_test_case_vars.py`; descriptive pytest function names remain
 unchanged.
 
@@ -17,6 +17,7 @@ unchanged.
 | `TEL_UT_037`–`TEL_UT_039` | `test_sink_enablement.py` | Direct source targets and Vector-OME/Vector-LDMS derived sink enablement |
 | `TEL_UT_040`–`TEL_UT_046` | `test_ome_lifecycle.py` | OME independent metrics/logs reconciliation, dependency validation, retained-state restore, isolation, and status contracts |
 | `TEL_UT_047`–`TEL_UT_049` | `test_kafka_topic_lifecycle.py` | Non-destructive topic-manifest cleanup, enabled-source application, and readiness gating |
+| `TEL_UT_050`–`TEL_UT_056` | `test_disabled_state_fvt.py` | Disabled workload detection, required shared-sink health, and PowerScale quiet-window probes |
 ## Test Categories
 
 | Category | Description | Marker |
@@ -25,6 +26,7 @@ unchanged.
 | OME Victoria | Victoria metric timestamps, identifiers, disabled pipelines, and log parsing | ut |
 | iDRAC Lifecycle | iDRAC enable/disable routing, retained-state restore, status, and fresh Kafka-flow contracts | ut |
 | Sink Enablement | Direct source targets and Vector-OME/Vector-LDMS derived sink enablement | ut |
+| Disabled-State FVT Helpers | Stopped workloads and required shared-sink health | ut |
 
 ## Test Case Registry
 
@@ -89,6 +91,18 @@ unchanged.
 | TEL_UT_037 | Direct source targets enablement | ut |
 | TEL_UT_038 | Vector-OME derived sink enablement | ut |
 | TEL_UT_039 | Vector-LDMS derived sink enablement | ut |
+
+### Disabled-State FVT Helpers (TEL_UT_050–TEL_UT_056)
+
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TEL_UT_050 | Retained zero-replica workload is stopped | ut |
+| TEL_UT_051 | Remaining disabled-source pod fails verification | ut |
+| TEL_UT_052 | Only configured shared sinks are required | ut |
+| TEL_UT_053 | Vector agent cannot satisfy the shared-agent check | ut |
+| TEL_UT_054 | PowerScale quiet-window metrics count fresh samples | ut |
+| TEL_UT_055 | PowerScale test event carries a unique marker | ut |
+| TEL_UT_056 | PowerScale VL query matches only its marker | ut |
 
 ## Additional Tests (No TEL_UT IDs)
 

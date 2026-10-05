@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-# Paths (mirror configure_ochami/vars/main.yml until configure_ochami is deleted)
+# OpenCHAMI working paths
 openchami_share_path: "{{ hostvars['localhost']['omnia_data_path'] }}/openchami"
 openchami_work_dir: "{{ openchami_share_path }}/workdir"
 nodes_dir: "{{ openchami_work_dir }}/nodes"
@@ -23,8 +22,8 @@ telemetry_share_path: "{{ hostvars['localhost']['omnia_data_path'] }}/telemetry"
 openchami_config_vars_path: "{{ openchami_share_path }}/configs_vars.yaml"
 openchami_api_uri: "https://{{ cluster_name }}.{{ cluster_domain }}:8443"
 
-# Templates — point to configure_ochami templates until they are migrated
-ochami_template_dir: "{{ role_path }}/../configure_ochami/templates"
+# Provisioning templates owned by this role
+ochami_template_dir: "{{ role_path }}/templates"
 openchami_nodes_template: "{{ ochami_template_dir }}/nodes/nodes.yaml.j2"
 openchami_hostname_template: "{{ ochami_template_dir }}/nodes/hostname.yaml.j2"
 boot_svc_template: "{{ ochami_template_dir }}/boot_svc/boot-svc.yaml.j2"
@@ -130,9 +129,6 @@ file_permissions_644: "{{ hostvars['localhost']['file_permissions_644'] }}"
 file_permissions_600: "{{ hostvars['localhost']['file_permissions_600'] }}"
 dir_permissions_755: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
-# slurm_config defaults file path (needed by metadata-service group templates)
-default_file_path: "{{ role_path }}/../slurm_config/defaults/main.yml"
-
 # Additional metadata-service
 additional_metadata_svc_common_group_name: additional_metadata_svc
 additional_metadata_svc_fg_group_prefix: "additional_metadata_svc_"
@@ -141,3 +137,44 @@ ms_group_additional_template: "{{ ochami_template_dir }}/metadata_svc/ms-group-a
 # Input project directory
 input_project_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] }}"
 local_repo_config_path: "{{ hostvars['localhost']['omnia_project_input_dir'] }}/local_repo_config.yml"
+# Template compatibility values
+functional_group_os_version_regex: >-
+  _(rhel|rocky|ubuntu|sles)_[0-9]+(_[0-9]+)*_
+functional_group_versioned_role_regex: >-
+  (?x)^
+  (service_kube_control_plane(_first)? | service_kube_node |
+  slurm_control_node | slurm_node | login_node | login_compiler_node | os)
+  _(rhel|rocky|ubuntu|sles)_[0-9]+(_[0-9]+)*_(x86_64|aarch64)$
+file_mode: "0644"
+file_mode_400: "0400"
+file_mode_600: "0600"
+file_mode_755: "0755"
+ldap_starttls_port: 389
+ldap_ssl_port: 636
+dcgm_health_check_retries: 3
+# Centralized failure messages
+repo_config_not_available_msg: >-
+  Repository configuration (pulp_cert_path, pulp_port, cluster_os_type) not
+  available for node configuration. Run repo_manager before orchestrator to
+  generate repo_status.yml, or set repo_manager_output_path in
+  orchestrator_config.yml. Node configuration requires repository URLs and
+  the Pulp certificate.
+s3_config_not_available_msg: >-
+  s3_configurations is not available for Boot Service template generation.
+  Run image_build_manager before orchestrator to generate build_status.yml,
+  or set image_build_manager_output_path in orchestrator_config.yml. Boot
+  Service templates require an S3 endpoint URL for PXE boot artifacts.
+slurm_storage_contract_fail_msg: >-
+  Slurm metadata configuration cannot resolve nfs_storage_name
+  '{{ metadata_slurm_nfs_storage_name }}' and vast_storage_name
+  '{{ metadata_slurm_vast_storage_name }}' to exactly one complete entry
+  each in storage_config.yml.
+k8s_storage_contract_fail_msg: >-
+  K8s metadata configuration cannot resolve nfs_storage_name
+  '{{ metadata_k8s_storage_name }}' to exactly one complete entry in
+  storage_config.yml.
+openchami_config_missing_fail_msg: >-
+  OpenCHAMI configuration file not found: {{ openchami_config_vars_path }}.
+  This file is generated during the deploy stage. Run the orchestrator
+  deploy stage first: ansible-playbook orchestrator.yml --tags deploy
+smd_service_fail_msg: "smd service is not running"
