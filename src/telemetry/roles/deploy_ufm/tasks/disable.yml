@@ -16,11 +16,19 @@
 # =============================================================================
 # deploy_ufm — Disable UFM telemetry
 # =============================================================================
-# Removes the UFM external Service and Endpoints when
+# Removes the UFM external Service, Endpoints, and VMServiceScrape when
 # telemetry_sources.ufm.metrics_enabled is false.
 #
 # This stops UFM metrics collection while preserving the UFM credentials
 # Secret for future re-enablement.
+#
+# Resources removed:
+#   - Service (ufm-external) — headless service pointing to external UFM
+#   - Endpoints (ufm-external) — IP mapping for the external UFM endpoint
+#   - VMServiceScrape (ufm-infiniband-metrics) — VMAgent scrape config
+#
+# Resources preserved:
+#   - Secret (ufm-telemetry-credentials) — for re-enablement
 # =============================================================================
 
 - name: Load telemetry configuration
@@ -74,6 +82,17 @@
   failed_when: false
   when:
     - ufm_svc_exists | bool
+
+- name: Delete UFM VMServiceScrape (stop VMAgent from scraping UFM)
+  ansible.builtin.command: >
+    kubectl delete vmservicescrape {{ ufm_vmscrape_name }}
+    -n {{ telemetry_namespace }} --ignore-not-found
+  register: ufm_delete_vmscrape_result
+  changed_when: "'deleted' in ufm_delete_vmscrape_result.stdout"
+  failed_when: false
+  when:
+    - ufm_namespace_check.rc == 0
+    - ufm_namespace_check.stdout | trim | length > 0
 
 - name: Display scale down result
   ansible.builtin.debug:

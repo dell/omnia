@@ -84,7 +84,7 @@ def test_ufm_disable_is_noop_safe_and_idempotent():
 
 
 def test_ufm_disable_is_non_destructive():
-    """Disable may only remove the service/endpoints, not the secret."""
+    """Disable may only remove service/endpoints/vmscrape, not the secret."""
     text = _read(UFM_ROLE / "tasks/disable.yml").lower()
 
     # Must not delete the credentials secret
@@ -97,15 +97,19 @@ def test_ufm_disable_is_non_destructive():
 
 
 def test_ufm_disable_preserves_credentials_secret():
-    """Disable deletes service but explicitly preserves secret."""
+    """Disable deletes service/endpoints/vmscrape but preserves secret."""
     tasks = _tasks("disable.yml")
     commands = "\n".join(
         task.get("ansible.builtin.command", "")
         for task in tasks
     ).lower()
 
-    # Should delete service, not secret
-    assert "delete service" in commands or "delete endpoints" in commands
+    # Should delete service and endpoints
+    assert "delete service" in commands
+    assert "delete endpoints" in commands
+    # Should delete VMServiceScrape (stops VMAgent from scraping)
+    assert "delete vmservicescrape" in commands
+    # Must not delete secret
     assert "delete secret" not in commands
 
 

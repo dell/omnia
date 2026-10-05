@@ -25,6 +25,7 @@ telemetry_namespace: "telemetry"
 # Kubernetes resource names
 ufm_credentials_secret_name: "ufm-telemetry-credentials"
 ufm_external_service_name: "ufm-external"
+ufm_vmscrape_name: "ufm-infiniband-metrics"
 
 # UFM telemetry defaults
 ufm_endpoint_test_timeout: 10
@@ -57,7 +58,8 @@ ufm_secret_created_msg: >-
 # Disable-specific messages
 ufm_service_disabled_msg: >-
   UFM telemetry disabled — removed {{ ufm_external_service_name }} service
-  while preserving credentials secret for future re-enablement.
+  and {{ ufm_vmscrape_name }} VMServiceScrape while preserving credentials
+  secret for future re-enablement.
 
 ufm_service_not_found_msg: >-
   UFM telemetry service not found, nothing to disable.

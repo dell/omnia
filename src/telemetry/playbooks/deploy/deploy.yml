@@ -98,7 +98,6 @@
 - name: "Phase 2 | Deploy UFM telemetry"
   ansible.builtin.import_playbook: sources/deploy_ufm.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.ufm.metrics_enabled | default(false) | bool
 
 - name: "Phase 2 | Deploy VAST telemetry"
   ansible.builtin.import_playbook: sources/deploy_vast.yml
