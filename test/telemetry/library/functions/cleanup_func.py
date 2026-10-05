@@ -22,11 +22,15 @@ from the telemetry namespace.
 
 from typing import Dict, Any, List
 
+from omnia_auto import read_remote_env
+
 from .telemetry_func import run_on_kube_vip
 
 from library.vars.common_vars import (
     CMDS,
     TELEMETRY_NAMESPACE,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
     IDRAC_POD_PREFIX,
     IDRAC_STS_NAME,
     LDMS_AGG_STS_NAME,
@@ -440,7 +444,7 @@ def verify_no_pvcs_remaining(host, namespace=None) -> Dict[str, Any]:
 def verify_source_pvcs_deleted(host, namespace=None) -> Dict[str, Any]:
     """Verify source PVCs are deleted after cleanup (always expected).
 
-    Source PVCs (iDRAC, LDMS, PowerScale, UFM, VAST) should always be
+    Source PVCs (currently iDRAC and PowerScale) should always be
     deleted regardless of the delete_volume flag. This function
     verifies that no source PVCs remain.
 
@@ -457,7 +461,7 @@ def verify_source_pvcs_deleted(host, namespace=None) -> Dict[str, Any]:
     # Check for source PVCs (should always be deleted)
     source_pvc_count = 0
     source_pvc_details = []
-    for prefix in ["mysqldb", "ldms", "powerscale", "ufm", "vast"]:
+    for prefix in ["mysqldb", "powerscale"]:
         cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
         result = run_on_kube_vip(host, cmd)
         if result.rc == 0:
@@ -547,7 +551,7 @@ def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
 
     When cleanup runs without ``delete_volume=true``, Kafka and VictoriaMetrics/VictoriaLogs
     persistent volume claims must be retained so that data survives a redeploy.
-    Other source volumes (iDRAC, LDMS, PowerScale, UFM, VAST) are always deleted.
+    Other source volumes (currently iDRAC and PowerScale) are always deleted.
 
     This function succeeds when:
       - Kafka and VictoriaMetrics/VictoriaLogs PVCs exist (preserved)
@@ -573,7 +577,7 @@ def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
 
     # Check for source PVCs (should be deleted)
     source_pvc_count = 0
-    for prefix in ["mysqldb", "ldms", "powerscale", "ufm", "vast"]:
+    for prefix in ["mysqldb", "powerscale"]:
         cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
         result = run_on_kube_vip(host, cmd)
         if result.rc == 0:
@@ -616,3 +620,429 @@ def verify_pvcs_preserved(host, namespace=None) -> Dict[str, Any]:
             ),
             "count": sink_pvc_count,
         }
+
+
+# =============================================================================
+# CREDENTIAL AND LOG PRESERVATION VERIFICATION
+# =============================================================================
+
+def verify_credentials_preserved(host) -> Dict[str, Any]:
+    """Verify credential files are preserved after cleanup with cleanup_credentials=false.
+
+    Checks for:
+      - telemetry_credentials.yml
+      - .telemetry_credentials_key
+
+    Args:
+        host: testinfra host fixture.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "details": str,
+            "error": str or None,
+            "files": {
+                "credentials": bool,
+                "vault_key": bool
+            }
+        }
+    """
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
+    )
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
+
+    input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
+    cred_file = f"{input_dir}/telemetry_credentials.yml"
+    vault_key_file = f"{input_dir}/.telemetry_credentials_key"
+
+    result = {
+        "success": False,
+        "details": "",
+        "error": None,
+        "files": {
+            "credentials": False,
+            "vault_key": False,
+        },
+    }
+
+    try:
+        # Check credentials file
+        cred_exists = host.file(cred_file).exists
+        result["files"]["credentials"] = cred_exists
+
+        # Check vault key file
+        key_exists = host.file(vault_key_file).exists
+        result["files"]["vault_key"] = key_exists
+
+        if cred_exists and key_exists:
+            result["success"] = True
+            result["details"] = (
+                f"Credential files preserved:\n"
+                f"  - {cred_file}: exists\n"
+                f"  - {vault_key_file}: exists"
+            )
+        else:
+            missing = []
+            if not cred_exists:
+                missing.append(cred_file)
+            if not key_exists:
+                missing.append(vault_key_file)
+            result["error"] = f"Credential files not preserved: {', '.join(missing)}"
+            result["details"] = (
+                f"Expected credential files to be preserved (cleanup_credentials=false):\n"
+                f"  - {cred_file}: {'exists' if cred_exists else 'MISSING'}\n"
+                f"  - {vault_key_file}: {'exists' if key_exists else 'MISSING'}"
+            )
+
+    except Exception as e:
+        result["error"] = str(e)
+        result["details"] = f"Error checking credential files: {str(e)}"
+
+    return result
+
+
+def verify_credentials_deleted(host) -> Dict[str, Any]:
+    """Verify credential files are deleted after cleanup with cleanup_credentials=true (default).
+
+    Checks that both credential files are removed:
+      - telemetry_credentials.yml
+      - .telemetry_credentials_key
+
+    Args:
+        host: testinfra host fixture.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "details": str,
+            "error": str or None,
+            "files": {
+                "credentials": bool,
+                "vault_key": bool
+            }
+        }
+    """
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
+    )
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
+
+    input_dir = f"{omnia_data_path}/telemetry/input/{omnia_project_name}"
+    cred_file = f"{input_dir}/telemetry_credentials.yml"
+    vault_key_file = f"{input_dir}/.telemetry_credentials_key"
+
+    result = {
+        "success": False,
+        "details": "",
+        "error": None,
+        "files": {
+            "credentials": False,
+            "vault_key": False,
+        },
+    }
+
+    try:
+        # Check credentials file
+        cred_exists = host.file(cred_file).exists
+        result["files"]["credentials"] = cred_exists
+
+        # Check vault key file
+        key_exists = host.file(vault_key_file).exists
+        result["files"]["vault_key"] = key_exists
+
+        if not cred_exists and not key_exists:
+            result["success"] = True
+            result["details"] = (
+                f"Credential files deleted:\n"
+                f"  - {cred_file}: deleted\n"
+                f"  - {vault_key_file}: deleted"
+            )
+        else:
+            remaining = []
+            if cred_exists:
+                remaining.append(cred_file)
+            if key_exists:
+                remaining.append(vault_key_file)
+            result["error"] = f"Credential files not deleted: {', '.join(remaining)}"
+            result["details"] = (
+                f"Expected credential files to be deleted (cleanup_credentials=true):\n"
+                f"  - {cred_file}: {'exists' if cred_exists else 'deleted'}\n"
+                f"  - {vault_key_file}: {'exists' if key_exists else 'deleted'}"
+            )
+
+    except Exception as e:
+        result["error"] = str(e)
+        result["details"] = f"Error checking credential files: {str(e)}"
+
+    return result
+
+
+def verify_logs_preserved(host) -> Dict[str, Any]:
+    """Verify log directory is preserved after cleanup with cleanup_logs=false.
+
+    Checks for:
+      - <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME>/
+
+    Args:
+        host: testinfra host fixture.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "details": str,
+            "error": str or None,
+            "log_dir_exists": bool
+        }
+    """
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
+    )
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
+
+    log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
+
+    result = {
+        "success": False,
+        "details": "",
+        "error": None,
+        "log_dir_exists": False,
+    }
+
+    try:
+        log_dir_exists = host.file(log_dir).is_directory
+        result["log_dir_exists"] = log_dir_exists
+
+        if log_dir_exists:
+            result["success"] = True
+            result["details"] = (
+                f"Log directory preserved:\n"
+                f"  - {log_dir}: exists"
+            )
+        else:
+            result["error"] = f"Log directory not preserved: {log_dir}"
+            result["details"] = (
+                f"Expected log directory to be preserved (cleanup_logs=false):\n"
+                f"  - {log_dir}: MISSING"
+            )
+
+    except Exception as e:
+        result["error"] = str(e)
+        result["details"] = f"Error checking log directory: {str(e)}"
+
+    return result
+
+
+def verify_logs_deleted(host) -> Dict[str, Any]:
+    """Verify log directory is deleted after cleanup with cleanup_logs=true (default).
+
+    Checks that the log directory is removed:
+      - <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME>/
+
+    Args:
+        host: testinfra host fixture.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "details": str,
+            "error": str or None,
+            "log_dir_exists": bool
+        }
+    """
+    # Read environment variables from the host (sources /etc/omnia/omnia.env)
+    omnia_data_path = (
+        read_remote_env(host, ENV_OMNIA_DATA_PATH, required=False) or "/opt/omnia"
+    )
+    omnia_project_name = (
+        read_remote_env(host, ENV_OMNIA_PROJECT_NAME, required=False) or "project_default"
+    )
+
+    log_dir = f"{omnia_data_path}/telemetry/log/{omnia_project_name}"
+
+    result = {
+        "success": False,
+        "details": "",
+        "error": None,
+        "log_dir_exists": False,
+    }
+
+    try:
+        log_dir_exists = host.file(log_dir).is_directory
+        result["log_dir_exists"] = log_dir_exists
+
+        if not log_dir_exists:
+            result["success"] = True
+            result["details"] = (
+                f"Log directory deleted:\n"
+                f"  - {log_dir}: deleted"
+            )
+        else:
+            result["error"] = f"Log directory not deleted: {log_dir}"
+            result["details"] = (
+                f"Expected log directory to be deleted (cleanup_logs=true):\n"
+                f"  - {log_dir}: still exists"
+            )
+
+    except Exception as e:
+        result["error"] = str(e)
+        result["details"] = f"Error checking log directory: {str(e)}"
+
+    return result
+
+
+# =============================================================================
+# SINK DEPENDENCY CHECK VERIFICATION
+# =============================================================================
+
+def verify_sink_running(host, sink_name, namespace=None) -> Dict[str, Any]:
+    """Verify a specific sink has running pods (is deployed and active).
+
+    Used to confirm a sink is still present after a blocked cleanup
+    or to verify it was cleaned after an allowed cleanup.
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        sink_name: 'kafka', 'victoria_metrics', or 'victoria_logs'.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), running (bool),
+                        pod_count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    prefix_map = {
+        "kafka": [
+            KAFKA_POD_PREFIXES["broker"],
+            KAFKA_POD_PREFIXES["controller"],
+        ],
+        "victoria_metrics": [
+            VM_POD_PREFIXES["vmstorage"],
+            VM_POD_PREFIXES["vminsert"],
+            VM_POD_PREFIXES["vmselect"],
+        ],
+        "victoria_logs": [
+            VL_POD_PREFIXES["vlstorage"],
+            VL_POD_PREFIXES["vlinsert"],
+            VL_POD_PREFIXES["vlselect"],
+        ],
+    }
+
+    prefixes = prefix_map.get(sink_name, [])
+    total_count = 0
+    for prefix in prefixes:
+        total_count += _get_pod_count_by_prefix(host, prefix, ns)
+
+    running = total_count > 0
+    return {
+        "success": True,
+        "details": (
+            f"{sink_name}: {total_count} pod(s) running"
+            if running
+            else f"{sink_name}: no pods running"
+        ),
+        "running": running,
+        "pod_count": total_count,
+    }
+
+
+def verify_source_running(host, source_label, namespace=None) -> Dict[str, Any]:
+    """Verify a specific source has running pods.
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        source_label: K8s pod label (e.g. 'app=idrac-telemetry').
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), running (bool), pod_count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    cmd = (
+        f"kubectl get pods -n {ns} -l {source_label} "
+        f"--no-headers --ignore-not-found -o name"
+    )
+    result = run_on_kube_vip(host, cmd)
+    if result.rc != 0:
+        return {"success": False, "running": False, "pod_count": 0}
+
+    lines = [
+        line.strip()
+        for line in result.stdout.strip().split("\n")
+        if line.strip()
+    ]
+    pod_count = len(lines)
+    return {
+        "success": True,
+        "running": pod_count > 0,
+        "pod_count": pod_count,
+    }
+
+
+def verify_sink_pvcs_exist(host, sink_name, namespace=None) -> Dict[str, Any]:
+    """Verify PVCs for a specific sink exist (are preserved).
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        sink_name: 'kafka', 'victoria_metrics', or 'victoria_logs'.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), pvc_count (int).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    pvc_prefix_map = {
+        "kafka": ["kafka"],
+        "victoria_metrics": ["vmstorage", "victoria-metrics"],
+        "victoria_logs": ["vlstorage", "vlagent"],
+    }
+
+    prefixes = pvc_prefix_map.get(sink_name, [])
+    total = 0
+    for prefix in prefixes:
+        cmd = CMDS["kubectl_get_pvc_count"].format(namespace=ns, prefix=prefix)
+        r = run_on_kube_vip(host, cmd)
+        if r.rc == 0:
+            try:
+                total += int(r.stdout.strip())
+            except (ValueError, AttributeError):
+                pass
+
+    return {
+        "success": total > 0,
+        "details": f"{sink_name}: {total} PVC(s) found",
+        "pvc_count": total,
+    }
+
+
+def verify_sink_pvcs_gone(host, sink_name, namespace=None) -> Dict[str, Any]:
+    """Verify PVCs for a specific sink have been deleted.
+
+    Args:
+        host: testinfra host connected to kube_vip.
+        sink_name: 'kafka', 'victoria_metrics', or 'victoria_logs'.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        dict with keys: success (bool), details (str), pvc_count (int).
+    """
+    result = verify_sink_pvcs_exist(host, sink_name, namespace)
+    gone = result["pvc_count"] == 0
+    return {
+        "success": gone,
+        "details": (
+            f"{sink_name}: all PVCs deleted"
+            if gone
+            else f"{sink_name}: {result['pvc_count']} PVC(s) still present"
+        ),
+        "pvc_count": result["pvc_count"],
+    }

@@ -45,7 +45,7 @@ from library.functions.cleanup_func import (
 
 @pytest.mark.functional
 @pytest.mark.sink
-@pytest.mark.order(58)
+@pytest.mark.order(63)
 def test_cleanup_kafka(host):
     """TEL_FVT_CLEANUP_V003: Verify Kafka resources removed after full cleanup.
 
@@ -67,7 +67,7 @@ def test_cleanup_kafka(host):
 
 @pytest.mark.functional
 @pytest.mark.sink
-@pytest.mark.order(59)
+@pytest.mark.order(64)
 def test_cleanup_victoria_metrics(host):
     """TEL_FVT_CLEANUP_V004: Verify VictoriaMetrics resources removed after full cleanup.
 
@@ -89,7 +89,7 @@ def test_cleanup_victoria_metrics(host):
 
 @pytest.mark.functional
 @pytest.mark.sink
-@pytest.mark.order(60)
+@pytest.mark.order(65)
 def test_cleanup_victoria_logs(host):
     """TEL_FVT_CLEANUP_V005: Verify VictoriaLogs resources removed after full cleanup.
 

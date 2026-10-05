@@ -274,7 +274,7 @@ After loading it, use Tab completion with either interface, for example
 `omnia-cli st<Tab>` or `./omnia.sh --run image_<Tab>`. The `omnia.sh`
 completion covers command-specific options, comma-separated domain lists, and
 only the tags supported by the selected domain. It also completes catalog
-selectors and Telemetry cleanup values after `-e`/`--extra-vars`. If the system's Bash completion
+selectors and Telemetry sink/cleanup values after `-e`/`--extra-vars`. If the system's Bash completion
 loader has not picked up the new file in a fresh shell, source the installed
 completion file or run
 `source "${OMNIA_DATA_PATH:-/opt/omnia}/activate-omnia.sh"` to load newly
@@ -333,7 +333,7 @@ completion and accepted by the top-level playbooks:
 | `image_build_manager` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `cleanup_images`, `upgrade`, `rollback` |
 | `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `cleanup`, `cleanup_credentials`, `upgrade`, `rollback` |
 | `repo_manager` | `precheck`, `credentials`, `prepare`, `deploy`, `execute`, `download`, `status`, `cleanup`, `cleanup_pulp`, `cleanup_repos`, `upgrade`, `rollback`, `catalog_generate`, `catalog_add`, `catalog_delete`, `catalog_validate` |
-| `telemetry` | `precheck`, `validate`, `validation`, `prepare`, `credentials`, `execute`, `deploy`, `cleanup`, `cleanup_kafka`, `cleanup_victoria_metrics`, `cleanup_victoria_logs`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `upgrade`, `rollback`, `external_kafka`, `external_victoria` |
+| `telemetry` | `precheck`, `validate`, `validation`, `prepare`, `credentials`, `execute`, `deploy`, `deploy_sinks`, `cleanup`, `cleanup_kafka`, `cleanup_victoria_metrics`, `cleanup_victoria_logs`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `upgrade`, `rollback`, `external_kafka`, `external_victoria` |
 | `utils` | `precheck`, `setup`, `collect`, `install_os`, `backup_oim_logs`, `slurm_config_backup`, `slurm_config_cleanup`, `slurm_config_rollback`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `cleanup_backup_oim_logs`, `cleanup_slurm_config_backups`, `upgrade`, `rollback` |
 
 Without `--tags`, a playbook runs its full default flow. Some tag combinations
@@ -342,6 +342,15 @@ Ansible extra variables are passed through by `omnia.sh`; for example, use
 `./omnia.sh -r telemetry --tags cleanup -e delete_sinks_volume=true` to opt in
 to deleting Telemetry sink PVCs. Bash completion suggests both boolean values
 after `-e` or `--extra-vars` for Telemetry.
+
+The `deploy_sinks` tag deploys sink infrastructure without deploying telemetry
+sources. Sink names may be passed individually or as a comma-separated list:
+
+```bash
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka,victoria_metrics
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka -e victoria_logs
+```
 
 ---
 

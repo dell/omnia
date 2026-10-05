@@ -69,10 +69,11 @@ ansible-playbook playbooks/telemetry.yml
 
 | Tag | Default? | Description |
 |-----|----------|-------------|
-| _(none)_ | Yes | Default flow: setup + validate + deploy |
-| `precheck` | No | Validate K8s prerequisites (kube_vip, nodes, pods) |
+| _(none)_ | Yes | Default flow: setup + validate + precheck + deploy |
+| `precheck` | No | Run K8s and enabled Slurm prerequisite checks without deploying |
 | `validate` | Yes | L1 schema + L2 logic validation of all input files |
-| `deploy` / `execute` | Yes | Deploy sinks + sources + kustomize apply |
+| `deploy` / `execute` | Yes | Precheck, then deploy sinks + sources + kustomize apply |
+| `deploy_sinks` | No | Deploy only selected sink infrastructure: Kafka, VictoriaMetrics, and/or VictoriaLogs |
 | `cleanup` | No | Remove telemetry runtime resources; delete source volumes, preserve sink volumes by default |
 | `upgrade` | No | Upgrade telemetry (placeholder) |
 | `rollback` | No | Rollback telemetry (placeholder) |
@@ -81,9 +82,7 @@ ansible-playbook playbooks/telemetry.yml
 
 | Tag | Scope |
 |-----|-------|
-| `cleanup_kafka` | Kafka runtime + Strimzi operator; preserve sink volumes by default |
-| `cleanup_victoria_metrics` | VictoriaMetrics + vmagent-vector |
-| `cleanup_victoria_logs` | VictoriaLogs + vlagent-vector |
+| `cleanup_sinks` | Selective sink cleanup with dependency checking (`-e sinks=kafka,victoria_metrics,victoria_logs` or short-form `-e kafka -e victoria_logs`) |
 | `cleanup_idrac` | iDRAC telemetry (receiver, pumps, DB) |
 | `cleanup_ldms` | LDMS + Vector-LDMS bridge |
 | `cleanup_ome` | OME + Vector-OME bridge |
@@ -91,20 +90,51 @@ ansible-playbook playbooks/telemetry.yml
 | `cleanup_ufm` | UFM InfiniBand telemetry |
 | `cleanup_vast` | VAST storage telemetry |
 
-**Tag safety**: `cleanup`, `precheck`, `upgrade`, `rollback` use Ansible's `never`
-tag — they NEVER execute unless explicitly requested with `--tags`.
+**Tag safety**: `cleanup`, `upgrade`, and `rollback` use Ansible's `never` tag;
+they never execute unless explicitly requested with `--tags`. `precheck` runs
+automatically for the default, `deploy`, and `execute` flows, and can also be
+requested alone for a check-only run.
+
+Deploy one or more sinks independently of telemetry sources:
+
+```bash
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka,victoria_metrics
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka -e victoria_logs
+```
+
+When invoking Ansible directly, use the `sinks` variable, for example:
+`ansible-playbook playbooks/telemetry.yml --tags deploy_sinks -e sinks=kafka,victoria_logs`.
 
 ### Credential and Global Cleanup
 
-Full `cleanup` deletes `telemetry_credentials.yml` and its vault key. A granular
-source cleanup blanks only that source's stored credential fields and preserves
-credentials for components that remain deployed. Run the full domain cleanup
-before an Omnia-wide reset:
+Full `cleanup` deletes `telemetry_credentials.yml` and its vault key by default.
+Use `-e cleanup_credentials=false` to preserve credentials during cleanup, which
+is useful when redeploying immediately after cleanup. Use `-e cleanup_logs=false`
+to preserve telemetry log directories and artifacts during cleanup.
+
+When `Delete_sinks_volume=true` is combined with either `cleanup_credentials=false`
+or `cleanup_logs=false`, a warning is displayed and execution pauses for 30 seconds.
+In cleanup with volume mode, credentials and logs are always deleted regardless of
+these flags.
+
+A granular source cleanup blanks only that source's stored credential fields and
+preserves credentials for components that remain deployed. Use
+`-e cleanup_credentials=false` with granular tags to skip field blanking as well:
 
 ```bash
 cd src/main
 sudo ./omnia.sh --run telemetry --tags cleanup
 sudo ./omnia.sh --cleanup --all
+
+# Preserve credentials for redeployment
+sudo ./omnia.sh --run telemetry --tags cleanup -e cleanup_credentials=false
+
+# Preserve both credentials and logs
+sudo ./omnia.sh --run telemetry --tags cleanup -e cleanup_credentials=false -e cleanup_logs=false
+
+# Granular cleanup preserving credentials
+sudo ./omnia.sh --run telemetry --tags cleanup_idrac -e cleanup_credentials=false
 ```
 
 `src/telemetry/domain-init.sh --cleanup` is non-interactive and removes only
@@ -169,10 +199,6 @@ telemetry/
 │   │       └── deploy_sfm.yml
 │   ├── cleanup/
 │   │   ├── cleanup.yml            # Cleanup orchestrator
-│   │   ├── sinks/                 # Sink cleanup playbooks
-│   │   │   ├── cleanup_kafka.yml
-│   │   │   ├── cleanup_victoria_metrics.yml
-│   │   │   └── cleanup_victoria_logs.yml
 │   │   └── sources/               # Per-source cleanup playbooks
 │   │       ├── cleanup_idrac.yml
 │   │       ├── cleanup_ldms.yml

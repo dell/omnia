@@ -60,10 +60,11 @@ tag.
 | TEL_FVT_DEPLOY_V012 | Verify all iDRAC containers running | sanity |
 | TEL_FVT_DEPLOY_V013 | Verify MySQL data in iDRAC telemetry pods | functional |
 | TEL_FVT_DEPLOY_V014 | Verify iDRAC receiver is collecting metrics | functional |
-| TEL_FVT_DEPLOY_V015 | Verify iDRAC Kafka topic exists | sanity |
+| TEL_FVT_DEPLOY_V015 | Verify topic readiness and fresh iDRAC metrics in Kafka | sanity |
 | TEL_FVT_DEPLOY_V016 | Verify iDRAC VictoriaPump metrics endpoint | sanity |
 | TEL_FVT_DEPLOY_V017 | Verify iDRAC telemetry service exists | sanity |
 | TEL_FVT_DEPLOY_V018 | Verify iDRAC telemetry data in VictoriaMetrics | functional |
+| TEL_FVT_DEPLOY_V019 | Verify iDRAC workloads are stopped, no fresh Kafka/VM data arrives, and required shared sinks remain healthy when disabled | sanity |
 
 ### Sources: LDMS
 
@@ -92,6 +93,7 @@ tag.
 | TEL_FVT_DEPLOY_V036 | Verify comprehensive PowerScale deployment | functional |
 | TEL_FVT_DEPLOY_V037 | Verify PowerScale feature flags | functional |
 | TEL_FVT_DEPLOY_V038 | Verify PowerScale health metrics | functional |
+| TEL_FVT_DEPLOY_V039 | Verify PowerScale metrics workloads are stopped, no fresh VM samples arrive, disabled logs do not reach VL, and required shared sinks remain healthy | sanity |
 | TEL_FVT_DEPLOY_V040 | Verify PowerScale TLS enforcement | functional |
 | TEL_FVT_DEPLOY_V041 | Verify PowerScale label compliance | functional |
 | TEL_FVT_DEPLOY_V042 | Verify PowerScale scrape interval | functional |
@@ -179,6 +181,7 @@ the `vast` marker deliberately does not select the general deployment case.
 | TEL_FVT_DEPLOY_V085 | Verify OME health metrics in VictoriaMetrics | functional | configure_ome=true, metrics source and bridge enabled |
 | TEL_FVT_DEPLOY_V086 | Verify OME alerts in VictoriaLogs | functional | configure_ome=true, logs source and bridge enabled |
 | TEL_FVT_DEPLOY_V087 | Verify OME audit logs in VictoriaLogs | functional | configure_ome=true, logs source and bridge enabled |
+| TEL_FVT_DEPLOY_V088 | Publish unique Kafka markers and verify stopped OME routing delivers none to VM/VL while required shared sinks remain healthy | sanity | OME metrics and logs source channels disabled |
 
 When `configure_ome: false` in test_config.yml, only TEL_FVT_DEPLOY_V070 and TEL_FVT_DEPLOY_V071
 run when at least one Vector-OME bridge channel is enabled. Set

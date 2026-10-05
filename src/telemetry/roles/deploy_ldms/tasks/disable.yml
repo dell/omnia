@@ -19,7 +19,7 @@
 # Scales down LDMS telemetry resources when no telemetry sources
 # require LDMS.
 #
-# This stops LDMS telemetry but preserves PVCs for future re-enablement.
+# This stops LDMS telemetry while preserving its configuration for future re-enablement.
 # =============================================================================
 
 - name: Load telemetry configuration

@@ -13,24 +13,26 @@
 # limitations under the License.
 ---
 
-# Deploy PowerScale Telemetry (Metrics)
+# Deploy PowerScale Telemetry (Metrics only)
 # Gated by: telemetry_sources.powerscale.metrics_enabled
 #
-# DATA PIPELINE:
-#   PowerScale CSI Driver → CSM Metrics PowerScale → vmagent(shared) → victoria_metrics
+# DATA PIPELINES:
+#   Metrics: PowerScale CSI Driver → CSM Metrics PowerScale → vmagent(shared) → victoria_metrics
 #
 # What Omnia does:
 #   - Validates CSI driver PowerScale is configured
-#   - Validates user-provided Helm values file
+#   - Validates user-provided Helm values file (metrics only)
 #   - Detects authentication mode (Direct vs Karavi Authorization)
 #   - Loads CSI PowerScale credentials from vault
 #   - Downloads offline dependencies (karavi-observability, cert-manager) from Pulp
 #   - Copies user-provided values file to NFS share
-#   - Installs karavi-observability Helm chart (CSM Metrics + OTEL Collector)
+#   - Installs karavi-observability Helm chart (CSM Metrics + OTEL Collector) if metrics enabled
 #   - Patches OTEL Collector service for vmagent scrape discovery
 #
 # What Omnia does NOT do:
 #   - Omnia does NOT deploy or configure PowerScale itself
+#   - Omnia does NOT manage PowerScale logs (logs are enabled/disabled via PowerScale API)
+#   - Omnia does NOT manage VLAgent configuration (handled by deploy_victoria role)
 
 - name: Set PowerScale configuration facts
   ansible.builtin.set_fact:
@@ -42,21 +44,27 @@
     that:
       - ps_helm_values_file | length > 0
     fail_msg: "{{ ps_helm_values_path_missing_msg }}"
+  when: powerscale_enabled | bool
 
 - name: Verify user-provided Helm values file exists
   ansible.builtin.stat:
     path: "{{ ps_helm_values_file }}"
   register: helm_values_stat
   delegate_to: localhost
+  when: powerscale_enabled | bool
 
 - name: Fail if user-provided Helm values file does not exist
   ansible.builtin.fail:
     msg: "{{ ps_helm_values_file_not_found_msg }}"
-  when: not helm_values_stat.stat.exists
+  when:
+    - powerscale_enabled | bool
+    - not helm_values_stat.stat.exists
 
 # --- Read user values file to detect auth mode for secret copying ---
+# Only needed when metrics are enabled (Helm chart deployment)
 
 - name: Load user-provided Helm values to detect auth mode
+  when: powerscale_enabled | bool
   block:
     - name: Read user Helm values file
       ansible.builtin.include_vars:
@@ -72,11 +80,13 @@
   ansible.builtin.set_fact:
     karavi_enabled: >-
       {{ user_helm_values.karaviMetricsPowerscale.authorization.enabled | default(false) | bool }}
+  when: powerscale_enabled | bool
 
 - name: Display authentication mode
   ansible.builtin.debug:
     msg: "{% if karavi_enabled | bool %}{{ ps_auth_mode_karavi_msg }}{% else %}{{ ps_auth_mode_direct_msg }}{% endif %}"
     verbosity: 2
+  when: powerscale_enabled | bool
 
 # --- Validate cert-manager is enabled (required for TLS) ---
 
@@ -85,6 +95,7 @@
     that:
       - user_helm_values['cert-manager']['enabled'] | default(false) | bool
     fail_msg: "{{ ps_cert_manager_disabled_msg }}"
+  when: powerscale_enabled | bool
 
 # --- Load CSI PowerScale credentials from vault ---
 
@@ -92,38 +103,126 @@
   ansible.builtin.debug:
     msg: "{{ ps_clusters_found_msg }}"
     verbosity: 2
+  when: powerscale_enabled | bool
 
 # --- Copy user-provided values file to NFS share ---
+# Only needed when metrics are enabled (Helm chart deployment)
 
 - name: Create karavi-observability directory on NFS share
   ansible.builtin.file:
     path: "{{ telemetry_deploy_dir }}/karavi-observability"
     state: directory
     mode: '0755'
+  when: powerscale_enabled | bool
 
 - name: Copy user-provided Helm values file to NFS share
   ansible.builtin.copy:
     src: "{{ ps_helm_values_file }}"
     dest: "{{ telemetry_deploy_dir }}/karavi-observability/csm_metrics_values.yaml"
     mode: '0600'
+  when: powerscale_enabled | bool
 
 - name: Display PowerScale telemetry preparation status
   ansible.builtin.debug:
     msg: "{{ ps_telemetry_prepared_msg }}"
     verbosity: 2
+  when: powerscale_enabled | bool
 
 # --- Download offline dependencies from Pulp ---
+# Only needed when metrics are enabled (Helm chart deployment)
 
 - name: Download karavi-observability offline dependencies
   ansible.builtin.include_tasks: get_powerscale_telemetry_dependencies.yml
+  when: powerscale_enabled | bool
+
+# --- Scale up existing deployments if they are at 0 replicas ---
+# This handles the case where metrics were disabled (scaled to 0) and then re-enabled
+
+- name: Check if karavi-metrics-powerscale deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment {{ karavi_observability.metrics_deployment }} -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
+  register: karavi_replicas_check
+  changed_when: false
+  failed_when: false
+  when: powerscale_enabled | bool
+
+- name: Scale up karavi-metrics-powerscale if at 0 replicas
+  ansible.builtin.command: >
+    kubectl scale deployment {{ karavi_observability.metrics_deployment }} -n {{ csm_observability_namespace }} --replicas=1
+  register: karavi_scaleup_result
+  changed_when: "'scaled' in karavi_scaleup_result.stdout or karavi_scaleup_result.rc == 0"
+  when:
+    - powerscale_enabled | bool
+    - karavi_replicas_check.rc == 0
+    - karavi_replicas_check.stdout == "0"
+
+- name: Check if otel-collector deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment {{ karavi_observability.otel_collector_deployment }} -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
+  register: otel_replicas_check
+  changed_when: false
+  failed_when: false
+  when: powerscale_enabled | bool
+
+- name: Scale up otel-collector if at 0 replicas
+  ansible.builtin.command: >
+    kubectl scale deployment {{ karavi_observability.otel_collector_deployment }} -n {{ csm_observability_namespace }} --replicas=1
+  register: otel_scaleup_result
+  changed_when: "'scaled' in otel_scaleup_result.stdout or otel_scaleup_result.rc == 0"
+  when:
+    - powerscale_enabled | bool
+    - otel_replicas_check.rc == 0
+    - otel_replicas_check.stdout == "0"
+
+- name: Check if csi-volume-exporter deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment {{ csi_volume_exporter.app_name }} -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
+  register: csi_replicas_check
+  changed_when: false
+  failed_when: false
+  when: powerscale_enabled | bool
+
+- name: Scale up csi-volume-exporter if at 0 replicas
+  ansible.builtin.command: >
+    kubectl scale deployment {{ csi_volume_exporter.app_name }} -n {{ csm_observability_namespace }} --replicas=1
+  register: csi_scaleup_result
+  changed_when: "'scaled' in csi_scaleup_result.stdout or csi_scaleup_result.rc == 0"
+  when:
+    - powerscale_enabled | bool
+    - csi_replicas_check.rc == 0
+    - csi_replicas_check.stdout == "0"
+
+- name: Display scale up status
+  ansible.builtin.debug:
+    msg: "Scaled up PowerScale metrics components from 0 replicas"
+  when:
+    - powerscale_enabled | bool
+    - (karavi_replicas_check.rc == 0 and karavi_replicas_check.stdout == "0")
+      or (otel_replicas_check.rc == 0 and otel_replicas_check.stdout == "0")
+      or (csi_replicas_check.rc == 0 and csi_replicas_check.stdout == "0")
 
 # --- Deploy karavi-observability Helm chart ---
+# Only deploy when metrics are enabled and deployments don't exist
+
+- name: Check if karavi-metrics-powerscale deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment {{ karavi_observability.metrics_deployment }} -n {{ csm_observability_namespace }} -o name
+  register: karavi_exists_check
+  changed_when: false
+  failed_when: false
+  when: powerscale_enabled | bool
 
 - name: Deploy karavi-observability via Helm
   ansible.builtin.include_tasks: helm_install_karavi.yml
+  when:
+    - powerscale_enabled | bool
+    - karavi_exists_check.rc != 0
 
 # --- Generate PowerScale deployment manifests ---
+# CSI volume exporter is only deployed when metrics are enabled
 
 - name: Generate PowerScale kustomization manifests
   ansible.builtin.include_tasks: generate_manifests.yml
-  when: telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+  when: powerscale_enabled | bool
+
+# --- Display deployment summary ---
