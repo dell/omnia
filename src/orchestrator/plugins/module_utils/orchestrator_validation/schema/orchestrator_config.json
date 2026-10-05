@@ -28,7 +28,7 @@
     },
     "boot_kernel_params": {
       "type": "string",
-      "description": "Additional kernel command-line parameters applied to all functional groups.",
+      "description": "Deprecated one-release compatibility fallback for global boot parameters. New configuration belongs in functional_group_config.yml.",
       "default": ""
     },
     "catalog_file_path": {
