@@ -287,6 +287,9 @@
         -n {{ telemetry_namespace }}
         -o jsonpath='{.spec.replicas}'
       register: _vector_ldms_deployment
+      changed_when: false
+      failed_when: false
+
     - name: Check OME metrics forwarding pods
       ansible.builtin.command: >
         kubectl get pods -n {{ telemetry_namespace }} -l app=vmagent-vector --no-headers
