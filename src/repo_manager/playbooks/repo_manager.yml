@@ -114,15 +114,9 @@
 #   # setup -> environment precheck -> prepare -> input precheck -> download -> status.
 #   ansible-playbook repo_manager.yml --tags "prepare,precheck,download,status"
 #
-#   # Run all standard operations. Cleanup, catalog, upgrade and rollback plays
+#   # Run all standard operations. Cleanup and catalog plays
 #   # use the never tag and are not selected by this command.
 #   ansible-playbook repo_manager.yml --skip-tags cleanup
-#
-#   # Upgrade Repo Manager (placeholder).
-#   ansible-playbook repo_manager.yml --tags upgrade
-#
-#   # Roll back Repo Manager (placeholder).
-#   ansible-playbook repo_manager.yml --tags rollback
 #
 #   # Cleanup logs and results (OMNIA_DATA_PATH defaults to /opt/omnia):
 #   # Top-level playbook log:
@@ -266,25 +260,6 @@
   tags:
     - never
     - cleanup_repos
-
-# -------------------------------------------------------------------------
-# UPGRADE (Placeholder)
-# -------------------------------------------------------------------------
-- name: Upgrade Repo Manager
-  ansible.builtin.import_playbook: "{{ playbook_dir }}/upgrade_repo_manager.yml"
-  tags:
-    - never
-    - upgrade
-
-# -------------------------------------------------------------------------
-# ROLLBACK (Placeholder)
-# -------------------------------------------------------------------------
-- name: Rollback Repo Manager
-  ansible.builtin.import_playbook: >-
-    {{ playbook_dir }}/rollback_repo_manager.yml
-  tags:
-    - never
-    - rollback
 
 # -------------------------------------------------------------------------
 # CATALOG OPERATIONS

@@ -52,12 +52,8 @@ src/discovery/
 │   │   └── prepare_discovery.yml    # Prepare flow (placeholder)
 │   ├── execute/
 │   │   └── execute_discovery.yml    # OME discovery execution
-│   ├── cleanup/
-│   │   └── cleanup_discovery.yml    # Output and credential cleanup flow
-│   ├── upgrade/
-│   │   └── upgrade_discovery.yml    # Upgrade flow (placeholder)
-│   └── rollback/
-│       └── rollback_discovery.yml   # Rollback flow (placeholder)
+│   └── cleanup/
+│       └── cleanup_discovery.yml    # Output and credential cleanup flow
 ├── plugins/
 │   ├── modules/                     # Python modules
 │   │   ├── ome_server_inventory.py  # OME device inventory collector
@@ -106,7 +102,6 @@ discovery.yml (no --tags)
 │
 ├─ [always] Step 0: discovery_setup role
 │   ├── Tag validation (reject unsupported/conflicting tags)
-│   ├── Upgrade guard (check lock file)
 │   ├── Set project name, input/output dirs
 │   ├── Verify discovery input directory exists
 │   ├── Create discovery output directory
@@ -151,10 +146,8 @@ discovery.yml --tags <tag>
 ├─ [cleanup]    cleanup/cleanup_discovery.yml
 │   ├── Empty the project output directory but keep the directory
 │   └── Remove credentials by default (optional preservation)
-├─ [cleanup_credentials] cleanup/cleanup_discovery.yml
-│   └── Remove only the credential file and vault key
-├─ [upgrade]    upgrade/upgrade_discovery.yml       (placeholder)
-└─ [rollback]   rollback/rollback_discovery.yml    (placeholder)
+└─ [cleanup_credentials] cleanup/cleanup_discovery.yml
+    └── Remove only the credential file and vault key
 ```
 
 The validation, credential, execute, and cleanup sub-playbooks contain a setup
@@ -173,7 +166,6 @@ through the supported top-level `discovery.yml --tags precheck` entrypoint.
 |------|-------------|
 | Tag validation | Reject unsupported tags, detect invalid combinations |
 | Skip-credentials flag | Set `skip_discovery_credentials` for precheck/validate/cleanup/cleanup_credentials |
-| Upgrade guard | Block if upgrade lock file exists |
 | Set project name | `project_name` → `discovery_project_name` |
 | Set input/output dirs | `discovery_input_dir`, `discovery_output_dir`, `input_project_dir` |
 | Verify input dir | Auto-copy from source if runtime input dir missing |
@@ -336,8 +328,6 @@ credential deletion explicit. Running without tags executes: setup → validate
 | `execute` | ✅ Active | `execute/execute_discovery.yml` | Run BMC discovery via OME |
 | `cleanup` | ✅ Active | `cleanup/cleanup_discovery.yml` | Cleanup project outputs, runtime logs, and credentials |
 | `cleanup_credentials` | ✅ Active | `cleanup/cleanup_discovery.yml` | Cleanup credentials only |
-| `upgrade` | Placeholder | `upgrade/upgrade_discovery.yml` | Upgrade flow |
-| `rollback` | Placeholder | `rollback/rollback_discovery.yml` | Rollback flow |
 
 ### Usage Examples
 
