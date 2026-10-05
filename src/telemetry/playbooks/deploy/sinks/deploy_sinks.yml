@@ -93,16 +93,23 @@
             {{ sinks_default }}
           {%- endif -%}
 
-    - name: Ensure sinks is a valid non-empty list
+    - name: Ensure sinks is a valid list
       ansible.builtin.assert:
         that:
           - sinks_list is iterable
           - sinks_list is not string
-          - sinks_list | length > 0
+          - sinks_list | length > 0 or (allow_empty_sinks | default(false) | bool)
         fail_msg: >
           Invalid 'sinks' variable. Must be a non-empty YAML list.
           Valid values: ["kafka"], ["victoria_metrics"], ["victoria_logs"], or any combination.
           Example: -e 'sinks=["kafka","victoria_metrics"]'
+
+    - name: Report that no sink deployment is required
+      ansible.builtin.debug:
+        msg: >-
+          No sinks are required by the enabled telemetry channels. Existing
+          sink infrastructure will be preserved and source reconciliation will continue.
+      when: sinks_list | length == 0
 
     - name: Validate each sink name
       ansible.builtin.assert:
