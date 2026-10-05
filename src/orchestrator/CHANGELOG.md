@@ -7,8 +7,7 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 ### Fixed
 - Removed the invalid generic cloud-init phone-home fragment; Metadata Service
   reserves that route for optional WireGuard bootstrap peer removal.
-- Changed Boot Service's NoCloud datasource name from deprecated `nocloud-net`
-  to `nocloud`.
+- Boot Service now uses the NoCloud datasource name `nocloud`.
 - Disabled root filesystem resize for the live overlay image and made Slurm
   tracking mounts and controller-marker waits explicit and bounded.
 - Inventory generation fails with `Recursive loop detected in template` — renamed template var from `kube_vip` to `inventory_kube_vip` to avoid self-reference when fact is not set.
@@ -26,6 +25,8 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - OS-versioned FG names (e.g. `slurm_control_node_rhel_10_0_x86_64`) fail metadata-service template lookup — normalize template path.
 
 ### Added
+- Added ownership-aware Metadata Service reconciliation and persistent
+  per-node metadata application status in `orchestrator_status.yml`.
 - Added persistent Service Tag-to-XNAME identity resolution through native SMD
   Hardware Inventory and a CA-verified `openchami_reconcile` Ansible module.
 - Custom inventory (`-i`) support for `pxeboot.yml` playbook for build_stream retry/resume (#432).
@@ -33,15 +34,22 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - Race-free PXE failure collection using localhost loop over BMC hostvars.
 
 ### Changed
-- Removed temporary row-position XNAME generation; provision, validation, and
-  PXE workflows now consume only SMD-resolved identities.
+- Metadata Service InstanceInfo, Group, and ClusterDefaults resources are now
+  updated in place with CA verification; stale Omnia-owned groups are removed
+  only when they have no SMD members.
+- Provisioning-password hashes now use a stable project-and-cluster salt so
+  unchanged cloud-init stays idempotent; plaintext is supplied to OpenSSL over
+  standard input rather than a process argument.
+- Provision, validation, and PXE workflows consume only SMD-resolved
+  identities; the PXE mapping does not contain XNAME values.
+- Added focused lowercase architecture, hardware-identity, troubleshooting,
+  contract, and container documentation aligned with the other Omnia domains.
 - Galaxy version set to 2.3.0.
-- Renamed `phone_home` timing and verification controls to `node_registration` throughout PXE provisioning workflow to avoid confusion with Dell Phone Home functionality.
-  - Role: `verify_phone_home` → `verify_node_registration`
-  - Variables: `enable_phone_home` → `enable_node_registration`, `phone_home_pause_minutes` → `node_registration_pause_minutes`, etc.
-  - Playbook references and documentation updated
-  - Backward compatibility: legacy `phone_home_*` variables supported with deprecation warning
-  - Node completion is verified directly through SSH, boot freshness, and cloud-init status
+- Node-registration timing and verification use the
+  `enable_node_registration`, `node_registration_pause_minutes`,
+  `node_registration_retries`, and `node_registration_delay` controls.
+- Node completion is verified directly through SSH, boot freshness, and
+  cloud-init status.
 
 ## [3.0.0] - 2026-07-31
 
@@ -55,4 +63,4 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - Data-driven functional group classification via `vars/functional_group_classification.yml`.
 - Centralized consumption of `repo_status.yml` from `repo_manager` domain.
 - Input validation with JSON schemas and L2 semantic validators.
-- Domain-level documentation: `ORCHESTRATOR_DESIGN.md`, `INPUT_CONTRACT.md`, `OUTPUT_CONTRACT.md`.
+- Domain-level architecture and input/output contract documentation.

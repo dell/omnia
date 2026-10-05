@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 # Add nodes from the target category to SMD.
-# Extracted from configure_ochami/tasks/orchestration_mapping_nodes.yml.
 # Global stale-data cleanup is performed once by provision_preamble.yml. This
 # file must remain additive so later categories cannot remove earlier ones.
 
@@ -24,10 +23,7 @@
 
 - name: Fail with clear message if configs_vars.yaml is missing
   ansible.builtin.fail:
-    msg: >-
-      OpenCHAMI configuration file not found: {{ openchami_config_vars_path }}.
-      This file is generated during the deploy stage. Run the orchestrator
-      deploy stage first: ansible-playbook orchestrator.yml --tags deploy
+    msg: "{{ openchami_config_missing_fail_msg }}"
   when: not _openchami_config_stat.stat.exists
 
 - name: Include openchami vars
@@ -130,6 +126,10 @@
 - name: Use internally resolved XNAMEs for {{ target_category }}
   ansible.builtin.set_fact:
     _category_nodes: "{{ _resolved_openchami_identities.nodes }}"
+    omnia_identity_created_xnames: >-
+      {{ ((omnia_identity_created_xnames | default([]))
+          + (_resolved_openchami_identities.created_inventory_xnames | default([])))
+         | unique | list }}
 
 - name: Index internally resolved nodes by ADMIN_MAC
   ansible.builtin.set_fact:
@@ -308,7 +308,7 @@
 
     - name: Fail if SMD service is not running
       ansible.builtin.fail:
-        msg: "smd service is not running"
+        msg: "{{ smd_service_fail_msg }}"
       when:
         - smd_service_status is defined
         - smd_service_status is not success
@@ -412,8 +412,17 @@
       {{ ochami_env[cluster_env_key] }}
     ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
     instance_infos: "{{ _desired_instance_infos }}"
+    project_name: "{{ hostvars['localhost']['project_name'] }}"
   register: _metadata_instanceinfo_reconcile
   no_log: true
+
+- name: Track nodes with changed Metadata Service InstanceInfo
+  ansible.builtin.set_fact:
+    omnia_metadata_changed_xnames: >-
+      {{ ((omnia_metadata_changed_xnames | default([]))
+          + (_metadata_instanceinfo_reconcile.created | default([]))
+          + (_metadata_instanceinfo_reconcile.updated | default([])))
+         | unique | list }}
 
 - name: Create metadata-service groups dict for target FGs
   ansible.builtin.set_fact:

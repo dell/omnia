@@ -17,7 +17,7 @@
 - name: Ensure PXE mapping file path is set
   ansible.builtin.assert:
     that: pxe_mapping_file_path is defined
-    fail_msg: "pxe_mapping_file_path is not defined. Check orchestrator_config.yml."
+    fail_msg: "{{ pxe_mapping_path_fail_msg }}"
 
 - name: Read PXE mapping file (FUNCTIONAL_GROUP_NAME, HOSTNAME, ...)
   community.general.read_csv:

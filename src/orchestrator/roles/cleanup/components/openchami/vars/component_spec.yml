@@ -19,6 +19,8 @@
 openchami_config:
   config_dir: "/etc/openchami"
   services:
+    - "openchami-cert-renewal.timer"
+    - "openchami-cert-renewal.service"
     - "openchami.target"
     - "acme-deploy.service"
     - "acme-register.service"
@@ -34,6 +36,7 @@ openchami_config:
     - "step-ca.service"
     - "tokensmith.service"
   disable_units:
+    - "openchami-cert-renewal.timer"
     - "openchami.target"
   container_label: "io.openchami"
   containers:
@@ -47,8 +50,6 @@ openchami_config:
     - "smd-init"
     - "step-ca"
     - "tokensmith"
-  pods:
-    - "openchami-pod"
   data_volume_services:
     - "boot-service-data-volume.service"
     - "metadata-service-data-volume.service"

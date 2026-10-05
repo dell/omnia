@@ -13,7 +13,6 @@
 # limitations under the License.
 ---
 # Configure the common cloud-init group.
-# Extracted from configure_ochami/tasks/configure_cloud_init_common.yml.
 
 - name: Delete ci group configuration - common
   ansible.builtin.command: >

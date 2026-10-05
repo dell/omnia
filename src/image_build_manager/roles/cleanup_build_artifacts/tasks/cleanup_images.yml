@@ -340,3 +340,39 @@
     - _regctl_available.stat.exists | default(false)
     - not (_registry_storage.stat.exists | default(false))
     - _registry_service.rc != 0 or _registry_service.stdout != 'active'
+
+# Dictionary cleanup follows artifact cleanup. It is deliberately non-fatal so
+# a damaged or inaccessible cache cannot reverse successful image deletion.
+- name: Remove cleaned image group from global image dictionary
+  manage_image_group_dictionary:
+    dictionary_path: "{{ image_group_dictionary_path }}"
+    operation: prune
+    image_group_id: "{{ dictionary_cleanup_image_group_id }}"
+  register: _dictionary_cleanup
+  failed_when: false
+  when:
+    - _cleanup_approved | bool
+    - dictionary_cleanup_image_group_id | length > 0
+
+- name: Remove cleaned catalog-version output contract
+  ansible.builtin.file:
+    path: "{{ output_project_dir }}/{{ dictionary_cleanup_image_group_id }}"
+    state: absent
+  when:
+    - _cleanup_approved | bool
+    - dictionary_cleanup_image_group_id | length > 0
+    - >-
+      dictionary_cleanup_image_group_id
+      is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+
+- name: Report non-fatal global image dictionary cleanup warning
+  ansible.builtin.debug:
+    msg: >-
+      {{ dictionary_cleanup_warning_msg }}
+      {{ _dictionary_cleanup.msg
+         | default(_dictionary_cleanup.dictionary_warnings | default([]) | join('; ')) }}
+  when:
+    - _dictionary_cleanup is defined
+    - >-
+      (_dictionary_cleanup.failed | default(false) | bool) or
+      (_dictionary_cleanup.dictionary_warnings | default([]) | length > 0)

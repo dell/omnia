@@ -8,25 +8,24 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
 # =============================================================================
 # Orchestrator — Test Configuration
 # =============================================================================
-# Non-sensitive settings for FVT (Functional Verification Testing).
+# Non-sensitive settings for Orchestrator functional and non-functional tests.
 #
-# Usage:
+# Before running tests:
 #   - Set oim_server_ip to the target server where orchestrator runs.
 #   - Leave oim_server_ip empty to run tests locally on the same machine.
-#   - Configure sync options to push input files and repo_manager output
-#     to the target server before running tests.
-#   - Sensitive credentials (SSH password) go in test_creds.yml
-#     (auto-encrypted with Ansible Vault on first run).
+#   - Enable only the sync options needed for the selected test dataset.
+#   - Sensitive test credentials (SSH and LDAP test-user secrets) belong in
+#     encrypted test_creds.yml; configure them with setup_env.sh.
 #   - Domain credentials (provision, Slurm, OpenLDAP, CSI) use a separate
-#     encrypted store created on the execution OIM with
-#     ./setup_env.sh --set-domain-creds.
+#     encrypted store on the execution OIM; configure them with
+#     ./setup_env.sh --set-domain-creds. They are never dataset content.
 # =============================================================================
 
 ---
@@ -42,7 +41,8 @@
 #   1. Sync the local project code to clone_path on the target (rsync)
 #   2. Sync orchestrator input only when sync_orchestrator_input is true
 #   3. Sync repo_manager output only when sync_repo_manager_output is true
-#   4. Run all verification tests via SSH/Testinfra
+#   4. Sync image_build_manager output only when its sync option is true
+#   5. Run verification commands through SSH/Testinfra
 # Domain credentials are never synced by the framework.
 oim_server_ip: ""
 
@@ -67,86 +67,195 @@ clone_path: "/omnia"
 # =============================================================================
 # DATASET CONFIGURATION
 # =============================================================================
-# Controls where input files are loaded from for test execution.
+# Selects the local source used by each enabled sync operation. Merely setting
+# a dataset does not copy files or alter the execution OIM.
 #
 # Default (empty):
-#   Leaves the target runtime files unchanged when both sync flags are false.
+#   Leaves target runtime files unchanged when all sync flags are false.
 #   If input sync is enabled, src/orchestrator/input/ is its source.
-#   If output sync is enabled, its source is
-#   src/orchestrator/samples/repo_manager_output/.
+#   Enabled upstream-output syncs use the matching directory below
+#   src/orchestrator/samples/.
 #
 # Custom dataset:
 #   Set to a folder name under test/orchestrator/datasets/<name>/.
-#   Generate one with:
-#     cd datasets/generator
-#     ./generate_dataset.py my_dataset slurm_only
-#   Setting dataset selects the local sync source; enable a sync option below
-#   to copy it to the execution target.
+#   The selected dataset supplies overrides for Orchestrator input and the
+#   complete source for each upstream-output handoff. Enable the corresponding
+#   sync option below to copy that content to the execution target.
 #   Each dataset folder must contain:
 #     input/ (9 input files: orchestrator_config.yml, network_spec.yml, etc.)
 #     repo_manager_output/ (repo_status.yml)
 #     image_build_manager_output/ (build_status.yml)
 dataset: ""
 
-# Sync orchestrator input files (orchestrator_config.yml, network_spec.yml,
-# and related inputs).
+# =============================================================================
+# SYNC — ORCHESTRATOR INPUT
+# =============================================================================
+# When true, stages the checked-in src/orchestrator/input/ tree, overlays the
+# selected dataset's input/ when dataset is non-empty, and syncs the result to
+# the active runtime project on the execution OIM.
+# Destination: <ORCHESTRATOR_DATA_PATH>/input/<OMNIA_PROJECT_NAME>/ when set;
+# otherwise <OMNIA_DATA_PATH>/orchestrator/input/<OMNIA_PROJECT_NAME>/.
+#
+# Domain credentials are not part of this input sync. Configure the encrypted
+# credential store directly on the execution OIM with --set-domain-creds.
 sync_orchestrator_input: false
 
-# Sync repo_manager output (repo_status.yml) to target
+# =============================================================================
+# SYNC — REPO MANAGER OUTPUT
+# =============================================================================
+# When true, syncs repo_manager_output/ from the selected local source. A
+# non-empty dataset uses datasets/<dataset>/repo_manager_output/; an empty
+# dataset uses src/orchestrator/samples/repo_manager_output/.
+# Destination: <REPO_MANAGER_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/ when set;
+# otherwise <OMNIA_DATA_PATH>/repo_manager/output/<OMNIA_PROJECT_NAME>/.
+#
+# Enable this only when the target does not already have the required
+# repo_status.yml from a real Repo Manager run.
 sync_repo_manager_output: false
 
-# Sync image_build_manager output (build_status.yml) to target
+# =============================================================================
+# SYNC — IMAGE BUILD MANAGER OUTPUT
+# =============================================================================
+# When true, syncs image_build_manager_output/ from the selected local source.
+# A non-empty dataset uses datasets/<dataset>/image_build_manager_output/; an
+# empty dataset uses src/orchestrator/samples/image_build_manager_output/.
+# Destination: <IMAGE_BUILD_MANAGER_DATA_PATH>/output/<OMNIA_PROJECT_NAME>/
+# when set; otherwise
+# <OMNIA_DATA_PATH>/image_build_manager/output/<OMNIA_PROJECT_NAME>/.
+#
+# Enable this only when the target does not already have the required
+# build_status.yml from a real Image Build Manager run.
 sync_image_build_manager_output: false
 
 
-# Catalog file path for feature detection (optional).
-# Example: src/build_stream/examples/catalog/
-# catalog_rhel_x86_64_with_slurm_only.json
-catalog_path: ""
+# =============================================================================
+# LDAP SLAPD.CONF CONFIGURATION (for external LDAP tests)
+# =============================================================================
+# These non-sensitive inputs describe the existing external LDAP directory
+# that the omnia_auth container must proxy. The automation does not install,
+# populate, or otherwise modify the external LDAP server.
+#
+# Set this flag to true to run external LDAP validation. When false, external
+# LDAP proxy reconciliation and external-backend checks are skipped. The local
+# omnia_auth service, configuration, TLS, and listener checks still run when
+# OpenLDAP is enabled in the active Orchestrator catalog.
+validate_external_ldap: false
+#
+# The settings below are evaluated only when validate_external_ldap is true.
+# All four external LDAP fields are then required, even when configuration
+# reconciliation is disabled, because validation needs an authoritative
+# endpoint and naming context.
+#
+# Set this flag to true only when the OpenLDAP prepare verification is allowed
+# to reconcile the local omnia_auth slapd.conf. The verification compares the
+# desired and deployed content first. It restarts omnia_auth only when the
+# content changes, and restores the previous file if readiness fails.
+#
+# When this flag is false:
+#   - slapd.conf is not changed;
+#   - omnia_auth is not restarted; and
+#   - validation checks the existing deployed proxy configuration.
+configure_external_ldap: false
+#
+# Passwords must not be added to this file. Store both the LDAP login-test
+# password and the external bind password in encrypted test_creds.yml with:
+#   ./setup_env.sh --set-creds
+#
+# Address of the existing external LDAP server. It must be reachable from the
+# OIM where the verification runs.
+external_ldap_server_ip: ""
+
+# TCP port on which the external LDAP server accepts LDAP requests.
+# Default: 1389
+# Example: use 389 when the directory exposes standard, non-TLS LDAP.
+external_ldap_server_port: 1389
+
+# DNS-style directory domain used to derive the external LDAP base DN.
+# Default: omnia.test
+# A user-provided multi-label domain is also accepted.
+# Examples:
+#   omnia.test  -> dc=omnia,dc=test
+#   example.com -> dc=example,dc=com
+external_ldap_domain: "omnia.test"
+
+# Non-sensitive service account name used by omnia_auth to bind to the
+# external directory. Enter only the account name, not a complete DN.
+# Default: admin
+# A user-provided account name containing letters, numbers, dots, underscores,
+# or hyphens is also accepted.
+# Examples:
+#   username admin + domain omnia.test
+#     -> cn=admin,dc=omnia,dc=test
+#   username ldapadmin + domain example.com
+#     -> cn=ldapadmin,dc=example,dc=com
+#
+# Store the external LDAP bind password and the LDAP login-test username and
+# password in encrypted test_creds.yml. Configure or update those credentials
+# with:
+#   ./setup_env.sh --set-creds
+external_ldap_bind_username: ""
 
 # =============================================================================
-# EXTERNAL OPENLDAP TEST ENVIRONMENT
+# FULL ORCHESTRATOR CLEANUP
 # =============================================================================
-# Optional test-only directory used to validate the omnia_auth meta proxy and
-# Slurm LDAP login/job flows.  This follows the external LDAP workflow in
-# dell/omnia-containers automation-v2.2.0.0.
+# Cleanup FVT always invokes the supported full-cleanup entry point:
 #
-# Secrets are never stored here. Configure ldap_username, ldap_password, and
-# external_ldap_admin_password in encrypted test_creds.yml with:
-#   ./setup_env.sh --set-ldap-test-creds
+#   ansible-playbook playbooks/orchestrator.yml --tags cleanup
 #
-# After enabling and configuring this section, reconcile the test user and
-# proxy explicitly (normal pytest/runner commands never mutate LDAP state):
-#   .venv/bin/python3 utility/create_ldap_user.py
-external_ldap:
-  enabled: false
+# The three settings below are the only extra variables supported by that
+# command. The cleanup FVT always supplies all three variables so execution is
+# deterministic and never waits at an interactive prompt. All settings default
+# to true below. Change a setting to false only when that resource must be
+# preserved.
+#
+# Remove Orchestrator-owned credential artifacts from the active project's
+# input directory. Supported values:
+#   true  - remove orchestrator_credentials.yml, its vault key, and lock files
+#   false - preserve those credential artifacts
+# Default: true
+cleanup_credentials: true
+#
+# Decide whether Slurm shared data is deleted. Supported values:
+#   true  - delete the configured Slurm shared directories, then unmount the
+#           Slurm storage and remove its fstab entries
+#   false - preserve shared data, but still unmount the Slurm storage and
+#           remove its fstab entries
+# Default: true
+cleanup_slurm: true
+#
+# Decide whether Kubernetes shared data is deleted. Supported values:
+#   true  - delete every entry under the configured Kubernetes shared mount,
+#           then unmount the storage and remove its fstab entries
+#   false - preserve shared data, but still unmount the Kubernetes storage and
+#           remove its fstab entries
+# Default: true
+cleanup_k8s: true
+#
+# DRY_RUN and SKIP_APPROVAL are supported by the product as environment
+# controls, not as Ansible extra variables. They are therefore deliberately
+# not represented as test_config.yml keys. For a manual product dry run use:
+#
+#   DRY_RUN=true ansible-playbook playbooks/orchestrator.yml --tags cleanup
+#
+# Outside this FVT, SKIP_APPROVAL=true selects deletion when the product command
+# omits Slurm or Kubernetes choices. The FVT does not need that environment
+# control because it always passes explicit true or false values.
 
-  # When true, the utility manages a Bitnami container on the execution OIM.
-  # Leave false when the external directory is managed independently.
-  manage_container: false
-  configure_proxy: true
-
-  # Address reachable from both the OIM and the omnia_auth container.
-  server_ip: ""
-  server_port: 1389
-  secure_port: 1636
-  domain: ""
-  admin_username: admin
-
-  image: "docker.io/bitnamilegacy/openldap:latest"
-  container_name: omnia_external_ldap
-  volume_name: omnia_external_ldap_data
-
-  # Omnia proxy settings. An empty path resolves from OMNIA_DATA_PATH as
-  # <OMNIA_DATA_PATH>/auth/config/slapd.conf.
-  proxy_container_name: omnia_auth
-  proxy_config_path: ""
-
-  # POSIX attributes assigned when the configured test user is first created.
-  uid_number: 2000
-  gid_number: 2000
-  login_shell: /bin/bash
-  home_base: /home
+# =============================================================================
+# NON-FUNCTIONAL PERFORMANCE CONTRACTS
+# =============================================================================
+# Maximum accepted wall-clock duration, in seconds, for each lifecycle on the
+# supported reference OIM with the active project's current input and mapped
+# node inventory. The NFT report records both the threshold and actual time.
+#
+# These limits are acceptance contracts, not Ansible command timeouts. The
+# runner grants a bounded collection grace period so it can report a clear
+# threshold failure instead of terminating at the exact acceptance boundary.
+nft_performance_threshold_seconds:
+  precheck: 60
+  prepare: 300
+  provision: 1800
+  cleanup: 180
 
 # =============================================================================
 # REPORT CONFIGURATION

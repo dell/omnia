@@ -32,6 +32,12 @@
 #    - Collects logs and validates utils functionality
 #    - Cluster deployment pipeline is skipped
 #
+# 3. BUILD STREAM MODE
+#    - Triggered when BUILD_STREAM_ENABLE == "true"
+#    - Runs .gitlab-ci-build-stream.yml for each cluster
+#    - Deploys and tests build stream domains
+#    - Cluster deployment and utils pipelines are skipped
+#
 # CLUSTER CONFIGURATION
 # ~~~~~~~~~~~~~~~~~~~~~
 # By default, this pipeline supports a single cluster (cluster1).
@@ -62,11 +68,12 @@
 #   CLUSTER1_OMNIA_BRANCH   -> Omnia branch to clone
 #   CLUSTER1_OMNIA_INSTALL_PATH -> Path where omnia is installed
 #
-# GLOBAL VARIABLES (for utils pipeline)
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#   UTILS_ENABLE      -> "true" to enable utils pipeline, "false" for cluster pipeline
-#   UTILS_MODE        -> "default_logs", "install_os", "collect", or "backup_oim_logs"
-#   CLUSTERS          -> Comma-separated list of clusters to run (e.g., "cluster1,cluster2")
+# GLOBAL VARIABLES (for utils and build_stream pipelines)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#   UTILS_ENABLE           -> "true" to enable utils pipeline, "false" for cluster pipeline
+#   UTILS_MODE             -> "default_logs", "install_os", "collect", or "backup_oim_logs"
+#   BUILD_STREAM_ENABLE    -> "true" to enable build_stream pipeline, skips cluster and utils pipelines
+#   CLUSTERS               -> Comma-separated list of clusters to run (e.g., "cluster1,cluster2")
 #
 # Example: Deploy repo_manager on cluster1, cleanup orchestrator on cluster2:
 #   CLUSTER1_PIPELINE_MODE=deploy   CLUSTER1_DOMAINS=repo_manager
@@ -185,6 +192,8 @@ trigger_cluster_cluster1:
   rules:
     - if: '$UTILS_ENABLE == "true"'
       when: never
+    - if: '$BUILD_STREAM_ENABLE == "true"'
+      when: never
     - if: '$CLUSTERS =~ /cluster1/'
       when: on_success
 
@@ -217,5 +226,49 @@ trigger_cluster_cluster1_utils:
     DRY_RUN: "$CLUSTER1_DRY_RUN"
   allow_failure: true
   rules:
+    - if: '$BUILD_STREAM_ENABLE == "true"'
+      when: never
     - if: '$UTILS_ENABLE == "true" && $CLUSTERS =~ /cluster1/'
+      when: on_success
+
+# ---------------------------------------------------------------------------
+# Build Stream Pipeline — Multi-Cluster Support
+# ---------------------------------------------------------------------------
+# Triggered when BUILD_STREAM_ENABLE=true to run build stream operations.
+# Each cluster runs its own build stream pipeline independently.
+# If BUILD_STREAM_ENABLE=true, cluster and utils pipelines are skipped.
+# ---------------------------------------------------------------------------
+trigger_cluster_cluster1_build_stream:
+  stage: trigger
+  trigger:
+    include:
+      - local: .gitlab-ci-build-stream.yml
+    strategy: depend
+  variables:
+    CLUSTER: "cluster1"
+    OMNIA_REPO: "$CLUSTER1_OMNIA_REPO"
+    OMNIA_BRANCH: "$CLUSTER1_OMNIA_BRANCH"
+    OMNIA_INSTALL_PATH: "$CLUSTER1_OMNIA_INSTALL_PATH"
+    BAO_SERVER_URL: "$CLUSTER1_BAO_SERVER_URL"
+    BAO_AUTH_ROLE: "$CLUSTER1_BAO_AUTH_ROLE"
+    BAO_DATA_PATH: "$CLUSTER1_BAO_DATA_PATH"
+    PIPELINE_MODE: "$CLUSTER1_PIPELINE_MODE"
+    DOMAINS: "$CLUSTER1_DOMAINS"
+    ENABLE_SETUP: "$CLUSTER1_ENABLE_SETUP"
+    TEST_MODE: "$CLUSTER1_TEST_MODE"
+    DRY_RUN: "$CLUSTER1_DRY_RUN"
+    VERBOSE: "$CLUSTER1_VERBOSE"
+    REPO_MANAGER_TAGS: "$CLUSTER1_REPO_MANAGER_TAGS"
+    IMAGE_BUILD_MANAGER_TAGS: "$CLUSTER1_IMAGE_BUILD_MANAGER_TAGS"
+    ORCHESTRATOR_TAGS: "$CLUSTER1_ORCHESTRATOR_TAGS"
+    BUILD_STREAM_TAGS: "$CLUSTER1_BUILD_STREAM_TAGS"
+    TEST_MAIN_CMD: "$CLUSTER1_TEST_MAIN_CMD"
+    TEST_REPO_MANAGER_CMD: "$CLUSTER1_TEST_REPO_MANAGER_CMD"
+    TEST_IMAGE_BUILD_MANAGER_CMD: "$CLUSTER1_TEST_IMAGE_BUILD_MANAGER_CMD"
+    TEST_ORCHESTRATOR_CMD: "$CLUSTER1_TEST_ORCHESTRATOR_CMD"
+    TEST_BUILD_STREAM_CMD: "$CLUSTER1_TEST_BUILD_STREAM_CMD"
+    SKIP_STAGES: "$CLUSTER1_SKIP_STAGES"
+  allow_failure: true
+  rules:
+    - if: '$BUILD_STREAM_ENABLE == "true" && $CLUSTERS =~ /cluster1/'
       when: on_success

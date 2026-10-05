@@ -36,10 +36,10 @@
       when: not (provision_common_registration_complete | default(false) | bool)
 
     - name: Fetch additional images
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/fetch_additional_images.yml"
+      ansible.builtin.include_tasks: fetch_additional_images.yml
 
     - name: Validate additional metadata-service configuration
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/validate_additional_metadata_svc.yml"
+      ansible.builtin.include_tasks: validate_additional_metadata_svc.yml
 
     - name: Scope additional metadata-service groups to the registered category
       ansible.builtin.set_fact:
@@ -70,34 +70,6 @@
         loop_var: additional_group_fg_name
       when: additional_metadata_svc_groups_enabled | default(false) | bool
 
-    - name: Fetch existing boot configurations for cleanup
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200]
-        validate_certs: false
-        return_content: true
-      register: existing_boot_configs_cleanup
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-    - name: Delete boot configurations matching target functional groups
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
-        method: DELETE
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200, 404]
-        validate_certs: false
-      loop: >-
-        {{ existing_boot_configs_cleanup.json | default([])
-           | selectattr('metadata.name', 'in', target_fg_names) | list }}
-      loop_control:
-        label: "{{ item.metadata.name }}"
-      failed_when: false
-      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
     # When a node moves between categories (e.g. from kubernetes to slurm),
     # stale boot configs from the previous category still reference its MAC.
     # Boot-service returns whichever config it matches first, so the node
@@ -109,40 +81,17 @@
           {{ _category_nodes | map(attribute='ADMIN_MAC') | map('lower') | list }}
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
-    - name: Find stale boot configs from other categories referencing current MACs
-      ansible.builtin.set_fact:
-        _stale_boot_configs: >-
-          {% set stale = [] -%}
-          {% for cfg in (existing_boot_configs_cleanup.json | default([])) -%}
-            {% if cfg.metadata.name not in target_fg_names -%}
-              {% set cfg_macs = cfg.spec.macs | default([]) | map('lower') | list -%}
-              {% for mac in _category_mac_list -%}
-                {% if mac in cfg_macs -%}
-                  {% if cfg not in stale -%}
-                    {% set _ = stale.append(cfg) -%}
-                  {% endif -%}
-                {% endif -%}
-              {% endfor -%}
-            {% endif -%}
-          {% endfor -%}
-          {{ stale }}
+    - name: Prune stale Boot Service configurations for current node MACs
+      openchami_reconcile:
+        action: prune_boot_configurations
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: "{{ ochami_env[cluster_env_key] }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        boot_configuration_names: "{{ target_fg_names }}"
+        boot_configuration_macs: "{{ _category_mac_list }}"
+      register: _stale_boot_config_prune
+      no_log: true
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-
-    - name: Delete stale boot configs from other categories that reference current MACs
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations/{{ item.metadata.uid }}"
-        method: DELETE
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200, 404]
-        validate_certs: false
-      loop: "{{ _stale_boot_configs | default([]) }}"
-      loop_control:
-        label: "{{ item.metadata.name }} (stale — contains MAC from current category)"
-      failed_when: false
-      when:
-        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
-        - _stale_boot_configs | default([]) | length > 0
 
     - name: Configure boot-service boot params for each functional group
       ansible.builtin.include_tasks: configure_boot_svc.yml
@@ -150,28 +99,28 @@
       loop_control:
         loop_var: fg_name
 
-    - name: Verify boot configurations set
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/boot-service/bootconfigurations"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-        status_code: [200]
-        validate_certs: false
-        return_content: true
+    - name: Read Boot Service configurations through the verified API client
+      openchami_reconcile:
+        action: list_boot_configurations
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: "{{ ochami_env[cluster_env_key] }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
       register: boot_configs_output
+      no_log: true
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Display boot configurations
       ansible.builtin.debug:
-        msg: "{{ boot_configs_output.json | default([]) | map(attribute='metadata.name') | list }}"
+        msg: >-
+          {{ boot_configs_output.boot_configurations | default([])
+             | map(attribute='metadata.name') | list }}
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Create metadata-service directory
       ansible.builtin.file:
         path: "{{ metadata_svc_dir }}"
         state: directory
-        mode: "{{ dir_permissions_755 }}"
+        mode: "0700"
 
     - name: Read SSH public key
       ansible.builtin.command: cat {{ ssh_key_path }}
@@ -185,8 +134,24 @@
       register: read_ssh_private_key
       no_log: true
 
+    - name: Derive stable project-specific password salt
+      ansible.builtin.set_fact:
+        metadata_password_salt: >-
+          {{ ((hostvars['localhost']['project_name'] ~ ':'
+               ~ cluster_name ~ ':' ~ cluster_domain) | hash('sha256'))[:16] }}
+      no_log: true
+
     - name: Hash the provision password
-      ansible.builtin.command: openssl passwd -6 "{{ hostvars['localhost']['provision_password'] }}"
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - passwd
+          - "-6"
+          - "-salt"
+          - "{{ metadata_password_salt }}"
+          - "-stdin"
+        stdin: "{{ hostvars['localhost']['provision_password'] }}"
+        stdin_add_newline: true
       changed_when: false
       register: hashed_password_output
       no_log: true
@@ -195,28 +160,29 @@
       ansible.builtin.template:
         src: "{{ ms_defaults_template }}"
         dest: "{{ ms_defaults_dest }}"
-        mode: "{{ file_permissions_644 }}"
+        mode: "0600"
 
     - name: Load rendered metadata-service defaults
       ansible.builtin.slurp:
         src: "{{ ms_defaults_dest }}"
       register: ms_defaults_raw
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      no_log: true
 
     - name: Parse metadata-service defaults YAML
       ansible.builtin.set_fact:
         ms_defaults_data: "{{ ms_defaults_raw.content | b64decode | from_yaml }}"
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      no_log: true
 
-    - name: Set metadata-service defaults via metadata-service API
-      ansible.builtin.uri:
-        url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443/metadata-service/clusterdefaultss"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ ochami_env[cluster_env_key] }}"
-          Content-Type: "application/json"
-        body_format: json
-        body:
+    - name: Reconcile metadata-service cluster defaults
+      openchami_reconcile:
+        action: reconcile_cluster_defaults
+        cluster_uri: "{{ openchami_api_uri }}"
+        access_token: "{{ ochami_env[cluster_env_key] }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        project_name: "{{ hostvars['localhost']['project_name'] }}"
+        cluster_defaults:
           metadata:
             name: "{{ cluster_name }}-defaults"
           spec:
@@ -227,9 +193,18 @@
             nid_length: "{{ ms_defaults_data['nid_length'] | default(cluster_nidlength) | int }}"
             public_keys: "{{ ms_defaults_data['public_keys'] | default([]) }}"
             cloud_provider: "OpenCHAMI"
-        status_code: [200, 201, 409]
-        validate_certs: false
+      register: _metadata_cluster_defaults_reconcile
       when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+      no_log: true
+
+    - name: Mark global metadata change for cluster defaults
+      ansible.builtin.set_fact:
+        omnia_metadata_global_changed: true
+      when:
+        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+        - >-
+          ((_metadata_cluster_defaults_reconcile.created | default([]))
+           + (_metadata_cluster_defaults_reconcile.updated | default([]))) | length > 0
 
     - name: Configure metadata-service common group
       ansible.builtin.include_tasks: configure_metadata_svc_common.yml
@@ -241,7 +216,7 @@
         loop_var: fg_name
 
     - name: Configure additional metadata-service
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/configure_metadata_svc_additional.yml"
+      ansible.builtin.include_tasks: configure_metadata_svc_additional.yml
       when: additional_metadata_svc_enabled | default(false) | bool
 
     - name: Final SELinux context for generated files

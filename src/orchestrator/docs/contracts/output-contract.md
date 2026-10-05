@@ -1,6 +1,6 @@
-# Orchestrator — Output Contract
+# Orchestrator -- Output Contract
 
-> **Last Updated**: Sep 8, 2026 | **Domain**: `orchestrator`
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: October 1, 2026
 
 This document defines all output artifacts produced by the `orchestrator` domain.
 
@@ -57,14 +57,14 @@ generated inventory artifacts.
 ## 2. OpenCHAMI Configuration Artifacts
 
 Produced by `provision_common` and the category provisioning plays on the OIM
-host. These flows reuse templates and task files housed under
-`configure_ochami`.
+host. `provision_common` owns the Boot Service, Metadata Service, and
+cloud-init templates used by these flows.
 
 ### 2.1 Boot Service Parameters
 
 **Location**: Configured through the OpenCHAMI Boot Service API (not file-based).
-Some compatibility paths in the `ochami` client still expose these operations
-under the `ochami bss` command group; this does not represent a separately
+The `ochami` client exposes some of these operations under the `ochami bss`
+command group; this does not represent a separately
 deployed BSS service.
 
 | Parameter | Source | Description |
@@ -117,14 +117,13 @@ Provisioning and PXE boot publish versioned, phase-specific reports under:
 | File | Producer | Contract |
 |------|----------|----------|
 | `provisioning_report.yml` | Provision validation | SMD, Boot Service, Metadata Service, interface, and hostname registration results |
-| `pxeboot_status.yml` | PXE boot | PXE initiation and optional fresh-boot/cloud-init verification for every selected node |
-| `failed_nodes.json` | PXE boot | Compatibility failure-only view of the PXE report; written even when no node fails |
+| `failed_nodes.json` | PXE boot | Failure-only view of the latest attempted subset; written even when no node fails |
 | `orchestrator_status.yml` | Provision and PXE boot | Stable aggregate view containing the latest provisioning and PXE phase states |
 
-All four reports use `schema_version: "1.0"`. A later phase does not replace the
-aggregate report with a different schema. Instead, it updates
-`last_completed_phase`, retains the provisioning result when available, and
-adds the PXE result.
+`provisioning_report.yml` and `orchestrator_status.yml` use
+`schema_version: "1.0"`. The failure-only report also uses schema 1.0 for
+BuildStream compatibility. A later phase updates the stable aggregate report,
+retains the provisioning result when available, and adds the latest PXE result.
 
 ### 4.1 Provisioning report
 
@@ -135,51 +134,33 @@ cloud-init completed; those conditions belong to the PXE phase.
 
 Important fields include `overall_status`, `total_expected_nodes`,
 `total_registered_nodes`, `success_count`, `failure_count`, `missing_nodes`,
-`missing_admin_interfaces`, `inventory_source`, and `timestamp`.
+`missing_admin_interfaces`, `identity_changed_nodes`,
+`metadata_changed_nodes`, `reprovision_required_nodes`,
+`stale_metadata_groups_deleted`, `inventory_source`, and `timestamp`.
 
-### 4.2 PXE status and failed-node compatibility report
+### 4.2 PXE failed-node report
 
-`pxeboot_status.yml` is always written. Its `nodes` list includes every node
-selected for PXE boot. When node verification is enabled, each entry records
-the verification method and structured cloud-init state:
+When at least one node is selected, `failed_nodes.json` is written for the
+attempted subset. It contains an empty `failed_nodes` array when the attempted
+nodes succeed. When standard pending-node selection finds no work, PXE exits
+successfully without replacing the existing failure report.
 
-```yaml
-schema_version: "1.0"
-phase: pxeboot
-overall_status: failed
-verification_enabled: true
-nodes:
-  - xname: x1000c0s1b0n0
-    admin_ip: 192.168.1.54
-    bmc_ip: 172.20.44.54
-    status: failed
-    failure_stage: node_registration
-    verification_state: cloud_init_error
-    verification_method: ssh_cloud_init
-    cloud_init:
-      status: done
-      extended_status: degraded done
-      boot_status_code: enabled-by-kernel-command-line
-      errors: []
-      recoverable_errors: {}
-```
+`failed_nodes.json` preserves its BuildStream-compatible failure envelope.
+Its `error` field contains only a compact state or generic verification
+failure, and its cloud-init object contains only status. Raw diagnostics are
+excluded from playbook output and persistent reports; operators retrieve them
+from the affected node's logs.
 
-`failed_nodes.json` retains the existing failure-only interface and legacy
-flat fields, while adding the same schema, run, inventory, verification, and
-structured cloud-init data. Consumers that only inspect `failed_nodes` remain
-compatible.
-
-When verification is disabled, successful iDRAC requests are recorded as
-`pxe_initiated_unverified`; they are not reported as verified operating-system
-boots.
+When verification is disabled, successful iDRAC requests are recorded with
+`pxeboot.status: unverified`; they are not reported as verified
+operating-system boots.
 
 ### 4.3 Aggregate Orchestrator status
 
-`orchestrator_status.yml` has one stable schema across phases. Its top-level
-node fields, including the provisioning `failure_reason`, remain available for
-compatibility, and each node also contains phase-specific `provisioning` and
-`pxeboot` objects. The `phases` map records the status, counts, timestamp, and
-report filename for each lifecycle phase.
+`orchestrator_status.yml` has one stable schema across phases. The `phases` map
+records status, counts, and timestamps. Per-node records keep only identity,
+overall lifecycle state, the reprovision gate, provisioning status, and the
+latest PXE machine state.
 
 After provisioning, the PXE phase is `not_run`. After PXE boot, the aggregate
 status is failed when either the retained provisioning phase or the current
@@ -187,6 +168,60 @@ PXE phase failed. A provisioning report is retained only when its
 `inventory_source` matches the active PXE inventory. If PXE boot is run without
 a matching provisioning report, the provisioning phase is `not_run` and
 per-node provisioning state is `unknown` rather than being inferred.
+
+Each aggregate per-node record also exposes:
+
+| Field | Meaning |
+|---|---|
+| `xname` | Permanent correlation key resolved from SMD Hardware Inventory. |
+| `hostname`, `admin_ip`, `bmc_ip` | Minimal operator context for locating the server. |
+| `status` | Aggregate node state: `success`, `pending`, or `failed`. |
+| `reprovision_required` | The sole standard-PXE selection gate. |
+| `provisioning_status` | Latest desired-state provisioning result. |
+| `pxeboot.status` | Latest PXE attempt result: `not_run`, `success`, `failed`, or `unverified`. |
+| `pxeboot.state` | Short machine state such as `success`, `idrac_unreachable`, `ssh_unreachable`, or `cloud_init_error`. |
+| `pxeboot.trigger_method` | Boot origin: `orchestrator`, `external`, or `not_run`. This field distinguishes an Orchestrator-triggered boot from a manual or hypervisor-triggered boot without changing the state vocabulary. |
+| `pxeboot.verification_method` | Verification path: `ssh_cloud_init`, `not_started`, or `not_run`. `not_started` means verification was blocked before an SSH attempt, while `not_run` means no verification workflow was selected. |
+
+Provisioning preserves a previously pending `reprovision_required` value even
+when a later reconciliation is idempotent. Only successful provisioning
+followed by a successful PXE run with node-registration/cloud-init verification
+clears it. A PXE request without verification does not claim that the running
+operating system was updated.
+
+The standard PXE workflow internally defaults to pending-node selection. It
+selects a node only when `reprovision_required` is true and
+`provisioning_status` is `success`. Failed, unknown, or missing provisioning
+state for any mapped node stops selection before Redfish. Every failed or
+unverified attempt retains the pending value, while verified success after
+successful provisioning clears it. A retry therefore does not reboot nodes
+that already completed verified PXE and cloud-init. `failed_nodes.json`
+describes failures in the attempted subset,
+while `orchestrator_status.yml` merges the latest results with retained records
+for unselected nodes. The extra variable
+`-e pxeboot_scope=all` explicitly requests all mapped nodes; no additional
+project input is required. Explicit custom inventories and BuildStream retain
+their existing inventory-selection behavior.
+
+Pending selection fails closed before any Redfish operation when aggregate
+status is missing, malformed, or lacks an XNAME from the current mapping. This
+prevents an uncertain retry from silently becoming a full-cluster reboot.
+
+For a VM or a physical node booted manually, the
+`verify_node_registration` tag selects the same pending, successfully
+provisioned nodes but performs no Redfish operation. Failed, unknown, or
+missing provisioning state for any mapped node stops the workflow before SSH.
+For eligible nodes, it verifies that each observed boot is newer than the
+persisted lifecycle state and that cloud-init completed through the existing
+SSH verifier. A successful result continues to use `pxeboot.state: success`;
+`pxeboot.trigger_method: external` is the only field that distinguishes the
+external boot from the normal `orchestrator` path.
+
+After a failed Orchestrator PXE attempt, the operator must wait for that
+workflow to finish writing `orchestrator_status.yml` before starting the manual
+or hypervisor boot. A boot older than the persisted status timestamp is stale,
+keeps `reprovision_required: true`, and cannot be recorded as externally
+verified.
 
 PXE inventories do not supply XNAME values. Before rebooting any server, the
 PXE workflow resolves each Service Tag through SMD Hardware Inventory and uses
@@ -232,7 +267,7 @@ Metadata Service provide the corresponding boot and node-metadata functions.
 | `boot-service.service` | PXE boot configurations |
 | `metadata-service.service` | Node metadata and cloud-init rendering |
 | `tokensmith.service` | OpenCHAMI access-token service |
-| `step-ca.service`, `acme-register.service`, `acme-deploy.service`, and `openchami-cert-trust.service` | Local CA and certificate lifecycle installed by the OpenCHAMI 0.2.0 package |
+| `step-ca.service`, `acme-register.service`, `acme-deploy.service`, `openchami-cert-trust.service`, and `openchami-cert-renewal.timer` | Local CA and certificate lifecycle installed by the OpenCHAMI 0.2.0 package; Omnia enables the packaged daily renewal timer and immediately replaces missing, mismatched, expired, or near-expiry HAProxy certificates |
 | `coresmd-coredhcp.service` | DHCP service backed by SMD data |
 | `coresmd-coredns.service` | DNS service backed by SMD data |
 | `haproxy.service` | TLS termination and API routing |
