@@ -53,13 +53,11 @@ playbooks/telemetry.yml (entry point)
   |     +-- sources/cleanup_*.yml      Per-source cleanup (vars from ../../vars/cleanup.yml)
   |     +-- sinks/cleanup_kafka.yml    Per-sink cleanup (vars from ../../vars/cleanup.yml)
   |     +-- sinks/cleanup_victoria_*.yml
-  +-- upgrade/upgrade.yml              [tag: upgrade]       Placeholder
-  +-- rollback/rollback.yml            [tag: rollback]      Placeholder
 ```
 
 ### Tag Safety
 
-Opt-in flows (`precheck`, `cleanup`, `upgrade`, `rollback`) use Ansible's
+Opt-in flows (`precheck`, `cleanup`) use Ansible's
 `never` tag — they **never** execute unless explicitly requested with `--tags`.
 Running `telemetry.yml` without tags is always safe: setup + validate + deploy.
 
