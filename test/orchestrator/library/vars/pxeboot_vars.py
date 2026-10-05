@@ -561,16 +561,10 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "dcgm_cuda_toolkit_path": (
         "if test -f /usr/local/cuda/bin/nvcc; then ls /usr/local/cuda/ 2>/dev/null;"
-        " elif source /hpc_tools/scripts/omnia_platform.sh 2>/dev/null"
-        " && omnia_detect_platform 2>/dev/null"
-        " && test -f ${OMNIA_PLATFORM_ROOT}/cuda/bin/nvcc;"
-        " then ls ${OMNIA_PLATFORM_ROOT}/cuda/ 2>/dev/null; fi"
+        " elif test -f /hpc_tools/cuda/bin/nvcc; then ls /hpc_tools/cuda/ 2>/dev/null; fi"
     ),
     "dcgm_cuda_lock_check": (
-        "source /hpc_tools/scripts/omnia_platform.sh 2>/dev/null"
-        " && omnia_detect_platform 2>/dev/null"
-        " && test -f ${OMNIA_PLATFORM_ROOT}/cuda/.install_lock"
-        " && echo LOCKED || echo UNLOCKED"
+        "test -f /hpc_tools/cuda/.install_lock && echo LOCKED || echo UNLOCKED"
     ),
     "dcgm_rpm_check": "rpm -qa 2>/dev/null | grep '^datacenter-gpu-manager' | head -1",
     "dcgm_binary_check": "command -v dcgmi 2>/dev/null && dcgmi --version 2>/dev/null",
