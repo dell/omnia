@@ -24,6 +24,7 @@ telemetry_namespace: "telemetry"
 
 # Kubernetes resource names
 ufm_credentials_secret_name: "ufm-telemetry-credentials"
+ufm_external_service_name: "ufm-external"
 
 # UFM telemetry defaults
 ufm_endpoint_test_timeout: 10
@@ -52,3 +53,11 @@ ufm_auth_mode_invalid_msg: >-
 
 ufm_secret_created_msg: >-
   UFM credentials Kubernetes Secret created in namespace '{{ telemetry_namespace }}'.
+
+# Disable-specific messages
+ufm_service_disabled_msg: >-
+  UFM telemetry disabled — removed {{ ufm_external_service_name }} service
+  while preserving credentials secret for future re-enablement.
+
+ufm_service_not_found_msg: >-
+  UFM telemetry service not found, nothing to disable.

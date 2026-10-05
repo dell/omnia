@@ -457,10 +457,10 @@
           {{ 'skipped' if not (_ps_l_on | bool)
              else ('deployed' if (_vlagent_running | bool) else 'failed') }}
         _deploy_result_ufm_metrics: >-
-          {{ 'skipped' if not (_ufm_m_on | bool)
+          {{ 'disabled' if not (_ufm_m_on | bool)
              else ('deployed' if (_ufm_ok | bool) else 'failed') }}
         _deploy_result_ufm_logs: >-
-          {{ 'skipped' if not (_ufm_l_on | bool)
+          {{ 'disabled' if not (_ufm_l_on | bool)
              else ('deployed' if (_vlagent_running | bool) else 'failed') }}
         _deploy_result_vast_metrics: >-
           {{ 'skipped' if not (_vast_m_on | bool) else 'deployed' }}
@@ -514,3 +514,4 @@
       ansible.builtin.include_role:
         name: common
         tasks_from: write_telemetry_status
+
