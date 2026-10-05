@@ -55,6 +55,10 @@
   ansible.builtin.import_playbook: sinks/deploy_sinks.yml
   vars:
     sinks: "{{ hostvars['localhost']['sinks_list'] }}"
+    # An empty derived list is valid when all telemetry channels are disabled.
+    # In that case shared sinks are preserved and source disable reconciliation
+    # must continue. Standalone deploy_sinks calls still require a selection.
+    allow_empty_sinks: true
   tags: deploy
 
 # ── Phase 1.5: Transfer credentials to kube_vip for source deployments ───────
