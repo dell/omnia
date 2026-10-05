@@ -75,7 +75,6 @@ k8s_manifest_dir: "{{ omnia_shared_path }}/k8s/manifests"
 functional_groups_config: >-
   {{ orchestrator_output_dir }}/.data/functional_groups_config.yml
 orchestrator_state_file: "{{ orchestrator_output_dir }}/orchestrator_state.yml"
-upgrade_lock_file: "{{ omnia_shared_path }}/.data/upgrade_in_progress.lock"
 # Centralized failure messages
 k8s_storage_contract_fail_msg: >-
   K8s cleanup cannot safely resolve service_k8s_cluster[0].nfs_storage_name

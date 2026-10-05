@@ -112,12 +112,12 @@ def _report_nodes(report) -> dict[str, dict]:
     """Index well-formed PXE report rows by hostname."""
     nodes = report.get("nodes", [])
     if not isinstance(nodes, list):
-        raise TypeError("pxeboot_status.yml nodes must be a list")
+        raise TypeError("orchestrator_status.yml nodes must be a list")
     indexed: dict[str, dict] = {}
     duplicates: set[str] = set()
     for node in nodes:
         if not isinstance(node, dict):
-            raise TypeError("pxeboot_status.yml contains a malformed node entry")
+            raise TypeError("orchestrator_status.yml contains a malformed node entry")
         hostname = str(node.get("hostname") or "").strip()
         if not hostname:
             continue
@@ -126,7 +126,7 @@ def _report_nodes(report) -> dict[str, dict]:
         indexed[hostname] = node
     if duplicates:
         raise ValueError(
-            "pxeboot_status.yml has duplicate hostnames: "
+            "orchestrator_status.yml has duplicate hostnames: "
             + ", ".join(sorted(duplicates))
         )
     return indexed
@@ -146,18 +146,17 @@ def _cloud_init_state(host, row, report_node) -> tuple[bool, str]:
 def check_node_cloud_init(host):
     """Verify direct cloud-init state and correlate available PXE evidence.
 
-    When ``pxeboot_status.yml`` is not available (e.g. the verify suite
-    runs after provision but before a PXE boot lifecycle), every node is
-    probed directly via SSH using the PXE mapping file as the source of
-    truth for administrative addresses.
+    When ``orchestrator_status.yml`` is not available, every node is probed
+    directly via SSH using the PXE mapping file as the source of truth for
+    administrative addresses.
     """
     try:
         context = load_runtime_context(host)
-        report = context["pxeboot_status"]
+        report = context["orchestrator_status"]
         rows = context["rows"]
 
-        # Direct-probe path: no PXE status file available.
-        if report is None:
+        # Direct-probe path: no completed PXE phase is available.
+        if report is None or report.get("last_completed_phase") != "pxeboot":
             outcomes = {}
             for row in rows:
                 ok, detail = direct_cloud_init_probe(host, row)
@@ -177,9 +176,7 @@ def check_node_cloud_init(host):
                 else "",
             )
 
-        # Report-correlated path: PXE status file is available.
-        if report.get("phase") != "pxeboot":
-            raise ValueError("pxeboot_status.yml does not describe the PXE phase")
+        # Report-correlated path: a completed PXE phase is available.
         if report.get("overall_status") != "success":
             raise ValueError("The latest PXE boot report is not successful")
         report_nodes = _report_nodes(report)

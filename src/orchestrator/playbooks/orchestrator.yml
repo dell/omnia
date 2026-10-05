@@ -36,8 +36,6 @@
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup -e cleanup_credentials=false # Preserve credentials
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup_credentials # Cleanup credentials only
 #   ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials # Explicit full cleanup + credentials
-#   ansible-playbook playbooks/orchestrator.yml --tags upgrade         # In-place upgrade OpenCHAMI + OpenLDAP
-#   ansible-playbook playbooks/orchestrator.yml --tags rollback        # Reserved; reports unsupported in v2.3
 #
 # Tag reference:
 #   (none)       — Full lifecycle through conditional PXE boot
@@ -53,8 +51,6 @@
 #   verify_node_registration — Verify manually or hypervisor-booted nodes over SSH
 #   cleanup      — Cleanup all enabled components and credentials; use -e cleanup_credentials=false to preserve credentials
 #   cleanup_credentials — Cleanup only the Orchestrator credential files
-#   upgrade      — In-place upgrade of OpenCHAMI + OpenLDAP (opt-in only)
-#   rollback     — Reserved entry point; fails explicitly in v2.3 (opt-in only)
 #
 # Component-level cleanup (slurm, k8s, openchami, openldap, storage_mounts,
 # artifacts) is NOT available from this playbook. Run it directly instead:
@@ -62,7 +58,7 @@
 #
 # Tag Validation:
 #   - Invalid tags will fail with error message
-#   - Invalid combinations (e.g., prepare + upgrade) will fail
+#   - Invalid combinations (e.g., prepare + cleanup) will fail
 #   - precheck, validate, validate-deployment, cleanup, and
 #     cleanup_credentials skip credential prompting
 #
@@ -103,8 +99,6 @@
 #               + validate_provisioning.yml
 #               + pxeboot/pxeboot.yml (when enable_pxe_boot: true)
 #   cleanup   -> cleanup/cleanup_full.yml (all components; credentials included by default)
-#   upgrade   -> upgrade_openchami.yml   + upgrade_openldap.yml
-#   rollback  -> rollback_openchami.yml  + rollback_openldap.yml
 #
 # Inputs:  $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/
 # Outputs: $ORCHESTRATOR_DATA_PATH/output/$OMNIA_PROJECT_NAME/
@@ -113,7 +107,7 @@
 # SHARED: Setup orchestrator environment (always runs for any tag)
 # =========================================================================
 
-# Shared setup — upgrade guard, project dirs, vars, OIM group
+# Shared setup — project dirs, vars, OIM group
 - name: Setup orchestrator environment
   hosts: localhost
   connection: local
@@ -298,42 +292,3 @@
     - never
     - cleanup
     - cleanup_credentials
-
-# =========================================================================
-# FLOW: upgrade — In-place upgrade of OpenCHAMI + OpenLDAP
-# OpenCHAMI: 0.1.7-1 -> 0.2.0 (one-way fabrica upgrade)
-# OpenLDAP:  Fedora-based -> Wolfi-based container image
-# =========================================================================
-
-# Upgrade OpenCHAMI (version detection, backup, upgrade, restart, verify)
-- name: Upgrade OpenCHAMI
-  ansible.builtin.import_playbook: upgrade/upgrade_openchami.yml
-  tags:
-    - never
-    - upgrade
-
-# Upgrade OpenLDAP (Fedora -> Wolfi container update)
-- name: Upgrade OpenLDAP
-  ansible.builtin.import_playbook: upgrade/upgrade_openldap.yml
-  tags:
-    - never
-    - upgrade
-
-# =========================================================================
-# FLOW: rollback — Reserved; both imported playbooks report unsupported
-# The OpenCHAMI v0.1.7-1 -> v0.2.0 upgrade is one-way in this release.
-# =========================================================================
-
-# Reserved OpenCHAMI rollback entry point
-- name: Rollback OpenCHAMI
-  ansible.builtin.import_playbook: rollback/rollback_openchami.yml
-  tags:
-    - never
-    - rollback
-
-# Reserved OpenLDAP rollback entry point
-- name: Rollback OpenLDAP
-  ansible.builtin.import_playbook: rollback/rollback_openldap.yml
-  tags:
-    - never
-    - rollback

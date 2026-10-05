@@ -70,14 +70,10 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 | `verify_node_registration` | Verify pending manually or hypervisor-booted nodes over SSH without iDRAC |
 | `cleanup` | Remove enabled components and credentials by default |
 | `cleanup_credentials` | Remove only the Orchestrator credential file and vault key |
-| `upgrade` | Run the opt-in OpenCHAMI and OpenLDAP upgrade workflows |
-| `rollback` | Reserved entry point; fails explicitly because rollback is not supported in v2.3 |
 
 With no tag, the playbook runs the default lifecycle through conditional PXE
-boot. Cleanup, credential cleanup, upgrade, and rollback are opt-in. The
-rollback route is intentionally non-operational in v2.3 because the OpenCHAMI
-upgrade is one-way. Unsupported and conflicting tag combinations fail
-during setup.
+boot. Cleanup and credential cleanup are opt-in. Unsupported and conflicting
+tag combinations fail during setup.
 
 After an operator or hypervisor boots pending nodes, verify and record their
 fresh boot and cloud-init completion with:
@@ -153,7 +149,7 @@ src/orchestrator/
 | Role | Description |
 |------|-------------|
 | `omnia.orchestrator.cleanup` | Select and coordinate Orchestrator cleanup components |
-| `omnia.orchestrator.orchestrator_setup` | Setup project dirs, upgrade guard, OIM host group |
+| `omnia.orchestrator.orchestrator_setup` | Setup project dirs, OIM host group |
 | `omnia.orchestrator.validate_orchestrator_input` | L1 schema + L2 logic validation |
 | `omnia.orchestrator.orchestrator_credentials` | Credential prompting, encryption, vault |
 | `omnia.orchestrator.orchestrator_functional_groups` | Generate functional groups from PXE mapping |
@@ -251,8 +247,7 @@ For deployments moving from Omnia 2.2:
   freshness plus structured cloud-init state.
 - Lifecycle automation should consume `provisioning_report.yml`, the aggregate
   `orchestrator_status.yml`, and `failed_nodes.json` for PXE failures.
-- The OpenCHAMI `0.1.7-1` to `0.2.0-1` upgrade is one-way in this release;
-  take a full system backup because the `rollback` tag is not operational.
+
 
 ## Documentation
 
