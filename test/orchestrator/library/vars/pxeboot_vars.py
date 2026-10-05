@@ -398,8 +398,12 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "rm -f /tmp/omnia-fvt-queue-%s.out /tmp/omnia-fvt-queue-%s.err"
     ),
     "slurm_drain_node": ("scontrol update NodeName=%s State=DRAIN Reason=%s"),
+    "slurm_drain_state": (
+        "sinfo --noheader --nodes=%s --format='%T' | head -1"
+    ),
     "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
     "slurm_cancel_job": "scancel %s",
+    "slurm_sbatch": "sbatch --parsable --wait --wrap='hostname'",
     "slurm_job_accounting": (
         "sacct --noheader --parsable2 --jobs=%s --format=State | head -1"
     ),

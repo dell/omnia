@@ -1075,7 +1075,18 @@ def check_slurm_job_queueing(host):
 
 
 def check_slurm_drain_queue_recovery(host):
-    """Drain one compute node, observe a pending job, then restore the node."""
+    """Drain one compute node, verify the drain, queue a job, then restore.
+
+    Verification phases:
+
+    1. **Pre-drain baseline** — record the node's initial Slurm state.
+    2. **Drain** — issue ``scontrol drain`` and confirm the node reaches
+       a ``drained`` state (poll with timeout).
+    3. **Queue** — submit a job pinned to the drained node and verify it
+       stays ``PENDING``.
+    4. **Resume** — restore the node and verify it returns to ``idle``.
+    5. **Cleanup** — cancel the queued job (always runs, even on failure).
+    """
     summary = "Slurm drain, queue, and resume behavior"
     job_id = ""
     control = None
@@ -1092,49 +1103,158 @@ def check_slurm_drain_queue_recovery(host):
             return _skip(summary, "No Slurm compute nodes are mapped")
         compute = computes[0]
         node_name = compute["HOSTNAME"]
+
+        # Phase 1: pre-drain baseline
+        before_state = remote_command(
+            host, control,
+            PXEBOOT_COMMANDS["slurm_drain_state"] % node_name,
+        )
+        initial_state = before_state.stdout.strip().lower() if before_state.rc == 0 else "unknown"
+
+        # Phase 2: drain and verify
         drain = remote_command(
-            host,
-            control,
+            host, control,
             PXEBOOT_COMMANDS["slurm_drain_node"] % (node_name, SLURM_DRAIN_REASON),
         )
-        if drain.rc != 0:
-            raise RuntimeError("The selected compute node could not be drained")
-        submit = remote_command(
-            host,
-            control,
-            PXEBOOT_COMMANDS["slurm_submit_drain_job"] % node_name,
-        )
-        parts = submit.stdout.strip().split("|", 1)
-        if submit.rc == 0 and len(parts) == 2 and parts[0].isdigit():
-            job_id = parts[0]
-        state = parts[1].upper() if len(parts) == 2 else ""
-        pending = submit.rc == 0 and state.startswith("PENDING")
-        return runtime_result(
-            pending,
-            summary,
-            [
-                ("Drained node", node_name),
-                ("Queued job state", state or "unknown"),
-            ],
-            "A job constrained to the drained node did not remain pending"
-            if not pending
-            else "",
-        )
+        drain_cmd_ok = drain.rc == 0
+        drain_diagnostic = ""
+        if not drain_cmd_ok:
+            drain_diagnostic = re.sub(
+                r"\s+", " ",
+                (drain.stderr or drain.stdout or f"rc={drain.rc}").strip(),
+            )[:200]
+
+        # Verify the node actually reached drained state
+        drain_verified = False
+        drain_actual_state = "not checked"
+        if drain_cmd_ok:
+            poll_start = time.monotonic()
+            poll_deadline = poll_start + 30
+            while time.monotonic() < poll_deadline:
+                check = remote_command(
+                    host, control,
+                    PXEBOOT_COMMANDS["slurm_drain_state"] % node_name,
+                )
+                drain_actual_state = check.stdout.strip().lower() if check.rc == 0 else "error"
+                if "drain" in drain_actual_state:
+                    drain_verified = True
+                    break
+                time.sleep(2)
+
+        # Phase 3: submit job to drained node
+        pending = False
+        job_state = "not submitted"
+        submit_diagnostic = ""
+        if drain_verified:
+            submit = remote_command(
+                host, control,
+                PXEBOOT_COMMANDS["slurm_submit_drain_job"] % node_name,
+            )
+            parts = submit.stdout.strip().split("|", 1)
+            if submit.rc == 0 and len(parts) == 2 and parts[0].isdigit():
+                job_id = parts[0]
+            job_state = parts[1].upper() if len(parts) == 2 else "UNKNOWN"
+            pending = submit.rc == 0 and job_state.startswith("PENDING")
+            if not pending:
+                submit_diagnostic = re.sub(
+                    r"\s+", " ",
+                    (submit.stderr or submit.stdout or f"rc={submit.rc}").strip(),
+                )[:200]
+
+        # Phase 4: resume node and verify
+        resume_ok = False
+        resume_state = "not checked"
+        if control is not None and compute is not None:
+            if job_id:
+                remote_command(
+                    host, control,
+                    PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
+                )
+                job_id = ""
+            resume = remote_command(
+                host, control,
+                PXEBOOT_COMMANDS["slurm_resume_node"] % node_name,
+            )
+            if resume.rc == 0:
+                poll_start = time.monotonic()
+                poll_deadline = poll_start + 30
+                while time.monotonic() < poll_deadline:
+                    check = remote_command(
+                        host, control,
+                        PXEBOOT_COMMANDS["slurm_drain_state"] % node_name,
+                    )
+                    resume_state = check.stdout.strip().lower() if check.rc == 0 else "error"
+                    if resume_state in {"idle", "idle*"}:
+                        resume_ok = True
+                        break
+                    time.sleep(2)
+            else:
+                resume_state = re.sub(
+                    r"\s+", " ",
+                    (resume.stderr or resume.stdout or f"rc={resume.rc}").strip(),
+                )[:100]
+
+        ok = drain_cmd_ok and drain_verified and pending and resume_ok
+
+        fields = [
+            ("Target node", f"{node_name} | {compute['ADMIN_IP']}"),
+            ("Initial state", initial_state),
+            (
+                "Drain command",
+                f"{'passed' if drain_cmd_ok else 'FAILED'}"
+                + (f" — {drain_diagnostic}" if drain_diagnostic else ""),
+            ),
+            (
+                "Drain verified",
+                f"{'passed' if drain_verified else 'FAILED'} — {drain_actual_state}",
+            ),
+            (
+                "Queued job state",
+                f"{'passed' if pending else 'FAILED'} — {job_state}"
+                + (f" ({submit_diagnostic})" if submit_diagnostic else ""),
+            ),
+            (
+                "Resume and recovery",
+                f"{'passed' if resume_ok else 'FAILED'} — {resume_state}",
+            ),
+        ]
+
+        error_parts = []
+        if not drain_cmd_ok:
+            error_parts.append(f"drain command failed: {drain_diagnostic}")
+        if drain_cmd_ok and not drain_verified:
+            error_parts.append(
+                f"node did not reach drained state (actual: {drain_actual_state})"
+            )
+        if drain_verified and not pending:
+            error_parts.append(
+                f"job did not remain PENDING (actual: {job_state})"
+            )
+        if not resume_ok:
+            error_parts.append(
+                f"node did not resume to idle (actual: {resume_state})"
+            )
+
+        return runtime_result(ok, summary, fields, "; ".join(error_parts))
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
     finally:
         if control is not None and job_id:
-            remote_command(
-                host,
-                control,
-                PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
-            )
+            try:
+                remote_command(
+                    host, control,
+                    PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
+                )
+            except (OSError, RuntimeError, TypeError, ValueError):
+                pass
         if control is not None and compute is not None:
-            remote_command(
-                host,
-                control,
-                PXEBOOT_COMMANDS["slurm_resume_node"] % compute["HOSTNAME"],
-            )
+            try:
+                remote_command(
+                    host, control,
+                    PXEBOOT_COMMANDS["slurm_resume_node"] % compute["HOSTNAME"],
+                )
+            except (OSError, RuntimeError, TypeError, ValueError):
+                pass
 
 
 def check_slurm_openmpi_job(host):
