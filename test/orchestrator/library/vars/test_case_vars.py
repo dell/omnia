@@ -648,12 +648,12 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "component": "Apptainer artifact recovery",
     },
     "slurm_node_remove": {
-        "id": "ORCH_FVT_PXEBOOT_V095",
+        "id": "ORCH_FVT_PXEBOOT_V400",
         "title": "Verify Slurm compute node removal lifecycle",
         "component": "Slurm node removal",
     },
     "slurm_node_add": {
-        "id": "ORCH_FVT_PXEBOOT_V096",
+        "id": "ORCH_FVT_PXEBOOT_V401",
         "title": "Verify Slurm compute node re-addition lifecycle",
         "component": "Slurm node re-addition",
     },
