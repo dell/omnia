@@ -41,6 +41,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import ensure_source_mpi as _ensure_source_mpi
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import require_functional as _require_functional
 from ._workload_helpers import slurm_compute_rows as _compute_rows
@@ -1153,6 +1154,8 @@ def check_slurm_openmpi_job(host):
             return _skip(summary, "No mapped Slurm compute node is available")
         targets = computes[: min(2, len(computes))]
 
+        # Discover OpenMPI toolchain; install from source on non-OFED nodes.
+        source_install_attempted = False
         toolchains = []
         for row in targets:
             discovery = remote_command(host, row, PXEBOOT_COMMANDS["openmpi"])
@@ -1165,9 +1168,30 @@ def check_slurm_openmpi_job(host):
                 "OPENMPI_EXECUTABLE",
                 "OPENMPI_COMPILER",
             }:
-                raise RuntimeError(
-                    f"OpenMPI toolchain discovery failed on {row['HOSTNAME']}"
+                mellanox = remote_command(
+                    host, row, PXEBOOT_COMMANDS["mellanox_detect"]
                 )
+                if mellanox.rc != 0 and not source_install_attempted:
+                    provisioned, skip_reason = _ensure_source_mpi(host, rows)
+                    source_install_attempted = True
+                    if not provisioned:
+                        return _skip(summary, skip_reason)
+                    # Retry discovery after source install.
+                    discovery = remote_command(
+                        host, row, PXEBOOT_COMMANDS["openmpi"]
+                    )
+                    records = {
+                        match.group(1): match.group(2)
+                        for line in discovery.stdout.splitlines()
+                        if (match := _OPENMPI_RECORD_RE.fullmatch(line.strip()))
+                    }
+                if discovery.rc != 0 or set(records) != {
+                    "OPENMPI_EXECUTABLE",
+                    "OPENMPI_COMPILER",
+                }:
+                    raise RuntimeError(
+                        f"OpenMPI toolchain discovery failed on {row['HOSTNAME']}"
+                    )
             toolchains.append(records)
         executable_paths = {record["OPENMPI_EXECUTABLE"] for record in toolchains}
         compiler_paths = {record["OPENMPI_COMPILER"] for record in toolchains}

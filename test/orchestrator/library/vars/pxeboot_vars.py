@@ -456,6 +456,19 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "infiniband_ofed": "ofed_info -s",
     "infiniband_ping": "ping -c 2 -W 3 %s",
+    "mellanox_detect": "lspci 2>/dev/null | grep -qi mellanox",
+    "source_mpi_check": (
+        "test -x /hpc_tools/benchmarks/openmpi/bin/mpirun "
+        "&& echo SOURCE_OPENMPI_OK; "
+        "test -x /hpc_tools/benchmarks/ucx/bin/ucx_info "
+        "&& echo SOURCE_UCX_OK; true"
+    ),
+    "install_ucx_source": "bash /usr/local/bin/install_ucx.sh",
+    "install_openmpi_source": "bash /usr/local/bin/install_openmpi.sh",
+    "configure_ucx_openmpi_env": (
+        "bash /usr/local/bin/configure_ucx_openmpi_env.sh"
+    ),
+    "script_exists": "test -x %s && echo exists || echo missing",
     "gpu": (
         "nvidia-smi --query-gpu=index,name,driver_version,memory.total "
         "--format=csv,noheader"

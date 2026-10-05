@@ -28,6 +28,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import ensure_source_mpi as _ensure_source_mpi
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import slurm_context as _context
 
@@ -517,6 +518,53 @@ def check_slurm_pam_policy(host):
         return runtime_exception(summary, exc)
 
 
+def _discover_openmpi(host, row):
+    """Run the OpenMPI discovery probe on a single node.
+
+    Returns:
+        Tuple of (success, executable, compiler, version, diagnostic).
+    """
+    result = remote_command(host, row, PXEBOOT_COMMANDS["openmpi"])
+    output_lines = [
+        line.strip() for line in result.stdout.splitlines() if line.strip()
+    ]
+    executable_line = next(
+        (
+            line
+            for line in output_lines
+            if line.startswith("OPENMPI_EXECUTABLE|")
+        ),
+        "",
+    )
+    executable = executable_line.partition("|")[2]
+    compiler_line = next(
+        (line for line in output_lines if line.startswith("OPENMPI_COMPILER|")),
+        "",
+    )
+    compiler = compiler_line.partition("|")[2]
+    version = next(
+        (
+            line
+            for line in output_lines
+            if line not in {executable_line, compiler_line}
+            and "Open MPI" in line
+        ),
+        "not reported",
+    )
+    success = (
+        result.rc == 0
+        and bool(executable)
+        and bool(compiler)
+        and version != "not reported"
+    )
+    diagnostic = re.sub(
+        r"\s+",
+        " ",
+        (result.stderr or result.stdout or f"command rc={result.rc}").strip(),
+    )[:300]
+    return success, executable or "missing", compiler or "missing", version, diagnostic
+
+
 def check_slurm_openmpi_installation(host):
     """Verify the selected OpenMPI runtime on every mapped compute node."""
     summary = "Slurm OpenMPI installation"
@@ -532,56 +580,39 @@ def check_slurm_openmpi_installation(host):
         if not compute_rows:
             return _skip(summary, "No Slurm compute nodes are mapped")
 
+        # First pass: discover OpenMPI on every compute node.
         node_results = []
+        needs_source_install = False
         for row in compute_rows:
-            result = remote_command(host, row, PXEBOOT_COMMANDS["openmpi"])
-            output_lines = [
-                line.strip() for line in result.stdout.splitlines() if line.strip()
-            ]
-            executable_line = next(
-                (
-                    line
-                    for line in output_lines
-                    if line.startswith("OPENMPI_EXECUTABLE|")
-                ),
-                "",
+            success, executable, compiler, version, diagnostic = (
+                _discover_openmpi(host, row)
             )
-            executable = executable_line.partition("|")[2]
-            compiler_line = next(
-                (line for line in output_lines if line.startswith("OPENMPI_COMPILER|")),
-                "",
-            )
-            compiler = compiler_line.partition("|")[2]
-            version = next(
-                (
-                    line
-                    for line in output_lines
-                    if line not in {executable_line, compiler_line}
-                    and "Open MPI" in line
-                ),
-                "not reported",
-            )
-            success = (
-                result.rc == 0
-                and bool(executable)
-                and bool(compiler)
-                and version != "not reported"
-            )
-            diagnostic = re.sub(
-                r"\s+",
-                " ",
-                (result.stderr or result.stdout or f"command rc={result.rc}").strip(),
-            )[:300]
-            node_results.append(
-                (
-                    row,
-                    success,
-                    executable or "missing",
-                    compiler or "missing",
-                    version,
-                    diagnostic,
+            if not success:
+                mellanox = remote_command(
+                    host, row, PXEBOOT_COMMANDS["mellanox_detect"]
                 )
+                if mellanox.rc != 0:
+                    needs_source_install = True
+            node_results.append(
+                (row, success, executable, compiler, version, diagnostic)
             )
+
+        # Second pass: if any non-OFED node lacks MPI, install from source.
+        if needs_source_install:
+            provisioned, skip_reason = _ensure_source_mpi(host, rows)
+            if not provisioned:
+                return _skip(summary, skip_reason)
+            # Re-discover on previously failed non-OFED nodes.
+            updated = []
+            for row, success, executable, compiler, version, diagnostic in node_results:
+                if not success:
+                    success, executable, compiler, version, diagnostic = (
+                        _discover_openmpi(host, row)
+                    )
+                updated.append(
+                    (row, success, executable, compiler, version, diagnostic)
+                )
+            node_results = updated
 
         fields = []
         grouped = {}
