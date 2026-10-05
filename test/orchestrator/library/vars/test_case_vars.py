@@ -681,6 +681,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V401",
         "title": "Verify Slurm compute node re-addition lifecycle",
         "component": "Slurm node re-addition",
+    },
     "additional_cloud_init_smd_groups": {
         "id": "ORCH_FVT_PXEBOOT_V095",
         "title": "Verify additional cloud-init SMD groups",
