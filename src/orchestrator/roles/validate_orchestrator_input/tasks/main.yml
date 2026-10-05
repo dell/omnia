@@ -21,6 +21,7 @@
 #   - high_availability_config.yml  (required when Kubernetes is selected)
 #   - resolved PXE mapping CSV      (structure and cross-file relationships)
 #   - additional cloud-init YAML    (when configured)
+#   - functional_group_config.yml   (when present)
 #   - storage_config.yml            (when selected workloads reference storage)
 #
 # Uses the domain-specific validate_orchestrator_config module (lean, no
@@ -64,6 +65,11 @@
     msg: "{{ item }}"
   loop: "{{ validate_orchestrator_input_result.errors }}"
   when: validate_orchestrator_input_result.validation_failed
+
+- name: Display validation warnings
+  ansible.builtin.debug:
+    msg: "WARNING: {{ item }}"
+  loop: "{{ validate_orchestrator_input_result.validation_warnings | default([]) }}"
 
 - name: Fail on validation errors
   ansible.builtin.fail:

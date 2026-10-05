@@ -54,16 +54,14 @@ dns_enabled: false
 # An example file is provided at omnia/examples/additional_cloud_init.yml
 # Leave empty ("") to disable additional cloud-init.
 # Default: "" (disabled)
+# Mutually exclusive with functional_group_config.yml, which provides per-group
+# boot and cloud-init configuration with documented precedence.
 additional_cloud_init_config_file: ""
 
-#### Optional
-# Additional kernel command-line parameters appended to the boot-service
-# boot configuration for all functional groups.
-# These are passed to the kernel during PXE/HTTP boot of stateless nodes.
-# Use this to set driver options, debugging flags, or site-specific tunables.
-# Example: boot_kernel_params: "crashkernel=auto audit=1 numa=off"
-# Default: "" (no additional parameters)
-boot_kernel_params: ""
+# DEPRECATED compatibility input. Existing projects may retain this value for
+# one release; it is honored below functional_group_config.yml common/group
+# values. Put new boot parameters in functional_group_config.yml.
+# boot_kernel_params: "crashkernel=auto audit=1 numa=off"
 
 #### Optional
 # Path to the catalog JSON file produced by repo_manager.

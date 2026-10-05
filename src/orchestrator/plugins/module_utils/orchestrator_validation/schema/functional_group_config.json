@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Orchestrator functional group configuration",
+  "type": "object",
+  "properties": {
+    "common": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/scope"
+        }
+      ]
+    },
+    "groups": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/definitions/groupScope"
+      },
+      "propertyNames": {
+        "$ref": "#/definitions/functionalGroupName"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "functionalGroupName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "bootKernelParams": {
+      "type": "string",
+      "maxLength": 2048,
+      "pattern": "^[^\\u0000-\\u001f\\u007f\"'\\\\]*$",
+      "description": "Space-separated kernel parameters. Control characters, quotes, and backslashes are rejected."
+    },
+    "absoluteFilePath": {
+      "type": "string",
+      "pattern": "^(|/[^\\u0000]*)$"
+    },
+    "cloudInit": {
+      "type": "object",
+      "properties": {
+        "config_file": {
+          "$ref": "#/definitions/absoluteFilePath"
+        }
+      },
+      "additionalProperties": false
+    },
+    "postConfigEntry": {
+      "type": "object",
+      "properties": {
+        "write_files": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "runcmd": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "boot_kernel_params": {
+          "$ref": "#/definitions/bootKernelParams"
+        },
+        "cloud_init": {
+          "$ref": "#/definitions/cloudInit"
+        },
+        "post_config": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/postConfigEntry"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "groupScope": {
+      "type": "object",
+      "properties": {
+        "boot_kernel_params": {
+          "$ref": "#/definitions/bootKernelParams"
+        },
+        "cloud_init": {
+          "$ref": "#/definitions/cloudInit"
+        },
+        "post_config": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/postConfigEntry"
+          }
+        },
+        "image_override": {
+          "$ref": "#/definitions/imageOverride"
+        }
+      },
+      "additionalProperties": false
+    },
+    "imageArtifactRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*\\.\\.)[A-Za-z0-9._/-]+$",
+      "description": "Object key relative to the configured image-storage endpoint; no scheme, leading slash, or '..'."
+    },
+    "imageOverride": {
+      "type": "object",
+      "description": "Group-only prebuilt image selection. Empty selects Image Build Manager output; otherwise kernel, initrd, and rootfs are all required.",
+      "properties": {
+        "kernel": {
+          "$ref": "#/definitions/imageArtifactRef"
+        },
+        "initrd": {
+          "$ref": "#/definitions/imageArtifactRef"
+        },
+        "rootfs": {
+          "$ref": "#/definitions/imageArtifactRef"
+        }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "maxProperties": 0
+        },
+        {
+          "required": [
+            "kernel",
+            "initrd",
+            "rootfs"
+          ]
+        }
+      ]
+    }
+  }
+}

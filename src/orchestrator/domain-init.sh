@@ -151,17 +151,80 @@ cleanup_initializer_artifacts() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Check if destination has existing files and prompt user
+# List template files the source provides, as paths relative to input/
+# ─────────────────────────────────────────────────────────────────────────────
+_source_template_list() {
+    local src_dir="$1"
+    (cd "$src_dir" && find . -type f ! -name '.*' | sed 's|^\./||' | sort)
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage templates that the destination does not have yet.
+#
+# A template absent from the destination cannot contain customer edits, so
+# copying it risks nothing. This runs BEFORE the overwrite prompt so that a
+# newly introduced input file reaches existing projects, which previously was
+# impossible: any pre-existing file caused the whole staging step to be skipped.
+#
+# Never touches a file that already exists — that remains the prompt's decision.
+# ─────────────────────────────────────────────────────────────────────────────
+_stage_new_files() {
+    local src_dir="$1"
+    local dest_dir="$2"
+    local staged=0
+    local rel
+
+    while IFS= read -r rel; do
+        [ -n "$rel" ] || continue
+        # A broken symbolic link is still an existing customer-owned path.
+        # Never replace it merely because `-e` cannot follow its target.
+        if [ ! -e "${dest_dir}/${rel}" ] && [ ! -L "${dest_dir}/${rel}" ]; then
+            mkdir -p "$(dirname "${dest_dir}/${rel}")"
+            cp -a "${src_dir}/${rel}" "${dest_dir}/${rel}"
+            echo -e "  ${GREEN}[${DOMAIN_NAME}] Added new input template: ${rel}${NC}"
+            staged=$((staged + 1))
+        fi
+    done <<< "$(_source_template_list "$src_dir")"
+
+    if [ "$staged" -gt 0 ]; then
+        echo -e "  ${GREEN}[${DOMAIN_NAME}] Staged ${staged} new template(s); existing files untouched${NC}"
+    fi
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# List templates present in BOTH source and destination — the only files a
+# staging run could overwrite. Files that exist solely in the destination are
+# customer-owned and are never candidates, so counting them produced spurious
+# prompts. Must be evaluated BEFORE _stage_new_files runs.
+# ─────────────────────────────────────────────────────────────────────────────
+_overwrite_candidates() {
+    local src_dir="$1"
+    local dest_dir="$2"
+    local rel
+
+    [ -d "$dest_dir" ] || return 0
+
+    while IFS= read -r rel; do
+        [ -n "$rel" ] || continue
+        # An if-statement, not `test && printf`: a missing last template would
+        # otherwise make the function return 1 and abort under `set -e`.
+        if [ -f "${dest_dir}/${rel}" ]; then
+            printf '%s\n' "$rel"
+        fi
+    done <<< "$(_source_template_list "$src_dir")"
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Prompt the user about templates that would be overwritten.
 # Returns 0 if safe to proceed, 1 if user declined
 # ─────────────────────────────────────────────────────────────────────────────
 _check_existing_files() {
     local dest_dir="$1"
-
-    # No destination — safe to proceed
-    [ -d "$dest_dir" ] || return 0
+    local overwrite_candidates="${2-}"
 
     local existing_count
-    existing_count=$(find "$dest_dir" -type f 2>/dev/null | wc -l)
+    existing_count=$(printf '%s' "$overwrite_candidates" | grep -c . || true)
     [ "$existing_count" -gt 0 ] || return 0
 
     # Files exist — check if force mode
@@ -175,14 +238,11 @@ _check_existing_files() {
     echo -e "  ${YELLOW}Existing files may contain user customizations that will be overwritten.${NC}"
 
     # List files that would be overwritten
-    local src_dir="$SCRIPT_DIR/input"
-    local overwrite_list
-    overwrite_list=$(cd "$src_dir" && find . -type f | sed 's|^\./||' | sort)
-    for f in $overwrite_list; do
-        if [ -f "$dest_dir/$f" ]; then
-            echo -e "    ${YELLOW}→ $f (exists — will be overwritten)${NC}"
-        fi
-    done
+    local f
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        echo -e "    ${YELLOW}→ $f (exists — will be overwritten)${NC}"
+    done <<< "$overwrite_candidates"
 
     # Non-interactive check (piped input, cron, etc.)
     if [ ! -t 0 ]; then
@@ -223,12 +283,23 @@ copy_input_files() {
         return 0
     fi
 
-    # Check for existing files and prompt if needed
-    if ! _check_existing_files "$dest_dir"; then
+    mkdir -p "$dest_dir"
+
+    # Snapshot which templates the project already has, BEFORE staging adds any.
+    # Staging first would make every template look like an overwrite candidate
+    # and would prompt even on a fresh project.
+    local overwrite_candidates
+    overwrite_candidates=$(_overwrite_candidates "$src_dir" "$dest_dir")
+
+    # Stage templates the project does not have yet. This is always safe and
+    # must happen even when the user declines to overwrite existing files,
+    # otherwise a newly introduced input can never reach an existing project.
+    _stage_new_files "$src_dir" "$dest_dir"
+
+    # Prompt only about files that existed before staging.
+    if ! _check_existing_files "$dest_dir" "$overwrite_candidates"; then
         return 0
     fi
-
-    mkdir -p "$dest_dir"
 
     # Use rsync if available (preserves permissions, only copies changed files)
     if command -v rsync >/dev/null 2>&1; then
@@ -364,4 +435,6 @@ main() {
     echo -e "${GREEN}[${DOMAIN_NAME}] Domain initialization complete.${NC}"
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi
