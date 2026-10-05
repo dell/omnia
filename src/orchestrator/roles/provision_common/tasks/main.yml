@@ -36,10 +36,10 @@
       when: not (provision_common_registration_complete | default(false) | bool)
 
     - name: Fetch additional images
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/fetch_additional_images.yml"
+      ansible.builtin.include_tasks: fetch_additional_images.yml
 
     - name: Validate additional metadata-service configuration
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/validate_additional_metadata_svc.yml"
+      ansible.builtin.include_tasks: validate_additional_metadata_svc.yml
 
     - name: Scope additional metadata-service groups to the registered category
       ansible.builtin.set_fact:
@@ -216,7 +216,7 @@
         loop_var: fg_name
 
     - name: Configure additional metadata-service
-      ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/configure_metadata_svc_additional.yml"
+      ansible.builtin.include_tasks: configure_metadata_svc_additional.yml
       when: additional_metadata_svc_enabled | default(false) | bool
 
     - name: Final SELinux context for generated files

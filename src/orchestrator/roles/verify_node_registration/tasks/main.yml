@@ -16,22 +16,39 @@
 # group. Ansible connects to those nodes in parallel and the node-local module
 # returns structured boot and cloud-init state without shell-output parsing.
 
+- name: "[Node-Registration] Resolve verification context"
+  ansible.builtin.set_fact:
+    verify_node_registration_start_epoch: >-
+      {{ hostvars['localhost']['verification_start_epoch']
+         | default(hostvars['localhost']['pxe_start_epoch'] | default('')) }}
+    verify_node_registration_trigger_method: >-
+      {{ hostvars['localhost']['verification_trigger_method'] | default('orchestrator') }}
+    verify_node_registration_retries_effective: >-
+      {{ hostvars['localhost']['node_registration_retries']
+         | default(verify_node_registration_retries) | int }}
+    verify_node_registration_delay_effective: >-
+      {{ hostvars['localhost']['node_registration_delay']
+         | default(verify_node_registration_delay) | int }}
+
 - name: "[Node-Registration] Validate per-node verification context"
   ansible.builtin.assert:
     that:
-      - hostvars['localhost']['pxe_start_epoch'] is defined
-      - hostvars['localhost']['pxe_start_epoch'] | string | length > 0
-      - bmc_ip is defined
-      - bmc_ip | string | length > 0
+      - verify_node_registration_start_epoch | string | length > 0
+      - verify_node_registration_start_epoch | int > 0
+      - verify_node_registration_trigger_method in ['orchestrator', 'external']
+      - >-
+        verify_node_registration_trigger_method == 'external'
+        or (bmc_ip is defined and bmc_ip | string | length > 0)
     fail_msg: "{{ verify_node_registration_fail_msg }}"
+    quiet: true
 
 - name: "[Node-Registration] Wait for passwordless SSH after PXE boot"
   ansible.builtin.wait_for_connection:
-    connect_timeout: 5
-    sleep: "{{ hostvars['localhost']['node_registration_delay'] }}"
+    connect_timeout: "{{ verify_node_registration_connect_timeout }}"
+    sleep: "{{ verify_node_registration_delay_effective }}"
     timeout: >-
-      {{ (hostvars['localhost']['node_registration_retries'] | int)
-         * (hostvars['localhost']['node_registration_delay'] | int) }}
+      {{ verify_node_registration_retries_effective
+         * verify_node_registration_delay_effective }}
   register: verify_node_registration_ssh_wait
   changed_when: false
   ignore_errors: true
@@ -39,13 +56,13 @@
 
 - name: "[Node-Registration] Poll fresh boot and cloud-init state"
   node_boot_status:
-    pxe_start_epoch: "{{ hostvars['localhost']['pxe_start_epoch'] }}"
+    pxe_start_epoch: "{{ verify_node_registration_start_epoch }}"
   register: verify_node_registration_poll_result
   until:
     - not (verify_node_registration_poll_result.unreachable | default(false) | bool)
     - verify_node_registration_poll_result.terminal | default(false) | bool
-  retries: "{{ hostvars['localhost']['node_registration_retries'] }}"
-  delay: "{{ hostvars['localhost']['node_registration_delay'] }}"
+  retries: "{{ verify_node_registration_retries_effective }}"
+  delay: "{{ verify_node_registration_delay_effective }}"
   changed_when: false
   failed_when: false
   ignore_errors: true
@@ -60,7 +77,7 @@
   ansible.builtin.set_fact:
     verify_node_registration_result:
       admin_ip: "{{ inventory_hostname }}"
-      bmc_ip: "{{ bmc_ip }}"
+      bmc_ip: "{{ bmc_ip | default('') }}"
       xname: "{{ xname | default('') }}"
       hostname: "{{ hostname_node | default('') }}"
       service_tag: "{{ service_tag | default('') }}"
@@ -69,6 +86,7 @@
       detail: "{{ _node_detail }}"
       terminal: "{{ verify_node_registration_poll_result.terminal | default(false) | bool }}"
       attempts: "{{ verify_node_registration_poll_result.attempts | default(1) }}"
+      trigger_method: "{{ verify_node_registration_trigger_method }}"
       verification_method: ssh_cloud_init
       cloud_init: "{{ verify_node_registration_poll_result.cloud_init | default({}) }}"
   vars:
