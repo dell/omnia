@@ -10,14 +10,16 @@
 
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
 import pytest
 import yaml
-
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OME_ROLE = REPO_ROOT / "src/telemetry/roles/deploy_ome"
 DEPLOY_PLAYBOOK = REPO_ROOT / "src/telemetry/playbooks/deploy/deploy.yml"
+DEPLOY_SINKS_PLAYBOOK = (
+    REPO_ROOT / "src/telemetry/playbooks/deploy/sinks/deploy_sinks.yml"
+)
 TELEMETRY_PREREQ = (
     REPO_ROOT / "src/telemetry/playbooks/deploy/telemetry_prereq.yml"
 )
@@ -79,6 +81,23 @@ def test_full_deploy_always_invokes_ome_reconciliation():
 
     assert ome["ansible.builtin.import_playbook"].endswith("deploy_ome.yml")
     assert "when" not in ome
+
+
+def test_full_deploy_allows_empty_derived_sinks_for_disable_reconciliation():
+    """All-disabled reruns must reach source reconciliation without deploying sinks."""
+    plays = yaml.safe_load(_read(DEPLOY_PLAYBOOK))
+    sink_import = next(
+        play for play in plays
+        if play.get("name") == "Phase 1 | Deploy telemetry sinks"
+    )
+    assert sink_import["vars"]["allow_empty_sinks"] is True
+
+    sink_plays = yaml.safe_load(_read(DEPLOY_SINKS_PLAYBOOK))
+    validation = _task_by_name(
+        sink_plays[0]["tasks"], "Ensure sinks is a valid list"
+    )
+    assertions = validation["ansible.builtin.assert"]["that"]
+    assert any("allow_empty_sinks" in assertion for assertion in assertions)
 
 
 def test_ome_dependency_validation_precedes_cluster_changes():
