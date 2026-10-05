@@ -59,7 +59,6 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 | `build` / `execute` | Build x86_64 + aarch64 OS images | Yes |
 | `cleanup` | Remove services, artifacts, credentials | No |
 | `cleanup_images` | Delete built images from S3 + registry (by pattern or all) | No |
-| `upgrade` / `rollback` | Reserved placeholders; no lifecycle action is implemented | Yes (current flow) |
 
 Run exactly one supported tag at a time. Although internal imported plays carry
 `x86_64` and `aarch64` tags, the top-level tag validator does not accept them as
@@ -326,8 +325,6 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 +-- credentials.log           Credentials sub-playbook log
 +-- precheck.log              Precheck sub-playbook log
 +-- prepare.log               Prepare sub-playbook log
-+-- rollback.log              Rollback placeholder log
-+-- upgrade.log               Upgrade placeholder log
 +-- validate.log              Validate sub-playbook log
 ```
 
