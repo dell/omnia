@@ -244,7 +244,7 @@ gitlab_selinux_fail_msg: >
 gitlab_bs_host_connectivity_fail_msg: "Cannot reach build stream host at {{ build_stream_host_ip }}. GitLab server must be able to ping the build stream host."
 
 gitlab_watcher_not_running_msg: >
-  playbook_watcher.service is not running on OIM host {{ build_stream_host_ip }}.
+  playbook-watcher.service is not running on OIM host {{ build_stream_host_ip }}.
   Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
   Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
 
