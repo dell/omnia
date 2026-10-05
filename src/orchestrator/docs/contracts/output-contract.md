@@ -1,6 +1,6 @@
 # Orchestrator -- Output Contract
 
-**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 24, 2026
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: October 1, 2026
 
 This document defines all output artifacts produced by the `orchestrator` domain.
 
@@ -57,8 +57,8 @@ generated inventory artifacts.
 ## 2. OpenCHAMI Configuration Artifacts
 
 Produced by `provision_common` and the category provisioning plays on the OIM
-host. These flows reuse templates and task files housed under
-`configure_ochami`.
+host. `provision_common` owns the Boot Service, Metadata Service, and
+cloud-init templates used by these flows.
 
 ### 2.1 Boot Service Parameters
 
@@ -117,15 +117,13 @@ Provisioning and PXE boot publish versioned, phase-specific reports under:
 | File | Producer | Contract |
 |------|----------|----------|
 | `provisioning_report.yml` | Provision validation | SMD, Boot Service, Metadata Service, interface, and hostname registration results |
-| `pxeboot_status.yml` | PXE boot | PXE initiation and optional fresh-boot/cloud-init verification for every selected node |
-| `failed_nodes.json` | PXE boot | Failure-only view of the PXE report; written even when no node fails |
+| `failed_nodes.json` | PXE boot | Failure-only view of the latest attempted subset; written even when no node fails |
 | `orchestrator_status.yml` | Provision and PXE boot | Stable aggregate view containing the latest provisioning and PXE phase states |
 
-`provisioning_report.yml`, `pxeboot_status.yml`, and
-`orchestrator_status.yml` use `schema_version: "1.0"`. The failure-only report
-also uses schema 1.0 for BuildStream compatibility. A later phase updates the stable
-aggregate report, retains the provisioning result when available, and adds the
-latest PXE result.
+`provisioning_report.yml` and `orchestrator_status.yml` use
+`schema_version: "1.0"`. The failure-only report also uses schema 1.0 for
+BuildStream compatibility. A later phase updates the stable aggregate report,
+retains the provisioning result when available, and adds the latest PXE result.
 
 ### 4.1 Provisioning report
 
@@ -140,30 +138,12 @@ Important fields include `overall_status`, `total_expected_nodes`,
 `metadata_changed_nodes`, `reprovision_required_nodes`,
 `stale_metadata_groups_deleted`, `inventory_source`, and `timestamp`.
 
-### 4.2 PXE status and failed-node report
+### 4.2 PXE failed-node report
 
-When at least one node is selected, `pxeboot_status.yml` is written and its
-`nodes` list includes every node attempted by that PXE run. When standard
-pending-node selection finds no work, PXE exits successfully without replacing
-the existing reports. Each node uses the compact lifecycle contract:
-
-```yaml
-schema_version: "1.0"
-phase: pxeboot
-overall_status: failed
-verification_enabled: true
-nodes:
-  - xname: x1000c0s1b0n0
-    hostname: node1
-    admin_ip: 192.168.1.54
-    bmc_ip: 172.20.44.54
-    status: failed
-    reprovision_required: true
-    provisioning_status: success
-    pxeboot:
-      status: failed
-      state: cloud_init_error
-```
+When at least one node is selected, `failed_nodes.json` is written for the
+attempted subset. It contains an empty `failed_nodes` array when the attempted
+nodes succeed. When standard pending-node selection finds no work, PXE exits
+successfully without replacing the existing failure report.
 
 `failed_nodes.json` preserves its BuildStream-compatible failure envelope.
 Its `error` field contains only a compact state or generic verification
@@ -178,9 +158,9 @@ operating-system boots.
 ### 4.3 Aggregate Orchestrator status
 
 `orchestrator_status.yml` has one stable schema across phases. The `phases` map
-records status, counts, timestamps, and report filenames. Per-node records keep
-only identity, overall lifecycle state, the reprovision gate, provisioning
-status, and the latest PXE machine state.
+records status, counts, and timestamps. Per-node records keep only identity,
+overall lifecycle state, the reprovision gate, provisioning status, and the
+latest PXE machine state.
 
 After provisioning, the PXE phase is `not_run`. After PXE boot, the aggregate
 status is failed when either the retained provisioning phase or the current
@@ -200,19 +180,25 @@ Each aggregate per-node record also exposes:
 | `provisioning_status` | Latest desired-state provisioning result. |
 | `pxeboot.status` | Latest PXE attempt result: `not_run`, `success`, `failed`, or `unverified`. |
 | `pxeboot.state` | Short machine state such as `success`, `idrac_unreachable`, `ssh_unreachable`, or `cloud_init_error`. |
+| `pxeboot.trigger_method` | Boot origin: `orchestrator`, `external`, or `not_run`. This field distinguishes an Orchestrator-triggered boot from a manual or hypervisor-triggered boot without changing the state vocabulary. |
+| `pxeboot.verification_method` | Verification path: `ssh_cloud_init`, `not_started`, or `not_run`. `not_started` means verification was blocked before an SSH attempt, while `not_run` means no verification workflow was selected. |
 
 Provisioning preserves a previously pending `reprovision_required` value even
-when a later reconciliation is idempotent. Only a successful PXE run with
-node-registration/cloud-init verification clears it. A PXE request without
-verification does not claim that the running operating system was updated.
+when a later reconciliation is idempotent. Only successful provisioning
+followed by a successful PXE run with node-registration/cloud-init verification
+clears it. A PXE request without verification does not claim that the running
+operating system was updated.
 
 The standard PXE workflow internally defaults to pending-node selection. It
-selects a node only when `reprovision_required` is true. Every failed or
-unverified attempt retains that value, while verified success clears it. A
-retry therefore does not reboot nodes that already completed verified PXE and
-cloud-init. The current `pxeboot_status.yml` remains a phase report for
-the attempted subset, while `orchestrator_status.yml` merges those results with
-the retained records for unselected nodes. The extra variable
+selects a node only when `reprovision_required` is true and
+`provisioning_status` is `success`. Failed, unknown, or missing provisioning
+state for any mapped node stops selection before Redfish. Every failed or
+unverified attempt retains the pending value, while verified success after
+successful provisioning clears it. A retry therefore does not reboot nodes
+that already completed verified PXE and cloud-init. `failed_nodes.json`
+describes failures in the attempted subset,
+while `orchestrator_status.yml` merges the latest results with retained records
+for unselected nodes. The extra variable
 `-e pxeboot_scope=all` explicitly requests all mapped nodes; no additional
 project input is required. Explicit custom inventories and BuildStream retain
 their existing inventory-selection behavior.
@@ -220,6 +206,22 @@ their existing inventory-selection behavior.
 Pending selection fails closed before any Redfish operation when aggregate
 status is missing, malformed, or lacks an XNAME from the current mapping. This
 prevents an uncertain retry from silently becoming a full-cluster reboot.
+
+For a VM or a physical node booted manually, the
+`verify_node_registration` tag selects the same pending, successfully
+provisioned nodes but performs no Redfish operation. Failed, unknown, or
+missing provisioning state for any mapped node stops the workflow before SSH.
+For eligible nodes, it verifies that each observed boot is newer than the
+persisted lifecycle state and that cloud-init completed through the existing
+SSH verifier. A successful result continues to use `pxeboot.state: success`;
+`pxeboot.trigger_method: external` is the only field that distinguishes the
+external boot from the normal `orchestrator` path.
+
+After a failed Orchestrator PXE attempt, the operator must wait for that
+workflow to finish writing `orchestrator_status.yml` before starting the manual
+or hypervisor boot. A boot older than the persisted status timestamp is stale,
+keeps `reprovision_required: true`, and cannot be recorded as externally
+verified.
 
 PXE inventories do not supply XNAME values. Before rebooting any server, the
 PXE workflow resolves each Service Tag through SMD Hardware Inventory and uses

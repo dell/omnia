@@ -38,3 +38,5 @@ omnia_required_groups_from_nodes_yaml: >-
      | list }}
 
 oim_ssh_config_path: "{{ ansible_user_dir | default('/root') }}/.ssh/config"
+# Centralized failure messages
+pxe_mapping_path_fail_msg: "pxe_mapping_file_path is not defined. Check orchestrator_config.yml."
