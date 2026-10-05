@@ -89,7 +89,6 @@
 - name: "Phase 2 | Deploy PowerScale telemetry"
   ansible.builtin.import_playbook: sources/deploy_powerscale.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].powerscale_configurations.csm_observability_values_file_path | default('') | length > 0
 
 - name: "Phase 2 | Deploy UFM telemetry"
   ansible.builtin.import_playbook: sources/deploy_ufm.yml
