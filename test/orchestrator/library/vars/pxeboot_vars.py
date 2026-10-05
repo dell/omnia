@@ -287,6 +287,11 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "kubectl delete persistentvolume %s --ignore-not-found=true "
         "--wait=true --timeout=180s"
     ),
+    "kubernetes_deployments": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl get deployments -A -o json"
+    ),
+    "mount_contract": "findmnt -J %s",
     "kubernetes_etcd_health": (
         "KUBECONFIG=/etc/kubernetes/admin.conf kubectl exec "
         "--namespace kube-system %s -- etcdctl "
@@ -339,6 +344,14 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "etcd_boot_log": (
         "stat -c '%Y' /var/log/diskless-etcd-mount.log 2>/dev/null || "
         "stat -c '%Y' /var/log/etcd-disk-setup.log"
+    ),
+    "etcd_setup_script": "test -x /usr/local/bin/etcd-disk-setup.sh",
+    "etcd_update_script": "test -x /usr/local/bin/etcd-fstab-update.sh",
+    "etcd_setup_log": "test -s /var/log/etcd-disk-setup.log",
+    "etcd_update_log": "test -s /var/log/diskless-etcd-mount.log",
+    "etcd_selection_log": (
+        "cat /var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log "
+        "2>/dev/null"
     ),
     "node_boot_time": 'date -d "$(uptime -s)" +%s',
     "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
