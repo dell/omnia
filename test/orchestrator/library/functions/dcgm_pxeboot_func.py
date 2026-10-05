@@ -217,9 +217,11 @@ def check_dcgm_gpu_discovery(host):
         all_ok = True
         for row, gres, expected_count in gpu:
             disc = remote_command(host, row, PXEBOOT_COMMANDS["dcgm_discovery"])
-            gpu_ids = re.findall(r"GPU ID:\s*(\d+)", disc.stdout or "")
+            count_match = re.search(
+                r"(\d+)\s+GPUs?\s+found", disc.stdout or "",
+            )
+            found = int(count_match.group(1)) if count_match else 0
             uuids = re.findall(r"UUID:\s*(\S+)", disc.stdout or "")
-            found = len(gpu_ids)
             unique_uuids = len(set(uuids))
             node_ok = (
                 disc.rc == 0
@@ -369,7 +371,10 @@ def check_dcgm_multi_gpu_discovery(host):
                 host, row, PXEBOOT_COMMANDS["dcgm_multi_gpu_count"],
             )
             disc = remote_command(host, row, PXEBOOT_COMMANDS["dcgm_discovery"])
-            discovered = len(re.findall(r"GPU ID:\s*(\d+)", disc.stdout or ""))
+            disc_match = re.search(
+                r"(\d+)\s+GPUs?\s+found", disc.stdout or "",
+            )
+            discovered = int(disc_match.group(1)) if disc_match else 0
             actual = 0
             if count_result.rc == 0 and count_result.stdout.strip().isdigit():
                 actual = int(count_result.stdout.strip())
@@ -500,7 +505,7 @@ def check_dcgm_toolkit_nfs_storage(host):
         ]
         return runtime_result(
             ok, summary, fields,
-            "/hpc_tools not NFS-mounted or CUDA toolkit inaccessible"
+            "CUDA toolkit not NFS-mounted at /usr/local/cuda or inaccessible"
             if not ok else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
@@ -767,11 +772,12 @@ def check_dcgm_neg_package_install_failure(host):
         # and the RPM database integrity as a proxy)
         rpm = remote_command(host, row, PXEBOOT_COMMANDS["dcgm_rpm_check"])
         rpm_ok = rpm.rc == 0 and "datacenter-gpu-manager" in (rpm.stdout or "")
+        rpm_pkg = rpm.stdout.strip() if rpm_ok else ""
 
-        # Simulate a dry-run removal check
+        # Simulate a dry-run removal check using the actual installed package
         dry_run = remote_command(
             host, row,
-            "rpm -e --test datacenter-gpu-manager 2>&1",
+            f"rpm -e --test {rpm_pkg} 2>&1" if rpm_pkg else "echo 'no package'",
         )
         can_remove = dry_run.rc == 0
         has_deps = "is needed by" in (dry_run.stderr or "") + (dry_run.stdout or "")
