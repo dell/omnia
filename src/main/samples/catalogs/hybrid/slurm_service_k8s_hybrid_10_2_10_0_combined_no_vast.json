@@ -431,7 +431,6 @@
           "prettytable==3_14_0",
           "python3",
           "git",
-          "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
         ]
       },
@@ -462,7 +461,6 @@
           "prettytable==3_14_0",
           "python3",
           "git",
-          "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
         ]
       },
