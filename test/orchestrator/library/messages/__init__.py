@@ -12,36 +12,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Orchestrator — Messages Package."""
+"""Orchestrator-suite messages exposed to test modules."""
 
-from .orchestrator_msgs import (
-    TEST_NAMES,
-    TEST_LOG_MSGS,
-    TEST_ASSERT_MSGS,
+from .cleanup_msgs import (
+    TEST_ASSERT_MSGS as CLEANUP_TEST_ASSERT_MSGS,
 )
-from .orchestrator_test_msgs import (
-    TEST_NAMES as TEST_FRAMEWORK_NAMES,
-    TEST_LOG_MSGS as TEST_FRAMEWORK_LOG_MSGS,
-    TEST_ASSERT_MSGS as TEST_FRAMEWORK_ASSERT_MSGS,
+from .cleanup_msgs import (
+    TEST_LOG_MSGS as CLEANUP_TEST_LOG_MSGS,
 )
-from .slurm_msgs import (
-    TEST_LOG_MSGS as SLURM_TEST_LOG_MSGS,
-    TEST_ASSERT_MSGS as SLURM_TEST_ASSERT_MSGS,
+from .precheck_msgs import (
+    TEST_ASSERT_MSGS as PRECHECK_TEST_ASSERT_MSGS,
 )
-from .k8s_msgs import (
-    TEST_LOG_MSGS as K8S_TEST_LOG_MSGS,
-    TEST_ASSERT_MSGS as K8S_TEST_ASSERT_MSGS,
+from .precheck_msgs import (
+    TEST_LOG_MSGS as PRECHECK_TEST_LOG_MSGS,
+)
+from .prepare_msgs import (
+    TEST_ASSERT_MSGS as PREPARE_TEST_ASSERT_MSGS,
+)
+from .prepare_msgs import (
+    TEST_LOG_MSGS as PREPARE_TEST_LOG_MSGS,
+)
+from .provision_msgs import (
+    TEST_ASSERT_MSGS as PROVISION_TEST_ASSERT_MSGS,
+)
+from .provision_msgs import (
+    TEST_LOG_MSGS as PROVISION_TEST_LOG_MSGS,
+)
+from .pxeboot_msgs import (
+    TEST_ASSERT_MSGS as PXEBOOT_TEST_ASSERT_MSGS,
+)
+from .pxeboot_msgs import (
+    TEST_LOG_MSGS as PXEBOOT_TEST_LOG_MSGS,
 )
 
 __all__ = [
-    "TEST_NAMES",
-    "TEST_LOG_MSGS",
-    "TEST_ASSERT_MSGS",
-    "TEST_FRAMEWORK_NAMES",
-    "TEST_FRAMEWORK_LOG_MSGS",
-    "TEST_FRAMEWORK_ASSERT_MSGS",
-    "SLURM_TEST_LOG_MSGS",
-    "SLURM_TEST_ASSERT_MSGS",
-    "K8S_TEST_LOG_MSGS",
-    "K8S_TEST_ASSERT_MSGS",
+    "CLEANUP_TEST_ASSERT_MSGS",
+    "CLEANUP_TEST_LOG_MSGS",
+    "PRECHECK_TEST_ASSERT_MSGS",
+    "PRECHECK_TEST_LOG_MSGS",
+    "PREPARE_TEST_ASSERT_MSGS",
+    "PREPARE_TEST_LOG_MSGS",
+    "PROVISION_TEST_ASSERT_MSGS",
+    "PROVISION_TEST_LOG_MSGS",
+    "PXEBOOT_TEST_ASSERT_MSGS",
+    "PXEBOOT_TEST_LOG_MSGS",
 ]

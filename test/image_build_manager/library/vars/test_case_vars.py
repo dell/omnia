@@ -166,6 +166,47 @@ TEST_CASES = {
         "id": "IMGBM_FVT_BUILD_V017",
         "title": "Verify -imgbld and -imgth artifact paths are fully isolated",
     },
+    # -- Build: catalog reuse and rebuild policy ---------------------------
+    "catalog_first_build": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V001",
+        "title": "Build images on a global dictionary miss",
+    },
+    "catalog_dictionary_reuse": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V002",
+        "title": "Reuse images on a valid global dictionary hit",
+    },
+    "catalog_selective_package_rebuild": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V003",
+        "title": "Rebuild only the functional group whose packages changed",
+    },
+    "catalog_repository_change_rebuild": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V004",
+        "title": "Rebuild images when repository configuration changes",
+    },
+    "catalog_force_rebuild": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V005",
+        "title": "Bypass dictionary reuse when force_rebuild is enabled",
+    },
+    "catalog_missing_artifact_rebuild": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V006",
+        "title": "Rebuild a dictionary hit with a missing S3 artifact",
+    },
+    "catalog_switch_to_thrillhouse": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V007",
+        "title": "Build new artifacts after switching to image-thrillhouse",
+    },
+    "catalog_switch_to_image_builder": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V008",
+        "title": "Select image-builder artifacts after switching back",
+    },
+    "catalog_versioned_output": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V009",
+        "title": "Write catalog-versioned image status and identity",
+    },
+    "config_mode_cache_isolation": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V010",
+        "title": "Keep config-mode cache and backup behavior independent",
+    },
     # ── Precheck ──────────────────────────────────────────────────────────
     "deploy_precheck": {
         "id": "IMGBM_FVT_PRECHECK_E001",

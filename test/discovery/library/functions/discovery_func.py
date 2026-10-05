@@ -21,33 +21,69 @@ All verification functions return a dict with keys:
 
 from typing import Any, Dict
 
-from omnia_auto import load_test_config, run_on_host
+from omnia_auto import (
+    read_remote_env,
+    resolve_domain_data_path,
+    run_on_host,
+)
 from ..vars.common_vars import (
     CMDS,
     DISCOVERY_CONFIG_FILE,
     NETWORK_SPEC_FILE,
     CREDENTIALS_FILE_NAME,
     CREDENTIALS_KEY_NAME,
-    INPUT_PATH_TEMPLATE,
-    OUTPUT_PATH_TEMPLATE,
+    DOMAIN_NAME,
+    ENV_OMNIA_DATA_PATH,
+    ENV_DISCOVERY_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
     PXE_MAPPING_PATTERN,
     PXE_MAPPING_SYMLINK,
     DISCOVERY_REPORT_PATTERN,
 )
 
 
-def _get_input_path() -> str:
-    """Return the discovery input path for the configured project."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    return INPUT_PATH_TEMPLATE.format(project=project)
+def _get_input_path(host) -> str:
+    """Return the discovery input path for the configured project.
+
+    Reads OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from the target host's
+    environment to resolve the input directory dynamically.
+
+    Args:
+        host: Testinfra host object.
+
+    Returns:
+        Absolute path to the discovery input directory.
+    """
+    domain_data_path = resolve_domain_data_path(
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        domain_data_path_var=ENV_DISCOVERY_DATA_PATH,
+    )
+    project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
+    return f"{domain_data_path}/input/{project}"
 
 
-def _get_output_path() -> str:
-    """Return the discovery output path for the configured project."""
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
-    return OUTPUT_PATH_TEMPLATE.format(project=project)
+def _get_output_path(host) -> str:
+    """Return the discovery output path for the configured project.
+
+    Reads OMNIA_DATA_PATH and OMNIA_PROJECT_NAME from the target host's
+    environment to resolve the output directory dynamically.
+
+    Args:
+        host: Testinfra host object.
+
+    Returns:
+        Absolute path to the discovery output directory.
+    """
+    domain_data_path = resolve_domain_data_path(
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        domain_data_path_var=ENV_DISCOVERY_DATA_PATH,
+    )
+    project = read_remote_env(host, ENV_OMNIA_PROJECT_NAME)
+    return f"{domain_data_path}/output/{project}"
 
 
 def check_input_config_exists(host) -> Dict[str, Any]:
@@ -59,7 +95,7 @@ def check_input_config_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     path = f"{input_path}/{DISCOVERY_CONFIG_FILE}"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
@@ -85,7 +121,7 @@ def check_network_spec_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     path = f"{input_path}/{NETWORK_SPEC_FILE}"
     cmd = CMDS["file_exists"].format(path=path)
     result = run_on_host(host, cmd)
@@ -111,7 +147,7 @@ def check_credentials_present(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
     cmd = CMDS["file_exists"].format(path=cred_path)
     result = run_on_host(host, cmd)
@@ -137,7 +173,7 @@ def check_output_dir_exists(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     cmd = CMDS["dir_exists"].format(path=output_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
@@ -162,7 +198,7 @@ def check_pxe_mapping_created(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     cmd = CMDS["find_csv"].format(
         path=output_path, pattern=PXE_MAPPING_PATTERN
     )
@@ -190,7 +226,7 @@ def check_pxe_mapping_columns(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
     cmd = CMDS["csv_header"].format(path=symlink_path)
     result = run_on_host(host, cmd)
@@ -229,7 +265,7 @@ def check_pxe_mapping_has_rows(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
     cmd = CMDS["csv_line_count"].format(path=symlink_path)
     result = run_on_host(host, cmd)
@@ -264,7 +300,7 @@ def check_discovery_report_created(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     cmd = CMDS["find_csv"].format(
         path=output_path, pattern=DISCOVERY_REPORT_PATTERN
     )
@@ -292,7 +328,7 @@ def check_pxe_mapping_symlink(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
     cmd = CMDS["readlink"].format(path=symlink_path)
     result = run_on_host(host, cmd)
@@ -345,7 +381,7 @@ def check_output_dir_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     cmd = CMDS["dir_exists"].format(path=output_path)
     result = run_on_host(host, cmd)
     
@@ -385,7 +421,7 @@ def check_credentials_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
     cmd = CMDS["file_exists"].format(path=cred_path)
     result = run_on_host(host, cmd)
@@ -414,7 +450,7 @@ def check_pxe_mapping_files_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     cmd = CMDS["find_csv"].format(
         path=output_path, pattern=PXE_MAPPING_PATTERN
     )
@@ -444,7 +480,7 @@ def check_discovery_report_files_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     cmd = CMDS["find_csv"].format(
         path=output_path, pattern=DISCOVERY_REPORT_PATTERN
     )
@@ -474,7 +510,7 @@ def check_status_files_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    output_path = _get_output_path()
+    output_path = _get_output_path(host)
     cmd = CMDS["find_csv"].format(
         path=output_path, pattern="discovery_status.yml"
     )
@@ -504,7 +540,7 @@ def check_credentials_preserved(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    input_path = _get_input_path()
+    input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
     cmd = CMDS["file_exists"].format(path=cred_path)
     result = run_on_host(host, cmd)
@@ -533,8 +569,6 @@ def check_log_files_removed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
     log_dir = f"/var/log/omnia/discovery"
     
     # Check for log files
@@ -565,8 +599,6 @@ def check_log_files_preserved(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success (bool), details (str), error (str).
     """
-    config = load_test_config()
-    project = config.get("project_name", "project_default")
     log_dir = f"/var/log/omnia/discovery"
     
     # Check for log files

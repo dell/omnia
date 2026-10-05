@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 input_project_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] }}"
 # Versioned JSON file: service_k8s_v<version>.json (e.g., service_k8s_v1.35.1.json)
 k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json" # noqa: yaml[line-length]
@@ -84,7 +83,7 @@ permission_644: "0644"
 owner_value: "root"
 group_value: "root"
 csi_powerscale_secret_vaultname: ".csi_powerscale_secret_vault"
-vault_key_permission: "0644"
+vault_key_permission: "0600"
 
 # Usage ps_storage_class.j2
 ps_isipath: "{{ csi_powerscale_values_file['isiPath'] }}"
@@ -119,3 +118,8 @@ print_copy_msg: "Copying {{ item.name }} from {{ item.source_path }} to {{ item.
 offline_path_x86_64: []
 offline_path_aarch64: []
 ssh_private_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa"
+# Centralized failure messages
+repo_status_vars_fail_msg: >-
+  Required repo_manager variables (offline_tarball_path, offline_manifest_path)
+  are not defined. Ensure repo_manager_output_path is set in orchestrator_config.yml
+  and the file exists, or run repo_manager.yml first.

@@ -273,4 +273,5 @@ PXE phase writes `orchestrator_status.yml`.
 For a successful Discovery status, the CLI also verifies that both timestamped
 CSV outputs and the valid latest-mapping symlink exist. For Orchestrator, it
 checks `provisioning_report.yml` after a completed provisioning phase and
-`pxeboot_status.yml` plus `failed_nodes.json` after a completed PXE phase.
+`failed_nodes.json` after a completed PXE phase. The aggregate PXE lifecycle
+state remains available in `orchestrator_status.yml`.
