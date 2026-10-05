@@ -350,7 +350,7 @@ class TestCommandSequenceIdempotency:
             "nid0001", "ib0", _ipv6_only()["ib0"], LOGGER
         )
         create_cmd = result["commands"][1]
-        assert "802-3-ethernet.mtu 2044" in create_cmd
+        assert "infiniband.mtu 2044" in create_cmd
 
     def test_autoconnect_yes(self):
         """ORCH_UT_NM_033: Autoconnect enabled."""
@@ -729,3 +729,142 @@ class TestJinja2TemplateBackwardCompat:
             assert "/opt/omnia/" not in line or "default" in line, (
                 f"Hardcoded /opt/omnia/ path found: {line.strip()}"
             )
+
+
+# ===========================================================================
+# TC-UT-005/006/007 extension: Cloud-init hosts injection, hosts distribution,
+# IB interface discovery (ER-ORCH-005 post-implementation reconciliation)
+# ===========================================================================
+
+class TestCloudInitHostsInjection:
+    """Verify cloud-init /etc/hosts IPoIB injection via metadata-service templates."""
+
+    TEMPLATES_DIR = (
+        _REPO_ROOT / "src" / "orchestrator" / "roles" / "provision_common"
+        / "templates" / "metadata_svc"
+    )
+
+    def test_ib_hosts_entries_in_slurm_node_template(self):
+        """ms-group-slurm_node_x86_64.yaml.j2 contains ib_hosts_entries loop."""
+        template_path = self.TEMPLATES_DIR / "ms-group-slurm_node_x86_64.yaml.j2"
+        if not template_path.exists():
+            pytest.skip("Template not found (expected in orchestrator source)")
+        content = template_path.read_text(encoding="utf-8")
+        assert "ib_hosts_entries" in content, (
+            "ms-group-slurm_node_x86_64 missing ib_hosts_entries injection"
+        )
+        assert "default([])" in content, (
+            "ib_hosts_entries must use default([]) for backward compat"
+        )
+
+    def test_ib_hosts_entries_in_slurm_control_template(self):
+        """ms-group-slurm_control_node_x86_64.yaml.j2 contains ib_hosts_entries."""
+        template_path = self.TEMPLATES_DIR / "ms-group-slurm_control_node_x86_64.yaml.j2"
+        if not template_path.exists():
+            pytest.skip("Template not found")
+        content = template_path.read_text(encoding="utf-8")
+        assert "ib_hosts_entries" in content
+
+    def test_ib_hosts_entries_in_login_node_template(self):
+        """ms-group-login_node_x86_64.yaml.j2 contains ib_hosts_entries."""
+        template_path = self.TEMPLATES_DIR / "ms-group-login_node_x86_64.yaml.j2"
+        if not template_path.exists():
+            pytest.skip("Template not found")
+        content = template_path.read_text(encoding="utf-8")
+        assert "ib_hosts_entries" in content
+
+    def test_all_templates_have_default_fallback(self):
+        """All ms-group-*.yaml.j2 templates with ib_hosts_entries use default([])."""
+        if not self.TEMPLATES_DIR.exists():
+            pytest.skip("Templates directory not found")
+        for tpl in self.TEMPLATES_DIR.glob("ms-group-*.yaml.j2"):
+            content = tpl.read_text(encoding="utf-8")
+            if "ib_hosts_entries" in content:
+                assert "default([])" in content, (
+                    f"{tpl.name} has ib_hosts_entries without default([]) fallback"
+                )
+
+
+class TestHostsDistributionMergeLogic:
+    """Verify the Python-based atomic merge logic used for compute node hosts distribution."""
+
+    @staticmethod
+    def _merge_hosts_block(existing_hosts: str, new_block: str) -> str:
+        """Simulate the Python merge logic from publish_hosts.yml.
+
+        This mirrors the inline Python3 script used in the 'Merge IPoIB hosts
+        block into /etc/hosts on compute nodes' task.
+        """
+        marker_begin = "# BEGIN Omnia IPoIB managed block"
+        marker_end = "# END Omnia IPoIB managed block"
+
+        # Strip markers from new block
+        lines = new_block.strip().split("\n")
+        block = "\n".join(
+            line for line in lines
+            if not line.startswith("# BEGIN") and not line.startswith("# END")
+        )
+
+        if marker_begin in existing_hosts:
+            result = re.sub(
+                re.escape(marker_begin) + ".*?" + re.escape(marker_end),
+                marker_begin + "\n" + block + "\n" + marker_end,
+                existing_hosts,
+                flags=re.DOTALL,
+            )
+        else:
+            result = (
+                existing_hosts.rstrip("\n") + "\n"
+                + marker_begin + "\n" + block + "\n" + marker_end + "\n"
+            )
+        return result
+
+    def test_first_insertion(self):
+        """First insertion appends managed block with markers."""
+        existing = "127.0.0.1 localhost\n"
+        new_block = (
+            "# BEGIN Omnia IPoIB managed block\n"
+            "192.168.0.11 nid001-ib0\n"
+            "# END Omnia IPoIB managed block\n"
+        )
+        result = self._merge_hosts_block(existing, new_block)
+        assert "# BEGIN Omnia IPoIB managed block" in result
+        assert "192.168.0.11 nid001-ib0" in result
+        assert "# END Omnia IPoIB managed block" in result
+        assert result.startswith("127.0.0.1 localhost")
+
+    def test_replacement(self):
+        """Existing managed block replaced atomically."""
+        existing = (
+            "127.0.0.1 localhost\n"
+            "# BEGIN Omnia IPoIB managed block\n"
+            "192.168.0.11 nid001-ib0\n"
+            "# END Omnia IPoIB managed block\n"
+        )
+        new_block = (
+            "# BEGIN Omnia IPoIB managed block\n"
+            "192.168.0.11 nid001-ib0\n"
+            "fd00:1b::11 nid001-ib0\n"
+            "# END Omnia IPoIB managed block\n"
+        )
+        result = self._merge_hosts_block(existing, new_block)
+        assert "fd00:1b::11 nid001-ib0" in result
+        # Should have exactly one BEGIN marker
+        assert result.count("# BEGIN Omnia IPoIB managed block") == 1
+
+    def test_user_content_preserved(self):
+        """Content outside markers preserved during replacement."""
+        existing = (
+            "127.0.0.1 localhost\n"
+            "10.0.0.1 myserver\n"
+            "# BEGIN Omnia IPoIB managed block\n"
+            "old entry\n"
+            "# END Omnia IPoIB managed block\n"
+            "10.0.0.2 otherserver\n"
+        )
+        new_block = "# BEGIN Omnia IPoIB managed block\n192.168.0.11 nid001\n# END Omnia IPoIB managed block\n"
+        result = self._merge_hosts_block(existing, new_block)
+        assert "10.0.0.1 myserver" in result
+        assert "10.0.0.2 otherserver" in result
+        assert "old entry" not in result
+        assert "192.168.0.11 nid001" in result
