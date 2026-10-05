@@ -395,6 +395,20 @@ def pytest_runtest_makereport(item, call):
         report.add_result(report_payload)
 
 
+# =============================================================================
+# SUPPRESS PYTEST DOT OUTPUT (TestLogger already provides detail)
+# =============================================================================
+def pytest_report_teststatus(report, config):
+    """Replace pytest's default . s F characters with empty strings."""
+    if report.when == "call":
+        if report.passed:
+            return "passed", "", ""
+        elif report.failed:
+            return "failed", "", ""
+    if report.skipped:
+        return "skipped", "", ""
+
+
 @pytest.fixture(scope="session")
 def host():
     """Return a testinfra host connection to the target."""
