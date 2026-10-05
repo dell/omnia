@@ -710,7 +710,7 @@ def check_dcgm_neg_socket_inaccessible(host):
         # Find and temporarily rename the socket
         socket_paths = [
             "/var/run/nvidia-dcgm/nv-hostengine.sock",
-            "/tmp/nv-hostengine.sock",
+            "/tmp/nv-hostengine.sock",  # nosec B108
         ]
         renamed = None
         for spath in socket_paths:
