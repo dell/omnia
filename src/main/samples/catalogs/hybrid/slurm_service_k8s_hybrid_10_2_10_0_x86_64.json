@@ -184,7 +184,6 @@
         "components": [
           "cffi==1_17_1",
           "cryptography==45_0_7",
-          "omsdk==1_2_518",
           "prettytable==3_14_0"
         ]
       },
