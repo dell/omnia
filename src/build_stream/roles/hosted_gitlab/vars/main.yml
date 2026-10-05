@@ -181,8 +181,6 @@ gitlab_input_files:
     src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/security_config.yml"
   - name: "orchestrator/storage_config.yml"
     src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/storage_config.yml"
-  - name: "orchestrator/high_availability_config.yml"
-    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/high_availability_config.yml"
   - name: "orchestrator/additional_cloud_init.yml"
     src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/additional_cloud_init.yml"
   - name: "orchestrator/pxe_mapping_file.csv"

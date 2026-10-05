@@ -1,6 +1,6 @@
 # Orchestrator -- Input Contract
 
-**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 24, 2026
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: October 5, 2026
 
 This document defines all input files consumed by the `orchestrator` domain.
 
@@ -330,7 +330,6 @@ These files are read from the same Orchestrator project input directory:
 | `storage_config.yml` | Storage mount configuration |
 | `security_config.yml` | Security settings |
 | `network_spec.yml` | Administrative and InfiniBand network definitions |
-| `high_availability_config.yml` | Kubernetes control-plane VIP settings when HA is configured |
 | `set_pxe_boot_config.yml` | PXE boot retry and post-boot verification settings |
 
 `storage_config.yml` is conditionally required. When `omnia_config.yml`
@@ -372,6 +371,27 @@ CSI credentials are mandatory. Orchestrator resolves the versioned
 `csi-powerscale`, `helm-charts`, and `external-snapshotter` artifacts from
 `repo_status.yml` rather than using a catalog group as the runtime feature
 switch.
+
+### Kubernetes HA selection
+
+Kubernetes HA fields live on the one `service_k8s_cluster` entry whose
+`deployment` value is `true`:
+
+```yaml
+service_k8s_cluster:
+  - cluster_name: service_cluster
+    deployment: true
+    enable_k8s_ha: true
+    virtual_ip_address: "172.16.107.1"
+```
+
+When the PXE mapping selects a Kubernetes functional group, the deployed entry
+must set a boolean `enable_k8s_ha` and a valid IPv4 `virtual_ip_address`. The
+VIP is validated (control-plane subnet, no collision with mapped nodes, DHCP
+ranges, OIM addresses, or `pod_external_ip_range`) even when HA is disabled,
+because kube-vip and the node metadata always use it. Projects that select no
+Kubernetes group do not need these keys. Runtime consumers select by
+`deployment: true`, not list position.
 
 ---
 

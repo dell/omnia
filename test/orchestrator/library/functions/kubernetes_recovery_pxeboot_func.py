@@ -40,19 +40,11 @@ from .kubernetes_runtime_pxeboot_func import check_kubernetes_local_etcd_integri
 
 
 def _vip_configuration(context, config) -> tuple[bool, str]:
-    cluster_name = str(config.get("cluster_name", ""))
-    entries = context["high_availability_config"].get("service_k8s_cluster_ha", [])
-    matches = [
-        entry
-        for entry in entries
-        if isinstance(entry, dict) and entry.get("cluster_name") == cluster_name
-    ]
-    if len(matches) != 1:
-        raise ValueError("Kubernetes HA configuration is missing or ambiguous")
-    enabled = bool(matches[0].get("enable_k8s_ha", False))
+    del context  # HA settings now live on the selected deployed cluster.
+    enabled = bool(config.get("enable_k8s_ha", False))
     if not enabled:
         return False, ""
-    vip = str(ipaddress.ip_address(str(matches[0].get("virtual_ip_address", ""))))
+    vip = str(ipaddress.ip_address(str(config.get("virtual_ip_address", ""))))
     return enabled, vip
 
 

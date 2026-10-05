@@ -136,12 +136,6 @@
 # metadata-service templates need them during provision_common which
 # runs before k8s_config.  Guard all tasks with target_category check.
 
-- name: Load high availability config for kube_vip
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/high_availability_config.yml"
-  failed_when: false
-  when: target_category | default('') == 'kubernetes'
-
 - name: Load orchestrator_config for dns_enabled
   when:
     - target_category | default('') == 'kubernetes'
@@ -163,7 +157,7 @@
          | selectattr('deployment', 'defined')
          | selectattr('deployment', 'sameas', true)
          | first
-         | default(service_k8s_cluster | default([]) | first | default({})) }}
+         | default({}) }}
   when: target_category | default('') == 'kubernetes'
 
 - name: Read version-qualified K8s repository base URLs
@@ -184,9 +178,11 @@
     quiet: true
   when: target_category | default('') == 'kubernetes'
 
-- name: Set K8s facts from omnia_config and HA config
+- name: Set K8s facts from effective deployed cluster configuration
   ansible.builtin.set_fact:
-    kube_vip: "{{ service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+    kube_vip: >-
+      {{ hostvars['localhost']['service_k8s_deployed_cluster']
+         .virtual_ip_address | default('') }}
     service_k8s_version: "{{ hostvars['localhost']['service_k8s_version'] }}"
     k8s_pod_network_cidr: "{{ metadata_service_k8s_cluster.k8s_pod_network_cidr }}"
     k8s_service_addresses: "{{ metadata_service_k8s_cluster.k8s_service_addresses }}"

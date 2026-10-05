@@ -1068,6 +1068,17 @@ def _validate_kubernetes(
     _validate_k8s_networks(
         deployed_clusters, input_project_dir, mapping_rows, errors, logger
     )
+    # Imported here rather than at module scope: k8s_ha_validator imports
+    # helpers from this module, so a top-level import would be circular.
+    # pylint: disable-next=import-outside-toplevel
+    from .k8s_ha_validator import validate_deployed_cluster_ha
+
+    for deployed_cluster in deployed_clusters:
+        errors.extend(
+            validate_deployed_cluster_ha(
+                deployed_cluster, input_project_dir, logger
+            )
+        )
     _validate_storage(
         "service_k8s_cluster",
         deployed_clusters,

@@ -137,10 +137,6 @@ def load_workload_context(
         host,
         os.path.join(input_dir, STORAGE_CONFIG),
     )
-    context["high_availability_config"] = read_yaml_mapping(
-        host,
-        os.path.join(input_dir, "high_availability_config.yml"),
-    )
     orchestrator_config = read_yaml_mapping(
         host,
         os.path.join(input_dir, "orchestrator_config.yml"),

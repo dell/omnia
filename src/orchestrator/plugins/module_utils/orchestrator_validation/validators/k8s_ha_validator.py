@@ -11,7 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""L2 semantic validation for ``high_availability_config.yml``."""
+"""L2 semantic validation for Kubernetes service-node high availability.
+
+``enable_k8s_ha`` and ``virtual_ip_address`` live on the ``service_k8s_cluster``
+entry in ``omnia_config.yml`` that they qualify. The former
+``high_availability_config.yml``, its ``cluster_name`` join back to
+``omnia_config.yml``, and the mismatch error class that join produced have all
+been removed. What remains here is the genuine network validation the join
+logic was wrapped around: the virtual IP must not collide with a mapped node,
+a DHCP range, an OIM address, or the external pool, and it must sit in the
+control-plane subnet.
+"""
 
 from __future__ import annotations
 
@@ -119,33 +129,6 @@ def _mapped_addresses(
             if isinstance(address, ipaddress.IPv4Address):
                 mapped[field].add(str(address))
     return mapped
-
-
-def _deployed_cluster(
-    input_project_dir: str,
-    errors: list[str],
-    logger: Logger | None,
-) -> dict[str, Any] | None:
-    """Load the exactly-one deployed Kubernetes cluster contract."""
-    omnia_data = load_project_yaml(input_project_dir, "omnia_config.yml")
-    if not isinstance(omnia_data, dict) or not isinstance(
-        omnia_data.get("service_k8s_cluster"), list
-    ):
-        record_error(errors, logger, msg.HA_OMNIA_CONFIG_INVALID_MSG)
-        return None
-    deployed = [
-        cluster
-        for cluster in omnia_data["service_k8s_cluster"]
-        if isinstance(cluster, dict) and cluster.get("deployment") is True
-    ]
-    if len(deployed) != 1:
-        record_error(
-            errors,
-            logger,
-            msg.ha_omnia_deployment_count_msg(len(deployed)),
-        )
-        return None
-    return deployed[0]
 
 
 def _control_plane_network(
@@ -284,57 +267,60 @@ def _validate_subnet_compatibility(
         )
 
 
-def validate(
-    config_data: Any,
+def validate_deployed_cluster_ha(
+    deployed_cluster: Any,
     input_project_dir: str,
     logger: Logger | None = None,
 ) -> list[str]:
-    """Run PXE-applicable L2 validation for the Kubernetes HA input."""
+    """Validate Kubernetes HA settings on the deployed ``service_k8s_cluster``.
+
+    The HA parameters now live on the cluster entry they qualify, so there is
+    no cluster_name join to reconcile and no mismatch error class. What remains
+    is the genuine network validation: the virtual IP must not collide with a
+    mapped node, a DHCP range, an OIM address, or the external pool, and it
+    must sit in the control-plane subnet.
+
+    Args:
+        deployed_cluster: The ``service_k8s_cluster`` entry whose ``deployment``
+            is true.
+        input_project_dir: Current project input directory.
+        logger: Optional validation logger.
+
+    Returns:
+        Validation error messages, or an empty list when the PXE mapping
+        selects no Kubernetes workload.
+    """
     errors: list[str] = []
+    if not isinstance(deployed_cluster, dict):
+        return errors
+
     mapping_rows = load_pxe_mapping_rows(input_project_dir)
     if "kubernetes" not in selected_workloads(mapping_rows):
         return errors
 
-    if not isinstance(config_data, dict) or not config_data:
-        record_error(errors, logger, msg.HA_CONFIG_EMPTY_MSG)
-        return errors
-
-    entries = config_data.get("service_k8s_cluster_ha")
-    if not isinstance(entries, list) or len(entries) != 1 or not isinstance(
-        entries[0], dict
-    ):
-        count = len(entries) if isinstance(entries, list) else 0
-        record_error(errors, logger, msg.ha_entry_count_msg(count))
-        return errors
-    entry = entries[0]
-
-    deployed_cluster = _deployed_cluster(input_project_dir, errors, logger)
-    if deployed_cluster is None:
-        return errors
-    expected_name = str(deployed_cluster.get("cluster_name", ""))
-    actual_name = str(entry.get("cluster_name", ""))
-    if actual_name != expected_name:
+    # Required only when the mapping selects Kubernetes, so Slurm-only projects
+    # that keep an unused deployed entry are unaffected. kube-vip and the
+    # metadata templates always consume the VIP, so it is validated even when
+    # enable_k8s_ha is false, matching the retired standalone input.
+    if not isinstance(deployed_cluster.get("enable_k8s_ha"), bool):
+        record_error(
+            errors, logger, msg.ha_field_required_msg("enable_k8s_ha", "a boolean")
+        )
+    raw_vip = deployed_cluster.get("virtual_ip_address")
+    if raw_vip is None or not str(raw_vip).strip():
         record_error(
             errors,
             logger,
-            msg.ha_cluster_name_mismatch_msg(actual_name, expected_name),
+            msg.ha_field_required_msg("virtual_ip_address", "an IPv4 address"),
         )
-
+        return errors
     try:
-        vip = ipaddress.ip_address(entry.get("virtual_ip_address"))
+        vip = ipaddress.ip_address(raw_vip)
     except (TypeError, ValueError):
-        record_error(
-            errors,
-            logger,
-            msg.ha_vip_invalid_msg(str(entry.get("virtual_ip_address", ""))),
-        )
+        record_error(errors, logger, msg.ha_vip_invalid_msg(str(raw_vip or "")))
         return errors
     if not isinstance(vip, ipaddress.IPv4Address):
-        record_error(
-            errors,
-            logger,
-            msg.ha_vip_invalid_msg(str(entry.get("virtual_ip_address", ""))),
-        )
+        record_error(errors, logger, msg.ha_vip_invalid_msg(str(raw_vip or "")))
         return errors
 
     admin_networks, dhcp_ranges, oim_addresses = _network_context(

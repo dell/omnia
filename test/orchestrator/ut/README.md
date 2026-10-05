@@ -11,6 +11,7 @@ an OIM, calling OpenCHAMI, or executing an Orchestrator playbook.
 | `test_pxeboot_contracts.py` | Kubernetes version parsing/skew, Slurm parsers and shared-storage selection, catalog feature resolution, mutation authorization, cloud-init interpretation, and Apptainer image-path validation |
 | `test_cleanup_contracts.py` | Cleanup after Kubernetes apply failure and Slurm drain-test restoration |
 | `test_nft_contracts.py` | NFT threshold validation and Ansible idempotency-recap interpretation |
+| `test_k8s_ha_config_contract.py` | Kubernetes HA field typing in the `omnia_config.yml` schema, workload-aware required fields, and VIP collision/subnet checks on the deployed cluster |
 
 Parameterized cases count as separate pytest results. Function names and
 docstrings carry `ORCH_UT_*` identifiers where a stable unit contract has been
@@ -44,6 +45,7 @@ python3 -m pytest --confcutdir=ut ut/test_prepare_contracts.py -q
 python3 -m pytest --confcutdir=ut ut/test_pxeboot_contracts.py -q
 python3 -m pytest --confcutdir=ut ut/test_cleanup_contracts.py -q
 python3 -m pytest --confcutdir=ut ut/test_nft_contracts.py -q
+python3 -m pytest --confcutdir=ut ut/test_k8s_ha_config_contract.py -q
 ```
 
 Unit tests must remain isolated: mock external commands at the helper boundary

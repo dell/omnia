@@ -258,6 +258,14 @@
     _deployed_service_k8s_cluster: >-
       {{ _deployed_service_k8s_clusters | first | default({}) }}
 
+# Kubernetes HA settings (enable_k8s_ha, virtual_ip_address) live on the
+# deployed service_k8s_cluster entry. Publish it for kube_vip consumers, which
+# select by deployment flag rather than list position.
+- name: Publish deployed service Kubernetes cluster
+  ansible.builtin.set_fact:
+    service_k8s_deployed_cluster: "{{ _deployed_service_k8s_cluster }}"
+    cacheable: true
+
 - name: Validate PowerScale CSI enablement
   ansible.builtin.assert:
     that:

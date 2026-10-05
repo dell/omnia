@@ -35,16 +35,8 @@ NETWORK_SPEC_NETMASK_REQUIRED_MSG = (
 OMNIA_CONFIG_EMPTY_MSG = (
     "omnia_config.yml: File is empty or not a valid YAML object."
 )
-HA_CONFIG_EMPTY_MSG = (
-    "high_availability_config.yml: File is missing, empty, or not a valid "
-    "YAML object for the selected Kubernetes workload."
-)
-HA_OMNIA_CONFIG_INVALID_MSG = (
-    "high_availability_config.yml: omnia_config.yml must define a valid "
-    "service_k8s_cluster list."
-)
 HA_CONTROL_PLANE_REQUIRED_MSG = (
-    "high_availability_config.yml: PXE mapping must contain at least one "
+    "omnia_config.yml service_k8s_cluster: PXE mapping must contain at least one "
     "service_kube_control_plane functional group with a valid ADMIN_IP."
 )
 
@@ -798,37 +790,19 @@ def omnia_powerscale_csi_content_msg(
     )
 
 
-def ha_entry_count_msg(count: int) -> str:
-    """Return an HA configuration entry-count error message."""
+def ha_field_required_msg(field_name: str, expected: str) -> str:
+    """Return a missing Kubernetes HA field error message."""
     return (
-        "high_availability_config.yml: Exactly one service_k8s_cluster_ha "
-        "entry is required for the selected Kubernetes workload; "
-        f"found {count}."
-    )
-
-
-def ha_omnia_deployment_count_msg(count: int) -> str:
-    """Return an unresolved deployed Kubernetes cluster error message."""
-    return (
-        "high_availability_config.yml: Cannot resolve the active Kubernetes "
-        "cluster because omnia_config.yml must contain exactly one deployed "
-        f"service_k8s_cluster entry; found {count}."
-    )
-
-
-def ha_cluster_name_mismatch_msg(actual: str, expected: str) -> str:
-    """Return an HA/Kubernetes cluster-name mismatch error message."""
-    return (
-        f"high_availability_config.yml: HA cluster_name '{actual}' must match "
-        "the deployed omnia_config.yml Kubernetes cluster "
-        f"'{expected}'."
+        f"omnia_config.yml service_k8s_cluster: {field_name} must be set to "
+        f"{expected} on the deployed entry when the PXE mapping selects "
+        "Kubernetes."
     )
 
 
 def ha_vip_invalid_msg(value: str) -> str:
     """Return an invalid HA virtual IPv4 address error message."""
     return (
-        "high_availability_config.yml: virtual_ip_address "
+        "omnia_config.yml service_k8s_cluster: virtual_ip_address "
         f"'{value}' is not a valid IPv4 address."
     )
 
@@ -836,7 +810,7 @@ def ha_vip_invalid_msg(value: str) -> str:
 def ha_vip_address_conflict_msg(vip: str, source: str) -> str:
     """Return an HA virtual-IP address collision error message."""
     return (
-        f"high_availability_config.yml: virtual_ip_address '{vip}' conflicts "
+        f"omnia_config.yml service_k8s_cluster: virtual_ip_address '{vip}' conflicts "
         f"with an address defined by {source}."
     )
 
@@ -844,7 +818,7 @@ def ha_vip_address_conflict_msg(vip: str, source: str) -> str:
 def ha_vip_dhcp_conflict_msg(vip: str, ranges: list[str]) -> str:
     """Return an HA virtual-IP DHCP-pool collision error message."""
     return (
-        f"high_availability_config.yml: virtual_ip_address '{vip}' belongs "
+        f"omnia_config.yml service_k8s_cluster: virtual_ip_address '{vip}' belongs "
         f"to DHCP pool(s): {', '.join(ranges)}."
     )
 
@@ -852,7 +826,7 @@ def ha_vip_dhcp_conflict_msg(vip: str, ranges: list[str]) -> str:
 def ha_vip_external_pool_conflict_msg(vip: str, pool: str) -> str:
     """Return an HA virtual-IP external-pool collision error message."""
     return (
-        f"high_availability_config.yml: virtual_ip_address '{vip}' belongs "
+        f"omnia_config.yml service_k8s_cluster: virtual_ip_address '{vip}' belongs "
         f"to Kubernetes pod_external_ip_range '{pool}'."
     )
 
@@ -860,7 +834,7 @@ def ha_vip_external_pool_conflict_msg(vip: str, pool: str) -> str:
 def ha_control_plane_network_unresolved_msg(addresses: list[str]) -> str:
     """Return an unresolved control-plane admin-subnet error message."""
     return (
-        "high_availability_config.yml: Control-plane ADMIN_IP address(es) "
+        "omnia_config.yml service_k8s_cluster: Control-plane ADMIN_IP address(es) "
         "must belong to exactly one configured admin subnet: "
         f"{', '.join(addresses)}."
     )
@@ -869,7 +843,7 @@ def ha_control_plane_network_unresolved_msg(addresses: list[str]) -> str:
 def ha_control_plane_multiple_subnets_msg(networks: list[str]) -> str:
     """Return a split control-plane admin-subnet error message."""
     return (
-        "high_availability_config.yml: All Kubernetes control-plane nodes "
+        "omnia_config.yml service_k8s_cluster: All Kubernetes control-plane nodes "
         "must share one admin subnet for kube-vip and MetalLB L2 operation; "
         f"found {', '.join(networks)}."
     )
@@ -878,7 +852,7 @@ def ha_control_plane_multiple_subnets_msg(networks: list[str]) -> str:
 def ha_vip_control_plane_subnet_msg(vip: str, network: str) -> str:
     """Return an HA virtual-IP subnet-membership error message."""
     return (
-        f"high_availability_config.yml: virtual_ip_address '{vip}' must be "
+        f"omnia_config.yml service_k8s_cluster: virtual_ip_address '{vip}' must be "
         f"a usable host address in the control-plane subnet {network}."
     )
 
@@ -888,7 +862,7 @@ def ha_external_pool_control_plane_subnet_msg(
 ) -> str:
     """Return a MetalLB pool/control-plane subnet error message."""
     return (
-        "high_availability_config.yml: Kubernetes pod_external_ip_range "
+        "omnia_config.yml service_k8s_cluster: Kubernetes pod_external_ip_range "
         f"'{pool}' must be fully contained in the control-plane subnet "
         f"{network} for MetalLB L2 operation."
     )
