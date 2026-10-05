@@ -144,9 +144,7 @@
 
 - name: Fail when functional groups are missing BSS boot parameters
   ansible.builtin.fail:
-    msg: >-
-      Provisioning is incomplete: {{ fg_missing_bss | length }} functional
-      group(s) have no Boot Service configuration: {{ fg_missing_bss }}
+    msg: "{{ bss_boot_parameters_fail_msg }}"
   when: fg_missing_bss | length > 0
 
 # --- Metadata-service (cloud-init) data verification ---
@@ -202,11 +200,7 @@
 
 - name: Fail when expected administrative interfaces are missing from SMD
   ansible.builtin.fail:
-    msg: >-
-      Provisioning is incomplete: {{ missing_smd_interfaces | length }}
-      administrative MAC address(es) are missing from SMD EthernetInterfaces:
-      {{ missing_smd_interfaces }}. CoreDHCP cannot assign their configured
-      node IP addresses.
+    msg: "{{ smd_admin_interfaces_fail_msg }}"
   when: missing_smd_interfaces | length > 0
 
 - name: Build list of nodes with hostname assignments
@@ -320,7 +314,9 @@
            'provisioning_status': _node_status,
            'pxeboot': {
              'status': 'not_run',
-             'state': 'not_run'
+             'state': 'not_run',
+             'trigger_method': 'not_run',
+             'verification_method': 'not_run'
            }}] }}
   loop: "{{ expected_nodes }}"
   vars:
@@ -370,10 +366,8 @@
           failure_count: 0
           unverified_count: 0
           timestamp: ""
-          report: pxeboot_status.yml
       artifacts:
         provisioning_report: provisioning_report.yml
-        pxeboot_status: pxeboot_status.yml
         failed_nodes: failed_nodes.json
   when: >-
     ansible_run_tags | default([])

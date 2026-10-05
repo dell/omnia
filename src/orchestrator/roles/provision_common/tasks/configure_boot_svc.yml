@@ -13,14 +13,8 @@
 # limitations under the License.
 ---
 # Configure boot-service boot params for a single functional group.
-# Extracted from configure_ochami/tasks/configure_boot_svc_group.yml.
 # Called in a loop with fg_name set by the caller.
 # Reconciles through the shared JWT- and CA-verified OpenCHAMI client.
-
-- name: Load S3 configuration messages
-  ansible.builtin.include_vars:
-    file: "{{ role_path }}/../orchestrator_common/vars/s3_config_messages.yml"
-  run_once: true
 
 - name: Set functional_group_name for template compatibility
   ansible.builtin.set_fact:

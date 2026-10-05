@@ -28,6 +28,7 @@
 #   ansible-playbook playbooks/orchestrator.yml --tags prepare         # Credentials + deploy + validate-deployment
 #   ansible-playbook playbooks/orchestrator.yml --tags deploy          # Deploy OpenCHAMI + OpenLDAP + validate
 #   ansible-playbook playbooks/orchestrator.yml --tags provision       # SSH + provision all categories + validate
+#   ansible-playbook playbooks/orchestrator.yml --tags verify_node_registration # Verify externally booted nodes
 #   ansible-playbook playbooks/orchestrator.yml --tags execute         # Provision + PXE boot (if enabled)
 #   ansible-playbook playbooks/orchestrator.yml --tags validate-deployment # Validate OpenCHAMI + OpenLDAP service health
 #   ansible-playbook playbooks/orchestrator.yml --tags pxeboot         # PXE boot on iDRAC nodes (requires enable_pxe_boot: true)
@@ -49,6 +50,7 @@
 #   execute      — Invoke provision + pxeboot tags (PXE boot conditional on enable_pxe_boot)
 #   validate-deployment — Validate OpenCHAMI and OpenLDAP service health (read-only)
 #   pxeboot      — PXE boot on iDRAC nodes (controlled by enable_pxe_boot in orchestrator_config.yml)
+#   verify_node_registration — Verify manually or hypervisor-booted nodes over SSH
 #   cleanup      — Cleanup all enabled components and credentials; use -e cleanup_credentials=false to preserve credentials
 #   cleanup_credentials — Cleanup only the Orchestrator credential files
 #   upgrade      — In-place upgrade of OpenCHAMI + OpenLDAP (opt-in only)
@@ -268,6 +270,13 @@
   tags:
     - execute
     - pxeboot
+
+# Verify a manual or hypervisor-triggered boot without invoking iDRAC.
+- name: Verify externally booted nodes
+  ansible.builtin.import_playbook: pxeboot/verify_node_registration.yml
+  tags:
+    - never
+    - verify_node_registration
 
 # =========================================================================
 # FLOW: cleanup — Remove all orchestrator components (opt-in only)
