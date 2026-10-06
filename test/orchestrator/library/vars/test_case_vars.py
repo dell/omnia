@@ -201,7 +201,7 @@ PROVISION_TEST_CASES: dict[str, dict[str, str]] = {
     },
 }
 
-PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
+PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-error
     "deploy_pxeboot": {
         "id": "ORCH_FVT_PXEBOOT_E001",
         "title": "Execute Orchestrator PXE boot lifecycle",
