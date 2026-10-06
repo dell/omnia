@@ -16,14 +16,18 @@
 # =============================================================================
 # deploy_ldms — Enable LDMS telemetry
 # =============================================================================
-# Full enable flow, running on kube_vip_group (single play):
+# Full enable flow, running on kube_vip_group (single play). Owns everything
+# that is only relevant when LDMS is enabled — disable.yml needs none of this
+# since it only scales existing K8s resources to zero.
 #
-#   1. Validate configuration
-#   2. Prepare aggregator auth (munge key fetched from control node)
-#   3. Prepare shared sampler config (rendered to NFS)
-#   4. Deploy aggregator + store (Helm chart)
-#   5. Deploy Vector-LDMS bridge
-#   6. Verify deployment
+#   1. Build Slurm inventory + reachability (ldms_deploy_reachable /
+#      ldms_deploy_aggregator_control groups, used here and by Play 2)
+#   2. Validate configuration
+#   3. Prepare aggregator auth (munge key fetched from control node)
+#   4. Prepare shared sampler config (rendered to NFS)
+#   5. Deploy aggregator + store (Helm chart)
+#   6. Deploy or reconcile the Vector-LDMS bridge
+#   7. Verify deployment
 #
 # Re-enable after disable is handled transparently:
 #   - deploy_ldms_aggregator_k8s.yml restores aggregator/store replicas
@@ -32,7 +36,8 @@
 #
 # Note: Sampler installation on compute nodes (configure_ldms_sampler.yml)
 # runs as a separate play in the deploy_ldms playbook for parallel execution
-# across the Slurm cluster.
+# across the Slurm cluster. It depends on the ldms_deploy_reachable group
+# populated by build_deployment_inventory.yml below.
 #
 # LDMS Architecture:
 #   Compute nodes (LDMS sampler) → LDMS aggregator (K8s) → Kafka 'ldms' topic
@@ -52,6 +57,12 @@
   ansible.builtin.include_role:
     name: common
     tasks_from: derive_sink_support_flags
+  when: kafka_support is not defined
+
+# ---- Slurm inventory + reachability (enable only) ----
+
+- name: Build LDMS deployment inventory and validate reachability
+  ansible.builtin.include_tasks: build_deployment_inventory.yml
 
 # ---- Aggregator authentication (delegate to Slurm control node) ----
 
@@ -69,28 +80,12 @@
   ansible.builtin.include_tasks: deploy_ldms_aggregator_k8s.yml
 
 # ---- K8s deployment: Vector-LDMS bridge ----
+# The Vector-LDMS bridge is an independent on/off switch within an enabled
+# LDMS deployment (telemetry_bridges.vector_ldms.metrics_enabled), so it
+# needs its own reconciliation step distinct from LDMS source enable/disable.
 
-- name: Generate Vector-LDMS manifests
-  ansible.builtin.include_tasks: generate_vector_ldms_manifests.yml
-  when:
-    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
-    - victoria_metrics_support | default(false) | bool
-
-- name: Deploy Vector-LDMS bridge
-  ansible.builtin.include_tasks: deploy_vector_ldms.yml
-  when:
-    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool
-    - victoria_metrics_support | default(false) | bool
-
-- name: Scale down Vector-LDMS when disabled
-  ansible.builtin.command: >
-    kubectl scale deployment {{ vector.ldms.app_name }}
-    -n {{ telemetry_namespace }} --replicas=0
-  register: scale_down_vector_result
-  changed_when: "'scaled' in scale_down_vector_result.stdout"
-  failed_when: false
-  when:
-    - not (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool)
+- name: Reconcile Vector-LDMS bridge state
+  ansible.builtin.include_tasks: reconcile_vector_ldms_bridge.yml
 
 # ---- Verification ----
 

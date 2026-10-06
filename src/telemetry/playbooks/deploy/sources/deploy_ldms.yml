@@ -20,16 +20,19 @@
 #   ansible-playbook telemetry.yml -e kube_vip=<VIP_IP> --tags deploy_ldms
 #
 # Play structure:
-#   Play 1 (kube_vip): Build Slurm inventory + reachability, short-circuit to
-#           disable.yml when LDMS is disabled, deploy shared infra, then run
-#           the deploy_ldms role's enable.yml which handles aggregator auth
-#           (delegate_to Slurm control node), sampler config prep (NFS),
-#           Helm deploy, Vector bridge, and verification — all in one play.
+#   Play 1 (kube_vip): Deploy Kafka (enable only), then include the
+#           deploy_ldms role, which routes internally to enable.yml or
+#           disable.yml based on telemetry_sources.ldms.metrics_enabled.
+#           enable.yml owns the entire enable flow: Slurm inventory +
+#           reachability, aggregator auth (delegate_to Slurm control node),
+#           sampler config prep (NFS), Helm deploy, Vector bridge, and
+#           verification. disable.yml only scales existing K8s resources
+#           to zero, so it needs none of the above.
 #   Play 2 (compute nodes): Configure LDMS sampler in parallel (enable only).
 #
-# On disable (ldms.metrics_enabled: false):
-#   Play 1 pre_tasks run disable.yml and end_play immediately.
-#   Play 2 is skipped via the ldms_metrics_enabled gate.
+# VictoriaMetrics/VictoriaLogs are not deployed here: LDMS never lists them
+# as a direct collection target, so they are deployed centrally in the
+# sinks phase (see playbooks/deploy/deploy.yml Phase 1) before this runs.
 # =============================================================================
 
 # =============================================================================
@@ -48,24 +51,15 @@
         tasks_from: load_telemetry_config
       when: telemetry_config is not defined
 
-    - name: Check if LDMS is disabled
+    - name: Check if LDMS is enabled
       ansible.builtin.set_fact:
         ldms_metrics_enabled: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
-
-    - name: Disable LDMS if metrics_enabled is false
-      ansible.builtin.include_role:
-        name: deploy_ldms
-        tasks_from: disable
-      when: not (ldms_metrics_enabled | bool)
-
-    - name: End play if LDMS is disabled (skip deployment)
-      ansible.builtin.meta: end_play
-      when: not (ldms_metrics_enabled | bool)
 
     - name: Derive sink support flags (only if not already derived)
       ansible.builtin.include_role:
         name: common
         tasks_from: derive_sink_support_flags
+      when: kafka_support is not defined
 
     - name: Add kube_vip to inventory (only if not already added)
       ansible.builtin.add_host:
@@ -74,11 +68,6 @@
         ansible_user: root
       when: kube_vip_group is not defined
 
-    - name: Build LDMS deployment inventory and validate reachability
-      ansible.builtin.include_role:
-        name: deploy_ldms
-        tasks_from: build_deployment_inventory
-
   tasks:
     - name: Set telemetry credentials from localhost
       ansible.builtin.set_fact:
@@ -86,43 +75,23 @@
       no_log: true
       when: hostvars['localhost']['telemetry_credentials'] is defined
 
-    - name: Set required variables from localhost
-      ansible.builtin.set_fact:
-        telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
-        k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
-        slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
-      when: hostvars['localhost']['telemetry_config'] is defined
-
-    - name: Set ldms_sampler_password from localhost (exposed by telemetry_prereq)
-      ansible.builtin.set_fact:
-        ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
-      no_log: true
-      when: hostvars['localhost']['ldms_sampler_password'] is defined
-
     - name: Deploy Kafka (handles both cluster deployment and topic management)
       ansible.builtin.include_role:
         name: deploy_kafka
       when:
+        - ldms_metrics_enabled | bool
         - kafka_support | default(false) | bool
         - not (hostvars['localhost']['kafka_deployed'] | default(false) | bool)
 
-    - name: Deploy VictoriaMetrics/VictoriaLogs (standalone run only)
-      ansible.builtin.include_role:
-        name: deploy_victoria
-      when:
-        - (victoria_metrics_support | default(false) | bool and not (hostvars['localhost']['victoria_metrics_deployed'] | default(false) | bool)) or
-          (victoria_logs_support | default(false) | bool and not (hostvars['localhost']['victoria_logs_deployed'] | default(false) | bool))
-
-    - name: Include deploy_ldms role (routes to enable or disable)
+    - name: Include deploy_ldms role (routes internally to enable or disable)
       ansible.builtin.include_role:
         name: deploy_ldms
-      when: ldms_metrics_enabled | bool
 
 # =============================================================================
 # Play 2: Configure LDMS Sampler on Reachable Slurm Nodes (enable only)
-# Runs sampler config in parallel across compute nodes.
-# Skipped on disable — Play 1 already ended via end_play, but this is a
-# separate play so it is gated independently via the kube_vip host facts.
+# Runs sampler config in parallel across compute nodes. The ldms_deploy_reachable
+# group is populated by enable.yml's build_deployment_inventory step in Play 1,
+# so this play has no hosts (and is skipped) whenever LDMS is disabled.
 # =============================================================================
 - name: Configure LDMS Sampler on Reachable Slurm Nodes
   hosts: ldms_deploy_reachable
@@ -140,18 +109,11 @@
           no_log: true
           when: hostvars['localhost']['telemetry_credentials'] is defined
 
-        - name: Set required variables from localhost
-          ansible.builtin.set_fact:
-            telemetry_config: "{{ hostvars['localhost']['telemetry_config'] }}"
-            k8s_cluster_mount: "{{ hostvars['localhost']['k8s_cluster_mount'] }}"
-            slurm_cluster_mount: "{{ hostvars['localhost']['slurm_cluster_mount'] }}"
-          when: hostvars['localhost']['telemetry_config'] is defined
-
-        - name: Set ldms_sampler_password from localhost (exposed by telemetry_prereq)
-          ansible.builtin.set_fact:
-            ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
-          no_log: true
-          when: hostvars['localhost']['ldms_sampler_password'] is defined
+        - name: Load telemetry configuration (only if not already loaded)
+          ansible.builtin.include_role:
+            name: common
+            tasks_from: load_telemetry_config
+          when: telemetry_config is not defined
 
         - name: Configure LDMS sampler on reachable nodes
           ansible.builtin.include_role:

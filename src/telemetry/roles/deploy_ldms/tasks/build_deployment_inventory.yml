@@ -24,7 +24,8 @@
 #   ldms_deploy_aggregator_control — the Slurm control node used for
 #                                     munge-key / auth preparation
 #
-# Called from deploy_ldms.yml Play 1 pre_tasks (enable path only).
+# Called from enable.yml (enable path only — disable.yml only scales
+# existing K8s resources to zero and needs none of this).
 # =============================================================================
 
 # ---- Load Slurm inventory ----
