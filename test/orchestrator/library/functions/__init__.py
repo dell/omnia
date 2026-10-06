@@ -97,13 +97,16 @@ from .kubernetes_recovery_pxeboot_func import (
     check_kubernetes_local_etcd_recovery,
 )
 from .kubernetes_runtime_pxeboot_func import (
+    check_kubernetes_configured_versions,
     check_kubernetes_local_etcd_integrity,
+    check_kubernetes_local_etcd_provisioning,
     check_kubernetes_version_compatibility,
 )
 from .kubernetes_storage_pxeboot_func import (
     check_kubernetes_csi_dynamic_provisioning,
     check_kubernetes_default_storage_class,
     check_kubernetes_nfs_dynamic_provisioning,
+    check_kubernetes_nfs_provisioner_contract,
     check_kubernetes_snapshot_controller,
     check_kubernetes_workload_scheduling,
 )
@@ -246,6 +249,10 @@ def run_playbook(tag: str | None = None, **kwargs):
 
 __all__ = [
     "TestLogger",
+    "check_additional_cloud_init_metadata_groups",
+    "check_additional_cloud_init_runcmd",
+    "check_additional_cloud_init_smd_groups",
+    "check_additional_cloud_init_write_files",
     "check_apptainer_concurrent_jobs",
     "check_apptainer_cuda_workload",
     "check_apptainer_download",
@@ -291,6 +298,7 @@ __all__ = [
     "check_cleanup_openldap",
     "check_cleanup_slurm",
     "check_credential_file_permissions",
+    "check_kubernetes_configured_versions",
     "check_kubernetes_control_plane",
     "check_kubernetes_control_plane_recovery",
     "check_kubernetes_csi_dynamic_provisioning",
@@ -299,8 +307,10 @@ __all__ = [
     "check_kubernetes_etcd_topology",
     "check_kubernetes_local_etcd",
     "check_kubernetes_local_etcd_integrity",
+    "check_kubernetes_local_etcd_provisioning",
     "check_kubernetes_local_etcd_recovery",
     "check_kubernetes_nfs_dynamic_provisioning",
+    "check_kubernetes_nfs_provisioner_contract",
     "check_kubernetes_node_services",
     "check_kubernetes_nodes",
     "check_kubernetes_snapshot_controller",

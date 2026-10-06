@@ -22,15 +22,15 @@ from library.functions import (
 
 from fvt.result import verify_precheck
 
-pytestmark = [pytest.mark.sanity]
 
-
+@pytest.mark.sanity
 @pytest.mark.order(1)
 def test_precheck_hostname_domain(host):
     """Require the host identity to match omnia.env exactly."""
     verify_precheck(host, "precheck_hostname_domain", check_precheck_hostname_domain)
 
 
+@pytest.mark.sanity
 @pytest.mark.order(2)
 def test_precheck_admin_ipv4(host):
     """Require the configured administrative IPv4 on a global interface."""

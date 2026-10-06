@@ -22,16 +22,18 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.sanity, pytest.mark.kubernetes]
 
-
-@pytest.mark.order(212)
+@pytest.mark.sanity
+@pytest.mark.kubernetes
+@pytest.mark.order(213)
 def test_kubernetes_etcd_health(host):
     """Verify health for all etcd endpoints."""
     verify_pxeboot(host, "kubernetes_etcd_health", check_kubernetes_etcd_health)
 
 
-@pytest.mark.order(213)
+@pytest.mark.sanity
+@pytest.mark.kubernetes
+@pytest.mark.order(214)
 def test_kubernetes_etcd_topology(host):
     """Verify etcd membership, leader election, and raft consistency."""
     verify_pxeboot(host, "kubernetes_etcd_topology", check_kubernetes_etcd_topology)

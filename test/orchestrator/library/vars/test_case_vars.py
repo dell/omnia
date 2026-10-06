@@ -237,6 +237,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Kubernetes component version compatibility",
         "component": "Kubernetes version compatibility",
     },
+    "kubernetes_configured_versions": {
+        "id": "ORCH_FVT_PXEBOOT_V101",
+        "title": "Verify configured Kubernetes component versions",
+        "component": "Kubernetes configured versions",
+    },
     "kubernetes_control_plane": {
         "id": "ORCH_FVT_PXEBOOT_V008",
         "title": "Verify Kubernetes API and control-plane readiness",
@@ -277,6 +282,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Kubernetes local-etcd disk integrity",
         "component": "Kubernetes local-etcd disk integrity",
     },
+    "kubernetes_local_etcd_provisioning": {
+        "id": "ORCH_FVT_PXEBOOT_V102",
+        "title": "Verify Kubernetes local-etcd provisioning contract",
+        "component": "Kubernetes local-etcd provisioning",
+    },
     "kubernetes_storage": {
         "id": "ORCH_FVT_PXEBOOT_V016",
         "title": "Verify Kubernetes NFS and CSI storage",
@@ -291,6 +301,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V018",
         "title": "Verify Kubernetes PowerScale snapshot components",
         "component": "Kubernetes snapshot components",
+    },
+    "kubernetes_nfs_contract": {
+        "id": "ORCH_FVT_PXEBOOT_V103",
+        "title": "Verify Kubernetes NFS provisioner and backend contract",
+        "component": "Kubernetes NFS provisioner",
     },
     "kubernetes_nfs_dynamic": {
         "id": "ORCH_FVT_PXEBOOT_V019",

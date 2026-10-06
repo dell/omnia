@@ -287,6 +287,11 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "kubectl delete persistentvolume %s --ignore-not-found=true "
         "--wait=true --timeout=180s"
     ),
+    "kubernetes_deployments": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl get deployments -A -o json"
+    ),
+    "mount_contract": "findmnt -J %s",
     "kubernetes_etcd_health": (
         "KUBECONFIG=/etc/kubernetes/admin.conf kubectl exec "
         "--namespace kube-system %s -- etcdctl "
@@ -340,6 +345,14 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "stat -c '%Y' /var/log/diskless-etcd-mount.log 2>/dev/null || "
         "stat -c '%Y' /var/log/etcd-disk-setup.log"
     ),
+    "etcd_setup_script": "test -x /usr/local/bin/etcd-disk-setup.sh",
+    "etcd_update_script": "test -x /usr/local/bin/etcd-fstab-update.sh",
+    "etcd_setup_log": "test -s /var/log/etcd-disk-setup.log",
+    "etcd_update_log": "test -s /var/log/diskless-etcd-mount.log",
+    "etcd_selection_log": (
+        "cat /var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log "
+        "2>/dev/null"
+    ),
     "node_boot_time": 'date -d "$(uptime -s)" +%s',
     "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
     "slurm_nodes": "scontrol show nodes --oneliner",
@@ -371,7 +384,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "slurm_insufficient_resources": (
         "nodes=$(sinfo --noheader --Node | wc -l); "
-        "sbatch --immediate=5 --nodes=$((nodes + 1)) --wrap='hostname'"
+        "srun --immediate=5 --nodes=$((nodes + 1)) hostname"
     ),
     "slurm_submit_drain_job": (
         "job=$(sbatch --parsable --nodelist=%s --wrap='sleep 60'); "
@@ -398,6 +411,9 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "rm -f /tmp/omnia-fvt-queue-%s.out /tmp/omnia-fvt-queue-%s.err"
     ),
     "slurm_drain_node": ("scontrol update NodeName=%s State=DRAIN Reason=%s"),
+    "slurm_drain_state": (
+        "sinfo --noheader --nodes=%s --format='%T' | head -1"
+    ),
     "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
     "slurm_cancel_job": "scancel %s",
     "slurm_sbatch": "sbatch --parsable --wait --wrap='hostname'",
@@ -457,6 +473,19 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "infiniband_ofed": "ofed_info -s",
     "infiniband_ping": "ping -c 2 -W 3 %s",
+    "mellanox_detect": "lspci 2>/dev/null | grep -qi mellanox",
+    "source_mpi_check": (
+        "test -x /hpc_tools/benchmarks/openmpi/bin/mpirun "
+        "&& echo SOURCE_OPENMPI_OK; "
+        "test -x /hpc_tools/benchmarks/ucx/bin/ucx_info "
+        "&& echo SOURCE_UCX_OK; true"
+    ),
+    "install_ucx_source": "bash /usr/local/bin/install_ucx.sh",
+    "install_openmpi_source": "bash /usr/local/bin/install_openmpi.sh",
+    "configure_ucx_openmpi_env": (
+        "bash /usr/local/bin/configure_ucx_openmpi_env.sh"
+    ),
+    "script_exists": "test -x %s && echo exists || echo missing",
     "gpu": (
         "nvidia-smi --query-gpu=index,name,driver_version,memory.total "
         "--format=csv,noheader"
@@ -466,7 +495,10 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader"
     ),
     "gpu_memory_stress": (
-        "set -eu; work=$(mktemp -d /tmp/omnia-gpu-check-XXXXXX); "
+        "set -eu; "
+        "shared=/hpc_tools; "
+        "test -d \"$shared\" || shared=/tmp; "
+        "work=$(mktemp -d \"$shared/omnia-gpu-check-XXXXXX\"); "
         "trap 'rm -rf \"$work\"' EXIT; "
         "printf '%%s' '%s' | base64 -d > \"$work/stress.cu\"; "
         'nvcc -O2 -o "$work/stress" "$work/stress.cu"; '
