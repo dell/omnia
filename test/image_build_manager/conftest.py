@@ -195,8 +195,10 @@ def pytest_configure(config):
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "nft": "Non-functional tests (performance, idempotency)",
-    }
+        "destructive": "Opt-in tests that remove deployed state",
         "security": "Security verification (permissions, credentials)",
+    }
+        
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
 
