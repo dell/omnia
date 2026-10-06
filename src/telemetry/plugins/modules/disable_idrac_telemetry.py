@@ -98,7 +98,7 @@ msg:
 '''
 
 
-def disable_telemetry_on_idrac(idrac_ip, username, password, timeout=30):
+def disable_telemetry_on_idrac(idrac_ip, username, password, timeout=30) -> dict:
     """
     Disable telemetry on a single iDRAC node using Redfish API.
 
@@ -198,7 +198,7 @@ def disable_telemetry_on_idrac(idrac_ip, username, password, timeout=30):
     }
 
 
-def main():
+def main() -> None:
     """Main function to execute the module logic."""
     module_args = {
         "idrac_ips": {"type": "list", "required": True, "elements": "str"},
