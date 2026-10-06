@@ -79,6 +79,52 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify node_mount_point is set when node_key is specified",
         "component": "Mount config node_key consistency",
     },
+    # ── OIM readiness (V100-V118) ───────────────────────────────────
+    "oim_cpu_threshold": {
+        "id": "ORCH_FVT_PRECHECK_V100",
+        "title": "Verify OIM CPU core count meets minimum threshold",
+        "component": "OIM CPU threshold",
+    },
+    "oim_memory_threshold": {
+        "id": "ORCH_FVT_PRECHECK_V101",
+        "title": "Verify OIM memory meets minimum threshold",
+        "component": "OIM memory threshold",
+    },
+    "oim_disk_threshold": {
+        "id": "ORCH_FVT_PRECHECK_V102",
+        "title": "Verify OIM root filesystem meets minimum threshold",
+        "component": "OIM disk threshold",
+    },
+    "oim_pxe_nic_present": {
+        "id": "ORCH_FVT_PRECHECK_V103",
+        "title": "Verify configured admin NIC exists and is UP",
+        "component": "OIM admin NIC presence",
+    },
+    "oim_public_nic_present": {
+        "id": "ORCH_FVT_PRECHECK_V104",
+        "title": "Verify public/default-route NIC exists and is UP",
+        "component": "OIM public NIC presence",
+    },
+    "oim_pxe_nic_ipv4": {
+        "id": "ORCH_FVT_PRECHECK_V105",
+        "title": "Verify admin NIC carries the configured IPv4 address",
+        "component": "OIM admin NIC IPv4",
+    },
+    "oim_ssh_preflight": {
+        "id": "ORCH_FVT_PRECHECK_V107",
+        "title": "Verify passwordless SSH from OIM to mapped target node",
+        "component": "OIM SSH preflight",
+    },
+    "oim_internet_reachability": {
+        "id": "ORCH_FVT_PRECHECK_V108",
+        "title": "Verify internet reachability via ICMP ping",
+        "component": "Internet reachability",
+    },
+    "oim_os_version": {
+        "id": "ORCH_FVT_PRECHECK_V109",
+        "title": "Verify OIM OS matches expected distribution and version",
+        "component": "OIM OS version",
+    },
 }
 
 PREPARE_TEST_CASES: dict[str, dict[str, str]] = {

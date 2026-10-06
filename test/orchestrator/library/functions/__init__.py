@@ -182,6 +182,18 @@ from .mount_config_precheck_func import (
     check_precheck_mount_missing_targeting,
     check_precheck_mount_node_key_without_mount_point,
 )
+from .oim_readiness_precheck_func import (
+    check_oim_cpu_threshold,
+    check_oim_disk_threshold,
+    check_oim_internet_reachability,
+    check_oim_memory_threshold,
+    check_oim_os_version,
+    check_oim_pxe_nic_ipv4,
+    check_oim_pxe_nic_present,
+    check_oim_pxe_public_overlap,
+    check_oim_public_nic_present,
+    check_oim_ssh_preflight,
+)
 from .precheck_func import (
     check_precheck_admin_ipv4,
     check_precheck_dependencies,
