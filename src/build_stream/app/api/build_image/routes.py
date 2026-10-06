@@ -30,13 +30,7 @@ from api.build_image.schemas import (
     BuildImageErrorResponse,
 )
 from api.logging_utils import log_secure_info
-from core.build_image.exceptions import (
-    BuildImageDomainError,
-    InvalidArchitectureError,
-    InvalidImageKeyError,
-    InvalidFunctionalGroupsError,
-    InventoryHostMissingError,
-)
+from core.build_image.exceptions import BuildImageDomainError
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,

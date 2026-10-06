@@ -17,7 +17,7 @@ from library.functions import (
     check_repo_caching,
     check_global_repo_config,
     check_global_caching_policy,
-    get_configured_repos,
+    get_configured_repo_contexts,
 )
 from library.vars import TEST_CASES as TC
 from library.messages.repo_manager_msgs import (
@@ -41,18 +41,21 @@ def test_per_repo_policy_overrides_global(host: Host):
         pytest.skip("Cannot verify without global config")
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
     
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
     
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
     
     # Check if any repo has per-repo policy override
     has_per_repo_policy = False
-    for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if not repo_policy["success"]:
             continue
@@ -93,18 +96,21 @@ def test_per_repo_caching_overrides_global(host: Host):
         pytest.skip("Cannot verify without global caching config")
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
     
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
     
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
     
     # Check if any repo has per-repo caching override
     has_per_repo_caching = False
-    for repo_name in configured_repos:
-        repo_caching = check_repo_caching(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if not repo_caching["success"]:
             continue
@@ -147,19 +153,24 @@ def test_per_repo_complete_override(host: Host):
         pytest.skip("Cannot verify without global config")
 
     # Get all configured repos
-    repos_result = get_configured_repos(host, arch="x86_64")
+    repos_result = get_configured_repo_contexts(host)
     
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.skip("Cannot verify without configured repos")
     
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
     
     # Check if any repo has both policy and caching overrides
     has_complete_override = False
-    for repo_name in configured_repos:
-        repo_policy = check_repo_policy(host, repo_name)
-        repo_caching = check_repo_caching(host, repo_name)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        repo_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if not repo_policy["success"] or not repo_caching["success"]:
             continue

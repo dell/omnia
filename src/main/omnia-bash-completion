@@ -178,18 +178,28 @@ _omnia_catalog_choices() {
     fi
 
     printf '%s' "default \
-10.0/service_k8s_x86_64.json \
-10.0/slurm_aarch64.json 10.0/slurm_aarch64_no_vast.json \
-10.0/slurm_service_k8s_combined.json 10.0/slurm_service_k8s_combined_no_vast.json \
-10.0/slurm_service_k8s_x86_64.json 10.0/slurm_service_k8s_x86_64_no_vast.json \
-10.0/slurm_x86_64.json 10.0/slurm_x86_64_aarch64.json \
-10.0/slurm_x86_64_aarch64_no_vast.json 10.0/slurm_x86_64_no_vast.json \
-10.2/service_k8s_x86_64.json \
-10.2/slurm_aarch64.json 10.2/slurm_aarch64_no_vast.json \
-10.2/slurm_service_k8s_combined.json 10.2/slurm_service_k8s_combined_no_vast.json \
-10.2/slurm_service_k8s_x86_64.json 10.2/slurm_service_k8s_x86_64_no_vast.json \
-10.2/slurm_x86_64.json 10.2/slurm_x86_64_aarch64.json \
-10.2/slurm_x86_64_aarch64_no_vast.json 10.2/slurm_x86_64_no_vast.json"
+hybrid/slurm_hybrid_10_2_10_0_aarch64.json \
+hybrid/slurm_hybrid_10_2_10_0_aarch64_no_vast.json \
+hybrid/slurm_hybrid_10_2_10_0_x86_64.json \
+hybrid/slurm_hybrid_10_2_10_0_x86_64_aarch64.json \
+hybrid/slurm_hybrid_10_2_10_0_x86_64_aarch64_no_vast.json \
+hybrid/slurm_hybrid_10_2_10_0_x86_64_no_vast.json \
+hybrid/slurm_service_k8s_hybrid_10_2_10_0_combined.json \
+hybrid/slurm_service_k8s_hybrid_10_2_10_0_combined_no_vast.json \
+hybrid/slurm_service_k8s_hybrid_10_2_10_0_x86_64.json \
+hybrid/slurm_service_k8s_hybrid_10_2_10_0_x86_64_no_vast.json \
+rhel/10.0/service_k8s_x86_64.json \
+rhel/10.0/slurm_aarch64.json rhel/10.0/slurm_aarch64_no_vast.json \
+rhel/10.0/slurm_service_k8s_combined.json rhel/10.0/slurm_service_k8s_combined_no_vast.json \
+rhel/10.0/slurm_service_k8s_x86_64.json rhel/10.0/slurm_service_k8s_x86_64_no_vast.json \
+rhel/10.0/slurm_x86_64.json rhel/10.0/slurm_x86_64_aarch64.json \
+rhel/10.0/slurm_x86_64_aarch64_no_vast.json rhel/10.0/slurm_x86_64_no_vast.json \
+rhel/10.2/service_k8s_x86_64.json \
+rhel/10.2/slurm_aarch64.json rhel/10.2/slurm_aarch64_no_vast.json \
+rhel/10.2/slurm_service_k8s_combined.json rhel/10.2/slurm_service_k8s_combined_no_vast.json \
+rhel/10.2/slurm_service_k8s_x86_64.json rhel/10.2/slurm_service_k8s_x86_64_no_vast.json \
+rhel/10.2/slurm_x86_64.json rhel/10.2/slurm_x86_64_aarch64.json \
+rhel/10.2/slurm_x86_64_aarch64_no_vast.json rhel/10.2/slurm_x86_64_no_vast.json"
 }
 
 _omnia_complete_csv_tags() {

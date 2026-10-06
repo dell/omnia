@@ -134,8 +134,21 @@ def check_repo_configured(host, repo_name: str, arch: str = "x86_64", os_version
             "error": f"{INPUT_FILES['repo_manager_config']} not found",
         }
     
-    # Read the config file and check if the repo is configured
-    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); repo = config.get('repositories', {}).get('" + os_version + "', {}).get('" + arch + "', {}).get('" + repo_name + "', {}); print('configured' if repo and repo.get('url') else 'not_configured')\""
+    script = (
+        "import sys,yaml; config=yaml.safe_load(open(sys.argv[1])); "
+        "repos=config.get('repositories',{}).get(sys.argv[2],{}).get(sys.argv[3],{}); "
+        "name=sys.argv[4]; repo=repos.get(name); "
+        "repo=repo if repo is not None else repos.get('additional_repos',{}).get(name); "
+        "repo=repo if repo is not None else repos.get('user_repos',{}).get(name); "
+        "print('configured' if repo is not None else 'not_configured')"
+    )
+    cmd = "python3 -c {} {} {} {} {}".format(
+        shlex.quote(script),
+        shlex.quote(config_path),
+        shlex.quote(str(os_version)),
+        shlex.quote(arch),
+        shlex.quote(repo_name),
+    )
     result = run_on_host(host, cmd)
     
     # Check for exact match of "configured" (not "not_configured")
@@ -168,8 +181,20 @@ def get_configured_repos(host, arch: str = "x86_64", os_version: str = "10.0") -
             "repos": []
         }
     
-    # Read the config file and get all configured repos
-    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); repos = config.get('repositories', {}).get('" + os_version + "', {}).get('" + arch + "', {}).keys(); print(','.join(repos) if repos else '')\""
+    script = (
+        "import sys,yaml; config=yaml.safe_load(open(sys.argv[1])); "
+        "repos=config.get('repositories',{}).get(sys.argv[2],{}).get(sys.argv[3],{}); "
+        "nested=('additional_repos','user_repos'); "
+        "names=[name for name in repos if name not in nested]; "
+        "[names.extend((repos.get(section) or {}).keys()) for section in nested]; "
+        "print(','.join(dict.fromkeys(names)))"
+    )
+    cmd = "python3 -c {} {} {} {}".format(
+        shlex.quote(script),
+        shlex.quote(config_path),
+        shlex.quote(str(os_version)),
+        shlex.quote(arch),
+    )
     result = run_on_host(host, cmd)
     
     if result.rc == 0 and result.stdout.strip():
@@ -221,6 +246,52 @@ def get_deployed_repos(host, arch: str = "x86_64", os_version: str = "10.0") -> 
         "error": "",
         "repos": repo_names,
     }
+
+
+def _repository_contexts(host, repository_getter) -> Dict[str, Any]:
+    """Return repositories paired with every selected version/architecture."""
+    status_contexts = get_repo_status_contexts(host)
+    if not status_contexts["success"]:
+        return {**status_contexts, "repositories": []}
+
+    repositories = []
+    for _os_type, os_version, architecture in status_contexts["contexts"]:
+        result = repository_getter(host, architecture, os_version)
+        if not result["success"]:
+            return {
+                "success": False,
+                "details": result["details"],
+                "error": result["error"],
+                "repositories": [],
+            }
+        repositories.extend(
+            {
+                "name": repo_name,
+                "architecture": architecture,
+                "os_version": os_version,
+            }
+            for repo_name in result["repos"]
+        )
+
+    return {
+        "success": True,
+        "details": (
+            f"Found {len(repositories)} repository entries across "
+            f"{len(status_contexts['contexts'])} selected context(s)"
+        ),
+        "error": "",
+        "repositories": repositories,
+    }
+
+
+def get_configured_repo_contexts(host) -> Dict[str, Any]:
+    """Return configured repositories for all selected execution contexts."""
+    return _repository_contexts(host, get_configured_repos)
+
+
+def get_deployed_repo_contexts(host) -> Dict[str, Any]:
+    """Return deployed repositories for all selected execution contexts."""
+    return _repository_contexts(host, get_deployed_repos)
 
 
 def check_repo_source_type(
@@ -382,6 +453,51 @@ def _read_repo_status(host) -> Dict[str, Any]:
         }
 
 
+def _execution_context_tuples(data):
+    """Return ordered ``(os_type, version, architecture)`` status contexts."""
+    contexts = []
+    for context in data.get("execution_contexts") or []:
+        if not isinstance(context, dict):
+            continue
+        os_type = str(context.get("os_type") or data.get("cluster_os_type") or "")
+        os_version = str(context.get("os_version") or "")
+        for architecture in context.get("architectures") or []:
+            if os_type and os_version and architecture:
+                contexts.append((os_type, os_version, str(architecture)))
+
+    if contexts:
+        return contexts
+
+    os_type = str(data.get("cluster_os_type") or "rhel")
+    for os_version, architectures in (data.get("repositories") or {}).items():
+        if not isinstance(architectures, dict):
+            continue
+        for architecture in architectures:
+            contexts.append((os_type, str(os_version), str(architecture)))
+    return contexts
+
+
+def get_repo_status_contexts(host) -> Dict[str, Any]:
+    """Return every version/architecture context published by Repo Manager."""
+    result = _read_repo_status(host)
+    if not result["success"]:
+        return {**result, "contexts": []}
+    contexts = _execution_context_tuples(result["details"] or {})
+    if not contexts:
+        return {
+            "success": False,
+            "details": "No execution contexts found in repo_status.yml",
+            "error": "Execution context data missing",
+            "contexts": [],
+        }
+    return {
+        "success": True,
+        "details": f"Found {len(contexts)} selected execution context(s)",
+        "error": "",
+        "contexts": contexts,
+    }
+
+
 def check_repo_status_exists(host) -> Dict[str, Any]:
     """Verify repo_status.yml exists."""
     output_path = _get_output_path()
@@ -401,16 +517,50 @@ def check_repo_status_exists(host) -> Dict[str, Any]:
 
 
 def check_repo_status_success(host) -> Dict[str, Any]:
-    """Verify repo_status.yml reports overall_status = success."""
+    """Verify successful status and consistent selected-context sections."""
     result = _read_repo_status(host)
     if not result["success"]:
         return result
     data = result["details"]
     overall_status = data.get("overall_status", "").lower()
     if overall_status == "success":
+        contexts = _execution_context_tuples(data)
+        expected_versions = {
+            os_version for _os_type, os_version, _arch in contexts
+        }
+        status_by_version = data.get("overall_status_by_version") or {}
+        repository_versions = set((data.get("repositories") or {}).keys())
+        failures = []
+        if not contexts:
+            failures.append("execution_contexts is empty")
+        if set(status_by_version) != expected_versions:
+            failures.append("overall_status_by_version keys do not match contexts")
+        elif any(
+                str(status).lower() != "success"
+                for status in status_by_version.values()):
+            failures.append("one or more selected versions are not successful")
+        if repository_versions != expected_versions:
+            failures.append("repository version keys do not match contexts")
+        for _os_type, os_version, architecture in contexts:
+            architectures = (
+                (data.get("repositories") or {}).get(os_version) or {}
+            )
+            if architecture not in architectures:
+                failures.append(
+                    f"repositories.{os_version}.{architecture} is missing"
+                )
+        if failures:
+            return {
+                "success": False,
+                "details": "; ".join(failures),
+                "error": "repo_status.yml context sections are inconsistent",
+            }
         return {
             "success": True,
-            "details": f"overall_status is '{overall_status}'",
+            "details": (
+                f"overall_status is '{overall_status}' for "
+                f"{len(contexts)} execution context(s)"
+            ),
             "error": "",
         }
     return {
@@ -443,25 +593,36 @@ def check_repo_status_has_repo(host, repo_name: str, arch: str = "x86_64", os_ve
     }
 
 
-def check_repo_status_has_file_repo(host, repo_name: str, arch: str = "x86_64") -> Dict[str, Any]:
+def check_repo_status_has_file_repo(
+    host,
+    repo_name: str,
+    arch: str = "x86_64",
+    os_version: str = "",
+) -> Dict[str, Any]:
     """Verify a specific file repository (tarball) is present in repo_status.yml."""
     result = _read_repo_status(host)
     if not result["success"]:
         return result
     data = result["details"]
+    file_repos = data.get("file_repos") or {}
+    selected_version = os_version or next(iter(file_repos), "")
     try:
-        url = data["file_repos"][arch]["tarball"][repo_name]
+        url = file_repos[selected_version][arch]["tarball"][repo_name]
         if url:
             return {
                 "success": True,
-                "details": f"File repo '{repo_name}' ({arch}) URL: {url}",
+                "details": (
+                    f"File repo '{repo_name}' ({selected_version}/{arch}) URL: {url}"
+                ),
                 "error": "",
             }
     except (KeyError, TypeError):
         pass
     return {
         "success": False,
-        "details": f"Searched file_repos.{arch}.tarball.{repo_name}",
+        "details": (
+            f"Searched file_repos.{selected_version}.{arch}.tarball.{repo_name}"
+        ),
         "error": f"File repo '{repo_name}' not found in repo_status.yml",
     }
 
@@ -632,22 +793,50 @@ def check_pulp_api_detailed_status(host) -> Dict[str, Any]:
         }
 
 
-def check_software_download_status(host) -> Dict[str, Any]:
-    """Verify software download status per architecture."""
-    # Check status.csv files in the log directory
+def _find_selected_status_files(host) -> Dict[str, Any]:
+    """Find status files only below contexts published in repo_status.yml."""
     from library.vars.common_vars import _get_log_path
-    log_path = f"{_get_log_path()}/rhel/10.0"
-    cmd = f"find {log_path} -name 'status.csv' -type f"
-    result = run_on_host(host, cmd)
+    context_result = get_repo_status_contexts(host)
+    if not context_result["success"]:
+        return {**context_result, "files": []}
 
-    if result.rc != 0 or not result.stdout.strip():
+    status_files = []
+    checked_paths = []
+    for os_type, os_version, architecture in context_result["contexts"]:
+        context_path = (
+            f"{_get_log_path()}/{os_type}/{os_version}/{architecture}"
+        )
+        checked_paths.append(context_path)
+        cmd = (
+            f"find {shlex.quote(context_path)} -name 'status.csv' -type f"
+        )
+        result = run_on_host(host, cmd)
+        if result.rc == 0 and result.stdout.strip():
+            status_files.extend(result.stdout.strip().splitlines())
+
+    status_files = list(dict.fromkeys(status_files))
+    if not status_files:
         return {
             "success": False,
-            "details": f"No status.csv files found in {log_path}",
+            "details": f"No status.csv files found below: {', '.join(checked_paths)}",
             "error": "Software download status files missing",
+            "files": [],
         }
+    return {
+        "success": True,
+        "details": f"Found {len(status_files)} status file(s)",
+        "error": "",
+        "files": status_files,
+    }
 
-    status_files = result.stdout.strip().split('\n')
+
+def check_software_download_status(host) -> Dict[str, Any]:
+    """Verify software download status for every selected context."""
+    files_result = _find_selected_status_files(host)
+    if not files_result["success"]:
+        return files_result
+
+    status_files = files_result["files"]
     failed_downloads = []
 
     for status_file in status_files:
@@ -674,20 +863,10 @@ def check_software_download_status(host) -> Dict[str, Any]:
 
 def check_per_software_package_status(host) -> Dict[str, Any]:
     """Verify per-software status.csv for individual package download results."""
-    # Check status.csv files in the log directory for all software groups
-    from library.vars.common_vars import _get_log_path
-    log_path = f"{_get_log_path()}/rhel/10.0"
-    cmd = f"find {log_path} -name 'status.csv' -type f"
-    result = run_on_host(host, cmd)
-
-    if result.rc != 0 or not result.stdout.strip():
-        return {
-            "success": False,
-            "details": f"No status.csv files found in {log_path}",
-            "error": "Per-software status files missing",
-        }
-
-    status_files = result.stdout.strip().split('\n')
+    files_result = _find_selected_status_files(host)
+    if not files_result["success"]:
+        return files_result
+    status_files = files_result["files"]
     failed_packages = []
     total_packages = 0
 
@@ -717,8 +896,7 @@ def check_per_software_package_status(host) -> Dict[str, Any]:
 
 
 def check_pulp_repositories_synced(host) -> Dict[str, Any]:
-    """Verify all RPM repositories have latest_version_href (sync indicator)."""
-    # Check if repositories are listed in repo_status.yml
+    """Verify every selected RPM repository is published in repo_status.yml."""
     repo_status = _read_repo_status(host)
     if not repo_status["success"]:
         return {
@@ -727,7 +905,6 @@ def check_pulp_repositories_synced(host) -> Dict[str, Any]:
             "error": repo_status["error"],
         }
 
-    # Check if repositories exist in Pulp by checking their URLs are accessible
     repo_data = repo_status["details"]
     if "repositories" not in repo_data:
         return {
@@ -736,11 +913,16 @@ def check_pulp_repositories_synced(host) -> Dict[str, Any]:
             "error": "Repository data missing",
         }
 
-    # Check if at least some repositories are configured
     total_repos = 0
+    incomplete_repos = []
     for _os_version, archs in repo_data["repositories"].items():
         for _arch, repos in archs.items():
-            total_repos += len(repos)
+            for repo_name, repo_info in repos.items():
+                total_repos += 1
+                if not isinstance(repo_info, dict) or not repo_info.get("url"):
+                    incomplete_repos.append(
+                        f"{_os_version}/{_arch}/{repo_name}"
+                    )
 
     if total_repos == 0:
         return {
@@ -749,9 +931,16 @@ def check_pulp_repositories_synced(host) -> Dict[str, Any]:
             "error": "No repositories found",
         }
 
+    if incomplete_repos:
+        return {
+            "success": False,
+            "details": f"Incomplete repositories: {', '.join(incomplete_repos)}",
+            "error": "One or more repositories are not published",
+        }
+
     return {
         "success": True,
-        "details": f"Found {total_repos} repositories configured in repo_status.yml",
+        "details": f"Found {total_repos} published repositories in repo_status.yml",
         "error": "",
     }
 
@@ -785,11 +974,13 @@ def check_pulp_distributions_published(host) -> Dict[str, Any]:
                 if isinstance(repo_info, dict) and "url" in repo_info:
                     repos_with_urls += 1
 
-    if repos_with_urls == 0:
+    if repos_with_urls != total_repos or total_repos == 0:
         return {
             "success": False,
-            "details": f"No repositories have URLs (0/{total_repos})",
-            "error": "No published repositories found",
+            "details": (
+                f"Only {repos_with_urls}/{total_repos} repositories have URLs"
+            ),
+            "error": "Not all selected repositories are published",
         }
 
     return {
@@ -801,20 +992,10 @@ def check_pulp_distributions_published(host) -> Dict[str, Any]:
 
 def check_container_repos_synced(host) -> Dict[str, Any]:
     """Verify all container image repositories are synced."""
-    # Check status.csv files for container image downloads
-    from library.vars.common_vars import _get_log_path
-    log_path = f"{_get_log_path()}/rhel/10.0"
-    cmd = f"find {log_path} -name 'status.csv' -type f"
-    result = run_on_host(host, cmd)
-
-    if result.rc != 0 or not result.stdout.strip():
-        return {
-            "success": False,
-            "details": f"No status.csv files found in {log_path}",
-            "error": "Container status files missing",
-        }
-
-    status_files = result.stdout.strip().split('\n')
+    files_result = _find_selected_status_files(host)
+    if not files_result["success"]:
+        return files_result
+    status_files = files_result["files"]
     container_images = []
 
     for status_file in status_files:
@@ -873,9 +1054,10 @@ def check_file_repos_synced(host) -> Dict[str, Any]:
 
     # Check if file repos are configured
     total_file_repos = 0
-    for _arch, file_types in repo_data["file_repos"].items():
-        for _file_type, repos in file_types.items():
-            total_file_repos += len(repos)
+    for _version, architectures in repo_data["file_repos"].items():
+        for _arch, file_types in architectures.items():
+            for _file_type, repos in file_types.items():
+                total_file_repos += len(repos)
 
     if total_file_repos == 0:
         return {
@@ -909,25 +1091,44 @@ def check_pulp_content_accessible(host) -> Dict[str, Any]:
             "error": "Repository data missing",
         }
 
-    # Check if at least one repository URL is accessible
     accessible_repos = 0
     total_repos = 0
+    failures = []
+    pulp_cert_path = f"{_get_pulp_certs_dir()}/pulp_webserver.crt"
     for _os_version, archs in repo_data["repositories"].items():
         for _arch, repos in archs.items():
             for _repo_name, repo_info in repos.items():
                 total_repos += 1
-                if isinstance(repo_info, dict) and "url" in repo_info:
-                    # Try to access the repository URL
-                    repo_url = repo_info["url"]
-                    result = run_on_host(host, f"curl -k -s -o /dev/null -w '%{{http_code}}' {repo_url}/repomd.xml")
-                    if result.rc == 0 and ("200" in result.stdout or "404" in result.stdout):
-                        accessible_repos += 1
+                repo_url = repo_info.get("url", "") if isinstance(
+                    repo_info, dict
+                ) else ""
+                if not repo_url:
+                    failures.append(f"{_os_version}/{_arch}/{_repo_name}: no URL")
+                    continue
+                metadata_url = f"{repo_url.rstrip('/')}/repodata/repomd.xml"
+                command = (
+                    "curl --silent --show-error --output /dev/null "
+                    "--write-out '%{{http_code}}' --cacert {} {}"
+                ).format(
+                    shlex.quote(pulp_cert_path),
+                    shlex.quote(metadata_url),
+                )
+                result = run_on_host(host, command)
+                if result.rc == 0 and result.stdout.strip() == "200":
+                    accessible_repos += 1
+                else:
+                    failures.append(
+                        f"{_os_version}/{_arch}/{_repo_name}: "
+                        f"HTTP {result.stdout.strip() or '000'}"
+                    )
 
-    if accessible_repos == 0:
+    if failures or accessible_repos != total_repos or total_repos == 0:
         return {
             "success": False,
-            "details": f"No repositories accessible via HTTPS (0/{total_repos})",
-            "error": "No accessible repositories found",
+            "details": (
+                f"Accessible repositories: {accessible_repos}/{total_repos}"
+            ),
+            "error": "; ".join(failures[:5]) or "No repositories found",
         }
 
     return {
@@ -940,7 +1141,6 @@ def check_pulp_content_accessible(host) -> Dict[str, Any]:
 def check_software_packages_in_pulp(host) -> Dict[str, Any]:
     """Verify all RPM packages from software_config.json are present in Pulp."""
     # Check if software_config.json exists in multiple possible locations
-    from library.vars.common_vars import _get_log_path
     input_path = _get_input_path()
     possible_paths = [
         f"{input_path}/software_config.json",
@@ -954,13 +1154,10 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
             break
 
     if not config_path:
-        # If software_config.json doesn't exist, check if we have status.csv files with package info
-        log_path = f"{_get_log_path()}/rhel/10.0"
-        cmd = f"find {log_path} -name 'status.csv' -type f"
-        result = run_on_host(host, cmd)
-
-        if result.rc == 0 and result.stdout.strip():
-            status_files = result.stdout.strip().split('\n')
+        # If software_config.json does not exist, use exact selected-context status.
+        files_result = _find_selected_status_files(host)
+        if files_result["success"]:
+            status_files = files_result["files"]
             total_packages = 0
             for status_file in status_files:
                 result = run_on_host(host, f"cat {status_file}")
@@ -1040,8 +1237,20 @@ def check_repo_policy(host, repo_name: str, arch: str = "x86_64", os_version: st
             "error": f"{INPUT_FILES['repo_manager_config']} not found",
         }
     
-    # Read the config file and check the repo policy
-    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); repo = config.get('repositories', {}).get('" + os_version + "', {}).get('" + arch + "', {}).get('" + repo_name + "', {}); policy = repo.get('policy') if repo else None; print(policy if policy else 'not_set')\""
+    script = (
+        "import sys,yaml; config=yaml.safe_load(open(sys.argv[1])); "
+        "repos=config.get('repositories',{}).get(sys.argv[2],{}).get(sys.argv[3],{}); "
+        "name=sys.argv[4]; repo=repos.get(name); "
+        "repo=repo if repo is not None else repos.get('additional_repos',{}).get(name); "
+        "repo=repo if repo is not None else repos.get('user_repos',{}).get(name); "
+        "value=repo.get('policy') if isinstance(repo,dict) else None; "
+        "print(value if value else 'not_set')"
+    )
+    cmd = "python3 -c {} {} {} {} {}".format(
+        shlex.quote(script), shlex.quote(config_path),
+        shlex.quote(str(os_version)), shlex.quote(arch),
+        shlex.quote(repo_name),
+    )
     result = run_on_host(host, cmd)
     
     if result.rc == 0:
@@ -1089,8 +1298,20 @@ def check_repo_caching(host, repo_name: str, arch: str = "x86_64", os_version: s
             "error": f"{INPUT_FILES['repo_manager_config']} not found",
         }
     
-    # Read the config file and check the repo caching
-    cmd = "python3 -c \"import yaml; config = yaml.safe_load(open('" + config_path + "')); repo = config.get('repositories', {}).get('" + os_version + "', {}).get('" + arch + "', {}).get('" + repo_name + "', {}); caching = repo.get('caching') if repo else None; print(str(caching).lower() if caching is not None else 'not_set')\""
+    script = (
+        "import sys,yaml; config=yaml.safe_load(open(sys.argv[1])); "
+        "repos=config.get('repositories',{}).get(sys.argv[2],{}).get(sys.argv[3],{}); "
+        "name=sys.argv[4]; repo=repos.get(name); "
+        "repo=repo if repo is not None else repos.get('additional_repos',{}).get(name); "
+        "repo=repo if repo is not None else repos.get('user_repos',{}).get(name); "
+        "value=repo.get('caching') if isinstance(repo,dict) else None; "
+        "print(str(value).lower() if value is not None else 'not_set')"
+    )
+    cmd = "python3 -c {} {} {} {} {}".format(
+        shlex.quote(script), shlex.quote(config_path),
+        shlex.quote(str(os_version)), shlex.quote(arch),
+        shlex.quote(repo_name),
+    )
     result = run_on_host(host, cmd)
     
     if result.rc == 0:

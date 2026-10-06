@@ -36,7 +36,7 @@ from library.functions import (
     check_registry_reachable,
 )
 from library.vars import TEST_CASES as TC
-from library.vars.common_vars import REGISTRY_CONTAINER
+from library.vars.common_vars import REGISTRY_CONTAINER, REGISTRY_IMAGE
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
@@ -172,3 +172,26 @@ def test_registry_reachable(host):
         tl.failed(LOG["registry_not_reachable"], result["details"])
 
     assert result["success"], result["details"]
+
+
+@pytest.mark.sanity
+@pytest.mark.order(7)
+def test_registry_image_version(host):
+    """Verify the running registry uses the release-pinned image."""
+    tc = TC["registry_image_version"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = host.run(
+        "podman inspect registry --format '{{.Config.Image}}'"
+    )
+    actual = result.stdout.strip()
+    expected_name = REGISTRY_IMAGE.rsplit("/", maxsplit=1)[-1]
+    actual_name = actual.rsplit("/", maxsplit=1)[-1]
+    success = result.rc == 0 and actual_name == expected_name
+    details = f"Expected: {REGISTRY_IMAGE}\nActual:   {actual or '<not found>'}"
+
+    if success:
+        tl.passed(f"Registry image is {REGISTRY_IMAGE}", details)
+    else:
+        tl.failed("Registry image does not match the release pin", details)
+
+    assert success, details

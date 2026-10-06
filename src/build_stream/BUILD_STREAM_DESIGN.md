@@ -308,7 +308,7 @@ The cleanup flow is orchestrated by `cleanup_build_stream.yml` which calls domai
 │  Step 2: Cleanup BuildStream container + watcher        │
 │    ├── Stop omnia_build_stream container                │
 │    ├── Remove Quadlet service files                     │
-│    ├── Stop playbook_watcher.service                    │
+│    ├── Stop playbook-watcher.service                    │
 │    ├── Remove watcher systemd unit                      │
 │    └── Remove automation framework                      │
 │  Step 3: Cleanup PostgreSQL                             │
@@ -652,7 +652,7 @@ both the runtime environment and the application source.
      ```
    - For **playbook-watcher** code changes:
      ```bash
-     systemctl restart playbook_watcher.service
+     systemctl restart playbook-watcher.service
      ```
 
 **Why**: The volume mount (`/opt/omnia:/opt/omnia`) is what the running container and watcher use. Changes are not picked up until synced and restarted.
