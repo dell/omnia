@@ -78,7 +78,8 @@ UFM_ASSERT_MSGS = {
         "HOW TO FIX:\n"
         "  1. Check: kubectl get svc,endpoints,vmservicescrape -n telemetry | grep ufm\n"
         "  2. Service, Endpoints, and VMServiceScrape should be absent when disabled\n"
-        "  3. Secret should be preserved: kubectl get secret ufm-telemetry-credentials -n telemetry\n"
+        "  3. Secret should be preserved: "
+        "kubectl get secret ufm-telemetry-credentials -n telemetry\n"
         "  4. Re-run telemetry deploy with UFM disabled"
     ),
 }
