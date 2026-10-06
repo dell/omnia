@@ -25,10 +25,10 @@ ORCH_FVT_<LIFECYCLE>_<TYPE><NUMBER>
 
 | Lifecycle | Execution ID | Verification IDs | Suites |
 |---|---|---|---|
-| `precheck` | `ORCH_FVT_PRECHECK_E001` | `V001`–`V007` | `environment`, `storage`, `dependencies`, `inputs` |
+| `precheck` | `ORCH_FVT_PRECHECK_E001` | `V001`–`V012`, `V100`–`V109` | `environment`, `storage`, `dependencies`, `inputs`, `oim_readiness` |
 | `prepare` | `ORCH_FVT_PREPARE_E001` | `V001`–`V013` | `openchami`, `network`, `openldap` |
 | `provision` | `ORCH_FVT_PROVISION_E001` | `V001`–`V008` | `openchami` |
-| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V103` | `connectivity`, `cloudinit`, `kubernetes_*`, `slurm_*` |
+| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V103`, `V501`–`V518` | `connectivity`, `cloudinit`, `kubernetes_*`, `slurm_*`, `slurm_dcgm`, `additional_cloud_init` |
 | `cleanup` | `ORCH_FVT_CLEANUP_E001` | `V001`–`V006` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
 
 The detailed registry below is the authoritative inventory. Its `Order`
@@ -52,7 +52,7 @@ PXE capability suites are flat directories. Kubernetes runs as
 `kubernetes_cluster`, `kubernetes_etcd`, `kubernetes_storage`, and
 `kubernetes_recovery`. Slurm runs as `slurm_cluster`, `slurm_jobs`,
 `slurm_ldap`, `slurm_gpu`, `slurm_openmpi`, `slurm_ucx`,
-`slurm_infiniband`, `slurm_recovery`, and `slurm_apptainer`.
+`slurm_infiniband`, `slurm_recovery`, `slurm_apptainer`, and `slurm_dcgm`.
 
 Cleanup is never part of an implicit lifecycle run.
 
@@ -77,6 +77,37 @@ The NFS case mirrors the production mount-selection contract. It evaluates
 `groups` against mapped PXE `GROUP_NAME` values, and excludes the stock
 `vast_storage` entry unless `omnia_config.yml` selects it. Unrelated storage
 entries are reported as ignored, not as validated.
+
+### OIM readiness (oim_readiness)
+
+Hardware, network-interface, and prerequisite checks that bring parity with
+the Omnia 2.2 automation prerequisite runner. Every check is read-only and
+never mutates the target environment. Negative tests use impossible
+thresholds or bogus names to validate structured failure reporting.
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 10 | `ORCH_FVT_PRECHECK_V100` | `test_oim_cpu_threshold` | `oim_readiness` | `sanity` | Require OIM CPU core count to meet the configured minimum. | Every required item satisfies the stated condition. |
+| 11 | `ORCH_FVT_PRECHECK_V101` | `test_oim_memory_threshold` | `oim_readiness` | `sanity` | Require OIM memory to meet the configured minimum. | Every required item satisfies the stated condition. |
+| 12 | `ORCH_FVT_PRECHECK_V102` | `test_oim_disk_threshold` | `oim_readiness` | `sanity` | Require OIM root filesystem to meet the configured minimum. | Every required item satisfies the stated condition. |
+| 13 | `ORCH_FVT_PRECHECK_V103` | `test_oim_pxe_nic_present` | `oim_readiness` | `sanity` | Require the configured admin NIC to exist and be UP. | Every required item satisfies the stated condition. |
+| 14 | `ORCH_FVT_PRECHECK_V104` | `test_oim_public_nic_present` | `oim_readiness` | `sanity` | Require the public/default-route NIC to exist and be UP. | Every required item satisfies the stated condition. |
+| 15 | `ORCH_FVT_PRECHECK_V105` | `test_oim_pxe_nic_ipv4` | `oim_readiness` | `sanity` | Require the admin NIC to carry the configured IPv4 address. | Every required item satisfies the stated condition. |
+| 16 | `ORCH_FVT_PRECHECK_V107` | `test_oim_ssh_preflight` | `oim_readiness` | `sanity` | Require passwordless SSH from OIM to a mapped target node. | Every required item satisfies the stated condition. |
+| 18 | `ORCH_FVT_PRECHECK_V108` | `test_oim_internet_reachability` | `oim_readiness` | `sanity` | Require internet reachability when not in air-gapped mode. | Every required item satisfies the stated condition. |
+| 19 | `ORCH_FVT_PRECHECK_V109` | `test_oim_os_version` | `oim_readiness` | `sanity` | Require the OIM OS to match the expected distribution and version. | Every required item satisfies the stated condition. |
+| 20 | `ORCH_FVT_PRECHECK_V100` | `test_neg_cpu_below_threshold` | `oim_readiness` | `sanity`, `negative` | Detect failure when CPU threshold exceeds actual cores. | The expected rejection occurs and no prohibited state is accepted. |
+| 21 | `ORCH_FVT_PRECHECK_V101` | `test_neg_memory_below_threshold` | `oim_readiness` | `sanity`, `negative` | Detect failure when memory threshold exceeds actual RAM. | The expected rejection occurs and no prohibited state is accepted. |
+| 22 | `ORCH_FVT_PRECHECK_V102` | `test_neg_disk_below_threshold` | `oim_readiness` | `sanity`, `negative` | Detect failure when disk threshold exceeds actual capacity. | The expected rejection occurs and no prohibited state is accepted. |
+| 23 | `ORCH_FVT_PRECHECK_V103` | `test_neg_pxe_nic_missing` | `oim_readiness` | `sanity`, `negative` | Detect failure when a nonexistent NIC name is checked. | The expected rejection occurs and no prohibited state is accepted. |
+| 24 | `ORCH_FVT_PRECHECK_V105` | `test_neg_pxe_public_overlap` | `oim_readiness` | `sanity`, `negative` | Detect overlap when PXE NIC is forced to match the public NIC. | The expected rejection occurs and no prohibited state is accepted. |
+| 25 | `ORCH_FVT_PRECHECK_V108` | `test_neg_internet_airgapped` | `oim_readiness` | `sanity`, `negative` | Verify air-gapped mode passes even without internet. | The expected rejection occurs and no prohibited state is accepted. |
+| 27 | `ORCH_FVT_PRECHECK_V107` | `test_neg_ssh_unreachable_target` | `oim_readiness` | `sanity`, `negative` | Detect SSH failure to a bogus target address. | The expected rejection occurs and no prohibited state is accepted. |
+| 28 | `ORCH_FVT_PRECHECK_V109` | `test_neg_os_version_mismatch` | `oim_readiness` | `sanity`, `negative` | Detect failure when expected OS version does not match actual. | The expected rejection occurs and no prohibited state is accepted. |
+
+Thresholds default to CPU >= 4, RAM >= 16 GB, root disk >= 100 GB (matching
+Omnia 2.2 automation defaults). Negative tests set impossible thresholds to
+validate structured failure messages without mutating the environment.
 
 ## Prepare test cases
 
@@ -302,6 +333,35 @@ state (SMD groups and metadata-service templates); V099 and V100 verify
 node-side artifacts (files created by `write_files` and cloud-init completion
 confirming `runcmd` execution).
 
+### DCGM / CUDA
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 501 | `ORCH_FVT_PXEBOOT_V501` | `test_dcgm_cuda_validation` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify NVIDIA driver and CUDA toolkit on GPU nodes. | All stated checks pass for every applicable target. |
+| 502 | `ORCH_FVT_PXEBOOT_V502` | `test_dcgm_cuda_atomic_lock` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify CUDA toolkit installed via atomic lock. | All stated checks pass for every applicable target. |
+| 503 | `ORCH_FVT_PXEBOOT_V503` | `test_dcgm_package_installed` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify datacenter-gpu-manager RPM and DCGM binaries. | All stated checks pass for every applicable target. |
+| 504 | `ORCH_FVT_PXEBOOT_V504` | `test_dcgm_daemon_running` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify nvidia-dcgm service is active and enabled. | All stated checks pass for every applicable target. |
+| 505 | `ORCH_FVT_PXEBOOT_V505` | `test_dcgm_gpu_discovery` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify dcgmi discovery enumerates GPUs with unique UUIDs. | All stated checks pass for every applicable target. |
+| 506 | `ORCH_FVT_PXEBOOT_V506` | `test_dcgm_gpu_metrics` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify dcgmi dmon returns metric samples for each GPU. | All stated checks pass for every applicable target. |
+| 507 | `ORCH_FVT_PXEBOOT_V507` | `test_dcgm_cuda_login_compiler` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify CUDA toolkit accessible on login_compiler nodes. | All stated checks pass for every applicable target. |
+| 508 | `ORCH_FVT_PXEBOOT_V508` | `test_dcgm_cuda_compute_node` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify CUDA toolkit and driver on compute nodes. | All stated checks pass for every applicable target. |
+| 509 | `ORCH_FVT_PXEBOOT_V509` | `test_dcgm_multi_gpu_discovery` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify dcgmi discovery on multi-GPU nodes. | All stated checks pass for every applicable target. |
+| 510 | `ORCH_FVT_PXEBOOT_V510` | `test_dcgm_multi_gpu_no_login_compiler` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify GPU nodes work without login_compiler present. | All stated checks pass for every applicable target. |
+| 511 | `ORCH_FVT_PXEBOOT_V511` | `test_dcgm_multi_login_compiler_lock` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify CUDA toolkit install uses atomic lock with multiple login_compilers. | All stated checks pass for every applicable target. |
+| 512 | `ORCH_FVT_PXEBOOT_V512` | `test_dcgm_toolkit_nfs_storage` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify CUDA toolkit is NFS-mounted and accessible. | All stated checks pass for every applicable target. |
+| 513 | `ORCH_FVT_PXEBOOT_V513` | `test_dcgm_rhel_compatibility` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify GPU node OS is a supported RHEL version. | All stated checks pass for every applicable target. |
+| 514 | `ORCH_FVT_PXEBOOT_V514` | `test_dcgm_cuda_version_compatibility` | `slurm_dcgm` | `non_disruptive`, `sanity`, `slurm` | Verify CUDA toolkit and DCGM daemon version compatibility. | All stated checks pass for every applicable target. |
+| 515 | `ORCH_FVT_PXEBOOT_V515` | `test_dcgm_neg_cuda_prerequisite` | `slurm_dcgm` | `negative`, `non_disruptive`, `sanity`, `slurm` | Verify DCGM deployment requires CUDA prerequisites. | All stated checks pass for every applicable target. |
+| 516 | `ORCH_FVT_PXEBOOT_V516` | `test_dcgm_neg_daemon_recovery` | `slurm_dcgm` | `destructive`, `sanity`, `slurm` | Verify DCGM daemon auto-recovery after SIGKILL. | The node returns within the bounded wait and every stated postcondition check passes. |
+| 517 | `ORCH_FVT_PXEBOOT_V517` | `test_dcgm_neg_socket_inaccessible` | `slurm_dcgm` | `destructive`, `sanity`, `slurm` | Verify dcgmi returns clear error when socket is removed. | The expected rejection occurs and no prohibited state is accepted. |
+| 518 | `ORCH_FVT_PXEBOOT_V518` | `test_dcgm_neg_package_install_failure` | `slurm_dcgm` | `negative`, `non_disruptive`, `sanity`, `slurm` | Verify error handling when DCGM package is unavailable. | The expected rejection occurs and no prohibited state is accepted. |
+
+DCGM tests use platform-aware CUDA toolkit paths resolved via
+`omnia_platform.sh`. Compute nodes access the toolkit through the
+`/usr/local/cuda` bind mount; the login_compiler accesses it directly
+from the NFS-shared platform path. Tests skip when no GPU GRES nodes
+are found in the Slurm inventory.
+
 ## Cleanup test cases
 
 These cases execute the explicitly selected full cleanup and verify each
@@ -352,6 +412,7 @@ class, while `slurm+non_disruptive` selects tests carrying both markers.
 
 # Read-only focused reruns.
 ./run_validation.sh fvt_orchestrator precheck verify --suite storage
+./run_validation.sh fvt_orchestrator precheck verify --suite oim_readiness
 ./run_validation.sh fvt_orchestrator prepare verify --suite openchami
 ./run_validation.sh fvt_orchestrator provision verify --suite openchami
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite kubernetes_cluster
@@ -360,6 +421,7 @@ class, while `slurm+non_disruptive` selects tests carrying both markers.
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_cluster
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_ldap
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_apptainer
+./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_dcgm
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite additional_cloud_init
 
 # Marker examples.
