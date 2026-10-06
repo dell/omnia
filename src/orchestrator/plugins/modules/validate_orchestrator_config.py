@@ -26,6 +26,9 @@ from typing import Any
 import yaml
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    functional_group_config_applicable,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     high_availability_applicable,
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
@@ -33,6 +36,9 @@ from ansible.module_utils.orchestrator_validation.core.validation_engine import 
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_additional_cloud_init as validate_additional_cloud_init,
+)
+from ansible.module_utils.orchestrator_validation.core.validation_engine import (
+    logic_functional_group_config as validate_functional_group_config,
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_high_availability as validate_high_availability,
@@ -69,6 +75,7 @@ description:
   - Validates orchestrator_config.yml, omnia_config.yml, network_spec.yml,
     security_config.yml, and storage_config.yml.
   - Validates high_availability_config.yml when Kubernetes is selected.
+  - Validates functional_group_config.yml when present.
   - Validates PXE mapping and additional cloud-init cross-file contracts.
   - Validates storage_config.yml when present and requires it when referenced.
 options:
@@ -107,6 +114,11 @@ validation_failed:
   type: bool
 errors:
   description: Validation error messages.
+  returned: always
+  type: list
+  elements: str
+validation_warnings:
+  description: Non-blocking compatibility and support warnings.
   returned: always
   type: list
   elements: str
@@ -164,6 +176,16 @@ HA_VALIDATION_FILE = {
     "schema_file": "high_availability_config.json",
     "required": True,
 }
+# Optional: a standard cluster with no flexible functional groups never needs
+# this file, because Omnia supplies defaults equivalent to standard Slurm-node
+# behavior.
+FUNCTIONAL_GROUP_VALIDATION_FILE = {
+    "config_file": "functional_group_config.yml",
+    "schema_file": "functional_group_config.json",
+    "required": False,
+    # An all-commented file is a valid "use Omnia defaults" document.
+    "allow_empty": True,
+}
 VAULT_HEADER = "$ANSIBLE_VAULT"
 
 
@@ -172,6 +194,7 @@ class _ValidationState:
     """Track validation data and structured result collections."""
 
     errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     valid_files: list[str] = field(default_factory=list)
     invalid_files: list[str] = field(default_factory=list)
     loaded_data: dict[str, Any] = field(default_factory=dict)
@@ -235,6 +258,15 @@ def load_yaml(path: str) -> Any:
         return None
 
 
+def _is_empty_yaml(path: str) -> bool:
+    """Return whether a file parses as YAML with no document content."""
+    try:
+        with open(path, "r", encoding="utf-8") as yaml_file:
+            return yaml.safe_load(yaml_file) is None
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return False
+
+
 def load_json(path: str) -> dict[str, Any] | None:
     """Load a JSON object, returning None when parsing fails."""
     if not os.path.isfile(path):
@@ -277,6 +309,10 @@ def _validate_file(
         return
 
     data = load_yaml(config_path)
+    if data is None and file_config.get("allow_empty") and _is_empty_yaml(
+        config_path
+    ):
+        data = {}
     if data is None:
         error = msg.yaml_parse_failed_msg(config_path)
         state.errors.append(error)
@@ -362,6 +398,29 @@ def _run_l2_validation(
             logger.error(
                 msg.l2_validation_errors_msg(
                     "additional_cloud_init", cloud_init_errors
+                )
+            )
+
+    functional_group_path = os.path.realpath(
+        os.path.join(input_project_dir, "functional_group_config.yml")
+    )
+    if (
+        os.path.isfile(functional_group_path)
+        and functional_group_path not in state.invalid_files
+    ):
+        functional_group_errors = validate_functional_group_config(
+            state.loaded_data.get("functional_group_config.json"),
+            orchestrator_data,
+            input_project_dir,
+            logger,
+            state.warnings,
+        )
+        if functional_group_errors:
+            state.errors.extend(functional_group_errors)
+            state.mark_file(functional_group_path, False)
+            logger.error(
+                msg.l2_validation_errors_msg(
+                    "functional_group_config", functional_group_errors
                 )
             )
 
@@ -494,6 +553,14 @@ def run_module() -> None:
             state,
             logger,
         )
+    if functional_group_config_applicable(input_project_dir):
+        _validate_file(
+            FUNCTIONAL_GROUP_VALIDATION_FILE,
+            input_project_dir,
+            schema_dir,
+            state,
+            logger,
+        )
     _run_l2_validation(input_project_dir, state, logger)
     logger.info(msg.VALIDATION_END_MSG)
 
@@ -512,6 +579,7 @@ def run_module() -> None:
         error_msg=summary,
         log_file=log_file,
         errors=state.errors,
+        validation_warnings=state.warnings,
         valid_files=state.valid_files,
         invalid_files=state.invalid_files,
     )

@@ -1,6 +1,6 @@
 # Orchestrator -- Input Contract
 
-**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 24, 2026
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: October 5, 2026
 
 This document defines all input files consumed by the `orchestrator` domain.
 
@@ -25,7 +25,7 @@ When `ORCHESTRATOR_DATA_PATH` is unset, it resolves to
 | `default_lease_time` | string or int | Yes | `86400` | Positive DHCP lease time in seconds |
 | `dns_enabled` | bool | No | `false` | Enable CoreDNS configuration |
 | `additional_cloud_init_config_file` | string | No | `""` | Extra cloud-init config path |
-| `boot_kernel_params` | string | No | `""` | Additional kernel command-line parameters applied to every functional group |
+| `boot_kernel_params` | string | No | `""` | Deprecated one-release fallback below functional-group `common` and group values |
 | `catalog_file_path` | string | No | `$CATALOG_FILE_PATH`, then `$OMNIA_DATA_PATH/catalog/catalog_rhel.json` | Catalog JSON path override |
 | `enable_pxe_boot` | bool | No | `true` | Enable iDRAC-based PXE boot for physical servers |
 | `repo_manager_output_path` | string | No | `$REPO_MANAGER_DATA_PATH/output/$OMNIA_PROJECT_NAME/repo_status.yml` | Path to `repo_status.yml` from Repository Manager |
@@ -48,6 +48,12 @@ determine which credentials are mandatory.
 
 Catalog-independent flows do not refresh `orchestrator_state.yml`; they retain
 the feature flags derived by the latest catalog-backed lifecycle phase.
+
+`additional_cloud_init_config_file` is the legacy global cloud-init input. It
+cannot be combined with `cloud_init.config_file` or `post_config` values in
+`functional_group_config.yml`. The empty template staged by `domain-init.sh` is
+inactive and does not conflict. New boot and cloud-init configuration belongs
+in the fixed-name functional-group file described below.
 
 ---
 
@@ -332,6 +338,7 @@ These files are read from the same Orchestrator project input directory:
 | `network_spec.yml` | Administrative and InfiniBand network definitions |
 | `high_availability_config.yml` | Kubernetes control-plane VIP settings when HA is configured |
 | `set_pxe_boot_config.yml` | PXE boot retry and post-boot verification settings |
+| `functional_group_config.yml` | Per-functional-group boot and cloud-init configuration (optional) |
 
 `storage_config.yml` is conditionally required. When `omnia_config.yml`
 contains a non-empty `nfs_storage_name` or `vast_storage_name` in a Slurm or
@@ -372,6 +379,71 @@ CSI credentials are mandatory. Orchestrator resolves the versioned
 `csi-powerscale`, `helm-charts`, and `external-snapshotter` artifacts from
 `repo_status.yml` rather than using a catalog group as the runtime feature
 switch.
+
+### Functional-group configuration
+
+`functional_group_config.yml` is loaded by fixed project-scoped name; no path
+selector is added to `orchestrator_config.yml`. It is optional, and the empty
+template (or an all-commented file) preserves Omnia defaults. It is read as
+data, so values are never evaluated as Jinja on the OIM.
+
+```yaml
+common:
+  boot_kernel_params: "audit=1"
+  cloud_init:
+    config_file: "$ORCHESTRATOR_DATA_PATH/input/<project>/common-x86_64.yml"
+  post_config: []
+
+groups:
+  research_rhel_10_0_x86_64:
+    boot_kernel_params: "numa=off"
+    cloud_init:
+      config_file: ""
+    post_config:
+      - runcmd:
+          - "systemctl enable --now example.service"
+    image_override:
+      kernel: "boot-images/research/vmlinuz-x86_64"
+      initrd: "boot-images/research/initramfs-x86_64.img"
+      rootfs: "boot-images/research/rootfs-x86_64.squashfs"
+```
+
+(`$ORCHESTRATOR_DATA_PATH/input/<project>` stands for the resolved absolute
+project input directory; the file must contain the literal absolute path.)
+
+Every setting resolves in this order: exact `groups` entry, `common`, then the
+Omnia default. Empty strings, lists, and mappings inherit rather than clear a
+lower level. The runtime `service_kube_control_plane_first_*` group uses the
+`service_kube_control_plane_*` entry. `image_override` is group-only.
+
+Group names must exactly match `FUNCTIONAL_GROUP_NAME` values in the PXE
+mapping and end in `x86_64` or `aarch64`. Referenced cloud-init files must be
+non-empty, plaintext (not vault-encrypted), regular files inside the active
+project input directory. Their document is a direct `write_files`/`runcmd`
+mapping, published as an additional per-group metadata section after the
+Omnia-generated cloud-init; `post_config` uses the same shape and is appended
+after the file. Protected kernel parameters (`root`, `ip`, `ip6`,
+`rd.live.image`, `rd.live.ram`, `rd.neednet`, `console`, `ds`, `selinux`,
+`apparmor`, and other boot-identity parameters), quotes, backslashes, control
+characters, and plaintext secrets are rejected.
+
+Legacy inputs are honored only where the new values are empty. Validation
+fails when `additional_cloud_init_config_file` is combined with a
+`cloud_init.config_file` or `post_config` value, or when the deprecated
+`orchestrator_config.yml:boot_kernel_params` is combined with a
+`boot_kernel_params` value. The deprecated value is otherwise a one-release
+fallback between `common` and the default, and passes the same kernel checks.
+
+A non-empty `image_override` must contain exactly `kernel`, `initrd`, and
+`rootfs` as object keys relative to the image-storage endpoint (no scheme,
+leading `/`, or `..`) whose names do not contradict the group architecture.
+It replaces all three build-status artifacts for that group. Precheck sends
+HTTP `HEAD` for the effective kernel, initrd, and rootfs URLs and blocks
+provisioning if any artifact is not accessible.
+
+Build Stream uploads `functional_group_config.yml` but not the cloud-init files
+it references; place referenced files in the project input directory on the
+OIM before running validation there.
 
 ---
 

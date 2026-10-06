@@ -32,6 +32,7 @@ dcgm_enabled: true
 include_files:
   input:
     - additional_cloud_init.yml
+    - functional_group_config.yml
     - high_availability_config.yml
     - network_spec.yml
     - omnia_config.yml

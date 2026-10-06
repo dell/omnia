@@ -98,6 +98,7 @@ DOMAIN_FILE_ROUTING = {
     "security_config.yml": "orchestrator",
     "storage_config.yml": "orchestrator",
     "high_availability_config.yml": "orchestrator",
+    "functional_group_config.yml": "orchestrator",
     "pxe_mapping_file.csv": "orchestrator",
     "set_pxe_boot_config.yml": "orchestrator",
 }
@@ -127,6 +128,7 @@ ALLOWED_CONFIG_FILES = {
     "security_config.yml",
     "storage_config.yml",
     "high_availability_config.yml",
+    "functional_group_config.yml",
     "pxe_mapping_file.csv",
     "set_pxe_boot_config.yml",
 }

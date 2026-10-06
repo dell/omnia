@@ -144,7 +144,8 @@ default:
         _REFRESH_FAILED=0
         for _RF_FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
                security_config.yml storage_config.yml high_availability_config.yml \
-               additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
+               functional_group_config.yml additional_cloud_init.yml \
+               pxe_mapping_file.csv set_pxe_boot_config.yml; do
 
           # URL-encode the file path (input/orchestrator/<filename>)
           _RF_ENCODED_PATH=$(printf '%s' "input/orchestrator/${_RF_FNAME}" | sed 's|/|%2F|g')
@@ -257,7 +258,8 @@ deploy:
       UPLOAD_ARGS=""
       for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
              security_config.yml storage_config.yml high_availability_config.yml \
-             additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
+             functional_group_config.yml additional_cloud_init.yml \
+             pxe_mapping_file.csv set_pxe_boot_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/orchestrator/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -468,7 +470,8 @@ restart:
       UPLOAD_ARGS=""
       for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
              security_config.yml storage_config.yml high_availability_config.yml \
-             additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
+             functional_group_config.yml additional_cloud_init.yml \
+             pxe_mapping_file.csv set_pxe_boot_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/orchestrator/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -653,7 +656,8 @@ validate:
       UPLOAD_ARGS=""
       for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
              storage_config.yml telemetry_config.yml telemetry_storage_config.yml \
-             security_config.yml high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+             security_config.yml high_availability_config.yml functional_group_config.yml \
+             omnia_config.yml build_stream_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
         if [ -f "${FPATH}" ]; then
           UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"

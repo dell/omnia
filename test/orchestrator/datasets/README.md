@@ -92,6 +92,7 @@ Batch scenarios in `test_run_config.yml` expose equivalent `dataset`,
 datasets/<dataset_name>/
 ├── input/
 │   ├── additional_cloud_init.yml
+│   ├── functional_group_config.yml
 │   ├── high_availability_config.yml
 │   ├── network_spec.yml
 │   ├── omnia_config.yml

@@ -29,6 +29,24 @@
     _fg_arch: "{{ functional_group_name | regex_search('(x86_64|aarch64)$') | default('x86_64') }}"
     _fg_prefix: "{{ functional_group_name | regex_replace('_(x86_64|aarch64)$', '') }}"
 
+# image_override is an all-or-none {kernel, initrd, rootfs} tuple validated by
+# validate_orchestrator_input; an empty mapping selects build status output.
+- name: Resolve functional-group image override
+  ansible.builtin.set_fact:
+    _fg_image_override: >-
+      {{ hostvars['localhost']['functional_group_config'] | default({})
+         | functional_group_setting(
+             functional_group_name,
+             'image_override',
+             hostvars['localhost']['legacy_boot_kernel_params'] | default('')
+           ) }}
+    _fg_image_override_source: >-
+      {{ (hostvars['localhost']['functional_group_config'] | default({})
+          | functional_group_provenance(
+              functional_group_name,
+              hostvars['localhost']['legacy_boot_kernel_params'] | default('')
+            )).image_override }}
+
 - name: Compute base image prefix for a primary control-plane FG
   ansible.builtin.set_fact:
     _fg_image_prefix_without_primary: >-
@@ -147,7 +165,25 @@
     kernel: "{{ _fg_image_entry.kernel | default('') }}"
     initrd: "{{ _fg_image_entry.initrd | default('') }}"
     image: "{{ _fg_image_entry.image | default('') }}"
-  when: _fg_image_entry | default({}) | length > 0
+  when:
+    - _fg_image_entry | default({}) | length > 0
+    - _fg_image_override | length == 0
+
+- name: Set kernel, initrd and image from the group image override
+  ansible.builtin.set_fact:
+    kernel: "{{ _fg_image_override.kernel }}"
+    initrd: "{{ _fg_image_override.initrd }}"
+    image: "{{ _fg_image_override.rootfs }}"
+  when: _fg_image_override | length > 0
+
+- name: Report image selection provenance
+  ansible.builtin.debug:
+    msg: >-
+      {{ functional_group_name }}: image resolved from
+      '{{ _fg_image_override_source }}'{% if _fg_image_override | length > 0 %}
+      (kernel, initrd, and rootfs) and will be verified against the
+      build-status S3 endpoint{% endif %}.
+    verbosity: 1
 
 - name: Fail if boot artifact paths are missing from build status
   ansible.builtin.fail:
