@@ -23,22 +23,24 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.apptainer,
-    pytest.mark.sanity,
-    pytest.mark.functional,
-    pytest.mark.image_download,
-    pytest.mark.non_disruptive,
-]
 
-
-@pytest.mark.order(267)
+@pytest.mark.apptainer
+@pytest.mark.sanity
+@pytest.mark.functional
+@pytest.mark.image_download
+@pytest.mark.non_disruptive
+@pytest.mark.order(270)
 def test_apptainer_download(host):
     """Run the deployed downloader and require at least one usable SIF."""
     verify_pxeboot(host, "apptainer_download", check_apptainer_download)
 
 
-@pytest.mark.order(268)
+@pytest.mark.apptainer
+@pytest.mark.sanity
+@pytest.mark.functional
+@pytest.mark.image_download
+@pytest.mark.non_disruptive
+@pytest.mark.order(271)
 def test_apptainer_download_idempotency(host):
     """Rerun the downloader and verify existing image metadata is unchanged."""
     verify_pxeboot(
@@ -48,7 +50,12 @@ def test_apptainer_download_idempotency(host):
     )
 
 
-@pytest.mark.order(269)
+@pytest.mark.apptainer
+@pytest.mark.sanity
+@pytest.mark.functional
+@pytest.mark.image_download
+@pytest.mark.non_disruptive
+@pytest.mark.order(272)
 def test_apptainer_download_memory(host):
     """Run the downloader and enforce a bounded peak resident-memory use."""
     verify_pxeboot(host, "apptainer_download_memory", check_apptainer_download_memory)

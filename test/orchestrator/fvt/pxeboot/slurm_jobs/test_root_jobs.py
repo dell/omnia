@@ -32,7 +32,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(232)
+@pytest.mark.order(235)
 def test_slurm_control_node_jobs(host):
     """Run one targeted job per compute from every Slurm control node."""
     verify_pxeboot(host, "slurm_basic_jobs", check_slurm_control_node_jobs)
@@ -42,7 +42,7 @@ def test_slurm_control_node_jobs(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(233)
+@pytest.mark.order(236)
 def test_slurm_login_node_jobs(host):
     """Run one targeted job per compute from every mapped login node."""
     verify_pxeboot(host, "slurm_login_jobs", check_slurm_login_node_jobs)
@@ -52,7 +52,7 @@ def test_slurm_login_node_jobs(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(234)
+@pytest.mark.order(237)
 def test_slurm_compiler_node_jobs(host):
     """Run one targeted job per compute from every login compiler node."""
     verify_pxeboot(host, "slurm_compiler_jobs", check_slurm_compiler_node_jobs)
@@ -62,7 +62,7 @@ def test_slurm_compiler_node_jobs(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(235)
+@pytest.mark.order(238)
 def test_slurm_concurrent_jobs(host):
     """Submit concurrent jobs and verify final accounting state."""
     verify_pxeboot(host, "slurm_concurrent_jobs", check_slurm_concurrent_jobs)
@@ -73,7 +73,7 @@ def test_slurm_concurrent_jobs(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(236)
+@pytest.mark.order(239)
 def test_slurm_insufficient_resources(host):
     """Verify an impossible immediate allocation is rejected."""
     verify_pxeboot(
@@ -85,7 +85,7 @@ def test_slurm_insufficient_resources(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(237)
+@pytest.mark.order(240)
 def test_slurm_job_queueing(host):
     """Saturate idle computes and verify one follower queues then completes."""
     verify_pxeboot(host, "slurm_job_queueing", check_slurm_job_queueing)
@@ -95,7 +95,7 @@ def test_slurm_job_queueing(host):
 @pytest.mark.sanity
 @pytest.mark.scheduler_state
 @pytest.mark.slurm
-@pytest.mark.order(238)
+@pytest.mark.order(241)
 def test_slurm_drain_queue_recovery(host):
     """Drain one compute node, verify queuing, and restore it."""
     verify_pxeboot(host, "slurm_drain_queue", check_slurm_drain_queue_recovery)

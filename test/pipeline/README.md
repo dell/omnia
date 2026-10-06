@@ -54,6 +54,7 @@ clusters/cluster1/
     omnia.env                           Omnia environment config
     repo_manager/                       repo_manager input files
     image_build_manager/                image_build_manager input files
+    discovery/                          discovery input files
     orchestrator/                       orchestrator input files
     telemetry/                          telemetry input files
     test/                               Test configuration files
@@ -137,6 +138,7 @@ Set `BUILD_STREAM_ENABLE=true` to trigger the build stream pipeline.
 | **repo_manager** | Pulp-based package and repository management |
 | **image_build_manager** | Container image building and registry |
 | **orchestrator** | Kubernetes and container orchestration |
+| **discovery** | Network and hardware discovery |
 | **telemetry** | Monitoring, logging, and observability |
 | **build_stream** | Build stream image provisioning and deployment |
 
@@ -144,6 +146,7 @@ Select which domains to run with the `domains` setting:
 
 - `"default"` -- All domains
 - `"repo_manager"` -- Single domain
+- `"discovery"` -- Discovery domain only
 - `"repo_manager|orchestrator"` -- Multiple domains (regex OR)
 
 ---
@@ -162,11 +165,13 @@ Select which domains to run with the `domains` setting:
  7.  test_main_installation        (test)       (test)
  8.  <domain> deploy                 Y            Y
  9.  test_<domain>                 (test)       (test)
- 10. summary                         Y            Y        Y
+ 10. cleanup_discovery               Y                     Y
+ 11. summary                         Y            Y        Y
 ```
 
 `(opt)` = runs only if `ENABLE_SETUP=true` |
-`(test)` = runs only if `TEST_MODE=true`
+`(test)` = runs only if `TEST_MODE=true` |
+`discovery` stages require `ENABLE_DISCOVERY=true`
 
 ---
 
@@ -178,6 +183,7 @@ Select which domains to run with the `domains` setting:
 | `domains` | `default` | Which domains to run (regex pattern) |
 | `test_mode` | `false` | Run validation tests after deploy |
 | `enable_setup` | `false` | Force setup in deploy/cleanup modes |
+| `enable_discovery` | `false` | Enable discovery stage after image_build_manager |
 | `dry_run` | `false` | Simulate without making changes |
 | `verbose` | `false` | Detailed Ansible logging (`-vvv`) |
 | `skip_stages` | `""` | Comma-separated stages to skip |

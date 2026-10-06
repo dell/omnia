@@ -84,6 +84,7 @@ In your GitLab repository, navigate to `clusters/cluster1/inputs/` and edit:
 - **`repo_manager/`** — Pulp repository configuration
 - **`orchestrator/`** — Kubernetes configuration
 - **`image_build_manager/`** — Image builder settings
+- **`discovery/`** — Discovery configuration
 - **`telemetry/`** — Monitoring configuration
 
 ---

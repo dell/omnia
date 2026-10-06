@@ -198,6 +198,16 @@
           ((_metadata_cluster_defaults_reconcile.created | default([]))
            + (_metadata_cluster_defaults_reconcile.updated | default([]))) | length > 0
 
+    - name: Resolve IANA timezone for metadata-service templates
+      ansible.builtin.command: timedatectl show -p Timezone --value
+      register: _oim_tz_iana
+      changed_when: false
+      failed_when: false
+
+    - name: Set OIM timezone fact for metadata-service templates
+      ansible.builtin.set_fact:
+        oim_timezone: "{{ _oim_tz_iana.stdout | default('UTC') }}"
+
     - name: Configure metadata-service common group
       ansible.builtin.include_tasks: configure_metadata_svc_common.yml
 
