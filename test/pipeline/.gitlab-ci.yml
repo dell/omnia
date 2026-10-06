@@ -281,4 +281,3 @@ trigger_cluster_cluster1_build_stream:
   rules:
     - if: '$BUILD_STREAM_ENABLE == "true" && $CLUSTERS =~ /cluster1/'
       when: on_success
-
