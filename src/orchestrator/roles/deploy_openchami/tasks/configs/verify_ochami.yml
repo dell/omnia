@@ -84,11 +84,7 @@
 
     - name: Fail if postgres is not running
       ansible.builtin.fail:
-        msg: >-
-          postgres is not running after {{ max_retries }} retries
-          (state={{ openchami_postgres_status.status.ActiveState }}).
-          Logs: {{ postgres_logs.stdout | default('unavailable') }}
-          {{ postgres_logs.stderr | default('') }}
+        msg: "{{ postgres_service_fail_msg }}"
       when: openchami_postgres_status.status.ActiveState != "active"
 
     - name: Verify boot-service is active
@@ -103,7 +99,7 @@
 
     - name: Fail if boot-service is not running
       ansible.builtin.fail:
-        msg: "boot-service is not running after {{ max_retries }} retries."
+        msg: "{{ boot_service_fail_msg }}"
       when: openchami_boot_service_status.status.ActiveState != "active"
 
     - name: Verify smd systemd service is active
@@ -125,11 +121,7 @@
 
     - name: Fail if smd systemd service is not running
       ansible.builtin.fail:
-        msg: >-
-          smd.service is not active after {{ max_retries }} retries
-          (state={{ openchami_smd_service_status.status.ActiveState }}).
-          Container logs: {{ smd_container_logs.stdout | default('unavailable') }}
-          {{ smd_container_logs.stderr | default('') }}
+        msg: "{{ smd_service_fail_msg }}"
       when: openchami_smd_service_status.status.ActiveState != "active"
 
     - name: Verify ochami smd status
@@ -176,10 +168,7 @@
 
     - name: Fail if ochami smd status check failed
       ansible.builtin.fail:
-        msg: >-
-          ochami smd service is not running after {{ max_retries }} retries.
-          {{ openchami_smd_status.stderr | default('') }}
-          Run 'podman logs smd' and 'podman logs haproxy' on the OIM host for details.
+        msg: "{{ smd_status_fail_msg }}"
       when: openchami_smd_status.rc != 0
 
     - name: Openchami smd status output

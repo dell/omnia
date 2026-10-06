@@ -18,7 +18,9 @@ project and lifecycle context required by later Orchestrator plays.
 8. Loads and validates Repository Manager output when required by the flow.
 9. Loads the catalog and derives OS/version and feature facts when required.
 10. Creates the dynamic `oim` group when requested.
-11. Writes `orchestrator_state.yml` only for stateful lifecycle phases.
+11. Refreshes `orchestrator_state.yml` only when a stateful lifecycle phase
+    loads the catalog. Catalog-independent operational phases preserve the
+    previously derived feature flags.
 
 ## Requirements
 
@@ -40,11 +42,16 @@ combinations are defined in `vars/main.yml`.
 ## Outputs
 
 The role publishes project paths, configuration, repository, catalog, feature,
-and OIM facts. Stateful phases also write:
+and OIM facts. Catalog-backed stateful phases also write:
 
 ```text
 <ORCHESTRATOR_DATA_PATH>/output/<project>/orchestrator_state.yml
 ```
+
+PXE-only, external node-registration verification, upgrade, cleanup, and other
+catalog-independent operational flows do not refresh this file. They preserve
+the feature decisions produced by the latest catalog-backed lifecycle phase,
+preventing fallback values from disabling OpenLDAP or Kubernetes support.
 
 ## Dependencies
 

@@ -55,6 +55,10 @@
   ansible.builtin.import_playbook: sinks/deploy_sinks.yml
   vars:
     sinks: "{{ hostvars['localhost']['sinks_list'] }}"
+    # An empty derived list is valid when all telemetry channels are disabled.
+    # In that case shared sinks are preserved and source disable reconciliation
+    # must continue. Standalone deploy_sinks calls still require a selection.
+    allow_empty_sinks: true
   tags: deploy
 
 # ── Phase 1.5: Transfer credentials to kube_vip for source deployments ───────
@@ -88,7 +92,6 @@
 - name: "Phase 2 | Deploy PowerScale telemetry"
   ansible.builtin.import_playbook: sources/deploy_powerscale.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
 - name: "Phase 2 | Deploy UFM telemetry"
   ansible.builtin.import_playbook: sources/deploy_ufm.yml
@@ -487,12 +490,6 @@
           {{ (_kv['_vlagent_vector_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
       ansible.builtin.set_fact:
-        _deploy_result_powerscale_metrics: >-
-          {{ 'skipped' if not (_ps_m_on | bool)
-             else ('deployed' if (_ps_running | bool) else 'failed') }}
-        _deploy_result_powerscale_logs: >-
-          {{ 'skipped' if not (_ps_l_on | bool)
-             else ('deployed' if (_vlagent_running | bool) else 'failed') }}
         _deploy_result_ufm_metrics: >-
           {{ 'skipped' if not (_ufm_m_on | bool)
              else ('deployed' if (_ufm_ok | bool) else 'failed') }}
@@ -504,11 +501,11 @@
         _deploy_result_vast_logs: >-
           {{ 'skipped' if not (_vast_l_on | bool) else 'deployed' }}
         _deploy_result_ome_metrics: >-
-          {{ 'disabled' if not (_ome_m_on | bool)
+          {{ 'skipped' if not (_ome_m_on | bool)
              else ('deployed' if ((_vome_running | bool)
              and (_ome_metrics_forwarder_running | bool)) else 'failed') }}
         _deploy_result_ome_logs: >-
-          {{ 'disabled' if not (_ome_l_on | bool)
+          {{ 'skipped' if not (_ome_l_on | bool)
              else ('deployed' if ((_vome_running | bool)
              and (_ome_logs_forwarder_running | bool)) else 'failed') }}
 
