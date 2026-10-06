@@ -32,8 +32,6 @@ from library.messages import PROVISION_TEST_ASSERT_MSGS as ASSERT
 from library.messages import PROVISION_TEST_LOG_MSGS as LOG
 from library.vars import TEST_CASES as TC
 
-pytestmark = [pytest.mark.sanity]
-
 
 def _assert_result(test_log, component, result):
     """Record one structured provision result and enforce its postcondition."""
@@ -60,24 +58,28 @@ def _run_check(host, registry_key, check):
     _assert_result(TestLogger(tc["title"], tc["id"]), tc["component"], check(host))
 
 
+@pytest.mark.sanity
 @pytest.mark.order(101)
 def test_provision_reports(host):
     """Verify the provision report and generated inventory contracts."""
     _run_check(host, "provision_reports", check_provision_reports)
 
 
+@pytest.mark.sanity
 @pytest.mark.order(102)
 def test_smd_identity(host):
     """Verify XNAME, administrative MAC, and IP identity in SMD."""
     _run_check(host, "smd_identity", check_smd_identity)
 
 
+@pytest.mark.sanity
 @pytest.mark.order(103)
 def test_smd_group_membership(host):
     """Verify expected groups and reject competing cloud-init groups."""
     _run_check(host, "smd_groups", check_smd_groups)
 
 
+@pytest.mark.sanity
 @pytest.mark.order(104)
 def test_boot_service_configurations(host):
     """Verify BootConfigurations and their mapped administrative MACs."""
@@ -88,18 +90,21 @@ def test_boot_service_configurations(host):
     )
 
 
+@pytest.mark.sanity
 @pytest.mark.order(105)
 def test_boot_service_node_identity(host):
     """Verify synchronized XNAME-to-bootMac records."""
     _run_check(host, "boot_nodes", check_boot_nodes)
 
 
+@pytest.mark.sanity
 @pytest.mark.order(106)
 def test_metadata_service_groups(host):
     """Verify one usable cloud-init template per functional group."""
     _run_check(host, "metadata_groups", check_metadata_groups)
 
 
+@pytest.mark.sanity
 @pytest.mark.order(107)
 def test_metadata_service_instances(host):
     """Verify unique per-node hostname metadata."""
@@ -110,6 +115,7 @@ def test_metadata_service_instances(host):
     )
 
 
+@pytest.mark.sanity
 @pytest.mark.order(108)
 def test_coredhcp_and_coredns_inventory(host):
     """Verify the SMD identity records consumed by CoreDHCP/CoreDNS."""

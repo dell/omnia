@@ -83,6 +83,52 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify node_mount_point is set when node_key is specified",
         "component": "Mount config node_key consistency",
     },
+    # ── OIM readiness (V100-V118) ───────────────────────────────────
+    "oim_cpu_threshold": {
+        "id": "ORCH_FVT_PRECHECK_V100",
+        "title": "Verify OIM CPU core count meets minimum threshold",
+        "component": "OIM CPU threshold",
+    },
+    "oim_memory_threshold": {
+        "id": "ORCH_FVT_PRECHECK_V101",
+        "title": "Verify OIM memory meets minimum threshold",
+        "component": "OIM memory threshold",
+    },
+    "oim_disk_threshold": {
+        "id": "ORCH_FVT_PRECHECK_V102",
+        "title": "Verify OIM root filesystem meets minimum threshold",
+        "component": "OIM disk threshold",
+    },
+    "oim_pxe_nic_present": {
+        "id": "ORCH_FVT_PRECHECK_V103",
+        "title": "Verify configured admin NIC exists and is UP",
+        "component": "OIM admin NIC presence",
+    },
+    "oim_public_nic_present": {
+        "id": "ORCH_FVT_PRECHECK_V104",
+        "title": "Verify public/default-route NIC exists and is UP",
+        "component": "OIM public NIC presence",
+    },
+    "oim_pxe_nic_ipv4": {
+        "id": "ORCH_FVT_PRECHECK_V105",
+        "title": "Verify admin NIC carries the configured IPv4 address",
+        "component": "OIM admin NIC IPv4",
+    },
+    "oim_ssh_preflight": {
+        "id": "ORCH_FVT_PRECHECK_V107",
+        "title": "Verify passwordless SSH from OIM to mapped target node",
+        "component": "OIM SSH preflight",
+    },
+    "oim_internet_reachability": {
+        "id": "ORCH_FVT_PRECHECK_V108",
+        "title": "Verify internet reachability via ICMP ping",
+        "component": "Internet reachability",
+    },
+    "oim_os_version": {
+        "id": "ORCH_FVT_PRECHECK_V109",
+        "title": "Verify OIM OS matches expected distribution and version",
+        "component": "OIM OS version",
+    },
 }
 
 PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
@@ -241,6 +287,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify Kubernetes component version compatibility",
         "component": "Kubernetes version compatibility",
     },
+    "kubernetes_configured_versions": {
+        "id": "ORCH_FVT_PXEBOOT_V101",
+        "title": "Verify configured Kubernetes component versions",
+        "component": "Kubernetes configured versions",
+    },
     "kubernetes_control_plane": {
         "id": "ORCH_FVT_PXEBOOT_V008",
         "title": "Verify Kubernetes API and control-plane readiness",
@@ -281,6 +332,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify Kubernetes local-etcd disk integrity",
         "component": "Kubernetes local-etcd disk integrity",
     },
+    "kubernetes_local_etcd_provisioning": {
+        "id": "ORCH_FVT_PXEBOOT_V102",
+        "title": "Verify Kubernetes local-etcd provisioning contract",
+        "component": "Kubernetes local-etcd provisioning",
+    },
     "kubernetes_storage": {
         "id": "ORCH_FVT_PXEBOOT_V016",
         "title": "Verify Kubernetes NFS and CSI storage",
@@ -295,6 +351,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V018",
         "title": "Verify Kubernetes PowerScale snapshot components",
         "component": "Kubernetes snapshot components",
+    },
+    "kubernetes_nfs_contract": {
+        "id": "ORCH_FVT_PXEBOOT_V103",
+        "title": "Verify Kubernetes NFS provisioner and backend contract",
+        "component": "Kubernetes NFS provisioner",
     },
     "kubernetes_nfs_dynamic": {
         "id": "ORCH_FVT_PXEBOOT_V019",
@@ -984,6 +1045,97 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V501",
         "title": "Verify Slurm compute node re-addition lifecycle",
         "component": "Slurm node re-addition",
+    },
+    # ── DCGM / CUDA verification (ORCH_FVT_PXEBOOT_V501-V518) ─────────
+    "dcgm_cuda_validation": {
+        "id": "ORCH_FVT_PXEBOOT_V501",
+        "title": "Verify NVIDIA driver and CUDA toolkit on GPU nodes",
+        "component": "CUDA driver and toolkit validation",
+    },
+    "dcgm_cuda_atomic_lock": {
+        "id": "ORCH_FVT_PXEBOOT_V502",
+        "title": "Verify CUDA toolkit installed via atomic lock",
+        "component": "CUDA atomic lock installation",
+    },
+    "dcgm_package_installed": {
+        "id": "ORCH_FVT_PXEBOOT_V503",
+        "title": "Verify datacenter-gpu-manager RPM and DCGM binaries",
+        "component": "DCGM package installation",
+    },
+    "dcgm_daemon_running": {
+        "id": "ORCH_FVT_PXEBOOT_V504",
+        "title": "Verify nvidia-dcgm service is active and enabled",
+        "component": "DCGM daemon status",
+    },
+    "dcgm_gpu_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V505",
+        "title": "Verify dcgmi discovery enumerates GPUs with unique UUIDs",
+        "component": "DCGM GPU discovery",
+    },
+    "dcgm_gpu_metrics": {
+        "id": "ORCH_FVT_PXEBOOT_V506",
+        "title": "Verify dcgmi dmon returns metric samples for each GPU",
+        "component": "DCGM GPU metrics monitoring",
+    },
+    "dcgm_cuda_login_compiler": {
+        "id": "ORCH_FVT_PXEBOOT_V507",
+        "title": "Verify CUDA toolkit accessible on login_compiler nodes",
+        "component": "CUDA login_compiler installation",
+    },
+    "dcgm_cuda_compute_node": {
+        "id": "ORCH_FVT_PXEBOOT_V508",
+        "title": "Verify CUDA toolkit and driver on compute nodes",
+        "component": "CUDA compute node installation",
+    },
+    "dcgm_multi_gpu_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V509",
+        "title": "Verify dcgmi discovery on multi-GPU nodes",
+        "component": "DCGM multi-GPU discovery",
+    },
+    "dcgm_multi_gpu_no_login_compiler": {
+        "id": "ORCH_FVT_PXEBOOT_V510",
+        "title": "Verify GPU nodes work without login_compiler present",
+        "component": "Multi-GPU without login_compiler",
+    },
+    "dcgm_multi_login_compiler_lock": {
+        "id": "ORCH_FVT_PXEBOOT_V511",
+        "title": "Verify CUDA toolkit install uses atomic lock with multiple login_compilers",
+        "component": "Multi login_compiler atomic lock",
+    },
+    "dcgm_toolkit_nfs_storage": {
+        "id": "ORCH_FVT_PXEBOOT_V512",
+        "title": "Verify /hpc_tools is NFS-mounted and CUDA toolkit accessible",
+        "component": "CUDA NFS shared storage",
+    },
+    "dcgm_rhel_compatibility": {
+        "id": "ORCH_FVT_PXEBOOT_V513",
+        "title": "Verify GPU node OS is a supported RHEL version",
+        "component": "GPU RHEL compatibility",
+    },
+    "dcgm_cuda_version_compatibility": {
+        "id": "ORCH_FVT_PXEBOOT_V514",
+        "title": "Verify CUDA toolkit and DCGM daemon version compatibility",
+        "component": "CUDA version compatibility",
+    },
+    "dcgm_neg_cuda_prerequisite": {
+        "id": "ORCH_FVT_PXEBOOT_V515",
+        "title": "Verify DCGM deployment requires CUDA prerequisites",
+        "component": "CUDA prerequisite enforcement",
+    },
+    "dcgm_neg_daemon_recovery": {
+        "id": "ORCH_FVT_PXEBOOT_V516",
+        "title": "Verify DCGM daemon auto-recovery after SIGKILL",
+        "component": "DCGM daemon crash recovery",
+    },
+    "dcgm_neg_socket_inaccessible": {
+        "id": "ORCH_FVT_PXEBOOT_V517",
+        "title": "Verify dcgmi returns clear error when socket is removed",
+        "component": "DCGM socket inaccessible",
+    },
+    "dcgm_neg_package_install_failure": {
+        "id": "ORCH_FVT_PXEBOOT_V518",
+        "title": "Verify error handling when DCGM package is unavailable",
+        "component": "DCGM package install failure",
     },
     "additional_cloud_init_smd_groups": {
         "id": "ORCH_FVT_PXEBOOT_V095",
