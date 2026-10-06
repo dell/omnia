@@ -90,6 +90,29 @@ dataset: ""
 sync_telemetry_input: false
 
 # =============================================================================
+# FULL TELEMETRY CLEANUP
+# =============================================================================
+# Cleanup FVT invokes: ansible-playbook playbooks/telemetry.yml --tags cleanup
+#
+# delete_sinks_volume:
+#   true  - delete Kafka, VictoriaMetrics, VictoriaLogs PVCs during cleanup
+#   false - preserve sink PVCs (source PVCs are always deleted)
+# Default: false
+delete_sinks_volume: false
+
+# cleanup_credentials:
+#   true  - remove telemetry_credentials.yml and its vault key
+#   false - preserve credential artifacts
+# Default: true
+cleanup_credentials: false
+
+# cleanup_logs:
+#   true  - remove the telemetry log directory
+#   false - preserve the log directory
+# Default: true
+cleanup_logs: false
+
+# =============================================================================
 # EXTERNAL APPLIANCE SETTINGS
 # =============================================================================
 # OME (OpenManage Enterprise) appliance IP for Kafka forwarder connectivity

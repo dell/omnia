@@ -76,6 +76,7 @@ from library.functions import run_playbook
 # KAFKA DEPENDENCY TESTS
 # =============================================================================
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(70)
@@ -151,6 +152,7 @@ def test_cleanup_sinks_kafka_no_deps(host):
     assert kafka_result["success"], ASSERT_MSGS["kafka_not_cleaned"]
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(71)
@@ -221,6 +223,7 @@ def test_cleanup_sinks_kafka_blocked(host):
     )
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(72)
@@ -279,6 +282,7 @@ def test_cleanup_sinks_kafka_multi_blocked(host):
     assert unchanged, ASSERT_MSGS["sink_should_remain_unchanged"].format(sink="Kafka")
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(73)
@@ -333,6 +337,7 @@ def test_cleanup_sinks_kafka_volumes_preserved(host):
         pytest.skip("Kafka PVCs not present (Kafka may not have been deployed)")
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(74)
@@ -392,6 +397,7 @@ def test_cleanup_sinks_kafka_volumes_deleted(host, delete_sinks_volume):
 # VICTORIAMETRICS DEPENDENCY TESTS
 # =============================================================================
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(75)
@@ -459,6 +465,7 @@ def test_cleanup_sinks_vm_no_deps(host):
     assert vm_result["success"], ASSERT_MSGS["vm_not_cleaned"]
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(76)
@@ -522,6 +529,7 @@ def test_cleanup_sinks_vm_blocked(host):
     )
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(77)
@@ -584,6 +592,7 @@ def test_cleanup_sinks_vm_multi_blocked(host):
 # VICTORIALOGS DEPENDENCY TESTS
 # =============================================================================
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(78)
@@ -649,6 +658,7 @@ def test_cleanup_sinks_vl_no_deps(host):
     assert vl_result["success"], ASSERT_MSGS["vl_not_cleaned"]
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(79)
@@ -709,6 +719,7 @@ def test_cleanup_sinks_vl_blocked(host):
     )
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(83)
@@ -817,6 +828,7 @@ def test_cleanup_sinks_dep_check_fail(host):
     # feasible in the standard FVT environment.
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(81)
@@ -888,6 +900,7 @@ def test_cleanup_sinks_unrelated_running(host):
     )
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(82)
@@ -927,6 +940,7 @@ def test_cleanup_sinks_repeated(host):
     )
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(83)
@@ -973,6 +987,7 @@ def test_cleanup_sinks_selective_isolation(host):
     )
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(84)
@@ -1041,6 +1056,7 @@ def test_cleanup_sinks_blocked_volumes_protected(host, delete_sinks_volume):
     )
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(85)
@@ -1129,6 +1145,7 @@ def test_cleanup_sinks_all_or_nothing(host):
     )
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(86)

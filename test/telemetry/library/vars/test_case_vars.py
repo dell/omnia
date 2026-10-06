@@ -53,6 +53,38 @@ TEST_CASES = {
         "id": "TEL_FVT_CLEANUP_E002",
         "title": "Deploy cleanup with credential and log preservation",
     },
+    "deploy_deploy_sinks": {
+        "id": "TEL_FVT_DEPLOY_SINKS_E001",
+        "title": "Deploy sinks (--tags deploy_sinks)",
+    },
+    "deploy_cleanup_sinks": {
+        "id": "TEL_FVT_CLEANUP_SINKS_E001",
+        "title": "Cleanup sinks (--tags cleanup_sinks)",
+    },
+    "deploy_cleanup_idrac": {
+        "id": "TEL_FVT_CLEANUP_IDRAC_E001",
+        "title": "Cleanup iDRAC (--tags cleanup_idrac)",
+    },
+    "deploy_cleanup_ldms": {
+        "id": "TEL_FVT_CLEANUP_LDMS_E001",
+        "title": "Cleanup LDMS (--tags cleanup_ldms)",
+    },
+    "deploy_cleanup_ome": {
+        "id": "TEL_FVT_CLEANUP_OME_E001",
+        "title": "Cleanup OME (--tags cleanup_ome)",
+    },
+    "deploy_cleanup_powerscale": {
+        "id": "TEL_FVT_CLEANUP_POWERSCALE_E001",
+        "title": "Cleanup PowerScale (--tags cleanup_powerscale)",
+    },
+    "deploy_cleanup_ufm": {
+        "id": "TEL_FVT_CLEANUP_UFM_E001",
+        "title": "Cleanup UFM (--tags cleanup_ufm)",
+    },
+    "deploy_cleanup_vast": {
+        "id": "TEL_FVT_CLEANUP_VAST_E001",
+        "title": "Cleanup VAST (--tags cleanup_vast)",
+    },
     # -- Precheck -----------------------------------------------------------
     "env_vars_present": {
         "id": "TEL_FVT_PRECHECK_V001",
@@ -611,6 +643,10 @@ TEST_CASES = {
     "cleanup_vast": {
         "id": "TEL_FVT_CLEANUP_V010",
         "title": "Verify VAST resources removed after cleanup",
+    },
+    "cleanup_powerscale": {
+        "id": "TEL_FVT_CLEANUP_POWERSCALE_V001",
+        "title": "Verify PowerScale resources removed after cleanup",
     },
     "cleanup_sfm": {
         "id": "TEL_FVT_CLEANUP_V011",
