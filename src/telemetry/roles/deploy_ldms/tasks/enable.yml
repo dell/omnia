@@ -34,10 +34,12 @@
 #     after helm upgrade (3-way merge does not restore replicas on its own)
 #   - deploy_vector_ldms.yml restores Vector-LDMS replicas after kubectl apply
 #
-# Note: Sampler installation on compute nodes (configure_ldms_sampler.yml)
+# Note: Sampler installation on compute nodes (configure_ldms_sampler_node.yml,
+# which bootstraps credentials/config and then runs configure_ldms_sampler.yml)
 # runs as a separate play in the deploy_ldms playbook for parallel execution
-# across the Slurm cluster. It depends on the ldms_deploy_reachable group
-# populated by build_deployment_inventory.yml below.
+# across the Slurm cluster, since this file only runs on kube_vip_group and
+# cannot reach those hosts directly. It depends on the ldms_deploy_reachable
+# group populated by build_deployment_inventory.yml below.
 #
 # LDMS Architecture:
 #   Compute nodes (LDMS sampler) → LDMS aggregator (K8s) → Kafka 'ldms' topic

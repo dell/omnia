@@ -19,8 +19,11 @@
 # Purpose: Kafka-to-VictoriaMetrics ingestion pipeline for LDMS metrics
 # Architecture: Kafka 'ldms' topic → Vector-LDMS → vmagent-vector:8429 → vminsert:8480
 #
-# Called from reconcile_vector_ldms_bridge.yml (itself called from enable.yml)
-# only when telemetry_bridges.vector_ldms.metrics_enabled is true.
+# Call chain:
+#   deploy_ldms.yml (Play 1) → enable.yml → reconcile_vector_ldms_bridge.yml → this file
+#
+# Only invoked when telemetry_bridges.vector_ldms.metrics_enabled is true.
+# Handles both deployment (scale to desired replicas) and disable (scale to 0).
 # =============================================================================
 
 - name: Check if Vector-LDMS deployment exists
