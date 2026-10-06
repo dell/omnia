@@ -20,6 +20,7 @@ import re
 from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
     SLURM_COMPUTE_PREFIX,
+    SLURM_LOGIN_PREFIXES,
     SLURM_ROLE_SERVICES,
 )
 from ._pxeboot_helpers import (
@@ -27,6 +28,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import ensure_source_mpi as _ensure_source_mpi
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import slurm_context as _context
 
@@ -42,7 +44,7 @@ def _parse_slurm_nodes(output: str) -> dict[str, dict[str, str]]:
 
 
 def check_slurm_membership(host):
-    """Verify compute membership, scheduler state, and discovered hardware."""
+    """Verify scheduler membership, node state, and compute hardware."""
     summary = "Slurm membership and hardware"
     try:
         _runtime, rows, control, config = _context(host)
@@ -55,34 +57,64 @@ def check_slurm_membership(host):
         ]
         if not compute_rows:
             return _skip(summary, "No Slurm compute nodes are mapped")
+        scheduler_rows = [
+            row
+            for row in rows
+            if row["EXPECTED_FUNCTIONAL_GROUP"].startswith(
+                (SLURM_COMPUTE_PREFIX, *SLURM_LOGIN_PREFIXES)
+            )
+        ]
         result = remote_command(host, control, PXEBOOT_COMMANDS["slurm_nodes"])
         if result.rc != 0:
             raise RuntimeError("scontrol could not read Slurm node state")
         actual = _parse_slurm_nodes(result.stdout)
         node_results = []
         unhealthy_states = {"down", "drain", "fail", "unknown", "future"}
-        for row in compute_rows:
+        for row in scheduler_rows:
+            is_compute = row["EXPECTED_FUNCTIONAL_GROUP"].startswith(
+                SLURM_COMPUTE_PREFIX
+            )
+            hardware_required = is_compute
             node = actual.get(row["HOSTNAME"])
             if node is None:
-                node_results.append((row, False, "not registered", "", ""))
+                # Login/compiler nodes may not appear in scontrol output
+                # when using configless slurm — they are submission hosts,
+                # not schedulable resources.
+                if not is_compute:
+                    node_results.append(
+                        (row, True, "submission-only", "", "", False)
+                    )
+                else:
+                    node_results.append(
+                        (row, False, "not registered", "", "", hardware_required)
+                    )
                 continue
             state = str(node.get("State", "unknown")).split("+", 1)[0].lower()
             cpus = str(node.get("CPUTot") or node.get("CPUs") or "")
             memory = str(node.get("RealMemory") or "")
-            hardware_valid = bool(cpus and memory)
-            ok = state not in unhealthy_states and hardware_valid
-            node_results.append((row, ok, state, cpus, memory))
-        unexpected = sorted(set(actual) - {row["HOSTNAME"] for row in compute_rows})
+            hardware_valid = not hardware_required or bool(cpus and memory)
+            # Login/compiler nodes only need to be registered — their
+            # scheduler state is not meaningful because they are not
+            # schedulable compute resources.
+            if is_compute:
+                ok = state not in unhealthy_states and hardware_valid
+            else:
+                ok = True
+            node_results.append(
+                (row, ok, state, cpus, memory, hardware_required)
+            )
+        expected_nodes = {row["HOSTNAME"] for row in scheduler_rows}
+        unexpected = sorted(set(actual) - expected_nodes)
         failed = [
             row["HOSTNAME"]
-            for row, ok, _state, _cpus, _memory in node_results
+            for row, ok, _state, _cpus, _memory, _hardware_required in node_results
             if not ok
         ]
         mode = str(config.get("node_discovery_mode", "heterogeneous"))
         fields = [
             ("Discovery mode", mode),
-            ("Desired Slurm compute nodes", len(compute_rows)),
-            ("Registered Slurm compute nodes", len(actual)),
+            ("Desired Slurm scheduler nodes", len(scheduler_rows)),
+            ("Registered Slurm scheduler nodes", len(actual)),
             ("Unexpected nodes", ", ".join(unexpected) or "none"),
         ]
         grouped = {}
@@ -91,11 +123,16 @@ def check_slurm_membership(host):
                 result_item
             )
         for group_name, group_nodes in grouped.items():
-            valid = sum(1 for _row, ok, _state, _cpus, _memory in group_nodes if ok)
+            valid = sum(
+                1
+                for _row, ok, _state, _cpus, _memory, _hardware_required
+                in group_nodes
+                if ok
+            )
             fields.append(
                 ("Functional group", f"[{group_name}] ({valid}/{len(group_nodes)})")
             )
-            for row, ok, state, cpus, memory in group_nodes:
+            for row, ok, state, cpus, memory, hardware_required in group_nodes:
                 registered = state != "not registered"
                 state_ok = registered and state not in unhealthy_states
                 fields.extend(
@@ -108,16 +145,21 @@ def check_slurm_membership(host):
                             "    State",
                             f"{'✓' if state_ok else '✗'} {state}",
                         ),
-                        (
-                            "    CPUs",
-                            f"{'✓' if cpus else '✗'} {cpus or 'missing'}",
-                        ),
-                        (
-                            "    RealMemory",
-                            f"{'✓' if memory else '✗'} {memory or 'missing'}",
-                        ),
                     ]
                 )
+                if hardware_required:
+                    fields.extend(
+                        [
+                            (
+                                "    CPUs",
+                                f"{'✓' if cpus else '✗'} {cpus or 'missing'}",
+                            ),
+                            (
+                                "    RealMemory",
+                                f"{'✓' if memory else '✗'} {memory or 'missing'}",
+                            ),
+                        ]
+                    )
         return runtime_result(
             not failed and not unexpected,
             summary,
@@ -165,7 +207,15 @@ def check_slurm_services(host):
                     row,
                     PXEBOOT_COMMANDS["node_services"] % service,
                 )
-                states[service] = result.stdout.strip() if result.rc == 0 else "failed"
+                if result.rc == 0:
+                    states[service] = result.stdout.strip()
+                else:
+                    detail = (result.stderr or result.stdout or "").strip()
+                    states[service] = (
+                        f"failed (rc={result.rc}"
+                        + (f": {detail[:80]}" if detail else "")
+                        + ")"
+                    )
             ok = bool(states) and all(state == "active" for state in states.values())
             node_results.append((row, ok, states))
 
@@ -195,12 +245,22 @@ def check_slurm_services(host):
                     for service, state in states.items()
                 )
 
-        failed = [row["HOSTNAME"] for row, ok, _states in node_results if not ok]
+        failed_detail = []
+        for row, ok, states in node_results:
+            if not ok:
+                bad = [
+                    svc for svc, st in states.items() if st != "active"
+                ]
+                failed_detail.append(
+                    f"{row['HOSTNAME']}({','.join(bad)})"
+                )
         return runtime_result(
-            not failed,
+            not failed_detail,
             summary,
             fields,
-            "Service failures: " + ", ".join(failed) if failed else "",
+            "Service failures: " + "; ".join(failed_detail)
+            if failed_detail
+            else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -491,6 +551,53 @@ def check_slurm_pam_policy(host):
         return runtime_exception(summary, exc)
 
 
+def _discover_openmpi(host, row):
+    """Run the OpenMPI discovery probe on a single node.
+
+    Returns:
+        Tuple of (success, executable, compiler, version, diagnostic).
+    """
+    result = remote_command(host, row, PXEBOOT_COMMANDS["openmpi"])
+    output_lines = [
+        line.strip() for line in result.stdout.splitlines() if line.strip()
+    ]
+    executable_line = next(
+        (
+            line
+            for line in output_lines
+            if line.startswith("OPENMPI_EXECUTABLE|")
+        ),
+        "",
+    )
+    executable = executable_line.partition("|")[2]
+    compiler_line = next(
+        (line for line in output_lines if line.startswith("OPENMPI_COMPILER|")),
+        "",
+    )
+    compiler = compiler_line.partition("|")[2]
+    version = next(
+        (
+            line
+            for line in output_lines
+            if line not in {executable_line, compiler_line}
+            and "Open MPI" in line
+        ),
+        "not reported",
+    )
+    success = (
+        result.rc == 0
+        and bool(executable)
+        and bool(compiler)
+        and version != "not reported"
+    )
+    diagnostic = re.sub(
+        r"\s+",
+        " ",
+        (result.stderr or result.stdout or f"command rc={result.rc}").strip(),
+    )[:300]
+    return success, executable or "missing", compiler or "missing", version, diagnostic
+
+
 def check_slurm_openmpi_installation(host):
     """Verify the selected OpenMPI runtime on every mapped compute node."""
     summary = "Slurm OpenMPI installation"
@@ -506,56 +613,39 @@ def check_slurm_openmpi_installation(host):
         if not compute_rows:
             return _skip(summary, "No Slurm compute nodes are mapped")
 
+        # First pass: discover OpenMPI on every compute node.
         node_results = []
+        needs_source_install = False
         for row in compute_rows:
-            result = remote_command(host, row, PXEBOOT_COMMANDS["openmpi"])
-            output_lines = [
-                line.strip() for line in result.stdout.splitlines() if line.strip()
-            ]
-            executable_line = next(
-                (
-                    line
-                    for line in output_lines
-                    if line.startswith("OPENMPI_EXECUTABLE|")
-                ),
-                "",
+            success, executable, compiler, version, diagnostic = (
+                _discover_openmpi(host, row)
             )
-            executable = executable_line.partition("|")[2]
-            compiler_line = next(
-                (line for line in output_lines if line.startswith("OPENMPI_COMPILER|")),
-                "",
-            )
-            compiler = compiler_line.partition("|")[2]
-            version = next(
-                (
-                    line
-                    for line in output_lines
-                    if line not in {executable_line, compiler_line}
-                    and "Open MPI" in line
-                ),
-                "not reported",
-            )
-            success = (
-                result.rc == 0
-                and bool(executable)
-                and bool(compiler)
-                and version != "not reported"
-            )
-            diagnostic = re.sub(
-                r"\s+",
-                " ",
-                (result.stderr or result.stdout or f"command rc={result.rc}").strip(),
-            )[:300]
-            node_results.append(
-                (
-                    row,
-                    success,
-                    executable or "missing",
-                    compiler or "missing",
-                    version,
-                    diagnostic,
+            if not success:
+                mellanox = remote_command(
+                    host, row, PXEBOOT_COMMANDS["mellanox_detect"]
                 )
+                if mellanox.rc != 0:
+                    needs_source_install = True
+            node_results.append(
+                (row, success, executable, compiler, version, diagnostic)
             )
+
+        # Second pass: if any non-OFED node lacks MPI, install from source.
+        if needs_source_install:
+            provisioned, skip_reason = _ensure_source_mpi(host, rows)
+            if not provisioned:
+                return _skip(summary, skip_reason)
+            # Re-discover on previously failed non-OFED nodes.
+            updated = []
+            for row, success, executable, compiler, version, diagnostic in node_results:
+                if not success:
+                    success, executable, compiler, version, diagnostic = (
+                        _discover_openmpi(host, row)
+                    )
+                updated.append(
+                    (row, success, executable, compiler, version, diagnostic)
+                )
+            node_results = updated
 
         fields = []
         grouped = {}

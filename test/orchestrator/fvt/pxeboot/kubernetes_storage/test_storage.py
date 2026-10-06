@@ -28,7 +28,7 @@ from fvt.result import verify_pxeboot
 
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(216)
+@pytest.mark.order(218)
 def test_kubernetes_storage(host):
     """Verify configured NFS and PowerScale storage objects."""
     verify_pxeboot(host, "kubernetes_storage", check_kubernetes_storage)
@@ -36,7 +36,7 @@ def test_kubernetes_storage(host):
 
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(217)
+@pytest.mark.order(219)
 def test_kubernetes_default_storage_class(host):
     """Verify exactly one expected default StorageClass."""
     verify_pxeboot(
@@ -46,7 +46,7 @@ def test_kubernetes_default_storage_class(host):
 
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(218)
+@pytest.mark.order(220)
 def test_kubernetes_snapshot_controller(host):
     """Verify PowerScale snapshot components when configured."""
     verify_pxeboot(
@@ -57,7 +57,7 @@ def test_kubernetes_snapshot_controller(host):
 @pytest.mark.functional
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(219)
+@pytest.mark.order(222)
 def test_kubernetes_nfs_dynamic_provisioning(host):
     """Create and remove an isolated NFS-backed workload."""
     verify_pxeboot(
@@ -68,7 +68,7 @@ def test_kubernetes_nfs_dynamic_provisioning(host):
 @pytest.mark.functional
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(220)
+@pytest.mark.order(223)
 def test_kubernetes_csi_dynamic_provisioning(host):
     """Create and remove an isolated PowerScale-backed workload."""
     verify_pxeboot(

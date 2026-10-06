@@ -25,7 +25,7 @@ def _result(rc=0, stdout="", stderr=""):
 
 
 def test_kubernetes_workload_cleanup_runs_after_apply_failure(monkeypatch):
-    """ORCH_UT_009: A created namespace is deleted when workload apply fails."""
+    """ORCH_UT_066: A created namespace is deleted when workload apply fails."""
     commands = []
 
     def remote_command(_host, _row, command):
@@ -55,7 +55,7 @@ def test_kubernetes_workload_cleanup_runs_after_apply_failure(monkeypatch):
 
 
 def test_slurm_drain_probe_always_cancels_job_and_resumes_node(monkeypatch):
-    """ORCH_UT_010: Scheduler-state cleanup runs after a pending-job result."""
+    """ORCH_UT_067: Scheduler-state cleanup runs after a pending-job result."""
     commands = []
     control = {
         "HOSTNAME": "slurmctl",

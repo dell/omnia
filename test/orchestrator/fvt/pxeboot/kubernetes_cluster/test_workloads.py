@@ -23,7 +23,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.functional
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(211)
+@pytest.mark.order(212)
 def test_kubernetes_workload_scheduling(host):
     """Create, verify, and remove an isolated scheduling probe."""
     verify_pxeboot(host, "kubernetes_workload", check_kubernetes_workload_scheduling)

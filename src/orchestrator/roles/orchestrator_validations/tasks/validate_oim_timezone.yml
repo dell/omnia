@@ -20,6 +20,6 @@
   changed_when: false
   failed_when: false
 
-- name: Set current OIM timezone fact
+- name: Set OIM timezone fact
   ansible.builtin.set_fact:
-    current_oim_timezone: "{{ current_oim_tz_cmd.stdout | default('') }}"
+    oim_timezone: "{{ current_oim_tz_cmd.stdout | default('UTC') }}"

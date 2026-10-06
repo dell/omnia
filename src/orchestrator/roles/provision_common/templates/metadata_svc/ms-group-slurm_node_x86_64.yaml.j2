@@ -42,7 +42,7 @@
           permissions: '{{ file_mode_755 }}'
           content: |
             #!/bin/bash
-            timedatectl set-timezone {{ hostvars['oim']['oim_timezone'] | default(hostvars['oim']['ansible_date_time']['tz']) }}
+            timedatectl set-timezone {{ hostvars['oim']['oim_timezone'] | default('UTC') }}
             sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
             sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
             sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/50-cloud-init.conf
