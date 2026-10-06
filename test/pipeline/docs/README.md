@@ -125,7 +125,9 @@ Parent Pipeline (.gitlab-ci.yml)
     │   ├─ setup_environment
     │   ├─ cleanup_<domains>
     │   ├─ deploy_<domains>
+    │   ├─ discovery (if ENABLE_DISCOVERY=true)
     │   ├─ test_<domains>
+    │   ├─ cleanup_discovery
     │   └─ summary
     │
     ├─→ Child Pipeline 2 (.gitlab-ci-cluster.yml) for cluster2
@@ -181,6 +183,7 @@ No static secrets are stored in GitLab. Each pipeline job gets a short-lived JWT
 
 - **repo_manager** — Pulp-based package and repository management
 - **image_build_manager** — Container image building and registry
+- **discovery** — Network and hardware discovery
 - **orchestrator** — Kubernetes and container orchestration
 - **telemetry** — Monitoring, logging, and observability
 - **build_stream** — Build stream image provisioning and deployment
@@ -221,8 +224,9 @@ test/pipeline/
     │   └── inputs/
     │       ├── omnia.env            ← Omnia environment
     │       ├── repo_manager/        ← Domain configs
-    │       ├── orchestrator/
     │       ├── image_build_manager/
+    │       ├── discovery/
+    │       ├── orchestrator/
     │       ├── telemetry/
     │       └── test/                ← Test configs
     └── cluster2/

@@ -23,7 +23,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(259)
+@pytest.mark.order(262)
 def test_slurm_ucx_transport(host):
     """Verify UCX exposes an InfiniBand-capable transport."""
     verify_pxeboot(host, "slurm_ucx_transport", check_slurm_ucx_transport)

@@ -23,28 +23,31 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.slurm,
-    pytest.mark.non_disruptive,
-]
 
-
-@pytest.mark.order(254)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(257)
 def test_slurm_gpu_inventory(host):
     """Verify NVIDIA runtime state on scheduler-declared GPU nodes."""
     verify_pxeboot(host, "slurm_gpu_inventory", check_slurm_gpu_inventory)
 
 
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
 @pytest.mark.functional
-@pytest.mark.order(255)
+@pytest.mark.order(258)
 def test_slurm_gpu_job(host):
     """Allocate a GPU through Slurm and query the device."""
     verify_pxeboot(host, "slurm_gpu_job", check_slurm_gpu_job)
 
 
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
 @pytest.mark.functional
-@pytest.mark.order(256)
+@pytest.mark.order(259)
 def test_slurm_gpu_memory_stress(host):
     """Compile and run a bounded GPU memory workload through Slurm."""
     verify_pxeboot(host, "slurm_gpu_memory", check_slurm_gpu_memory_stress)

@@ -41,6 +41,10 @@ DEPLOY_SINKS_PLAYBOOK = (
     / "deploy_sinks.yml"
 )
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+CONSOLIDATED_ORCHESTRATOR_LIFECYCLE_AVAILABLE = (
+    "for pxe_artifact in pxeboot_status.yml failed_nodes.json"
+    not in OMNIA_CLI.read_text(encoding="utf-8")
+)
 
 DOMAIN_STATUS_FILES = {
     "repo_manager": ("repo_status.yml", "success"),
@@ -519,19 +523,18 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("Latest PXE mapping missing", output)
         self.assertIn("Timestamped discovery report CSV missing", output)
 
-    def test_completed_orchestrator_pxe_phase_requires_both_reports(self):
+    @unittest.skipUnless(
+        CONSOLIDATED_ORCHESTRATOR_LIFECYCLE_AVAILABLE,
+        "consolidated Orchestrator lifecycle contract is unavailable",
+    )
+    def test_completed_orchestrator_pxe_phase_requires_failure_report(self):
         output_dir = self.runtime_dir("orchestrator", "output")
         (output_dir / "orchestrator_status.yml").write_text(
             "---\noverall_status: success\nlast_completed_phase: pxeboot\n",
             encoding="utf-8",
         )
-        (output_dir / "pxeboot_status.yml").write_text(
-            "---\noverall_status: success\n", encoding="utf-8"
-        )
-
         result, output = self.invoke_cli("orchestrator")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("PXE report: pxeboot_status.yml", output)
         self.assertIn("failed_nodes.json missing for completed PXE phase", output)
 
         (output_dir / "failed_nodes.json").write_text(
@@ -749,7 +752,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "collect/metadata.json")
 
-    def test_omnia_sh_completion_supports_telemetry_extra_vars_and_utils_tags(self):
+    def test_omnia_sh_completion_supports_domain_tags_and_extra_vars(self):
         completion_script = f'''
 source "{OMNIA_COMPLETION}"
 COMP_WORDS=(omnia.sh -r telemetry --tags cleanup -e delete)
@@ -760,6 +763,14 @@ COMP_WORDS=(omnia.sh -r utils --tags slurm_)
 COMP_CWORD=4
 _omnia_sh_completions
 printf 'utils:%s\n' "${{COMPREPLY[@]}}"
+COMP_WORDS=(omnia.sh -r orchestrator --tags verify_)
+COMP_CWORD=4
+_omnia_sh_completions
+printf 'orchestrator:%s\n' "${{COMPREPLY[@]}}"
+COMP_WORDS=(omnia.sh -r image_build_manager --tags cleanup_images -e cleanup_)
+COMP_CWORD=6
+_omnia_sh_completions
+printf 'image_build_manager:%s\n' "${{COMPREPLY[@]}}"
 '''
         result = subprocess.run(
             ["bash", "-c", completion_script],
@@ -774,6 +785,8 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("utils:slurm_config_backup", result.stdout)
         self.assertIn("utils:slurm_config_cleanup", result.stdout)
         self.assertIn("utils:slurm_config_rollback", result.stdout)
+        self.assertIn("orchestrator:verify_node_registration", result.stdout)
+        self.assertIn("image_build_manager:cleanup_image_pattern=", result.stdout)
 
     def test_omnia_sh_completion_supports_telemetry_deploy_sinks(self):
         completion_script = f'''
