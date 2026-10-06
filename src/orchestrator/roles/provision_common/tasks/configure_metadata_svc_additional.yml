@@ -34,21 +34,18 @@
   no_log: true
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Parse additional common group entries
   ansible.builtin.set_fact:
     ms_additional_common_entries: "{{ ms_additional_common_raw.content | b64decode | from_yaml }}"
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Initialize additional metadata-service common group bodies
   ansible.builtin.set_fact:
     _ms_additional_bodies: []
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Build metadata-service group body for additional common entries
   ansible.builtin.set_fact:
@@ -72,7 +69,6 @@
     label: "{{ entry.name }}"
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
   no_log: true
 
 - name: Reconcile additional common metadata-service group
@@ -86,7 +82,6 @@
   register: _metadata_additional_common_reconcile
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
   no_log: true
 
 - name: Track desired additional common metadata-service group
@@ -97,14 +92,12 @@
          | unique | list }}
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Mark global metadata change for additional common content
   ansible.builtin.set_fact:
     omnia_metadata_global_changed: true
   when:
     - additional_metadata_svc_common_enabled | default(false) | bool
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
     - >-
       ((_metadata_additional_common_reconcile.created | default([]))
        + (_metadata_additional_common_reconcile.updated | default([]))) | length > 0

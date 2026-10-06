@@ -974,6 +974,15 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V429",
         "title": "Verify MySQL datadir is on PowerVault mount",
         "component": "PowerVault MySQL datadir",
+    "slurm_node_remove": {
+        "id": "ORCH_FVT_PXEBOOT_V400",
+        "title": "Verify Slurm compute node removal lifecycle",
+        "component": "Slurm node removal",
+    },
+    "slurm_node_add": {
+        "id": "ORCH_FVT_PXEBOOT_V401",
+        "title": "Verify Slurm compute node re-addition lifecycle",
+        "component": "Slurm node re-addition",
     },
     "additional_cloud_init_smd_groups": {
         "id": "ORCH_FVT_PXEBOOT_V095",

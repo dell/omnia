@@ -14,7 +14,7 @@
 
 """Immutable contracts for PXE boot and post-boot cluster verification."""
 
-PXEBOOT_STATUS = "pxeboot_status.yml"
+ORCHESTRATOR_STATUS = "orchestrator_status.yml"
 OMNIA_CONFIG = "omnia_config.yml"
 STORAGE_CONFIG = "storage_config.yml"
 ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
@@ -467,6 +467,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "slurm_drain_node": ("scontrol update NodeName=%s State=DRAIN Reason=%s"),
     "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
     "slurm_cancel_job": "scancel %s",
+    "slurm_sbatch": "sbatch --parsable --wait --wrap='hostname'",
     "slurm_job_accounting": (
         "sacct --noheader --parsable2 --jobs=%s --format=State | head -1"
     ),

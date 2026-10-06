@@ -91,6 +91,7 @@ SUITES: dict[str, list[str]] = {
         "slurm_hpc_benchmarks",
         "coredns_coredhcp",
         "powervault",
+        "slurm_lifecycle",
         "additional_cloud_init",
         "mount_config",
         "minimal_os",
