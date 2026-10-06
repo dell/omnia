@@ -974,13 +974,14 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V429",
         "title": "Verify MySQL datadir is on PowerVault mount",
         "component": "PowerVault MySQL datadir",
+    },
     "slurm_node_remove": {
-        "id": "ORCH_FVT_PXEBOOT_V400",
+        "id": "ORCH_FVT_PXEBOOT_V500",
         "title": "Verify Slurm compute node removal lifecycle",
         "component": "Slurm node removal",
     },
     "slurm_node_add": {
-        "id": "ORCH_FVT_PXEBOOT_V401",
+        "id": "ORCH_FVT_PXEBOOT_V501",
         "title": "Verify Slurm compute node re-addition lifecycle",
         "component": "Slurm node re-addition",
     },
