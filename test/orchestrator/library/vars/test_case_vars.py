@@ -14,6 +14,10 @@
 
 """Canonical registry for Orchestrator lifecycle test cases."""
 
+# pylint: disable=too-many-lines
+# This is a data registry file that grows with test cases; the line count
+# reflects the number of test cases, not code complexity.
+
 PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
     "deploy_precheck": {
         "id": "ORCH_FVT_PRECHECK_E001",
@@ -243,7 +247,7 @@ PROVISION_TEST_CASES: dict[str, dict[str, str]] = {
     },
 }
 
-PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
+PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-error
     "deploy_pxeboot": {
         "id": "ORCH_FVT_PXEBOOT_E001",
         "title": "Execute Orchestrator PXE boot lifecycle",
@@ -733,13 +737,312 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Apptainer artifacts after compute reboot",
         "component": "Apptainer artifact recovery",
     },
-    "slurm_node_remove": {
+    "hpc_benchmarks_json_declaration": {
+        "id": "ORCH_FVT_PXEBOOT_V200",
+        "title": "Verify HPC benchmarks tool declaration (benchmark_tools.list)",
+        "component": "HPC benchmarks tool declaration",
+    },
+    "hpc_benchmarks_local_repo_sync": {
+        "id": "ORCH_FVT_PXEBOOT_V201",
+        "title": "Verify benchmark tarballs reachable via Pulp offline repo URL",
+        "component": "HPC benchmarks Pulp sync",
+    },
+    "hpc_benchmarks_tools_dir_creation": {
+        "id": "ORCH_FVT_PXEBOOT_V202",
+        "title": "Verify /hpc_tools directory layout and permissions",
+        "component": "HPC benchmarks directory creation",
+    },
+    "hpc_benchmarks_artifact_copy": {
+        "id": "ORCH_FVT_PXEBOOT_V203",
+        "title": "Verify declared benchmark artifacts are staged per tool",
+        "component": "HPC benchmarks artifact copy",
+    },
+    "hpc_benchmarks_msr_safe_arch_boundary": {
+        "id": "ORCH_FVT_PXEBOOT_V204",
+        "title": "Verify msr-safe is staged only for x86_64",
+        "component": "HPC benchmarks msr-safe arch boundary",
+    },
+    "hpc_benchmarks_container_first_guidance": {
+        "id": "ORCH_FVT_PXEBOOT_V205",
+        "title": "Verify pull_benchmarks.sh and benchmark_tools.list are deployed",
+        "component": "HPC benchmarks staging artifacts",
+    },
+    "hpc_benchmarks_source_only_delivery": {
+        "id": "ORCH_FVT_PXEBOOT_V206",
+        "title": "Verify no compile or build commands are staged",
+        "component": "HPC benchmarks source-only delivery",
+    },
+    "hpc_benchmarks_per_tool_staging_report": {
+        "id": "ORCH_FVT_PXEBOOT_V207",
+        "title": "Verify per-tool staging report from pull_benchmarks.sh",
+        "component": "HPC benchmarks per-tool staging report",
+    },
+    "hpc_benchmarks_e2e_provisioning": {
+        "id": "ORCH_FVT_PXEBOOT_V208",
+        "title": "Verify end-to-end benchmark provisioning pipeline",
+        "component": "HPC benchmarks end-to-end provisioning",
+    },
+    "hpc_benchmarks_nfs_accessibility": {
+        "id": "ORCH_FVT_PXEBOOT_V209",
+        "title": "Verify /hpc_tools NFS is mounted and readable on compute nodes",
+        "component": "HPC benchmarks NFS accessibility",
+    },
+    "hpc_benchmarks_airgapped_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V210",
+        "title": "Verify benchmark staging completes without external egress",
+        "component": "HPC benchmarks air-gapped staging",
+    },
+    "hpc_benchmarks_post_staging_validation": {
+        "id": "ORCH_FVT_PXEBOOT_V211",
+        "title": "Verify post-staging validation of benchmark tool directories",
+        "component": "HPC benchmarks post-staging validation",
+    },
+    "hpc_benchmarks_rhel_compatibility": {
+        "id": "ORCH_FVT_PXEBOOT_V212",
+        "title": "Verify benchmark staging on RHEL 10.x",
+        "component": "HPC benchmarks RHEL compatibility",
+    },
+    "hpc_benchmarks_cuda_flow_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V213",
+        "title": "Verify CUDA flow is unaffected by benchmark staging",
+        "component": "HPC benchmarks CUDA flow invariance",
+    },
+    "hpc_benchmarks_nvhpc_flow_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V214",
+        "title": "Verify NVIDIA HPC SDK flow is unaffected by benchmark staging",
+        "component": "HPC benchmarks NVIDIA SDK flow invariance",
+    },
+    "hpc_benchmarks_container_image_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V215",
+        "title": "Verify container image flow is unaffected by benchmark staging",
+        "component": "HPC benchmarks container image flow invariance",
+    },
+    "hpc_benchmarks_openmpi_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V216",
+        "title": "Verify OpenMPI/UCX are unaffected by benchmark staging",
+        "component": "HPC benchmarks OpenMPI invariance",
+    },
+    "hpc_benchmarks_existing_dirs_preserved": {
+        "id": "ORCH_FVT_PXEBOOT_V217",
+        "title": "Verify pre-existing /hpc_tools directories are preserved",
+        "component": "HPC benchmarks existing directory preservation",
+    },
+    "hpc_benchmarks_staging_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V218",
+        "title": "Verify benchmark staging is idempotent",
+        "component": "HPC benchmarks staging idempotency",
+    },
+    "coredns_container_state": {
+        "id": "ORCH_FVT_PXEBOOT_V300",
+        "title": "Verify coresmd container state matches dns_enabled dataset",
+        "component": "CoreDNS/CoreDHCP container state",
+    },
+    "coredns_forward_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V301",
+        "title": "Verify CoreDNS forward resolution from OIM for mapped nodes",
+        "component": "CoreDNS forward resolution",
+    },
+    "coredns_reverse_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V302",
+        "title": "Verify CoreDNS reverse resolution from OIM for mapped admin IPs",
+        "component": "CoreDNS reverse resolution",
+    },
+    "coredhcp_multisubnet_running_image": {
+        "id": "ORCH_FVT_PXEBOOT_V303",
+        "title": (
+            "Verify multi-subnet coresmd containers and rendered subnet "
+            "configuration (defect 843 open for live subnet validation)"
+        ),
+        "component": "CoreDHCP multi-subnet image and config",
+    },
+    "dns_compute_resolv_conf": {
+        "id": "ORCH_FVT_PXEBOOT_V304",
+        "title": "Verify /etc/resolv.conf on every compute uses CoreDNS as primary",
+        "component": "Compute /etc/resolv.conf",
+    },
+    "dns_compute_forward_getent": {
+        "id": "ORCH_FVT_PXEBOOT_V305",
+        "title": "Verify every compute resolves peers via getent hosts",
+        "component": "Compute getent hosts resolution",
+    },
+    "coredns_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V306",
+        "title": "Verify CoreDNS/CoreDHCP state stability (no-drift)",
+        "component": "CoreDNS state stability",
+    },
+    "dns_node_addition_pipeline": {
+        "id": "ORCH_FVT_PXEBOOT_V307",
+        "title": (
+            "Verify SMD-to-CoreDNS pipeline readiness (existing registrations "
+            "only; defect 843 open for live add-node)"
+        ),
+        "component": "CoreDNS node-addition pipeline readiness",
+    },
+    "dns_smd_unreachable_cached_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V308",
+        "title": "Verify CoreDNS serves cached records when SMD is unavailable",
+        "component": "CoreDNS SMD-unavailable cached resolution",
+    },
+    "powervault_iscsi_service": {
         "id": "ORCH_FVT_PXEBOOT_V400",
+        "title": "Verify iscsid is active and enabled on all PowerVault target nodes",
+        "component": "PowerVault iSCSI service",
+    },
+    "powervault_iscsi_initiator_name": {
+        "id": "ORCH_FVT_PXEBOOT_V401",
+        "title": "Verify iSCSI initiator name matches config on all target nodes",
+        "component": "PowerVault iSCSI initiator name",
+    },
+    "powervault_iscsi_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V402",
+        "title": "Verify iSCSI target discovery succeeds from all portal IPs",
+        "component": "PowerVault iSCSI target discovery",
+    },
+    "powervault_iscsi_sessions": {
+        "id": "ORCH_FVT_PXEBOOT_V403",
+        "title": "Verify iSCSI sessions are active on all target nodes",
+        "component": "PowerVault iSCSI sessions",
+    },
+    "powervault_iscsi_startup_automatic": {
+        "id": "ORCH_FVT_PXEBOOT_V404",
+        "title": "Verify iSCSI node startup is automatic on all target nodes",
+        "component": "PowerVault iSCSI startup automatic",
+    },
+    "powervault_portal_reachability": {
+        "id": "ORCH_FVT_PXEBOOT_V405",
+        "title": "Verify iSCSI portal ports are reachable and sessions healthy",
+        "component": "PowerVault portal reachability",
+    },
+    "powervault_multipath_service": {
+        "id": "ORCH_FVT_PXEBOOT_V406",
+        "title": "Verify multipathd is active and enabled on all target nodes",
+        "component": "PowerVault multipathd service",
+    },
+    "powervault_multipath_device": {
+        "id": "ORCH_FVT_PXEBOOT_V407",
+        "title": "Verify multipath device exists and matches volume_id",
+        "component": "PowerVault multipath device",
+    },
+    "powervault_multipath_redundancy": {
+        "id": "ORCH_FVT_PXEBOOT_V408",
+        "title": "Verify multipath device has multiple paths for redundancy",
+        "component": "PowerVault multipath redundancy",
+    },
+    "powervault_gpt_partition": {
+        "id": "ORCH_FVT_PXEBOOT_V409",
+        "title": "Verify GPT partition exists on multipath device",
+        "component": "PowerVault GPT partition",
+    },
+    "powervault_filesystem_type": {
+        "id": "ORCH_FVT_PXEBOOT_V410",
+        "title": "Verify filesystem formatted with correct type",
+        "component": "PowerVault filesystem type",
+    },
+    "powervault_mount_point_directory": {
+        "id": "ORCH_FVT_PXEBOOT_V411",
+        "title": "Verify mount point directory exists on all target nodes",
+        "component": "PowerVault mount point directory",
+    },
+    "powervault_volume_mounted": {
+        "id": "ORCH_FVT_PXEBOOT_V412",
+        "title": "Verify PowerVault volume is actively mounted on all target nodes",
+        "component": "PowerVault volume mounted",
+    },
+    "powervault_mount_options": {
+        "id": "ORCH_FVT_PXEBOOT_V413",
+        "title": "Verify mount options applied correctly on all target nodes",
+        "component": "PowerVault mount options",
+    },
+    "powervault_fstab_entry": {
+        "id": "ORCH_FVT_PXEBOOT_V414",
+        "title": "Verify persistent fstab entry created on all target nodes",
+        "component": "PowerVault fstab entry",
+    },
+    "powervault_node_subdirectory": {
+        "id": "ORCH_FVT_PXEBOOT_V415",
+        "title": "Verify per-node subdirectory exists under mount point",
+        "component": "PowerVault node subdirectory",
+    },
+    "powervault_bind_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V416",
+        "title": "Verify bind mount targets are active on all target nodes",
+        "component": "PowerVault bind mounts",
+    },
+    "powervault_bind_fstab_entries": {
+        "id": "ORCH_FVT_PXEBOOT_V417",
+        "title": "Verify bind mount fstab entries are persistent on all target nodes",
+        "component": "PowerVault bind fstab entries",
+    },
+    "powervault_bind_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V418",
+        "title": "Verify per-node data separation via bind mounts",
+        "component": "PowerVault bind isolation",
+    },
+    "powervault_functional_group_targeting": {
+        "id": "ORCH_FVT_PXEBOOT_V419",
+        "title": "Verify PV mount only on correct functional groups",
+        "component": "PowerVault functional group targeting",
+    },
+    "powervault_multiple_prefix_targeting": {
+        "id": "ORCH_FVT_PXEBOOT_V420",
+        "title": "Verify multiple prefixes target all groups correctly",
+        "component": "PowerVault multiple prefix targeting",
+    },
+    "powervault_setup_log": {
+        "id": "ORCH_FVT_PXEBOOT_V421",
+        "title": "Verify cloud-init runcmd log exists and shows completion",
+        "component": "PowerVault setup log",
+    },
+    "powervault_cloud_init_groups_dict": {
+        "id": "ORCH_FVT_PXEBOOT_V422",
+        "title": "Verify rendered iSCSI setup scripts deployed on target nodes",
+        "component": "PowerVault metadata-service scripts",
+    },
+    "powervault_no_duplicate_fstab": {
+        "id": "ORCH_FVT_PXEBOOT_V423",
+        "title": "Verify no duplicate fstab entries on all target nodes",
+        "component": "PowerVault no duplicate fstab",
+    },
+    "powervault_all_mounts_writable": {
+        "id": "ORCH_FVT_PXEBOOT_V424",
+        "title": "Verify all PV mounts (main + bind) are writable",
+        "component": "PowerVault mounts writable",
+    },
+    "powervault_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V425",
+        "title": "Verify permissions on mount point match config",
+        "component": "PowerVault permissions",
+    },
+    "powervault_io_write_read": {
+        "id": "ORCH_FVT_PXEBOOT_V426",
+        "title": "Verify write-read I/O on PV mount points",
+        "component": "PowerVault I/O write-read",
+    },
+    "powervault_bind_io": {
+        "id": "ORCH_FVT_PXEBOOT_V427",
+        "title": "Verify bind-mount I/O reaches PV backing store",
+        "component": "PowerVault bind I/O",
+    },
+    "powervault_slurm_mandatory_bind_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V428",
+        "title": (
+            "Verify /var/lib/mysql and /var/spool/slurm "
+            "configured as bind targets"
+        ),
+        "component": "PowerVault mandatory Slurm bind mounts",
+    },
+    "powervault_mysql_data_on_mount": {
+        "id": "ORCH_FVT_PXEBOOT_V429",
+        "title": "Verify MySQL datadir is on PowerVault mount",
+        "component": "PowerVault MySQL datadir",
+    },
+    "slurm_node_remove": {
+        "id": "ORCH_FVT_PXEBOOT_V500",
         "title": "Verify Slurm compute node removal lifecycle",
         "component": "Slurm node removal",
     },
     "slurm_node_add": {
-        "id": "ORCH_FVT_PXEBOOT_V401",
+        "id": "ORCH_FVT_PXEBOOT_V501",
         "title": "Verify Slurm compute node re-addition lifecycle",
         "component": "Slurm node re-addition",
     },

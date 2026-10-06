@@ -317,6 +317,80 @@ Image download has a 20-minute ceiling with polling progress every 20
 seconds. The reboot cases share one reboot state instead of rebooting the
 same compute node independently for each postcondition.
 
+### Slurm HPC Benchmarks
+
+|| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+||---:|---|---|---|---|---|---|
+|| 331 | `ORCH_FVT_PXEBOOT_V200` | `test_hpc_benchmarks_json_declaration` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify benchmark_tools.list JSON syntax and required fields. | All stated checks pass for every applicable target. |
+|| 332 | `ORCH_FVT_PXEBOOT_V201` | `test_hpc_benchmarks_nfs_accessibility` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify Pulp server reachability from a compute node. | All stated checks pass for every applicable target. |
+|| 333 | `ORCH_FVT_PXEBOOT_V202` | `test_hpc_benchmarks_local_repo_sync` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify offline repo sync status on the OIM. | All stated checks pass for every applicable target. |
+|| 334 | `ORCH_FVT_PXEBOOT_V203` | `test_hpc_benchmarks_tools_dir_creation` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify /hpc_tools directory structure on compute nodes. | All stated checks pass for every applicable target. |
+|| 335 | `ORCH_FVT_PXEBOOT_V204` | `test_hpc_benchmarks_post_staging_validation` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify staged tools match benchmark_tools.list. | All stated checks pass for every applicable target. |
+|| 336 | `ORCH_FVT_PXEBOOT_V205` | `test_hpc_benchmarks_per_tool_staging_report` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify per-tool staging report markers and content. | All stated checks pass for every applicable target. |
+|| 337 | `ORCH_FVT_PXEBOOT_V206` | `test_hpc_benchmarks_staging_idempotency` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify repeated staging leaves consistent state. | The repeated operation succeeds without changing protected state. |
+|| 338 | `ORCH_FVT_PXEBOOT_V207` | `test_hpc_benchmarks_e2e_provisioning` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify full provisioning lifecycle with benchmark tools. | All stated checks pass for every applicable target. |
+|| 339 | `ORCH_FVT_PXEBOOT_V208` | `test_hpc_benchmarks_airgapped_staging` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify airgapped staging from offline repo. | All stated checks pass for every applicable target. |
+|| 340 | `ORCH_FVT_PXEBOOT_V209` | `test_hpc_benchmarks_source_only_delivery` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify source-only delivery skips framework-owned directories. | All stated checks pass for every applicable target. |
+|| 341 | `ORCH_FVT_PXEBOOT_V210` | `test_hpc_benchmarks_rhel_compatibility` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify RHEL 10.x compatibility constraints. | All stated checks pass for every applicable target. |
+|| 342 | `ORCH_FVT_PXEBOOT_V211` | `test_hpc_benchmarks_container_first_guidance` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify container image first guidance is correct. | All stated checks pass for every applicable target. |
+|| 343 | `ORCH_FVT_PXEBOOT_V212` | `test_hpc_benchmarks_container_image_unaffected` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify container images are not modified by staging. | All stated checks pass for every applicable target. |
+|| 344 | `ORCH_FVT_PXEBOOT_V213` | `test_hpc_benchmarks_cuda_flow_unaffected` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify CUDA flow is not modified by staging. | All stated checks pass for every applicable target. |
+|| 345 | `ORCH_FVT_PXEBOOT_V214` | `test_hpc_benchmarks_nvhpc_flow_unaffected` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify NVHPC flow is not modified by staging. | All stated checks pass for every applicable target. |
+|| 346 | `ORCH_FVT_PXEBOOT_V215` | `test_hpc_benchmarks_openmpi_unaffected` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify OpenMPI flow is not modified by staging. | All stated checks pass for every applicable target. |
+|| 347 | `ORCH_FVT_PXEBOOT_V216` | `test_hpc_benchmarks_msr_safe_arch_boundary` | `slurm_hpc_benchmarks` | `non_disruptive`, `sanity`, `slurm` | Verify MSR-safe tools are not staged on x86_64. | All stated checks pass for every applicable target. |
+|| 348 | `ORCH_FVT_PXEBOOT_V217` | `test_hpc_benchmarks_artifact_copy` | `slurm_hpc_benchmarks` | `destructive`, `sanity`, `slurm` | Verify artifact copy from OIM to compute nodes. | The operation completes successfully and returns the expected result. |
+|| 349 | `ORCH_FVT_PXEBOOT_V218` | `test_hpc_benchmarks_existing_dirs_preserved` | `slurm_hpc_benchmarks` | `destructive`, `sanity`, `slurm` | Verify existing directories are preserved during staging. | The operation completes successfully and returns the expected result. |
+
+### CoreDNS/CoreDHCP
+
+|| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+||---:|---|---|---|---|---|---|
+|| 350 | `ORCH_FVT_PXEBOOT_V300` | `test_coredns_container_state` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify coresmd containers run with expected image; observe dns_enabled. | All stated checks pass for every applicable target. |
+|| 351 | `ORCH_FVT_PXEBOOT_V301` | `test_coredns_forward_resolution` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Query CoreDNS on the OIM for every SMD-mapped node. | All stated checks pass for every applicable target. |
+|| 352 | `ORCH_FVT_PXEBOOT_V302` | `test_coredns_reverse_resolution` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Query CoreDNS on the OIM for PTR records. | All stated checks pass for every applicable target. |
+|| 353 | `ORCH_FVT_PXEBOOT_V303` | `test_coredhcp_multisubnet_running_image` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify the running coresmd-coredhcp image on multi-subnet datasets. | All stated checks pass for every applicable target. |
+|| 354 | `ORCH_FVT_PXEBOOT_V304` | `test_dns_compute_resolv_conf` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify every mapped compute node has CoreDNS as primary nameserver. | All stated checks pass for every applicable target. |
+|| 355 | `ORCH_FVT_PXEBOOT_V305` | `test_dns_compute_forward_getent` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Run `getent hosts` on every compute for SMD-derived candidate FQDNs. | All stated checks pass for every applicable target. |
+|| 356 | `ORCH_FVT_PXEBOOT_V306` | `test_coredns_idempotency` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify CoreDNS/CoreDHCP state stability (no-drift). | State is identical across the settle window with no spontaneous changes. |
+|| 357 | `ORCH_FVT_PXEBOOT_V307` | `test_dns_node_addition_pipeline` | `coredns_coredhcp` | `destructive`, `sanity` | Prove the SMD-to-CoreDNS pipeline resolves every SMD-registered mapped node. | The operation completes successfully and returns the expected result. |
+|| 358 | `ORCH_FVT_PXEBOOT_V308` | `test_dns_smd_unreachable_cached_resolution` | `coredns_coredhcp` | `destructive`, `sanity` | Pause the SMD container briefly; require CoreDNS to keep serving cached. | The node returns within the bounded wait and every stated postcondition check passes. |
+
+### PowerVault iSCSI Storage
+
+|| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+||---:|---|---|---|---|---|---|
+|| 301 | `ORCH_FVT_PXEBOOT_V400` | `test_powervault_iscsi_service` | `powervault` | `non_disruptive`, `sanity` | Verify iscsid is active and enabled on all PowerVault target nodes. | All stated checks pass for every applicable target. |
+|| 302 | `ORCH_FVT_PXEBOOT_V401` | `test_powervault_iscsi_initiator_name` | `powervault` | `non_disruptive`, `sanity` | Verify iSCSI initiator name matches config on all target nodes. | All stated checks pass for every applicable target. |
+|| 303 | `ORCH_FVT_PXEBOOT_V402` | `test_powervault_iscsi_discovery` | `powervault` | `non_disruptive`, `sanity` | Verify iSCSI target discovery succeeds from all portal IPs. | All stated checks pass for every applicable target. |
+|| 304 | `ORCH_FVT_PXEBOOT_V403` | `test_powervault_iscsi_sessions` | `powervault` | `non_disruptive`, `sanity` | Verify iSCSI sessions are active on all target nodes. | All stated checks pass for every applicable target. |
+|| 305 | `ORCH_FVT_PXEBOOT_V404` | `test_powervault_iscsi_startup_automatic` | `powervault` | `non_disruptive`, `sanity` | Verify iSCSI node startup is automatic on all target nodes. | All stated checks pass for every applicable target. |
+|| 306 | `ORCH_FVT_PXEBOOT_V405` | `test_powervault_portal_reachability` | `powervault` | `non_disruptive`, `sanity` | Verify iSCSI portal ports are reachable and sessions healthy. | All stated checks pass for every applicable target. |
+|| 307 | `ORCH_FVT_PXEBOOT_V406` | `test_powervault_multipath_service` | `powervault` | `non_disruptive`, `sanity` | Verify multipathd is active and enabled on all target nodes. | All stated checks pass for every applicable target. |
+|| 308 | `ORCH_FVT_PXEBOOT_V407` | `test_powervault_multipath_device` | `powervault` | `non_disruptive`, `sanity` | Verify multipath device exists and matches volume_id. | All stated checks pass for every applicable target. |
+|| 309 | `ORCH_FVT_PXEBOOT_V408` | `test_powervault_multipath_redundancy` | `powervault` | `non_disruptive`, `sanity` | Verify multipath device has multiple paths for redundancy. | All stated checks pass for every applicable target. |
+|| 310 | `ORCH_FVT_PXEBOOT_V409` | `test_powervault_gpt_partition` | `powervault` | `non_disruptive`, `sanity` | Verify GPT partition exists on multipath device. | All stated checks pass for every applicable target. |
+|| 311 | `ORCH_FVT_PXEBOOT_V410` | `test_powervault_filesystem_type` | `powervault` | `non_disruptive`, `sanity` | Verify filesystem formatted with correct type. | All stated checks pass for every applicable target. |
+|| 312 | `ORCH_FVT_PXEBOOT_V411` | `test_powervault_mount_point_directory` | `powervault` | `non_disruptive`, `sanity` | Verify mount point directory exists on all target nodes. | All stated checks pass for every applicable target. |
+|| 313 | `ORCH_FVT_PXEBOOT_V412` | `test_powervault_volume_mounted` | `powervault` | `non_disruptive`, `sanity` | Verify PowerVault volume is actively mounted on all target nodes. | All stated checks pass for every applicable target. |
+|| 314 | `ORCH_FVT_PXEBOOT_V413` | `test_powervault_mount_options` | `powervault` | `non_disruptive`, `sanity` | Verify mount options applied correctly on all target nodes. | All stated checks pass for every applicable target. |
+|| 315 | `ORCH_FVT_PXEBOOT_V414` | `test_powervault_fstab_entry` | `powervault` | `non_disruptive`, `sanity` | Verify persistent fstab entry created on all target nodes. | All stated checks pass for every applicable target. |
+|| 316 | `ORCH_FVT_PXEBOOT_V415` | `test_powervault_node_subdirectory` | `powervault` | `non_disruptive`, `sanity` | Verify per-node subdirectory exists under mount point. | All stated checks pass for every applicable target. |
+|| 317 | `ORCH_FVT_PXEBOOT_V416` | `test_powervault_bind_mounts` | `powervault` | `non_disruptive`, `sanity` | Verify bind mount targets are active on all target nodes. | All stated checks pass for every applicable target. |
+|| 318 | `ORCH_FVT_PXEBOOT_V417` | `test_powervault_bind_fstab_entries` | `powervault` | `non_disruptive`, `sanity` | Verify bind mount fstab entries are persistent on all target nodes. | All stated checks pass for every applicable target. |
+|| 319 | `ORCH_FVT_PXEBOOT_V418` | `test_powervault_bind_isolation` | `powervault` | `non_disruptive`, `sanity` | Verify per-node data separation via bind mounts. | All stated checks pass for every applicable target. |
+|| 320 | `ORCH_FVT_PXEBOOT_V419` | `test_powervault_functional_group_targeting` | `powervault` | `non_disruptive`, `sanity` | Verify PV mount only on correct functional groups. | All stated checks pass for every applicable target. |
+|| 321 | `ORCH_FVT_PXEBOOT_V420` | `test_powervault_multiple_prefix_targeting` | `powervault` | `non_disruptive`, `sanity` | Verify multiple prefixes target all groups correctly. | All stated checks pass for every applicable target. |
+|| 322 | `ORCH_FVT_PXEBOOT_V421` | `test_powervault_setup_log` | `powervault` | `non_disruptive`, `sanity` | Verify cloud-init runcmd log exists and shows completion. | All stated checks pass for every applicable target. |
+|| 323 | `ORCH_FVT_PXEBOOT_V422` | `test_powervault_cloud_init_groups_dict` | `powervault` | `non_disruptive`, `sanity` | Verify rendered iSCSI setup scripts deployed on target nodes. | All stated checks pass for every applicable target. |
+|| 324 | `ORCH_FVT_PXEBOOT_V423` | `test_powervault_no_duplicate_fstab` | `powervault` | `non_disruptive`, `sanity` | Verify no duplicate fstab entries on all target nodes. | All stated checks pass for every applicable target. |
+|| 325 | `ORCH_FVT_PXEBOOT_V424` | `test_powervault_all_mounts_writable` | `powervault` | `non_disruptive`, `sanity` | Verify all PV mounts (main + bind) are writable. | All stated checks pass for every applicable target. |
+|| 326 | `ORCH_FVT_PXEBOOT_V425` | `test_powervault_permissions` | `powervault` | `non_disruptive`, `sanity` | Verify permissions on mount point match config. | All stated checks pass for every applicable target. |
+|| 327 | `ORCH_FVT_PXEBOOT_V426` | `test_powervault_io_write_read` | `powervault` | `non_disruptive`, `sanity` | Verify write-read I/O on PV mount points. | All stated checks pass for every applicable target. |
+|| 328 | `ORCH_FVT_PXEBOOT_V427` | `test_powervault_bind_io` | `powervault` | `non_disruptive`, `sanity` | Verify bind-mount I/O reaches PV backing store. | All stated checks pass for every applicable target. |
+|| 329 | `ORCH_FVT_PXEBOOT_V428` | `test_powervault_slurm_mandatory_bind_mounts` | `powervault` | `non_disruptive`, `sanity` | Verify /var/lib/mysql and /var/spool/slurm configured as bind targets. | All stated checks pass for every applicable target. |
+|| 330 | `ORCH_FVT_PXEBOOT_V429` | `test_powervault_mysql_data_on_mount` | `powervault` | `non_disruptive`, `sanity` | Verify MySQL datadir is on PowerVault mount. | All stated checks pass for every applicable target. |
+
+PowerVault tests skip when `powervault_config` is absent or empty in `storage_config.yml`. The suite validates the iSCSI/multipath/bind-mount contract deployed by `setup_iscsi_storage.sh.j2` and functional_group_prefix targeting.
 ### Additional cloud-init
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
