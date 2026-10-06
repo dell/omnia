@@ -199,7 +199,7 @@ def build_smd_dns_map(
     result: dict[str, dict[str, Any]] = {}
     for row in node_rows:
         admin_ip = str(row.get("ADMIN_IP") or "").strip()
-        admin_mac = normalise_mac(row.get("ADMIN_MAC") or "")
+        admin_mac = normalise_mac(str(row.get("ADMIN_MAC") or ""))
         if not admin_ip:
             continue
         matches = [
@@ -330,7 +330,7 @@ def safe_ip(value: str) -> str:
 def _parse_dig_output(text: str) -> list[str]:
     """Return non-empty answer lines from a dig +short response."""
     return [
-        line.strip().rstrip(".")
+        str(line.strip().rstrip("."))
         for line in text.splitlines()
         if line.strip() and not line.startswith(";")
     ]
@@ -343,14 +343,22 @@ def dns_forward_from_oim(host, admin_ip: str, name: str) -> dict[str, Any]:
     probe = run_on_host(
         host,
         PXEBOOT_COMMANDS["dns_query_forward"],
-        COREDNS_QUERY_TIMEOUT_SECONDS,
+        str(COREDNS_QUERY_TIMEOUT_SECONDS),
         ip,
         query,
     )
     answers = _parse_dig_output(probe.stdout) if probe.rc == 0 else []
+    filtered_answers = []
+    for answer in answers:
+        try:
+            if _SAFE_IP.fullmatch(str(answer)):
+                filtered_answers.append(answer)
+        except (TypeError, ValueError):
+            # Skip non-string or invalid values
+            pass
     return {
-        "ok": probe.rc == 0 and bool(answers),
-        "answers": [answer for answer in answers if _SAFE_IP.fullmatch(answer)],
+        "ok": probe.rc == 0 and bool(filtered_answers),
+        "answers": filtered_answers,
         "rc": probe.rc,
         "raw": probe.stdout.strip()[:200],
     }
@@ -363,14 +371,16 @@ def dns_reverse_from_oim(host, admin_ip: str, target_ip: str) -> dict[str, Any]:
     probe = run_on_host(
         host,
         PXEBOOT_COMMANDS["dns_query_reverse"],
-        COREDNS_QUERY_TIMEOUT_SECONDS,
+        str(COREDNS_QUERY_TIMEOUT_SECONDS),
         server,
         address,
     )
     answers = _parse_dig_output(probe.stdout) if probe.rc == 0 else []
+    # Ensure all answers are strings
+    string_answers = [str(a) for a in answers]
     return {
-        "ok": probe.rc == 0 and bool(answers),
-        "answers": answers,
+        "ok": probe.rc == 0 and bool(string_answers),
+        "answers": string_answers,
         "rc": probe.rc,
         "raw": probe.stdout.strip()[:200],
     }

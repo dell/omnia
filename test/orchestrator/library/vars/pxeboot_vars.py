@@ -550,16 +550,16 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "node_reboot": "systemctl reboot",
     "arch": "arch",
     "os_release": "cat /etc/os-release",
-    "hpc_tools_stat": "stat -c '%F|%a|%U|%G' %s 2>/dev/null || echo missing",
-    "hpc_tools_list": "find %s -mindepth 1 -maxdepth 1 -printf '%p|%y|%m\\n' 2>/dev/null",
+    "hpc_tools_stat": "stat -c '%%F|%%a|%%U|%%G' %s 2>/dev/null || echo missing",
+    "hpc_tools_list": "find %s -mindepth 1 -maxdepth 1 -printf '%%p|%%y|%%m\\n' 2>/dev/null",
     "hpc_tools_tool_files": (
-        "find %s -mindepth 1 -maxdepth 2 -printf '%p|%y|%s\\n' 2>/dev/null"
+        "find %s -mindepth 1 -maxdepth 2 -printf '%%p|%%y|%%s\\n' 2>/dev/null"
     ),
     "hpc_tools_tool_executables": (
         "find %s -type f \\( -perm -u+x -o -perm -g+x -o -perm -o+x \\) "
         "! -name '*.sh' ! -name '*.py' ! -name '*.tar*' ! -name '*.tgz' "
         "! -name '*.gz' ! -name '*.bz2' ! -name '*.xz' ! -name '*.zip' "
-        "-printf '%p\\n' 2>/dev/null | head -20"
+        "-printf '%%p\\n' 2>/dev/null | head -20"
     ),
     "hpc_tools_findmnt": "findmnt -n -o SOURCE,FSTYPE,TARGET /hpc_tools",
     "hpc_tools_readable": "test -r %s",
@@ -580,7 +580,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "timeout %s %s %s 2>&1 | tail -80; exit ${PIPESTATUS[0]}"
     ),
     "hpc_benchmarks_snapshot_dirs": (
-        "find %s -mindepth 1 -maxdepth 1 -type d -printf '%p\\n' 2>/dev/null | sort"
+        "find %s -mindepth 1 -maxdepth 1 -type d -printf '%%p\\n' 2>/dev/null | sort"
     ),
     "hpc_benchmarks_egress_probe": (
         "curl -sS --connect-timeout 5 --max-time 10 -o /dev/null "

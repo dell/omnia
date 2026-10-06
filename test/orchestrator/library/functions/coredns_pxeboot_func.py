@@ -164,11 +164,17 @@ def check_coredns_container_state(host) -> dict[str, Any]:
 def _forward_match(host, admin_ip: str, candidates: list[str], expected_ip: str):
     """Return (matched_fqdn, all_answers) or ('', all_answers)."""
     all_answers: dict[str, list[str]] = {}
+    expected_ip_str = str(expected_ip)
     for name in candidates:
-        answer = dns_forward_from_oim(host, admin_ip, name)
-        all_answers[name] = answer["answers"]
-        if answer["ok"] and expected_ip in answer["answers"]:
-            return name, all_answers
+        try:
+            answer = dns_forward_from_oim(host, admin_ip, name)
+            all_answers[name] = answer["answers"]
+            # Convert all answers to strings for comparison
+            answer_strs = [str(a) for a in answer["answers"]]
+            if answer["ok"] and expected_ip_str in answer_strs:
+                return name, all_answers
+        except Exception as exc:
+            all_answers[name] = []
     return "", all_answers
 
 
@@ -209,7 +215,7 @@ def check_coredns_forward_resolution(host) -> dict[str, Any]:
         ]
         failures: list[str] = []
         for row in rows:
-            admin_ip = row["ADMIN_IP"]
+            admin_ip = str(row["ADMIN_IP"])
             record = smd_map.get(admin_ip)
             if not record:
                 failures.append(
@@ -231,7 +237,7 @@ def check_coredns_forward_resolution(host) -> dict[str, Any]:
                 )
             else:
                 got = "; ".join(
-                    f"{_hostname_short(name)}={','.join(all_answers[name]) or '∅'}"
+                    f"{_hostname_short(str(name))}={','.join(str(a) for a in all_answers.get(str(name), [])) or '∅'}"
                     for name in record["candidate_fqdns"]
                 )
                 failures.append(
@@ -284,7 +290,7 @@ def check_coredns_reverse_resolution(host) -> dict[str, Any]:
         ]
         failures: list[str] = []
         for row in rows:
-            admin_ip = row["ADMIN_IP"]
+            admin_ip = str(row["ADMIN_IP"])
             record = smd_map.get(admin_ip)
             if not record:
                 failures.append(
@@ -293,7 +299,7 @@ def check_coredns_reverse_resolution(host) -> dict[str, Any]:
                 fields.append((admin_ip, "✗ no SMD interface"))
                 continue
             answer = dns_reverse_from_oim(host, ctx["admin_ip"], admin_ip)
-            got = [name.lower() for name in answer["answers"]]
+            got = [str(name).lower() for name in answer["answers"]]
             match = any(name in record["candidate_fqdns"] for name in got)
             if not answer["ok"]:
                 failures.append(f"{admin_ip}: no PTR (rc={answer['rc']})")
@@ -316,8 +322,9 @@ def check_coredns_reverse_resolution(host) -> dict[str, Any]:
             fields,
             "; ".join(failures) if failures else "",
         )
-    except (OSError, RuntimeError, TypeError, ValueError) as exc:
-        return error_result("Reverse-resolution query failed", str(exc))
+    except Exception as exc:
+        import traceback
+        return error_result("Reverse-resolution query failed", f"{str(exc)}\n{traceback.format_exc()}")
 
 
 # ---------------------------------------------------------------------------
@@ -535,10 +542,11 @@ def check_dns_compute_resolv_conf(host) -> dict[str, Any]:
 def _remote_getent_any(host, compute_row, candidates: list[str], expected_ip: str):
     """Return (matched_fqdn, per-candidate results) trying each candidate."""
     per: dict[str, str] = {}
+    expected_ip_str = str(expected_ip)
     for name in candidates:
         result = remote_getent_hosts(host, compute_row, name)
         per[name] = result["raw"] or "no answer"
-        if result["ok"] and expected_ip in result["raw"]:
+        if result["ok"] and expected_ip_str in result["raw"]:
             return name, per
     return "", per
 
