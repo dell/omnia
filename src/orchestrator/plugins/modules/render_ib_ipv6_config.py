@@ -228,7 +228,7 @@ def run_module() -> None:
             )
             with open(script_path, "w", encoding="utf-8") as fh:
                 fh.write(ci_data["write_files"][0]["content"])
-            os.chmod(script_path, 0o755)
+            os.chmod(script_path, 0o750)  # nosec B103
             cloud_init_scripts[node_id] = script_path
 
         # Write SMD payload

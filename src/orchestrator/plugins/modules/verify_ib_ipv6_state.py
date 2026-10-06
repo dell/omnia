@@ -153,12 +153,14 @@ _STATUS_PRIORITY = {
 }
 
 
-def _run_cmd(cmd: str) -> tuple[str, int]:
-    """Run a shell command and return (stdout, returncode)."""
+def _run_cmd(argv: str | list[str]) -> tuple[str, int]:
+    """Run a command and return (stdout, returncode)."""
     try:
+        if isinstance(argv, str):
+            argv = argv.split()
         result = subprocess.run(
-            cmd, shell=True, capture_output=True,
-            text=True, timeout=30,
+            argv, capture_output=True,
+            text=True, timeout=30, check=False,
         )
         return result.stdout, result.returncode
     except (subprocess.TimeoutExpired, OSError):
@@ -224,10 +226,14 @@ def run_module() -> None:
         records = interfaces[iface_id]
 
         # Gather live system state
-        ip_addr_output, _ = _run_cmd(f"ip -6 addr show dev {iface_id}")
-        ip_route_output, _ = _run_cmd(f"ip -6 route show dev {iface_id}")
+        ip_addr_output, _ = _run_cmd(
+            ["ip", "-6", "addr", "show", "dev", iface_id]
+        )
+        ip_route_output, _ = _run_cmd(
+            ["ip", "-6", "route", "show", "dev", iface_id]
+        )
         sysctl_output, _ = _run_cmd(
-            f"sysctl net.ipv6.conf.{iface_id}.use_tempaddr"
+            ["sysctl", f"net.ipv6.conf.{iface_id}.use_tempaddr"]
         )
 
         # Peer reachability

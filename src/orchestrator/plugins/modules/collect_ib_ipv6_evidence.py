@@ -100,11 +100,11 @@ matrix_dimensions:
 '''
 
 
-def _run_cmd(cmd: str) -> str:
+def _run_cmd(argv: list[str]) -> str:
     """Run a command and return stdout (empty on failure)."""
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True,
+            argv, capture_output=True,
             text=True, timeout=30, check=False,
         )
         return result.stdout.strip()
@@ -112,9 +112,18 @@ def _run_cmd(cmd: str) -> str:
         return ""
 
 
+def _read_sysfs(path: str) -> str:
+    """Read a sysfs file and return its content (empty on failure)."""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return fh.read().strip()
+    except OSError:
+        return ""
+
+
 def _collect_hca_info() -> dict[str, str]:
     """Collect ConnectX HCA model, firmware, and driver."""
-    ibstat = _run_cmd("ibstat -s 2>/dev/null")
+    ibstat = _run_cmd(["ibstat", "-s"])
     hca_model = ""
     firmware = ""
     for line in ibstat.splitlines():
@@ -125,12 +134,20 @@ def _collect_hca_info() -> dict[str, str]:
 
     # Fallback: try lspci
     if not hca_model:
-        lspci = _run_cmd("lspci 2>/dev/null | grep -i mellanox | head -1")
-        hca_model = lspci.strip() if lspci else "unknown"
+        lspci = _run_cmd(["lspci"])
+        for line in lspci.splitlines():
+            if "mellanox" in line.lower():
+                hca_model = line.strip()
+                break
+        if not hca_model:
+            hca_model = "unknown"
 
-    driver = _run_cmd(
-        "modinfo mlx5_core 2>/dev/null | grep '^version:' | awk '{print $2}'"
-    )
+    modinfo = _run_cmd(["modinfo", "mlx5_core"])
+    driver = ""
+    for line in modinfo.splitlines():
+        if line.startswith("version:"):
+            driver = line.split(None, 1)[-1].strip()
+            break
 
     return {
         "hca_model": hca_model or "unknown",
@@ -141,9 +158,12 @@ def _collect_hca_info() -> dict[str, str]:
 
 def _collect_ib_switch_info() -> dict[str, str]:
     """Collect IB switch info from ibnetdiscover."""
-    switch_info = _run_cmd(
-        "ibnetdiscover 2>/dev/null | grep -i 'switch' | head -1"
-    )
+    raw = _run_cmd(["ibnetdiscover"])
+    switch_info = ""
+    for line in raw.splitlines():
+        if "switch" in line.lower():
+            switch_info = line.strip()
+            break
     return {
         "switch_description": switch_info or "not available (requires ibnetdiscover)",
     }
@@ -151,13 +171,17 @@ def _collect_ib_switch_info() -> dict[str, str]:
 
 def _collect_os_info() -> dict[str, str]:
     """Collect OS, kernel, NM version, architecture."""
-    os_release = _run_cmd("cat /etc/redhat-release 2>/dev/null")
+    os_release = _read_sysfs("/etc/redhat-release")
     if not os_release:
-        os_release = _run_cmd("cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2")
+        raw = _read_sysfs("/etc/os-release")
+        for line in raw.splitlines():
+            if line.startswith("PRETTY_NAME="):
+                os_release = line.split("=", 1)[1].strip().strip('"')
+                break
 
-    kernel = _run_cmd("uname -r")
+    kernel = _run_cmd(["uname", "-r"])
     arch = platform.machine()
-    nm_version = _run_cmd("nmcli --version 2>/dev/null")
+    nm_version = _run_cmd(["nmcli", "--version"])
 
     return {
         "os_release": os_release or "unknown",
@@ -169,23 +193,22 @@ def _collect_os_info() -> dict[str, str]:
 
 def _collect_ipoib_info(interface: str) -> dict[str, Any]:
     """Collect IPoIB-specific info for an interface."""
-    mode = _run_cmd(
-        f"cat /sys/class/net/{interface}/mode 2>/dev/null"
-    )
-    mtu = _run_cmd(
-        f"cat /sys/class/net/{interface}/mtu 2>/dev/null"
-    )
-    pkey = _run_cmd(
-        f"cat /sys/class/net/{interface}/pkey 2>/dev/null"
-    )
-    state = _run_cmd(
-        f"cat /sys/class/net/{interface}/operstate 2>/dev/null"
-    )
+    sysfs_base = f"/sys/class/net/{interface}"
+    mode = _read_sysfs(f"{sysfs_base}/mode")
+    mtu = _read_sysfs(f"{sysfs_base}/mtu")
+    pkey = _read_sysfs(f"{sysfs_base}/pkey")
+    state = _read_sysfs(f"{sysfs_base}/operstate")
     # Get addresses
-    addrs = _run_cmd(
-        f"ip -6 addr show dev {interface} scope global 2>/dev/null"
-        " | grep inet6 | awk '{print $2}'"
+    raw_addrs = _run_cmd(
+        ["ip", "-6", "addr", "show", "dev", interface, "scope", "global"]
     )
+    addrs = [
+        tok.split("/")[0]
+        for line in raw_addrs.splitlines()
+        if "inet6" in line
+        for tok in line.split()
+        if ":" in tok and "/" in tok
+    ]
 
     return {
         "interface": interface,
@@ -193,14 +216,14 @@ def _collect_ipoib_info(interface: str) -> dict[str, Any]:
         "mtu": mtu or "unknown",
         "pkey": pkey or "unknown",
         "operstate": state or "unknown",
-        "ipv6_addresses": addrs.splitlines() if addrs else [],
+        "ipv6_addresses": addrs,
     }
 
 
 def _collect_opensm_info() -> dict[str, str]:
     """Collect OpenSM version and state."""
-    version = _run_cmd("opensm --version 2>/dev/null")
-    state = _run_cmd("systemctl is-active opensm 2>/dev/null")
+    version = _run_cmd(["opensm", "--version"])
+    state = _run_cmd(["systemctl", "is-active", "opensm"])
 
     return {
         "opensm_version": version or "unknown",

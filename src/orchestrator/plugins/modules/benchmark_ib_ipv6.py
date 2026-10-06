@@ -262,14 +262,14 @@ def _bench_throughput_parity(
     for _ in range(iterations):
         # Try iperf3 first
         v4_result = subprocess.run(
-            f"iperf3 -c {peer_v4} -B {interface} -t 5 -J 2>/dev/null",
-            shell=True, capture_output=True, text=True, timeout=30,
-            check=False,
+            ["iperf3", "-c", peer_v4, "-B", interface, "-t", "5", "-J"],
+            capture_output=True, text=True, timeout=30,
+            check=False, stderr=subprocess.DEVNULL,
         )
         v6_result = subprocess.run(
-            f"iperf3 -c {peer_v6} -B {interface} -t 5 -6 -J 2>/dev/null",
-            shell=True, capture_output=True, text=True, timeout=30,
-            check=False,
+            ["iperf3", "-c", peer_v6, "-B", interface, "-t", "5", "-6", "-J"],
+            capture_output=True, text=True, timeout=30,
+            check=False, stderr=subprocess.DEVNULL,
         )
 
         v4_bps = _parse_iperf_throughput(v4_result.stdout)

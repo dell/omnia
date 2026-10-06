@@ -85,9 +85,12 @@
          | map(attribute='hostname') | unique | list }}
 
 - name: Discover IB interface names on compute nodes
-  ansible.builtin.shell: >
-    ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10
-    "{{ item }}" "ls /sys/class/net/ | grep '^ib'"
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+        "{{ item }}" "ls /sys/class/net/" | grep '^ib'
+    executable: /bin/bash
   loop: "{{ _ib_discover_hosts }}"
   register: _ib_discover_results
   changed_when: false
