@@ -74,8 +74,6 @@ ansible-playbook playbooks/telemetry.yml
 | `validate` | Yes | L1 schema + L2 logic validation of all input files |
 | `deploy` / `execute` | Yes | Deploy sinks + sources + kustomize apply |
 | `cleanup` | No | Remove telemetry runtime resources; delete source volumes, preserve sink volumes by default |
-| `upgrade` | No | Upgrade telemetry (placeholder) |
-| `rollback` | No | Rollback telemetry (placeholder) |
 
 ### Granular Cleanup Tags (opt-in — requires `--tags`)
 
@@ -91,7 +89,7 @@ ansible-playbook playbooks/telemetry.yml
 | `cleanup_ufm` | UFM InfiniBand telemetry |
 | `cleanup_vast` | VAST storage telemetry |
 
-**Tag safety**: `cleanup`, `precheck`, `upgrade`, `rollback` use Ansible's `never`
+**Tag safety**: `cleanup` and `precheck` use Ansible's `never`
 tag — they NEVER execute unless explicitly requested with `--tags`.
 
 ### Credential and Global Cleanup
@@ -179,12 +177,6 @@ telemetry/
 │   │       └── ...
 │   ├── credentials/
 │   │   └── get_telemetry_credentials.yml
-│   ├── upgrade/
-│   │   ├── upgrade.yml            # Upgrade orchestrator (placeholder)
-│   │   └── sources/               # Per-source upgrade playbooks
-│   └── rollback/
-│       ├── rollback.yml           # Rollback orchestrator (placeholder)
-│       └── sources/               # Per-source rollback playbooks
 │
 ├── vars/                          # Shared cross-playbook variables
 │   ├── cleanup.yml                # Cleanup resource definitions (namespaces, labels, resources)

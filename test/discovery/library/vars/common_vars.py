@@ -57,8 +57,6 @@ PLAYBOOK_TAGS: List[str] = [
     "prepare",
     "execute",
     "cleanup",
-    "upgrade",
-    "rollback",
 ]
 
 # =============================================================================
