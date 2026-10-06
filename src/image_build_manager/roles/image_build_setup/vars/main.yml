@@ -37,8 +37,6 @@ supported_tags:
   - build
   - cleanup
   - cleanup_images
-  - upgrade
-  - rollback
 skip_credential_tags:
   - precheck
   - cleanup
@@ -55,35 +53,20 @@ invalid_tag_combinations:
   - [prepare, cleanup]
   - [build, cleanup]
   - [execute, cleanup]
-  - [prepare, upgrade]
-  - [build, upgrade]
-  - [execute, upgrade]
-  - [cleanup, upgrade]
-  - [prepare, rollback]
-  - [build, rollback]
-  - [execute, rollback]
-  - [cleanup, rollback]
-  - [upgrade, rollback]
   - [prepare, cleanup_images]
   - [build, cleanup_images]
   - [execute, cleanup_images]
   - [cleanup, cleanup_images]
-  - [upgrade, cleanup_images]
-  - [rollback, cleanup_images]
   - [precheck, prepare]
   - [precheck, build]
   - [precheck, execute]
   - [precheck, cleanup]
   - [precheck, cleanup_images]
-  - [precheck, upgrade]
-  - [precheck, rollback]
   - [credentials, prepare]
   - [credentials, build]
   - [credentials, execute]
   - [credentials, cleanup]
   - [credentials, cleanup_images]
-  - [credentials, upgrade]
-  - [credentials, rollback]
   - [credentials, precheck]
 # --- Tag validation messages ---
 tag_validation_fail_msg: |
@@ -102,6 +85,12 @@ tag_combination_fail_msg: |
 env_admin_nic_ip_missing_fail_msg: >-
   SYSTEM_ADMIN_NIC_IPV4 is not set. Export it before running:
     export SYSTEM_ADMIN_NIC_IPV4=<your_admin_nic_ip>
+omnia_version_missing_fail_msg: >-
+  OMNIA_VERSION is not set. Export it before running:
+    export OMNIA_VERSION=2.3.0.0
+  This version string is embedded in image names (e.g., rhel-<group>_omnia_2.3.0.0).
+required_directory_missing_fail_msg: >-
+  Required directory does not exist: {{ item.item }}
 # --- Prerequisite validation messages ---
 project_dir_not_exist_fail_msg: >-
   The project directory at {{ input_project_dir }} does not exist.

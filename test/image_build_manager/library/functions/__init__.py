@@ -41,7 +41,6 @@ from omnia_auto import (
     run_playbook as _run_playbook,
 )
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
-
 # --- Build Image verification ---
 from .build_image_func import (
     check_container_running,

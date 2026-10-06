@@ -22,21 +22,21 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.slurm,
-    pytest.mark.non_disruptive,
-]
 
-
-@pytest.mark.order(257)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(260)
 def test_slurm_openmpi_installation(host):
     """Verify OpenMPI discovery and version on every compute node."""
     verify_pxeboot(host, "slurm_openmpi_installation", check_slurm_openmpi_installation)
 
 
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
 @pytest.mark.functional
-@pytest.mark.order(258)
+@pytest.mark.order(261)
 def test_slurm_openmpi_job(host):
     """Run an OpenMPI-backed job when OpenMPI is configured."""
     verify_pxeboot(host, "slurm_openmpi_job", check_slurm_openmpi_job)

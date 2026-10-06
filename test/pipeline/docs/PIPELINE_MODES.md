@@ -90,12 +90,13 @@ pipeline:
 
 ## Domains
 
-The pipeline manages 5 independent domains. Each domain has its own cleanup, deploy, and test stages. You can run all domains or select specific ones.
+The pipeline manages 6 independent domains. Each domain has its own cleanup, deploy, and test stages. You can run all domains or select specific ones.
 
 | Domain | Purpose | Credential file |
 |---|---|---|
 | **repo_manager** | Pulp-based package and repository management | `repo_manager_config_credentials.yml` |
 | **image_build_manager** | Container image building and registry | `image_build_credentials.yml` |
+| **discovery** | Network and hardware discovery | `discovery_credentials.yml` |
 | **orchestrator** | Kubernetes and container orchestration | `orchestrator_credentials.yml` |
 | **telemetry** | Monitoring, logging, and observability | `telemetry_credentials.yml` |
 | **build_stream** | Build stream image provisioning and deployment | `build_stream_credentials.yml` |
@@ -106,9 +107,10 @@ Set via `domains` in `pipeline_config.yml` or the `CLUSTER1_DOMAINS` CI/CD varia
 
 | Setting | Domains that run | When to use |
 |---|---|---|
-| `"default"` | All 5 domains | Full deployment |
+| `"default"` | All 6 domains | Full deployment |
 | `"repo_manager"` | repo_manager only | Initial repo setup or repo update |
 | `"orchestrator"` | orchestrator only | Deploy/redeploy Kubernetes |
+| `"discovery"` | discovery only | Deploy network/hardware discovery |
 | `"telemetry"` | telemetry only | Deploy monitoring stack |
 | `"image_build_manager"` | image_build_manager only | Deploy image builder |
 | `"build_stream"` | build_stream only | Deploy build stream images |
@@ -218,7 +220,7 @@ skip_stages: "image_build_manager,telemetry"
 ```
 
 **Valid values for `skip_stages`:**
-- `repo_manager`, `image_build_manager`, `orchestrator`, `telemetry`, `build_stream` — skips cleanup + deploy + test for that domain
+- `repo_manager`, `image_build_manager`, `discovery`, `orchestrator`, `telemetry`, `build_stream` — skips cleanup + deploy + test for that domain
 - `setup_environment`, `setup_main`, `cleanup_omnia` — skips that specific stage
 
 ---
@@ -236,25 +238,30 @@ The pipeline runs these stages in order. Which stages actually execute depends o
  4. cleanup_repo_manager            Y                     Y
  5. cleanup_image_build_manager     Y                     Y
  6. cleanup_orchestrator            Y                     Y
- 7. cleanup_telemetry               Y                     Y
- 8. cleanup_omnia                   Y                     Y
- 9. setup_main                      Y
-10. test_main_installation        (test)       (test)
-11. repo_manager                    Y            Y
-12. test_repo_manager             (test)       (test)
-13. image_build_manager             Y            Y
-14. test_image_build_manager      (test)       (test)
-15. orchestrator                    Y            Y
-16. test_orchestrator             (test)       (test)
-17. telemetry                       Y            Y
-18. test_telemetry                (test)       (test)
-19. summary                         Y            Y        Y
+ 7. cleanup_discovery               Y                     Y
+ 8. cleanup_telemetry               Y                     Y
+ 9. cleanup_omnia                   Y                     Y
+10. setup_main                      Y
+11. test_main_installation        (test)       (test)
+12. repo_manager                    Y            Y
+13. test_repo_manager             (test)       (test)
+14. image_build_manager             Y            Y
+15. test_image_build_manager      (test)       (test)
+16. discovery                     (disc)       (disc)
+17. test_discovery                (disc+test)  (disc+test)
+18. orchestrator                    Y            Y
+19. test_orchestrator             (test)       (test)
+20. telemetry                       Y            Y
+21. test_telemetry                (test)       (test)
+22. summary                         Y            Y        Y
 ```
 
 Legend:
 - `Y` = stage runs
 - `(opt)` = runs only if `ENABLE_SETUP=true`
 - `(test)` = runs only if `TEST_MODE=true`
+- `(disc)` = runs only if `ENABLE_DISCOVERY=true` and domain matches
+- `(disc+test)` = runs only if `ENABLE_DISCOVERY=true`, `TEST_MODE=true`, and domain matches
 
 ---
 
@@ -269,7 +276,9 @@ Legend:
 | **setup_main** | Rebuilds the venv after `cleanup_omnia` destroyed it. Re-copies `omnia.env` and catalog |
 | **test_main_installation** | Installs the test venv and runs `run_validation.sh fvt_main verify` |
 | **\<domain\>** | Copies input files to target, fetches credentials from OpenBao (JWT auth), encrypts with ansible-vault, runs the domain playbook |
+| **discovery** | Runs discovery playbook after image_build_manager. Only runs when `ENABLE_DISCOVERY=true` and domain matches |
 | **test_\<domain\>** | Copies test config to target, installs test venv, runs domain validation tests. Non-fatal |
+| **cleanup_discovery** | Runs discovery cleanup playbook (`--tags cleanup`). Always runs regardless of `ENABLE_DISCOVERY` |
 | **summary** | Generates a pipeline report and sends email notification |
 
 ---

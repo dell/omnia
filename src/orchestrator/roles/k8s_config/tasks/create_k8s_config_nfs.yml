@@ -289,21 +289,31 @@
     - item.item.source_path | length > 0
     - item.item.dest_path | length > 0
 
-# Propagate repo_manager paths from localhost (where repo_status.yml was loaded)
-- name: Set repo_manager paths from localhost
+# Propagate the active version/architecture view normalized by
+# orchestrator_setup on localhost.
+- name: Read version-qualified repo_manager base URLs from localhost
   ansible.builtin.set_fact:
-    offline_tarball_path: "{{ hostvars['localhost']['offline_tarball_path'] }}"
-    offline_manifest_path: "{{ hostvars['localhost']['offline_manifest_path'] }}"
-    offline_git_path: "{{ hostvars['localhost']['offline_git_path'] | default('') }}"
-  when:
-    - offline_tarball_path is not defined
-    - hostvars['localhost']['offline_tarball_path'] is defined
+    k8s_repo_base_urls: >-
+      {{ hostvars['localhost'].get('service_k8s_repo_base_urls', {}) }}
 
-- name: Verify repo_status variables are available
+- name: Validate version-qualified repo_manager base URL mapping
   ansible.builtin.assert:
     that:
-      - offline_tarball_path is defined
-      - offline_manifest_path is defined
+      - k8s_repo_base_urls is mapping
+    fail_msg: "{{ repo_status_vars_fail_msg }}"
+    quiet: true
+
+- name: Set version-qualified repo_manager paths
+  ansible.builtin.set_fact:
+    offline_tarball_path: "{{ k8s_repo_base_urls.get('tarball', '') }}"
+    offline_manifest_path: "{{ k8s_repo_base_urls.get('manifest', '') }}"
+    offline_git_path: "{{ k8s_repo_base_urls.get('git', '') }}"
+
+- name: Verify version-qualified repo_status URLs are available
+  ansible.builtin.assert:
+    that:
+      - (offline_tarball_path | default('')) is match('^https?://')
+      - (offline_manifest_path | default('')) is match('^https?://')
     fail_msg: "{{ repo_status_vars_fail_msg }}"
     quiet: true
 
@@ -404,6 +414,10 @@
     url: "{{ calico_manifest_yaml_url }}"
     dest: "{{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml"
     mode: "{{ file_mode }}"
+  register: calico_manifest_download
+  retries: "{{ k8s_nfs_download_retries }}"
+  delay: "{{ k8s_nfs_download_delay }}"
+  until: calico_manifest_download is succeeded
 
 # metallb
 - name: Download metallb-native manifest
@@ -411,6 +425,10 @@
     url: "{{ metallb_manifest_yaml_url }}"
     dest: "{{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml"
     mode: "{{ file_mode }}"
+  register: metallb_manifest_download
+  retries: "{{ k8s_nfs_download_retries }}"
+  delay: "{{ k8s_nfs_download_delay }}"
+  until: metallb_manifest_download is succeeded
 
 # multus
 # - name: Download multus manifest
@@ -425,6 +443,10 @@
     url: "{{ helm_tarball_url }}"
     dest: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
     mode: "{{ file_mode }}"
+  register: helm_tarball_download
+  retries: "{{ k8s_nfs_download_retries }}"
+  delay: "{{ k8s_nfs_download_delay }}"
+  until: helm_tarball_download is succeeded
 
 - name: Extract helm version from package name
   ansible.builtin.set_fact:
@@ -451,6 +473,10 @@
     url: "{{ nfs_client_provisioner_tarball_url }}"
     dest: "{{ k8s_client_mount_path }}/nfs-client-provisioner/{{ nfs_subdir_external_provisioner_pkg }}.tar.gz"
     mode: "{{ file_mode }}"
+  register: nfs_client_provisioner_download
+  retries: "{{ k8s_nfs_download_retries }}"
+  delay: "{{ k8s_nfs_download_delay }}"
+  until: nfs_client_provisioner_download is succeeded
 
 # whereabouts
 # - name: Get whereabouts plugin git folder

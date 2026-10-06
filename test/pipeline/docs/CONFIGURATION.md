@@ -53,6 +53,7 @@ cluster1:
     pipeline_mode: "default"
     domains: "default"
     enable_setup: "false"
+    enable_discovery: "false"
     test_mode: "false"
     dry_run: "false"
     verbose: "false"
@@ -60,12 +61,14 @@ cluster1:
   deploy_tags:
     repo_manager: ""
     image_build_manager: ""
+    discovery: ""
     orchestrator: ""
     telemetry: ""
     build_stream: ""
   test_commands:
     repo_manager: "./run_validation.sh fvt_repo_manager verify"
     image_build_manager: "./run_validation.sh fvt_image_build_manager verify"
+    discovery: "./run_validation.sh fvt_discovery verify"
     orchestrator: "./run_validation.sh fvt_orchestrator verify"
     telemetry: "./run_validation.sh fvt_telemetry verify"
     build_stream: "./run_validation.sh fvt_build_stream test"
@@ -85,6 +88,7 @@ cluster1:
 | `pipeline.pipeline_mode` | `default` | Pipeline mode: `default`, `deploy`, or `cleanup` |
 | `pipeline.domains` | `default` | Which domains to run (regex pattern) |
 | `pipeline.enable_setup` | `false` | Force setup in deploy/cleanup modes |
+| `pipeline.enable_discovery` | `false` | Enable discovery stage after image_build_manager |
 | `pipeline.test_mode` | `false` | Enable test stages after deployment |
 | `pipeline.dry_run` | `false` | Simulate without making changes |
 | `pipeline.verbose` | `false` | Enable detailed logging (`-vvv`) |
@@ -99,6 +103,7 @@ Run only specific Ansible tasks using tags:
 | `deploy_tags.repo_manager` | `""` | Ansible tags for repo_manager playbook |
 | `deploy_tags.image_build_manager` | `""` | Ansible tags for image_build_manager playbook |
 | `deploy_tags.orchestrator` | `""` | Ansible tags for orchestrator playbook |
+| `deploy_tags.discovery` | `""` | Ansible tags for discovery playbook |
 | `deploy_tags.telemetry` | `""` | Ansible tags for telemetry playbook |
 | `deploy_tags.build_stream` | `""` | Ansible tags for build_stream playbook |
 
@@ -118,6 +123,7 @@ Override default test commands:
 | `test_commands.repo_manager` | `./run_validation.sh fvt_repo_manager verify` |
 | `test_commands.image_build_manager` | `./run_validation.sh fvt_image_build_manager verify` |
 | `test_commands.orchestrator` | `./run_validation.sh fvt_orchestrator verify` |
+| `test_commands.discovery` | `./run_validation.sh fvt_discovery verify` |
 | `test_commands.telemetry` | `./run_validation.sh fvt_telemetry verify` |
 | `test_commands.build_stream` | `./run_validation.sh fvt_build_stream test` |
 
@@ -162,18 +168,21 @@ For each cluster, these variables are created with the cluster name prefix (e.g.
 | `<CLUSTER>_PIPELINE_MODE` | config | Pipeline mode |
 | `<CLUSTER>_DOMAINS` | config | Domain selection |
 | `<CLUSTER>_ENABLE_SETUP` | config | Force setup |
+| `<CLUSTER>_ENABLE_DISCOVERY` | config | Enable discovery stage |
 | `<CLUSTER>_TEST_MODE` | config | Enable tests |
 | `<CLUSTER>_DRY_RUN` | config | Dry-run mode |
 | `<CLUSTER>_VERBOSE` | config | Verbose logging |
 | `<CLUSTER>_REPO_MANAGER_TAGS` | config | Ansible tags |
 | `<CLUSTER>_IMAGE_BUILD_MANAGER_TAGS` | config | Ansible tags |
 | `<CLUSTER>_ORCHESTRATOR_TAGS` | config | Ansible tags |
+| `<CLUSTER>_DISCOVERY_TAGS` | config | Ansible tags |
 | `<CLUSTER>_TELEMETRY_TAGS` | config | Ansible tags |
 | `<CLUSTER>_BUILD_STREAM_TAGS` | config | Ansible tags |
 | `<CLUSTER>_TEST_MAIN_CMD` | config | Test command for main |
 | `<CLUSTER>_TEST_REPO_MANAGER_CMD` | config | Test command |
 | `<CLUSTER>_TEST_IMAGE_BUILD_MANAGER_CMD` | config | Test command |
 | `<CLUSTER>_TEST_ORCHESTRATOR_CMD` | config | Test command |
+| `<CLUSTER>_TEST_DISCOVERY_CMD` | config | Test command |
 | `<CLUSTER>_TEST_TELEMETRY_CMD` | config | Test command |
 | `<CLUSTER>_TEST_BUILD_STREAM_CMD` | config | Test command |
 | `<CLUSTER>_SKIP_STAGES` | config | Stages to skip |

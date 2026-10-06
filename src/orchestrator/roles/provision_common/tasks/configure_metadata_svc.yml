@@ -166,6 +166,24 @@
          | default(service_k8s_cluster | default([]) | first | default({})) }}
   when: target_category | default('') == 'kubernetes'
 
+- name: Read version-qualified K8s repository base URLs
+  ansible.builtin.set_fact:
+    metadata_k8s_repo_base_urls: >-
+      {{ hostvars['localhost'].get('service_k8s_repo_base_urls', {}) }}
+  when: target_category | default('') == 'kubernetes'
+
+- name: Validate version-qualified Python repository URL
+  ansible.builtin.assert:
+    that:
+      - metadata_k8s_repo_base_urls is mapping
+      - >-
+        (metadata_k8s_repo_base_urls.get('pip_module', '')
+         if metadata_k8s_repo_base_urls is mapping else '')
+        is match('^https?://')
+    fail_msg: "{{ k8s_pip_repo_contract_fail_msg }}"
+    quiet: true
+  when: target_category | default('') == 'kubernetes'
+
 - name: Set K8s facts from omnia_config and HA config
   ansible.builtin.set_fact:
     kube_vip: "{{ service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
@@ -179,7 +197,8 @@
     pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
     pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
     dns: "{{ hostvars['localhost']['dns'] | default([]) }}"
-    offline_pip_module_path: "{{ hostvars['localhost']['offline_pip_module_path'] | default('') }}"
+    offline_pip_module_path: >-
+      {{ metadata_k8s_repo_base_urls['pip_module'] }}
   when: target_category | default('') == 'kubernetes'
 
 - name: Select K8s storage entry for metadata configuration
@@ -214,9 +233,10 @@
     - name: Set k8s_packages_file path
       ansible.builtin.set_fact:
         _k8s_packages_file: >-
-          {{ input_project_dir }}/config/x86_64/{{
-          hostvars['localhost']['cluster_os_type'] }}/{{
-          hostvars['localhost']['cluster_os_version']
+          {{ input_project_dir }}/config/{{
+          hostvars['localhost']['service_k8s_architecture'] }}/{{
+          hostvars['localhost']['service_k8s_os_type'] }}/{{
+          hostvars['localhost']['service_k8s_os_version']
           }}/service_k8s_v{{ service_k8s_version }}.json
 
     - name: Check if K8s packages JSON exists
@@ -342,17 +362,14 @@
     src: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
   register: ms_fg_group_raw
   no_log: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Parse FG group entries - {{ fg_name }}
   ansible.builtin.set_fact:
     ms_fg_group_entries: "{{ ms_fg_group_raw.content | b64decode | from_yaml }}"
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Initialize metadata-service bodies for {{ fg_name }}
   ansible.builtin.set_fact:
     _ms_fg_bodies: []
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Build metadata-service group body for FG entries - {{ fg_name }}
   ansible.builtin.set_fact:
@@ -374,7 +391,6 @@
   loop_control:
     loop_var: entry
     label: "{{ entry.name }}"
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
   no_log: true
 
 - name: Reconcile metadata-service group configuration for {{ fg_name }}
@@ -386,7 +402,6 @@
     project_name: "{{ hostvars['localhost']['project_name'] }}"
     metadata_groups: "{{ _ms_fg_bodies | default([]) }}"
   register: _metadata_fg_reconcile
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
   no_log: true
 
 - name: Track desired metadata-service groups for {{ fg_name }}
@@ -395,7 +410,6 @@
       {{ ((omnia_metadata_desired_group_names | default([]))
           + (_ms_fg_bodies | default([]) | map(attribute='metadata.name') | list))
          | unique | list }}
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Track nodes affected by metadata-service group changes for {{ fg_name }}
   ansible.builtin.set_fact:
@@ -406,7 +420,6 @@
              | map(attribute='XNAME') | list))
          | unique | list }}
   when:
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
     - >-
       ((_metadata_fg_reconcile.created | default([]))
        + (_metadata_fg_reconcile.updated | default([]))) | length > 0

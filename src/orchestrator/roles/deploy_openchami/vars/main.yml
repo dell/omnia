@@ -164,7 +164,6 @@ coredhcp_cache_validity: "30s"
 coredhcp_custom_ipxe: "default"
 coredhcp_tftp_single_port_mode: true
 
-# Legacy (pre-fabrica) service lists moved to playbooks/upgrade/upgrade_openchami.yml
 # Centralized failure messages
 pg_init_script_fail_msg: >-
   The OpenCHAMI PostgreSQL initialization script is missing or unreadable.

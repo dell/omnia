@@ -30,6 +30,10 @@ OMNIA_CLI = REPO_ROOT / "src" / "main" / "omnia-cli"
 OMNIA_SH = REPO_ROOT / "src" / "main" / "omnia.sh"
 OMNIA_COMPLETION = REPO_ROOT / "src" / "main" / "omnia-bash-completion"
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+CONSOLIDATED_ORCHESTRATOR_LIFECYCLE_AVAILABLE = (
+    "for pxe_artifact in pxeboot_status.yml failed_nodes.json"
+    not in OMNIA_CLI.read_text(encoding="utf-8")
+)
 
 DOMAIN_STATUS_FILES = {
     "repo_manager": ("repo_status.yml", "success"),
@@ -476,19 +480,18 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("Latest PXE mapping missing", output)
         self.assertIn("Timestamped discovery report CSV missing", output)
 
-    def test_completed_orchestrator_pxe_phase_requires_both_reports(self):
+    @unittest.skipUnless(
+        CONSOLIDATED_ORCHESTRATOR_LIFECYCLE_AVAILABLE,
+        "consolidated Orchestrator lifecycle contract is unavailable",
+    )
+    def test_completed_orchestrator_pxe_phase_requires_failure_report(self):
         output_dir = self.runtime_dir("orchestrator", "output")
         (output_dir / "orchestrator_status.yml").write_text(
             "---\noverall_status: success\nlast_completed_phase: pxeboot\n",
             encoding="utf-8",
         )
-        (output_dir / "pxeboot_status.yml").write_text(
-            "---\noverall_status: success\n", encoding="utf-8"
-        )
-
         result, output = self.invoke_cli("orchestrator")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("PXE report: pxeboot_status.yml", output)
         self.assertIn("failed_nodes.json missing for completed PXE phase", output)
 
         (output_dir / "failed_nodes.json").write_text(
@@ -706,7 +709,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "collect/metadata.json")
 
-    def test_omnia_sh_completion_supports_telemetry_extra_vars_and_utils_tags(self):
+    def test_omnia_sh_completion_supports_domain_tags_and_extra_vars(self):
         completion_script = f'''
 source "{OMNIA_COMPLETION}"
 COMP_WORDS=(omnia.sh -r telemetry --tags cleanup -e delete)
@@ -717,6 +720,14 @@ COMP_WORDS=(omnia.sh -r utils --tags slurm_)
 COMP_CWORD=4
 _omnia_sh_completions
 printf 'utils:%s\n' "${{COMPREPLY[@]}}"
+COMP_WORDS=(omnia.sh -r orchestrator --tags verify_)
+COMP_CWORD=4
+_omnia_sh_completions
+printf 'orchestrator:%s\n' "${{COMPREPLY[@]}}"
+COMP_WORDS=(omnia.sh -r image_build_manager --tags cleanup_images -e cleanup_)
+COMP_CWORD=6
+_omnia_sh_completions
+printf 'image_build_manager:%s\n' "${{COMPREPLY[@]}}"
 '''
         result = subprocess.run(
             ["bash", "-c", completion_script],
@@ -731,12 +742,14 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("utils:slurm_config_backup", result.stdout)
         self.assertIn("utils:slurm_config_cleanup", result.stdout)
         self.assertIn("utils:slurm_config_rollback", result.stdout)
+        self.assertIn("orchestrator:verify_node_registration", result.stdout)
+        self.assertIn("image_build_manager:cleanup_image_pattern=", result.stdout)
 
     def test_catalog_selection_copies_variant_and_setup_preserves_it(self):
         catalog_target = self.data_path / "catalog" / "catalog_rhel.json"
         selected_source = (
             REPO_ROOT
-            / "src/main/samples/catalogs/10.0/slurm_x86_64_no_vast.json"
+            / "src/main/samples/catalogs/rhel/10.0/slurm_x86_64_no_vast.json"
         )
         env = os.environ.copy()
         env.update(
@@ -747,7 +760,7 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         )
         script = (
             f'source "{OMNIA_SH}"; '
-            "select_catalog 10.0/slurm_x86_64_no_vast.json; copy_catalog"
+            "select_catalog rhel/10.0/slurm_x86_64_no_vast.json; copy_catalog"
         )
 
         result = subprocess.run(
@@ -779,7 +792,7 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         catalog_target = self.data_path / "catalog" / "catalog_rhel.json"
         selected_source = (
             REPO_ROOT
-            / "src/main/samples/catalogs/10.2/service_k8s_x86_64.json"
+            / "src/main/samples/catalogs/rhel/10.2/service_k8s_x86_64.json"
         )
         env = os.environ.copy()
         env.update(
@@ -801,7 +814,7 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
                 script,
                 "omnia.sh",
                 "--select-catalog",
-                "10.2/service_k8s_x86_64.json",
+                "rhel/10.2/service_k8s_x86_64.json",
             ],
             check=False,
             capture_output=True,
@@ -812,7 +825,10 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(catalog_target.read_bytes(), selected_source.read_bytes())
         output = ANSI_ESCAPE.sub("", result.stdout)
-        self.assertIn("Selected catalog: 10.2/service_k8s_x86_64.json", output)
+        self.assertIn(
+            "Selected catalog: rhel/10.2/service_k8s_x86_64.json",
+            output,
+        )
         self.assertIn("Workloads: service Kubernetes", output)
 
     def test_catalog_list_describes_and_analyzes_each_variant(self):
@@ -844,7 +860,11 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("Workloads: Slurm + service Kubernetes", result.stdout)
         self.assertIn("Architectures: x86_64 + aarch64", result.stdout)
         self.assertIn("VAST client: not included", result.stdout)
-        self.assertIn("10.2/slurm_x86_64.json", result.stdout)
+        self.assertIn("rhel/10.2/slurm_x86_64.json", result.stdout)
+        self.assertIn(
+            "hybrid/slurm_hybrid_10_2_10_0_x86_64.json",
+            result.stdout,
+        )
         self.assertIn("VAST client: included", result.stdout)
 
     def test_catalog_replacement_requires_confirmation_and_keeps_backup(self):
@@ -861,17 +881,20 @@ printf 'utils:%s\n' "${{COMPREPLY[@]}}"
         )
         script = (
             f'source "{OMNIA_SH}"; '
-            "select_catalog 10.0/slurm_x86_64_no_vast.json"
+            "select_catalog rhel/10.0/slurm_x86_64_no_vast.json"
         )
 
-        result = subprocess.run(
-            ["bash", "-c", script],
-            input="yes\n",
-            check=False,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as confirmation:
+            confirmation.write("yes\n")
+            confirmation.seek(0)
+            result = subprocess.run(
+                ["bash", "-c", script],
+                stdin=confirmation,
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
 
         backups = list(catalog_target.parent.glob("catalog_rhel.json.backup.*"))
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

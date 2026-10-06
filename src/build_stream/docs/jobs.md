@@ -68,12 +68,17 @@ These components must be properly configured and accessible to the BuildStreaM s
 ## Stage Types
 
 Jobs support multiple stages:
-- **parse-catalog** - Software catalog processing
-- **generate-input-files** - Input file generation
+- **parse-catalog** - image_group_id uniqueness check
 - **create-local-repository** - Local repository creation
-- **build-image-x86_64** - x86_64 OS image building
-- **build-image-aarch64** - aarch64 OS image building
-- **validate-image-on-test** - Image validation testing
+- **build-image** - OS image building (all architectures; the
+  image_build_manager domain selects per-architecture playbooks internally)
+- **validate** - Image validation testing
+- **restart** - Node restart
+- **upload** - Config file upload
+- **deploy** - Cluster deployment
+
+The `generate-input-files`, `build-image-x86_64` and `build-image-aarch64`
+stages were retired in Omnia 2.3.
 
 ## Error Handling
 

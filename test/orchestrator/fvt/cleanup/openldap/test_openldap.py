@@ -19,9 +19,9 @@ from library.functions import check_cleanup_openldap
 
 from fvt.result import verify_cleanup
 
-pytestmark = [pytest.mark.sanity, pytest.mark.destructive]
 
-
+@pytest.mark.sanity
+@pytest.mark.destructive
 @pytest.mark.order(2)
 def test_openldap_removed(host):
     """Verify the OpenLDAP proxy service, container and state are removed."""

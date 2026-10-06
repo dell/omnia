@@ -1,16 +1,19 @@
+{% set _tag = _render_rhel_tag | default(rhel_tag) %}
+{% set _repos = _render_arch_repos | default(rhel_arch_repos) %}
+{% set _base_pkgs = _render_base_packages | default(base_image_packages) %}
 meta:
   name: '{{ rhel_arch_base_image_name }}'
   tags:
-    - '{{ rhel_tag }}'
+    - '{{ _tag }}'
   from: scratch
 
 layer:
   manager:
     name: dnf
     options:
-      releasever: "{{ rhel_tag }}"
+      releasever: "{{ _tag }}"
   repos:
-{% for repo in rhel_arch_repos %}
+{% for repo in _repos %}
 {% if repo.base_url is defined and repo.base_url | length > 1 %}
     - path: /etc/yum.repos.d/{{ repo.name }}.repo
       content: |
@@ -36,7 +39,7 @@ layer:
         - Minimal Install
         - Development Tools
       packages:
-{% for pkg in base_image_packages %}
+{% for pkg in _base_pkgs %}
         - {{ pkg }}
 {% endfor %}
 {% if thrillhouse_base_image_commands | default([]) | length > 0 %}

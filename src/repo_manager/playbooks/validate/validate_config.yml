@@ -54,12 +54,11 @@
         run_subscription_check: true
       when: run_subscription_check is not defined and omnia_run_tags is not defined
 
-    - name: Include metadata vars
-      ansible.builtin.include_vars:
-        file: "{{ omnia_metadata_file }}"
-        name: oim_shared_path_from_metadata
+    - name: Load validated metadata vars
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_oim_metadata.yml
       when: repo_manager_metadata_support | default(false) | bool
-      failed_when: false
 
     - name: Check oim_metadata for Jinja template injection patterns
       ansible.builtin.set_fact:
@@ -84,38 +83,10 @@
     # -------------------------------------------------------------------------
     # PHASE 2: LOAD AND VALIDATE REPO MANAGER CONFIG (CATALOG-BASED)
     # -------------------------------------------------------------------------
-    - name: Validate repo_manager_config.yml exists
-      ansible.builtin.stat:
-        path: "{{ repo_manager_config_file }}"
-      register: repo_config_file
-
-    - name: Fail if repo_manager_config.yml is missing
-      ansible.builtin.fail:
-        msg: "{{ validate_config_fail_if_repo_manager_config_yml_is_missing_msg }}"
-      when: not repo_config_file.stat.exists
-
-    - name: Validate repo_manager_config.yml YAML syntax
-      ansible.builtin.command:
-        argv:
-          - python3
-          - -c
-          - "import yaml; yaml.safe_load(open('{{ repo_manager_config_file }}'))"
-      changed_when: false
-      register: repo_config_syntax_check
-
-    - name: Fail if repo_manager_config.yml has invalid YAML syntax
-      ansible.builtin.fail:
-        msg: >-
-          repo_manager_config.yml contains invalid YAML syntax.
-          File: {{ repo_manager_config_file }}.
-          Error: {{ repo_config_syntax_check.stderr }}
-      when: repo_config_syntax_check.rc != 0
-
-    - name: Load repo_manager_config.yml
-      ansible.builtin.include_vars:
-        file: "{{ repo_manager_config_file }}"
-        name: repo_manager_config_data
-      no_log: true
+    - name: Load validated repo_manager_config.yml
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_repo_manager_config.yml
 
     - name: Check repo_manager_config for Jinja template injection patterns
       ansible.builtin.set_fact:

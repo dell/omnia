@@ -40,7 +40,7 @@ def _load_cloud_init_context(host):
     """Load provision context with orchestrator_config.
 
     Uses load_context (provision-level) instead of load_runtime_context
-    so that pxeboot_status.yml is not required.  Test ordering
+    so that orchestrator_status.yml is not required. Test ordering
     (pytest.mark.order 295-298) ensures these run after PXE boot tests.
     """
     context = load_context(host)

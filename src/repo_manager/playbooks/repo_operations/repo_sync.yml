@@ -1,0 +1,270 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# REPOSITORY SYNC PLAYBOOK
+# =============================================================================
+# Reconciles every RPM repository referenced by the active catalog exactly with
+# its upstream. This playbook supports two modes:
+#
+# 1. STANDALONE MODE: Standard repo sync using repo_manager_config.yml
+#    - Called manually or by other playbooks
+#    - Uses catalog execution contexts from repo_manager_config
+#    - No playbook-watcher API integration
+#
+# 2. CADENCE MODE: Called by cadence_manager for periodic package sync
+#    - Environment variables set by cadence_manager:
+#      - CATALOG_FILE_PATH: Path to cadence catalog
+#      - PLAYBOOK_WATCHER_API_URL: API endpoint for validation/restart
+#    - Calls playbook-watcher APIs after sync completion
+#    - Used by ER-BSM-002 cadence polling feature
+#
+# Environment Variables (CADENCE MODE only):
+#   CATALOG_FILE_PATH: Path to catalog file (set by cadence_manager)
+#   PLAYBOOK_WATCHER_API_URL: API endpoint for restart/validate operations
+#
+# ER Reference: ER-BSM-002 — AC-008, AC-009, AC-015, AC-020 through AC-030
+# =============================================================================
+
+- name: Reconcile catalog RPM repositories exactly with upstream sources
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir | dirname | dirname }}/vars/default.yml"
+    - "{{ playbook_dir | dirname | dirname }}/vars/pulp_cli_commands.yml"
+  vars:
+    # Cadence mode detection
+    catalog_file_path: "{{ lookup('env', 'CATALOG_FILE_PATH') | default('') }}"
+    watcher_api_url: "{{ lookup('env', 'PLAYBOOK_WATCHER_API_URL') | default('') }}"
+    is_cadence_mode: "{{ catalog_file_path | length > 0 }}"
+  environment:
+    PULP_CA_BUNDLE: "{{ pulp_server_crt }}"
+  tasks:
+    - name: "[Cadence Mode] Display catalog file location"
+      ansible.builtin.debug:
+        msg: "Catalog file path: {{ catalog_file_path }}"
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Verify catalog file exists"
+      ansible.builtin.stat:
+        path: "{{ catalog_file_path }}"
+      register: catalog_stat
+      failed_when: not catalog_stat.stat.exists
+      changed_when: false
+      when: is_cadence_mode
+
+    - name: Load Repo Manager runtime configuration
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+
+    - name: Load validated repo_manager_config.yml
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_repo_manager_config.yml
+
+    - name: Resolve ordered catalog execution contexts
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: resolve_catalog_context.yml
+
+    - name: Set exact-reconciliation runtime facts
+      ansible.builtin.set_fact:
+        repo_config: >-
+          {{ repo_manager_config_data.repo_config | default('partial') }}
+        run_subscription_check: true
+        omnia_run_tags: >-
+          {{ (ansible_run_tags | default([]) | list + ['local_repo']) | unique }}
+        cacheable: true
+
+    - name: Load and reconcile Pulp credentials
+      ansible.builtin.include_role:
+        name: ../../roles/collect_repo_credentials
+
+    - name: Read Pulp endpoint configuration
+      ansible.builtin.include_role:
+        name: ../../roles/pulp_validation
+        tasks_from: read_endpoint_config.yml
+
+    - name: Verify Pulp health
+      ansible.builtin.include_role:
+        name: ../../roles/deploy_pulp
+        tasks_from: pulp_health_check.yml
+
+    - name: Validate Pulp endpoint
+      ansible.builtin.include_role:
+        name: ../../roles/pulp_validation
+
+    - name: Prepare host repository access
+      ansible.builtin.include_role:
+        name: ../../roles/repository_access
+        tasks_from: prepare_host_repository_access.yml
+
+    - name: Initialize exact-mirror operation status
+      ansible.builtin.set_fact:
+        repo_resync_repositories: {}
+        repo_resync_overall_status: in_progress
+        repo_resync_orphan_cleanup: not_run
+        repo_resync_error: ""
+        repo_resync_status_path: >-
+          {{ output_project_dir }}/repo_resync_status.yml
+        sync_timestamp: "{{ ansible_date_time.iso8601 }}"
+
+    - name: Publish in-progress exact-mirror status
+      ansible.builtin.copy:
+        content: >-
+          {{ {'repositories': {}, 'overall_status': 'in_progress'} |
+             to_nice_yaml(indent=2, sort_keys=false) }}
+        dest: "{{ repo_resync_status_path }}"
+        mode: "0644"
+
+    - name: Reconcile all catalog RPM repositories
+      block:
+        - name: Preflight every catalog context before Pulp mutation
+          ansible.builtin.include_tasks: repo_sync_context.yml
+          vars:
+            repo_sync_phase: preflight
+          loop: "{{ catalog_execution_contexts }}"
+          loop_control:
+            loop_var: execution_context
+            index_var: context_index
+            label: "{{ execution_context.context_id }}"
+
+        - name: Execute exact reconciliation for catalog contexts sequentially
+          ansible.builtin.include_tasks: repo_sync_context.yml
+          vars:
+            repo_sync_phase: execute
+          loop: "{{ catalog_execution_contexts }}"
+          loop_control:
+            loop_var: execution_context
+            index_var: context_index
+            label: "{{ execution_context.context_id }}"
+
+        - name: Record successful aggregate exact-mirror result
+          ansible.builtin.set_fact:
+            repo_resync_overall_status: success
+
+      rescue:
+        - name: Preserve repository results from the failed operation
+          ansible.builtin.set_fact:
+            repo_resync_repositories: >-
+              {{ repo_resync_repositories |
+                 combine(ansible_failed_result.repositories | default({}),
+                         recursive=true) }}
+            repo_resync_orphan_cleanup: >-
+              {{ (ansible_failed_result.result | default({})).get(
+                   'orphan_cleanup', repo_resync_orphan_cleanup) }}
+            repo_resync_overall_status: failed
+            repo_resync_error: >-
+              {{ ansible_failed_result.msg |
+                 default('Catalog RPM reconciliation failed.', true) }}
+
+      always:
+        - name: Write final exact-mirror status
+          ansible.builtin.copy:
+            content: >-
+              {{
+                {
+                  'repositories': repo_resync_repositories,
+                  'overall_status': repo_resync_overall_status,
+                  'orphan_cleanup': repo_resync_orphan_cleanup
+                } |
+                combine(
+                  {'error': repo_resync_error}
+                  if repo_resync_error | length > 0 else {}
+                ) |
+                to_nice_yaml(indent=2, sort_keys=false)
+              }}
+            dest: "{{ repo_resync_status_path }}"
+            mode: "0644"
+
+    - name: Fail when exact-mirror reconciliation did not complete
+      ansible.builtin.fail:
+        msg: >-
+          Catalog RPM reconciliation failed. Review
+          {{ repo_resync_status_path }} and the Repo Manager logs.
+      when: repo_resync_overall_status != 'success'
+
+    # =========================================================================
+    # CADENCE MODE: Call playbook-watcher APIs after successful sync
+    # =========================================================================
+    - name: "[Cadence Mode] Load catalog content for API calls"
+      ansible.builtin.slurp:
+        src: "{{ catalog_file_path }}"
+      register: catalog_content
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Parse catalog JSON"
+      ansible.builtin.set_fact:
+        catalog_data: "{{ catalog_content['content'] | b64decode | from_json }}"
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Call validate API to confirm sync state"
+      ansible.builtin.uri:
+        url: "{{ watcher_api_url }}/api/validate"
+        method: POST
+        body_format: json
+        body:
+          action: "validate_cadence_sync"
+          catalog_version: "{{ catalog_data.get('catalog', {}).get('version', 'unknown') }}"
+          timestamp: "{{ sync_timestamp }}"
+        timeout: 30
+        status_code: [200, 201, 202]
+      register: validate_response
+      ignore_errors: true
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Log validate API response"
+      ansible.builtin.debug:
+        msg: "Validate API response: {{ validate_response.status | default('no response') }}"
+      when: is_cadence_mode and validate_response is defined
+
+    - name: "[Cadence Mode] Call restart API to restart services"
+      ansible.builtin.uri:
+        url: "{{ watcher_api_url }}/api/restart"
+        method: POST
+        body_format: json
+        body:
+          action: "restart_services_after_sync"
+          services:
+            - name: "pulp"
+              reason: "New packages synchronized"
+            - name: "playbook_watcher"
+              reason: "Sync operation complete"
+          timestamp: "{{ sync_timestamp }}"
+        timeout: 60
+        status_code: [200, 201, 202]
+      register: restart_response
+      ignore_errors: true
+      when: is_cadence_mode
+
+    - name: "[Cadence Mode] Log restart API response"
+      ansible.builtin.debug:
+        msg: "Restart API response: {{ restart_response.status | default('no response') }}"
+      when: is_cadence_mode and restart_response is defined
+
+    - name: "[Cadence Mode] Log sync completion"
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Cadence Repository Sync - Status: SUCCESS
+          ========================================
+          Catalog: {{ catalog_file_path }}
+          Version: {{ catalog_data.get('catalog', {}).get('version', 'unknown') }}
+          Sync Result: {{ repo_resync_overall_status }}
+          Timestamp: {{ sync_timestamp }}
+          Validate API: {{ validate_response.status | default('skipped') }}
+          Restart API: {{ restart_response.status | default('skipped') }}
+          ========================================
+      when: is_cadence_mode

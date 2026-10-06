@@ -17,16 +17,18 @@ from __future__ import annotations
 
 import base64
 from copy import deepcopy
+import hashlib
 import json
 import os
+import posixpath
 import shlex
 from typing import Any
 
 import pytest
 import yaml
 
-from library.functions import run_playbook
 from omnia_auto import read_remote_env, resolve_domain_data_path
+from library.functions import run_playbook
 
 
 DOMAIN = "image_build_manager"
@@ -35,6 +37,19 @@ EMPTY_DICTIONARY = {
     "entries": {},
     "last_updated": "",
 }
+
+
+def _catalog_recovery_directory(data_root: str, project: str) -> str:
+    """Return a project-scoped recovery path below the domain data root."""
+    recovery_key = hashlib.sha256(
+        f"{data_root}\0{project}".encode("utf-8")
+    ).hexdigest()[:16]
+    return posixpath.join(
+        data_root,
+        ".test-recovery",
+        "catalog-reuse",
+        recovery_key,
+    )
 
 
 class CatalogReuseContext:
@@ -49,21 +64,63 @@ class CatalogReuseContext:
             "OMNIA_DATA_PATH",
             domain_data_path_var="IMAGE_BUILD_MANAGER_DATA_PATH",
         )
+        self.recovery_dir = _catalog_recovery_directory(
+            self.data_root,
+            self.project,
+        )
         self.catalog_path = read_remote_env(host, "CATALOG_FILE_PATH")
         self.config_path = (
             f"{self.data_root}/input/{self.project}/image_build_config.yml"
         )
         self.output_dir = f"{self.data_root}/output/{self.project}"
+        self.build_status_path = f"{self.output_dir}/build_status.yml"
         self.dictionary_path = f"{self.output_dir}/image_group_dictionary.json"
         self.dictionary_backup_path = f"{self.dictionary_path}.bak"
+        self.created_output_paths: set[str] = set()
+        self.backup_paths: list[str] = []
+        self.absence_markers: list[str] = []
+
+        # Recover the baseline left by an interrupted earlier suite before
+        # taking this run's in-memory snapshots.
+        for path in (self.config_path, self.catalog_path):
+            self._recover_runtime_state(path)
 
         self.original_config_text = self.read_text(self.config_path)
         self.original_catalog_text = self.read_text(self.catalog_path)
         self.original_config = yaml.safe_load(self.original_config_text)
         self.original_catalog = json.loads(self.original_catalog_text)
         self.repo_path = self.original_config["repo_manager_output_path"]
+        catalog_root = self.original_catalog["catalog"]
+        catalog_image_group_id = (
+            f"{catalog_root['identifier']}-v{catalog_root['version']}"
+        )
+        self.catalog_build_status_path = (
+            f"{self.output_dir}/{catalog_image_group_id}/build_status.yml"
+        )
+        for path in (
+            self.repo_path,
+            self.build_status_path,
+            self.catalog_build_status_path,
+            self.dictionary_path,
+            self.dictionary_backup_path,
+        ):
+            self._recover_runtime_state(path)
         self.original_repo_text = self.read_text(self.repo_path)
         self.original_repo = yaml.safe_load(self.original_repo_text)
+        self.build_status_existed = self.exists(self.build_status_path)
+        self.original_build_status_text = (
+            self.read_text(self.build_status_path)
+            if self.build_status_existed
+            else ""
+        )
+        self.catalog_build_status_existed = self.exists(
+            self.catalog_build_status_path
+        )
+        self.original_catalog_build_status_text = (
+            self.read_text(self.catalog_build_status_path)
+            if self.catalog_build_status_existed
+            else ""
+        )
         self.dictionary_existed = self.exists(self.dictionary_path)
         self.original_dictionary_text = (
             self.read_text(self.dictionary_path)
@@ -78,8 +135,6 @@ class CatalogReuseContext:
             if self.dictionary_backup_existed
             else ""
         )
-        self.created_output_paths: set[str] = set()
-        self.backup_paths: list[str] = []
         self._create_runtime_backups()
 
     # -- target file operations ------------------------------------------
@@ -121,6 +176,18 @@ class CatalogReuseContext:
         if result.rc != 0:
             raise RuntimeError(f"Unable to remove test file: {path}")
 
+    def remove_tree(self, path: str) -> None:
+        """Remove one suite-created directory below the project output."""
+        normalized = posixpath.normpath(path)
+        output_prefix = f"{posixpath.normpath(self.output_dir)}/"
+        if not normalized.startswith(output_prefix):
+            raise RuntimeError(
+                f"Refusing to remove path outside project output: {path}"
+            )
+        result = self.run_command(f"rm -rf -- {shlex.quote(normalized)}")
+        if result.rc != 0:
+            raise RuntimeError(f"Unable to remove test directory: {path}")
+
     def load_dictionary(self) -> dict[str, Any]:
         """Return the live global dictionary."""
         if not self.exists(self.dictionary_path):
@@ -135,32 +202,121 @@ class CatalogReuseContext:
         )
 
     # -- backup and restoration ------------------------------------------
-    def _create_backup(self, path: str) -> None:
-        backup = f"{path}.catalog-reuse-backup"
-        # A stale backup means a prior test was interrupted. Restore it first.
-        if self.exists(backup):
+    def _recovery_path(self, path: str, suffix: str) -> str:
+        """Return isolated recovery metadata outside product input paths."""
+        path_key = hashlib.sha256(path.encode("utf-8")).hexdigest()
+        return f"{self.recovery_dir}/{path_key}.{suffix}"
+
+    def _backup_path(self, path: str) -> str:
+        return self._recovery_path(path, "backup")
+
+    def _absence_marker_path(self, path: str) -> str:
+        return self._recovery_path(path, "absent")
+
+    def _recovery_directories(self) -> tuple[str, str, str]:
+        """Return leaf-to-root recovery directories owned by this suite."""
+        recovery_parent = posixpath.dirname(self.recovery_dir)
+        recovery_root = posixpath.dirname(recovery_parent)
+        return self.recovery_dir, recovery_parent, recovery_root
+
+    def _recover_runtime_state(self, path: str) -> None:
+        """Recover one baseline file after an interrupted earlier suite."""
+        backup = self._backup_path(path)
+        absence_marker = self._absence_marker_path(path)
+        backup_exists = self.exists(backup)
+        marker_exists = self.exists(absence_marker)
+        if backup_exists and marker_exists:
+            raise RuntimeError(
+                f"Conflicting catalog-reuse recovery state for: {path}"
+            )
+        if backup_exists:
             result = self.run_command(
                 f"cp -f -- {shlex.quote(backup)} {shlex.quote(path)}"
             )
             if result.rc != 0:
                 raise RuntimeError(f"Unable to recover stale backup: {backup}")
+            self.remove(backup)
+        elif marker_exists:
+            if self.exists(path):
+                self.remove(path)
+            self.remove(absence_marker)
+
+    def _create_backup(self, path: str) -> None:
+        backup = self._backup_path(path)
+        recovery_dir, recovery_parent, recovery_root = (
+            self._recovery_directories()
+        )
         result = self.run_command(
-            f"cp -f -- {shlex.quote(path)} {shlex.quote(backup)}"
+            f"mkdir -p {shlex.quote(recovery_dir)} && "
+            f"chmod 0700 {shlex.quote(recovery_root)} "
+            f"{shlex.quote(recovery_parent)} "
+            f"{shlex.quote(recovery_dir)} && "
+            f"cp -f -- {shlex.quote(path)} {shlex.quote(backup)} && "
+            f"chmod 0600 {shlex.quote(backup)}"
         )
         if result.rc != 0:
             raise RuntimeError(f"Unable to create runtime backup: {path}")
         self.backup_paths.append(backup)
 
+    def _create_absence_marker(self, path: str) -> None:
+        marker = self._absence_marker_path(path)
+        recovery_dir, recovery_parent, recovery_root = (
+            self._recovery_directories()
+        )
+        quoted_recovery_dir = shlex.quote(recovery_dir)
+        quoted_marker = shlex.quote(marker)
+        result = self.run_command(
+            f"mkdir -p {quoted_recovery_dir} && "
+            f"chmod 0700 {shlex.quote(recovery_root)} "
+            f"{shlex.quote(recovery_parent)} {quoted_recovery_dir} && "
+            f": > {quoted_marker} && "
+            f"chmod 0600 {quoted_marker}"
+        )
+        if result.rc != 0:
+            raise RuntimeError(
+                f"Unable to record absent baseline file: {path}"
+            )
+        self.absence_markers.append(marker)
+
+    def _prune_empty_recovery_directories(self) -> None:
+        """Remove the suite recovery tree when it contains no artifacts."""
+        for position, directory in enumerate(self._recovery_directories()):
+            if not self.exists(directory):
+                continue
+            result = self.run_command(
+                f"rmdir -- {shlex.quote(directory)}"
+            )
+            if (
+                position == 0
+                and result.rc != 0
+                and self.exists(directory)
+            ):
+                raise RuntimeError(
+                    f"Unable to remove recovery directory: {directory}"
+                )
+
     def _create_runtime_backups(self) -> None:
-        for path in (self.config_path, self.catalog_path, self.repo_path):
-            self._create_backup(path)
-        if self.dictionary_existed:
-            self._create_backup(self.dictionary_path)
-        if self.dictionary_backup_existed:
-            self._create_backup(self.dictionary_backup_path)
+        states = (
+            (self.config_path, True),
+            (self.catalog_path, True),
+            (self.repo_path, True),
+            (self.build_status_path, self.build_status_existed),
+            (
+                self.catalog_build_status_path,
+                self.catalog_build_status_existed,
+            ),
+            (self.dictionary_path, self.dictionary_existed),
+            (self.dictionary_backup_path, self.dictionary_backup_existed),
+        )
+        for path, existed in states:
+            if existed:
+                self._create_backup(path)
+            else:
+                self._create_absence_marker(path)
 
     def restore(self) -> None:
-        """Restore inputs and dictionary even when a scenario failed."""
+        """Restore inputs, status, and dictionary after all scenarios."""
+        errors: list[str] = []
         restore_items = (
             (self.config_path, self.original_config_text),
             (self.catalog_path, self.original_catalog_text),
@@ -169,28 +325,97 @@ class CatalogReuseContext:
         for path, content in restore_items:
             try:
                 self.write_text(path, content)
-            except RuntimeError:
-                pass
-        try:
-            if self.dictionary_existed:
-                self.write_text(
-                    self.dictionary_path, self.original_dictionary_text
-                )
-            elif self.exists(self.dictionary_path):
-                self.remove(self.dictionary_path)
-            if self.dictionary_backup_existed:
-                self.write_text(
-                    self.dictionary_backup_path,
-                    self.original_dictionary_backup_text,
-                )
-            elif self.exists(self.dictionary_backup_path):
-                self.remove(self.dictionary_backup_path)
-        except RuntimeError:
-            pass
+            except RuntimeError as exc:
+                errors.append(str(exc))
+        optional_items = (
+            (
+                self.build_status_path,
+                self.build_status_existed,
+                self.original_build_status_text,
+            ),
+            (
+                self.catalog_build_status_path,
+                self.catalog_build_status_existed,
+                self.original_catalog_build_status_text,
+            ),
+            (
+                self.dictionary_path,
+                self.dictionary_existed,
+                self.original_dictionary_text,
+            ),
+            (
+                self.dictionary_backup_path,
+                self.dictionary_backup_existed,
+                self.original_dictionary_backup_text,
+            ),
+        )
+        for path, existed, content in optional_items:
+            try:
+                if existed:
+                    self.write_text(path, content)
+                elif self.exists(path):
+                    self.remove(path)
+            except RuntimeError as exc:
+                errors.append(str(exc))
         for path in self.created_output_paths:
-            self.run_command(f"rm -rf -- {shlex.quote(path)}")
-        for backup in self.backup_paths:
-            self.run_command(f"rm -f -- {shlex.quote(backup)}")
+            try:
+                self.remove_tree(path)
+            except RuntimeError as exc:
+                errors.append(str(exc))
+
+        # Preserve recovery metadata when restoration fails so the next run
+        # can recover the pre-suite state.
+        if not errors:
+            for artifact in self.backup_paths + self.absence_markers:
+                try:
+                    self.remove(artifact)
+                except RuntimeError as exc:
+                    errors.append(str(exc))
+        if not errors:
+            try:
+                self._prune_empty_recovery_directories()
+            except RuntimeError as exc:
+                errors.append(str(exc))
+        if errors:
+            raise RuntimeError("; ".join(errors))
+
+    def baseline_is_restored(self) -> bool:
+        """Return whether all mutable target files match their baseline."""
+        required = (
+            (self.config_path, self.original_config_text),
+            (self.catalog_path, self.original_catalog_text),
+            (self.repo_path, self.original_repo_text),
+        )
+        if any(self.read_text(path) != content for path, content in required):
+            return False
+        optional = (
+            (
+                self.build_status_path,
+                self.build_status_existed,
+                self.original_build_status_text,
+            ),
+            (
+                self.dictionary_path,
+                self.dictionary_existed,
+                self.original_dictionary_text,
+            ),
+            (
+                self.dictionary_backup_path,
+                self.dictionary_backup_existed,
+                self.original_dictionary_backup_text,
+            ),
+            (
+                self.catalog_build_status_path,
+                self.catalog_build_status_existed,
+                self.original_catalog_build_status_text,
+            ),
+        )
+        for path, existed, content in optional:
+            if self.exists(path) != existed:
+                return False
+            if existed and self.read_text(path) != content:
+                return False
+        return all(not self.exists(path) for path in self.created_output_paths)
 
     # -- scenario preparation --------------------------------------------
     def restore_baseline_inputs(self) -> None:
@@ -274,37 +499,82 @@ class CatalogReuseContext:
                     return False
         return True
 
+    def s3_object_exists(self, uri: str) -> bool:
+        """Return whether one exact S3 object exists."""
+        return self.run_command(f"s3cmd info {shlex.quote(uri)}").rc == 0
+
+    def recover_s3_artifact(self, artifact_uri: str, backup_uri: str) -> None:
+        """Restore the exact pre-scenario artifact, then remove its backup."""
+        if not self.s3_object_exists(backup_uri):
+            return
+        copied = self.run_command(
+            f"s3cmd cp {shlex.quote(backup_uri)} "
+            f"{shlex.quote(artifact_uri)}"
+        )
+        if copied.rc != 0 or not self.s3_object_exists(artifact_uri):
+            raise RuntimeError(
+                f"Unable to restore S3 artifact from: {backup_uri}"
+            )
+        deleted = self.run_command(f"s3cmd del {shlex.quote(backup_uri)}")
+        if deleted.rc != 0 or self.s3_object_exists(backup_uri):
+            raise RuntimeError(
+                f"Unable to remove S3 recovery object: {backup_uri}"
+            )
+
     def mutate_one_functional_group(self) -> tuple[dict[str, Any], str]:
-        """Add one valid RPM alias to a group unique to the first layer."""
+        """Add one valid RPM alias to a group used by exactly one layer."""
         document = self.catalog
         root = document["catalog"]
         layers = [
             layer for layer in root["functionallayer"]
             if str(layer.get("name", "")).endswith("_x86_64")
         ]
-        target_layer = layers[0]
         component_counts: dict[str, int] = {}
         for layer in layers:
             for component in layer.get("components", []):
                 component_counts[component] = component_counts.get(component, 0) + 1
-        group_name = next(
-            component for component in target_layer.get("components", [])
-            if component_counts.get(component) == 1
-            and isinstance(root.get("groups", {}).get(component), dict)
-            and isinstance(root["groups"][component].get("components"), list)
-        )
+
+        target_layer = None
+        group_name = ""
+        for layer in layers:
+            for component in layer.get("components", []):
+                group = root.get("groups", {}).get(component)
+                if (
+                    component_counts.get(component) == 1
+                    and isinstance(group, dict)
+                    and isinstance(group.get("components"), list)
+                ):
+                    target_layer = layer
+                    group_name = component
+                    break
+            if target_layer is not None:
+                break
+
+        if target_layer is None:
+            raise RuntimeError(
+                "Catalog has no x86_64 layer with a uniquely mutable group"
+            )
+
         existing = set(root["groups"][group_name]["components"])
         package_alias = next(
-            alias for alias, package in root.get("packages", {}).items()
-            if alias not in existing
-            and isinstance(package, dict)
-            and package.get("packagetype") == "rpm"
-            and any(
-                source.get("architecture") == "x86_64"
-                for source in package.get("sources", [])
-                if isinstance(source, dict)
-            )
+            (
+                alias
+                for alias, package in root.get("packages", {}).items()
+                if alias not in existing
+                and isinstance(package, dict)
+                and package.get("packagetype") == "rpm"
+                and any(
+                    source.get("architecture") == "x86_64"
+                    for source in package.get("sources", [])
+                    if isinstance(source, dict)
+                )
+            ),
+            "",
         )
+        if not package_alias:
+            raise RuntimeError(
+                "Catalog has no additional x86_64 RPM for selective mutation"
+            )
         root["groups"][group_name]["components"].append(package_alias)
         return document, target_layer["name"]
 

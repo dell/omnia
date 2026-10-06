@@ -5,10 +5,10 @@ for the image_build_manager playbook. Unlike FVT (which verifies correctness),
 NFT checks operation duration and confirms that required services are
 available after prepare is run twice.
 
-The performance lifecycle follows the Image Build Manager runtime contract:
-prepare creates infrastructure, build validates and consumes
-`repo_status.yml`, and cleanup removes managed state. The validate-only flow is
-not part of NFT and does not consume repo status.
+The default performance lifecycle follows the Image Build Manager runtime
+contract through prepare and build. Cleanup performance remains available as
+an explicit destructive case, but the default NFT command skips it so NFT does
+not delete deployed state or credentials.
 
 ---
 
@@ -21,7 +21,7 @@ identifies the test level, and `SEQ` is a stable three-digit sequence.
 |-------|-----------|----------|-------------------|
 | IMGBM_NFT_001 | `test_prepare_performance` | Performance | Prepare completes within threshold |
 | IMGBM_NFT_002 | `test_build_performance` | Performance | Build completes within threshold |
-| IMGBM_NFT_003 | `test_cleanup_performance` | Performance | Cleanup completes within threshold |
+| IMGBM_NFT_003 | `test_cleanup_performance` | Opt-in destructive performance | Cleanup completes within threshold when `--marker destructive` is requested |
 | IMGBM_NFT_004 | `test_prepare_idempotent` | Idempotency | Prepare succeeds twice and required services remain available |
 | IMGBM_NFT_SECURITY_001 | `test_minio_quadlet_permissions` | Security | `/etc/containers/systemd/minio.container` is `0600 root:root` |
 | IMGBM_NFT_SECURITY_002 | `test_s3cfg_permissions` | Security | `/root/.s3cfg` is `0600 root:root` |
@@ -62,9 +62,9 @@ containers were never recreated.
 
 Run these commands from `test/image_build_manager/`. NFT requires a valid
 target environment, input configuration, credentials, and build-time
-`repo_status.yml`; the NFT suite runs its own prepare, build, and cleanup
-operations. Internet-backed repo status may keep repo-manager port and
-certificate paths empty as long as their required structure is present.
+`repo_status.yml`; the default NFT suite runs prepare and build operations but
+does not run cleanup. Internet-backed repo status may keep repo-manager port
+and certificate paths empty as long as their required structure is present.
 Running FVT precheck and validate first is recommended:
 
 ```bash
@@ -72,16 +72,20 @@ Running FVT precheck and validate first is recommended:
 ./run_validation.sh fvt_image_build_manager precheck verify
 ./run_validation.sh fvt_image_build_manager validate verify
 
-# Run NFT (includes cleanup)
+# Run non-destructive NFT (cleanup is skipped)
 ./run_validation.sh nft_image_build_manager test
 ```
 
-IMGBM_NFT_003 executes the cleanup tag. A full NFT run therefore removes local
-MinIO/registry data and services, build output/logs, and
-`image_build_credentials.yml` with its vault key. The default MinIO flow also
-removes s3cmd configuration. External PowerScale S3 storage and
-`/root/.s3cfg` are retained. Before a later credential-dependent run, rerun
-`./setup_env.sh --set-domain-creds` on the execution OIM.
+To measure cleanup intentionally, select only the destructive case:
+
+```bash
+./run_validation.sh nft_image_build_manager test --marker destructive
+```
+
+That opt-in command removes local MinIO/registry data and services, build
+output/logs, and `image_build_credentials.yml` with its vault key. The default
+MinIO flow also removes s3cmd configuration. External PowerScale S3 storage
+and `/root/.s3cfg` are retained.
 
 ---
 
@@ -96,6 +100,9 @@ removes s3cmd configuration. External PowerScale S3 storage and
 
 # Run NFT with debug output
 ./run_validation.sh nft_image_build_manager test --debug
+
+# Run only the destructive cleanup performance case
+./run_validation.sh nft_image_build_manager test --marker destructive
 ```
 
 ---
@@ -117,16 +124,10 @@ nft/
     └── test_s3cfg_permissions                      (order=11)
 ```
 
-Security cases carry both `@pytest.mark.nft` and `@pytest.mark.security` so they
-can be filtered independently, e.g.
-`./run_validation.sh nft_image_build_manager test --marker security`. They are
-regression guards for the CWE-732 / CWE-522 hardening that restricts
-credential-bearing quadlet and s3cmd files to root-only access; a future
-accidental revert to a world-readable mode will fail one of these cases.
-
-Tests use `@pytest.mark.nft` and `@pytest.mark.order(n)` markers. Within the
-performance tests, the markers enforce prepare -> build -> cleanup. IMGBM_NFT_004 is
-also marked `order=1`; its position relative to IMGBM_NFT_001 follows pytest's
+Tests use `@pytest.mark.nft` and `@pytest.mark.order(n)` markers. The cleanup
+performance case also uses `@pytest.mark.destructive`; collection skips it
+unless the runner receives `--marker destructive`. IMGBM_NFT_004 is also
+marked `order=1`; its position relative to IMGBM_NFT_001 follows pytest's
 collection order, and it independently executes prepare twice.
 
 ---

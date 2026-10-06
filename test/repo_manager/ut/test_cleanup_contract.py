@@ -165,6 +165,31 @@ class CleanupContextTests(unittest.TestCase):
                 {"arm-baseos"},
             )
 
+    def test_repository_removal_also_clears_its_retry_checkpoint(self):
+        """Selective cleanup cannot leave a deleted repository retryable."""
+        repository = "x86_64_rhel_10.0_baseos"
+        with tempfile.TemporaryDirectory() as work_dir:
+            index_path = _write_mirror_index(work_dir, "10.0", {
+                "x86-baseos": _entry(
+                    "bash", "rpm", "1", "x86_64", "baseos"
+                ),
+            })
+            mirror_data = json.loads(index_path.read_text(encoding="utf-8"))
+            mirror_data["MirrorIndex"]["repositories"] = {
+                repository: {
+                    "status": "failed",
+                    "retry_required": True,
+                    "version_href": "/versions/1/",
+                }
+            }
+            index_path.write_text(json.dumps(mirror_data), encoding="utf-8")
+            removed = pulp_cleanup.remove_repo_from_mirror_index(
+                repository, work_dir, "rhel", "10.0", LOGGER
+            )
+            saved = json.loads(index_path.read_text(encoding="utf-8"))
+        self.assertEqual(removed, 2)
+        self.assertEqual(saved["MirrorIndex"]["repositories"], {})
+
     def test_shared_container_is_invalidated_in_every_owning_context(self):
         """An exact shared tag is removed from every matching context only."""
         with tempfile.TemporaryDirectory() as work_dir:
@@ -378,6 +403,72 @@ class CleanupStateTests(unittest.TestCase):
             )
         self.assertTrue(success)
         self.assertTrue(changed)
+
+    def test_file_cleanup_stops_when_owner_state_cannot_be_saved(self):
+        """Local bytes/status remain when shared ownership update fails."""
+        cache = Mock()
+        cache.remove_owner_result.return_value = {
+            "success": False,
+            "changed": False,
+        }
+        with patch.object(
+            pulp_cleanup,
+            "_cleanup_uploaded_repository",
+            return_value=(True, ["Pulp repository deleted"], True),
+        ), patch.object(
+            pulp_cleanup, "SharedArtifactCache", return_value=cache
+        ), patch.object(
+            pulp_cleanup, "cleanup_content_directory"
+        ) as cleanup_content, patch.object(
+            pulp_cleanup, "remove_from_status_files"
+        ) as remove_status:
+            result = pulp_cleanup.cleanup_file_repository(
+                "calico", "manifest", "/tmp/status", "/tmp/store",
+                LOGGER, pulp_repo_name="x86_64_rhel_10.0_manifestcalico",
+                arch="x86_64", os_type="rhel", os_version="10.0",
+            )
+
+        self.assertEqual(result["status"], "Failed")
+        self.assertTrue(result["pulp_changed"])
+        self.assertNotIn("pulp_absent", result)
+        cleanup_content.assert_not_called()
+        remove_status.assert_not_called()
+
+    def test_configured_registry_repo_matches_endpoint_mirror_rows(self):
+        """Full configured-registry cleanup invalidates endpoint-form rows."""
+        registries = {
+            "corp": {
+                "base_url": "https://registry.example.com",
+                "port": 5000,
+            }
+        }
+        with tempfile.TemporaryDirectory() as work_dir:
+            index = _write_mirror_index(work_dir, "10.0", {
+                "private-image": _entry(
+                    "registry.example.com:5000/team/app",
+                    "image",
+                    "1.0",
+                    "x86_64",
+                ),
+                "public-image": _entry(
+                    "docker.io/library/busybox", "image", "1.37", "x86_64"
+                ),
+            })
+
+            removed = pulp_cleanup.remove_container_repo_from_mirror_index(
+                "container_repo_corp_team_app",
+                work_dir,
+                "rhel",
+                "10.0",
+                LOGGER,
+                registries,
+            )
+
+            self.assertEqual(removed, 1)
+            packages = json.loads(index.read_text(encoding="utf-8"))[
+                "MirrorIndex"
+            ]["packages"]
+            self.assertEqual(set(packages), {"public-image"})
 
     def test_repo_status_invalidation_is_idempotent(self):
         """The first cleanup removes stale consumer state; the second is a no-op."""

@@ -19,19 +19,24 @@ Functions for triggering, monitoring, and verifying build pipelines.
 Covers auto-trigger (catalog commit) and manual trigger (PIPELINE_TYPE).
 """
 
-import json
-import sys
-import time
 import base64
+import csv
 import datetime
+import io
+import json
 import os
 import re
 import shlex
+import sys
+import time
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Dict, List, Optional
 
 from omnia_auto import load_test_config, read_remote_yaml, run_on_host
 
+from library.cadence_artifact_contract import (
+    artifact_basenames_match_engine,
+)
 from library.vars.common_vars import (
     BSM_HEALTH_PATH,
     BSM_HOST_IP_KEY,
@@ -41,6 +46,7 @@ from library.vars.common_vars import (
     BUILD_STREAM_CREDENTIALS_FILE,
     BUILD_STREAM_CREDENTIALS_KEY,
     BUILD_PIPELINE_ONLY_STAGES,
+    CADENCE_CATALOG_FILE_PATH,
     CATALOG_FILE_PATH,
     CMDS,
     GITLAB_API_VERSION,
@@ -60,6 +66,7 @@ from library.vars.common_vars import (
     STAGE_POLL_TIMEOUT,
     STAGE_STATE_COMPLETED,
     STAGE_STATE_FAILED,
+    GITLAB_CI_CADENCE_JOBS,
     GITLAB_CI_BUILD_STAGES,
 )
 from ._config_helpers import (
@@ -942,6 +949,220 @@ def get_catalog_content(host) -> Dict[str, Any]:
     return result
 
 
+def get_cadence_catalog(host, ref: str = "") -> Dict[str, Any]:
+    """Read and validate the cadence catalog from a GitLab ref."""
+    result = {
+        "success": False,
+        "catalog": {},
+        "identifier": "",
+        "version": "",
+        "composite_image_group_id": "",
+        "last_commit_id": "",
+        "error": "",
+    }
+    api_base = _get_gitlab_api_base(host)
+    if not api_base["success"]:
+        result["error"] = api_base["error"]
+        return result
+
+    cmd = CMDS["gitlab_api_get_file"].format(
+        token=api_base["token"],
+        api_url=api_base["api_url"],
+        project_id=api_base["project_id"],
+        file_path=CADENCE_CATALOG_FILE_PATH,
+        branch=ref or api_base["branch"],
+    )
+    response = run_on_host(host, cmd)
+    if response.rc != 0:
+        result["error"] = (
+            "Failed to read cadence catalog from GitLab: "
+            f"rc={response.rc}"
+        )
+        return result
+
+    try:
+        file_data = json.loads(response.stdout.strip())
+        content = base64.b64decode(file_data.get("content", "")).decode(
+            "utf-8"
+        )
+        catalog_data = json.loads(content)
+        section = catalog_data.get("catalog") or catalog_data.get("Catalog")
+        if not isinstance(section, dict):
+            raise ValueError("catalog section is missing")
+        identifier = str(
+            section.get("identifier") or section.get("Identifier") or ""
+        ).strip()
+        version = str(
+            section.get("version") or section.get("Version") or ""
+        ).strip()
+        if not identifier or not version:
+            raise ValueError("catalog identifier or version is missing")
+    except (
+        ValueError,
+        TypeError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+    ) as exc:
+        result["error"] = f"Invalid cadence catalog: {exc}"
+        return result
+
+    result.update({
+        "success": True,
+        "catalog": catalog_data,
+        "identifier": identifier,
+        "version": version,
+        "composite_image_group_id": f"{identifier}-v{version}",
+        "last_commit_id": str(file_data.get("last_commit_id", "")),
+    })
+    return result
+
+
+def check_cadence_runtime(host) -> Dict[str, Any]:
+    """Validate the deployed prerequisites for a deterministic cadence FVT.
+
+    Cadence product settings remain in ``build_stream_config.yml``.  The FVT
+    reads that deployed configuration instead of duplicating it in
+    ``test_config.yml``. Every successful repository reconciliation triggers
+    the cadence pipeline, regardless of package add/remove counts.
+    """
+    result = {
+        "success": False,
+        "config_path": "",
+        "error": "",
+    }
+    config_path = (
+        f"{resolve_build_stream_input_path(host)}/{BUILD_STREAM_CONFIG_FILE}"
+    )
+    result["config_path"] = config_path
+    try:
+        config = read_remote_yaml(host, config_path)
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        result["error"] = f"Unable to read {config_path}: {exc}"
+        return result
+    if not isinstance(config, dict):
+        result["error"] = f"{config_path} must contain a YAML mapping"
+        return result
+
+    cadence = config.get("cadence")
+    if not isinstance(cadence, dict):
+        result["error"] = f"cadence mapping is missing from {config_path}"
+        return result
+
+    errors = []
+    if cadence.get("enabled") is not True:
+        errors.append("cadence.enabled must be true")
+    interval_days = cadence.get("interval_days")
+    if (
+        not isinstance(interval_days, int)
+        or isinstance(interval_days, bool)
+        or interval_days < 1
+    ):
+        errors.append("cadence.interval_days must be an integer >= 1")
+
+    if errors:
+        result["error"] = "; ".join(errors)
+        return result
+
+    prerequisites = (
+        (
+            "playbook-watcher service",
+            "systemctl is-active --quiet playbook-watcher.service",
+        ),
+        (
+            "BuildStream API service",
+            "systemctl is-active --quiet omnia_build_stream.service",
+        ),
+        ("Pulp service", "systemctl is-active --quiet pulp.service"),
+    )
+    failed = []
+    for name, command in prerequisites:
+        command_result = run_on_host(host, command)
+        if command_result.rc != 0:
+            failed.append(name)
+
+    omnia_data_path = resolve_omnia_data_path(host)
+    playbook_paths = f"{omnia_data_path}/build_stream/playbook_paths.conf"
+    try:
+        registry = read_remote_yaml(host, playbook_paths)
+        registered = (
+            registry.get("playbook_paths", {})
+            if isinstance(registry, dict)
+            else {}
+        )
+    except (OSError, RuntimeError, TypeError, ValueError):
+        registered = {}
+    if "repo_sync.yml" not in registered:
+        failed.append(f"repo_sync.yml registration in {playbook_paths}")
+
+    if failed:
+        result["error"] = "Missing cadence prerequisites: " + ", ".join(failed)
+        return result
+
+    result["success"] = True
+    return result
+
+
+def trigger_cadence_cycle(host) -> Dict[str, Any]:
+    """Signal the watcher to execute one cadence cycle immediately."""
+    result = {"success": False, "error": ""}
+    command = (
+        "systemctl kill --kill-who=main --signal=SIGUSR1 "
+        "playbook-watcher.service"
+    )
+    triggered = run_on_host(host, command)
+    if triggered.rc != 0:
+        result["error"] = (
+            "Unable to trigger a cadence cycle through playbook-watcher: "
+            f"rc={triggered.rc}"
+        )
+        return result
+    result["success"] = True
+    return result
+
+
+def wait_for_cadence_catalog_update(
+    host,
+    previous_commit: str,
+    previous_version: str,
+    timeout: int = STAGE_POLL_TIMEOUT,
+    log_callback: Optional[Callable] = None,
+) -> Dict[str, Any]:
+    """Wait until the watcher pushes a new cadence catalog version."""
+    deadline = time.time() + timeout
+    attempts = 0
+    last_error = ""
+    while time.time() < deadline:
+        attempts += 1
+        catalog = get_cadence_catalog(host)
+        if catalog["success"]:
+            if (
+                catalog["last_commit_id"] != previous_commit
+                and catalog["version"] != previous_version
+            ):
+                catalog["attempts"] = attempts
+                return catalog
+            last_error = (
+                "catalog is unchanged at version "
+                f"{catalog['version']}"
+            )
+        else:
+            last_error = catalog["error"]
+        if log_callback and (attempts == 1 or attempts % 5 == 0):
+            log_callback(
+                f"Waiting for cadence watcher catalog update "
+                f"({attempts} polls): {last_error}"
+            )
+        time.sleep(STAGE_POLL_INTERVAL)
+
+    return {
+        "success": False,
+        "error": (
+            "Timed out waiting for cadence watcher to update "
+            f"{CADENCE_CATALOG_FILE_PATH}: {last_error}"
+        ),
+    }
+
+
 # =============================================================================
 # PIPELINE TRIGGER FUNCTIONS
 # =============================================================================
@@ -1319,6 +1540,62 @@ def get_image_groups_for_job(host, job_id: str) -> Dict[str, Any]:
     return result
 
 
+def get_catalog_identity_for_job(host, job_id: str) -> Dict[str, Any]:
+    """Return job and image-group catalog identities from PostgreSQL."""
+    result = {
+        "success": False,
+        "job_composite_id": "",
+        "job_catalog_identifier": "",
+        "job_catalog_version": "",
+        "image_group_id": "",
+        "group_catalog_identifier": "",
+        "group_catalog_version": "",
+        "error": "",
+    }
+    if not re.fullmatch(
+        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        str(job_id),
+    ):
+        result["error"] = "job_id must be a valid UUID"
+        return result
+
+    sql = (
+        "SELECT COALESCE(j.composite_image_group_id, ''), "
+        "COALESCE(j.catalog_identifier, ''), "
+        "COALESCE(j.catalog_version, ''), ig.id, "
+        "COALESCE(ig.catalog_identifier, ''), "
+        "COALESCE(ig.catalog_version, '') "
+        "FROM jobs j JOIN image_groups ig ON ig.job_id = j.job_id "
+        f"WHERE j.job_id = '{job_id}'"
+    )
+    query = _exec_psql(host, sql)
+    if not query["success"]:
+        result["error"] = query["error"]
+        return result
+    if len(query["rows"]) != 1:
+        result["error"] = (
+            f"Expected one catalog identity for job {job_id}, "
+            f"found {len(query['rows'])}"
+        )
+        return result
+
+    parts = query["rows"][0].split("|")
+    if len(parts) != 6:
+        result["error"] = "Catalog identity query returned an invalid row"
+        return result
+    result.update({
+        "success": True,
+        "job_composite_id": parts[0].strip(),
+        "job_catalog_identifier": parts[1].strip(),
+        "job_catalog_version": parts[2].strip(),
+        "image_group_id": parts[3].strip(),
+        "group_catalog_identifier": parts[4].strip(),
+        "group_catalog_version": parts[5].strip(),
+    })
+    return result
+
+
 def resolve_deploy_image_group(
     host, job_id: str, require_built: bool = False,
 ) -> Dict[str, Any]:
@@ -1581,6 +1858,71 @@ def get_gitlab_job_trace(host, job_id: int) -> Dict[str, Any]:
         result["error"] = f"Unable to read GitLab job trace (rc={response.rc})"
         return result
     result.update({"success": True, "trace": response.stdout or ""})
+    return result
+
+
+def discover_cadence_pipeline(
+    host, job_id: str, image_group_id: str,
+) -> Dict[str, Any]:
+    """Find the cadence child pipeline that created ``job_id``."""
+    result = {
+        "success": False,
+        "parent_pipeline_id": 0,
+        "child_pipeline_id": 0,
+        "summary_job_id": 0,
+        "pipeline_sha": "",
+        "jobs": {},
+        "error": "",
+    }
+    pipelines = list_pipelines(host, per_page=100)
+    if not pipelines["success"]:
+        result["error"] = pipelines["error"]
+        return result
+
+    expected = set(GITLAB_CI_CADENCE_JOBS)
+    for root in pipelines["pipelines"]:
+        root_id = int(root.get("id", 0) or 0)
+        if not root_id:
+            continue
+        child = get_child_pipeline_id(host, root_id)
+        if not child["success"]:
+            continue
+        child_id = child["child_pipeline_id"]
+        jobs_result = get_gitlab_pipeline_jobs(host, child_id)
+        if not jobs_result["success"]:
+            continue
+        jobs = {job["name"]: job for job in jobs_result["jobs"]}
+        if not expected.issubset(jobs):
+            continue
+
+        initialization_trace = get_gitlab_job_trace(
+            host, jobs["initialization"]["id"]
+        )
+        parse_trace = get_gitlab_job_trace(
+            host, jobs["parse-catalog"]["id"]
+        )
+        if (
+            not initialization_trace["success"]
+            or job_id not in initialization_trace["trace"]
+            or not parse_trace["success"]
+            or image_group_id not in parse_trace["trace"]
+        ):
+            continue
+
+        result.update({
+            "success": True,
+            "parent_pipeline_id": root_id,
+            "child_pipeline_id": child_id,
+            "summary_job_id": jobs["summary"]["id"],
+            "pipeline_sha": str(root.get("sha", "")),
+            "jobs": jobs,
+        })
+        return result
+
+    result["error"] = (
+        "No recent cadence pipeline contains job_id "
+        f"{job_id} and image group {image_group_id}"
+    )
     return result
 
 
@@ -1877,55 +2219,6 @@ def poll_stage_until_complete(
 # BSM API VERIFICATION
 # =============================================================================
 
-def get_catalog_roles(host, job_id: str) -> Dict[str, Any]:
-    """Get catalog roles and architectures from BSM API.
-
-    Args:
-        host: Testinfra host connection.
-        job_id: UUID of the job.
-
-    Returns:
-        Dict with keys: success, roles, architectures, image_key, error.
-    """
-    result = {
-        "success": False, "roles": [], "architectures": [],
-        "image_key": "", "error": "",
-    }
-
-    gitlab_config = _get_gitlab_config(host)
-    host_ip = gitlab_config.get(BSM_HOST_IP_KEY, "")
-    port = gitlab_config.get(BSM_PORT_KEY, "")
-    if not host_ip or not port:
-        result["error"] = "BSM host_ip or port not configured"
-        return result
-
-    token = _get_bsm_access_token(host)
-    if not token:
-        result["error"] = "Failed to obtain BSM access token"
-        return result
-
-    cmd = CMDS["bsm_api_catalog_roles"].format(
-        token=token, host=host_ip, port=port, job_id=job_id,
-    )
-    cmd_result = run_on_host(host, cmd)
-    if cmd_result.rc != 0:
-        result["error"] = f"API call failed: rc={cmd_result.rc}"
-        return result
-
-    try:
-        data = json.loads(cmd_result.stdout.strip())
-        if "detail" in data:
-            result["error"] = f"API error: {data['detail']}"
-            return result
-        result["roles"] = data.get("roles", [])
-        result["architectures"] = data.get("architectures", [])
-        result["image_key"] = data.get("image_key", "")
-        result["success"] = True
-    except json.JSONDecodeError:
-        result["error"] = f"Invalid JSON: {cmd_result.stdout[:200]}"
-    return result
-
-
 def verify_registry_images(
     host, job_id: str, roles: List[str],
 ) -> Dict[str, Any]:
@@ -1964,7 +2257,7 @@ def verify_registry_images(
         if line.strip()
     ]
 
-    artifact_images = _get_build_status_images(host)
+    artifact_images = _get_build_status_images(host, job_id)
     if not artifact_images["success"]:
         result["error"] = artifact_images["error"]
         return result
@@ -2078,7 +2371,7 @@ def verify_s3_boot_images(
             if path.startswith("s3://"):
                 s3_paths.append(path)
 
-    artifact_images = _get_build_status_images(host)
+    artifact_images = _get_build_status_images(host, job_id)
     if not artifact_images["success"]:
         result["error"] = artifact_images["error"]
         return result
@@ -2156,7 +2449,7 @@ def verify_s3_boot_images_absent(
     return result
 
 
-def _get_build_status_images(host) -> Dict[str, Any]:
+def _get_build_status_images(host, job_id: str) -> Dict[str, Any]:
     """Return exact artifact paths keyed by functional group.
 
     Image Build Manager can reuse an existing up-to-date image when
@@ -2165,9 +2458,37 @@ def _get_build_status_images(host) -> Dict[str, Any]:
     build_status.yml is the authoritative contract for both newly built and
     reused images.
     """
-    result = {"success": False, "images": {}, "error": ""}
+    result = {
+        "success": False,
+        "images": {},
+        "image_group_id": "",
+        "path": "",
+        "latest_path": "",
+        "data": {},
+        "error": "",
+    }
+    image_group = resolve_deploy_image_group(host, job_id)
+    if not image_group["success"]:
+        result["error"] = image_group["error"]
+        return result
+
+    image_group_id = image_group["image_group_id"]
+    result["image_group_id"] = image_group_id
+    if (
+        not image_group_id
+        or "/" in image_group_id
+        or image_group_id in {".", ".."}
+    ):
+        result["error"] = f"Unsafe image group ID: {image_group_id!r}"
+        return result
+
     project_name = PurePosixPath(resolve_build_stream_input_path(host)).name
     status_path = (
+        f"{resolve_omnia_data_path(host)}/image_build_manager/output/"
+        f"{project_name}/{image_group_id}/build_status.yml"
+    )
+    result["path"] = status_path
+    result["latest_path"] = (
         f"{resolve_omnia_data_path(host)}/image_build_manager/output/"
         f"{project_name}/build_status.yml"
     )
@@ -2176,6 +2497,10 @@ def _get_build_status_images(host) -> Dict[str, Any]:
     except (OSError, ValueError, TypeError) as exc:
         result["error"] = f"Unable to read {status_path}: {exc}"
         return result
+    if not isinstance(status, dict):
+        result["error"] = f"{status_path} must contain a YAML mapping"
+        return result
+    result["data"] = status
 
     for architecture in status.get("functional_group_images", []):
         if not isinstance(architecture, dict):
@@ -2552,6 +2877,953 @@ def check_repo_status(host) -> Dict[str, Any]:
     return result
 
 
+def _catalog_rpm_requirements(catalog_data: Dict[str, Any]) -> set:
+    """Return ``(version, architecture, repository)`` catalog requirements."""
+    catalog = catalog_data.get("catalog", catalog_data)
+    groups = catalog.get("groups", {})
+    packages = catalog.get("packages", {})
+    referenced_packages = set()
+    for functional_layer in catalog.get("functionallayer", []):
+        for group_name in functional_layer.get("components", []):
+            group = groups.get(group_name, {})
+            referenced_packages.update(group.get("components", []))
+
+    requirements = set()
+    for package_name in referenced_packages:
+        package = packages.get(package_name, {})
+        package_type = package.get(
+            "type", package.get("packagetype", "rpm")
+        )
+        if package_type not in {"rpm", "rpm_list", "rpm_repo"}:
+            continue
+        for source in package.get("sources", []):
+            repository = str(source.get("reponame", "")).strip()
+            architecture = str(source.get("architecture", "")).strip()
+            versions = source.get("version", [])
+            if isinstance(versions, str):
+                versions = [versions]
+            if not repository or architecture not in {"x86_64", "aarch64"}:
+                continue
+            requirements.update(
+                (str(version), architecture, repository)
+                for version in versions
+            )
+    return requirements
+
+
+def _catalog_repository_identities(catalog_data: Dict[str, Any]) -> set:
+    """Return RPM repository identities referenced by a cadence catalog."""
+    return {
+        f"{architecture}_rhel_{version}_{repository}"
+        for version, architecture, repository
+        in _catalog_rpm_requirements(catalog_data)
+    }
+
+
+def check_cadence_local_repo_status(
+    host, catalog_ref: str = "",
+) -> Dict[str, Any]:
+    """Validate the local-repository contract for the cadence catalog.
+
+    ``repo_resync_status.yml`` proves the watcher reconciled upstream content.
+    This separate check proves the unified pipeline's
+    ``configure-local-repository`` stage published every RPM repository needed
+    by the exact cadence catalog revision.
+    """
+    input_path = resolve_build_stream_input_path(host)
+    project = input_path.rstrip("/").rsplit("/", 1)[-1]
+    status_path = (
+        f"{resolve_omnia_data_path(host)}/repo_manager/output/"
+        f"{project}/repo_status.yml"
+    )
+    result = {
+        "success": False,
+        "path": status_path,
+        "overall_status": "",
+        "requirements": [],
+        "details": "",
+        "error": "",
+    }
+    try:
+        status = read_remote_yaml(host, status_path)
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        result["error"] = f"Unable to read {status_path}: {exc}"
+        return result
+    if not isinstance(status, dict):
+        result["error"] = f"{status_path} must contain a YAML mapping"
+        return result
+
+    result["overall_status"] = status.get("overall_status", "")
+    if result["overall_status"] != "success":
+        result["error"] = "repo_status.yml overall_status is not success"
+        return result
+
+    catalog_result = get_cadence_catalog(host, ref=catalog_ref)
+    if not catalog_result["success"]:
+        result["error"] = catalog_result["error"]
+        return result
+    requirements = _catalog_rpm_requirements(catalog_result["catalog"])
+    if not requirements:
+        result["error"] = "Cadence catalog references no RPM repositories"
+        return result
+    result["requirements"] = sorted(requirements)
+
+    execution_contexts = status.get("execution_contexts")
+    status_by_version = status.get("overall_status_by_version")
+    repositories = status.get("repositories")
+    if not isinstance(execution_contexts, list):
+        result["error"] = "repo_status.yml execution_contexts is not a list"
+        return result
+    if not isinstance(status_by_version, dict):
+        result["error"] = (
+            "repo_status.yml overall_status_by_version is not a mapping"
+        )
+        return result
+    if not isinstance(repositories, dict):
+        result["error"] = "repo_status.yml repositories is not a mapping"
+        return result
+
+    configured_contexts = {
+        (str(context.get("os_version", "")), architecture)
+        for context in execution_contexts
+        if isinstance(context, dict)
+        for architecture in context.get("architectures", [])
+    }
+    missing = []
+    for version, architecture, repository in requirements:
+        repository_data = (
+            repositories.get(version, {})
+            .get(architecture, {})
+            .get(repository)
+        )
+        if (version, architecture) not in configured_contexts:
+            missing.append(
+                f"execution_context:{version}/{architecture}"
+            )
+        if status_by_version.get(version) != "success":
+            missing.append(f"version_status:{version}")
+        if not isinstance(repository_data, dict) or not str(
+            repository_data.get("url", "")
+        ).strip():
+            missing.append(
+                f"repository:{version}/{architecture}/{repository}"
+            )
+    if missing:
+        result["error"] = (
+            "repo_status.yml is incomplete for cadence catalog: "
+            f"{sorted(set(missing))}"
+        )
+        return result
+
+    result["success"] = True
+    result["details"] = (
+        "Local repository status succeeded for "
+        f"{len(requirements)} catalog RPM repositories"
+    )
+    return result
+
+
+def check_build_status(
+    host, job_id: str, roles: List[str],
+) -> Dict[str, Any]:
+    """Validate the versioned and latest Image Build Manager contracts."""
+    result = {
+        "success": False,
+        "path": "",
+        "latest_path": "",
+        "image_group_id": "",
+        "roles": [],
+        "missing": [],
+        "unexpected": [],
+        "details": "",
+        "error": "",
+    }
+    build_status = _get_build_status_images(host, job_id)
+    result.update({
+        "path": build_status.get("path", ""),
+        "latest_path": build_status.get("latest_path", ""),
+        "image_group_id": build_status.get("image_group_id", ""),
+    })
+    if not build_status["success"]:
+        result["error"] = build_status["error"]
+        return result
+
+    status = build_status["data"]
+    if status.get("overall_status") != "success":
+        result["error"] = "build_status.yml overall_status is not success"
+        return result
+    if status.get("image_build_type") not in {
+        "image-builder", "image-thrillhouse",
+    }:
+        result["error"] = "build_status.yml has an invalid image_build_type"
+        return result
+    s3_config = status.get("s3_configurations")
+    if not isinstance(s3_config, dict) or not all(
+        str(s3_config.get(key, "")).strip()
+        for key in ("endpoint_url", "bucket")
+    ):
+        result["error"] = "build_status.yml has incomplete S3 configuration"
+        return result
+
+    images = build_status["images"]
+    expected_roles = set(roles)
+    actual_roles = set(images)
+    result["roles"] = sorted(actual_roles)
+    result["missing"] = sorted(expected_roles - actual_roles)
+    result["unexpected"] = sorted(actual_roles - expected_roles)
+    incomplete = sorted(
+        role for role, image in images.items()
+        if not all(str(image.get(key, "")).strip()
+                   for key in ("kernel", "initrd", "image"))
+    )
+    if result["missing"] or result["unexpected"] or incomplete:
+        result["error"] = (
+            "build_status.yml role contract mismatch: "
+            f"missing={result['missing']}, "
+            f"unexpected={result['unexpected']}, "
+            f"incomplete={incomplete}"
+        )
+        return result
+
+    try:
+        latest_status = read_remote_yaml(host, result["latest_path"])
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        result["error"] = (
+            f"Unable to read {result['latest_path']}: {exc}"
+        )
+        return result
+    if latest_status != status:
+        result["error"] = (
+            "Latest build_status.yml does not match the cadence "
+            "image-group contract"
+        )
+        return result
+
+    result["success"] = True
+    result["details"] = (
+        f"Build status succeeded for {len(actual_roles)} roles using "
+        f"{status['image_build_type']}"
+    )
+    return result
+
+
+# =============================================================================
+# CADENCE PIPELINE INTEGRITY VERIFICATION
+# =============================================================================
+
+def _catalog_functional_groups(catalog: Dict[str, Any]) -> set[str]:
+    """Return the functional-layer names declared by a catalog."""
+    section = catalog.get("catalog") or catalog.get("Catalog") or {}
+    layers = section.get("functionallayer") or section.get(
+        "FunctionalLayer", []
+    )
+    return {
+        str(layer.get("name") or layer.get("Name") or "").strip()
+        for layer in layers
+        if isinstance(layer, dict)
+        and str(layer.get("name") or layer.get("Name") or "").strip()
+    }
+
+
+def _read_remote_text(host, path: str) -> Dict[str, Any]:
+    """Read a required remote text file."""
+    response = run_on_host(host, CMDS["cat_file"].format(path=path))
+    if response.rc != 0:
+        return {
+            "success": False,
+            "content": "",
+            "error": f"Unable to read required file: {path}",
+        }
+    return {
+        "success": True,
+        "content": response.stdout,
+        "error": "",
+    }
+
+
+def _parse_iso_timestamp(value: str) -> Optional[datetime.datetime]:
+    """Parse an API ISO-8601 timestamp into an aware datetime."""
+    if not value:
+        return None
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1]
+        if not re.search(r"[+-]\d{2}:\d{2}$", normalized):
+            normalized += "+00:00"
+    try:
+        return datetime.datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+
+
+def check_cadence_catalog_commit_integrity(
+    host, pipeline_sha: str,
+) -> Dict[str, Any]:
+    """Verify that one cadence commit preserved identity and bumped version."""
+    result = {"success": False, "details": "", "error": ""}
+    if not re.fullmatch(r"[0-9a-fA-F]{7,64}", pipeline_sha or ""):
+        result["error"] = f"Invalid cadence pipeline SHA: {pipeline_sha!r}"
+        return result
+
+    api_base = _get_gitlab_api_base(host)
+    if not api_base["success"]:
+        result["error"] = api_base["error"]
+        return result
+    command = CMDS["gitlab_api_get_commit"].format(
+        token=api_base["token"],
+        api_url=api_base["api_url"],
+        project_id=api_base["project_id"],
+        commit_id=pipeline_sha,
+    )
+    response = run_on_host(host, command)
+    if response.rc != 0:
+        result["error"] = "Unable to read cadence commit from GitLab"
+        return result
+    try:
+        commit = json.loads(response.stdout)
+    except json.JSONDecodeError as exc:
+        result["error"] = f"Cadence commit response is invalid JSON: {exc}"
+        return result
+    parents = commit.get("parent_ids") or []
+    if len(parents) != 1:
+        result["error"] = (
+            "Cadence catalog update must have exactly one parent commit"
+        )
+        return result
+
+    current = get_cadence_catalog(host, ref=pipeline_sha)
+    previous = get_cadence_catalog(host, ref=str(parents[0]))
+    if not current["success"]:
+        result["error"] = current["error"]
+        return result
+    if not previous["success"]:
+        result["error"] = previous["error"]
+        return result
+    if current["last_commit_id"] != pipeline_sha:
+        result["error"] = (
+            "Pipeline SHA does not match the cadence catalog commit"
+        )
+        return result
+    if current["identifier"] != previous["identifier"]:
+        result["error"] = "Cadence changed the catalog identifier"
+        return result
+
+    current_match = re.fullmatch(r"(\d+)\.(\d+)", current["version"])
+    previous_match = re.fullmatch(r"(\d+)\.(\d+)", previous["version"])
+    if not current_match or not previous_match:
+        result["error"] = "Cadence catalog version is not in major.minor form"
+        return result
+    expected_version = (
+        f"{int(previous_match.group(1))}."
+        f"{int(previous_match.group(2)) + 1}"
+    )
+    if current["version"] != expected_version:
+        result["error"] = (
+            f"Expected one cadence version increment to {expected_version}; "
+            f"found {current['version']}"
+        )
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"Catalog {current['identifier']} advanced exactly once: "
+            f"{previous['version']} -> {current['version']}"
+        ),
+    })
+    return result
+
+
+def check_cadence_functional_group_coverage(
+    host, job_id: str, catalog_ref: str,
+) -> Dict[str, Any]:
+    """Compare catalog roles with both database and build-status roles."""
+    result = {"success": False, "details": "", "error": ""}
+    catalog = get_cadence_catalog(host, ref=catalog_ref)
+    if not catalog["success"]:
+        result["error"] = catalog["error"]
+        return result
+    expected = _catalog_functional_groups(catalog["catalog"])
+    if not expected:
+        result["error"] = "Cadence catalog contains no functional groups"
+        return result
+
+    database = get_images_for_job(host, job_id)
+    if not database["success"]:
+        result["error"] = database["error"]
+        return result
+    database_roles = {
+        str(image.get("role", "")).strip()
+        for image in database["images"]
+        if str(image.get("role", "")).strip()
+    }
+    build_status = _get_build_status_images(host, job_id)
+    if not build_status["success"]:
+        result["error"] = build_status["error"]
+        return result
+    status_roles = set(build_status["images"])
+
+    problems = []
+    for source, actual in (
+        ("database", database_roles),
+        ("build_status.yml", status_roles),
+    ):
+        missing = sorted(expected - actual)
+        unexpected = sorted(actual - expected)
+        if missing or unexpected:
+            problems.append(
+                f"{source}: missing={missing}, unexpected={unexpected}"
+            )
+    if problems:
+        result["error"] = "Functional-group mismatch: " + "; ".join(
+            problems
+        )
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"Catalog, database, and build status contain the same "
+            f"{len(expected)} functional groups"
+        ),
+    })
+    return result
+
+
+def check_cadence_artifact_identity(
+    host, job_id: str, catalog_ref: str,
+) -> Dict[str, Any]:
+    """Validate the current versioned status and engine-specific paths."""
+    result = {"success": False, "details": "", "error": ""}
+    catalog = get_cadence_catalog(host, ref=catalog_ref)
+    if not catalog["success"]:
+        result["error"] = catalog["error"]
+        return result
+    build_status = _get_build_status_images(host, job_id)
+    if not build_status["success"]:
+        result["error"] = build_status["error"]
+        return result
+
+    expected_group = catalog["composite_image_group_id"]
+    if build_status["image_group_id"] != expected_group:
+        result["error"] = (
+            f"Versioned build status belongs to "
+            f"{build_status['image_group_id']}, expected {expected_group}"
+        )
+        return result
+    if f"/{expected_group}/build_status.yml" not in build_status["path"]:
+        result["error"] = "Build status is not stored under catalog identity"
+        return result
+
+    engine = build_status["data"].get("image_build_type")
+    engine_token = {
+        "image-builder": "-imgbld",
+        "image-thrillhouse": "-imgth",
+    }.get(engine)
+    if not engine_token:
+        result["error"] = f"Unsupported image build engine: {engine!r}"
+        return result
+
+    invalid = []
+    all_paths = []
+    for role, image in build_status["images"].items():
+        role_paths = {}
+        for key in ("image", "kernel", "initrd"):
+            path = str(image.get(key, ""))
+            role_paths[key] = path
+            all_paths.append(path)
+            parts = PurePosixPath(path).parts
+            if (
+                not path
+                or len(parts) < 4
+                or role not in parts
+                or engine_token not in path
+            ):
+                invalid.append(f"{role}:{key}:{path}")
+        if not artifact_basenames_match_engine(engine, role_paths):
+            invalid.append(f"{role}:engine-filenames:{role_paths}")
+    if invalid:
+        result["error"] = (
+            "Artifact paths do not match role/engine contract: "
+            f"{invalid}"
+        )
+        return result
+    if len(all_paths) != len(set(all_paths)):
+        result["error"] = "Artifact contract contains duplicate object paths"
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"{len(build_status['images'])} role contracts select unique "
+            f"{engine} artifacts for {expected_group}"
+        ),
+    })
+    return result
+
+
+def get_cadence_validation_report(host, job_id: str) -> Dict[str, Any]:
+    """Load the newest attempt-isolated validation report for a job."""
+    result = {
+        "success": False,
+        "path": "",
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "tests": [],
+        "error": "",
+    }
+    if not re.fullmatch(
+        r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}",
+        job_id or "",
+    ):
+        result["error"] = f"Invalid cadence job_id: {job_id!r}"
+        return result
+    validate_dir = (
+        f"{resolve_omnia_data_path(host)}/build_stream_root/artifacts/"
+        f"{job_id}/validate"
+    )
+    found = run_on_host(
+        host,
+        CMDS["find_latest_validate_report"].format(path=validate_dir),
+    )
+    report_path = ""
+    if found.rc == 0 and found.stdout.strip():
+        _, separator, report_path = found.stdout.strip().partition(" ")
+        if not separator:
+            report_path = ""
+    if not report_path:
+        report_path = f"{validate_dir}/test_report.json"
+
+    report_file = _read_remote_text(host, report_path)
+    if not report_file["success"]:
+        result["error"] = report_file["error"]
+        return result
+    try:
+        report = json.loads(report_file["content"])
+    except json.JSONDecodeError as exc:
+        result["error"] = f"Validation report is invalid JSON: {exc}"
+        return result
+
+    tests = []
+    for server in (report.get("servers") or {}).values():
+        runs = server.get("runs") if isinstance(server, dict) else []
+        for run in runs or []:
+            for module in run.get("modules", []):
+                tests.extend(module.get("results", []))
+    statuses = [
+        str(test.get("status", "")).upper()
+        for test in tests if isinstance(test, dict)
+    ]
+    result.update({
+        "path": report_path,
+        "total": len(statuses),
+        "passed": statuses.count("PASSED"),
+        "failed": statuses.count("FAILED"),
+        "errors": statuses.count("ERROR"),
+        "skipped": statuses.count("SKIPPED"),
+        "tests": tests,
+    })
+    if not statuses:
+        result["error"] = "Validation report contains zero test results"
+    elif result["failed"] or result["errors"]:
+        result["error"] = (
+            f"Validation report contains {result['failed']} failures and "
+            f"{result['errors']} errors"
+        )
+    else:
+        result["success"] = True
+    return result
+
+
+def _read_cadence_pxe_rows(host, job_id: str) -> Dict[str, Any]:
+    """Read the PXE snapshot uploaded to a cadence job."""
+    path = (
+        f"{resolve_omnia_data_path(host)}/build_stream_root/artifacts/"
+        f"{job_id}/pxe_mapping_file.csv"
+    )
+    source = _read_remote_text(host, path)
+    if not source["success"]:
+        return {"success": False, "rows": [], "error": source["error"]}
+    rows = list(csv.DictReader(io.StringIO(source["content"])))
+    if not rows:
+        return {
+            "success": False,
+            "rows": [],
+            "error": "PXE mapping snapshot contains no nodes",
+        }
+    return {"success": True, "rows": rows, "error": ""}
+
+
+def check_cadence_validation_feature_selection(
+    host, job_id: str,
+) -> Dict[str, Any]:
+    """Ensure validation selected Slurm and Kubernetes from PXE groups."""
+    result = {"success": False, "details": "", "error": ""}
+    mapping = _read_cadence_pxe_rows(host, job_id)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+    report = get_cadence_validation_report(host, job_id)
+    if not report["success"]:
+        result["error"] = report["error"]
+        return result
+
+    groups = {
+        str(row.get("FUNCTIONAL_GROUP_NAME", "")).strip().lower()
+        for row in mapping["rows"]
+    }
+    expected = {
+        "kubernetes": any(group.startswith("service_kube") for group in groups),
+        "slurm": any(
+            group.startswith(("slurm_", "login_")) for group in groups
+        ),
+    }
+
+    def _feature_for(test_name: str) -> str:
+        if test_name.startswith((
+            "test_k8s_", "test_kubernetes_", "test_kubelet_",
+            "test_containerd_",
+        )):
+            return "kubernetes"
+        if test_name.startswith((
+            "test_slurm", "test_srun", "test_sbatch", "test_munge",
+            "test_login_nodes",
+        )):
+            return "slurm"
+        return ""
+
+    passed = {"kubernetes": [], "slurm": []}
+    for test in report["tests"]:
+        if not isinstance(test, dict):
+            continue
+        feature = _feature_for(str(test.get("test_name", "")))
+        if feature and str(test.get("status", "")).upper() == "PASSED":
+            passed[feature].append(test.get("test_name"))
+
+    problems = []
+    for feature, is_expected in expected.items():
+        if is_expected and not passed[feature]:
+            problems.append(f"{feature} configured but no test passed")
+        if not is_expected and passed[feature]:
+            problems.append(
+                f"{feature} absent but tests passed: {passed[feature]}"
+            )
+    if problems:
+        result["error"] = "Feature-selection mismatch: " + "; ".join(
+            problems
+        )
+        return result
+
+    selected = [name for name, enabled in expected.items() if enabled]
+    result.update({
+        "success": True,
+        "details": (
+            f"Validation selected {', '.join(selected)} according to "
+            f"{len(mapping['rows'])} PXE-mapped nodes"
+        ),
+    })
+    return result
+
+
+def check_cadence_restart_node_coverage(
+    host, job_id: str,
+) -> Dict[str, Any]:
+    """Compare successful restart results with the exact PXE snapshot."""
+    result = {"success": False, "details": "", "error": ""}
+    mapping = _read_cadence_pxe_rows(host, job_id)
+    if not mapping["success"]:
+        result["error"] = mapping["error"]
+        return result
+    artifact = get_bsm_artifact_json(host, job_id, "node-results")
+    if not artifact["success"] or not artifact["exists"]:
+        result["error"] = artifact["error"] or "node_results.json is missing"
+        return result
+
+    expected_tags = [
+        str(row.get("SERVICE_TAG", "")).strip()
+        for row in mapping["rows"]
+    ]
+    nodes = artifact["data"].get("nodes", [])
+    actual_tags = [
+        str(node.get("service_tag", "")).strip()
+        for node in nodes if isinstance(node, dict)
+    ]
+    if (
+        not all(expected_tags)
+        or len(expected_tags) != len(set(expected_tags))
+    ):
+        result["error"] = "PXE mapping contains empty or duplicate service tags"
+        return result
+    if not all(actual_tags) or len(actual_tags) != len(set(actual_tags)):
+        result["error"] = "Restart results contain empty or duplicate nodes"
+        return result
+    if set(expected_tags) != set(actual_tags):
+        result["error"] = (
+            "Restart node coverage mismatch: "
+            f"missing={sorted(set(expected_tags) - set(actual_tags))}, "
+            f"unexpected={sorted(set(actual_tags) - set(expected_tags))}"
+        )
+        return result
+    failed = [
+        node.get("service_tag") if isinstance(node, dict) else "invalid-entry"
+        for node in nodes
+        if not isinstance(node, dict) or node.get("status") != "success"
+    ]
+    node_data = artifact["data"]
+    if failed or node_data.get("failure_count") != 0:
+        result["error"] = f"Restart contains failed nodes: {failed}"
+        return result
+    if (
+        node_data.get("total_nodes") != len(expected_tags)
+        or node_data.get("success_count") != len(expected_tags)
+    ):
+        result["error"] = "Restart summary counts do not match PXE mapping"
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"All {len(expected_tags)} PXE-mapped nodes have one successful "
+            f"restart result"
+        ),
+    })
+    return result
+
+
+def check_cadence_input_snapshot(
+    host, job_id: str, catalog_ref: str,
+) -> Dict[str, Any]:
+    """Verify the canonical catalog and mandatory domain input snapshot."""
+    result = {"success": False, "details": "", "error": ""}
+    artifact_root = (
+        f"{resolve_omnia_data_path(host)}/build_stream_root/artifacts/{job_id}"
+    )
+    required = {
+        "catalog_rhel.json",
+        "repo_manager_config.yml",
+        "repo_manager_endpoint_config.yml",
+        "image_build_config.yml",
+        "omnia_config.yml",
+        "orchestrator_config.yml",
+        "network_spec.yml",
+        "pxe_mapping_file.csv",
+    }
+    missing = []
+    for filename in sorted(required):
+        exists = run_on_host(
+            host,
+            CMDS["file_exists"].format(
+                path=f"{artifact_root}/{filename}"
+            ),
+        )
+        if exists.stdout.strip() != "exists":
+            missing.append(filename)
+    if missing:
+        result["error"] = f"Cadence input snapshot is missing: {missing}"
+        return result
+
+    uploaded = _read_remote_text(host, f"{artifact_root}/catalog_rhel.json")
+    if not uploaded["success"]:
+        result["error"] = uploaded["error"]
+        return result
+    expected = get_cadence_catalog(host, ref=catalog_ref)
+    if not expected["success"]:
+        result["error"] = expected["error"]
+        return result
+    try:
+        uploaded_catalog = json.loads(uploaded["content"])
+    except json.JSONDecodeError as exc:
+        result["error"] = f"Uploaded catalog is invalid JSON: {exc}"
+        return result
+    if uploaded_catalog != expected["catalog"]:
+        result["error"] = (
+            "Uploaded catalog_rhel.json does not match the cadence commit"
+        )
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"Canonical cadence catalog and {len(required) - 1} mandatory "
+            f"domain inputs are present"
+        ),
+    })
+    return result
+
+
+def check_cadence_stage_freshness(host, job_id: str) -> Dict[str, Any]:
+    """Verify completed stages and their logs are scoped to this job."""
+    result = {"success": False, "details": "", "error": ""}
+    response = get_bsm_job_details(host, job_id)
+    if not response["success"]:
+        result["error"] = response["error"]
+        return result
+    job = response["job"]
+    created_at = _parse_iso_timestamp(str(job.get("created_at", "")))
+    if not created_at:
+        result["error"] = "Cadence job has no valid creation timestamp"
+        return result
+
+    required = {
+        "parse-catalog",
+        "create-local-repository",
+        "build-image",
+        "deploy",
+        "restart",
+        "validate",
+    }
+    stages = {
+        stage.get("stage_name"): stage
+        for stage in job.get("stages", [])
+        if isinstance(stage, dict) and stage.get("stage_name") in required
+    }
+    if set(stages) != required:
+        result["error"] = (
+            f"Current job is missing stages: {sorted(required - set(stages))}"
+        )
+        return result
+
+    problems = []
+    for name, stage in stages.items():
+        started = _parse_iso_timestamp(str(stage.get("started_at", "")))
+        ended = _parse_iso_timestamp(str(stage.get("ended_at", "")))
+        if stage.get("stage_state") != STAGE_STATE_COMPLETED:
+            problems.append(f"{name}: not completed")
+        if not started or not ended or started < created_at or ended < started:
+            problems.append(f"{name}: invalid or stale timestamps")
+        log_path = str(stage.get("log_file_path") or "")
+        if log_path:
+            if job_id not in log_path:
+                problems.append(f"{name}: log path is not job-scoped")
+            else:
+                exists = run_on_host(
+                    host, CMDS["file_exists"].format(path=log_path)
+                )
+                if exists.stdout.strip() != "exists":
+                    problems.append(f"{name}: stage log does not exist")
+    if problems:
+        result["error"] = "Stage freshness failures: " + "; ".join(problems)
+        return result
+
+    result.update({
+        "success": True,
+        "details": (
+            f"All {len(required)} mandatory DB stages and available logs "
+            f"belong to job {job_id}"
+        ),
+    })
+    return result
+
+
+def check_repo_resync_status(
+    host, catalog_ref: str = "",
+) -> Dict[str, Any]:
+    """Validate the exact-mirror result produced before a cadence pipeline."""
+    input_path = resolve_build_stream_input_path(host)
+    project = input_path.rstrip("/").rsplit("/", 1)[-1]
+    status_path = (
+        f"{resolve_omnia_data_path(host)}/repo_manager/output/"
+        f"{project}/repo_resync_status.yml"
+    )
+    result = {
+        "success": False,
+        "path": status_path,
+        "overall_status": "",
+        "orphan_cleanup": "",
+        "repositories": {},
+        "details": "",
+        "error": "",
+    }
+    try:
+        status = read_remote_yaml(host, status_path)
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        result["error"] = f"Unable to read {status_path}: {exc}"
+        return result
+    if not isinstance(status, dict):
+        result["error"] = f"{status_path} must contain a YAML mapping"
+        return result
+
+    result["overall_status"] = status.get("overall_status", "")
+    result["orphan_cleanup"] = status.get("orphan_cleanup", "")
+    repositories = status.get("repositories")
+    if not isinstance(repositories, dict) or not repositories:
+        result["error"] = "repo_resync_status.yml contains no repositories"
+        return result
+    result["repositories"] = repositories
+
+    catalog_result = get_cadence_catalog(host, ref=catalog_ref)
+    if not catalog_result["success"]:
+        result["error"] = catalog_result["error"]
+        return result
+    expected_repositories = _catalog_repository_identities(
+        catalog_result["catalog"]
+    )
+    if not expected_repositories:
+        result["error"] = "Cadence catalog references no RPM repositories"
+        return result
+    if set(repositories) != expected_repositories:
+        result["error"] = (
+            "repo_resync_status.yml scope does not match cadence catalog: "
+            f"missing={sorted(expected_repositories - set(repositories))}, "
+            f"unexpected={sorted(set(repositories) - expected_repositories)}"
+        )
+        return result
+
+    failures = {}
+    for name, repository in repositories.items():
+        if not isinstance(repository, dict):
+            failures[name] = "result is not a mapping"
+            continue
+        invalid_metrics = [
+            key for key in ("packages_added", "packages_removed")
+            if not isinstance(repository.get(key), int)
+            or isinstance(repository.get(key), bool)
+            or repository.get(key, -1) < 0
+        ]
+        old_version = repository.get("old_version")
+        new_version = repository.get("new_version")
+        problems = []
+        if repository.get("sync_status") != "success":
+            problems.append("sync_status is not success")
+        if repository.get("cleanup_status") != "success":
+            problems.append("cleanup_status is not success")
+        if repository.get("stale_packages_remaining") != 0:
+            problems.append("stale_packages_remaining is not zero")
+        if not isinstance(repository.get("publication_updated"), bool):
+            problems.append("publication_updated is not boolean")
+        if invalid_metrics:
+            problems.append(
+                "invalid package metrics: " + ", ".join(invalid_metrics)
+            )
+        if (
+            not isinstance(old_version, int)
+            or isinstance(old_version, bool)
+            or not isinstance(new_version, int)
+            or isinstance(new_version, bool)
+            or new_version < old_version
+        ):
+            problems.append("invalid repository version metrics")
+        if problems:
+            failures[name] = "; ".join(problems)
+
+    if status.get("overall_status") != "success":
+        result["error"] = "overall_status is not success"
+    elif status.get("orphan_cleanup") != "success":
+        result["error"] = "orphan_cleanup is not success"
+    elif failures:
+        result["error"] = f"Repository reconciliation failures: {failures}"
+    else:
+        result["success"] = True
+        result["details"] = (
+            f"Exact-mirror reconciliation succeeded for "
+            f"{len(repositories)} repositories"
+        )
+    return result
+
+
 # =============================================================================
 # REGISTRY & S3 IMAGE VERIFICATION (simple, direct checks)
 # =============================================================================
@@ -2728,7 +4000,7 @@ def push_catalog_from_examples(  # pylint: disable=too-many-locals
         result["error"] = (
             "catalog_path must be a relative JSON path below "
             "src/main/samples/catalogs (for example, "
-            "10.0/slurm_x86_64_no_vast.json)"
+            "rhel/10.0/slurm_x86_64_no_vast.json)"
         )
         return result
 

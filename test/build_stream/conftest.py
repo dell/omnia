@@ -90,7 +90,8 @@ _FVT_SCENARIO_ORDER = {
     "buildstream_install": 0,
     "build_pipeline": 1,
     "deploy_pipeline": 2,
-    "buildstream_cleanup": 3,
+    "cadence_pipeline": 3,
+    "buildstream_cleanup": 4,
 }
 
 _FVT_SUITE_ORDER = {
@@ -106,6 +107,7 @@ _FVT_SUITE_ORDER = {
         "buildstream_cleanup": 2,
     },
     "deploy_pipeline": {"": 0, "deploy_pipeline": 1},
+    "cadence_pipeline": {"": 0, "cadence_pipeline": 1},
 }
 
 # Build test-function-name → TC ID map for summary table fallback.
@@ -317,7 +319,7 @@ def pytest_sessionstart(session):
     # Initialize test report
     valid_scenarios = {
         "buildstream_install", "buildstream_cleanup", "health",
-        "build_pipeline", "deploy_pipeline", "nft",
+        "build_pipeline", "deploy_pipeline", "cadence_pipeline", "nft",
     }
     module_name = "build_stream"
     test_paths = (

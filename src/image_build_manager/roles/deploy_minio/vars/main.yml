@@ -52,6 +52,8 @@ s3_secret_key_empty_fail_msg: >-
   S3 secret key (s3_secret_key) is empty. This credential is mandatory.
   Re-run the playbook to be prompted for credentials, or edit
   {{ hostvars['localhost']['input_project_dir'] }}/image_build_credentials.yml directly.
+s3_buckets_missing_fail_msg: >-
+  One or more required S3 buckets were not created successfully.
 
 # EPEL repository for s3cmd installation
 epel10_url: https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
