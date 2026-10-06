@@ -29,10 +29,3 @@ dnf_max_mode: "0644"
 time_out: 30
 user_registry_msg: "Above configured registries are not reachable. Please make sure each registry is accessible from the Omnia Infrastructure Manager."   # noqa: yaml[line-length]
 unreachable_registries_fail_msg: "Unreachable registries detected: {{ registry_check_result.unreachable_registries | join(', ') }}. {{ user_registry_msg }} Please check registry connectivity and configuration before proceeding."  # noqa: yaml[line-length]
-
-meta_dest: "{{ repo_manager_offline_repo_dir }}/.data"
-metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
-metadata_identical_msg: "Metadata is identical. No changes detected."
-metadata_warn_msg: |
-  WARNING: Metadata has changed since last run.
-  Execution may fail if there is no internet on OIM.

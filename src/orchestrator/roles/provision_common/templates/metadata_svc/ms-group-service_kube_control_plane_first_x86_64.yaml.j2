@@ -57,7 +57,7 @@
           permissions: '0755'
           content: |
             #!/bin/bash
-            timedatectl set-timezone {{ hostvars['oim']['oim_timezone'] | default(hostvars['oim']['ansible_date_time']['tz']) }}
+            timedatectl set-timezone {{ hostvars['oim']['oim_timezone'] | default('UTC') }}
             sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
             sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
             sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/50-cloud-init.conf
@@ -184,6 +184,24 @@
             [[registry]]
             prefix = "gcr.io"
             location = "gcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+            [[registry]]
+            prefix = "registry.connect.redhat.com"
+            location = "registry.connect.redhat.com"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+            [[registry]]
+            prefix = "registry.redhat.io"
+            location = "registry.redhat.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+            [[registry]]
+            prefix = "registry.access.redhat.com"
+            location = "registry.access.redhat.com"
             [[registry.mirror]]
             location = "{{ pulp_mirror }}"
 {% if user_registry | default([], true) | length > 0 %}

@@ -35,14 +35,11 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.additional_cloud_init,
-    pytest.mark.non_disruptive,
-]
 
-
-@pytest.mark.order(297)
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
+@pytest.mark.order(300)
 def test_additional_cloud_init_smd_groups(host):
     """Verify SMD groups exist for additional cloud-init configuration."""
     verify_pxeboot(
@@ -52,7 +49,10 @@ def test_additional_cloud_init_smd_groups(host):
     )
 
 
-@pytest.mark.order(298)
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
+@pytest.mark.order(301)
 def test_additional_cloud_init_metadata_groups(host):
     """Verify metadata-service groups and templates for additional cloud-init."""
     verify_pxeboot(
@@ -62,7 +62,10 @@ def test_additional_cloud_init_metadata_groups(host):
     )
 
 
-@pytest.mark.order(299)
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
+@pytest.mark.order(302)
 def test_additional_cloud_init_write_files(host):
     """Verify write_files entries were applied on provisioned nodes."""
     verify_pxeboot(
@@ -72,7 +75,10 @@ def test_additional_cloud_init_write_files(host):
     )
 
 
-@pytest.mark.order(300)
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
+@pytest.mark.order(303)
 def test_additional_cloud_init_runcmd(host):
     """Verify runcmd entries executed during cloud-init on provisioned nodes."""
     verify_pxeboot(

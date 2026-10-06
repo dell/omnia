@@ -1561,6 +1561,13 @@ _resolve_catalog_source() {
     local sources=()
     mapfile -t sources < <(_catalog_sources)
 
+    # Preserve legacy selectors after catalogs moved below the rhel directory.
+    case "$selection" in
+        10.0/*|10.2/*)
+            selection="rhel/${selection}"
+            ;;
+    esac
+
     if [[ "$selection" =~ ^[0-9]+$ ]]; then
         if [ "$selection" -lt 1 ] || [ "$selection" -gt "${#sources[@]}" ]; then
             return 1
@@ -1933,12 +1940,12 @@ RECOMMENDED EXECUTION ORDER:
            The CLI will warn you if prerequisite outputs are missing.
 
   Public tags by domain (use --tags <tag> to select a stage):
-    build_stream:        precheck validate credentials prepare execute build cleanup upgrade rollback
-    discovery:           precheck validate credentials prepare execute cleanup cleanup_credentials upgrade rollback
-    image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback
-    orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot verify_node_registration cleanup cleanup_credentials upgrade rollback
-    repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate
-    telemetry:           precheck validate validation prepare credentials execute deploy deploy_sinks cleanup cleanup_sinks cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria
+    build_stream:        precheck validate credentials prepare execute build cleanup
+    discovery:           precheck validate credentials prepare execute cleanup cleanup_credentials
+    image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images
+    orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot verify_node_registration cleanup cleanup_credentials
+    repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos catalog_generate catalog_add catalog_delete catalog_validate
+    telemetry:           precheck validate validation prepare credentials execute deploy deploy_sinks cleanup cleanup_sinks cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast external_kafka external_victoria
     utils:               precheck setup collect install_os backup_oim_logs slurm_config_backup slurm_config_cleanup slurm_config_rollback cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs cleanup_slurm_config_backups upgrade rollback
 
   Without --tags, each playbook runs its full default flow. Tags marked with
@@ -2044,7 +2051,7 @@ EXAMPLES:
   # Select the active catalog:
   ./omnia.sh --list-catalogs
   ./omnia.sh --select-catalog                   # Interactive selection
-  ./omnia.sh --select-catalog 10.0/slurm_x86_64_no_vast.json
+  ./omnia.sh --select-catalog rhel/10.0/slurm_x86_64_no_vast.json
 
   # Init specific domains (re-stage input files or reinstall deps):
   ./omnia.sh -i                                # All domains

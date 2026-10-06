@@ -71,12 +71,6 @@ def _open_secure_log_directory(log_dir):
         raise
 
 
-def secure_log_directory(log_dir):
-    """Create or restrict a Repo Manager log directory."""
-    directory_descriptor = _open_secure_log_directory(log_dir)
-    os.close(directory_descriptor)
-
-
 def open_secure_log_file(log_filepath, truncate=False):
     """Return a validated log descriptor; the caller must close it."""
     log_dir = os.path.dirname(log_filepath) or "."

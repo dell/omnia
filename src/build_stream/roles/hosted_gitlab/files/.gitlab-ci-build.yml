@@ -1089,7 +1089,7 @@ summary:
       JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' final_status.json)
 
       # Build pipeline stages only (exclude deploy/restart/validate/pxe_boot/upload)
-      BUILD_STAGES_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|copy-input-files|create-local-repository|build-image(-.*)?$"))'
+      BUILD_STAGES_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|create-local-repository|build-image)$"))'
       TOTAL_STAGES=$(jq -r "[${BUILD_STAGES_FILTER}] | length" \
         final_status.json 2>/dev/null || echo "0")
       COMPLETED=$(jq -r "[${BUILD_STAGES_FILTER} | select(.stage_state == \"COMPLETED\" or .stage_state == \"SUCCEEDED\")] | length" \
@@ -1132,13 +1132,12 @@ summary:
         def stage_order:
           {
             "parse-catalog": 1,
-            "copy-input-files": 2,
-            "create-local-repository": 3,
-            "build-image": 4
+            "create-local-repository": 2,
+            "build-image": 3
           };
 
         # Filter to build stages only, then sort by execution order
-        [.stages[]? | select(.stage_name | test("^(parse-catalog|copy-input-files|create-local-repository|build-image(-.*)?$"))] |
+        [.stages[]? | select(.stage_name | test("^(parse-catalog|create-local-repository|build-image)$"))] |
         sort_by([stage_order[.stage_name] // 999, .stage_name])[] |
         "  |    \(.stage_name): \(.stage_state)" +
         (if .error_code then "  [\(.error_code)]" else "" end)
@@ -1147,7 +1146,7 @@ summary:
       echo "  +-----------------------------------------------------------+"
 
       # Print errors if any (build stages only)
-      BUILD_FAILED_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|copy-input-files|create-local-repository|build-image(-.*)?$")) | \
+      BUILD_FAILED_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|create-local-repository|build-image)$")) | \
                            select(.stage_state == "FAILED")'
       ERRORS=$(jq -r "${BUILD_FAILED_FILTER} | \"  |    X \(.stage_name): \" + (.error_summary // \"no details\")" \
         final_status.json 2>/dev/null || true)

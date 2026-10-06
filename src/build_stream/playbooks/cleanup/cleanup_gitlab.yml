@@ -82,6 +82,7 @@
           {{
             gitlab_cleanup_credentials_available | bool
             and (gitlab_ssh_password | default('') | string | length > 0)
+            and (gitlab_host | default('') | string | length > 0)
           }}
 
 - name: Prepare GitLab host credentials for cleanup

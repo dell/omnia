@@ -75,8 +75,6 @@ ansible-playbook playbooks/telemetry.yml
 | `deploy` / `execute` | Yes | Precheck, then deploy sinks + sources + kustomize apply |
 | `deploy_sinks` | No | Deploy only selected sink infrastructure: Kafka, VictoriaMetrics, and/or VictoriaLogs |
 | `cleanup` | No | Remove telemetry runtime resources; delete source volumes, preserve sink volumes by default |
-| `upgrade` | No | Upgrade telemetry (placeholder) |
-| `rollback` | No | Rollback telemetry (placeholder) |
 
 ### Granular Cleanup Tags (opt-in — requires `--tags`)
 
@@ -90,8 +88,8 @@ ansible-playbook playbooks/telemetry.yml
 | `cleanup_ufm` | UFM InfiniBand telemetry |
 | `cleanup_vast` | VAST storage telemetry |
 
-**Tag safety**: `cleanup`, `upgrade`, and `rollback` use Ansible's `never` tag;
-they never execute unless explicitly requested with `--tags`. `precheck` runs
+**Tag safety**: `cleanup` uses Ansible's `never` tag;
+it never executes unless explicitly requested with `--tags`. `precheck` runs
 automatically for the default, `deploy`, and `execute` flows, and can also be
 requested alone for a check-only run.
 
@@ -205,12 +203,6 @@ telemetry/
 │   │       └── ...
 │   ├── credentials/
 │   │   └── get_telemetry_credentials.yml
-│   ├── upgrade/
-│   │   ├── upgrade.yml            # Upgrade orchestrator (placeholder)
-│   │   └── sources/               # Per-source upgrade playbooks
-│   └── rollback/
-│       ├── rollback.yml           # Rollback orchestrator (placeholder)
-│       └── sources/               # Per-source rollback playbooks
 │
 ├── vars/                          # Shared cross-playbook variables
 │   ├── cleanup.yml                # Cleanup resource definitions (namespaces, labels, resources)

@@ -39,6 +39,7 @@ FVT_TAGS: List[str] = [
     "buildstream_install",
     "build_pipeline",
     "deploy_pipeline",
+    "cadence_pipeline",
     "buildstream_cleanup",
 ]
 
@@ -46,10 +47,19 @@ FVT_TAGS: List[str] = [
 # exec + verify for each scenario before advancing to the next one.
 ALL_EXEC_TAGS: List[str] = [
     "buildstream_install",
-    "build_pipeline",
-    "deploy_pipeline",
+    "cadence_pipeline",
 ]
 ALL_EXEC_MARKER: str = "sanity"
+
+# Named lifecycle groups use the same ordered exec + verify engine as the
+# default lifecycle. They are selected before normal tag dispatch in _run.py.
+NAMED_LIFECYCLES: Dict[str, List[str]] = {
+    "build_deploy_lifecycle": [
+        "buildstream_install",
+        "build_pipeline",
+        "deploy_pipeline",
+    ],
+}
 
 # =====================================================================
 # Pytest markers supported by this domain
@@ -78,6 +88,7 @@ SUITES: Dict[str, List[str]] = {
     ],
     "build_pipeline": ["build_pipeline", "manual"],
     "deploy_pipeline": ["deploy_pipeline", "manual"],
+    "cadence_pipeline": ["cadence_pipeline"],
 }
 
 # Explicit manual execution owns its trigger. This prevents the normal sanity

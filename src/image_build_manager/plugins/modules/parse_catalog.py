@@ -132,10 +132,20 @@ cluster_os_versions:
 base_image_packages:
   description:
     - Deduplicated list of RPM package names from base OS layers.
+    - Union of all version-specific base packages.
     - These are installed in every image.
   returned: always
   type: list
   elements: str
+base_image_packages_by_version:
+  description:
+    - Dict keyed by OS version mapping to deduplicated package lists.
+    - When multiple baseos layers exist (e.g. C(baseos_rhel_10_0_x86_64)
+      and C(baseos_rhel_10_2_x86_64)), each version gets its own list.
+    - Falls back to the union list (C(base_image_packages)) for versions
+      without a dedicated baseos layer.
+  returned: always
+  type: dict
 compute_images_dict:
   description:
     - Dict keyed by functional layer name.
@@ -473,12 +483,27 @@ def resolve_catalog(
                 all_skipped_drivers.append(drv)
 
     base_packages: list[str] = []
+    base_packages_by_version: dict[str, list[str]] = {}
     compute_dict: dict = {}
     all_os_versions: list[str] = []
     os_type: str = ""
     for name, data in resolved.items():
         if data["is_baseos"]:
             base_packages.extend(data["packages"])
+            # Track per-version base packages when the baseos layer
+            # declares specific OS versions (e.g. baseos_rhel_10_2_x86_64
+            # contains baseos_group_10.2 → os_versions=["10.2"]).
+            layer_versions = data.get("os_versions", [])
+            if layer_versions:
+                for ver in layer_versions:
+                    base_packages_by_version.setdefault(ver, []).extend(
+                        data["packages"]
+                    )
+            else:
+                # No version info — packages belong to all versions
+                base_packages_by_version.setdefault("_all", []).extend(
+                    data["packages"]
+                )
         else:
             layer_ver = data["os_versions"][0] if data.get("os_versions") else ""
             compute_dict[name] = {
@@ -509,6 +534,22 @@ def resolve_catalog(
 
     base_packages = _deduplicate(base_packages)
 
+    # Merge unversioned ("_all") packages into every version-specific
+    # list, then deduplicate each.  If no version-specific lists exist
+    # (single baseos layer), build the dict from all_os_versions with
+    # the full package list.
+    common_pkgs = base_packages_by_version.pop("_all", [])
+    if base_packages_by_version:
+        for ver in list(base_packages_by_version):
+            base_packages_by_version[ver] = _deduplicate(
+                base_packages_by_version[ver] + common_pkgs
+            )
+    else:
+        # Single baseos layer or fallback — every version gets the
+        # full union list.
+        for ver in all_os_versions:
+            base_packages_by_version[ver] = list(base_packages)
+
     return {
         "catalog_identifier": identifier,
         "catalog_version": catalog_version,
@@ -517,6 +558,7 @@ def resolve_catalog(
         "cluster_os_version": all_os_versions[0] if all_os_versions else "",
         "cluster_os_versions": all_os_versions,
         "base_image_packages": base_packages,
+        "base_image_packages_by_version": base_packages_by_version,
         "compute_images_dict": compute_dict,
         "layer_count": len(arch_layers),
         "skipped_driver_groups": all_skipped_drivers,

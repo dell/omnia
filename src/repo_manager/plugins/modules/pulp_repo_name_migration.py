@@ -259,8 +259,8 @@ def build_new_name(old_name: str, os_type: str, os_version: str) -> Optional[str
 
 
 
-def compute_new_base_path(old_base_path: str, old_name: str, new_name: str,
-                          arch: str, os_type: str, os_version: str) -> str:
+def compute_new_base_path(old_base_path: str, old_name: str,
+                          new_name: str) -> str:
     """Compute updated distribution base_path.
 
     The convention in the codebase is:
@@ -1121,16 +1121,11 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
             run_cmd(pulp_file_commands["delete_distribution"] % old_name, logger)
 
         # -- Step 6: Create new distribution with updated base_path -------
-        arch = None
-        for a in ARCH_SUFFIXES:
-            if old_name.startswith(f"{a}_"):
-                arch = a
-                break
-
         old_dist = old_dist_map.get(old_name, {})
         old_base_path = old_dist.get("base_path", "")
-        new_base_path = compute_new_base_path(old_base_path, old_name, new_name,
-                                              arch, os_type, os_version)
+        new_base_path = compute_new_base_path(
+            old_base_path, old_name, new_name
+        )
 
         if new_base_path:
             dist_create_cmd = pulp_file_commands.get("distribution_create", "")
@@ -1310,16 +1305,11 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
             run_cmd(pulp_python_commands["delete_distribution"] % old_name, logger)
 
         # -- Step 5: Create new distribution with updated base_path -------
-        arch = None
-        for a in ARCH_SUFFIXES:
-            if old_name.startswith(f"{a}_"):
-                arch = a
-                break
-
         old_dist = old_dist_map.get(old_name, {})
         old_base_path = old_dist.get("base_path", "")
-        new_base_path = compute_new_base_path(old_base_path, old_name, new_name,
-                                              arch, os_type, os_version)
+        new_base_path = compute_new_base_path(
+            old_base_path, old_name, new_name
+        )
 
         if new_base_path:
             dist_create_cmd = pulp_python_commands["distribution_create"] % (
