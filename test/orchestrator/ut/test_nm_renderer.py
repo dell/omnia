@@ -245,7 +245,7 @@ class TestNMRendererCommands:
             "nid0001", "ib0", _ipv6_only_interface()["ib0"], LOGGER
         )
         create_cmd = result["commands"][1]
-        assert "802-3-ethernet.mtu 2044" in create_cmd
+        assert "infiniband.mtu 2044" in create_cmd
 
     def test_multi_interface_produces_two_results(self):
         """ORCH_UT_208: Multi-interface node produces two render results."""
