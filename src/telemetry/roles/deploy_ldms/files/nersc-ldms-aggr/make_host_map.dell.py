@@ -14,18 +14,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Create host map for ldms config file generation 
+Create host map for ldms config file generation
 """
 
-import os
-import json
-import yaml
-import time
-import shutil
-import logging
 import argparse
+import json
+import logging
+import os
+import shutil
+import time
+
 import requests  # pylint: disable=unused-import
 import urllib3  # pylint: disable=unused-import
+
 
 def setup_logging(verbose=False) -> None:
     """Configure logging facility."""
@@ -40,7 +41,7 @@ def load_config(config_path) -> dict:
         return json.load(f)
 
 
-class LdmsdManager:
+class LdmsdManager:  # pylint: disable=too-few-public-methods
     """Generate ldmsd config and params."""
 
     def __init__(self, config=None):
@@ -51,18 +52,20 @@ class LdmsdManager:
     def main(self):
         """Make host lists for each node type."""
         now = time.strftime("%Y%m%d-%H%M%S", time.localtime())
-        logging.info(f"BEGIN LDMS INIT: {now}")
+        logging.info("BEGIN LDMS INIT: %s", now)
 
         # Clean out previous
         if os.path.isdir(self.out_dir):
-            logging.info(f"Clean out_dir: {self.out_dir}")
+            logging.info("Clean out_dir: %s", self.out_dir)
             shutil.rmtree(self.out_dir)
         os.makedirs(self.out_dir, exist_ok=True)
-   
+
         # PLACE HOLDER: just copy the example file for now
         shutil.copy("host_map.slurm-cluster.json", self.out_dir)
 
+
 def main() -> None:
+    """Parse arguments and generate the host map."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-v", "--verbose",
@@ -83,6 +86,6 @@ def main() -> None:
     agg = LdmsdManager(config)
     agg.main()
 
+
 if __name__ == '__main__':
     main()
-
