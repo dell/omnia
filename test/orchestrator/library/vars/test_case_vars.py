@@ -1036,6 +1036,17 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify MySQL datadir is on PowerVault mount",
         "component": "PowerVault MySQL datadir",
     },
+    # ── PowerVault negative tests (V430-V431) ───────────────────────────
+    "powervault_gpt_missing_label": {
+        "id": "ORCH_FVT_PXEBOOT_V430",
+        "title": "Verify GPT partition check correctly detects missing GPT label",
+        "component": "PowerVault GPT negative validation",
+    },
+    "powervault_duplicate_fstab": {
+        "id": "ORCH_FVT_PXEBOOT_V431",
+        "title": "Verify duplicate fstab entry detection works correctly",
+        "component": "PowerVault duplicate fstab negative validation",
+    },
     "slurm_node_remove": {
         "id": "ORCH_FVT_PXEBOOT_V500",
         "title": "Verify Slurm compute node removal lifecycle",

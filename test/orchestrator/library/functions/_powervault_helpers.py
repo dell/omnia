@@ -686,13 +686,16 @@ def verify_multipath_paths(
 # =============================================================================
 
 
-def verify_gpt_partition(host, node_ip: str, mpath_device: str) -> dict[str, Any]:
+def verify_gpt_partition(host, node_ip: str, mpath_device: str, expect_gpt: bool = True) -> dict[str, Any]:
     """Verify GPT label *and* partition 1 exist on multipath device.
 
     Parses ``parted -s <dev> print`` output.  Requires both:
     - ``Partition Table: gpt``
     - A numbered partition line starting with ``1`` (e.g.
       ``1  1049kB  1000GB  1000GB  xfs  primary``)
+
+    Args:
+        expect_gpt: If False, the test expects NO GPT label (negative test)
 
     Returns:
         {"success": bool, "error": str, "details": {"partition_device": str}}
@@ -711,13 +714,19 @@ def verify_gpt_partition(host, node_ip: str, mpath_device: str) -> dict[str, Any
         and len(line.split()) >= 3
         for line in output.split("\n")
     )
-    success = has_gpt and has_part1
-    if not has_gpt:
-        error = f"No GPT label on {mpath_device} on {node_ip}"
-    elif not has_part1:
-        error = f"GPT label present but partition 1 missing on {mpath_device} on {node_ip}"
+    
+    if expect_gpt:
+        success = has_gpt and has_part1
+        if not has_gpt:
+            error = f"No GPT label on {mpath_device} on {node_ip}"
+        elif not has_part1:
+            error = f"GPT label present but partition 1 missing on {mpath_device} on {node_ip}"
+        else:
+            error = ""
     else:
-        error = ""
+        # Negative test: expect NO GPT label
+        success = not has_gpt
+        error = f"Expected no GPT label but found GPT on {mpath_device} on {node_ip}" if has_gpt else ""
 
     return {
         "success": success,
@@ -1235,8 +1244,11 @@ def verify_cloud_init_groups_dict(host, pv_entry: dict, target_nodes: list[dict]
 # =============================================================================
 
 
-def verify_no_duplicate_fstab(host, node_ip: str) -> dict[str, Any]:
+def verify_no_duplicate_fstab(host, node_ip: str, expect_duplicates: bool = False) -> dict[str, Any]:
     """Verify no duplicate fstab entries.
+
+    Args:
+        expect_duplicates: If True, the test expects duplicates to be found (negative test)
 
     Returns:
         {"success": bool, "error": str, "details": {"duplicate_count": int}}
@@ -1248,8 +1260,14 @@ def verify_no_duplicate_fstab(host, node_ip: str) -> dict[str, Any]:
     unique_lines = set(lines)
     duplicate_count = len(lines) - len(unique_lines)
 
-    success = duplicate_count == 0
-    error = "" if success else f"Found {duplicate_count} duplicate fstab entries on {node_ip}"
+    if expect_duplicates:
+        # Negative test: expect duplicates to be found
+        success = duplicate_count > 0
+        error = f"Expected duplicates but found none on {node_ip}" if duplicate_count == 0 else ""
+    else:
+        # Positive test: expect no duplicates
+        success = duplicate_count == 0
+        error = "" if success else f"Found {duplicate_count} duplicate fstab entries on {node_ip}"
 
     return {
         "success": success,
