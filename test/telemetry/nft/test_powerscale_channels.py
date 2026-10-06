@@ -13,202 +13,147 @@
 # limitations under the License.
 
 """
-NFT test for PowerScale metrics channel transitions.
+Telemetry — Non-Functional PowerScale Channel Transition Tests.
 
-This test validates playbook-level deployment and status reporting across
-metrics_enabled flag variations.
+Validates playbook-level deployment and status reporting across
+PowerScale ``metrics_enabled`` / ``logs_enabled`` flag variations.
 
 Test Coverage:
-- Metrics enable/disable transitions
-- Status reporting verification (deployed/disabled/skipped)
-- Idempotency verification
+  - Metrics enable/disable transitions
+  - Status reporting verification (deployed/disabled/skipped)
+  - Idempotency verification
 
-Note: This test focuses on playbook-level validation (can we deploy with
-different metrics_enabled values and verify the reported status) rather than
-component-level verification (which is covered by FVT tests).
-Note: Logs are managed via PowerScale API, not by Omnia, so only metrics
-transitions are tested here.
+This test focuses on playbook-level validation (can the playbook deploy with
+different flag values and report the expected status) rather than
+component-level verification, which is covered by FVT tests. Logs are managed
+via the PowerScale API, not by Omnia, so the log channel assertions validate
+status reporting only, not log forwarding.
+
+Execution order:
+  - Runs after the resilience tests (order 122) and before the cleanup
+    tests (130+), which tear the stack down.
+
+Test cases:
+    TEL_NFT_025: PowerScale metrics/logs channel transitions (order 122)
 """
 
 import pytest
-import yaml
 
-from library.functions import run_playbook
-from library.functions.telemetry_func import get_output_path
+from omnia_auto import TestLogger, run_playbook
 
-PLAYBOOK_ENTRY_POINT = "playbooks/telemetry.yml"
-PLAYBOOK_WORKDIR = "src/telemetry"
-TELEMETRY_STATUS_FILE = "telemetry_status.yml"
-
-
-def _get_telemetry_status(host):
-    """Read telemetry status from the output file.
-
-    Args:
-        host: Testinfra host connection to the OIM.
-
-    Returns:
-        dict: Parsed telemetry status, or empty dict on failure.
-    """
-    output_path = get_output_path(host)
-    status_path = f"{output_path}/{TELEMETRY_STATUS_FILE}"
-    cmd = f"cat {status_path}"
-    result = host.run(cmd)
-    if result.rc != 0 or not result.stdout.strip():
-        return {}
-    try:
-        return yaml.safe_load(result.stdout) or {}
-    except yaml.YAMLError:
-        return {}
-
-
-def _verify_powerscale_status(host, tl, step_name, expected_metrics_status, expected_logs_status):
-    """Verify PowerScale status in telemetry_status.yml.
-
-    Args:
-        host: Testinfra host connection to the OIM.
-        tl: TestLogger instance.
-        step_name: Name of the test step.
-        expected_metrics_status: Expected metrics status (deployed/disabled/skipped).
-        expected_logs_status: Expected logs status (deployed/disabled/skipped).
-    """
-    status = _get_telemetry_status(host)
-    if not status:
-        tl.failed(f"[{step_name}] Failed to read telemetry status")
-        pytest.fail(f"[{step_name}] Failed to read telemetry status")
-
-    sources = status.get("sources", {})
-    powerscale_status = sources.get("powerscale", {})
-
-    actual_metrics = powerscale_status.get("metrics", "unknown")
-    actual_logs = powerscale_status.get("logs", "unknown")
-
-    tl.info(f"[{step_name}] PowerScale status: metrics={actual_metrics}, logs={actual_logs}")
-
-    if actual_metrics != expected_metrics_status:
-        tl.failed(f"[{step_name}] Expected metrics={expected_metrics_status}, got {actual_metrics}")
-        pytest.fail(f"[{step_name}] Metrics status mismatch: expected {expected_metrics_status}, got {actual_metrics}")
-
-    if actual_logs != expected_logs_status:
-        tl.failed(f"[{step_name}] Expected logs={expected_logs_status}, got {actual_logs}")
-        pytest.fail(f"[{step_name}] Logs status mismatch: expected {expected_logs_status}, got {actual_logs}")
-
-    tl.passed(f"[{step_name}] Status verification passed")
-
-
-def _deploy_with_channels(host, tl, metrics_enabled, logs_enabled, step_name):
-    """Deploy PowerScale with specific metrics/logs configuration.
-
-    Args:
-        host: Testinfra host connection to the OIM.
-        tl: TestLogger instance.
-        metrics_enabled: Boolean for metrics channel.
-        logs_enabled: Boolean for logs channel.
-        step_name: Name of the test step.
-    """
-    tl.check(f"[{step_name}] Deploying with metrics={metrics_enabled}, logs={logs_enabled}")
-
-    # Update the telemetry_config.yml file directly
-    input_path = "/domain/omnia/telemetry/input/project_default"
-    config_file = f"{input_path}/telemetry_config.yml"
-    
-    # Read current config
-    cmd = f"cat {config_file}"
-    result = host.run(cmd)
-    if result.rc != 0:
-        pytest.fail(f"[{step_name}] Failed to read telemetry config")
-    
-    import yaml
-    config = yaml.safe_load(result.stdout)
-    
-    # Update PowerScale settings
-    if "telemetry_sources" not in config:
-        config["telemetry_sources"] = {}
-    if "powerscale" not in config["telemetry_sources"]:
-        config["telemetry_sources"]["powerscale"] = {}
-    
-    config["telemetry_sources"]["powerscale"]["metrics_enabled"] = metrics_enabled
-    config["telemetry_sources"]["powerscale"]["logs_enabled"] = logs_enabled
-    
-    # Write back
-    cmd = f"cat > {config_file} << 'EOF'\n{yaml.dump(config, default_flow_style=False)}EOF"
-    result = host.run(cmd)
-    if result.rc != 0:
-        pytest.fail(f"[{step_name}] Failed to update telemetry config")
-
-    result = run_playbook(
-        playbook=PLAYBOOK_ENTRY_POINT,
-        playbook_workdir=PLAYBOOK_WORKDIR,
-        tag="execute",
-    )
-
-    if result["rc"] != 0:
-        pytest.fail(f"[{step_name}] Deploy failed with exit code {result['rc']}")
-
-    tl.info(f"[{step_name}] Deployment successful")
+from library.functions.powerscale_func import (
+    get_powerscale_channel_status,
+    set_powerscale_channel_state,
+)
+from library.messages.telemetry_msgs import (
+    TEST_ASSERT_MSGS as ASSERT_MSGS,
+)
+from library.messages.telemetry_msgs import (
+    TEST_LOG_MSGS as LOG_MSGS,
+)
+from library.vars.common_vars import (
+    PLAYBOOK_ENTRY_POINT,
+    PLAYBOOK_WORKDIR,
+    POWERSCALE_CHANNEL_STEPS,
+)
+from library.vars.test_case_vars import TEST_CASES as TC
 
 
 @pytest.mark.nft
 @pytest.mark.source
+@pytest.mark.order(122)
 def test_powerscale_channels_comprehensive(host):
-    """Comprehensive test for PowerScale metrics/logs channel transitions.
+    """Verify PowerScale metrics/logs channel transitions.
 
-    Tests the following transitions:
-    1. true, true (baseline - metrics enabled, logs enabled)
-    2. true, false (metrics enabled, logs disabled)
-    3. false, true (metrics disabled, logs enabled)
-    4. false, false (metrics disabled, logs disabled - already deployed)
-    5. true, true (re-enable both metrics and logs)
-    6. true, true (idempotency - same state)
+    Walks the transitions listed in ``POWERSCALE_CHANNEL_STEPS``:
+      1. true, true (baseline)
+      2. true, false (metrics only)
+      3. false, true (logs only)
+      4. false, false (both disabled)
+      5. true, true (re-enable both)
+      6. true, true (idempotency, same state)
 
-    This validates:
-    - Playbook can deploy with metrics and logs enabled
-    - Playbook can disable metrics while keeping logs enabled
-    - Playbook can disable logs while keeping metrics enabled
-    - Playbook can disable both (scale down to 0 replicas)
-    - Playbook can re-enable both (scale up from 0 replicas)
-    - Deployment is idempotent
-    - Status reporting is correct for all transitions
-
-    Note: Logs are managed via PowerScale API, not by Omnia. This test
-    validates the status reporting logic, not actual log forwarding.
-
-    Note: This is playbook-level validation only. Component-level verification
-    (pods, services, configmaps) is covered by FVT tests.
+    For every step the source flags are updated, the execute playbook is
+    run, and the PowerScale channel status reported in
+    ``telemetry_status.yml`` is compared with the expected state.
     """
-    tc_id = "TEL_NFT_POWERSCALE_001"
-    tc_title = "Verify PowerScale metrics/logs channel transitions"
+    tc = TC["nft_powerscale_channels"]
+    tl = TestLogger(tc["title"], tc["id"])
 
-    from library.functions import TestLogger
-    tl = TestLogger(tc_title, tc_id)
+    for step in POWERSCALE_CHANNEL_STEPS:
+        name = step["name"]
+        tl.check(
+            LOG_MSGS["powerscale_channel_step"].format(
+                step=name,
+                metrics=step["metrics_enabled"],
+                logs=step["logs_enabled"],
+            )
+        )
 
-    try:
-        # Step 1: Baseline (metrics enabled, logs enabled)
-        _deploy_with_channels(host, tl, True, True, "Step 1: Baseline (true, true)")
-        _verify_powerscale_status(host, tl, "Step 1", "deployed", "deployed")
+        update = set_powerscale_channel_state(
+            host, step["metrics_enabled"], step["logs_enabled"],
+        )
+        if not update["success"]:
+            tl.failed(
+                LOG_MSGS["powerscale_channel_config_failed"].format(step=name),
+                update["error"],
+            )
+            pytest.fail(
+                ASSERT_MSGS["powerscale_channel_config_failed"].format(
+                    step=name, error=update["error"],
+                )
+            )
 
-        # Step 2: Metrics enabled, logs disabled
-        _deploy_with_channels(host, tl, True, False, "Step 2: Metrics only (true, false)")
-        _verify_powerscale_status(host, tl, "Step 2", "deployed", "disabled")
+        deploy = run_playbook(
+            playbook=PLAYBOOK_ENTRY_POINT,
+            playbook_workdir=PLAYBOOK_WORKDIR,
+            tag="execute",
+        )
+        if deploy["rc"] != 0:
+            tl.failed(
+                LOG_MSGS["powerscale_channel_deploy_failed"].format(
+                    step=name, rc=deploy["rc"],
+                )
+            )
+            pytest.fail(
+                ASSERT_MSGS["powerscale_channel_deploy_failed"].format(
+                    step=name, rc=deploy["rc"],
+                )
+            )
 
-        # Step 3: Metrics disabled, logs enabled
-        _deploy_with_channels(host, tl, False, True, "Step 3: Logs only (false, true)")
-        _verify_powerscale_status(host, tl, "Step 3", "disabled", "deployed")
+        status = get_powerscale_channel_status(host)
+        if not status["success"]:
+            tl.failed(
+                LOG_MSGS["powerscale_channel_status_unreadable"].format(step=name),
+                status["error"],
+            )
+            pytest.fail(
+                ASSERT_MSGS["powerscale_channel_status_unreadable"].format(
+                    step=name, error=status["error"],
+                )
+            )
 
-        # Step 4: Both disabled (already deployed)
-        _deploy_with_channels(host, tl, False, False, "Step 4: Both disabled (false, false)")
-        _verify_powerscale_status(host, tl, "Step 4", "disabled", "disabled")
+        if (
+            status["metrics"] != step["expected_metrics"]
+            or status["logs"] != step["expected_logs"]
+        ):
+            tl.failed(
+                LOG_MSGS["powerscale_channel_status_mismatch"].format(step=name)
+            )
+            pytest.fail(
+                ASSERT_MSGS["powerscale_channel_status_mismatch"].format(
+                    step=name,
+                    expected_metrics=step["expected_metrics"],
+                    expected_logs=step["expected_logs"],
+                    actual_metrics=status["metrics"],
+                    actual_logs=status["logs"],
+                )
+            )
 
-        # Step 5: Re-enable both
-        _deploy_with_channels(host, tl, True, True, "Step 5: Re-enable both (true, true)")
-        _verify_powerscale_status(host, tl, "Step 5", "deployed", "deployed")
+        tl.passed(
+            LOG_MSGS["powerscale_channel_step_passed"].format(
+                step=name, metrics=status["metrics"], logs=status["logs"],
+            )
+        )
 
-        # Step 6: Idempotency (same state)
-        _deploy_with_channels(host, tl, True, True, "Step 6: Idempotency (true, true)")
-        _verify_powerscale_status(host, tl, "Step 6", "deployed", "deployed")
-
-        tl.info("All metrics/logs channel transitions validated successfully")
-
-    except Exception as e:
-        tl.fail(f"Test failed: {str(e)}")
-        raise
+    tl.passed(LOG_MSGS["powerscale_channel_all_passed"])

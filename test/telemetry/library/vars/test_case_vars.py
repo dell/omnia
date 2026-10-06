@@ -741,6 +741,10 @@ TEST_CASES = {
         "id": "TEL_NFT_014",
         "title": "Operator pod recovery (VM/Strimzi operators)",
     },
+    "nft_powerscale_channels": {
+        "id": "TEL_NFT_025",
+        "title": "Verify PowerScale metrics/logs channel transitions",
+    },
     "nft_final_warning": {
         "id": "TEL_NFT_019",
         "title": "Final cluster state warning after NFT cleanup",

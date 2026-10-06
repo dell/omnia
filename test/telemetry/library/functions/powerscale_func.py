@@ -46,6 +46,8 @@ from omnia_auto import (
 
 from ..vars.common_vars import (
     CMDS,
+    TELEMETRY_CONFIG_FILE,
+    TELEMETRY_STATUS_FILE,
     TELEMETRY_NAMESPACE,
     POWERSCALE_SECRET_NAME,
     POWERSCALE_CSI_EXPORTER_METRICS,
@@ -58,6 +60,8 @@ POWERSCALE_CSI_EVENT_CONDITIONED_METRICS = {
     "powerscale_node_failure_events_total": "NodeFailure",
 }
 from .telemetry_func import (
+    _get_input_path,
+    get_output_path,
     load_telemetry_config_from_target,
     run_on_kube_vip,
     _get_svc_endpoint,
@@ -1484,4 +1488,81 @@ def verify_cert_manager_tls_certs(host):
         "cert_valid": cert_valid,
         "details": details,
         "error": "" if all_valid else "cert-manager TLS certificate validation failed",
+    }
+
+
+# -------------------------------------------------------------------------
+# PowerScale - metrics/logs channel state
+# -------------------------------------------------------------------------
+
+def set_powerscale_channel_state(host, metrics_enabled, logs_enabled):
+    """Atomically set the PowerScale source metrics/logs flags on the OIM.
+
+    Only ``telemetry_sources.powerscale.metrics_enabled`` and
+    ``logs_enabled`` in the active project ``telemetry_config.yml`` change.
+
+    Returns:
+        dict: ``success``, ``path`` and ``error`` keys.
+    """
+    config_path = f"{_get_input_path(host)}/{TELEMETRY_CONFIG_FILE}"
+    script = (
+        "import os,sys,tempfile,yaml;"
+        "path=sys.argv[1];metrics=sys.argv[2].lower()=='true';"
+        "logs=sys.argv[3].lower()=='true';"
+        "data=yaml.safe_load(open(path,encoding='utf-8')) or {};"
+        "source=data.setdefault('telemetry_sources',{})"
+        ".setdefault('powerscale',{});"
+        "source['metrics_enabled']=metrics;source['logs_enabled']=logs;"
+        "fd,tmp=tempfile.mkstemp(prefix='.powerscale-channels-',"
+        "dir=os.path.dirname(path),text=True);"
+        "f=os.fdopen(fd,'w',encoding='utf-8');"
+        "yaml.safe_dump(data,f,sort_keys=False);f.flush();"
+        "os.fsync(f.fileno());f.close();os.replace(tmp,path)"
+    )
+    result = run_on_host(  # pylint: disable=too-many-function-args
+        host,
+        "python3 -c %s %s %s %s",
+        script,
+        config_path,
+        "true" if metrics_enabled else "false",
+        "true" if logs_enabled else "false",
+    )
+    return {
+        "success": result.rc == 0,
+        "path": config_path,
+        "error": result.stderr.strip(),
+    }
+
+
+def get_powerscale_channel_status(host):
+    """Read the PowerScale metrics/logs channel status from the status file.
+
+    Returns:
+        dict: ``success``, ``metrics``, ``logs`` and ``error`` keys. Channel
+        values default to ``unknown`` when absent from the status file.
+    """
+    status_path = f"{get_output_path(host)}/{TELEMETRY_STATUS_FILE}"
+    result = run_on_host(host, CMDS["cat_file"].format(path=status_path))
+    if result.rc != 0 or not result.stdout.strip():
+        return {
+            "success": False,
+            "metrics": "unknown",
+            "logs": "unknown",
+            "error": f"Unable to read {status_path}",
+        }
+    try:
+        status = yaml.safe_load(result.stdout) or {}
+    except yaml.YAMLError as exc:
+        return {
+            "success": False,
+            "metrics": "unknown",
+            "logs": "unknown",
+            "error": f"Invalid YAML in {status_path}: {exc}",
+        }
+    powerscale = (status.get("sources") or {}).get("powerscale") or {}
+    return {
+        "success": True,
+        "metrics": powerscale.get("metrics", "unknown"),
+        "logs": powerscale.get("logs", "unknown"),
+        "error": "",
     }
