@@ -27,7 +27,9 @@
   ansible.builtin.include_role:
     name: common
     tasks_from: load_telemetry_config
-  when: telemetry_config is not defined
+  # Force reload to get latest config changes (bypass cache)
+  vars:
+    configs_already_loaded: false
 
 - name: Determine PowerScale telemetry state from config
   ansible.builtin.set_fact:
@@ -42,3 +44,6 @@
 - name: Disable PowerScale telemetry
   ansible.builtin.include_tasks: disable.yml
   when: not (powerscale_enabled | default(false) | bool)
+
+- name: Update PowerScale deployment status
+  ansible.builtin.include_tasks: update_status.yml

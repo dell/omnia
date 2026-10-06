@@ -93,7 +93,6 @@
 - name: "Phase 2 | Deploy PowerScale telemetry"
   ansible.builtin.import_playbook: sources/deploy_powerscale.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
 - name: "Phase 2 | Deploy UFM telemetry"
   ansible.builtin.import_playbook: sources/deploy_ufm.yml
@@ -450,12 +449,6 @@
           {{ (_kv['_vlagent_vector_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
       ansible.builtin.set_fact:
-        _deploy_result_powerscale_metrics: >-
-          {{ 'skipped' if not (_ps_m_on | bool)
-             else ('deployed' if (_ps_running | bool) else 'failed') }}
-        _deploy_result_powerscale_logs: >-
-          {{ 'skipped' if not (_ps_l_on | bool)
-             else ('deployed' if (_vlagent_running | bool) else 'failed') }}
         _deploy_result_ufm_metrics: >-
           {{ 'skipped' if not (_ufm_m_on | bool)
              else ('deployed' if (_ufm_ok | bool) else 'failed') }}
@@ -467,11 +460,11 @@
         _deploy_result_vast_logs: >-
           {{ 'skipped' if not (_vast_l_on | bool) else 'deployed' }}
         _deploy_result_ome_metrics: >-
-          {{ 'disabled' if not (_ome_m_on | bool)
+          {{ 'skipped' if not (_ome_m_on | bool)
              else ('deployed' if ((_vome_running | bool)
              and (_ome_metrics_forwarder_running | bool)) else 'failed') }}
         _deploy_result_ome_logs: >-
-          {{ 'disabled' if not (_ome_l_on | bool)
+          {{ 'skipped' if not (_ome_l_on | bool)
              else ('deployed' if ((_vome_running | bool)
              and (_ome_logs_forwarder_running | bool)) else 'failed') }}
 
@@ -498,7 +491,7 @@
           {{ 'skipped' if not ((_vldms_bridge_on | bool) and (_ldms_src_on | bool))
              else ('deployed' if (_vldms_running | bool) else 'failed') }}
         _deploy_result_vector_ome: >-
-          {{ 'disabled' if not ((_vome_m | bool) or (_vome_l | bool))
+          {{ 'skipped' if not ((_vome_m | bool) or (_vome_l | bool))
              else ('deployed' if (_vome_running | bool) else 'failed') }}
 
 # ── Phase 5: Write telemetry_status.yml ───────────────────────────────────────

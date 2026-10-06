@@ -122,6 +122,67 @@
     msg: "Scaled down csi-volume-exporter deployment to 0 replicas"
   when: csi_exporter_check.rc == 0
 
+# =============================================================================
+# Scale Down Cert Manager (deployed by karavi-observability Helm chart)
+# =============================================================================
+
+- name: Check if karavi-observability-cert-manager deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment karavi-observability-cert-manager -n {{ ps_namespace }} -o name
+  register: cert_manager_check
+  changed_when: false
+  failed_when: false
+
+- name: Scale down karavi-observability-cert-manager deployment
+  ansible.builtin.command: >
+    kubectl scale deployment karavi-observability-cert-manager -n {{ ps_namespace }} --replicas=0
+  register: cert_manager_scale_result
+  changed_when: "'scaled' in cert_manager_scale_result.stdout or cert_manager_scale_result.rc == 0"
+  when: cert_manager_check.rc == 0
+
+- name: Display karavi-observability-cert-manager scale down status
+  ansible.builtin.debug:
+    msg: "Scaled down karavi-observability-cert-manager deployment to 0 replicas"
+  when: cert_manager_check.rc == 0
+
+- name: Check if karavi-observability-cert-manager-cainjector deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment karavi-observability-cert-manager-cainjector -n {{ ps_namespace }} -o name
+  register: cert_cainjector_check
+  changed_when: false
+  failed_when: false
+
+- name: Scale down karavi-observability-cert-manager-cainjector deployment
+  ansible.builtin.command: >
+    kubectl scale deployment karavi-observability-cert-manager-cainjector -n {{ ps_namespace }} --replicas=0
+  register: cert_cainjector_scale_result
+  changed_when: "'scaled' in cert_cainjector_scale_result.stdout or cert_cainjector_scale_result.rc == 0"
+  when: cert_cainjector_check.rc == 0
+
+- name: Display karavi-observability-cert-manager-cainjector scale down status
+  ansible.builtin.debug:
+    msg: "Scaled down karavi-observability-cert-manager-cainjector deployment to 0 replicas"
+  when: cert_cainjector_check.rc == 0
+
+- name: Check if karavi-observability-cert-manager-webhook deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment karavi-observability-cert-manager-webhook -n {{ ps_namespace }} -o name
+  register: cert_webhook_check
+  changed_when: false
+  failed_when: false
+
+- name: Scale down karavi-observability-cert-manager-webhook deployment
+  ansible.builtin.command: >
+    kubectl scale deployment karavi-observability-cert-manager-webhook -n {{ ps_namespace }} --replicas=0
+  register: cert_webhook_scale_result
+  changed_when: "'scaled' in cert_webhook_scale_result.stdout or cert_webhook_scale_result.rc == 0"
+  when: cert_webhook_check.rc == 0
+
+- name: Display karavi-observability-cert-manager-webhook scale down status
+  ansible.builtin.debug:
+    msg: "Scaled down karavi-observability-cert-manager-webhook deployment to 0 replicas"
+  when: cert_webhook_check.rc == 0
+
 
 # =============================================================================
 # Display Summary
@@ -136,6 +197,9 @@
         - {{ karavi_observability.metrics_deployment }}: {{ 'Yes' if karavi_metrics_check.rc == 0 else 'Not found' }}
         - {{ karavi_observability.otel_collector_deployment }}: {{ 'Yes' if otel_collector_check.rc == 0 else 'Not found' }}
         - {{ csi_volume_exporter.app_name }}: {{ 'Yes' if csi_exporter_check.rc == 0 else 'Not found' }}
+        - karavi-observability-cert-manager: {{ 'Yes' if cert_manager_check.rc == 0 else 'Not found' }}
+        - karavi-observability-cert-manager-cainjector: {{ 'Yes' if cert_cainjector_check.rc == 0 else 'Not found' }}
+        - karavi-observability-cert-manager-webhook: {{ 'Yes' if cert_webhook_check.rc == 0 else 'Not found' }}
 
       Preserved for re-enablement:
         - PVCs ({{ karavi_observability.otel_collector_pvc }})
