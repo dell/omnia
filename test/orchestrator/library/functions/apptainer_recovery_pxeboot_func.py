@@ -39,6 +39,7 @@ from ._pxeboot_helpers import (
 from ._workload_helpers import optional_skip, require_marker
 
 _RECOVERY_STATE: dict[str, object] = {}
+_RECOVERY_HOST: str = ""
 
 
 def _wait_for_new_boot(host, row, previous_boot_id):
@@ -93,8 +94,13 @@ def _wait_for_scheduler(host, control, node_name):
 
 
 def _prepare_recovery(host):
-    if _RECOVERY_STATE:
+    global _RECOVERY_HOST  # noqa: PLW0603
+    host_id = getattr(host, "original_host", str(host))
+    if _RECOVERY_STATE and _RECOVERY_HOST == host_id:
         return _RECOVERY_STATE
+    if _RECOVERY_STATE and _RECOVERY_HOST != host_id:
+        _RECOVERY_STATE.clear()
+    _RECOVERY_HOST = host_id
     gated = require_marker(
         "Apptainer compute-node reboot",
         "disruptive",
@@ -115,7 +121,18 @@ def _prepare_recovery(host):
         )
         return _RECOVERY_STATE
     row = computes[0]
-    image = primary_image(host, row)
+    try:
+        image = primary_image(host, row)
+    except FileNotFoundError as exc:
+        _RECOVERY_STATE.update(
+            {
+                "skipped_result": optional_skip(
+                    "Apptainer compute-node reboot",
+                    str(exc),
+                )
+            }
+        )
+        return _RECOVERY_STATE
     before_checksum = remote_command(
         host,
         row,
@@ -124,13 +141,20 @@ def _prepare_recovery(host):
     before_mount = remote_command(host, row, PXEBOOT_COMMANDS["apptainer_shared_mount"])
     before_boot = remote_command(host, row, PXEBOOT_COMMANDS["node_boot_id"])
     previous_boot_id = before_boot.stdout.strip()
-    if (
-        before_checksum.rc != 0
-        or before_mount.rc != 0
-        or before_boot.rc != 0
-        or not previous_boot_id
-    ):
-        raise RuntimeError("Apptainer reboot preconditions are invalid")
+    checksum_parts = before_checksum.stdout.split() if before_checksum.rc == 0 else []
+    checksum_value = checksum_parts[0] if checksum_parts else ""
+    precondition_errors = []
+    if before_checksum.rc != 0 or not checksum_value:
+        precondition_errors.append("SIF checksum command failed or returned empty")
+    if before_mount.rc != 0:
+        precondition_errors.append("shared mount probe failed")
+    if before_boot.rc != 0 or not previous_boot_id:
+        precondition_errors.append("boot ID could not be read")
+    if precondition_errors:
+        raise RuntimeError(
+            "Apptainer reboot preconditions invalid: "
+            + "; ".join(precondition_errors)
+        )
     reboot = remote_command(host, row, PXEBOOT_COMMANDS["node_reboot"])
     if reboot.rc not in {0, 255}:
         raise RuntimeError("Compute-node reboot request failed")
@@ -155,7 +179,7 @@ def _prepare_recovery(host):
             "control": control,
             "row": row,
             "image": image,
-            "before_checksum": before_checksum.stdout.split()[0],
+            "before_checksum": checksum_value,
             "before_mount": before_mount.stdout.strip(),
             "previous_boot_id": previous_boot_id,
             "current_boot_id": current_boot_id,
@@ -212,16 +236,41 @@ def check_apptainer_reboot_storage(host):
             and mount_preserved
             and image_preserved
         )
+        error_parts = []
+        if not state["new_boot"]:
+            error_parts.append("node did not return after reboot")
+        if not state["cloud_ok"]:
+            error_parts.append(f"cloud-init: {state['cloud_detail']}")
+        if not state["scheduler_ok"]:
+            error_parts.append(f"scheduler state: {state['scheduler_state']}")
+        if not mount_preserved:
+            error_parts.append(
+                f"shared mount changed "
+                f"(before={state['before_mount']!r} "
+                f"after={after_mount.stdout.strip()!r})"
+            )
+        if not image_preserved:
+            error_parts.append(
+                f"SIF checksum changed "
+                f"(before={state['before_checksum']!r} "
+                f"after={checksum!r})"
+            )
         return runtime_result(
             ok,
             summary,
             [
                 *_base_fields(state),
-                ("Shared mount preserved", mount_preserved),
-                ("SIF checksum preserved", image_preserved),
+                (
+                    "Shared mount preserved",
+                    "passed" if mount_preserved else "FAILED",
+                ),
+                (
+                    "SIF checksum preserved",
+                    "passed" if image_preserved else "FAILED",
+                ),
                 ("Image", image["name"]),
             ],
-            "Shared Apptainer storage did not recover after reboot" if not ok else "",
+            "; ".join(error_parts),
         )
     except (FileNotFoundError, OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -279,6 +328,21 @@ def check_apptainer_reboot_artifacts(host):
             and artifacts.rc == 0
             and policy.rc == 0
         )
+        error_parts = []
+        if not state["new_boot"]:
+            error_parts.append("node did not return after reboot")
+        if not state["cloud_ok"]:
+            error_parts.append(f"cloud-init: {state['cloud_detail']}")
+        if not state["scheduler_ok"]:
+            error_parts.append(f"scheduler state: {state['scheduler_state']}")
+        if artifacts.rc != 0:
+            error_parts.append(
+                f"download artifacts invalid: {command_error(artifacts)}"
+            )
+        if policy.rc != 0:
+            error_parts.append(
+                f"Pulp-only policy invalid: {command_error(policy)}"
+            )
         return runtime_result(
             ok,
             summary,
@@ -293,7 +357,7 @@ def check_apptainer_reboot_artifacts(host):
                     "valid" if policy.rc == 0 else command_error(policy),
                 ),
             ],
-            "Apptainer download artifacts are invalid after reboot" if not ok else "",
+            "; ".join(error_parts),
         )
     except (FileNotFoundError, OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)

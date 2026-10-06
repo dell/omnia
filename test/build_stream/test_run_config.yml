@@ -60,6 +60,11 @@
 #   buildstream_cleanup:  gitlab_cleanup, buildstream_cleanup, cleanup_pipeline
 #   build_pipeline:       build_pipeline, manual
 #   deploy_pipeline:      deploy_pipeline, manual
+#   cadence_pipeline:     cadence_pipeline
+#
+# Default lifecycle: buildstream_install -> cadence_pipeline
+# Named lifecycle:   build_deploy_lifecycle
+#                    (buildstream_install -> build_pipeline -> deploy_pipeline)
 #
 # =============================================================================
 
@@ -89,6 +94,13 @@ fvt_build_stream:
     dataset: ""
     sync_input: false
   deploy_pipeline:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  cadence_pipeline:
     run: false
     command: "test"
     suite: ""

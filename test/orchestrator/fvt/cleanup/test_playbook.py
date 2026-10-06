@@ -25,9 +25,8 @@ from library.messages import CLEANUP_TEST_ASSERT_MSGS as ASSERT
 from library.messages import CLEANUP_TEST_LOG_MSGS as LOG
 from library.vars import TEST_CASES as TC
 
-pytestmark = [pytest.mark.destructive]
 
-
+@pytest.mark.destructive
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)

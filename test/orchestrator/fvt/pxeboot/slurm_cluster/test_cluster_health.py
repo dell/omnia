@@ -26,44 +26,56 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.slurm,
-    pytest.mark.non_disruptive,
-]
 
-
-@pytest.mark.order(223)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(226)
 def test_slurm_membership(host):
     """Verify mapped membership, healthy state, and basic hardware fields."""
     verify_pxeboot(host, "slurm_membership", check_slurm_membership)
 
 
-@pytest.mark.order(224)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(227)
 def test_slurm_scheduler(host):
     """Verify mapped compute nodes have healthy, available partitions."""
     verify_pxeboot(host, "slurm_scheduler", check_slurm_scheduler)
 
 
-@pytest.mark.order(225)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(228)
 def test_slurm_services(host):
     """Verify role and feature-specific Slurm services."""
     verify_pxeboot(host, "slurm_services", check_slurm_services)
 
 
-@pytest.mark.order(226)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(229)
 def test_slurm_cross_node_ssh(host):
     """Verify every mapped Slurm role can reach every peer over root SSH."""
     verify_pxeboot(host, "slurm_cross_ssh", check_slurm_cross_node_ssh)
 
 
-@pytest.mark.order(227)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(230)
 def test_slurm_configless_mode(host):
     """Verify configless controller access and expected cluster identity."""
     verify_pxeboot(host, "slurm_configless", check_slurm_configless_mode)
 
 
-@pytest.mark.order(228)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(231)
 def test_slurm_configuration_consistency(host):
     """Compare authoritative Slurm files with every configless client cache."""
     verify_pxeboot(

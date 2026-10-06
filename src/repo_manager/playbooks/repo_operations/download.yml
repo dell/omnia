@@ -106,39 +106,17 @@
         run_subscription_check: true
         cacheable: true
 
-    - name: Include metadata vars
-      ansible.builtin.include_vars:
-        file: "{{ omnia_metadata_file }}"
-        name: oim_shared_path_from_metadata
+    - name: Load validated metadata vars
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_oim_metadata.yml
       when: repo_manager_metadata_support | default(false) | bool
-      failed_when: false
 
-    - name: Check oim_metadata for Jinja template injection patterns
-      ansible.builtin.set_fact:
-        _oim_metadata_has_jinja: >-
-          {{ oim_shared_path_from_metadata | dict2items
-             | selectattr('value', 'search', '\{\{|\{%|\{#')
-             | list | length > 0 }}
-      when:
-        - oim_shared_path_from_metadata is defined
-        - oim_shared_path_from_metadata is mapping
 
-    - name: Validate oim_metadata contains no Jinja template syntax
-      ansible.builtin.assert:
-        that:
-          - not (_oim_metadata_has_jinja | default(false) | bool)
-        fail_msg: "{{ oim_metadata_invalid_format_msg }}"
-        quiet: true
-      when:
-        - oim_shared_path_from_metadata is defined
-        - oim_shared_path_from_metadata is mapping
-
-    - name: Load repo_manager_config.yml
-      ansible.builtin.include_vars:
-        file: "{{ repo_manager_config_file }}"
-        name: repo_manager_config
-      no_log: true
-
+    - name: Load validated repo_manager_config.yml
+      ansible.builtin.include_role:
+        name: ../../roles/repo_manager_setup
+        tasks_from: load_repo_manager_config.yml
     - name: Check repo_manager_config for Jinja template injection patterns
       ansible.builtin.set_fact:
         _repo_config_has_jinja: >-
@@ -167,7 +145,8 @@
 
     - name: Set repository policy from configuration
       ansible.builtin.set_fact:
-        repo_config: "{{ repo_manager_config.repo_config | default('partial') }}"
+        repo_config: >-
+          {{ repo_manager_config_data.repo_config | default('partial') }}
 
     # -------------------------------------------------------------------------
     # PHASE 2: CREDENTIALS

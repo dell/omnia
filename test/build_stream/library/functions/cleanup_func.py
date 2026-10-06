@@ -20,10 +20,19 @@ Checks that containers, services, directories, credentials, and
 volumes are properly removed after running cleanup playbooks.
 """
 
-from typing import Any, Dict, List
+import shlex
+from typing import Any, Dict
 
 from omnia_auto import run_on_host
 
+from library.cleanup_inspection import (
+    INSPECTION_ERROR,
+    PATH_ABSENT,
+    PATH_EXISTS,
+    classify_path_probe,
+    is_expected_disabled_state,
+    is_expected_stopped_state,
+)
 from ._config_helpers import (
     resolve_build_stream_data_path,
     resolve_build_stream_input_path,
@@ -567,7 +576,7 @@ def check_buildstream_services_stopped(host) -> Dict[str, Any]:
 
 
 def check_playbook_watcher_service_stopped(host) -> Dict[str, Any]:
-    """Verify playbook_watcher service is stopped.
+    """Verify playbook-watcher service is stopped.
 
     Args:
         host: Testinfra host connection.
@@ -581,23 +590,35 @@ def check_playbook_watcher_service_stopped(host) -> Dict[str, Any]:
     cmd_result = run_on_host(host, cmd)
     status = cmd_result.stdout.strip() if cmd_result.stdout else "unknown"
 
-    if status == "active":
+    if cmd_result.rc == 0 and status == "active":
         return {
             "success": False,
             "status": status,
             "details": "",
             "error": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: still active",
         }
+
+    if is_expected_stopped_state(cmd_result.rc, status):
+        return {
+            "success": True,
+            "status": status,
+            "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
+            "error": "",
+        }
+
     return {
-        "success": True,
+        "success": False,
         "status": status,
-        "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
-        "error": "",
+        "details": "",
+        "error": (
+            f"Unable to verify {PLAYBOOK_WATCHER_SERVICE_NAME} is stopped "
+            f"(rc={cmd_result.rc}, status={status})"
+        ),
     }
 
 
 def check_playbook_watcher_service_disabled(host) -> Dict[str, Any]:
-    """Verify playbook_watcher service is disabled.
+    """Verify playbook-watcher service is disabled.
 
     Args:
         host: Testinfra host connection.
@@ -611,25 +632,37 @@ def check_playbook_watcher_service_disabled(host) -> Dict[str, Any]:
     cmd_result = run_on_host(host, cmd)
     status = cmd_result.stdout.strip() if cmd_result.stdout else "unknown"
 
-    if status == "enabled":
+    if cmd_result.rc == 0 and status == "enabled":
         return {
             "success": False,
             "status": status,
             "details": "",
             "error": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: still enabled",
         }
+
+    if is_expected_disabled_state(cmd_result.rc, status):
+        return {
+            "success": True,
+            "status": status,
+            "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
+            "error": "",
+        }
+
     return {
-        "success": True,
+        "success": False,
         "status": status,
-        "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
-        "error": "",
+        "details": "",
+        "error": (
+            f"Unable to verify {PLAYBOOK_WATCHER_SERVICE_NAME} is disabled "
+            f"(rc={cmd_result.rc}, status={status})"
+        ),
     }
 
 
 def check_playbook_watcher_service_file_removed(
     host,
 ) -> Dict[str, Any]:
-    """Verify playbook_watcher.service unit file is removed.
+    """Verify playbook-watcher.service unit file is removed.
 
     Args:
         host: Testinfra host connection.
@@ -640,7 +673,9 @@ def check_playbook_watcher_service_file_removed(
     cmd = CMDS["file_exists"].format(path=PLAYBOOK_WATCHER_SERVICE_FILE)
     cmd_result = run_on_host(host, cmd)
 
-    if cmd_result.stdout.strip() == "exists":
+    output = cmd_result.stdout.strip() if cmd_result.stdout else ""
+    path_state = classify_path_probe(cmd_result.rc, output)
+    if path_state == PATH_EXISTS:
         return {
             "success": False,
             "path": PLAYBOOK_WATCHER_SERVICE_FILE,
@@ -650,13 +685,23 @@ def check_playbook_watcher_service_file_removed(
                 f"{PLAYBOOK_WATCHER_SERVICE_FILE}"
             ),
         }
+    if path_state == PATH_ABSENT:
+        return {
+            "success": True,
+            "path": PLAYBOOK_WATCHER_SERVICE_FILE,
+            "details": (
+                f"Service file removed: {PLAYBOOK_WATCHER_SERVICE_FILE}"
+            ),
+            "error": "",
+        }
     return {
-        "success": True,
+        "success": False,
         "path": PLAYBOOK_WATCHER_SERVICE_FILE,
-        "details": (
-            f"Service file removed: {PLAYBOOK_WATCHER_SERVICE_FILE}"
+        "details": "",
+        "error": (
+            "Unable to inspect playbook-watcher service file "
+            f"(rc={cmd_result.rc}, output={output or 'empty'})"
         ),
-        "error": "",
     }
 
 
@@ -907,18 +952,23 @@ def check_buildstream_directories_removed(host) -> Dict[str, Any]:
     # Build dynamic list based on config
     dirs = [
         f"{omnia_path}/build_stream/log",
+        f"{omnia_path}/build_stream/logs",
+        f"{omnia_path}/build_stream/output",
         f"{omnia_path}/build_stream/playbook_queue",
+        f"{omnia_path}/playbook_queue",
+        f"{omnia_path}/log/build_stream",
         f"{omnia_path}/build_stream_ssl",
         f"{omnia_path}/build_stream_root",
         f"{omnia_path}/build_stream_inv",
         f"{omnia_path}/build_stream_enabled",
-        f"{omnia_path}/build_stream",
+        "/var/log/omnia/build_stream",
     ]
 
     result = {
         "success": False,
         "removed": [],
         "still_exist": [],
+        "inspection_errors": [],
         "details": "",
         "error": "",
     }
@@ -926,21 +976,111 @@ def check_buildstream_directories_removed(host) -> Dict[str, Any]:
     for dir_path in dirs:
         cmd = CMDS["dir_exists"].format(path=dir_path)
         cmd_result = run_on_host(host, cmd)
-        if cmd_result.stdout.strip() == "exists":
+        output = cmd_result.stdout.strip() if cmd_result.stdout else ""
+        path_state = classify_path_probe(cmd_result.rc, output)
+        if path_state == PATH_EXISTS:
             result["still_exist"].append(dir_path)
-        else:
+        elif path_state == PATH_ABSENT:
             result["removed"].append(dir_path)
+        elif path_state == INSPECTION_ERROR:
+            result["inspection_errors"].append(
+                f"{dir_path} (rc={cmd_result.rc}, "
+                f"output={output or 'empty'})"
+            )
 
     total = len(dirs)
-    result["success"] = len(result["still_exist"]) == 0
+    result["success"] = (
+        not result["still_exist"] and not result["inspection_errors"]
+    )
     result["details"] = (
         f"Removed: {len(result['removed'])}/{total}"
     )
+    errors = []
     if result["still_exist"]:
-        result["error"] = (
-            f"Still exist: {', '.join(result['still_exist'])}"
+        errors.append(f"Still exist: {', '.join(result['still_exist'])}")
+    if result["inspection_errors"]:
+        errors.append(
+            "Inspection failed: "
+            + ", ".join(result["inspection_errors"])
         )
+    result["error"] = "; ".join(errors)
     return result
+
+
+def check_buildstream_runtime_caches_removed(host) -> Dict[str, Any]:
+    """Verify runtime source/input remain while Python caches are absent."""
+    data_path = resolve_build_stream_data_path(host)
+    directory_check = run_on_host(
+        host, CMDS["dir_exists"].format(path=data_path)
+    )
+    if directory_check.stdout.strip() != "exists":
+        return {
+            "success": False,
+            "remaining": [],
+            "preserved": [],
+            "details": "",
+            "error": (
+                "BuildStream runtime root was removed instead of preserving "
+                f"application source and input: {data_path}"
+            ),
+        }
+
+    input_dir = resolve_build_stream_input_path(host)
+    required_paths = [
+        f"{data_path}/playbook-watcher/playbook_watcher_service.py",
+        f"{input_dir}/build_stream_config.yml",
+    ]
+    preserved = []
+    missing = []
+    for path in required_paths:
+        path_check = run_on_host(
+            host, CMDS["file_exists"].format(path=path)
+        )
+        if path_check.stdout.strip() == "exists":
+            preserved.append(path)
+        else:
+            missing.append(path)
+
+    if missing:
+        return {
+            "success": False,
+            "remaining": [],
+            "preserved": preserved,
+            "details": "",
+            "error": (
+                "Preserved BuildStream runtime content is missing: "
+                + ", ".join(missing)
+            ),
+        }
+
+    command = (
+        f"find -P {shlex.quote(data_path)} "
+        "\\( -type d \\( -name __pycache__ -o -name pycache \\) "
+        "-o -type f \\( -name '*.pyc' -o -name '*.pyo' \\) \\) "
+        "-print 2>/dev/null"
+    )
+    cmd_result = run_on_host(host, command)
+    remaining = [
+        path.strip()
+        for path in cmd_result.stdout.splitlines()
+        if path.strip()
+    ]
+    success = cmd_result.rc == 0 and not remaining
+    return {
+        "success": success,
+        "remaining": remaining,
+        "preserved": preserved,
+        "details": (
+            "Application source and input are preserved; no generated "
+            "Python caches remain"
+            if success else ""
+        ),
+        "error": (
+            "Generated Python caches remain: " + ", ".join(remaining)
+            if remaining
+            else f"Unable to inspect BuildStream runtime caches (rc={cmd_result.rc})"
+        ) if not success else "",
+    }
 
 
 def check_buildstream_credentials_removed(host) -> Dict[str, Any]:

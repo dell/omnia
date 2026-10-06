@@ -84,8 +84,6 @@ PLAYBOOK_TAGS = [
     "build",
     "cleanup",
     "cleanup_images",
-    "upgrade",
-    "rollback",
 ]
 
 # =============================================================================
@@ -107,6 +105,7 @@ SHARED_PATH = (
 
 MINIO_CONTAINER = "minio-server"
 REGISTRY_CONTAINER = "registry"
+REGISTRY_IMAGE = "docker.io/library/registry:3.1.2"
 
 # =============================================================================
 # S3 / REGISTRY CONSTANTS

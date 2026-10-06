@@ -30,9 +30,9 @@ from library.functions import (
 
 from nft.result import verify_nft
 
-pytestmark = [pytest.mark.nft, pytest.mark.lifecycle]
 
-
+@pytest.mark.nft
+@pytest.mark.lifecycle
 @pytest.mark.destructive
 @pytest.mark.order(100)
 def test_clean_baseline(host):
@@ -40,6 +40,8 @@ def test_clean_baseline(host):
     verify_nft(host, "clean_baseline", check_clean_baseline)
 
 
+@pytest.mark.nft
+@pytest.mark.lifecycle
 @pytest.mark.destructive
 @pytest.mark.order(101)
 def test_lifecycle_fresh_install(host):
@@ -47,6 +49,8 @@ def test_lifecycle_fresh_install(host):
     verify_nft(host, "lifecycle_fresh_install", check_lifecycle_fresh_install)
 
 
+@pytest.mark.nft
+@pytest.mark.lifecycle
 @pytest.mark.order(102)
 def test_lifecycle_provision_verify(host):
     """Verify provision state and node connectivity after the fresh-install lifecycle."""

@@ -16,13 +16,12 @@
 - name: Define project input path
   ansible.builtin.set_fact:
     project_input_path: "{{ input_project_dir }}"
-    update_metadata: false
     show_softwares_status: false
 
-- name: Include oim metadata vars
-  ansible.builtin.include_vars:
-    file: "{{ omnia_metadata_file }}"
-    name: oim_shared_path_from_metadata
+- name: Load validated oim metadata vars
+  ansible.builtin.include_role:
+    name: ../../roles/repo_manager_setup
+    tasks_from: load_oim_metadata.yml
   when: repo_manager_metadata_support | default(false) | bool
 
 - name: Check oim_metadata for Jinja template injection patterns
@@ -122,41 +121,6 @@
         else 'success'
       }}
 
-- name: Check if metadata file exists
-  ansible.builtin.stat:
-    path: "{{ metadata_file_path }}"
-  register: metadata_file
-
-- name: Set update metadata flag
-  ansible.builtin.set_fact:
-    update_metadata: "{{ true | bool }}"
-  when:
-    - metadata_file.stat.exists
-    - final_status == 'success'
-
-- name: Persist local repository information into metadata file localrepo_metadata.yml
-  localrepo_metadata_manager:
-    localrepo_config_path: "{{ repo_manager_config_file }}"
-    output_file: "{{ metadata_file_path }}"
-    update_metadata: "{{ update_metadata }}"
-    sub_urls: "{{ sub_final_repo_urls | default({}) }}"
-    cluster_os_version: "{{ cluster_os_version }}"
-    architectures: "{{ selected_architectures }}"
-  environment:
-    REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
-    REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
-    OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
-    OMNIA_DATA_PATH: "{{ omnia_data_path }}"
-    REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
-  register: policy_result
-  when:
-    - final_status == 'success'
-
-- name: Show updated keys
-  ansible.builtin.debug:
-    var: policy_result.diff
-  when: update_metadata
-
 - name: Run custom parallel task to print overall software status
   parallel_tasks:
     tasks: []
@@ -168,6 +132,18 @@
       }}
     overall_status_dict: "{{ overall_status_dict }}"
     show_softwares_status: "{{ true | bool }}"
+  environment:
+    REPO_MANAGER_BASE_DIR: "{{ repo_manager_base_dir }}"
+    REPO_MANAGER_CONFIG_PATH: >-
+      {{ repo_manager_base_dir }}/vars/default.yml
+    REPO_MANAGER_INPUT_PROJECT_DIR: "{{ input_project_dir }}"
+    OMNIA_BASE_DIR: "{{ omnia_base_dir }}"
+    OMNIA_DATA_PATH: "{{ omnia_data_path }}"
+    REPO_MANAGER_DATA_PATH: "{{ repo_manager_runtime_dir }}"
+    PULP_CLI_CONFIG_PATH: "{{ pulp_system_cli_config_file }}"
+    PULP_CLI_EXECUTABLE: "{{ pulp_cli_executable }}"
+    PULP_REPO_FILE_PATH: "{{ pulp_repo_file_path }}"
+    CATALOG_FILE_PATH: "{{ catalog_file }}"
   register: status_results
   when: overall_status_dict is defined and overall_status_dict | length > 0
 

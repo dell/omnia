@@ -80,19 +80,6 @@
          | ansible.builtin.normpath }}
     cacheable: true
 
-# Step 2: Upgrade guard
-- name: Check upgrade lock file
-  ansible.builtin.stat:
-    path: "{{ upgrade_lock_file }}"
-  register: upgrade_lock
-
-- name: Block playbook while upgrade is in progress
-  ansible.builtin.fail:
-    msg: "{{ upgrade_in_progress_msg }}"
-  when:
-    - upgrade_lock.stat.exists
-    - not (upgrade_mode | default(false) | bool)
-
 - name: Set domain root directory
   ansible.builtin.set_fact:
     _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"

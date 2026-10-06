@@ -95,5 +95,5 @@
     that:
       - '"s3://efi" in s3_bucket_output_final.stdout'
       - '"s3://boot-images" in s3_bucket_output_final.stdout'
-    fail_msg: "One or more required S3 buckets were not created successfully."
+    fail_msg: "{{ s3_buckets_missing_fail_msg }}"
     success_msg: "All required S3 buckets are confirmed present."

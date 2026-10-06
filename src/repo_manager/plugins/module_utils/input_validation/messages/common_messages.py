@@ -44,6 +44,10 @@ ADDITIONAL_REPO_PRIORITY_CONFLICT_MSG = (
     "{repo_path}: additional_repos are published as one Pulp repository and "
     "must use one effective priority; found {priorities}"
 )
+ADDITIONAL_REPO_POLICY_CONFLICT_MSG = (
+    "{repo_path}: additional_repos are published as one Pulp repository and "
+    "must use one effective Pulp policy; found {policies}"
+)
 MISSING_REPO_CONFIGURATION_MSG = (
     "Catalog package references repository '{reponame}' for architecture(s) {archs}, "
     "but this repository is not configured in repo_manager_config.yml under "

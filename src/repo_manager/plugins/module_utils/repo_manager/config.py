@@ -38,7 +38,6 @@ from ansible.module_utils.repo_manager.repo_paths import (
     PULP_SSL_CA_CERT,
     OMNIA_CREDENTIALS_YAML_PATH,
     OMNIA_CREDENTIALS_VAULT_PATH,
-    metadata_rerun_file_path,
 )
 from ansible.module_utils.repo_manager.repo_settings import (
     DEFAULT_NTHREADS,
@@ -124,7 +123,6 @@ __all__ = (
         "PULP_SSL_CA_CERT",
         "OMNIA_CREDENTIALS_YAML_PATH",
         "OMNIA_CREDENTIALS_VAULT_PATH",
-        "metadata_rerun_file_path",
     ]
     + [
         "DEFAULT_NTHREADS",

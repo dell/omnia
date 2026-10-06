@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# yamllint disable rule:line-length
+# =============================================================================
+# SAMPLE: repo_status.yml -- Repo Manager output contract
+# =============================================================================
+#
+# This is an illustrative successful multi-version output. Repo Manager writes
+# the runtime file to:
+#   /opt/omnia/repo_manager/output/<project>/repo_status.yml
+#
+# Producer: generate_local_repo_access module (status tag)
+# Consumers: Image Build Manager and cluster provisioning workflows
+#
+# Repository, File and Python URLs are grouped by OS minor version and
+# architecture. Entries appear only when their Pulp distributions are ready.
+# =============================================================================
+
+overall_status: "success"
+cluster_os_type: "rhel"
+repo_config: "partial"
+
+execution_contexts:
+  - context_id: "rhel_10.0"
+    os_type: "rhel"
+    os_version: "10.0"
+    architectures:
+      - "x86_64"
+      - "aarch64"
+  - context_id: "rhel_10.2"
+    os_type: "rhel"
+    os_version: "10.2"
+    architectures:
+      - "x86_64"
+
+overall_status_by_version:
+  "10.0": "success"
+  "10.2": "success"
+
+repo_manager:
+  port: 2225
+  certificates:
+    server_crt: "/opt/omnia/repo_manager/pulp_config/settings/certs/pulp_webserver.crt"
+    certs_dir: "/opt/omnia/repo_manager/pulp_config/settings/certs"
+
+repositories:
+  "10.0":
+    x86_64:
+      baseos:
+        url: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/rpms/x86_64_rhel_10.0_baseos/"
+    aarch64:
+      baseos:
+        url: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/rpms/aarch64_rhel_10.0_baseos/"
+  "10.2":
+    x86_64:
+      baseos:
+        url: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/rpms/x86_64_rhel_10.2_baseos/"
+
+registries:
+  private_registry:
+    base_url: "https://registry.example.com"
+    port: 443
+    host: "registry.example.com:443"
+    tls:
+      insecure: false
+
+file_repos:
+  "10.0":
+    x86_64:
+      tarball:
+        helm-v3_20_1-amd64: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/helm-v3.20.1-amd64/"
+      pip_module:
+        cffi_1_17_1: "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/cffi==1.17.1/"
+    aarch64:
+      tarball:
+        ucx: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/tarball/ucx/"
+  "10.2":
+    x86_64:
+      tarball:
+        helm-v3_20_1-amd64: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/tarball/helm-v3.20.1-amd64/"
+      pip_module:
+        cffi_1_17_1: "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/rhel/10.2/pip_module/cffi==1.17.1/"
+
+base_urls:
+  "10.0":
+    x86_64:
+      tarball: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/"
+      pip_module: "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/"
+    aarch64:
+      tarball: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/aarch64/rhel/10.0/tarball/"
+  "10.2":
+    x86_64:
+      tarball: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/tarball/"
+      pip_module: "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/rhel/10.2/pip_module/"

@@ -19,11 +19,10 @@
 # All tasks run on localhost (OIM).
 # =============================================================================
 
-- name: Include metadata vars
-  ansible.builtin.include_vars:
-    file: "{{ omnia_metadata_file }}"
-    name: oim_shared_path_from_metadata
-  failed_when: false
+- name: Load validated metadata vars
+  ansible.builtin.include_role:
+    name: ../../roles/repo_manager_setup
+    tasks_from: load_oim_metadata.yml
   tags: always
 
 - name: Check oim_metadata for Jinja template injection patterns
