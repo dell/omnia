@@ -42,6 +42,7 @@ supported_tags:
   - verify_node_registration
   - cleanup
   - cleanup_credentials
+  - ib_ipv6
 
 skip_credential_tags:
   - precheck

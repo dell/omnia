@@ -27,9 +27,28 @@ from typing import Any
 import yaml
 
 from ..messages import orchestrator_messages as msg
-from .network_spec_validator import is_valid_ipv4, network_from_config, record_error
+from .network_spec_validator import (
+    is_valid_ipv4,
+    is_valid_ipv6,
+    network_from_config,
+    record_error,
+)
 
 CANONICAL_HEADERS = (
+    "FUNCTIONAL_GROUP_NAME",
+    "GROUP_NAME",
+    "SERVICE_TAG",
+    "PARENT_SERVICE_TAG",
+    "HOSTNAME",
+    "ADMIN_MAC",
+    "ADMIN_IP",
+    "BMC_MAC",
+    "BMC_IP",
+    "IB_NIC_NAME",
+    "IB_IPV4",
+    "IB_IPV6",
+)
+LEGACY_HEADERS = (
     "FUNCTIONAL_GROUP_NAME",
     "GROUP_NAME",
     "SERVICE_TAG",
@@ -162,7 +181,8 @@ def _validate_unique_values(
         "HOSTNAME",
         "ADMIN_MAC",
         "ADMIN_IP",
-        "IB_IP",
+        "IB_IPV4",
+        "IB_IPV6",
     ):
         values = [row.get(field, "") for _, row in rows]
         if field == "ADMIN_MAC":
@@ -225,7 +245,7 @@ def _validate_addresses(
                 msg.pxe_mapping_invalid_mac_msg(field, value, row_number),
             )
 
-    for field in ("ADMIN_IP", "BMC_IP", "IB_IP"):
+    for field in ("ADMIN_IP", "BMC_IP", "IB_IPV4"):
         value = row.get(field, "")
         if value and not is_valid_ipv4(value):
             record_error(
@@ -235,6 +255,14 @@ def _validate_addresses(
                     field, value, row_number
                 ),
             )
+
+    ib_ipv6 = row.get("IB_IPV6", "")
+    if ib_ipv6 and not is_valid_ipv6(ib_ipv6):
+        record_error(
+            errors,
+            logger,
+            msg.pxe_mapping_invalid_ipv6_msg("IB_IPV6", ib_ipv6, row_number),
+        )
 
 
 def _validate_names(
@@ -303,8 +331,14 @@ def _validate_ib_pair(
     logger: Logger | None,
 ) -> None:
     """Require the optional InfiniBand NIC name and IP as a pair."""
-    if bool(row.get("IB_NIC_NAME", "")) != bool(row.get("IB_IP", "")):
+    if bool(row.get("IB_NIC_NAME", "")) != bool(row.get("IB_IPV4", "")):
         record_error(errors, logger, msg.pxe_mapping_ib_pair_msg(row_number))
+
+    if row.get("IB_IPV6", "") and not row.get("IB_NIC_NAME", ""):
+        record_error(
+            errors, logger,
+            msg.pxe_mapping_ib_ipv6_without_nic_msg(row_number),
+        )
 
 
 def _validate_ib_nic_name(
@@ -627,7 +661,14 @@ def validate(
         record_error(errors, logger, msg.pxe_mapping_empty_msg(path))
         return errors
 
-    if raw_header != list(CANONICAL_HEADERS):
+    if raw_header == list(LEGACY_HEADERS):
+        raw_header = list(CANONICAL_HEADERS)
+        header = list(CANONICAL_HEADERS)
+        raw_rows = [
+            (row_number, row + [""])
+            for row_number, row in raw_rows
+        ]
+    elif raw_header != list(CANONICAL_HEADERS):
         record_error(
             errors,
             logger,
