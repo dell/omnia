@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IPoIB IPv6 Allocation Export",
+  "description": "Versioned per-interface allocation contract for IPoIB IPv6 configuration (ER-ORCH-005).",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "allocations"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of this allocation schema (e.g. '1.0')."
+    },
+    "snapshot_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for the allocation snapshot used for traceability."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp when the allocation export was generated."
+    },
+    "allocations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/allocation_record"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "allocation_record": {
+      "type": "object",
+      "required": [
+        "allocation_id",
+        "node_id",
+        "hostname",
+        "interface_id",
+        "address",
+        "prefix_length",
+        "address_family",
+        "fabric_id",
+        "rail_id",
+        "lifecycle_state"
+      ],
+      "properties": {
+        "allocation_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unique identifier for this allocation record."
+        },
+        "node_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Node identifier (e.g. xname or inventory ID)."
+        },
+        "hostname": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Hostname of the node."
+        },
+        "interface_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Logical IPoIB interface identifier (e.g. 'ib0', 'ib1')."
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "description": "IPv4 or IPv6 address for this allocation."
+        },
+        "prefix_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128,
+          "description": "CIDR prefix length for the address."
+        },
+        "address_family": {
+          "type": "string",
+          "enum": ["ipv4", "ipv6"],
+          "description": "Address family of this allocation."
+        },
+        "fabric_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identifier for the IB fabric this allocation belongs to."
+        },
+        "rail_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identifier for the IB rail (e.g. 'rail1', 'rail2')."
+        },
+        "rack_id": {
+          "type": "string",
+          "description": "Rack identifier for the node."
+        },
+        "lifecycle_state": {
+          "type": "string",
+          "enum": ["active", "reserved", "retired"],
+          "description": "Lifecycle state of this allocation. Only 'active' records are configured."
+        },
+        "ipoib_mode": {
+          "type": "string",
+          "enum": ["datagram", "connected"],
+          "description": "IPoIB transport mode."
+        },
+        "mtu": {
+          "type": "integer",
+          "minimum": 68,
+          "maximum": 65520,
+          "description": "MTU for the IPoIB interface."
+        },
+        "pkey": {
+          "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{4}$",
+          "description": "Partition key in hex (e.g. '0x8001')."
+        },
+        "approved_prefix": {
+          "type": "string",
+          "description": "The approved prefix this address was allocated from."
+        },
+        "authority": {
+          "type": "string",
+          "description": "Source authority that issued this allocation (e.g. 'static-ipam', 'netbox')."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

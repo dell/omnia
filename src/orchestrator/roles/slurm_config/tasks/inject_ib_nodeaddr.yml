@@ -1,0 +1,184 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Inject NodeAddr from IPoIB allocation into Slurm node_params.
+#
+# Address family for NodeAddr is derived from ib_addr_mode in network_spec:
+#   ipv4-only  → NodeAddr = IB IPv4 address  (auto-derived)
+#   ipv6-only  → NodeAddr = IB IPv6 address  (auto-derived)
+#   dual-stack → NodeAddr = slurm_preferred_addr_family from network_spec
+#                (user must set explicitly; no hidden default)
+#
+# For dual-stack and ipv6-only, CommunicationParameters gets EnableIPv6.
+#
+# Prerequisites:
+#   - node_params must be populated (runs after hardware discovery)
+#   - IB allocation file and network_spec must exist
+
+- name: Check if IB allocation file exists
+  ansible.builtin.stat:
+    path: "{{ ib_ipv6_allocation_file_path }}"
+  register: _ib_alloc_stat
+  delegate_to: localhost
+
+- name: Load IB allocation data and inject NodeAddr
+  when: _ib_alloc_stat.stat.exists
+  block:
+    - name: Slurp IB allocation file
+      ansible.builtin.slurp:
+        src: "{{ ib_ipv6_allocation_file_path }}"
+      register: _ib_alloc_raw
+      delegate_to: localhost
+
+    - name: Parse IB allocation JSON
+      ansible.builtin.set_fact:
+        _ib_alloc_data: "{{ _ib_alloc_raw.content | b64decode | from_json }}"
+
+    - name: Load network_spec for IB settings
+      ansible.builtin.slurp:
+        src: "{{ input_project_dir }}/network_spec.yml"
+      register: _net_spec_raw
+      delegate_to: localhost
+
+    - name: Parse network_spec and extract IB network block
+      ansible.builtin.set_fact:
+        _ib_net_block: >-
+          {{ (_net_spec_raw.content | b64decode | from_yaml).Networks
+             | selectattr('ib_network', 'defined')
+             | map(attribute='ib_network')
+             | first | default({}) }}
+
+    - name: Extract ib_addr_mode and slurm_preferred_addr_family
+      ansible.builtin.set_fact:
+        _ib_addr_mode: "{{ _ib_net_block.ib_addr_mode | default('') | trim }}"
+        _ib_slurm_pref_af: "{{ _ib_net_block.slurm_preferred_addr_family | default('') | trim }}"
+
+    - name: Display detected IB settings
+      ansible.builtin.debug:
+        msg: >-
+          [IB-Slurm] ib_addr_mode={{ _ib_addr_mode }},
+          slurm_preferred_addr_family={{ _ib_slurm_pref_af | default('not set') }}
+      when: _ib_addr_mode | length > 0
+
+    - name: Fail if dual-stack but slurm_preferred_addr_family not set
+      ansible.builtin.fail:
+        msg: >-
+          ib_addr_mode is 'dual-stack' but slurm_preferred_addr_family is not set
+          in network_spec.yml (ib_network section). Slurm NodeAddr accepts only one
+          address per node — set slurm_preferred_addr_family to 'ipv4' or 'ipv6' to
+          choose which IB address Slurm uses for inter-daemon communication.
+      when:
+        - _ib_addr_mode == 'dual-stack'
+        - _ib_slurm_pref_af | length == 0
+
+    - name: Warn if slurm_preferred_addr_family mismatches ib_addr_mode (ignored)
+      ansible.builtin.debug:
+        msg: >-
+          [IB-Slurm] WARNING: slurm_preferred_addr_family='{{ _ib_slurm_pref_af }}'
+          is set but ib_addr_mode='{{ _ib_addr_mode }}' — only
+          {{ 'ipv4' if _ib_addr_mode == 'ipv4-only' else 'ipv6' }} addresses are
+          available. Ignoring slurm_preferred_addr_family and using
+          {{ 'ipv4' if _ib_addr_mode == 'ipv4-only' else 'ipv6' }}.
+      when:
+        - _ib_slurm_pref_af | length > 0
+        - >-
+          (_ib_addr_mode == 'ipv4-only' and _ib_slurm_pref_af == 'ipv6') or
+          (_ib_addr_mode == 'ipv6-only' and _ib_slurm_pref_af == 'ipv4')
+
+    - name: Determine target address family for NodeAddr
+      ansible.builtin.set_fact:
+        _ib_nodeaddr_af: >-
+          {% if _ib_addr_mode == 'ipv4-only' %}ipv4
+          {% elif _ib_addr_mode == 'ipv6-only' %}ipv6
+          {% elif _ib_addr_mode == 'dual-stack' %}{{ _ib_slurm_pref_af }}
+          {% else %}none{% endif %}
+      when: _ib_addr_mode | length > 0
+
+    - name: Display NodeAddr address family selection
+      ansible.builtin.debug:
+        msg: "[IB-Slurm] NodeAddr address family={{ _ib_nodeaddr_af | trim }} (ib_addr_mode={{ _ib_addr_mode }})"
+      when: _ib_addr_mode | length > 0
+
+    - name: Build hostname to IB address mapping
+      ansible.builtin.set_fact:
+        _ib_nodeaddr_map: >-
+          {{ _ib_nodeaddr_map | default({})
+             | combine({item.hostname: item.address}) }}
+      loop: "{{ _ib_alloc_data.allocations | selectattr('address_family', 'equalto', _ib_nodeaddr_af | trim) | list }}"
+      when:
+        - _ib_addr_mode | length > 0
+        - _ib_nodeaddr_af | default('none') | trim != 'none'
+
+    - name: Display IB NodeAddr mapping
+      ansible.builtin.debug:
+        msg: "[IB-Slurm] NodeAddr map ({{ _ib_nodeaddr_af | trim }}): {{ _ib_nodeaddr_map | default({}) }}"
+      when: _ib_nodeaddr_map | default({}) | length > 0
+
+    - name: Initialize updated node_params list
+      ansible.builtin.set_fact:
+        _updated_node_params: []
+      when:
+        - _ib_nodeaddr_map | default({}) | length > 0
+        - node_params | length > 0
+
+    - name: Add NodeAddr to each node_params entry
+      ansible.builtin.set_fact:
+        _updated_node_params: "{{ _updated_node_params + [_entry] }}"
+      vars:
+        _entry: >-
+          {{ item | combine({'NodeAddr': _ib_nodeaddr_map[item.NodeName]})
+             if item.NodeName in _ib_nodeaddr_map
+             else item }}
+      loop: "{{ node_params }}"
+      loop_control:
+        label: "{{ item.NodeName }}"
+      when:
+        - _ib_nodeaddr_map | default({}) | length > 0
+        - node_params | length > 0
+
+    - name: Apply updated node_params with NodeAddr
+      ansible.builtin.set_fact:
+        node_params: "{{ _updated_node_params }}"
+      when:
+        - _updated_node_params | default([]) | length > 0
+
+    - name: Display updated node_params with NodeAddr
+      ansible.builtin.debug:
+        msg: "[IB-Slurm] Updated node_params: {{ node_params }}"
+      when: _ib_nodeaddr_map | default({}) | length > 0
+
+    - name: Add EnableIPv6 to CommunicationParameters for dual-stack or ipv6-only
+      ansible.builtin.set_fact:
+        apply_config: >-
+          {{ apply_config | combine({
+               'slurm': apply_config.slurm | combine({
+                 'CommunicationParameters': ((apply_config.slurm.CommunicationParameters | default('')) ~ ',EnableIPv6')
+                   | regex_replace('^,', '')
+               })
+             }) }}
+      when:
+        - _ib_addr_mode == 'dual-stack' or _ib_addr_mode == 'ipv6-only'
+        - _ib_nodeaddr_map | default({}) | length > 0
+
+    - name: Display CommunicationParameters update
+      ansible.builtin.debug:
+        msg: "[IB-Slurm] CommunicationParameters={{ apply_config.slurm.CommunicationParameters | default('not set') }}"
+      when:
+        - _ib_addr_mode == 'dual-stack' or _ib_addr_mode == 'ipv6-only'
+        - _ib_nodeaddr_map | default({}) | length > 0
+
+- name: Skip IB NodeAddr injection (no allocation file)
+  ansible.builtin.debug:
+    msg: "[IB-Slurm] No IB allocation file found at {{ ib_ipv6_allocation_file_path }} — skipping NodeAddr injection"
+  when: not _ib_alloc_stat.stat.exists
