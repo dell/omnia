@@ -19,15 +19,17 @@ from library.functions import check_lifecycle_performance
 
 from nft.result import verify_nft
 
-pytestmark = [pytest.mark.nft, pytest.mark.performance]
 
-
+@pytest.mark.nft
+@pytest.mark.performance
 @pytest.mark.order(10)
 def test_precheck_performance(host):
     """Require precheck to complete within its configured threshold."""
     verify_nft(host, "precheck_performance", check_lifecycle_performance, "precheck")
 
 
+@pytest.mark.nft
+@pytest.mark.performance
 @pytest.mark.destructive
 @pytest.mark.order(20)
 def test_prepare_performance(host):
@@ -35,6 +37,8 @@ def test_prepare_performance(host):
     verify_nft(host, "prepare_performance", check_lifecycle_performance, "prepare")
 
 
+@pytest.mark.nft
+@pytest.mark.performance
 @pytest.mark.destructive
 @pytest.mark.order(40)
 def test_provision_performance(host):
@@ -42,6 +46,8 @@ def test_provision_performance(host):
     verify_nft(host, "provision_performance", check_lifecycle_performance, "provision")
 
 
+@pytest.mark.nft
+@pytest.mark.performance
 @pytest.mark.destructive
 @pytest.mark.order(90)
 def test_cleanup_performance(host):

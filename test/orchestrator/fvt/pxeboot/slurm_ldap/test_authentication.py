@@ -29,21 +29,22 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.openldap,
-    pytest.mark.slurm,
-    pytest.mark.non_disruptive,
-]
 
-
-@pytest.mark.order(239)
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(242)
 def test_slurm_pam_policy(host):
     """Verify SSHD, the PAM module, and pam_slurm_adopt account policy."""
     verify_pxeboot(host, "slurm_pam", check_slurm_pam_policy)
 
 
-@pytest.mark.order(240)
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(243)
 def test_slurm_control_ldap_authentication(host):
     """Verify a valid LDAP password on the Slurm control node."""
     verify_pxeboot(
@@ -53,8 +54,12 @@ def test_slurm_control_ldap_authentication(host):
     )
 
 
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
 @pytest.mark.negative
-@pytest.mark.order(241)
+@pytest.mark.order(244)
 def test_slurm_control_ldap_invalid_password(host):
     """Verify an invalid LDAP password is rejected on the control node."""
     verify_pxeboot(
@@ -64,7 +69,11 @@ def test_slurm_control_ldap_invalid_password(host):
     )
 
 
-@pytest.mark.order(242)
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(245)
 def test_slurm_login_ldap_authentication(host):
     """Verify a valid LDAP password on every mapped login node."""
     verify_pxeboot(
@@ -74,8 +83,12 @@ def test_slurm_login_ldap_authentication(host):
     )
 
 
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
 @pytest.mark.negative
-@pytest.mark.order(243)
+@pytest.mark.order(246)
 def test_slurm_login_ldap_invalid_password(host):
     """Verify an invalid LDAP password is rejected on every login node."""
     verify_pxeboot(
@@ -85,7 +98,11 @@ def test_slurm_login_ldap_invalid_password(host):
     )
 
 
-@pytest.mark.order(244)
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(247)
 def test_slurm_compiler_ldap_authentication(host):
     """Verify a valid LDAP password on every login-compiler node."""
     verify_pxeboot(
@@ -95,8 +112,12 @@ def test_slurm_compiler_ldap_authentication(host):
     )
 
 
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
 @pytest.mark.negative
-@pytest.mark.order(245)
+@pytest.mark.order(248)
 def test_slurm_compiler_ldap_invalid_password(host):
     """Verify invalid LDAP passwords are rejected on login-compiler nodes."""
     verify_pxeboot(
@@ -106,15 +127,23 @@ def test_slurm_compiler_ldap_invalid_password(host):
     )
 
 
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
 @pytest.mark.negative
-@pytest.mark.order(246)
+@pytest.mark.order(249)
 def test_slurm_pam_no_job_access(host):
     """Verify LDAP compute login is denied without an active job."""
     verify_pxeboot(host, "slurm_pam_no_job", check_slurm_pam_no_job_access)
 
 
+@pytest.mark.sanity
+@pytest.mark.openldap
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
 @pytest.mark.negative
-@pytest.mark.order(247)
+@pytest.mark.order(250)
 def test_slurm_invalid_ldap_identity(host):
     """Verify a generated missing directory identity is rejected."""
     verify_pxeboot(host, "slurm_invalid_ldap", check_slurm_invalid_ldap_identity)

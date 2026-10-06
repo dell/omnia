@@ -22,20 +22,20 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.slurm,
-    pytest.mark.non_disruptive,
-]
 
-
-@pytest.mark.order(260)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(263)
 def test_slurm_infiniband_configuration(host):
     """Verify mapped IB interface, address, prefix, link, MTU, and OFED."""
     verify_pxeboot(host, "slurm_ib_configuration", check_slurm_infiniband_configuration)
 
 
-@pytest.mark.order(261)
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(264)
 def test_slurm_infiniband_connectivity(host):
     """Verify every mapped IB endpoint can reach every mapped peer."""
     verify_pxeboot(host, "slurm_ib_connectivity", check_slurm_infiniband_connectivity)

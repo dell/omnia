@@ -198,7 +198,10 @@ def check_kubernetes_control_plane_recovery(host):
         final_owners = _vip_owners(host, rows, vip)
         final_vip_ok = len(final_owners) == 1
         local_etcd = check_kubernetes_local_etcd_integrity(host)
-        local_etcd_ok = local_etcd["success"]
+        local_etcd_required = bool(config.get("etcd_on_local_disk", False))
+        local_etcd_ok = (
+            local_etcd["success"] if local_etcd_required else True
+        )
         ok = (
             failover_ok
             and ssh_ok
@@ -207,6 +210,21 @@ def check_kubernetes_control_plane_recovery(host):
             and final_vip_ok
             and local_etcd_ok
         )
+        error_parts = []
+        if not ssh_ok:
+            error_parts.append("node did not return after reboot")
+        if not failover_ok:
+            error_parts.append("VIP failover failed")
+        if not cloud_init_ok:
+            error_parts.append("cloud-init did not complete")
+        if not ready_ok:
+            error_parts.append("Kubernetes node not Ready")
+        if not final_vip_ok:
+            error_parts.append(
+                f"final VIP owners: {', '.join(final_owners) or 'none'}"
+            )
+        if not local_etcd_ok:
+            error_parts.append("local-etcd integrity failed")
         return runtime_result(
             ok,
             summary,
@@ -214,23 +232,21 @@ def check_kubernetes_control_plane_recovery(host):
                 ("Rebooted node", owner["HOSTNAME"]),
                 ("Kubernetes identity", cluster_node_name),
                 ("Readiness observer", watcher["HOSTNAME"]),
-                ("New boot observed", "passed" if ssh_ok else "failed"),
-                ("VIP failover", "passed" if failover_ok else "failed"),
-                ("Cloud-init state", "passed" if cloud_init_ok else "failed"),
-                ("Kubernetes Ready", "passed" if ready_ok else "failed"),
+                ("New boot observed", "passed" if ssh_ok else "FAILED"),
+                ("VIP failover", "passed" if failover_ok else "FAILED"),
+                ("Cloud-init state", "passed" if cloud_init_ok else "FAILED"),
+                ("Kubernetes Ready", "passed" if ready_ok else "FAILED"),
                 (
                     "Local etcd persistence",
                     (
                         "not applicable"
-                        if local_etcd.get("skipped")
-                        else ("passed" if local_etcd_ok else "failed")
+                        if not local_etcd_required or local_etcd.get("skipped")
+                        else ("passed" if local_etcd["success"] else "FAILED")
                     ),
                 ),
                 ("Final VIP owners", ", ".join(final_owners) or "none"),
             ],
-            "The rebooted control plane did not complete every recovery postcondition"
-            if not ok
-            else "",
+            "; ".join(error_parts),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -303,22 +319,42 @@ def check_kubernetes_local_etcd_recovery(host):
             and identity_preserved
             and etcd["success"]
         )
+        error_parts = []
+        if not ssh_ok:
+            error_parts.append("node did not return after reboot")
+        if not cloud_ok:
+            error_parts.append("cloud-init did not complete")
+        if not ready_ok:
+            error_parts.append("Kubernetes node not Ready")
+        if not identity_preserved:
+            error_parts.append("mount source/UUID changed across reboot")
+        if not after_integrity["success"]:
+            error_parts.append("local-etcd integrity check failed")
+        if not etcd["success"]:
+            error_parts.append("etcd endpoint health check failed")
         return runtime_result(
             ok,
             summary,
             [
                 ("Rebooted node", control["HOSTNAME"]),
                 ("Kubernetes identity", cluster_node_name),
-                ("New boot observed", ssh_ok),
-                ("Cloud-init completion", cloud_ok),
-                ("Kubernetes Ready", ready_ok),
-                ("Mount source and UUID preserved", identity_preserved),
-                ("Local-etcd integrity", after_integrity["success"]),
-                ("etcd endpoint health", etcd["success"]),
+                ("New boot observed", "passed" if ssh_ok else "FAILED"),
+                ("Cloud-init completion", "passed" if cloud_ok else "FAILED"),
+                ("Kubernetes Ready", "passed" if ready_ok else "FAILED"),
+                (
+                    "Mount source and UUID preserved",
+                    "passed" if identity_preserved else "FAILED",
+                ),
+                (
+                    "Local-etcd integrity",
+                    "passed" if after_integrity["success"] else "FAILED",
+                ),
+                (
+                    "etcd endpoint health",
+                    "passed" if etcd["success"] else "FAILED",
+                ),
             ],
-            "Local-etcd identity or cluster health was not preserved across reboot"
-            if not ok
-            else "",
+            "; ".join(error_parts),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
