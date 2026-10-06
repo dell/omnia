@@ -1861,7 +1861,8 @@ test_discovery:
   rules:
     - if: '$SKIP_STAGES =~ /discovery/'
       when: never
-    - if: '$ENABLE_DISCOVERY == "true" && ($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default") && $TEST_MODE == "true" && ($DOMAINS == "default" || $DOMAINS =~ /discovery/)'
+    - if: '$ENABLE_DISCOVERY == "true" && ($PIPELINE_MODE == "deploy" || $PIPELINE_MODE == "default")
+        && $TEST_MODE == "true" && ($DOMAINS == "default" || $DOMAINS =~ /discovery/)'
       when: on_success
     - when: never
   needs:

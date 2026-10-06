@@ -40,7 +40,7 @@
 #
 # CLUSTER CONFIGURATION
 # ~~~~~~~~~~~~~~~~~~~~~
-# By default, this pipeline supports cluster1. To add more clusters, use the 
+# By default, this pipeline supports cluster1. To add more clusters, use the
 # setup_gitlab_project.py script:
 #
 #   python3 setup_gitlab_project.py --update \
