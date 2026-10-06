@@ -331,6 +331,7 @@ def load_pipeline_config(config_path):
             "pipeline_mode": "PIPELINE_MODE",
             "domains": "DOMAINS",
             "enable_setup": "ENABLE_SETUP",
+            "enable_discovery": "ENABLE_DISCOVERY",
             "test_mode": "TEST_MODE",
             "dry_run": "DRY_RUN",
             "verbose": "VERBOSE",
@@ -346,6 +347,7 @@ def load_pipeline_config(config_path):
         tag_map = {
             "repo_manager": "REPO_MANAGER_TAGS",
             "image_build_manager": "IMAGE_BUILD_MANAGER_TAGS",
+            "discovery": "DISCOVERY_TAGS",
             "orchestrator": "ORCHESTRATOR_TAGS",
             "telemetry": "TELEMETRY_TAGS",
             "build_stream": "BUILD_STREAM_TAGS",
@@ -361,6 +363,7 @@ def load_pipeline_config(config_path):
             "test_main": "TEST_MAIN_CMD",
             "repo_manager": "TEST_REPO_MANAGER_CMD",
             "image_build_manager": "TEST_IMAGE_BUILD_MANAGER_CMD",
+            "discovery": "TEST_DISCOVERY_CMD",
             "orchestrator": "TEST_ORCHESTRATOR_CMD",
             "telemetry": "TEST_TELEMETRY_CMD",
             "build_stream": "TEST_BUILD_STREAM_CMD",
@@ -608,6 +611,7 @@ class GitLabClient:
 DOMAIN_INPUT_MAP = {
     "repo_manager": "src/repo_manager/input",
     "image_build_manager": "src/image_build_manager/input",
+    "discovery": "src/discovery/input",
     "orchestrator": "src/orchestrator/input",
     "telemetry": "src/telemetry/input",
     "build_stream": "src/build_stream/input",
@@ -628,6 +632,10 @@ DOMAIN_TEST_MAP = {
     },
     "image_build_manager": {
         "src_dir": "test/image_build_manager",
+        "files": ["test_config.yml", "test_run_config.yml"],
+    },
+    "discovery": {
+        "src_dir": "test/discovery",
         "files": ["test_config.yml", "test_run_config.yml"],
     },
     "orchestrator": {
@@ -771,16 +779,19 @@ def generate_cluster_trigger_job(cluster_name):
     PIPELINE_MODE: "${{{upper_prefix}_PIPELINE_MODE}}"
     DOMAINS: "${{{upper_prefix}_DOMAINS}}"
     ENABLE_SETUP: "${{{upper_prefix}_ENABLE_SETUP}}"
+    ENABLE_DISCOVERY: "${{{upper_prefix}_ENABLE_DISCOVERY}}"
     TEST_MODE: "${{{upper_prefix}_TEST_MODE}}"
     DRY_RUN: "${{{upper_prefix}_DRY_RUN}}"
     VERBOSE: "${{{upper_prefix}_VERBOSE}}"
     REPO_MANAGER_TAGS: "${{{upper_prefix}_REPO_MANAGER_TAGS}}"
     IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_IMAGE_BUILD_MANAGER_TAGS}}"
     ORCHESTRATOR_TAGS: "${{{upper_prefix}_ORCHESTRATOR_TAGS}}"
+    DISCOVERY_TAGS: "${{{upper_prefix}_DISCOVERY_TAGS}}"
     TELEMETRY_TAGS: "${{{upper_prefix}_TELEMETRY_TAGS}}"
     TEST_MAIN_CMD: "${{{upper_prefix}_TEST_MAIN_CMD}}"
     TEST_REPO_MANAGER_CMD: "${{{upper_prefix}_TEST_REPO_MANAGER_CMD}}"
     TEST_IMAGE_BUILD_MANAGER_CMD: "${{{upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD}}"
+    TEST_DISCOVERY_CMD: "${{{upper_prefix}_TEST_DISCOVERY_CMD}}"
     TEST_ORCHESTRATOR_CMD: "${{{upper_prefix}_TEST_ORCHESTRATOR_CMD}}"
     TEST_TELEMETRY_CMD: "${{{upper_prefix}_TEST_TELEMETRY_CMD}}"
     SKIP_STAGES: "${{{upper_prefix}_SKIP_STAGES}}"
@@ -849,16 +860,19 @@ def generate_cluster_build_stream_trigger_job(cluster_name):
     PIPELINE_MODE: "${{{upper_prefix}_PIPELINE_MODE}}"
     DOMAINS: "${{{upper_prefix}_DOMAINS}}"
     ENABLE_SETUP: "${{{upper_prefix}_ENABLE_SETUP}}"
+    ENABLE_DISCOVERY: "${{{upper_prefix}_ENABLE_DISCOVERY}}"
     TEST_MODE: "${{{upper_prefix}_TEST_MODE}}"
     DRY_RUN: "${{{upper_prefix}_DRY_RUN}}"
     VERBOSE: "${{{upper_prefix}_VERBOSE}}"
     REPO_MANAGER_TAGS: "${{{upper_prefix}_REPO_MANAGER_TAGS}}"
     IMAGE_BUILD_MANAGER_TAGS: "${{{upper_prefix}_IMAGE_BUILD_MANAGER_TAGS}}"
     ORCHESTRATOR_TAGS: "${{{upper_prefix}_ORCHESTRATOR_TAGS}}"
+    DISCOVERY_TAGS: "${{{upper_prefix}_DISCOVERY_TAGS}}"
     BUILD_STREAM_TAGS: "${{{upper_prefix}_BUILD_STREAM_TAGS}}"
     TEST_MAIN_CMD: "${{{upper_prefix}_TEST_MAIN_CMD}}"
     TEST_REPO_MANAGER_CMD: "${{{upper_prefix}_TEST_REPO_MANAGER_CMD}}"
     TEST_IMAGE_BUILD_MANAGER_CMD: "${{{upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD}}"
+    TEST_DISCOVERY_CMD: "${{{upper_prefix}_TEST_DISCOVERY_CMD}}"
     TEST_ORCHESTRATOR_CMD: "${{{upper_prefix}_TEST_ORCHESTRATOR_CMD}}"
     TEST_BUILD_STREAM_CMD: "${{{upper_prefix}_TEST_BUILD_STREAM_CMD}}"
     SKIP_STAGES: "${{{upper_prefix}_SKIP_STAGES}}"
@@ -884,18 +898,21 @@ def generate_cluster_variables(cluster_name):
   {upper_prefix}_PIPELINE_MODE: "default"
   {upper_prefix}_DOMAINS: "default"
   {upper_prefix}_ENABLE_SETUP: "false"
+  {upper_prefix}_ENABLE_DISCOVERY: "false"
   {upper_prefix}_TEST_MODE: "false"
   {upper_prefix}_DRY_RUN: "false"
   {upper_prefix}_VERBOSE: "false"
   {upper_prefix}_REPO_MANAGER_TAGS: ""
   {upper_prefix}_IMAGE_BUILD_MANAGER_TAGS: ""
   {upper_prefix}_ORCHESTRATOR_TAGS: ""
+  {upper_prefix}_DISCOVERY_TAGS: ""
   {upper_prefix}_TELEMETRY_TAGS: ""
   {upper_prefix}_BUILD_STREAM_TAGS: ""
   {upper_prefix}_TEST_MAIN_CMD: "./run_validation.sh fvt_main verify"
   {upper_prefix}_TEST_REPO_MANAGER_CMD: "./run_validation.sh fvt_repo_manager verify"
   {upper_prefix}_TEST_IMAGE_BUILD_MANAGER_CMD: "./run_validation.sh fvt_image_build_manager verify"
   {upper_prefix}_TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator verify"
+  {upper_prefix}_TEST_DISCOVERY_CMD: "./run_validation.sh fvt_discovery verify"
   {upper_prefix}_TEST_TELEMETRY_CMD: "./run_validation.sh fvt_telemetry verify"
   {upper_prefix}_TEST_BUILD_STREAM_CMD: "./run_validation.sh fvt_build_stream test"
   {upper_prefix}_TEST_UTILS_CMD: "./run_validation.sh fvt_utils verify"

@@ -11,17 +11,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-- name: Save compute image package hashes
-  ansible.builtin.copy:
-    content: "{{ _compute_pkg_hashes[item.key] }}"
-    dest: "{{ image_build_log_dir }}/.compute_pkg_hash_{{ item.key }}"
-    mode: "{{ dir_permissions_644 }}"
-  loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
-  loop_control:
-    loop_var: item
-    label: "{{ item.key }}"
-  when:
-    - _pkg_source == 'config'
-    - orchestrator_result is defined
-    - (orchestrator_result.summary.failed | default(0) | int) == 0
+
+"""Slurm HPC benchmarks post-PXE verification suite."""

@@ -19,9 +19,9 @@ from library.functions import check_cleanup_artifacts
 
 from fvt.result import verify_cleanup
 
-pytestmark = [pytest.mark.sanity, pytest.mark.destructive]
 
-
+@pytest.mark.sanity
+@pytest.mark.destructive
 @pytest.mark.order(5)
 def test_artifacts_removed_and_inputs_preserved(host):
     """Verify generated state is removed without deleting required inputs."""

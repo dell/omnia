@@ -353,8 +353,12 @@ def check_apptainer_restricted_sif(host):
                     PXEBOOT_COMMANDS["apptainer_restricted_cleanup"]
                     % shlex.quote(restricted),
                 )
-            except (OSError, RuntimeError, TypeError, ValueError):
-                pass
+            except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                print(
+                    f"    ! cleanup: restricted SIF removal failed: "
+                    f"{str(exc)[:100]}",
+                    flush=True,
+                )
 
 
 def check_apptainer_nfs_visibility(host):

@@ -22,21 +22,21 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = pytest.mark.non_disruptive
 
-
+@pytest.mark.non_disruptive
 @pytest.mark.functional
 @pytest.mark.sanity
 @pytest.mark.slurm
-@pytest.mark.order(229)
+@pytest.mark.order(232)
 def test_slurm_reconfigure(host):
     """Reconfigure Slurm and verify membership remains healthy."""
     verify_pxeboot(host, "slurm_reconfigure", check_slurm_reconfigure)
 
 
+@pytest.mark.non_disruptive
 @pytest.mark.sanity
 @pytest.mark.slurm
-@pytest.mark.order(231)
+@pytest.mark.order(234)
 def test_slurm_custom_configuration(host):
     """Verify custom values, NFS delivery, and effective visibility."""
     verify_pxeboot(host, "slurm_custom_configuration", check_slurm_custom_configuration)

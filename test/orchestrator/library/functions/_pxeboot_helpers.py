@@ -163,6 +163,7 @@ def load_workload_context(
     catalog = catalog_document.get("catalog", {})
     if not isinstance(catalog, dict) or not isinstance(catalog.get("groups"), dict):
         raise TypeError(f"Catalog groups are invalid in {catalog_path}")
+    context["catalog"] = catalog
     feature_tokens = _catalog_feature_tokens(catalog, context["rows"])
     context["features"] = {
         "openldap": any("openldap" in token for token in feature_tokens),

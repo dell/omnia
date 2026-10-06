@@ -242,6 +242,32 @@ cleanup_k8s: true
 # control because it always passes explicit true or false values.
 
 # =============================================================================
+# SLURM NODE REMOVE/ADD LIFECYCLE
+# =============================================================================
+# Admin IPs of existing Slurm compute nodes (slurm_node_* roles only) to
+# remove and re-add during the pxeboot slurm_lifecycle verify suite.
+#
+# This test exercises the standard Slurm node removal and re-addition
+# lifecycle.  Only existing slurm_node entries from the PXE mapping file
+# can be used here.  You cannot add a new node that is not already present
+# in the PXE mapping; the test removes existing nodes and then adds the
+# same nodes back.
+#
+# When empty (default):
+#   The test automatically removes the LAST slurm_node entry from the PXE
+#   mapping file, runs provision, verifies removal, then restores the
+#   original mapping, runs provision again, and verifies re-addition.
+#   If no slurm_node is present in the mapping, the test is skipped.
+#
+# When one or more Admin IPs are provided (comma-separated):
+#   The test validates that every IP exists in the PXE mapping AND belongs
+#   to a slurm_node_* functional group.  If any IP is missing or belongs
+#   to a non-slurm_node role (e.g. slurm_control_node), the test fails.
+#
+# Example: "182.10.0.50,182.10.0.52"
+slurm_lifecycle_remove_add_nodes: ""
+
+# =============================================================================
 # NON-FUNCTIONAL PERFORMANCE CONTRACTS
 # =============================================================================
 # Maximum accepted wall-clock duration, in seconds, for each lifecycle on the

@@ -23,9 +23,9 @@ from library.functions import (
 
 from nft.result import verify_nft
 
-pytestmark = [pytest.mark.nft, pytest.mark.idempotency]
 
-
+@pytest.mark.nft
+@pytest.mark.idempotency
 @pytest.mark.destructive
 @pytest.mark.order(30)
 def test_prepare_idempotency(host):
@@ -33,12 +33,16 @@ def test_prepare_idempotency(host):
     verify_nft(host, "prepare_idempotency", check_prepare_idempotency)
 
 
+@pytest.mark.nft
+@pytest.mark.idempotency
 @pytest.mark.order(50)
 def test_precheck_idempotency(host):
     """Require repeated precheck to remain read-only."""
     verify_nft(host, "precheck_idempotency", check_precheck_idempotency)
 
 
+@pytest.mark.nft
+@pytest.mark.idempotency
 @pytest.mark.destructive
 @pytest.mark.order(91)
 def test_cleanup_idempotency(host):
