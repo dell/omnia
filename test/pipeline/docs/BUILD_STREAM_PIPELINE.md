@@ -116,17 +116,20 @@ For each cluster, set these variables (e.g., `CLUSTER1_*`):
 | `<CLUSTER>_PIPELINE_MODE` | Pipeline mode |
 | `<CLUSTER>_DOMAINS` | Domain selection |
 | `<CLUSTER>_ENABLE_SETUP` | Force setup in deploy/cleanup modes |
+| `<CLUSTER>_ENABLE_DISCOVERY` | Enable discovery stage |
 | `<CLUSTER>_TEST_MODE` | Enable test stages |
 | `<CLUSTER>_DRY_RUN` | Dry-run mode |
 | `<CLUSTER>_VERBOSE` | Verbose logging |
 | `<CLUSTER>_REPO_MANAGER_TAGS` | Ansible tags for repo_manager |
 | `<CLUSTER>_IMAGE_BUILD_MANAGER_TAGS` | Ansible tags for image_build_manager |
 | `<CLUSTER>_ORCHESTRATOR_TAGS` | Ansible tags for orchestrator |
+| `<CLUSTER>_DISCOVERY_TAGS` | Ansible tags for discovery |
 | `<CLUSTER>_BUILD_STREAM_TAGS` | Ansible tags for build_stream |
 | `<CLUSTER>_TEST_MAIN_CMD` | Test command for main |
 | `<CLUSTER>_TEST_REPO_MANAGER_CMD` | Test command for repo_manager |
 | `<CLUSTER>_TEST_IMAGE_BUILD_MANAGER_CMD` | Test command for image_build_manager |
 | `<CLUSTER>_TEST_ORCHESTRATOR_CMD` | Test command for orchestrator |
+| `<CLUSTER>_TEST_DISCOVERY_CMD` | Test command for discovery |
 | `<CLUSTER>_TEST_BUILD_STREAM_CMD` | Test command for build_stream |
 | `<CLUSTER>_SKIP_STAGES` | Stages to skip |
 
