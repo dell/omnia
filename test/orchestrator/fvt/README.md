@@ -28,7 +28,7 @@ ORCH_FVT_<LIFECYCLE>_<TYPE><NUMBER>
 | `precheck` | `ORCH_FVT_PRECHECK_E001` | `V001`–`V012`, `V100`–`V109` | `environment`, `storage`, `dependencies`, `inputs`, `oim_readiness` |
 | `prepare` | `ORCH_FVT_PREPARE_E001` | `V001`–`V013` | `openchami`, `network`, `openldap` |
 | `provision` | `ORCH_FVT_PROVISION_E001` | `V001`–`V008` | `openchami` |
-| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V103`, `V501`–`V518` | `connectivity`, `cloudinit`, `kubernetes_*`, `slurm_*`, `slurm_dcgm`, `additional_cloud_init` |
+| `pxeboot` | `ORCH_FVT_PXEBOOT_E001` | `V001`–`V103`, `V200`–`V299`, `V400`–`V431`, `V501`–`V518` | `connectivity`, `cloudinit`, `kubernetes_*`, `slurm_*`, `slurm_dcgm`, `additional_cloud_init`, `powervault` |
 | `cleanup` | `ORCH_FVT_CLEANUP_E001` | `V001`–`V006` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
 
 The detailed registry below is the authoritative inventory. Its `Order`
@@ -389,8 +389,10 @@ same compute node independently for each postcondition.
 || 328 | `ORCH_FVT_PXEBOOT_V427` | `test_powervault_bind_io` | `powervault` | `non_disruptive`, `sanity` | Verify bind-mount I/O reaches PV backing store. | All stated checks pass for every applicable target. |
 || 329 | `ORCH_FVT_PXEBOOT_V428` | `test_powervault_slurm_mandatory_bind_mounts` | `powervault` | `non_disruptive`, `sanity` | Verify /var/lib/mysql and /var/spool/slurm configured as bind targets. | All stated checks pass for every applicable target. |
 || 330 | `ORCH_FVT_PXEBOOT_V429` | `test_powervault_mysql_data_on_mount` | `powervault` | `non_disruptive`, `sanity` | Verify MySQL datadir is on PowerVault mount. | All stated checks pass for every applicable target. |
+|| 331 | `ORCH_FVT_PXEBOOT_V430` | `test_neg_powervault_gpt_missing_label` | `powervault` | `negative`, `sanity` | Verify GPT partition check correctly detects missing GPT label. | The expected rejection occurs and no prohibited state is accepted. |
+|| 332 | `ORCH_FVT_PXEBOOT_V431` | `test_neg_powervault_duplicate_fstab` | `powervault` | `negative`, `sanity` | Verify duplicate fstab entry detection works correctly. | The expected rejection occurs and no prohibited state is accepted. |
 
-PowerVault tests skip when `powervault_config` is absent or empty in `storage_config.yml`. The suite validates the iSCSI/multipath/bind-mount contract deployed by `setup_iscsi_storage.sh.j2` and functional_group_prefix targeting.
+PowerVault tests skip when `powervault_config` is absent or empty in `storage_config.yml`. The suite validates the iSCSI/multipath/bind-mount contract deployed by `setup_iscsi_storage.sh.j2` and functional_group_prefix targeting. Negative tests skip when the infrastructure is in normal operational state (has GPT, no duplicates) to avoid destructive cluster modifications.
 ### Additional cloud-init
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
