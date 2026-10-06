@@ -1,0 +1,29 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Internal variables — not intended for user override
+
+ib_ipv6_validation_start_msg: "[IB-IPv6] Starting IPoIB IPv6 allocation validation"
+ib_ipv6_validation_pass_msg: "[IB-IPv6] Allocation validation passed"
+ib_ipv6_validation_fail_msg: "[IB-IPv6] Allocation validation FAILED"
+ib_ipv6_render_start_msg: "[IB-IPv6] Starting NM/SMD/hosts rendering"
+ib_ipv6_render_pass_msg: "[IB-IPv6] Rendering complete"
+ib_ipv6_publish_start_msg: "[IB-IPv6] Publishing configuration to SMD and BSS"
+ib_ipv6_verify_start_msg: "[IB-IPv6] Starting post-configuration verification"
+ib_ipv6_verify_pass_msg: "[IB-IPv6] All interfaces HEALTHY"
+ib_ipv6_verify_degraded_msg: "[IB-IPv6] One or more interfaces DEGRADED — see errors"
+ib_ipv6_allocation_missing_msg: >-
+  IPoIB IPv6 allocation file not found.
+  Ensure ib_ipv6_allocation_file is configured in network_spec.yml
+  and the allocation export has been generated.

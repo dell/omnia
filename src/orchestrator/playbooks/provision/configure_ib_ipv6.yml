@@ -1,0 +1,112 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Configure IPoIB IPv6 — Validate allocations, render NM/SMD/hosts, publish, verify
+#
+# Pipeline (ER-ORCH-005):
+#   1. Validate allocation export (L1 schema + L2 semantic)
+#   2. Render nmcli profiles, cloud-init scripts, SMD payloads, /etc/hosts block
+#   3. Publish to SMD, BSS (cloud-init), and /etc/hosts
+#   4. Verify post-configuration state (address, routes, peers, OpenSM)
+#
+# Prerequisites:
+#   - provision_preamble.yml must have run (orchestrator_setup, functional groups)
+#   - network_spec.yml must define ib_addr_mode and ib_ipv6_allocation_file
+#   - Allocation export JSON must exist at the configured path
+#
+# Usage:
+#   ansible-playbook configure_ib_ipv6.yml
+#   # Or as part of the full orchestrator pipeline:
+#   ansible-playbook orchestrator.yml --tags ib_ipv6
+
+- name: Setup orchestrator environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - role: orchestrator_setup
+      vars:
+        openchami_vars_support: true
+        oim_group: true
+        orchestrator_initialize_state: false
+
+- name: Authenticate with OpenCHAMI
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: OpenCHAMI cluster authentication
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: openchami_auth.yml
+      vars:
+        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
+- name: Configure IPoIB IPv6 addressing
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags:
+    - ib_ipv6
+    - provision
+  pre_tasks:
+    - name: Load orchestrator state
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/orchestrator_state.yml"
+      failed_when: false
+
+    - name: Load network spec data
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
+        name: network_spec_data
+      delegate_to: localhost
+
+    - name: Normalize network spec into flat dict
+      ansible.builtin.set_fact:
+        _ib_ipv6_network_data: >-
+          {{ network_spec_data.Networks
+             | default([])
+             | ansible.builtin.combine }}
+      delegate_to: localhost
+
+    - name: Check if IPoIB addressing is enabled
+      ansible.builtin.set_fact:
+        _ib_ipv6_enabled: >-
+          {{ (_ib_ipv6_network_data.ib_network.ib_addr_mode | default(''))
+             in ['ipv4-only', 'ipv6-only', 'dual-stack'] }}
+
+    - name: Skip IPoIB configuration when not enabled
+      ansible.builtin.debug:
+        msg: >-
+          [IB-IPv6] Skipping — ib_addr_mode is
+          '{{ _ib_ipv6_network_data.ib_network.ib_addr_mode | default("not set") }}'
+      when: not _ib_ipv6_enabled
+
+    - name: Pin OpenCHAMI cluster identity for SMD publication
+      ansible.builtin.set_fact:
+        cluster_name: >-
+          {{ lookup('file', hostvars['localhost']['omnia_data_path']
+             + '/openchami/configs_vars.yaml')
+             | from_yaml | json_query('cluster_name') }}
+        cluster_domain: >-
+          {{ lookup('file', hostvars['localhost']['omnia_data_path']
+             + '/openchami/configs_vars.yaml')
+             | from_yaml | json_query('cluster_domain') }}
+      when: _ib_ipv6_enabled
+
+  roles:
+    - role: ib_ipv6_config
+      when: _ib_ipv6_enabled
