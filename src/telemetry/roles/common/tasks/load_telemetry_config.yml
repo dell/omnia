@@ -162,12 +162,10 @@
           {% if cluster_inv is not defined -%}
           The orchestrator inventory file was not found at: {{ _cluster_inv_path | default('(not set)') }}.
           Ensure orchestrator has been run and the inventory file exists,
-          or set repo_url explicitly in telemetry_packages.yml.
-          {%- else -%}
+          or set repo_url explicitly in telemetry_packages.yml.{%- else -%}
           No group matching the pattern '*_rhel_<major>_<minor>_*' was found in the orchestrator inventory
           (e.g., service_kube_control_plane_first_rhel_10_2_x86_64).
-          Found groups: {{ cluster_inv.all.children.keys() | list }}
-          {%- endif %}
+          Found groups: {{ cluster_inv.all.children.keys() | list }}{%- endif %}
       when:
         - (_pkg_raw.repo_url | default('')) | length == 0
         - (pulp_os_version | default('')) | length == 0
