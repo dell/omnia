@@ -647,18 +647,18 @@ def verify_multipath_paths(
     output = cmd.stdout.strip()
 
     # Isolate the stanza for the target device: from the header line
-    # containing mpath_device up to the next header or end-of-output.
-    # Header lines start at column 0 with the alias; body lines are
-    # indented or start with tree chars (|, `, \, [, +).
+    # containing mpath_device up to the next device header or end-of-output.
+    # Device header lines start at column 0 with the alias (e.g., "mpatha (...)")
+    # and always contain a WWID in parentheses.  Non-header body lines include
+    # detail lines like "size=..." as well as tree-prefixed path lines.
     in_stanza = False
     path_count = 0
-    _TREE_CHARS = (" ", "|", "`", "\\", "[", "+")
+    _DEVICE_HEADER_RE = re.compile(r"^\S+\s+\(")
     for line in output.split("\n"):
         if not line.strip():
             continue
-        is_indented = line.startswith(_TREE_CHARS)
-        if not is_indented:
-            # This is a header line for some device.
+        is_device_header = bool(_DEVICE_HEADER_RE.match(line))
+        if is_device_header:
             in_stanza = mpath_device in line
             continue
         if in_stanza:
@@ -1326,7 +1326,9 @@ def verify_permissions(host, node_ip: str, path: str, expected_owner: str, expec
     """
     cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_permissions_check"] % path)
     actual = cmd.stdout.strip()
-    expected = f"{expected_owner}:{expected_group}:{expected_mode}"
+    # Normalize expected mode: stat returns '750' not '0750', so strip leading zero
+    expected_mode_normalized = expected_mode.lstrip("0") or "0"
+    expected = f"{expected_owner}:{expected_group}:{expected_mode_normalized}"
 
     success = actual == expected
     error = "" if success else f"Expected permissions {expected}, found {actual} on {node_ip}"
