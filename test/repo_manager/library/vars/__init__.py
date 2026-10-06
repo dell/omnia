@@ -27,4 +27,5 @@ from .domain_vars import (
     SUITES,
     EXCLUDE_TAGS,
 )
+from .test_case_vars import TEST_CASES
 from .ut_test_case_vars import UT_TEST_CASE_IDS

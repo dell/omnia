@@ -63,7 +63,10 @@
   ansible.builtin.add_host:
     name: "{{ aarch64_inventory_host_ip }}"
     groups: admin_aarch64
+    ansible_connection: ssh
     ansible_user: "{{ aarch64_ssh_user | default('root') }}"
+    ansible_ssh_private_key_file: "{{ aarch64_ssh_private_key_path }}"
+    ansible_ssh_common_args: "-o IdentitiesOnly=yes"
 
 - name: Confirm admin_aarch64 group created
   when: aarch64_build_enabled | bool

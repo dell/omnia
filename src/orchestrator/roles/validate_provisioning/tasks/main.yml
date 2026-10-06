@@ -131,7 +131,6 @@
   no_log: true
   when:
     - omnia_metadata_desired_group_names is defined
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Identify functional groups without boot configurations
   ansible.builtin.set_fact:

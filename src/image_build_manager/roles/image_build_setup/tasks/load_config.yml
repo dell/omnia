@@ -85,6 +85,8 @@
     shared_path: "{{ _image_build_path }}"
     oim_node_name: "{{ host_name }}"
     functional_groups_config_path: "{{ _image_build_path }}/output/{{ project_name }}/.data/functional_groups_config.yml"
+    aarch64_ssh_private_key_path: "/root/.ssh/id_rsa"
+    aarch64_ssh_public_key_path: "/root/.ssh/id_rsa.pub"
     standalone_mode: true
     cacheable: true
 

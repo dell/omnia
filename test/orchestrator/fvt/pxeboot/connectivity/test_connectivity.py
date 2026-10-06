@@ -27,8 +27,6 @@ from library.messages import PXEBOOT_TEST_ASSERT_MSGS as ASSERT
 from library.messages import PXEBOOT_TEST_LOG_MSGS as LOG
 from library.vars import TEST_CASES as TC
 
-pytestmark = [pytest.mark.sanity, pytest.mark.connectivity]
-
 
 def _check(host, key, callback):
     tc = TC[key]
@@ -54,31 +52,41 @@ def _check(host, key, callback):
     )
 
 
+@pytest.mark.sanity
+@pytest.mark.connectivity
 @pytest.mark.order(201)
 def test_node_ping(host):
     """Verify ping from the OIM to every mapped administrative IP."""
     _check(host, "node_ping", check_node_ping)
 
 
+@pytest.mark.sanity
+@pytest.mark.connectivity
 @pytest.mark.order(202)
 def test_node_ssh(host):
     """Verify passwordless root SSH from the OIM to every mapped node."""
     _check(host, "node_ssh", check_node_ssh)
 
 
+@pytest.mark.sanity
+@pytest.mark.connectivity
 @pytest.mark.order(203)
 def test_node_hostname_ssh(host):
     """Verify mapped hostnames resolve and support passwordless root SSH."""
     _check(host, "node_hostname_ssh", check_node_hostname_ssh)
 
 
-@pytest.mark.order(295)
+@pytest.mark.sanity
+@pytest.mark.connectivity
+@pytest.mark.order(298)
 def test_node_architecture(host):
     """Verify each node's live architecture matches its functional group."""
     _check(host, "node_architecture", check_node_architecture)
 
 
-@pytest.mark.order(296)
+@pytest.mark.sanity
+@pytest.mark.connectivity
+@pytest.mark.order(299)
 def test_node_os_version(host):
     """Verify each node's live OS version matches its functional group."""
     _check(host, "node_os_version", check_node_os_version)

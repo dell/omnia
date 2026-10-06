@@ -23,26 +23,29 @@ from library.functions import (
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.apptainer,
-    pytest.mark.disruptive,
-    pytest.mark.reboot,
-]
 
-
-@pytest.mark.order(292)
+@pytest.mark.apptainer
+@pytest.mark.disruptive
+@pytest.mark.reboot
+@pytest.mark.order(295)
 def test_apptainer_reboot_storage(host):
     """Reboot one compute and verify the shared mount and SIF checksum."""
     verify_pxeboot(host, "apptainer_reboot_storage", check_apptainer_reboot_storage)
 
 
-@pytest.mark.order(293)
+@pytest.mark.apptainer
+@pytest.mark.disruptive
+@pytest.mark.reboot
+@pytest.mark.order(296)
 def test_apptainer_reboot_job(host):
     """Run an exact-node container job after the authorized reboot."""
     verify_pxeboot(host, "apptainer_reboot_job", check_apptainer_reboot_job)
 
 
-@pytest.mark.order(294)
+@pytest.mark.apptainer
+@pytest.mark.disruptive
+@pytest.mark.reboot
+@pytest.mark.order(297)
 def test_apptainer_reboot_artifacts(host):
     """Verify downloader artifacts and policy after the authorized reboot."""
     verify_pxeboot(host, "apptainer_reboot_artifacts", check_apptainer_reboot_artifacts)

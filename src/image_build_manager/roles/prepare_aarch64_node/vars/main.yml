@@ -84,8 +84,20 @@ regctl_not_found_msg: >
 ssh_setup_fail_msg: >
   Failed to establish passwordless SSH to {{ aarch64_inventory_host_ip }}.
   Possible causes:
-    1) SSH keypair missing — check /root/.ssh/id_rsa exists on OIM
+    1) SSH keypair missing or invalid — check {{ aarch64_ssh_private_key_path }} on OIM
     2) aarch64_ssh_password is incorrect in image_build_credentials.yml
     3) SSH service not running on aarch64 node
     4) Firewall blocking port 22
-  Manual fix: ssh-keygen -t rsa -b 4096 && ssh-copy-id {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }}
+  The Image Build Manager always uses {{ aarch64_ssh_private_key_path }} with
+  IdentitiesOnly=yes so global SSH identity settings cannot select another key.
+
+ssh_orphaned_public_key_fail_msg: >-
+  The managed SSH public key {{ aarch64_ssh_public_key_path }} exists, but its
+  private key {{ aarch64_ssh_private_key_path }} is missing. Preserve or remove
+  the orphaned public key after review, then rerun the image build.
+
+ssh_key_install_fail_msg: >-
+  Failed to install the Image Build Manager SSH public key on
+  {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }}.
+  Verify aarch64_ssh_password and that password authentication is temporarily
+  permitted for initial key installation. Credential output was suppressed.
