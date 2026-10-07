@@ -140,11 +140,27 @@ Per-domain configuration. Key sections:
 - **`cadence.interval_days`** — Poll interval for cadence cycles (default 7 days, minimum 1 day)
 - **`cadence.sync_timeout_seconds`** — Maximum wait for repository synchronization
 - **`cadence.sync_poll_interval_seconds`** — Poll interval while waiting for repository synchronization
+- **`retention.auto_cleanup_enabled`** — Enable automatic image cleanup (default `true`)
+- **`retention.retention_age_days`** — Age after which a never-deployed, unprotected image group is cleaned up (default 90, minimum 1)
+- **`retention.min_keep_count`** — Image groups always kept per functional group (default 5)
+- **`retention.evaluation_interval_hours`** — Interval between automatic cleanup cycles (default 24, minimum 1)
 
 The cadence catalog (`cadence_catalog_rhel.json`) and reconciliation playbook
 (`repo_sync.yml`) are fixed system contracts. Cadence settings are reloaded at
 the start of each cycle. Disabling cadence suppresses work but keeps the timer
 alive so it can be re-enabled without restarting `playbook-watcher.service`.
+
+### Automatic Image Cleanup
+
+The `omnia_build_stream` API container runs automatic cleanup in the
+background (`AutoCleanupScheduler`). Each cycle cleans up `FAILED` image
+groups and then image groups older than `retention.retention_age_days` that
+were never deployed, are not protected, and whose functional group keeps more
+than `retention.min_keep_count` groups. The `retention` settings are re-read
+every minute, so changes apply without restarting the container; an invalid
+value keeps the last valid settings. The first cycle runs 5 minutes after
+the container starts. A manual pass can be run inside the container with
+`python3 /opt/omnia/build_stream/cleanup_cron.py`.
 
 ### Cadence Pipeline
 
@@ -178,7 +194,7 @@ All runtime output goes to `<OMNIA_DATA_PATH>/build_stream/` (default: `/opt/omn
 
 | Path | Purpose |
 |------|---------|
-| `<data_path>/build_stream/log/playbooks/` | Ansible playbook logs |
+| `<data_path>/build_stream/logs/` | BuildStream job logs: API event log, per-job API logs and copies of per-attempt stage playbook logs (`logs/<job_id>/`), cadence sync log copies (`logs/cadence-<timestamp>/`), and validation logs (`logs/validation/`). Watcher-run playbooks log to `/var/log/omnia/<domain>/` like a manual run; that log is copied here when the stage ends |
 | `<data_path>/build_stream/input/<project>/` | Staged input files |
 | `<data_path>/build_stream/output/<project>/` | Build status output |
 | `<data_path>/build_stream/playbook_queue/` | Watcher job queue |

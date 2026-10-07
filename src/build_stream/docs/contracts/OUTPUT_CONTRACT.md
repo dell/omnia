@@ -95,12 +95,20 @@ Built from: `src/build_stream/containers/omnia_build_stream/Containerfile`
 
 ## 5  Log Artifacts
 
+BuildStream job logs live under `${OMNIA_DATA_PATH}/build_stream/logs/`.
+Nothing is written to `${OMNIA_DATA_PATH}/log/build_stream/`. Playbooks run by
+the playbook watcher log to `/var/log/omnia/<domain>/`, the same location as a
+manual run, and the log is copied to the job directory when the stage ends.
+
 | Log | Path | Description |
 |-----|------|-------------|
-| Ansible playbook log | `/opt/omnia/log/core/playbooks/build_stream.log` | Ansible output from `build_stream.yml` and sub-playbooks. |
-| BSM API log | `/opt/omnia/log/build_stream/build_stream.log` | FastAPI application log (via `log_secure_info`). |
-| Per-job logs | `/opt/omnia/log/build_stream/jobs/{job_id}.log` | Individual job execution logs. |
-| Playbook-watcher log | `/opt/omnia/log/build_stream/playbook_watcher.log` | Watcher service log (systemd). |
+| Operator playbook log | `/var/log/omnia/build_stream/<playbook>.log` | Ansible output from operator-run `build_stream.yml` and sub-playbooks (per-domain Omnia convention). |
+| BSM API event log | `${OMNIA_DATA_PATH}/build_stream/logs/events.log` | Authentication and registration events (via `log_auth_info`). |
+| Per-job API log | `${OMNIA_DATA_PATH}/build_stream/logs/{job_id}/{job_id}.log` | Job-scoped API messages (via `log_secure_info`). |
+| Stage playbook log | `/var/log/omnia/{domain}/{stage}_{playbook}_{YYYYmmdd_HHMMSS}_attempt{N}.log`, copied to `${OMNIA_DATA_PATH}/build_stream/logs/{job_id}/` | Ansible output of each pipeline stage attempt run by the playbook watcher. The job-directory copy is reported as the stage `log_file_path` on success, failure, and timeout. Validate-stage test output uses domain `orchestrator`. |
+| Cadence sync log | `/var/log/omnia/repo_manager/cadence-repo-sync_repo_sync.yml_{YYYYmmdd_HHMMSS}_attempt1.log`, copied to `${OMNIA_DATA_PATH}/build_stream/logs/cadence-{timestamp}/` | Ansible output of each cadence exact-mirror reconciliation run. |
+| Validation log | `${OMNIA_DATA_PATH}/build_stream/logs/validation/build_stream_validation_{project}.log` | L1/L2 input validation results. |
+| Playbook-watcher log | `journalctl -u playbook-watcher` | Watcher service log (systemd journal). |
 
 ---
 

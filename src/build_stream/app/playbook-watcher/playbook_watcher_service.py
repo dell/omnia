@@ -125,12 +125,21 @@ ARCHIVE_DIR = QUEUE_BASE / "archive"
 OMNIA_DATA_PATH = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
 OMNIA_VENV_PATH = os.getenv("OMNIA_VENV_PATH", "/opt/omnia/venv")
 
-# Application log directory (build_stream service logs)
+# BuildStream job log directory. After every execution the stage log is
+# copied to <data>/build_stream/logs/<job_id>/ and that copy is reported as
+# the stage log_file_path.
 HOST_LOG_BASE_DIR = Path(f"{OMNIA_DATA_PATH}/build_stream/logs")
 
-# Playbook log directory: /var/log/omnia/<domain>/
-# The domain name is extracted from the playbook path at runtime.
+# Playbook log directory: /var/log/omnia/<domain>/, the same location used
+# when an operator runs the playbook manually. Ansible writes here while the
+# playbook runs; the domain is extracted from the playbook path.
 PLAYBOOK_LOG_BASE_DIR = Path("/var/log/omnia")
+DEFAULT_LOG_DOMAIN = "build_stream"
+# Test automation run by the validate stage is the Orchestrator test suite.
+VALIDATE_LOG_DOMAIN = "orchestrator"
+
+# Upper bound for stage attempt numbers accepted from queue requests.
+MAX_STAGE_ATTEMPT = 1000
 
 # Build Stream artifacts directory
 BUILD_STREAM_ROOT = Path(OMNIA_DATA_PATH) / "build_stream_root"
@@ -936,6 +945,22 @@ def extract_playbook_name(full_playbook_path: str) -> str:
     return os.path.basename(full_playbook_path)
 
 
+def sanitize_attempt(value: Any) -> int:
+    """Return a bounded stage attempt number, defaulting to 1.
+
+    Args:
+        value: Untrusted attempt value from the request.
+
+    Returns:
+        An integer in ``1..MAX_STAGE_ATTEMPT``.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        return 1
+    if not 1 <= value <= MAX_STAGE_ATTEMPT:
+        return 1
+    return int(f"{value:d}")
+
+
 def _extract_domain_from_playbook_path(playbook_path: str) -> str:
     """Extract the domain name from a playbook's absolute path.
     Convention: ``src/<domain>/playbooks/<playbook>.yml``
@@ -947,72 +972,91 @@ def _extract_domain_from_playbook_path(playbook_path: str) -> str:
                 return parts[idx - 1]
     except Exception:  # pylint: disable=broad-except
         pass
-    return "unknown"
+    return DEFAULT_LOG_DOMAIN
 
 
-def _build_log_paths(
-    playbook_path: str, started_at: datetime, attempt: int = None
-) -> tuple:
-    """Build playbook log file path under /var/log/omnia/<domain>/.
+def build_stage_log_path(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    domain: str,
+    stage_name: str,
+    executable_name: str,
+    started_at: datetime,
+    attempt: int,
+) -> Path:
+    """Return the per-attempt playbook log path under ``/var/log/omnia/<domain>/``.
+
+    File name format:
+    ``<stage>_<executable>_<YYYYmmdd_HHMMSS>_attempt<N>.log``
+
     Args:
-        playbook_path: Full path to the playbook file
-        started_at: Start time for timestamp
-        attempt: Optional attempt number (1-indexed).
-    Returns:
-        Tuple of (log_file_path, log_dir)
-    """
-    playbook_name = extract_playbook_name(playbook_path)
-    domain = _extract_domain_from_playbook_path(playbook_path)
+        domain: Owning domain of the executed playbook.
+        stage_name: Sanitized stage name.
+        executable_name: Playbook file name or test runner name.
+        started_at: Execution start time.
+        attempt: Sanitized stage attempt number.
 
+    Returns:
+        Absolute log file path. The parent directory is created.
+    """
     log_dir = PLAYBOOK_LOG_BASE_DIR / domain
     log_dir.mkdir(parents=True, exist_ok=True)
-
     timestamp = started_at.strftime("%Y%m%d_%H%M%S")
-    if attempt is not None:
-        log_filename = f"{playbook_name}_{timestamp}_attempt{attempt}.log"
-    else:
-        log_filename = f"{playbook_name}_{timestamp}.log"
-
-    log_file_path = log_dir / log_filename
-    return log_file_path, log_dir
+    return log_dir / (
+        f"{stage_name}_{executable_name}_{timestamp}_attempt{attempt}.log"
+    )
 
 
-def move_log_to_job_directory(
-    host_log_file_path: Path, job_id: str, attempt: int = None
-) -> Path:
-    """Move log file to a job-specific directory after completion.
+def publish_stage_log(
+    domain_log_path: Path, job_id: str, summary_lines: List[str]
+) -> str:
+    """Finalize a stage log and copy it to the BuildStream job log directory.
+
+    The execution summary is appended to the ``/var/log/omnia/<domain>/``
+    log, which stays in place, and the log is then copied to
+    ``<HOST_LOG_BASE_DIR>/<job_id>/`` under the same file name.
+
     Args:
-        host_log_file_path: Current path of the log file
-        job_id: Job identifier for creating the job directory
-        attempt: Optional attempt number
+        domain_log_path: Log written under ``/var/log/omnia/<domain>/``.
+        job_id: Sanitized job identifier.
+        summary_lines: Execution summary lines to append.
+
     Returns:
-        New path of the log file in the job directory
+        Path of the job directory copy, or of the domain log when the copy
+        fails, so the reported path always exists.
     """
-    job_dir = HOST_LOG_BASE_DIR / job_id
-    job_dir.mkdir(parents=True, exist_ok=True)
-
-    log_filename = host_log_file_path.name
-    if attempt is not None:
-        stem = host_log_file_path.stem
-        log_filename = f"{stem}_attempt{attempt}.log"
-
-    new_log_path = job_dir / log_filename
-
+    append_execution_summary(domain_log_path, summary_lines)
+    job_log_path = HOST_LOG_BASE_DIR / job_id / domain_log_path.name
     try:
-        shutil.move(str(host_log_file_path), str(new_log_path))
-        log_secure_info(
-            "info",
-            "Log file moved to job directory",
-            job_id[:12] if job_id else ""
-        )
-    except (OSError, IOError):
+        job_log_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(domain_log_path), str(job_log_path))
+    except (OSError, shutil.Error):
         log_secure_info(
             "error",
-            "Failed to move log file to job directory"
+            f"Failed to copy stage log to job directory; reporting "
+            f"{domain_log_path}",
+            job_id,
         )
-        return host_log_file_path
+        return str(domain_log_path)
+    return str(job_log_path)
 
-    return new_log_path
+
+def append_execution_summary(log_file_path: Path, lines: List[str]) -> None:
+    """Append watcher execution metadata to a stage log.
+
+    The file is created when the executed command did not produce one, so the
+    ``log_file_path`` reported in every result points to an existing file.
+
+    Args:
+        log_file_path: Stage log file path.
+        lines: Summary lines to append.
+    """
+    try:
+        with open(log_file_path, "a", encoding="utf-8") as log_file:
+            for line in lines:
+                log_file.write(f"[playbook-watcher] {line}\n")
+    except OSError:
+        log_secure_info(
+            "warning", "Failed to append execution summary to stage log"
+        )
 
 
 def extract_dictionary_hits(log_file_path: Path) -> List[Dict[str, str]]:
@@ -1044,7 +1088,10 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     directory set to the playbook's parent so that ``ansible.cfg`` and
     relative role paths are picked up correctly.
 
-    Playbook logs are written to ``/var/log/omnia/<domain>/``.
+    Playbook logs are written to ``/var/log/omnia/<domain>/`` (the same
+    location as a manual run) and copied to
+    ``<OMNIA_DATA_PATH>/build_stream/logs/<job_id>/`` on every outcome; the
+    copy is returned as ``log_file_path``.
 
     Args:
         request_data: Parsed request dictionary
@@ -1107,9 +1154,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         tags_str = sanitize_stage_name(str(request_data["tags"]))
 
     # Extract attempt from extra_vars (already sanitized)
-    attempt = extra_vars.get("attempt", 1)
-    if not isinstance(attempt, int) or not 1 <= attempt <= 10:
-        attempt = 1
+    attempt = sanitize_attempt(extra_vars.get("attempt", 1))
 
     timeout_minutes = DEFAULT_TIMEOUT_MINUTES
 
@@ -1121,8 +1166,15 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
     started_at = datetime.now(timezone.utc)
 
-    # Build log paths (playbook logs go to /var/log/omnia/<domain>/)
-    log_file_path, _ = _build_log_paths(playbook_path, started_at)
+    # Ansible writes to /var/log/omnia/<domain>/ (same as a manual run); the
+    # log is copied to <data>/build_stream/logs/<job_id>/ on every outcome.
+    log_file_path = build_stage_log_path(
+        _extract_domain_from_playbook_path(playbook_path),
+        stage_name,
+        extract_playbook_name(playbook_path),
+        started_at,
+        attempt,
+    )
     log_path_str = str(log_file_path)
 
     # Strict validation for log path
@@ -1220,16 +1272,10 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # Wait briefly for log flush
         time.sleep(0.5)
 
-        # Verify log file exists
-        if log_file_path.exists():
-            log_secure_info("info", "Log file confirmed for job", job_id)
-            log_file_path = move_log_to_job_directory(
-                log_file_path, job_id, attempt=attempt
-            )
-        else:
+        if not log_file_path.exists():
             log_secure_info(
                 "warning",
-                "Log file not found at expected location for job",
+                "Playbook produced no log output for job",
                 job_id
             )
 
@@ -1237,8 +1283,22 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         duration_seconds = (completed_at - started_at).total_seconds()
         status = "success" if result.returncode == 0 else "failed"
 
-        log_secure_info("info", "Playbook execution completed for job", job_id)
-        log_secure_info("debug", "Execution status", status)
+        dictionary_hits = (
+            extract_dictionary_hits(log_file_path)
+            if stage_name == "build-image" else []
+        )
+        reported_log = publish_stage_log(log_file_path, job_id, [
+            f"stage={stage_name} attempt={attempt} status={status} "
+            f"exit_code={result.returncode} "
+            f"duration_seconds={int(duration_seconds)}",
+        ])
+        log_secure_info(
+            "info",
+            f"Playbook execution completed: stage={stage_name}, "
+            f"attempt={attempt}, status={status}, log_file={reported_log}, "
+            f"domain_log={log_path_str}",
+            job_id
+        )
 
         # Build result dictionary
         result_data = {
@@ -1248,25 +1308,23 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "correlation_id": correlation_id,
             "status": status,
             "exit_code": result.returncode,
-            "log_file_path": str(log_file_path),
+            "attempt": attempt,
+            "log_file_path": reported_log,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),
             "timestamp": completed_at.isoformat(),
         }
 
-        if stage_name == "build-image" and log_file_path.exists():
-            dictionary_hits = extract_dictionary_hits(log_file_path)
-            if dictionary_hits:
-                result_data["dictionary_hits"] = dictionary_hits
+        if dictionary_hits:
+            result_data["dictionary_hits"] = dictionary_hits
 
         # Add error details if failed
         if status == "failed":
-            domain = _extract_domain_from_playbook_path(playbook_path)
             result_data["error_code"] = "PLAYBOOK_EXECUTION_FAILED"
             result_data["error_summary"] = (
                 f"Playbook exited with code {result.returncode}. "
-                f"Check playbook logs at /var/log/omnia/{domain}/ for details."
+                f"Check playbook log at {reported_log} for details."
             )
 
         # For restart stage, include path to per-node results JSON
@@ -1290,57 +1348,47 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         return result_data
 
     except subprocess.TimeoutExpired:
-        completed_at = datetime.now(timezone.utc)
-        duration_seconds = (completed_at - started_at).total_seconds()
+        error_code = "PLAYBOOK_TIMEOUT"
+        error_summary = (
+            f"Execution exceeded timeout of {timeout_minutes} minutes."
+        )
         log_secure_info(
             "error", "Playbook execution timed out for job", job_id
         )
-        return {
-            "job_id": job_id,
-            "stage_name": stage_name,
-            "request_id": request_id_safe,
-            "correlation_id": correlation_id,
-            "status": "failed",
-            "exit_code": -1,
-            "stdout": "",
-            "stderr": (
-                f"Playbook execution timed out after "
-                f"{timeout_minutes} minutes"
-            ),
-            "started_at": started_at.isoformat(),
-            "completed_at": completed_at.isoformat(),
-            "duration_seconds": int(duration_seconds),
-            "error_code": "PLAYBOOK_TIMEOUT",
-            "error_summary": (
-                f"Execution exceeded timeout of "
-                f"{timeout_minutes} minutes"
-            ),
-            "timestamp": completed_at.isoformat(),
-        }
     except (OSError, subprocess.SubprocessError) as e:
-        completed_at = datetime.now(timezone.utc)
-        duration_seconds = (completed_at - started_at).total_seconds()
+        error_code = "SYSTEM_ERROR"
+        error_summary = f"System error during execution: {e}."
         log_secure_info(
             'error',
             f"Unexpected error executing playbook for job {job_id}",
             exc_info=True
         )
-        return {
-            "job_id": job_id,
-            "stage_name": stage_name,
-            "request_id": request_id_safe,
-            "correlation_id": correlation_id,
-            "status": "failed",
-            "exit_code": -1,
-            "stdout": "",
-            "stderr": str(e),
-            "started_at": started_at.isoformat(),
-            "completed_at": completed_at.isoformat(),
-            "duration_seconds": int(duration_seconds),
-            "error_code": "SYSTEM_ERROR",
-            "error_summary": f"System error during execution: {str(e)}",
-            "timestamp": completed_at.isoformat(),
-        }
+
+    completed_at = datetime.now(timezone.utc)
+    duration_seconds = (completed_at - started_at).total_seconds()
+    reported_log = publish_stage_log(log_file_path, job_id, [
+        f"stage={stage_name} attempt={attempt} status=failed "
+        f"error_code={error_code} duration_seconds={int(duration_seconds)}",
+        error_summary,
+    ])
+    return {
+        "job_id": job_id,
+        "stage_name": stage_name,
+        "request_id": request_id_safe,
+        "correlation_id": correlation_id,
+        "status": "failed",
+        "exit_code": -1,
+        "attempt": attempt,
+        "log_file_path": reported_log,
+        "started_at": started_at.isoformat(),
+        "completed_at": completed_at.isoformat(),
+        "duration_seconds": int(duration_seconds),
+        "error_code": error_code,
+        "error_summary": (
+            f"{error_summary} Check playbook log at {reported_log} for details."
+        ),
+        "timestamp": completed_at.isoformat(),
+    }
 
 
 def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -1373,9 +1421,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     # Sanitize attempt: coerce to int in bounded range
-    raw_attempt = request_data.get("attempt", 1)
-    attempt = raw_attempt if isinstance(raw_attempt, int) and 1 <= raw_attempt <= 10 else 1
-    attempt = int(f"{attempt:d}")  # Re-derive as int literal
+    attempt = sanitize_attempt(request_data.get("attempt", 1))
 
     # Sanitize correlation_id and request_id (only used in result JSON,
     # but sanitize anyway so no future edit can leak them into a command)
@@ -1418,6 +1464,14 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
     started_at = datetime.now(timezone.utc)
 
+    # Test output is written to the per-attempt log under
+    # /var/log/omnia/<domain>/ and copied to the job log directory on every
+    # outcome (success, failure, timeout).
+    host_log_file_path = build_stage_log_path(
+        VALIDATE_LOG_DOMAIN, stage_type, "run_validation.sh", started_at, attempt
+    )
+    log_file_path = str(host_log_file_path)
+
     # Create a temp report directory with timestamp for uniqueness
     timestamp = started_at.strftime("%Y%m%d_%H%M%S")
     temp_report_dir = str(ARTIFACTS_DIR / f"molecule_run_{timestamp}")
@@ -1433,6 +1487,11 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         os.makedirs(artifact_dir, exist_ok=True)
     except OSError as e:
         log_secure_info("error", "Failed to create artifact directory", job_id)
+        error_summary = f"Failed to create artifact directory: {e}"
+        reported_log = publish_stage_log(host_log_file_path, job_id, [
+            f"stage={stage_type} attempt={attempt} status=failed exit_code=2",
+            error_summary,
+        ])
         return {
             "job_id": job_id,
             "stage_name": stage_type,
@@ -1440,7 +1499,9 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "correlation_id": correlation_id,
             "status": "failed",
             "exit_code": 2,
-            "error_summary": f"Failed to create artifact directory: {e}",
+            "attempt": attempt,
+            "error_summary": error_summary,
+            "log_file_path": reported_log,
             "started_at": started_at.isoformat(),
             "completed_at": started_at.isoformat(),
             "duration_seconds": 0,
@@ -1531,26 +1592,8 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
 
-        # Build NFS log path
-        host_log_file_path, _ = _build_log_paths(
-            "validate", started_at, attempt
-        )
-
-        # Write molecule output to NFS log file
-        try:
-            with open(str(host_log_file_path), 'w') as f:
-                f.write(
-                    f"STDOUT:\n{result.stdout}\n\n"
-                    f"STDERR:\n{result.stderr}\n"
-                )
-        except OSError:
-            log_secure_info("warning", "Failed to write test NFS log", job_id)
-
-        # Move log to job-specific directory on NFS
-        if host_log_file_path.exists():
-            host_log_file_path = move_log_to_job_directory(
-                host_log_file_path, job_id
-            )
+        # Write test output to the per-attempt stage log
+        _write_test_output(host_log_file_path, result.stdout, result.stderr)
 
         # Copy molecule reports from temp dir to job-specific NFS artifact dir
         try:
@@ -1595,9 +1638,6 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             log_secure_info(
                 "debug", "Failed to clean up temp report dir", job_id
             )
-
-        # Use the NFS log path as the canonical log_file_path
-        log_file_path = str(host_log_file_path)
 
         # Parse metadata from test output log
         test_summary = {
@@ -1882,10 +1922,17 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             status = "failed"
             exit_code = result.returncode
 
+        reported_log = publish_stage_log(host_log_file_path, job_id, [
+            f"stage={stage_type} attempt={attempt} status={status} "
+            f"exit_code={exit_code} duration_seconds={int(duration_seconds)}",
+        ])
         log_secure_info(
-            "info", "Test validation completed for job", job_id
+            "info",
+            f"Test validation completed: stage={stage_type}, "
+            f"attempt={attempt}, status={status}, log_file={reported_log}, "
+            f"domain_log={log_file_path}",
+            job_id
         )
-        log_secure_info("debug", "Execution status", status)
 
         result_data = {
             "job_id": job_id,
@@ -1894,10 +1941,11 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "correlation_id": correlation_id,
             "status": status,
             "exit_code": exit_code,
+            "attempt": attempt,
             "duration_seconds": int(duration_seconds),
             "test_summary": test_summary,
             "artifact_dir": artifact_dir,
-            "log_file_path": log_file_path,
+            "log_file_path": reported_log,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "timestamp": completed_at.isoformat(),
@@ -1940,65 +1988,122 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
         return result_data
 
-    except subprocess.TimeoutExpired:
-        completed_at = datetime.now(timezone.utc)
-        duration_seconds = (completed_at - started_at).total_seconds()
+    except subprocess.TimeoutExpired as exc:
+        exit_code = 124
+        error_summary = (
+            f"Test validation timed out after {timeout_minutes} minutes"
+        )
+        _write_test_output(host_log_file_path, exc.stdout, exc.stderr)
         log_secure_info(
             "error", "Test validation timed out for job", job_id
         )
-
-        err_log_path, _ = _build_log_paths("validate", started_at, attempt)
-        if err_log_path.exists():
-            err_log_path = move_log_to_job_directory(err_log_path, job_id)
-
-        return {
-            "job_id": job_id,
-            "stage_name": stage_type,
-            "request_id": request_id,
-            "correlation_id": correlation_id,
-            "status": "failed",
-            "exit_code": 124,
-            "error_summary": (
-                f"Test validation timed out after "
-                f"{timeout_minutes} minutes"
-            ),
-            "artifact_dir": artifact_dir,
-            "log_file_path": str(err_log_path),
-            "started_at": started_at.isoformat(),
-            "completed_at": completed_at.isoformat(),
-            "duration_seconds": int(duration_seconds),
-            "timestamp": completed_at.isoformat(),
-        }
     except (OSError, subprocess.SubprocessError) as e:
-        completed_at = datetime.now(timezone.utc)
-        duration_seconds = (completed_at - started_at).total_seconds()
+        exit_code = -1
+        error_summary = f"System error during test validation: {str(e)}"
         log_secure_info(
             "error",
             "Unexpected error executing test validation for job",
             job_id, exc_info=True
         )
 
-        err_log_path, _ = _build_log_paths("validate", started_at, attempt)
-        if err_log_path.exists():
-            err_log_path = move_log_to_job_directory(err_log_path, job_id)
+    completed_at = datetime.now(timezone.utc)
+    duration_seconds = (completed_at - started_at).total_seconds()
+    reported_log = publish_stage_log(host_log_file_path, job_id, [
+        f"stage={stage_type} attempt={attempt} status=failed "
+        f"exit_code={exit_code} duration_seconds={int(duration_seconds)}",
+        error_summary,
+    ])
+    return {
+        "job_id": job_id,
+        "stage_name": stage_type,
+        "request_id": request_id,
+        "correlation_id": correlation_id,
+        "status": "failed",
+        "exit_code": exit_code,
+        "attempt": attempt,
+        "error_summary": error_summary,
+        "artifact_dir": artifact_dir,
+        "log_file_path": reported_log,
+        "started_at": started_at.isoformat(),
+        "completed_at": completed_at.isoformat(),
+        "duration_seconds": int(duration_seconds),
+        "timestamp": completed_at.isoformat(),
+    }
 
-        return {
-            "job_id": job_id,
-            "stage_name": stage_type,
-            "request_id": request_id,
-            "correlation_id": correlation_id,
-            "status": "failed",
-            "exit_code": -1,
-            "error_summary": (
-                f"System error during test validation: {str(e)}"
-            ),
-            "artifact_dir": artifact_dir,
-            "log_file_path": str(err_log_path),
-            "started_at": started_at.isoformat(),
-            "completed_at": completed_at.isoformat(),
-            "duration_seconds": int(duration_seconds),
-            "timestamp": completed_at.isoformat(),
-        }
+
+def _write_test_output(
+    log_file_path: Path, stdout: Any, stderr: Any
+) -> None:
+    """Write captured test runner output to the stage log.
+
+    Args:
+        log_file_path: Stage log file path.
+        stdout: Captured standard output (str, bytes, or None).
+        stderr: Captured standard error (str, bytes, or None).
+    """
+    def _as_text(stream: Any) -> str:
+        if isinstance(stream, bytes):
+            return stream.decode("utf-8", errors="replace")
+        return stream or ""
+
+    try:
+        with open(log_file_path, "w", encoding="utf-8") as log_file:
+            log_file.write(
+                f"STDOUT:\n{_as_text(stdout)}\n\n"
+                f"STDERR:\n{_as_text(stderr)}\n"
+            )
+    except OSError:
+        log_secure_info("warning", "Failed to write test output log")
+
+
+def build_rejected_result(
+    request_data: Dict[str, Any], error: Exception
+) -> Dict[str, Any]:
+    """Build a failed result for a request that could not be executed.
+
+    Without a result file the stage would stay IN_PROGRESS indefinitely, so
+    a rejected request is always reported back as a failed stage.
+
+    Args:
+        request_data: Parsed request dictionary.
+        error: Validation or system error raised before execution.
+
+    Returns:
+        Failed result dictionary.
+    """
+    def _safe(value: Any, sanitizer) -> str:
+        try:
+            return sanitizer(str(value))
+        except ValueError:
+            return "unknown"
+
+    job_id = _safe(request_data.get("job_id", "unknown"), sanitize_identifier)
+    stage_name = _safe(
+        request_data.get("stage_name", request_data.get("stage_type", "unknown")),
+        sanitize_stage_name,
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    log_secure_info(
+        "error",
+        f"Request rejected before execution: stage={stage_name}, error={error}",
+        job_id,
+    )
+    return {
+        "job_id": job_id,
+        "stage_name": stage_name,
+        "request_id": _safe(request_data.get("request_id", job_id), sanitize_identifier),
+        "correlation_id": _safe(
+            request_data.get("correlation_id", job_id), sanitize_identifier
+        ),
+        "status": "failed",
+        "exit_code": -1,
+        "error_code": "REQUEST_REJECTED",
+        "error_summary": f"Request could not be executed: {error}",
+        "started_at": now,
+        "completed_at": now,
+        "duration_seconds": 0,
+        "timestamp": now,
+    }
 
 
 def write_result_file(
@@ -2114,10 +2219,13 @@ def process_request(request_path: Path) -> None:
             command_type = request_data.get(
                 "command_type", "ansible-playbook"
             )
-            if command_type == "test_automation":
-                result_data = execute_molecule(request_data)
-            else:
-                result_data = execute_playbook(request_data)
+            try:
+                if command_type == "test_automation":
+                    result_data = execute_molecule(request_data)
+                else:
+                    result_data = execute_playbook(request_data)
+            except (ValueError, OSError) as exc:
+                result_data = build_rejected_result(request_data, exc)
 
             # Write result
             write_result_file(result_data, request_filename)
@@ -2221,12 +2329,19 @@ def _start_cadence_timer():
         processing_dir=PROCESSING_DIR,
     )
     cadence_thread.start()
-    log_secure_info(
-        "info",
-        f"Cadence timer started: "
-        f"enabled={config.get('enabled', False)}, "
-        f"interval={config.get('interval_days', 7)}d"
-    )
+
+    if config.get("enabled", False):
+        log_secure_info(
+            "info",
+            f"Cadence timer started: "
+            f"interval={config.get('interval_days', 7)}d"
+        )
+    else:
+        log_secure_info(
+            "info",
+            "Cadence polling is disabled in configuration — timer thread "
+            "is idle and will pick up a change to 'enabled' on its next cycle"
+        )
     return cadence_thread
 
 

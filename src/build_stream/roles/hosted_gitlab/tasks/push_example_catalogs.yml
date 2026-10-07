@@ -24,11 +24,15 @@
     state: directory
     mode: '0755'
 
+# catalog_rhel.json and cadence_catalog_rhel.json are pushed only to the
+# repository root (push_ci_files.yml), where every pipeline reads them, so
+# they are excluded here and never copied under catalog/.
 - name: Find all files from samples directory
   ansible.builtin.find:
     paths: "{{ _gitlab_samples_source_dir }}"
     file_type: file
     recurse: true
+    excludes: "{{ gitlab_top_level_catalog_files }}"
   register: example_catalog_files
   delegate_to: localhost
 

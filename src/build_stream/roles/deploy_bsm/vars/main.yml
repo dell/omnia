@@ -24,7 +24,7 @@ build_stream_image_name: "{{ build_stream_dockerhub_registry }}/omnia_build_stre
 build_stream_image_tag: "1.2"
 
 # Ports & Logs — passed as host vars from prepare_build_stream.yml
-build_stream_log_dir: "{{ omnia_path }}/build_stream/log"
+build_stream_log_dir: "{{ omnia_path }}/build_stream/logs"
 build_stream_nfs_path_error_msg: "Directory {{ omnia_path }}/build_stream is missing; ensure oim_shared_path is mounted and populated correctly."
 omnia_default_dir: "/omnia"
 
