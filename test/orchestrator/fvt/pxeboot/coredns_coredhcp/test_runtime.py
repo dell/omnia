@@ -37,6 +37,7 @@ from fvt.result import verify_pxeboot
 pytestmark = [pytest.mark.non_disruptive]
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(350)
 def test_coredns_container_state(host):
@@ -45,6 +46,7 @@ def test_coredns_container_state(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(351)
 def test_coredns_forward_resolution(host):
@@ -55,6 +57,7 @@ def test_coredns_forward_resolution(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(352)
 def test_coredns_reverse_resolution(host):
@@ -64,7 +67,9 @@ def test_coredns_reverse_resolution(host):
     )
 
 
+
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(353)
 def test_coredns_dns_forwarders(host):
@@ -75,6 +80,7 @@ def test_coredns_dns_forwarders(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(354)
 def test_coredns_corefile_config(host):
@@ -85,6 +91,7 @@ def test_coredns_corefile_config(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(355)
 def test_coredhcp_config_file(host):
@@ -94,6 +101,7 @@ def test_coredhcp_config_file(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(356)
 def test_coredhcp_multisubnet_running_image(host):
@@ -105,6 +113,7 @@ def test_coredhcp_multisubnet_running_image(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(357)
 def test_coredns_idempotency(host):

@@ -23,8 +23,10 @@ Implements the cadence polling loop that:
 
 Architecture:
 - CadenceTimerThread runs as a daemon alongside the main request watcher
-- Polling interval is configurable in days (default: 7 days)
-- Configuration is reloaded at the start of every cadence cycle
+- Polling interval is configurable in days (default: 7 days, minimum 1 day)
+- Cadence configuration is reloaded from build_stream_config.yml at the start
+  of every cycle, so parameter changes apply without a service restart
+- The latest cadence catalog is fetched from GitLab before each sync
 - Pipeline idle check uses the NFS processing queue presence
 - Catalog version bump follows semver patch increment (e.g., 1.0 -> 1.1)
 - GitLab API operations use requests library to update cadence_catalog_rhel.json
@@ -73,6 +75,24 @@ IPV4_PATTERN = re.compile(
     r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
 )
 
+# Cadence parameters reported by the per-cycle reload when they change
+RELOAD_LOGGED_KEYS = (
+    "enabled",
+    "interval_days",
+    "sync_timeout_seconds",
+    "sync_poll_interval_seconds",
+    "gitlab_host",
+    "gitlab_https_port",
+    "gitlab_project_name",
+    "gitlab_default_branch",
+)
+
+# Cadence secrets reported as updated, never by value
+RELOAD_LOGGED_SECRET_KEYS = (
+    "gitlab_root_token",
+    "gitlab_project_id",
+)
+
 # Audit event type for cadence sync completion
 CADENCE_SYNC_COMPLETED = "CADENCE_SYNC_COMPLETED"
 
@@ -88,6 +108,12 @@ def _default_build_stream_config_path() -> Path:
         / project_name
         / "build_stream_config.yml"
     )
+
+
+def _cadence_log_dir(job_id: str) -> Path:
+    """Return the directory holding the cadence sync playbook log."""
+    omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
+    return omnia_data_path / "build_stream" / "log" / job_id
 
 
 def _repo_resync_status_path() -> Path:
@@ -292,11 +318,14 @@ def _load_unified_config(
         # Load GitLab configuration from root level (not cadence section)
         _load_gitlab_config_fields(data, config)
 
+        # Read through .get() so a caller-supplied partial defaults mapping
+        # cannot turn this log line into an uncaught KeyError.
         log_secure_info(
             "info",
             f"Cadence config loaded from build_stream_config.yml: "
-            f"enabled={config['enabled']}, "
-            f"interval={config['interval_days']}d"
+            f"enabled={config.get('enabled', DEFAULT_CADENCE_ENABLED)}, "
+            f"interval="
+            f"{config.get('interval_days', DEFAULT_CADENCE_INTERVAL_DAYS)}d"
         )
     except (OSError, ValueError, TypeError, yaml.YAMLError) as exc:
         if strict:
@@ -1113,32 +1142,40 @@ class CadenceTimerThread(Thread):
             if not reloaded.get(key) and self.config.get(key):
                 reloaded[key] = self.config[key]
 
-        previous = (
-            self.enabled,
-            self.interval_days,
-            self.config.get("sync_timeout_seconds"),
-            self.config.get("sync_poll_interval_seconds"),
-            self.gitlab_url,
-            self.gitlab_project_name,
-            self.gitlab_branch,
-        )
+        previous = self.config
         self._apply_config(reloaded)
-        current = (
-            self.enabled,
-            self.interval_days,
-            self.config.get("sync_timeout_seconds"),
-            self.config.get("sync_poll_interval_seconds"),
-            self.gitlab_url,
-            self.gitlab_project_name,
-            self.gitlab_branch,
-        )
-        if current != previous:
-            log_secure_info(
-                "info",
-                "Cadence configuration reloaded: "
-                f"enabled={self.enabled}, interval={self.interval_days}d",
-            )
+        self._log_config_changes(previous, self.config)
         return True
+
+    @staticmethod
+    def _log_config_changes(
+        previous: Dict[str, Any],
+        current: Dict[str, Any],
+    ) -> None:
+        """Log cadence parameters that changed during a reload.
+
+        Only changed keys are logged, so a stable configuration does not emit
+        a log line on every cycle. Secret values are reported as updated and
+        are never written to the log.
+
+        Args:
+            previous: Configuration in effect before the reload.
+            current: Configuration applied by the reload.
+        """
+        for key in RELOAD_LOGGED_KEYS:
+            if previous.get(key) != current.get(key):
+                log_secure_info(
+                    "info",
+                    f"Cadence config reloaded: {key} "
+                    f"{previous.get(key)} -> {current.get(key)}"
+                )
+
+        for secret_key in RELOAD_LOGGED_SECRET_KEYS:
+            if previous.get(secret_key) != current.get(secret_key):
+                log_secure_info(
+                    "info",
+                    f"Cadence config reloaded: {secret_key} updated"
+                )
 
     def _gitlab_configuration_complete(self) -> bool:
         """Return whether all GitLab API values required by cadence exist."""
@@ -1192,7 +1229,10 @@ class CadenceTimerThread(Thread):
         )
 
         while not self.stop_event.is_set():
-            # Wait for interval OR manual trigger, whichever comes first
+            # Wait for interval OR manual trigger, whichever comes first.
+            # interval_seconds is re-read on every iteration, so a value
+            # reloaded during the previous cycle takes effect here without a
+            # service restart. SIGUSR1 applies a new interval immediately.
             triggered = self.trigger_event.wait(
                 timeout=self.interval_seconds
             )
@@ -1311,16 +1351,28 @@ class CadenceTimerThread(Thread):
             ),
         )
         if result is None:
-            log_secure_info("error", "Repo sync did not complete in time")
+            log_secure_info(
+                "error",
+                f"Repo sync did not complete in time; "
+                f"log_dir={_cadence_log_dir(job_id)}"
+            )
             return None
 
+        log_file = result.get("log_file_path") or (
+            f"N/A (see {_cadence_log_dir(job_id)})"
+        )
         if result.get("status") != "success":
             log_secure_info(
                 "warning",
                 f"Repo sync failed: "
-                f"{result.get('error_summary', 'unknown error')}"
+                f"{result.get('error_summary', 'unknown error')}; "
+                f"log_file={log_file}"
             )
             return None
+
+        log_secure_info(
+            "info", f"Repo sync succeeded; log_file={log_file}"
+        )
 
         repo_resync_status = load_repo_resync_status(
             _repo_resync_status_path()

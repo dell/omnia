@@ -10,6 +10,8 @@
         "name": "os_rhel_10_0_x86_64",
         "components": [
           "baseos_group",
+          "image_builder_x86_64_group",
+          "imagethrillhouse",
           "ldms_group"
         ]
       },
@@ -74,6 +76,8 @@
         "name": "os_rhel_10_0_aarch64",
         "components": [
           "baseos_group",
+          "image_builder_aarch64_group",
+          "imagethrillhouse",
           "ldms_group"
         ]
       },
@@ -151,10 +155,34 @@
           "wget",
           "cloud_init",
           "glibc_langpack_en",
-          "gedit",
-          "ghcr_io/openchami/image_thrillhouse",
-          "docker_io/dellhpcomniaaisolution/image_build_el10",
+          "gedit"
+        ]
+      },
+      "image_builder_x86_64_group": {
+        "name": "image_builder_x86_64_group",
+        "type": "group",
+        "os": "rhel",
+        "description": "Image builder for x86_64",
+        "components": [
+          "docker_io/dellhpcomniaaisolution/image_build_el10"
+        ]
+      },
+      "image_builder_aarch64_group": {
+        "name": "image_builder_aarch64_group",
+        "type": "group",
+        "os": "rhel",
+        "description": "Image builder for AArch64",
+        "components": [
           "docker_io/dellhpcomniaaisolution/image_build_aarch64"
+        ]
+      },
+      "imagethrillhouse": {
+        "name": "imagethrillhouse",
+        "type": "group",
+        "os": "rhel",
+        "description": "OpenCHAMI image builder for x86_64 and AArch64",
+        "components": [
+          "ghcr_io/openchami/image_thrillhouse"
         ]
       },
       "admin_debug_group": {
@@ -223,10 +251,7 @@
         "components": [
           "cffi==1_17_1",
           "cryptography==45_0_7",
-          "kubernetes==33_1_0",
-          "omsdk==1_2_518",
-          "prettytable==3_14_0",
-          "nvcr.io/nvidia/hpc-benchmarks"
+          "prettytable==3_14_0"
         ]
       },
       "slurm_custom_group": {
@@ -474,7 +499,6 @@
           "prettytable==3_14_0",
           "python3_3_12_9",
           "git",
-          "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
         ]
       },
@@ -505,7 +529,6 @@
           "prettytable==3_14_0",
           "python3_3_12_9",
           "git",
-          "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
         ]
       },
@@ -619,14 +642,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "1.36"
@@ -659,14 +674,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -748,14 +755,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -910,14 +909,6 @@
             "version": [
               "10.0"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
           }
         ]
       },
@@ -927,14 +918,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1193,14 +1176,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "v1.50.0"
@@ -1370,14 +1345,6 @@
               "10.0"
             ],
             "registry": "registry.k8s.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "registry.k8s.io"
           }
         ],
         "tag": "3.6.6-0"
@@ -1388,14 +1355,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1416,14 +1375,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "0.54.0-debian"
@@ -1434,14 +1385,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "registry.k8s.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1462,14 +1405,6 @@
               "10.0"
             ],
             "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
           }
         ],
         "tag": "1.1.0-kafka-4.3.0"
@@ -1480,14 +1415,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1552,14 +1479,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "v1.50.0"
@@ -1571,14 +1490,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
             "registry": "registry.k8s.io",
             "name": "rhel",
             "version": [
@@ -1686,14 +1597,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "v0.68.3"
@@ -1704,14 +1607,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -1842,14 +1737,6 @@
               "10.0"
             ],
             "registry": "ghcr.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "ghcr.io"
           }
         ],
         "tag": "0.150.1"
@@ -1953,14 +1840,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "v1.149.0-cluster"
@@ -2016,14 +1895,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2088,14 +1959,6 @@
               "10.0"
             ],
             "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
           }
         ],
         "tag": "v1.10.0"
@@ -2133,14 +1996,6 @@
               "10.0"
             ],
             "registry": "registry.k8s.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "registry.k8s.io"
           }
         ],
         "tag": "v1.35.1"
@@ -2173,14 +2028,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2355,14 +2202,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "v3.32.1"
@@ -2490,14 +2329,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "v1.149.0-cluster"
@@ -2508,14 +2339,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2537,14 +2360,6 @@
             "version": [
               "10.0"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
           }
         ]
       },
@@ -2554,14 +2369,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2690,14 +2497,6 @@
               "10.0"
             ],
             "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
           }
         ],
         "tag": "v0.16.1"
@@ -2709,14 +2508,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
             "registry": "registry.k8s.io",
             "name": "rhel",
             "version": [
@@ -2885,14 +2676,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -3153,14 +2936,6 @@
               "10.0"
             ],
             "registry": "ghcr.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "ghcr.io"
           }
         ],
         "tag": "v1.2.2"
@@ -3237,14 +3012,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -3327,14 +3094,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "registry.k8s.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -3458,14 +3217,6 @@
               "10.0"
             ],
             "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
           }
         ],
         "tag": "1.1.0"
@@ -3570,14 +3321,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "1.3"
@@ -3659,14 +3402,6 @@
               "10.0"
             ],
             "registry": "registry.k8s.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "registry.k8s.io"
           }
         ],
         "tag": "v1.35.1"
@@ -3699,14 +3434,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -3905,14 +3632,6 @@
             "version": [
               "10.0"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
           }
         ]
       },
@@ -3984,14 +3703,6 @@
               "10.0"
             ],
             "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
           }
         ],
         "tag": "v1.10.0"
@@ -4008,14 +3719,6 @@
             "version": [
               "10.0"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
           }
         ]
       },
@@ -4026,14 +3729,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
             "registry": "quay.io",
             "name": "rhel",
             "version": [
@@ -4071,14 +3766,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
             "registry": "registry.k8s.io",
             "name": "rhel",
             "version": [
@@ -4275,14 +3962,6 @@
             "version": [
               "10.0"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
           }
         ]
       },
@@ -4292,14 +3971,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "registry.k8s.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -4410,14 +4081,6 @@
             "version": [
               "10.0"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
           }
         ]
       },
@@ -4449,14 +4112,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -4609,14 +4264,6 @@
               "10.0"
             ],
             "registry": "registry.k8s.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "registry.k8s.io"
           }
         ],
         "tag": "v4.0.2"
@@ -4695,14 +4342,6 @@
             "version": [
               "10.0"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "registry": "quay.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
           }
         ]
       },
@@ -4713,14 +4352,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
             "registry": "registry.k8s.io",
             "name": "rhel",
             "version": [
@@ -4780,14 +4411,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -4940,14 +4563,6 @@
               "10.0"
             ],
             "registry": "registry.k8s.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "registry.k8s.io"
           }
         ],
         "tag": "v1.35.1"
@@ -5052,14 +4667,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "1.1"
@@ -5115,14 +4722,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"
@@ -5232,14 +4831,6 @@
               "10.0"
             ],
             "registry": "docker.io"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
           }
         ],
         "tag": "1.35.1"
@@ -5250,14 +4841,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "quay.io"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.0"

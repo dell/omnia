@@ -35,7 +35,7 @@ fi
 # Create directory if it doesn't exist
 echo "Creating service directory..."
 mkdir -p "${SERVICE_DIR}"
-mkdir -p "${OMNIA_DATA_PATH}/build_stream/logs"
+mkdir -p "${OMNIA_DATA_PATH}/build_stream/log"
 
 # Copy updated files
 echo "Copying updated service files..."

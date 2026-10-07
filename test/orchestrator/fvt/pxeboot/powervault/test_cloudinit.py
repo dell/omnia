@@ -26,6 +26,7 @@ from library.functions import (
 )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(322)
 @pytest.mark.powervault_cloudinit
@@ -34,6 +35,7 @@ def test_powervault_setup_log(host):
     verify_pxeboot(host, "powervault_setup_log", check_powervault_setup_log)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(323)
 @pytest.mark.powervault_cloudinit
@@ -42,6 +44,7 @@ def test_powervault_cloud_init_groups_dict(host):
     verify_pxeboot(host, "powervault_cloud_init_groups_dict", check_powervault_cloud_init_groups_dict)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(324)
 @pytest.mark.powervault_cloudinit
@@ -50,6 +53,7 @@ def test_powervault_no_duplicate_fstab(host):
     verify_pxeboot(host, "powervault_no_duplicate_fstab", check_powervault_no_duplicate_fstab)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(325)
 @pytest.mark.powervault_cloudinit
@@ -58,6 +62,7 @@ def test_powervault_all_mounts_writable(host):
     verify_pxeboot(host, "powervault_all_mounts_writable", check_powervault_all_mounts_writable)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(326)
 @pytest.mark.powervault_cloudinit

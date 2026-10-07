@@ -232,6 +232,7 @@ def pytest_configure(config):
     markers = {
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
+        "buildstream": "BuildStream validation subset",
         "functional": "Functional verification",
         "deploy": "Playbook deployment tests (requires full environment)",
         "openldap": "OpenLDAP service, endpoint, TLS, and data tests",
@@ -293,6 +294,7 @@ def pytest_collection_modifyitems(session, config, items):
         explicitly_enabled
         & {
             "sanity",
+            "buildstream",
             "functional",
             "slurm",
             "kubernetes",
@@ -354,7 +356,11 @@ def pytest_collection_modifyitems(session, config, items):
                 and _item_has_marker(item, "image_download")
                 and "image_download" not in explicitly_enabled
                 and not (
-                    _item_has_marker(item, "sanity") and "sanity" in explicitly_enabled
+                    (_item_has_marker(item, "sanity") and "sanity" in explicitly_enabled)
+                    or (
+                        _item_has_marker(item, "buildstream")
+                        and "buildstream" in explicitly_enabled
+                    )
                 )
             ):
                 match = False
@@ -380,7 +386,7 @@ def pytest_runtest_setup(item):
     _mode, markers = _parse_marker_expression(marker_expr)
     selected = set(markers)
     sanity_authorized = _item_has_marker(item, "sanity") and (
-        not selected or "sanity" in selected
+        not selected or "sanity" in selected or "buildstream" in selected
     )
     authorized = set()
     if _item_has_marker(item, "functional") and (

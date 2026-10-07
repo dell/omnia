@@ -186,6 +186,53 @@ default:
         rm -f "/tmp/_rf_failed_nodes.json"
       }
 
+      # ---------------------------------------------------------------------------
+      # Stage Log Reporter (POSIX sh compatible)
+      # Usage: print_stage_log_info <stage_name> [job_status_json_file]
+      #
+      # Prints the stage state, attempt number and playbook log file path
+      # reported by the BSM API. Called on every terminal outcome (success,
+      # failure, cancellation, job failure, polling timeout) so the log
+      # location is always shown, uniformly, across all pipelines.
+      # When the watcher has not reported a path yet, the per-job log
+      # directory on the OIM host is shown instead.
+      # ---------------------------------------------------------------------------
+      bsm_job_log_dir() {
+        _BLD_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
+          "${CI_PROJECT_DIR}/omnia.env" 2>/dev/null | tail -1 | tr -d "\"'")
+        echo "${_BLD_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
+      }
+
+      print_stage_log_info() {
+        _SLI_STAGE="$1"
+        _SLI_FILE="${2:-status_response.json}"
+        _SLI_STATE="UNKNOWN"
+        _SLI_ATTEMPT="N/A"
+        _SLI_LOG=""
+        if [ -s "${_SLI_FILE}" ]; then
+          _SLI_STATE=$(jq -r --arg s "${_SLI_STAGE}" \
+            'first(.stages[]? | select(.stage_name == $s) | .stage_state) // "UNKNOWN"' \
+            "${_SLI_FILE}" 2>/dev/null || echo "UNKNOWN")
+          _SLI_ATTEMPT=$(jq -r --arg s "${_SLI_STAGE}" \
+            'first(.stages[]? | select(.stage_name == $s) | .attempt) // "N/A"' \
+            "${_SLI_FILE}" 2>/dev/null || echo "N/A")
+          _SLI_LOG=$(jq -r --arg s "${_SLI_STAGE}" \
+            'first(.stages[]? | select(.stage_name == $s) | .log_file_path) // empty' \
+            "${_SLI_FILE}" 2>/dev/null || true)
+        fi
+        echo "  ------------------------------------------------------------"
+        printf "  %-22s %s\n" "Stage:" "${_SLI_STAGE}"
+        printf "  %-22s %s\n" "Stage State:" "${_SLI_STATE}"
+        printf "  %-22s %s\n" "Attempt:" "${_SLI_ATTEMPT}"
+        if [ -n "${_SLI_LOG}" ]; then
+          printf "  %-22s %s\n" "Log File Path:" "${_SLI_LOG}"
+        else
+          printf "  %-22s %s\n" "Log File Path:" "N/A (not reported yet)"
+          printf "  %-22s %s\n" "Job Log Directory:" "$(bsm_job_log_dir "${JOB_ID:-unknown}")"
+        fi
+        echo "  ------------------------------------------------------------"
+      }
+
 # ---------------------------------------------------------------------------
 # Deploy stage -- upload config files, call deploy API, poll for completion
 # Manual trigger: user clicks deploy after selecting an image group
@@ -345,6 +392,7 @@ deploy:
             STAGE_COMPLETED=true
             echo ""
             echo "  [OK] Deployment completed successfully"
+            print_stage_log_info "deploy" status_response.json
             break
             ;;
           FAILED|CANCELLED)
@@ -352,12 +400,10 @@ deploy:
             echo "  ERROR: Deploy stage reached ${DEPLOY_STATE}"
             DEPLOY_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .error_code // "N/A"' status_response.json 2>/dev/null)
             DEPLOY_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .error_summary // "N/A"' status_response.json 2>/dev/null)
-            DEPLOY_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
             echo "  ------------------------------------------------------------"
             printf "  %-22s %s\n" "Error Code:"    "${DEPLOY_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${DEPLOY_ERR_SUMMARY}"
-            printf "  %-22s %s\n" "Log File Path:" "${DEPLOY_LOG_PATH}"
-            echo "  ------------------------------------------------------------"
+            print_stage_log_info "deploy" status_response.json
             exit 1
             ;;
         esac
@@ -369,6 +415,7 @@ deploy:
 
       if [ "$STAGE_COMPLETED" = "false" ]; then
         echo "  ERROR: Deploy polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        print_stage_log_info "deploy" status_response.json
         exit 1
       fi
 
@@ -565,6 +612,7 @@ restart:
             STAGE_COMPLETED=true
             echo ""
             echo "  [OK] Restart completed successfully"
+            print_stage_log_info "restart" status_response.json
             break
             ;;
           FAILED|CANCELLED)
@@ -572,12 +620,10 @@ restart:
             echo "  ERROR: Restart stage reached ${RESTART_STATE}"
             RESTART_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_code // "N/A"' status_response.json 2>/dev/null)
             RESTART_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_summary // "N/A"' status_response.json 2>/dev/null)
-            RESTART_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "restart") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
             echo "  ------------------------------------------------------------"
             printf "  %-22s %s\n" "Error Code:"    "${RESTART_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${RESTART_ERR_SUMMARY}"
-            printf "  %-22s %s\n" "Log File Path:" "${RESTART_LOG_PATH}"
-            echo "  ------------------------------------------------------------"
+            print_stage_log_info "restart" status_response.json
             exit 1
             ;;
         esac
@@ -588,6 +634,7 @@ restart:
 
       if [ "$STAGE_COMPLETED" = "false" ]; then
         echo "  ERROR: Restart polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        print_stage_log_info "restart" status_response.json
         exit 1
       fi
 
@@ -744,6 +791,7 @@ validate:
             STAGE_COMPLETED=true
             echo ""
             echo "  [OK] Validate completed successfully"
+            print_stage_log_info "validate" status_response.json
             break
             ;;
           FAILED|CANCELLED)
@@ -751,7 +799,6 @@ validate:
             echo "  ERROR: Validate stage reached ${VALIDATE_STATE}"
             VALIDATE_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "validate") | .error_code // "N/A"' status_response.json 2>/dev/null)
             VALIDATE_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "validate") | .error_summary // "N/A"' status_response.json 2>/dev/null)
-            VALIDATE_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "validate") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
             echo "  ------------------------------------------------------------"
             printf "  %-22s %s\n" "Error Code:"    "${VALIDATE_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${VALIDATE_ERR_SUMMARY}"
@@ -766,9 +813,8 @@ validate:
             fi
 
             # Display log file path after test summary with verbose message
-            printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
-            echo "  ------------------------------------------------------------"
-            echo "  For more detailed information, refer to the logs below"
+            print_stage_log_info "validate" status_response.json
+            echo "  For more detailed information, refer to the logs above"
             echo "  ------------------------------------------------------------"
             exit 1
             ;;
@@ -780,6 +826,7 @@ validate:
 
       if [ "$STAGE_COMPLETED" = "false" ]; then
         echo "  ERROR: Validate polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        print_stage_log_info "validate" status_response.json
         exit 1
       fi
 
@@ -873,6 +920,12 @@ summary:
       printf "  %-24s %s\n" "validate" "${VALIDATE_STATE}"
       echo "  ------------------------------------------------------------"
       printf "  %-24s %s\n" "Job State:" "${JOB_STATE}"
+      echo ""
+
+      echo "  Stage Logs:"
+      for _SUMMARY_STAGE in deploy restart validate; do
+        print_stage_log_info "${_SUMMARY_STAGE}" summary_response.json
+      done
       echo ""
 
       # Determine pipeline result — check each stage for failure

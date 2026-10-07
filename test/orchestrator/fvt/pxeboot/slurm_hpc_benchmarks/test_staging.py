@@ -30,6 +30,7 @@ from fvt.result import verify_pxeboot
 pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(331)
 def test_hpc_benchmarks_json_declaration(host):
@@ -48,6 +49,7 @@ def test_hpc_benchmarks_local_repo_sync(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(333)
 def test_hpc_benchmarks_tools_dir_creation(host):
@@ -90,6 +92,7 @@ def test_hpc_benchmarks_post_staging_validation(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(339)
 def test_hpc_benchmarks_rhel_compatibility(host):

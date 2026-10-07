@@ -26,6 +26,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(218)
@@ -34,6 +35,7 @@ def test_kubernetes_storage(host):
     verify_pxeboot(host, "kubernetes_storage", check_kubernetes_storage)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(219)
@@ -44,6 +46,7 @@ def test_kubernetes_default_storage_class(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(220)
@@ -55,6 +58,7 @@ def test_kubernetes_snapshot_controller(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(222)
@@ -66,6 +70,7 @@ def test_kubernetes_nfs_dynamic_provisioning(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(223)
