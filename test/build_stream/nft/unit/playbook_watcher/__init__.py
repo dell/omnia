@@ -11,20 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Kubernetes workload scheduling contract."""
-
-import pytest
-from library.functions import check_kubernetes_workload_scheduling
-
-from fvt.result import verify_pxeboot
-
-
-@pytest.mark.functional
-@pytest.mark.buildstream
-@pytest.mark.sanity
-@pytest.mark.kubernetes
-@pytest.mark.order(212)
-def test_kubernetes_workload_scheduling(host):
-    """Create, verify, and remove an isolated scheduling probe."""
-    verify_pxeboot(host, "kubernetes_workload", check_kubernetes_workload_scheduling)

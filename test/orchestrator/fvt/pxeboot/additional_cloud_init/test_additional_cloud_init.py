@@ -36,6 +36,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.additional_cloud_init
 @pytest.mark.non_disruptive
@@ -49,6 +50,7 @@ def test_additional_cloud_init_smd_groups(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.additional_cloud_init
 @pytest.mark.non_disruptive
@@ -62,6 +64,7 @@ def test_additional_cloud_init_metadata_groups(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.additional_cloud_init
 @pytest.mark.non_disruptive
@@ -75,6 +78,7 @@ def test_additional_cloud_init_write_files(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.additional_cloud_init
 @pytest.mark.non_disruptive

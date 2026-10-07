@@ -30,6 +30,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm
@@ -69,6 +70,7 @@ def test_slurm_control_ldap_invalid_password(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm
@@ -83,6 +85,7 @@ def test_slurm_login_ldap_authentication(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm
@@ -98,6 +101,7 @@ def test_slurm_login_ldap_invalid_password(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm
@@ -112,6 +116,7 @@ def test_slurm_compiler_ldap_authentication(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm
@@ -138,6 +143,7 @@ def test_slurm_pam_no_job_access(host):
     verify_pxeboot(host, "slurm_pam_no_job", check_slurm_pam_no_job_access)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm

@@ -84,6 +84,7 @@
                 "interval_days": {
                     "type": "integer",
                     "minimum": 1,
+                    "default": 7,
                     "description": "Cadence polling interval in days (minimum 1 day)"
                 },
                 "sync_timeout_seconds": {
@@ -99,6 +100,36 @@
                 }
             },
 
+            "additionalProperties": false
+        },
+        "retention": {
+            "type": "object",
+            "description": "Automatic image cleanup (age-based retention) configuration",
+            "properties": {
+                "auto_cleanup_enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable or disable automatic image cleanup"
+                },
+                "retention_age_days": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 90,
+                    "description": "Age in days after which a never-deployed image group is cleaned up"
+                },
+                "min_keep_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 5,
+                    "description": "Minimum number of image groups kept per functional group"
+                },
+                "evaluation_interval_hours": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 24,
+                    "description": "Interval between automatic cleanup cycles in hours (minimum 1 hour)"
+                }
+            },
             "additionalProperties": false
         }
     },

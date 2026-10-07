@@ -34,7 +34,11 @@ from library.functions import (
     check_minimal_os_required_services,
 )
 
-pytestmark = [pytest.mark.sanity, pytest.mark.minimal_os]
+pytestmark = [
+    pytest.mark.buildstream,
+    pytest.mark.sanity,
+    pytest.mark.minimal_os,
+]
 
 
 @pytest.mark.order(600)

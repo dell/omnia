@@ -83,6 +83,7 @@ class GetStageResponse(BaseModel):
     ended_at: Optional[str] = Field(default=None, description="End timestamp (ISO 8601)")
     error_code: Optional[str] = Field(default=None, description="Error code if failed")
     error_summary: Optional[str] = Field(default=None, description="Error summary if failed")
+    attempt: int = Field(default=1, description="Stage attempt number (1-indexed, +1 per retry)")
     log_file_path: Optional[str] = Field(default=None, description="Ansible log file path on OIM host (NFS share)")
     result_detail: Optional[Dict[str, Any]] = Field(default=None, description="Detailed stage results (JSONB) including log_path, test_summary, artifact_dir")
 

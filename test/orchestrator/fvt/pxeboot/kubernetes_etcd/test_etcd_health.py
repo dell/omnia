@@ -23,6 +23,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(213)
@@ -31,6 +32,7 @@ def test_kubernetes_etcd_health(host):
     verify_pxeboot(host, "kubernetes_etcd_health", check_kubernetes_etcd_health)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(214)

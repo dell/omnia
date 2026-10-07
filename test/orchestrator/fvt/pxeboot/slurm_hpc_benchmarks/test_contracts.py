@@ -30,6 +30,7 @@ from fvt.result import verify_pxeboot
 pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(335)
 def test_hpc_benchmarks_platform_script(host):
@@ -90,6 +91,7 @@ def test_hpc_benchmarks_container_first_guidance(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(343)
 def test_hpc_benchmarks_source_only_delivery(host):
@@ -101,6 +103,7 @@ def test_hpc_benchmarks_source_only_delivery(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(344)
 def test_hpc_benchmarks_nfs_accessibility(host):

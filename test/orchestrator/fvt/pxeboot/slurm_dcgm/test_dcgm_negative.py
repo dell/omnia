@@ -33,6 +33,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 pytestmark = [
+    pytest.mark.buildstream,
     pytest.mark.sanity,
     pytest.mark.slurm,
     pytest.mark.functional,
