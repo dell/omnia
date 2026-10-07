@@ -37,12 +37,6 @@
 #   - Omnia does NOT deploy or configure UFM itself
 # =============================================================================
 
-- name: Load telemetry configuration
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: load_telemetry_config
-  when: telemetry_config is not defined
-
 - name: Set UFM configuration facts
   ansible.builtin.set_fact:
     _ufm_config: "{{ telemetry_config.telemetry_sources.ufm }}"

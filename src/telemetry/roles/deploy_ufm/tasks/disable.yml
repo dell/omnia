@@ -31,12 +31,6 @@
 #   - Secret (ufm-telemetry-credentials) — for re-enablement
 # =============================================================================
 
-- name: Load telemetry configuration
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: load_telemetry_config
-  when: telemetry_config is not defined
-
 - name: Check if the telemetry namespace exists
   ansible.builtin.command: >
     kubectl get namespace {{ telemetry_namespace }} --ignore-not-found
