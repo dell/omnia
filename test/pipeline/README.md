@@ -175,6 +175,21 @@ Select which domains to run with the `domains` setting:
 
 ---
 
+## Test Credentials
+
+Test stages (test_orchestrator, test_telemetry, etc.) automatically fetch test credentials from OpenBao during pipeline execution:
+
+1. **Fetch** -- Credentials are fetched from OpenBao using the `fetch_openbao_secret` function
+2. **Copy** -- Credentials are copied to the target server at `$OMNIA_INSTALL_PATH/test/<domain>/test_creds.yml`
+3. **Encrypt** -- Credentials are encrypted with ansible-vault using a locally generated `.test_creds.key`
+4. **Use** -- Test framework reads encrypted credentials during validation
+
+**Test credentials are optional** — if not available in OpenBao, the pipeline continues with existing credentials or defaults.
+
+For setup instructions, see [OpenBao Setup Guide](docs/OPENBAO_SETUP.md#22-store-domain-and-test-credentials).
+
+---
+
 ## Key Configuration
 
 | Setting | Default | Description |
