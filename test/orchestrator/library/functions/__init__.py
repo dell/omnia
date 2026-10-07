@@ -70,8 +70,11 @@ from .boot_image_identity_provision_func import (
 )
 from .boot_service_provision_func import check_boot_configurations, check_boot_nodes
 from .coredns_pxeboot_func import (
+    check_coredhcp_config_file,
     check_coredhcp_multisubnet_running_image,
     check_coredns_container_state,
+    check_coredns_corefile_config,
+    check_coredns_dns_forwarders,
     check_coredns_forward_resolution,
     check_coredns_idempotency,
     check_coredns_reverse_resolution,
@@ -415,8 +418,11 @@ __all__ = [
     "check_cleanup_openchami",
     "check_cleanup_openldap",
     "check_cleanup_slurm",
+    "check_coredhcp_config_file",
     "check_coredhcp_multisubnet_running_image",
     "check_coredns_container_state",
+    "check_coredns_corefile_config",
+    "check_coredns_dns_forwarders",
     "check_coredns_forward_resolution",
     "check_coredns_idempotency",
     "check_coredns_reverse_resolution",

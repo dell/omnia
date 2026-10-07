@@ -347,17 +347,20 @@ same compute node independently for each postcondition.
 
 ### CoreDNS/CoreDHCP
 
-|| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
-||---:|---|---|---|---|---|---|
-|| 350 | `ORCH_FVT_PXEBOOT_V300` | `test_coredns_container_state` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify coresmd containers run with expected image; observe dns_enabled. | All stated checks pass for every applicable target. |
-|| 351 | `ORCH_FVT_PXEBOOT_V301` | `test_coredns_forward_resolution` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Query CoreDNS on the OIM for every SMD-mapped node. | All stated checks pass for every applicable target. |
-|| 352 | `ORCH_FVT_PXEBOOT_V302` | `test_coredns_reverse_resolution` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Query CoreDNS on the OIM for PTR records. | All stated checks pass for every applicable target. |
-|| 353 | `ORCH_FVT_PXEBOOT_V303` | `test_coredhcp_multisubnet_running_image` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify the running coresmd-coredhcp image on multi-subnet datasets. | All stated checks pass for every applicable target. |
-|| 354 | `ORCH_FVT_PXEBOOT_V304` | `test_dns_compute_resolv_conf` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify every mapped compute node has CoreDNS as primary nameserver. | All stated checks pass for every applicable target. |
-|| 355 | `ORCH_FVT_PXEBOOT_V305` | `test_dns_compute_forward_getent` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Run `getent hosts` on every compute for SMD-derived candidate FQDNs. | All stated checks pass for every applicable target. |
-|| 356 | `ORCH_FVT_PXEBOOT_V306` | `test_coredns_idempotency` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify CoreDNS/CoreDHCP state stability (no-drift). | State is identical across the settle window with no spontaneous changes. |
-|| 357 | `ORCH_FVT_PXEBOOT_V307` | `test_dns_node_addition_pipeline` | `coredns_coredhcp` | `destructive`, `sanity` | Prove the SMD-to-CoreDNS pipeline resolves every SMD-registered mapped node. | The operation completes successfully and returns the expected result. |
-|| 358 | `ORCH_FVT_PXEBOOT_V308` | `test_dns_smd_unreachable_cached_resolution` | `coredns_coredhcp` | `destructive`, `sanity` | Pause the SMD container briefly; require CoreDNS to keep serving cached. | The node returns within the bounded wait and every stated postcondition check passes. |
+||| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|||---:|---|---|---|---|---|---|
+||| 350 | `ORCH_FVT_PXEBOOT_V300` | `test_coredns_container_state` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify coresmd containers run with expected image; observe dns_enabled. | All stated checks pass for every applicable target. |
+||| 351 | `ORCH_FVT_PXEBOOT_V301` | `test_coredns_forward_resolution` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Query CoreDNS on the OIM for every SMD-mapped node. | All stated checks pass for every applicable target. |
+||| 352 | `ORCH_FVT_PXEBOOT_V302` | `test_coredns_reverse_resolution` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Query CoreDNS on the OIM for PTR records. | All stated checks pass for every applicable target. |
+||| 353 | `ORCH_FVT_PXEBOOT_V303` | `test_coredns_dns_forwarders` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify DNS forwarders are configured and can resolve external domains. | All stated checks pass for every applicable target. |
+||| 354 | `ORCH_FVT_PXEBOOT_V304` | `test_coredns_corefile_config` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify Corefile configuration is correctly rendered. | All stated checks pass for every applicable target. |
+||| 355 | `ORCH_FVT_PXEBOOT_V305` | `test_coredhcp_config_file` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify coredhcp.yaml configuration file is correctly rendered. | All stated checks pass for every applicable target. |
+||| 356 | `ORCH_FVT_PXEBOOT_V306` | `test_coredhcp_multisubnet_running_image` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify the running coresmd-coredhcp image on multi-subnet datasets. | All stated checks pass for every applicable target. |
+||| 357 | `ORCH_FVT_PXEBOOT_V307` | `test_dns_compute_resolv_conf` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify every mapped compute node has CoreDNS as primary nameserver. | All stated checks pass for every applicable target. |
+||| 358 | `ORCH_FVT_PXEBOOT_V308` | `test_dns_compute_forward_getent` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Run `getent hosts` on every compute for SMD-derived candidate FQDNs. | All stated checks pass for every applicable target. |
+||| 359 | `ORCH_FVT_PXEBOOT_V309` | `test_coredns_idempotency` | `coredns_coredhcp` | `non_disruptive`, `sanity` | Verify CoreDNS/CoreDHCP state stability (no-drift). | State is identical across the settle window with no spontaneous changes. |
+||| 360 | `ORCH_FVT_PXEBOOT_V310` | `test_dns_node_addition_pipeline` | `coredns_coredhcp` | `destructive`, `sanity` | Prove the SMD-to-CoreDNS pipeline resolves every SMD-registered mapped node. | The operation completes successfully and returns the expected result. |
+||| 361 | `ORCH_FVT_PXEBOOT_V311` | `test_dns_smd_unreachable_cached_resolution` | `coredns_coredhcp` | `destructive`, `sanity` | Pause the SMD container briefly; require CoreDNS to keep serving cached. | The node returns within the bounded wait and every stated postcondition check passes. |
 
 ### PowerVault iSCSI Storage
 
