@@ -55,6 +55,8 @@
     hostname_padding: "{{ hostname_padding }}"
     ib_subnet: "{{ ib_subnet }}"
     admin_subnet: "{{ admin_subnet }}"
+    os_type: "{{ discovery_os_type | default('') }}"
+    os_version: "{{ discovery_os_version | default('') }}"
   register: pxe_mapping_result
 
 - name: Create symlink to latest PXE mapping file

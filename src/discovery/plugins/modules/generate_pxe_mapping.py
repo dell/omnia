@@ -18,6 +18,7 @@
 import csv
 import os
 import re
+from typing import Optional
 from ansible.module_utils.basic import AnsibleModule
 
 DOCUMENTATION = r'''
@@ -71,6 +72,16 @@ options:
         required: false
         type: str
         default: ""
+    os_type:
+        description: OS type to embed in functional group names (e.g. rhel, rocky, ubuntu)
+        required: false
+        type: str
+        default: ""
+    os_version:
+        description: OS version to embed in functional group names (e.g. 10.0, 10.2). Dots are replaced with underscores.
+        required: false
+        type: str
+        default: ""
 author:
     - Dell Inc.
 '''
@@ -101,31 +112,71 @@ server_count:
 
 
 DEFAULT_FUNCTIONAL_GROUP = "slurm_node_aarch64"
-PARENT_TAG_SOURCE_GROUP = "service_kube_node_x86_64"
+PARENT_TAG_SOURCE_PREFIX = "service_kube_node_"
 
-# Omnia-supported functional group names.
-# Only servers whose OME static group matches one of these will be
-# included in the PXE mapping file.
-SUPPORTED_FUNCTIONAL_GROUPS = {
-    "service_kube_control_plane_x86_64",
-    "service_kube_node_x86_64",
-    "login_node_x86_64",
-    "login_node_aarch64",
-    "login_compiler_node_x86_64",
-    "login_compiler_node_aarch64",
-    "slurm_control_node_x86_64",
-    "slurm_node_x86_64",
-    "slurm_node_aarch64",
-    "os_x86_64",
-    "os_aarch64",
-}
+# Supported functional group role prefixes.
+# OME static group names must match one of these prefixes (followed by an
+# optional OS version segment and an architecture suffix) to be included
+# in the PXE mapping file.
+SUPPORTED_ROLE_PREFIXES = (
+    "service_kube_control_plane_",
+    "service_kube_node_",
+    "login_node_",
+    "login_compiler_node_",
+    "slurm_control_node_",
+    "slurm_node_",
+    "os_",
+)
 
-# Roles that receive PARENT_SERVICE_TAG (set to a service_kube_node_x86_64
+SUPPORTED_ARCHITECTURES = ("x86_64", "aarch64")
+
+# Pattern to detect an optional OS-version segment before the architecture
+# suffix (e.g. _rhel_10_0 in slurm_node_rhel_10_0_x86_64).
+_ARCH_PATTERN = re.compile(r"_(?P<arch>x86_64|aarch64)$")
+
+# Roles that receive PARENT_SERVICE_TAG (set to a service_kube_node
 # service tag from the same Scalable Unit).
-CHILD_ROLES_WITH_PARENT_TAG = {
-    "slurm_node_aarch64",
-    "slurm_node_x86_64",
-}
+CHILD_ROLE_PREFIXES = ("slurm_node_",)
+
+
+def _is_supported_functional_group(group_name: str) -> bool:
+    """Check if an OME group name matches a supported Omnia role pattern."""
+    if not group_name:
+        return False
+    lower = group_name.lower()
+    if not lower.startswith(SUPPORTED_ROLE_PREFIXES):
+        return False
+    return bool(_ARCH_PATTERN.search(group_name))
+
+
+def _inject_os_version(
+    fg_name: str,
+    os_type: Optional[str],
+    os_version: Optional[str],
+) -> str:
+    """Insert _{os_type}_{version} before the architecture suffix.
+
+    If the name already contains an OS version segment, leave it unchanged.
+    If os_type or os_version are empty, return the name unchanged.
+    Dots in os_version are replaced with underscores (10.0 -> 10_0).
+    """
+    if not os_type or not os_version:
+        return fg_name
+    arch_match = _ARCH_PATTERN.search(fg_name)
+    if arch_match is None:
+        return fg_name
+
+    # Check if an OS version segment is already present
+    prefix = fg_name[:arch_match.start()]
+    os_segment_pattern = re.compile(
+        r"_(?:rhel|rocky|ubuntu|sles)(?:_[0-9]+)+$"
+    )
+    if os_segment_pattern.search(prefix):
+        return fg_name
+
+    normalized_version = os_version.replace(".", "_")
+    arch = arch_match.group("arch")
+    return f"{prefix}_{os_type}_{normalized_version}_{arch}"
 
 
 def extract_su_from_hostname(bmc_hostname):
@@ -196,7 +247,9 @@ def main():
         "hostname_start": {"type": "int", "required": False, "default": 1},
         "hostname_padding": {"type": "int", "required": False, "default": 3},
         "ib_subnet": {"type": "str", "required": False, "default": ""},
-        "admin_subnet": {"type": "str", "required": False, "default": ""}
+        "admin_subnet": {"type": "str", "required": False, "default": ""},
+        "os_type": {"type": "str", "required": False, "default": ""},
+        "os_version": {"type": "str", "required": False, "default": ""},
     }
 
     module = AnsibleModule(
@@ -213,6 +266,8 @@ def main():
     hostname_padding = module.params['hostname_padding']
     ib_subnet = module.params['ib_subnet']
     admin_subnet = module.params['admin_subnet']
+    os_type = module.params['os_type'].strip().lower()
+    os_version = module.params['os_version'].strip()
 
     # CSV headers as specified
     headers = [
@@ -253,16 +308,19 @@ def main():
             server_group = server.get('group_name', '').strip()
 
             # Skip servers whose OME group is not a supported Omnia functional group
-            if server_group and server_group not in SUPPORTED_FUNCTIONAL_GROUPS:
+            if server_group and not _is_supported_functional_group(server_group):
                 svc_tag = server.get('service_tag', 'unknown')
                 module.warn(
                     f"Skipping device {svc_tag}: OME static group '{server_group}' "
                     f"is not a supported Omnia functional group. "
-                    f"Supported groups: {', '.join(sorted(SUPPORTED_FUNCTIONAL_GROUPS))}"
+                    f"Supported prefixes: {', '.join(SUPPORTED_ROLE_PREFIXES)}"
                 )
                 continue
 
             resolved_functional_group = server_group if server_group else functional_group
+            resolved_functional_group = _inject_os_version(
+                resolved_functional_group, os_type, os_version
+            )
 
             # Derive GROUP_NAME: try SU from BMC hostname first,
             # then from OME group name, then fall back to module default (grp0)
@@ -289,15 +347,18 @@ def main():
         # Build SU -> service_kube_node service tag map
         su_kube_node_map = {}
         for row in rows:
-            if row["FUNCTIONAL_GROUP_NAME"] == PARENT_TAG_SOURCE_GROUP:
+            if row["FUNCTIONAL_GROUP_NAME"].startswith(PARENT_TAG_SOURCE_PREFIX):
                 su = row["GROUP_NAME"]
                 if su and su not in su_kube_node_map:
                     su_kube_node_map[su] = row["SERVICE_TAG"]
 
         # Assign PARENT_SERVICE_TAG only to slurm_node roles,
-        # using a service_kube_node_x86_64 service tag from the same GROUP_NAME
+        # using a service_kube_node service tag from the same GROUP_NAME
         for row in rows:
-            if row["FUNCTIONAL_GROUP_NAME"] not in CHILD_ROLES_WITH_PARENT_TAG:
+            if not any(
+                row["FUNCTIONAL_GROUP_NAME"].startswith(p)
+                for p in CHILD_ROLE_PREFIXES
+            ):
                 continue
             su = row["GROUP_NAME"]
             if su in su_kube_node_map:
