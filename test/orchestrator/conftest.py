@@ -326,29 +326,14 @@ def pytest_collection_modifyitems(session, config, items):
         explicitly_enabled & {"disruptive", "reboot", "scheduler_state"}
     )
 
-    # Only apply the normal deploy auto-skip if no marker expression is given.
+    # Without a marker expression every collected test runs. Deploy cases
+    # still run only in the exec phase, which creates the verified state.
     if mode == "none":
         for item in items:
             if _item_has_marker(item, "deploy") and command_type != "exec":
                 item.add_marker(
                     pytest.mark.skip(
                         "Deploy tests run only during the runner exec phase"
-                    )
-                )
-            elif _item_has_marker(item, "disruptive"):
-                item.add_marker(
-                    pytest.mark.skip(
-                        "Select a disruptive, reboot, or scheduler_state marker "
-                        "to authorize this test"
-                    )
-                )
-            elif _item_has_marker(item, "functional") and not _item_has_marker(
-                item, "sanity"
-            ):
-                item.add_marker(
-                    pytest.mark.skip(
-                        "Select a functional or workload capability marker "
-                        "to authorize this test"
                     )
                 )
     else:
@@ -400,10 +385,27 @@ def pytest_collection_modifyitems(session, config, items):
 
 
 def pytest_runtest_setup(item):
-    """Expose only explicitly selected mutation markers to runtime helpers."""
+    """Expose mutation authorization to runtime helpers.
+
+    With no marker every gate a test carries is authorized; with a marker
+    expression only the selected mutation markers are.
+    """
     marker_expr = item.config.getoption("--marker", default="")
     _mode, markers = _parse_marker_expression(marker_expr)
     selected = set(markers)
+    if not selected:
+        # No marker selected: run every test, so authorize every gate the
+        # test carries.
+        authorized = {
+            marker
+            for marker in ("functional", "disruptive", "image_download")
+            if _item_has_marker(item, marker)
+        }
+        if authorized:
+            os.environ["OMNIA_FVT_AUTHORIZED_MARKERS"] = ",".join(sorted(authorized))
+        else:
+            os.environ.pop("OMNIA_FVT_AUTHORIZED_MARKERS", None)
+        return
     sanity_authorized = _item_has_marker(item, "sanity") and (
         not selected or "sanity" in selected or "buildstream" in selected
     )

@@ -238,6 +238,12 @@ current directories.
 | Comma | Logical OR | `--marker sanity,functional` |
 | Plus | Logical AND | `--marker slurm+non_disruptive` |
 
+Without `--marker`, every collected test runs, including functional,
+negative, image-download, reboot, and scheduler-drain tests. Lifecycle
+execution cases still run only in the `exec` phase. Run a disruptive tag in a
+maintenance window, or pass a marker such as `--marker sanity` to narrow the
+run.
+
 `sanity+functional` selects only tests carrying both markers; it does not mean
 “run sanity, then functional.” Use `sanity,functional` for that union.
 
@@ -307,7 +313,8 @@ access token.
 
 ### PXE boot
 
-PXE verification defaults to `sanity` when no marker is supplied:
+PXE verification runs every test, including reboot and drain cases, when no
+marker is supplied. Use `--marker sanity` for the baseline only:
 
 ```bash
 ./run_validation.sh fvt_orchestrator pxeboot test

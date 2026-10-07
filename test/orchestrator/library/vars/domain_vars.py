@@ -127,8 +127,8 @@ SUITES: dict[str, list[str]] = {
 
 # Each lifecycle owns one playbook execution followed by independent checks.
 ALL_EXEC_TAGS: list[str] = ["precheck", "prepare", "provision", "pxeboot"]
-ALL_EXEC_MARKER: str = "sanity"
-ALL_VERIFY_EXCLUDE_MARKERS: list[str] = ["disruptive", "negative"]
+ALL_EXEC_MARKER: str = ""
+ALL_VERIFY_EXCLUDE_MARKERS: list[str] = []
 
 VERIFY_ONLY_TAGS: list[str] = []
 

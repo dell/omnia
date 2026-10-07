@@ -673,7 +673,7 @@ input file, credential, or externally managed data path must always be deleted.
 
 | Marker | Purpose |
 |---|---|
-| `sanity` | Default positive PXE and lifecycle coverage |
+| `sanity` | Baseline positive PXE and lifecycle coverage |
 | `buildstream` | BuildStream validation subset |
 | `functional` | Temporary workload or job behavior |
 | `openldap`, `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `additional_cloud_init`, `mount_config`, `minimal_os`, `boot_image` | Capability selectors |
@@ -686,7 +686,7 @@ input file, credential, or externally managed data path must always be deleted.
 | `scheduler_state` | Scheduler drain/resume subset of disruptive cases |
 | `destructive` | Destructive cleanup selector |
 
-A comma is OR; a plus is AND. For example, `sanity,functional` selects either
+With no marker every test runs. A comma is OR; a plus is AND. For example, `sanity,functional` selects either
 class, while `slurm+non_disruptive` selects tests carrying both markers.
 
 ## Commands

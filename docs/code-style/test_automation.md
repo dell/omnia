@@ -798,6 +798,10 @@ atomically.
 
 Register every marker before use. Markers represent useful selection axes such
 as architecture, source, sink, feature, or `sanity`, not temporary labs.
+A run without a marker expression runs every collected test, including
+functional, negative, and disruptive tests; only the `exec`/`verify` phase
+rule for execution cases still applies. Markers narrow a run; they are not
+required to authorize one.
 `sanity` marks only the baseline positive checks that must pass on a healthy
 system. A negative test, one that expects a rejection or failure, MUST NOT
 carry `sanity`; mark it `negative`. Do not add `sanity` to an existing test
