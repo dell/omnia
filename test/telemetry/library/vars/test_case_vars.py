@@ -745,6 +745,11 @@ TEST_CASES = {
         "id": "TEL_NFT_019",
         "title": "Final cluster state warning after NFT cleanup",
     },
+    # -- LDMS Configuration Transition Test ---------------------------------
+    "nft_ldms_transitions": {
+        "id": "TEL_NFT_LDMS_001",
+        "title": "LDMS configuration transitions (all 4 states)",
+    },
 }
 
 
