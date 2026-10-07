@@ -165,6 +165,16 @@ test_report_files = []
 # Load job statuses to determine which tests actually ran
 job_statuses = load_job_statuses()
 
+# Load report names mapping from pipeline_reports/report_names.json
+# This maps domain -> report_name (user-configurable from test_config.yml)
+report_names_map = {}
+try:
+    with open("pipeline_reports/report_names.json", "r", encoding="utf-8") as f:
+        report_names_map = json.load(f)
+    print(f"Loaded report names mapping: {report_names_map}")
+except Exception as e:
+    print(f"Warning: Could not load report_names.json: {e}")
+
 # Build set of test stages that actually executed (status is not "unknown")
 _test_stage_map = {
     "main": "test_main_installation",
@@ -182,15 +192,36 @@ for domain, stage in _test_stage_map.items():
         executed_test_domains.add(domain)
 print(f"Test stages that executed: {sorted(executed_test_domains)}")
 
+# Filter domains based on what's enabled in the pipeline
+enabled_test_domains = set()
+for domain in executed_test_domains:
+    if domain == "build_stream" and not build_stream_enable:
+        print(f"  Excluding {domain} (BUILD_STREAM_ENABLE=false)")
+        continue
+    if domain == "discovery" and not enable_discovery:
+        print(f"  Excluding {domain} (ENABLE_DISCOVERY=false)")
+        continue
+    enabled_test_domains.add(domain)
+print(f"Enabled test domains: {sorted(enabled_test_domains)}")
 
-def _domain_from_filename(filename, domain_order):
-    """Extract domain name from a report filename."""
-    # Try exact patterns first (most specific)
+
+def _domain_from_filename(filename, domain_order, report_names_map):
+    """Extract domain name from a report filename using the report_names mapping."""
+    # First, try to match using the report_names_map (user-configurable names)
+    # Use longest match first to avoid substring conflicts (e.g., "test" vs "test_report")
+    sorted_report_names = sorted(report_names_map.items(), key=lambda x: len(x[1]), reverse=True)
+    for domain, report_name in sorted_report_names:
+        # Filename format: <pipeline_id>_<report_name>.json or <pipeline_id>_<report_name>.html
+        # Check if filename ends with _<report_name>.json or _<report_name>.html
+        if filename.endswith(f"_{report_name}.json") or filename.endswith(f"_{report_name}.html"):
+            return domain
+    
+    # Fallback: try exact patterns (for backward compatibility)
     for d in domain_order:
         if (f"_{d}_report" in filename or f"_{d}_test_report" in filename or
                 f"{d}_test_report" in filename or f"{d}_report" in filename):
             return d
-    # Fallback to substring matching
+    # Last resort: substring matching
     for d in domain_order:
         if d in filename:
             return d
@@ -212,16 +243,16 @@ if os.path.exists(TEST_REPORTS_PATH):
     filtered_html_files = []
 
     for fpath in json_files:
-        domain = _domain_from_filename(os.path.basename(fpath), domain_order)
-        if domain and domain in executed_test_domains:
+        domain = _domain_from_filename(os.path.basename(fpath), domain_order, report_names_map)
+        if domain and domain in enabled_test_domains:
             filtered_json_files.append(fpath)
             print(f"  Including JSON report: {os.path.basename(fpath)} (domain={domain})")
         else:
             print(f"  Skipping JSON report: {os.path.basename(fpath)} (domain={domain}, test did not run)")
 
     for fpath in html_files:
-        domain = _domain_from_filename(os.path.basename(fpath), domain_order)
-        if domain and domain in executed_test_domains:
+        domain = _domain_from_filename(os.path.basename(fpath), domain_order, report_names_map)
+        if domain and domain in enabled_test_domains:
             filtered_html_files.append(fpath)
             print(f"  Including HTML report: {os.path.basename(fpath)} (domain={domain})")
         else:
@@ -243,27 +274,9 @@ if os.path.exists(TEST_REPORTS_PATH):
                 with open(json_file, "r", encoding="utf-8") as f:
                     report_data = json.load(f)
 
-                # Extract domain from filename using multiple patterns
+                # Extract domain from filename using report_names_map
                 filename = os.path.basename(json_file)
-                domain = None
-                
-                # Try exact patterns first (most specific)
-                for d in domain_order:
-                    if (
-                        f"_{d}_report" in filename
-                        or f"_{d}_test_report" in filename
-                        or f"{d}_test_report" in filename
-                        or f"{d}_report" in filename
-                    ):
-                        domain = d
-                        break
-                
-                # If no match, try substring matching (less specific)
-                if not domain:
-                    for d in domain_order:
-                        if d in filename:
-                            domain = d
-                            break
+                domain = _domain_from_filename(filename, domain_order, report_names_map)
                 
                 # If still no match, skip this file (don't create "unknown" entries)
                 if not domain:
@@ -361,7 +374,7 @@ if os.path.exists(TEST_REPORTS_PATH):
             <td style="border: 1px solid #ddd; padding: 8px; color: red;">{ds['failed']}</td>
             <td style="border: 1px solid #ddd; padding: 8px; color: orange;">{ds['skipped']}</td>
         </tr>"""
-                elif domain in executed_test_domains:
+                elif domain in enabled_test_domains:
                     # Test ran but no report file generated
                     domain_rows += f"""\
         <tr style="background-color: {bg};">
@@ -401,14 +414,14 @@ if os.path.exists(TEST_REPORTS_PATH):
             test_reports_summary = "<p><em>Test reports are attached to this email.</em></p>"
     else:
         # No JSON reports found, but still show domain status table if tests ran
-        if executed_test_domains:
+        if enabled_test_domains:
             domain_order = ["main", "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry", "build_stream"]
             domain_rows = ""
             row_idx = 0
             for domain in domain_order:
                 bg = "#f8f9fa" if row_idx % 2 == 0 else "#ffffff"
                 row_idx += 1
-                if domain in executed_test_domains:
+                if domain in enabled_test_domains:
                     domain_rows += f"""\
         <tr style="background-color: {bg};">
             <td style="border: 1px solid #ddd; padding: 8px;">{domain}</td>
@@ -445,8 +458,8 @@ else:
 # Stage ordering per pipeline mode
 STAGE_ORDER_DEFAULT = [
     "initialization", "setup_environment",
-    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
-    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
+    "cleanup_build_stream", "cleanup_utils", "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_discovery", "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "setup_main", "test_main_installation",
     "repo_manager", "test_repo_manager",
     "image_build_manager", "test_image_build_manager",
@@ -466,8 +479,8 @@ STAGE_ORDER_DEPLOY = [
 ]
 STAGE_ORDER_CLEANUP = [
     "initialization", "setup_environment",
-    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
-    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
+    "cleanup_build_stream", "cleanup_utils", "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_discovery", "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "summary",
 ]
 # Stage ordering for UTILS_ENABLE (utils pipeline)
@@ -480,8 +493,8 @@ STAGE_ORDER_UTILS = [
 # Stage ordering for BUILD_STREAM_ENABLE (build_stream pipeline)
 STAGE_ORDER_BUILD_STREAM_DEFAULT = [
     "initialization", "setup_environment",
-    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
-    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
+    "cleanup_build_stream", "cleanup_utils", "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_discovery", "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "setup_main", "test_main_installation", "prepare_base",
     "test_repo_manager", "test_image_build_manager", "test_orchestrator",
     "build_stream", "test_build_stream",
@@ -496,8 +509,8 @@ STAGE_ORDER_BUILD_STREAM_DEPLOY = [
 ]
 STAGE_ORDER_BUILD_STREAM_CLEANUP = [
     "initialization", "setup_environment",
-    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
-    "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
+    "cleanup_build_stream", "cleanup_utils", "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_discovery", "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_omnia",
     "summary",
 ]
 
