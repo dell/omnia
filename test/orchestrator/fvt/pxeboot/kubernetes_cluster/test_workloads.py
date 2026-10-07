@@ -21,6 +21,7 @@ from fvt.result import verify_pxeboot
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(212)

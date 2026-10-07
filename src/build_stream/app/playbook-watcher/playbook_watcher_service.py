@@ -1497,7 +1497,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         f'source .venv/bin/activate && '
         # Checkmarx: Hardcoded command arguments to prevent injection from request_data
         # Run the validation through its supported non-interactive entry point.
-        f'exec ./run_validation.sh fvt_orchestrator check verify '
+        f'exec ./run_validation.sh fvt_orchestrator pxeboot verify '
         f'--marker buildstream'
     )
 
@@ -1645,6 +1645,53 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                             test_summary["suite"] = marker_match.group(1)
                         else:
                             test_summary["suite"] = "buildstream"
+
+                    summary_match = re.search(
+                        r'(?m)^\s*(\d+) passed,\s*(\d+) failed,\s*'
+                        r'(\d+) skipped(?:,\s*(\d+) errors?)?\s*/\s*'
+                        r'(\d+) total',
+                        sanitized,
+                    )
+                    if summary_match:
+                        test_summary.update({
+                            "passed": int(summary_match.group(1)),
+                            "failed": int(summary_match.group(2)),
+                            "skipped": int(summary_match.group(3)),
+                            "errors": int(summary_match.group(4) or 0),
+                            "total": int(summary_match.group(5)),
+                        })
+
+                    test_rows = re.findall(
+                        r'(?m)^\s*([A-Z][A-Z0-9_]+)\s+'
+                        r'(test_[A-Za-z0-9_]+)\s+'
+                        r'(PASSED|FAILED|SKIPPED|ERROR)\s+',
+                        sanitized,
+                    )
+                    if test_rows:
+                        test_summary["tests"] = [
+                            {"name": f"{test_id} {test_name}", "status": status}
+                            for test_id, test_name, status in test_rows
+                        ]
+
+                    failed_block = re.search(
+                        r'(?ms)^=+ short test summary info =+\s*$'
+                        r'(.*?)^\d+ failed,',
+                        sanitized,
+                    )
+                    if failed_block:
+                        failed_tests = re.findall(
+                            r'(?m)^\s*(fvt/\S+::test_[A-Za-z0-9_]+)',
+                            failed_block.group(1),
+                        )
+                        if failed_tests:
+                            non_failed = [
+                                test for test in test_summary.get("tests", [])
+                                if test["status"] != "FAILED"
+                            ]
+                            test_summary["tests"] = non_failed + [
+                                {"name": test_name, "status": "FAILED"}
+                                for test_name in failed_tests
+                            ]
             except (OSError, IOError, ValueError) as e:
                 log_secure_info(
                     "warning",

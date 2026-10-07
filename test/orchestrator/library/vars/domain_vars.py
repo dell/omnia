@@ -39,6 +39,7 @@ FVT_TAGS: list[str] = [
 
 MARKERS: list[str] = [
     "sanity",
+    "buildstream",
     "functional",
     "deploy",
     "openldap",

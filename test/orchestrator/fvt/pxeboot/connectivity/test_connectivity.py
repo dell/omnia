@@ -52,6 +52,7 @@ def _check(host, key, callback):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
 @pytest.mark.order(201)
@@ -60,6 +61,7 @@ def test_node_ping(host):
     _check(host, "node_ping", check_node_ping)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
 @pytest.mark.order(202)
@@ -68,6 +70,7 @@ def test_node_ssh(host):
     _check(host, "node_ssh", check_node_ssh)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
 @pytest.mark.order(203)
@@ -76,6 +79,7 @@ def test_node_hostname_ssh(host):
     _check(host, "node_hostname_ssh", check_node_hostname_ssh)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
 @pytest.mark.order(298)
@@ -84,6 +88,7 @@ def test_node_architecture(host):
     _check(host, "node_architecture", check_node_architecture)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
 @pytest.mark.order(299)

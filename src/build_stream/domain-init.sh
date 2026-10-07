@@ -273,7 +273,7 @@ copy_input_files() {
 
     # Use rsync if available (preserves permissions, only copies changed files)
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --update "$src_dir/" "$dest_dir/" --exclude='.*'
+        rsync -a "$src_dir/" "$dest_dir/" --exclude='.*'
     else
         cp -a "$src_dir"/. "$dest_dir/"
     fi

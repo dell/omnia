@@ -31,6 +31,7 @@ from fvt.result import verify_pxeboot
 pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(355)
 def test_dns_compute_resolv_conf(host):
@@ -39,6 +40,7 @@ def test_dns_compute_resolv_conf(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(356)
 def test_dns_compute_forward_getent(host):
