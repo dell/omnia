@@ -1386,6 +1386,9 @@ repo_manager:
 test_repo_manager:
   stage: test_repo_manager
   timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $BAO_SERVER_URL
   allow_failure: true
   rules:
     - if: '$SKIP_STAGES =~ /repo_manager/'
@@ -1623,6 +1626,9 @@ image_build_manager:
 test_image_build_manager:
   stage: test_image_build_manager
   timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $BAO_SERVER_URL
   allow_failure: true
   rules:
     - if: '$SKIP_STAGES =~ /image_build_manager/'
@@ -1857,6 +1863,9 @@ discovery:
 test_discovery:
   stage: test_discovery
   timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $BAO_SERVER_URL
   allow_failure: true
   rules:
     - if: '$SKIP_STAGES =~ /discovery/'
@@ -2101,6 +2110,9 @@ orchestrator:
 test_orchestrator:
   stage: test_orchestrator
   timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $BAO_SERVER_URL
   allow_failure: true
   rules:
     - if: '$SKIP_STAGES =~ /orchestrator/'
@@ -2163,8 +2175,43 @@ test_orchestrator:
         fi
       "
 
-    # Step 3: Run orchestrator validation tests
-    - echo "Step 3 - Running orchestrator validation tests"
+    # Step 3: Fetch test credentials from OpenBao and encrypt
+    - echo "Step 3 - Fetching test_orchestrator credentials from OpenBao"
+    - |
+      TEST_CRED_FILE="/tmp/test_orchestrator_creds_$$.yml"
+      if ! fetch_openbao_secret "test_orchestrator" "$TEST_CRED_FILE"; then
+        echo "WARNING: Failed to fetch test_orchestrator credentials from OpenBao"
+        echo "Continuing with existing credentials or defaults..."
+      else
+        $SCP_CMD "$TEST_CRED_FILE" $TARGET:$OMNIA_INSTALL_PATH/test/orchestrator/test_creds.yml 2>/dev/null
+        rm -f "$TEST_CRED_FILE"
+        echo "  Test credential file copied to target"
+
+        # Encrypt test_creds.yml with ansible-vault
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/orchestrator
+          VAULT_KEY='.test_creds.key'
+          CRED_FILE='test_creds.yml'
+          if [ -f \"\$CRED_FILE\" ]; then
+            if head -n1 \"\$CRED_FILE\" | grep -q '\$ANSIBLE_VAULT;'; then
+              echo 'Test credential file is already encrypted'
+            else
+              if [ ! -f \"\$VAULT_KEY\" ]; then
+                openssl rand -base64 32 > \"\$VAULT_KEY\"
+                chmod 600 \"\$VAULT_KEY\"
+                echo 'Generated vault key for test credentials'
+              fi
+              ansible-vault encrypt --vault-password-file=\"\$VAULT_KEY\" \"\$CRED_FILE\"
+              echo 'Test credential file encrypted successfully'
+            fi
+          else
+            echo 'WARNING: test_creds.yml not found — skipping encryption'
+          fi
+        "
+      fi
+
+    # Step 4: Run orchestrator validation tests
+    - echo "Step 4 - Running orchestrator validation tests"
     - |
       # Use default if CI/CD variable is empty
       TEST_CMD="${TEST_ORCHESTRATOR_CMD:-./run_validation.sh fvt_orchestrator verify}"
@@ -2336,6 +2383,9 @@ telemetry:
 test_telemetry:
   stage: test_telemetry
   timeout: 3h
+  id_tokens:
+    VAULT_ID_TOKEN:
+      aud: $BAO_SERVER_URL
   allow_failure: true
   rules:
     - if: '$SKIP_STAGES =~ /telemetry/'
@@ -2398,8 +2448,43 @@ test_telemetry:
         fi
       "
 
-    # Step 3: Run telemetry validation tests
-    - echo "Step 3 - Running telemetry validation tests"
+    # Step 3: Fetch test credentials from OpenBao and encrypt
+    - echo "Step 3 - Fetching test_telemetry credentials from OpenBao"
+    - |
+      TEST_CRED_FILE="/tmp/test_telemetry_creds_$$.yml"
+      if ! fetch_openbao_secret "test_telemetry" "$TEST_CRED_FILE"; then
+        echo "WARNING: Failed to fetch test_telemetry credentials from OpenBao"
+        echo "Continuing with existing credentials or defaults..."
+      else
+        $SCP_CMD "$TEST_CRED_FILE" $TARGET:$OMNIA_INSTALL_PATH/test/telemetry/test_creds.yml 2>/dev/null
+        rm -f "$TEST_CRED_FILE"
+        echo "  Test credential file copied to target"
+
+        # Encrypt test_creds.yml with ansible-vault
+        $SSH_CMD $TARGET "
+          cd $OMNIA_INSTALL_PATH/test/telemetry
+          VAULT_KEY='.test_creds.key'
+          CRED_FILE='test_creds.yml'
+          if [ -f \"\$CRED_FILE\" ]; then
+            if head -n1 \"\$CRED_FILE\" | grep -q '\$ANSIBLE_VAULT;'; then
+              echo 'Test credential file is already encrypted'
+            else
+              if [ ! -f \"\$VAULT_KEY\" ]; then
+                openssl rand -base64 32 > \"\$VAULT_KEY\"
+                chmod 600 \"\$VAULT_KEY\"
+                echo 'Generated vault key for test credentials'
+              fi
+              ansible-vault encrypt --vault-password-file=\"\$VAULT_KEY\" \"\$CRED_FILE\"
+              echo 'Test credential file encrypted successfully'
+            fi
+          else
+            echo 'WARNING: test_creds.yml not found — skipping encryption'
+          fi
+        "
+      fi
+
+    # Step 4: Run telemetry validation tests
+    - echo "Step 4 - Running telemetry validation tests"
     - |
       # Use default if CI/CD variable is empty
       TEST_CMD="${TEST_TELEMETRY_CMD:-./run_validation.sh fvt_telemetry verify}"
