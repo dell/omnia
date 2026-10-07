@@ -42,7 +42,7 @@ from orchestrator.common.result_poller import ResultPoller
 
 pytestmark = pytest.mark.unit
 
-LOG = "/opt/omnia/build_stream/logs/j/deploy_orchestrator.yml_20261006_000000_attempt2.log"
+LOG = "/opt/omnia/build_stream/log/j/deploy_orchestrator.yml_20261006_000000_attempt2.log"
 
 
 class _Results:
@@ -169,9 +169,9 @@ def test_cleanup_request_carries_incrementing_attempt(tmp_path, prior, expected)
 
 
 def test_api_log_base_is_build_stream_logs():
-    """API job/event logs live under <data>/build_stream/logs, not <data>/log."""
+    """API job/event logs live under <data>/build_stream/log, not <data>/log."""
     from api import logging_utils  # pylint: disable=import-outside-toplevel
 
     data = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
-    assert logging_utils._LOG_BASE == data / "build_stream" / "logs"
+    assert logging_utils._LOG_BASE == data / "build_stream" / "log"
     assert "log/build_stream" not in str(logging_utils._LOG_BASE)

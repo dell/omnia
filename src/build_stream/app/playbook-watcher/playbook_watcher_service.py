@@ -126,9 +126,9 @@ OMNIA_DATA_PATH = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
 OMNIA_VENV_PATH = os.getenv("OMNIA_VENV_PATH", "/opt/omnia/venv")
 
 # BuildStream job log directory. After every execution the stage log is
-# copied to <data>/build_stream/logs/<job_id>/ and that copy is reported as
+# copied to <data>/build_stream/log/<job_id>/ and that copy is reported as
 # the stage log_file_path.
-HOST_LOG_BASE_DIR = Path(f"{OMNIA_DATA_PATH}/build_stream/logs")
+HOST_LOG_BASE_DIR = Path(f"{OMNIA_DATA_PATH}/build_stream/log")
 
 # Playbook log directory: /var/log/omnia/<domain>/, the same location used
 # when an operator runs the playbook manually. Ansible writes here while the
@@ -1090,7 +1090,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
     Playbook logs are written to ``/var/log/omnia/<domain>/`` (the same
     location as a manual run) and copied to
-    ``<OMNIA_DATA_PATH>/build_stream/logs/<job_id>/`` on every outcome; the
+    ``<OMNIA_DATA_PATH>/build_stream/log/<job_id>/`` on every outcome; the
     copy is returned as ``log_file_path``.
 
     Args:
@@ -1167,7 +1167,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     started_at = datetime.now(timezone.utc)
 
     # Ansible writes to /var/log/omnia/<domain>/ (same as a manual run); the
-    # log is copied to <data>/build_stream/logs/<job_id>/ on every outcome.
+    # log is copied to <data>/build_stream/log/<job_id>/ on every outcome.
     log_file_path = build_stage_log_path(
         _extract_domain_from_playbook_path(playbook_path),
         stage_name,

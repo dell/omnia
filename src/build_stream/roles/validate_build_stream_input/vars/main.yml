@@ -16,7 +16,7 @@
 build_stream_schema_dir: >-
   {{ role_path | dirname | dirname }}/plugins/module_utils/input_validation/schema
 build_stream_validation_log_dir: >-
-  {{ input_project_dir | dirname | dirname }}/logs/validation
+  {{ input_project_dir | dirname | dirname }}/log/{{ input_project_dir | basename }}
 
 build_stream_validation_start_msg: >-
   Starting BuildStream input validation (L1 schema + L2 logic).

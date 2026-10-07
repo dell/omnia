@@ -203,7 +203,7 @@ _check_existing_files() {
 # ---------------------------------------------------------------------------
 create_runtime_directories() {
     local output_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/output/${OMNIA_PROJECT_NAME}"
-    local runtime_log_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/logs"
+    local runtime_log_dir="${OMNIA_DATA_PATH}/${DOMAIN_NAME}/log/${OMNIA_PROJECT_NAME}"
     local ansible_log_dir="/var/log/omnia/${DOMAIN_NAME}"
 
     for dir in "$output_dir" "$runtime_log_dir" "$ansible_log_dir"; do

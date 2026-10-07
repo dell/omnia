@@ -113,7 +113,7 @@ def _default_build_stream_config_path() -> Path:
 def _cadence_log_dir(job_id: str) -> Path:
     """Return the directory holding the cadence sync playbook log."""
     omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
-    return omnia_data_path / "build_stream" / "logs" / job_id
+    return omnia_data_path / "build_stream" / "log" / job_id
 
 
 def _repo_resync_status_path() -> Path:

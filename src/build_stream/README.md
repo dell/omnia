@@ -194,7 +194,7 @@ All runtime output goes to `<OMNIA_DATA_PATH>/build_stream/` (default: `/opt/omn
 
 | Path | Purpose |
 |------|---------|
-| `<data_path>/build_stream/logs/` | BuildStream job logs: API event log, per-job API logs and copies of per-attempt stage playbook logs (`logs/<job_id>/`), cadence sync log copies (`logs/cadence-<timestamp>/`), and validation logs (`logs/validation/`). Watcher-run playbooks log to `/var/log/omnia/<domain>/` like a manual run; that log is copied here when the stage ends |
+| `<data_path>/build_stream/log/` | BuildStream job logs: API event log, per-job API logs and copies of per-attempt stage playbook logs (`log/<job_id>/`), cadence sync log copies (`log/cadence-<timestamp>/`), and validation logs (`log/<project>/`). Watcher-run playbooks log to `/var/log/omnia/<domain>/` like a manual run; that log is copied here when the stage ends |
 | `<data_path>/build_stream/input/<project>/` | Staged input files |
 | `<data_path>/build_stream/output/<project>/` | Build status output |
 | `<data_path>/build_stream/playbook_queue/` | Watcher job queue |

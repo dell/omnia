@@ -17,7 +17,7 @@
 """Unit tests for playbook-watcher stage log paths and attempt numbering.
 
 Playbooks log to ``/var/log/omnia/<domain>/`` exactly like a manual run and
-the log is copied to ``<OMNIA_DATA_PATH>/build_stream/logs/<job_id>/``. Every
+the log is copied to ``<OMNIA_DATA_PATH>/build_stream/log/<job_id>/``. Every
 result reports the copy, named with the stage attempt, on success, failure,
 timeout, and system error.
 """
@@ -57,7 +57,7 @@ def domain_root(tmp_path, monkeypatch):
 @pytest.fixture
 def log_root(tmp_path, monkeypatch, domain_root):
     """Redirect the BuildStream job log root to a temporary directory."""
-    root = tmp_path / "build_stream" / "logs"
+    root = tmp_path / "build_stream" / "log"
     monkeypatch.setattr(WATCHER, "HOST_LOG_BASE_DIR", root)
     monkeypatch.setattr(WATCHER.time, "sleep", lambda _seconds: None)
     return root
@@ -112,9 +112,9 @@ def test_stage_log_path_is_under_var_log_omnia_domain(domain_root):
 
 
 def test_log_locations():
-    """Playbooks log to /var/log/omnia; copies go to <data>/build_stream/logs."""
+    """Playbooks log to /var/log/omnia; copies go to <data>/build_stream/log."""
     assert WATCHER.PLAYBOOK_LOG_BASE_DIR == Path("/var/log/omnia")
-    assert WATCHER.HOST_LOG_BASE_DIR.parts[-2:] == ("build_stream", "logs")
+    assert WATCHER.HOST_LOG_BASE_DIR.parts[-2:] == ("build_stream", "log")
     assert "log/build_stream" not in str(WATCHER.HOST_LOG_BASE_DIR)
 
 

@@ -133,7 +133,7 @@ src/build_stream/
 | Input subdir | `input/project_default/` |
 | Output subdir | `output/project_default/` |
 | Log path | `./output/build_stream.log` (relative to playbook CWD) |
-| API log path | `/opt/omnia/build_stream/logs/` |
+| API log path | `/opt/omnia/build_stream/log/` |
 | Playbook queue | `/opt/omnia/build_stream/playbook_queue/` |
 
 ### Ansible Config (ansible.cfg)

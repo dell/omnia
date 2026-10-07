@@ -30,7 +30,7 @@ _LOG_FORMATTER = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-_LOG_BASE = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "build_stream" / "logs"
+_LOG_BASE = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "build_stream" / "log"
 
 _job_loggers: Dict[str, logging.Logger] = {}
 
