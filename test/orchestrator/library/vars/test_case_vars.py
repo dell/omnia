@@ -1137,6 +1137,92 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify error handling when DCGM package is unavailable",
         "component": "DCGM package install failure",
     },
+    # ---- VAST Storage (TC-001 .. TC-017) ----
+    "vast_vastnfs_installation": {
+        "id": "ORCH_FVT_PXEBOOT_V700",
+        "title": "Verify VAST NFS client installation on compute nodes",
+        "component": "VAST NFS installation",
+    },
+    "vast_mount_points": {
+        "id": "ORCH_FVT_PXEBOOT_V701",
+        "title": "Verify VAST mount point directories exist on compute nodes",
+        "component": "VAST mount points",
+    },
+    "vast_scratch_hostname_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V702",
+        "title": "Verify /scratch/<hostname>/ isolation across nodes",
+        "component": "VAST scratch hostname isolation",
+    },
+    "vast_mount_options": {
+        "id": "ORCH_FVT_PXEBOOT_V703",
+        "title": "Verify VAST mount options proto=rdma and port=20049",
+        "component": "VAST mount options",
+    },
+    "vast_ldapuser_scratch_directory": {
+        "id": "ORCH_FVT_PXEBOOT_V704",
+        "title": "Verify /scratch/<ldapuser>/ on login_compiler nodes",
+        "component": "VAST LDAP scratch directory",
+    },
+    "vast_ldapuser_subdirectories": {
+        "id": "ORCH_FVT_PXEBOOT_V705",
+        "title": "Verify data/jobs/results/tmp subdirectories in scratch",
+        "component": "VAST LDAP subdirectories",
+    },
+    "vast_ldapuser_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V706",
+        "title": "Verify LDAP user permission isolation on VAST scratch",
+        "component": "VAST LDAP permissions",
+    },
+    "vast_scratch_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V707",
+        "title": "Verify file isolation between VAST scratch subdirectories",
+        "component": "VAST scratch isolation",
+    },
+    "vast_control_node_no_vast": {
+        "id": "ORCH_FVT_PXEBOOT_V708",
+        "title": "Verify Slurm control node has no VAST storage mounted",
+        "component": "VAST control node exclusion",
+    },
+    "vast_vastnfs_rpm_and_module": {
+        "id": "ORCH_FVT_PXEBOOT_V709",
+        "title": "Verify vastnfs RPM, kernel module, and service",
+        "component": "VAST NFS RPM and module",
+    },
+    "vast_fstab_entries": {
+        "id": "ORCH_FVT_PXEBOOT_V710",
+        "title": "Verify /etc/fstab VAST entries with proto=rdma",
+        "component": "VAST fstab entries",
+    },
+    "vast_rdma_mount": {
+        "id": "ORCH_FVT_PXEBOOT_V711",
+        "title": "Verify VAST RDMA mount and 1 GB I/O checksum",
+        "component": "VAST RDMA mount and I/O",
+    },
+    "vast_qss_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V712",
+        "title": "Verify VAST QSS mounts on compute/login only",
+        "component": "VAST QSS mount assignment",
+    },
+    "vast_slurm_logs_persistence": {
+        "id": "ORCH_FVT_PXEBOOT_V713",
+        "title": "Verify Slurm logs on persistent storage",
+        "component": "VAST Slurm log persistence",
+    },
+    "vast_control_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V714",
+        "title": "Verify control node mount table (no VAST)",
+        "component": "VAST control node mounts",
+    },
+    "vast_compute_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V715",
+        "title": "Verify compute node mount table (NFS + VAST)",
+        "component": "VAST compute node mounts",
+    },
+    "vast_login_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V716",
+        "title": "Verify login/compiler node mount table",
+        "component": "VAST login node mounts",
+    },
     "additional_cloud_init_smd_groups": {
         "id": "ORCH_FVT_PXEBOOT_V095",
         "title": "Verify additional cloud-init SMD groups",
