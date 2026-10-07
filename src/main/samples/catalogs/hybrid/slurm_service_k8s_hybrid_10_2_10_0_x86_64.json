@@ -184,7 +184,6 @@
         "components": [
           "cffi==1_17_1",
           "cryptography==45_0_7",
-          "omsdk==1_2_518",
           "prettytable==3_14_0"
         ]
       },
@@ -426,7 +425,6 @@
           "prettytable==3_14_0",
           "python3",
           "git",
-          "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
         ]
       },
@@ -457,7 +455,6 @@
           "prettytable==3_14_0",
           "python3",
           "git",
-          "kubernetes==33_1_0",
           "PyMySQL==1_1_2"
         ]
       },
