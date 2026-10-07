@@ -19,9 +19,9 @@ from library.functions import check_cleanup_slurm
 
 from fvt.result import verify_cleanup
 
-pytestmark = [pytest.mark.sanity, pytest.mark.destructive]
 
-
+@pytest.mark.sanity
+@pytest.mark.destructive
 @pytest.mark.order(3)
 def test_slurm_cleanup(host):
     """Verify Slurm's selected data policy and configured storage detachment."""

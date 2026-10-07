@@ -41,6 +41,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import ensure_source_mpi as _ensure_source_mpi
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import require_functional as _require_functional
 from ._workload_helpers import slurm_compute_rows as _compute_rows
@@ -572,6 +573,13 @@ def check_slurm_concurrent_jobs(host):
                         control,
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
+                except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                    print(
+                        f"    ! cleanup: failed to cancel job {job_id}: "
+                        f"{str(exc)[:100]}",
+                        flush=True,
+                    )
+                try:
                     remote_command(
                         host,
                         row,
@@ -597,14 +605,40 @@ def check_slurm_insufficient_resources(host):
             control,
             PXEBOOT_COMMANDS["slurm_insufficient_resources"],
         )
+        output = (result.stderr or result.stdout or "").lower()
+        resource_rejection_patterns = (
+            "unable to allocate",
+            "batch job submission failed",
+            "immediate execution impossible",
+            "requested node configuration is not available",
+        )
+        is_resource_rejection = result.rc != 0 and any(
+            pattern in output for pattern in resource_rejection_patterns
+        )
         rejected = result.rc != 0
+        error = ""
+        if not rejected:
+            error = "Slurm accepted a request larger than the available node count"
+        elif not is_resource_rejection:
+            error = (
+                f"srun failed (rc={result.rc}) but not due to resource limits: "
+                + re.sub(r"\s+", " ", output.strip())[:200]
+            )
         return runtime_result(
-            rejected,
+            is_resource_rejection,
             summary,
-            [("Impossible allocation", "rejected" if rejected else "accepted")],
-            "Slurm accepted a request larger than the available node count"
-            if not rejected
-            else "",
+            [
+                (
+                    "Impossible allocation",
+                    "correctly rejected" if is_resource_rejection
+                    else ("accepted" if not rejected else "failed for other reason"),
+                ),
+                (
+                    "Rejection detail",
+                    re.sub(r"\s+", " ", output.strip())[:200] or "none",
+                ),
+            ],
+            error,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -1058,8 +1092,12 @@ def check_slurm_job_queueing(host):
                         control,
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
-                except (OSError, RuntimeError, TypeError, ValueError):
-                    pass
+                except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                    print(
+                        f"    ! cleanup: failed to cancel job {job_id}: "
+                        f"{str(exc)[:100]}",
+                        flush=True,
+                    )
             for row in computes:
                 for job_id in jobs:
                     try:
@@ -1074,7 +1112,18 @@ def check_slurm_job_queueing(host):
 
 
 def check_slurm_drain_queue_recovery(host):
-    """Drain one compute node, observe a pending job, then restore the node."""
+    """Drain one compute node, verify the drain, queue a job, then restore.
+
+    Verification phases:
+
+    1. **Pre-drain baseline** — record the node's initial Slurm state.
+    2. **Drain** — issue ``scontrol drain`` and confirm the node reaches
+       a ``drained`` state (poll with timeout).
+    3. **Queue** — submit a job pinned to the drained node and verify it
+       stays ``PENDING``.
+    4. **Resume** — restore the node and verify it returns to ``idle``.
+    5. **Cleanup** — cancel the queued job (always runs, even on failure).
+    """
     summary = "Slurm drain, queue, and resume behavior"
     job_id = ""
     control = None
@@ -1091,49 +1140,158 @@ def check_slurm_drain_queue_recovery(host):
             return _skip(summary, "No Slurm compute nodes are mapped")
         compute = computes[0]
         node_name = compute["HOSTNAME"]
+
+        # Phase 1: pre-drain baseline
+        before_state = remote_command(
+            host, control,
+            PXEBOOT_COMMANDS["slurm_drain_state"] % node_name,
+        )
+        initial_state = before_state.stdout.strip().lower() if before_state.rc == 0 else "unknown"
+
+        # Phase 2: drain and verify
         drain = remote_command(
-            host,
-            control,
+            host, control,
             PXEBOOT_COMMANDS["slurm_drain_node"] % (node_name, SLURM_DRAIN_REASON),
         )
-        if drain.rc != 0:
-            raise RuntimeError("The selected compute node could not be drained")
-        submit = remote_command(
-            host,
-            control,
-            PXEBOOT_COMMANDS["slurm_submit_drain_job"] % node_name,
-        )
-        parts = submit.stdout.strip().split("|", 1)
-        if submit.rc == 0 and len(parts) == 2 and parts[0].isdigit():
-            job_id = parts[0]
-        state = parts[1].upper() if len(parts) == 2 else ""
-        pending = submit.rc == 0 and state.startswith("PENDING")
-        return runtime_result(
-            pending,
-            summary,
-            [
-                ("Drained node", node_name),
-                ("Queued job state", state or "unknown"),
-            ],
-            "A job constrained to the drained node did not remain pending"
-            if not pending
-            else "",
-        )
+        drain_cmd_ok = drain.rc == 0
+        drain_diagnostic = ""
+        if not drain_cmd_ok:
+            drain_diagnostic = re.sub(
+                r"\s+", " ",
+                (drain.stderr or drain.stdout or f"rc={drain.rc}").strip(),
+            )[:200]
+
+        # Verify the node actually reached drained state
+        drain_verified = False
+        drain_actual_state = "not checked"
+        if drain_cmd_ok:
+            poll_start = time.monotonic()
+            poll_deadline = poll_start + 30
+            while time.monotonic() < poll_deadline:
+                check = remote_command(
+                    host, control,
+                    PXEBOOT_COMMANDS["slurm_drain_state"] % node_name,
+                )
+                drain_actual_state = check.stdout.strip().lower() if check.rc == 0 else "error"
+                if "drain" in drain_actual_state:
+                    drain_verified = True
+                    break
+                time.sleep(2)
+
+        # Phase 3: submit job to drained node
+        pending = False
+        job_state = "not submitted"
+        submit_diagnostic = ""
+        if drain_verified:
+            submit = remote_command(
+                host, control,
+                PXEBOOT_COMMANDS["slurm_submit_drain_job"] % node_name,
+            )
+            parts = submit.stdout.strip().split("|", 1)
+            if submit.rc == 0 and len(parts) == 2 and parts[0].isdigit():
+                job_id = parts[0]
+            job_state = parts[1].upper() if len(parts) == 2 else "UNKNOWN"
+            pending = submit.rc == 0 and job_state.startswith("PENDING")
+            if not pending:
+                submit_diagnostic = re.sub(
+                    r"\s+", " ",
+                    (submit.stderr or submit.stdout or f"rc={submit.rc}").strip(),
+                )[:200]
+
+        # Phase 4: resume node and verify
+        resume_ok = False
+        resume_state = "not checked"
+        if control is not None and compute is not None:
+            if job_id:
+                remote_command(
+                    host, control,
+                    PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
+                )
+                job_id = ""
+            resume = remote_command(
+                host, control,
+                PXEBOOT_COMMANDS["slurm_resume_node"] % node_name,
+            )
+            if resume.rc == 0:
+                poll_start = time.monotonic()
+                poll_deadline = poll_start + 30
+                while time.monotonic() < poll_deadline:
+                    check = remote_command(
+                        host, control,
+                        PXEBOOT_COMMANDS["slurm_drain_state"] % node_name,
+                    )
+                    resume_state = check.stdout.strip().lower() if check.rc == 0 else "error"
+                    if resume_state in {"idle", "idle*"}:
+                        resume_ok = True
+                        break
+                    time.sleep(2)
+            else:
+                resume_state = re.sub(
+                    r"\s+", " ",
+                    (resume.stderr or resume.stdout or f"rc={resume.rc}").strip(),
+                )[:100]
+
+        ok = drain_cmd_ok and drain_verified and pending and resume_ok
+
+        fields = [
+            ("Target node", f"{node_name} | {compute['ADMIN_IP']}"),
+            ("Initial state", initial_state),
+            (
+                "Drain command",
+                f"{'passed' if drain_cmd_ok else 'FAILED'}"
+                + (f" — {drain_diagnostic}" if drain_diagnostic else ""),
+            ),
+            (
+                "Drain verified",
+                f"{'passed' if drain_verified else 'FAILED'} — {drain_actual_state}",
+            ),
+            (
+                "Queued job state",
+                f"{'passed' if pending else 'FAILED'} — {job_state}"
+                + (f" ({submit_diagnostic})" if submit_diagnostic else ""),
+            ),
+            (
+                "Resume and recovery",
+                f"{'passed' if resume_ok else 'FAILED'} — {resume_state}",
+            ),
+        ]
+
+        error_parts = []
+        if not drain_cmd_ok:
+            error_parts.append(f"drain command failed: {drain_diagnostic}")
+        if drain_cmd_ok and not drain_verified:
+            error_parts.append(
+                f"node did not reach drained state (actual: {drain_actual_state})"
+            )
+        if drain_verified and not pending:
+            error_parts.append(
+                f"job did not remain PENDING (actual: {job_state})"
+            )
+        if not resume_ok:
+            error_parts.append(
+                f"node did not resume to idle (actual: {resume_state})"
+            )
+
+        return runtime_result(ok, summary, fields, "; ".join(error_parts))
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
     finally:
         if control is not None and job_id:
-            remote_command(
-                host,
-                control,
-                PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
-            )
+            try:
+                remote_command(
+                    host, control,
+                    PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
+                )
+            except (OSError, RuntimeError, TypeError, ValueError):
+                pass
         if control is not None and compute is not None:
-            remote_command(
-                host,
-                control,
-                PXEBOOT_COMMANDS["slurm_resume_node"] % compute["HOSTNAME"],
-            )
+            try:
+                remote_command(
+                    host, control,
+                    PXEBOOT_COMMANDS["slurm_resume_node"] % compute["HOSTNAME"],
+                )
+            except (OSError, RuntimeError, TypeError, ValueError):
+                pass
 
 
 def check_slurm_openmpi_job(host):
@@ -1153,6 +1311,8 @@ def check_slurm_openmpi_job(host):
             return _skip(summary, "No mapped Slurm compute node is available")
         targets = computes[: min(2, len(computes))]
 
+        # Discover OpenMPI toolchain; install from source on non-OFED nodes.
+        source_install_attempted = False
         toolchains = []
         for row in targets:
             discovery = remote_command(host, row, PXEBOOT_COMMANDS["openmpi"])
@@ -1165,9 +1325,30 @@ def check_slurm_openmpi_job(host):
                 "OPENMPI_EXECUTABLE",
                 "OPENMPI_COMPILER",
             }:
-                raise RuntimeError(
-                    f"OpenMPI toolchain discovery failed on {row['HOSTNAME']}"
+                mellanox = remote_command(
+                    host, row, PXEBOOT_COMMANDS["mellanox_detect"]
                 )
+                if mellanox.rc != 0 and not source_install_attempted:
+                    provisioned, skip_reason = _ensure_source_mpi(host, rows)
+                    source_install_attempted = True
+                    if not provisioned:
+                        return _skip(summary, skip_reason)
+                    # Retry discovery after source install.
+                    discovery = remote_command(
+                        host, row, PXEBOOT_COMMANDS["openmpi"]
+                    )
+                    records = {
+                        match.group(1): match.group(2)
+                        for line in discovery.stdout.splitlines()
+                        if (match := _OPENMPI_RECORD_RE.fullmatch(line.strip()))
+                    }
+                if discovery.rc != 0 or set(records) != {
+                    "OPENMPI_EXECUTABLE",
+                    "OPENMPI_COMPILER",
+                }:
+                    raise RuntimeError(
+                        f"OpenMPI toolchain discovery failed on {row['HOSTNAME']}"
+                    )
             toolchains.append(records)
         executable_paths = {record["OPENMPI_EXECUTABLE"] for record in toolchains}
         compiler_paths = {record["OPENMPI_COMPILER"] for record in toolchains}
@@ -1312,12 +1493,25 @@ def check_slurm_openmpi_job(host):
             and workspace.startswith("/")
             and "/.omnia_fvt/openmpi-" in workspace
         ):
-            remote_command(
-                host,
-                control,
-                f"find {shlex.quote(workspace)} -mindepth 1 -delete 2>/dev/null; "
-                f"rmdir {shlex.quote(workspace)} 2>/dev/null || true",
-            )
+            try:
+                cleanup = remote_command(
+                    host,
+                    control,
+                    f"find {shlex.quote(workspace)} -mindepth 1 -delete 2>/dev/null; "
+                    f"rmdir {shlex.quote(workspace)} 2>/dev/null || true",
+                )
+                if cleanup.rc != 0:
+                    print(
+                        f"    ! cleanup: OpenMPI workspace {workspace} removal "
+                        f"returned rc={cleanup.rc}",
+                        flush=True,
+                    )
+            except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                print(
+                    f"    ! cleanup: OpenMPI workspace removal failed: "
+                    f"{str(exc)[:100]}",
+                    flush=True,
+                )
 
 
 def check_slurm_gpu_job(host):
@@ -1337,17 +1531,33 @@ def check_slurm_gpu_job(host):
             control,
             PXEBOOT_COMMANDS["gpu_job"] % gpu_row["HOSTNAME"],
         )
-        ok = result.rc == 0 and bool(result.stdout.strip())
+        has_output = bool(result.stdout.strip())
+        ok = result.rc == 0 and has_output
+        error = ""
+        if not ok:
+            if result.rc != 0 and not has_output:
+                error = (
+                    f"Slurm GPU allocation failed (rc={result.rc}): "
+                    + re.sub(r"\s+", " ", (result.stderr or "").strip())[:200]
+                )
+            elif result.rc == 0 and not has_output:
+                error = "GPU allocation succeeded but nvidia-smi returned no output"
+            else:
+                error = (
+                    f"GPU query failed (rc={result.rc}): "
+                    + re.sub(r"\s+", " ", (result.stderr or result.stdout or "").strip())[:200]
+                )
         return runtime_result(
             ok,
             summary,
             [
                 ("Target node", f"{gpu_row['HOSTNAME']} | {gpu_row['ADMIN_IP']}"),
                 ("Scheduler GRES", gres),
-                ("GPU allocation", "passed" if ok else "failed"),
-                ("GPU output", result.stdout.strip() or "none"),
+                ("GPU allocation", "passed" if result.rc == 0 else "FAILED"),
+                ("GPU query", "passed" if has_output else "FAILED"),
+                ("GPU output", result.stdout.strip()[:300] or "none"),
             ],
-            "Slurm could not allocate and query a GPU" if not ok else "",
+            error,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -1363,7 +1573,13 @@ def check_slurm_gpu_memory_stress(host):
         _context_data, rows, control, _config = _context(host)
         if not _gpu_rows(host, control, _compute_rows(rows)):
             return _skip(summary, "Slurm reports no GPU GRES on mapped compute nodes")
-        compiler = first_row(rows, SLURM_COMPILER_PREFIX) or control
+        compiler = first_row(rows, SLURM_COMPILER_PREFIX)
+        if compiler is None:
+            return _skip(
+                summary,
+                "No login-compiler node is mapped — CUDA compilation requires "
+                "a compiler node with nvcc and shared NFS storage",
+            )
         asset = Path(__file__).parents[1] / "assets" / "gpu_memory_stress.cu"
         payload = base64.b64encode(asset.read_bytes()).decode("ascii")
         if not re.fullmatch(r"[A-Za-z0-9+/=]+", payload):
@@ -1373,16 +1589,34 @@ def check_slurm_gpu_memory_stress(host):
             compiler,
             PXEBOOT_COMMANDS["gpu_memory_stress"] % payload,
         )
-        ok = result.rc == 0 and "GPU_MEMORY_STRESS_OK" in result.stdout
+        compiled = result.rc == 0 or "GPU_MEMORY_STRESS_OK" in result.stdout
+        probe_ok = "GPU_MEMORY_STRESS_OK" in result.stdout
+        ok = result.rc == 0 and probe_ok
+        error = ""
+        if not ok:
+            if result.rc != 0 and not probe_ok:
+                error = (
+                    f"CUDA compilation or submission failed (rc={result.rc}): "
+                    + re.sub(r"\s+", " ", (result.stderr or "").strip())[:200]
+                )
+            elif not probe_ok:
+                error = (
+                    "CUDA compiled but GPU memory probe did not emit success marker; "
+                    "output: " + re.sub(r"\s+", " ", result.stdout.strip())[:200]
+                )
         return runtime_result(
             ok,
             summary,
             [
                 ("Submission node", compiler["HOSTNAME"]),
-                ("CUDA compilation", "passed" if result.rc == 0 else "failed"),
-                ("GPU memory probe", "passed" if ok else "failed"),
+                ("CUDA compilation", "passed" if compiled else "FAILED"),
+                ("GPU memory probe", "passed" if probe_ok else "FAILED"),
+                (
+                    "Probe output",
+                    result.stdout.strip()[:200] or result.stderr.strip()[:200] or "none",
+                ),
             ],
-            "The bounded CUDA memory probe did not complete" if not ok else "",
+            error,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)

@@ -713,7 +713,7 @@ def check_lifecycle_provision_verify(host) -> dict[str, Any]:
     """Verify provision and node state by calling existing FVT check functions.
 
     Runs the same checks that the FVT provision and pxeboot verify suites
-    use, sourced from the PXE mapping file.  When ``pxeboot_status.yml``
+    use, sourced from the PXE mapping file. When ``orchestrator_status.yml``
     is absent, connectivity and cloud-init checks fall back to direct SSH
     probes against the administrative addresses in the mapping file.
     """

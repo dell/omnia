@@ -1,6 +1,6 @@
 # Repo Manager
 
-**Collection**: `omnia.repo_manager` v3.0.0
+**Collection**: `omnia.repo_manager` v2.3.0
 
 Deploys an HTTPS Pulp content server and synchronizes catalog content for
 offline Omnia clusters. Supports RPM repositories and packages, container
@@ -84,6 +84,28 @@ Standard tags can be combined. Their execution order is defined by
 `playbooks/repo_manager.yml`, not the order written after `--tags`. Do not mix a
 cleanup tag with a standard workflow command.
 
+### Exact RPM Repository Reconciliation
+
+Use the standalone playbook only after the normal download workflow has created
+the catalog-selected RPM repositories, remotes, publications and distributions:
+
+```bash
+cd src/repo_manager/playbooks
+ansible-playbook repo_operations/repo_sync.yml
+```
+
+This maintenance operation processes the catalog's RHEL minor-version contexts
+sequentially. It preflights every context before changing Pulp, synchronizes
+each referenced RPM repository with `mirror_content_only`, validates the new
+HTTPS `repomd.xml`, switches the stable distribution, updates the repository
+checkpoint and affected package states atomically, and only then prunes
+superseded publications and repository versions. Non-RPM artifacts are not
+processed. Do not run it concurrently with download or cleanup operations.
+
+The result is written to `output/<project>/repo_resync_status.yml`. The normal
+consumer contract in `repo_status.yml`, the standard playbook tags and the
+fresh-download/rerun behavior are unchanged.
+
 ### Selective Cleanup
 
 ```bash
@@ -163,7 +185,8 @@ Credential files are Ansible Vault protected, root-owned and mode `0600`.
 
 | Output | Location | Purpose |
 |--------|----------|---------|
-| `repo_status.yml` | `output/<project>/` | Pulp URLs, repositories, file content and certificate paths for consumers |
+| `repo_status.yml` | `output/<project>/` | Version-qualified Pulp RPM, artifact and content-base URLs plus certificate paths for consumers |
+| `repo_resync_status.yml` | `output/<project>/` | Administrative result for the latest standalone exact RPM reconciliation |
 | Package/group state | `log/<os>/<version>/<arch>/` | Per-group CSV and worker results |
 | Mirror indexes | `log/<os>/<version>/mirror_status/` | Composite catalog and Pulp mirror state |
 
@@ -216,8 +239,9 @@ Per-repository `policy` and `caching` fields override the global values.
 | `never` | either | `streamed` |
 
 Container synchronization uses its independent configured policy and defaults
-to `immediate`. A catalog `rpm_repo` item must use retained content and cannot
-resolve to `streamed`.
+to `immediate`. An `rpm_repo` item may not explicitly declare `policy: never`.
+When another policy/caching combination maps to `streamed`, Repo Manager uses
+validation-only handling for that item.
 
 ### RHEL Subscription Repositories
 
@@ -258,8 +282,8 @@ configuration entry.
 
 | Setting | Default | Scope |
 |---------|---------|-------|
-| `parallel_config.default_nthreads` | `3` | General catalog worker processes |
-| `rpm_repo_config.thread_pool_size` | `3` | RPM repository synchronization |
+| `parallel_config.default_nthreads` | `4` | General catalog worker processes |
+| `rpm_repo_config.thread_pool_size` | `2` | RPM repository synchronization |
 | `dnf_config.max_concurrent_commands` | `1` | DNF commands and shared metadata cache |
 
 Keep DNF concurrency at one. Reduce either parallel setting when Pulp, network,
@@ -311,7 +335,9 @@ Full Pulp cleanup removes runtime logs by default. Use
 | [Security](docs/security.md) | HTTPS, Vault, registry TLS and cleanup controls |
 | [Input Contract](docs/contracts/input-contract.md) | Environment and input schemas |
 | [Output Contract](docs/contracts/output-contract.md) | `repo_status.yml`, state and logs |
+| [Samples](samples/README.md) | Current input examples and illustrative `repo_status.yml` output |
 | [Design](docs/design/repo-manager-design.md) | Developer implementation boundaries and invariants |
+| [Pulp Administration](docs/pulp-administration.md) | Pulp lifecycle, storage, health and recovery |
 
 ---
 

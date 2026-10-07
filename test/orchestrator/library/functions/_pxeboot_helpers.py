@@ -31,8 +31,8 @@ from ..vars.pxeboot_vars import (
     KUBERNETES_CONTROL_PLANE_PREFIX,
     KUBERNETES_PRIMARY_CONTROL_PLANE_PREFIX,
     OMNIA_CONFIG,
+    ORCHESTRATOR_STATUS,
     PXEBOOT_COMMANDS,
-    PXEBOOT_STATUS,
     STORAGE_CONFIG,
 )
 from ._prepare_helpers import read_yaml_mapping
@@ -62,21 +62,20 @@ def runtime_exception(summary: str, exc: Exception) -> dict[str, Any]:
 
 
 def load_runtime_context(host) -> dict[str, Any]:
-    """Load desired nodes and the latest PXE status.
+    """Load desired nodes and the aggregate Orchestrator status.
 
-    When ``pxeboot_status.yml`` has not been generated yet (e.g. the
-    verify suite runs after provision but before a PXE boot lifecycle),
-    the context is still usable — connectivity and cloud-init checks
-    fall back to direct probes sourced from the PXE mapping file.
+    When ``orchestrator_status.yml`` has not been generated yet, the context
+    remains usable: connectivity and cloud-init checks fall back to direct
+    probes sourced from the PXE mapping file.
     """
     context = load_context(host)
     try:
-        context["pxeboot_status"] = read_yaml_mapping(
+        context["orchestrator_status"] = read_yaml_mapping(
             host,
-            os.path.join(context["output_dir"], PXEBOOT_STATUS),
+            os.path.join(context["output_dir"], ORCHESTRATOR_STATUS),
         )
     except (ValueError, TypeError):
-        context["pxeboot_status"] = None
+        context["orchestrator_status"] = None
     return context
 
 
@@ -164,6 +163,7 @@ def load_workload_context(
     catalog = catalog_document.get("catalog", {})
     if not isinstance(catalog, dict) or not isinstance(catalog.get("groups"), dict):
         raise TypeError(f"Catalog groups are invalid in {catalog_path}")
+    context["catalog"] = catalog
     feature_tokens = _catalog_feature_tokens(catalog, context["rows"])
     context["features"] = {
         "openldap": any("openldap" in token for token in feature_tokens),

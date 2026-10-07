@@ -22,8 +22,6 @@ from library.messages import (
 )
 from library.vars import TEST_CASES as TC
 
-pytestmark = [pytest.mark.openldap]
-
 
 def _assert_result(test_log, component, result):
     """Record one structured LDAP result and enforce its postcondition."""
@@ -49,6 +47,7 @@ def _assert_result(test_log, component, result):
     )
 
 
+@pytest.mark.openldap
 @pytest.mark.sanity
 @pytest.mark.order(8)
 def test_external_ldap_proxy(host):
@@ -62,6 +61,7 @@ def test_external_ldap_proxy(host):
     )
 
 
+@pytest.mark.openldap
 @pytest.mark.sanity
 @pytest.mark.order(9)
 def test_openldap_runtime(host):
@@ -75,6 +75,7 @@ def test_openldap_runtime(host):
     )
 
 
+@pytest.mark.openldap
 @pytest.mark.sanity
 @pytest.mark.order(10)
 def test_openldap_artifacts(host):
@@ -88,6 +89,7 @@ def test_openldap_artifacts(host):
     )
 
 
+@pytest.mark.openldap
 @pytest.mark.functional
 @pytest.mark.sanity
 @pytest.mark.order(11)
@@ -102,6 +104,7 @@ def test_openldap_endpoint(host):
     )
 
 
+@pytest.mark.openldap
 @pytest.mark.functional
 @pytest.mark.sanity
 @pytest.mark.order(12)

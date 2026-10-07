@@ -49,6 +49,30 @@ def _version_tuple(value: str) -> tuple[int, int] | None:
     return int(major), int(minor)
 
 
+def _semantic_version(value: str) -> str:
+    """Return one normalized major.minor.patch version from product output."""
+    match = re.search(r"(?:^|[^0-9])(\d+)\.(\d+)\.(\d+)(?:\D|$)", value)
+    return ".".join(match.groups()) if match else ""
+
+
+def _catalog_kubernetes_version(catalog: Mapping[str, Any]) -> str:
+    """Resolve the Kubernetes version using the production catalog contract."""
+    packages = catalog.get("packages", {})
+    if not isinstance(packages, Mapping):
+        raise TypeError("Catalog packages must be a mapping")
+    matches = [
+        value
+        for key, value in packages.items()
+        if re.fullmatch(r"kubeadm(?:_.*)?", str(key))
+    ]
+    if len(matches) != 1 or not isinstance(matches[0], Mapping):
+        raise ValueError("Catalog must contain exactly one kubeadm package")
+    version = _semantic_version(str(matches[0].get("name") or ""))
+    if not version:
+        raise ValueError("Catalog kubeadm package does not contain a version")
+    return version
+
+
 def _within_minor_skew(
     candidate: tuple[int, int] | None,
     server: tuple[int, int] | None,
@@ -159,13 +183,121 @@ def check_kubernetes_version_compatibility(host):
                         ("    CRI-O", f"{icon} {outcome['crio']}"),
                     ]
                 )
+        error_parts = []
+        if not compatible:
+            error_parts.append(
+                f"kubectl client/server version skew unsupported "
+                f"(client={client or 'unknown'} server={server or 'unknown'})"
+            )
+        if failed:
+            error_parts.append(
+                "version mismatch on: " + ", ".join(failed)
+            )
         return runtime_result(
             compatible and not failed,
             summary,
             fields,
-            "Kubernetes, kubeadm, or CRI-O versions are incompatible"
-            if not compatible or failed
-            else "",
+            "; ".join(error_parts),
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+def check_kubernetes_configured_versions(host):
+    """Verify deployed Kubernetes components match the catalog version."""
+    summary = "Kubernetes configured component versions"
+    try:
+        context, rows, control, _config = _context(host)
+        if not rows:
+            return _skip(summary, "No Kubernetes nodes are mapped")
+        expected = _catalog_kubernetes_version(context.get("catalog", {}))
+        expected_major_minor = _major_minor(expected)
+        version_result = remote_command(
+            host,
+            control,
+            PXEBOOT_COMMANDS["kubernetes_client_version"],
+        )
+        if version_result.rc != 0:
+            raise RuntimeError("kubectl could not read client and server versions")
+        try:
+            payload = json.loads(version_result.stdout)
+        except json.JSONDecodeError as exc:
+            raise ValueError("kubectl version returned invalid JSON") from exc
+        client = _semantic_version(
+            str(payload.get("clientVersion", {}).get("gitVersion", ""))
+        )
+        server = _semantic_version(
+            str(payload.get("serverVersion", {}).get("gitVersion", ""))
+        )
+        fields: list[tuple[str, object]] = [
+            ("Catalog Kubernetes version", expected),
+            (
+                "kubectl client",
+                f"{'✓' if client == expected else '✗'} {client or 'unknown'}",
+            ),
+            (
+                "Kubernetes API server",
+                f"{'✓' if server == expected else '✗'} {server or 'unknown'}",
+            ),
+        ]
+        failures = []
+        grouped: dict[str, list[dict[str, str]]] = {}
+        outcomes: dict[str, dict[str, object]] = {}
+        for row in rows:
+            kubeadm_result = remote_command(
+                host, row, PXEBOOT_COMMANDS["kubeadm_version"]
+            )
+            kubelet_result = remote_command(
+                host, row, PXEBOOT_COMMANDS["kubelet_version"]
+            )
+            crio_result = remote_command(host, row, PXEBOOT_COMMANDS["crio_version"])
+            kubeadm = _semantic_version(kubeadm_result.stdout)
+            kubelet = _semantic_version(kubelet_result.stdout)
+            crio = _semantic_version(crio_result.stdout)
+            component_ok = (
+                kubeadm_result.rc == 0
+                and kubelet_result.rc == 0
+                and crio_result.rc == 0
+                and kubeadm == expected
+                and kubelet == expected
+                and _major_minor(crio) == expected_major_minor
+            )
+            outcomes[row["HOSTNAME"]] = {
+                "ok": component_ok,
+                "kubeadm": kubeadm or "unknown",
+                "kubelet": kubelet or "unknown",
+                "crio": crio or "unknown",
+            }
+            grouped.setdefault(row["EXPECTED_FUNCTIONAL_GROUP"], []).append(row)
+            if not component_ok:
+                failures.append(row["HOSTNAME"])
+        for group_name, group_rows in sorted(grouped.items()):
+            passed = sum(bool(outcomes[row["HOSTNAME"]]["ok"]) for row in group_rows)
+            fields.append(
+                ("Functional group", f"[{group_name}] ({passed}/{len(group_rows)})")
+            )
+            for row in group_rows:
+                outcome = outcomes[row["HOSTNAME"]]
+                icon = "✓" if outcome["ok"] else "✗"
+                fields.extend(
+                    [
+                        (f"  {row['HOSTNAME']}", f"{icon} {row['ADMIN_IP']}"),
+                        ("    kubeadm", f"{icon} {outcome['kubeadm']}"),
+                        ("    kubelet", f"{icon} {outcome['kubelet']}"),
+                        ("    CRI-O", f"{icon} {outcome['crio']}"),
+                    ]
+                )
+        global_ok = client == expected and server == expected
+        return runtime_result(
+            global_ok and not failures,
+            summary,
+            fields,
+            (
+                "Configured Kubernetes version mismatch on: "
+                + ", ".join(failures or ["client/server"])
+                if not global_ok or failures
+                else ""
+            ),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -329,12 +461,109 @@ def check_kubernetes_local_etcd_integrity(host):
             bool(control_rows) and not failures,
             summary,
             group_fields(control_rows, outcomes),
-            "Invalid local-etcd storage on: " + ", ".join(failures)
-            if failures
-            else (
-                "No Kubernetes control-plane nodes are mapped"
-                if not control_rows
-                else ""
+            (
+                "Invalid local-etcd storage on: " + ", ".join(failures)
+                if failures
+                else (
+                    "No Kubernetes control-plane nodes are mapped"
+                    if not control_rows
+                    else ""
+                )
+            ),
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+def _local_etcd_provisioning_state(host, row) -> tuple[bool, str]:
+    """Return the local-etcd disk-layout and provisioning-artifact state."""
+    block_payload = remote_json(host, row, PXEBOOT_COMMANDS["etcd_block_devices"])
+    devices = _flatten_devices(block_payload.get("blockdevices", []))
+    by_name = {
+        str(device.get("name")): device
+        for device in devices
+        if str(device.get("name") or "")
+    }
+    selected = next(
+        (device for device in devices if _mountpoint_matches(device, "/var/lib/etcd")),
+        {},
+    )
+    selected_disk = _parent_disk(selected, by_name) if selected else {}
+    selected_name = str(selected_disk.get("name") or "")
+    pttype = str(selected_disk.get("pttype") or "").lower()
+    root = remote_command(host, row, PXEBOOT_COMMANDS["etcd_root_source"])
+    root_name = _root_disk_name(root.stdout, by_name) if root.rc == 0 else ""
+    boss_disks = [
+        device
+        for device in devices
+        if str(device.get("type")) == "disk"
+        and "boss" in str(device.get("model") or "").lower()
+    ]
+    selection_mode = "BOSS" if boss_disks else "fallback"
+    selection_ok = bool(selected_name) and selected_name != root_name
+    if boss_disks:
+        selection_ok = selection_ok and any(
+            str(device.get("name") or "") == selected_name for device in boss_disks
+        )
+    setup_script = remote_command(host, row, PXEBOOT_COMMANDS["etcd_setup_script"])
+    update_script = remote_command(host, row, PXEBOOT_COMMANDS["etcd_update_script"])
+    setup_log = remote_command(host, row, PXEBOOT_COMMANDS["etcd_setup_log"])
+    update_log = remote_command(host, row, PXEBOOT_COMMANDS["etcd_update_log"])
+    selection_log = remote_command(host, row, PXEBOOT_COMMANDS["etcd_selection_log"])
+    scripts_ok = setup_script.rc == 0 and update_script.rc == 0
+    logs_ok = setup_log.rc == 0 and update_log.rc == 0
+    logged_disks = re.findall(
+        r"(?:found|candidate|disk):\s*/dev/([A-Za-z0-9._-]+)",
+        selection_log.stdout,
+    )
+    selection_logged = selection_log.rc == 0 and selected_name in logged_disks
+    ok = (
+        bool(selected.get("pkname"))
+        and selection_ok
+        and pttype == "gpt"
+        and scripts_ok
+        and logs_ok
+        and selection_logged
+    )
+    detail = (
+        f"disk={selected_name or 'missing'} | selection={selection_mode} | "
+        f"partition-table={pttype or 'missing'} | "
+        f"scripts={'valid' if scripts_ok else 'missing/not executable'} | "
+        f"logs={'complete' if logs_ok else 'missing/incomplete'} | "
+        f"logged-selection={'matched' if selection_logged else 'mismatch'}"
+    )
+    return ok, detail
+
+
+def check_kubernetes_local_etcd_provisioning(host):
+    """Verify GPT selection and local-etcd provisioning artifacts."""
+    summary = "Kubernetes local-etcd provisioning contract"
+    try:
+        _runtime, rows, _control, config = _context(host)
+        if not rows:
+            return _skip(summary, "No Kubernetes nodes are mapped")
+        if not bool(config.get("etcd_on_local_disk", False)):
+            return _skip(summary, "etcd_on_local_disk is disabled")
+        control_rows = [
+            row for row in rows if "control_plane" in row["EXPECTED_FUNCTIONAL_GROUP"]
+        ]
+        outcomes = {
+            row["HOSTNAME"]: _local_etcd_provisioning_state(host, row)
+            for row in control_rows
+        }
+        failures = [name for name, outcome in outcomes.items() if not outcome[0]]
+        return runtime_result(
+            bool(control_rows) and not failures,
+            summary,
+            group_fields(control_rows, outcomes),
+            (
+                "Invalid local-etcd provisioning on: " + ", ".join(failures)
+                if failures
+                else (
+                    "No Kubernetes control-plane nodes are mapped"
+                    if not control_rows
+                    else ""
+                )
             ),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:

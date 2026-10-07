@@ -12,18 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# cleanup_build_output.yml — Remove build_status.yml output files.
+# cleanup_build_output.yml — Remove all build_status.yml output files.
 
-- name: Remove latest build_status.yml
+- name: Remove all build output files
   ansible.builtin.file:
-    path: "{{ build_status_latest }}"
-    state: absent
-  delegate_to: localhost
-  connection: local
-
-- name: Remove versioned build_status directory
-  ansible.builtin.file:
-    path: "{{ build_status_versioned_dir }}"
+    path: "{{ output_project_dir }}"
     state: absent
   delegate_to: localhost
   connection: local
