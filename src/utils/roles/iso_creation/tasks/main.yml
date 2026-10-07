@@ -31,8 +31,22 @@
   changed_when: false
   failed_when: false
 
-- name: Auto-mount NFS if not already mounted
-  when: _nfs_mounts.stdout | default('') | trim | length == 0
+- name: Filter existing mounts to the ones whose export covers the requested NFS directory
+  ansible.builtin.set_fact:
+    _nfs_matching_mounts: >-
+      {% set mounts = _nfs_mounts.stdout_lines | default([]) %}
+      {% set target_nfs_dir = _nfs_dir %}
+      {% for line in mounts %}
+      {% set parts = line.split() %}
+      {% set nfs_export = parts[0].split(':')[1] %}
+      {% if target_nfs_dir == nfs_export or target_nfs_dir.startswith(nfs_export + '/') %}
+      {{ line }}
+      {% endif %}
+      {% endfor %}
+    cacheable: false
+
+- name: Auto-mount NFS if no existing mount covers the requested directory
+  when: _nfs_matching_mounts | trim | length == 0
   block:
     - name: Create temporary NFS mount point
       ansible.builtin.file:
