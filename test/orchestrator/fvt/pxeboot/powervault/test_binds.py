@@ -30,6 +30,7 @@ from library.functions import (
 )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(316)
 @pytest.mark.powervault_binds
@@ -38,6 +39,7 @@ def test_powervault_node_subdirectory(host):
     verify_pxeboot(host, "powervault_node_subdirectory", check_powervault_node_subdirectory)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(317)
 @pytest.mark.powervault_binds
@@ -46,6 +48,7 @@ def test_powervault_bind_mounts(host):
     verify_pxeboot(host, "powervault_bind_mounts", check_powervault_bind_mounts)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(318)
 @pytest.mark.powervault_binds
@@ -54,6 +57,7 @@ def test_powervault_bind_fstab_entries(host):
     verify_pxeboot(host, "powervault_bind_fstab_entries", check_powervault_bind_fstab_entries)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(319)
 @pytest.mark.powervault_binds
@@ -62,6 +66,7 @@ def test_powervault_bind_isolation(host):
     verify_pxeboot(host, "powervault_bind_isolation", check_powervault_bind_isolation)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(320)
 @pytest.mark.powervault_binds
@@ -70,6 +75,7 @@ def test_powervault_functional_group_targeting(host):
     verify_pxeboot(host, "powervault_functional_group_targeting", check_powervault_functional_group_targeting)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(321)
 @pytest.mark.powervault_binds
@@ -78,6 +84,7 @@ def test_powervault_multiple_prefix_targeting(host):
     verify_pxeboot(host, "powervault_multiple_prefix_targeting", check_powervault_multiple_prefix_targeting)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(328)
 @pytest.mark.powervault_binds
@@ -86,6 +93,7 @@ def test_powervault_bind_io(host):
     verify_pxeboot(host, "powervault_bind_io", check_powervault_bind_io)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(329)
 @pytest.mark.powervault_binds
@@ -98,6 +106,7 @@ def test_powervault_slurm_mandatory_bind_mounts(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(330)
 @pytest.mark.powervault_binds

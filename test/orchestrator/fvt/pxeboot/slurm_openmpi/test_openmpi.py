@@ -23,6 +23,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -32,6 +33,7 @@ def test_slurm_openmpi_installation(host):
     verify_pxeboot(host, "slurm_openmpi_installation", check_slurm_openmpi_installation)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive

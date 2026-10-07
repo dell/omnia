@@ -22,6 +22,7 @@ from library.vars import TEST_CASES as TC
 
 
 @pytest.mark.deploy
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(200)
 def test_deploy_pxeboot(host):

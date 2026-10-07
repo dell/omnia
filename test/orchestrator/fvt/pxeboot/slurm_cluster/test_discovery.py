@@ -20,6 +20,7 @@ from library.functions import check_slurm_hardware_discovery
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive

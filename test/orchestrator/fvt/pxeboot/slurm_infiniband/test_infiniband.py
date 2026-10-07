@@ -23,6 +23,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -32,6 +33,7 @@ def test_slurm_infiniband_configuration(host):
     verify_pxeboot(host, "slurm_ib_configuration", check_slurm_infiniband_configuration)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive

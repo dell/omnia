@@ -26,6 +26,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(205)
@@ -34,6 +35,7 @@ def test_kubernetes_nodes(host):
     verify_pxeboot(host, "kubernetes_nodes", check_kubernetes_nodes)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(206)
@@ -42,6 +44,7 @@ def test_kubernetes_node_services(host):
     verify_pxeboot(host, "kubernetes_services", check_kubernetes_node_services)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(209)
@@ -50,6 +53,7 @@ def test_kubernetes_control_plane(host):
     verify_pxeboot(host, "kubernetes_control_plane", check_kubernetes_control_plane)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(210)
@@ -58,6 +62,7 @@ def test_kubernetes_system_pods(host):
     verify_pxeboot(host, "kubernetes_system_pods", check_kubernetes_system_pods)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(211)

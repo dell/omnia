@@ -29,6 +29,7 @@ from fvt.result import verify_pxeboot
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -39,6 +40,7 @@ def test_slurm_control_node_jobs(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -49,6 +51,7 @@ def test_slurm_login_node_jobs(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -59,6 +62,7 @@ def test_slurm_compiler_node_jobs(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -70,6 +74,7 @@ def test_slurm_concurrent_jobs(host):
 
 @pytest.mark.functional
 @pytest.mark.negative
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -82,6 +87,7 @@ def test_slurm_insufficient_resources(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -92,6 +98,7 @@ def test_slurm_job_queueing(host):
 
 
 @pytest.mark.disruptive
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.scheduler_state
 @pytest.mark.slurm

@@ -971,6 +971,34 @@ validate:
             VALIDATE_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "validate") | .error_summary // "N/A"' status_response.json 2>/dev/null)
             printf "  %-22s %s\n" "Error Code:"    "${VALIDATE_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${VALIDATE_ERR_SUMMARY}"
+
+            TEST_SUMMARY=$(jq -c '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
+            if [ -n "${TEST_SUMMARY}" ]; then
+              echo "  ------------------------------------------------------------"
+              echo "  Test Summary:"
+              printf "  %-12s %s\n" "Total:"   "$(echo "${TEST_SUMMARY}" | jq -r '.total // 0')"
+              printf "  %-12s %s\n" "Passed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.passed // 0')"
+              printf "  %-12s %s\n" "Failed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.failed // 0')"
+              printf "  %-12s %s\n" "Skipped:" "$(echo "${TEST_SUMMARY}" | jq -r '.skipped // 0')"
+              printf "  %-12s %s\n" "Errors:"  "$(echo "${TEST_SUMMARY}" | jq -r '.errors // 0')"
+              echo "  ------------------------------------------------------------"
+              echo "  Failed/Error Test Cases:"
+              FAILED_TESTS=$(echo "${TEST_SUMMARY}" | jq -r '
+                .tests[]?
+                | select(
+                    (.status | ascii_upcase) == "FAILED"
+                    or (.status | ascii_upcase) == "ERROR"
+                  )
+                | "    - \(.name): \(.status)"
+              ')
+              if [ -n "${FAILED_TESTS}" ]; then
+                echo "${FAILED_TESTS}"
+              else
+                echo "    None reported"
+              fi
+            fi
+
+            printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
             print_stage_log_info "validate" status_response.json
             exit 1
             ;;
@@ -988,6 +1016,16 @@ validate:
 
       echo ""
       echo "  [OK] Validate Stage Result: COMPLETED"
+      TEST_SUMMARY=$(jq -c '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
+      if [ -n "${TEST_SUMMARY}" ]; then
+        echo "  ------------------------------------------------------------"
+        echo "  Test Summary:"
+        printf "  %-12s %s\n" "Total:"   "$(echo "${TEST_SUMMARY}" | jq -r '.total // 0')"
+        printf "  %-12s %s\n" "Passed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.passed // 0')"
+        printf "  %-12s %s\n" "Failed:"  "$(echo "${TEST_SUMMARY}" | jq -r '.failed // 0')"
+        printf "  %-12s %s\n" "Skipped:" "$(echo "${TEST_SUMMARY}" | jq -r '.skipped // 0')"
+        printf "  %-12s %s\n" "Errors:"  "$(echo "${TEST_SUMMARY}" | jq -r '.errors // 0')"
+      fi
 
 # ============================= STAGE 6 ====================================
 # Summary — Report pipeline results
