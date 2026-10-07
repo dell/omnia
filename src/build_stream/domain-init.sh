@@ -106,6 +106,7 @@ cleanup_initializer_artifacts() {
     local cleanup_paths=(
         "${domain_data_dir}/input"
         "${domain_data_dir}/log"
+        "${domain_data_dir}/logs"
         "${log_root}/${DOMAIN_NAME}"
     )
 

@@ -51,6 +51,29 @@ default:
         exit 1
       fi
 
+      # ---------------------------------------------------------------------------
+      # Cleanup Log Reporter (POSIX sh compatible)
+      # Usage: print_cleanup_log_info <outcome>
+      #
+      # Cleanup is not a pipeline stage, so the playbook watcher writes the
+      # cleanup playbook log into the job's log directory on the OIM host.
+      # Printed on every outcome (success, failure, timeout).
+      # ---------------------------------------------------------------------------
+      bsm_job_log_dir() {
+        _BLD_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
+          "${CI_PROJECT_DIR}/omnia.env" 2>/dev/null | tail -1 | tr -d "\"'")
+        echo "${_BLD_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
+      }
+
+      print_cleanup_log_info() {
+        echo "  ------------------------------------------------------------"
+        printf "  %-22s %s\n" "Stage:" "cleanup"
+        printf "  %-22s %s\n" "Outcome:" "$1"
+        printf "  %-22s %s\n" "Job Log Directory:" "$(bsm_job_log_dir "${CLEANUP_JOB_ID:-unknown}")"
+        printf "  %-22s %s\n" "Cleanup Playbook Log:" "cleanup_image_build_manager.yml_<timestamp>_attempt<N>.log"
+        echo "  ------------------------------------------------------------"
+      }
+
 # ============================= CLEANUP STAGE ==============================
 # Authenticate and execute DELETE /api/v1/jobs/{CLEANUP_JOB_ID}.
 # CLEANUP_JOB_ID and IMAGE_GROUP_ID are set by the select_* job via dotenv.
@@ -170,6 +193,16 @@ cleanup:
               break
             fi
 
+            if [ "${CLEANUP_IG_STATE}" = "CLEANUP_FAILED" ]; then
+              echo ""
+              echo "  ERROR: Cleanup playbook failed -- Image Group is CLEANUP_FAILED."
+              echo "         Fix the cause reported in the cleanup playbook log and"
+              echo "         retry the DELETE request."
+              print_cleanup_log_info "FAILED (CLEANUP_FAILED)"
+              echo "CLEANUP_STATUS=FAILED" > cleanup_result.env
+              exit 1
+            fi
+
             ATTEMPT=$((ATTEMPT + 1))
             sleep "${POLL_INTERVAL}"
           done
@@ -179,10 +212,13 @@ cleanup:
             echo "  ERROR: Cleanup polling timed out after ${MAX_POLL_ATTEMPTS} attempts."
             echo "         Image Group is still in '${CLEANUP_IG_STATE:-UNKNOWN}' state --"
             echo "         S3 image deletion did not confirm completion. Retry the"
-            echo "         DELETE request or check the playbook watcher logs."
+            echo "         DELETE request or check the cleanup playbook log."
+            print_cleanup_log_info "TIMEOUT (${CLEANUP_IG_STATE:-UNKNOWN})"
             echo "CLEANUP_STATUS=TIMEOUT" > cleanup_result.env
             exit 1
           fi
+
+          print_cleanup_log_info "COMPLETED (CLEANED)"
 
           echo "  +-----------------------------------------------------------+"
           echo "  |              CLEANUP COMPLETED SUCCESSFULLY               |"
@@ -205,35 +241,41 @@ cleanup:
           echo "  |  S3 images and NFS artifacts removed.                     |"
           echo "  |  Image Group + Job transitioned to CLEANED.               |"
           echo "  +-----------------------------------------------------------+"
+          print_cleanup_log_info "COMPLETED"
           echo "CLEANUP_STATUS=SUCCESS" > cleanup_result.env
           ;;
         404)
           echo "  ERROR: Job ${CLEANUP_JOB_ID} not found"
           jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          print_cleanup_log_info "FAILED (HTTP ${HTTP_CODE})"
           echo "CLEANUP_STATUS=NOT_FOUND" > cleanup_result.env
           exit 1
           ;;
         409)
           echo "  ERROR: Image Group is in an active state (DEPLOYING/RESTARTING/VALIDATING)"
           jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          print_cleanup_log_info "FAILED (HTTP ${HTTP_CODE})"
           echo "CLEANUP_STATUS=CONFLICT" > cleanup_result.env
           exit 1
           ;;
         412)
           echo "  ERROR: Job ${CLEANUP_JOB_ID} has already been cleaned"
           jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          print_cleanup_log_info "FAILED (HTTP ${HTTP_CODE})"
           echo "CLEANUP_STATUS=ALREADY_CLEANED" > cleanup_result.env
           exit 1
           ;;
         500)
           echo "  ERROR: server-side cleanup failure (S3 or NFS)"
           jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          print_cleanup_log_info "FAILED (HTTP ${HTTP_CODE})"
           echo "CLEANUP_STATUS=SERVER_ERROR" > cleanup_result.env
           exit 1
           ;;
         *)
           echo "  ERROR: unexpected HTTP code ${HTTP_CODE}"
           jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          print_cleanup_log_info "FAILED (HTTP ${HTTP_CODE})"
           echo "CLEANUP_STATUS=UNKNOWN_ERROR" > cleanup_result.env
           exit 1
           ;;
@@ -241,7 +283,6 @@ cleanup:
   artifacts:
     reports:
       dotenv: cleanup_result.env
-    expire_in: 1 hour
 
 # ============================= SUMMARY STAGE ==============================
 # Display cleanup summary
@@ -257,3 +298,4 @@ summary:
       echo "  Image Group ID: ${IMAGE_GROUP_ID:-N/A}"
       echo "  Status:         ${CLEANUP_STATUS:-UNKNOWN}"
       echo "============================================================"
+      print_cleanup_log_info "${CLEANUP_STATUS:-UNKNOWN}"
