@@ -762,6 +762,26 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify msr-safe is staged only for x86_64",
         "component": "HPC benchmarks msr-safe arch boundary",
     },
+    "hpc_benchmarks_platform_script": {
+        "id": "ORCH_FVT_PXEBOOT_V219",
+        "title": "Verify omnia_platform.sh deployment and platform detection",
+        "component": "HPC benchmarks platform script",
+    },
+    "hpc_benchmarks_platform_directory_structure": {
+        "id": "ORCH_FVT_PXEBOOT_V221",
+        "title": "Verify platform-specific directory structure exists per architecture",
+        "component": "HPC benchmarks platform directory structure",
+    },
+    "hpc_benchmarks_offline_package_copy": {
+        "id": "ORCH_FVT_PXEBOOT_V222",
+        "title": "Verify offline packages are copied to slurm_config_path/packages/{arch}/",
+        "component": "HPC benchmarks offline package copy",
+    },
+    "hpc_benchmarks_container_image_list": {
+        "id": "ORCH_FVT_PXEBOOT_V220",
+        "title": "Verify container_image.list deployment and content validation",
+        "component": "HPC benchmarks container image list",
+    },
     "hpc_benchmarks_container_first_guidance": {
         "id": "ORCH_FVT_PXEBOOT_V205",
         "title": "Verify pull_benchmarks.sh and benchmark_tools.list are deployed",

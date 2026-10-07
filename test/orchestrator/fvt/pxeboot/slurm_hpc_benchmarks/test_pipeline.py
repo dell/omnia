@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 
 @pytest.mark.sanity
-@pytest.mark.order(341)
+@pytest.mark.order(345)
 def test_hpc_benchmarks_e2e_provisioning(host):
     """TC-09: Verify the end-to-end benchmark provisioning pipeline."""
     verify_pxeboot(

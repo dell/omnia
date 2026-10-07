@@ -54,6 +54,7 @@ APPTAINER_GPU_MEMORY_SETTLE_SECONDS = 5
 HPC_TOOLS_BASE = "/hpc_tools"
 HPC_TOOLS_SCRIPTS_DIRECTORY = "/hpc_tools/scripts"
 HPC_TOOLS_BENCHMARKS_DIRECTORY = "/hpc_tools/benchmarks"
+HPC_TOOLS_PLATFORMS_DIRECTORY = "/hpc_tools/platforms"
 HPC_TOOLS_CONTAINER_IMAGES_DIRECTORY = "/hpc_tools/container_images"
 HPC_TOOLS_CUDA_DIRECTORY = "/hpc_tools/cuda"
 HPC_TOOLS_NVIDIA_SDK_DIRECTORY = "/hpc_tools/nvidia_sdk"
@@ -64,8 +65,10 @@ HPC_TOOLS_CORE_SUBDIRS: tuple[str, ...] = (
     "nvidia_sdk",
 )
 HPC_TOOLS_DIRECTORY_MODE = "755"
+HPC_BENCHMARKS_PLATFORM_SCRIPT = "/hpc_tools/scripts/omnia_platform.sh"
 HPC_BENCHMARKS_PULL_SCRIPT = "/hpc_tools/scripts/pull_benchmarks.sh"
 HPC_BENCHMARKS_TOOLS_LIST = "/hpc_tools/scripts/benchmark_tools.list"
+HPC_BENCHMARKS_CONTAINER_IMAGE_LIST = "/hpc_tools/scripts/container_image.list"
 HPC_BENCHMARKS_CUSTOM_JSON_SEARCH: tuple[str, ...] = (
     "/opt/omnia/config/slurm_custom.json",
     "/etc/omnia/slurm_custom.json",
@@ -621,6 +624,17 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "hpc_benchmarks_pull_script_var": (
         "awk -F= '/^%s=/{sub(/^%s=/,\"\"); gsub(/^\"|\"$/,\"\"); print; exit}' %s"
+    ),
+    "hpc_benchmarks_platform_helper_var": (
+        ". /hpc_tools/scripts/omnia_platform.sh && omnia_detect_platform && echo ${%s}"
+    ),
+    "hpc_benchmarks_platform_script_check": (
+        "test -x /hpc_tools/scripts/omnia_platform.sh && "
+        "bash -n /hpc_tools/scripts/omnia_platform.sh"
+    ),
+    "hpc_benchmarks_container_image_list_check": (
+        "test -r /hpc_tools/scripts/container_image.list && "
+        "test -s /hpc_tools/scripts/container_image.list"
     ),
     "hpc_benchmarks_pulp_list": (
         "curl -ksfL --connect-timeout 5 --max-time 15 %s 2>/dev/null | "
