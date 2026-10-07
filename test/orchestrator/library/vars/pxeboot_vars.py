@@ -685,7 +685,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "pv_fstab_read": "cat /etc/fstab",
     "pv_proc_mounts_read": "cat /proc/mounts",
     "pv_blkid_fstype": "blkid -s TYPE -o value %s 2>/dev/null",
-    "pv_parted_print": "parted -s %s print 2>/dev/null",
+    "pv_parted_print": "parted -s /dev/mapper/%s print 2>/dev/null",
     "pv_port_check": (
         "timeout %d bash -c 'cat < /dev/tcp/%s/%d' >/dev/null 2>&1 && "
         "echo reachable || echo unreachable"

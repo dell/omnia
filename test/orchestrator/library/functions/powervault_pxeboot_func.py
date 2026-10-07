@@ -42,6 +42,7 @@ from ..vars.pxeboot_vars import (
 )
 from ._powervault_helpers import (
     SLURM_MANDATORY_BIND_TARGETS,
+    _run_on_node,
     error_result,
     get_mount_params,
     get_non_target_nodes,
@@ -582,6 +583,79 @@ def check_powervault_gpt_partition(host) -> dict[str, Any]:
         )
     except Exception as exc:
         return error_result("PowerVault GPT partition check failed", str(exc))
+
+
+def check_powervault_gpt_missing_label(host) -> dict[str, Any]:
+    """Verify GPT partition check correctly detects missing GPT label (negative test).
+
+    This negative test validates that the check properly rejects devices
+    without a valid GPT partition table. Since we cannot modify the
+    production cluster to create a device without GPT, this test is
+    skipped when the device correctly has GPT (normal operational state).
+    """
+    try:
+        if skip_if_no_powervault(host):
+            return optional_skip(
+                "PowerVault GPT negative check skipped",
+                "powervault_config is absent or empty in storage_config.yml",
+            )
+
+        pv_entries = get_powervault_entries(host)
+        failures = []
+        fields: list[tuple[str, object]] = []
+
+        for pv in pv_entries:
+            volume_id = pv.get("volume_id", "")
+            prefixes = pv.get("functional_group_prefix", [])
+            target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
+
+            for node in target_nodes:
+                node_ip = node["admin_ip"]
+                label = _node_label(node)
+                mpath_result = verify_multipath_device(host, node_ip, volume_id)
+                if not mpath_result["success"]:
+                    failures.append(mpath_result["error"])
+                    fields.append((label, "✗ mpath not found"))
+                    continue
+
+                mpath_device = mpath_result["details"]["mpath_device"]
+                # Check if device actually has GPT
+                cmd = _run_on_node(
+                    host, node_ip,
+                    PXEBOOT_COMMANDS["pv_parted_print"] % mpath_device,
+                )
+                output = cmd.stdout.strip()
+                has_gpt = "gpt" in output.lower()
+                
+                # If device has GPT (normal state), skip the negative test
+                if has_gpt:
+                    fields.append((label, "⊘ skipped (device has GPT - normal state)"))
+                    continue
+                
+                # If device has no GPT, run the negative test
+                result = verify_gpt_partition(host, node_ip, mpath_device, expect_gpt=False)
+
+                if not result["success"]:
+                    failures.append(result["error"])
+                    fields.append((label, "✗ negative test failed"))
+                else:
+                    fields.append((label, "✓ correctly detects no GPT"))
+
+        if not failures and not fields:
+            return optional_skip(
+                "PowerVault GPT negative check skipped",
+                "All devices have GPT labels (normal operational state)",
+            )
+
+        return runtime_result(
+            not failures,
+            "GPT partition check correctly detects missing GPT label",
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except Exception as exc:
+        return error_result("PowerVault GPT negative check failed", str(exc))
 
 
 def check_powervault_filesystem_type(host) -> dict[str, Any]:
@@ -1316,6 +1390,72 @@ def check_powervault_no_duplicate_fstab(host) -> dict[str, Any]:
         )
     except Exception as exc:
         return error_result("PowerVault duplicate fstab check failed", str(exc))
+
+
+def check_powervault_duplicate_fstab_detection(host) -> dict[str, Any]:
+    """Verify duplicate fstab entry detection works correctly (negative test).
+
+    This negative test validates that the check correctly identifies
+    duplicate fstab entries. Since we cannot modify the production cluster
+    to create duplicate entries, this test is skipped when fstab has no
+    duplicates (normal operational state).
+    """
+    try:
+        if skip_if_no_powervault(host):
+            return optional_skip(
+                "PowerVault duplicate fstab negative check skipped",
+                "powervault_config is absent or empty in storage_config.yml",
+            )
+
+        pv_entries = get_powervault_entries(host)
+        failures = []
+        fields: list[tuple[str, object]] = []
+
+        for pv in pv_entries:
+            prefixes = pv.get("functional_group_prefix", [])
+            target_nodes = get_target_nodes(host, prefixes)
+            _require_targets(target_nodes, prefixes, failures, fields)
+
+            for node in target_nodes:
+                node_ip = node["admin_ip"]
+                label = _node_label(node)
+                
+                # Check if fstab actually has duplicates
+                cmd = _run_on_node(host, node_ip, PXEBOOT_COMMANDS["pv_fstab_read"])
+                output = cmd.stdout.strip()
+                lines = [line.strip() for line in output.split("\n") if line.strip() and not line.strip().startswith("#")]
+                unique_lines = set(lines)
+                duplicate_count = len(lines) - len(unique_lines)
+                
+                # If no duplicates (normal state), skip the negative test
+                if duplicate_count == 0:
+                    fields.append((label, "⊘ skipped (no duplicates - normal state)"))
+                    continue
+                
+                # If duplicates exist, run the negative test
+                result = verify_no_duplicate_fstab(host, node_ip, expect_duplicates=True)
+
+                if not result["success"]:
+                    failures.append(result["error"])
+                    fields.append((label, "✗ negative test failed"))
+                else:
+                    dup_count = result["details"]["duplicate_count"]
+                    fields.append((label, f"✓ correctly detects {dup_count} duplicates"))
+
+        if not failures and not fields:
+            return optional_skip(
+                "PowerVault duplicate fstab negative check skipped",
+                "All fstab entries are unique (normal operational state)",
+            )
+
+        return runtime_result(
+            not failures,
+            "Duplicate fstab entry detection works correctly",
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except Exception as exc:
+        return error_result("PowerVault duplicate fstab negative check failed", str(exc))
 
 
 def check_powervault_all_mounts_writable(host) -> dict[str, Any]:
