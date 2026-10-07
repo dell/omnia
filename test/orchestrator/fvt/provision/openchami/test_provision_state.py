@@ -124,7 +124,7 @@ def test_coredhcp_and_coredns_inventory(host):
     _assert_result(test_log, tc["component"], check_network_inventory(host))
 
 
-@pytest.mark.functional
+@pytest.mark.boot_image
 @pytest.mark.order(30109)
 def test_boot_image_identity(host):
     """Verify Boot Service kernel/initrd paths match build_status.yml."""
@@ -133,7 +133,7 @@ def test_boot_image_identity(host):
     _assert_result(test_log, tc["component"], check_boot_image_identity(host))
 
 
-@pytest.mark.functional
+@pytest.mark.boot_image
 @pytest.mark.order(30110)
 def test_boot_image_architecture(host):
     """Verify build_status.yml architecture keys match functional group names."""

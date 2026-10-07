@@ -94,6 +94,7 @@ from library.functions.validation_func import (
 )
 from library.vars import TEST_CASES
 from omnia_auto import (
+    TestLogger,
     TestReport,
     add_session_result,
     build_report_name,
@@ -194,6 +195,19 @@ _TC_ID_MAP.update(
 )
 
 
+_TC_TITLE_MAP = {test_case["id"]: test_case["title"] for test_case in TEST_CASES.values()}
+
+
+def _skip_reason(result) -> str:
+    """Return the skip reason recorded by pytest, without its prefix."""
+    longrepr = result.longrepr
+    if isinstance(longrepr, tuple) and len(longrepr) == 3:
+        text = str(longrepr[2])
+    else:
+        text = str(longrepr or "")
+    return text.removeprefix("Skipped: ").strip()
+
+
 def _registered_test_case_id(item) -> str:
     """Return a deterministic TC ID without relying on logger state."""
     return _TC_ID_MAP.get(item.name, "")
@@ -244,6 +258,7 @@ def pytest_configure(config):
         "additional_cloud_init": "Additional cloud-init post-boot verification checks",
         "mount_config": "NFS mount_config post-boot verification checks",
         "minimal_os": "Minimal OS validation for OS-only provisioned nodes",
+        "boot_image": "Provisioned boot image identity and architecture checks",
         "powervault_infrastructure": "PowerVault iSCSI and multipath infrastructure checks",
         "powervault_mounts": "PowerVault partition, filesystem, and mount checks",
         "powervault_binds": "PowerVault bind-mount and targeting checks",
@@ -577,13 +592,7 @@ def pytest_runtest_makereport(item, call):
     skip_reason = ""
 
     if result.skipped:
-        if hasattr(result, "wasxfail"):
-            status = "SKIPPED"
-        rep_text = str(result.longrepr) if result.longrepr else ""
-        if "Skipped:" in rep_text:
-            skip_reason = rep_text.split("Skipped:", 1)[-1].strip()
-        elif "SKIP" in rep_text:
-            skip_reason = rep_text.split("SKIP", 1)[-1].strip()
+        skip_reason = _skip_reason(result)
 
     if status == "SKIPPED" and skip_reason:
         details = (details + "\n" if details else "") + f"SKIPPED: {skip_reason}"
@@ -599,11 +608,19 @@ def pytest_runtest_makereport(item, call):
     if not tc_id:
         tc_id = get_last_tc_id()
 
+    if result.when == "setup":
+        # Marker and fixture skips happen before the test body creates its
+        # TestLogger, so record the start and skip lines here.
+        skip_log = TestLogger(_TC_TITLE_MAP.get(tc_id, item.name), tc_id)
+        skip_log.skipped(skip_reason or "Skipped before the test started")
+        details = skip_log.get_output() + (f"\nSKIPPED: {skip_reason}" if skip_reason else "")
+
     add_session_result(
         test_name=item.name,
         status=status,
         duration=getattr(result, "duration", 0),
         tc_id=tc_id,
+        reason=skip_reason,
     )
 
     report = get_current_report()

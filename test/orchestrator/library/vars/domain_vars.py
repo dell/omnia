@@ -51,6 +51,7 @@ MARKERS: list[str] = [
     "additional_cloud_init",
     "mount_config",
     "minimal_os",
+    "boot_image",
     "powervault_infrastructure",
     "powervault_mounts",
     "powervault_binds",

@@ -242,8 +242,8 @@ These controller-side cases compare generated reports and live OpenCHAMI state w
 | 30106 | `ORCH_FVT_PROVISION_V006` | `test_metadata_service_groups` | `openchami` | `sanity` | Verify one usable cloud-init template per functional group. | All stated checks pass for every applicable target. |
 | 30107 | `ORCH_FVT_PROVISION_V007` | `test_metadata_service_instances` | `openchami` | `sanity` | Verify unique per-node hostname metadata. | All stated checks pass for every applicable target. |
 | 30108 | `ORCH_FVT_PROVISION_V008` | `test_coredhcp_and_coredns_inventory` | `openchami` | `sanity` | Verify the SMD identity records consumed by CoreDHCP/CoreDNS. | All stated checks pass for every applicable target. |
-| 30109 | `ORCH_FVT_PROVISION_V009` | `test_boot_image_identity` | `openchami` | `functional` | Verify Boot Service kernel/initrd paths match build_status.yml. | All stated checks pass for every applicable target. |
-| 30110 | `ORCH_FVT_PROVISION_V010` | `test_boot_image_architecture` | `openchami` | `functional` | Verify build_status.yml architecture keys match functional group names. | All stated checks pass for every applicable target. |
+| 30109 | `ORCH_FVT_PROVISION_V009` | `test_boot_image_identity` | `openchami` | `boot_image` | Verify Boot Service kernel/initrd paths match build_status.yml. | All stated checks pass for every applicable target. |
+| 30110 | `ORCH_FVT_PROVISION_V010` | `test_boot_image_architecture` | `openchami` | `boot_image` | Verify build_status.yml architecture keys match functional group names. | All stated checks pass for every applicable target. |
 
 Provision verification is read-only. It resolves XNAMEs from live SMD
 interfaces and groups and obtains fresh OpenCHAMI credentials for API reads.
@@ -676,7 +676,7 @@ input file, credential, or externally managed data path must always be deleted.
 | `sanity` | Default positive PXE and lifecycle coverage |
 | `buildstream` | BuildStream validation subset |
 | `functional` | Temporary workload or job behavior |
-| `openldap`, `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `additional_cloud_init`, `mount_config`, `minimal_os` | Capability selectors |
+| `openldap`, `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `additional_cloud_init`, `mount_config`, `minimal_os`, `boot_image` | Capability selectors |
 | `powervault_infrastructure`, `powervault_mounts`, `powervault_binds`, `powervault_cloudinit` | PowerVault subset selectors |
 | `image_download` | Explicit authorization to modify shared Apptainer image storage |
 | `negative` | Expected rejection and error-path behavior |
