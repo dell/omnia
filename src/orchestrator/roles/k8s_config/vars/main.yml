@@ -14,7 +14,12 @@
 ---
 input_project_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] }}"
 # Versioned JSON file: service_k8s_v<version>.json (e.g., service_k8s_v1.35.1.json)
-k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json" # noqa: yaml[line-length]
+k8s_packages_file: >-
+  {{ input_project_dir }}/config/{{
+  hostvars['localhost']['service_k8s_architecture'] }}/{{
+  hostvars['localhost']['service_k8s_os_type'] }}/{{
+  hostvars['localhost']['service_k8s_os_version']
+  }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json
 calico_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ calico_package }}/{{ calico_package }}.yml"
 metallb_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ metallb_package }}/{{ metallb_package }}.yml"
 multus_manifest_yaml_url: "{{ offline_manifest_path | regex_replace('/$', '') }}/{{ multus_package }}/{{ multus_package }}.yml"
@@ -25,6 +30,8 @@ nfs_client_provisioner_tarball_url: >-
   nfs_subdir_external_provisioner_pkg }}.tar.gz
 whereabouts_git_url: "{{ offline_git_path | regex_replace('/$', '') }}/{{ whereabouts_pkg }}/{{ whereabouts_pkg }}.tar.gz"
 file_mode: "0644"
+k8s_nfs_download_retries: 3
+k8s_nfs_download_delay: 5
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
 # Pulp cert path is read from repo_manager output (repo_status.yml) via orchestrator_setup
 pulp_webserver_cert_path: "{{ hostvars['localhost']['pulp_cert_path'] }}"
@@ -62,20 +69,24 @@ powerscale_csi_input_file_fail_msg: >-
   service_k8s_cluster entry, then rerun Orchestrator.
 powerscale_repo_status_structure_fail_msg: >-
   PowerScale CSI is enabled, but repo_status.yml does not contain a mapping at
-  file_repos.x86_64.git. Ensure Repo Manager publishes the required x86_64
-  PowerScale CSI Git dependencies, then rerun Orchestrator.
+  file_repos.{{ hostvars['localhost']['service_k8s_os_version'] }}.{{
+  hostvars['localhost']['service_k8s_architecture'] }}.git. Ensure Repo Manager
+  publishes the required PowerScale CSI Git dependencies for the service
+  Kubernetes OS version and architecture, then rerun Orchestrator.
 powerscale_repo_status_artifacts_fail_msg: >-
-  PowerScale CSI requires exactly one x86_64 Git artifact in repo_status.yml
-  matching each key pattern: ^csi-powerscale-v, ^helm-charts-[0-9], and
-  ^external-snapshotter-v. Check file_repos.x86_64.git and the Repo Manager
-  source configuration, then rerun Repo Manager.
+  PowerScale CSI requires exactly one Git artifact in repo_status.yml matching
+  each key pattern: ^csi-powerscale-v, ^helm-charts-[0-9], and
+  ^external-snapshotter-v. Check the version-qualified file_repos entry for
+  the service Kubernetes OS version and architecture, then rerun Repo Manager.
 powerscale_repo_status_url_fail_msg: >-
   PowerScale CSI found an invalid published Git URL in
-  repo_status.yml file_repos.x86_64.git. Each matched artifact must have an
-  HTTP(S) distribution URL whose final path is its versioned package directory.
+  the version-qualified service Kubernetes file_repos entry. Each matched
+  artifact must have an HTTP(S) distribution URL whose final path is its
+  versioned package directory.
 fail_msg_download: >-
   Failed to stage the PowerScale CSI dependencies from Repo Manager. Verify
-  the published URLs under repo_status.yml file_repos.x86_64.git are reachable.
+  the published URLs under the version-qualified service Kubernetes
+  file_repos entry are reachable.
 helm_charts_git: "helm-charts.tar.gz"
 external_snapshotter_git: "external-snapshotter.tar.gz"
 empty_certificate_template_path: "{{ role_path }}/files/empty_certificate_template.yml"
@@ -107,9 +118,13 @@ nfs_export_help_msg: |
 k8s_packages_base_dir_x86_64: "{{ k8s_client_mount_path }}/packages/x86_64"
 k8s_packages_base_dir_aarch64: "{{ k8s_client_mount_path }}/packages/aarch64"
 offline_repo_basepath_x86_64: >-
-  {{ hostvars['localhost']['omnia_data_path'] }}/offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso
+  {{ hostvars['localhost']['omnia_data_path'] }}/offline_repo/cluster/x86_64/{{
+  hostvars['localhost']['service_k8s_os_type'] }}/{{
+  hostvars['localhost']['service_k8s_os_version'] }}/iso
 offline_repo_basepath_aarch64: >-
-  {{ hostvars['localhost']['omnia_data_path'] }}/offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso
+  {{ hostvars['localhost']['omnia_data_path'] }}/offline_repo/cluster/aarch64/{{
+  hostvars['localhost']['service_k8s_os_type'] }}/{{
+  hostvars['localhost']['service_k8s_os_version'] }}/iso
 packages_layout_x86_64:
   - cuda
 packages_layout_aarch64:
@@ -120,6 +135,7 @@ offline_path_aarch64: []
 ssh_private_key_path: "{{ ansible_user_dir | default('/root') }}/.ssh/oim_rsa"
 # Centralized failure messages
 repo_status_vars_fail_msg: >-
-  Required repo_manager variables (offline_tarball_path, offline_manifest_path)
-  are not defined. Ensure repo_manager_output_path is set in orchestrator_config.yml
-  and the file exists, or run repo_manager.yml first.
+  repo_status.yml does not publish valid tarball and manifest HTTP(S) base
+  URLs for the service Kubernetes OS version and architecture. Ensure
+  repo_manager_output_path is correct and rerun Repo Manager with the active
+  catalog before rerunning Orchestrator.

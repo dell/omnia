@@ -19,7 +19,10 @@ and does not honor `IMAGE_BUILD_MANAGER_DATA_PATH`.
   Fails early if host is unreachable.
 - **SSH setup** — `setup_ssh.yml` (in this role) runs on localhost: generates SSH keypair
   if missing, adds host to known_hosts, runs `ssh-copy-id` with credential password,
-  verifies passwordless SSH works. Called from a localhost play in the playbook.
+  and verifies passwordless SSH with `/root/.ssh/id_rsa` explicitly selected.
+  The dynamic inventory pins the same identity for all later ARM plays, so a
+  global `Host *` SSH configuration cannot substitute another key. Called from
+  a localhost play in the playbook.
 
 ### Task files
 

@@ -128,6 +128,11 @@
   changed_when: false
   when: repo_cert_path | default('') | length > 0
 
+- name: Install SELinux policy module before using Podman
+  ansible.builtin.include_role:
+    name: build_os_images
+    tasks_from: preflight_selinux_check.yml
+
 # =========================================================================
 # Phase 5: Pull builder container image (Pulp first, DockerHub fallback)
 # =========================================================================

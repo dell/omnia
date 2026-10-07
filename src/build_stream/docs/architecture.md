@@ -116,14 +116,6 @@ The Build Stream domain is deployed on the Omnia Infrastructure Manager (OIM) no
 - **Logging**: Structured logging via `log_secure_info`
 - **Audit Trail**: Complete audit trail of all operations
 
-## Upgrade and Rollback
-
-The domain includes upgrade and rollback playbooks for:
-- BSM API container updates
-- PostgreSQL schema migrations
-- GitLab version upgrades
-- Configuration updates
-
 ## Troubleshooting
 
 Common issues and solutions:

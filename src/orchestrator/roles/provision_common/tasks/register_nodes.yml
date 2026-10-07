@@ -156,7 +156,6 @@
 
 - name: Reset stale OpenCHAMI data for {{ target_category }}
   ansible.builtin.include_tasks: delete_smd_endpoints.yml
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Generate per-category nodes YAML ({{ target_category }})
   ansible.builtin.template:
@@ -279,7 +278,6 @@
       - node_registration
   no_log: true
   when:
-    - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
     - refreshed_token_result.rc == 0
 
 - name: Discover nodes in SMD (upsert with --overwrite)

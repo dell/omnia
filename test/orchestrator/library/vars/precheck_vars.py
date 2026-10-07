@@ -46,3 +46,25 @@ NFS_PING_COUNT = 2
 NFS_PING_TIMEOUT_SECONDS = 3
 HTTP_CONNECT_TIMEOUT_SECONDS = 5
 HTTP_REQUEST_TIMEOUT_SECONDS = 20
+
+# ── OIM readiness thresholds ────────────────────────────────────────
+OIM_MIN_CPU_CORES = 4
+OIM_MIN_MEMORY_GB = 16
+OIM_MIN_DISK_GB = 100
+
+# ── OIM readiness commands ──────────────────────────────────────────
+OIM_READINESS_COMMANDS: dict[str, str] = {
+    "cpu_cores": "nproc 2>/dev/null",
+    "memory_kb": "grep MemTotal /proc/meminfo | awk '{print $2}'",
+    "disk_gb": "df -BG / | tail -1 | awk '{print $2}' | tr -d 'G'",
+    "nic_operstate": "cat /sys/class/net/%s/operstate 2>/dev/null",
+    "nic_ipv4": "ip -4 -o addr show %s scope global",
+    "ssh_check": (
+        "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "
+        "-o BatchMode=yes %s whoami 2>/dev/null"
+    ),
+    "os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
+    "internet_ping": "ping -c 1 -W 5 -- %s",
+}
+
+INTERNET_CHECK_HOSTS: tuple[str, ...] = ("8.8.8.8", "1.1.1.1", "208.67.222.222")

@@ -84,8 +84,6 @@ PLAYBOOK_TAGS = [
     "build",
     "cleanup",
     "cleanup_images",
-    "upgrade",
-    "rollback",
 ]
 
 # =============================================================================

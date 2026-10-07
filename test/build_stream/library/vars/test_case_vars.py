@@ -231,15 +231,15 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     },
     "playbook_watcher_service_stopped": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V013",
-        "title": "Verify playbook_watcher stopped",
+        "title": "Verify playbook-watcher stopped",
     },
     "playbook_watcher_service_disabled": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V014",
-        "title": "Verify playbook_watcher disabled",
+        "title": "Verify playbook-watcher disabled",
     },
     "playbook_watcher_service_file_removed": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V015",
-        "title": "Verify playbook_watcher file removed",
+        "title": "Verify playbook-watcher file removed",
     },
     "postgres_container_stopped": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V016",
@@ -256,6 +256,14 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     "postgres_services_stopped": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V019",
         "title": "Verify omnia_postgres services stopped",
+    },
+    "buildstream_directories_removed": {
+        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V020",
+        "title": "Verify BuildStream runtime directories removed",
+    },
+    "buildstream_runtime_caches_removed": {
+        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V021",
+        "title": "Verify runtime preserved and Python caches removed",
     },
     "postgres_volumes_preserved_with_backup": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V022",

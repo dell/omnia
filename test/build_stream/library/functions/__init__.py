@@ -189,6 +189,7 @@ from library.functions.cleanup_func import (
     check_postgres_volumes_removed,
     check_postgres_volumes_preserved,
     check_buildstream_directories_removed,
+    check_buildstream_runtime_caches_removed,
     check_buildstream_credentials_removed,
     check_buildstream_oauth_credentials_removed,
 )
@@ -323,6 +324,7 @@ __all__ = [
     "check_postgres_volumes_removed",
     "check_postgres_volumes_preserved",
     "check_buildstream_directories_removed",
+    "check_buildstream_runtime_caches_removed",
     "check_buildstream_credentials_removed",
     "check_buildstream_oauth_credentials_removed",
     # Pipeline
