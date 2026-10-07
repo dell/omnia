@@ -77,11 +77,16 @@
       vars:
         role_path_prefix: "{{ playbook_dir }}/../../roles/hosted_gitlab"
 
+    - name: Set GitLab connection facts
+      ansible.builtin.set_fact:
+        gitlab_host: "{{ hostvars['localhost']['gitlab_host'] }}"
+        gitlab_https_port: "{{ hostvars['localhost']['gitlab_https_port'] | default(443) }}"
+        gitlab_default_branch: "{{ hostvars['localhost']['gitlab_default_branch'] | default('main') }}"
+
     - name: Set GitLab external URL
       ansible.builtin.set_fact:
         gitlab_external_url_computed: >-
-          https://{{ hostvars['localhost']['gitlab_host'] }}{% if hostvars['localhost']['gitlab_https_port'] | default(443) != 443 %}:{{ hostvars['localhost']['gitlab_https_port'] }}{% endif %}
-        gitlab_default_branch: "{{ hostvars['localhost']['gitlab_default_branch'] | default('main') }}"
+          https://{{ gitlab_host }}{% if gitlab_https_port | int != 443 %}:{{ gitlab_https_port }}{% endif %}
 
     - name: Read GitLab root token
       ansible.builtin.slurp:
