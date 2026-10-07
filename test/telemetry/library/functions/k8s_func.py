@@ -143,6 +143,27 @@ def verify_pods_by_prefix(host, prefix, namespace=None, min_count=1):
     }
 
 
+def get_pod_count_by_prefix(host, prefix, namespace=None):
+    """Get count of pods matching a prefix.
+
+    Args:
+        host: Testinfra host (OIM).
+        prefix: Pod name prefix to grep.
+        namespace: K8s namespace (default: telemetry).
+
+    Returns:
+        int: Count of pods matching prefix (regardless of status).
+    """
+    ns = namespace or TELEMETRY_NAMESPACE
+    cmd = CMDS["kubectl_get_pods_by_prefix"].format(
+        namespace=ns, prefix=prefix,
+    )
+    result = run_on_kube_vip(host, cmd)
+    if result.rc == 0 and result.stdout.strip():
+        return len(result.stdout.strip().split("\n"))
+    return 0
+
+
 def verify_sts_ready(host, name, namespace=None, expected=1):
     """Verify StatefulSet has expected ready replicas.
 
