@@ -450,7 +450,6 @@ initialization:
   artifacts:
     reports:
       dotenv: job.env
-    expire_in: 2 hours
 
 # ============================= STAGE 2 ====================================
 # Parse Catalog — Validate and parse the cadence catalog
@@ -495,7 +494,6 @@ parse-catalog:
   artifacts:
     reports:
       dotenv: parse_catalog.env
-    expire_in: 2 hours
 
 # ============================= STAGE 3 ====================================
 # Configure Local Repository

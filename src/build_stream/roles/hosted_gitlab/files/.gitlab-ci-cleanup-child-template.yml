@@ -283,7 +283,6 @@ cleanup:
   artifacts:
     reports:
       dotenv: cleanup_result.env
-    expire_in: 1 hour
 
 # ============================= SUMMARY STAGE ==============================
 # Display cleanup summary
