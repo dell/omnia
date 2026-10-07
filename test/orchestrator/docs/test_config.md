@@ -65,6 +65,15 @@ always passed to the cleanup playbook:
 | `cleanup_slurm` | Delete Slurm shared data, then detach storage. | Preserve data, then detach storage. |
 | `cleanup_k8s` | Delete Kubernetes shared data, then detach storage. | Preserve data, then detach storage. |
 
+## Kubernetes local-etcd disk media
+
+`expected_etcd_disk_media` defaults to `""`, which skips the media check.
+Set it to `ssd`, `hdd`, or `nvme` to require that every Kubernetes control
+plane places `/var/lib/etcd` on that media when `etcd_on_local_disk` is
+enabled. The selected disk is classified from `lsblk`: `TRAN=nvme` is NVMe,
+`ROTA=1` is HDD, and `ROTA=0` is SSD. Any other value fails before the check
+runs.
+
 ## NFT performance thresholds
 
 `nft_performance_threshold_seconds` is a required mapping when NFT executes.

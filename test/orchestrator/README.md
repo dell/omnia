@@ -138,7 +138,8 @@ without putting secrets in process arguments:
 }
 ```
 
-LDAP identity fields are required by the selected Slurm/PAM LDAP tests. The
+LDAP identity fields are required by the selected Slurm/PAM LDAP tests, which
+skip unless `validate_external_ldap: true`. The
 external bind secret is additionally required when
 `validate_external_ldap: true` and `configure_external_ldap: true`. Product-
 domain credentials continue to use `--domain-creds-stdin`.
@@ -207,10 +208,10 @@ operations and includes destructive prepare, provision, and cleanup cases.
 
 | Tag | Suites | Main contract |
 |---|---|---|
-| `precheck` | `environment`, `storage`, `dependencies`, `inputs` | OIM identity, selected NFS reachability, upstream artifacts, and required inputs |
-| `prepare` | `openchami`, `network`, `openldap` | OpenCHAMI, PostgreSQL, networking, DNS/DHCP, and LDAP readiness |
+| `precheck` | `environment`, `oim_readiness`, `storage`, `dependencies`, `inputs` | OIM identity and readiness, selected NFS reachability, upstream artifacts, and required inputs |
+| `prepare` | `openchami`, `network`, `openldap` | OpenCHAMI, PostgreSQL, networking, DNS/DHCP, and local OpenLDAP readiness |
 | `provision` | `openchami` | Provision reports plus SMD, Boot Service, Metadata Service, and network inventory |
-| `pxeboot` | `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer` | Node boot completion and workload-cluster behavior |
+| `pxeboot` | See `SUITES` in `library/vars/domain_vars.py` | Node boot completion, node features, and workload-cluster behavior; reboot and node-removal suites run last |
 | `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` | Explicit full-cleanup postconditions |
 
 An untagged FVT flow uses `precheck -> prepare -> provision -> pxeboot`.
@@ -251,6 +252,9 @@ Registered selectors include:
 - Non-functional contracts: `nft`, `performance`, `idempotency`, and
   `security`.
 
+`sanity` marks the baseline positive checks only. Negative tests, which
+expect a rejection or failure, are never marked `sanity`.
+
 `deploy` is attached to lifecycle execution cases and is normally managed by
 the runner rather than selected manually.
 
@@ -281,9 +285,12 @@ active PXE mapping, or `groups` matches a mapped `GROUP_NAME`. The stock
 ./run_validation.sh fvt_orchestrator prepare verify --suite openldap
 ```
 
-Set `validate_external_ldap: true` to run external proxy and backend checks.
-Set `configure_external_ldap: true` only when those checks may also reconcile
-the local `omnia_auth` proxy configuration. An unchanged desired configuration
+Prepare only starts the local `omnia_auth` container. The external LDAP proxy
+and backend checks run first in the pxeboot `slurm_ldap` suite, immediately
+before the LDAP login and job checks. Set `validate_external_ldap: true` to run
+them and every LDAP-identity check. Set `configure_external_ldap: true` only
+when the proxy check may also reconcile the local `omnia_auth` proxy
+configuration. An unchanged desired configuration
 is an idempotent no-op; a failed changed configuration is rolled back.
 
 ### Provision
@@ -383,7 +390,7 @@ artifact permissions:
 A complete NFT run provisions state and finishes with full cleanup. Duration
 limits come from `nft_performance_threshold_seconds` in `test_config.yml`.
 Run NFT separately from FVT cleanup and review the cleanup policy first. See
-[nft/README.md](nft/README.md) for its 11 contracts and execution order.
+[nft/README.md](nft/README.md) for its 14 contracts and execution order.
 
 ## Batch execution
 

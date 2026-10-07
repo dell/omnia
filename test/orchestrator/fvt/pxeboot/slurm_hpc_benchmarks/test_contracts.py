@@ -16,19 +16,20 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_hpc_benchmarks_container_first_guidance,
     check_hpc_benchmarks_nfs_accessibility,
     check_hpc_benchmarks_source_only_delivery,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
-
-
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(338)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42008)
 def test_hpc_benchmarks_container_first_guidance(host):
     """TC-06: Verify pull_benchmarks.sh and benchmark_tools.list are deployed.
 
@@ -36,30 +37,30 @@ def test_hpc_benchmarks_container_first_guidance(host):
     deployment contract actually enforced by hpc_tools.yml. See the check
     function's docstring for the rationale.
     """
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_container_first_guidance",
-        check_hpc_benchmarks_container_first_guidance,
-    )
+    tc = TC["hpc_benchmarks_container_first_guidance"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_container_first_guidance)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(339)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42009)
 def test_hpc_benchmarks_source_only_delivery(host):
     """TC-07: Verify no compile/build commands are staged with the artifacts."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_source_only_delivery",
-        check_hpc_benchmarks_source_only_delivery,
-    )
+    tc = TC["hpc_benchmarks_source_only_delivery"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_source_only_delivery)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(340)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42010)
 def test_hpc_benchmarks_nfs_accessibility(host):
     """TC-10: Verify /hpc_tools NFS is mounted and readable on compute nodes."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_nfs_accessibility", check_hpc_benchmarks_nfs_accessibility
-    )
+    tc = TC["hpc_benchmarks_nfs_accessibility"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_nfs_accessibility)

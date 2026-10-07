@@ -25,6 +25,7 @@ import pytest
 
 from fvt.result import verify_pxeboot
 from library.functions import (
+    TestLogger,
     check_mount_config_bind_fstab,
     check_mount_config_bind_mounts,
     check_mount_config_fg_targeting,
@@ -38,93 +39,135 @@ from library.functions import (
     check_mount_config_volume_mounted,
     check_mount_config_writable,
 )
+from library.vars import TEST_CASES as TC
 
-pytestmark = [
-    pytest.mark.buildstream,
-    pytest.mark.sanity,
-    pytest.mark.mount_config,
-]
-
-
-@pytest.mark.order(500)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40401)
 def test_mount_config_mount_point(host):
     """Verify NFS mount point directories exist on all target nodes."""
-    verify_pxeboot(host, "mount_config_mount_point", check_mount_config_mount_point)
+    tc = TC["mount_config_mount_point"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_mount_point)
 
 
-@pytest.mark.order(501)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40402)
 def test_mount_config_volume_mounted(host):
     """Verify NFS volumes are actively mounted on all target nodes."""
-    verify_pxeboot(
-        host, "mount_config_volume_mounted", check_mount_config_volume_mounted
-    )
+    tc = TC["mount_config_volume_mounted"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_volume_mounted)
 
 
-@pytest.mark.order(502)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40403)
 def test_mount_config_mount_options(host):
     """Verify NFS mount options match storage_config.yml on target nodes."""
-    verify_pxeboot(
-        host, "mount_config_mount_options", check_mount_config_mount_options
-    )
+    tc = TC["mount_config_mount_options"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_mount_options)
 
 
-@pytest.mark.order(503)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40404)
 def test_mount_config_fstab(host):
     """Verify NFS fstab entries are persistent on all target nodes."""
-    verify_pxeboot(host, "mount_config_fstab", check_mount_config_fstab)
+    tc = TC["mount_config_fstab"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_fstab)
 
 
-@pytest.mark.order(504)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40405)
 def test_mount_config_bind_mounts(host):
     """Verify NFS bind mount targets are active on all target nodes."""
-    verify_pxeboot(host, "mount_config_bind_mounts", check_mount_config_bind_mounts)
+    tc = TC["mount_config_bind_mounts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_bind_mounts)
 
 
-@pytest.mark.order(505)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40406)
 def test_mount_config_bind_fstab(host):
     """Verify NFS bind mount fstab entries are persistent on target nodes."""
-    verify_pxeboot(host, "mount_config_bind_fstab", check_mount_config_bind_fstab)
+    tc = TC["mount_config_bind_fstab"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_bind_fstab)
 
 
-@pytest.mark.order(506)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40407)
 def test_mount_config_node_subdirectory(host):
     """Verify per-node subdirectory exists under NFS mount point."""
-    verify_pxeboot(
-        host,
-        "mount_config_node_subdirectory",
-        check_mount_config_node_subdirectory,
-    )
+    tc = TC["mount_config_node_subdirectory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_node_subdirectory)
 
 
-@pytest.mark.order(507)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40408)
 def test_mount_config_permissions(host):
     """Verify NFS mount permissions match storage_config.yml on nodes."""
-    verify_pxeboot(host, "mount_config_permissions", check_mount_config_permissions)
+    tc = TC["mount_config_permissions"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_permissions)
 
 
-@pytest.mark.order(508)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40409)
 def test_mount_config_fg_targeting(host):
     """Verify NFS mounts are present on target FGs and absent on others."""
-    verify_pxeboot(host, "mount_config_fg_targeting", check_mount_config_fg_targeting)
+    tc = TC["mount_config_fg_targeting"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_fg_targeting)
 
 
-@pytest.mark.order(509)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40410)
 def test_mount_config_no_duplicate_fstab(host):
     """Verify no duplicate NFS fstab entries on target nodes."""
-    verify_pxeboot(
-        host,
-        "mount_config_no_duplicate_fstab",
-        check_mount_config_no_duplicate_fstab,
-    )
+    tc = TC["mount_config_no_duplicate_fstab"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_no_duplicate_fstab)
 
 
-@pytest.mark.order(510)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40411)
 def test_mount_config_writable(host):
     """Verify all configured NFS mounts are writable on target nodes."""
-    verify_pxeboot(host, "mount_config_writable", check_mount_config_writable)
+    tc = TC["mount_config_writable"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_writable)
 
 
-@pytest.mark.order(511)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.mount_config
+@pytest.mark.order(40412)
 def test_mount_config_oim_mount(host):
     """Verify NFS storage is mounted on the OIM when mount_on_oim is true."""
-    verify_pxeboot(host, "mount_config_oim_mount", check_mount_config_oim_mount)
+    tc = TC["mount_config_oim_mount"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_mount_config_oim_mount)

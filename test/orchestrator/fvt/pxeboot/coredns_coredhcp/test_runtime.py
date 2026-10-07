@@ -22,63 +22,69 @@ PXE mapping, and repeated-deployment stability.
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_coredhcp_multisubnet_running_image,
     check_coredns_container_state,
     check_coredns_forward_resolution,
     check_coredns_idempotency,
     check_coredns_reverse_resolution,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.non_disruptive]
-
-
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(350)
+@pytest.mark.non_disruptive
+@pytest.mark.order(40701)
 def test_coredns_container_state(host):
     """TC-01: coresmd containers match the dns_enabled dataset (enabled+disabled)."""
-    verify_pxeboot(host, "coredns_container_state", check_coredns_container_state)
+    tc = TC["coredns_container_state"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_coredns_container_state)
 
 
-@pytest.mark.functional
 @pytest.mark.buildstream
+@pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(351)
+@pytest.mark.non_disruptive
+@pytest.mark.order(40702)
 def test_coredns_forward_resolution(host):
     """TC-02: dig FQDN from OIM for every mapped node; compare to ADMIN_IP."""
-    verify_pxeboot(
-        host, "coredns_forward_resolution", check_coredns_forward_resolution
-    )
+    tc = TC["coredns_forward_resolution"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_coredns_forward_resolution)
 
 
-@pytest.mark.functional
 @pytest.mark.buildstream
+@pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(352)
+@pytest.mark.non_disruptive
+@pytest.mark.order(40703)
 def test_coredns_reverse_resolution(host):
     """TC-03: dig -x from OIM for every mapped ADMIN_IP; compare to FQDN."""
-    verify_pxeboot(
-        host, "coredns_reverse_resolution", check_coredns_reverse_resolution
-    )
+    tc = TC["coredns_reverse_resolution"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_coredns_reverse_resolution)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(353)
+@pytest.mark.non_disruptive
+@pytest.mark.order(40704)
 def test_coredhcp_multisubnet_running_image(host):
     """TC-04: multi-subnet dataset -> coresmd containers use expected image."""
-    verify_pxeboot(
-        host,
-        "coredhcp_multisubnet_running_image",
-        check_coredhcp_multisubnet_running_image,
-    )
+    tc = TC["coredhcp_multisubnet_running_image"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_coredhcp_multisubnet_running_image)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(354)
+@pytest.mark.non_disruptive
+@pytest.mark.order(40705)
 def test_coredns_idempotency(host):
     """TC-07: coresmd state stability (no-drift) across a settle window."""
-    verify_pxeboot(host, "coredns_idempotency", check_coredns_idempotency)
+    tc = TC["coredns_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_coredns_idempotency)

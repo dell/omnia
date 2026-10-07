@@ -129,6 +129,46 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify OIM OS matches expected distribution and version",
         "component": "OIM OS version",
     },
+    "oim_cpu_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V110",
+        "title": "Reject an unattainable OIM CPU threshold",
+        "component": "OIM CPU threshold",
+    },
+    "oim_memory_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V111",
+        "title": "Reject an unattainable OIM memory threshold",
+        "component": "OIM memory threshold",
+    },
+    "oim_disk_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V112",
+        "title": "Reject an unattainable OIM disk threshold",
+        "component": "OIM disk threshold",
+    },
+    "oim_missing_nic_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V113",
+        "title": "Reject a nonexistent admin NIC",
+        "component": "OIM admin NIC",
+    },
+    "oim_nic_overlap_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V114",
+        "title": "Reject a PXE NIC that equals the public NIC",
+        "component": "PXE/public NIC overlap",
+    },
+    "oim_airgapped_internet": {
+        "id": "ORCH_FVT_PRECHECK_V115",
+        "title": "Accept missing internet access in air-gapped mode",
+        "component": "Internet reachability",
+    },
+    "oim_unreachable_ssh_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V116",
+        "title": "Reject SSH to an unreachable target",
+        "component": "OIM SSH preflight",
+    },
+    "oim_os_mismatch_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V117",
+        "title": "Reject a mismatched OIM OS identity",
+        "component": "OIM OS version",
+    },
 }
 
 PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
@@ -164,10 +204,6 @@ PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PREPARE_V007",
         "title": "Verify CoreDHCP and CoreDNS match network_spec.yml",
     },
-    "external_ldap_proxy": {
-        "id": "ORCH_FVT_PREPARE_V008",
-        "title": "Reconcile and verify the external LDAP proxy",
-    },
     "openldap_runtime": {
         "id": "ORCH_FVT_PREPARE_V009",
         "title": "Verify OpenLDAP service and container health",
@@ -179,10 +215,6 @@ PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
     "openldap_endpoint": {
         "id": "ORCH_FVT_PREPARE_V011",
         "title": "Verify OpenLDAP listeners and local endpoint",
-    },
-    "external_ldap_backend": {
-        "id": "ORCH_FVT_PREPARE_V012",
-        "title": "Verify external LDAP backend reachability",
     },
     "postgresql_readiness": {
         "id": "ORCH_FVT_PREPARE_V013",
@@ -288,7 +320,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "Kubernetes version compatibility",
     },
     "kubernetes_configured_versions": {
-        "id": "ORCH_FVT_PXEBOOT_V101",
+        "id": "ORCH_FVT_PXEBOOT_V519",
         "title": "Verify configured Kubernetes component versions",
         "component": "Kubernetes configured versions",
     },
@@ -333,9 +365,14 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "Kubernetes local-etcd disk integrity",
     },
     "kubernetes_local_etcd_provisioning": {
-        "id": "ORCH_FVT_PXEBOOT_V102",
+        "id": "ORCH_FVT_PXEBOOT_V520",
         "title": "Verify Kubernetes local-etcd provisioning contract",
         "component": "Kubernetes local-etcd provisioning",
+    },
+    "kubernetes_local_etcd_media": {
+        "id": "ORCH_FVT_PXEBOOT_V523",
+        "title": "Verify Kubernetes local-etcd disk media",
+        "component": "Kubernetes local-etcd disk media",
     },
     "kubernetes_storage": {
         "id": "ORCH_FVT_PXEBOOT_V016",
@@ -353,7 +390,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "Kubernetes snapshot components",
     },
     "kubernetes_nfs_contract": {
-        "id": "ORCH_FVT_PXEBOOT_V103",
+        "id": "ORCH_FVT_PXEBOOT_V521",
         "title": "Verify Kubernetes NFS provisioner and backend contract",
         "component": "Kubernetes NFS provisioner",
     },
@@ -456,6 +493,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V038",
         "title": "Verify Slurm drain queue and resume behavior",
         "component": "Slurm drain and queue",
+    },
+    "external_ldap_proxy": {
+        "id": "ORCH_FVT_PXEBOOT_V524",
+        "title": "Reconcile and verify the external LDAP proxy",
+        "component": "External LDAP proxy",
+    },
+    "external_ldap_backend": {
+        "id": "ORCH_FVT_PXEBOOT_V525",
+        "title": "Verify external LDAP backend reachability",
+        "component": "External LDAP backend",
     },
     "slurm_pam": {
         "id": "ORCH_FVT_PXEBOOT_V039",
@@ -1048,7 +1095,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
     },
     # ── DCGM / CUDA verification (ORCH_FVT_PXEBOOT_V501-V518) ─────────
     "dcgm_cuda_validation": {
-        "id": "ORCH_FVT_PXEBOOT_V501",
+        "id": "ORCH_FVT_PXEBOOT_V522",
         "title": "Verify NVIDIA driver and CUDA toolkit on GPU nodes",
         "component": "CUDA driver and toolkit validation",
     },
@@ -1369,4 +1416,81 @@ TEST_CASES: dict[str, dict[str, str]] = {
     **PXEBOOT_TEST_CASES,
     **CLEANUP_TEST_CASES,
     **NFT_TEST_CASES,
+}
+
+
+# =====================================================================
+# Pytest execution order blocks
+# =====================================================================
+# Every test's @pytest.mark.order value lies inside its suite's block:
+#
+#   block start = lifecycle base + suite slot * ORDER_BLOCK_SIZE
+#   order       = block start + position in suite (1..99)
+#
+# Lifecycle bases are 10000 apart, so values are unique across lifecycles.
+# "root" holds the lifecycle execution case at the block start itself. Suites
+# are listed in dependency order: reachability and node state first, then
+# cluster health, temporary workloads, and finally reboot or node-removal
+# suites. Within a suite, disruptive and destructive cases come last. Add a
+# test by taking the next free number in its suite block; add a suite by
+# appending a new block.
+ORDER_BLOCK_SIZE = 100
+
+TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
+    "precheck": {
+        "root": 10000,
+        "environment": 10100,
+        "oim_readiness": 10200,
+        "storage": 10300,
+        "dependencies": 10400,
+        "inputs": 10500,
+    },
+    "prepare": {
+        "root": 20000,
+        "openchami": 20100,
+        "network": 20200,
+        "openldap": 20300,
+    },
+    "provision": {
+        "root": 30000,
+        "openchami": 30100,
+    },
+    "pxeboot": {
+        "root": 40000,
+        "connectivity": 40100,
+        "cloudinit": 40200,
+        "additional_cloud_init": 40300,
+        "mount_config": 40400,
+        "minimal_os": 40500,
+        "powervault": 40600,
+        "coredns_coredhcp": 40700,
+        "kubernetes_cluster": 40800,
+        "kubernetes_etcd": 40900,
+        "kubernetes_storage": 41000,
+        "slurm_cluster": 41100,
+        "slurm_jobs": 41200,
+        "slurm_ldap": 41300,
+        "slurm_gpu": 41400,
+        "slurm_dcgm": 41500,
+        "slurm_openmpi": 41600,
+        "slurm_ucx": 41700,
+        "slurm_infiniband": 41800,
+        "slurm_apptainer": 41900,
+        "slurm_hpc_benchmarks": 42000,
+        "kubernetes_recovery": 42100,
+        "slurm_recovery": 42200,
+        "slurm_lifecycle": 42300,
+    },
+    "cleanup": {
+        "root": 50000,
+        "openchami": 50100,
+        "openldap": 50200,
+        "slurm": 50300,
+        "kubernetes": 50400,
+        "artifacts": 50500,
+        "credentials": 50600,
+    },
+    "nft": {
+        "root": 60000,
+    },
 }

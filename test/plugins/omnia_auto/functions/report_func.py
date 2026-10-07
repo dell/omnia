@@ -22,7 +22,6 @@ Generates JSON and HTML reports with:
 - Suite breakdown tables with progress bars
 - Collapsible scenario sections with search/filter
 - Playbook execution logs accordion with CRITICAL/WARNING highlighting
-- Skip classification (expected / unexpected / framework)
 - Sensitive data redaction (IPs, passwords, secrets, paths)
 - Playbook failure capture (record_playbook_failure)
 - Separate test runs for repeated domain execution
@@ -116,37 +115,6 @@ def _redact_sensitive(text: str) -> str:
     for pattern, replacement in _REDACT_PATTERNS:
         text = pattern.sub(replacement, text)
     return text
-
-
-# ── Skip Classification ─────────────────────────────────────────────────────
-
-def _classify_skip(details: str = "", error: str = "") -> str:
-    """Classify a skipped test into expected / unexpected / framework.
-
-    Returns one of: ``'expected'``, ``'unexpected'``, ``'framework'``.
-    """
-    text = ((details or "") + " " + (error or "")).lower()
-    if not text.strip():
-        return "unexpected"
-
-    framework_kw = [
-        "fixture", "setup failed", "import error", "conftest",
-        "collection error", "module not found", "no module named",
-        "parametrize", "setup error", "teardown error",
-    ]
-    if any(kw in text for kw in framework_kw):
-        return "framework"
-
-    expected_kw = [
-        "not enabled", "not configured", "disabled", "not supported",
-        "not available", "not applicable", "not installed", "feature not",
-        "requires", "only applies", "not present", "skipping",
-        "condition", "marker", "prerequisite",
-    ]
-    if any(kw in text for kw in expected_kw):
-        return "expected"
-
-    return "unexpected"
 
 
 # ── Playbook / Molecule Log Analysis ────────────────────────────────────────
@@ -350,12 +318,6 @@ class TestReport:
         if error:
             result["error"] = error
 
-        # Add skip classification for skipped tests
-        if normalized_status == "SKIPPED":
-            result["skip_type"] = _classify_skip(
-                details or "", error or ""
-            )
-
         self.results.append(result)
 
     def _add_dict_result(self, payload: dict):
@@ -411,13 +373,6 @@ class TestReport:
             result["category"] = payload.get("category")
         if payload.get("markers"):
             result["markers"] = payload.get("markers")
-
-        # Add skip classification for skipped tests
-        if normalized_status == "SKIPPED":
-            result["skip_type"] = _classify_skip(
-                payload.get("details", ""),
-                payload.get("error", ""),
-            )
 
         self.results.append(result)
 

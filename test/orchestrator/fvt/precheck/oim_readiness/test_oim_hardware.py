@@ -14,70 +14,87 @@
 
 """OIM CPU, memory, and disk-space readiness contracts."""
 
+from functools import partial
+
 import pytest
 from library.functions import (
+    TestLogger,
     check_oim_cpu_threshold,
     check_oim_disk_threshold,
     check_oim_memory_threshold,
 )
+from library.vars import OIM_NEGATIVE_INPUTS as NEG
+from library.vars import TEST_CASES as TC
 
-from fvt.result import verify_precheck
-
-pytestmark = [pytest.mark.sanity]
-
+from fvt.result import verify_precheck, verify_precheck_rejection
 
 # ── positive tests ──────────────────────────────────────────────────
 
 
-@pytest.mark.order(10)
+@pytest.mark.sanity
+@pytest.mark.order(10201)
 def test_oim_cpu_threshold(host):
     """Require OIM CPU core count to meet the configured minimum."""
-    verify_precheck(host, "oim_cpu_threshold", check_oim_cpu_threshold)
+    tc = TC["oim_cpu_threshold"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_oim_cpu_threshold)
 
 
-@pytest.mark.order(11)
+@pytest.mark.sanity
+@pytest.mark.order(10202)
 def test_oim_memory_threshold(host):
     """Require OIM memory to meet the configured minimum."""
-    verify_precheck(host, "oim_memory_threshold", check_oim_memory_threshold)
+    tc = TC["oim_memory_threshold"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_oim_memory_threshold)
 
 
-@pytest.mark.order(12)
+@pytest.mark.sanity
+@pytest.mark.order(10203)
 def test_oim_disk_threshold(host):
     """Require OIM root filesystem to meet the configured minimum."""
-    verify_precheck(host, "oim_disk_threshold", check_oim_disk_threshold)
-
-
-# ── negative tests ──────────────────────────────────────────────────
+    tc = TC["oim_disk_threshold"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_oim_disk_threshold)
 
 
 @pytest.mark.negative
-@pytest.mark.order(20)
+@pytest.mark.order(10210)
 def test_neg_cpu_below_threshold(host):
     """Detect failure when CPU threshold exceeds actual cores."""
-    result = check_oim_cpu_threshold(host, min_cores=99999)
-    assert not result["success"], (
-        "CPU check should fail when threshold exceeds actual cores"
+    tc = TC["oim_cpu_rejection"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck_rejection(
+        test_log,
+        tc,
+        host,
+        partial(check_oim_cpu_threshold, min_cores=NEG["min_cores"]),
     )
-    assert result["error"], "Failure must include an actionable message"
 
 
 @pytest.mark.negative
-@pytest.mark.order(21)
+@pytest.mark.order(10211)
 def test_neg_memory_below_threshold(host):
     """Detect failure when memory threshold exceeds actual RAM."""
-    result = check_oim_memory_threshold(host, min_memory_gb=99999)
-    assert not result["success"], (
-        "Memory check should fail when threshold exceeds actual RAM"
+    tc = TC["oim_memory_rejection"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck_rejection(
+        test_log,
+        tc,
+        host,
+        partial(check_oim_memory_threshold, min_memory_gb=NEG["min_memory_gb"]),
     )
-    assert result["error"], "Failure must include an actionable message"
 
 
 @pytest.mark.negative
-@pytest.mark.order(22)
+@pytest.mark.order(10212)
 def test_neg_disk_below_threshold(host):
     """Detect failure when disk threshold exceeds actual capacity."""
-    result = check_oim_disk_threshold(host, min_disk_gb=99999)
-    assert not result["success"], (
-        "Disk check should fail when threshold exceeds actual capacity"
+    tc = TC["oim_disk_rejection"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck_rejection(
+        test_log,
+        tc,
+        host,
+        partial(check_oim_disk_threshold, min_disk_gb=NEG["min_disk_gb"]),
     )
-    assert result["error"], "Failure must include an actionable message"

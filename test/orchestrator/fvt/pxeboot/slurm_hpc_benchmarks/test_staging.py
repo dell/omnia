@@ -16,6 +16,7 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_hpc_benchmarks_artifact_copy,
     check_hpc_benchmarks_json_declaration,
     check_hpc_benchmarks_local_repo_sync,
@@ -24,79 +25,85 @@ from library.functions import (
     check_hpc_benchmarks_rhel_compatibility,
     check_hpc_benchmarks_tools_dir_creation,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
-
-
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(331)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42001)
 def test_hpc_benchmarks_json_declaration(host):
     """TC-01: Verify benchmark_tools.list is deployed and non-empty per arch."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_json_declaration", check_hpc_benchmarks_json_declaration
-    )
+    tc = TC["hpc_benchmarks_json_declaration"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_json_declaration)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(332)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42002)
 def test_hpc_benchmarks_local_repo_sync(host):
     """TC-02: Verify each declared tool has files under the Pulp offline URL."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_local_repo_sync", check_hpc_benchmarks_local_repo_sync
-    )
+    tc = TC["hpc_benchmarks_local_repo_sync"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_local_repo_sync)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(333)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42003)
 def test_hpc_benchmarks_tools_dir_creation(host):
     """TC-03: Verify /hpc_tools directory layout and 0755 permissions."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_tools_dir_creation",
-        check_hpc_benchmarks_tools_dir_creation,
-    )
+    tc = TC["hpc_benchmarks_tools_dir_creation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_tools_dir_creation)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(334)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42004)
 def test_hpc_benchmarks_artifact_copy(host):
     """TC-04: Verify declared benchmark artifacts are staged per tool."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_artifact_copy", check_hpc_benchmarks_artifact_copy
-    )
+    tc = TC["hpc_benchmarks_artifact_copy"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_artifact_copy)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(335)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42005)
 def test_hpc_benchmarks_msr_safe_arch_boundary(host):
     """TC-05: Verify msr-safe is staged only for x86_64 nodes."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_msr_safe_arch_boundary",
-        check_hpc_benchmarks_msr_safe_arch_boundary,
-    )
+    tc = TC["hpc_benchmarks_msr_safe_arch_boundary"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_msr_safe_arch_boundary)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(336)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42006)
 def test_hpc_benchmarks_post_staging_validation(host):
     """TC-12: Verify post-staging validation of benchmark tool directories."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_post_staging_validation",
-        check_hpc_benchmarks_post_staging_validation,
-    )
+    tc = TC["hpc_benchmarks_post_staging_validation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_post_staging_validation)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(337)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42007)
 def test_hpc_benchmarks_rhel_compatibility(host):
     """TC-13: Verify every compute node runs the targeted RHEL major."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_rhel_compatibility", check_hpc_benchmarks_rhel_compatibility
-    )
+    tc = TC["hpc_benchmarks_rhel_compatibility"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_rhel_compatibility)

@@ -23,26 +23,31 @@ nodes back.
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_slurm_node_add,
     check_slurm_node_remove,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.slurm,
-    pytest.mark.functional,
-    pytest.mark.disruptive,
-]
-
-
-@pytest.mark.order(290)
+@pytest.mark.slurm
+@pytest.mark.functional
+@pytest.mark.disruptive
+@pytest.mark.order(42301)
 def test_slurm_node_remove(host):
     """Remove Slurm compute node(s) from PXE mapping, provision, verify."""
-    verify_pxeboot(host, "slurm_node_remove", check_slurm_node_remove)
+    tc = TC["slurm_node_remove"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_node_remove)
 
 
-@pytest.mark.order(291)
+@pytest.mark.slurm
+@pytest.mark.functional
+@pytest.mark.disruptive
+@pytest.mark.order(42302)
 def test_slurm_node_add(host):
     """Restore removed node(s) to PXE mapping, provision, verify re-addition."""
-    verify_pxeboot(host, "slurm_node_add", check_slurm_node_add)
+    tc = TC["slurm_node_add"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_node_add)

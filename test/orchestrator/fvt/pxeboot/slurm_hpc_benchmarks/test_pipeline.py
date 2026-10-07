@@ -21,18 +21,19 @@ behind the ``--run-destructive`` gate.
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_hpc_benchmarks_e2e_provisioning,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
-
-
 @pytest.mark.sanity
-@pytest.mark.order(341)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42011)
 def test_hpc_benchmarks_e2e_provisioning(host):
     """TC-09: Verify the end-to-end benchmark provisioning pipeline."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_e2e_provisioning", check_hpc_benchmarks_e2e_provisioning
-    )
+    tc = TC["hpc_benchmarks_e2e_provisioning"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_e2e_provisioning)

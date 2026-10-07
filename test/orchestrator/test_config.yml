@@ -268,6 +268,19 @@ cleanup_k8s: true
 slurm_lifecycle_remove_add_nodes: ""
 
 # =============================================================================
+# KUBERNETES LOCAL-ETCD DISK MEDIA
+# =============================================================================
+# Disk media expected under /var/lib/etcd on every Kubernetes control plane
+# when etcd_on_local_disk is enabled. The pxeboot kubernetes_etcd suite
+# classifies the selected disk from lsblk (TRAN=nvme -> nvme, ROTA=1 -> hdd,
+# ROTA=0 -> ssd) and fails when any control plane differs.
+#
+# Supported values: ssd, hdd, nvme
+# When empty (default), the media check is skipped and the detected media is
+# still reported by the local-etcd integrity check.
+expected_etcd_disk_media: ""
+
+# =============================================================================
 # NON-FUNCTIONAL PERFORMANCE CONTRACTS
 # =============================================================================
 # Maximum accepted wall-clock duration, in seconds, for each lifecycle on the

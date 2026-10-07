@@ -21,30 +21,29 @@ skips them unless OMNIA_COREDNS_DESTRUCTIVE=1 is set.
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_dns_node_addition_pipeline,
     check_dns_smd_unreachable_cached_resolution,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.destructive]
-
-
 @pytest.mark.functional
-@pytest.mark.order(357)
+@pytest.mark.destructive
+@pytest.mark.order(40708)
 def test_dns_node_addition_pipeline(host):
     """TC-08: prove SMD-to-CoreDNS pipeline resolves every mapped node."""
-    verify_pxeboot(
-        host, "dns_node_addition_pipeline", check_dns_node_addition_pipeline
-    )
+    tc = TC["dns_node_addition_pipeline"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dns_node_addition_pipeline)
 
 
 @pytest.mark.functional
-@pytest.mark.order(358)
+@pytest.mark.destructive
+@pytest.mark.order(40709)
 def test_dns_smd_unreachable_cached_resolution(host):
     """TC-09: pause SMD briefly; CoreDNS must keep serving cached records."""
-    verify_pxeboot(
-        host,
-        "dns_smd_unreachable_cached_resolution",
-        check_dns_smd_unreachable_cached_resolution,
-    )
+    tc = TC["dns_smd_unreachable_cached_resolution"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dns_smd_unreachable_cached_resolution)

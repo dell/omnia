@@ -15,7 +15,11 @@
 """Explicitly authorized full Slurm cluster reboot recovery."""
 
 import pytest
-from library.functions import check_slurm_cluster_recovery
+from library.functions import (
+    TestLogger,
+    check_slurm_cluster_recovery,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -24,7 +28,9 @@ from fvt.result import verify_pxeboot
 @pytest.mark.functional
 @pytest.mark.reboot
 @pytest.mark.slurm
-@pytest.mark.order(265)
+@pytest.mark.order(42201)
 def test_slurm_cluster_recovery(host):
     """Reboot mapped Slurm nodes and verify scheduler and workload recovery."""
-    verify_pxeboot(host, "slurm_recovery", check_slurm_cluster_recovery)
+    tc = TC["slurm_recovery"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_cluster_recovery)

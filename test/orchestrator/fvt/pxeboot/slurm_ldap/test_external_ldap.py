@@ -12,44 +12,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Compute-node CoreDNS behavior contracts (non-disruptive).
+"""External LDAP proxy setup that LDAP login checks depend on.
 
-Closes the ticket's "query from every applicable node" requirement:
-Omnia 2.3 previously had zero DNS assertions on compute nodes even
-though ``provision_common/tasks/configure_dns.yml`` deploys CoreDNS
-as the primary nameserver on every provisioned node.
+These cases run first in the slurm_ldap suite. Prepare only starts the local
+omnia_auth container, so pointing it at the external directory belongs here,
+immediately before the LDAP authentication and job cases.
 """
 
 import pytest
 from library.functions import (
     TestLogger,
-    check_dns_compute_forward_getent,
-    check_dns_compute_resolv_conf,
+    check_external_ldap_backend,
+    reconcile_external_ldap_proxy,
 )
 from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-@pytest.mark.buildstream
+
 @pytest.mark.sanity
+@pytest.mark.openldap
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(40706)
-def test_dns_compute_resolv_conf(host):
-    """TC-05: /etc/resolv.conf on every compute has CoreDNS as primary."""
-    tc = TC["dns_compute_resolv_conf"]
+@pytest.mark.order(41301)
+def test_external_ldap_proxy(host):
+    """Reconcile and verify the explicitly enabled LDAP meta-proxy."""
+    tc = TC["external_ldap_proxy"]
     test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_dns_compute_resolv_conf)
+    verify_pxeboot(test_log, tc, host, reconcile_external_ldap_proxy)
 
 
-@pytest.mark.buildstream
 @pytest.mark.functional
 @pytest.mark.sanity
+@pytest.mark.openldap
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(40707)
-def test_dns_compute_forward_getent(host):
-    """TC-06: getent hosts on every compute resolves every mapped peer."""
-    tc = TC["dns_compute_forward_getent"]
+@pytest.mark.order(41302)
+def test_external_ldap_backend(host):
+    """Verify external LDAP reachability from the omnia_auth container."""
+    tc = TC["external_ldap_backend"]
     test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_dns_compute_forward_getent)
+    verify_pxeboot(test_log, tc, host, check_external_ldap_backend)

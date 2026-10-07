@@ -58,9 +58,13 @@ Discover the live catalog before editing the batch file:
 
 ## Markers
 
-Registered markers include `sanity`, `functional`, `openldap`, `connectivity`,
-`cloudinit`, `kubernetes`, `slurm`, `apptainer`, `image_download`, `negative`,
-`non_disruptive`, `disruptive`, `reboot`, `scheduler_state`, and `destructive`.
+Registered markers are listed in `MARKERS` in `library/vars/domain_vars.py`.
+They include `sanity`, `functional`, `openldap`, `connectivity`, `cloudinit`,
+`kubernetes`, `slurm`, `apptainer`, `additional_cloud_init`, `mount_config`,
+`minimal_os`, the PowerVault selectors `powervault_infrastructure`,
+`powervault_mounts`, `powervault_binds`, and `powervault_cloudinit`,
+`image_download`, `negative`, `non_disruptive`, `disruptive`, `reboot`,
+`scheduler_state`, and `destructive`.
 
 Examples:
 

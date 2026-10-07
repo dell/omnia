@@ -16,10 +16,12 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_apptainer_download,
     check_apptainer_download_idempotency,
     check_apptainer_download_memory,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -30,10 +32,12 @@ from fvt.result import verify_pxeboot
 @pytest.mark.functional
 @pytest.mark.image_download
 @pytest.mark.non_disruptive
-@pytest.mark.order(270)
+@pytest.mark.order(41905)
 def test_apptainer_download(host):
     """Run the deployed downloader and require at least one usable SIF."""
-    verify_pxeboot(host, "apptainer_download", check_apptainer_download)
+    tc = TC["apptainer_download"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_download)
 
 
 @pytest.mark.apptainer
@@ -42,14 +46,12 @@ def test_apptainer_download(host):
 @pytest.mark.functional
 @pytest.mark.image_download
 @pytest.mark.non_disruptive
-@pytest.mark.order(271)
+@pytest.mark.order(41906)
 def test_apptainer_download_idempotency(host):
     """Rerun the downloader and verify existing image metadata is unchanged."""
-    verify_pxeboot(
-        host,
-        "apptainer_download_idempotency",
-        check_apptainer_download_idempotency,
-    )
+    tc = TC["apptainer_download_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_download_idempotency)
 
 
 @pytest.mark.apptainer
@@ -58,7 +60,9 @@ def test_apptainer_download_idempotency(host):
 @pytest.mark.functional
 @pytest.mark.image_download
 @pytest.mark.non_disruptive
-@pytest.mark.order(272)
+@pytest.mark.order(41907)
 def test_apptainer_download_memory(host):
     """Run the downloader and enforce a bounded peak resident-memory use."""
-    verify_pxeboot(host, "apptainer_download_memory", check_apptainer_download_memory)
+    tc = TC["apptainer_download_memory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_download_memory)

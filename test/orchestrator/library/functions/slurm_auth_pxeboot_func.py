@@ -47,6 +47,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import ldap_identity_skip as _ldap_identity_skip
 from ._workload_helpers import ldap_test_username as _ldap_username
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import require_functional as _require_functional
@@ -607,10 +608,15 @@ def _check_slurm_role_ldap_authentication(
     try:
         context, rows, _control, _config = _context(host)
         if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+            return _skip(
+                summary, "OpenLDAP is not enabled" if rows else "No Slurm nodes are mapped"
+            )
         role_rows = _role_rows(rows, role_prefix)
         if not role_rows:
             return _skip(summary, f"No {missing_role} nodes are mapped")
+        reason = _ldap_identity_skip(context)
+        if reason:
+            return _skip(summary, reason)
         username, auth_secret = _ldap_credentials()
         credential = (
             "invalid-" + secrets.token_urlsafe(24) if invalid_password else auth_secret
@@ -750,8 +756,9 @@ def check_slurm_pam_no_job_access(host):
     summary = "Slurm PAM no-job access policy"
     try:
         context, rows, control, _config = _context(host)
-        if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+        reason = _ldap_identity_skip(context) if rows else "No Slurm nodes are mapped"
+        if reason:
+            return _skip(summary, reason)
         username, auth_secret = _ldap_credentials()
         computes = _compute_rows(rows)
         if not computes:
@@ -840,13 +847,18 @@ def _check_slurm_role_pam_job_access(
             return _skip(summary, "Select the functional marker to authorize test jobs")
         context, rows, control, slurm_config = _context(host)
         if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+            return _skip(
+                summary, "OpenLDAP is not enabled" if rows else "No Slurm nodes are mapped"
+            )
         computes = _compute_rows(rows)
         submit_rows = _role_rows(rows, role_prefix)
         if not submit_rows:
             return _skip(summary, f"No {missing_role} nodes are mapped")
         if not computes:
             return _skip(summary, "At least one Slurm compute node is required")
+        reason = _ldap_identity_skip(context)
+        if reason:
+            return _skip(summary, reason)
         username, auth_secret = _ldap_credentials()
         workspace_info = _prepare_ldap_workspace(
             host,
@@ -1169,8 +1181,9 @@ def check_slurm_invalid_ldap_identity(host):
     summary = "Slurm invalid LDAP identity rejection"
     try:
         context, rows, _control, _config = _context(host)
-        if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+        reason = _ldap_identity_skip(context) if rows else "No Slurm nodes are mapped"
+        if reason:
+            return _skip(summary, reason)
         invalid_user = "omnia_missing_" + secrets.token_hex(6)
         allowed = _allowed_rows(rows)
         outcomes = {}
@@ -1215,13 +1228,18 @@ def _check_slurm_role_ldap_jobs(
             return gated
         context, rows, control, slurm_config = _context(host)
         if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+            return _skip(
+                summary, "OpenLDAP is not enabled" if rows else "No Slurm nodes are mapped"
+            )
         submit_rows = _role_rows(rows, role_prefix)
         if not submit_rows:
             return _skip(summary, f"No {missing_role} nodes are mapped")
         computes = _compute_rows(rows)
         if not computes:
             return _skip(summary, "At least one Slurm compute node is required")
+        reason = _ldap_identity_skip(context)
+        if reason:
+            return _skip(summary, reason)
         username = _ldap_username()
         workspace_info = _prepare_ldap_workspace(
             host,

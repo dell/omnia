@@ -71,7 +71,7 @@ def _write_mapping(tmp_path: Path, groups: list[str]) -> str:
 # ---------------------------------------------------------------------------
 
 def test_empty_path_disables_validation(tmp_path):
-    """ORCH_UT_040: Empty config path disables validation with no errors."""
+    """ORCH_UT_085: Empty config path disables validation with no errors."""
     errors = validator.validate(
         {"additional_cloud_init_config_file": ""}, str(tmp_path)
     )
@@ -79,20 +79,20 @@ def test_empty_path_disables_validation(tmp_path):
 
 
 def test_missing_key_disables_validation(tmp_path):
-    """ORCH_UT_041: Absent config key disables validation with no errors."""
+    """ORCH_UT_086: Absent config key disables validation with no errors."""
     errors = validator.validate({}, str(tmp_path))
     assert errors == []
 
 
 def test_null_yaml_file_passes(tmp_path):
-    """ORCH_UT_042: An empty/null YAML file passes (feature disabled)."""
+    """ORCH_UT_087: An empty/null YAML file passes (feature disabled)."""
     path = _write_yaml(tmp_path, "---\n")
     errors = validator.validate(_config(path), str(tmp_path))
     assert errors == []
 
 
 def test_valid_common_section(tmp_path):
-    """ORCH_UT_043: Valid common section with write_files and runcmd passes."""
+    """ORCH_UT_088: Valid common section with write_files and runcmd passes."""
     content = (
         "common:\n"
         "  write_files:\n"
@@ -108,7 +108,7 @@ def test_valid_common_section(tmp_path):
 
 
 def test_valid_groups_section(tmp_path):
-    """ORCH_UT_044: Valid per-FG groups section passes when FG exists."""
+    """ORCH_UT_089: Valid per-FG groups section passes when FG exists."""
     _write_mapping(tmp_path, ["slurm_node_rhel_10_0_x86_64"])
     content = (
         "groups:\n"

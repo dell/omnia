@@ -161,9 +161,10 @@ test/<domain>/
 │       └── <domain>_msgs.py                [required]
 ├── fvt/
 │   ├── README.md                          [required]
-│   └── <tag>/
-│       ├── test_<tag>.py                  [when the tag itself is verified]
-│       └── <suite>/test_<capability>.py   [when suites divide the tag]
+│   └── <tag>/                             [one per supported playbook tag]
+│       ├── test_playbook.py               [required; playbook execution only]
+│       └── <suite>/                       [one per functional component]
+│           └── test_<component>.py        [verification of that component]
 ├── nft/
 │   ├── README.md                          [when NFT is supported]
 │   └── test_<quality>.py                  [when NFT is supported]
@@ -180,6 +181,93 @@ test/<domain>/
 
 Do not create empty placeholder capabilities. For example, omit `nft/` when
 there is no defined non-functional contract.
+
+### 3.1 FVT tag folders
+
+Derive the tag folders from the product entry playbook, for example
+`src/<domain>/playbooks/<domain>.yml`:
+
+1. Every tag that a user can select with `--tags <tag>` gets one
+   `fvt/<tag>/` folder and one `FVT_TAGS` entry. The folder name is the
+   playbook tag, unchanged.
+2. `always` and `never` are Ansible control tags, not folders. A tag that
+   exists only under `never` (for example `cleanup`) is still a folder when
+   users run it, and belongs in `EXCLUDE_TAGS`.
+3. A pure alias that runs the same plays as other tags (for example the
+   Orchestrator `deploy` or `execute` tags) is not a separate folder. The
+   README names the alias and the folders it maps to.
+4. A verification-only capability with no playbook tag needs a documented
+   reason in the README before it gets a folder.
+
+Every tag folder MUST contain `test_playbook.py`. It holds only the
+execution (`E`) case for that tag: it runs the entry playbook with
+`--tags <tag>` through `omnia_auto.run_playbook`, renders the result, and
+asserts it. It contains no verification checks.
+
+If the playbook needs extra variables for a non-interactive run, add them to
+`test_config.yml` with a comment that states the supported values and
+default. A domain helper reads and validates them and returns the
+`extra_vars` mapping. Never hardcode them in the test file. Secrets are never
+extra variables; the product reads them from its domain credential file.
+
+Suite folders under a tag are functional components of that tag, for
+example `fvt/prepare/openldap/` or `fvt/pxeboot/kubernetes_etcd/`. Each suite
+name is listed in `SUITES[<tag>]`. Verification (`V`) cases live only in
+suite folders.
+
+Example from the Orchestrator domain:
+
+```text
+fvt/
+├── precheck/
+│   ├── test_playbook.py         # orchestrator.yml --tags precheck
+│   ├── environment/
+│   └── storage/
+├── prepare/
+│   ├── test_playbook.py         # orchestrator.yml --tags prepare
+│   ├── openchami/
+│   └── openldap/
+└── cleanup/                     # never-tag; listed in EXCLUDE_TAGS
+    ├── test_playbook.py         # orchestrator.yml --tags cleanup
+    └── kubernetes/
+```
+
+### 3.2 Naming conventions
+
+| Item | Convention | Example |
+|---|---|---|
+| Tag folder | Playbook tag, unchanged | `fvt/pxeboot/` |
+| Suite folder | Component name, lowercase `snake_case` | `kubernetes_etcd/` |
+| Execution test file | `test_playbook.py` | `fvt/prepare/test_playbook.py` |
+| Verification test file | `test_<component>.py` or `test_<component>_<aspect>.py` | `test_local_etcd.py` |
+| Execution test function | `test_deploy_<tag>` | `test_deploy_pxeboot` |
+| Verification test function | `test_<component>_<behavior>` | `test_kubernetes_local_etcd_media` |
+| Negative test function | `test_neg_<component>_<condition>`; file `test_<component>_negative.py` when split | `test_neg_pxe_nic_missing` |
+| Registry key | Test function name without `test_` | `kubernetes_local_etcd_media` |
+| Function module | `<component>_<tag>_func.py`; private helpers start with `_` | `kubernetes_runtime_pxeboot_func.py` |
+| Check function | `check_<component>_<behavior>` | `check_kubernetes_local_etcd_media` |
+| Variable module | `<tag>_vars.py` for tag data; `test_case_vars.py` for metadata | `pxeboot_vars.py` |
+| Message module | `<tag>_msgs.py` with `TEST_LOG_MSGS` and `TEST_ASSERT_MSGS`, exported as `<TAG>_TEST_LOG_MSGS` | `pxeboot_msgs.py` |
+| Constant | `UPPER_SNAKE_CASE` | `ETCD_HEALTH_WAIT_TIMEOUT_SECONDS` |
+| Marker | Lowercase `snake_case`, registered before use | `kubernetes_etcd` |
+
+Names describe the behavior under test, not the ticket, lab, or author.
+A test function name and its registry key stay stable after release; rename
+only with the ID migration described in section 10.
+
+### 3.3 Execution order
+
+When a domain orders tests with `@pytest.mark.order`, give every value one
+owner. Allocate a block per lifecycle tag and a sub-block of 100 per suite:
+
+```text
+order = lifecycle base + suite slot * 100 + position in suite
+```
+
+Record the bases and suite slots in one table in `test_case_vars.py`. A new
+test takes the next free number in its own suite; a new suite appends a new
+block. Never reuse an order value. Suites that reboot, drain, or remove nodes
+run last in their tag, and destructive cases run last in their suite.
 
 Generated local files MUST be ignored:
 
@@ -263,6 +351,39 @@ Optional NFT and UT use:
 Replace placeholders with the real domain name in its README and state its
 safe lifecycle order. Identify destructive cleanup explicitly.
 
+### 4.1 README contents
+
+Write each README for the operator who runs the tests. Keep content that
+code already enforces out of the README; link to the owning file instead.
+
+`test/<domain>/README.md` MUST contain, in this order:
+
+1. purpose and safety model, including every destructive tag;
+2. prerequisites on the development host and the execution OIM;
+3. quick start using the first-use workflow above;
+4. environment setup: install modes, then the test and domain credential
+   stores with their `setup_env.sh` options and fields;
+5. local and remote execution, and input/output synchronization;
+6. tags and suites: one row per tag with its suites and contract, plus any
+   playbook alias such as `deploy`;
+7. options and marker expressions;
+8. lifecycle examples per tag, with the `test_config.yml` keys each one uses;
+9. NFT, batch execution, reports, and UT entry points;
+10. directory structure.
+
+`fvt/README.md` MUST contain the test-case ID format, the order allocation,
+and one table per tag and suite with these columns: order, ID, function,
+suite, markers, what the test checks, and the pass condition. Record
+retired or reassigned IDs and release traceability in their own tables.
+
+`nft/README.md` lists each contract, its threshold source and unit, and its
+order. `ut/README.md` lists each UT file with the product behavior it
+covers and the command that runs it.
+
+`docs/test_config.md`, `docs/test_run_config.md`, and `docs/test_creds.md`
+describe every key or field with its type, default, and effect. Update them
+in the same change as the key.
+
 ---
 
 ## 5. Credential Contract
@@ -273,6 +394,20 @@ safe lifecycle order. Identify destructive cleanup explicitly.
 |---|---|---|---|
 | Transport | Reach execution OIM | Local encrypted credential pair | Developer or CI job |
 | Domain | Authenticate product targets | Project input on execution OIM | Project operator |
+
+The two setup options map to these scopes:
+
+| Option | Writes | Contains | Read by |
+|---|---|---|---|
+| `--set-creds` | `test_creds.yml` and `.test_creds.key` in `test/<domain>/` | Secrets that only the test automation needs: the OIM SSH password, test-only identities such as an LDAP login-test user, and secrets for test-side setup that the product playbook never reads | The test framework |
+| `--set-domain-creds` | `<domain>_credentials.yml` in the project input directory on the execution OIM | The credentials the Omnia playbook itself reads, with the same file name, fields, and vault format the product expects | The product playbook |
+
+Decide by asking who reads the value. If the playbook reads it, it is a domain
+credential, even when a test also needs it; the test reads it from the domain
+store. If only the test reads it, it is a test credential. Never copy a value
+into both stores. When a test credential is needed only for an optional
+feature, the prompt asks for it only when `test_config.yml` enables that
+feature.
 
 The local transport pair is `test_creds.yml` and `.test_creds.key`. Both MUST
 have mode `0600`, be encrypted at rest, and be gitignored. Passwordless SSH may
@@ -359,6 +494,26 @@ channel. Fake examples MUST be unmistakably synthetic.
 
 `setup_env.sh` owns environment preparation and credential provisioning. It
 MUST NOT run a domain playbook or validation suite.
+
+Logic:
+
+```text
+parse and reject incompatible options
+  -> select install mode (--user, or .venv/ with --venv)
+  -> install requirements.txt, including the omnia_auto wheel
+  -> credential option given?
+       --set-creds / --update-creds / --creds-stdin
+           -> prompt or read the test credential fields
+           -> encrypt into test_creds.yml with .test_creds.key (0600)
+       --set-domain-creds / --update-domain-creds / --domain-creds-stdin
+           -> resolve $OMNIA_DATA_PATH/<domain>/input/$OMNIA_PROJECT_NAME/
+           -> prompt or read the product credential fields
+           -> write <domain>_credentials.yml in the product vault format
+  -> print the next safe commands
+```
+
+Credential prompting, encryption, and vault writes come from `omnia_auto`.
+The domain script supplies only its field specification and file names.
 
 Required behavior:
 
@@ -466,7 +621,7 @@ For every FVT tag, all of these MUST agree:
 
 1. product playbook tag or documented verification-only capability;
 2. entry in `FVT_TAGS`;
-3. physical `fvt/<tag>/` directory;
+3. physical `fvt/<tag>/` directory with its `test_playbook.py`;
 4. `SUITES[<tag>]` entries and physical suite directories;
 5. registered pytest markers used beneath the tag;
 6. `test_run_config.yml` entry;
@@ -643,6 +798,10 @@ atomically.
 
 Register every marker before use. Markers represent useful selection axes such
 as architecture, source, sink, feature, or `sanity`, not temporary labs.
+`sanity` marks only the baseline positive checks that must pass on a healthy
+system. A negative test, one that expects a rejection or failure, MUST NOT
+carry `sanity`; mark it `negative`. Do not add `sanity` to an existing test
+without the owner's agreement.
 `domain_vars.py`, pytest configuration, README, batch examples, and decorators
 must agree.
 
@@ -717,6 +876,13 @@ UT exercises isolated parsing, validation, formatting, and decisions. It does
 not require SSH, a cluster, appliance, live API, or real credentials. Mock at
 the I/O boundary, not inside the tested logic.
 
+UT covers product behavior and the logic of domain helpers, such as parsers,
+classifiers, result decisions, and skip gates. Do not write UT that only
+checks the test framework's own layout: naming conventions, ID formats,
+order numbers, marker registration, registry lookups, or README tables.
+Those belong in code review and the `test-domain-compliance` skill. Give
+every UT a unique `<DOMAIN>_UT_<SEQ>` ID in its docstring.
+
 A UT may read product files only when the domain explicitly declares a
 source-contract capability. That exception does not expand compliance scoring
 to product source or make source inspection mandatory for other domains.
@@ -760,11 +926,23 @@ interface even when the declared version is unchanged.
     python -c "import omnia_auto; print(sorted(omnia_auto.__all__))"
     ```
 
-11. Run focused checks for every affected domain.
-12. Commit plugin source, docs, wheel, and required consumers together.
+11. Find every consumer of each changed or removed symbol, field, or output
+    shape across all domains:
 
-Do not publish to PyPI, change the version, commit a venv, or push unless the
-maintainer explicitly requests it.
+    ```bash
+    grep -rn '<symbol>' test --include='*.py' --include='*.sh' \
+      --exclude-dir=plugins
+    ```
+
+    Update each consumer in the same change, then run its import check,
+    collection (`pytest --collect-only`), and UT. A domain that does not use
+    the changed behavior still needs a collection check with the new wheel.
+12. Commit and push plugin source, docs, the rebuilt wheel, and the required
+    consumers together, in one change. Never push source without its rebuilt
+    wheel; `setup_env.sh` installs the wheel, not the source.
+
+Do not publish to PyPI, change the version, or commit a venv unless the
+release owner requests it.
 
 ---
 
@@ -880,8 +1058,10 @@ Create a human-authored DCO commit:
 git commit -s -m "test(<domain>): describe the behavior change"
 ```
 
-Configured `user.name` and `user.email` identify the human author. Never
-fabricate another person's signoff or add an AI identity trailer.
+Configured `user.name` and `user.email` identify the human author and must be
+the author's GitHub user name and email, so the DCO `Signed-off-by` matches the
+commit author. Never fabricate another person's signoff or add an AI identity
+trailer, such as an AI `Co-Authored-By` line.
 
 ---
 
@@ -894,14 +1074,20 @@ fabricate another person's signoff or add an AI identity trailer.
 - [ ] Directory tree contains only supported capabilities.
 - [ ] README first-use flow is complete and safe.
 - [ ] Domain, tags, suites, markers, directories, and batch config agree.
+- [ ] Each supported playbook tag has `fvt/<tag>/test_playbook.py` with
+      only the execution case; verification lives in suite folders.
+- [ ] Playbook extra variables come from `test_config.yml`.
+- [ ] Names follow section 3.2 and order values are unique per section 3.3.
 - [ ] Destructive tags are excluded from implicit execution.
-- [ ] Transport and domain credentials are separate and encrypted.
+- [ ] Test credentials (`--set-creds`) and playbook credentials
+      (`--set-domain-creds`) are separate and encrypted.
 - [ ] Non-interactive secrets use bounded standard input only.
 - [ ] Tests orchestrate; helpers contain reusable logic.
 - [ ] Commands, variables, messages, and metadata are centralized.
 - [ ] IDs and titles are unique and not hardcoded at call sites.
 - [ ] Datasets contain no credentials and sync in the declared direction.
-- [ ] FVT, NFT, and UT boundaries are respected.
+- [ ] FVT, NFT, and UT boundaries are respected; UT does not test naming,
+      order, or README layout.
 - [ ] Documentation matches commands and defaults.
 
 ### `omnia_auto` checklist
@@ -914,7 +1100,8 @@ fabricate another person's signoff or add an AI identity trailer.
 - [ ] Version was preserved unless a bump was requested.
 - [ ] Exact wheel was force-reinstalled and its API verified.
 - [ ] Plugin, wheel, and consumers remain synchronized.
-- [ ] Nothing was published or pushed without authorization.
+- [ ] Every consumer domain was searched, updated, collected, and unit-tested.
+- [ ] Source and rebuilt wheel are pushed together; nothing was published.
 
 ### Handoff checklist
 

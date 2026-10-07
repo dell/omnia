@@ -15,41 +15,53 @@
 """Orchestrator lifecycle-duration contracts."""
 
 import pytest
-from library.functions import check_lifecycle_performance
+from library.functions import (
+    TestLogger,
+    check_lifecycle_performance,
+)
+from library.vars import TEST_CASES as TC
 
 from nft.result import verify_nft
 
 
 @pytest.mark.nft
 @pytest.mark.performance
-@pytest.mark.order(10)
+@pytest.mark.order(60001)
 def test_precheck_performance(host):
     """Require precheck to complete within its configured threshold."""
-    verify_nft(host, "precheck_performance", check_lifecycle_performance, "precheck")
+    tc = TC["precheck_performance"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_lifecycle_performance, "precheck")
 
 
 @pytest.mark.nft
 @pytest.mark.performance
 @pytest.mark.destructive
-@pytest.mark.order(20)
+@pytest.mark.order(60002)
 def test_prepare_performance(host):
     """Require prepare to complete within its configured threshold."""
-    verify_nft(host, "prepare_performance", check_lifecycle_performance, "prepare")
+    tc = TC["prepare_performance"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_lifecycle_performance, "prepare")
 
 
 @pytest.mark.nft
 @pytest.mark.performance
 @pytest.mark.destructive
-@pytest.mark.order(40)
+@pytest.mark.order(60004)
 def test_provision_performance(host):
     """Require provision to complete within its configured threshold."""
-    verify_nft(host, "provision_performance", check_lifecycle_performance, "provision")
+    tc = TC["provision_performance"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_lifecycle_performance, "provision")
 
 
 @pytest.mark.nft
 @pytest.mark.performance
 @pytest.mark.destructive
-@pytest.mark.order(90)
+@pytest.mark.order(60010)
 def test_cleanup_performance(host):
     """Require full cleanup to complete within its configured threshold."""
-    verify_nft(host, "cleanup_performance", check_lifecycle_performance, "cleanup")
+    tc = TC["cleanup_performance"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_lifecycle_performance, "cleanup")

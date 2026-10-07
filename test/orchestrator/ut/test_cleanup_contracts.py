@@ -76,9 +76,17 @@ def test_slurm_drain_probe_always_cancels_job_and_resumes_node(monkeypatch):
         lambda _host: ({}, [control, compute], control, {}),
     )
 
+    node_state = ["idle"]
+
     def remote_command(_host, _row, command):
         commands.append(command)
-        if "sbatch" in command:
+        if "State=DRAIN" in command:
+            node_state[0] = "drained"
+        elif "State=RESUME" in command:
+            node_state[0] = "idle"
+        elif "sinfo" in command:
+            return _result(stdout=node_state[0])
+        elif "sbatch" in command:
             return _result(stdout="12345|PENDING")
         return _result()
 
