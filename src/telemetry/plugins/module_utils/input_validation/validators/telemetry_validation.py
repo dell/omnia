@@ -1483,8 +1483,8 @@ def validate_telemetry_packages(
         else:
             logger.info(
                 "repo_url is empty in offline mode — will auto-derive from "
-                "SYSTEM_ADMIN_NIC_IPV4 at runtime: "
-                "https://<SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0"
+                "SYSTEM_ADMIN_NIC_IPV4 and cluster OS version at runtime: "
+                "https://<SYSTEM_ADMIN_NIC_IPV4>:2225/pulp/content/offline_repo/cluster/x86_64/rhel/<os_version>"
             )
 
     # =========================================================================

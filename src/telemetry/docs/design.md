@@ -54,16 +54,14 @@ playbooks/telemetry.yml (entry point)
   |     +-- Delete_volume=true         Delete PVCs + Kafka identity
   |     +-- sources/cleanup_*.yml      Per-source cleanup (vars from ../../vars/cleanup.yml)
   |     +-- cleanup_sinks             [tag: cleanup_sinks]  Selective sink cleanup with dependency checking (-e sinks=... or -e kafka)
-  +-- upgrade/upgrade.yml              [tag: upgrade]       Placeholder
-  +-- rollback/rollback.yml            [tag: rollback]      Placeholder
 ```
 
 ### Tag Safety
 
-Opt-in recovery/destructive flows (`cleanup`, `upgrade`, `rollback`) use
+Opt-in recovery/destructive flows (`cleanup`) use
 Ansible's `never` tag and execute only when explicitly requested. Precheck is a
 mandatory gate for the default, `deploy`, and `execute` flows; `--tags precheck`
-runs the same checks without deploying. Validation-only, cleanup, rollback, and
+runs the same checks without deploying. Validation-only, cleanup, and
 utility-only flows intentionally do not require the cluster to be fully healthy.
 
 ## Environment Configuration (omnia.env)

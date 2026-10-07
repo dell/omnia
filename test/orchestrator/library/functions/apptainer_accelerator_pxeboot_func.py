@@ -57,10 +57,14 @@ def _gpu_counts(host, row, image_path):
         PXEBOOT_COMMANDS["apptainer_gpu_container_count"] % quoted_image(image_path),
     )
     try:
-        host_count = int(host_result.stdout.strip())
-        container_count = int(container_result.stdout.strip())
+        host_count = int(host_result.stdout.strip()) if host_result.rc == 0 else -1
     except ValueError:
         host_count = -1
+    try:
+        container_count = (
+            int(container_result.stdout.strip()) if container_result.rc == 0 else -1
+        )
+    except ValueError:
         container_count = -1
     return host_result, container_result, host_count, container_count
 
@@ -113,12 +117,23 @@ def check_apptainer_gpu_count(host):
         outcomes = {}
         for row in rows:
             image = primary_image(host, row)
-            _host_result, _container_result, host_count, container_count = _gpu_counts(
+            host_result, container_result, host_count, container_count = _gpu_counts(
                 host, row, image["path"]
             )
+            detail_parts = []
+            if host_result.rc != 0:
+                detail_parts.append(f"host nvidia-smi failed (rc={host_result.rc})")
+            else:
+                detail_parts.append(f"host={host_count}")
+            if container_result.rc != 0:
+                detail_parts.append(
+                    f"container nvidia-smi failed (rc={container_result.rc})"
+                )
+            else:
+                detail_parts.append(f"container={container_count}")
             outcomes[row["HOSTNAME"]] = (
                 host_count > 0 and container_count == host_count,
-                f"host={host_count} | container={container_count}",
+                " | ".join(detail_parts),
             )
         failures = [name for name, outcome in outcomes.items() if not outcome[0]]
         return runtime_result(

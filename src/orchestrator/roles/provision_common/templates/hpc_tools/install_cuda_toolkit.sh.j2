@@ -1,12 +1,15 @@
 #!/bin/bash
-# Lock-aware CUDA toolkit installer. Publishes to /hpc_tools/cuda on NFS.
+# Lock-aware CUDA toolkit installer. Publishes to the node platform's CUDA path on NFS.
 # Exits 0 if toolkit is already present (.done_cuda), if this node installed it,
 set -euo pipefail
 
 LOGFILE="/var/log/cuda_toolkit_install.log"
 exec > >(tee -a "$LOGFILE") 2>&1
 
-LOCK_ROOT="/hpc_tools/cuda"
+PLATFORM_HELPER="/hpc_tools/scripts/omnia_platform.sh"
+. "$PLATFORM_HELPER" || exit 1
+omnia_detect_platform || exit 1
+LOCK_ROOT="${OMNIA_PLATFORM_ROOT}/cuda"
 DONE_FILE="$LOCK_ROOT/.done_cuda"
 LOCK_MGR="/usr/local/bin/cuda_lock_manager.sh"
 HOSTNAME_FILE="/var/run/cuda_install_hostname"
@@ -14,10 +17,10 @@ HOSTNAME_FILE="/var/run/cuda_install_hostname"
 # Function to set up CUDA environment variables
 setup_cuda_env() {
     echo "[INFO] Setting up CUDA environment variables for shared location..."
-    cat > /etc/profile.d/cuda.sh <<'EOF'
-export PATH=/hpc_tools/cuda/bin:$PATH
-export LD_LIBRARY_PATH=/hpc_tools/cuda/lib64:$LD_LIBRARY_PATH
-export CUDA_HOME=/hpc_tools/cuda
+    cat > /etc/profile.d/cuda.sh <<EOF
+export PATH="$LOCK_ROOT/bin:\$PATH"
+export LD_LIBRARY_PATH="$LOCK_ROOT/lib64:\$LD_LIBRARY_PATH"
+export CUDA_HOME="$LOCK_ROOT"
 EOF
     chmod +x /etc/profile.d/cuda.sh
     echo "[INFO] CUDA environment configured successfully"
@@ -60,7 +63,7 @@ case $rc in
         echo "[INFO] Acquired lock. Installing toolkit..."
 
         # Check if CUDA toolkit is already installed on VAST
-        if [ -f "/hpc_tools/cuda/bin/nvcc" ]; then
+        if [ -f "$LOCK_ROOT/bin/nvcc" ]; then
             echo "[INFO] CUDA toolkit already installed on VAST. Exiting."
             "$LOCK_MGR" release
             exit 0
@@ -74,7 +77,7 @@ case $rc in
             mkdir -p /cuda/etc/yum.repos.d
             cp -r /etc/yum.repos.d/* /cuda/etc/yum.repos.d/ 2>/dev/null || true
         fi
-        if timeout "${INSTALL_TIMEOUT:-1800}" dnf install -y --installroot=/cuda --releasever=10 --setopt=install_weak_deps=False cuda-toolkit; then
+        if timeout "${INSTALL_TIMEOUT:-1800}" dnf install -y --installroot=/cuda --releasever="$OMNIA_OS_VERSION" --setopt=install_weak_deps=False cuda-toolkit; then
             echo "[SUCCESS] CUDA toolkit installed successfully."
 
             # Clean up repository configuration from installroot (if copied for manual mode)
@@ -94,12 +97,12 @@ case $rc in
             fi
 
             echo "[INFO] Found CUDA at: $CUDA_SRC_DIR"
-            echo "[INFO] Copying contents directly to /hpc_tools/cuda..."
-            cp -r "$CUDA_SRC_DIR"/* /hpc_tools/cuda/ 2>/dev/null || true
+            echo "[INFO] Copying contents directly to $LOCK_ROOT..."
+            cp -r "$CUDA_SRC_DIR"/* "$LOCK_ROOT/" 2>/dev/null || true
 
             # Verify CUDA toolkit installation
             echo "[INFO] Verifying CUDA toolkit installation..."
-            if [ -f "/hpc_tools/cuda/bin/nvcc" ]; then
+            if [ -f "$LOCK_ROOT/bin/nvcc" ]; then
                 echo "[SUCCESS] CUDA toolkit verified."
             else
                 echo "[ERROR] CUDA toolkit (nvcc) not found after installation."

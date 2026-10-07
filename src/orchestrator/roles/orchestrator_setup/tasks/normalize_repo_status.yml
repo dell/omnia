@@ -1,0 +1,46 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Validate version-qualified Repo Manager content contract
+  ansible.builtin.assert:
+    that:
+      - base_urls is defined
+      - base_urls is mapping
+    fail_msg: "{{ repo_status_content_contract_fail_msg }}"
+    quiet: true
+
+- name: Validate Repo Manager content for service Kubernetes
+  ansible.builtin.assert:
+    that:
+      - (service_k8s_os_version | string) in base_urls
+      - base_urls.get(service_k8s_os_version | string, none) is mapping
+      - >-
+        base_urls[service_k8s_os_version | string]
+        .get(service_k8s_architecture, none) is mapping
+    fail_msg: "{{ repo_status_content_contract_fail_msg }}"
+    quiet: true
+
+- name: Select Repo Manager content maps for service Kubernetes
+  ansible.builtin.set_fact:
+    service_k8s_repo_base_urls: >-
+      {{ base_urls[service_k8s_os_version | string]
+         .get(service_k8s_architecture, {}) }}
+    service_k8s_repo_file_repos: >-
+      {{ file_repos.get(service_k8s_os_version | string, {})
+         .get(service_k8s_architecture, {})
+         if file_repos is defined
+            and file_repos is mapping
+            and file_repos.get(service_k8s_os_version | string, {}) is mapping
+         else {} }}
+    cacheable: true

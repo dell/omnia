@@ -76,7 +76,7 @@ class InputFilesMissingError(LocalRepoDomainError):
         """
         super().__init__(
             f"Input files not found for job {job_id} at {input_path}. "
-            f"Run GenerateInputFiles API first.",
+            f"Upload the domain input files via the Upload API first.",
             correlation_id=correlation_id,
         )
         self.job_id = job_id

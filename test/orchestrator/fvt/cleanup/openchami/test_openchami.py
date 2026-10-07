@@ -19,9 +19,9 @@ from library.functions import check_cleanup_openchami
 
 from fvt.result import verify_cleanup
 
-pytestmark = [pytest.mark.sanity, pytest.mark.destructive]
 
-
+@pytest.mark.sanity
+@pytest.mark.destructive
 @pytest.mark.order(1)
 def test_openchami_removed(host):
     """Verify OpenCHAMI runtime, volumes, packages and state are removed."""

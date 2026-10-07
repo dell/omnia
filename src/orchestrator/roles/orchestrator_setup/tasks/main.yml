@@ -60,21 +60,6 @@
          | default(omnia_data_path + '/image_build_manager', true) }}
     cacheable: true
 
-# Step 2: Upgrade guard — block if upgrade is in progress
-- name: Check upgrade lock file
-  ansible.builtin.stat:
-    path: "{{ upgrade_lock_file }}"
-  register: upgrade_lock
-
-- name: Block playbook while upgrade is in progress
-  ansible.builtin.fail:
-    msg: "{{ upgrade_in_progress_msg }}"
-  when:
-    - upgrade_lock.stat.exists
-    - not (upgrade_mode | default(false) | bool)
-    - "'upgrade' not in (ansible_run_tags | default([]))"
-    - "'rollback' not in (ansible_run_tags | default([]))"
-
 - name: Set domain root directory
   ansible.builtin.set_fact:
     _domain_root_dir: "{{ playbook_dir | regex_replace('/playbooks.*$', '') }}"
@@ -511,6 +496,10 @@
         dcgm_support: "{{ _orch_config.dcgm_enabled | default(true) | bool }}"
         cacheable: true
 
+    - name: Resolve service Kubernetes catalog context
+      ansible.builtin.include_tasks: resolve_service_k8s_catalog_context.yml
+      when: service_k8s_support | bool
+
     - name: Resolve Kubernetes package name from catalog
       ansible.builtin.set_fact:
         _kubeadm_package_name: >-
@@ -535,6 +524,17 @@
         fail_msg: "{{ catalog_kubernetes_version_fail_msg }}"
         quiet: true
       when: service_k8s_support | bool
+
+# Normalize Repo Manager's version-qualified content contract only after the
+# catalog has supplied the authoritative service Kubernetes context.
+- name: Normalize Repo Manager content for service Kubernetes
+  ansible.builtin.include_tasks: normalize_repo_status.yml
+  when:
+    - _repo_status_required | bool
+    - _repo_status_stat.stat.exists
+    - _catalog_required | bool
+    - _catalog_stat.stat.exists
+    - service_k8s_support | bool
 
 - name: Warn if catalog file is missing
   ansible.builtin.debug:

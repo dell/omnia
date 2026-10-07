@@ -159,6 +159,10 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "BSM_FVT_BUILDSTREAM_INSTALL_V031",
         "title": "Verify playbook watcher running",
     },
+    "gitlab_ci_cadence_file_exists": {
+        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V032",
+        "title": "Verify .gitlab-ci-cadence.yml exists",
+    },
 
     # =================================================================
     # SECTION C: Combined BuildStream Cleanup
@@ -227,15 +231,15 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     },
     "playbook_watcher_service_stopped": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V013",
-        "title": "Verify playbook_watcher stopped",
+        "title": "Verify playbook-watcher stopped",
     },
     "playbook_watcher_service_disabled": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V014",
-        "title": "Verify playbook_watcher disabled",
+        "title": "Verify playbook-watcher disabled",
     },
     "playbook_watcher_service_file_removed": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V015",
-        "title": "Verify playbook_watcher file removed",
+        "title": "Verify playbook-watcher file removed",
     },
     "postgres_container_stopped": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V016",
@@ -252,6 +256,14 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     "postgres_services_stopped": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V019",
         "title": "Verify omnia_postgres services stopped",
+    },
+    "buildstream_directories_removed": {
+        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V020",
+        "title": "Verify BuildStream runtime directories removed",
+    },
+    "buildstream_runtime_caches_removed": {
+        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V021",
+        "title": "Verify runtime preserved and Python caches removed",
     },
     "postgres_volumes_preserved_with_backup": {
         "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V022",
@@ -477,6 +489,107 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "Verify validate stage status in database",
     },
 
+    # =================================================================
+    # SECTION E.1: Unified Cadence Pipeline
+    # =================================================================
+
+    "execute_cadence_pipeline": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_E001",
+        "title": "Trigger watcher cadence cycle and unified pipeline",
+    },
+    "cadence_gitlab_jobs": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V017",
+        "title": "Verify all eight cadence GitLab jobs succeeded",
+    },
+    "cadence_catalog_identity": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V018",
+        "title": "Verify job and image-group identity match cadence catalog",
+    },
+    "cadence_build_stages": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V019",
+        "title": "Verify parse, repository, and build DB stages completed",
+    },
+    "cadence_registry_artifacts": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V020",
+        "title": "Verify registry artifacts for requested roles",
+    },
+    "cadence_job_accessible": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V021",
+        "title": "Verify cadence job is healthy and API-accessible",
+    },
+    "cadence_repo_resync_status": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V022",
+        "title": "Verify exact-mirror Repo Manager output contract",
+    },
+    "cadence_deploy_stage": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V023",
+        "title": "Verify cadence deploy DB stage completed",
+    },
+    "cadence_restart_stage": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V024",
+        "title": "Verify cadence restart DB stage completed",
+    },
+    "cadence_validate_stage": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V025",
+        "title": "Verify cadence validate DB stage completed",
+    },
+    "cadence_restart_results": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V026",
+        "title": "Verify cadence restart node-result artifacts",
+    },
+    "cadence_final_state": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V027",
+        "title": "Verify cadence job and image group reached success",
+    },
+    "cadence_summary": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V028",
+        "title": "Verify cadence summary reports completion",
+    },
+    "cadence_local_repo_status": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V029",
+        "title": "Verify local repository status for cadence catalog",
+    },
+    "cadence_build_status": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V030",
+        "title": "Verify Image Build Manager output contract",
+    },
+    "cadence_s3_artifacts": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V031",
+        "title": "Verify S3 boot artifacts for requested roles",
+    },
+    "cadence_catalog_commit_integrity": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V032",
+        "title": "Verify cadence catalog commit integrity",
+    },
+    "cadence_expected_functional_groups": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V033",
+        "title": "Verify expected functional-group coverage",
+    },
+    "cadence_artifact_identity": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V034",
+        "title": "Verify current catalog artifact identity",
+    },
+    "cadence_validate_report": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V035",
+        "title": "Verify cadence validation report",
+    },
+    "cadence_validation_feature_selection": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V036",
+        "title": "Verify Slurm and Kubernetes validation selection",
+    },
+    "cadence_restart_node_coverage": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V037",
+        "title": "Verify restart coverage for every PXE node",
+    },
+    "cadence_uploaded_input_snapshot": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V038",
+        "title": "Verify cadence uploaded input snapshot",
+    },
+    "cadence_stage_attempt_freshness": {
+        "id": "BSM_FVT_CADENCE_PIPELINE_V039",
+        "title": "Verify current job stage and log freshness",
+    },
+
     # --- Cleanup pipeline (sanity marker; explicit suite only) ---
     "cleanup_gitlab_server_running": {
         "id": "BSM_FVT_CLEANUP_PIPELINE_V001",
@@ -545,6 +658,39 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     "secret_redaction_in_logs_and_responses": {
         "id": "BSM_NFT_SECURITY_005",
         "title": "Verify authentication secrets are absent from logs",
+    },
+
+    # =================================================================
+    # SECTION G: Retention & Traceability (ER-BSM-002 Story 4)
+    # =================================================================
+
+    "retention_deploy_count_incremented": {
+        "id": "BSM_FVT_RETENTION_V001",
+        "title": "Verify deploy_count incremented after successful deploy",
+    },
+    "retention_last_deployed_at_set": {
+        "id": "BSM_FVT_RETENTION_V002",
+        "title": "Verify last_deployed_at timestamp set after deploy",
+    },
+    "retention_undeployed_image_group_zero_count": {
+        "id": "BSM_FVT_RETENTION_V003",
+        "title": "Verify undeployed image group has deploy_count=0",
+    },
+    "retention_deployed_image_protected_from_cleanup": {
+        "id": "BSM_FVT_RETENTION_V004",
+        "title": "Verify deployed image group is protected from retention cleanup",
+    },
+    "retention_audit_event_exists": {
+        "id": "BSM_FVT_RETENTION_V005",
+        "title": "Verify RETENTION_DELETED audit event recorded for aged images",
+    },
+    "retention_config_loaded": {
+        "id": "BSM_FVT_RETENTION_V006",
+        "title": "Verify retention config (age, min_keep_count) loaded from config",
+    },
+    "retention_sidecar_manifest_present": {
+        "id": "BSM_FVT_RETENTION_V007",
+        "title": "Verify sidecar manifest uploaded for build artifacts",
     },
 
 }

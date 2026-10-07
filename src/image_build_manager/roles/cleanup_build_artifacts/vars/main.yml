@@ -41,6 +41,8 @@ minio_firewall_ports:
 # ---------------------------------------------------------------------------
 registry_service_name: "registry"
 registry_quadlet_file: "/etc/containers/systemd/registry.container"
+registry_image: "docker.io/library/registry"
+registry_tag: "3.1.2"
 registry_storage_dir: "{{ shared_path }}/registry/data"
 registry_oci_data_dir: "{{ shared_path }}/oci/data"
 registry_cleanup_directories:

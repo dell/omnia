@@ -23,7 +23,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(230)
+@pytest.mark.order(233)
 def test_slurm_hardware_discovery(host):
     """Verify runtime hardware matches the configured discovery strategy."""
     verify_pxeboot(host, "slurm_hardware_discovery", check_slurm_hardware_discovery)

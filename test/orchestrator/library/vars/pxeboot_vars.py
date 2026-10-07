@@ -14,7 +14,7 @@
 
 """Immutable contracts for PXE boot and post-boot cluster verification."""
 
-PXEBOOT_STATUS = "pxeboot_status.yml"
+ORCHESTRATOR_STATUS = "orchestrator_status.yml"
 OMNIA_CONFIG = "omnia_config.yml"
 STORAGE_CONFIG = "storage_config.yml"
 ENV_CATALOG_FILE_PATH = "CATALOG_FILE_PATH"
@@ -50,6 +50,73 @@ APPTAINER_JOB_TIMEOUT_SECONDS = 300
 APPTAINER_CONCURRENT_JOB_COUNT = 3
 APPTAINER_ARRAY_SIZE = 3
 APPTAINER_GPU_MEMORY_SETTLE_SECONDS = 5
+
+HPC_TOOLS_BASE = "/hpc_tools"
+HPC_TOOLS_SCRIPTS_DIRECTORY = "/hpc_tools/scripts"
+HPC_TOOLS_BENCHMARKS_DIRECTORY = "/hpc_tools/benchmarks"
+HPC_TOOLS_CONTAINER_IMAGES_DIRECTORY = "/hpc_tools/container_images"
+HPC_TOOLS_CUDA_DIRECTORY = "/hpc_tools/cuda"
+HPC_TOOLS_NVIDIA_SDK_DIRECTORY = "/hpc_tools/nvidia_sdk"
+HPC_TOOLS_CORE_SUBDIRS: tuple[str, ...] = (
+    "cuda",
+    "scripts",
+    "container_images",
+    "nvidia_sdk",
+)
+HPC_TOOLS_DIRECTORY_MODE = "755"
+HPC_BENCHMARKS_PULL_SCRIPT = "/hpc_tools/scripts/pull_benchmarks.sh"
+HPC_BENCHMARKS_TOOLS_LIST = "/hpc_tools/scripts/benchmark_tools.list"
+HPC_BENCHMARKS_CUSTOM_JSON_SEARCH: tuple[str, ...] = (
+    "/opt/omnia/config/slurm_custom.json",
+    "/etc/omnia/slurm_custom.json",
+    "/opt/omnia/slurm_custom.json",
+)
+HPC_BENCHMARKS_OFFLINE_REPO_ROOTS: tuple[str, ...] = (
+    "/var/lib/pulp/content/offline_repo",
+    "/opt/omnia/offline_repo",
+)
+HPC_BENCHMARKS_OFFLINE_LAYOUT = "cluster/{arch}/rhel/10.0/{layout}/{package}"
+HPC_BENCHMARKS_SOURCE_TYPES: frozenset[str] = frozenset({"tarball", "source"})
+HPC_BENCHMARKS_CONTAINER_FIRST_PACKAGES: tuple[str, ...] = (
+    "hpl",
+    "hpl-mxp",
+    "stream",
+)
+HPC_BENCHMARKS_CONTAINER_FIRST_IMAGE_MARKER = "nvcr.io/nvidia/hpc-benchmarks"
+HPC_BENCHMARKS_MSR_SAFE_PACKAGE = "msr-safe"
+HPC_BENCHMARKS_RHEL_MAJOR = "10"
+HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS = 600
+HPC_BENCHMARKS_COMPILE_KEYWORDS: tuple[str, ...] = (
+    "make ",
+    "gcc ",
+    "g++ ",
+    "cmake ",
+    "configure ",
+    "./configure",
+)
+
+# CoreDNS / CoreDHCP (coresmd) — deployed by src/orchestrator/roles/deploy_openchami
+# and configured by src/orchestrator/roles/provision_common/tasks/configure_dns.yml
+CORESMD_COREDNS_CONTAINER = "coresmd-coredns"
+CORESMD_COREDHCP_CONTAINER = "coresmd-coredhcp"
+CORESMD_CONTAINERS: tuple[str, ...] = (
+    CORESMD_COREDNS_CONTAINER,
+    CORESMD_COREDHCP_CONTAINER,
+)
+SMD_CONTAINER_NAME = "smd"
+CORESMD_IMAGE_REPO = "ghcr.io/openchami/coresmd"
+COREDNS_COREFILE_PATH = "/etc/openchami/configs/Corefile"
+COREDHCP_CONFIG_PATH = "/etc/openchami/configs/coredhcp.yaml"
+COREDNS_QUERY_TIMEOUT_SECONDS = 5
+COREDNS_QUERY_SAMPLE_SIZE = 5
+COREDNS_IDEMPOTENCY_SETTLE_SECONDS = 5
+COREDNS_CACHE_DURATION_SECONDS = 30
+COREDNS_NODE_ADDITION_WAIT_SECONDS = 60
+COREDNS_SMD_UNREACHABLE_HOLD_SECONDS = 45
+COREDNS_TEMP_XNAME = "x9999c0s0b0n0"
+COREDNS_TEMP_HOSTNAME = "omnia-fvt-tempnode"
+COREDNS_TEMP_MAC = "aa:bb:cc:dd:ee:99"
+COREDNS_TEMP_IP = "127.9.9.9"
 
 KUBERNETES_PREFIX = "service_kube_"
 KUBERNETES_CONTROL_PLANE_PREFIX = "service_kube_control_plane_"
@@ -287,6 +354,11 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "kubectl delete persistentvolume %s --ignore-not-found=true "
         "--wait=true --timeout=180s"
     ),
+    "kubernetes_deployments": (
+        "KUBECONFIG=/etc/kubernetes/admin.conf "
+        "kubectl get deployments -A -o json"
+    ),
+    "mount_contract": "findmnt -J %s",
     "kubernetes_etcd_health": (
         "KUBECONFIG=/etc/kubernetes/admin.conf kubectl exec "
         "--namespace kube-system %s -- etcdctl "
@@ -340,6 +412,14 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "stat -c '%Y' /var/log/diskless-etcd-mount.log 2>/dev/null || "
         "stat -c '%Y' /var/log/etcd-disk-setup.log"
     ),
+    "etcd_setup_script": "test -x /usr/local/bin/etcd-disk-setup.sh",
+    "etcd_update_script": "test -x /usr/local/bin/etcd-fstab-update.sh",
+    "etcd_setup_log": "test -s /var/log/etcd-disk-setup.log",
+    "etcd_update_log": "test -s /var/log/diskless-etcd-mount.log",
+    "etcd_selection_log": (
+        "cat /var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log "
+        "2>/dev/null"
+    ),
     "node_boot_time": 'date -d "$(uptime -s)" +%s',
     "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
     "slurm_nodes": "scontrol show nodes --oneliner",
@@ -371,7 +451,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "slurm_insufficient_resources": (
         "nodes=$(sinfo --noheader --Node | wc -l); "
-        "sbatch --immediate=5 --nodes=$((nodes + 1)) --wrap='hostname'"
+        "srun --immediate=5 --nodes=$((nodes + 1)) hostname"
     ),
     "slurm_submit_drain_job": (
         "job=$(sbatch --parsable --nodelist=%s --wrap='sleep 60'); "
@@ -398,8 +478,12 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "rm -f /tmp/omnia-fvt-queue-%s.out /tmp/omnia-fvt-queue-%s.err"
     ),
     "slurm_drain_node": ("scontrol update NodeName=%s State=DRAIN Reason=%s"),
+    "slurm_drain_state": (
+        "sinfo --noheader --nodes=%s --format='%T' | head -1"
+    ),
     "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
     "slurm_cancel_job": "scancel %s",
+    "slurm_sbatch": "sbatch --parsable --wait --wrap='hostname'",
     "slurm_job_accounting": (
         "sacct --noheader --parsable2 --jobs=%s --format=State | head -1"
     ),
@@ -456,6 +540,19 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "infiniband_ofed": "ofed_info -s",
     "infiniband_ping": "ping -c 2 -W 3 %s",
+    "mellanox_detect": "lspci 2>/dev/null | grep -qi mellanox",
+    "source_mpi_check": (
+        "test -x /hpc_tools/benchmarks/openmpi/bin/mpirun "
+        "&& echo SOURCE_OPENMPI_OK; "
+        "test -x /hpc_tools/benchmarks/ucx/bin/ucx_info "
+        "&& echo SOURCE_UCX_OK; true"
+    ),
+    "install_ucx_source": "bash /usr/local/bin/install_ucx.sh",
+    "install_openmpi_source": "bash /usr/local/bin/install_openmpi.sh",
+    "configure_ucx_openmpi_env": (
+        "bash /usr/local/bin/configure_ucx_openmpi_env.sh"
+    ),
+    "script_exists": "test -x %s && echo exists || echo missing",
     "gpu": (
         "nvidia-smi --query-gpu=index,name,driver_version,memory.total "
         "--format=csv,noheader"
@@ -465,7 +562,10 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader"
     ),
     "gpu_memory_stress": (
-        "set -eu; work=$(mktemp -d /tmp/omnia-gpu-check-XXXXXX); "
+        "set -eu; "
+        "shared=/hpc_tools; "
+        "test -d \"$shared\" || shared=/tmp; "
+        "work=$(mktemp -d \"$shared/omnia-gpu-check-XXXXXX\"); "
         "trap 'rm -rf \"$work\"' EXIT; "
         "printf '%%s' '%s' | base64 -d > \"$work/stress.cu\"; "
         'nvcc -O2 -o "$work/stress" "$work/stress.cu"; '
@@ -481,6 +581,84 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "su - %s -c \"sbatch --parsable --nodelist=%s --wrap='sleep 45'\""
     ),
     "node_reboot": "systemctl reboot",
+    "arch": "arch",
+    "os_release": "cat /etc/os-release",
+    "hpc_tools_stat": "stat -c '%%F|%%a|%%U|%%G' %s 2>/dev/null || echo missing",
+    "hpc_tools_list": "find %s -mindepth 1 -maxdepth 1 -printf '%%p|%%y|%%m\\n' 2>/dev/null",
+    "hpc_tools_tool_files": (
+        "find %s -mindepth 1 -maxdepth 2 -printf '%%p|%%y|%%s\\n' 2>/dev/null"
+    ),
+    "hpc_tools_tool_executables": (
+        "find %s -type f \\( -perm -u+x -o -perm -g+x -o -perm -o+x \\) "
+        "! -name '*.sh' ! -name '*.py' ! -name '*.tar*' ! -name '*.tgz' "
+        "! -name '*.gz' ! -name '*.bz2' ! -name '*.xz' ! -name '*.zip' "
+        "-printf '%%p\\n' 2>/dev/null | head -20"
+    ),
+    "hpc_tools_findmnt": "findmnt -n -o SOURCE,FSTYPE,TARGET /hpc_tools",
+    "hpc_tools_readable": "test -r %s",
+    "hpc_benchmarks_read_json": "cat %s",
+    "hpc_benchmarks_locate_json": (
+        "for path in /opt/omnia/config/slurm_custom.json "
+        "/etc/omnia/slurm_custom.json /opt/omnia/slurm_custom.json; do "
+        'if test -r "$path"; then printf \'%%s\' "$path"; exit 0; fi; done; exit 1'
+    ),
+    "hpc_benchmarks_offline_probe": "test -d %s && find %s -mindepth 1 -maxdepth 1 | head -5",
+    "hpc_benchmarks_pull_script_check": (
+        "test -x %s && grep -c 'pull_benchmark\\|Pull and organize' %s"
+    ),
+    "hpc_benchmarks_pull_script_no_build": (
+        "! grep -Eq '^[[:space:]]*(make|gcc|g\\+\\+|cmake|./configure)[[:space:]]' %s"
+    ),
+    "hpc_benchmarks_run_pull_script": (
+        "timeout %s %s %s 2>&1 | tail -80; exit ${PIPESTATUS[0]}"
+    ),
+    "hpc_benchmarks_snapshot_dirs": (
+        "find %s -mindepth 1 -maxdepth 1 -type d -printf '%%p\\n' 2>/dev/null | sort"
+    ),
+    "hpc_benchmarks_egress_probe": (
+        "curl -sS --connect-timeout 5 --max-time 10 -o /dev/null "
+        "-w '%%{http_code}' https://www.google.com 2>&1 || echo failed"
+    ),
+    "hpc_benchmarks_pull_script_var": (
+        "awk -F= '/^%s=/{sub(/^%s=/,\"\"); gsub(/^\"|\"$/,\"\"); print; exit}' %s"
+    ),
+    "hpc_benchmarks_pulp_list": (
+        "curl -ksfL --connect-timeout 5 --max-time 15 %s 2>/dev/null | "
+        "grep -oE 'href=\"[^\"]+\"' | grep -vE '(\\.\\./|index\\.html)' | head -20"
+    ),
+    "coresmd_container_ps": (
+        "podman ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | "
+        "grep -E '(^|\\|)%s(\\||-|$)' | head -5"
+    ),
+    "coresmd_container_id": (
+        "podman ps --format '{{.ID}}|{{.Names}}|{{.Image}}' | "
+        "grep -E '(^|\\|)%s(\\||-|$)' | head -1"
+    ),
+    "coresmd_container_running": (
+        "podman inspect --format '{{.State.Running}}|{{.Image}}|{{.Config.Image}}' %s "
+        "2>/dev/null || echo missing"
+    ),
+    "coresmd_container_exec": "podman exec %s %s",
+    "coresmd_container_pause": "podman pause %s",
+    "coresmd_container_unpause": "podman unpause %s",
+    "dns_query_forward": (
+        "dig +short +time=%s +tries=1 @%s %s A"
+    ),
+    "dns_query_reverse": (
+        "dig +short +time=%s +tries=1 @%s -x %s"
+    ),
+    "dns_query_forwarders": (
+        "dig +short +time=%s +tries=1 @%s %s A"
+    ),
+    "resolv_conf_read": "cat /etc/resolv.conf",
+    "hosts_file_read": "cat /etc/hosts | head -200",
+    "getent_hosts": "getent hosts %s",
+    "getent_hosts_reverse": "getent hosts %s",
+    "config_file_hash": "sha256sum %s 2>/dev/null | cut -d' ' -f1 || echo missing",
+    "port_reachable": (
+        "timeout 3 bash -c 'cat < /dev/tcp/%s/%s' >/dev/null 2>&1 && "
+        "echo reachable || echo blocked"
+    ),
     "pam_adopt_integration": (
         "policy=missing; usepam=disabled; module=missing; "
         "if grep -Eq '^[[:space:]]*account[[:space:]]+required"
@@ -491,6 +669,39 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "then module=available; fi; "
         'printf \'%s|%s|%s\' "$policy" "$usepam" "$module"'
     ),
+    # PowerVault iSCSI commands
+    "pv_iscsid_active": "systemctl is-active iscsid",
+    "pv_iscsid_enabled": "systemctl is-enabled iscsid",
+    "pv_multipathd_active": "systemctl is-active multipathd",
+    "pv_multipathd_enabled": "systemctl is-enabled multipathd",
+    "pv_iscsi_initiator_read": "cat %s",
+    "pv_iscsi_discovery": "iscsiadm -m discovery -t sendtargets -p %s:%d",
+    "pv_iscsi_sessions": "iscsiadm -m session",
+    "pv_iscsi_session_detail": "iscsiadm -m session -P 1 2>/dev/null",
+    "pv_iscsi_node_show": "iscsiadm -m node -o show",
+    "pv_multipath_list": "multipath -ll",
+    "pv_mountpoint_check": "mountpoint -q %s && echo mounted || echo not_mounted",
+    "pv_dir_exists": "test -d %s && echo exists || echo not_exists",
+    "pv_fstab_read": "cat /etc/fstab",
+    "pv_proc_mounts_read": "cat /proc/mounts",
+    "pv_blkid_fstype": "blkid -s TYPE -o value %s 2>/dev/null",
+    "pv_parted_print": "parted -s %s print 2>/dev/null",
+    "pv_port_check": (
+        "timeout %d bash -c 'cat < /dev/tcp/%s/%d' >/dev/null 2>&1 && "
+        "echo reachable || echo unreachable"
+    ),
+    "pv_df": "df -h %s",
+    "pv_mount_grep": "mount | grep '%s'",
+    "pv_log_exists": "test -f %s && echo exists || echo not_exists",
+    "pv_log_complete": "grep '%s' %s && echo found || echo not_found",
+    "pv_log_errors": "grep -E '^\\[.*\\].*ERROR' %s || true",
+    "pv_node_key_hostname": "hostname -s",
+    "pv_node_key_ipv4": "hostname -I | awk '{print $1}'",
+    "pv_node_key_instance": (
+        "cloud-init query instance_id 2>/dev/null || "
+        "cat /var/lib/cloud/data/instance-id 2>/dev/null || hostname"
+    ),
+    "pv_permissions_check": "stat -c '%%U:%%G:%%a' %s",
     "cloud_init_file_check": "test -f %s && echo EXISTS",
     "cloud_init_status": "cloud-init status --long",
     # mount_config NFS verification commands
@@ -521,6 +732,37 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "minimal_os_kernel_version": "uname -r",
     "minimal_os_ip_addr": "ip -o addr show 2>/dev/null",
+    # ── DCGM / CUDA verification ──────────────────────────────────────
+    "dcgm_nvidia_smi": "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
+    "dcgm_cuda_version": (
+        "nvcc --version 2>/dev/null | grep -oP 'release \\K[0-9]+\\.[0-9]+'"
+    ),
+    "dcgm_cuda_toolkit_path": (
+        "if test -f /usr/local/cuda/bin/nvcc; then ls /usr/local/cuda/ 2>/dev/null;"
+        " elif test -f /hpc_tools/cuda/bin/nvcc; then ls /hpc_tools/cuda/ 2>/dev/null; fi"
+    ),
+    "dcgm_cuda_lock_check": (
+        "test -f /hpc_tools/cuda/.install_lock && echo LOCKED || echo UNLOCKED"
+    ),
+    "dcgm_rpm_check": "rpm -qa 2>/dev/null | grep '^datacenter-gpu-manager' | head -1",
+    "dcgm_binary_check": "command -v dcgmi 2>/dev/null && dcgmi --version 2>/dev/null",
+    "dcgm_service_active": "systemctl is-active nvidia-dcgm 2>/dev/null",
+    "dcgm_service_enabled": "systemctl is-enabled nvidia-dcgm 2>/dev/null",
+    "dcgm_discovery": "dcgmi discovery -l 2>/dev/null",
+    "dcgm_dmon": "timeout 10 dcgmi dmon -e 150,155,203 -c 3 2>/dev/null",
+    "dcgm_multi_gpu_count": (
+        "nvidia-smi --query-gpu=gpu_uuid --format=csv,noheader 2>/dev/null | wc -l"
+    ),
+    "dcgm_nfs_mount_check": "findmnt -n -o SOURCE,FSTYPE,TARGET /usr/local/cuda",
+    "dcgm_os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
+    "dcgm_service_pid": "systemctl show nvidia-dcgm --property=MainPID --value",
+    "dcgm_service_restart_check": (
+        "systemctl show nvidia-dcgm --property=NRestarts --value 2>/dev/null"
+    ),
+    "dcgm_socket_path": (
+        "test -S /var/run/nvidia-dcgm/nv-hostengine.sock && echo EXISTS || "
+        "test -S /tmp/nv-hostengine.sock && echo EXISTS || echo MISSING"
+    ),
 }
 
 KUBERNETES_REQUIRED_POD_PREFIXES: tuple[str, ...] = (
@@ -555,3 +797,16 @@ SLURM_ROLE_SERVICES: dict[str, tuple[str, ...]] = {
     SLURM_LOGIN_PREFIX: ("slurmd", "munge"),
     SLURM_COMPILER_PREFIX: ("slurmd", "munge"),
 }
+
+# =============================================================================
+# PowerVault iSCSI Storage Constants
+# =============================================================================
+POWERVAULT_DEFAULT_ISCSI_PORT = 3260
+POWERVAULT_DEFAULT_FS_TYPE = "xfs"
+POWERVAULT_DEFAULT_MOUNT_OPTS = "defaults,_netdev,noatime"
+POWERVAULT_DEFAULT_NODE_KEY = "local_hostname"
+POWERVAULT_LOG_TEMPLATE = "/var/log/omnia_iscsi_setup_{name}.log"
+POWERVAULT_LOG_COMPLETE_MSG = "iSCSI/multipath setup complete"
+POWERVAULT_PORT_CHECK_TIMEOUT = 5
+POWERVAULT_STORAGE_CONFIG_PATH = "/opt/omnia/input/project_default/storage_config.yml"
+POWERVAULT_ISCSI_INITIATOR_PATH = "/etc/iscsi/initiatorname.iscsi"

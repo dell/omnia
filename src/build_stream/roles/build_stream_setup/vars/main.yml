@@ -13,15 +13,6 @@
 # limitations under the License.
 ---
 
-# --- Upgrade guard ---
-upgrade_lock_path: "{{ omnia_data_path }}/.data/upgrade_in_progress.lock"
-upgrade_in_progress_msg: >-
-  Upgrade is not completed fully.
-  Please run upgrade.yml to complete upgrade before running any other playbook using the below command:
-  "ansible-playbook /omnia/src/playbooks/upgrade/upgrade.yml"
-  If you don't require input files to be migrated, reconfigure the default input files, remove the lock file using the following command
-  "rm {{ upgrade_lock_path }}" and then proceed.
-
 project_dir_not_exist_fail_msg: >-
   The project directory at {{ input_project_dir }} does not exist.
   Please ensure the directory exists before re-running the playbook.
@@ -39,8 +30,6 @@ supported_tags:
   - execute
   - build
   - cleanup
-  - upgrade
-  - rollback
 skip_credential_tags:
   - precheck
   - cleanup
@@ -49,27 +38,14 @@ invalid_tag_combinations:
   - [prepare, cleanup]
   - [execute, cleanup]
   - [build, cleanup]
-  - [prepare, upgrade]
-  - [execute, upgrade]
-  - [build, upgrade]
-  - [cleanup, upgrade]
-  - [prepare, rollback]
-  - [execute, rollback]
-  - [build, rollback]
-  - [cleanup, rollback]
-  - [upgrade, rollback]
   - [precheck, prepare]
   - [precheck, execute]
   - [precheck, build]
   - [precheck, cleanup]
-  - [precheck, upgrade]
-  - [precheck, rollback]
   - [credentials, prepare]
   - [credentials, execute]
   - [credentials, build]
   - [credentials, cleanup]
-  - [credentials, upgrade]
-  - [credentials, rollback]
   - [credentials, precheck]
 # --- Tag validation messages ---
 tag_validation_fail_msg: |

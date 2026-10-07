@@ -22,6 +22,7 @@ from ..vars.pxeboot_vars import (
     KUBERNETES_PREFIX,
     KUBERNETES_PRIMARY_CONTROL_PLANE_PREFIX,
     PXEBOOT_COMMANDS,
+    SLURM_COMPILER_PREFIX,
     SLURM_COMPUTE_PREFIX,
     SLURM_CONTROL_PREFIX,
     SLURM_PREFIXES,
@@ -173,3 +174,109 @@ def require_functional(summary: str):
         "functional",
         "Select the functional marker to authorize temporary workloads",
     )
+
+
+# ---------------------------------------------------------------------------
+# Source-compiled MPI stack provisioning for non-OFED nodes
+# ---------------------------------------------------------------------------
+
+_source_mpi_provisioned = False
+
+
+def _is_non_ofed_node(host, row):
+    """Return True when no Mellanox hardware is detected on *row*."""
+    result = remote_command(host, row, PXEBOOT_COMMANDS["mellanox_detect"])
+    return result.rc != 0
+
+
+def ensure_source_mpi(host, rows):
+    """Install the source-compiled UCX/OpenMPI stack when needed.
+
+    When compute nodes lack both DOCA MPI and source-compiled MPI, and at
+    least one non-OFED node is present, this function runs the install
+    scripts on the login_compiler_node (which compiles to the shared NFS
+    ``/hpc_tools/benchmarks/``) and then runs the env configurator on
+    each non-OFED compute node.
+
+    Args:
+        host: Testinfra host connection.
+        rows: All mapped Slurm rows (all prefixes).
+
+    Returns:
+        Tuple of ``(provisioned, skip_reason)``.
+        *provisioned* is True when source MPI is now available or was
+        already present.  *skip_reason* is a non-empty string only when
+        provisioning cannot proceed (no login_compiler_node).
+    """
+    global _source_mpi_provisioned  # noqa: PLW0603
+    if _source_mpi_provisioned:
+        return True, ""
+
+    compiler = first_row(rows, SLURM_COMPILER_PREFIX)
+    if compiler is None:
+        return False, (
+            "No login_compiler_node in the cluster — "
+            "source-compiled MPI cannot be installed for non-OFED nodes"
+        )
+
+    # Check whether source MPI is already compiled on the NFS share.
+    probe = remote_command(
+        host, compiler, PXEBOOT_COMMANDS["source_mpi_check"]
+    )
+    already_has_ucx = "SOURCE_UCX_OK" in probe.stdout
+    already_has_openmpi = "SOURCE_OPENMPI_OK" in probe.stdout
+
+    if not already_has_ucx:
+        ucx_script = remote_command(
+            host,
+            compiler,
+            PXEBOOT_COMMANDS["script_exists"]
+            % "/usr/local/bin/install_ucx.sh",
+        )
+        if "exists" not in ucx_script.stdout:
+            return False, (
+                "install_ucx.sh is not deployed on login_compiler_node"
+            )
+        install = remote_command(
+            host, compiler, PXEBOOT_COMMANDS["install_ucx_source"]
+        )
+        if install.rc != 0:
+            return False, (
+                f"install_ucx.sh failed on {compiler['HOSTNAME']}: "
+                f"rc={install.rc}"
+            )
+
+    if not already_has_openmpi:
+        ompi_script = remote_command(
+            host,
+            compiler,
+            PXEBOOT_COMMANDS["script_exists"]
+            % "/usr/local/bin/install_openmpi.sh",
+        )
+        if "exists" not in ompi_script.stdout:
+            return False, (
+                "install_openmpi.sh is not deployed on login_compiler_node"
+            )
+        install = remote_command(
+            host, compiler, PXEBOOT_COMMANDS["install_openmpi_source"]
+        )
+        if install.rc != 0:
+            return False, (
+                f"install_openmpi.sh failed on {compiler['HOSTNAME']}: "
+                f"rc={install.rc}"
+            )
+
+    # Set env vars on every non-OFED compute node.
+    compute_rows = [
+        row
+        for row in rows
+        if row["EXPECTED_FUNCTIONAL_GROUP"].startswith(SLURM_COMPUTE_PREFIX)
+    ]
+    for row in compute_rows:
+        if _is_non_ofed_node(host, row):
+            remote_command(
+                host, row, PXEBOOT_COMMANDS["configure_ucx_openmpi_env"]
+            )
+
+    _source_mpi_provisioned = True
+    return True, ""

@@ -79,7 +79,7 @@ ignored so Repo Manager can evolve them independently. Repository data uses the
 | `overall_status` | Yes | Must be `"success"` to proceed |
 | `cluster_os_type` | Yes | Build target OS type (e.g. `rhel`) |
 | `repositories.{version}.{arch}` | Yes | RPM repository objects for supported architectures |
-| `repositories.{version}.{arch}.{repository}.url` | Optional per entry | HTTP(S) URL consumed when present; at least one usable x86_64 or aarch64 URL is required |
+| `repositories.{version}.{arch}.{repository}.url` | Yes | HTTP(S) URL required by the consumer schema; at least one usable x86_64 or aarch64 URL is required |
 | `repositories.{version}.{arch}.{repository}.priority` | No | Repository priority consumed when present |
 | `repo_manager.port` | No | Managed repository port; otherwise derived from a repository URL |
 | `repo_manager.certificates.server_crt` | No | CA certificate path; certificate handling is skipped when absent or empty |
