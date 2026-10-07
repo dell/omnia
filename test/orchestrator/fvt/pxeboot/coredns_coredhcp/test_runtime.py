@@ -22,8 +22,11 @@ PXE mapping, and repeated-deployment stability.
 
 import pytest
 from library.functions import (
+    check_coredhcp_config_file,
     check_coredhcp_multisubnet_running_image,
     check_coredns_container_state,
+    check_coredns_corefile_config,
+    check_coredns_dns_forwarders,
     check_coredns_forward_resolution,
     check_coredns_idempotency,
     check_coredns_reverse_resolution,
@@ -64,11 +67,45 @@ def test_coredns_reverse_resolution(host):
     )
 
 
+
+@pytest.mark.functional
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(353)
+def test_coredns_dns_forwarders(host):
+    """TC-04: verify DNS forwarders are configured and can resolve external domains."""
+    verify_pxeboot(
+        host, "coredns_dns_forwarders", check_coredns_dns_forwarders
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.order(354)
+def test_coredns_corefile_config(host):
+    """TC-05: verify Corefile configuration is correctly rendered."""
+    verify_pxeboot(
+        host, "coredns_corefile_config", check_coredns_corefile_config
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.order(355)
+def test_coredhcp_config_file(host):
+    """TC-06: verify coredhcp.yaml configuration file is correctly rendered."""
+    verify_pxeboot(
+        host, "coredhcp_config_file", check_coredhcp_config_file
+    )
+
+
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.order(356)
 def test_coredhcp_multisubnet_running_image(host):
-    """TC-04: multi-subnet dataset -> coresmd containers use expected image."""
+    """TC-07: multi-subnet dataset -> coresmd containers use expected image."""
     verify_pxeboot(
         host,
         "coredhcp_multisubnet_running_image",
@@ -78,7 +115,7 @@ def test_coredhcp_multisubnet_running_image(host):
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(354)
+@pytest.mark.order(357)
 def test_coredns_idempotency(host):
-    """TC-07: coresmd state stability (no-drift) across a settle window."""
+    """TC-08: coresmd state stability (no-drift) across a settle window."""
     verify_pxeboot(host, "coredns_idempotency", check_coredns_idempotency)

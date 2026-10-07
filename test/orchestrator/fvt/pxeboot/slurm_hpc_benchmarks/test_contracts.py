@@ -17,7 +17,11 @@
 import pytest
 from library.functions import (
     check_hpc_benchmarks_container_first_guidance,
+    check_hpc_benchmarks_container_image_list,
     check_hpc_benchmarks_nfs_accessibility,
+    check_hpc_benchmarks_offline_package_copy,
+    check_hpc_benchmarks_platform_directory_structure,
+    check_hpc_benchmarks_platform_script,
     check_hpc_benchmarks_source_only_delivery,
 )
 
@@ -28,7 +32,51 @@ pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
+@pytest.mark.order(335)
+def test_hpc_benchmarks_platform_script(host):
+    """TC-06a: Verify omnia_platform.sh deployment and platform detection."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_platform_script",
+        check_hpc_benchmarks_platform_script,
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(336)
+def test_hpc_benchmarks_container_image_list(host):
+    """TC-06b: Verify container_image.list deployment and content validation."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_container_image_list",
+        check_hpc_benchmarks_container_image_list,
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(337)
+def test_hpc_benchmarks_platform_directory_structure(host):
+    """TC-06c: Verify platform-specific directory structure exists per architecture."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_platform_directory_structure",
+        check_hpc_benchmarks_platform_directory_structure,
+    )
+
+
+@pytest.mark.sanity
 @pytest.mark.order(338)
+def test_hpc_benchmarks_offline_package_copy(host):
+    """TC-06d: Verify offline packages are copied to slurm_config_path/packages/{arch}/."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_offline_package_copy",
+        check_hpc_benchmarks_offline_package_copy,
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(342)
 def test_hpc_benchmarks_container_first_guidance(host):
     """TC-06: Verify pull_benchmarks.sh and benchmark_tools.list are deployed.
 
@@ -45,7 +93,7 @@ def test_hpc_benchmarks_container_first_guidance(host):
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(339)
+@pytest.mark.order(343)
 def test_hpc_benchmarks_source_only_delivery(host):
     """TC-07: Verify no compile/build commands are staged with the artifacts."""
     verify_pxeboot(
@@ -57,7 +105,7 @@ def test_hpc_benchmarks_source_only_delivery(host):
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(340)
+@pytest.mark.order(344)
 def test_hpc_benchmarks_nfs_accessibility(host):
     """TC-10: Verify /hpc_tools NFS is mounted and readable on compute nodes."""
     verify_pxeboot(

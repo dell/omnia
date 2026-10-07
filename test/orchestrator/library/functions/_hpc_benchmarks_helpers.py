@@ -43,6 +43,7 @@ from ..vars.pxeboot_vars import (
     HPC_TOOLS_CUDA_DIRECTORY,
     HPC_TOOLS_DIRECTORY_MODE,
     HPC_TOOLS_NVIDIA_SDK_DIRECTORY,
+    HPC_TOOLS_PLATFORMS_DIRECTORY,
     HPC_TOOLS_SCRIPTS_DIRECTORY,
     PXEBOOT_COMMANDS,
 )
@@ -301,6 +302,41 @@ def read_pull_script_var(host, row, variable_name: str) -> str:
     if result.rc != 0:
         return ""
     return result.stdout.strip()
+
+
+def read_platform_helper_var(host, row, variable_name: str) -> str:
+    """Return the raw value of a shell variable set by omnia_platform.sh.
+
+    Sources omnia_platform.sh, runs omnia_detect_platform, and echoes the variable.
+    This is used for variables like OMNIA_OS_VERSION that are set by the
+    platform helper script function rather than as direct assignments.
+    """
+    if not re.fullmatch(r"[A-Z_][A-Z0-9_]*", variable_name):
+        raise ValueError(f"Unsafe variable name: {variable_name!r}")
+    result = remote_command(
+        host,
+        row,
+        PXEBOOT_COMMANDS["hpc_benchmarks_platform_helper_var"] % variable_name,
+    )
+    if result.rc != 0:
+        return ""
+    return result.stdout.strip()
+
+
+def get_platform_root(host, row) -> str:
+    """Return the platform root path where tools are staged.
+
+    This is the OMNIA_PLATFORM_ROOT variable set by omnia_platform.sh,
+    which resolves to /hpc_tools/platforms/{os_type}/{os_version}/{arch}.
+    """
+    os_type = read_platform_helper_var(host, row, "OMNIA_OS_TYPE")
+    os_version = read_platform_helper_var(host, row, "OMNIA_OS_VERSION")
+    arch = read_platform_helper_var(host, row, "OMNIA_ARCH")
+    
+    if not os_type or not os_version or not arch:
+        return ""
+    
+    return f"{HPC_TOOLS_PLATFORMS_DIRECTORY}/{os_type}/{os_version}/{arch}"
 
 
 def pulp_tarball_directory(pulp_server: str, os_version: str, arch: str, tool: str) -> str:
