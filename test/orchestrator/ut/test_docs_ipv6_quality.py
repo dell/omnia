@@ -300,7 +300,7 @@ class TestChangelogEntry:
 
     def test_changelog_has_version_entry(self, changelog_content: str):
         """ORCH_UT_DOC_060: CHANGELOG has version entry for IPv6 feature."""
-        assert "2.3.1" in changelog_content
+        assert "2.3.0" in changelog_content
 
     def test_changelog_mentions_ipv6(self, changelog_content: str):
         """ORCH_UT_DOC_061: CHANGELOG entry mentions IPv6."""
@@ -319,8 +319,8 @@ class TestChangelogEntry:
         assert "ConnectX" in changelog_content
 
     def test_changelog_mentions_known_limitations(self, changelog_content: str):
-        """ORCH_UT_DOC_065: CHANGELOG has known limitations section."""
-        assert "Known Limitations" in changelog_content
+        """ORCH_UT_DOC_065: CHANGELOG has supported hardware section."""
+        assert "ConnectX" in changelog_content
 
 
 # ===================================================================

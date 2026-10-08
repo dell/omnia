@@ -744,45 +744,48 @@ class TestCloudInitHostsInjection:
         / "templates" / "metadata_svc"
     )
 
-    def test_ib_hosts_entries_in_slurm_node_template(self):
-        """ms-group-slurm_node_x86_64.yaml.j2 contains ib_hosts_entries loop."""
+    def test_no_ib_hosts_entries_in_slurm_node_template(self):
+        """ms-group-slurm_node_x86_64.yaml.j2 must NOT contain ib_hosts_entries (DNS-free design)."""
         template_path = self.TEMPLATES_DIR / "ms-group-slurm_node_x86_64.yaml.j2"
         if not template_path.exists():
             pytest.skip("Template not found (expected in orchestrator source)")
         content = template_path.read_text(encoding="utf-8")
-        assert "ib_hosts_entries" in content, (
-            "ms-group-slurm_node_x86_64 missing ib_hosts_entries injection"
-        )
-        assert "default([])" in content, (
-            "ib_hosts_entries must use default([]) for backward compat"
+        assert "ib_hosts_entries" not in content, (
+            "ms-group-slurm_node_x86_64 should not have ib_hosts_entries "
+            "(DNS-free: Slurm uses NodeAddr instead)"
         )
 
-    def test_ib_hosts_entries_in_slurm_control_template(self):
-        """ms-group-slurm_control_node_x86_64.yaml.j2 contains ib_hosts_entries."""
+    def test_no_ib_hosts_entries_in_slurm_control_template(self):
+        """ms-group-slurm_control_node_x86_64.yaml.j2 must NOT contain ib_hosts_entries."""
         template_path = self.TEMPLATES_DIR / "ms-group-slurm_control_node_x86_64.yaml.j2"
         if not template_path.exists():
             pytest.skip("Template not found")
         content = template_path.read_text(encoding="utf-8")
-        assert "ib_hosts_entries" in content
+        assert "ib_hosts_entries" not in content, (
+            "slurm_control_node template should not have ib_hosts_entries "
+            "(DNS-free: Slurm uses NodeAddr instead)"
+        )
 
-    def test_ib_hosts_entries_in_login_node_template(self):
-        """ms-group-login_node_x86_64.yaml.j2 contains ib_hosts_entries."""
+    def test_no_ib_hosts_entries_in_login_node_template(self):
+        """ms-group-login_node_x86_64.yaml.j2 must NOT contain ib_hosts_entries."""
         template_path = self.TEMPLATES_DIR / "ms-group-login_node_x86_64.yaml.j2"
         if not template_path.exists():
             pytest.skip("Template not found")
         content = template_path.read_text(encoding="utf-8")
-        assert "ib_hosts_entries" in content
+        assert "ib_hosts_entries" not in content, (
+            "login_node template should not have ib_hosts_entries "
+            "(DNS-free: Slurm uses NodeAddr instead)"
+        )
 
-    def test_all_templates_have_default_fallback(self):
-        """All ms-group-*.yaml.j2 templates with ib_hosts_entries use default([])."""
+    def test_no_templates_have_ib_hosts_entries(self):
+        """No ms-group-*.yaml.j2 templates should contain ib_hosts_entries (DNS-free design)."""
         if not self.TEMPLATES_DIR.exists():
             pytest.skip("Templates directory not found")
         for tpl in self.TEMPLATES_DIR.glob("ms-group-*.yaml.j2"):
             content = tpl.read_text(encoding="utf-8")
-            if "ib_hosts_entries" in content:
-                assert "default([])" in content, (
-                    f"{tpl.name} has ib_hosts_entries without default([]) fallback"
-                )
+            assert "ib_hosts_entries" not in content, (
+                f"{tpl.name} should not have ib_hosts_entries (DNS-free design)"
+            )
 
 
 class TestHostsDistributionMergeLogic:
