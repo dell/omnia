@@ -28,6 +28,9 @@ from typing import Dict, Any, List
 from ..vars.common_vars import (
     CMDS,
     FUNCTIONAL_GROUPS,
+    FUNCTIONAL_GROUP_NAME_PATTERN,
+    K8S_FUNCTIONAL_GROUP_PATTERN,
+    SLURM_FUNCTIONAL_GROUP_PATTERN,
     LOG_BUNDLE_PATTERN,
     METADATA_FILE,
     CUSTOM_ISO_PATTERN,
@@ -284,7 +287,7 @@ def validate_collect_pxe_file(host, path: str) -> Dict[str, Any]:
     invalid_groups = []
 
     for key in data.keys():
-        if key in FUNCTIONAL_GROUPS:
+        if FUNCTIONAL_GROUP_NAME_PATTERN.match(key):
             found_groups.append(key)
         else:
             invalid_groups.append(key)
@@ -514,18 +517,15 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
         has_slurm = False
         
         if config:
-            # Check K8s groups
-            k8s_groups = ["service_kube_control_plane_x86_64", "service_kube_node_x86_64"]
-            for group in k8s_groups:
-                if group in config and config[group] and len(config[group]) > 0:
+            # Check K8s groups (any OS/version/arch variant)
+            for group, ips in config.items():
+                if K8S_FUNCTIONAL_GROUP_PATTERN.match(group) and ips:
                     has_k8s = True
                     break
-            
-            # Check Slurm groups
-            slurm_groups = ["slurm_control_node_x86_64", "slurm_node_x86_64", 
-                           "login_node_x86_64", "login_compiler_node_aarch64"]
-            for group in slurm_groups:
-                if group in config and config[group] and len(config[group]) > 0:
+
+            # Check Slurm/login groups (any OS/version/arch variant)
+            for group, ips in config.items():
+                if SLURM_FUNCTIONAL_GROUP_PATTERN.match(group) and ips:
                     has_slurm = True
                     break
 
