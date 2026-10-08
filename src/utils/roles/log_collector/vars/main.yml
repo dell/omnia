@@ -30,6 +30,26 @@ error_msg_inventory_file_missing: "Node inventory file not found: {{ collect_pxe
 # Domain name
 domain_name: "utils"
 
+# =============================================================================
+# Functional group name matching (OS/version-agnostic)
+# =============================================================================
+# Omnia's PXE-mapping naming convention optionally inserts an OS name and
+# version between the role and the architecture, e.g.
+# "slurm_node_rhel_10_0_aarch64", in addition to the legacy bare form
+# "slurm_node_aarch64". collect_pxe.yml may contain either form (or both, for
+# clusters mixing OS versions), so every role+arch bucket below is matched by
+# regex instead of a single hardcoded dict key.
+_os_version_segment: "(_(rhel|rocky|ubuntu|sles)(_[0-9]+)+)?"
+
+k8s_masters_pattern: "^service_kube_control_plane(_first)?{{ _os_version_segment }}_x86_64$"
+k8s_workers_pattern: "^service_kube_node{{ _os_version_segment }}_x86_64$"
+slurm_controllers_pattern: "^slurm_control_node{{ _os_version_segment }}_x86_64$"
+slurm_nodes_x86_pattern: "^slurm_node{{ _os_version_segment }}_x86_64$"
+slurm_nodes_arm_pattern: "^slurm_node{{ _os_version_segment }}_aarch64$"
+login_nodes_pattern: "^login_node{{ _os_version_segment }}_x86_64$"
+login_compiler_nodes_x86_pattern: "^login_compiler_node{{ _os_version_segment }}_x86_64$"
+login_compiler_nodes_arm_pattern: "^login_compiler_node{{ _os_version_segment }}_aarch64$"
+
 # K8s master log paths
 k8s_master_log_dirs:
   - /var/log/containers/

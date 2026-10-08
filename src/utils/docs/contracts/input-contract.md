@@ -22,18 +22,30 @@ orchestrator domain.
 Each field is a list of admin-network IPv4 addresses. Empty lists are accepted;
 the corresponding group is skipped.
 
-| Field | Type | Consumed as |
-|-------|------|-------------|
-| `service_kube_control_plane_x86_64` | list[string] | Kubernetes control-plane hosts |
-| `service_kube_node_x86_64` | list[string] | Kubernetes worker hosts |
-| `slurm_control_node_x86_64` | list[string] | Slurm controller hosts |
-| `slurm_node_x86_64` | list[string] | x86_64 Slurm compute hosts |
-| `slurm_node_aarch64` | list[string] | aarch64 Slurm compute hosts |
-| `login_node_x86_64` | list[string] | Login hosts |
-| `login_compiler_node_aarch64` | list[string] | Login compiler hosts |
+Field keys follow `<role>_<arch>`. They may optionally embed an OS name and
+version between the role and the architecture, matching the
+`FUNCTIONAL_GROUP_NAME` convention produced by orchestrator's
+`pxe_mapping_file.csv` (e.g. `slurm_node_rhel_10_0_aarch64` instead of
+`slurm_node_aarch64`). Both forms are accepted, and OS/version variants of the
+same role+arch are aggregated together — this is pattern-matched, not a fixed
+string list, so new OS names/versions do not require a Utils code change.
 
-The two Slurm node lists are merged into one dynamic `slurm_nodes` inventory
-group. The collector connects over SSH using the current Ansible/SSH context.
+| Role | Type | Consumed as |
+|------|------|-------------|
+| `service_kube_control_plane_first` | list[string] | Primary Kubernetes control-plane host (merged with `service_kube_control_plane`) |
+| `service_kube_control_plane` | list[string] | Kubernetes control-plane hosts |
+| `service_kube_node` | list[string] | Kubernetes worker hosts |
+| `slurm_control_node` | list[string] | Slurm controller hosts |
+| `slurm_node` | list[string] | Slurm compute hosts (x86_64 and aarch64) |
+| `login_node` | list[string] | Login hosts |
+| `login_compiler_node` | list[string] | Login compiler hosts (x86_64 and aarch64) |
+
+Each role above is suffixed with `_x86_64` or `_aarch64` (optionally with an
+OS/version segment in between). The Slurm node, login compiler node, and
+primary/non-primary Kubernetes control-plane lists are each merged into one
+dynamic inventory group (`slurm_nodes`, `login_compiler_nodes`, and
+`k8s_masters` respectively). The collector connects over SSH using the
+current Ansible/SSH context.
 
 ---
 
