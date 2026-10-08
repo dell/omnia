@@ -13,13 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Enable UFM InfiniBand Telemetry
+# Reconcile UFM InfiniBand Telemetry
 # Usage: Called from telemetry.yml or standalone with kube_vip
 #   ansible-playbook deploy/sources/deploy_ufm.yml -e kube_vip=<VIP_IP>
 #
-# Deploys shared infrastructure (VictoriaMetrics) if not present,
-# then validates UFM endpoint configuration, creates K8s Secret with
-# UFM credentials, and generates UFM scrape config manifests.
+# Enables or non-destructively disables UFM telemetry according to
+# telemetry_sources.ufm.metrics_enabled.
 # All K8s tasks execute on the kube_vip host.
 
 - name: Deploy UFM Telemetry
@@ -41,6 +40,15 @@
         tasks_from: derive_sink_support_flags
       when: kafka_support is not defined
 
+    - name: Determine configured UFM state
+      ansible.builtin.set_fact:
+        ufm_source_enabled: >-
+          {{ (telemetry_config.telemetry_sources.ufm.metrics_enabled
+             | default(false) | bool)
+             or
+             (telemetry_config.telemetry_sources.ufm.logs_enabled
+             | default(false) | bool) }}
+
     - name: Add kube_vip to inventory (only if not already added)
       ansible.builtin.add_host:
         name: "{{ kube_vip }}"
@@ -58,6 +66,7 @@
       ansible.builtin.include_role:
         name: deploy_victoria
       when:
+        - ufm_source_enabled | bool
         - (victoria_metrics_support | default(false) | bool and not (hostvars['localhost']['victoria_metrics_deployed'] | default(false) | bool)) or
           (victoria_logs_support | default(false) | bool and not (hostvars['localhost']['victoria_logs_deployed'] | default(false) | bool))
 

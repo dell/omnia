@@ -364,6 +364,10 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V063",
         "title": "Verify UFM InfiniBand metrics in VictoriaMetrics",
     },
+    "ufm_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V064",
+        "title": "Verify configured-disabled UFM state",
+    },
     # -- Sources: VAST -------------------------------------------------------
     "vast_external_svc": {
         "id": "TEL_FVT_DEPLOY_V090",
