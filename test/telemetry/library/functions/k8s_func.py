@@ -22,6 +22,7 @@ All commands run on kube_vip via SSH from the OIM.
 """
 
 import json
+import time
 
 from ..vars.common_vars import (
     CMDS,
@@ -141,6 +142,39 @@ def verify_pods_by_prefix(host, prefix, namespace=None, min_count=1):
         "total_count": len(pods),
         "pods": pods,
     }
+
+
+def verify_pods_by_prefix_with_retry(
+    host, prefix, namespace=None, min_count=1, max_retries=30, retry_delay=2
+):
+    """Verify pods matching a prefix are running, with retry logic.
+
+    Retries up to max_retries times with retry_delay seconds between attempts.
+    This handles cases where pods take time to start after deployment.
+
+    Args:
+        host: Testinfra host (OIM).
+        prefix: Pod name prefix to grep.
+        namespace: K8s namespace (default: telemetry).
+        min_count: Minimum required running pods.
+        max_retries: Maximum number of retry attempts (default: 30).
+        retry_delay: Delay in seconds between retries (default: 2).
+
+    Returns:
+        dict with keys: success, running_count, pods, retries_used.
+    """
+    for attempt in range(max_retries):
+        result = verify_pods_by_prefix(host, prefix, namespace, min_count)
+        if result["success"]:
+            result["retries_used"] = attempt
+            return result
+        if attempt < max_retries - 1:
+            time.sleep(retry_delay)
+
+    # Final attempt
+    result = verify_pods_by_prefix(host, prefix, namespace, min_count)
+    result["retries_used"] = max_retries
+    return result
 
 
 def get_pod_count_by_prefix(host, prefix, namespace=None):

@@ -42,16 +42,16 @@ parameter formats. Tests verify:
    - PVCs preserved by default, deleted with delete_sinks_volume=true
 
 Test Cases:
-    TEL_FVT_CLEANUP_V036: Single sink short-form (-e kafka)
-    TEL_FVT_CLEANUP_V037: Comma-separated two sinks
-    TEL_FVT_CLEANUP_V038: Comma-separated all three sinks
-    TEL_FVT_CLEANUP_V039: Separate flags
-    TEL_FVT_CLEANUP_V040: Short-form vs explicit form equivalence
+    TEL_UT_CLEANUP_V036: Single sink short-form (-e kafka)
+    TEL_UT_CLEANUP_V037: Comma-separated two sinks
+    TEL_UT_CLEANUP_V038: Comma-separated all three sinks
+    TEL_UT_CLEANUP_V039: Separate flags
+    TEL_UT_CLEANUP_V040: Short-form vs explicit form equivalence
     TEL_FVT_CLEANUP_V041: Parameter normalization verification
-    TEL_FVT_CLEANUP_V042: Actual resource cleanup verification
-    TEL_FVT_CLEANUP_V043: Dependency checking with short-form
+    TEL_UT_CLEANUP_V042: Actual resource cleanup verification
+    TEL_UT_CLEANUP_V043: Dependency checking with short-form
     TEL_FVT_CLEANUP_V044: All-or-nothing behavior with short-form
-    TEL_FVT_CLEANUP_V045: Volume preservation with short-form
+    TEL_UT_CLEANUP_V045: Volume preservation with short-form
 """
 
 import pytest
@@ -134,7 +134,7 @@ def get_victoria_logs_resource_count(host):
 @pytest.mark.sink
 @pytest.mark.order(80)
 def test_cleanup_sinks_short_form_single(host):
-    """TEL_FVT_CLEANUP_V036: Single sink short-form (-e kafka).
+    """TEL_UT_CLEANUP_V036: Single sink short-form (-e kafka).
 
     GIVEN no running source uses Kafka
     WHEN cleanup_sinks is executed with -e kafka (short-form)
@@ -226,7 +226,7 @@ def test_cleanup_sinks_short_form_single(host):
 @pytest.mark.sink
 @pytest.mark.order(81)
 def test_cleanup_sinks_short_form_comma_separated(host):
-    """TEL_FVT_CLEANUP_V037: Comma-separated two sinks.
+    """TEL_UT_CLEANUP_V037: Comma-separated two sinks.
 
     GIVEN no running source uses Kafka or VictoriaMetrics
     WHEN cleanup_sinks is executed with -e kafka,victoria_metrics
@@ -321,7 +321,7 @@ def test_cleanup_sinks_short_form_comma_separated(host):
 @pytest.mark.sink
 @pytest.mark.order(82)
 def test_cleanup_sinks_short_form_all_three(host):
-    """TEL_FVT_CLEANUP_V038: Comma-separated all three sinks.
+    """TEL_UT_CLEANUP_V038: Comma-separated all three sinks.
 
     GIVEN no running sources
     WHEN cleanup_sinks is executed with -e kafka,victoria_metrics,victoria_logs
@@ -405,7 +405,7 @@ def test_cleanup_sinks_short_form_all_three(host):
 @pytest.mark.sink
 @pytest.mark.order(83)
 def test_cleanup_sinks_short_form_separate_flags(host):
-    """TEL_FVT_CLEANUP_V039: Separate flags (-e kafka -e victoria_metrics).
+    """TEL_UT_CLEANUP_V039: Separate flags (-e kafka -e victoria_metrics).
 
     GIVEN no running sources
     WHEN cleanup_sinks is executed with -e kafka -e victoria_metrics
@@ -483,7 +483,7 @@ def test_cleanup_sinks_short_form_separate_flags(host):
 @pytest.mark.sink
 @pytest.mark.order(84)
 def test_cleanup_sinks_short_form_vs_explicit(host):
-    """TEL_FVT_CLEANUP_V040: Short-form vs explicit form equivalence.
+    """TEL_UT_CLEANUP_V040: Short-form vs explicit form equivalence.
 
     GIVEN no running sources
     WHEN cleanup_sinks is executed with both -e kafka and -e sinks=kafka
@@ -538,7 +538,7 @@ def test_cleanup_sinks_short_form_vs_explicit(host):
 @pytest.mark.sink
 @pytest.mark.order(85)
 def test_cleanup_sinks_dependency_blocking_short_form(host):
-    """TEL_FVT_CLEANUP_V043: Dependency checking with short-form.
+    """TEL_UT_CLEANUP_V043: Dependency checking with short-form.
 
     GIVEN one or more running sources use Kafka
     WHEN cleanup_sinks is executed with -e kafka
@@ -601,7 +601,7 @@ def test_cleanup_sinks_dependency_blocking_short_form(host):
 @pytest.mark.sink
 @pytest.mark.order(86)
 def test_cleanup_sinks_volume_preservation_short_form(host):
-    """TEL_FVT_CLEANUP_V045: Volume preservation with short-form.
+    """TEL_UT_CLEANUP_V045: Volume preservation with short-form.
 
     GIVEN no running sources
     WHEN cleanup_sinks is executed with -e kafka (without delete_sinks_volume)
@@ -665,7 +665,7 @@ def test_cleanup_sinks_volume_preservation_short_form(host):
 @pytest.mark.sink
 @pytest.mark.order(87)
 def test_cleanup_sinks_actual_resource_cleanup(host):
-    """TEL_FVT_CLEANUP_V042: Actual resource cleanup verification.
+    """TEL_UT_CLEANUP_V042: Actual resource cleanup verification.
 
     GIVEN all sinks deployed with resources
     WHEN cleanup_sinks is executed with -e sinks=kafka,victoria_metrics,victoria_logs

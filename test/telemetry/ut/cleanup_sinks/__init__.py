@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Telemetry Domain Precheck Cluster — FVT scenario."""
+"""Telemetry Cleanup Sinks — Unit Tests."""

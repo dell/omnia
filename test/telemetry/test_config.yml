@@ -113,6 +113,31 @@ cleanup_credentials: false
 cleanup_logs: false
 
 # =============================================================================
+# SELECTIVE SINK CONFIGURATION
+# =============================================================================
+# Controls which specific sinks are included in deploy_sinks and cleanup_sinks
+# operations. This allows testing individual sink deployment or cleanup without
+# affecting other sinks.
+#
+# Valid values: kafka, victoria_metrics, victoria_logs
+# Empty list or "all" means operate on all enabled sinks (default behavior).
+#
+# Examples:
+#   deploy_sinks_enabled: ["kafka"]                        # Deploy only Kafka
+#   deploy_sinks_enabled: ["kafka", "victoria_metrics"]    # Deploy Kafka + VM
+#   deploy_sinks_enabled: []                               # Deploy all sinks
+#   cleanup_sinks_enabled: ["victoria_metrics"]            # Cleanup only VM
+#   cleanup_sinks_enabled: []                              # Cleanup all sinks
+
+# Which sinks to include when running deploy_sinks tag.
+# Default: [] (all sinks)
+deploy_sinks_enabled: ["kafka","victoria_metrics"]
+
+# Which sinks to include when running cleanup_sinks tag.
+# Default: [] (all sinks)
+cleanup_sinks_enabled: ["kafka","victoria_metrics"]
+
+# =============================================================================
 # EXTERNAL APPLIANCE SETTINGS
 # =============================================================================
 # OME (OpenManage Enterprise) appliance IP for Kafka forwarder connectivity

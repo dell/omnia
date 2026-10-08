@@ -87,11 +87,6 @@ def test_collect_metric_results_keeps_metrics_with_identical_labels():
 
 def test_verify_metrics_normalizes_custom_ome_identifier(monkeypatch):
     """Use the configured identifier for both subsystem and topic labels."""
-    # Mock is_sink_enabled_for_source to return True
-    monkeypatch.setattr(
-        "library.functions.ome_victoria_func.is_sink_enabled_for_source",
-        lambda *_args: True,
-    )
     # Mock _pipeline_context to return the expected context
     monkeypatch.setattr(
         ome_victoria_func,
@@ -124,11 +119,6 @@ def test_verify_metrics_normalizes_custom_ome_identifier(monkeypatch):
 
 def test_verify_logs_skips_when_bridge_is_disabled(monkeypatch):
     """An intentionally disabled logs path is skipped rather than failed."""
-    # Mock is_sink_enabled_for_source to return True
-    monkeypatch.setattr(
-        "library.functions.ome_victoria_func.is_sink_enabled_for_source",
-        lambda *_args: True,
-    )
     # Mock _pipeline_context to return the expected context with bridge disabled
     monkeypatch.setattr(
         ome_victoria_func,
