@@ -200,7 +200,7 @@
           "enum": [
             "heterogeneous",
             "homogeneous",
-            "dynamic"
+            "minimal"
           ]
         },
         "node_hardware_defaults": {
