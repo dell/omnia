@@ -44,15 +44,15 @@
         orchestrator_initialize_state: false
 
 - name: Run IPoIB IPv6 performance benchmarks
-  hosts: oim
-  connection: ssh
+  hosts: localhost
+  connection: local
   gather_facts: false
   tags:
     - ib_ipv6_benchmark
     - ib_ipv6_release
   vars:
-    evidence_dir: "{{ hostvars['localhost']['orchestrator_output_dir'] }}/ib_ipv6/evidence"
-    allocation_file: "{{ hostvars['localhost']['input_dir'] }}/ib_ipv6_allocation.json"
+    evidence_dir: "{{ orchestrator_output_dir }}/ib_ipv6/evidence"
+    allocation_file: "{{ input_dir }}/ib_ipv6_allocation.json"
     build_id: "{{ lookup('env', 'OMNIA_BUILD_ID') | default('dev', true) }}"
 
   tasks:
@@ -61,7 +61,6 @@
         path: "{{ evidence_dir }}/benchmarks"
         state: directory
         mode: "0755"
-      delegate_to: localhost
 
     # TC-NFT-001: Allocation validation latency
     - name: "[TC-NFT-001] Allocation validation latency benchmark"
@@ -71,7 +70,6 @@
         iterations: 3
         output_dir: "{{ evidence_dir }}/benchmarks"
       register: _bench_alloc_latency
-      delegate_to: localhost
 
     - name: Display allocation latency result
       ansible.builtin.debug:
@@ -87,7 +85,6 @@
         iterations: 3
         output_dir: "{{ evidence_dir }}/benchmarks"
       register: _bench_artifact_throughput
-      delegate_to: localhost
 
     - name: Display artifact throughput result
       ansible.builtin.debug:
@@ -142,7 +139,7 @@
         build_id: "{{ build_id }}"
         interfaces: "{{ ib_ipv6_interfaces | default(['ib0']) }}"
         output_dir: "{{ evidence_dir }}"
-        test_results: "{{ hostvars[groups['oim'][0]]['_ib_ipv6_bench_summary'] | default({}) }}"
+        test_results: "{{ hostvars['localhost']['_ib_ipv6_bench_summary'] | default({}) }}"
       register: _ib_ipv6_evidence
 
     - name: Display evidence summary

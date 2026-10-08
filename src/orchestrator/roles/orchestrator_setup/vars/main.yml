@@ -42,7 +42,6 @@ supported_tags:
   - verify_node_registration
   - cleanup
   - cleanup_credentials
-  - ib_ipv6
 
 skip_credential_tags:
   - precheck
@@ -139,6 +138,12 @@ repo_status_invalid_fail_msg: >-
   Invalid Repo Manager output at '{{ repo_manager_output_path }}'. The file must
   report overall_status: success and contain cluster_os_type, repositories, and
   repo_manager.certificates.server_crt.
+repo_status_content_contract_fail_msg: >-
+  Invalid Repo Manager content contract at '{{ repo_manager_output_path }}'.
+  The file must contain a base_urls mapping for the service Kubernetes OS
+  version '{{ service_k8s_os_version | default('unknown') }}' and architecture
+  '{{ service_k8s_architecture | default('unknown') }}'. Rerun Repo Manager
+  with the active catalog before rerunning Orchestrator.
 repo_certificate_missing_fail_msg: >-
   Repo Manager certificate was not found at '{{ pulp_cert_path }}'. Regenerate
   repo_status.yml and the Pulp certificate by running repo_manager.
@@ -174,3 +179,7 @@ orchestrator_config_missing_fail_msg: >-
 catalog_kubernetes_version_fail_msg: >-
   The catalog enables Kubernetes but does not contain a versioned
   kubeadm package. Add a kubeadm package such as kubeadm_1_35_1.
+service_k8s_catalog_context_fail_msg: >-
+  The catalog's service Kubernetes functional layers must reference exactly
+  one complete base_os group and the supported x86_64 architecture. Correct
+  the service_kube_* layers before rerunning Orchestrator.

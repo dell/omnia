@@ -73,14 +73,16 @@ the feature flags derived by the latest catalog-backed lifecycle phase.
 | `BMC_MAC` | string | Yes | Unique BMC/iDRAC MAC address used for existing-node identity evidence and discovery |
 | `BMC_IP` | string | Yes | Unique BMC/iDRAC IP address |
 | `IB_NIC_NAME` | string | No | InfiniBand NIC FQDD |
-| `IB_IPV4` | string | No | InfiniBand IPv4 address |
-| `IB_IPV6` | string | No | InfiniBand IPv6 address |
+| `IB_IP` | string | No | InfiniBand IP |
 
-The header must contain these exact 12 uppercase column names in the order
-shown, including `IB_NIC_NAME`, `IB_IPV4`, and `IB_IPV6`. Optional values remain present as
-empty CSV cells. `SERVICE_TAG` and `PARENT_SERVICE_TAG` values are optional.
-Both legacy mappings and Discovery-generated mappings are accepted; Discovery
-may place a `service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
+The header must contain these exact 11 uppercase column names in the order
+shown, including `IB_NIC_NAME` and `IB_IP`. Optional values remain present as
+empty CSV cells. `PARENT_SERVICE_TAG`, `IB_NIC_NAME`, and `IB_IP` values are
+optional. `SERVICE_TAG`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, and `BMC_IP` must
+be populated and unique. Users do not supply XNAME; Omnia resolves the
+permanent Service Tag-to-XNAME mapping from SMD Hardware Inventory. User-owned
+and Discovery-generated mappings are accepted; Discovery may place a
+`service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
 
 ---
 
@@ -110,10 +112,8 @@ may place a `service_kube_node` and its Slurm nodes in the same `GROUP_NAME`.
 | `Networks.admin_network.additional_subnets[].netmask_bits` | string | Yes, per entry | Additional network CIDR prefix length |
 | `Networks.admin_network.additional_subnets[].router` | string | Yes, per entry | Gateway supplied as DHCP option 3 |
 | `Networks.admin_network.additional_subnets[].dynamic_range` | string | Yes, per entry | DHCP pool contained by the additional subnet |
-| `Networks.ib_network.ipv4_subnet` | string | Yes, when configured | InfiniBand IPv4 network address |
-| `Networks.ib_network.ipv4_netmask_bits` | string | Yes, when configured | InfiniBand IPv4 CIDR prefix length |
-| `Networks.ib_network.ipv6_subnet` | string | No | InfiniBand IPv6 network address |
-| `Networks.ib_network.ipv6_netmask_bits` | string | No | InfiniBand IPv6 CIDR prefix length |
+| `Networks.ib_network.subnet` | string | Yes, when configured | InfiniBand network address |
+| `Networks.ib_network.netmask_bits` | string | Yes, when configured | InfiniBand CIDR prefix length |
 | `Networks.ib_network.dns` | list | No | InfiniBand DNS server addresses |
 
 ---
@@ -238,23 +238,26 @@ registries:
       insecure: false
 
 file_repos:
-  x86_64:
-    git:
-      helm_charts: "https://<admin_ip>:2225/pulp/content/.../git/helm-charts/"
-    tarball:
-      helm_v3_20_1_amd64: "https://<admin_ip>:2225/pulp/content/.../tarball/helm-v3.20.1-amd64/"
-    manifest:
-      calico_v3_31_4: "https://<admin_ip>:2225/pulp/content/.../manifest/calico-v3.31.4/"
-    pip_module:
-      kubernetes_33_1_0: "https://<admin_ip>:2225/pypi/.../pip_module/kubernetes==33.1.0/"
-  aarch64: {}
+  "10.0":
+    x86_64:
+      git:
+        helm_charts: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/git/helm-charts/"
+      tarball:
+        helm_v3_20_1_amd64: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/tarball/helm-v3.20.1-amd64/"
+      manifest:
+        calico_v3_31_4: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/manifest/calico-v3.31.4/"
+      pip_module:
+        kubernetes_33_1_0: "https://<admin_ip>:2225/pypi/.../rhel/10.0/pip_module/kubernetes==33.1.0/"
+    aarch64: {}
 
-offline_tarball_path: "https://<admin_ip>:2225/pulp/content/.../tarball/"
-offline_manifest_path: "https://<admin_ip>:2225/pulp/content/.../manifest/"
-offline_git_path: "https://<admin_ip>:2225/pulp/content/.../git/"
-offline_pip_module_path: "https://<admin_ip>:2225/pypi/.../pip_module/"
-offline_shell_path: "https://<admin_ip>:2225/pulp/content/.../shell/"
-offline_iso_path: "https://<admin_ip>:2225/pulp/content/.../iso/"
+base_urls:
+  "10.0":
+    x86_64:
+      git: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/git/"
+      tarball: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/tarball/"
+      manifest: "https://<admin_ip>:2225/pulp/content/.../rhel/10.0/manifest/"
+      pip_module: "https://<admin_ip>:2225/pypi/.../rhel/10.0/pip_module/"
+    aarch64: {}
 ```
 
 ### Validation Rules
@@ -275,10 +278,15 @@ file. Cleanup, credential-only, input-validation, and deployment-health flows al
 | `pulp_cert_path` | `repo_manager.certificates.server_crt` | `k8s_config`, `slurm_config` (cert copy to nodes) |
 | `repositories` | `repositories.<version>.<arch>.<repo>.url` | RPM repo URLs keyed by OS version and arch |
 | `registries` | `registries` | Container registry mirror configuration |
-| `file_repos` | `file_repos.<arch>.<type>.<name>` | Git, tarball, manifest, pip URLs |
-| `offline_tarball_path` | `offline_tarball_path` | `k8s_config` (helm, CUDA downloads) |
-| `offline_manifest_path` | `offline_manifest_path` | `k8s_config` (Calico, MetalLB manifests) |
-| `offline_git_path` | `offline_git_path` | `k8s_config` (whereabouts, helm-charts) |
+| `file_repos` | `file_repos.<version>.<arch>.<type>.<name>` | Version-qualified Git, tarball, manifest, and pip artifact URLs |
+| `base_urls` | `base_urls.<version>.<arch>.<type>` | Version-qualified type-level URL selected using the catalog OS version |
+
+Repo Manager does not publish the removed flat `offline_*_path` or
+`*_base_url` aliases. For Kubernetes, Orchestrator derives the OS type, exact
+minor version, and architecture from the `base_os` group referenced by the
+catalog's `service_kube_*` functional layers. It selects that exact
+version/architecture from `base_urls` and does not fall back to another
+version.
 
 ---
 
