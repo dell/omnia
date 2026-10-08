@@ -113,6 +113,9 @@ SUITES: dict[str, list[str]] = {
         "slurm_hpc_benchmarks",
         "kubernetes_recovery",
         "slurm_recovery",
+        "coredns_coredhcp",
+        "powervault",
+        "vast_storage",
         "slurm_lifecycle",
     ],
     "cleanup": [
