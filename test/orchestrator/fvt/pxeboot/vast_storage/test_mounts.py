@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""VAST mount point, mount options, fstab, and RDMA I/O tests
-(TC-002, TC-004, TC-011, TC-012)."""
+"""VAST mount point, mount options, fstab, and RDMA I/O tests."""
 
 import pytest
 
@@ -30,7 +29,7 @@ from library.functions import (
 @pytest.mark.order(701)
 @pytest.mark.vast_mounts
 def test_vast_mount_points(host):
-    """TC-002: Verify /scratch, /home, /apps, /projects directories."""
+    """Verify /scratch, /home, /apps, /projects directories."""
     verify_pxeboot(host, "vast_mount_points", check_vast_mount_points)
 
 
@@ -38,7 +37,7 @@ def test_vast_mount_points(host):
 @pytest.mark.order(703)
 @pytest.mark.vast_mounts
 def test_vast_mount_options(host):
-    """TC-004: Verify proto=rdma and port=20049 in /proc/mounts."""
+    """Verify proto=rdma and port=20049 in /proc/mounts."""
     verify_pxeboot(host, "vast_mount_options", check_vast_mount_options)
 
 
@@ -46,7 +45,7 @@ def test_vast_mount_options(host):
 @pytest.mark.order(710)
 @pytest.mark.vast_mounts
 def test_vast_fstab_entries(host):
-    """TC-011: Verify /etc/fstab entries with proto=rdma."""
+    """Verify /etc/fstab entries with proto=rdma."""
     verify_pxeboot(host, "vast_fstab_entries", check_vast_fstab_entries)
 
 
@@ -54,5 +53,5 @@ def test_vast_fstab_entries(host):
 @pytest.mark.order(711)
 @pytest.mark.vast_mounts
 def test_vast_rdma_mount(host):
-    """TC-012: Verify RDMA transport and 1 GB I/O checksum."""
+    """Verify RDMA transport and 1 GB I/O checksum."""
     verify_pxeboot(host, "vast_rdma_mount", check_vast_rdma_mount)

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""VAST Slurm log persistence validation test (TC-014)."""
+"""VAST Slurm log persistence validation test."""
 
 import pytest
 
@@ -24,7 +24,7 @@ from library.functions import check_vast_slurm_logs_persistence
 @pytest.mark.order(713)
 @pytest.mark.vast_persistence
 def test_vast_slurm_logs_persistence(host):
-    """TC-014: Verify Slurm logs on persistent storage; sacct accessible."""
+    """Verify Slurm logs on persistent storage; sacct accessible."""
     verify_pxeboot(
         host, "vast_slurm_logs_persistence",
         check_vast_slurm_logs_persistence,

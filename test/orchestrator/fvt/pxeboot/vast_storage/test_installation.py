@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""VAST NFS client installation verification tests (TC-001, TC-010)."""
+"""VAST NFS client installation verification tests."""
 
 import pytest
 
@@ -27,7 +27,7 @@ from library.functions import (
 @pytest.mark.order(700)
 @pytest.mark.vast_installation
 def test_vast_vastnfs_installation(host):
-    """TC-001: Verify vastnfs-ctl status on compute nodes."""
+    """Verify vastnfs-ctl status on compute nodes."""
     verify_pxeboot(host, "vast_vastnfs_installation", check_vast_vastnfs_installation)
 
 
@@ -35,5 +35,5 @@ def test_vast_vastnfs_installation(host):
 @pytest.mark.order(709)
 @pytest.mark.vast_installation
 def test_vast_vastnfs_rpm_and_module(host):
-    """TC-010: Verify vastnfs RPM, kernel module, and service."""
+    """Verify vastnfs RPM, kernel module, and service."""
     verify_pxeboot(host, "vast_vastnfs_rpm_and_module", check_vast_vastnfs_rpm_and_module)
