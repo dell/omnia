@@ -93,10 +93,18 @@
           {{ _bench_artifact_throughput.result }}
 
     # TC-NFT-003: IPv6/IPv4 throughput parity
+    # Note: IB interface names use predictable naming (e.g., ibp10s0)
+    # not generic ib0/ib1. Discover the actual name before benchmarking.
+    - name: Discover IB interface for throughput benchmark
+      ansible.builtin.script: "{{ playbook_dir }}/../../roles/ib_ipv6_config/files/discover_ib_interfaces.sh"
+      register: _discovered_bench_if
+      changed_when: false
+      failed_when: false
+
     - name: "[TC-NFT-003] IPv6/IPv4 throughput parity benchmark"
       benchmark_ib_ipv6:
         benchmark: throughput_parity
-        interface: "{{ ib_ipv6_interface | default('ib0') }}"
+        interface: "{{ ib_ipv6_interface | default(_discovered_bench_if.stdout_lines | default(['ib0']) | first) }}"
         peer_address_v4: "{{ ib_ipv6_peer_v4 | default('') }}"
         peer_address_v6: "{{ ib_ipv6_peer_v6 | default('') }}"
         iterations: 5
@@ -133,11 +141,17 @@
     build_id: "{{ lookup('env', 'OMNIA_BUILD_ID') | default('dev', true) }}"
 
   tasks:
+    - name: Discover IPoIB interface names on this node
+      ansible.builtin.script: "{{ playbook_dir }}/../../roles/ib_ipv6_config/files/discover_ib_interfaces.sh"
+      register: _discovered_ib_interfaces
+      changed_when: false
+      failed_when: false
+
     - name: Collect IPoIB IPv6 evidence from target node
       collect_ib_ipv6_evidence:
         node_id: "{{ inventory_hostname }}"
         build_id: "{{ build_id }}"
-        interfaces: "{{ ib_ipv6_interfaces | default(['ib0']) }}"
+        interfaces: "{{ ib_ipv6_interfaces | default(_discovered_ib_interfaces.stdout_lines | default(['ib0'])) }}"
         output_dir: "{{ evidence_dir }}"
         test_results: "{{ hostvars['localhost']['_ib_ipv6_bench_summary'] | default({}) }}"
       register: _ib_ipv6_evidence
