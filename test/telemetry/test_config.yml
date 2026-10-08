@@ -104,13 +104,13 @@ delete_sinks_volume: false
 #   true  - remove telemetry_credentials.yml and its vault key
 #   false - preserve credential artifacts
 # Default: true
-cleanup_credentials: false
+cleanup_credentials: true
 
 # cleanup_logs:
 #   true  - remove the telemetry log directory
 #   false - preserve the log directory
 # Default: true
-cleanup_logs: false
+cleanup_logs: true
 
 # =============================================================================
 # SELECTIVE SINK CONFIGURATION
@@ -131,11 +131,11 @@ cleanup_logs: false
 
 # Which sinks to include when running deploy_sinks tag.
 # Default: [] (all sinks)
-deploy_sinks_enabled: ["kafka","victoria_metrics"]
+deploy_sinks_enabled: []
 
 # Which sinks to include when running cleanup_sinks tag.
 # Default: [] (all sinks)
-cleanup_sinks_enabled: ["kafka","victoria_metrics"]
+cleanup_sinks_enabled: []
 
 # =============================================================================
 # EXTERNAL APPLIANCE SETTINGS
