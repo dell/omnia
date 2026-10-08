@@ -35,10 +35,30 @@ spec:
   # ========================================
   # Container Image Configuration
   # ========================================
+{% set _vlagent_img = victoria_logs_cluster.vlagent.image %}
+{% set _vlagent_parts = _vlagent_img | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _vlagent_repo = '/'.join(_vlagent_parts[1:]) if (_vlagent_parts | length) > 2 or '.' in _vlagent_parts[0] else '/'.join(_vlagent_parts) %}
+{% set _vlagent_tag = _vlagent_img.split(':')[-1] %}
   image:
-    repository: {{ victoria_logs_cluster.vlagent.image.split(':')[0] }}
-    tag: {{ victoria_logs_cluster.vlagent.image.split(':')[1] }}
+{% if telemetry_registry.host | default('') %}
+    repository: {{ telemetry_registry.host }}/{{ _vlagent_repo }}
+{% else %}
+    repository: {{ _vlagent_repo }}
+{% endif %}
+    tag: {{ _vlagent_tag }}
     pullPolicy: IfNotPresent
+
+  # Config reloader sidecar image (used by operator for config hot-reload)
+  # In offline mode with container_registry set, use the custom registry; otherwise use the full image URL
+{% set _config_reloader_image = telemetry_registry.images.victoria_operator.config_reloader | default('docker.io/victoriametrics/operator:config-reloader-v0.68.3') %}
+{% if telemetry_registry.host | default('') %}
+{% set _parts = _config_reloader_image | regex_replace(':[^:]+$', '') | split('/') %}
+{% set _repo = '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) %}
+{% set _tag = _config_reloader_image.split(':')[-1] %}
+  configReloaderImage: "{{ telemetry_registry.host }}/{{ _repo }}:{{ _tag }}"
+{% else %}
+  configReloaderImage: "{{ _config_reloader_image }}"
+{% endif %}
 
   # ========================================
   # Replica Configuration
@@ -103,7 +123,11 @@ spec:
   # The init container removes stale flock.lock files before vlagent starts.
   initContainers:
     - name: cleanup-stale-locks
-      image: {{ victoria_logs_cluster.vlagent.image.split(':')[0] }}:{{ victoria_logs_cluster.vlagent.image.split(':')[1] }}
+{% if telemetry_registry.host | default('') %}
+      image: {{ telemetry_registry.host }}/{{ _vlagent_repo }}:{{ _vlagent_tag }}
+{% else %}
+      image: {{ _vlagent_repo }}:{{ _vlagent_tag }}
+{% endif %}
       command:
         - /bin/sh
         - -c
