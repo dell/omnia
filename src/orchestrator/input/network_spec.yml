@@ -93,4 +93,4 @@ Networks:
       ipv6_subnet: "fd00:1b::"
       ipv6_netmask_bits: "64"
       ib_addr_mode: "dual-stack"
-      slurm_preferred_addr_family: "ipv4"
+      slurm_preferred_addr_family: "ipv6"
