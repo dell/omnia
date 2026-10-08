@@ -49,6 +49,66 @@ from .telemetry_func import (
 )
 
 
+def verify_ufm_resources_absent(host):
+    """Verify UFM disable removed Service, Endpoints, and VMServiceScrape.
+
+    Checks that the three resources deleted during disable are absent, and
+    that the credentials Secret is preserved for re-enablement.
+
+    Returns:
+        dict with keys: success, resources (list of per-resource dicts),
+        secret_preserved, error.
+    """
+    resources = []
+    checks = [
+        ("service", UFM_SVC_NAME, UFM_CMD_TEMPLATES["get_service_json"]),
+        ("endpoints", UFM_SVC_NAME, UFM_CMD_TEMPLATES["get_endpoints_json"]),
+        ("vmservicescrape", UFM_VMSCRAPE_NAME, UFM_CMD_TEMPLATES["get_vmscrape_json"]),
+    ]
+    for kind, name, cmd_template in checks:
+        cmd = cmd_template.format(name=name, namespace=TELEMETRY_NAMESPACE)
+        result = run_on_kube_vip(host, cmd)
+        exists = result.rc == 0 and bool(result.stdout.strip())
+        resources.append({
+            "kind": kind,
+            "name": name,
+            "absent": not exists,
+            "success": not exists,
+        })
+
+    # Secret must be preserved
+    secret_cmd = UFM_CMD_TEMPLATES["get_secret_json"].format(
+        name=UFM_SECRET_NAME,
+        namespace=TELEMETRY_NAMESPACE,
+    )
+    secret_result = run_on_kube_vip(host, secret_cmd)
+    secret_preserved = (
+        secret_result.rc == 0 and bool(secret_result.stdout.strip())
+    )
+
+    all_absent = all(r["success"] for r in resources)
+    still_present = [
+        f"{r['kind']}/{r['name']}" for r in resources if not r["success"]
+    ]
+    errors = []
+    if not all_absent:
+        errors.append(
+            f"expected absent but found: {', '.join(still_present)}"
+        )
+    if not secret_preserved:
+        errors.append(
+            f"credentials secret {UFM_SECRET_NAME} was deleted "
+            "(should be preserved for re-enablement)"
+        )
+
+    return {
+        "success": all_absent and secret_preserved,
+        "resources": resources,
+        "secret_preserved": secret_preserved,
+        "error": "; ".join(errors),
+    }
+
+
 def verify_ufm_external_service(host):
     """Verify UFM external headless service exists and has correct endpoint.
 

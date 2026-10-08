@@ -96,7 +96,6 @@
 - name: "Phase 2 | Deploy UFM telemetry"
   ansible.builtin.import_playbook: sources/deploy_ufm.yml
   tags: deploy
-  when: hostvars['localhost']['telemetry_config'].telemetry_sources.ufm.metrics_enabled | default(false) | bool
 
 - name: "Phase 2 | Deploy VAST telemetry"
   ansible.builtin.import_playbook: sources/deploy_vast.yml
@@ -491,10 +490,10 @@
              | select('search', 'Running') | list | length) > 0 }}
       ansible.builtin.set_fact:
         _deploy_result_ufm_metrics: >-
-          {{ 'skipped' if not (_ufm_m_on | bool)
+          {{ 'disabled' if not (_ufm_m_on | bool)
              else ('deployed' if (_ufm_ok | bool) else 'failed') }}
         _deploy_result_ufm_logs: >-
-          {{ 'skipped' if not (_ufm_l_on | bool)
+          {{ 'disabled' if not (_ufm_l_on | bool)
              else ('deployed' if (_vlagent_running | bool) else 'failed') }}
         _deploy_result_vast_metrics: >-
           {{ 'skipped' if not (_vast_m_on | bool) else 'deployed' }}
