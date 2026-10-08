@@ -809,6 +809,26 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify msr-safe is staged only for x86_64",
         "component": "HPC benchmarks msr-safe arch boundary",
     },
+    "hpc_benchmarks_platform_script": {
+        "id": "ORCH_FVT_PXEBOOT_V219",
+        "title": "Verify omnia_platform.sh deployment and platform detection",
+        "component": "HPC benchmarks platform script",
+    },
+    "hpc_benchmarks_platform_directory_structure": {
+        "id": "ORCH_FVT_PXEBOOT_V221",
+        "title": "Verify platform-specific directory structure exists per architecture",
+        "component": "HPC benchmarks platform directory structure",
+    },
+    "hpc_benchmarks_offline_package_copy": {
+        "id": "ORCH_FVT_PXEBOOT_V222",
+        "title": "Verify offline packages are copied to slurm_config_path/packages/{arch}/",
+        "component": "HPC benchmarks offline package copy",
+    },
+    "hpc_benchmarks_container_image_list": {
+        "id": "ORCH_FVT_PXEBOOT_V220",
+        "title": "Verify container_image.list deployment and content validation",
+        "component": "HPC benchmarks container image list",
+    },
     "hpc_benchmarks_container_first_guidance": {
         "id": "ORCH_FVT_PXEBOOT_V205",
         "title": "Verify pull_benchmarks.sh and benchmark_tools.list are deployed",
@@ -894,8 +914,23 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify CoreDNS reverse resolution from OIM for mapped admin IPs",
         "component": "CoreDNS reverse resolution",
     },
-    "coredhcp_multisubnet_running_image": {
+    "coredns_dns_forwarders": {
         "id": "ORCH_FVT_PXEBOOT_V303",
+        "title": "Verify DNS forwarders are configured and can resolve external domains",
+        "component": "CoreDNS forwarders configuration",
+    },
+    "coredns_corefile_config": {
+        "id": "ORCH_FVT_PXEBOOT_V304",
+        "title": "Verify Corefile configuration is correctly rendered",
+        "component": "CoreDNS Corefile configuration",
+    },
+    "coredhcp_config_file": {
+        "id": "ORCH_FVT_PXEBOOT_V305",
+        "title": "Verify coredhcp.yaml configuration file is correctly rendered",
+        "component": "CoreDHCP configuration file",
+    },
+    "coredhcp_multisubnet_running_image": {
+        "id": "ORCH_FVT_PXEBOOT_V306",
         "title": (
             "Verify multi-subnet coresmd containers and rendered subnet "
             "configuration (defect 843 open for live subnet validation)"
@@ -903,22 +938,22 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "CoreDHCP multi-subnet image and config",
     },
     "dns_compute_resolv_conf": {
-        "id": "ORCH_FVT_PXEBOOT_V304",
+        "id": "ORCH_FVT_PXEBOOT_V307",
         "title": "Verify /etc/resolv.conf on every compute uses CoreDNS as primary",
         "component": "Compute /etc/resolv.conf",
     },
     "dns_compute_forward_getent": {
-        "id": "ORCH_FVT_PXEBOOT_V305",
+        "id": "ORCH_FVT_PXEBOOT_V308",
         "title": "Verify every compute resolves peers via getent hosts",
         "component": "Compute getent hosts resolution",
     },
     "coredns_idempotency": {
-        "id": "ORCH_FVT_PXEBOOT_V306",
+        "id": "ORCH_FVT_PXEBOOT_V309",
         "title": "Verify CoreDNS/CoreDHCP state stability (no-drift)",
         "component": "CoreDNS state stability",
     },
     "dns_node_addition_pipeline": {
-        "id": "ORCH_FVT_PXEBOOT_V307",
+        "id": "ORCH_FVT_PXEBOOT_V310",
         "title": (
             "Verify SMD-to-CoreDNS pipeline readiness (existing registrations "
             "only; defect 843 open for live add-node)"
@@ -926,7 +961,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "CoreDNS node-addition pipeline readiness",
     },
     "dns_smd_unreachable_cached_resolution": {
-        "id": "ORCH_FVT_PXEBOOT_V308",
+        "id": "ORCH_FVT_PXEBOOT_V311",
         "title": "Verify CoreDNS serves cached records when SMD is unavailable",
         "component": "CoreDNS SMD-unavailable cached resolution",
     },

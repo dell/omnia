@@ -23,8 +23,11 @@ PXE mapping, and repeated-deployment stability.
 import pytest
 from library.functions import (
     TestLogger,
+    check_coredhcp_config_file,
     check_coredhcp_multisubnet_running_image,
     check_coredns_container_state,
+    check_coredns_corefile_config,
+    check_coredns_dns_forwarders,
     check_coredns_forward_resolution,
     check_coredns_idempotency,
     check_coredns_reverse_resolution,
@@ -69,11 +72,47 @@ def test_coredns_reverse_resolution(host):
 
 
 @pytest.mark.buildstream
+@pytest.mark.functional
 @pytest.mark.sanity
 @pytest.mark.non_disruptive
 @pytest.mark.order(40704)
+def test_coredns_dns_forwarders(host):
+    """TC-04: verify DNS forwarders are configured and can resolve external domains."""
+    tc = TC["coredns_dns_forwarders"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_coredns_dns_forwarders)
+
+
+@pytest.mark.buildstream
+@pytest.mark.functional
+@pytest.mark.sanity
+@pytest.mark.non_disruptive
+@pytest.mark.order(40705)
+def test_coredns_corefile_config(host):
+    """TC-05: verify Corefile configuration is correctly rendered."""
+    tc = TC["coredns_corefile_config"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_coredns_corefile_config)
+
+
+@pytest.mark.buildstream
+@pytest.mark.functional
+@pytest.mark.sanity
+@pytest.mark.non_disruptive
+@pytest.mark.order(40706)
+def test_coredhcp_config_file(host):
+    """TC-06: verify coredhcp.yaml configuration file is correctly rendered."""
+    tc = TC["coredhcp_config_file"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_coredhcp_config_file)
+
+
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.non_disruptive
+@pytest.mark.order(40707)
 def test_coredhcp_multisubnet_running_image(host):
-    """TC-04: multi-subnet dataset -> coresmd containers use expected image."""
+    """TC-07: multi-subnet dataset -> coresmd containers use expected image."""
     tc = TC["coredhcp_multisubnet_running_image"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_coredhcp_multisubnet_running_image)
@@ -82,9 +121,9 @@ def test_coredhcp_multisubnet_running_image(host):
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.non_disruptive
-@pytest.mark.order(40705)
+@pytest.mark.order(40708)
 def test_coredns_idempotency(host):
-    """TC-07: coresmd state stability (no-drift) across a settle window."""
+    """TC-08: coresmd state stability (no-drift) across a settle window."""
     tc = TC["coredns_idempotency"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_coredns_idempotency)

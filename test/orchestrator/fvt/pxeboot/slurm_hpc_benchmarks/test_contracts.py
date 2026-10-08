@@ -18,7 +18,11 @@ import pytest
 from library.functions import (
     TestLogger,
     check_hpc_benchmarks_container_first_guidance,
+    check_hpc_benchmarks_container_image_list,
     check_hpc_benchmarks_nfs_accessibility,
+    check_hpc_benchmarks_offline_package_copy,
+    check_hpc_benchmarks_platform_directory_structure,
+    check_hpc_benchmarks_platform_script,
     check_hpc_benchmarks_source_only_delivery,
 )
 from library.vars import TEST_CASES as TC
@@ -30,6 +34,50 @@ from fvt.result import verify_pxeboot
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
 @pytest.mark.order(42008)
+def test_hpc_benchmarks_platform_script(host):
+    """TC-06a: Verify omnia_platform.sh deployment and platform detection."""
+    tc = TC["hpc_benchmarks_platform_script"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_platform_script)
+
+
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42009)
+def test_hpc_benchmarks_container_image_list(host):
+    """TC-06b: Verify container_image.list deployment and content validation."""
+    tc = TC["hpc_benchmarks_container_image_list"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_container_image_list)
+
+
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42010)
+def test_hpc_benchmarks_platform_directory_structure(host):
+    """TC-06c: Verify platform-specific directory structure exists per architecture."""
+    tc = TC["hpc_benchmarks_platform_directory_structure"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_platform_directory_structure)
+
+
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42011)
+def test_hpc_benchmarks_offline_package_copy(host):
+    """TC-06d: Verify offline packages are copied to slurm_config_path/packages/{arch}/."""
+    tc = TC["hpc_benchmarks_offline_package_copy"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_offline_package_copy)
+
+
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42012)
 def test_hpc_benchmarks_container_first_guidance(host):
     """TC-06: Verify pull_benchmarks.sh and benchmark_tools.list are deployed.
 
@@ -46,7 +94,7 @@ def test_hpc_benchmarks_container_first_guidance(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42009)
+@pytest.mark.order(42013)
 def test_hpc_benchmarks_source_only_delivery(host):
     """TC-07: Verify no compile/build commands are staged with the artifacts."""
     tc = TC["hpc_benchmarks_source_only_delivery"]
@@ -58,7 +106,7 @@ def test_hpc_benchmarks_source_only_delivery(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42010)
+@pytest.mark.order(42014)
 def test_hpc_benchmarks_nfs_accessibility(host):
     """TC-10: Verify /hpc_tools NFS is mounted and readable on compute nodes."""
     tc = TC["hpc_benchmarks_nfs_accessibility"]

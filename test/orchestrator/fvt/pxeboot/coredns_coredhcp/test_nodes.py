@@ -34,9 +34,9 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(40706)
+@pytest.mark.order(40709)
 def test_dns_compute_resolv_conf(host):
-    """TC-05: /etc/resolv.conf on every compute has CoreDNS as primary."""
+    """TC-09: /etc/resolv.conf on every compute has CoreDNS as primary."""
     tc = TC["dns_compute_resolv_conf"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_dns_compute_resolv_conf)
@@ -47,9 +47,9 @@ def test_dns_compute_resolv_conf(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(40707)
+@pytest.mark.order(40710)
 def test_dns_compute_forward_getent(host):
-    """TC-06: getent hosts on every compute resolves every mapped peer."""
+    """TC-10: getent hosts on every compute resolves every mapped peer."""
     tc = TC["dns_compute_forward_getent"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_dns_compute_forward_getent)

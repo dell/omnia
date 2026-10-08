@@ -31,7 +31,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42011)
+@pytest.mark.order(42015)
 def test_hpc_benchmarks_e2e_provisioning(host):
     """TC-09: Verify the end-to-end benchmark provisioning pipeline."""
     tc = TC["hpc_benchmarks_e2e_provisioning"]

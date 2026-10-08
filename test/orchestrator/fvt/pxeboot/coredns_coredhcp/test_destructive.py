@@ -31,9 +31,9 @@ from fvt.result import verify_pxeboot
 
 @pytest.mark.functional
 @pytest.mark.destructive
-@pytest.mark.order(40708)
+@pytest.mark.order(40711)
 def test_dns_node_addition_pipeline(host):
-    """TC-08: prove SMD-to-CoreDNS pipeline resolves every mapped node."""
+    """TC-11: prove SMD-to-CoreDNS pipeline resolves every mapped node."""
     tc = TC["dns_node_addition_pipeline"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_dns_node_addition_pipeline)
@@ -41,9 +41,9 @@ def test_dns_node_addition_pipeline(host):
 
 @pytest.mark.functional
 @pytest.mark.destructive
-@pytest.mark.order(40709)
+@pytest.mark.order(40712)
 def test_dns_smd_unreachable_cached_resolution(host):
-    """TC-09: pause SMD briefly; CoreDNS must keep serving cached records."""
+    """TC-12: pause SMD briefly; CoreDNS must keep serving cached records."""
     tc = TC["dns_smd_unreachable_cached_resolution"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_dns_smd_unreachable_cached_resolution)
