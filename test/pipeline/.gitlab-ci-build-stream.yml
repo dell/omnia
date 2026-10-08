@@ -2341,6 +2341,7 @@ summary:
     - export TARGET_USER="${TARGET_USER}"
     - export TARGET_PASS="${TARGET_PASS}"
     - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
+    - export OMNIA_BRANCH="${OMNIA_BRANCH}"
     - export BUILD_STREAM_ENABLE="true"
 
     - echo "Sending email notification..."

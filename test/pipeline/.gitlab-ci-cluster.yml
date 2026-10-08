@@ -2923,6 +2923,7 @@ summary:
     - export TARGET_USER="${TARGET_USER}"
     - export TARGET_PASS="${TARGET_PASS}"
     - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
+    - export OMNIA_BRANCH="${OMNIA_BRANCH}"
 
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"

@@ -73,6 +73,7 @@ enable_discovery = os.environ.get("ENABLE_DISCOVERY", "false").lower() == "true"
 target_user = os.environ.get("TARGET_USER", "")
 target_pass = os.environ.get("TARGET_PASS", "")
 omnia_install_path = os.environ.get("OMNIA_INSTALL_PATH", "")
+omnia_branch = os.environ.get("OMNIA_BRANCH", "")
 
 # Get the actual commit ID from the cloned repo on target server
 # SSH into target server and run: cd $OMNIA_INSTALL_PATH && git rev-parse HEAD
@@ -680,6 +681,7 @@ html_body = f"""
     <p><strong>Pipeline Trigger Time:</strong> {trigger_time}</p>
     <p><strong>Pipeline URL:</strong>
         <a href="{pipeline_url}">{pipeline_url}</a></p>
+    <p><strong>Omnia Branch:</strong> {omnia_branch}</p>
     <p><strong>Commit ID:</strong> {commit_id}</p>
 
     <h3>Stage Execution Summary</h3>
