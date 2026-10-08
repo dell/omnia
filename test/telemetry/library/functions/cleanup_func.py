@@ -127,6 +127,124 @@ def cleanup_selection_fields(
 
 
 # =============================================================================
+# SELECTIVE SINK CONFIGURATION (deploy_sinks / cleanup_sinks)
+# =============================================================================
+
+_VALID_SINK_NAMES = frozenset({"kafka", "victoria_metrics", "victoria_logs"})
+
+
+def _resolve_sinks_enabled(
+    config_key: str,
+    config: Dict[str, Any] | None = None,
+) -> List[str]:
+    """Resolve the list of enabled sinks from ``test_config.yml``.
+
+    Args:
+        config_key: Config key to read (``deploy_sinks_enabled`` or
+            ``cleanup_sinks_enabled``).
+        config: Optional pre-loaded config dict.
+
+    Returns:
+        List of valid sink names.  An empty list means *all* sinks.
+
+    Raises:
+        ValueError: If invalid sink names are provided.
+    """
+    source = config if config is not None else load_test_config()
+    raw = source.get(config_key, [])
+
+    # "all" or empty list → operate on all sinks
+    if not raw or raw == "all":
+        return []
+
+    if isinstance(raw, str):
+        raw = [raw]
+
+    # Validate all sink names
+    invalid_sinks = [s for s in raw if s not in _VALID_SINK_NAMES]
+    if invalid_sinks:
+        raise ValueError(
+            f"Invalid sink name(s) in '{config_key}': {invalid_sinks}. "
+            f"Valid sinks are: {sorted(_VALID_SINK_NAMES)}"
+        )
+
+    return [s for s in raw if s in _VALID_SINK_NAMES]
+
+
+def deploy_sinks_enabled(
+    config: Dict[str, Any] | None = None,
+) -> List[str]:
+    """Return the list of sinks to deploy from ``deploy_sinks_enabled``.
+
+    An empty list means deploy all sinks (default behavior).
+
+    Args:
+        config: Optional pre-loaded config dict.
+
+    Returns:
+        List of sink names, or empty list for all sinks.
+    """
+    return _resolve_sinks_enabled("deploy_sinks_enabled", config)
+
+
+def cleanup_sinks_enabled(
+    config: Dict[str, Any] | None = None,
+) -> List[str]:
+    """Return the list of sinks to cleanup from ``cleanup_sinks_enabled``.
+
+    An empty list means cleanup all sinks (default behavior).
+
+    Args:
+        config: Optional pre-loaded config dict.
+
+    Returns:
+        List of sink names, or empty list for all sinks.
+    """
+    return _resolve_sinks_enabled("cleanup_sinks_enabled", config)
+
+
+def is_sink_selected(sink_name: str, enabled_list: List[str]) -> bool:
+    """Check if a sink is selected for the current operation.
+
+    Args:
+        sink_name: Sink name (``kafka``, ``victoria_metrics``,
+            ``victoria_logs``).
+        enabled_list: List from ``deploy_sinks_enabled()`` or
+            ``cleanup_sinks_enabled()``.
+
+    Returns:
+        True if the sink should be included.  When *enabled_list* is
+        empty (all sinks), always returns True.
+    """
+    if not enabled_list:
+        return True
+    return sink_name in enabled_list
+
+
+def sinks_extra_vars(enabled_list: List[str]) -> Dict[str, str]:
+    """Build Ansible extra-vars for selective sink operations.
+
+    When *enabled_list* is non-empty, the ``sinks`` variable is passed
+    as a comma-separated string so the Ansible playbook only operates
+    on selected sinks.
+
+    Args:
+        enabled_list: List from ``deploy_sinks_enabled()`` or
+            ``cleanup_sinks_enabled()``.
+
+    Returns:
+        Dict of extra-vars to pass to the playbook, or empty dict
+        when all sinks are selected.
+    """
+    if not enabled_list:
+        return {}
+
+    # Pass as comma-separated string: "kafka,victoria_metrics"
+    # The playbook's Normalize task will split it back into a list
+    return {"sinks": ",".join(enabled_list)}
+
+
+# =============================================================================
 # HELPER — get pod count by prefix
 # =============================================================================
 

@@ -18,6 +18,9 @@ Telemetry Cleanup Sinks --- Post-Cleanup Verification.
 Verifies that sink infrastructure (Kafka, VictoriaMetrics, VictoriaLogs)
 has been removed after ``cleanup_sinks``.
 
+When ``cleanup_sinks_enabled`` is configured in ``test_config.yml``,
+verify tests for non-selected sinks are skipped.
+
 Test cases:
     TEL_FVT_CLEANUP_V003: Verify Kafka pods removed after cleanup
     TEL_FVT_CLEANUP_V004: Verify VictoriaMetrics pods removed after cleanup
@@ -37,6 +40,8 @@ from library.functions.cleanup_func import (
     verify_kafka_cleaned,
     verify_victoria_metrics_cleaned,
     verify_victoria_logs_cleaned,
+    cleanup_sinks_enabled,
+    is_sink_selected,
 )
 
 
@@ -47,6 +52,10 @@ def test_cleanup_sinks_kafka(host):
     """TEL_FVT_CLEANUP_V003: Verify Kafka resources removed after cleanup_sinks."""
     tc = TC["cleanup_kafka"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    if not is_sink_selected("kafka", cleanup_sinks_enabled()):
+        tl.skipped("Kafka not in cleanup_sinks_enabled configuration")
+        pytest.skip("Kafka not in cleanup_sinks_enabled")
 
     result = verify_kafka_cleaned(host)
 
@@ -66,6 +75,10 @@ def test_cleanup_sinks_victoria_metrics(host):
     tc = TC["cleanup_victoria_metrics"]
     tl = TestLogger(tc["title"], tc["id"])
 
+    if not is_sink_selected("victoria_metrics", cleanup_sinks_enabled()):
+        tl.skipped("VictoriaMetrics not in cleanup_sinks_enabled configuration")
+        pytest.skip("VictoriaMetrics not in cleanup_sinks_enabled")
+
     result = verify_victoria_metrics_cleaned(host)
 
     if result["success"]:
@@ -83,6 +96,10 @@ def test_cleanup_sinks_victoria_logs(host):
     """TEL_FVT_CLEANUP_V005: Verify VictoriaLogs resources removed after cleanup_sinks."""
     tc = TC["cleanup_victoria_logs"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    if not is_sink_selected("victoria_logs", cleanup_sinks_enabled()):
+        tl.skipped("VictoriaLogs not in cleanup_sinks_enabled configuration")
+        pytest.skip("VictoriaLogs not in cleanup_sinks_enabled")
 
     result = verify_victoria_logs_cleaned(host)
 

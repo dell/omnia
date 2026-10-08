@@ -79,6 +79,7 @@ from .telemetry_func import (
 from .k8s_func import (
     verify_all_pods_running,
     verify_pods_by_prefix,
+    verify_pods_by_prefix_with_retry,
     verify_sts_ready,
     verify_deploy_ready,
     verify_deploy_pods_detail,
@@ -167,6 +168,10 @@ from .validation_func import (
 from .cleanup_func import (
     cleanup_extra_vars,
     cleanup_selection_fields,
+    deploy_sinks_enabled,
+    cleanup_sinks_enabled,
+    is_sink_selected,
+    sinks_extra_vars,
 )
 
 
@@ -221,6 +226,7 @@ __all__ = [
     # k8s
     "verify_all_pods_running",
     "verify_pods_by_prefix",
+    "verify_pods_by_prefix_with_retry",
     "verify_sts_ready",
     "verify_deploy_ready",
     "verify_deploy_pods_detail",
@@ -286,4 +292,9 @@ __all__ = [
     # cleanup config-driven
     "cleanup_extra_vars",
     "cleanup_selection_fields",
+    # selective sink config
+    "deploy_sinks_enabled",
+    "cleanup_sinks_enabled",
+    "is_sink_selected",
+    "sinks_extra_vars",
 ]

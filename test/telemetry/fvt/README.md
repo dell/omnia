@@ -60,12 +60,15 @@ tag.
 | TEL_FVT_DEPLOY_V006 | Verify VictoriaLogs cluster pods running | sink, sanity |
 | TEL_FVT_DEPLOY_V007 | Verify VLAgent pods running | sink, sanity |
 
-Run deploy_sinks with selective sink configuration via `test_config.yml`:
+Selective sink configuration via `test_config.yml`:
 ```yaml
-deploy_sinks_enabled: []  # Empty or "all" = deploy all sinks
-# Or specify selective sinks:
-deploy_sinks_enabled: ["kafka", "victoria_metrics", "victoria_logs"]
+deploy_sinks_enabled: []                               # Deploy all sinks (default)
+deploy_sinks_enabled: ["kafka"]                        # Deploy only Kafka
+deploy_sinks_enabled: ["kafka", "victoria_metrics"]    # Deploy Kafka + VM
 ```
+
+When `deploy_sinks_enabled` is non-empty, only the specified sinks are deployed
+and verify tests for non-selected sinks are automatically skipped.
 
 ### Sinks (deploy tag)
 
@@ -283,15 +286,18 @@ current pod. Previous certificate imports are retained as rollback material.
 | TEL_FVT_CLEANUP_V004 | Verify VictoriaMetrics pods removed | sink, functional |
 | TEL_FVT_CLEANUP_V005 | Verify VictoriaLogs pods removed | sink, functional |
 
-Run cleanup_sinks with selective sink configuration via `test_config.yml`:
+Selective sink configuration via `test_config.yml`:
 ```yaml
-cleanup_sinks_enabled: []  # Empty or "all" = cleanup all sinks
-# Or specify selective sinks:
-cleanup_sinks_enabled: ["kafka", "victoria_metrics", "victoria_logs"]
+cleanup_sinks_enabled: []                               # Cleanup all sinks (default)
+cleanup_sinks_enabled: ["kafka"]                        # Cleanup only Kafka
+cleanup_sinks_enabled: ["victoria_metrics"]             # Cleanup only VM
 ```
 
+When `cleanup_sinks_enabled` is non-empty, only the specified sinks are cleaned
+and verify tests for non-selected sinks are automatically skipped.
+
 **Sink Dependency Blocking**: When sources are still running, cleanup_sinks will
-be blocked. The playbook respects the `sinks` parameter to selectively cleanup
+be blocked. The playbook respects the sink selection to selectively cleanup
 individual sinks while preserving others.
 
 ### Cleanup Per-Source Tags

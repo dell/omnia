@@ -20,7 +20,8 @@ infrastructure (Kafka, VictoriaMetrics, VictoriaLogs) with dependency
 checking.
 
 Uses ``cleanup_extra_vars()`` from ``test_config.yml`` to resolve
-the ``Delete_sinks_volume`` flag.
+the ``Delete_sinks_volume`` flag.  When ``cleanup_sinks_enabled`` is
+configured, only the specified sinks are cleaned.
 
 Test cases:
     TEL_FVT_CLEANUP_SINKS_E001: Cleanup sinks (--tags cleanup_sinks)
@@ -37,6 +38,8 @@ from library.messages.telemetry_msgs import (
 from library.functions.cleanup_func import (
     cleanup_extra_vars,
     cleanup_selection_fields,
+    cleanup_sinks_enabled,
+    sinks_extra_vars,
 )
 
 
@@ -48,17 +51,25 @@ def test_deploy_cleanup_sinks(host):
     """TEL_FVT_CLEANUP_SINKS_E001: Run ``telemetry.yml --tags cleanup_sinks``.
 
     Runs selective sink cleanup.  The ``Delete_sinks_volume`` flag is
-    resolved from ``test_config.yml``.  Dependency checking is performed
-    by the Ansible role -- if any dependent source is still running, the
-    playbook blocks cleanup and returns a non-zero exit code.
+    resolved from ``test_config.yml``.  When ``cleanup_sinks_enabled``
+    is set, only the specified sinks are cleaned.  Dependency checking
+    is performed by the Ansible role -- if any dependent source is still
+    running, the playbook blocks cleanup and returns a non-zero exit code.
     """
     tc = TC["deploy_cleanup_sinks"]
     tl = TestLogger(tc["title"], tc["id"])
 
     extra_vars = cleanup_extra_vars()
+    enabled = cleanup_sinks_enabled()
+    extra_vars.update(sinks_extra_vars(enabled))
+
     fields = cleanup_selection_fields()
+    sink_label = ", ".join(enabled) if enabled else "all"
     field_summary = ", ".join(f"{k}={v}" for k, v in fields)
-    tl.check(f"Running telemetry playbook --tags cleanup_sinks ({field_summary})")
+    tl.check(
+        f"Running telemetry playbook --tags cleanup_sinks "
+        f"(sinks: {sink_label}, {field_summary})"
+    )
 
     result = run_playbook(tag="cleanup_sinks", extra_vars=extra_vars or None)
 
@@ -67,7 +78,7 @@ def test_deploy_cleanup_sinks(host):
             LOG_MSGS["playbook_success"].format(
                 duration=f"{result['duration']:.1f}s",
             ),
-            f"rc={result['rc']}",
+            f"rc={result['rc']}, sinks={sink_label}",
         )
     else:
         tl.failed(

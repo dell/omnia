@@ -20,6 +20,9 @@ is running after ``deploy_sinks``.  Mirrors the tests in
 ``fvt/deploy/sinks/`` so that ``./run_validation.sh fvt_telemetry
 deploy_sinks verify`` provides the same checks.
 
+When ``deploy_sinks_enabled`` is configured in ``test_config.yml``,
+verify tests for non-selected sinks are skipped.
+
 Test cases:
     TEL_FVT_DEPLOY_V001: Verify Kafka broker/controller pods running
     TEL_FVT_DEPLOY_V002: Verify Kafka cluster Ready condition
@@ -49,7 +52,12 @@ from library.messages.telemetry_msgs import (
 )
 from library.functions.k8s_func import (
     verify_pods_by_prefix,
+    verify_pods_by_prefix_with_retry,
     verify_kafka_ready,
+)
+from library.functions.cleanup_func import (
+    deploy_sinks_enabled,
+    is_sink_selected,
 )
 
 
@@ -62,6 +70,10 @@ def test_kafka_pods(host):
     """TEL_FVT_DEPLOY_V001: Verify Kafka broker/controller pods running."""
     tc = TC["kafka_pods"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    if not is_sink_selected("kafka", deploy_sinks_enabled()):
+        tl.skipped("Kafka not in deploy_sinks_enabled configuration")
+        pytest.skip("Kafka not in deploy_sinks_enabled")
 
     all_ok = True
     for role, prefix in KAFKA_POD_PREFIXES.items():
@@ -104,6 +116,10 @@ def test_kafka_ready(host):
     tc = TC["kafka_ready"]
     tl = TestLogger(tc["title"], tc["id"])
 
+    if not is_sink_selected("kafka", deploy_sinks_enabled()):
+        tl.skipped("Kafka not in deploy_sinks_enabled configuration")
+        pytest.skip("Kafka not in deploy_sinks_enabled")
+
     tl.check("Checking Kafka cluster Ready condition")
     result = verify_kafka_ready(host)
 
@@ -132,6 +148,10 @@ def test_kafka_bridge(host):
     """TEL_FVT_DEPLOY_V003: Verify Kafka bridge pod running."""
     tc = TC["kafka_bridge"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    if not is_sink_selected("kafka", deploy_sinks_enabled()):
+        tl.skipped("Kafka not in deploy_sinks_enabled configuration")
+        pytest.skip("Kafka not in deploy_sinks_enabled")
 
     tl.check(f"Checking Kafka bridge pods (prefix: {KAFKA_BRIDGE_PREFIX})")
     result = verify_pods_by_prefix(host, KAFKA_BRIDGE_PREFIX, min_count=1)
@@ -172,6 +192,10 @@ def test_vm_cluster_pods(host):
     tc = TC["vm_cluster_pods"]
     tl = TestLogger(tc["title"], tc["id"])
 
+    if not is_sink_selected("victoria_metrics", deploy_sinks_enabled()):
+        tl.skipped("VictoriaMetrics not in deploy_sinks_enabled configuration")
+        pytest.skip("VictoriaMetrics not in deploy_sinks_enabled")
+
     if not is_sink_enabled(host, "victoria_metrics"):
         tl.skipped("VictoriaMetrics sink is not enabled in telemetry configuration")
         pytest.skip("VictoriaMetrics sink is not enabled")
@@ -179,7 +203,7 @@ def test_vm_cluster_pods(host):
     all_ok = True
     for role, prefix in VM_POD_PREFIXES.items():
         tl.check(f"Checking VM {role} pods (prefix: {prefix})")
-        result = verify_pods_by_prefix(host, prefix, min_count=1)
+        result = verify_pods_by_prefix_with_retry(host, prefix, min_count=1)
 
         if result["success"]:
             tl.passed(
@@ -216,12 +240,16 @@ def test_vmagent_pods(host):
     tc = TC["vmagent_pods"]
     tl = TestLogger(tc["title"], tc["id"])
 
+    if not is_sink_selected("victoria_metrics", deploy_sinks_enabled()):
+        tl.skipped("VictoriaMetrics not in deploy_sinks_enabled configuration")
+        pytest.skip("VictoriaMetrics not in deploy_sinks_enabled")
+
     if not is_sink_enabled(host, "victoria_metrics"):
         tl.skipped("VictoriaMetrics sink is not enabled in telemetry configuration")
         pytest.skip("VictoriaMetrics sink is not enabled")
 
     tl.check(f"Checking VMAgent pods (prefix: {VMAGENT_POD_PREFIX})")
-    result = verify_pods_by_prefix(host, VMAGENT_POD_PREFIX, min_count=1)
+    result = verify_pods_by_prefix_with_retry(host, VMAGENT_POD_PREFIX, min_count=1)
 
     if result["success"]:
         tl.passed(
@@ -259,6 +287,10 @@ def test_vl_cluster_pods(host):
     tc = TC["vl_cluster_pods"]
     tl = TestLogger(tc["title"], tc["id"])
 
+    if not is_sink_selected("victoria_logs", deploy_sinks_enabled()):
+        tl.skipped("VictoriaLogs not in deploy_sinks_enabled configuration")
+        pytest.skip("VictoriaLogs not in deploy_sinks_enabled")
+
     if not is_sink_enabled(host, "victoria_logs"):
         tl.skipped("VictoriaLogs sink is not enabled in telemetry configuration")
         pytest.skip("VictoriaLogs sink is not enabled")
@@ -266,7 +298,7 @@ def test_vl_cluster_pods(host):
     all_ok = True
     for role, prefix in VL_POD_PREFIXES.items():
         tl.check(f"Checking VL {role} pods (prefix: {prefix})")
-        result = verify_pods_by_prefix(host, prefix, min_count=1)
+        result = verify_pods_by_prefix_with_retry(host, prefix, min_count=1)
 
         if result["success"]:
             tl.passed(
@@ -303,12 +335,16 @@ def test_vlagent_pods(host):
     tc = TC["vlagent_pods"]
     tl = TestLogger(tc["title"], tc["id"])
 
+    if not is_sink_selected("victoria_logs", deploy_sinks_enabled()):
+        tl.skipped("VictoriaLogs not in deploy_sinks_enabled configuration")
+        pytest.skip("VictoriaLogs not in deploy_sinks_enabled")
+
     if not is_sink_enabled(host, "victoria_logs"):
         tl.skipped("VictoriaLogs sink is not enabled in telemetry configuration")
         pytest.skip("VictoriaLogs sink is not enabled")
 
     tl.check(f"Checking VLAgent pods (prefix: {VLAGENT_POD_PREFIX})")
-    result = verify_pods_by_prefix(host, VLAGENT_POD_PREFIX, min_count=1)
+    result = verify_pods_by_prefix_with_retry(host, VLAGENT_POD_PREFIX, min_count=1)
 
     if result["success"]:
         tl.passed(
