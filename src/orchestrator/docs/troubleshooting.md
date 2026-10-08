@@ -368,6 +368,48 @@ head -1 "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv"
 
 ---
 
+### 21. Slurm NodeAddr not set for compute nodes
+
+Slurm `slurm.conf` does not contain `NodeAddr` for compute nodes.
+
+**Possible causes:**
+
+- No IB allocation file and PXE mapping CSV has no `IB_IPV4`/`IB_IPV6` columns
+- `ib_addr_mode` is not set in `network_spec.yml`
+- PXE mapping CSV `IB_IP`/`IB_IPV4`/`IB_IPV6` columns are empty
+
+**Resolution:**
+
+```bash
+# Check if IB addresses are populated in PXE mapping
+head -2 "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv"
+
+# Verify ib_addr_mode in network_spec.yml
+grep -A5 ib_network "$ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/network_spec.yml"
+
+# Check slurm.conf for NodeAddr
+grep NodeAddr /etc/slurm/slurm.conf
+```
+
+---
+
+### 22. Dynamic discovery mode — nodes not reporting hardware
+
+When `node_discovery_mode: dynamic`, `slurmd` auto-reports hardware. If nodes
+appear in `sinfo` without CPUs or memory, `slurmd` has not reported yet.
+
+**Resolution:**
+
+```bash
+# Check slurmd status on compute node
+systemctl status slurmd
+
+# Force re-registration
+scontrol reconfigure
+```
+
+---
+
 ## Log Locations
 
 | Log or report | Path |

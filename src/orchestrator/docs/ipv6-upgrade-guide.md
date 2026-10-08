@@ -1,6 +1,6 @@
 # IPoIB IPv6 Upgrade Guide
 
-**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 2026
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: October 2026
 
 This guide covers migrating an existing Omnia cluster from IPv4-only InfiniBand
 configuration to dual-stack (IPv4 + IPv6).
@@ -39,10 +39,21 @@ Networks:
     ipv4_netmask_bits: "24"
     ipv6_subnet: "fd00:1b::"
     ipv6_netmask_bits: "64"
+    ib_addr_mode: "dual-stack"
+    slurm_preferred_addr_family: "ipv6"  # Required for dual-stack
 ```
 
 > **Note**: Renaming `subnet` to `ipv4_subnet` is optional. Both field names
 > are accepted. The legacy names are normalized automatically.
+
+The `ib_addr_mode` field controls which addressing mode is used:
+- `ipv4-only` (default): IPv4 addresses only
+- `dual-stack`: Both IPv4 and IPv6 addresses; requires `slurm_preferred_addr_family`
+- `ipv6-only`: IPv6 addresses only
+
+The `slurm_preferred_addr_family` field (`ipv4` or `ipv6`) is required when
+`ib_addr_mode: dual-stack`. It determines which IB address Slurm uses for
+`NodeAddr` (inter-daemon communication).
 
 ---
 

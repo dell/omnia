@@ -1,6 +1,6 @@
 # IPoIB IPv6 Configuration Guide
 
-**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 2026
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: October 2026
 
 This guide covers InfiniBand over IP (IPoIB) IPv6 configuration for Omnia
 clusters. Three modes are supported: **dual-stack** (IPv4 + IPv6),
@@ -125,11 +125,30 @@ Networks:
 | `ipv4_netmask_bits` | string | Yes, when IB IPv4 configured | IPv4 CIDR prefix length (e.g., `"24"`) |
 | `ipv6_subnet` | string | No | InfiniBand IPv6 network address |
 | `ipv6_netmask_bits` | string | No | IPv6 CIDR prefix length (e.g., `"64"`) |
+| `ib_addr_mode` | string | No | IB addressing mode: `ipv4-only` (default), `dual-stack`, or `ipv6-only` |
+| `slurm_preferred_addr_family` | string | No | Required when `ib_addr_mode: dual-stack`. Set to `ipv4` or `ipv6` to choose which IB address Slurm uses for NodeAddr. |
 | `dns` | list | No | InfiniBand DNS server addresses |
 
 **Backward compatibility**: The legacy field names `subnet` and `netmask_bits`
 are accepted and mapped to `ipv4_subnet` and `ipv4_netmask_bits` automatically.
 No migration is required for existing `network_spec.yml` files.
+
+### 2.3 Slurm Cluster Configuration (`omnia_config.yml`)
+
+The `slurm_cluster` section controls node discovery and partition generation:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `node_discovery_mode` | string | `heterogeneous` | Node discovery mode: `heterogeneous` (iDRAC-based), `homogeneous`, or `dynamic` (no iDRAC, `slurmd` auto-reports hardware) |
+
+**Dynamic mode**: When `node_discovery_mode: dynamic`, minimal `NodeName`
+entries are generated (hostname + NodeAddr only). No iDRAC discovery calls are
+made. The `slurmd` daemon auto-reports hardware capabilities (CPUs, memory,
+GPUs) to `slurmctld` at registration. This mode is useful for environments
+where iDRAC is unavailable or IB-only management is preferred.
+
+GPU and CPU convenience partitions are automatically generated when compute
+nodes are defined.
 
 ---
 
@@ -148,7 +167,41 @@ No migration is required for existing `network_spec.yml` files.
    address to the resolved IB interface. When NetworkManager is unavailable,
    `iproute2` is used as a fallback.
 
-### 3.2 NetworkManager Configuration (Dual-Stack)
+### 3.2 Slurm NodeAddr Injection
+
+When IB addressing is configured, the orchestrator automatically injects
+`NodeAddr` into each Slurm node's configuration. This allows Slurm to use
+the IB address for inter-daemon communication instead of the admin network.
+
+**Address source priority:**
+
+1. **IB allocation file** (JSON): Used when present. Address family is selected
+   by `ib_addr_mode` and `slurm_preferred_addr_family`.
+2. **PXE mapping CSV fallback**: When no IB allocation file exists, NodeAddr
+   is derived from the `IB_IPV6` column (preferred) or `IB_IPV4` column
+   (fallback) of the PXE mapping file.
+
+**EnableIPv6**: When the selected NodeAddr is an IPv6 address,
+`CommunicationParameters=EnableIPv6` is automatically added to `slurm.conf`.
+
+**Login and compiler nodes**: These nodes also receive NodeAddr from the PXE
+mapping or IB allocation, ensuring Slurm control communication uses the IB
+fabric.
+
+**`/etc/hosts` management**: Disabled by default (`ib_ipv6_manage_hosts: false`).
+NodeAddr in `slurm.conf` is sufficient for Slurm IB communication. Enable only
+if non-Slurm applications require hostname-to-IB-address resolution.
+
+### 3.3 Convenience Partitions
+
+GPU and CPU convenience Slurm partitions are automatically created when
+compute nodes are defined. These partitions group all compute nodes and
+simplify job submission:
+
+- **`gpu` partition**: All compute nodes, `State=UP`, `MaxTime=INFINITE`
+- **`cpu` partition**: All compute nodes, `State=UP`, `MaxTime=INFINITE`
+
+### 3.4 NetworkManager Configuration (Dual-Stack)
 
 For dual-stack nodes, the cloud-init script configures:
 
@@ -165,7 +218,7 @@ IPv6 privacy extensions are disabled (`ip6-privacy 0`) to ensure deterministic
 IPoIB addressing. Temporary IPv6 addresses would break Slurm communication and
 MPI job placement.
 
-### 3.3 iproute2 Fallback
+### 3.5 iproute2 Fallback
 
 When NetworkManager is not available:
 

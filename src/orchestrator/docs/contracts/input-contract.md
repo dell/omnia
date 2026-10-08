@@ -112,8 +112,12 @@ and Discovery-generated mappings are accepted; Discovery may place a
 | `Networks.admin_network.additional_subnets[].netmask_bits` | string | Yes, per entry | Additional network CIDR prefix length |
 | `Networks.admin_network.additional_subnets[].router` | string | Yes, per entry | Gateway supplied as DHCP option 3 |
 | `Networks.admin_network.additional_subnets[].dynamic_range` | string | Yes, per entry | DHCP pool contained by the additional subnet |
-| `Networks.ib_network.subnet` | string | Yes, when configured | InfiniBand network address |
-| `Networks.ib_network.netmask_bits` | string | Yes, when configured | InfiniBand CIDR prefix length |
+| `Networks.ib_network.subnet` | string | Yes, when configured | InfiniBand network address (legacy; `ipv4_subnet` also accepted) |
+| `Networks.ib_network.netmask_bits` | string | Yes, when configured | InfiniBand CIDR prefix length (legacy; `ipv4_netmask_bits` also accepted) |
+| `Networks.ib_network.ipv6_subnet` | string | No | InfiniBand IPv6 network address |
+| `Networks.ib_network.ipv6_netmask_bits` | string | No | IPv6 CIDR prefix length |
+| `Networks.ib_network.ib_addr_mode` | string | No | IB addressing mode: `ipv4-only` (default), `dual-stack`, `ipv6-only` |
+| `Networks.ib_network.slurm_preferred_addr_family` | string | No | Required when `ib_addr_mode: dual-stack`. Set to `ipv4` or `ipv6` for Slurm NodeAddr selection. |
 | `Networks.ib_network.dns` | list | No | InfiniBand DNS server addresses |
 
 ---
@@ -325,7 +329,7 @@ These files are read from the same Orchestrator project input directory:
 
 | File | Description |
 |------|-------------|
-| `omnia_config.yml` | K8s/Slurm cluster definitions |
+| `omnia_config.yml` | K8s/Slurm cluster definitions (includes `node_discovery_mode`: `heterogeneous`, `homogeneous`, or `dynamic`) |
 | `storage_config.yml` | Storage mount configuration |
 | `security_config.yml` | Security settings |
 | `network_spec.yml` | Administrative and InfiniBand network definitions |
