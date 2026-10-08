@@ -736,53 +736,53 @@ class TestJinja2TemplateBackwardCompat:
 # IB interface discovery (ER-ORCH-005 post-implementation reconciliation)
 # ===========================================================================
 
-class TestCloudInitHostsInjection:
-    """Verify cloud-init /etc/hosts IPoIB injection via metadata-service templates."""
+class TestCloudInitHostsRemoved:
+    """Verify cloud-init /etc/hosts IPoIB injection was properly removed.
+
+    NodeAddr in slurm.conf is sufficient for Slurm IB communication.
+    Cloud-init /etc/hosts injection was removed in the review cleanup.
+    """
 
     TEMPLATES_DIR = (
         _REPO_ROOT / "src" / "orchestrator" / "roles" / "provision_common"
         / "templates" / "metadata_svc"
     )
 
-    def test_ib_hosts_entries_in_slurm_node_template(self):
-        """ms-group-slurm_node_x86_64.yaml.j2 contains ib_hosts_entries loop."""
+    def test_no_ib_hosts_entries_in_slurm_node_template(self):
+        """ms-group-slurm_node_x86_64.yaml.j2 has no ib_hosts_entries (removed)."""
         template_path = self.TEMPLATES_DIR / "ms-group-slurm_node_x86_64.yaml.j2"
         if not template_path.exists():
             pytest.skip("Template not found (expected in orchestrator source)")
         content = template_path.read_text(encoding="utf-8")
-        assert "ib_hosts_entries" in content, (
-            "ms-group-slurm_node_x86_64 missing ib_hosts_entries injection"
-        )
-        assert "default([])" in content, (
-            "ib_hosts_entries must use default([]) for backward compat"
+        assert "ib_hosts_entries" not in content, (
+            "ms-group-slurm_node_x86_64 still has ib_hosts_entries — should be removed"
         )
 
-    def test_ib_hosts_entries_in_slurm_control_template(self):
-        """ms-group-slurm_control_node_x86_64.yaml.j2 contains ib_hosts_entries."""
+    def test_no_ib_hosts_entries_in_slurm_control_template(self):
+        """ms-group-slurm_control_node_x86_64.yaml.j2 has no ib_hosts_entries."""
         template_path = self.TEMPLATES_DIR / "ms-group-slurm_control_node_x86_64.yaml.j2"
         if not template_path.exists():
             pytest.skip("Template not found")
         content = template_path.read_text(encoding="utf-8")
-        assert "ib_hosts_entries" in content
+        assert "ib_hosts_entries" not in content
 
-    def test_ib_hosts_entries_in_login_node_template(self):
-        """ms-group-login_node_x86_64.yaml.j2 contains ib_hosts_entries."""
+    def test_no_ib_hosts_entries_in_login_node_template(self):
+        """ms-group-login_node_x86_64.yaml.j2 has no ib_hosts_entries."""
         template_path = self.TEMPLATES_DIR / "ms-group-login_node_x86_64.yaml.j2"
         if not template_path.exists():
             pytest.skip("Template not found")
         content = template_path.read_text(encoding="utf-8")
-        assert "ib_hosts_entries" in content
+        assert "ib_hosts_entries" not in content
 
-    def test_all_templates_have_default_fallback(self):
-        """All ms-group-*.yaml.j2 templates with ib_hosts_entries use default([])."""
+    def test_no_templates_have_ib_hosts_entries(self):
+        """No ms-group-*.yaml.j2 templates reference ib_hosts_entries."""
         if not self.TEMPLATES_DIR.exists():
             pytest.skip("Templates directory not found")
         for tpl in self.TEMPLATES_DIR.glob("ms-group-*.yaml.j2"):
             content = tpl.read_text(encoding="utf-8")
-            if "ib_hosts_entries" in content:
-                assert "default([])" in content, (
-                    f"{tpl.name} has ib_hosts_entries without default([]) fallback"
-                )
+            assert "ib_hosts_entries" not in content, (
+                f"{tpl.name} still has ib_hosts_entries — should be removed"
+            )
 
 
 class TestHostsDistributionMergeLogic:

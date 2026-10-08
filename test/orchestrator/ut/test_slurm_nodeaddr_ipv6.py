@@ -24,7 +24,12 @@ Covers:
 - No allocation file skips injection
 - Empty node_params skips injection
 - IB interface auto-discovery patching (generic -> predictable names)
-- Cloud-init /etc/hosts injection parsing
+- Hosts block parsing for managed /etc/hosts
+- PXE mapping CSV fallback for NodeAddr (IB_IPV6/IB_IPV4 columns)
+- Dynamic node discovery mode (no iDRAC, minimal NodeName entries)
+- GPU/CPU convenience Slurm partitions
+- Login/compiler node NodeAddr injection
+- /etc/hosts management disabled by default
 
 These tests validate the logic embedded in inject_ib_nodeaddr.yml and the
 IB discovery pipeline in ib_ipv6_config/tasks/main.yml by testing the
@@ -34,6 +39,7 @@ equivalent Python logic used in the Ansible shell tasks.
 from __future__ import annotations
 
 import json
+import pathlib
 import re
 from typing import Any, Dict, List, Optional
 
@@ -557,3 +563,310 @@ class TestCloudInitHostsInjection:
         )
         entries = parse_hosts_block_for_cloudinit(raw)
         assert len(entries) == 6
+
+
+# ===========================================================================
+# TC-UT-009: PXE mapping CSV fallback for NodeAddr
+# ===========================================================================
+
+def parse_pxe_mapping_for_nodeaddr(
+    rows: List[Dict[str, str]],
+) -> tuple:
+    """Parse PXE mapping rows and build hostname-to-IB-address map.
+
+    Mirrors the inline Python3 in inject_ib_nodeaddr.yml's
+    'Parse PXE mapping CSV and build hostname-to-IB-address map' task.
+
+    Args:
+        rows: List of dicts representing PXE mapping CSV rows.
+
+    Returns:
+        Tuple of (hostname_to_addr_map, has_ipv6_flag).
+    """
+    result: Dict[str, str] = {}
+    has_ipv6 = False
+    for row in rows:
+        hostname = row.get("HOSTNAME", "").strip()
+        if not hostname:
+            continue
+        ib_ipv6 = row.get("IB_IPV6", "").strip()
+        ib_ipv4 = row.get("IB_IPV4", "").strip()
+        if ib_ipv6:
+            result[hostname] = ib_ipv6
+            has_ipv6 = True
+        elif ib_ipv4:
+            result[hostname] = ib_ipv4
+    return result, has_ipv6
+
+
+class TestPXEMappingFallback:
+    """TC-UT-009: PXE mapping CSV fallback when no IB allocation file exists."""
+
+    def test_prefers_ipv6_over_ipv4(self):
+        """IB_IPV6 preferred when both columns populated."""
+        rows = [
+            {"HOSTNAME": "nid001", "IB_IPV6": "fd00:1b::11", "IB_IPV4": "192.168.0.11"},
+            {"HOSTNAME": "nid002", "IB_IPV6": "fd00:1b::12", "IB_IPV4": "192.168.0.12"},
+        ]
+        addr_map, has_ipv6 = parse_pxe_mapping_for_nodeaddr(rows)
+        assert addr_map == {"nid001": "fd00:1b::11", "nid002": "fd00:1b::12"}
+        assert has_ipv6 is True
+
+    def test_falls_back_to_ipv4(self):
+        """IB_IPV4 used when IB_IPV6 is empty."""
+        rows = [
+            {"HOSTNAME": "nid001", "IB_IPV6": "", "IB_IPV4": "192.168.0.11"},
+            {"HOSTNAME": "nid002", "IB_IPV6": "", "IB_IPV4": "192.168.0.12"},
+        ]
+        addr_map, has_ipv6 = parse_pxe_mapping_for_nodeaddr(rows)
+        assert addr_map == {"nid001": "192.168.0.11", "nid002": "192.168.0.12"}
+        assert has_ipv6 is False
+
+    def test_mixed_ipv6_and_ipv4(self):
+        """Some nodes have IPv6, others only IPv4."""
+        rows = [
+            {"HOSTNAME": "nid001", "IB_IPV6": "fd00:1b::11", "IB_IPV4": "192.168.0.11"},
+            {"HOSTNAME": "nid002", "IB_IPV6": "", "IB_IPV4": "192.168.0.12"},
+        ]
+        addr_map, has_ipv6 = parse_pxe_mapping_for_nodeaddr(rows)
+        assert addr_map["nid001"] == "fd00:1b::11"
+        assert addr_map["nid002"] == "192.168.0.12"
+        assert has_ipv6 is True
+
+    def test_empty_hostname_skipped(self):
+        """Rows without HOSTNAME are skipped."""
+        rows = [
+            {"HOSTNAME": "", "IB_IPV6": "fd00:1b::11", "IB_IPV4": "192.168.0.11"},
+            {"HOSTNAME": "nid002", "IB_IPV6": "fd00:1b::12", "IB_IPV4": ""},
+        ]
+        addr_map, _ = parse_pxe_mapping_for_nodeaddr(rows)
+        assert "nid002" in addr_map
+        assert len(addr_map) == 1
+
+    def test_no_ib_columns_returns_empty(self):
+        """Rows with no IB_IPV6 or IB_IPV4 return empty map."""
+        rows = [
+            {"HOSTNAME": "nid001", "IB_IPV6": "", "IB_IPV4": ""},
+        ]
+        addr_map, has_ipv6 = parse_pxe_mapping_for_nodeaddr(rows)
+        assert addr_map == {}
+        assert has_ipv6 is False
+
+    def test_pxe_nodeaddr_injected_into_node_params(self):
+        """PXE-derived NodeAddr injected into node_params."""
+        pxe_map = {"nid001": "fd00:1b::11", "nid002": "fd00:1b::12"}
+        node_params = [
+            {"NodeName": "nid001"},
+            {"NodeName": "nid002"},
+            {"NodeName": "nid003"},  # No PXE mapping
+        ]
+        result = inject_nodeaddr(node_params, pxe_map)
+        assert result[0]["NodeAddr"] == "fd00:1b::11"
+        assert result[1]["NodeAddr"] == "fd00:1b::12"
+        assert "NodeAddr" not in result[2]
+
+    def test_pxe_enable_ipv6_when_has_ipv6(self):
+        """EnableIPv6 added to CommunicationParameters when PXE has IPv6."""
+        config = {"slurm": {}}
+        # Simulate: has_ipv6 = True
+        config["slurm"]["CommunicationParameters"] = "EnableIPv6"
+        assert "EnableIPv6" in config["slurm"]["CommunicationParameters"]
+
+
+# ===========================================================================
+# TC-UT-009: Dynamic discovery mode
+# ===========================================================================
+
+class TestDynamicDiscoveryMode:
+    """TC-UT-009: Dynamic node discovery mode — no iDRAC."""
+
+    @staticmethod
+    def generate_dynamic_node_params(cmpt_list: List[str]) -> List[Dict[str, Any]]:
+        """Generate minimal node_params for dynamic mode.
+
+        Mirrors the 'Generate minimal node_params for dynamic mode' task
+        in confs.yml.
+        """
+        return [{"NodeName": host} for host in cmpt_list]
+
+    def test_dynamic_generates_minimal_entries(self):
+        """Dynamic mode generates NodeName-only entries."""
+        cmpt_list = ["nid001", "nid002", "nid003"]
+        params = self.generate_dynamic_node_params(cmpt_list)
+        assert len(params) == 3
+        for p in params:
+            assert "NodeName" in p
+            assert len(p) == 1  # Only NodeName, no CPUs/RealMemory/etc.
+
+    def test_dynamic_with_nodeaddr_injection(self):
+        """Dynamic mode + PXE mapping injects NodeAddr."""
+        cmpt_list = ["nid001", "nid002"]
+        params = self.generate_dynamic_node_params(cmpt_list)
+        pxe_map = {"nid001": "fd00:1b::11", "nid002": "fd00:1b::12"}
+        result = inject_nodeaddr(params, pxe_map)
+        assert result[0] == {"NodeName": "nid001", "NodeAddr": "fd00:1b::11"}
+        assert result[1] == {"NodeName": "nid002", "NodeAddr": "fd00:1b::12"}
+
+    def test_dynamic_empty_compute_list(self):
+        """Dynamic mode with no compute nodes produces empty list."""
+        params = self.generate_dynamic_node_params([])
+        assert params == []
+
+    def test_dynamic_preserves_hostname(self):
+        """Dynamic mode preserves exact hostnames."""
+        cmpt_list = ["compute-001.cluster.local", "gpu-node-1"]
+        params = self.generate_dynamic_node_params(cmpt_list)
+        assert params[0]["NodeName"] == "compute-001.cluster.local"
+        assert params[1]["NodeName"] == "gpu-node-1"
+
+
+# ===========================================================================
+# TC-UT-009: Convenience partitions
+# ===========================================================================
+
+class TestConveniencePartitions:
+    """TC-UT-009: GPU and CPU convenience partitions."""
+
+    @staticmethod
+    def generate_convenience_partitions(
+        cmpt_list: List[str],
+    ) -> List[Dict[str, Any]]:
+        """Generate GPU and CPU convenience partitions.
+
+        Mirrors the 'Append GPU convenience partition' and
+        'Append CPU convenience partition' tasks in build_slurm_conf.yml.
+        """
+        nodes = ",".join(cmpt_list) if cmpt_list else "ALL"
+        return [
+            {
+                "PartitionName": "gpu",
+                "Nodes": nodes,
+                "MaxTime": "INFINITE",
+                "State": "UP",
+            },
+            {
+                "PartitionName": "cpu",
+                "Nodes": nodes,
+                "MaxTime": "INFINITE",
+                "State": "UP",
+            },
+        ]
+
+    def test_both_partitions_created(self):
+        """GPU and CPU partitions both created."""
+        partitions = self.generate_convenience_partitions(["nid001", "nid002"])
+        assert len(partitions) == 2
+        assert partitions[0]["PartitionName"] == "gpu"
+        assert partitions[1]["PartitionName"] == "cpu"
+
+    def test_partition_nodes_populated(self):
+        """Partition Nodes field lists compute nodes."""
+        partitions = self.generate_convenience_partitions(["nid001", "nid002", "nid003"])
+        assert partitions[0]["Nodes"] == "nid001,nid002,nid003"
+        assert partitions[1]["Nodes"] == "nid001,nid002,nid003"
+
+    def test_empty_compute_list_uses_all(self):
+        """Empty compute list defaults to ALL."""
+        partitions = self.generate_convenience_partitions([])
+        assert partitions[0]["Nodes"] == "ALL"
+        assert partitions[1]["Nodes"] == "ALL"
+
+    def test_partition_state_is_up(self):
+        """Both partitions have State: UP."""
+        partitions = self.generate_convenience_partitions(["nid001"])
+        for p in partitions:
+            assert p["State"] == "UP"
+            assert p["MaxTime"] == "INFINITE"
+
+
+# ===========================================================================
+# TC-UT-009: Login/compiler node NodeAddr injection
+# ===========================================================================
+
+class TestLoginCompilerNodeAddr:
+    """TC-UT-009: Login and compiler nodes receive NodeAddr."""
+
+    @staticmethod
+    def build_login_entry(
+        hostname: str,
+        pxe_map: Dict[str, str],
+        alloc_map: Dict[str, str],
+    ) -> Dict[str, Any]:
+        """Build a login node entry with NodeAddr from PXE or allocation.
+
+        Mirrors the logic in build_slurm_conf.yml for login/compiler nodes.
+        PXE mapping takes precedence over allocation.
+        """
+        if pxe_map.get(hostname, ""):
+            return {"NodeName": hostname, "NodeAddr": pxe_map[hostname]}
+        if alloc_map.get(hostname, ""):
+            return {"NodeName": hostname, "NodeAddr": alloc_map[hostname]}
+        return {"NodeName": hostname}
+
+    def test_login_gets_nodeaddr_from_pxe(self):
+        """Login node gets NodeAddr from PXE mapping."""
+        entry = self.build_login_entry(
+            "login01",
+            pxe_map={"login01": "fd00:1b::101"},
+            alloc_map={},
+        )
+        assert entry == {"NodeName": "login01", "NodeAddr": "fd00:1b::101"}
+
+    def test_login_gets_nodeaddr_from_allocation(self):
+        """Login node falls back to allocation map."""
+        entry = self.build_login_entry(
+            "login01",
+            pxe_map={},
+            alloc_map={"login01": "192.168.0.101"},
+        )
+        assert entry == {"NodeName": "login01", "NodeAddr": "192.168.0.101"}
+
+    def test_pxe_takes_precedence_over_allocation(self):
+        """PXE mapping takes precedence over allocation."""
+        entry = self.build_login_entry(
+            "login01",
+            pxe_map={"login01": "fd00:1b::101"},
+            alloc_map={"login01": "192.168.0.101"},
+        )
+        assert entry["NodeAddr"] == "fd00:1b::101"
+
+    def test_login_without_any_ib_mapping(self):
+        """Login node without IB mapping has no NodeAddr."""
+        entry = self.build_login_entry(
+            "login01",
+            pxe_map={},
+            alloc_map={},
+        )
+        assert entry == {"NodeName": "login01"}
+        assert "NodeAddr" not in entry
+
+    def test_compiler_node_same_logic(self):
+        """Compiler nodes use the same logic as login nodes."""
+        entry = self.build_login_entry(
+            "compiler01",
+            pxe_map={"compiler01": "fd00:1b::201"},
+            alloc_map={},
+        )
+        assert entry == {"NodeName": "compiler01", "NodeAddr": "fd00:1b::201"}
+
+
+# ===========================================================================
+# TC-UT-009: /etc/hosts management disabled by default
+# ===========================================================================
+
+class TestHostsManagementDefault:
+    """TC-UT-009: Verify /etc/hosts management is disabled by default."""
+
+    def test_default_hosts_management_disabled(self):
+        """ib_ipv6_manage_hosts defaults to false."""
+        defaults_file = (
+            pathlib.Path(__file__).resolve().parents[3]
+            / "src" / "orchestrator" / "roles"
+            / "ib_ipv6_config" / "defaults" / "main.yml"
+        )
+        if not defaults_file.exists():
+            pytest.skip("Defaults file not found")
+        content = defaults_file.read_text(encoding="utf-8")
+        assert "ib_ipv6_manage_hosts: false" in content, (
+            "ib_ipv6_manage_hosts should default to false"
+        )

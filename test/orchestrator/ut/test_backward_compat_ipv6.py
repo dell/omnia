@@ -670,3 +670,53 @@ class TestIbAddrModeSchemaValidation:
                 # The field is optional for backward compat
                 assert True  # Presence alone is sufficient; required-ness
                 # is tested by the schema validator accepting specs without it
+
+
+class TestDynamicDiscoveryModeSchema:
+    """Verify node_discovery_mode: dynamic is accepted by omnia_config.json schema."""
+
+    @pytest.fixture(autouse=True)
+    def _load_schema(self):
+        """Load omnia_config.json schema."""
+        schema_path = (
+            _REPO_ROOT / "src" / "orchestrator" / "plugins" / "module_utils"
+            / "orchestrator_validation" / "schema" / "omnia_config.json"
+        )
+        with open(schema_path, encoding="utf-8") as f:
+            self.schema = json.load(f)
+
+    def _resolve_ref(self, ref: str):
+        """Resolve a JSON Schema $ref pointer."""
+        parts = ref.lstrip("#/").split("/")
+        obj = self.schema
+        for p in parts:
+            obj = obj[p]
+        return obj
+
+    def _find_discovery_mode_enum(self):
+        """Find node_discovery_mode enum values."""
+        slurm_cluster = self.schema.get("properties", {}).get("slurm_cluster", {})
+        items = slurm_cluster.get("items", {})
+        # Follow $ref if present
+        if "$ref" in items:
+            items = self._resolve_ref(items["$ref"])
+        props = items.get("properties", {})
+        ndm = props.get("node_discovery_mode", {})
+        return ndm.get("enum", [])
+
+    def test_dynamic_in_discovery_mode_enum(self):
+        """node_discovery_mode schema accepts 'dynamic' value."""
+        enum_values = self._find_discovery_mode_enum()
+        assert "dynamic" in enum_values, (
+            f"'dynamic' not in node_discovery_mode enum: {enum_values}"
+        )
+
+    def test_heterogeneous_still_accepted(self):
+        """Legacy 'heterogeneous' value is still accepted."""
+        enum_values = self._find_discovery_mode_enum()
+        assert "heterogeneous" in enum_values
+
+    def test_homogeneous_still_accepted(self):
+        """Legacy 'homogeneous' value is still accepted."""
+        enum_values = self._find_discovery_mode_enum()
+        assert "homogeneous" in enum_values
