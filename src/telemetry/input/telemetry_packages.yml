@@ -103,6 +103,7 @@ images:
     vminsert: "docker.io/victoriametrics/vminsert:v1.149.0-cluster"
     vmagent: "docker.io/victoriametrics/vmagent:v1.149.0"
     operator: "docker.io/victoriametrics/operator:v0.68.3"
+    config_reloader: "docker.io/victoriametrics/operator:config-reloader-v0.68.3"
 
   # -- Sink: VictoriaLogs -----------------------------------------------------
   # Source: https://hub.docker.com/u/victoriametrics
@@ -116,8 +117,13 @@ images:
   # Source: https://quay.io/organization/strimzi
   kafka:
     broker: "quay.io/strimzi/kafka:1.1.0-kafka-4.3.0"
-    bridge: "quay.io/strimzi/kafka-bridge:1.0.0"
+
+  # -- Operator: Strimzi Kafka Operator ----------------------------------------
+  # Source: https://quay.io/organization/strimzi
+  # Used for Helm chart image overrides when container_registry is set
+  strimzi:
     operator: "quay.io/strimzi/operator:1.1.0"
+    kafka_bridge: "quay.io/strimzi/kafka-bridge:1.0.0"
 
   # -- Source: iDRAC Telemetry ------------------------------------------------
   # Source: https://hub.docker.com/u/dellhpcomniaaisolution
