@@ -436,7 +436,7 @@ def _package_from_json_dict(data: Dict) -> Package:
     )
 
 
-def serialize_json(feature_list: FeatureList, output_path: str):
+def serialize_json(feature_list: FeatureList, output_path: str) -> None:
     """
     Serializes the output JSON data to a file.
 

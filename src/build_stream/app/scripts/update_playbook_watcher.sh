@@ -15,7 +15,7 @@
 
 # Script to update and restart the playbook watcher service
 
-set -e
+set -euo pipefail
 
 echo "=== Updating Playbook Watcher Service ==="
 
@@ -40,7 +40,7 @@ mkdir -p "${OMNIA_DATA_PATH}/build_stream/log"
 # Copy updated files
 echo "Copying updated service files..."
 cp "$LOCAL_DIR/playbook_watcher_service.py" "$SERVICE_DIR/"
-cp "$LOCAL_DIR/playbook-watcher.service" /etc/systemd/system/
+cp "$LOCAL_DIR/${SERVICE_NAME}.service" /etc/systemd/system/
 
 # Set permissions
 echo "Setting permissions..."
@@ -53,17 +53,17 @@ systemctl daemon-reload
 
 # Restart the service
 echo "Restarting playbook-watcher service..."
-systemctl restart playbook-watcher
+systemctl restart "${SERVICE_NAME}"
 
 # Check service status
 echo "Checking service status..."
 sleep 2
-systemctl status playbook-watcher --no-pager
+systemctl status "${SERVICE_NAME}" --no-pager
 
 # Show recent logs
 echo ""
 echo "Recent service logs:"
-journalctl -u playbook-watcher -n 10 --no-pager
+journalctl -u "${SERVICE_NAME}" -n 10 --no-pager
 
 echo ""
 echo "=== Update Complete ==="

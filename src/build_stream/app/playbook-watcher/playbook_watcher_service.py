@@ -36,7 +36,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Thread, Semaphore
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, NoReturn
 
 
 def _resolve_omnia_env():
@@ -250,7 +250,7 @@ _cadence_thread = None  # Set by run_watcher_loop for SIGUSR1 access
 job_semaphore = Semaphore(MAX_CONCURRENT_JOBS)
 
 
-def signal_handler(signum, _):
+def signal_handler(signum, _) -> None:
     """Handle shutdown signals gracefully."""
     global SHUTDOWN_REQUESTED
     log_secure_info(
@@ -275,7 +275,7 @@ def _sigusr1_handler(signum, _):
         )
 
 
-def ensure_directories():
+def ensure_directories() -> None:
     """Ensure all required directories exist with proper permissions."""
     directories = [
         REQUESTS_DIR,
@@ -2392,7 +2392,7 @@ def _start_cadence_timer():
     return cadence_thread
 
 
-def run_watcher_loop():
+def run_watcher_loop() -> None:
     """Main watcher loop that continuously polls for requests."""
     log_secure_info(
         "info",
@@ -2464,7 +2464,7 @@ def run_watcher_loop():
     )
 
 
-def main():
+def main() -> NoReturn:
     """Main entry point for the watcher service."""
     # Register signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
