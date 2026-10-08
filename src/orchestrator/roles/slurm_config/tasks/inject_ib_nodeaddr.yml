@@ -14,17 +14,24 @@
 ---
 # Inject NodeAddr from IPoIB allocation into Slurm node_params.
 #
-# Address family for NodeAddr is derived from ib_addr_mode in network_spec:
+# Two sources are supported (tried in order):
+#   1. IB allocation file (ib_ipv6_allocation.json) + network_spec
+#   2. PXE mapping file (IB_IPV6 / IB_IPV4 columns) — fallback
+#
+# Source 1 — Address family for NodeAddr is derived from ib_addr_mode:
 #   ipv4-only  → NodeAddr = IB IPv4 address  (auto-derived)
 #   ipv6-only  → NodeAddr = IB IPv6 address  (auto-derived)
 #   dual-stack → NodeAddr = slurm_preferred_addr_family from network_spec
 #                (user must set explicitly; no hidden default)
 #
+# Source 2 — PXE mapping fallback (no discovery dependency):
+#   Prefers IB_IPV6 column; falls back to IB_IPV4 if IPv6 is empty.
+#
 # For dual-stack and ipv6-only, CommunicationParameters gets EnableIPv6.
 #
 # Prerequisites:
 #   - node_params must be populated (runs after hardware discovery)
-#   - IB allocation file and network_spec must exist
+#   - IB allocation file OR PXE mapping file must exist
 
 - name: Check if IB allocation file exists
   ansible.builtin.stat:
@@ -178,7 +185,110 @@
         - _ib_addr_mode == 'dual-stack' or _ib_addr_mode == 'ipv6-only'
         - _ib_nodeaddr_map | default({}) | length > 0
 
-- name: Skip IB NodeAddr injection (no allocation file)
-  ansible.builtin.debug:
-    msg: "[IB-Slurm] No IB allocation file found at {{ ib_ipv6_allocation_file_path }} — skipping NodeAddr injection"
+- name: Fallback to PXE mapping for IB NodeAddr (no allocation file)
   when: not _ib_alloc_stat.stat.exists
+  block:
+    - name: Check if PXE mapping file exists
+      ansible.builtin.stat:
+        path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
+      register: _pxe_mapping_stat
+      delegate_to: localhost
+
+    - name: Load PXE mapping and inject NodeAddr from IB_IPV6/IB_IPV4 columns
+      when: _pxe_mapping_stat.stat.exists
+      block:
+        - name: Parse PXE mapping CSV and build hostname-to-IB-address map
+          ansible.builtin.shell: |
+            python3 -c "
+            import csv, json, sys
+            result = {}
+            has_ipv6 = False
+            with open('{{ hostvars['localhost']['pxe_mapping_file_path'] }}') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    hostname = row.get('HOSTNAME', '').strip()
+                    if not hostname:
+                        continue
+                    ib_ipv6 = row.get('IB_IPV6', '').strip()
+                    ib_ipv4 = row.get('IB_IPV4', '').strip()
+                    if ib_ipv6:
+                        result[hostname] = ib_ipv6
+                        has_ipv6 = True
+                    elif ib_ipv4:
+                        result[hostname] = ib_ipv4
+            print(json.dumps({'map': result, 'has_ipv6': has_ipv6}))
+            "
+          register: _pxe_ib_parsed
+          delegate_to: localhost
+          changed_when: false
+
+        - name: Set PXE-derived IB NodeAddr map
+          ansible.builtin.set_fact:
+            _pxe_ib_nodeaddr_map: "{{ (_pxe_ib_parsed.stdout | from_json).map }}"
+            _pxe_ib_has_ipv6: "{{ (_pxe_ib_parsed.stdout | from_json).has_ipv6 }}"
+
+        - name: Display PXE-derived IB NodeAddr mapping
+          ansible.builtin.debug:
+            msg: "[IB-Slurm] PXE mapping NodeAddr map: {{ _pxe_ib_nodeaddr_map | default({}) }}"
+          when: _pxe_ib_nodeaddr_map | default({}) | length > 0
+
+        - name: Initialize updated node_params from PXE mapping
+          ansible.builtin.set_fact:
+            _updated_node_params: []
+          when:
+            - _pxe_ib_nodeaddr_map | default({}) | length > 0
+            - node_params | length > 0
+
+        - name: Add NodeAddr from PXE mapping to each node_params entry
+          ansible.builtin.set_fact:
+            _updated_node_params: "{{ _updated_node_params + [_entry] }}"
+          vars:
+            _entry: >-
+              {{ item | combine({'NodeAddr': _pxe_ib_nodeaddr_map[item.NodeName]})
+                 if item.NodeName in _pxe_ib_nodeaddr_map
+                 else item }}
+          loop: "{{ node_params }}"
+          loop_control:
+            label: "{{ item.NodeName }}"
+          when:
+            - _pxe_ib_nodeaddr_map | default({}) | length > 0
+            - node_params | length > 0
+
+        - name: Apply updated node_params with PXE-derived NodeAddr
+          ansible.builtin.set_fact:
+            node_params: "{{ _updated_node_params }}"
+          when:
+            - _updated_node_params | default([]) | length > 0
+
+        - name: Display updated node_params with PXE-derived NodeAddr
+          ansible.builtin.debug:
+            msg: "[IB-Slurm] Updated node_params (PXE fallback): {{ node_params }}"
+          when: _pxe_ib_nodeaddr_map | default({}) | length > 0
+
+        - name: Add EnableIPv6 to CommunicationParameters (PXE fallback)
+          ansible.builtin.set_fact:
+            apply_config: >-
+              {{ apply_config | combine({
+                   'slurm': apply_config.slurm | combine({
+                     'CommunicationParameters': ((apply_config.slurm.CommunicationParameters | default('')) ~ ',EnableIPv6')
+                       | regex_replace('^,', '')
+                   })
+                 }) }}
+          when:
+            - _pxe_ib_has_ipv6 | default(false) | bool
+            - _pxe_ib_nodeaddr_map | default({}) | length > 0
+
+        - name: Display CommunicationParameters update (PXE fallback)
+          ansible.builtin.debug:
+            msg: "[IB-Slurm] CommunicationParameters={{ apply_config.slurm.CommunicationParameters | default('not set') }}"
+          when:
+            - _pxe_ib_has_ipv6 | default(false) | bool
+            - _pxe_ib_nodeaddr_map | default({}) | length > 0
+
+    - name: Skip IB NodeAddr injection (no PXE mapping file either)
+      ansible.builtin.debug:
+        msg: >-
+          [IB-Slurm] No IB allocation file at {{ ib_ipv6_allocation_file_path }}
+          and no PXE mapping at {{ hostvars['localhost']['pxe_mapping_file_path'] }}
+          — skipping NodeAddr injection
+      when: not _pxe_mapping_stat.stat.exists

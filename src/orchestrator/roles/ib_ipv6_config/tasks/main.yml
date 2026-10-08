@@ -224,9 +224,13 @@
   ansible.builtin.include_tasks: publish_bss.yml
   when: _ib_ipv6_render.nodes_needing_update | length > 0
 
-- name: Update managed /etc/hosts block
-  ansible.builtin.include_tasks: publish_hosts.yml
-  when: ib_ipv6_manage_hosts | bool
+- name: Skip /etc/hosts update (NodeAddr in slurm.conf is sufficient)
+  ansible.builtin.debug:
+    msg: >-
+      [IB-IPv6] Skipping /etc/hosts IPoIB block — Slurm uses NodeAddr
+      from slurm.conf for IB communication. Set ib_ipv6_manage_hosts=true
+      to re-enable.
+  when: not (ib_ipv6_manage_hosts | bool)
 
 # -----------------------------------------------------------------------
 # Phase 4: Verify post-configuration state (Story 3)

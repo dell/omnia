@@ -122,9 +122,6 @@
 {% for key in ip_name_map | sort %}
             {{ ip_name_map[key] }} {{ key }}
 {% endfor %}
-{% for entry in ib_hosts_entries | default([]) %}
-            {{ entry }}
-{% endfor %}
 {% endif %}
 
         - path: /root/init_slurm_db.sql

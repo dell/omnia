@@ -206,7 +206,10 @@ fi
 # STEP 1: Resolve SLOT → Full PCI Address
 # ==============================
 echo "---- STEP 1: Resolve Slot → PCI ----"
-PCI_ADDR=$(dmidecode -t slot | awk -v slot="Slot $SLOT_NUMBER" '
+# Capture dmidecode output first to avoid SIGPIPE when awk exits early
+# (set -euo pipefail treats SIGPIPE as fatal, causing silent script abort)
+_dmi_slots=$(dmidecode -t slot)
+PCI_ADDR=$(echo "$_dmi_slots" | awk -v slot="Slot $SLOT_NUMBER" '
   /Designation:/ { found = ($0 ~ slot) }
   found && /Bus Address:/ { print $NF; exit }
 ')
@@ -214,7 +217,7 @@ PCI_ADDR=$(dmidecode -t slot | awk -v slot="Slot $SLOT_NUMBER" '
 if [ -z "$PCI_ADDR" ]; then
     echo "ERROR: Could not resolve PCI address for slot $SLOT_NUMBER"
     echo "Available slots:"
-    dmidecode -t slot | grep -E "Designation|Bus Address"
+    echo "$_dmi_slots" | grep -E "Designation|Bus Address"
     exit 1
 fi
 echo "INFO: Slot $SLOT_NUMBER → PCI $PCI_ADDR"

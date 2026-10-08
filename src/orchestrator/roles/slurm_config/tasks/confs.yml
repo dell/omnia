@@ -180,13 +180,33 @@
     - bulk_discovery is not skipped
     - bulk_discovery.failed_nodes | default([]) | length > 0
 
+# -----------------------------------------------------------------------
+# Dynamic discovery mode: skip iDRAC, generate minimal NodeName entries.
+# slurmd auto-reports CPU/Memory/GPU during registration.
+# -----------------------------------------------------------------------
+- name: Generate minimal node_params for dynamic mode (no iDRAC discovery)
+  ansible.builtin.set_fact:
+    node_params: "{{ node_params + [{'NodeName': item}] }}"
+  loop: "{{ cmpt_list }}"
+  when:
+    - discovery_mode == 'dynamic'
+    - node_params | length == 0
+
+- name: Display dynamic mode info
+  ansible.builtin.debug:
+    msg: >-
+      [IB-Slurm] Dynamic discovery mode — {{ cmpt_list | length }} minimal
+      NodeName entries generated. slurmd will auto-report CPU/Memory/GPU
+      during registration (AutoDetect: nvml for GPUs).
+  when: discovery_mode == 'dynamic'
+
 - name: DEBUG - Show final node_params before building slurm.conf
   ansible.builtin.debug:
     msg:
       - "Total node_params entries: {{ node_params | length }}"
       - "node_params: {{ node_params }}"
 
-- name: Inject IB NodeAddr into node_params (if IPoIB allocation exists)
+- name: Inject IB NodeAddr into node_params (if IPoIB allocation or PXE mapping exists)
   ansible.builtin.include_tasks: inject_ib_nodeaddr.yml
   when:
     - node_params | length > 0
