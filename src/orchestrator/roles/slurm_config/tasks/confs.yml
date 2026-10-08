@@ -181,24 +181,24 @@
     - bulk_discovery.failed_nodes | default([]) | length > 0
 
 # -----------------------------------------------------------------------
-# Dynamic discovery mode: skip iDRAC, generate minimal NodeName entries.
+# Minimal discovery mode: skip iDRAC, generate minimal NodeName entries.
 # slurmd auto-reports CPU/Memory/GPU during registration.
 # -----------------------------------------------------------------------
-- name: Generate minimal node_params for dynamic mode (no iDRAC discovery)
+- name: Generate minimal node_params for minimal mode (no iDRAC discovery)
   ansible.builtin.set_fact:
     node_params: "{{ node_params + [{'NodeName': item}] }}"
   loop: "{{ cmpt_list }}"
   when:
-    - discovery_mode == 'dynamic'
+    - discovery_mode == 'minimal'
     - node_params | length == 0
 
-- name: Display dynamic mode info
+- name: Display minimal mode info
   ansible.builtin.debug:
     msg: >-
-      [IB-Slurm] Dynamic discovery mode — {{ cmpt_list | length }} minimal
+      [IB-Slurm] Minimal discovery mode — {{ cmpt_list | length }} minimal
       NodeName entries generated. slurmd will auto-report CPU/Memory/GPU
       during registration (AutoDetect: nvml for GPUs).
-  when: discovery_mode == 'dynamic'
+  when: discovery_mode == 'minimal'
 
 - name: DEBUG - Show final node_params before building slurm.conf
   ansible.builtin.debug:
