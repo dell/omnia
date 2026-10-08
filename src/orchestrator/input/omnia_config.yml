@@ -55,12 +55,17 @@
 
 # node_discovery_mode
 #   Controls how hardware specifications are discovered for Slurm compute nodes
-#   Options: "heterogeneous" or "homogeneous"
+#   Options: "heterogeneous", "homogeneous", or "dynamic"
 #   - heterogeneous: Discovers each node individually via iDRAC (1 call per node)
 #     Best for: Mixed hardware environments with different node configurations
 #   - homogeneous: Groups nodes by hardware type for optimized discovery
 #     Best for: Standardized hardware groups (grp0-grp100 in pxe_mapping_file.csv)
-#   Performance: 0 iDRAC calls (with specs) or 1 call per group (without specs)
+#     Performance: 0 iDRAC calls (with specs) or 1 call per group (without specs)
+#   - dynamic: No iDRAC discovery — generates minimal NodeName entries with only
+#     hostname and NodeAddr (from PXE mapping IB_IPV6/IB_IPV4 columns).
+#     slurmd on each node auto-reports CPU, Memory, and GPU (via AutoDetect: nvml).
+#     Best for: Large clusters (2000+ nodes) where iDRAC discovery is slow or
+#     unnecessary. Eliminates /etc/hosts and DNS dependency for Slurm.
 #   Default value is heterogeneous
 
 # node_hardware_defaults
@@ -120,6 +125,7 @@ slurm_cluster:
   - cluster_name: slurm_cluster
     nfs_storage_name: nfs_slurm
     vast_storage_name: vast_storage
+    node_discovery_mode: dynamic
 # Optional custom Slurm configuration. Keep skip_merge and config_sources
 # nested under this slurm_cluster entry. Choose one config_sources format
 # and remove only the first '#' from each configuration line in that example.

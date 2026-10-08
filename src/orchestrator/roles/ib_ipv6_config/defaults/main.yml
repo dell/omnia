@@ -39,8 +39,9 @@ ib_ipv6_log_dir: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/om
 # OpenSM non-regression check (set to true to capture before/after snapshots)
 ib_ipv6_opensm_check: false
 
-# Hosts block management
-ib_ipv6_manage_hosts: true
+# Hosts block management (disabled by default — NodeAddr in slurm.conf
+# is sufficient for Slurm IB communication without /etc/hosts entries)
+ib_ipv6_manage_hosts: false
 
 # Verification after configuration
 ib_ipv6_verify: true

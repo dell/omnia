@@ -199,7 +199,8 @@
           "type": "string",
           "enum": [
             "heterogeneous",
-            "homogeneous"
+            "homogeneous",
+            "dynamic"
           ]
         },
         "node_hardware_defaults": {
