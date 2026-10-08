@@ -49,7 +49,9 @@
 - name: Parse operator image components from telemetry_registry
   vars:
     _operator_image: "{{ telemetry_registry.images.victoria_operator.operator | default('docker.io/victoriametrics/operator:v0.68.3') }}"
-    _config_reloader_image: "{{ telemetry_registry.images.victoria_operator.config_reloader | default('docker.io/victoriametrics/operator:config-reloader-v0.68.3') }}"
+    _config_reloader_image: >-
+      {{ telemetry_registry.images.victoria_operator.config_reloader |
+      default('docker.io/victoriametrics/operator:config-reloader-v0.68.3') }}
     _custom_registry: "{{ telemetry_registry.host | default('') }}"
   ansible.builtin.set_fact:
     _operator_image_tag: "{{ _operator_image.split(':')[-1] }}"

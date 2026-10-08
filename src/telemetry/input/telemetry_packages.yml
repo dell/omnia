@@ -120,7 +120,6 @@ images:
 
   # -- Operator: Strimzi Kafka Operator ----------------------------------------
   # Source: https://quay.io/organization/strimzi
-  # Used for Helm chart image overrides when container_registry is set
   strimzi:
     operator: "quay.io/strimzi/operator:1.1.0"
     kafka_bridge: "quay.io/strimzi/kafka-bridge:1.0.0"

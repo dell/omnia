@@ -65,8 +65,7 @@
     repo_url: >-
       {% set resolved = (_resolved_cfg.repo_url | default('')) or '' -%}
       {% if resolved | length > 0 -%}
-      {{ resolved | regex_replace('/$', '') }}
-      {%- else -%}
+      {{ resolved | regex_replace('/$', '') }}{%- else -%}
       {% set url = (_telemetry_packages_raw.repo_url | default('')) or '' -%}
       {% if url | length > 0 -%}
       {{ url | regex_replace('/$', '') }}{%- elif _telemetry_packages_raw.install_mode | default('offline') == 'offline' -%}
