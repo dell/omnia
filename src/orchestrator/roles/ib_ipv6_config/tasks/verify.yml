@@ -1,0 +1,92 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Post-configuration verification for IPoIB IPv6 (Story 3).
+# Runs on each target node to verify address state, routes, peers, and OpenSM.
+
+- name: "{{ ib_ipv6_verify_start_msg }}"
+  ansible.builtin.debug:
+    msg: >-
+      Verifying {{ _ib_ipv6_render.nodes_needing_update | length }} node(s)
+
+- name: Capture OpenSM pre-snapshot (if enabled)
+  when: ib_ipv6_opensm_check | bool
+  block:
+    - name: Read OpenSM config
+      ansible.builtin.slurp:
+        src: /etc/opensm/opensm.conf
+      register: _opensm_config_raw
+      failed_when: false
+
+    - name: Capture OpenSM LID/GID state
+      ansible.builtin.command: cat /var/log/opensm.log
+      register: _opensm_lid_gid_raw
+      changed_when: false
+      failed_when: false
+
+    - name: Read P_Key partition table
+      ansible.builtin.command: cat /sys/class/infiniband/mlx5_0/ports/1/pkeys/0
+      register: _opensm_pkey_raw
+      changed_when: false
+      failed_when: false
+
+    - name: Set OpenSM after-snapshot
+      ansible.builtin.set_fact:
+        _ib_ipv6_opensm_after:
+          config: "{{ _opensm_config_raw.content | default('') | b64decode | default('') }}"
+          lid_gid: "{{ _opensm_lid_gid_raw.stdout | default('') }}"
+          pkey: "{{ _opensm_pkey_raw.stdout | default('') }}"
+
+- name: Verify IPoIB IPv6 state on updated nodes
+  verify_ib_ipv6_state:
+    node_id: "{{ item }}"
+    interfaces: "{{ _ib_ipv6_validation.normalized_nodes[item] }}"
+    peer_addresses: "{{ ib_ipv6_peer_addresses }}"
+    opensm_before: "{{ _ib_ipv6_opensm_before | default({}) }}"
+    opensm_after: "{{ _ib_ipv6_opensm_after | default({}) }}"
+    log_dir: "{{ ib_ipv6_log_dir }}"
+  register: _ib_ipv6_verify_results
+  loop: "{{ _ib_ipv6_render.nodes_needing_update }}"
+  delegate_to: "{{ item }}"
+  failed_when: false
+
+- name: Report verification results
+  ansible.builtin.debug:
+    msg: >-
+      [IB-IPv6] Node {{ item.item }}:
+      status={{ item.overall_status }},
+      errors={{ item.errors | length }}
+  loop: "{{ _ib_ipv6_verify_results.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item | default('unknown') }}"
+
+- name: Identify degraded or failed nodes
+  ansible.builtin.set_fact:
+    _ib_ipv6_unhealthy_nodes: >-
+      {{ _ib_ipv6_verify_results.results | default([])
+         | selectattr('overall_status', 'ne', 'HEALTHY')
+         | map(attribute='item')
+         | list }}
+
+- name: Report healthy status
+  ansible.builtin.debug:
+    msg: "{{ ib_ipv6_verify_pass_msg }}"
+  when: (_ib_ipv6_unhealthy_nodes | default([])) | length == 0
+
+- name: Warn about degraded/failed nodes
+  ansible.builtin.debug:
+    msg: >-
+      {{ ib_ipv6_verify_degraded_msg }}:
+      {{ _ib_ipv6_unhealthy_nodes | join(', ') }}
+  when: (_ib_ipv6_unhealthy_nodes | default([])) | length > 0
