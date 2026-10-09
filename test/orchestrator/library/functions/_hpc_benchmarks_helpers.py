@@ -475,6 +475,106 @@ def enforce_mode_755(record: dict[str, str]) -> bool:
     }
 
 
+def nfs_export_check(host, control, path: str) -> tuple[bool, str]:
+    """Check if *path* appears in ``exportfs -v`` on the control node.
+
+    Returns ``(exported, detail)`` where *detail* is the matching export
+    line or an error string.
+    """
+    result = remote_command(
+        host, control, PXEBOOT_COMMANDS["hpc_benchmarks_nfs_export_check"] % path
+    )
+    text = result.stdout.strip()
+    if result.rc != 0 or not text:
+        return False, "not exported"
+    return True, text.splitlines()[0]
+
+
+def mount_type_check(host, row, path: str) -> dict[str, str]:
+    """Return SOURCE, FSTYPE, and OPTIONS for *path* from ``findmnt``."""
+    result = remote_command(
+        host, row, PXEBOOT_COMMANDS["hpc_benchmarks_mount_type"] % path
+    )
+    text = result.stdout.strip()
+    if result.rc != 0 or not text:
+        return {"source": "", "fstype": "", "options": ""}
+    parts = text.split(None, 2)
+    return {
+        "source": parts[0] if len(parts) > 0 else "",
+        "fstype": parts[1] if len(parts) > 1 else "",
+        "options": parts[2] if len(parts) > 2 else "",
+    }
+
+
+def snapshot_tool_fingerprints(host, row, base: str) -> dict[str, tuple[str, int, str]]:
+    """Return ``{relative_path: (sha256, size, mtime)}`` for every file under *base*.
+
+    The SHA-256 digest is collected separately from size/mtime so the check
+    can report which dimension drifted.
+    """
+    fingerprints: dict[str, tuple[str, int, str]] = {}
+    stat_result = remote_command(
+        host, row, PXEBOOT_COMMANDS["hpc_benchmarks_tool_fingerprints"] % base
+    )
+    sha_result = remote_command(
+        host, row, PXEBOOT_COMMANDS["hpc_benchmarks_tool_sha256"] % base
+    )
+    # Build size+mtime map
+    stat_map: dict[str, tuple[int, str]] = {}
+    for line in stat_result.stdout.splitlines():
+        parts = line.strip().split("|")
+        if len(parts) < 3:
+            continue
+        path = parts[0]
+        try:
+            size = int(parts[1])
+        except ValueError:
+            continue
+        mtime = parts[2]
+        stat_map[path] = (size, mtime)
+    # Build sha256 map
+    sha_map: dict[str, str] = {}
+    for line in sha_result.stdout.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) < 2:
+            continue
+        sha_map[parts[1]] = parts[0]
+    # Merge
+    for path in sorted(set(stat_map) | set(sha_map)):
+        size, mtime = stat_map.get(path, (0, ""))
+        sha = sha_map.get(path, "")
+        fingerprints[path] = (sha, size, mtime)
+    return fingerprints
+
+
+def run_pull_script_background(host, row, timeout_seconds: int, log_path: str):
+    """Start pull_benchmarks.sh in the background and return the PID."""
+    result = remote_command(
+        host,
+        row,
+        PXEBOOT_COMMANDS["hpc_benchmarks_run_pull_script_bg"]
+        % (timeout_seconds, HPC_BENCHMARKS_PULL_SCRIPT, HPC_TOOLS_BASE, log_path),
+    )
+    pid = result.stdout.strip()
+    if result.rc != 0 or not pid.isdigit():
+        raise RuntimeError(f"Failed to start background pull: {command_error(result)}")
+    return pid
+
+
+def wait_for_pid(host, row, pid: str, timeout_seconds: int = 700):
+    """Wait for a background PID and return its exit code."""
+    result = remote_command(
+        host,
+        row,
+        f"timeout {timeout_seconds} bash -c '{PXEBOOT_COMMANDS['hpc_benchmarks_wait_pid'] % (pid, pid)}'",
+    )
+    text = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
+    try:
+        return int(text)
+    except ValueError:
+        return -1
+
+
 # Re-export locations of the core /hpc_tools subdirectories used by
 # invariance tests (TC-14, TC-15, TC-16).
 __all__ = [
@@ -489,6 +589,8 @@ __all__ = [
     "hpc_benchmarks_context",
     "list_directory",
     "list_tool_files",
+    "mount_type_check",
+    "nfs_export_check",
     "parse_staging_report",
     "pull_script_exists",
     "pull_script_forbids_build",
@@ -499,11 +601,14 @@ __all__ = [
     "read_pull_script_var",
     "rhel_version",
     "run_pull_script",
+    "run_pull_script_background",
     "scan_for_binaries",
     "snapshot_directories",
+    "snapshot_tool_fingerprints",
     "source_only_scan_paths",
     "staged_tool_directories",
     "tools_list_deployed",
+    "wait_for_pid",
     "HPC_TOOLS_CONTAINER_IMAGES_DIRECTORY",
     "HPC_TOOLS_CUDA_DIRECTORY",
     "HPC_TOOLS_NVIDIA_SDK_DIRECTORY",

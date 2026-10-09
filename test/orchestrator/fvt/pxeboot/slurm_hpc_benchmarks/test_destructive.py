@@ -37,7 +37,6 @@ from library.functions import (
     check_hpc_benchmarks_existing_dirs_preserved,
     check_hpc_benchmarks_nvhpc_flow_unaffected,
     check_hpc_benchmarks_openmpi_unaffected,
-    check_hpc_benchmarks_per_tool_staging_report,
     check_hpc_benchmarks_staging_idempotency,
 )
 
@@ -50,7 +49,7 @@ pytestmark = [pytest.mark.slurm, pytest.mark.destructive]
 
 
 @pytest.mark.functional
-@pytest.mark.order(346)
+@pytest.mark.order(347)
 def test_hpc_benchmarks_cuda_flow_unaffected(host):
     """TC-14: Verify /hpc_tools/cuda is unchanged after benchmark staging."""
     verify_pxeboot(
@@ -61,7 +60,7 @@ def test_hpc_benchmarks_cuda_flow_unaffected(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(347)
+@pytest.mark.order(348)
 def test_hpc_benchmarks_nvhpc_flow_unaffected(host):
     """TC-15: Verify /hpc_tools/nvidia_sdk is unchanged after staging."""
     verify_pxeboot(
@@ -72,7 +71,7 @@ def test_hpc_benchmarks_nvhpc_flow_unaffected(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(348)
+@pytest.mark.order(349)
 def test_hpc_benchmarks_container_image_unaffected(host):
     """TC-16: Verify /hpc_tools/container_images is unchanged after staging."""
     verify_pxeboot(
@@ -83,7 +82,7 @@ def test_hpc_benchmarks_container_image_unaffected(host):
 
 
 @pytest.mark.functional
-@pytest.mark.order(349)
+@pytest.mark.order(350)
 def test_hpc_benchmarks_openmpi_unaffected(host):
     """TC-17: Verify OpenMPI/UCX discovery is stable across a staging run."""
     verify_pxeboot(
@@ -94,16 +93,6 @@ def test_hpc_benchmarks_openmpi_unaffected(host):
 
 
 # --- Direct staging execution checks ---
-
-
-@pytest.mark.order(350)
-def test_hpc_benchmarks_per_tool_staging_report(host):
-    """TC-08: Rerun pull_benchmarks.sh and verify per-tool SUCCESS/SKIP report."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_per_tool_staging_report",
-        check_hpc_benchmarks_per_tool_staging_report,
-    )
 
 
 @pytest.mark.order(351)

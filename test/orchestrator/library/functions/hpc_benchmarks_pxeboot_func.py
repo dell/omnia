@@ -53,6 +53,8 @@ from ._hpc_benchmarks_helpers import (
     hpc_benchmarks_context,
     list_directory,
     list_tool_files,
+    mount_type_check,
+    nfs_export_check,
     parse_staging_report,
     pull_script_exists,
     pull_script_forbids_build,
@@ -64,11 +66,14 @@ from ._hpc_benchmarks_helpers import (
     read_platform_helper_var,
     rhel_version,
     run_pull_script,
+    run_pull_script_background,
     scan_for_binaries,
     snapshot_directories,
+    snapshot_tool_fingerprints,
     source_only_scan_paths,
     staged_tool_directories,
     tools_list_deployed,
+    wait_for_pid,
 )
 from ._pxeboot_helpers import (
     remote_command,
@@ -76,6 +81,444 @@ from ._pxeboot_helpers import (
     runtime_result,
 )
 from ._workload_helpers import optional_skip
+
+
+# ---------------------------------------------------------------------------
+# TC-00: RUN STAGING (setup — executes pull_benchmarks.sh)
+# ---------------------------------------------------------------------------
+def check_hpc_benchmarks_run_staging(host):
+    """Execute pull_benchmarks.sh on the first compute node to populate artifacts.
+
+    This is a setup step that runs before the artifact-verification TCs
+    (V203, V204, V206, V208, V211) so they do not skip with "staging not
+    yet executed". The check verifies that the script exits successfully
+    and that no tool downloads failed.
+    """
+    summary = "HPC benchmarks staging execution"
+    try:
+        _context, _control, computes, skipped = computes_or_skip(host, summary)
+        if skipped:
+            return skipped
+        row = computes[0]
+        script_ok, _markers = pull_script_exists(host, row)
+        if not script_ok:
+            return optional_skip(
+                summary,
+                "pull_benchmarks.sh is not deployed — staging cannot run",
+            )
+        result = run_pull_script(host, row, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS)
+        report = parse_staging_report(result.stdout)
+        totalled = report["success"] + report["skipped"] + report["failed"]
+        ok = result.rc == 0 and totalled > 0 and report["failed"] == 0
+        fields = [
+            ("Execution node", f"{row['HOSTNAME']} | {row['ADMIN_IP']}"),
+            ("Staging exit code", result.rc),
+            ("Total tools processed", report["total"]),
+            ("Successful", report["success"]),
+            ("Skipped", report["skipped"]),
+            ("[WARN] lines", report["warn"]),
+            ("Failed", report["failed"]),
+        ]
+        return runtime_result(
+            ok,
+            summary,
+            fields,
+            command_error(result) if not ok else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# TC-00b: CLEANUP STAGED BENCHMARK TOOLS
+# ---------------------------------------------------------------------------
+def check_hpc_benchmarks_cleanup_staging(host):
+    """Remove tool directories downloaded by pull_benchmarks.sh.
+
+    Controlled by ``cleanup_benchmark_tools`` in ``test_config.yml``
+    (default ``true``).  When disabled, logs the workspace path for
+    manual inspection and reports a skip.  Framework-owned directories
+    (cuda, nvidia_sdk, container_images, scripts) are never removed.
+    """
+    from omnia_auto import load_test_config
+
+    summary = "HPC benchmarks staging cleanup"
+    try:
+        config = load_test_config()
+        if not config.get("cleanup_benchmark_tools", True):
+            return runtime_result(
+                True,
+                summary,
+                [("Policy", "cleanup_benchmark_tools=false — skipping cleanup")],
+                "",
+            )
+        _context, _control, computes, skipped = computes_or_skip(host, summary)
+        if skipped:
+            return skipped
+        row = computes[0]
+        platform_root = get_platform_root(host, row)
+        if not platform_root:
+            return optional_skip(
+                summary,
+                "Cannot determine platform root — nothing to clean",
+            )
+        tools_list_ok = tools_list_deployed(host, row)
+        if not tools_list_ok:
+            return optional_skip(
+                summary,
+                "benchmark_tools.list not deployed — no staged tools to clean",
+            )
+        tools = read_benchmark_tools_list(host, row)
+        arch_map = compute_architectures(host, computes)
+        fields: list[tuple[str, object]] = []
+        failures: list[str] = []
+        cleaned = 0
+        for arch in sorted(set(arch_map.values())):
+            row_for_arch = next(
+                item for item in computes if arch_map[item["HOSTNAME"]] == arch
+            )
+            arch_root = get_platform_root(host, row_for_arch)
+            if not arch_root:
+                continue
+            for tool in sorted(expected_tools_for_arch(tools, arch)):
+                tool_path = f"{arch_root}/{tool}"
+                stat = read_directory_stat(host, row_for_arch, tool_path)
+                if not stat["present"]:
+                    continue
+                result = remote_command(
+                    host,
+                    row_for_arch,
+                    PXEBOOT_COMMANDS["hpc_benchmarks_cleanup_platform_tools"]
+                    % tool_path,
+                )
+                if result.rc == 0 and "CLEANED" in result.stdout:
+                    fields.append((f"  {tool} [{arch}]", "removed"))
+                    cleaned += 1
+                else:
+                    failures.append(
+                        f"{row_for_arch['HOSTNAME']}: failed to remove {tool_path}"
+                    )
+                    fields.append(
+                        (f"  {tool} [{arch}]", f"FAILED (rc={result.rc})"),
+                    )
+        fields.insert(0, ("Tools removed", cleaned))
+
+        # Clean up empty parent directories after tool removal
+        # Run from platforms root to clean up all empty dirs in the hierarchy
+        platforms_root = HPC_TOOLS_PLATFORMS_DIRECTORY
+        result = remote_command(
+            host,
+            row,
+            f"find {platforms_root} -mindepth 1 -type d -empty -delete 2>/dev/null; echo DONE",
+        )
+        if result.rc == 0 and "DONE" in result.stdout:
+            fields.append(("Empty dirs cleaned", "ok"))
+
+        return runtime_result(
+            not failures,
+            summary,
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# V095: BENCHMARK PREREQUISITES
+# ---------------------------------------------------------------------------
+def check_hpc_benchmarks_prerequisites(host):
+    """Verify every prerequisite is in place before staging begins.
+
+    Checks in one pass:
+    1. ``pull_benchmarks.sh`` is present and executable
+    2. ``omnia_platform.sh`` detects OS_TYPE, OS_VERSION, ARCH
+    3. ``benchmark_tools.list`` is deployed and non-empty
+    4. ``/hpc_tools`` is mounted with the expected filesystem type on computes
+
+    The NFS export check on the control node is informational only — it does
+    not fail the test because not all clusters use NFS for ``/hpc_tools``.
+    """
+    summary = "HPC benchmarks prerequisites"
+    try:
+        _context, control, computes, skipped = computes_or_skip(host, summary)
+        if skipped:
+            return skipped
+        fields: list[tuple[str, object]] = []
+        failures: list[str] = []
+
+        # --- NFS export check on the control node (informational only) ---
+        if control is not None:
+            exported, export_detail = nfs_export_check(
+                host, control, HPC_TOOLS_BASE
+            )
+            if exported:
+                fields.append(("NFS export", export_detail))
+            else:
+                # NFS not configured or export missing — informational, not a failure
+                fields.append(("NFS export", "not configured or missing (skipped)"))
+        else:
+            fields.append(("NFS export", "no control node — skipped"))
+
+        for row in computes:
+            node = row["HOSTNAME"]
+            node_failures: list[str] = []
+
+            # 1. pull_benchmarks.sh
+            script_ok, markers = pull_script_exists(host, row)
+            if not script_ok:
+                node_failures.append("pull_benchmarks.sh missing")
+
+            # 2. omnia_platform.sh detection
+            os_type = read_platform_helper_var(host, row, "OMNIA_OS_TYPE")
+            os_version = read_platform_helper_var(host, row, "OMNIA_OS_VERSION")
+            arch = read_platform_helper_var(host, row, "OMNIA_ARCH")
+            platform_ok = all([os_type, os_version, arch])
+            if not platform_ok:
+                node_failures.append("platform detection failed")
+
+            # 3. benchmark_tools.list
+            list_ok = tools_list_deployed(host, row)
+            if not list_ok:
+                node_failures.append("benchmark_tools.list missing")
+
+            # 4/5. Mount type on compute
+            mount_info = mount_type_check(host, row, HPC_TOOLS_BASE)
+            mount_ok = bool(mount_info["fstype"])
+            if not mount_ok:
+                node_failures.append("/hpc_tools not mounted")
+
+            fields.append(
+                (
+                    f"  {node}",
+                    (
+                        f"script={'ok' if script_ok else 'bad'} | "
+                        f"platform={'ok' if platform_ok else 'bad'} | "
+                        f"tools_list={'ok' if list_ok else 'bad'} | "
+                        f"mount={mount_info['fstype'] or 'none'}"
+                        f"({mount_info['source'] or 'n/a'})"
+                    ),
+                )
+            )
+            failures.extend(f"{node}: {f}" for f in node_failures)
+
+        return runtime_result(
+            not failures,
+            summary,
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# V096: STAGING FINGERPRINT IDEMPOTENCY
+# ---------------------------------------------------------------------------
+def check_hpc_benchmarks_staging_fingerprint_idempotency(host):
+    """Pull tools, fingerprint every file, rerun, and confirm nothing changed.
+
+    Goes beyond the directory-level V218 idempotency check by recording
+    SHA-256, byte size, and mtime for every staged tarball *before* and
+    *after* the second run and asserting bitwise equality.
+    """
+    summary = "HPC benchmarks staging fingerprint idempotency"
+    try:
+        _context, _control, computes, skipped = computes_or_skip(host, summary)
+        if skipped:
+            return skipped
+        row = computes[0]
+        script_ok, _markers = pull_script_exists(host, row)
+        if not script_ok:
+            return optional_skip(
+                summary, "pull_benchmarks.sh is not deployed"
+            )
+        platform_root = get_platform_root(host, row)
+        if not platform_root:
+            return optional_skip(
+                summary, "Cannot determine platform root"
+            )
+
+        # First pull — ensure artifacts exist
+        first = run_pull_script(host, row, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS)
+        if first.rc != 0:
+            return runtime_result(
+                False,
+                summary,
+                [("Initial staging", f"rc={first.rc}")],
+                command_error(first),
+            )
+
+        # Fingerprint after first pull
+        before = snapshot_tool_fingerprints(host, row, platform_root)
+        if not before:
+            return optional_skip(
+                summary,
+                "No files found after staging — nothing to fingerprint",
+            )
+
+        # Second pull — should be a no-op
+        second = run_pull_script(host, row, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS)
+
+        # Fingerprint after second pull
+        after = snapshot_tool_fingerprints(host, row, platform_root)
+
+        # Compare
+        sha_diffs: list[str] = []
+        size_diffs: list[str] = []
+        mtime_diffs: list[str] = []
+        added = sorted(set(after) - set(before))
+        removed = sorted(set(before) - set(after))
+        for path in sorted(set(before) & set(after)):
+            b_sha, b_size, b_mtime = before[path]
+            a_sha, a_size, a_mtime = after[path]
+            if b_sha != a_sha:
+                sha_diffs.append(path)
+            if b_size != a_size:
+                size_diffs.append(path)
+            if b_mtime != a_mtime:
+                mtime_diffs.append(path)
+
+        ok = (
+            second.rc == 0
+            and not sha_diffs
+            and not size_diffs
+            and not mtime_diffs
+            and not added
+            and not removed
+        )
+        fields: list[tuple[str, object]] = [
+            ("Execution node", f"{row['HOSTNAME']} | {row['ADMIN_IP']}"),
+            ("Files fingerprinted", len(before)),
+            ("SHA-256 drifts", len(sha_diffs)),
+            ("Size drifts", len(size_diffs)),
+            ("Mtime drifts", len(mtime_diffs)),
+            ("Files added", len(added)),
+            ("Files removed", len(removed)),
+            ("Second-run exit code", second.rc),
+        ]
+        errors: list[str] = []
+        if sha_diffs:
+            errors.append(f"SHA-256 changed: {', '.join(sha_diffs[:3])}")
+        if size_diffs:
+            errors.append(f"size changed: {', '.join(size_diffs[:3])}")
+        if mtime_diffs:
+            errors.append(f"mtime changed: {', '.join(mtime_diffs[:3])}")
+        if added:
+            errors.append(f"new files: {', '.join(added[:3])}")
+        if removed:
+            errors.append(f"missing files: {', '.join(removed[:3])}")
+        if second.rc != 0:
+            errors.append(f"second run failed (rc={second.rc})")
+        return runtime_result(
+            ok, summary, fields, "; ".join(errors) if errors else ""
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# V097: CONCURRENT STAGING
+# ---------------------------------------------------------------------------
+def check_hpc_benchmarks_concurrent_staging(host):
+    """Start two same-platform pulls simultaneously on shared storage.
+
+    Launches ``pull_benchmarks.sh`` in the background on two compute
+    nodes that share the same platform path (same OS/arch), waits for
+    both, then verifies that tool files are identical on both nodes.
+    Requires at least two Slurm compute nodes.
+    """
+    summary = "HPC benchmarks concurrent staging"
+    try:
+        _context, _control, computes, skipped = computes_or_skip(host, summary)
+        if skipped:
+            return skipped
+        if len(computes) < 2:
+            return optional_skip(
+                summary,
+                "At least two compute nodes are needed for the concurrency test",
+            )
+        node_a, node_b = computes[0], computes[1]
+        for row in (node_a, node_b):
+            ok, _ = pull_script_exists(host, row)
+            if not ok:
+                return optional_skip(
+                    summary,
+                    f"pull_benchmarks.sh missing on {row['HOSTNAME']}",
+                )
+        platform_a = get_platform_root(host, node_a)
+        platform_b = get_platform_root(host, node_b)
+        if not platform_a or not platform_b:
+            return optional_skip(
+                summary, "Cannot determine platform root on one of the nodes"
+            )
+        if platform_a != platform_b:
+            return optional_skip(
+                summary,
+                f"Nodes have different platform roots ({platform_a} vs {platform_b}) "
+                "— concurrency test requires shared storage on same platform path",
+            )
+
+        log_a = "/tmp/fvt_pull_a.log"
+        log_b = "/tmp/fvt_pull_b.log"
+
+        # Launch both in background
+        pid_a = run_pull_script_background(
+            host, node_a, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS, log_a
+        )
+        pid_b = run_pull_script_background(
+            host, node_b, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS, log_b
+        )
+
+        # Wait for both
+        rc_a = wait_for_pid(host, node_a, pid_a)
+        rc_b = wait_for_pid(host, node_b, pid_b)
+
+        # Fingerprint from both nodes
+        fp_a = snapshot_tool_fingerprints(host, node_a, platform_a)
+        fp_b = snapshot_tool_fingerprints(host, node_b, platform_b)
+
+        # Compare
+        only_a = sorted(set(fp_a) - set(fp_b))
+        only_b = sorted(set(fp_b) - set(fp_a))
+        sha_mismatches: list[str] = []
+        for path in sorted(set(fp_a) & set(fp_b)):
+            if fp_a[path][0] != fp_b[path][0]:
+                sha_mismatches.append(path)
+
+        ok = (
+            rc_a == 0
+            and rc_b == 0
+            and not only_a
+            and not only_b
+            and not sha_mismatches
+        )
+        fields: list[tuple[str, object]] = [
+            ("Node A", f"{node_a['HOSTNAME']} (pid={pid_a}, rc={rc_a})"),
+            ("Node B", f"{node_b['HOSTNAME']} (pid={pid_b}, rc={rc_b})"),
+            ("Platform path", platform_a),
+            ("Files on A", len(fp_a)),
+            ("Files on B", len(fp_b)),
+            ("SHA-256 mismatches", len(sha_mismatches)),
+            ("Only on A", len(only_a)),
+            ("Only on B", len(only_b)),
+        ]
+        errors: list[str] = []
+        if rc_a != 0:
+            errors.append(f"{node_a['HOSTNAME']}: staging failed (rc={rc_a})")
+        if rc_b != 0:
+            errors.append(f"{node_b['HOSTNAME']}: staging failed (rc={rc_b})")
+        if sha_mismatches:
+            errors.append(f"SHA-256 mismatch: {', '.join(sha_mismatches[:3])}")
+        if only_a:
+            errors.append(f"files only on A: {', '.join(only_a[:3])}")
+        if only_b:
+            errors.append(f"files only on B: {', '.join(only_b[:3])}")
+        return runtime_result(
+            ok, summary, fields, "; ".join(errors) if errors else ""
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
 
 
 # ---------------------------------------------------------------------------
@@ -814,58 +1257,6 @@ def check_hpc_benchmarks_source_only_delivery(host):
             summary,
             fields,
             "; ".join(violations[:6]) if violations else "",
-        )
-    except (OSError, RuntimeError, TypeError, ValueError) as exc:
-        return runtime_exception(summary, exc)
-
-
-# ---------------------------------------------------------------------------
-# TC-08: PER-TOOL STAGING REPORT (destructive)
-# ---------------------------------------------------------------------------
-def check_hpc_benchmarks_per_tool_staging_report(host):
-    """Rerun pull_benchmarks.sh and verify the per-tool report is well-formed.
-
-    The deployed script emits ``[SUCCESS]``, ``[WARN]``, ``[ERROR]`` markers
-    followed by a summary of the form
-    ``[INFO] Successful: N | Skipped: N | Failed: N``. The parser prefers
-    the summary counts and falls back to marker counts.
-    """
-    summary = "HPC benchmarks per-tool staging report"
-    try:
-        _context, _control, computes, skipped = computes_or_skip(host, summary)
-        if skipped:
-            return skipped
-        row = computes[0]
-        script_ok, _markers = pull_script_exists(host, row)
-        if not script_ok:
-            return runtime_result(
-                False,
-                summary,
-                [("Staging script", HPC_BENCHMARKS_PULL_SCRIPT)],
-                "pull_benchmarks.sh is not deployed",
-            )
-        result = run_pull_script(host, row, HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS)
-        report = parse_staging_report(result.stdout)
-        totalled = report["success"] + report["skipped"] + report["failed"]
-        ok = (
-            result.rc == 0
-            and totalled > 0
-            and report["failed"] == 0
-        )
-        fields = [
-            ("Execution node", f"{row['HOSTNAME']} | {row['ADMIN_IP']}"),
-            ("Staging exit code", result.rc),
-            ("Total tools processed", report["total"]),
-            ("Successful", report["success"]),
-            ("Skipped", report["skipped"]),
-            ("[WARN] lines", report["warn"]),
-            ("Failed", report["failed"]),
-        ]
-        return runtime_result(
-            ok,
-            summary,
-            fields,
-            command_error(result) if not ok else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
