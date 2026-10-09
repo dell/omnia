@@ -799,11 +799,13 @@ atomically.
 Register every marker before use. Markers represent useful selection axes such
 as architecture, source, sink, feature, or `sanity`, not temporary labs.
 A run without a marker expression runs every collected test, including
-functional and negative tests, except tests that reboot nodes; the
-`exec`/`verify` phase rule for execution cases still applies. A test that
-reboots a node MUST carry `reboot` and runs only when the marker expression
-selects `reboot`, even when its suite is named explicitly. Apart from
-`reboot`, markers narrow a run; they are not required to authorize one.
+functional and negative tests, except tests that reboot nodes or remove and
+re-add nodes; the `exec`/`verify` phase rule for execution cases still applies.
+A test that reboots a node MUST carry `reboot`, and a test that removes or
+re-adds a node MUST carry `node_lifecycle`. Such tests are deselected unless
+the marker expression selects their marker, even when their suite is named
+explicitly. Apart from `reboot` and `node_lifecycle`, markers narrow a run;
+they are not required to authorize one.
 `sanity` marks only the baseline positive checks that must pass on a healthy
 system. A negative test, one that expects a rejection or failure, MUST NOT
 carry `sanity`; mark it `negative`. Do not add `sanity` to an existing test

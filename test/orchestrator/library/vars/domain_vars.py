@@ -66,6 +66,7 @@ MARKERS: list[str] = [
     "negative",
     "non_disruptive",
     "reboot",
+    "node_lifecycle",
     "scheduler_state",
     "destructive",
     "nft",

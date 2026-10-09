@@ -65,14 +65,17 @@ They include `sanity`, `functional`, `openldap`, `connectivity`, `cloudinit`,
 `powervault_infrastructure`, `powervault_mounts`, `powervault_binds`, and
 `powervault_cloudinit`, the VAST selectors `vast_installation`, `vast_mounts`,
 `vast_scratch`, `vast_targeting`, and `vast_persistence`, `image_download`,
-`negative`, `non_disruptive`, `reboot`, `scheduler_state`, and
-`destructive`. Reboot tests run only when the expression selects `reboot`.
+`negative`, `non_disruptive`, `reboot`, `node_lifecycle`, `scheduler_state`,
+and `destructive`. Reboot tests run only when the expression selects `reboot`,
+and node remove/add tests only when it selects `node_lifecycle`; otherwise they
+are deselected.
 
 Examples:
 
 ```yaml
-marker: ""                       # empty: run every test except reboot
+marker: ""                       # empty: every test except reboot/node_lifecycle
 marker: "reboot"                 # reboot tests only
+marker: "node_lifecycle"         # node remove/add tests only
 marker: "sanity"                 # one marker
 marker: "sanity,functional"      # OR
 marker: "slurm+non_disruptive"   # AND

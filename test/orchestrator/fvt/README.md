@@ -661,11 +661,11 @@ mount source and UUID to be unchanged.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 42401 | `ORCH_FVT_PXEBOOT_V500` | `test_slurm_node_remove` | `slurm_lifecycle` | `functional`, `slurm` | Remove Slurm compute node(s) from PXE mapping, provision, verify. | The operation completes successfully and returns the expected result. |
-| 42402 | `ORCH_FVT_PXEBOOT_V501` | `test_slurm_node_add` | `slurm_lifecycle` | `functional`, `slurm` | Restore removed node(s) to PXE mapping, provision, verify re-addition. | The operation completes successfully and returns the expected result. |
+| 42401 | `ORCH_FVT_PXEBOOT_V500` | `test_slurm_node_remove` | `slurm_lifecycle` | `functional`, `node_lifecycle`, `slurm` | Remove Slurm compute node(s) from PXE mapping, provision, verify. | The operation completes successfully and returns the expected result. |
+| 42402 | `ORCH_FVT_PXEBOOT_V501` | `test_slurm_node_add` | `slurm_lifecycle` | `functional`, `node_lifecycle`, `slurm` | Restore removed node(s) to PXE mapping, provision, verify re-addition. | The operation completes successfully and returns the expected result. |
 
 Node removal and re-addition use `slurm_lifecycle_remove_add_nodes` from
-`test_config.yml`; they run by default with the other functional cases.
+`test_config.yml`; they run only when `--marker` selects `node_lifecycle`.
 
 ## Cleanup test cases
 
@@ -730,10 +730,11 @@ input file, credential, or externally managed data path must always be deleted.
 | `negative` | Expected rejection and error-path behavior |
 | `non_disruptive` | Work that does not reboot or drain cluster nodes |
 | `reboot` | Node reboot cases; they run only when `--marker` selects `reboot` |
+| `node_lifecycle` | Node remove/add cases; they run only when `--marker` selects `node_lifecycle` |
 | `scheduler_state` | Scheduler drain/resume case |
 | `destructive` | Destructive cleanup selector |
 
-With no marker every test runs except reboot cases. A comma is OR; a plus is AND. For example, `sanity,functional` selects either
+With no marker every test runs except reboot and node_lifecycle cases, which are deselected. A comma is OR; a plus is AND. For example, `sanity,functional` selects either
 class, while `slurm+non_disruptive` selects tests carrying both markers.
 
 ## Commands
@@ -769,7 +770,7 @@ class, while `slurm+non_disruptive` selects tests carrying both markers.
 ./run_validation.sh fvt_orchestrator pxeboot verify \
   --suite slurm_apptainer --marker functional+image_download
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --marker disruptive+reboot
+  --marker reboot,node_lifecycle
 
 # Explicit full cleanup.
 ./run_validation.sh fvt_orchestrator cleanup test --marker sanity

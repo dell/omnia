@@ -273,6 +273,9 @@ def pytest_configure(config):
         "negative": "Expected-failure and rejection behavior checks",
         "non_disruptive": "Checks that do not reboot or drain cluster nodes",
         "reboot": "Node reboot checks; run only when --marker selects reboot",
+        "node_lifecycle": (
+            "Node remove/add checks; run only when --marker selects node_lifecycle"
+        ),
         "scheduler_state": "Scheduler drain, queue, and resume checks",
         "destructive": "Explicitly selected destructive cleanup checks",
         "nft": "Non-functional quality-contract checks",
@@ -307,6 +310,14 @@ def _item_has_marker(item, marker_name):
     return item.get_closest_marker(marker_name) is not None
 
 
+OPT_IN_MARKERS = ("reboot", "node_lifecycle")
+
+
+def _opt_in_markers(item):
+    """Return the opt-in markers a test carries."""
+    return {name for name in OPT_IN_MARKERS if _item_has_marker(item, name)}
+
+
 def pytest_collection_modifyitems(session, config, items):
     """Filter markers, apply safe defaults, and sort by order marker."""
     marker_expr = config.getoption("--marker", default="")
@@ -327,25 +338,26 @@ def pytest_collection_modifyitems(session, config, items):
             "negative",
         }
     )
-    reboot_authorized = "reboot" in explicitly_enabled
-
-    # Without a marker expression every collected test runs except reboot
-    # cases. Deploy cases still run only in the exec phase, which creates the
-    # verified state.
+    # Without a marker expression every collected test runs except opt-in
+    # (reboot, node_lifecycle) cases, which are deselected. Deploy cases still
+    # run only in the exec phase, which creates the verified state.
     if mode == "none":
+        selected = []
+        deselected = []
         for item in items:
+            if _opt_in_markers(item):
+                deselected.append(item)
+                continue
             if _item_has_marker(item, "deploy") and command_type != "exec":
                 item.add_marker(
                     pytest.mark.skip(
                         "Deploy tests run only during the runner exec phase"
                     )
                 )
-            elif _item_has_marker(item, "reboot"):
-                item.add_marker(
-                    pytest.mark.skip(
-                        "Reboot test: run with --marker reboot to authorize"
-                    )
-                )
+            selected.append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
     else:
         # Feature filters apply to verification cases. The execution phase
         # still needs its one deploy test to create the state being verified.
@@ -361,8 +373,9 @@ def pytest_collection_modifyitems(session, config, items):
             else:
                 match = _item_has_marker(item, markers[0])
 
-            if match and _item_has_marker(item, "reboot"):
-                match = reboot_authorized
+            opt_in = _opt_in_markers(item)
+            if match and opt_in:
+                match = bool(opt_in & explicitly_enabled)
             elif match and _item_has_marker(item, "functional"):
                 match = functional_authorized
             if (
@@ -397,15 +410,16 @@ def pytest_collection_modifyitems(session, config, items):
 def pytest_runtest_setup(item):
     """Expose mutation authorization to runtime helpers.
 
-    With no marker every gate a test carries is authorized except reboot;
-    with a marker expression only the selected mutation markers are.
+    With no marker every gate a test carries is authorized; opt-in cases are
+    deselected at collection. With a marker expression only the selected
+    mutation markers are.
     """
     marker_expr = item.config.getoption("--marker", default="")
     _mode, markers = _parse_marker_expression(marker_expr)
     selected = set(markers)
     if not selected:
-        # No marker selected: authorize every non-reboot gate the test
-        # carries. Reboot cases are skipped at collection.
+        # No marker selected: authorize every gate the test carries. Opt-in
+        # cases are deselected at collection.
         authorized = {
             marker
             for marker in ("functional", "image_download")
@@ -433,8 +447,7 @@ def pytest_runtest_setup(item):
         }
     ):
         authorized.add("functional")
-    if _item_has_marker(item, "reboot") and "reboot" in selected:
-        authorized.add("reboot")
+    authorized |= _opt_in_markers(item) & selected
     if _item_has_marker(item, "image_download") and (
         "image_download" in selected or sanity_authorized
     ):
