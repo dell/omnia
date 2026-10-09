@@ -1,6 +1,6 @@
 # IPoIB IPv6 Configuration Guide
 
-**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 2026
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: October 2026
 
 This guide covers InfiniBand over IP (IPoIB) IPv6 configuration for Omnia
 clusters. Three modes are supported: **dual-stack** (IPv4 + IPv6),
@@ -162,8 +162,8 @@ nmcli con modify "$IB_INTERFACE" ipv6.ip6-privacy 0
 ```
 
 IPv6 privacy extensions are disabled (`ip6-privacy 0`) to ensure deterministic
-IPoIB addressing. Temporary IPv6 addresses would break Slurm communication and
-MPI job placement.
+IPoIB addressing. Temporary IPv6 addresses would produce unpredictable addresses
+on IB interfaces.
 
 ### 3.3 iproute2 Fallback
 
@@ -202,14 +202,23 @@ sysctl -w "net.ipv6.conf.$IB_INTERFACE.use_tempaddr=0"
 
 ## 5. Verifying IB IPv6 Configuration
 
-After provisioning, verify the IB IPv6 configuration on a target node:
+After provisioning, verify the IB IPv6 configuration on a target node.
+
+> **Note**: IB interface names use predictable naming (e.g., `ibp161s0`,
+> `ibp181s0`, `ibp47s0`) derived from PCI slot topology, not generic
+> names like `ib0`. Use `ls /sys/class/net/ | grep '^ib'` to discover
+> the actual interface name on each node.
 
 ```bash
+# Discover the IB interface name on this node
+IB_IFACE=$(ls /sys/class/net/ | grep '^ib' | head -1)
+echo "IB interface: $IB_IFACE"
+
 # Check IB interface addresses
-ip addr show ib0
+ip addr show "$IB_IFACE"
 
 # Expected output for dual-stack:
-#   inet 192.168.0.41/24 scope global ib0
+#   inet 192.168.0.41/24 scope global ibp161s0
 #   inet6 fd00:1b::41/64 scope global
 
 # Test IPv6 connectivity between nodes
@@ -219,7 +228,7 @@ ping6 fd00:1b::42
 ibstat
 
 # Verify NetworkManager connection
-nmcli con show ib0
+nmcli con show "$IB_IFACE"
 ```
 
 ---
@@ -240,14 +249,17 @@ configures interfaces with `Link layer: InfiniBand`.
 ## 7. Known Limitations
 
 1. **IPv6 privacy extensions are disabled**: Temporary addresses (`use_tempaddr`)
-   are disabled on IB interfaces for deterministic addressing. This is required
-   for Slurm and MPI job placement.
+   are disabled on IB interfaces for deterministic addressing.
 2. **No IPv6 router advertisements**: IPoIB interfaces use static addressing
    only. SLAAC is not supported on IB networks.
 3. **DNS**: InfiniBand DNS servers (configured in `network_spec.yml`) are added
    to the system resolver. IPv6 DNS servers are supported.
 4. **Single IPv6 address per interface**: Each node receives at most one IPv6
    address per IB interface.
+5. **Predictable interface naming**: IB interfaces use predictable names based
+   on PCI topology (e.g., `ibp161s0`, `ibp181s0`), not generic names like
+   `ib0`. The `configure-ib-network.sh` script auto-discovers the correct
+   interface via `dmidecode` and `/sys/class/infiniband/`.
 
 ---
 
