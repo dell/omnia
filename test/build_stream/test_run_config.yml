@@ -61,6 +61,7 @@
 #   build_pipeline:       build_pipeline, manual
 #   deploy_pipeline:      deploy_pipeline, manual
 #   cadence_pipeline:     cadence_pipeline
+#   automatic_cleanup:    automatic_cleanup (explicit, destructive)
 #
 # Default lifecycle: buildstream_install -> cadence_pipeline
 # Named lifecycle:   build_deploy_lifecycle
@@ -104,6 +105,13 @@ fvt_build_stream:
     run: false
     command: "test"
     suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  automatic_cleanup:
+    run: false
+    command: "test"
+    suite: "automatic_cleanup"
     marker: "sanity"
     dataset: ""
     sync_input: false

@@ -40,6 +40,7 @@ FVT_TAGS: List[str] = [
     "build_pipeline",
     "deploy_pipeline",
     "cadence_pipeline",
+    "automatic_cleanup",
     "buildstream_cleanup",
 ]
 
@@ -89,6 +90,7 @@ SUITES: Dict[str, List[str]] = {
     "build_pipeline": ["build_pipeline", "manual"],
     "deploy_pipeline": ["deploy_pipeline", "manual"],
     "cadence_pipeline": ["cadence_pipeline"],
+    "automatic_cleanup": ["automatic_cleanup"],
 }
 
 # Explicit manual execution owns its trigger. This prevents the normal sanity
@@ -101,15 +103,16 @@ SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
         "buildstream_cleanup",
         "cleanup_pipeline",
     ],
+    "automatic_cleanup": ["automatic_cleanup"],
 }
 
 # Cleanup operations are destructive and have different targets. Require the
 # caller to select exactly one suite so GitLab cleanup, BuildStream cleanup,
 # and image cleanup-pipeline execution can never be mixed accidentally.
-REQUIRED_SUITE_TAGS: List[str] = ["buildstream_cleanup"]
+REQUIRED_SUITE_TAGS: List[str] = ["buildstream_cleanup", "automatic_cleanup"]
 
 # =====================================================================
 # Tags excluded from "all" verify (run only when explicit)
 # =====================================================================
 
-EXCLUDE_TAGS: List[str] = ["buildstream_cleanup"]
+EXCLUDE_TAGS: List[str] = ["buildstream_cleanup", "automatic_cleanup"]
