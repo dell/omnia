@@ -924,9 +924,8 @@ class TestCleanupResultHandling:
         poller._on_result_received(result)
 
         saved_ig = ig_repo.find_by_job_id(job_id)
-        # Left in CLEANING (not CLEANED, not reverted) so a retry DELETE
-        # can resubmit the cleanup playbook.
-        assert saved_ig.status == ImageGroupStatus.CLEANING
+        assert saved_ig.status == ImageGroupStatus.CLEANUP_FAILED
+        assert saved_ig.status != ImageGroupStatus.CLEANED
         assert job.tombstoned is False
         assert any(e.event_type == "JOB_CLEANUP_FAILED" for e in audit_repo._events)
 
