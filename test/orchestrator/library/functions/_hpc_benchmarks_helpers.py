@@ -226,8 +226,24 @@ def source_only_scan_paths(host, row) -> list[str]:
     We intentionally skip the framework-owned directories (cuda, nvidia_sdk,
     container_images, scripts) so legitimate CUDA / NVHPC / container-runtime
     binaries do not register as "pre-compiled benchmark artifacts".
+    
+    The exclusion is recursive: any path component matching a core subdir name
+    is excluded (e.g., /hpc_tools/platforms/rhel/10.0/x86_64/cuda/ is excluded
+    because 'cuda' is in the exclusion list).
     """
-    return staged_tool_directories(host, row)
+    from pathlib import Path
+    
+    all_dirs = staged_tool_directories(host, row)
+    excluded_names = _STAGING_EXCLUDED_SUBDIRS
+    
+    # Filter out directories where any path component is in the exclusion list
+    scan_paths = []
+    for path in all_dirs:
+        path_parts = Path(path).parts
+        if not any(part in excluded_names for part in path_parts):
+            scan_paths.append(path)
+    
+    return scan_paths
 
 
 def scan_for_binaries(host, row, paths: list[str]) -> list[str]:
