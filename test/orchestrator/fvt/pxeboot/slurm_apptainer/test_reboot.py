@@ -16,36 +16,41 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_apptainer_reboot_artifacts,
     check_apptainer_reboot_job,
     check_apptainer_reboot_storage,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
 
 @pytest.mark.apptainer
-@pytest.mark.disruptive
 @pytest.mark.reboot
-@pytest.mark.order(295)
+@pytest.mark.order(41930)
 def test_apptainer_reboot_storage(host):
     """Reboot one compute and verify the shared mount and SIF checksum."""
-    verify_pxeboot(host, "apptainer_reboot_storage", check_apptainer_reboot_storage)
+    tc = TC["apptainer_reboot_storage"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_reboot_storage)
 
 
 @pytest.mark.apptainer
-@pytest.mark.disruptive
 @pytest.mark.reboot
-@pytest.mark.order(296)
+@pytest.mark.order(41931)
 def test_apptainer_reboot_job(host):
     """Run an exact-node container job after the authorized reboot."""
-    verify_pxeboot(host, "apptainer_reboot_job", check_apptainer_reboot_job)
+    tc = TC["apptainer_reboot_job"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_reboot_job)
 
 
 @pytest.mark.apptainer
-@pytest.mark.disruptive
 @pytest.mark.reboot
-@pytest.mark.order(297)
+@pytest.mark.order(41932)
 def test_apptainer_reboot_artifacts(host):
     """Verify downloader artifacts and policy after the authorized reboot."""
-    verify_pxeboot(host, "apptainer_reboot_artifacts", check_apptainer_reboot_artifacts)
+    tc = TC["apptainer_reboot_artifacts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_reboot_artifacts)

@@ -16,6 +16,7 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_hpc_benchmarks_artifact_copy,
     check_hpc_benchmarks_cleanup_staging,
     check_hpc_benchmarks_json_declaration,
@@ -27,26 +28,28 @@ from library.functions import (
     check_hpc_benchmarks_run_staging,
     check_hpc_benchmarks_tools_dir_creation,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
-
-pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
-
 
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.benchmark
-@pytest.mark.order(295)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42001)
 def test_hpc_benchmarks_prerequisites(host):
-    """V095: Verify script presence, platform helper, tool list, mount (NFS export informational)."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_prerequisites", check_hpc_benchmarks_prerequisites
-    )
+    """V225: Verify script presence, platform helper, tool list, mount (NFS export informational)."""
+    tc = TC["hpc_benchmarks_prerequisites"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_prerequisites)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(330)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42004)
 def test_hpc_benchmarks_run_staging(host):
     """TC-00: Execute pull_benchmarks.sh to populate staged artifacts.
 
@@ -54,94 +57,102 @@ def test_hpc_benchmarks_run_staging(host):
     not skip with "staging not yet executed".  Skips gracefully when
     pull_benchmarks.sh is not deployed.
     """
-    verify_pxeboot(
-        host, "hpc_benchmarks_run_staging", check_hpc_benchmarks_run_staging
-    )
+    tc = TC["hpc_benchmarks_run_staging"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_run_staging)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(331)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42005)
 def test_hpc_benchmarks_json_declaration(host):
     """TC-01: Verify benchmark_tools.list is deployed and non-empty per arch."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_json_declaration", check_hpc_benchmarks_json_declaration
-    )
+    tc = TC["hpc_benchmarks_json_declaration"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_json_declaration)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(332)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42006)
 def test_hpc_benchmarks_local_repo_sync(host):
     """TC-02: Verify each declared tool has files under the Pulp offline URL."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_local_repo_sync", check_hpc_benchmarks_local_repo_sync
-    )
+    tc = TC["hpc_benchmarks_local_repo_sync"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_local_repo_sync)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(333)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42007)
 def test_hpc_benchmarks_tools_dir_creation(host):
     """TC-03: Verify /hpc_tools directory layout and 0755 permissions."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_tools_dir_creation",
-        check_hpc_benchmarks_tools_dir_creation,
-    )
+    tc = TC["hpc_benchmarks_tools_dir_creation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_tools_dir_creation)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(334)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42008)
 def test_hpc_benchmarks_artifact_copy(host):
     """TC-04: Verify declared benchmark artifacts are staged per tool."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_artifact_copy", check_hpc_benchmarks_artifact_copy
-    )
+    tc = TC["hpc_benchmarks_artifact_copy"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_artifact_copy)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(337)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42009)
 def test_hpc_benchmarks_msr_safe_arch_boundary(host):
     """TC-05: Verify msr-safe is staged only for x86_64 nodes."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_msr_safe_arch_boundary",
-        check_hpc_benchmarks_msr_safe_arch_boundary,
-    )
+    tc = TC["hpc_benchmarks_msr_safe_arch_boundary"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_msr_safe_arch_boundary)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(338)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42010)
 def test_hpc_benchmarks_post_staging_validation(host):
     """TC-12: Verify post-staging validation of benchmark tool directories."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_post_staging_validation",
-        check_hpc_benchmarks_post_staging_validation,
-    )
+    tc = TC["hpc_benchmarks_post_staging_validation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_post_staging_validation)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(339)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42011)
 def test_hpc_benchmarks_rhel_compatibility(host):
     """TC-13: Verify every compute node runs the targeted RHEL major."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_rhel_compatibility", check_hpc_benchmarks_rhel_compatibility
-    )
+    tc = TC["hpc_benchmarks_rhel_compatibility"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_rhel_compatibility)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(346)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42020)
 def test_hpc_benchmarks_cleanup_staging(host):
     """TC-00b: Remove staged benchmark tool directories after verification.
 
     Controlled by ``cleanup_benchmark_tools`` in ``test_config.yml``.
     When false, staged artifacts are retained for manual inspection.
     """
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_cleanup_staging",
-        check_hpc_benchmarks_cleanup_staging,
-    )
+    tc = TC["hpc_benchmarks_cleanup_staging"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_cleanup_staging)

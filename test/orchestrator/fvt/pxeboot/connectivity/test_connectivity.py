@@ -23,75 +23,61 @@ from library.functions import (
     check_node_ping,
     check_node_ssh,
 )
-from library.messages import PXEBOOT_TEST_ASSERT_MSGS as ASSERT
-from library.messages import PXEBOOT_TEST_LOG_MSGS as LOG
 from library.vars import TEST_CASES as TC
 
-
-def _check(host, key, callback):
-    tc = TC[key]
-    test_log = TestLogger(tc["title"], tc["id"])
-    result = callback(host)
-    fields = result["details"]["fields"]
-    if result.get("skipped"):
-        test_log.passed_fields(
-            LOG["check_passed"].format(component=tc["component"]), fields
-        )
-        pytest.skip(result.get("error") or "Not applicable to this configuration")
-    if result["success"]:
-        test_log.passed_fields(
-            LOG["check_passed"].format(component=tc["component"]), fields
-        )
-    else:
-        test_log.failed_fields(
-            LOG["check_failed"].format(component=tc["component"]),
-            [*fields, ("Error", result["error"])],
-        )
-    assert result["success"], ASSERT["verification_failed"].format(
-        component=tc["component"], error=result["error"]
-    )
+from fvt.result import verify_pxeboot
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
-@pytest.mark.order(201)
+@pytest.mark.order(40101)
 def test_node_ping(host):
     """Verify ping from the OIM to every mapped administrative IP."""
-    _check(host, "node_ping", check_node_ping)
+    tc = TC["node_ping"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_node_ping)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
-@pytest.mark.order(202)
+@pytest.mark.order(40102)
 def test_node_ssh(host):
     """Verify passwordless root SSH from the OIM to every mapped node."""
-    _check(host, "node_ssh", check_node_ssh)
+    tc = TC["node_ssh"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_node_ssh)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
-@pytest.mark.order(203)
+@pytest.mark.order(40103)
 def test_node_hostname_ssh(host):
     """Verify mapped hostnames resolve and support passwordless root SSH."""
-    _check(host, "node_hostname_ssh", check_node_hostname_ssh)
+    tc = TC["node_hostname_ssh"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_node_hostname_ssh)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
-@pytest.mark.order(298)
+@pytest.mark.order(40104)
 def test_node_architecture(host):
     """Verify each node's live architecture matches its functional group."""
-    _check(host, "node_architecture", check_node_architecture)
+    tc = TC["node_architecture"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_node_architecture)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.connectivity
-@pytest.mark.order(299)
+@pytest.mark.order(40105)
 def test_node_os_version(host):
     """Verify each node's live OS version matches its functional group."""
-    _check(host, "node_os_version", check_node_os_version)
+    tc = TC["node_os_version"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_node_os_version)

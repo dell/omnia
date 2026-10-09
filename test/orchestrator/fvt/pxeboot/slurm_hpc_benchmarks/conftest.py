@@ -41,13 +41,6 @@ def pytest_addoption(parser):
     )
 
 
-def pytest_configure(config):
-    """Register custom markers for the HPC benchmarks suite."""
-    config.addinivalue_line(
-        "markers", "benchmark: HPC benchmark staging and execution tests"
-    )
-
-
 def _destructive_authorized(config) -> bool:
     """Return True when destructive HPC benchmarks tests may run."""
     if config.getoption("--run-destructive", default=False):

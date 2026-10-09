@@ -18,6 +18,7 @@ import pytest
 
 from fvt.result import verify_pxeboot
 from library.functions import (
+    TestLogger,
     check_powervault_gpt_partition,
     check_powervault_filesystem_type,
     check_powervault_mount_point_directory,
@@ -26,66 +27,81 @@ from library.functions import (
     check_powervault_fstab_entry,
     check_powervault_io_write_read,
 )
+from library.vars import TEST_CASES as TC
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(310)
+@pytest.mark.order(40610)
 @pytest.mark.powervault_mounts
 def test_powervault_gpt_partition(host):
     """Verify GPT partition exists on multipath device."""
-    verify_pxeboot(host, "powervault_gpt_partition", check_powervault_gpt_partition)
+    tc = TC["powervault_gpt_partition"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_gpt_partition)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(311)
+@pytest.mark.order(40611)
 @pytest.mark.powervault_mounts
 def test_powervault_filesystem_type(host):
     """Verify filesystem formatted with correct type."""
-    verify_pxeboot(host, "powervault_filesystem_type", check_powervault_filesystem_type)
+    tc = TC["powervault_filesystem_type"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_filesystem_type)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(312)
+@pytest.mark.order(40612)
 @pytest.mark.powervault_mounts
 def test_powervault_mount_point_directory(host):
     """Verify mount point directory exists on all target nodes."""
-    verify_pxeboot(host, "powervault_mount_point_directory", check_powervault_mount_point_directory)
+    tc = TC["powervault_mount_point_directory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_mount_point_directory)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(313)
+@pytest.mark.order(40613)
 @pytest.mark.powervault_mounts
 def test_powervault_volume_mounted(host):
     """Verify PowerVault volume is actively mounted on all target nodes."""
-    verify_pxeboot(host, "powervault_volume_mounted", check_powervault_volume_mounted)
+    tc = TC["powervault_volume_mounted"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_volume_mounted)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(314)
+@pytest.mark.order(40614)
 @pytest.mark.powervault_mounts
 def test_powervault_mount_options(host):
     """Verify mount options applied correctly on all target nodes."""
-    verify_pxeboot(host, "powervault_mount_options", check_powervault_mount_options)
+    tc = TC["powervault_mount_options"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_mount_options)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(315)
+@pytest.mark.order(40615)
 @pytest.mark.powervault_mounts
 def test_powervault_fstab_entry(host):
     """Verify persistent fstab entry created on all target nodes."""
-    verify_pxeboot(host, "powervault_fstab_entry", check_powervault_fstab_entry)
+    tc = TC["powervault_fstab_entry"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_fstab_entry)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(327)
+@pytest.mark.order(40627)
 @pytest.mark.powervault_mounts
 def test_powervault_io_write_read(host):
     """Verify write-read I/O succeeds on every PV mount point."""
-    verify_pxeboot(host, "powervault_io_write_read", check_powervault_io_write_read)
+    tc = TC["powervault_io_write_read"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_io_write_read)

@@ -15,7 +15,11 @@
 """Slurm UCX transport contract."""
 
 import pytest
-from library.functions import check_slurm_ucx_transport
+from library.functions import (
+    TestLogger,
+    check_slurm_ucx_transport,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -24,7 +28,9 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(262)
+@pytest.mark.order(41701)
 def test_slurm_ucx_transport(host):
     """Verify UCX exposes an InfiniBand-capable transport."""
-    verify_pxeboot(host, "slurm_ucx_transport", check_slurm_ucx_transport)
+    tc = TC["slurm_ucx_transport"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_ucx_transport)

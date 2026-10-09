@@ -16,12 +16,14 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_apptainer_cuda_workload,
     check_apptainer_gpu_access,
     check_apptainer_gpu_count,
     check_apptainer_gpu_memory,
     check_apptainer_infiniband,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -31,10 +33,12 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(290)
+@pytest.mark.order(41925)
 def test_apptainer_gpu_access(host):
     """Verify scheduler-declared GPU nodes expose GPUs in the container."""
-    verify_pxeboot(host, "apptainer_gpu_access", check_apptainer_gpu_access)
+    tc = TC["apptainer_gpu_access"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_gpu_access)
 
 
 @pytest.mark.apptainer
@@ -42,10 +46,12 @@ def test_apptainer_gpu_access(host):
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(291)
+@pytest.mark.order(41926)
 def test_apptainer_gpu_count(host):
     """Verify each container sees the same GPU count as its host."""
-    verify_pxeboot(host, "apptainer_gpu_count", check_apptainer_gpu_count)
+    tc = TC["apptainer_gpu_count"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_gpu_count)
 
 
 @pytest.mark.apptainer
@@ -53,10 +59,12 @@ def test_apptainer_gpu_count(host):
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(292)
+@pytest.mark.order(41927)
 def test_apptainer_cuda_workload(host):
     """Execute a bounded NVIDIA device query in each GPU container."""
-    verify_pxeboot(host, "apptainer_cuda_workload", check_apptainer_cuda_workload)
+    tc = TC["apptainer_cuda_workload"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_cuda_workload)
 
 
 @pytest.mark.apptainer
@@ -64,10 +72,12 @@ def test_apptainer_cuda_workload(host):
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(293)
+@pytest.mark.order(41928)
 def test_apptainer_gpu_memory(host):
     """Verify the GPU query leaves no material device-memory allocation."""
-    verify_pxeboot(host, "apptainer_gpu_memory", check_apptainer_gpu_memory)
+    tc = TC["apptainer_gpu_memory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_gpu_memory)
 
 
 @pytest.mark.apptainer
@@ -75,7 +85,9 @@ def test_apptainer_gpu_memory(host):
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(294)
+@pytest.mark.order(41929)
 def test_apptainer_infiniband(host):
     """Verify mapped compute nodes expose InfiniBand devices in containers."""
-    verify_pxeboot(host, "apptainer_infiniband", check_apptainer_infiniband)
+    tc = TC["apptainer_infiniband"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_infiniband)

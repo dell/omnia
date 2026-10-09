@@ -20,14 +20,12 @@ enforce the result contract.
 """
 
 import pytest
-from library.functions import TestLogger
 from library.messages import CLEANUP_TEST_ASSERT_MSGS as CLEANUP_ASSERT
 from library.messages import CLEANUP_TEST_LOG_MSGS as CLEANUP_LOG
 from library.messages import PRECHECK_TEST_ASSERT_MSGS as PRECHECK_ASSERT
 from library.messages import PRECHECK_TEST_LOG_MSGS as PRECHECK_LOG
 from library.messages import PXEBOOT_TEST_ASSERT_MSGS as PXEBOOT_ASSERT
 from library.messages import PXEBOOT_TEST_LOG_MSGS as PXEBOOT_LOG
-from library.vars import TEST_CASES
 
 
 def _report(test_log, result, fields, component, messages):
@@ -108,10 +106,8 @@ def verify_cleanup(test_log, host, component, checker):
     )
 
 
-def verify_pxeboot(host, key, checker):
+def verify_pxeboot(test_log, case, host, checker):
     """Execute and enforce one PXE post-boot verification result."""
-    case = TEST_CASES[key]
-    test_log = TestLogger(case["title"], case["id"])
     result = checker(host)
     fields = result["details"]["fields"]
     _skip_if_requested(test_log, case, result, fields, PXEBOOT_LOG)

@@ -18,6 +18,7 @@ from types import SimpleNamespace
 
 import pytest
 from library.functions import external_ldap_func as external_ldap
+from library.functions import external_ldap_pxeboot_func as external_ldap_pxeboot
 from library.functions import openchami_prepare_func as openchami
 from library.functions import openldap_prepare_func as openldap
 from library.functions import postgres_prepare_func as postgres
@@ -174,7 +175,7 @@ def test_postgresql_readiness_accepts_complete_read_only_probe(monkeypatch):
 
 def test_explicitly_disabled_optional_openldap_skips(monkeypatch):
     """ORCH_UT_021: Catalog-disabled OpenLDAP is an intentional skip."""
-    monkeypatch.setattr(openldap, "_openldap_enabled", lambda _host: False)
+    monkeypatch.setattr(openldap, "openldap_enabled", lambda _host: False)
 
     verification = openldap.check_prepare_openldap_runtime(object())
 
@@ -184,7 +185,7 @@ def test_explicitly_disabled_optional_openldap_skips(monkeypatch):
 
 def test_enabled_optional_openldap_missing_runtime_fails(monkeypatch):
     """ORCH_UT_022: Enabled OpenLDAP cannot skip a missing runtime."""
-    monkeypatch.setattr(openldap, "_openldap_enabled", lambda _host: True)
+    monkeypatch.setattr(openldap, "openldap_enabled", lambda _host: True)
     monkeypatch.setattr(
         openldap,
         "run_on_host",
@@ -246,9 +247,9 @@ def test_external_ldap_validation_requires_complete_endpoint():
 
 def test_external_ldap_validation_opt_out_skips_before_mutation(monkeypatch):
     """ORCH_UT_028: Disabled validation cannot reconcile the LDAP proxy."""
-    monkeypatch.setattr(openldap, "_openldap_enabled", lambda _host: True)
+    monkeypatch.setattr(external_ldap_pxeboot, "openldap_enabled", lambda _host: True)
     monkeypatch.setattr(
-        openldap,
+        external_ldap_pxeboot,
         "load_external_ldap_settings",
         lambda: {
             "validation_enabled": False,
@@ -260,23 +261,23 @@ def test_external_ldap_validation_opt_out_skips_before_mutation(monkeypatch):
         raise AssertionError("LDAP reconciliation must not run")
 
     monkeypatch.setattr(
-        openldap,
+        external_ldap_pxeboot,
         "configure_external_ldap_proxy",
         unexpected_reconciliation,
     )
 
-    verification = openldap.reconcile_prepare_external_ldap_proxy(object())
+    verification = external_ldap_pxeboot.reconcile_external_ldap_proxy(object())
 
     assert verification["success"]
     assert verification["skipped"]
-    assert dict(verification["fields"])["validate_external_ldap"] is False
+    assert dict(verification["details"]["fields"])["validate_external_ldap"] is False
 
 
 def test_external_ldap_validation_does_not_hide_existing_proxy_failure(monkeypatch):
     """ORCH_UT_029: Validation-only mode reports a deployed proxy failure."""
-    monkeypatch.setattr(openldap, "_openldap_enabled", lambda _host: True)
+    monkeypatch.setattr(external_ldap_pxeboot, "openldap_enabled", lambda _host: True)
     monkeypatch.setattr(
-        openldap,
+        external_ldap_pxeboot,
         "load_external_ldap_settings",
         lambda: {
             "validation_enabled": True,
@@ -284,7 +285,7 @@ def test_external_ldap_validation_does_not_hide_existing_proxy_failure(monkeypat
         },
     )
     monkeypatch.setattr(
-        openldap,
+        external_ldap_pxeboot,
         "configure_external_ldap_proxy",
         lambda _host: {
             "success": True,
@@ -295,18 +296,20 @@ def test_external_ldap_validation_does_not_hide_existing_proxy_failure(monkeypat
         },
     )
     monkeypatch.setattr(
-        openldap,
-        "check_prepare_external_ldap_proxy",
+        external_ldap_pxeboot,
+        "check_external_ldap_proxy",
         lambda _host: {
             "success": False,
             "skipped": False,
-            "details": "External LDAP proxy verification failed",
-            "fields": [],
+            "details": {
+                "summary": "External LDAP proxy verification failed",
+                "fields": [],
+            },
             "error": "deployed proxy does not match",
         },
     )
 
-    verification = openldap.reconcile_prepare_external_ldap_proxy(object())
+    verification = external_ldap_pxeboot.reconcile_external_ldap_proxy(object())
 
     assert not verification["success"]
     assert not verification["skipped"]

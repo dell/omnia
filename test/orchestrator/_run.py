@@ -46,20 +46,6 @@ def _runner_all_exec_tags(args, lifecycle_tags):
     return lifecycle_tags
 
 
-def _apply_safe_pxeboot_marker_default(args):
-    """Default PXE verification to positive, non-disruptive sanity checks."""
-    normalized = list(args)
-    if (
-        len(normalized) >= 3
-        and normalized[0] == "fvt_orchestrator"
-        and normalized[1] == "pxeboot"
-        and normalized[2] in {"test", "verify"}
-        and "--marker" not in normalized
-    ):
-        normalized.extend(["--marker", "sanity"])
-    return normalized
-
-
 def main():
     """Load domain config and run ValidationRunner."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -81,7 +67,7 @@ def main():
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
 
-    args = _apply_safe_pxeboot_marker_default(sys.argv[1:])
+    args = sys.argv[1:]
     runner = ValidationRunner(
         domain=DOMAIN_NAME,
         script_dir=script_dir,

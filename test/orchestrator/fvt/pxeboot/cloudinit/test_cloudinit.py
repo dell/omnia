@@ -24,7 +24,7 @@ from library.vars import TEST_CASES as TC
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.cloudinit
-@pytest.mark.order(204)
+@pytest.mark.order(40201)
 def test_node_cloud_init(host):
     """Verify PXE report freshness and direct cloud-init JSON state."""
     tc = TC["node_cloud_init"]

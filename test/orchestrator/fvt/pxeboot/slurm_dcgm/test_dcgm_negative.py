@@ -25,50 +25,54 @@ create temporary side effects (SIGKILL, socket rename, RPM dry-run).
 import pytest
 
 from library.functions import (
+    TestLogger,
     check_dcgm_neg_cuda_prerequisite,
     check_dcgm_neg_daemon_recovery,
     check_dcgm_neg_package_install_failure,
     check_dcgm_neg_socket_inaccessible,
 )
+from library.vars import TEST_CASES as TC
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.buildstream,
-    pytest.mark.sanity,
-    pytest.mark.slurm,
-    pytest.mark.functional,
-]
-
-
-@pytest.mark.order(320)
+@pytest.mark.buildstream
+@pytest.mark.slurm
+@pytest.mark.functional
+@pytest.mark.order(41515)
 def test_dcgm_neg_cuda_prerequisite(host):
     """Verify DCGM deployment requires CUDA driver as a prerequisite."""
-    verify_pxeboot(
-        host, "dcgm_neg_cuda_prerequisite", check_dcgm_neg_cuda_prerequisite,
-    )
+    tc = TC["dcgm_neg_cuda_prerequisite"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_neg_cuda_prerequisite)
 
 
-@pytest.mark.order(321)
+@pytest.mark.buildstream
+@pytest.mark.slurm
+@pytest.mark.functional
+@pytest.mark.order(41516)
 def test_dcgm_neg_daemon_recovery(host):
     """Simulate DCGM daemon crash via SIGKILL and verify systemd restarts it."""
-    verify_pxeboot(
-        host, "dcgm_neg_daemon_recovery", check_dcgm_neg_daemon_recovery,
-    )
+    tc = TC["dcgm_neg_daemon_recovery"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_neg_daemon_recovery)
 
 
-@pytest.mark.order(322)
+@pytest.mark.buildstream
+@pytest.mark.slurm
+@pytest.mark.functional
+@pytest.mark.order(41517)
 def test_dcgm_neg_socket_inaccessible(host):
     """Remove DCGM Unix socket and verify dcgmi returns a clear error."""
-    verify_pxeboot(
-        host, "dcgm_neg_socket_inaccessible", check_dcgm_neg_socket_inaccessible,
-    )
+    tc = TC["dcgm_neg_socket_inaccessible"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_neg_socket_inaccessible)
 
 
-@pytest.mark.order(323)
+@pytest.mark.buildstream
+@pytest.mark.slurm
+@pytest.mark.functional
+@pytest.mark.order(41518)
 def test_dcgm_neg_package_install_failure(host):
     """Verify error handling when datacenter-gpu-manager package is unavailable."""
-    verify_pxeboot(
-        host,
-        "dcgm_neg_package_install_failure",
-        check_dcgm_neg_package_install_failure,
-    )
+    tc = TC["dcgm_neg_package_install_failure"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_neg_package_install_failure)
