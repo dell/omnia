@@ -27,6 +27,8 @@
 #
 # This file provides:
 #   - default:before_script with cert setup and auth/API helpers
+#   - pin_image_group_build_status: points orchestrator_config.yml at the
+#     selected image group's build_status.yml before deploy/restart uploads
 #   - deploy stage (manual confirm, upload + deploy API + poll)
 #   - restart stage (restart API + poll)
 #   - validate stage (stub — Molecule integration planned for Sprint 3)
@@ -186,6 +188,91 @@ default:
         rm -f "/tmp/_rf_failed_nodes.json"
       }
 
+      # Read KEY=value from the repository omnia.env (quotes stripped).
+      omnia_env_value() {
+        sed -n "s/^[[:space:]]*${1}[[:space:]]*=[[:space:]]*//p" \
+          "${CI_PROJECT_DIR}/omnia.env" 2>/dev/null | tail -1 | tr -d "\"'"
+      }
+
+      # Point the orchestrator at the selected image group's build_status.yml.
+      # Every catalog build writes
+      #   <IMAGE_BUILD_MANAGER_DATA_PATH>/output/<project>/<image_group_id>/build_status.yml
+      # while the project-level build_status.yml reflects only the most recent
+      # build. This rewrites image_build_manager_output_path in the workspace
+      # copy of orchestrator_config.yml just before it is uploaded. The change
+      # is never committed, so GitLab keeps its value and the cadence
+      # pipeline (which uploads the repository copy) is unaffected.
+      pin_image_group_build_status() {
+        _PIN_CONFIG="${CI_PROJECT_DIR}/input/orchestrator/orchestrator_config.yml"
+        _PIN_ID="${IMAGE_GROUP_ID:-}"
+
+        if [ ! -f "${_PIN_CONFIG}" ]; then
+          echo "  [PIN] ERROR: input/orchestrator/orchestrator_config.yml not found" >&2
+          return 1
+        fi
+        case "${_PIN_ID}" in
+          ''|.*|*..*|*[!A-Za-z0-9._-]*)
+            echo "  [PIN] ERROR: IMAGE_GROUP_ID is empty or has unsupported characters" >&2
+            return 1 ;;
+        esac
+        if [ "${#_PIN_ID}" -gt 256 ]; then
+          echo "  [PIN] ERROR: IMAGE_GROUP_ID exceeds 256 characters" >&2
+          return 1
+        fi
+
+        _PIN_DATA=$(omnia_env_value OMNIA_DATA_PATH)
+        _PIN_DATA="${_PIN_DATA:-/opt/omnia}"
+        case "${_PIN_DATA}" in
+          /*) ;;
+          *) echo "  [PIN] ERROR: OMNIA_DATA_PATH must be absolute" >&2
+             return 1 ;;
+        esac
+        case "${_PIN_DATA}" in
+          *..*|*[!A-Za-z0-9._/-]*)
+            echo "  [PIN] ERROR: OMNIA_DATA_PATH has unsupported characters" >&2
+            return 1 ;;
+        esac
+        _PIN_IBM=$(omnia_env_value IMAGE_BUILD_MANAGER_DATA_PATH \
+          | sed -e "s|\${OMNIA_DATA_PATH}|${_PIN_DATA}|g" \
+                -e "s|\$OMNIA_DATA_PATH|${_PIN_DATA}|g")
+        _PIN_IBM="${_PIN_IBM:-${_PIN_DATA}/image_build_manager}"
+        _PIN_PROJECT=$(omnia_env_value OMNIA_PROJECT_NAME)
+        _PIN_PROJECT="${_PIN_PROJECT:-project_default}"
+
+        case "${_PIN_IBM}" in
+          /*) ;;
+          *) echo "  [PIN] ERROR: IMAGE_BUILD_MANAGER_DATA_PATH must be absolute" >&2
+             return 1 ;;
+        esac
+        case "${_PIN_IBM}" in
+          *..*|*[!A-Za-z0-9._/-]*)
+            echo "  [PIN] ERROR: IMAGE_BUILD_MANAGER_DATA_PATH has unsupported characters" >&2
+            return 1 ;;
+        esac
+        case "${_PIN_PROJECT}" in
+          .*|*..*|*[!A-Za-z0-9._-]*)
+            echo "  [PIN] ERROR: OMNIA_PROJECT_NAME has unsupported characters" >&2
+            return 1 ;;
+        esac
+
+        _PIN_PATH="${_PIN_IBM%/}/output/${_PIN_PROJECT}/${_PIN_ID}/build_status.yml"
+        _PIN_CURRENT=$(sed -n 's/^image_build_manager_output_path:[[:space:]]*//p' \
+          "${_PIN_CONFIG}" | tail -1 | sed 's/[[:space:]]*#.*$//' | tr -d "\"'")
+        if [ -n "${_PIN_CURRENT}" ] && [ "${_PIN_CURRENT}" != "${_PIN_PATH}" ]; then
+          echo "  [PIN] WARNING: overriding repository value '${_PIN_CURRENT}'"
+        fi
+
+        if grep -q '^image_build_manager_output_path:' "${_PIN_CONFIG}"; then
+          sed "s|^image_build_manager_output_path:.*$|image_build_manager_output_path: \"${_PIN_PATH}\"|" \
+            "${_PIN_CONFIG}" > "${_PIN_CONFIG}.pin" || return 1
+        else
+          { cat "${_PIN_CONFIG}"; printf '\nimage_build_manager_output_path: "%s"\n' "${_PIN_PATH}"; } \
+            > "${_PIN_CONFIG}.pin" || return 1
+        fi
+        mv "${_PIN_CONFIG}.pin" "${_PIN_CONFIG}" || return 1
+        echo "  [PIN] image_build_manager_output_path -> ${_PIN_PATH}"
+      }
+
       # ---------------------------------------------------------------------------
       # Stage Log Reporter (POSIX sh compatible)
       # Usage: print_stage_log_info <stage_name> [job_status_json_file]
@@ -198,9 +285,9 @@ default:
       # directory on the OIM host is shown instead.
       # ---------------------------------------------------------------------------
       bsm_job_log_dir() {
-        _BLD_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
+        OMNIA_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
           "${CI_PROJECT_DIR}/omnia.env" 2>/dev/null | tail -1 | tr -d "\"'")
-        echo "${_BLD_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
+        echo "${OMNIA_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
       }
 
       print_stage_log_info() {
@@ -301,6 +388,7 @@ deploy:
       echo "  Step 1/3: Refresh and upload orchestrator config files..."
       echo "  ------------------------------------------------------------"
       refresh_input_files
+      pin_image_group_build_status || exit 1
       UPLOAD_ARGS=""
       for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
              security_config.yml storage_config.yml high_availability_config.yml \
@@ -511,6 +599,7 @@ restart:
       echo "  ------------------------------------------------------------"
 
       refresh_input_files
+      pin_image_group_build_status || exit 1
 
       UPLOAD_ARGS=""
       for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \

@@ -20,7 +20,7 @@ authorization, database sessions, repositories, and domain-specific use cases.
 
 # pylint: disable=import-error,too-many-locals,broad-exception-caught,wrong-import-position,line-too-long,trailing-whitespace
 import os
-from typing import Annotated, Generator
+from typing import Annotated, Callable, Generator
 
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -33,6 +33,12 @@ from api.auth.jwt_handler import (
     JWTValidationError,
 )
 from api.logging_utils import log_secure_info
+from core.image_group.repositories import ImageGroupRepository, ImageRepository
+from core.jobs.repositories import (
+    AuditEventRepository,
+    JobRepository,
+    StageRepository,
+)
 
 
 # Environment configuration
@@ -133,7 +139,7 @@ def verify_token(
         ) from None
 
 
-def require_scope(required_scope: str):
+def require_scope(required_scope: str) -> Callable[[dict], dict]:
     """Create a dependency that requires a specific scope.
 
     Args:
@@ -180,7 +186,7 @@ require_job_write = require_scope("job:write")
 require_admin = require_scope("admin")
 
 
-def require_any_scope(*required_scopes: str):
+def require_any_scope(*required_scopes: str) -> Callable[[dict], dict]:
     """Create a dependency that requires at least one of the specified scopes.
 
     Args:
@@ -291,7 +297,7 @@ def _create_sql_image_repo(session: Session):
 # ------------------------------------------------------------------
 def mark_stage_as_failed(
     job_id: str, stage_name: str, error_code: str, error_summary: str, db_session: Session = None
-):
+) -> None:
     """Mark a stage as failed when validation fails at API layer.
     
     Also marks the job as FAILED to maintain consistency with orchestrator behavior.
@@ -381,34 +387,36 @@ def mark_stage_as_failed(
 # ------------------------------------------------------------------
 # Repository Providers
 # ------------------------------------------------------------------
-def get_job_repo(db_session: Session = Depends(get_db_session)):
+def get_job_repo(db_session: Session = Depends(get_db_session)) -> JobRepository:
     """Provide job repository with shared session in prod."""
     if _ENV == "prod":
         return _create_sql_job_repo(db_session)
     return _get_container().job_repository()
 
 
-def get_stage_repo(db_session: Session = Depends(get_db_session)):
+def get_stage_repo(db_session: Session = Depends(get_db_session)) -> StageRepository:
     """Provide stage repository with shared session in prod."""
     if _ENV == "prod":
         return _create_sql_stage_repo(db_session)
     return _get_container().stage_repository()
 
-def get_audit_repo(db_session: Session = Depends(get_db_session)):
+def get_audit_repo(db_session: Session = Depends(get_db_session)) -> AuditEventRepository:
     """Provide audit event repository."""
     if _ENV == "prod":
         return _create_sql_audit_repo(db_session)
     return _get_container().audit_repository()
 
 
-def get_image_group_repo(db_session: Session = Depends(get_db_session)):
+def get_image_group_repo(
+    db_session: Session = Depends(get_db_session),
+) -> ImageGroupRepository:
     """Provide image group repository with shared session in prod."""
     if _ENV == "prod":
         return _create_sql_image_group_repo(db_session)
     return _get_container().image_group_repository()
 
 
-def get_image_repo(db_session: Session = Depends(get_db_session)):
+def get_image_repo(db_session: Session = Depends(get_db_session)) -> ImageRepository:
     """Provide image repository with shared session in prod."""
     if _ENV == "prod":
         return _create_sql_image_repo(db_session)

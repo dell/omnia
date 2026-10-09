@@ -13,6 +13,8 @@
 # limitations under the License.
 """Core JSON Schema and business-logic validation entry points."""
 
+from typing import List
+
 from jsonschema import FormatChecker
 from jsonschema.exceptions import SchemaError
 from jsonschema.validators import validator_for
@@ -24,7 +26,7 @@ def _schema_error_path(file_label, validation_error):
     return f"{file_label}.{path}" if path else file_label
 
 
-def schema(data, schema_def, file_label, errors, logger):
+def schema(data, schema_def, file_label, errors, logger) -> None:
     """
     Validates data against a JSON schema (L1 Validation).
 
@@ -67,7 +69,7 @@ def schema(data, schema_def, file_label, errors, logger):
         logger.error(err)
 
 
-def logic(config_data, logger=None):
+def logic(config_data, logger=None) -> List[str]:
     """
     Runs L2 (business logic) validation on build_stream_config data.
 
@@ -84,7 +86,7 @@ def logic(config_data, logger=None):
     return build_stream_config_validator.validate(config_data, logger)
 
 
-def logic_credentials(cred_data, config_data, logger=None):
+def logic_credentials(cred_data, config_data, logger=None) -> List[str]:
     """
     Runs L2 (business logic) validation on credential data.
 
