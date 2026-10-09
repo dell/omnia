@@ -60,9 +60,9 @@ default:
       # Printed on every outcome (success, failure, timeout).
       # ---------------------------------------------------------------------------
       bsm_job_log_dir() {
-        _BLD_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
+        OMNIA_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
           "${CI_PROJECT_DIR}/omnia.env" 2>/dev/null | tail -1 | tr -d "\"'")
-        echo "${_BLD_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
+        echo "${OMNIA_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
       }
 
       print_cleanup_log_info() {

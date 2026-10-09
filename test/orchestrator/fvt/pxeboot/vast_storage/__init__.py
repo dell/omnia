@@ -12,28 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""FastAPI dependency providers for Jobs API.
-
-This module re-exports job-specific dependencies from the main dependencies module
-to maintain backward compatibility.
-"""
-
-# Re-export only the dependencies that are actually used
-from api.dependencies import (
-    # Job-specific
-    get_correlation_id,
-    get_idempotency_key,
-    get_create_job_use_case,
-    get_job_repo,
-    get_stage_repo,
-    get_audit_repo,
-)
-
-__all__ = [
-    "get_correlation_id",
-    "get_idempotency_key",
-    "get_create_job_use_case",
-    "get_job_repo",
-    "get_stage_repo",
-    "get_audit_repo",
-]
+"""VAST Storage functional verification tests for PXE boot lifecycle."""

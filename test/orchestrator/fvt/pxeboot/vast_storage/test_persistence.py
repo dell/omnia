@@ -12,28 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""FastAPI dependency providers for Jobs API.
+"""VAST Slurm log persistence validation test."""
 
-This module re-exports job-specific dependencies from the main dependencies module
-to maintain backward compatibility.
-"""
+import pytest
 
-# Re-export only the dependencies that are actually used
-from api.dependencies import (
-    # Job-specific
-    get_correlation_id,
-    get_idempotency_key,
-    get_create_job_use_case,
-    get_job_repo,
-    get_stage_repo,
-    get_audit_repo,
-)
+from fvt.result import verify_pxeboot
+from library.functions import check_vast_slurm_logs_persistence
 
-__all__ = [
-    "get_correlation_id",
-    "get_idempotency_key",
-    "get_create_job_use_case",
-    "get_job_repo",
-    "get_stage_repo",
-    "get_audit_repo",
-]
+
+@pytest.mark.sanity
+@pytest.mark.order(713)
+@pytest.mark.vast_persistence
+def test_vast_slurm_logs_persistence(host):
+    """Verify Slurm logs on persistent storage; sacct accessible."""
+    verify_pxeboot(
+        host, "vast_slurm_logs_persistence",
+        check_vast_slurm_logs_persistence,
+    )

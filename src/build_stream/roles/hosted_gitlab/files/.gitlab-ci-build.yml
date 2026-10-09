@@ -56,8 +56,8 @@ variables:
   BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
   CURL_CONNECT_TIMEOUT: "15"
   CURL_MAX_TIME: "45"
-  # Defaults — overridden by omnia.env if present in the GitLab repo
-  OMNIA_DATA_PATH: "/opt/omnia"
+  # Defaults — overridden by omnia.env if present in the GitLab repo.
+  # OMNIA_DATA_PATH is read from omnia.env where needed (bsm_job_log_dir).
   OMNIA_PROJECT_NAME: "project_default"
 
 # ---------------------------------------------------------------------------
@@ -312,9 +312,9 @@ default:
       # directory on the OIM host is shown instead.
       # ---------------------------------------------------------------------------
       bsm_job_log_dir() {
-        _BLD_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
+        OMNIA_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
           "${CI_PROJECT_DIR}/omnia.env" 2>/dev/null | tail -1 | tr -d "\"'")
-        echo "${_BLD_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
+        echo "${OMNIA_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
       }
 
       print_stage_log_info() {

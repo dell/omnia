@@ -20,7 +20,6 @@
           "admin_debug_group",
           "service_k8s_common_group",
           "service_k8s_telemetry_group",
-          "service_k8s_cluster_group",
           "service_kube_control_plane_group",
           "powerscale_csi_group",
           "common_pks",
@@ -214,13 +213,7 @@
           "device_mapper_multipath",
           "sg3_utils",
           "lsscsi",
-          "ghcr.io/kube-vip/kube-vip",
-          "registry.k8s.io/kube-apiserver",
-          "registry.k8s.io/kube-controller-manager",
-          "registry.k8s.io/kube-scheduler",
           "registry.k8s.io/kube-proxy",
-          "registry.k8s.io/coredns/coredns",
-          "registry.k8s.io/etcd",
           "registry.k8s.io/pause",
           "docker.io/calico/cni",
           "docker.io/calico/kube-controllers",
@@ -228,8 +221,7 @@
           "quay.io/metallb/controller",
           "quay.io/metallb/speaker",
           "kubectl_1_35_1",
-          "nfs_subdir_external_provisioner",
-          "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner"
+          "nfs_subdir_external_provisioner"
         ]
       },
       "service_k8s_telemetry_group": {
@@ -272,31 +264,6 @@
           "papi_rpm"
         ]
       },
-      "service_k8s_cluster_group": {
-        "name": "service_k8s_cluster_group",
-        "type": "group",
-        "description": "Common packages across control plane groups not in k8s worker nodes",
-        "components": [
-          "ghcr.io/kube-vip/kube-vip",
-          "docker.io/alpine/kubectl",
-          "registry.k8s.io/kube-apiserver",
-          "registry.k8s.io/kube-controller-manager",
-          "registry.k8s.io/kube-scheduler",
-          "registry.k8s.io/kube-proxy",
-          "registry.k8s.io/coredns/coredns",
-          "registry.k8s.io/pause",
-          "registry.k8s.io/etcd",
-          "docker.io/calico/cni",
-          "docker.io/calico/kube-controllers",
-          "docker.io/calico/node",
-          "quay.io/metallb/speaker",
-          "kubectl_1_35_1",
-          "prettytable==3_14_0",
-          "python3",
-          "git",
-          "PyMySQL==1_1_2"
-        ]
-      },
       "service_kube_control_plane_group": {
         "name": "service_kube_control_plane_group",
         "type": "group",
@@ -306,24 +273,14 @@
           "registry.k8s.io/kube-apiserver",
           "registry.k8s.io/kube-controller-manager",
           "registry.k8s.io/kube-scheduler",
-          "registry.k8s.io/kube-proxy",
           "registry.k8s.io/coredns/coredns",
-          "docker.io/alpine/kubectl",
-          "registry.k8s.io/pause",
           "registry.k8s.io/etcd",
-          "docker.io/calico/cni",
-          "docker.io/calico/kube-controllers",
-          "docker.io/calico/node",
-          "quay.io/metallb/speaker",
-          "quay.io/metallb/controller",
           "calico_v3_32_1",
           "metallb_native_v0_16_1",
           "helm_v3_20_1_amd64",
           "nfs_subdir_external_provisioner_4_0_18",
-          "kubectl_1_35_1",
           "prettytable==3_14_0",
           "python3",
-          "git",
           "PyMySQL==1_1_2"
         ]
       },
@@ -332,9 +289,7 @@
         "type": "group",
         "description": "Kubernetes worker node packages",
         "components": [
-          "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
-          "quay.io/metallb/speaker",
-          "quay.io/metallb/controller"
+          "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner"
         ]
       },
       "powerscale_csi_group": {

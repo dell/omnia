@@ -23,6 +23,7 @@ import re
 import argparse
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 
 _FUNCTIONAL_BUNDLES = {
@@ -73,7 +74,7 @@ def _extract_bundle_name(filename_stem: str) -> str:
     stripped = re.sub(r'[-_]v?\d+(\.\d+)*$', '', filename_stem)
     return stripped
 
-def load_json(filepath):
+def load_json(filepath) -> Any:
     """Load and return JSON from the given file path."""
     with open(filepath, 'r', encoding='utf-8') as json_file:
         return json.load(json_file)
@@ -83,7 +84,9 @@ def load_json(filepath):
 # ldms packages will populate os_x86_64 and os_aarch64 functional layers
 _OS_LAYER_BUNDLE = "ldms"
 
-def load_software_config(config_path):
+def load_software_config(
+    config_path,
+) -> tuple[dict[str, set[str]], dict[str, list[str]], dict[str, str]]:
     """Load software_config.json.
 
     Returns:
@@ -137,7 +140,7 @@ def _extract_arch_from_pxe_group(pxe_group: str):
         return 'aarch64'
     return None
 
-def load_pxe_functional_groups(pxe_file):
+def load_pxe_functional_groups(pxe_file) -> list[str]:
     """Load PXE mapping file and extract unique functional group names."""
     functional_groups = set()
 
@@ -256,7 +259,9 @@ def _render_templated_url(template: str, bundle_name: str, versions_by_name: dic
     # If anything templated remains, return empty to signal unresolved
     return '' if '{{' in rendered else rendered
 
-def collect_packages_from_config(config_dir, allowed_bundles_by_arch, versions_by_name):
+def collect_packages_from_config(
+    config_dir, allowed_bundles_by_arch, versions_by_name
+) -> defaultdict[str, dict[str, Any]]:
     """Collect all packages from config JSON files, filtered by allowed bundles per arch."""
     # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
     packages = defaultdict(lambda: {
@@ -408,7 +413,7 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch, versions_b
 
     return packages
 
-def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
+def generate_catalog(input_dir, software_config_path, pxe_mapping_file) -> dict[str, Any]:
     """Generate complete catalog structure."""
     # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
 
@@ -558,7 +563,9 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
 
     return catalog
 
-def build_functional_layers(functional_packages, pxe_groups, role_package_map):
+def build_functional_layers(
+    functional_packages, pxe_groups, role_package_map
+) -> list[dict[str, Any]]:
     """Build FunctionalLayer strictly from PXE groups.
 
     Only role+arch combinations explicitly listed in the PXE mapping file
@@ -607,7 +614,9 @@ def build_functional_layers(functional_packages, pxe_groups, role_package_map):
 
     return functional_layers
 
-def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles, pxe_groups=None):
+def map_packages_to_roles(
+    packages, config_dir, allowed_bundles, bundle_roles, pxe_groups=None
+) -> tuple[defaultdict[str, list[str]], dict[str, str]]:
     """Map packages to their roles based on which config section they appear in."""
     # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
     role_package_map = defaultdict(list)
@@ -712,7 +721,7 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles, p
 
     return role_package_map, package_id_map
 
-def create_package_entry(pkg_data):
+def create_package_entry(pkg_data) -> dict[str, Any]:
     """Create a package entry for FunctionalPackages or OSPackages."""
     entry = {
         "Name": pkg_data['name'],
@@ -734,7 +743,7 @@ def create_package_entry(pkg_data):
 
     return entry
 
-def create_infra_package_entry(pkg_data):
+def create_infra_package_entry(pkg_data) -> dict[str, Any]:
     """Create an infrastructure package entry."""
     entry = {
         "Name": pkg_data['name'],

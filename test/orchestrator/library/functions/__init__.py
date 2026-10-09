@@ -338,6 +338,25 @@ from .slurm_pxeboot_func import (
 )
 from .slurm_recovery_pxeboot_func import check_slurm_cluster_recovery
 from .smd_provision_func import check_smd_groups, check_smd_identity
+from .vast_storage_pxeboot_func import (
+    check_vast_vastnfs_installation,
+    check_vast_mount_points,
+    check_vast_scratch_hostname_isolation,
+    check_vast_mount_options,
+    check_vast_ldapuser_scratch_directory,
+    check_vast_ldapuser_subdirectories,
+    check_vast_ldapuser_permissions,
+    check_vast_scratch_isolation,
+    check_vast_control_node_no_vast,
+    check_vast_vastnfs_rpm_and_module,
+    check_vast_fstab_entries,
+    check_vast_rdma_mount,
+    check_vast_qss_mounts,
+    check_vast_slurm_logs_persistence,
+    check_vast_control_node_mounts,
+    check_vast_compute_node_mounts,
+    check_vast_login_node_mounts,
+)
 
 
 def run_playbook(tag: str | None = None, **kwargs):
@@ -595,6 +614,23 @@ __all__ = [
     "check_smd_groups",
     "check_smd_identity",
     "check_ssh_private_key_permissions",
+    "check_vast_vastnfs_installation",
+    "check_vast_mount_points",
+    "check_vast_scratch_hostname_isolation",
+    "check_vast_mount_options",
+    "check_vast_ldapuser_scratch_directory",
+    "check_vast_ldapuser_subdirectories",
+    "check_vast_ldapuser_permissions",
+    "check_vast_scratch_isolation",
+    "check_vast_control_node_no_vast",
+    "check_vast_vastnfs_rpm_and_module",
+    "check_vast_fstab_entries",
+    "check_vast_rdma_mount",
+    "check_vast_qss_mounts",
+    "check_vast_slurm_logs_persistence",
+    "check_vast_control_node_mounts",
+    "check_vast_compute_node_mounts",
+    "check_vast_login_node_mounts",
     "check_vault_encryption",
     "cleanup_extra_vars",
     "cleanup_selection_fields",
