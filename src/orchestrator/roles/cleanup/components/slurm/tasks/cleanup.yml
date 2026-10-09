@@ -152,11 +152,7 @@
 
 - name: Warn that Slurm shared data is not reachable and skip
   ansible.builtin.debug:
-    msg: >-
-      Slurm shared data cleanup skipped: mount point '{{ cleanup_slurm_mount_point }}'
-      is not mounted and this host does not export '{{ cleanup_slurm_export_path }}'.
-      This is expected if the mount was already unmounted or cleaned. Cleanup will
-      proceed with storage_mounts cleanup (unmount/fstab removal).
+    msg: "{{ slurm_cleanup_data_unavailable_warn_msg }}"
   when:
     - cleanup_slurm_approved | default(true) | bool
     - slurm_config.cleanup_nfs_server | default(false) | bool
