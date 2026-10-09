@@ -666,6 +666,8 @@ mount source and UUID to be unchanged.
 
 Node removal and re-addition use `slurm_lifecycle_remove_add_nodes` from
 `test_config.yml`; they run only when `--marker` selects `node_lifecycle`.
+Removal skips when the PXE mapping has fewer than two `slurm_node_*` entries,
+and re-addition then skips because no backup is left.
 
 ## Cleanup test cases
 

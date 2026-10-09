@@ -727,3 +727,56 @@ def test_slurm_lifecycle_mapping_write_keeps_content_exact(
     written = target.read_text(encoding="utf-8")
     assert "OMNIA_EOF" not in written
     assert written.rstrip("\n") == content.rstrip("\n")
+
+
+_LIFECYCLE_HEADER = "FUNCTIONAL_GROUP_NAME,GROUP_NAME,HOSTNAME,ADMIN_MAC,ADMIN_IP"
+
+
+@pytest.mark.parametrize(
+    ("slurm_nodes", "configured", "expected"),
+    [
+        (1, "", None),
+        (1, "192.0.2.11", None),
+        (2, "", ["192.0.2.12"]),
+        (2, "192.0.2.11", ["192.0.2.11"]),
+    ],
+)
+def test_slurm_node_remove_requires_two_slurm_nodes(
+    monkeypatch, slurm_nodes, configured, expected
+):
+    """ORCH_UT_091: Node removal skips with fewer than two slurm_node rows."""
+    rows = ["slurm_control_node_x86_64,grp2,ctl,aa:bb:cc:dd:ee:00,192.0.2.10"]
+    rows += [
+        f"slurm_node_x86_64,grp3,node{i},aa:bb:cc:dd:ee:0{i},192.0.2.1{i}"
+        for i in range(1, slurm_nodes + 1)
+    ]
+    content = "\n".join([_LIFECYCLE_HEADER, *rows]) + "\n"
+    host = SimpleNamespace(
+        file=lambda _path: SimpleNamespace(is_file=True, content_string=content)
+    )
+    monkeypatch.setattr(
+        slurm_lifecycle,
+        "load_test_config",
+        lambda: {"slurm_lifecycle_remove_add_nodes": configured},
+    )
+
+    resolved = slurm_lifecycle._resolve_target_nodes(host, "mapping.csv")
+
+    assert (resolved[0] if resolved else None) == expected
+
+
+def test_slurm_node_remove_skip_discards_stale_backup(monkeypatch, tmp_path):
+    """ORCH_UT_092: A skipped removal leaves no backup for the add test."""
+    backup = tmp_path / "pxe_mapping_file.csv.backup"
+    backup.write_text("stale", encoding="utf-8")
+    monkeypatch.setattr(slurm_lifecycle, "_backup_path", lambda: str(backup))
+    monkeypatch.setattr(slurm_lifecycle, "_mapping_path", lambda _host: "m.csv")
+    monkeypatch.setattr(
+        slurm_lifecycle, "_resolve_target_nodes", lambda _host, _path: None
+    )
+
+    result = slurm_lifecycle.check_slurm_node_remove(None)
+
+    assert result["skipped"] and result["success"]
+    assert "At least 2 slurm_node" in result["details"]["fields"][0][1]
+    assert not backup.exists()

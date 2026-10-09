@@ -56,6 +56,9 @@ _BACKUP_FILENAME = "pxe_mapping_file.csv.backup"
 # Functional group prefix for Slurm compute nodes.
 _SLURM_NODE_PREFIX = "slurm_node_"
 
+# Removal needs at least this many slurm_node rows in the PXE mapping.
+_MIN_SLURM_NODES = 2
+
 
 def _result(
     success: bool,
@@ -140,8 +143,8 @@ def _resolve_target_nodes(
     Returns:
         ``(admin_ips, all_rows, header_line)`` when target nodes are
         identified, or ``None`` when the test should be skipped because
-        no ``slurm_node_*`` rows exist and the user did not provide
-        explicit IPs.
+        the mapping has fewer than ``_MIN_SLURM_NODES`` ``slurm_node_*``
+        rows.
 
     Raises:
         ValueError: When the user supplied explicit IPs that are invalid
@@ -160,6 +163,8 @@ def _resolve_target_nodes(
         row for row in all_rows
         if row.get("FUNCTIONAL_GROUP_NAME", "").startswith(_SLURM_NODE_PREFIX)
     ]
+    if len(slurm_node_rows) < _MIN_SLURM_NODES:
+        return None
 
     if configured:
         # User provided specific Admin IPs — validation failures are errors.
@@ -184,10 +189,7 @@ def _resolve_target_nodes(
             )
         return requested_ips, all_rows, header
 
-    # Default: remove the last slurm_node entry.  Skip when none exist.
-    if not slurm_node_rows:
-        return None
-
+    # Default: remove the last slurm_node entry.
     last_node = slurm_node_rows[-1]
     return [last_node["ADMIN_IP"]], all_rows, header
 
@@ -441,7 +443,14 @@ def check_slurm_node_remove(host) -> dict[str, Any]:
         mapping_path = _mapping_path(host)
         resolved = _resolve_target_nodes(host, mapping_path)
         if resolved is None:
-            return _skip(summary, "No slurm_node entries in PXE mapping")
+            # A stale backup would make the add test restore an old mapping.
+            if os.path.isfile(_backup_path()):
+                os.remove(_backup_path())
+            return _skip(
+                summary,
+                f"At least {_MIN_SLURM_NODES} slurm_node entries are required "
+                "in the PXE mapping",
+            )
         remove_ips, all_rows, header = resolved
 
         removed_rows = [row for row in all_rows if row["ADMIN_IP"] in remove_ips]

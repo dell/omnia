@@ -265,7 +265,7 @@ cleanup_benchmark_tools: true
 #   The test automatically removes the LAST slurm_node entry from the PXE
 #   mapping file, runs provision, verifies removal, then restores the
 #   original mapping, runs provision again, and verifies re-addition.
-#   If no slurm_node is present in the mapping, the test is skipped.
+#   If the mapping has fewer than two slurm_node entries, the test is skipped.
 #
 # When one or more Admin IPs are provided (comma-separated):
 #   The test validates that every IP exists in the PXE mapping AND belongs
