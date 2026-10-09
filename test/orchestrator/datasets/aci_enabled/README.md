@@ -5,13 +5,18 @@ Test dataset that enables the additional cloud-init feature for FVT testing.
 ## What it does
 
 Overlays `orchestrator_config.yml` so that `additional_cloud_init_config_file`
-points to `additional_cloud_init.yml`.  The included cloud-init configuration
-creates verifiable artifacts on every provisioned node:
+points to `additional_cloud_init.yml`.  All other orchestrator config variables
+retain their shipped defaults.  The included cloud-init configuration creates
+verifiable artifacts on provisioned nodes:
 
-| Artifact | Source | Verification |
-|----------|--------|-------------|
-| `/etc/omnia/aci_common.conf` | `write_files` | File existence check |
-| `/var/log/omnia_aci_common.log` | `runcmd` redirect | File existence check |
+| Scope | Artifact | Source | Verification |
+|-------|----------|--------|-------------|
+| Common (all nodes) | `/etc/omnia/aci_common.conf` | `write_files` | File existence check |
+| Common (all nodes) | `/var/log/omnia_aci_common.log` | `runcmd` redirect | File existence check |
+| `slurm_node_rhel_10_0_x86_64` | `/etc/omnia/aci_slurm_node.conf` | `write_files` | File existence on matching nodes |
+| `slurm_node_rhel_10_0_x86_64` | `/var/log/omnia_aci_slurm_node.log` | `runcmd` redirect | File existence on matching nodes |
+| `slurm_control_node_rhel_10_0_x86_64` | `/etc/omnia/aci_slurm_control.conf` | `write_files` | File existence on matching nodes |
+| `slurm_control_node_rhel_10_0_x86_64` | `/var/log/omnia_aci_slurm_control.log` | `runcmd` redirect | File existence on matching nodes |
 
 ## Usage
 
@@ -39,6 +44,11 @@ Then run:
 
 ## Customization
 
-Edit `input/additional_cloud_init.yml` to add per-functional-group overrides.
-Replace the example group name in the `groups:` section with a functional group
-from your active `pxe_mapping_file.csv`.
+Edit `input/additional_cloud_init.yml` to match your environment:
+
+- Replace the functional group names (`slurm_node_rhel_10_0_x86_64`,
+  `slurm_control_node_rhel_10_0_x86_64`) with the actual functional group
+  names from your active `pxe_mapping_file.csv`.
+- Add more groups as needed for additional functional groups.
+- Modify `write_files` paths and `runcmd` entries to create different
+  verifiable artifacts.

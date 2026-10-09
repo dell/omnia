@@ -734,11 +734,6 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "minimal_os_ip_addr": "ip -o addr show 2>/dev/null",
     # ── Additional cloud-init: compatibility / idempotency ─────────────
     "aci_os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
-    "aci_provision_playbook": (
-        "podman exec omnia_core bash -lc "
-        "'cd /omnia && ansible-playbook provision/provision.yml "
-        "-e input_project_dir=/opt/omnia/input/project_default'"
-    ),
     # ── DCGM / CUDA verification ──────────────────────────────────────
     "dcgm_nvidia_smi": "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
     "dcgm_cuda_version": (
