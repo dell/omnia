@@ -28,6 +28,13 @@ hostname_start_number: 1
 # Hostname padding (e.g., 3 digits = nid001, must be 3 for orchestrator NID support: nid000-nid999)
 hostname_padding: 3
 
+# OS type and version to embed in functional group names.
+# When set, discovery appends _{os_type}_{os_version} before the architecture
+# suffix (e.g. slurm_node_x86_64 -> slurm_node_rhel_10_0_x86_64).
+# Sourced from the active catalog or set explicitly.
+discovery_os_type: "{{ cluster_os_type | default('') }}"
+discovery_os_version: "{{ cluster_os_version | default('') }}"
+
 # OME device type for servers
 ome_server_device_type: 1000
 
