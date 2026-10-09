@@ -1023,8 +1023,10 @@ summary:
     - export TARGET_USER="${TARGET_USER}"
     - export TARGET_PASS="${TARGET_PASS}"
     - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
+    - export OMNIA_BRANCH="${OMNIA_BRANCH}"
     - export UTILS_ENABLE="${UTILS_ENABLE}"
     - export UTILS_MODE="${UTILS_MODE}"
+    - export ATTACH_ALL_LOGS="${ATTACH_ALL_LOGS}"
     - echo "Sending email notification with test reports..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
 
@@ -1034,6 +1036,7 @@ summary:
   artifacts:
     paths:
       - pipeline_job_status/
+      - pipeline_job_logs/
       - pipeline_reports/
     when: always
     expire_in: 30 days
