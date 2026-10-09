@@ -15,16 +15,20 @@
 """Artifact postconditions produced by full Orchestrator cleanup."""
 
 import pytest
-from library.functions import check_cleanup_artifacts
+from library.functions import (
+    TestLogger,
+    check_cleanup_artifacts,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_cleanup
 
 
 @pytest.mark.sanity
 @pytest.mark.destructive
-@pytest.mark.order(5)
+@pytest.mark.order(50501)
 def test_artifacts_removed_and_inputs_preserved(host):
     """Verify generated state is removed without deleting required inputs."""
-    verify_cleanup(
-        host, "cleanup_artifacts", "Artifact cleanup", check_cleanup_artifacts
-    )
+    tc = TC["cleanup_artifacts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_cleanup(test_log, host, "Artifact cleanup", check_cleanup_artifacts)

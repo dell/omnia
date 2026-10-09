@@ -15,19 +15,20 @@
 """Kubernetes storage postconditions produced by full cleanup."""
 
 import pytest
-from library.functions import check_cleanup_kubernetes
+from library.functions import (
+    TestLogger,
+    check_cleanup_kubernetes,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_cleanup
 
 
 @pytest.mark.sanity
 @pytest.mark.destructive
-@pytest.mark.order(4)
+@pytest.mark.order(50401)
 def test_kubernetes_cleanup(host):
     """Verify Kubernetes's selected data policy and storage detachment."""
-    verify_cleanup(
-        host,
-        "cleanup_kubernetes",
-        "Kubernetes cleanup",
-        check_cleanup_kubernetes,
-    )
+    tc = TC["cleanup_kubernetes"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_cleanup(test_log, host, "Kubernetes cleanup", check_cleanup_kubernetes)

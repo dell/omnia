@@ -23,10 +23,12 @@ provision postconditions are bound to that run.
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_clean_baseline,
     check_lifecycle_fresh_install,
     check_lifecycle_provision_verify,
 )
+from library.vars import TEST_CASES as TC
 
 from nft.result import verify_nft
 
@@ -34,24 +36,30 @@ from nft.result import verify_nft
 @pytest.mark.nft
 @pytest.mark.lifecycle
 @pytest.mark.destructive
-@pytest.mark.order(100)
+@pytest.mark.order(60012)
 def test_clean_baseline(host):
     """Require a provably clean OIM state before the fresh-install lifecycle."""
-    verify_nft(host, "clean_baseline", check_clean_baseline)
+    tc = TC["clean_baseline"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_clean_baseline)
 
 
 @pytest.mark.nft
 @pytest.mark.lifecycle
 @pytest.mark.destructive
-@pytest.mark.order(101)
+@pytest.mark.order(60013)
 def test_lifecycle_fresh_install(host):
     """Require the complete fresh-install lifecycle to succeed from clean baseline."""
-    verify_nft(host, "lifecycle_fresh_install", check_lifecycle_fresh_install)
+    tc = TC["lifecycle_fresh_install"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_lifecycle_fresh_install)
 
 
 @pytest.mark.nft
 @pytest.mark.lifecycle
-@pytest.mark.order(102)
+@pytest.mark.order(60014)
 def test_lifecycle_provision_verify(host):
     """Verify provision state and node connectivity after the fresh-install lifecycle."""
-    verify_nft(host, "lifecycle_provision_verify", check_lifecycle_provision_verify)
+    tc = TC["lifecycle_provision_verify"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_lifecycle_provision_verify)
