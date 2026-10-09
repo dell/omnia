@@ -24,6 +24,7 @@ Usage:
 import logging
 import os
 from contextlib import asynccontextmanager
+from typing import AsyncIterator, Tuple
 
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,7 +55,7 @@ log_secure_info('info', f"Using container: {container.__class__.__name__}")
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Manage application lifecycle events.
 
     Starts the result poller and, with the SQL-backed (prod) container, the
@@ -130,7 +131,7 @@ async def health_check() -> dict:
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):  # pylint: disable=unused-argument
+async def global_exception_handler(request, exc) -> JSONResponse:  # pylint: disable=unused-argument
     """Global exception handler for unhandled exceptions."""
     log_secure_info('error', "Unhandled exception occurred", exc_info=True)
     return JSONResponse(
@@ -139,7 +140,7 @@ async def global_exception_handler(request, exc):  # pylint: disable=unused-argu
     )
 
 
-def get_server_config():
+def get_server_config() -> Tuple[str, int]:
     """Get server host and port configuration with proper validation."""
     server_host = os.getenv(
         "HOST", "0.0.0.0"  # nosec B104 — container must bind all interfaces

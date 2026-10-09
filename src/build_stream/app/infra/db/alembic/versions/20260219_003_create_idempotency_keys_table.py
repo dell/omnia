@@ -12,6 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+# pylint: disable=no-member,invalid-name
+# invalid-name: module name and revision identifiers are mandated by Alembic
+# no-member: alembic.op is a runtime proxy; pylint cannot see its members
+
 """Create idempotency_keys table
 
 Revision ID: 003
@@ -33,6 +37,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    """Apply migration: Create idempotency_keys table and indexes."""
     op.create_table(
         "idempotency_keys",
         sa.Column("idempotency_key", sa.String(255), primary_key=True, nullable=False),
@@ -49,6 +54,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Revert migration: Drop idempotency_keys table and indexes."""
     op.drop_index("ix_idempotency_expires_at", table_name="idempotency_keys")
     op.drop_index("ix_idempotency_client_id", table_name="idempotency_keys")
     op.drop_index("ix_idempotency_job_id", table_name="idempotency_keys")
