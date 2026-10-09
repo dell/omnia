@@ -767,6 +767,24 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "minimal_os_kernel_version": "uname -r",
     "minimal_os_ip_addr": "ip -o addr show 2>/dev/null",
+    "minimal_os_fg_cloud_init": (
+        "cloud-init query ds.meta_data.functional_group 2>/dev/null || "
+        "cloud-init query local-hostname 2>/dev/null"
+    ),
+    "minimal_os_additional_packages_check": "rpm -q %s >/dev/null 2>&1",
+    "minimal_os_ssh_authorized_keys": "cat /root/.ssh/authorized_keys 2>/dev/null",
+    "minimal_os_ssh_key_auth_test": (
+        "grep -qE '^PubkeyAuthentication\\s+yes' /etc/ssh/sshd_config 2>/dev/null || "
+        "! grep -qE '^PubkeyAuthentication\\s+no' /etc/ssh/sshd_config 2>/dev/null"
+    ),
+    "minimal_os_default_route": "ip -o route show default 2>/dev/null",
+    "minimal_os_credential_scan": (
+        "grep -rlE "
+        "'(password|secret|token|api_key|private_key)\\s*[:=]\\s*[A-Za-z0-9+/]{8,}' "
+        "/etc/cloud /root 2>/dev/null | "
+        "grep -v -E '\\.(pyc|pem|pub|crt|key)$' | head -20"
+    ),
+    "minimal_os_ldms_service_state": "systemctl is-active ldmsd",
     # ── DCGM / CUDA verification ──────────────────────────────────────
     "dcgm_nvidia_smi": "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
     "dcgm_cuda_version": (
