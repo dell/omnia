@@ -254,7 +254,7 @@ interfaces and groups and obtains fresh OpenCHAMI credentials for API reads.
 
 ## PXE post-boot test cases
 
-Optional role and feature cases skip only when the active mapping, catalog, or `test_config.yml` proves that the target is not applicable. Negative cases pass only when the invalid operation is rejected. Reboot, drain, and node-removal suites run last and require their explicit markers.
+Optional role and feature cases skip only when the active mapping, catalog, or `test_config.yml` proves that the target is not applicable. Negative cases pass only when the invalid operation is rejected. Reboot, drain, and node-removal suites run last; reboot and node-removal cases require their explicit opt-in markers, while `scheduler_state` only narrows selection.
 
 ### Lifecycle execution
 

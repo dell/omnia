@@ -33,17 +33,11 @@ from typing import Any
 
 from omnia_auto import load_test_config, run_on_host
 
-from ..vars.pxeboot_vars import PXEBOOT_COMMANDS, SLURM_COMPUTE_PREFIX
-from ._pxeboot_helpers import (
-    remote_command,
-    runtime_exception,
-    runtime_result,
-)
+from ..vars.pxeboot_vars import PXEBOOT_COMMANDS
+from ._pxeboot_helpers import remote_command, runtime_exception
 from ._provision_helpers import (
     api_json,
-    group_members,
     interface_ips,
-    load_context,
     normalise_mac,
     resource_list,
 )

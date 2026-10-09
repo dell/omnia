@@ -20,10 +20,10 @@ The runner separates product execution from verification:
 
 Most verification is observational. Tests that reboot machines run only when
 `--marker` selects `reboot`, and node remove/add tests only when it selects
-`node_lifecycle`. Tests that create workloads or download images
-are protected by their markers, and destructive tests by their own opt-in.
-Cleanup is excluded from every implicit full-lifecycle run and must be
-selected by name.
+`node_lifecycle`. Other markers narrow test selection but do not authorize
+workloads or downloads. Destructive tests retain their separate opt-in, and
+cleanup is excluded from every implicit full-lifecycle run and must be selected
+by name.
 
 ## Prerequisites
 

@@ -17,8 +17,6 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 # The validator lives in the src orchestrator plugins tree.  The UT conftest
 # already adds the test plugin root; we also need the *src* plugin root so
 # that ``module_utils.orchestrator_validation`` resolves.
