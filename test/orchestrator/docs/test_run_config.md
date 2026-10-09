@@ -47,7 +47,7 @@ non-zero aggregate result; set it to `true` to stop after the first failure.
 | `precheck` | `environment`, `storage`, `dependencies`, `inputs` |
 | `prepare` | `openchami`, `network`, `openldap` |
 | `provision` | `openchami` |
-| `pxeboot` | `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer` |
+| `pxeboot` | `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `slurm_hpc_benchmarks`, `coredns_coredhcp`, `powervault` |
 | `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
 
 Discover the live catalog before editing the batch file:
@@ -59,8 +59,9 @@ Discover the live catalog before editing the batch file:
 ## Markers
 
 Registered markers include `sanity`, `functional`, `openldap`, `connectivity`,
-`cloudinit`, `kubernetes`, `slurm`, `apptainer`, `image_download`, `negative`,
-`non_disruptive`, `disruptive`, `reboot`, `scheduler_state`, and `destructive`.
+`cloudinit`, `kubernetes`, `slurm`, `apptainer`, `benchmark`, `image_download`,
+`negative`, `non_disruptive`, `disruptive`, `reboot`, `scheduler_state`, and
+`destructive`.
 
 Examples:
 

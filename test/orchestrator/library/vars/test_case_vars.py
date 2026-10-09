@@ -737,6 +737,31 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify Apptainer artifacts after compute reboot",
         "component": "Apptainer artifact recovery",
     },
+    "hpc_benchmarks_run_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V223",
+        "title": "Execute pull_benchmarks.sh to populate staged artifacts",
+        "component": "HPC benchmarks staging execution",
+    },
+    "hpc_benchmarks_cleanup_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V224",
+        "title": "Remove staged benchmark tool directories after verification",
+        "component": "HPC benchmarks staging cleanup",
+    },
+    "hpc_benchmarks_prerequisites": {
+        "id": "ORCH_FVT_PXEBOOT_V095",
+        "title": "Verify benchmark prerequisites: script, platform, tools list, mount (NFS export informational)",
+        "component": "HPC benchmarks prerequisites",
+    },
+    "hpc_benchmarks_staging_fingerprint_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V096",
+        "title": "Verify staging idempotency with SHA-256, size, and mtime fingerprints",
+        "component": "HPC benchmarks staging fingerprint idempotency",
+    },
+    "hpc_benchmarks_concurrent_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V097",
+        "title": "Verify concurrent staging from two compute nodes on shared storage",
+        "component": "HPC benchmarks concurrent staging",
+    },
     "hpc_benchmarks_json_declaration": {
         "id": "ORCH_FVT_PXEBOOT_V200",
         "title": "Verify HPC benchmarks tool declaration (benchmark_tools.list)",
@@ -792,11 +817,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify no compile or build commands are staged",
         "component": "HPC benchmarks source-only delivery",
     },
-    "hpc_benchmarks_per_tool_staging_report": {
-        "id": "ORCH_FVT_PXEBOOT_V207",
-        "title": "Verify per-tool staging report from pull_benchmarks.sh",
-        "component": "HPC benchmarks per-tool staging report",
-    },
+
     "hpc_benchmarks_e2e_provisioning": {
         "id": "ORCH_FVT_PXEBOOT_V208",
         "title": "Verify end-to-end benchmark provisioning pipeline",
