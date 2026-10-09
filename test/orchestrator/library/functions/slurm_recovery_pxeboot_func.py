@@ -33,6 +33,7 @@ from ._pxeboot_helpers import (
     runtime_result,
     wait_for_cloud_init,
 )
+from ._workload_helpers import ldap_identity_skip as _ldap_identity_skip
 from ._workload_helpers import ldap_test_username as _ldap_username
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import slurm_context as _context
@@ -108,10 +109,10 @@ def check_slurm_cluster_recovery(host):
     """
     summary = "Slurm cluster reboot recovery"
     try:
-        if not marker_is_authorized("disruptive"):
+        if not marker_is_authorized("reboot"):
             return _skip(
                 summary,
-                "Select the disruptive marker to authorize a cluster reboot",
+                "Select the reboot marker to authorize a cluster reboot",
             )
         context, rows, control, _config = _context(host)
         if not rows:
@@ -188,8 +189,9 @@ def check_slurm_cluster_recovery(host):
         accounting_ok = accounting_state.startswith("COMPLETED")
 
         ldap_ok = True
-        ldap_detail = "not applicable"
-        if context["features"].get("openldap", False):
+        ldap_skip = _ldap_identity_skip(context)
+        ldap_detail = f"not applicable ({ldap_skip})" if ldap_skip else "not applicable"
+        if not ldap_skip:
             username = _ldap_username()
             submit_rows = _submit_rows(rows)
             if submit_rows:

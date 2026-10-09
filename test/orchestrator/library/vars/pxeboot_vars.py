@@ -39,6 +39,12 @@ PAM_ACCESS_SETTLE_SECONDS = 5
 PAM_SESSION_TERMINATION_TIMEOUT_SECONDS = 30
 SLURM_DRAIN_REASON = "omnia_fvt_validation"
 ETCD_RAFT_INDEX_DELTA_MAX = 100
+# A rebooted etcd member must resynchronize its raft log before every
+# endpoint reports healthy; five minutes covers a full snapshot transfer.
+ETCD_HEALTH_WAIT_TIMEOUT_SECONDS = 300
+ETCD_MEDIA_TYPES = ("ssd", "hdd", "nvme")
+ETCD_SETUP_LOG = "/var/log/etcd-disk-setup.log"
+ETCD_UPDATE_LOG = "/var/log/diskless-etcd-mount.log"
 APPTAINER_IMAGE_DIRECTORY = "/hpc_tools/container_images"
 APPTAINER_SCRIPT_DIRECTORY = "/hpc_tools/scripts"
 APPTAINER_DOWNLOAD_SCRIPT = "/hpc_tools/scripts/download_container_image.sh"
@@ -398,7 +404,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "etcd_mount": "findmnt -J /var/lib/etcd",
     "etcd_mount_identity": "findmnt -n -o SOURCE,UUID,FSTYPE /var/lib/etcd",
     "etcd_block_devices": (
-        "lsblk -J -b -o NAME,PATH,PKNAME,TYPE,FSTYPE,LABEL,UUID,"
+        "lsblk -J -b -o NAME,PATH,PKNAME,TYPE,PTTYPE,FSTYPE,LABEL,UUID,"
         "MOUNTPOINTS,MODEL,ROTA,TRAN"
     ),
     "etcd_root_source": "findmnt -n -o SOURCE /",
@@ -411,17 +417,19 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "grep -Eq -- '--data-dir(=|[[:space:]]+)/var/lib/etcd([[:space:]]|$)' "
         "/etc/kubernetes/manifests/etcd.yaml"
     ),
-    "etcd_boot_log": (
-        "stat -c '%Y' /var/log/diskless-etcd-mount.log 2>/dev/null || "
-        "stat -c '%Y' /var/log/etcd-disk-setup.log"
+    # One line per boot script log: <path>|<mtime or missing>|<DONE count>.
+    "etcd_boot_scripts": (
+        "for log in /var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log; "
+        "do if [ -s \"$log\" ]; then printf '%s|%s|%s\\n' \"$log\" "
+        "\"$(stat -c %Y \"$log\")\" "
+        "\"$(tail -n 5 \"$log\" | grep -c '===== DONE =====')\"; "
+        "else printf '%s|missing|0\\n' \"$log\"; fi; done"
     ),
     "etcd_setup_script": "test -x /usr/local/bin/etcd-disk-setup.sh",
     "etcd_update_script": "test -x /usr/local/bin/etcd-fstab-update.sh",
-    "etcd_setup_log": "test -s /var/log/etcd-disk-setup.log",
-    "etcd_update_log": "test -s /var/log/diskless-etcd-mount.log",
     "etcd_selection_log": (
         "cat /var/log/etcd-disk-setup.log /var/log/diskless-etcd-mount.log "
-        "2>/dev/null"
+        "2>/dev/null || true"
     ),
     "node_boot_time": 'date -d "$(uptime -s)" +%s',
     "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
@@ -482,7 +490,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "slurm_drain_node": ("scontrol update NodeName=%s State=DRAIN Reason=%s"),
     "slurm_drain_state": (
-        "sinfo --noheader --nodes=%s --format='%T' | head -1"
+        "sinfo --noheader --nodes=%s --format='%%T' | head -1"
     ),
     "slurm_resume_node": "scontrol update NodeName=%s State=RESUME",
     "slurm_cancel_job": "scancel %s",
@@ -523,6 +531,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "slurm_hardware": "scontrol show nodes --oneliner",
     "openmpi": _OPENMPI_DISCOVERY_COMMAND + '"$mpirun_path" --version',
     "slurm_mpi_plugins": "srun --mpi=list 2>&1",
+    "ssh_remove_host_key": "ssh-keygen -R %s -f %s",
     "openmpi_compile": ("srun --nodes=1 --ntasks=1 --nodelist=%s bash -lc %s"),
     "openmpi_job": (
         "srun --nodes=%s --ntasks=%s --ntasks-per-node=1 "
