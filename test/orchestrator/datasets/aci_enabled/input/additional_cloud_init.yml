@@ -1,0 +1,50 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Test dataset: additional_cloud_init enabled with verifiable artifacts.
+#
+# The common section creates files and log entries on ALL provisioned nodes.
+# The groups section demonstrates per-FG overrides.  Replace the example
+# functional group name with a real name from the active pxe_mapping_file.csv.
+#
+# Verification tests check:
+#   - /etc/omnia/aci_common.conf exists on every node  (write_files)
+#   - /var/log/omnia_aci_common.log exists              (runcmd >> redirect)
+#   - Per-FG files exist on matching nodes only
+
+common:
+  write_files:
+    - path: /etc/omnia/aci_common.conf
+      content: |
+        # Omnia additional cloud-init test artifact
+        ACI_DATASET=aci_enabled
+        ACI_SCOPE=common
+      permissions: '0644'
+  runcmd:
+    - echo "omnia-aci-common $(date -u +%Y%m%dT%H%M%SZ)" >> /var/log/omnia_aci_common.log
+
+# Per-functional-group overrides.  Uncomment and replace the group name
+# with a functional group present in pxe_mapping_file.csv:
+#
+# groups:
+#   slurm_node_rhel_10_0_x86_64:
+#     write_files:
+#       - path: /etc/omnia/aci_slurm.conf
+#         content: |
+#           ACI_SCOPE=slurm_node
+#         permissions: '0644'
+#     runcmd:
+#       - echo "omnia-aci-slurm $(date -u +%Y%m%dT%H%M%SZ)" >> /var/log/omnia_aci_slurm.log
+groups: {}
