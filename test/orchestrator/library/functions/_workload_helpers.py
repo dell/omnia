@@ -29,6 +29,7 @@ from ..vars.pxeboot_vars import (
     SLURM_SUBMISSION_PREFIXES,
 )
 from ._provision_helpers import load_context
+from .external_ldap_func import load_external_ldap_settings
 from ._pxeboot_helpers import (
     first_row,
     load_workload_context,
@@ -157,6 +158,19 @@ def slurm_submission_rows(rows):
         for row in rows
         if row["EXPECTED_FUNCTIONAL_GROUP"].startswith(SLURM_SUBMISSION_PREFIXES)
     ]
+
+
+def ldap_identity_skip(context) -> str:
+    """Return why LDAP-identity checks must skip, or an empty string.
+
+    The LDAP test identity lives in the external directory proxied by
+    omnia_auth, so these checks also require validate_external_ldap.
+    """
+    if not context["features"].get("openldap", False):
+        return "OpenLDAP is not enabled"
+    if not load_external_ldap_settings()["validation_enabled"]:
+        return "validate_external_ldap is false; LDAP identity checks are not requested"
+    return ""
 
 
 def ldap_test_username() -> str:

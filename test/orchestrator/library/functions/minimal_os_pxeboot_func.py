@@ -19,7 +19,6 @@ required services, monitoring agents, and do NOT contain workload-specific
 software (Slurm, Kubernetes, container runtimes, GPU drivers, MPI stacks).
 """
 
-import re
 from typing import Any
 
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS

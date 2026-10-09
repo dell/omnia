@@ -21,6 +21,8 @@ import shlex
 import time
 from pathlib import Path
 
+from omnia_auto import log
+
 from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
     RECOVERY_POLL_SECONDS,
@@ -36,7 +38,6 @@ from ..vars.pxeboot_vars import (
 )
 from ._pxeboot_helpers import (
     first_row,
-    marker_is_authorized,
     remote_command,
     runtime_exception,
     runtime_result,
@@ -574,10 +575,9 @@ def check_slurm_concurrent_jobs(host):
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
                 except (OSError, RuntimeError, TypeError, ValueError) as exc:
-                    print(
-                        f"    ! cleanup: failed to cancel job {job_id}: "
-                        f"{str(exc)[:100]}",
-                        flush=True,
+                    log(
+                        f"cleanup: failed to cancel job {job_id}: {str(exc)[:100]}",
+                        "WARN",
                     )
                 try:
                     remote_command(
@@ -1093,10 +1093,9 @@ def check_slurm_job_queueing(host):
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
                 except (OSError, RuntimeError, TypeError, ValueError) as exc:
-                    print(
-                        f"    ! cleanup: failed to cancel job {job_id}: "
-                        f"{str(exc)[:100]}",
-                        flush=True,
+                    log(
+                        f"cleanup: failed to cancel job {job_id}: {str(exc)[:100]}",
+                        "WARN",
                     )
             for row in computes:
                 for job_id in jobs:
@@ -1129,11 +1128,6 @@ def check_slurm_drain_queue_recovery(host):
     control = None
     compute = None
     try:
-        if not marker_is_authorized("disruptive"):
-            return _skip(
-                summary,
-                "Select the disruptive marker to authorize node draining",
-            )
         _runtime, rows, control, _config = _context(host)
         computes = _compute_rows(rows)
         if not computes:
@@ -1501,16 +1495,15 @@ def check_slurm_openmpi_job(host):
                     f"rmdir {shlex.quote(workspace)} 2>/dev/null || true",
                 )
                 if cleanup.rc != 0:
-                    print(
-                        f"    ! cleanup: OpenMPI workspace {workspace} removal "
+                    log(
+                        f"cleanup: OpenMPI workspace {workspace} removal "
                         f"returned rc={cleanup.rc}",
-                        flush=True,
+                        "WARN",
                     )
             except (OSError, RuntimeError, TypeError, ValueError) as exc:
-                print(
-                    f"    ! cleanup: OpenMPI workspace removal failed: "
-                    f"{str(exc)[:100]}",
-                    flush=True,
+                log(
+                    f"cleanup: OpenMPI workspace removal failed: {str(exc)[:100]}",
+                    "WARN",
                 )
 
 
