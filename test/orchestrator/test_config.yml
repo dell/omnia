@@ -242,6 +242,14 @@ cleanup_k8s: true
 # control because it always passes explicit true or false values.
 
 # =============================================================================
+# HPC BENCHMARK STAGING CLEANUP
+# =============================================================================
+# Remove only tools downloaded in benchmark FVT workspaces, after all checks.
+# Applies on success and failure. Logs are saved under report_path/benchmarks.
+# False retains downloads and reports the workspace path for inspection.
+cleanup_benchmark_tools: true
+
+# =============================================================================
 # SLURM NODE REMOVE/ADD LIFECYCLE
 # =============================================================================
 # Admin IPs of existing Slurm compute nodes (slurm_node_* roles only) to

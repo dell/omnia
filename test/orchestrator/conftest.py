@@ -255,6 +255,7 @@ def pytest_configure(config):
         "kubernetes": "Kubernetes post-boot checks",
         "slurm": "Slurm post-boot checks",
         "apptainer": "Apptainer runtime, image, and Slurm integration checks",
+        "benchmark": "HPC benchmark staging and execution tests",
         "additional_cloud_init": "Additional cloud-init post-boot verification checks",
         "mount_config": "NFS mount_config post-boot verification checks",
         "minimal_os": "Minimal OS validation for OS-only provisioned nodes",

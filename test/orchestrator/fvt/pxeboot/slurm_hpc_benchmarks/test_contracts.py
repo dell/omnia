@@ -33,7 +33,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42008)
+@pytest.mark.order(42012)
 def test_hpc_benchmarks_platform_script(host):
     """TC-06a: Verify omnia_platform.sh deployment and platform detection."""
     tc = TC["hpc_benchmarks_platform_script"]
@@ -44,7 +44,7 @@ def test_hpc_benchmarks_platform_script(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42009)
+@pytest.mark.order(42013)
 def test_hpc_benchmarks_container_image_list(host):
     """TC-06b: Verify container_image.list deployment and content validation."""
     tc = TC["hpc_benchmarks_container_image_list"]
@@ -55,7 +55,7 @@ def test_hpc_benchmarks_container_image_list(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42010)
+@pytest.mark.order(42014)
 def test_hpc_benchmarks_platform_directory_structure(host):
     """TC-06c: Verify platform-specific directory structure exists per architecture."""
     tc = TC["hpc_benchmarks_platform_directory_structure"]
@@ -66,7 +66,7 @@ def test_hpc_benchmarks_platform_directory_structure(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42011)
+@pytest.mark.order(42015)
 def test_hpc_benchmarks_offline_package_copy(host):
     """TC-06d: Verify offline packages are copied to slurm_config_path/packages/{arch}/."""
     tc = TC["hpc_benchmarks_offline_package_copy"]
@@ -77,7 +77,7 @@ def test_hpc_benchmarks_offline_package_copy(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42012)
+@pytest.mark.order(42016)
 def test_hpc_benchmarks_container_first_guidance(host):
     """TC-06: Verify pull_benchmarks.sh and benchmark_tools.list are deployed.
 
@@ -94,7 +94,7 @@ def test_hpc_benchmarks_container_first_guidance(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42013)
+@pytest.mark.order(42017)
 def test_hpc_benchmarks_source_only_delivery(host):
     """TC-07: Verify no compile/build commands are staged with the artifacts."""
     tc = TC["hpc_benchmarks_source_only_delivery"]
@@ -106,7 +106,7 @@ def test_hpc_benchmarks_source_only_delivery(host):
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(42014)
+@pytest.mark.order(42018)
 def test_hpc_benchmarks_nfs_accessibility(host):
     """TC-10: Verify /hpc_tools NFS is mounted and readable on compute nodes."""
     tc = TC["hpc_benchmarks_nfs_accessibility"]

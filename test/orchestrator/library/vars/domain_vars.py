@@ -48,6 +48,7 @@ MARKERS: list[str] = [
     "kubernetes",
     "slurm",
     "apptainer",
+    "benchmark",
     "additional_cloud_init",
     "mount_config",
     "minimal_os",

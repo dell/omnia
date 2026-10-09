@@ -47,7 +47,7 @@ non-zero aggregate result; set it to `true` to stop after the first failure.
 | `precheck` | `environment`, `storage`, `dependencies`, `inputs` |
 | `prepare` | `openchami`, `network`, `openldap` |
 | `provision` | `openchami` |
-| `pxeboot` | `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer` |
+| `pxeboot` | `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `slurm_hpc_benchmarks`, `coredns_coredhcp`, `powervault` |
 | `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
 
 Discover the live catalog before editing the batch file:
@@ -60,11 +60,11 @@ Discover the live catalog before editing the batch file:
 
 Registered markers are listed in `MARKERS` in `library/vars/domain_vars.py`.
 They include `sanity`, `functional`, `openldap`, `connectivity`, `cloudinit`,
-`kubernetes`, `slurm`, `apptainer`, `additional_cloud_init`, `mount_config`,
-`minimal_os`, `boot_image`, the PowerVault selectors `powervault_infrastructure`,
-`powervault_mounts`, `powervault_binds`, and `powervault_cloudinit`,
-`image_download`, `negative`, `non_disruptive`, `disruptive`, `reboot`,
-`scheduler_state`, and `destructive`.
+`kubernetes`, `slurm`, `apptainer`, `benchmark`, `additional_cloud_init`,
+`mount_config`, `minimal_os`, `boot_image`, the PowerVault selectors
+`powervault_infrastructure`, `powervault_mounts`, `powervault_binds`, and
+`powervault_cloudinit`, `image_download`, `negative`, `non_disruptive`,
+`disruptive`, `reboot`, `scheduler_state`, and `destructive`.
 
 Examples:
 

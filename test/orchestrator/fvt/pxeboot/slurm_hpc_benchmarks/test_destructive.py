@@ -38,7 +38,6 @@ from library.functions import (
     check_hpc_benchmarks_existing_dirs_preserved,
     check_hpc_benchmarks_nvhpc_flow_unaffected,
     check_hpc_benchmarks_openmpi_unaffected,
-    check_hpc_benchmarks_per_tool_staging_report,
     check_hpc_benchmarks_staging_idempotency,
 )
 from library.vars import TEST_CASES as TC
@@ -51,7 +50,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.functional
 @pytest.mark.slurm
 @pytest.mark.destructive
-@pytest.mark.order(42016)
+@pytest.mark.order(42021)
 def test_hpc_benchmarks_cuda_flow_unaffected(host):
     """TC-14: Verify /hpc_tools/cuda is unchanged after benchmark staging."""
     tc = TC["hpc_benchmarks_cuda_flow_unaffected"]
@@ -62,7 +61,7 @@ def test_hpc_benchmarks_cuda_flow_unaffected(host):
 @pytest.mark.functional
 @pytest.mark.slurm
 @pytest.mark.destructive
-@pytest.mark.order(42017)
+@pytest.mark.order(42022)
 def test_hpc_benchmarks_nvhpc_flow_unaffected(host):
     """TC-15: Verify /hpc_tools/nvidia_sdk is unchanged after staging."""
     tc = TC["hpc_benchmarks_nvhpc_flow_unaffected"]
@@ -73,7 +72,7 @@ def test_hpc_benchmarks_nvhpc_flow_unaffected(host):
 @pytest.mark.functional
 @pytest.mark.slurm
 @pytest.mark.destructive
-@pytest.mark.order(42018)
+@pytest.mark.order(42023)
 def test_hpc_benchmarks_container_image_unaffected(host):
     """TC-16: Verify /hpc_tools/container_images is unchanged after staging."""
     tc = TC["hpc_benchmarks_container_image_unaffected"]
@@ -84,7 +83,7 @@ def test_hpc_benchmarks_container_image_unaffected(host):
 @pytest.mark.functional
 @pytest.mark.slurm
 @pytest.mark.destructive
-@pytest.mark.order(42019)
+@pytest.mark.order(42024)
 def test_hpc_benchmarks_openmpi_unaffected(host):
     """TC-17: Verify OpenMPI/UCX discovery is stable across a staging run."""
     tc = TC["hpc_benchmarks_openmpi_unaffected"]
@@ -97,17 +96,7 @@ def test_hpc_benchmarks_openmpi_unaffected(host):
 
 @pytest.mark.slurm
 @pytest.mark.destructive
-@pytest.mark.order(42020)
-def test_hpc_benchmarks_per_tool_staging_report(host):
-    """TC-08: Rerun pull_benchmarks.sh and verify per-tool SUCCESS/SKIP report."""
-    tc = TC["hpc_benchmarks_per_tool_staging_report"]
-    test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_per_tool_staging_report)
-
-
-@pytest.mark.slurm
-@pytest.mark.destructive
-@pytest.mark.order(42021)
+@pytest.mark.order(42025)
 def test_hpc_benchmarks_airgapped_staging(host):
     """TC-11: Verify staging succeeds while external egress is unavailable."""
     tc = TC["hpc_benchmarks_airgapped_staging"]
@@ -117,7 +106,7 @@ def test_hpc_benchmarks_airgapped_staging(host):
 
 @pytest.mark.slurm
 @pytest.mark.destructive
-@pytest.mark.order(42022)
+@pytest.mark.order(42026)
 def test_hpc_benchmarks_existing_dirs_preserved(host):
     """TC-18: Verify pre-existing /hpc_tools subdirs survive a staging run."""
     tc = TC["hpc_benchmarks_existing_dirs_preserved"]
@@ -127,7 +116,7 @@ def test_hpc_benchmarks_existing_dirs_preserved(host):
 
 @pytest.mark.slurm
 @pytest.mark.destructive
-@pytest.mark.order(42023)
+@pytest.mark.order(42027)
 def test_hpc_benchmarks_staging_idempotency(host):
     """TC-19: Verify a second staging run keeps the /hpc_tools snapshot stable."""
     tc = TC["hpc_benchmarks_staging_idempotency"]

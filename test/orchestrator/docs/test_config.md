@@ -64,6 +64,7 @@ always passed to the cleanup playbook:
 | `cleanup_credentials` | Remove project credential artifacts. | Preserve credential artifacts. |
 | `cleanup_slurm` | Delete Slurm shared data, then detach storage. | Preserve data, then detach storage. |
 | `cleanup_k8s` | Delete Kubernetes shared data, then detach storage. | Preserve data, then detach storage. |
+| `cleanup_benchmark_tools` | Remove HPC benchmark staged artifacts after verification. | Retain artifacts for inspection. |
 
 ## Kubernetes local-etcd disk media
 

@@ -102,6 +102,11 @@ slurm_cleanup_data_unavailable_fail_msg: >-
   '{{ cleanup_slurm_mount_point }}' nor local export '{{ cleanup_slurm_export_path }}'
   is available. Mount the share and rerun cleanup, or remove its data
   directly on the NFS server.
+slurm_cleanup_data_unavailable_warn_msg: >-
+  Slurm shared data cleanup skipped: mount point '{{ cleanup_slurm_mount_point }}'
+  is not mounted and this host does not export '{{ cleanup_slurm_export_path }}'.
+  This is expected if the mount was already unmounted or cleaned. Cleanup will
+  proceed with storage_mounts cleanup (unmount/fstab removal).
 slurm_cleanup_prerequisite_fail_msg: "Slurm cluster not configured in omnia_config.yml - cannot cleanup"
 storage_config_missing_fail_msg: "storage_config.yml not found. Cannot determine mounts to clean."
 storage_reference_fail_msg: >-

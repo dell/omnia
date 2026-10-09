@@ -14,7 +14,7 @@
 
 """Suite-local gate for destructive HPC benchmarks tests.
 
-Tests carrying ``@pytest.mark.destructive`` (TC-08, TC-11, TC-18, TC-19) are
+Tests carrying ``@pytest.mark.destructive`` (TC-11, TC-14–TC-19) are
 skipped unless the operator explicitly opts in via ``--run-destructive`` on the
 pytest command line or by setting ``OMNIA_HPC_BENCHMARKS_DESTRUCTIVE=1`` in
 the environment. This mirrors the opt-in pattern proposed for the PowerVault
@@ -34,8 +34,8 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help=(
-            "Run destructive HPC benchmarks tests (TC-08 pull_benchmarks, "
-            "TC-11 air-gapped staging, TC-18 pre-existing dirs preservation, "
+            "Run destructive HPC benchmarks tests (TC-11 air-gapped staging, "
+            "TC-14–TC-17 flow invariance, TC-18 pre-existing dirs preservation, "
             "TC-19 staging idempotency). Off by default."
         ),
     )
