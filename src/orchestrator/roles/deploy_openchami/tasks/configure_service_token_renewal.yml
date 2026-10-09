@@ -12,21 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# metadata-service and boot-service get a TokenSmith refresh token that expires
+# 24 h after they start, and the OpenCHAMI RPM does not renew it. Restarting
+# them issues a new one, so a timer restarts them well inside that lifetime.
 
-- name: Reload systemd
-  ansible.builtin.systemd_service:
-    daemon_reload: true
+- name: Install OpenCHAMI service token renewal units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ openchami_systemd_unit_dir }}/{{ item }}"
+    mode: "{{ file_permissions_644 }}"
+  loop:
+    - "{{ openchami_token_renewal_service }}"
+    - "{{ openchami_token_renewal_timer }}"
+  notify: Renew OpenCHAMI service tokens
 
-# Run when the token renewal units are first installed or changed, so an OIM
-# whose services are already near the 24 h limit is renewed now.
-- name: Renew OpenCHAMI service tokens now
-  ansible.builtin.systemd_service:
-    name: "{{ openchami_token_renewal_service }}"
-    state: started
-  listen: Renew OpenCHAMI service tokens
-
-- name: Restart OpenCHAMI service token renewal timer
+- name: Enable OpenCHAMI service token renewal timer
   ansible.builtin.systemd_service:
     name: "{{ openchami_token_renewal_timer }}"
-    state: restarted
-  listen: Renew OpenCHAMI service tokens
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -50,6 +50,16 @@ openchami_cert_renewal_timer: openchami-cert-renewal.timer
 openchami_cert_renewal_threshold_seconds: 46800
 openchami_haproxy_cert_volume: haproxy-certs
 
+# OpenCHAMI service token renewal (TokenSmith refresh tokens expire 24 h after service start)
+openchami_systemd_unit_dir: /etc/systemd/system
+openchami_token_renewal_service: openchami-token-renewal.service
+openchami_token_renewal_timer: openchami-token-renewal.timer
+openchami_token_renewal_interval: 12h
+openchami_token_services:
+  - metadata-service.service
+  - boot-service.service
+openchami_gateway_service: haproxy.service
+
 # OpenCHAMI images list for podman pull on OIM
 # NOTE: MinIO and registry images are managed by image_build_manager domain.
 openchami_images:

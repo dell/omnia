@@ -1,0 +1,10 @@
+# Managed by the Omnia deploy_openchami role.
+[Unit]
+Description=Renew OpenCHAMI service tokens
+After=tokensmith.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart {{ openchami_token_services | join(' ') }}
+ExecStart=/usr/bin/systemctl restart {{ openchami_gateway_service }}
+StandardOutput=journal

@@ -19,6 +19,8 @@
 openchami_config:
   config_dir: "/etc/openchami"
   services:
+    - "openchami-token-renewal.timer"
+    - "openchami-token-renewal.service"
     - "openchami-cert-renewal.timer"
     - "openchami-cert-renewal.service"
     - "openchami.target"
@@ -36,8 +38,13 @@ openchami_config:
     - "step-ca.service"
     - "tokensmith.service"
   disable_units:
+    - "openchami-token-renewal.timer"
     - "openchami-cert-renewal.timer"
     - "openchami.target"
+  # Installed by deploy_openchami, not by the OpenCHAMI RPM
+  unit_files:
+    - "/etc/systemd/system/openchami-token-renewal.timer"
+    - "/etc/systemd/system/openchami-token-renewal.service"
   container_label: "io.openchami"
   containers:
     - "boot-service"

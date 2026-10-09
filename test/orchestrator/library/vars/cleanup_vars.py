@@ -34,6 +34,8 @@ OPENCHAMI_CLEANUP_CONTAINERS: tuple[str, ...] = (
 )
 
 OPENCHAMI_CLEANUP_UNITS: tuple[str, ...] = (
+    "openchami-token-renewal.timer",
+    "openchami-token-renewal.service",
     "openchami-cert-renewal.timer",
     "openchami-cert-renewal.service",
     "openchami.target",
@@ -66,6 +68,8 @@ OPENCHAMI_CLEANUP_PACKAGES: tuple[str, ...] = ("openchami", "ochami")
 OPENCHAMI_STATIC_PATHS: tuple[str, ...] = (
     "/etc/openchami",
     "/etc/ochami",
+    "/etc/systemd/system/openchami-token-renewal.timer",
+    "/etc/systemd/system/openchami-token-renewal.service",
 )
 
 OPENLDAP_SERVICE = "omnia_auth.service"
