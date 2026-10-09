@@ -459,8 +459,8 @@ def check_hpc_benchmarks_concurrent_staging(host):
                 "— concurrency test requires shared storage on same platform path",
             )
 
-        log_a = "/tmp/fvt_pull_a.log"
-        log_b = "/tmp/fvt_pull_b.log"
+        log_a = f"/root/.fvt_pull_{node_a['HOSTNAME']}.log"
+        log_b = f"/root/.fvt_pull_{node_b['HOSTNAME']}.log"
 
         # Launch both in background
         pid_a = run_pull_script_background(
