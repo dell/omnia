@@ -425,7 +425,7 @@ initialization:
         [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
       done
       for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
-             security_config.yml storage_config.yml high_availability_config.yml \
+             security_config.yml storage_config.yml \
              additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/orchestrator/${FNAME}"
         [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
