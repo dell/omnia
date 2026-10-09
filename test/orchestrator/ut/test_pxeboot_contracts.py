@@ -15,6 +15,7 @@
 """Focused unit contracts for PXE parsers, features, and safety gates."""
 
 import json
+import subprocess
 from types import SimpleNamespace
 
 import pytest
@@ -27,6 +28,7 @@ from library.functions import kubernetes_runtime_pxeboot_func as kubernetes_runt
 from library.functions import kubernetes_storage_pxeboot_func as kubernetes_storage
 from library.functions import slurm_auth_pxeboot_func as slurm_auth
 from library.functions import slurm_configuration_pxeboot_func as slurm_config
+from library.functions import slurm_lifecycle_pxeboot_func as slurm_lifecycle
 from library.functions import slurm_pxeboot_func as slurm
 
 
@@ -703,3 +705,25 @@ def test_apptainer_without_slurm_compute_skips_before_node_probe(monkeypatch):
     assert dict(result["details"]["fields"])["Reason"] == (
         "No Slurm compute nodes are mapped"
     )
+
+
+@pytest.mark.parametrize("content", ["H,A\nr1,x\n", "H,A\nr1,x", "H,A\nr1,'q'"])
+def test_slurm_lifecycle_mapping_write_keeps_content_exact(
+    monkeypatch, tmp_path, content
+):
+    """ORCH_UT_090: Heredoc writes never append the delimiter to the data."""
+    def run_locally(_host, command):
+        proc = subprocess.run(
+            ["bash", "-c", command], capture_output=True, text=True, check=False
+        )
+        return SimpleNamespace(rc=proc.returncode, stdout=proc.stdout,
+                               stderr=proc.stderr)
+
+    monkeypatch.setattr(slurm_lifecycle, "run_on_host", run_locally)
+    target = tmp_path / "pxe_mapping_file.csv"
+    result = slurm_lifecycle._write_remote_file(None, str(target), content)
+
+    assert result.rc == 0
+    written = target.read_text(encoding="utf-8")
+    assert "OMNIA_EOF" not in written
+    assert written.rstrip("\n") == content.rstrip("\n")

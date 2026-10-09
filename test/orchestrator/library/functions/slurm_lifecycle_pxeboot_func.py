@@ -192,6 +192,13 @@ def _resolve_target_nodes(
     return [last_node["ADMIN_IP"]], all_rows, header
 
 
+def _write_remote_file(host, path: str, content: str) -> Any:
+    """Write content through a heredoc; the delimiter must be on its own line."""
+    if not content.endswith("\n"):
+        content += "\n"
+    return run_on_host(host, f"cat > {path} << 'OMNIA_EOF'\n{content}OMNIA_EOF")
+
+
 def _write_mapping(host, path: str, header: str, rows: list[dict[str, str]]) -> None:
     """Write the mapping file back with the given rows."""
     if not rows:
@@ -203,10 +210,8 @@ def _write_mapping(host, path: str, header: str, rows: list[dict[str, str]]) -> 
     )
     writer.writeheader()
     writer.writerows(rows)
-    content = output.getvalue()
     # Write via shell to handle remote/local transparently.
-    escaped = content.replace("'", "'\\''")
-    result = run_on_host(host, f"cat > {path} << 'OMNIA_EOF'\n{escaped}OMNIA_EOF")
+    result = _write_remote_file(host, path, output.getvalue())
     if result.rc != 0:
         raise RuntimeError(f"Failed to write PXE mapping: {result.stderr}")
 
@@ -231,8 +236,7 @@ def restore_pxe_mapping(host) -> None:
         raise FileNotFoundError(f"PXE mapping backup not found: {source}")
     with open(source, encoding="utf-8") as fh:
         content = fh.read()
-    escaped = content.replace("'", "'\\''")
-    result = run_on_host(host, f"cat > {dest} << 'OMNIA_EOF'\n{escaped}OMNIA_EOF")
+    result = _write_remote_file(host, dest, content)
     if result.rc != 0:
         raise RuntimeError(f"Failed to restore PXE mapping: {result.stderr}")
 
