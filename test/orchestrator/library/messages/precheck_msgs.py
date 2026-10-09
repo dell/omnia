@@ -19,6 +19,9 @@ TEST_LOG_MSGS = {
     "playbook_failed": "Orchestrator precheck failed",
     "check_passed": "{component} verification passed",
     "check_failed": "{component} verification failed",
+    "check_skipped": "{component} verification skipped",
+    "rejection_passed": "{component} rejected the invalid condition",
+    "rejection_failed": "{component} accepted an invalid condition",
 }
 
 TEST_ASSERT_MSGS = {
@@ -29,5 +32,10 @@ TEST_ASSERT_MSGS = {
     "verification_failed": (
         "{component} verification failed: {error}. Correct the reported "
         "environment, input, storage, or dependency state and rerun precheck."
+    ),
+    "rejection_missing": (
+        "{component} did not reject the invalid condition or returned no "
+        "actionable error. HOW TO FIX: review the checker failure path and "
+        "rerun the precheck negative suite."
     ),
 }

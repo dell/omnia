@@ -35,11 +35,7 @@ Source of truth for the deployed contract (2.3):
 
 from typing import Any
 
-from ..vars.pxeboot_vars import (
-    POWERVAULT_DEFAULT_ISCSI_PORT,
-    POWERVAULT_DEFAULT_NODE_KEY,
-    PXEBOOT_COMMANDS,
-)
+from ..vars.pxeboot_vars import POWERVAULT_DEFAULT_ISCSI_PORT
 from ._powervault_helpers import (
     SLURM_MANDATORY_BIND_TARGETS,
     error_result,
@@ -48,7 +44,6 @@ from ._powervault_helpers import (
     get_powervault_entries,
     get_target_nodes,
     optional_skip,
-    resolve_node_key_value,
     resolve_pv_fs_type,
     resolve_pv_mount_opts,
     skip_if_no_powervault,

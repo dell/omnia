@@ -12,7 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Test-layer rendering and assertion policy for structured FVT results."""
+"""Test-layer rendering and assertion policy for structured FVT results.
+
+Each test resolves its registry entry, creates its own ``TestLogger`` start
+record, and passes both here. These helpers only render the final record and
+enforce the result contract.
+"""
 
 import pytest
 from library.functions import TestLogger
@@ -25,10 +30,9 @@ from library.messages import PXEBOOT_TEST_LOG_MSGS as PXEBOOT_LOG
 from library.vars import TEST_CASES
 
 
-def _report(case, result, fields, component, messages):
+def _report(test_log, result, fields, component, messages):
     """Render one final result and enforce its success contract."""
     log_messages, assert_messages = messages
-    test_log = TestLogger(case["title"], case["id"])
     if result["success"]:
         test_log.passed_fields(
             log_messages["check_passed"].format(component=component),
@@ -45,12 +49,24 @@ def _report(case, result, fields, component, messages):
     )
 
 
-def verify_precheck(host, key, checker):
+def _skip_if_requested(test_log, case, result, fields, log_messages):
+    """Record and raise a documented skip for an optional capability."""
+    if not result.get("skipped"):
+        return
+    test_log.skipped_fields(
+        log_messages["check_skipped"].format(component=case["component"]),
+        fields,
+    )
+    reason = dict(fields).get("Reason") or (fields[0][1] if fields else "")
+    pytest.skip(str(reason or f"{case['component']} is not enabled"))
+
+
+def verify_precheck(test_log, case, host, checker):
     """Execute and enforce one precheck verification result."""
-    case = TEST_CASES[key]
     result = checker(host)
+    _skip_if_requested(test_log, case, result, result["fields"], PRECHECK_LOG)
     _report(
-        case,
+        test_log,
         result,
         result["fields"],
         case["component"],
@@ -58,12 +74,33 @@ def verify_precheck(host, key, checker):
     )
 
 
-def verify_cleanup(host, key, component, checker):
+def verify_precheck_rejection(test_log, case, host, checker):
+    """Require one precheck to reject an invalid condition with an error."""
+    result = checker(host)
+    fields = result["fields"]
+    _skip_if_requested(test_log, case, result, fields, PRECHECK_LOG)
+    component = case["component"]
+    rejected = not result["success"] and bool(result["error"])
+    if rejected:
+        test_log.passed_fields(
+            PRECHECK_LOG["rejection_passed"].format(component=component),
+            [*fields, ("Rejection", result["error"])],
+        )
+    else:
+        test_log.failed_fields(
+            PRECHECK_LOG["rejection_failed"].format(component=component),
+            fields,
+        )
+    assert rejected, PRECHECK_ASSERT["rejection_missing"].format(
+        component=component
+    )
+
+
+def verify_cleanup(test_log, host, component, checker):
     """Execute and enforce one cleanup verification result."""
-    case = TEST_CASES[key]
     result = checker(host)
     _report(
-        case,
+        test_log,
         result,
         result["fields"],
         component,
@@ -74,17 +111,12 @@ def verify_cleanup(host, key, component, checker):
 def verify_pxeboot(host, key, checker):
     """Execute and enforce one PXE post-boot verification result."""
     case = TEST_CASES[key]
+    test_log = TestLogger(case["title"], case["id"])
     result = checker(host)
     fields = result["details"]["fields"]
-    if result.get("skipped"):
-        TestLogger(case["title"], case["id"]).skipped_fields(
-            PXEBOOT_LOG["check_skipped"].format(component=case["component"]),
-            fields,
-        )
-        reason = fields[0][1] if fields else f"{case['component']} is not enabled"
-        pytest.skip(str(reason))
+    _skip_if_requested(test_log, case, result, fields, PXEBOOT_LOG)
     _report(
-        case,
+        test_log,
         result,
         fields,
         case["component"],

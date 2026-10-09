@@ -37,7 +37,12 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
-from ._workload_helpers import ldap_test_username, optional_skip, require_functional
+from ._workload_helpers import (
+    ldap_identity_skip,
+    ldap_test_username,
+    optional_skip,
+    require_functional,
+)
 
 
 def _computes_or_skip(host, summary):
@@ -285,10 +290,9 @@ def check_apptainer_ldap_readability(host):
         context, _control, computes, skipped = _computes_or_skip(host, summary)
         if skipped:
             return skipped
-        if not context["features"].get("openldap", False):
-            return optional_skip(
-                summary, "OpenLDAP is not selected for the mapped Slurm roles"
-            )
+        reason = ldap_identity_skip(context)
+        if reason:
+            return optional_skip(summary, reason)
         username = ldap_test_username()
         outcomes = {}
         for row in computes:
@@ -325,9 +329,12 @@ def check_apptainer_non_root_execution(host):
         gated = require_functional(summary)
         if gated:
             return gated
-        _context, _control, computes, skipped = _computes_or_skip(host, summary)
+        context, _control, computes, skipped = _computes_or_skip(host, summary)
         if skipped:
             return skipped
+        reason = ldap_identity_skip(context)
+        if reason:
+            return optional_skip(summary, reason)
         username = ldap_test_username()
         outcomes = {}
         for row in computes:

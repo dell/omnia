@@ -15,14 +15,20 @@
 """OpenLDAP postconditions produced by full Orchestrator cleanup."""
 
 import pytest
-from library.functions import check_cleanup_openldap
+from library.functions import (
+    TestLogger,
+    check_cleanup_openldap,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_cleanup
 
 
 @pytest.mark.sanity
 @pytest.mark.destructive
-@pytest.mark.order(2)
+@pytest.mark.order(50201)
 def test_openldap_removed(host):
     """Verify the OpenLDAP proxy service, container and state are removed."""
-    verify_cleanup(host, "cleanup_openldap", "OpenLDAP cleanup", check_cleanup_openldap)
+    tc = TC["cleanup_openldap"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_cleanup(test_log, host, "OpenLDAP cleanup", check_cleanup_openldap)

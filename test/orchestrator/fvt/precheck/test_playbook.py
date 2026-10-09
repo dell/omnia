@@ -23,7 +23,7 @@ from library.vars import TEST_CASES as TC
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(0)
+@pytest.mark.order(10000)
 def test_deploy_precheck(host):
     """Run ``orchestrator.yml --tags precheck`` exactly once."""
     tc = TC["deploy_precheck"]

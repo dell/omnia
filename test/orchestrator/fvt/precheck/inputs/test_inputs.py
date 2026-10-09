@@ -15,13 +15,19 @@
 """Required and conditionally selected project-input contracts."""
 
 import pytest
-from library.functions import check_precheck_inputs
+from library.functions import (
+    TestLogger,
+    check_precheck_inputs,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_precheck
 
 
 @pytest.mark.sanity
-@pytest.mark.order(5)
+@pytest.mark.order(10501)
 def test_precheck_inputs(host):
     """Require every source-selected Orchestrator input to be non-empty."""
-    verify_precheck(host, "precheck_inputs", check_precheck_inputs)
+    tc = TC["precheck_inputs"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_inputs)
