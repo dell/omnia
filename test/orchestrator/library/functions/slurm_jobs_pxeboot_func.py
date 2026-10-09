@@ -36,7 +36,6 @@ from ..vars.pxeboot_vars import (
 )
 from ._pxeboot_helpers import (
     first_row,
-    marker_is_authorized,
     remote_command,
     runtime_exception,
     runtime_result,
@@ -1129,11 +1128,6 @@ def check_slurm_drain_queue_recovery(host):
     control = None
     compute = None
     try:
-        if not marker_is_authorized("disruptive"):
-            return _skip(
-                summary,
-                "Select the disruptive marker to authorize node draining",
-            )
         _runtime, rows, control, _config = _context(host)
         computes = _compute_rows(rows)
         if not computes:

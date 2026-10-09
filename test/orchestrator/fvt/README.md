@@ -105,7 +105,7 @@ Suites run in dependency order: reachability and node state first, then
 cluster health, temporary workloads, storage contracts such as
 `vast_storage`, and finally the reboot, drain, and node-removal suites
 (`kubernetes_recovery`, `slurm_recovery`, `slurm_lifecycle`). Within a suite,
-disruptive and destructive cases come last. Never reuse an order value.
+reboot and destructive cases come last. Never reuse an order value.
 
 Cleanup is never part of an implicit lifecycle run.
 
@@ -454,7 +454,7 @@ configuration.
 | 41204 | `ORCH_FVT_PXEBOOT_V035` | `test_slurm_concurrent_jobs` | `slurm_jobs` | `buildstream`, `functional`, `non_disruptive`, `sanity`, `slurm` | Submit concurrent jobs and verify final accounting state. | The submission completes with the expected final state and output. |
 | 41205 | `ORCH_FVT_PXEBOOT_V036` | `test_slurm_insufficient_resources` | `slurm_jobs` | `buildstream`, `functional`, `negative`, `non_disruptive`, `slurm` | Verify an impossible immediate allocation is rejected. | The expected rejection occurs and no prohibited state is accepted. |
 | 41206 | `ORCH_FVT_PXEBOOT_V037` | `test_slurm_job_queueing` | `slurm_jobs` | `buildstream`, `functional`, `non_disruptive`, `sanity`, `slurm` | Saturate idle computes and verify one follower queues then completes. | The follower is pending under saturation and completes after resources are released. |
-| 41207 | `ORCH_FVT_PXEBOOT_V038` | `test_slurm_drain_queue_recovery` | `slurm_jobs` | `buildstream`, `disruptive`, `sanity`, `scheduler_state`, `slurm` | Drain one compute node, verify queuing, and restore it. | The job queues while the node is drained, then the node is resumed and the job completes. |
+| 41207 | `ORCH_FVT_PXEBOOT_V038` | `test_slurm_drain_queue_recovery` | `slurm_jobs` | `buildstream`, `sanity`, `scheduler_state`, `slurm` | Drain one compute node, verify queuing, and restore it. | The job queues while the node is drained, then the node is resumed and the job completes. |
 
 ### Slurm LDAP (`slurm_ldap`)
 
@@ -573,9 +573,9 @@ DCGM cases skip when no GPU GRES nodes are found in the Slurm inventory.
 | 41927 | `ORCH_FVT_PXEBOOT_V089` | `test_apptainer_cuda_workload` | `slurm_apptainer` | `apptainer`, `buildstream`, `functional`, `non_disruptive`, `sanity` | Execute a bounded NVIDIA device query in each GPU container. | The operation completes successfully and returns the expected result. |
 | 41928 | `ORCH_FVT_PXEBOOT_V090` | `test_apptainer_gpu_memory` | `slurm_apptainer` | `apptainer`, `buildstream`, `functional`, `non_disruptive`, `sanity` | Verify the GPU query leaves no material device-memory allocation. | All stated checks pass for every applicable target. |
 | 41929 | `ORCH_FVT_PXEBOOT_V091` | `test_apptainer_infiniband` | `slurm_apptainer` | `apptainer`, `buildstream`, `functional`, `non_disruptive`, `sanity` | Verify mapped compute nodes expose InfiniBand devices in containers. | All stated checks pass for every applicable target. |
-| 41930 | `ORCH_FVT_PXEBOOT_V092` | `test_apptainer_reboot_storage` | `slurm_apptainer` | `apptainer`, `disruptive`, `reboot` | Reboot one compute and verify the shared mount and SIF checksum. | The node returns within the bounded wait and every stated post-reboot check passes. |
-| 41931 | `ORCH_FVT_PXEBOOT_V093` | `test_apptainer_reboot_job` | `slurm_apptainer` | `apptainer`, `disruptive`, `reboot` | Run an exact-node container job after the authorized reboot. | The node returns within the bounded wait and every stated post-reboot check passes. |
-| 41932 | `ORCH_FVT_PXEBOOT_V094` | `test_apptainer_reboot_artifacts` | `slurm_apptainer` | `apptainer`, `disruptive`, `reboot` | Verify downloader artifacts and policy after the authorized reboot. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 41930 | `ORCH_FVT_PXEBOOT_V092` | `test_apptainer_reboot_storage` | `slurm_apptainer` | `apptainer`, `reboot` | Reboot one compute and verify the shared mount and SIF checksum. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 41931 | `ORCH_FVT_PXEBOOT_V093` | `test_apptainer_reboot_job` | `slurm_apptainer` | `apptainer`, `reboot` | Run an exact-node container job after the authorized reboot. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 41932 | `ORCH_FVT_PXEBOOT_V094` | `test_apptainer_reboot_artifacts` | `slurm_apptainer` | `apptainer`, `reboot` | Verify downloader artifacts and policy after the authorized reboot. | The node returns within the bounded wait and every stated post-reboot check passes. |
 
 Image download has a 20-minute ceiling with polling progress every 20
 seconds. The reboot cases share one reboot state and run last in the suite.
@@ -641,8 +641,8 @@ storage entry. LDAP scratch checks use the `ldap_username` test credential.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 42201 | `ORCH_FVT_PXEBOOT_V021` | `test_kubernetes_local_etcd_recovery` | `kubernetes_recovery` | `disruptive`, `kubernetes`, `reboot` | Reboot a control plane and prove its local-etcd UUID is preserved. | The node returns within the bounded wait and every stated post-reboot check passes. |
-| 42202 | `ORCH_FVT_PXEBOOT_V022` | `test_kubernetes_control_plane_recovery` | `kubernetes_recovery` | `disruptive`, `kubernetes`, `reboot` | Reboot the VIP owner and verify control-plane recovery. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 42201 | `ORCH_FVT_PXEBOOT_V021` | `test_kubernetes_local_etcd_recovery` | `kubernetes_recovery` | `kubernetes`, `reboot` | Reboot a control plane and prove its local-etcd UUID is preserved. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 42202 | `ORCH_FVT_PXEBOOT_V022` | `test_kubernetes_control_plane_recovery` | `kubernetes_recovery` | `kubernetes`, `reboot` | Reboot the VIP owner and verify control-plane recovery. | The node returns within the bounded wait and every stated post-reboot check passes. |
 
 Both cases require two control planes and observe readiness from a node
 that is not rebooted. After the reboot they wait, within bounded limits,
@@ -655,17 +655,17 @@ mount source and UUID to be unchanged.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 42301 | `ORCH_FVT_PXEBOOT_V062` | `test_slurm_cluster_recovery` | `slurm_recovery` | `disruptive`, `functional`, `reboot`, `slurm` | Reboot mapped Slurm nodes and verify scheduler and workload recovery. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 42301 | `ORCH_FVT_PXEBOOT_V062` | `test_slurm_cluster_recovery` | `slurm_recovery` | `functional`, `reboot`, `slurm` | Reboot mapped Slurm nodes and verify scheduler and workload recovery. | The node returns within the bounded wait and every stated post-reboot check passes. |
 
 ### Slurm node lifecycle (`slurm_lifecycle`)
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 42401 | `ORCH_FVT_PXEBOOT_V500` | `test_slurm_node_remove` | `slurm_lifecycle` | `disruptive`, `functional`, `slurm` | Remove Slurm compute node(s) from PXE mapping, provision, verify. | The operation completes successfully and returns the expected result. |
-| 42402 | `ORCH_FVT_PXEBOOT_V501` | `test_slurm_node_add` | `slurm_lifecycle` | `disruptive`, `functional`, `slurm` | Restore removed node(s) to PXE mapping, provision, verify re-addition. | The operation completes successfully and returns the expected result. |
+| 42401 | `ORCH_FVT_PXEBOOT_V500` | `test_slurm_node_remove` | `slurm_lifecycle` | `functional`, `slurm` | Remove Slurm compute node(s) from PXE mapping, provision, verify. | The operation completes successfully and returns the expected result. |
+| 42402 | `ORCH_FVT_PXEBOOT_V501` | `test_slurm_node_add` | `slurm_lifecycle` | `functional`, `slurm` | Restore removed node(s) to PXE mapping, provision, verify re-addition. | The operation completes successfully and returns the expected result. |
 
 Node removal and re-addition use `slurm_lifecycle_remove_add_nodes` from
-`test_config.yml` and require the `disruptive` marker.
+`test_config.yml`; they run by default with the other functional cases.
 
 ## Cleanup test cases
 
@@ -729,12 +729,11 @@ input file, credential, or externally managed data path must always be deleted.
 | `image_download` | Explicit authorization to modify shared Apptainer image storage |
 | `negative` | Expected rejection and error-path behavior |
 | `non_disruptive` | Work that does not reboot or drain cluster nodes |
-| `disruptive` | Maintenance-window recovery behavior |
-| `reboot` | Reboot subset of disruptive cases |
-| `scheduler_state` | Scheduler drain/resume subset of disruptive cases |
+| `reboot` | Node reboot cases; they run only when `--marker` selects `reboot` |
+| `scheduler_state` | Scheduler drain/resume case |
 | `destructive` | Destructive cleanup selector |
 
-With no marker every test runs. A comma is OR; a plus is AND. For example, `sanity,functional` selects either
+With no marker every test runs except reboot cases. A comma is OR; a plus is AND. For example, `sanity,functional` selects either
 class, while `slurm+non_disruptive` selects tests carrying both markers.
 
 ## Commands

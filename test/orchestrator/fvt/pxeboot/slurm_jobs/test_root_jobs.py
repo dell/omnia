@@ -108,7 +108,6 @@ def test_slurm_job_queueing(host):
     verify_pxeboot(test_log, tc, host, check_slurm_job_queueing)
 
 
-@pytest.mark.disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.scheduler_state

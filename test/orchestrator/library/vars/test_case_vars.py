@@ -1607,7 +1607,7 @@ TEST_CASES: dict[str, dict[str, str]] = {
 # "root" holds the lifecycle execution case at the block start itself. Suites
 # are listed in dependency order: reachability and node state first, then
 # cluster health, temporary workloads, and finally reboot or node-removal
-# suites. Within a suite, disruptive and destructive cases come last. Add a
+# suites. Within a suite, reboot and destructive cases come last. Add a
 # test by taking the next free number in its suite block; add a suite by
 # appending a new block.
 ORDER_BLOCK_SIZE = 100

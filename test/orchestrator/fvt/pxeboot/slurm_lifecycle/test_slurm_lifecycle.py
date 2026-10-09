@@ -33,7 +33,6 @@ from fvt.result import verify_pxeboot
 
 @pytest.mark.slurm
 @pytest.mark.functional
-@pytest.mark.disruptive
 @pytest.mark.order(42401)
 def test_slurm_node_remove(host):
     """Remove Slurm compute node(s) from PXE mapping, provision, verify."""
@@ -44,7 +43,6 @@ def test_slurm_node_remove(host):
 
 @pytest.mark.slurm
 @pytest.mark.functional
-@pytest.mark.disruptive
 @pytest.mark.order(42402)
 def test_slurm_node_add(host):
     """Restore removed node(s) to PXE mapping, provision, verify re-addition."""

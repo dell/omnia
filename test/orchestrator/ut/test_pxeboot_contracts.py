@@ -201,11 +201,11 @@ def test_marker_authorization_requires_exact_explicit_selection(monkeypatch):
     """ORCH_UT_006: Mutation helpers trust only exact authorized markers."""
     monkeypatch.setenv(
         "OMNIA_FVT_AUTHORIZED_MARKERS",
-        "functional,disruptive",
+        "functional,reboot",
     )
     assert helpers.marker_is_authorized("functional")
-    assert helpers.marker_is_authorized("disruptive")
-    assert not helpers.marker_is_authorized("reboot")
+    assert helpers.marker_is_authorized("reboot")
+    assert not helpers.marker_is_authorized("image_download")
     monkeypatch.delenv("OMNIA_FVT_AUTHORIZED_MARKERS")
     assert not helpers.marker_is_authorized("functional")
 

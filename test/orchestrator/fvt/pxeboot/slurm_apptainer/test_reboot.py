@@ -27,7 +27,6 @@ from fvt.result import verify_pxeboot
 
 
 @pytest.mark.apptainer
-@pytest.mark.disruptive
 @pytest.mark.reboot
 @pytest.mark.order(41930)
 def test_apptainer_reboot_storage(host):
@@ -38,7 +37,6 @@ def test_apptainer_reboot_storage(host):
 
 
 @pytest.mark.apptainer
-@pytest.mark.disruptive
 @pytest.mark.reboot
 @pytest.mark.order(41931)
 def test_apptainer_reboot_job(host):
@@ -49,7 +47,6 @@ def test_apptainer_reboot_job(host):
 
 
 @pytest.mark.apptainer
-@pytest.mark.disruptive
 @pytest.mark.reboot
 @pytest.mark.order(41932)
 def test_apptainer_reboot_artifacts(host):

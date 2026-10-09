@@ -18,10 +18,11 @@ The runner separates product execution from verification:
 | `verify` | Verify existing state; do not execute the product playbook |
 | `test` | Execute the selected tag once, then verify only if execution succeeds |
 
-Most verification is observational. Tests that create workloads, download
-images, drain scheduler nodes, reboot machines, or delete deployment state
-are protected by explicit markers. Cleanup is excluded from every implicit
-full-lifecycle run and must be selected by name.
+Most verification is observational. Tests that reboot machines run only when
+`--marker` selects `reboot`. Tests that create workloads or download images
+are protected by their markers, and destructive tests by their own opt-in.
+Cleanup is excluded from every implicit full-lifecycle run and must be
+selected by name.
 
 ## Prerequisites
 
@@ -215,8 +216,7 @@ operations and includes destructive prepare, provision, and cleanup cases.
 | `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` | Explicit full-cleanup postconditions |
 
 An untagged FVT flow uses `precheck -> prepare -> provision -> pxeboot`.
-Cleanup is always explicit. Untagged verification excludes negative and
-disruptive cases.
+Cleanup is always explicit. Reboot cases never run without `--marker reboot`.
 
 ### Options
 
@@ -239,10 +239,11 @@ current directories.
 | Plus | Logical AND | `--marker slurm+non_disruptive` |
 
 Without `--marker`, every collected test runs, including functional,
-negative, image-download, reboot, and scheduler-drain tests. Lifecycle
-execution cases still run only in the `exec` phase. Run a disruptive tag in a
-maintenance window, or pass a marker such as `--marker sanity` to narrow the
-run.
+negative, image-download, scheduler-drain, and node remove/add tests, except
+reboot tests. Reboot tests are skipped, even with `--suite`, until `--marker`
+selects `reboot`; run them in a maintenance window. Lifecycle execution cases
+still run only in the `exec` phase. Pass a marker such as `--marker sanity` to
+narrow the run.
 
 `sanity+functional` selects only tests carrying both markers; it does not mean
 “run sanity, then functional.” Use `sanity,functional` for that union.
@@ -252,7 +253,7 @@ Registered selectors include:
 - Baseline and capability: `sanity`, `functional`, `connectivity`,
   `cloudinit`, `kubernetes`, `slurm`, `openldap`, and `apptainer`.
 - Controlled mutation: `image_download`, `negative`, and `non_disruptive`.
-- Maintenance-window operations: `disruptive`, `reboot`, and
+- Maintenance-window operations: `reboot` (required to run reboot tests) and
   `scheduler_state`.
 - Cleanup authorization: `destructive`.
 - Non-functional contracts: `nft`, `performance`, `idempotency`, and
@@ -313,8 +314,8 @@ access token.
 
 ### PXE boot
 
-PXE verification runs every test, including reboot and drain cases, when no
-marker is supplied. Use `--marker sanity` for the baseline only:
+PXE verification runs every test except reboot cases when no marker is
+supplied. Use `--marker sanity` for the baseline only:
 
 ```bash
 ./run_validation.sh fvt_orchestrator pxeboot test
@@ -352,13 +353,14 @@ Focused workload and image examples:
   --suite slurm_apptainer --marker functional+image_download
 ```
 
-Run disruptive checks only in an approved maintenance window:
+Run reboot checks only in an approved maintenance window:
 
 ```bash
+./run_validation.sh fvt_orchestrator pxeboot verify --marker reboot
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --marker disruptive+reboot
+  --suite slurm_recovery --marker reboot
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --suite slurm_jobs --marker disruptive+scheduler_state
+  --suite slurm_jobs --marker scheduler_state
 ```
 
 The authorization checks are enforced even when pytest is invoked directly.

@@ -65,7 +65,6 @@ MARKERS: list[str] = [
     "image_download",
     "negative",
     "non_disruptive",
-    "disruptive",
     "reboot",
     "scheduler_state",
     "destructive",

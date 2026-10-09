@@ -109,10 +109,10 @@ def check_slurm_cluster_recovery(host):
     """
     summary = "Slurm cluster reboot recovery"
     try:
-        if not marker_is_authorized("disruptive"):
+        if not marker_is_authorized("reboot"):
             return _skip(
                 summary,
-                "Select the disruptive marker to authorize a cluster reboot",
+                "Select the reboot marker to authorize a cluster reboot",
             )
         context, rows, control, _config = _context(host)
         if not rows:

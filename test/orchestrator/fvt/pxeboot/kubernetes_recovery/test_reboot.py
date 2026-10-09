@@ -25,7 +25,6 @@ from library.vars import TEST_CASES as TC
 from fvt.result import verify_pxeboot
 
 
-@pytest.mark.disruptive
 @pytest.mark.reboot
 @pytest.mark.kubernetes
 @pytest.mark.order(42201)
@@ -36,7 +35,6 @@ def test_kubernetes_local_etcd_recovery(host):
     verify_pxeboot(test_log, tc, host, check_kubernetes_local_etcd_recovery)
 
 
-@pytest.mark.disruptive
 @pytest.mark.reboot
 @pytest.mark.kubernetes
 @pytest.mark.order(42202)

@@ -103,8 +103,8 @@ def _prepare_recovery(host):
     _RECOVERY_HOST = host_id
     gated = require_marker(
         "Apptainer compute-node reboot",
-        "disruptive",
-        "Select reboot or disruptive to authorize a compute-node reboot",
+        "reboot",
+        "Select the reboot marker to authorize a compute-node reboot",
     )
     if gated:
         _RECOVERY_STATE.update({"skipped_result": gated})

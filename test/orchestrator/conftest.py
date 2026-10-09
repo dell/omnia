@@ -272,8 +272,7 @@ def pytest_configure(config):
         "image_download": "Explicitly authorized Apptainer image download checks",
         "negative": "Expected-failure and rejection behavior checks",
         "non_disruptive": "Checks that do not reboot or drain cluster nodes",
-        "disruptive": "Explicitly enabled reboot or scheduler-state checks",
-        "reboot": "Node reboot and post-reboot recovery checks",
+        "reboot": "Node reboot checks; run only when --marker selects reboot",
         "scheduler_state": "Scheduler drain, queue, and resume checks",
         "destructive": "Explicitly selected destructive cleanup checks",
         "nft": "Non-functional quality-contract checks",
@@ -328,18 +327,23 @@ def pytest_collection_modifyitems(session, config, items):
             "negative",
         }
     )
-    disruptive_authorized = bool(
-        explicitly_enabled & {"disruptive", "reboot", "scheduler_state"}
-    )
+    reboot_authorized = "reboot" in explicitly_enabled
 
-    # Without a marker expression every collected test runs. Deploy cases
-    # still run only in the exec phase, which creates the verified state.
+    # Without a marker expression every collected test runs except reboot
+    # cases. Deploy cases still run only in the exec phase, which creates the
+    # verified state.
     if mode == "none":
         for item in items:
             if _item_has_marker(item, "deploy") and command_type != "exec":
                 item.add_marker(
                     pytest.mark.skip(
                         "Deploy tests run only during the runner exec phase"
+                    )
+                )
+            elif _item_has_marker(item, "reboot"):
+                item.add_marker(
+                    pytest.mark.skip(
+                        "Reboot test: run with --marker reboot to authorize"
                     )
                 )
     else:
@@ -357,8 +361,8 @@ def pytest_collection_modifyitems(session, config, items):
             else:
                 match = _item_has_marker(item, markers[0])
 
-            if match and _item_has_marker(item, "disruptive"):
-                match = disruptive_authorized
+            if match and _item_has_marker(item, "reboot"):
+                match = reboot_authorized
             elif match and _item_has_marker(item, "functional"):
                 match = functional_authorized
             if (
@@ -393,18 +397,18 @@ def pytest_collection_modifyitems(session, config, items):
 def pytest_runtest_setup(item):
     """Expose mutation authorization to runtime helpers.
 
-    With no marker every gate a test carries is authorized; with a marker
-    expression only the selected mutation markers are.
+    With no marker every gate a test carries is authorized except reboot;
+    with a marker expression only the selected mutation markers are.
     """
     marker_expr = item.config.getoption("--marker", default="")
     _mode, markers = _parse_marker_expression(marker_expr)
     selected = set(markers)
     if not selected:
-        # No marker selected: run every test, so authorize every gate the
-        # test carries.
+        # No marker selected: authorize every non-reboot gate the test
+        # carries. Reboot cases are skipped at collection.
         authorized = {
             marker
-            for marker in ("functional", "disruptive", "image_download")
+            for marker in ("functional", "image_download")
             if _item_has_marker(item, marker)
         }
         if authorized:
@@ -429,12 +433,8 @@ def pytest_runtest_setup(item):
         }
     ):
         authorized.add("functional")
-    if _item_has_marker(item, "disruptive") and selected & {
-        "disruptive",
-        "reboot",
-        "scheduler_state",
-    }:
-        authorized.add("disruptive")
+    if _item_has_marker(item, "reboot") and "reboot" in selected:
+        authorized.add("reboot")
     if _item_has_marker(item, "image_download") and (
         "image_download" in selected or sanity_authorized
     ):

@@ -159,10 +159,10 @@ def check_kubernetes_control_plane_recovery(host):
     """Reboot the VIP owner and verify failover, cloud-init, and node recovery."""
     summary = "Kubernetes control-plane recovery"
     try:
-        if not marker_is_authorized("disruptive"):
+        if not marker_is_authorized("reboot"):
             return _skip(
                 summary,
-                "Select the disruptive marker to authorize a node reboot",
+                "Select the reboot marker to authorize a node reboot",
             )
         context, rows, _control, config = _context(host)
         if not rows:
@@ -297,10 +297,10 @@ def check_kubernetes_local_etcd_recovery(host):
     """Reboot one control plane and prove local-etcd identity is preserved."""
     summary = "Kubernetes local-etcd reboot persistence"
     try:
-        if not marker_is_authorized("disruptive"):
+        if not marker_is_authorized("reboot"):
             return _skip(
                 summary,
-                "Select the disruptive marker to authorize a node reboot",
+                "Select the reboot marker to authorize a node reboot",
             )
         _context_data, rows, control, config = _context(host)
         if not rows or not bool(config.get("etcd_on_local_disk", False)):
