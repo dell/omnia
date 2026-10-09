@@ -260,8 +260,11 @@ despite `IB_IPV6` being set in the PXE mapping file.
 **Resolution:**
 
 ```bash
-# On the affected node, check if IPv6 is configured
-ip -6 addr show ib0
+# On the affected node, discover IB interface name (predictable naming, not ib0)
+IB_IFACE=$(ls /sys/class/net/ | grep '^ib' | head -1)
+
+# Check if IPv6 is configured
+ip -6 addr show "$IB_IFACE"
 
 # Check cloud-init logs for IB configuration errors
 journalctl -u cloud-init --no-pager | grep -i "ipv6\|IB_IPV6\|DEGRADED"
@@ -282,8 +285,11 @@ A node's IPv6 address shows `dadfailed` state, indicating another device on the
 IB fabric has the same address.
 
 ```bash
+# Discover IB interface name (predictable naming, e.g., ibp161s0)
+IB_IFACE=$(ls /sys/class/net/ | grep '^ib' | head -1)
+
 # Check for dadfailed addresses
-ip -6 addr show dev ib0 | grep dadfailed
+ip -6 addr show dev "$IB_IFACE" | grep dadfailed
 ```
 
 **Resolution:**
@@ -297,8 +303,9 @@ ip -6 addr show dev ib0 | grep dadfailed
 
 ```bash
 # On the affected node
-ip -6 addr del <address>/<prefix> dev ib0
-ip -6 addr add <address>/<prefix> dev ib0
+IB_IFACE=$(ls /sys/class/net/ | grep '^ib' | head -1)
+ip -6 addr del <address>/<prefix> dev "$IB_IFACE"
+ip -6 addr add <address>/<prefix> dev "$IB_IFACE"
 ```
 
 4. If the conflict persists, check for other hosts outside Omnia management
