@@ -550,7 +550,7 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     )
 
 
-def get_container_class():
+def get_container_class() -> type[containers.DeclarativeContainer]:
     """Select container class based on ENV environment variable.
 
     Returns:

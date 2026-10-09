@@ -30,6 +30,7 @@ from fvt.result import verify_pxeboot
 pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(331)
 def test_hpc_benchmarks_json_declaration(host):
@@ -48,6 +49,7 @@ def test_hpc_benchmarks_local_repo_sync(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(333)
 def test_hpc_benchmarks_tools_dir_creation(host):
@@ -69,7 +71,7 @@ def test_hpc_benchmarks_artifact_copy(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(335)
+@pytest.mark.order(337)
 def test_hpc_benchmarks_msr_safe_arch_boundary(host):
     """TC-05: Verify msr-safe is staged only for x86_64 nodes."""
     verify_pxeboot(
@@ -80,7 +82,7 @@ def test_hpc_benchmarks_msr_safe_arch_boundary(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(336)
+@pytest.mark.order(338)
 def test_hpc_benchmarks_post_staging_validation(host):
     """TC-12: Verify post-staging validation of benchmark tool directories."""
     verify_pxeboot(
@@ -90,8 +92,9 @@ def test_hpc_benchmarks_post_staging_validation(host):
     )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(337)
+@pytest.mark.order(339)
 def test_hpc_benchmarks_rhel_compatibility(host):
     """TC-13: Verify every compute node runs the targeted RHEL major."""
     verify_pxeboot(

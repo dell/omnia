@@ -762,6 +762,26 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify msr-safe is staged only for x86_64",
         "component": "HPC benchmarks msr-safe arch boundary",
     },
+    "hpc_benchmarks_platform_script": {
+        "id": "ORCH_FVT_PXEBOOT_V219",
+        "title": "Verify omnia_platform.sh deployment and platform detection",
+        "component": "HPC benchmarks platform script",
+    },
+    "hpc_benchmarks_platform_directory_structure": {
+        "id": "ORCH_FVT_PXEBOOT_V221",
+        "title": "Verify platform-specific directory structure exists per architecture",
+        "component": "HPC benchmarks platform directory structure",
+    },
+    "hpc_benchmarks_offline_package_copy": {
+        "id": "ORCH_FVT_PXEBOOT_V222",
+        "title": "Verify offline packages are copied to slurm_config_path/packages/{arch}/",
+        "component": "HPC benchmarks offline package copy",
+    },
+    "hpc_benchmarks_container_image_list": {
+        "id": "ORCH_FVT_PXEBOOT_V220",
+        "title": "Verify container_image.list deployment and content validation",
+        "component": "HPC benchmarks container image list",
+    },
     "hpc_benchmarks_container_first_guidance": {
         "id": "ORCH_FVT_PXEBOOT_V205",
         "title": "Verify pull_benchmarks.sh and benchmark_tools.list are deployed",
@@ -847,8 +867,23 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify CoreDNS reverse resolution from OIM for mapped admin IPs",
         "component": "CoreDNS reverse resolution",
     },
-    "coredhcp_multisubnet_running_image": {
+    "coredns_dns_forwarders": {
         "id": "ORCH_FVT_PXEBOOT_V303",
+        "title": "Verify DNS forwarders are configured and can resolve external domains",
+        "component": "CoreDNS forwarders configuration",
+    },
+    "coredns_corefile_config": {
+        "id": "ORCH_FVT_PXEBOOT_V304",
+        "title": "Verify Corefile configuration is correctly rendered",
+        "component": "CoreDNS Corefile configuration",
+    },
+    "coredhcp_config_file": {
+        "id": "ORCH_FVT_PXEBOOT_V305",
+        "title": "Verify coredhcp.yaml configuration file is correctly rendered",
+        "component": "CoreDHCP configuration file",
+    },
+    "coredhcp_multisubnet_running_image": {
+        "id": "ORCH_FVT_PXEBOOT_V306",
         "title": (
             "Verify multi-subnet coresmd containers and rendered subnet "
             "configuration (defect 843 open for live subnet validation)"
@@ -856,22 +891,22 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "CoreDHCP multi-subnet image and config",
     },
     "dns_compute_resolv_conf": {
-        "id": "ORCH_FVT_PXEBOOT_V304",
+        "id": "ORCH_FVT_PXEBOOT_V307",
         "title": "Verify /etc/resolv.conf on every compute uses CoreDNS as primary",
         "component": "Compute /etc/resolv.conf",
     },
     "dns_compute_forward_getent": {
-        "id": "ORCH_FVT_PXEBOOT_V305",
+        "id": "ORCH_FVT_PXEBOOT_V308",
         "title": "Verify every compute resolves peers via getent hosts",
         "component": "Compute getent hosts resolution",
     },
     "coredns_idempotency": {
-        "id": "ORCH_FVT_PXEBOOT_V306",
+        "id": "ORCH_FVT_PXEBOOT_V309",
         "title": "Verify CoreDNS/CoreDHCP state stability (no-drift)",
         "component": "CoreDNS state stability",
     },
     "dns_node_addition_pipeline": {
-        "id": "ORCH_FVT_PXEBOOT_V307",
+        "id": "ORCH_FVT_PXEBOOT_V310",
         "title": (
             "Verify SMD-to-CoreDNS pipeline readiness (existing registrations "
             "only; defect 843 open for live add-node)"
@@ -879,7 +914,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "CoreDNS node-addition pipeline readiness",
     },
     "dns_smd_unreachable_cached_resolution": {
-        "id": "ORCH_FVT_PXEBOOT_V308",
+        "id": "ORCH_FVT_PXEBOOT_V311",
         "title": "Verify CoreDNS serves cached records when SMD is unavailable",
         "component": "CoreDNS SMD-unavailable cached resolution",
     },
@@ -1137,6 +1172,92 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify error handling when DCGM package is unavailable",
         "component": "DCGM package install failure",
     },
+    # ---- VAST Storage (TC-001 .. TC-017) ----
+    "vast_vastnfs_installation": {
+        "id": "ORCH_FVT_PXEBOOT_V700",
+        "title": "Verify VAST NFS client installation on compute nodes",
+        "component": "VAST NFS installation",
+    },
+    "vast_mount_points": {
+        "id": "ORCH_FVT_PXEBOOT_V701",
+        "title": "Verify VAST mount point directories exist on compute nodes",
+        "component": "VAST mount points",
+    },
+    "vast_scratch_hostname_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V702",
+        "title": "Verify /scratch/<hostname>/ isolation across nodes",
+        "component": "VAST scratch hostname isolation",
+    },
+    "vast_mount_options": {
+        "id": "ORCH_FVT_PXEBOOT_V703",
+        "title": "Verify VAST mount options proto=rdma and port=20049",
+        "component": "VAST mount options",
+    },
+    "vast_ldapuser_scratch_directory": {
+        "id": "ORCH_FVT_PXEBOOT_V704",
+        "title": "Verify /scratch/<ldapuser>/ on login_compiler nodes",
+        "component": "VAST LDAP scratch directory",
+    },
+    "vast_ldapuser_subdirectories": {
+        "id": "ORCH_FVT_PXEBOOT_V705",
+        "title": "Verify data/jobs/results/tmp subdirectories in scratch",
+        "component": "VAST LDAP subdirectories",
+    },
+    "vast_ldapuser_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V706",
+        "title": "Verify LDAP user permission isolation on VAST scratch",
+        "component": "VAST LDAP permissions",
+    },
+    "vast_scratch_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V707",
+        "title": "Verify file isolation between VAST scratch subdirectories",
+        "component": "VAST scratch isolation",
+    },
+    "vast_control_node_no_vast": {
+        "id": "ORCH_FVT_PXEBOOT_V708",
+        "title": "Verify Slurm control node has no VAST storage mounted",
+        "component": "VAST control node exclusion",
+    },
+    "vast_vastnfs_rpm_and_module": {
+        "id": "ORCH_FVT_PXEBOOT_V709",
+        "title": "Verify vastnfs RPM, kernel module, and service",
+        "component": "VAST NFS RPM and module",
+    },
+    "vast_fstab_entries": {
+        "id": "ORCH_FVT_PXEBOOT_V710",
+        "title": "Verify /etc/fstab VAST entries with proto=rdma",
+        "component": "VAST fstab entries",
+    },
+    "vast_rdma_mount": {
+        "id": "ORCH_FVT_PXEBOOT_V711",
+        "title": "Verify VAST RDMA mount and 1 GB I/O checksum",
+        "component": "VAST RDMA mount and I/O",
+    },
+    "vast_qss_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V712",
+        "title": "Verify VAST QSS mounts on compute/login only",
+        "component": "VAST QSS mount assignment",
+    },
+    "vast_slurm_logs_persistence": {
+        "id": "ORCH_FVT_PXEBOOT_V713",
+        "title": "Verify Slurm logs on persistent storage",
+        "component": "VAST Slurm log persistence",
+    },
+    "vast_control_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V714",
+        "title": "Verify control node mount table (no VAST)",
+        "component": "VAST control node mounts",
+    },
+    "vast_compute_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V715",
+        "title": "Verify compute node mount table (NFS + VAST)",
+        "component": "VAST compute node mounts",
+    },
+    "vast_login_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V716",
+        "title": "Verify login/compiler node mount table",
+        "component": "VAST login node mounts",
+    },
     "additional_cloud_init_smd_groups": {
         "id": "ORCH_FVT_PXEBOOT_V095",
         "title": "Verify additional cloud-init SMD groups",
@@ -1269,6 +1390,41 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V121",
         "title": "Verify admin IP is configured on OS-only nodes",
         "component": "Minimal OS network identity",
+    },
+    "minimal_os_functional_group_schema": {
+        "id": "ORCH_FVT_PXEBOOT_V122",
+        "title": "Verify functional-group definitions on OS-only nodes",
+        "component": "Minimal OS functional group schema",
+    },
+    "minimal_os_additional_packages": {
+        "id": "ORCH_FVT_PXEBOOT_V123",
+        "title": "Verify configured additional packages on OS-only nodes",
+        "component": "Minimal OS additional packages",
+    },
+    "minimal_os_additional_packages_fallback": {
+        "id": "ORCH_FVT_PXEBOOT_V124",
+        "title": "Verify absent additional_packages handled on OS-only nodes",
+        "component": "Minimal OS additional packages fallback",
+    },
+    "minimal_os_ldms_service_state": {
+        "id": "ORCH_FVT_PXEBOOT_V125",
+        "title": "Verify LDMS service inactive at handoff on OS-only nodes",
+        "component": "Minimal OS LDMS service state",
+    },
+    "minimal_os_ssh_key_access": {
+        "id": "ORCH_FVT_PXEBOOT_V126",
+        "title": "Verify SSH key authentication on OS-only nodes",
+        "component": "Minimal OS SSH key access",
+    },
+    "minimal_os_network_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V127",
+        "title": "Verify default route on management network on OS-only nodes",
+        "component": "Minimal OS network isolation",
+    },
+    "minimal_os_no_embedded_credentials": {
+        "id": "ORCH_FVT_PXEBOOT_V128",
+        "title": "Verify no plaintext secrets in image on OS-only nodes",
+        "component": "Minimal OS no embedded credentials",
     },
 }
 

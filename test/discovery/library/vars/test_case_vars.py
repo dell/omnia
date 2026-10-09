@@ -148,25 +148,25 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
 
     # ── NFT — Performance ──────────────────────────────────────────────────
     "precheck_performance": {
-        "id": "DISC_NFT_001",
+        "id": "DISCOVERY_NFT_001",
         "title": "NFT: Precheck completes within threshold",
     },
     "execute_performance": {
-        "id": "DISC_NFT_002",
+        "id": "DISCOVERY_NFT_002",
         "title": "NFT: Execute completes within threshold",
     },
     "cleanup_performance": {
-        "id": "DISC_NFT_003",
+        "id": "DISCOVERY_NFT_003",
         "title": "NFT: Cleanup completes within threshold",
     },
 
     # ── NFT — Idempotency ──────────────────────────────────────────────────
     "precheck_idempotent": {
-        "id": "DISC_NFT_004",
+        "id": "DISCOVERY_NFT_004",
         "title": "NFT: Precheck idempotent (two runs succeed)",
     },
     "cleanup_idempotent": {
-        "id": "DISC_NFT_005",
+        "id": "DISCOVERY_NFT_005",
         "title": "NFT: Cleanup idempotent (two runs succeed, state clean)",
     },
 }

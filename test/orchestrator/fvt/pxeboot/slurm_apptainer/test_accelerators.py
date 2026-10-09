@@ -27,6 +27,7 @@ from fvt.result import verify_pxeboot
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
@@ -37,6 +38,7 @@ def test_apptainer_gpu_access(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
@@ -47,6 +49,7 @@ def test_apptainer_gpu_count(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
@@ -57,6 +60,7 @@ def test_apptainer_cuda_workload(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
@@ -67,6 +71,7 @@ def test_apptainer_gpu_memory(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive

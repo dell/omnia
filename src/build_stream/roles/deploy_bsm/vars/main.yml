@@ -16,7 +16,10 @@
 
 # Build Stream Container Configuration
 build_stream_container_name: "omnia_build_stream"
-build_stream_container_omnia_path: "/opt/omnia"
+# In-container mount target for the host OMNIA_DATA_PATH ({{ omnia_path }}).
+# Fixed by the image layout (APP_DIR in containers/omnia_build_stream/Containerfile)
+# and exported to the container as OMNIA_DATA_PATH; it is not a host path.
+build_stream_container_omnia_path: "/opt/omnia"  # opt-omnia-waiver: container-internal mount target
 
 # Build Stream Image (Docker Hub)
 build_stream_dockerhub_registry: "docker.io/dellhpcomniaaisolution"

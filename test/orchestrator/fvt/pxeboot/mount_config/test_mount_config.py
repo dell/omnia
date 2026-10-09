@@ -39,7 +39,11 @@ from library.functions import (
     check_mount_config_writable,
 )
 
-pytestmark = [pytest.mark.sanity, pytest.mark.mount_config]
+pytestmark = [
+    pytest.mark.buildstream,
+    pytest.mark.sanity,
+    pytest.mark.mount_config,
+]
 
 
 @pytest.mark.order(500)

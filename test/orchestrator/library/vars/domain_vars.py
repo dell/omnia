@@ -39,6 +39,7 @@ FVT_TAGS: list[str] = [
 
 MARKERS: list[str] = [
     "sanity",
+    "buildstream",
     "functional",
     "deploy",
     "openldap",
@@ -92,6 +93,7 @@ SUITES: dict[str, list[str]] = {
         "slurm_hpc_benchmarks",
         "coredns_coredhcp",
         "powervault",
+        "vast_storage",
         "slurm_lifecycle",
         "additional_cloud_init",
         "mount_config",

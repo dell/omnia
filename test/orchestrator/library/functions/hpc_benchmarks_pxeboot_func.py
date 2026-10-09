@@ -24,7 +24,9 @@ never installed at runtime.
 import time
 
 from ..vars.pxeboot_vars import (
+    HPC_BENCHMARKS_CONTAINER_IMAGE_LIST,
     HPC_BENCHMARKS_MSR_SAFE_PACKAGE,
+    HPC_BENCHMARKS_PLATFORM_SCRIPT,
     HPC_BENCHMARKS_PULL_SCRIPT,
     HPC_BENCHMARKS_RHEL_MAJOR,
     HPC_BENCHMARKS_STAGING_TIMEOUT_SECONDS,
@@ -35,6 +37,7 @@ from ..vars.pxeboot_vars import (
     HPC_TOOLS_CUDA_DIRECTORY,
     HPC_TOOLS_DIRECTORY_MODE,
     HPC_TOOLS_NVIDIA_SDK_DIRECTORY,
+    HPC_TOOLS_PLATFORMS_DIRECTORY,
     HPC_TOOLS_SCRIPTS_DIRECTORY,
     PXEBOOT_COMMANDS,
 )
@@ -46,6 +49,7 @@ from ._hpc_benchmarks_helpers import (
     egress_probe,
     enforce_mode_755,
     expected_tools_for_arch,
+    get_platform_root,
     hpc_benchmarks_context,
     list_directory,
     list_tool_files,
@@ -57,6 +61,7 @@ from ._hpc_benchmarks_helpers import (
     read_benchmark_tools_list,
     read_directory_stat,
     read_pull_script_var,
+    read_platform_helper_var,
     rhel_version,
     run_pull_script,
     scan_for_binaries,
@@ -144,16 +149,17 @@ def check_hpc_benchmarks_local_repo_sync(host):
             return optional_skip(summary, "benchmark_tools.list is not deployed")
         tools = read_benchmark_tools_list(host, row)
         pulp_server = read_pull_script_var(host, row, "PULP_SERVER")
-        os_version = read_pull_script_var(host, row, "OS_VERSION")
+        # OS_VERSION is set by omnia_platform.sh, not directly in pull_benchmarks.sh
+        os_version = read_platform_helper_var(host, row, "OMNIA_OS_VERSION")
         if not pulp_server or not os_version:
             return runtime_result(
                 False,
                 summary,
                 [
                     ("PULP_SERVER", pulp_server or "<unset>"),
-                    ("OS_VERSION", os_version or "<unset>"),
+                    ("OMNIA_OS_VERSION", os_version or "<unset>"),
                 ],
-                "Cannot extract PULP_SERVER/OS_VERSION from pull_benchmarks.sh",
+                "Cannot extract PULP_SERVER/OMNIA_OS_VERSION from pull_benchmarks.sh/omnia_platform.sh",
             )
         arch_map = compute_architectures(host, computes)
         fields: list[tuple[str, object]] = [
@@ -234,7 +240,7 @@ def check_hpc_benchmarks_tools_dir_creation(host):
 # TC-04: ARTIFACT STAGING (post-run)
 # ---------------------------------------------------------------------------
 def check_hpc_benchmarks_artifact_copy(host):
-    """Verify each declared tool has a non-empty ``/hpc_tools/<tool>`` dir.
+    """Verify each declared tool has a non-empty ``/hpc_tools/platforms/<os>/<ver>/<arch>/<tool>`` dir.
 
     ``hpc_tools.yml`` only deploys ``pull_benchmarks.sh``; artifacts are
     populated when the operator runs it. When no tool subdirectories exist
@@ -250,33 +256,61 @@ def check_hpc_benchmarks_artifact_copy(host):
         if not tools_list_deployed(host, row):
             return optional_skip(summary, "benchmark_tools.list is not deployed")
         tools = read_benchmark_tools_list(host, row)
-        if not staged_tool_directories(host, row):
-            return optional_skip(
-                summary,
-                "Staging not yet executed — no tool directories in /hpc_tools",
-            )
         arch_map = compute_architectures(host, computes)
+        
+        # Get platform root path for each architecture
+        platform_roots: dict[str, str] = {}
+        for arch in set(arch_map.values()):
+            row_for_arch = next(item for item in computes if arch_map[item["HOSTNAME"]] == arch)
+            platform_root = get_platform_root(host, row_for_arch)
+            if not platform_root:
+                return optional_skip(summary, f"Cannot determine platform root for {arch}")
+            platform_roots[arch] = platform_root
+        
         expected: set[str] = set()
         for arch in set(arch_map.values()):
             expected.update(expected_tools_for_arch(tools, arch))
+        
+        # Check if any tool directories exist before proceeding
+        # If none exist, staging hasn't been executed yet
+        any_tool_dir_exists = False
+        for arch in set(arch_map.values()):
+            platform_root = platform_roots[arch]
+            for tool in expected:
+                base = f"{platform_root}/{tool}"
+                record = read_directory_stat(host, row, base)
+                if record["present"]:
+                    any_tool_dir_exists = True
+                    break
+            if any_tool_dir_exists:
+                break
+        
+        if not any_tool_dir_exists:
+            return optional_skip(
+                summary,
+                "Staging not yet executed — no tool directories in /hpc_tools/platforms",
+            )
         fields: list[tuple[str, object]] = [
             ("Declared tools", ", ".join(sorted(expected)))
         ]
         missing: list[str] = []
-        for tool in sorted(expected):
-            base = f"{HPC_TOOLS_BASE}/{tool}"
-            record = read_directory_stat(host, row, base)
-            if not record["present"]:
-                missing.append(tool)
-                fields.append((f"  {tool}", "directory absent"))
-                continue
-            files = list_tool_files(host, row, base)
-            non_empty = [entry for entry in files if entry["type"] == "f" and entry["size"] > 0]
-            if not non_empty:
-                missing.append(tool)
-            fields.append(
-                (f"  {tool}", f"files={len(files)} | non_empty={len(non_empty)}")
-            )
+        for arch in sorted(set(arch_map.values())):
+            platform_root = platform_roots[arch]
+            expected_for_arch = expected_tools_for_arch(tools, arch)
+            for tool in sorted(expected_for_arch):
+                base = f"{platform_root}/{tool}"
+                record = read_directory_stat(host, row, base)
+                if not record["present"]:
+                    missing.append(f"{arch}/{tool}")
+                    fields.append((f"  {arch}/{tool}", "directory absent"))
+                    continue
+                files = list_tool_files(host, row, base)
+                non_empty = [entry for entry in files if entry["type"] == "f" and entry["size"] > 0]
+                if not non_empty:
+                    missing.append(f"{arch}/{tool}")
+                fields.append(
+                    (f"  {arch}/{tool}", f"files={len(files)} | non_empty={len(non_empty)}")
+                )
         return runtime_result(
             not missing,
             summary,
@@ -303,7 +337,7 @@ def check_hpc_benchmarks_msr_safe_arch_boundary(host):
       is vacuous)
     * On x86_64 nodes, the tool is either not yet staged (skip) or a
       populated directory exists
-    * On aarch64 nodes, ``/hpc_tools/msr-safe`` never exists
+    * On aarch64 nodes, ``/hpc_tools/platforms/<os>/<ver>/aarch64/msr-safe`` never exists
     """
     summary = "HPC benchmarks msr-safe arch boundary"
     try:
@@ -316,6 +350,34 @@ def check_hpc_benchmarks_msr_safe_arch_boundary(host):
         tools = read_benchmark_tools_list(host, row)
         declared = HPC_BENCHMARKS_MSR_SAFE_PACKAGE in tools
         arch_map = compute_architectures(host, computes)
+        
+        # Get platform root path for each architecture
+        platform_roots: dict[str, str] = {}
+        for arch in set(arch_map.values()):
+            row_for_arch = next(item for item in computes if arch_map[item["HOSTNAME"]] == arch)
+            platform_root = get_platform_root(host, row_for_arch)
+            if not platform_root:
+                return optional_skip(summary, f"Cannot determine platform root for {arch}")
+            platform_roots[arch] = platform_root
+        
+        # Check if any tool directories exist before proceeding
+        # If none exist, staging hasn't been executed yet
+        any_tool_dir_exists = False
+        for host_name, arch in sorted(arch_map.items()):
+            row_for = next(item for item in computes if item["HOSTNAME"] == host_name)
+            platform_root = platform_roots[arch]
+            base = f"{platform_root}/{HPC_BENCHMARKS_MSR_SAFE_PACKAGE}"
+            record = read_directory_stat(host, row_for, base)
+            if record["present"]:
+                any_tool_dir_exists = True
+                break
+        
+        if not any_tool_dir_exists:
+            return optional_skip(
+                summary,
+                "Staging not yet executed — no tool directories in /hpc_tools/platforms",
+            )
+        
         fields: list[tuple[str, object]] = [
             ("Package", HPC_BENCHMARKS_MSR_SAFE_PACKAGE),
             ("Declared in benchmark_tools.list", declared),
@@ -331,7 +393,8 @@ def check_hpc_benchmarks_msr_safe_arch_boundary(host):
         x86_staged = False
         for host_name, arch in sorted(arch_map.items()):
             row_for = next(item for item in computes if item["HOSTNAME"] == host_name)
-            base = f"{HPC_TOOLS_BASE}/{HPC_BENCHMARKS_MSR_SAFE_PACKAGE}"
+            platform_root = platform_roots[arch]
+            base = f"{platform_root}/{HPC_BENCHMARKS_MSR_SAFE_PACKAGE}"
             record = read_directory_stat(host, row_for, base)
             present = record["present"]
             fields.append(
@@ -350,6 +413,300 @@ def check_hpc_benchmarks_msr_safe_arch_boundary(host):
             summary,
             fields,
             "; ".join(violations) if violations else "",
+        )
+    except FileNotFoundError as exc:
+        return optional_skip(summary, str(exc))
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# TC-06a: PLATFORM SCRIPT DEPLOYMENT
+#---------------------------------------------------------------------------
+def check_hpc_benchmarks_platform_script(host):
+    """Verify omnia_platform.sh is deployed and can detect platform variables.
+
+    This script is critical for platform detection and path resolution used by
+    both pull_benchmarks.sh and download_container_image.sh.
+    """
+    summary = "HPC benchmarks platform script deployment"
+    try:
+        _context, _control, computes, skipped = computes_or_skip(host, summary)
+        if skipped:
+            return skipped
+        fields: list[tuple[str, object]] = [
+            ("Platform script", HPC_BENCHMARKS_PLATFORM_SCRIPT),
+        ]
+        failures: list[str] = []
+        for row in computes:
+            # Check script exists and is executable
+            script_check = remote_command(
+                host, row, PXEBOOT_COMMANDS["hpc_benchmarks_platform_script_check"]
+            )
+            script_ok = script_check.rc == 0
+            
+            # Check platform detection works
+            os_type = read_platform_helper_var(host, row, "OMNIA_OS_TYPE")
+            os_version = read_platform_helper_var(host, row, "OMNIA_OS_VERSION")
+            arch = read_platform_helper_var(host, row, "OMNIA_ARCH")
+            platform_root = read_platform_helper_var(host, row, "OMNIA_PLATFORM_ROOT")
+            pulp_path = read_platform_helper_var(host, row, "OMNIA_PULP_PLATFORM_PATH")
+            
+            detection_ok = all([os_type, os_version, arch, platform_root, pulp_path])
+            
+            fields.append(
+                (
+                    f"  {row['HOSTNAME']}",
+                    (
+                        f"script={'ok' if script_ok else 'bad'} | "
+                        f"detection={'ok' if detection_ok else 'bad'} | "
+                        f"os_type={os_type or '<unset>'} | "
+                        f"os_version={os_version or '<unset>'} | "
+                        f"arch={arch or '<unset>'}"
+                    ),
+                )
+            )
+            if not script_ok:
+                failures.append(f"{row['HOSTNAME']}: platform script missing or invalid")
+            if not detection_ok:
+                failures.append(f"{row['HOSTNAME']}: platform detection failed")
+        return runtime_result(
+            not failures,
+            summary,
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# TC-06b: CONTAINER IMAGE LIST DEPLOYMENT
+#---------------------------------------------------------------------------
+def check_hpc_benchmarks_container_image_list(host):
+    """Verify container_image.list is deployed and contains valid image URIs.
+
+    This file is required for container image downloads via download_container_image.sh.
+    """
+    summary = "HPC benchmarks container image list deployment"
+    try:
+        _context, _control, computes, skipped = computes_or_skip(host, summary)
+        if skipped:
+            return skipped
+        row = computes[0]
+        
+        # Check file exists and is readable
+        list_check = remote_command(
+            host, row, PXEBOOT_COMMANDS["hpc_benchmarks_container_image_list_check"]
+        )
+        if list_check.rc != 0:
+            return runtime_result(
+                False,
+                summary,
+                [("Container image list", HPC_BENCHMARKS_CONTAINER_IMAGE_LIST)],
+                "container_image.list is missing or empty",
+            )
+        
+        # Read and validate content
+        result = remote_command(
+            host, row, f"cat {HPC_BENCHMARKS_CONTAINER_IMAGE_LIST}"
+        )
+        if result.rc != 0:
+            return runtime_result(
+                False,
+                summary,
+                [("Container image list", HPC_BENCHMARKS_CONTAINER_IMAGE_LIST)],
+                "Failed to read container_image.list",
+            )
+        
+        lines = result.stdout.strip().split('\n')
+        valid_images: list[str] = []
+        invalid_lines: list[str] = []
+        
+        for line in lines:
+            line = line.strip()
+            # Skip empty lines and comments
+            if not line or line.startswith('#'):
+                continue
+            # Basic validation: should look like a container image URI
+            # Format: registry/namespace/image:tag or docker://registry/namespace/image:tag
+            if '/' in line and (':' in line or 'latest' in line):
+                valid_images.append(line)
+            else:
+                invalid_lines.append(line)
+        
+        fields: list[tuple[str, object]] = [
+            ("Container image list", HPC_BENCHMARKS_CONTAINER_IMAGE_LIST),
+            ("Valid image URIs", len(valid_images)),
+            ("Invalid lines", len(invalid_lines)),
+        ]
+        if valid_images:
+            fields.append(("Sample images", ", ".join(valid_images[:3])))
+        if invalid_lines:
+            fields.append(("Invalid entries", ", ".join(invalid_lines[:3])))
+        
+        error = ""
+        if not valid_images:
+            error = "No valid image URIs found in container_image.list"
+        elif invalid_lines:
+            error = f"Invalid image URIs: {', '.join(invalid_lines[:5])}"
+        
+        return runtime_result(
+            not error,
+            summary,
+            fields,
+            error,
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# TC-06c: PLATFORM DIRECTORY STRUCTURE
+#---------------------------------------------------------------------------
+def check_hpc_benchmarks_platform_directory_structure(host):
+    """Verify platform-specific directory structure exists for each architecture.
+
+    The /hpc_tools/platforms directory is created by hpc_tools.yml, but the
+    subdirectories {os}/{version}/{arch} are created when artifacts are staged.
+    This TC verifies the platform-specific directories exist for each architecture
+    in the cluster (e.g., /hpc_tools/platforms/rhel/10.2/x86_64/).
+    """
+    summary = "HPC benchmarks platform directory structure"
+    try:
+        _context, _control, computes, skipped = computes_or_skip(host, summary)
+        if skipped:
+            return skipped
+        
+        arch_map = compute_architectures(host, computes)
+        unique_archs = set(arch_map.values())
+        
+        # Get platform root for each architecture
+        platform_roots: dict[str, str] = {}
+        for arch in unique_archs:
+            row_for_arch = next(item for item in computes if arch_map[item["HOSTNAME"]] == arch)
+            platform_root = get_platform_root(host, row_for_arch)
+            if not platform_root:
+                return optional_skip(summary, f"Cannot determine platform root for {arch}")
+            platform_roots[arch] = platform_root
+        
+        fields: list[tuple[str, object]] = [
+            ("Platform base", HPC_TOOLS_PLATFORMS_DIRECTORY),
+        ]
+        missing: list[str] = []
+        
+        for arch in sorted(unique_archs):
+            platform_root = platform_roots[arch]
+            record = read_directory_stat(host, computes[0], platform_root)
+            exists = record["present"]
+            
+            fields.append(
+                (f"  {arch}", f"path={platform_root} | exists={'yes' if exists else 'no'}")
+            )
+            
+            if not exists:
+                missing.append(f"{arch}: {platform_root}")
+        
+        return runtime_result(
+            not missing,
+            summary,
+            fields,
+            f"Missing platform directories: {', '.join(missing)}" if missing else "",
+        )
+    except FileNotFoundError as exc:
+        return optional_skip(summary, str(exc))
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# TC-06d: OFFLINE PACKAGE COPY VERIFICATION
+#---------------------------------------------------------------------------
+def check_hpc_benchmarks_offline_package_copy(host):
+    """Verify offline packages are copied to slurm_config_path/packages/{arch}/.
+
+    The hpc_tools.yml task copies offline packages (e.g., CUDA) from source to
+    destination during orchestrator setup. This TC verifies that if offline
+    packages are configured in omnia_config.yml, they are correctly copied to
+    the architecture-specific package directories under the Slurm config path.
+
+    Note: Packages are stored at {slurm_config_path}/packages/{arch}/, NOT
+    under /hpc_tools/packages/. The slurm_config_path is typically
+    /nfs_share/slurm.
+    """
+    summary = "HPC benchmarks offline package copy"
+    try:
+        # Load context to get omnia_config and storage config
+        from ._workload_helpers import load_context, load_workload_context
+        from ._workload_helpers import slurm_shared_storage, selected_slurm_config
+        
+        context = load_context(host)
+        context = load_workload_context(host, context)
+        
+        # Get slurm config
+        slurm_config = selected_slurm_config(context)
+        
+        # Get slurm shared storage mount point
+        storage = slurm_shared_storage(context, slurm_config)
+        slurm_mount_point = storage["mount_point"]  # e.g., /nfs_share/slurm
+        
+        # Check if offline packages are configured in omnia_config
+        # The vars use offline_path_x86_64 and offline_path_aarch64
+        # These are typically empty by default
+        omnia_config = context.get("omnia_config", {})
+        
+        # Check for offline package configuration
+        # The actual configuration would be in orchestrator_config.yml or passed as extra vars
+        # For now, we'll check if the packages directory exists and has content
+        _context, _control, computes, skipped = computes_or_skip(host, summary)
+        if skipped:
+            return skipped
+        
+        arch_map = compute_architectures(host, computes)
+        unique_archs = set(arch_map.values())
+        
+        fields: list[tuple[str, object]] = [
+            ("Slurm config path", slurm_mount_point),
+        ]
+        
+        missing: list[str] = []
+        has_packages = False
+        
+        for arch in sorted(unique_archs):
+            packages_dir = f"{slurm_mount_point}/packages/{arch}"
+            record = read_directory_stat(host, computes[0], packages_dir)
+            exists = record["present"]
+            
+            if exists:
+                # Check if there are any subdirectories (e.g., cuda)
+                subdirs = list_directory(host, computes[0], packages_dir)
+                has_content = len(subdirs) > 0
+                if has_content:
+                    has_packages = True
+                subdir_names = [entry["path"] for entry in subdirs]
+                fields.append(
+                    (f"  {arch}", f"path={packages_dir} | exists=yes | subdirs={len(subdirs)}")
+                )
+                if subdir_names:
+                    fields.append((f"    subdirs", ", ".join(subdir_names[:5])))
+            else:
+                fields.append(
+                    (f"  {arch}", f"path={packages_dir} | exists=no")
+                )
+                missing.append(f"{arch}: {packages_dir}")
+        
+        # If no packages are configured or directory doesn't exist, skip
+        if not has_packages:
+            return optional_skip(
+                summary,
+                "No offline packages configured or packages directory not found",
+            )
+        
+        return runtime_result(
+            not missing,
+            summary,
+            fields,
+            f"Missing package directories: {', '.join(missing)}" if missing else "",
         )
     except FileNotFoundError as exc:
         return optional_skip(summary, str(exc))
@@ -523,15 +880,37 @@ def check_hpc_benchmarks_e2e_provisioning(host):
     Mandatory stages (tool_list, tools_dirs, artifacts, nfs) must not be
     skipped.  A skipped mandatory stage is treated as a failure to prevent
     false-green results when prerequisites are missing.
+
+    This test only runs when prerequisite stages (V203, V204, V205, V221) are not
+    skipped, as those checks verify that artifacts have been staged and platform
+    directories exist.
     """
     summary = "HPC benchmarks end-to-end provisioning"
     _MANDATORY_STAGES = {"tool_list", "tools_dirs", "artifacts", "nfs"}
     try:
+        # Check prerequisite stages (V203, V204, V205, V221) - skip if any are skipped
+        prerequisite_results = {
+            "artifacts (V203)": check_hpc_benchmarks_artifact_copy(host),
+            "msr_safe (V204)": check_hpc_benchmarks_msr_safe_arch_boundary(host),
+            "deployment (V205)": check_hpc_benchmarks_container_first_guidance(host),
+            "platform_dirs (V221)": check_hpc_benchmarks_platform_directory_structure(host),
+        }
+        skipped_prerequisites = [
+            stage
+            for stage, outcome in prerequisite_results.items()
+            if outcome.get("skipped")
+        ]
+        if skipped_prerequisites:
+            return optional_skip(
+                summary,
+                f"Prerequisite stages skipped: {', '.join(skipped_prerequisites)}",
+            )
+
         results = {
             "tool_list": check_hpc_benchmarks_json_declaration(host),
             "pulp_sync": check_hpc_benchmarks_local_repo_sync(host),
             "tools_dirs": check_hpc_benchmarks_tools_dir_creation(host),
-            "artifacts": check_hpc_benchmarks_artifact_copy(host),
+            "artifacts": prerequisite_results["artifacts (V203)"],
             "nfs": check_hpc_benchmarks_nfs_accessibility(host),
         }
         fields = [
@@ -672,22 +1051,48 @@ def check_hpc_benchmarks_post_staging_validation(host):
         if not tools_list_deployed(host, row):
             return optional_skip(summary, "benchmark_tools.list is not deployed")
         tools = read_benchmark_tools_list(host, row)
-        if not staged_tool_directories(host, row):
+        arch_map = compute_architectures(host, computes)
+        
+        # Get platform root path for each architecture
+        platform_roots: dict[str, str] = {}
+        for arch in set(arch_map.values()):
+            row_for_arch = next(item for item in computes if arch_map[item["HOSTNAME"]] == arch)
+            platform_root = get_platform_root(host, row_for_arch)
+            if not platform_root:
+                return optional_skip(summary, f"Cannot determine platform root for {arch}")
+            platform_roots[arch] = platform_root
+        
+        # Check if any tool directories exist before proceeding
+        # If none exist, staging hasn't been executed yet
+        any_tool_dir_exists = False
+        for arch in set(arch_map.values()):
+            platform_root = platform_roots[arch]
+            for tool in tools:
+                base = f"{platform_root}/{tool}"
+                record = read_directory_stat(host, row, base)
+                if record["present"]:
+                    any_tool_dir_exists = True
+                    break
+            if any_tool_dir_exists:
+                break
+        
+        if not any_tool_dir_exists:
             return optional_skip(
                 summary,
-                "Staging not yet executed — no tool directories in /hpc_tools",
+                "Staging not yet executed — no tool directories in /hpc_tools/platforms",
             )
-        arch_map = compute_architectures(host, computes)
+        
         fields: list[tuple[str, object]] = [
             ("Declared tools", ", ".join(tools) or "none")
         ]
         missing: list[str] = []
         for compute in computes:
             arch = arch_map[compute["HOSTNAME"]]
+            platform_root = platform_roots[arch]
             expected = expected_tools_for_arch(tools, arch)
             per_host: list[str] = []
             for tool in expected:
-                base = f"{HPC_TOOLS_BASE}/{tool}"
+                base = f"{platform_root}/{tool}"
                 record = read_directory_stat(host, compute, base)
                 if not record["present"]:
                     per_host.append(tool)

@@ -24,6 +24,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -33,6 +34,7 @@ def test_slurm_gpu_inventory(host):
     verify_pxeboot(host, "slurm_gpu_inventory", check_slurm_gpu_inventory)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -43,6 +45,7 @@ def test_slurm_gpu_job(host):
     verify_pxeboot(host, "slurm_gpu_job", check_slurm_gpu_job)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
