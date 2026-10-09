@@ -1,0 +1,63 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Test dataset: additional_cloud_init enabled with verifiable artifacts.
+#
+# The common section creates files and log entries on ALL provisioned nodes.
+# The groups section adds per-functional-group overrides for slurm nodes.
+# Group names must match functional groups in the active pxe_mapping_file.csv.
+#
+# Verification tests check:
+#   - /etc/omnia/aci_common.conf exists on every node        (common write_files)
+#   - /var/log/omnia_aci_common.log exists on every node      (common runcmd)
+#   - /etc/omnia/aci_slurm_node.conf exists on slurm nodes   (per-FG write_files)
+#   - /var/log/omnia_aci_slurm_node.log exists on slurm nodes (per-FG runcmd)
+#   - /etc/omnia/aci_slurm_control.conf on control nodes     (per-FG write_files)
+#   - Per-FG files do NOT exist on non-member nodes           (cross-contamination)
+
+common:
+  write_files:
+    - path: /etc/omnia/aci_common.conf
+      content: |
+        # Omnia additional cloud-init test artifact
+        ACI_DATASET=aci_enabled
+        ACI_SCOPE=common
+      permissions: '0644'
+  runcmd:
+    - echo "omnia-aci-common $(date -u +%Y%m%dT%H%M%SZ)" >> /var/log/omnia_aci_common.log
+
+groups:
+  # Slurm compute nodes — replace with the functional group name from your
+  # pxe_mapping_file.csv (e.g. slurm_node_rhel_10_0_x86_64).
+  slurm_node_rhel_10_0_x86_64:
+    write_files:
+      - path: /etc/omnia/aci_slurm_node.conf
+        content: |
+          ACI_SCOPE=slurm_node
+          ACI_FG=slurm_node_rhel_10_0_x86_64
+        permissions: '0644'
+    runcmd:
+      - echo "omnia-aci-slurm-node $(date -u +%Y%m%dT%H%M%SZ)" >> /var/log/omnia_aci_slurm_node.log
+
+  # Slurm control node
+  slurm_control_node_rhel_10_0_x86_64:
+    write_files:
+      - path: /etc/omnia/aci_slurm_control.conf
+        content: |
+          ACI_SCOPE=slurm_control
+          ACI_FG=slurm_control_node_rhel_10_0_x86_64
+        permissions: '0644'
+    runcmd:
+      - echo "omnia-aci-slurm-control $(date -u +%Y%m%dT%H%M%SZ)" >> /var/log/omnia_aci_slurm_control.log

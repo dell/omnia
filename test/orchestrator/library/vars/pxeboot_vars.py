@@ -732,6 +732,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "minimal_os_kernel_version": "uname -r",
     "minimal_os_ip_addr": "ip -o addr show 2>/dev/null",
+    # ── Additional cloud-init: compatibility / idempotency ─────────────
+    "aci_os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
     # ── DCGM / CUDA verification ──────────────────────────────────────
     "dcgm_nvidia_smi": "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
     "dcgm_cuda_version": (
