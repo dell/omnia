@@ -1305,6 +1305,41 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify admin IP is configured on OS-only nodes",
         "component": "Minimal OS network identity",
     },
+    "minimal_os_functional_group_schema": {
+        "id": "ORCH_FVT_PXEBOOT_V122",
+        "title": "Verify functional-group definitions on OS-only nodes",
+        "component": "Minimal OS functional group schema",
+    },
+    "minimal_os_additional_packages": {
+        "id": "ORCH_FVT_PXEBOOT_V123",
+        "title": "Verify configured additional packages on OS-only nodes",
+        "component": "Minimal OS additional packages",
+    },
+    "minimal_os_additional_packages_fallback": {
+        "id": "ORCH_FVT_PXEBOOT_V124",
+        "title": "Verify absent additional_packages handled on OS-only nodes",
+        "component": "Minimal OS additional packages fallback",
+    },
+    "minimal_os_ldms_service_state": {
+        "id": "ORCH_FVT_PXEBOOT_V125",
+        "title": "Verify LDMS service inactive at handoff on OS-only nodes",
+        "component": "Minimal OS LDMS service state",
+    },
+    "minimal_os_ssh_key_access": {
+        "id": "ORCH_FVT_PXEBOOT_V126",
+        "title": "Verify SSH key authentication on OS-only nodes",
+        "component": "Minimal OS SSH key access",
+    },
+    "minimal_os_network_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V127",
+        "title": "Verify default route on management network on OS-only nodes",
+        "component": "Minimal OS network isolation",
+    },
+    "minimal_os_no_embedded_credentials": {
+        "id": "ORCH_FVT_PXEBOOT_V128",
+        "title": "Verify no plaintext secrets in image on OS-only nodes",
+        "component": "Minimal OS no embedded credentials",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
