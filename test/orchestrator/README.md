@@ -330,6 +330,7 @@ marker is supplied. Use `--marker sanity` for the baseline only:
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_hpc_benchmarks
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite coredns_coredhcp
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite powervault
+./run_validation.sh fvt_orchestrator pxeboot verify --suite vast_storage
 ```
 
 Focused workload and image examples:

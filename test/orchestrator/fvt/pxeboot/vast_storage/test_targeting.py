@@ -16,51 +16,64 @@
 
 import pytest
 
-from fvt.result import verify_pxeboot
 from library.functions import (
-    check_vast_control_node_no_vast,
-    check_vast_qss_mounts,
-    check_vast_control_node_mounts,
+    TestLogger,
     check_vast_compute_node_mounts,
+    check_vast_control_node_mounts,
+    check_vast_control_node_no_vast,
     check_vast_login_node_mounts,
+    check_vast_qss_mounts,
 )
+from library.vars import TEST_CASES as TC
+
+from fvt.result import verify_pxeboot
 
 
 @pytest.mark.sanity
-@pytest.mark.order(708)
 @pytest.mark.vast_targeting
+@pytest.mark.order(42109)
 def test_vast_control_node_no_vast(host):
     """Verify Slurm control node has no VAST storage."""
-    verify_pxeboot(host, "vast_control_node_no_vast", check_vast_control_node_no_vast)
+    tc = TC["vast_control_node_no_vast"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_control_node_no_vast)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(712)
 @pytest.mark.vast_targeting
+@pytest.mark.order(42113)
 def test_vast_qss_mounts(host):
     """Verify VAST on compute/login only; controller has none."""
-    verify_pxeboot(host, "vast_qss_mounts", check_vast_qss_mounts)
+    tc = TC["vast_qss_mounts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_qss_mounts)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(714)
 @pytest.mark.vast_targeting
+@pytest.mark.order(42115)
 def test_vast_control_node_mounts(host):
     """Verify controller mount table (NFS/PV only, no VAST)."""
-    verify_pxeboot(host, "vast_control_node_mounts", check_vast_control_node_mounts)
+    tc = TC["vast_control_node_mounts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_control_node_mounts)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(715)
 @pytest.mark.vast_targeting
+@pytest.mark.order(42116)
 def test_vast_compute_node_mounts(host):
     """Verify compute node mount table (NFS + VAST)."""
-    verify_pxeboot(host, "vast_compute_node_mounts", check_vast_compute_node_mounts)
+    tc = TC["vast_compute_node_mounts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_compute_node_mounts)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(716)
 @pytest.mark.vast_targeting
+@pytest.mark.order(42117)
 def test_vast_login_node_mounts(host):
     """Verify login/compiler node mount table."""
-    verify_pxeboot(host, "vast_login_node_mounts", check_vast_login_node_mounts)
+    tc = TC["vast_login_node_mounts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_login_node_mounts)

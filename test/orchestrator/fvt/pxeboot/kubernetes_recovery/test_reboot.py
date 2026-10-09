@@ -28,7 +28,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.disruptive
 @pytest.mark.reboot
 @pytest.mark.kubernetes
-@pytest.mark.order(42101)
+@pytest.mark.order(42201)
 def test_kubernetes_local_etcd_recovery(host):
     """Reboot a control plane and prove its local-etcd UUID is preserved."""
     tc = TC["kubernetes_local_etcd_recovery"]
@@ -39,7 +39,7 @@ def test_kubernetes_local_etcd_recovery(host):
 @pytest.mark.disruptive
 @pytest.mark.reboot
 @pytest.mark.kubernetes
-@pytest.mark.order(42102)
+@pytest.mark.order(42202)
 def test_kubernetes_control_plane_recovery(host):
     """Reboot the VIP owner and verify control-plane recovery."""
     tc = TC["kubernetes_recovery"]

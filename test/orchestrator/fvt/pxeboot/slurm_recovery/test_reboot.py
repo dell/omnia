@@ -28,7 +28,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.functional
 @pytest.mark.reboot
 @pytest.mark.slurm
-@pytest.mark.order(42201)
+@pytest.mark.order(42301)
 def test_slurm_cluster_recovery(host):
     """Reboot mapped Slurm nodes and verify scheduler and workload recovery."""
     tc = TC["slurm_recovery"]

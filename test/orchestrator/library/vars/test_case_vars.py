@@ -1653,9 +1653,10 @@ TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
         "slurm_infiniband": 41800,
         "slurm_apptainer": 41900,
         "slurm_hpc_benchmarks": 42000,
-        "kubernetes_recovery": 42100,
-        "slurm_recovery": 42200,
-        "slurm_lifecycle": 42300,
+        "vast_storage": 42100,
+        "kubernetes_recovery": 42200,
+        "slurm_recovery": 42300,
+        "slurm_lifecycle": 42400,
     },
     "cleanup": {
         "root": 50000,

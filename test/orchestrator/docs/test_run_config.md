@@ -44,10 +44,10 @@ non-zero aggregate result; set it to `true` to stop after the first failure.
 
 | Tag | Suites |
 |---|---|
-| `precheck` | `environment`, `storage`, `dependencies`, `inputs` |
+| `precheck` | `environment`, `oim_readiness`, `storage`, `dependencies`, `inputs` |
 | `prepare` | `openchami`, `network`, `openldap` |
 | `provision` | `openchami` |
-| `pxeboot` | `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `slurm_hpc_benchmarks`, `coredns_coredhcp`, `powervault` |
+| `pxeboot` | `connectivity`, `cloudinit`, `additional_cloud_init`, `mount_config`, `minimal_os`, `powervault`, `coredns_coredhcp`, `kubernetes_cluster`, `kubernetes_etcd`, `kubernetes_storage`, `slurm_cluster`, `slurm_jobs`, `slurm_ldap`, `slurm_gpu`, `slurm_dcgm`, `slurm_openmpi`, `slurm_ucx`, `slurm_infiniband`, `slurm_apptainer`, `slurm_hpc_benchmarks`, `vast_storage`, `kubernetes_recovery`, `slurm_recovery`, `slurm_lifecycle` |
 | `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` |
 
 Discover the live catalog before editing the batch file:
@@ -63,8 +63,10 @@ They include `sanity`, `functional`, `openldap`, `connectivity`, `cloudinit`,
 `kubernetes`, `slurm`, `apptainer`, `benchmark`, `additional_cloud_init`,
 `mount_config`, `minimal_os`, `boot_image`, the PowerVault selectors
 `powervault_infrastructure`, `powervault_mounts`, `powervault_binds`, and
-`powervault_cloudinit`, `image_download`, `negative`, `non_disruptive`,
-`disruptive`, `reboot`, `scheduler_state`, and `destructive`.
+`powervault_cloudinit`, the VAST selectors `vast_installation`, `vast_mounts`,
+`vast_scratch`, `vast_targeting`, and `vast_persistence`, `image_download`,
+`negative`, `non_disruptive`, `disruptive`, `reboot`, `scheduler_state`, and
+`destructive`.
 
 Examples:
 

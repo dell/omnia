@@ -102,10 +102,10 @@ order = lifecycle base + suite slot * 100 + position in suite
 Each suite owns 100 numbers, so a new test takes the next free number in its
 own suite and never renumbers another suite. A new suite appends a block.
 Suites run in dependency order: reachability and node state first, then
-cluster health, temporary workloads, and finally the reboot, drain, and
-node-removal suites (`kubernetes_recovery`, `slurm_recovery`,
-`slurm_lifecycle`). Within a suite, disruptive and destructive cases come
-last. Never reuse an order value.
+cluster health, temporary workloads, storage contracts such as
+`vast_storage`, and finally the reboot, drain, and node-removal suites
+(`kubernetes_recovery`, `slurm_recovery`, `slurm_lifecycle`). Within a suite,
+disruptive and destructive cases come last. Never reuse an order value.
 
 Cleanup is never part of an implicit lifecycle run.
 
@@ -323,6 +323,13 @@ configured in `orchestrator_config.yml`.
 | 40506 | `ORCH_FVT_PXEBOOT_V119` | `test_minimal_os_package_manager` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify package manager is functional on OS-only nodes. | All stated checks pass for every applicable target. |
 | 40507 | `ORCH_FVT_PXEBOOT_V120` | `test_minimal_os_kernel_version` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify kernel version is consistent across OS-only nodes per FG. | All stated checks pass for every applicable target. |
 | 40508 | `ORCH_FVT_PXEBOOT_V121` | `test_minimal_os_network_identity` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify admin IP is configured on all OS-only nodes. | All stated checks pass for every applicable target. |
+| 40509 | `ORCH_FVT_PXEBOOT_V122` | `test_minimal_os_functional_group_schema` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify functional-group definitions are valid on OS-only nodes. | All stated checks pass for every applicable target. |
+| 40510 | `ORCH_FVT_PXEBOOT_V123` | `test_minimal_os_additional_packages` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify configured extra packages are installed on OS-only nodes. | All stated checks pass for every applicable target. |
+| 40511 | `ORCH_FVT_PXEBOOT_V124` | `test_minimal_os_additional_packages_fallback` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify absent additional_packages config is handled on OS-only nodes. | All stated checks pass for every applicable target. |
+| 40512 | `ORCH_FVT_PXEBOOT_V125` | `test_minimal_os_ldms_service_state` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify LDMS service is installed but inactive at handoff. | All stated checks pass for every applicable target. |
+| 40513 | `ORCH_FVT_PXEBOOT_V126` | `test_minimal_os_ssh_key_access` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify SSH key authentication is proven on OS-only nodes. | All stated checks pass for every applicable target. |
+| 40514 | `ORCH_FVT_PXEBOOT_V127` | `test_minimal_os_network_isolation` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify default route is on management network on OS-only nodes. | All stated checks pass for every applicable target. |
+| 40515 | `ORCH_FVT_PXEBOOT_V128` | `test_minimal_os_no_embedded_credentials` | `minimal_os` | `buildstream`, `minimal_os`, `sanity` | Verify no plaintext secrets are present in the OS image. | All stated checks pass for every applicable target. |
 
 ### PowerVault iSCSI storage (`powervault`)
 
@@ -605,12 +612,37 @@ seconds. The reboot cases share one reboot state and run last in the suite.
 | 42026 | `ORCH_FVT_PXEBOOT_V217` | `test_hpc_benchmarks_existing_dirs_preserved` | `slurm_hpc_benchmarks` | `destructive`, `slurm` | TC-18: Verify pre-existing /hpc_tools subdirs survive a staging run. | The operation completes successfully and returns the expected result. |
 | 42027 | `ORCH_FVT_PXEBOOT_V218` | `test_hpc_benchmarks_staging_idempotency` | `slurm_hpc_benchmarks` | `destructive`, `slurm` | TC-19: Verify a second staging run keeps the /hpc_tools snapshot stable. | The repeated operation succeeds without changing protected state. |
 
+### VAST storage (`vast_storage`)
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 42101 | `ORCH_FVT_PXEBOOT_V700` | `test_vast_vastnfs_installation` | `vast_storage` | `sanity`, `vast_installation` | Verify vastnfs-ctl status on compute nodes. | All stated checks pass for every applicable target. |
+| 42102 | `ORCH_FVT_PXEBOOT_V701` | `test_vast_mount_points` | `vast_storage` | `sanity`, `vast_mounts` | Verify /scratch, /home, /apps, /projects directories. | All stated checks pass for every applicable target. |
+| 42103 | `ORCH_FVT_PXEBOOT_V702` | `test_vast_scratch_hostname_isolation` | `vast_storage` | `sanity`, `vast_scratch` | Verify /scratch/<hostname>/ per node; file isolation. | All stated checks pass for every applicable target. |
+| 42104 | `ORCH_FVT_PXEBOOT_V703` | `test_vast_mount_options` | `vast_storage` | `sanity`, `vast_mounts` | Verify proto=rdma and port=20049 in /proc/mounts. | All stated checks pass for every applicable target. |
+| 42105 | `ORCH_FVT_PXEBOOT_V704` | `test_vast_ldapuser_scratch_directory` | `vast_storage` | `sanity`, `vast_scratch` | Verify /scratch/<ldapuser>/ on login_compiler nodes. | All stated checks pass for every applicable target. |
+| 42106 | `ORCH_FVT_PXEBOOT_V705` | `test_vast_ldapuser_subdirectories` | `vast_storage` | `sanity`, `vast_scratch` | Verify data/, jobs/, results/, tmp/ subdirectories. | All stated checks pass for every applicable target. |
+| 42107 | `ORCH_FVT_PXEBOOT_V706` | `test_vast_ldapuser_permissions` | `vast_storage` | `sanity`, `vast_scratch` | Verify cross-user permission isolation. | All stated checks pass for every applicable target. |
+| 42108 | `ORCH_FVT_PXEBOOT_V707` | `test_vast_scratch_isolation` | `vast_storage` | `sanity`, `vast_scratch` | Verify file isolation between scratch subdirectories. | All stated checks pass for every applicable target. |
+| 42109 | `ORCH_FVT_PXEBOOT_V708` | `test_vast_control_node_no_vast` | `vast_storage` | `sanity`, `vast_targeting` | Verify Slurm control node has no VAST storage. | All stated checks pass for every applicable target. |
+| 42110 | `ORCH_FVT_PXEBOOT_V709` | `test_vast_vastnfs_rpm_and_module` | `vast_storage` | `sanity`, `vast_installation` | Verify vastnfs RPM, kernel module, and service. | All stated checks pass for every applicable target. |
+| 42111 | `ORCH_FVT_PXEBOOT_V710` | `test_vast_fstab_entries` | `vast_storage` | `sanity`, `vast_mounts` | Verify /etc/fstab entries with proto=rdma. | All stated checks pass for every applicable target. |
+| 42112 | `ORCH_FVT_PXEBOOT_V711` | `test_vast_rdma_mount` | `vast_storage` | `sanity`, `vast_mounts` | Verify RDMA transport and 1 GB I/O checksum. | All stated checks pass for every applicable target. |
+| 42113 | `ORCH_FVT_PXEBOOT_V712` | `test_vast_qss_mounts` | `vast_storage` | `sanity`, `vast_targeting` | Verify VAST on compute/login only; controller has none. | All stated checks pass for every applicable target. |
+| 42114 | `ORCH_FVT_PXEBOOT_V713` | `test_vast_slurm_logs_persistence` | `vast_storage` | `sanity`, `vast_persistence` | Verify Slurm logs on persistent storage; sacct accessible. | All stated checks pass for every applicable target. |
+| 42115 | `ORCH_FVT_PXEBOOT_V714` | `test_vast_control_node_mounts` | `vast_storage` | `sanity`, `vast_targeting` | Verify controller mount table (NFS/PV only, no VAST). | All stated checks pass for every applicable target. |
+| 42116 | `ORCH_FVT_PXEBOOT_V715` | `test_vast_compute_node_mounts` | `vast_storage` | `sanity`, `vast_targeting` | Verify compute node mount table (NFS + VAST). | All stated checks pass for every applicable target. |
+| 42117 | `ORCH_FVT_PXEBOOT_V716` | `test_vast_login_node_mounts` | `vast_storage` | `sanity`, `vast_targeting` | Verify login/compiler node mount table. | All stated checks pass for every applicable target. |
+
+VAST checks apply only when `slurm_cluster[0].vast_storage_name` selects a VAST
+storage entry. LDAP scratch checks use the `ldap_username` test credential.
+
 ### Kubernetes recovery (`kubernetes_recovery`)
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 42101 | `ORCH_FVT_PXEBOOT_V021` | `test_kubernetes_local_etcd_recovery` | `kubernetes_recovery` | `disruptive`, `kubernetes`, `reboot` | Reboot a control plane and prove its local-etcd UUID is preserved. | The node returns within the bounded wait and every stated post-reboot check passes. |
-| 42102 | `ORCH_FVT_PXEBOOT_V022` | `test_kubernetes_control_plane_recovery` | `kubernetes_recovery` | `disruptive`, `kubernetes`, `reboot` | Reboot the VIP owner and verify control-plane recovery. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 42201 | `ORCH_FVT_PXEBOOT_V021` | `test_kubernetes_local_etcd_recovery` | `kubernetes_recovery` | `disruptive`, `kubernetes`, `reboot` | Reboot a control plane and prove its local-etcd UUID is preserved. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 42202 | `ORCH_FVT_PXEBOOT_V022` | `test_kubernetes_control_plane_recovery` | `kubernetes_recovery` | `disruptive`, `kubernetes`, `reboot` | Reboot the VIP owner and verify control-plane recovery. | The node returns within the bounded wait and every stated post-reboot check passes. |
 
 Both cases require two control planes and observe readiness from a node
 that is not rebooted. After the reboot they wait, within bounded limits,
@@ -623,14 +655,14 @@ mount source and UUID to be unchanged.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 42201 | `ORCH_FVT_PXEBOOT_V062` | `test_slurm_cluster_recovery` | `slurm_recovery` | `disruptive`, `functional`, `reboot`, `slurm` | Reboot mapped Slurm nodes and verify scheduler and workload recovery. | The node returns within the bounded wait and every stated post-reboot check passes. |
+| 42301 | `ORCH_FVT_PXEBOOT_V062` | `test_slurm_cluster_recovery` | `slurm_recovery` | `disruptive`, `functional`, `reboot`, `slurm` | Reboot mapped Slurm nodes and verify scheduler and workload recovery. | The node returns within the bounded wait and every stated post-reboot check passes. |
 
 ### Slurm node lifecycle (`slurm_lifecycle`)
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 42301 | `ORCH_FVT_PXEBOOT_V500` | `test_slurm_node_remove` | `slurm_lifecycle` | `disruptive`, `functional`, `slurm` | Remove Slurm compute node(s) from PXE mapping, provision, verify. | The operation completes successfully and returns the expected result. |
-| 42302 | `ORCH_FVT_PXEBOOT_V501` | `test_slurm_node_add` | `slurm_lifecycle` | `disruptive`, `functional`, `slurm` | Restore removed node(s) to PXE mapping, provision, verify re-addition. | The operation completes successfully and returns the expected result. |
+| 42401 | `ORCH_FVT_PXEBOOT_V500` | `test_slurm_node_remove` | `slurm_lifecycle` | `disruptive`, `functional`, `slurm` | Remove Slurm compute node(s) from PXE mapping, provision, verify. | The operation completes successfully and returns the expected result. |
+| 42402 | `ORCH_FVT_PXEBOOT_V501` | `test_slurm_node_add` | `slurm_lifecycle` | `disruptive`, `functional`, `slurm` | Restore removed node(s) to PXE mapping, provision, verify re-addition. | The operation completes successfully and returns the expected result. |
 
 Node removal and re-addition use `slurm_lifecycle_remove_add_nodes` from
 `test_config.yml` and require the `disruptive` marker.
@@ -691,8 +723,9 @@ input file, credential, or externally managed data path must always be deleted.
 | `sanity` | Baseline positive PXE and lifecycle coverage |
 | `buildstream` | BuildStream validation subset |
 | `functional` | Temporary workload or job behavior |
-| `openldap`, `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `additional_cloud_init`, `mount_config`, `minimal_os`, `boot_image` | Capability selectors |
+| `openldap`, `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer`, `benchmark`, `additional_cloud_init`, `mount_config`, `minimal_os`, `boot_image` | Capability selectors |
 | `powervault_infrastructure`, `powervault_mounts`, `powervault_binds`, `powervault_cloudinit` | PowerVault subset selectors |
+| `vast_installation`, `vast_mounts`, `vast_scratch`, `vast_targeting`, `vast_persistence` | VAST storage subset selectors |
 | `image_download` | Explicit authorization to modify shared Apptainer image storage |
 | `negative` | Expected rejection and error-path behavior |
 | `non_disruptive` | Work that does not reboot or drain cluster nodes |

@@ -16,63 +16,64 @@
 
 import pytest
 
-from fvt.result import verify_pxeboot
 from library.functions import (
-    check_vast_scratch_hostname_isolation,
+    TestLogger,
+    check_vast_ldapuser_permissions,
     check_vast_ldapuser_scratch_directory,
     check_vast_ldapuser_subdirectories,
-    check_vast_ldapuser_permissions,
+    check_vast_scratch_hostname_isolation,
     check_vast_scratch_isolation,
 )
+from library.vars import TEST_CASES as TC
+
+from fvt.result import verify_pxeboot
 
 
 @pytest.mark.sanity
-@pytest.mark.order(702)
 @pytest.mark.vast_scratch
+@pytest.mark.order(42103)
 def test_vast_scratch_hostname_isolation(host):
     """Verify /scratch/<hostname>/ per node; file isolation."""
-    verify_pxeboot(
-        host, "vast_scratch_hostname_isolation",
-        check_vast_scratch_hostname_isolation,
-    )
+    tc = TC["vast_scratch_hostname_isolation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_scratch_hostname_isolation)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(704)
 @pytest.mark.vast_scratch
+@pytest.mark.order(42105)
 def test_vast_ldapuser_scratch_directory(host):
     """Verify /scratch/<ldapuser>/ on login_compiler nodes."""
-    verify_pxeboot(
-        host, "vast_ldapuser_scratch_directory",
-        check_vast_ldapuser_scratch_directory,
-    )
+    tc = TC["vast_ldapuser_scratch_directory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_ldapuser_scratch_directory)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(705)
 @pytest.mark.vast_scratch
+@pytest.mark.order(42106)
 def test_vast_ldapuser_subdirectories(host):
     """Verify data/, jobs/, results/, tmp/ subdirectories."""
-    verify_pxeboot(
-        host, "vast_ldapuser_subdirectories",
-        check_vast_ldapuser_subdirectories,
-    )
+    tc = TC["vast_ldapuser_subdirectories"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_ldapuser_subdirectories)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(706)
 @pytest.mark.vast_scratch
+@pytest.mark.order(42107)
 def test_vast_ldapuser_permissions(host):
     """Verify cross-user permission isolation."""
-    verify_pxeboot(
-        host, "vast_ldapuser_permissions",
-        check_vast_ldapuser_permissions,
-    )
+    tc = TC["vast_ldapuser_permissions"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_ldapuser_permissions)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(707)
 @pytest.mark.vast_scratch
+@pytest.mark.order(42108)
 def test_vast_scratch_isolation(host):
     """Verify file isolation between scratch subdirectories."""
-    verify_pxeboot(host, "vast_scratch_isolation", check_vast_scratch_isolation)
+    tc = TC["vast_scratch_isolation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_scratch_isolation)
