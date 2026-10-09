@@ -780,3 +780,57 @@ def test_slurm_node_remove_skip_discards_stale_backup(monkeypatch, tmp_path):
     assert result["skipped"] and result["success"]
     assert "At least 2 slurm_node" in result["details"]["fields"][0][1]
     assert not backup.exists()
+
+
+def test_stale_host_key_removal_uses_central_runner(monkeypatch, tmp_path):
+    """ORCH_UT_093: Host-key reconciliation uses the centralized local runner."""
+    known_hosts = tmp_path / "known_hosts"
+    known_hosts.write_text("old key\n", encoding="utf-8")
+    monkeypatch.setenv("OMNIA_SSH_KNOWN_HOSTS", str(known_hosts))
+    calls = []
+
+    def run_locally(host, command, *args):
+        calls.append((host, command, args))
+        return SimpleNamespace(rc=0, stdout="", stderr="")
+
+    monkeypatch.setattr(slurm_auth, "run_on_host", run_locally)
+    key = SimpleNamespace(
+        get_name=lambda: "ssh-ed25519",
+        get_base64=lambda: "A" * 68,
+    )
+    host = object()
+
+    success, _detail = slurm_auth._remove_stale_mapped_host_key(
+        host, "192.0.2.10", key
+    )
+
+    assert success
+    assert calls == [
+        (
+            host,
+            slurm_auth.PXEBOOT_COMMANDS["ssh_remove_host_key"],
+            ("192.0.2.10", str(known_hosts)),
+        )
+    ]
+    assert known_hosts.read_text(encoding="utf-8").endswith(
+        f"192.0.2.10 ssh-ed25519 {'A' * 68}\n"
+    )
+
+
+def test_poll_progress_uses_structured_logging(monkeypatch):
+    """ORCH_UT_094: Poll progress is emitted through structured logging."""
+    messages = []
+    monkeypatch.setattr(
+        helpers, "log", lambda message, level: messages.append((message, level))
+    )
+    monkeypatch.setattr(helpers.time, "monotonic", lambda: 12.0)
+
+    helpers.report_poll_progress("node reboot", 2, 10.0, 30, "booting")
+
+    assert messages == [
+        (
+            "    ↻ node reboot: still in progress; retrying status check "
+            "(attempt 2, elapsed 2s, remaining 28s) | last state: booting",
+            "INFO",
+        )
+    ]

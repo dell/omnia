@@ -18,6 +18,8 @@ import os
 import re
 import shlex
 
+from omnia_auto import log
+
 from ..vars.pxeboot_vars import (
     APPTAINER_ARRAY_SIZE,
     APPTAINER_CONCURRENT_JOB_COUNT,
@@ -27,7 +29,6 @@ from ..vars.pxeboot_vars import (
 )
 from ._apptainer_helpers import (
     _wait_for_array_accounting,
-    _wait_for_job_accounting,
     apptainer_context,
     command_error,
     grouped_node_fields,
@@ -358,10 +359,9 @@ def check_apptainer_restricted_sif(host):
                     % shlex.quote(restricted),
                 )
             except (OSError, RuntimeError, TypeError, ValueError) as exc:
-                print(
-                    f"    ! cleanup: restricted SIF removal failed: "
-                    f"{str(exc)[:100]}",
-                    flush=True,
+                log(
+                    f"cleanup: restricted SIF removal failed: {str(exc)[:100]}",
+                    "WARN",
                 )
 
 

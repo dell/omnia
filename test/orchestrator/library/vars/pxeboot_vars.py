@@ -531,6 +531,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "slurm_hardware": "scontrol show nodes --oneliner",
     "openmpi": _OPENMPI_DISCOVERY_COMMAND + '"$mpirun_path" --version',
     "slurm_mpi_plugins": "srun --mpi=list 2>&1",
+    "ssh_remove_host_key": "ssh-keygen -R %s -f %s",
     "openmpi_compile": ("srun --nodes=1 --ntasks=1 --nodelist=%s bash -lc %s"),
     "openmpi_job": (
         "srun --nodes=%s --ntasks=%s --ntasks-per-node=1 "
