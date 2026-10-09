@@ -18,10 +18,12 @@ The runner separates product execution from verification:
 | `verify` | Verify existing state; do not execute the product playbook |
 | `test` | Execute the selected tag once, then verify only if execution succeeds |
 
-Most verification is observational. Tests that create workloads, download
-images, drain scheduler nodes, reboot machines, or delete deployment state
-are protected by explicit markers. Cleanup is excluded from every implicit
-full-lifecycle run and must be selected by name.
+Most verification is observational. Tests that reboot machines run only when
+`--marker` selects `reboot`, and node remove/add tests only when it selects
+`node_lifecycle`. Other markers narrow test selection but do not authorize
+workloads or downloads. Destructive tests retain their separate opt-in, and
+cleanup is excluded from every implicit full-lifecycle run and must be selected
+by name.
 
 ## Prerequisites
 
@@ -138,7 +140,8 @@ without putting secrets in process arguments:
 }
 ```
 
-LDAP identity fields are required by the selected Slurm/PAM LDAP tests. The
+LDAP identity fields are required by the selected Slurm/PAM LDAP tests, which
+skip unless `validate_external_ldap: true`. The
 external bind secret is additionally required when
 `validate_external_ldap: true` and `configure_external_ldap: true`. Product-
 domain credentials continue to use `--domain-creds-stdin`.
@@ -207,15 +210,15 @@ operations and includes destructive prepare, provision, and cleanup cases.
 
 | Tag | Suites | Main contract |
 |---|---|---|
-| `precheck` | `environment`, `storage`, `dependencies`, `inputs` | OIM identity, selected NFS reachability, upstream artifacts, and required inputs |
-| `prepare` | `openchami`, `network`, `openldap` | OpenCHAMI, PostgreSQL, networking, DNS/DHCP, and LDAP readiness |
+| `precheck` | `environment`, `oim_readiness`, `storage`, `dependencies`, `inputs` | OIM identity and readiness, selected NFS reachability, upstream artifacts, and required inputs |
+| `prepare` | `openchami`, `network`, `openldap` | OpenCHAMI, PostgreSQL, networking, DNS/DHCP, and local OpenLDAP readiness |
 | `provision` | `openchami` | Provision reports plus SMD, Boot Service, Metadata Service, and network inventory |
-| `pxeboot` | `connectivity`, `cloudinit`, `kubernetes`, `slurm`, `apptainer` | Node boot completion and workload-cluster behavior |
+| `pxeboot` | See `SUITES` in `library/vars/domain_vars.py` | Node boot completion, node features, and workload-cluster behavior; reboot and node-removal suites run last |
 | `cleanup` | `openchami`, `openldap`, `slurm`, `kubernetes`, `artifacts`, `credentials` | Explicit full-cleanup postconditions |
 
 An untagged FVT flow uses `precheck -> prepare -> provision -> pxeboot`.
-Cleanup is always explicit. Untagged verification excludes negative and
-disruptive cases.
+Cleanup is always explicit. Reboot cases never run without `--marker reboot`,
+and node remove/add cases never run without `--marker node_lifecycle`.
 
 ### Options
 
@@ -237,6 +240,14 @@ current directories.
 | Comma | Logical OR | `--marker sanity,functional` |
 | Plus | Logical AND | `--marker slurm+non_disruptive` |
 
+Without `--marker`, every collected test runs, including functional,
+negative, image-download, and scheduler-drain tests, except reboot and node
+remove/add tests. Those are deselected (not listed in the run), even with
+`--suite`, until `--marker` selects `reboot` or `node_lifecycle`; run them in a
+maintenance window. Lifecycle execution cases
+still run only in the `exec` phase. Pass a marker such as `--marker sanity` to
+narrow the run.
+
 `sanity+functional` selects only tests carrying both markers; it does not mean
 “run sanity, then functional.” Use `sanity,functional` for that union.
 
@@ -245,11 +256,15 @@ Registered selectors include:
 - Baseline and capability: `sanity`, `functional`, `connectivity`,
   `cloudinit`, `kubernetes`, `slurm`, `openldap`, and `apptainer`.
 - Controlled mutation: `image_download`, `negative`, and `non_disruptive`.
-- Maintenance-window operations: `disruptive`, `reboot`, and
+- Maintenance-window operations: `reboot` (required to run reboot tests),
+  `node_lifecycle` (required to run node remove/add tests), and
   `scheduler_state`.
 - Cleanup authorization: `destructive`.
 - Non-functional contracts: `nft`, `performance`, `idempotency`, and
   `security`.
+
+`sanity` marks the baseline positive checks only. Negative tests, which
+expect a rejection or failure, are never marked `sanity`.
 
 `deploy` is attached to lifecycle execution cases and is normally managed by
 the runner rather than selected manually.
@@ -281,9 +296,12 @@ active PXE mapping, or `groups` matches a mapped `GROUP_NAME`. The stock
 ./run_validation.sh fvt_orchestrator prepare verify --suite openldap
 ```
 
-Set `validate_external_ldap: true` to run external proxy and backend checks.
-Set `configure_external_ldap: true` only when those checks may also reconcile
-the local `omnia_auth` proxy configuration. An unchanged desired configuration
+Prepare only starts the local `omnia_auth` container. The external LDAP proxy
+and backend checks run first in the pxeboot `slurm_ldap` suite, immediately
+before the LDAP login and job checks. Set `validate_external_ldap: true` to run
+them and every LDAP-identity check. Set `configure_external_ldap: true` only
+when the proxy check may also reconcile the local `omnia_auth` proxy
+configuration. An unchanged desired configuration
 is an idempotent no-op; a failed changed configuration is rolled back.
 
 ### Provision
@@ -300,7 +318,8 @@ access token.
 
 ### PXE boot
 
-PXE verification defaults to `sanity` when no marker is supplied:
+PXE verification runs every test except reboot and node remove/add cases when
+no marker is supplied. Use `--marker sanity` for the baseline only:
 
 ```bash
 ./run_validation.sh fvt_orchestrator pxeboot test
@@ -316,6 +335,7 @@ PXE verification defaults to `sanity` when no marker is supplied:
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_hpc_benchmarks
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite coredns_coredhcp
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite powervault
+./run_validation.sh fvt_orchestrator pxeboot verify --suite vast_storage
 ```
 
 Focused workload and image examples:
@@ -337,13 +357,16 @@ Focused workload and image examples:
   --suite slurm_apptainer --marker functional+image_download
 ```
 
-Run disruptive checks only in an approved maintenance window:
+Run reboot and node remove/add checks only in an approved maintenance window:
 
 ```bash
+./run_validation.sh fvt_orchestrator pxeboot verify --marker reboot
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --marker disruptive+reboot
+  --suite slurm_recovery --marker reboot
 ./run_validation.sh fvt_orchestrator pxeboot verify \
-  --suite slurm_jobs --marker disruptive+scheduler_state
+  --suite slurm_lifecycle --marker node_lifecycle
+./run_validation.sh fvt_orchestrator pxeboot verify \
+  --suite slurm_jobs --marker scheduler_state
 ```
 
 The authorization checks are enforced even when pytest is invoked directly.
@@ -384,7 +407,7 @@ artifact permissions:
 A complete NFT run provisions state and finishes with full cleanup. Duration
 limits come from `nft_performance_threshold_seconds` in `test_config.yml`.
 Run NFT separately from FVT cleanup and review the cleanup policy first. See
-[nft/README.md](nft/README.md) for its 11 contracts and execution order.
+[nft/README.md](nft/README.md) for its 14 contracts and execution order.
 
 ## Batch execution
 

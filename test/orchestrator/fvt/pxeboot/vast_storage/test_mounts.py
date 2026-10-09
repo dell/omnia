@@ -16,42 +16,53 @@
 
 import pytest
 
-from fvt.result import verify_pxeboot
 from library.functions import (
-    check_vast_mount_points,
-    check_vast_mount_options,
+    TestLogger,
     check_vast_fstab_entries,
+    check_vast_mount_options,
+    check_vast_mount_points,
     check_vast_rdma_mount,
 )
+from library.vars import TEST_CASES as TC
+
+from fvt.result import verify_pxeboot
 
 
 @pytest.mark.sanity
-@pytest.mark.order(701)
 @pytest.mark.vast_mounts
+@pytest.mark.order(42102)
 def test_vast_mount_points(host):
     """Verify /scratch, /home, /apps, /projects directories."""
-    verify_pxeboot(host, "vast_mount_points", check_vast_mount_points)
+    tc = TC["vast_mount_points"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_mount_points)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(703)
 @pytest.mark.vast_mounts
+@pytest.mark.order(42104)
 def test_vast_mount_options(host):
     """Verify proto=rdma and port=20049 in /proc/mounts."""
-    verify_pxeboot(host, "vast_mount_options", check_vast_mount_options)
+    tc = TC["vast_mount_options"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_mount_options)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(710)
 @pytest.mark.vast_mounts
+@pytest.mark.order(42111)
 def test_vast_fstab_entries(host):
     """Verify /etc/fstab entries with proto=rdma."""
-    verify_pxeboot(host, "vast_fstab_entries", check_vast_fstab_entries)
+    tc = TC["vast_fstab_entries"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_fstab_entries)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(711)
 @pytest.mark.vast_mounts
+@pytest.mark.order(42112)
 def test_vast_rdma_mount(host):
     """Verify RDMA transport and 1 GB I/O checksum."""
-    verify_pxeboot(host, "vast_rdma_mount", check_vast_rdma_mount)
+    tc = TC["vast_rdma_mount"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_rdma_mount)

@@ -16,6 +16,7 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_apptainer_image_inventory,
     check_apptainer_ldap_readability,
     check_apptainer_non_root_execution,
@@ -27,6 +28,7 @@ from library.functions import (
     check_apptainer_sif_integrity,
     check_apptainer_sif_permissions,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -35,98 +37,116 @@ from fvt.result import verify_pxeboot
 @pytest.mark.non_disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(266)
+@pytest.mark.order(41901)
 def test_apptainer_runtime(host):
     """Verify the Apptainer executable and version on every compute node."""
-    verify_pxeboot(host, "apptainer_runtime", check_apptainer_runtime)
+    tc = TC["apptainer_runtime"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_runtime)
 
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(267)
+@pytest.mark.order(41902)
 def test_apptainer_shared_artifacts(host):
     """Verify shared image directories and downloader artifacts."""
-    verify_pxeboot(host, "apptainer_shared_artifacts", check_apptainer_shared_artifacts)
+    tc = TC["apptainer_shared_artifacts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_shared_artifacts)
 
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(268)
+@pytest.mark.order(41903)
 def test_apptainer_pulp_policy(host):
     """Verify the generated downloader uses only the configured Pulp source."""
-    verify_pxeboot(host, "apptainer_pulp_policy", check_apptainer_pulp_policy)
+    tc = TC["apptainer_pulp_policy"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_pulp_policy)
 
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(269)
+@pytest.mark.order(41904)
 def test_apptainer_shared_storage(host):
     """Verify /hpc_tools is a shared mounted filesystem on every compute."""
-    verify_pxeboot(host, "apptainer_shared_storage", check_apptainer_shared_storage)
+    tc = TC["apptainer_shared_storage"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_shared_storage)
 
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(273)
+@pytest.mark.order(41908)
 def test_apptainer_image_inventory(host):
     """Verify every compute sees one consistent non-empty SIF inventory."""
-    verify_pxeboot(host, "apptainer_image_inventory", check_apptainer_image_inventory)
+    tc = TC["apptainer_image_inventory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_image_inventory)
 
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(274)
+@pytest.mark.order(41909)
 def test_apptainer_sif_format(host):
     """Verify each discovered image is a valid inspectable SIF."""
-    verify_pxeboot(host, "apptainer_sif_format", check_apptainer_sif_format)
+    tc = TC["apptainer_sif_format"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_sif_format)
 
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(275)
+@pytest.mark.order(41910)
 def test_apptainer_sif_permissions(host):
     """Verify shared SIF files are non-empty and world-readable."""
-    verify_pxeboot(host, "apptainer_sif_permissions", check_apptainer_sif_permissions)
+    tc = TC["apptainer_sif_permissions"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_sif_permissions)
 
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(276)
+@pytest.mark.order(41911)
 def test_apptainer_sif_integrity(host):
     """Verify the selected SIF has the same checksum on every compute."""
-    verify_pxeboot(host, "apptainer_sif_integrity", check_apptainer_sif_integrity)
+    tc = TC["apptainer_sif_integrity"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_sif_integrity)
 
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
 @pytest.mark.sanity
-@pytest.mark.order(277)
+@pytest.mark.order(41912)
 def test_apptainer_ldap_readability(host):
     """Verify the LDAP test identity can read a shared SIF when enabled."""
-    verify_pxeboot(host, "apptainer_ldap_readability", check_apptainer_ldap_readability)
+    tc = TC["apptainer_ldap_readability"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_ldap_readability)
 
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
 @pytest.mark.sanity
 @pytest.mark.functional
-@pytest.mark.order(278)
+@pytest.mark.order(41913)
 def test_apptainer_non_root_execution(host):
     """Verify an unprivileged local identity can execute a shared SIF."""
-    verify_pxeboot(
-        host, "apptainer_non_root_execution", check_apptainer_non_root_execution
-    )
+    tc = TC["apptainer_non_root_execution"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_non_root_execution)

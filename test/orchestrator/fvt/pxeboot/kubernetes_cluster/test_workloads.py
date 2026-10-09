@@ -15,7 +15,11 @@
 """Kubernetes workload scheduling contract."""
 
 import pytest
-from library.functions import check_kubernetes_workload_scheduling
+from library.functions import (
+    TestLogger,
+    check_kubernetes_workload_scheduling,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -24,7 +28,9 @@ from fvt.result import verify_pxeboot
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(212)
+@pytest.mark.order(40808)
 def test_kubernetes_workload_scheduling(host):
     """Create, verify, and remove an isolated scheduling probe."""
-    verify_pxeboot(host, "kubernetes_workload", check_kubernetes_workload_scheduling)
+    tc = TC["kubernetes_workload"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_workload_scheduling)

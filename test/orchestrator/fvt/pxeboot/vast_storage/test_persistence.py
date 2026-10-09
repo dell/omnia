@@ -16,16 +16,20 @@
 
 import pytest
 
+from library.functions import (
+    TestLogger,
+    check_vast_slurm_logs_persistence,
+)
+from library.vars import TEST_CASES as TC
+
 from fvt.result import verify_pxeboot
-from library.functions import check_vast_slurm_logs_persistence
 
 
 @pytest.mark.sanity
-@pytest.mark.order(713)
 @pytest.mark.vast_persistence
+@pytest.mark.order(42114)
 def test_vast_slurm_logs_persistence(host):
     """Verify Slurm logs on persistent storage; sacct accessible."""
-    verify_pxeboot(
-        host, "vast_slurm_logs_persistence",
-        check_vast_slurm_logs_persistence,
-    )
+    tc = TC["vast_slurm_logs_persistence"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_slurm_logs_persistence)

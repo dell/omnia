@@ -45,7 +45,7 @@ def _assert_result(test_log, component, result):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(1)
+@pytest.mark.order(20101)
 def test_openchami_containers_running(host):
     """Verify all long-running OpenCHAMI containers."""
     tc = TC["openchami_containers"]
@@ -58,7 +58,7 @@ def test_openchami_containers_running(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(2)
+@pytest.mark.order(20102)
 def test_openchami_services_ready(host):
     """Verify OpenCHAMI units and successful SMD initialization."""
     tc = TC["openchami_services"]
@@ -72,7 +72,7 @@ def test_openchami_services_ready(host):
 
 @pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(3)
+@pytest.mark.order(20103)
 def test_openchami_apis_ready(host):
     """Verify the authenticated SMD, Boot and Metadata APIs."""
     tc = TC["openchami_apis"]
@@ -85,7 +85,7 @@ def test_openchami_apis_ready(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(4)
+@pytest.mark.order(20104)
 def test_openchami_persistent_storage_and_tls(host):
     """Verify persistent data volumes and HAProxy certificates."""
     tc = TC["openchami_storage"]
@@ -98,7 +98,7 @@ def test_openchami_persistent_storage_and_tls(host):
 
 
 @pytest.mark.sanity
-@pytest.mark.order(5)
+@pytest.mark.order(20105)
 def test_openchami_packages_and_artifacts(host):
     """Verify installed packages and generated configuration files."""
     tc = TC["openchami_artifacts"]
@@ -112,7 +112,7 @@ def test_openchami_packages_and_artifacts(host):
 
 @pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(13)
+@pytest.mark.order(20106)
 def test_postgresql_readiness(host):
     """Verify PostgreSQL and its required SMD database contract."""
     tc = TC["postgresql_readiness"]

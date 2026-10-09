@@ -32,7 +32,6 @@ reject bad input.
 """
 
 import os
-import re
 from typing import Any
 
 from ..vars.pxeboot_vars import STORAGE_CONFIG

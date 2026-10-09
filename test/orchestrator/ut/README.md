@@ -11,6 +11,10 @@ an OIM, calling OpenCHAMI, or executing an Orchestrator playbook.
 | `test_pxeboot_contracts.py` | Kubernetes version parsing/skew, Slurm parsers and shared-storage selection, catalog feature resolution, mutation authorization, cloud-init interpretation, and Apptainer image-path validation |
 | `test_cleanup_contracts.py` | Cleanup after Kubernetes apply failure and Slurm drain-test restoration |
 | `test_nft_contracts.py` | NFT threshold validation and Ansible idempotency-recap interpretation |
+| `test_additional_cloud_init_contracts.py` | Additional cloud-init input validation: disabled paths, allowed sections, prohibited keys, list types, and functional-group names |
+| `test_hpc_platform_scripts.py` | Per-node RHEL HPC storage and Pulp paths, OS-dependent Slurm scripts, and offline benchmark downloads |
+| `test_orchestrator_status_reconcile.py` | Lifecycle status reconciliation for external and platform-managed PXE boot results |
+| `test_kubernetes_etcd_contracts.py` | Local-etcd boot-script DONE detection, disk-media classification, root-disk exclusion, post-reboot setup-rerun detection, media expectation, and the external-LDAP identity gate |
 
 Parameterized cases count as separate pytest results. Function names and
 docstrings carry `ORCH_UT_*` identifiers where a stable unit contract has been
@@ -44,6 +48,10 @@ python3 -m pytest --confcutdir=ut ut/test_prepare_contracts.py -q
 python3 -m pytest --confcutdir=ut ut/test_pxeboot_contracts.py -q
 python3 -m pytest --confcutdir=ut ut/test_cleanup_contracts.py -q
 python3 -m pytest --confcutdir=ut ut/test_nft_contracts.py -q
+python3 -m pytest --confcutdir=ut ut/test_additional_cloud_init_contracts.py -q
+python3 -m pytest --confcutdir=ut ut/test_hpc_platform_scripts.py -q
+python3 -m pytest --confcutdir=ut ut/test_orchestrator_status_reconcile.py -q
+python3 -m pytest --confcutdir=ut ut/test_kubernetes_etcd_contracts.py -q
 ```
 
 Unit tests must remain isolated: mock external commands at the helper boundary
