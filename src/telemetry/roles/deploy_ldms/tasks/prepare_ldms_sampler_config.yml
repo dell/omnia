@@ -23,6 +23,7 @@
     owner: root
     group: root
     mode: "{{ common_mode }}"
+  delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
 
 - name: Render shared LDMS sampler configuration
   ansible.builtin.template:
@@ -31,6 +32,7 @@
     owner: root
     group: root
     mode: "{{ file_permissions_644 }}"
+  delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
 
 - name: Use LDMS sampler password from kube_vip host
   ansible.builtin.set_fact:
@@ -45,6 +47,7 @@
     owner: root
     group: root
     mode: "{{ file_permissions_600 }}"
+  delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
 
 - name: Render shared LDMS sampler environment file
   ansible.builtin.template:
@@ -53,6 +56,7 @@
     owner: root
     group: root
     mode: "{{ file_permissions_644 }}"
+  delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
 
 - name: Log shared LDMS sampler configuration preparation
   ansible.builtin.debug:
