@@ -102,22 +102,6 @@ a boot started before the failed PXE workflow finishes is treated as stale.
 | `repo_status.yml` | Repository Manager | Repository endpoints, certificates, and staged artifacts |
 | Catalog JSON | Catalog workflow | OS metadata and feature resolution |
 
-#### Image Build Manager output selection
-
-`image_build_manager_output_path` in `orchestrator_config.yml` selects the
-`build_status.yml` consumed during image validation and provisioning. Leave it
-empty for standalone Orchestrator runs; the path is then derived from the active
-environment as
-`$IMAGE_BUILD_MANAGER_DATA_PATH/output/$OMNIA_PROJECT_NAME/build_status.yml`,
-where `IMAGE_BUILD_MANAGER_DATA_PATH` defaults to
-`$OMNIA_DATA_PATH/image_build_manager`. Set an explicit path only when consuming
-a different project or a versioned catalog build output.
-
-BuildStream deploy pipelines set this field to the selected image group's
-versioned `build_status.yml` before uploading the project inputs. That generated
-value takes precedence over the empty standalone default, ensuring Orchestrator
-provisions the artifacts selected by the BuildStream deployment.
-
 ### Output
 
 | File | Purpose |
