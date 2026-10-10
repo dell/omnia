@@ -27,6 +27,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -36,6 +37,7 @@ def test_slurm_membership(host):
     verify_pxeboot(host, "slurm_membership", check_slurm_membership)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -45,6 +47,7 @@ def test_slurm_scheduler(host):
     verify_pxeboot(host, "slurm_scheduler", check_slurm_scheduler)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -54,6 +57,7 @@ def test_slurm_services(host):
     verify_pxeboot(host, "slurm_services", check_slurm_services)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -63,6 +67,7 @@ def test_slurm_cross_node_ssh(host):
     verify_pxeboot(host, "slurm_cross_ssh", check_slurm_cross_node_ssh)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
@@ -72,6 +77,7 @@ def test_slurm_configless_mode(host):
     verify_pxeboot(host, "slurm_configless", check_slurm_configless_mode)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive

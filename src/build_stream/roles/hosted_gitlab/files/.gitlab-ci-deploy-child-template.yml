@@ -27,6 +27,8 @@
 #
 # This file provides:
 #   - default:before_script with cert setup and auth/API helpers
+#   - pin_image_group_build_status: points orchestrator_config.yml at the
+#     selected image group's build_status.yml before deploy/restart uploads
 #   - deploy stage (manual confirm, upload + deploy API + poll)
 #   - restart stage (restart API + poll)
 #   - validate stage (stub — Molecule integration planned for Sprint 3)
@@ -186,6 +188,138 @@ default:
         rm -f "/tmp/_rf_failed_nodes.json"
       }
 
+      # Read KEY=value from the repository omnia.env (quotes stripped).
+      omnia_env_value() {
+        sed -n "s/^[[:space:]]*${1}[[:space:]]*=[[:space:]]*//p" \
+          "${CI_PROJECT_DIR}/omnia.env" 2>/dev/null | tail -1 | tr -d "\"'"
+      }
+
+      # Point the orchestrator at the selected image group's build_status.yml.
+      # Every catalog build writes
+      #   <IMAGE_BUILD_MANAGER_DATA_PATH>/output/<project>/<image_group_id>/build_status.yml
+      # while the project-level build_status.yml reflects only the most recent
+      # build. This rewrites image_build_manager_output_path in the workspace
+      # copy of orchestrator_config.yml just before it is uploaded. The change
+      # is never committed, so GitLab keeps its value and the cadence
+      # pipeline (which uploads the repository copy) is unaffected.
+      pin_image_group_build_status() {
+        _PIN_CONFIG="${CI_PROJECT_DIR}/input/orchestrator/orchestrator_config.yml"
+        _PIN_ID="${IMAGE_GROUP_ID:-}"
+
+        if [ ! -f "${_PIN_CONFIG}" ]; then
+          echo "  [PIN] ERROR: input/orchestrator/orchestrator_config.yml not found" >&2
+          return 1
+        fi
+        case "${_PIN_ID}" in
+          ''|.*|*..*|*[!A-Za-z0-9._-]*)
+            echo "  [PIN] ERROR: IMAGE_GROUP_ID is empty or has unsupported characters" >&2
+            return 1 ;;
+        esac
+        if [ "${#_PIN_ID}" -gt 256 ]; then
+          echo "  [PIN] ERROR: IMAGE_GROUP_ID exceeds 256 characters" >&2
+          return 1
+        fi
+
+        _PIN_DATA=$(omnia_env_value OMNIA_DATA_PATH)
+        _PIN_DATA="${_PIN_DATA:-/opt/omnia}"
+        case "${_PIN_DATA}" in
+          /*) ;;
+          *) echo "  [PIN] ERROR: OMNIA_DATA_PATH must be absolute" >&2
+             return 1 ;;
+        esac
+        case "${_PIN_DATA}" in
+          *..*|*[!A-Za-z0-9._/-]*)
+            echo "  [PIN] ERROR: OMNIA_DATA_PATH has unsupported characters" >&2
+            return 1 ;;
+        esac
+        _PIN_IBM=$(omnia_env_value IMAGE_BUILD_MANAGER_DATA_PATH \
+          | sed -e "s|\${OMNIA_DATA_PATH}|${_PIN_DATA}|g" \
+                -e "s|\$OMNIA_DATA_PATH|${_PIN_DATA}|g")
+        _PIN_IBM="${_PIN_IBM:-${_PIN_DATA}/image_build_manager}"
+        _PIN_PROJECT=$(omnia_env_value OMNIA_PROJECT_NAME)
+        _PIN_PROJECT="${_PIN_PROJECT:-project_default}"
+
+        case "${_PIN_IBM}" in
+          /*) ;;
+          *) echo "  [PIN] ERROR: IMAGE_BUILD_MANAGER_DATA_PATH must be absolute" >&2
+             return 1 ;;
+        esac
+        case "${_PIN_IBM}" in
+          *..*|*[!A-Za-z0-9._/-]*)
+            echo "  [PIN] ERROR: IMAGE_BUILD_MANAGER_DATA_PATH has unsupported characters" >&2
+            return 1 ;;
+        esac
+        case "${_PIN_PROJECT}" in
+          .*|*..*|*[!A-Za-z0-9._-]*)
+            echo "  [PIN] ERROR: OMNIA_PROJECT_NAME has unsupported characters" >&2
+            return 1 ;;
+        esac
+
+        _PIN_PATH="${_PIN_IBM%/}/output/${_PIN_PROJECT}/${_PIN_ID}/build_status.yml"
+        _PIN_CURRENT=$(sed -n 's/^image_build_manager_output_path:[[:space:]]*//p' \
+          "${_PIN_CONFIG}" | tail -1 | sed 's/[[:space:]]*#.*$//' | tr -d "\"'")
+        if [ -n "${_PIN_CURRENT}" ] && [ "${_PIN_CURRENT}" != "${_PIN_PATH}" ]; then
+          echo "  [PIN] WARNING: overriding repository value '${_PIN_CURRENT}'"
+        fi
+
+        if grep -q '^image_build_manager_output_path:' "${_PIN_CONFIG}"; then
+          sed "s|^image_build_manager_output_path:.*$|image_build_manager_output_path: \"${_PIN_PATH}\"|" \
+            "${_PIN_CONFIG}" > "${_PIN_CONFIG}.pin" || return 1
+        else
+          { cat "${_PIN_CONFIG}"; printf '\nimage_build_manager_output_path: "%s"\n' "${_PIN_PATH}"; } \
+            > "${_PIN_CONFIG}.pin" || return 1
+        fi
+        mv "${_PIN_CONFIG}.pin" "${_PIN_CONFIG}" || return 1
+        echo "  [PIN] image_build_manager_output_path -> ${_PIN_PATH}"
+      }
+
+      # ---------------------------------------------------------------------------
+      # Stage Log Reporter (POSIX sh compatible)
+      # Usage: print_stage_log_info <stage_name> [job_status_json_file]
+      #
+      # Prints the stage state, attempt number and playbook log file path
+      # reported by the BSM API. Called on every terminal outcome (success,
+      # failure, cancellation, job failure, polling timeout) so the log
+      # location is always shown, uniformly, across all pipelines.
+      # When the watcher has not reported a path yet, the per-job log
+      # directory on the OIM host is shown instead.
+      # ---------------------------------------------------------------------------
+      bsm_job_log_dir() {
+        OMNIA_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
+          "${CI_PROJECT_DIR}/omnia.env" 2>/dev/null | tail -1 | tr -d "\"'")
+        echo "${OMNIA_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
+      }
+
+      print_stage_log_info() {
+        _SLI_STAGE="$1"
+        _SLI_FILE="${2:-status_response.json}"
+        _SLI_STATE="UNKNOWN"
+        _SLI_ATTEMPT="N/A"
+        _SLI_LOG=""
+        if [ -s "${_SLI_FILE}" ]; then
+          _SLI_STATE=$(jq -r --arg s "${_SLI_STAGE}" \
+            'first(.stages[]? | select(.stage_name == $s) | .stage_state) // "UNKNOWN"' \
+            "${_SLI_FILE}" 2>/dev/null || echo "UNKNOWN")
+          _SLI_ATTEMPT=$(jq -r --arg s "${_SLI_STAGE}" \
+            'first(.stages[]? | select(.stage_name == $s) | .attempt) // "N/A"' \
+            "${_SLI_FILE}" 2>/dev/null || echo "N/A")
+          _SLI_LOG=$(jq -r --arg s "${_SLI_STAGE}" \
+            'first(.stages[]? | select(.stage_name == $s) | .log_file_path) // empty' \
+            "${_SLI_FILE}" 2>/dev/null || true)
+        fi
+        echo "  ------------------------------------------------------------"
+        printf "  %-22s %s\n" "Stage:" "${_SLI_STAGE}"
+        printf "  %-22s %s\n" "Stage State:" "${_SLI_STATE}"
+        printf "  %-22s %s\n" "Attempt:" "${_SLI_ATTEMPT}"
+        if [ -n "${_SLI_LOG}" ]; then
+          printf "  %-22s %s\n" "Log File Path:" "${_SLI_LOG}"
+        else
+          printf "  %-22s %s\n" "Log File Path:" "N/A (not reported yet)"
+          printf "  %-22s %s\n" "Job Log Directory:" "$(bsm_job_log_dir "${JOB_ID:-unknown}")"
+        fi
+        echo "  ------------------------------------------------------------"
+      }
+
 # ---------------------------------------------------------------------------
 # Deploy stage -- upload config files, call deploy API, poll for completion
 # Manual trigger: user clicks deploy after selecting an image group
@@ -254,6 +388,7 @@ deploy:
       echo "  Step 1/3: Refresh and upload orchestrator config files..."
       echo "  ------------------------------------------------------------"
       refresh_input_files
+      pin_image_group_build_status || exit 1
       UPLOAD_ARGS=""
       for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
              security_config.yml storage_config.yml high_availability_config.yml \
@@ -345,6 +480,7 @@ deploy:
             STAGE_COMPLETED=true
             echo ""
             echo "  [OK] Deployment completed successfully"
+            print_stage_log_info "deploy" status_response.json
             break
             ;;
           FAILED|CANCELLED)
@@ -352,12 +488,10 @@ deploy:
             echo "  ERROR: Deploy stage reached ${DEPLOY_STATE}"
             DEPLOY_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .error_code // "N/A"' status_response.json 2>/dev/null)
             DEPLOY_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .error_summary // "N/A"' status_response.json 2>/dev/null)
-            DEPLOY_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
             echo "  ------------------------------------------------------------"
             printf "  %-22s %s\n" "Error Code:"    "${DEPLOY_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${DEPLOY_ERR_SUMMARY}"
-            printf "  %-22s %s\n" "Log File Path:" "${DEPLOY_LOG_PATH}"
-            echo "  ------------------------------------------------------------"
+            print_stage_log_info "deploy" status_response.json
             exit 1
             ;;
         esac
@@ -369,6 +503,7 @@ deploy:
 
       if [ "$STAGE_COMPLETED" = "false" ]; then
         echo "  ERROR: Deploy polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        print_stage_log_info "deploy" status_response.json
         exit 1
       fi
 
@@ -464,6 +599,7 @@ restart:
       echo "  ------------------------------------------------------------"
 
       refresh_input_files
+      pin_image_group_build_status || exit 1
 
       UPLOAD_ARGS=""
       for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
@@ -565,6 +701,7 @@ restart:
             STAGE_COMPLETED=true
             echo ""
             echo "  [OK] Restart completed successfully"
+            print_stage_log_info "restart" status_response.json
             break
             ;;
           FAILED|CANCELLED)
@@ -572,12 +709,10 @@ restart:
             echo "  ERROR: Restart stage reached ${RESTART_STATE}"
             RESTART_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_code // "N/A"' status_response.json 2>/dev/null)
             RESTART_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_summary // "N/A"' status_response.json 2>/dev/null)
-            RESTART_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "restart") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
             echo "  ------------------------------------------------------------"
             printf "  %-22s %s\n" "Error Code:"    "${RESTART_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${RESTART_ERR_SUMMARY}"
-            printf "  %-22s %s\n" "Log File Path:" "${RESTART_LOG_PATH}"
-            echo "  ------------------------------------------------------------"
+            print_stage_log_info "restart" status_response.json
             exit 1
             ;;
         esac
@@ -588,6 +723,7 @@ restart:
 
       if [ "$STAGE_COMPLETED" = "false" ]; then
         echo "  ERROR: Restart polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        print_stage_log_info "restart" status_response.json
         exit 1
       fi
 
@@ -744,6 +880,7 @@ validate:
             STAGE_COMPLETED=true
             echo ""
             echo "  [OK] Validate completed successfully"
+            print_stage_log_info "validate" status_response.json
             break
             ;;
           FAILED|CANCELLED)
@@ -751,7 +888,6 @@ validate:
             echo "  ERROR: Validate stage reached ${VALIDATE_STATE}"
             VALIDATE_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "validate") | .error_code // "N/A"' status_response.json 2>/dev/null)
             VALIDATE_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "validate") | .error_summary // "N/A"' status_response.json 2>/dev/null)
-            VALIDATE_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "validate") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
             echo "  ------------------------------------------------------------"
             printf "  %-22s %s\n" "Error Code:"    "${VALIDATE_ERR_CODE}"
             printf "  %-22s %s\n" "Error Summary:" "${VALIDATE_ERR_SUMMARY}"
@@ -766,9 +902,8 @@ validate:
             fi
 
             # Display log file path after test summary with verbose message
-            printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
-            echo "  ------------------------------------------------------------"
-            echo "  For more detailed information, refer to the logs below"
+            print_stage_log_info "validate" status_response.json
+            echo "  For more detailed information, refer to the logs above"
             echo "  ------------------------------------------------------------"
             exit 1
             ;;
@@ -780,6 +915,7 @@ validate:
 
       if [ "$STAGE_COMPLETED" = "false" ]; then
         echo "  ERROR: Validate polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        print_stage_log_info "validate" status_response.json
         exit 1
       fi
 
@@ -873,6 +1009,12 @@ summary:
       printf "  %-24s %s\n" "validate" "${VALIDATE_STATE}"
       echo "  ------------------------------------------------------------"
       printf "  %-24s %s\n" "Job State:" "${JOB_STATE}"
+      echo ""
+
+      echo "  Stage Logs:"
+      for _SUMMARY_STAGE in deploy restart validate; do
+        print_stage_log_info "${_SUMMARY_STAGE}" summary_response.json
+      done
       echo ""
 
       # Determine pipeline result — check each stage for failure

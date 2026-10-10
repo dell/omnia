@@ -13,6 +13,7 @@ LOCK_ROOT="${OMNIA_PLATFORM_ROOT}/cuda"
 DONE_FILE="$LOCK_ROOT/.done_cuda"
 LOCK_MGR="/usr/local/bin/cuda_lock_manager.sh"
 HOSTNAME_FILE="/var/run/cuda_install_hostname"
+CUDA_TOOLKIT_VERSION="{{ cuda_toolkit_version | default('13.3.1') }}"
 
 # Function to set up CUDA environment variables
 setup_cuda_env() {
@@ -70,14 +71,14 @@ case $rc in
         fi
 
         # Install CUDA toolkit to local location using dnf
-        echo "[INFO] Installing CUDA toolkit to local location using dnf..."
+        echo "[INFO] Installing CUDA toolkit version ${CUDA_TOOLKIT_VERSION} to local location using dnf..."
         mkdir -p /cuda
         # Copy host repository configuration to installroot (only for manual mode)
         if [ "$MANUAL_MODE" = "true" ]; then
             mkdir -p /cuda/etc/yum.repos.d
             cp -r /etc/yum.repos.d/* /cuda/etc/yum.repos.d/ 2>/dev/null || true
         fi
-        if timeout "${INSTALL_TIMEOUT:-1800}" dnf install -y --installroot=/cuda --releasever="$OMNIA_OS_VERSION" --setopt=install_weak_deps=False cuda-toolkit; then
+        if timeout "${INSTALL_TIMEOUT:-1800}" dnf install -y --installroot=/cuda --releasever="$OMNIA_OS_VERSION" --setopt=install_weak_deps=False "cuda-toolkit-${CUDA_TOOLKIT_VERSION}"; then
             echo "[SUCCESS] CUDA toolkit installed successfully."
 
             # Clean up repository configuration from installroot (if copied for manual mode)

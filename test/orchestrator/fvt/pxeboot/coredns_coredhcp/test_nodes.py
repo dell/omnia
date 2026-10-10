@@ -31,18 +31,20 @@ from fvt.result import verify_pxeboot
 pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(355)
+@pytest.mark.order(358)
 def test_dns_compute_resolv_conf(host):
-    """TC-05: /etc/resolv.conf on every compute has CoreDNS as primary."""
+    """TC-09: /etc/resolv.conf on every compute has CoreDNS as primary."""
     verify_pxeboot(host, "dns_compute_resolv_conf", check_dns_compute_resolv_conf)
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(356)
+@pytest.mark.order(359)
 def test_dns_compute_forward_getent(host):
-    """TC-06: getent hosts on every compute resolves every mapped peer."""
+    """TC-10: getent hosts on every compute resolves every mapped peer."""
     verify_pxeboot(
         host, "dns_compute_forward_getent", check_dns_compute_forward_getent
     )

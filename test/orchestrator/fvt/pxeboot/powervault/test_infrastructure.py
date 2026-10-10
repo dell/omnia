@@ -30,6 +30,7 @@ from library.functions import (
 )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(301)
 @pytest.mark.powervault_infrastructure
@@ -38,6 +39,7 @@ def test_powervault_iscsi_service(host):
     verify_pxeboot(host, "powervault_iscsi_service", check_powervault_iscsi_service)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(302)
 @pytest.mark.powervault_infrastructure
@@ -46,6 +48,7 @@ def test_powervault_iscsi_initiator_name(host):
     verify_pxeboot(host, "powervault_iscsi_initiator_name", check_powervault_iscsi_initiator_name)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(303)
 @pytest.mark.powervault_infrastructure
@@ -54,6 +57,7 @@ def test_powervault_iscsi_discovery(host):
     verify_pxeboot(host, "powervault_iscsi_discovery", check_powervault_iscsi_discovery)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(304)
 @pytest.mark.powervault_infrastructure
@@ -62,6 +66,7 @@ def test_powervault_iscsi_sessions(host):
     verify_pxeboot(host, "powervault_iscsi_sessions", check_powervault_iscsi_sessions)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(305)
 @pytest.mark.powervault_infrastructure
@@ -70,6 +75,7 @@ def test_powervault_iscsi_startup_automatic(host):
     verify_pxeboot(host, "powervault_iscsi_startup_automatic", check_powervault_iscsi_startup_automatic)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(306)
 @pytest.mark.powervault_infrastructure
@@ -78,6 +84,7 @@ def test_powervault_portal_reachability(host):
     verify_pxeboot(host, "powervault_portal_reachability", check_powervault_portal_reachability)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(307)
 @pytest.mark.powervault_infrastructure
@@ -86,6 +93,7 @@ def test_powervault_multipath_service(host):
     verify_pxeboot(host, "powervault_multipath_service", check_powervault_multipath_service)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(308)
 @pytest.mark.powervault_infrastructure
@@ -94,6 +102,7 @@ def test_powervault_multipath_device(host):
     verify_pxeboot(host, "powervault_multipath_device", check_powervault_multipath_device)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(309)
 @pytest.mark.powervault_infrastructure

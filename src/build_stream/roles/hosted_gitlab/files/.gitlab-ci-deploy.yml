@@ -52,8 +52,8 @@ variables:
   BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
   CURL_CONNECT_TIMEOUT: "15"
   CURL_MAX_TIME: "45"
-  # Defaults — overridden by omnia.env if present in the GitLab repo
-  OMNIA_DATA_PATH: "/opt/omnia"
+  # Defaults — overridden by omnia.env if present in the GitLab repo.
+  # OMNIA_DATA_PATH is read from omnia.env where needed (bsm_job_log_dir).
   OMNIA_PROJECT_NAME: "project_default"
 
 # ---------------------------------------------------------------------------
@@ -274,7 +274,6 @@ list_images:
           lines.append("  artifacts:")
           lines.append("    reports:")
           lines.append("      dotenv: deploy.env")
-          lines.append("    expire_in: 2 hours")
           lines.append("")
 
       # --- Read static template ---
@@ -323,7 +322,6 @@ list_images:
   artifacts:
     paths:
       - deploy_child.yml
-    expire_in: 2 hours
 
 # ============================= STAGE 2 ====================================
 # Trigger Deploy -- Launch the dynamically generated child pipeline

@@ -33,6 +33,7 @@ from fvt.result import verify_pxeboot
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(266)
 def test_apptainer_runtime(host):
@@ -42,6 +43,7 @@ def test_apptainer_runtime(host):
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(267)
 def test_apptainer_shared_artifacts(host):
@@ -51,6 +53,7 @@ def test_apptainer_shared_artifacts(host):
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(268)
 def test_apptainer_pulp_policy(host):
@@ -60,6 +63,7 @@ def test_apptainer_pulp_policy(host):
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(269)
 def test_apptainer_shared_storage(host):
@@ -69,6 +73,7 @@ def test_apptainer_shared_storage(host):
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(273)
 def test_apptainer_image_inventory(host):
@@ -78,6 +83,7 @@ def test_apptainer_image_inventory(host):
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(274)
 def test_apptainer_sif_format(host):
@@ -87,6 +93,7 @@ def test_apptainer_sif_format(host):
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(275)
 def test_apptainer_sif_permissions(host):
@@ -96,6 +103,7 @@ def test_apptainer_sif_permissions(host):
 
 @pytest.mark.apptainer
 @pytest.mark.non_disruptive
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(276)
 def test_apptainer_sif_integrity(host):

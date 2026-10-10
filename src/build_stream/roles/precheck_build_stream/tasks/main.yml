@@ -14,10 +14,32 @@
 ---
 # precheck_build_stream — Main task file
 #
-# Verifies that repo_manager and image_build_manager have completed
-# prepare-base by checking:
+# Verifies the OIM host environment and that repo_manager and
+# image_build_manager have completed prepare-base by checking:
+#   0. System environment cross-validation (validate_system_environment)
 #   1. Required containers are running (pulp, minio-server, registry)
 #   2. Credential files exist
+#
+# build_stream consumes no upstream domain output contract; its
+# prerequisites are the prepare-base runtime services checked below.
+#
+# Runs before credential collection and must not require credentials.
+
+# =========================================================================
+# Step 0: Cross-validate system environment via module
+# =========================================================================
+# Checks hostname -s vs SYSTEM_HOSTNAME, hostname -d vs SYSTEM_DOMAIN_NAME,
+# SYSTEM_ADMIN_NIC_IPV4 on a local NIC, and OMNIA_DATA_PATH. Failures are
+# collected into the summary instead of aborting the precheck early.
+- name: Cross-validate system environment
+  validate_system_environment:
+    required_vars: []
+    validate_hostname: true
+    validate_domain: true
+    validate_ip: true
+    validate_paths: true
+  register: _sys_validation
+  failed_when: false
 
 # =========================================================================
 # Step 1: Check required containers are running
@@ -66,8 +88,12 @@
 - name: Determine overall result
   ansible.builtin.set_fact:
     _precheck_pass: >-
-      {{ (_missing | length == 0)
+      {{ (_sys_validation.valid | default(false) | bool)
+         and (_missing | length == 0)
          and (_creds_missing | length == 0) }}
+    _sys_check_lines: >-
+      {{ _sys_validation.checks | default([])
+         | map(attribute='message') | list }}
 
 - name: Precheck summary
   ansible.builtin.debug:
@@ -75,6 +101,9 @@
       - "============================================"
       - "  BUILD_STREAM PRECHECK SUMMARY"
       - "============================================"
+      - "  --- system environment ---"
+      - "  {{ _sys_check_lines | join('\n  ') }}"
+      - ""
       - "  --- containers ---"
       - "  pulp:             {{ ('pulp' in _running) | ternary('RUNNING', 'NOT RUNNING') }}"
       - "  minio-server:     {{ ('minio-server' in _running) | ternary('RUNNING', 'NOT RUNNING') }}"
@@ -91,6 +120,7 @@
   ansible.builtin.fail:
     msg: >-
       build_stream precheck failed.
+      System environment: {{ _sys_validation.msg | default('not validated') }}.
       Missing containers: {{ _missing | default([]) | join(', ') }}.
       Missing credentials: {{ _creds_missing | default([]) | join(', ') }}.
       Run 'omnia.sh --prepare-base' to fix.

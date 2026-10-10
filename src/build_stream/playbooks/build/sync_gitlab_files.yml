@@ -53,6 +53,14 @@
   hosts: localhost
   gather_facts: false
   tasks:
+    - name: Load BuildStream credentials
+      ansible.builtin.include_role:
+        name: credential_utility
+        tasks_from: decrypt_include_encrypt.yml
+      vars:
+        credential_file_path: "{{ input_project_dir }}/build_stream_credentials.yml"
+        vault_password_file: "{{ input_project_dir }}/.build_stream_credentials_key"
+
     - name: Prerequisite checks
       ansible.builtin.include_role:
         name: hosted_gitlab
@@ -69,9 +77,16 @@
       vars:
         role_path_prefix: "{{ playbook_dir }}/../../roles/hosted_gitlab"
 
+    - name: Set GitLab connection facts
+      ansible.builtin.set_fact:
+        gitlab_host: "{{ hostvars['localhost']['gitlab_host'] }}"
+        gitlab_https_port: "{{ hostvars['localhost']['gitlab_https_port'] | default(443) }}"
+        gitlab_default_branch: "{{ hostvars['localhost']['gitlab_default_branch'] | default('main') }}"
+
     - name: Set GitLab external URL
       ansible.builtin.set_fact:
-        gitlab_external_url_computed: "https://{{ gitlab_host }}{% if gitlab_https_port != 443 %}:{{ gitlab_https_port }}{% endif %}"
+        gitlab_external_url_computed: >-
+          https://{{ gitlab_host }}{% if gitlab_https_port | int != 443 %}:{{ gitlab_https_port }}{% endif %}
 
     - name: Read GitLab root token
       ansible.builtin.slurp:
@@ -86,7 +101,7 @@
 
     - name: Search for project by name
       ansible.builtin.uri:
-        url: "{{ gitlab_external_url_computed }}/api/v4/projects?search={{ gitlab_project_name }}"
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects?search={{ hostvars['localhost']['gitlab_project_name'] }}"
         method: GET
         headers:
           PRIVATE-TOKEN: "{{ gitlab_root_token }}"
@@ -98,11 +113,12 @@
     - name: Set project ID
       ansible.builtin.set_fact:
         gitlab_project_id: "{{ project_search.json[0].id | string }}"
+        gitlab_project_name: "{{ hostvars['localhost']['gitlab_project_name'] }}"
       when: project_search.json | length > 0
 
     - name: Fail when project not found
       ansible.builtin.fail:
-        msg: "GitLab project '{{ gitlab_project_name }}' not found. Run setup_gitlab.yml first."
+        msg: "GitLab project '{{ hostvars['localhost']['gitlab_project_name'] }}' not found. Run setup_gitlab.yml first."
       when: project_search.json | length == 0
 
     - name: Push CI/CD files and input files to repository

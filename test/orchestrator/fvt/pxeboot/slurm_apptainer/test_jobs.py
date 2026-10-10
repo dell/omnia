@@ -29,6 +29,7 @@ from fvt.result import verify_pxeboot
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
@@ -39,6 +40,7 @@ def test_apptainer_single_node_job(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
@@ -59,6 +61,7 @@ def test_apptainer_ldap_job(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
@@ -69,6 +72,7 @@ def test_apptainer_concurrent_jobs(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
@@ -79,6 +83,7 @@ def test_apptainer_nfs_visibility(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
@@ -91,6 +96,7 @@ def test_apptainer_slurm_environment(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive

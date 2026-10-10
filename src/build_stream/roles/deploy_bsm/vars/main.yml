@@ -16,7 +16,10 @@
 
 # Build Stream Container Configuration
 build_stream_container_name: "omnia_build_stream"
-build_stream_container_omnia_path: "/opt/omnia"
+# In-container mount target for the host OMNIA_DATA_PATH ({{ omnia_path }}).
+# Fixed by the image layout (APP_DIR in containers/omnia_build_stream/Containerfile)
+# and exported to the container as OMNIA_DATA_PATH; it is not a host path.
+build_stream_container_omnia_path: "/opt/omnia"  # opt-omnia-waiver: container-internal mount target
 
 # Build Stream Image (Docker Hub)
 build_stream_dockerhub_registry: "docker.io/dellhpcomniaaisolution"
@@ -72,7 +75,9 @@ build_stream_root_dir: "{{ omnia_path }}/build_stream_root"
 # Quadlet
 quadlet_dir: "/etc/containers/systemd"
 build_stream_quadlet_path: "{{ quadlet_dir }}/{{ build_stream_container_name }}.container"
-build_stream_quadlet_file_mode: "0644"
+# Quadlet file holds plaintext service credentials (Postgres, MinIO). Restrict to
+# root-only to close CWE-732 / CWE-522 (world-readable credential exposure on the OIM).
+build_stream_quadlet_file_mode: "0600"
 
 # PostgreSQL configuration — passed as host vars from prepare_build_stream.yml
 postgres_db_name: "build_stream_db"

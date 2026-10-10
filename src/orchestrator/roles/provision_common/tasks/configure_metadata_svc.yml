@@ -308,6 +308,32 @@
 
 # ---- End K8s-specific variable setup ----
 
+- name: Find functional layer components for {{ fg_name }}
+  ansible.builtin.set_fact:
+    _fg_layer_components: >-
+      {{ (hostvars['localhost']['catalog_data'].catalog.functionallayer
+         | selectattr('name', 'equalto', fg_name)
+         | map(attribute='components')
+         | first) | default([]) }}
+
+- name: Find NVIDIA driver group for {{ fg_name }}
+  ansible.builtin.set_fact:
+    _nvidia_group_key: >-
+      {{ (_fg_layer_components | select('match', '^nvidia_stack_driver_groupv1') | list | first) | default('') }}
+
+- name: Find CUDA toolkit package key for {{ fg_name }}
+  ansible.builtin.set_fact:
+    _cuda_toolkit_pkg_key: >-
+      {{ (hostvars['localhost']['catalog_data'].catalog.groups[_nvidia_group_key].components | default([])
+          | select('match', '^cuda_toolkit') | list | first) | default('') }}
+  when: _nvidia_group_key | length > 0
+
+- name: Extract CUDA toolkit version from catalog
+  ansible.builtin.set_fact:
+    cuda_toolkit_version: >-
+      {{ hostvars['localhost']['catalog_data'].catalog.packages[_cuda_toolkit_pkg_key].version | default('13.3.1') }}
+  when: _cuda_toolkit_pkg_key | default('') | length > 0
+
 - name: Set functional_group_name for template compatibility
   ansible.builtin.set_fact:
     functional_group_name: "{{ fg_name }}"
@@ -339,7 +365,8 @@
           {{ lookup('ansible.builtin.first_found',
                     _ms_template_candidates) }}
         dest: "{{ metadata_svc_dir }}/ms-group-{{ fg_name }}.yaml"
-        mode: "0600"
+        mode: "{{ file_permissions_600 }}"
+      no_log: true
       vars:
         connection_type: "{{ (hostvars['localhost']['ldap_connection_type'] | default('TLS')) | lower }}"
         ldap_search_base: >-
@@ -347,6 +374,7 @@
           | select | map('regex_replace', '^', 'dc=') | join(',') }}
         ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] | default('') }}"
         password: "{{ hostvars['localhost']['openldap_db_password'] | default('') }}"
+        cuda_toolkit_version: "{{ cuda_toolkit_version | default('13.3.1') }}"
         ldap_default_bind_dn: >-
           cn={{ hostvars['localhost']['openldap_db_username'] | default('admin') }},{{
           (hostvars['localhost']['domain_name'] | default('')).split('.')
