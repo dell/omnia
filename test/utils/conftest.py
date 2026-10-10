@@ -120,6 +120,7 @@ def pytest_configure(config):
         "cleanup_slurm_config_backups": "Slurm config backup cleanup tests",
         "destructive": "Deletes live state (e.g. the active Slurm config share). "
                         "Opt-in only: excluded unless explicitly selected via --marker destructive",
+        "negative": "Negative/error-handling tests (verify proper failure behavior)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")

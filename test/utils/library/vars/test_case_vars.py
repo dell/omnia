@@ -165,6 +165,26 @@ TEST_CASES = {
     },
 
     # ══════════════════════════════════════════════════════════════════════════
+    # NEGATIVE TEST CASES - COLLECT
+    # ══════════════════════════════════════════════════════════════════════════
+    "collect_output_not_writable_fails": {
+        "id": "UTILS_FVT_COLLECT_NEG001",
+        "title": "Verify collection fails when output directory is not writable",
+    },
+    "collect_no_nodes_configured_fails": {
+        "id": "UTILS_FVT_COLLECT_NEG002",
+        "title": "Verify collection fails when no nodes are configured in collect_pxe.yml",
+    },
+    "collect_missing_sources_warns": {
+        "id": "UTILS_FVT_COLLECT_NEG003",
+        "title": "Verify collection emits warning when some source log files are missing",
+    },
+    "collect_archive_failure_fails": {
+        "id": "UTILS_FVT_COLLECT_NEG004",
+        "title": "Verify collection fails when archive generation fails",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
     # INSTALL_OS SCENARIO - Deploy Tests
     # ══════════════════════════════════════════════════════════════════════════
     "deploy_install_os": {
