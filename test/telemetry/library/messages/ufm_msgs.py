@@ -35,6 +35,9 @@ UFM_LOG_MSGS = {
     "metrics_missing": "UFM live metric verification is incomplete",
     "cleanup_complete": "No UFM resources remaining",
     "cleanup_incomplete": "UFM resources still present",
+    "disabled_check": "Verifying the configured-disabled UFM reconciliation state",
+    "disabled_passed": "UFM disabled state is correctly reconciled",
+    "disabled_failed": "UFM disabled-state reconciliation is incorrect",
 }
 
 
@@ -69,6 +72,15 @@ UFM_ASSERT_MSGS = {
         "HOW TO FIX:\n"
         "  1. Run: kubectl get svc,vmservicescrape,secret -n telemetry | grep ufm\n"
         "  2. Re-run cleanup with the cleanup_ufm tag"
+    ),
+    "disabled_state_incorrect": (
+        "UFM disabled-state reconciliation is incorrect\n"
+        "HOW TO FIX:\n"
+        "  1. Check: kubectl get svc,endpoints,vmservicescrape -n telemetry | grep ufm\n"
+        "  2. Service, Endpoints, and VMServiceScrape should be absent when disabled\n"
+        "  3. Secret should be preserved: "
+        "kubectl get secret ufm-telemetry-credentials -n telemetry\n"
+        "  4. Re-run telemetry deploy with UFM disabled"
     ),
 }
 

@@ -49,6 +49,42 @@ TEST_CASES = {
         "id": "TEL_FVT_CLEANUP_E001",
         "title": "Deploy telemetry (--tags cleanup)",
     },
+    "deploy_cleanup_with_preservation_flags": {
+        "id": "TEL_FVT_CLEANUP_E002",
+        "title": "Deploy cleanup with credential and log preservation",
+    },
+    "deploy_deploy_sinks": {
+        "id": "TEL_FVT_DEPLOY_SINKS_E001",
+        "title": "Deploy sinks (--tags deploy_sinks)",
+    },
+    "deploy_cleanup_sinks": {
+        "id": "TEL_FVT_CLEANUP_SINKS_E001",
+        "title": "Cleanup sinks (--tags cleanup_sinks)",
+    },
+    "deploy_cleanup_idrac": {
+        "id": "TEL_FVT_CLEANUP_IDRAC_E001",
+        "title": "Cleanup iDRAC (--tags cleanup_idrac)",
+    },
+    "deploy_cleanup_ldms": {
+        "id": "TEL_FVT_CLEANUP_LDMS_E001",
+        "title": "Cleanup LDMS (--tags cleanup_ldms)",
+    },
+    "deploy_cleanup_ome": {
+        "id": "TEL_FVT_CLEANUP_OME_E001",
+        "title": "Cleanup OME (--tags cleanup_ome)",
+    },
+    "deploy_cleanup_powerscale": {
+        "id": "TEL_FVT_CLEANUP_POWERSCALE_E001",
+        "title": "Cleanup PowerScale (--tags cleanup_powerscale)",
+    },
+    "deploy_cleanup_ufm": {
+        "id": "TEL_FVT_CLEANUP_UFM_E001",
+        "title": "Cleanup UFM (--tags cleanup_ufm)",
+    },
+    "deploy_cleanup_vast": {
+        "id": "TEL_FVT_CLEANUP_VAST_E001",
+        "title": "Cleanup VAST (--tags cleanup_vast)",
+    },
     # -- Precheck -----------------------------------------------------------
     "env_vars_present": {
         "id": "TEL_FVT_PRECHECK_V001",
@@ -130,7 +166,7 @@ TEST_CASES = {
     },
     "idrac_kafka_topic": {
         "id": "TEL_FVT_DEPLOY_V015",
-        "title": "Verify iDRAC Kafka topic exists",
+        "title": "Verify fresh iDRAC metrics flow to Kafka",
     },
     "idrac_victoria_pump": {
         "id": "TEL_FVT_DEPLOY_V016",
@@ -143,6 +179,10 @@ TEST_CASES = {
     "idrac_vm_data": {
         "id": "TEL_FVT_DEPLOY_V018",
         "title": "Verify iDRAC telemetry data in VictoriaMetrics",
+    },
+    "idrac_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V019",
+        "title": "Verify configured-disabled iDRAC state",
     },
     # -- Sources: Install Mode (unified online/offline) -----------------------
     "install_mode_config": {
@@ -243,6 +283,10 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V038",
         "title": "Verify PowerScale health metrics",
     },
+    "powerscale_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V039",
+        "title": "Verify configured-disabled PowerScale metrics state",
+    },
     "powerscale_tls_enforcement": {
         "id": "TEL_FVT_DEPLOY_V040",
         "title": "Verify PowerScale TLS enforcement",
@@ -319,6 +363,10 @@ TEST_CASES = {
     "ufm_metrics_in_vm": {
         "id": "TEL_FVT_DEPLOY_V063",
         "title": "Verify UFM InfiniBand metrics in VictoriaMetrics",
+    },
+    "ufm_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V064",
+        "title": "Verify configured-disabled UFM state",
     },
     # -- Sources: VAST -------------------------------------------------------
     "vast_external_svc": {
@@ -418,6 +466,10 @@ TEST_CASES = {
         "id": "TEL_FVT_DEPLOY_V087",
         "title": "Verify OME audit logs in VictoriaLogs",
     },
+    "ome_disabled_state": {
+        "id": "TEL_FVT_DEPLOY_V088",
+        "title": "Verify configured-disabled OME state",
+    },
     # -- Sources: SFM -------------------------------------------------------
     "sfm_omnia_pods": {
         "id": "TEL_FVT_DEPLOY_V100",
@@ -461,6 +513,120 @@ TEST_CASES = {
         "id": "TEL_FVT_CLEANUP_V005",
         "title": "Verify VictoriaLogs pods removed after cleanup",
     },
+    # -- Cleanup: Sink dependency checking ----------------------------------
+    "cleanup_sinks_kafka_no_deps": {
+        "id": "TEL_FVT_CLEANUP_V019",
+        "title": "Verify Kafka cleanup allowed when no dependent sources running",
+    },
+    "cleanup_sinks_kafka_blocked": {
+        "id": "TEL_FVT_CLEANUP_V020",
+        "title": "Verify Kafka cleanup blocked when dependent source running",
+    },
+    "cleanup_sinks_kafka_multi_blocked": {
+        "id": "TEL_FVT_CLEANUP_V021",
+        "title": "Verify Kafka cleanup blocked by multiple dependent sources",
+    },
+    "cleanup_sinks_kafka_volumes_preserved": {
+        "id": "TEL_FVT_CLEANUP_V022",
+        "title": "Verify Kafka volumes preserved by default",
+    },
+    "cleanup_sinks_kafka_volumes_deleted": {
+        "id": "TEL_FVT_CLEANUP_V023",
+        "title": "Verify Kafka volumes deleted with delete_sinks_volume=true",
+    },
+    "cleanup_sinks_vm_no_deps": {
+        "id": "TEL_FVT_CLEANUP_V024",
+        "title": "Verify VictoriaMetrics cleanup allowed when no dependent sources",
+    },
+    "cleanup_sinks_vm_blocked": {
+        "id": "TEL_FVT_CLEANUP_V025",
+        "title": "Verify VictoriaMetrics cleanup blocked by dependent source",
+    },
+    "cleanup_sinks_vm_multi_blocked": {
+        "id": "TEL_FVT_CLEANUP_V026",
+        "title": "Verify VictoriaMetrics cleanup blocked by multiple sources",
+    },
+    "cleanup_sinks_vl_no_deps": {
+        "id": "TEL_FVT_CLEANUP_V027",
+        "title": "Verify VictoriaLogs cleanup allowed when no dependent sources",
+    },
+    "cleanup_sinks_vl_blocked": {
+        "id": "TEL_FVT_CLEANUP_V028",
+        "title": "Verify VictoriaLogs cleanup blocked by dependent source",
+    },
+    "cleanup_sinks_vl_multi_blocked": {
+        "id": "TEL_FVT_CLEANUP_V049",
+        "title": "Verify VictoriaLogs cleanup blocked by multiple dependent sources",
+    },
+    "cleanup_sinks_dep_check_fail": {
+        "id": "TEL_FVT_CLEANUP_V029",
+        "title": "Verify sinks preserved on dependency check failure",
+    },
+    "cleanup_sinks_unrelated_running": {
+        "id": "TEL_FVT_CLEANUP_V030",
+        "title": "Verify unrelated sources do not block sink cleanup",
+    },
+    "cleanup_sinks_repeated": {
+        "id": "TEL_FVT_CLEANUP_V031",
+        "title": "Verify repeated sink cleanup is idempotent",
+    },
+    "cleanup_sinks_selective_isolation": {
+        "id": "TEL_FVT_CLEANUP_V032",
+        "title": "Verify selective sink cleanup does not affect other sinks",
+    },
+    "cleanup_sinks_blocked_volumes_protected": {
+        "id": "TEL_FVT_CLEANUP_V033",
+        "title": "Verify volumes protected during blocked cleanup with delete_sinks_volume=true",
+    },
+    "cleanup_sinks_all_or_nothing": {
+        "id": "TEL_FVT_CLEANUP_V034",
+        "title": "Verify all-or-nothing: blocked sink prevents cleanup of other sinks",
+    },
+    "cleanup_sinks_blocked_playbook_fails": {
+        "id": "TEL_FVT_CLEANUP_V035",
+        "title": "Verify playbook fails with non-zero rc when sinks are blocked",
+    },
+    # -- Cleanup: Sinks Short-Form Parameter Support -------------------------
+    "cleanup_sinks_short_form_single": {
+        "id": "TEL_FVT_CLEANUP_V036",
+        "title": "Verify short-form parameter -e kafka works correctly",
+    },
+    "cleanup_sinks_short_form_comma_separated": {
+        "id": "TEL_FVT_CLEANUP_V037",
+        "title": "Verify comma-separated parameter -e kafka,victoria_metrics works",
+    },
+    "cleanup_sinks_short_form_all_three": {
+        "id": "TEL_FVT_CLEANUP_V038",
+        "title": "Verify comma-separated all three sinks -e kafka,victoria_metrics,victoria_logs",
+    },
+    "cleanup_sinks_short_form_separate_flags": {
+        "id": "TEL_FVT_CLEANUP_V039",
+        "title": "Verify separate flags -e kafka -e victoria_metrics work correctly",
+    },
+    "cleanup_sinks_short_form_vs_explicit": {
+        "id": "TEL_FVT_CLEANUP_V040",
+        "title": "Verify short-form and explicit form produce same results",
+    },
+    "cleanup_sinks_short_form_normalization": {
+        "id": "TEL_FVT_CLEANUP_V041",
+        "title": "Verify parameter normalization in omnia.sh",
+    },
+    "cleanup_sinks_actual_resource_cleanup": {
+        "id": "TEL_FVT_CLEANUP_V042",
+        "title": "Verify actual resource cleanup for all sinks",
+    },
+    "cleanup_sinks_dependency_blocking_short_form": {
+        "id": "TEL_FVT_CLEANUP_V043",
+        "title": "Verify dependency checking with short-form parameters",
+    },
+    "cleanup_sinks_all_or_nothing_short_form": {
+        "id": "TEL_FVT_CLEANUP_V044",
+        "title": "Verify all-or-nothing behavior with short-form parameters",
+    },
+    "cleanup_sinks_volume_preservation_short_form": {
+        "id": "TEL_FVT_CLEANUP_V045",
+        "title": "Verify volume preservation with short-form parameters",
+    },
     # -- Cleanup: Sources ---------------------------------------------------
     "cleanup_idrac": {
         "id": "TEL_FVT_CLEANUP_V006",
@@ -482,6 +648,10 @@ TEST_CASES = {
         "id": "TEL_FVT_CLEANUP_V010",
         "title": "Verify VAST resources removed after cleanup",
     },
+    "cleanup_powerscale": {
+        "id": "TEL_FVT_CLEANUP_POWERSCALE_V001",
+        "title": "Verify PowerScale resources removed after cleanup",
+    },
     "cleanup_sfm": {
         "id": "TEL_FVT_CLEANUP_V011",
         "title": "Verify SFM pods removed after cleanup",
@@ -498,6 +668,22 @@ TEST_CASES = {
     "pvcs_preserved_after_cleanup": {
         "id": "TEL_FVT_CLEANUP_V014",
         "title": "Verify PVCs preserved after cleanup (Delete_volume=false)",
+    },
+    "cleanup_credentials_preserved": {
+        "id": "TEL_FVT_CLEANUP_V015",
+        "title": "Verify credentials preserved after cleanup (cleanup_credentials=false)",
+    },
+    "cleanup_credentials_deleted": {
+        "id": "TEL_FVT_CLEANUP_V016",
+        "title": "Verify credentials deleted after cleanup (cleanup_credentials=true)",
+    },
+    "cleanup_logs_preserved": {
+        "id": "TEL_FVT_CLEANUP_V017",
+        "title": "Verify logs preserved after cleanup (cleanup_logs=false)",
+    },
+    "cleanup_logs_deleted": {
+        "id": "TEL_FVT_CLEANUP_V018",
+        "title": "Verify logs deleted after cleanup (cleanup_logs=true)",
     },
     # -- NFT: Performance ---------------------------------------------------
     "nft_validate_perf": {
@@ -533,6 +719,19 @@ TEST_CASES = {
         "id": "TEL_NFT_017",
         "title": "Verify PVCs preserved after idempotent cleanup",
     },
+    # -- NFT: Cleanup with volume deletion (Phase 2) -------------------------
+    "nft_cleanup_vol_perf": {
+        "id": "TEL_NFT_020",
+        "title": "Cleanup with volume deletion performance (< 300s)",
+    },
+    "nft_cleanup_vol_idempotent": {
+        "id": "TEL_NFT_021",
+        "title": "Cleanup with volume deletion idempotency (second run exits 0)",
+    },
+    "nft_cleanup_vol_no_pods": {
+        "id": "TEL_NFT_022",
+        "title": "Verify no pods after cleanup with volume deletion",
+    },
     # -- NFT: Resilience -----------------------------------------------------
     "nft_resilience_setup": {
         "id": "TEL_NFT_018",
@@ -566,6 +765,14 @@ TEST_CASES = {
         "id": "TEL_NFT_012",
         "title": "Node reboot recovery (all pods Running)",
     },
+    "nft_idrac_data_lifecycle": {
+        "id": "TEL_NFT_023",
+        "title": "iDRAC enable/disable/re-enable data lifecycle",
+    },
+    "nft_ome_channel_lifecycle": {
+        "id": "TEL_NFT_024",
+        "title": "OME metrics/logs channel lifecycle",
+    },
     "nft_full_lifecycle": {
         "id": "TEL_NFT_013",
         "title": "Full lifecycle (cleanup -> redeploy -> verify)",
@@ -574,9 +781,18 @@ TEST_CASES = {
         "id": "TEL_NFT_014",
         "title": "Operator pod recovery (VM/Strimzi operators)",
     },
+    "nft_powerscale_channels": {
+        "id": "TEL_NFT_025",
+        "title": "Verify PowerScale metrics/logs channel transitions",
+    },
     "nft_final_warning": {
         "id": "TEL_NFT_019",
         "title": "Final cluster state warning after NFT cleanup",
+    },
+    # -- LDMS Configuration Transition Test ---------------------------------
+    "nft_ldms_transitions": {
+        "id": "TEL_NFT_LDMS_001",
+        "title": "LDMS configuration transitions (all 4 states)",
     },
 }
 

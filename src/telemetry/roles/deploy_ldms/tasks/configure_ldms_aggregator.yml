@@ -14,17 +14,21 @@
 ---
 
 # =============================================================================
-# Prepare LDMS aggregator authentication on a Slurm control node
+# Prepare LDMS aggregator authentication
 # =============================================================================
-# This task file only fetches current Munge authentication material from the
-# selected control node. Chart rendering, secret reconciliation, and the Helm
-# deployment run separately on kube_vip_group in deploy_ldms_aggregator_k8s.yml.
+# Fetches the Munge key from the selected Slurm control node via delegate_to
+# and resolves the LDMS sampler password. Runs on kube_vip_group; the munge
+# key stat/fetch tasks are delegated to _ldms_deploy_aggregator_control_host.
+#
+# Chart rendering, secret reconciliation, and the Helm deployment run
+# separately in deploy_ldms_aggregator_k8s.yml (also on kube_vip).
 # =============================================================================
 
-- name: Check if munge key exists
+- name: Check if munge key exists on Slurm control node
   ansible.builtin.stat:
     path: "{{ munge_key_path }}"
   register: munge_key_check
+  delegate_to: "{{ _ldms_deploy_aggregator_control_host }}"
 
 - name: Validate current munge key on selected control node
   ansible.builtin.assert:
@@ -35,24 +39,23 @@
       The munge key disappeared from {{ munge_key_path }} on the selected
       Slurm control node. Refusing to reuse stale aggregator authentication.
 
-- name: Fetch munge key from slurm control node
+- name: Fetch munge key from Slurm control node
   ansible.builtin.fetch:
     src: "{{ munge_key_path }}"
     dest: "/tmp/munge.key"
     flat: true
+  delegate_to: "{{ _ldms_deploy_aggregator_control_host }}"
 
-- name: Ensure ldms_sampler_password is available for aggregator
+- name: Use LDMS sampler password from localhost (exposed by telemetry_prereq)
   ansible.builtin.set_fact:
-    ldms_sampler_password: "{{ telemetry_credentials.ldms_sampler_password | default('') }}"
-  when:
-    - telemetry_credentials is defined
-    - telemetry_credentials.ldms_sampler_password is defined
+    ldms_sampler_password: "{{ hostvars['localhost']['ldms_sampler_password'] }}"
+  when: hostvars['localhost']['ldms_sampler_password'] is defined
   no_log: true
 
-- name: Set munge key check result for kube_vip tasks
+- name: Set munge key check result for downstream tasks
   ansible.builtin.set_fact:
     munge_key_check_result: "{{ munge_key_check.stat.exists | default(false) }}"
 
 - name: Log LDMS aggregator authentication preparation complete
   ansible.builtin.debug:
-    msg: "Munge key and credentials prepared from selected Slurm control node"
+    msg: "Munge key and credentials prepared from Slurm control node {{ _ldms_deploy_aggregator_control_host }}"

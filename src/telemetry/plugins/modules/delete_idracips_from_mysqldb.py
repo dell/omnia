@@ -117,7 +117,7 @@ from kubernetes import client, config
 from kubernetes.config.config_exception import ConfigException
 
 
-def load_kube_context():
+def load_kube_context() -> None:
     """Load Kubernetes configuration for accessing the cluster."""
     try:
         config.load_kube_config()
@@ -125,7 +125,7 @@ def load_kube_context():
         config.load_incluster_config()
 
 
-def resolve_pod_ip(namespace, pod):
+def resolve_pod_ip(namespace, pod) -> str:
     """Resolve the IP address of a Kubernetes pod via the K8s API.
 
     Args:
@@ -154,7 +154,7 @@ def delete_idrac_from_mysql(
     mysql_user,
     mysql_password,
     ip_to_delete
-):
+) -> dict:
     """Delete a single iDRAC IP from MySQL database using PyMySQL.
 
     Args:
@@ -206,7 +206,7 @@ def delete_idrac_from_mysql(
             conn.close()
 
 
-def main():
+def main() -> None:
     """Main function to execute the module logic."""
     module_args = {
         "telemetry_namespace": {"type": "str", "required": True},

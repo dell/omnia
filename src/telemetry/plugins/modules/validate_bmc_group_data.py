@@ -104,7 +104,7 @@ msg:
 import re
 from ansible.module_utils.basic import AnsibleModule
 
-def is_valid_ip(ip):
+def is_valid_ip(ip) -> bool:
     """
     This function checks if the given IP address is valid.
     Parameters:
@@ -112,9 +112,9 @@ def is_valid_ip(ip):
     Returns:
         bool: True if IP address is valid, False otherwise.
     """
-    return re.match(r'^\d{1,3}(\.\d{1,3}){3}$', ip)
+    return bool(re.match(r'^\d{1,3}(\.\d{1,3}){3}$', ip))
 
-def validate_bmc_group_data(bmc_group_data, bmc_group_data_headers, bmc_group_data_file, nodes_bmc_ips):
+def validate_bmc_group_data(bmc_group_data, bmc_group_data_headers, bmc_group_data_file, nodes_bmc_ips) -> dict:
     """
     Validates BMC group data and returns the result along with the list of BMC IPs.
 
@@ -177,7 +177,7 @@ def validate_bmc_group_data(bmc_group_data, bmc_group_data_headers, bmc_group_da
     return result
 
 
-def main():
+def main() -> None:
     """
     Main function for the Ansible module.
     """

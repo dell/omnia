@@ -333,7 +333,7 @@ completion and accepted by the top-level playbooks:
 | `image_build_manager` | `precheck`, `validate`, `credentials`, `prepare`, `execute`, `build`, `cleanup`, `cleanup_images` |
 | `orchestrator` | `precheck`, `validate`, `credentials`, `prepare`, `deploy`, `provision`, `execute`, `validate-deployment`, `pxeboot`, `verify_node_registration`, `cleanup`, `cleanup_credentials` |
 | `repo_manager` | `precheck`, `credentials`, `prepare`, `deploy`, `execute`, `download`, `status`, `cleanup`, `cleanup_pulp`, `cleanup_repos`, `catalog_generate`, `catalog_add`, `catalog_delete`, `catalog_validate` |
-| `telemetry` | `precheck`, `validate`, `validation`, `prepare`, `credentials`, `execute`, `deploy`, `cleanup`, `cleanup_kafka`, `cleanup_victoria_metrics`, `cleanup_victoria_logs`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `external_kafka`, `external_victoria` |
+| `telemetry` | `precheck`, `validate`, `validation`, `prepare`, `credentials`, `execute`, `deploy`, `deploy_sinks`, `cleanup`, `cleanup_sinks`, `cleanup_idrac`, `cleanup_ldms`, `cleanup_ome`, `cleanup_powerscale`, `cleanup_ufm`, `cleanup_vast`, `external_kafka`, `external_victoria` |
 | `utils` | `precheck`, `setup`, `collect`, `install_os`, `backup_oim_logs`, `slurm_config_backup`, `slurm_config_cleanup`, `slurm_config_rollback`, `cleanup`, `cleanup_logs`, `cleanup_install_os`, `cleanup_backup_oim_logs`, `cleanup_slurm_config_backups`, `upgrade`, `rollback` |
 
 Without `--tags`, a playbook runs its full default flow. Some tag combinations
@@ -348,11 +348,20 @@ common public overrides after `-e` or `--extra-vars` for every domain:
 | `image_build_manager` | `cleanup_image_pattern=`, `skip_approval=true`, `skip_approval=false` |
 | `orchestrator` | `cleanup_credentials=true`, `cleanup_credentials=false`, `pxeboot_scope=all`, `enable_node_registration=true`, `enable_node_registration=false`, `pxeboot_inventory=`, `cleanup_slurm=true`, `cleanup_slurm=false`, `cleanup_k8s=true`, `cleanup_k8s=false` |
 | `repo_manager` | `resync_repos=all`, cleanup selectors and booleans, `force=true`, `force=false`, `input_file=` |
-| `telemetry` | `delete_sinks_volume=true`, `delete_sinks_volume=false` |
+| `telemetry` | `kafka`, `victoria_metrics`, `victoria_logs`, `delete_sinks_volume=true`, `delete_sinks_volume=false` |
 | `utils` | backup/config paths, `backup_base_name=`, `rollback_backup_list_limit=` |
 
 For example, use `./omnia.sh -r telemetry --tags cleanup -e
 delete_sinks_volume=true` to opt in to deleting Telemetry sink PVCs.
+
+The `deploy_sinks` tag deploys sink infrastructure without deploying telemetry
+sources. Sink names may be passed individually or as a comma-separated list:
+
+```bash
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka,victoria_metrics
+./omnia.sh -r telemetry --tags deploy_sinks -e kafka -e victoria_logs
+```
 
 ---
 

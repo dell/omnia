@@ -16,7 +16,7 @@
 # Write telemetry_status.yml to the output project directory
 # ============================================================================
 # Writes a single authoritative status file after deployment completes.
-# External component status values: deployed, failed, skipped
+# External component status values: deployed, disabled, failed, skipped
 # The writer also accepts legacy internal "passed" values during migration.
 #
 # Expected to run on localhost after all deployment tasks complete.
@@ -52,7 +52,7 @@
 - name: Aggregate source deployment results
   ansible.builtin.set_fact:
     _source_results:
-      idrac_metrics: "{{ hostvars['localhost']['_deploy_result_idrac_metrics'] | default('skipped') }}"
+      idrac_metrics: "{{ hostvars['localhost']['_deploy_result_idrac_metrics'] | default('skipped') | trim }}"
       ldms_metrics: "{{ hostvars['localhost']['_deploy_result_ldms_metrics'] | default('skipped') }}"
       powerscale_metrics: "{{ hostvars['localhost']['_deploy_result_powerscale_metrics'] | default('skipped') }}"
       powerscale_logs: "{{ hostvars['localhost']['_deploy_result_powerscale_logs'] | default('skipped') }}"
@@ -81,10 +81,12 @@
          + [_source_results.ome_metrics, _source_results.ome_logs]
          + [_bridge_results.vector_ldms, _bridge_results.vector_ome] }}
     _has_failed: "{{ 'failed' in _all_results }}"
-    _has_deployed: "{{ 'deployed' in _all_results or 'passed' in _all_results }}"
+    _has_reconciled: >-
+      {{ 'deployed' in _all_results or 'passed' in _all_results
+         or 'disabled' in _all_results }}
   ansible.builtin.set_fact:
     _deployment_status: >-
-      {% if _has_failed %}failed{%- elif _has_deployed %}passed{%- else %}skipped{% endif %}
+      {% if _has_failed %}failed{%- elif _has_reconciled %}passed{%- else %}skipped{% endif %}
 
 # -- Write the template ------------------------------------------------------
 - name: Write telemetry_status.yml

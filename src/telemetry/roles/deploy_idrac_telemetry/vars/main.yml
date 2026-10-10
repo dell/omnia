@@ -36,6 +36,10 @@ idrac_verify_timeout: "300s"
 pod_ready_retries: 30
 pod_ready_delay: 10
 
+# Scaling a StatefulSet to zero replaces spec.replicas, so retain the last
+# configured value on the object for a non-destructive restore.
+idrac_desired_replicas_annotation: "telemetry.omnia.dell.com/desired-replicas"
+
 # iDRAC Telemetry MySQL storage
 mysqldb_secrets_name: mysqldb-credentials
 mysqldb_storage: "{{ telemetry_config.idrac_telemetry_configurations.mysqldb_storage | default('1Gi') }}"

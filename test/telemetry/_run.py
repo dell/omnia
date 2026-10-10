@@ -41,6 +41,13 @@ def main():
         MARKERS,
         SUITES,
         EXCLUDE_TAGS,
+        ALL_EXEC_TAGS,
+        ALL_EXEC_MARKER,
+        ALL_VERIFY_EXCLUDE_MARKERS,
+        VERIFY_ONLY_TAGS,
+        REQUIRED_SUITE_TAGS,
+        VERIFY_ONLY_SUITES,
+        SUITE_EXEC_OWNERS,
     )
     from omnia_auto.functions.validation_runner import ValidationRunner
 
@@ -52,6 +59,13 @@ def main():
             "markers": MARKERS,
             "suites": SUITES,
             "exclude_tags": EXCLUDE_TAGS,
+            "all_exec_tags": ALL_EXEC_TAGS,
+            "all_exec_marker": ALL_EXEC_MARKER,
+            "all_verify_exclude_markers": ALL_VERIFY_EXCLUDE_MARKERS,
+            "verify_only_tags": VERIFY_ONLY_TAGS,
+            "required_suite_tags": REQUIRED_SUITE_TAGS,
+            "verify_only_suites": VERIFY_ONLY_SUITES,
+            "suite_exec_owners": SUITE_EXEC_OWNERS,
         },
     )
     sys.exit(runner.main(sys.argv[1:]))
