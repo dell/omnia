@@ -21,6 +21,10 @@
 #
 # Usage:
 #   ./setup_env.sh                    # Basic setup
+#   ./setup_env.sh --venv             # Create/use .venv/ and install there (default)
+#   ./setup_env.sh --force            # Force-reinstall requirements, recreate .venv/
+#   ./setup_env.sh --debug            # Verbose pip output
+#   ./setup_env.sh --help             # Show this help
 #   ./setup_env.sh --set-password     # Setup + prompt for SSH password
 #   ./setup_env.sh --set-domain-creds # Setup + prompt for BMC credentials
 # =============================================================================
@@ -44,6 +48,42 @@ NC='\033[0m'
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+show_help() {
+    cat <<EOF
+Utils Domain — Test Environment Setup
+
+Usage: ./setup_env.sh [OPTIONS]
+
+INSTALL
+─────────────────────────────────────────────────────────────────
+  --venv              Create/use a virtual environment at .venv/ and
+                       install dependencies there (default behavior).
+  --force             Force-reinstall requirements and recreate .venv/
+                       from scratch.
+  --debug             Verbose pip output.
+  --help, -h          Show this help.
+
+TEST CREDENTIALS (test_creds.yml)
+─────────────────────────────────────────────────────────────────
+  --set-password       Prompt for the SSH password for oim_server_ip.
+  --update-password    Same as --set-password.
+  --password PWD       Set the SSH password non-interactively.
+
+DOMAIN CREDENTIALS (test_creds.yml)
+─────────────────────────────────────────────────────────────────
+  --set-domain-creds   Prompt for BMC username/password and OS root password.
+  --domain-creds JSON  Set domain credentials non-interactively from a JSON
+                        object with keys: bmc_username, bmc_password,
+                        os_root_password.
+
+Examples:
+  ./setup_env.sh
+  ./setup_env.sh --venv --force
+  ./setup_env.sh --set-password
+  ./setup_env.sh --debug
+EOF
+}
 
 # Vault key management
 _ensure_vault_key() {
@@ -130,9 +170,32 @@ SET_PASSWORD=false
 SET_DOMAIN_CREDS=false
 PASSWORD_VALUE=""
 DOMAIN_CREDS_JSON=""
+# shellcheck disable=SC2034  # USE_VENV accepted for CLI parity with other domains;
+# this script always sets up .venv/ (no baremetal mode).
+USE_VENV=false
+FORCE=false
+DEBUG=false
+PIP_QUIET="--quiet"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --venv)
+            USE_VENV=true
+            shift
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
+        --debug)
+            DEBUG=true
+            PIP_QUIET=""
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
         --set-password)
             SET_PASSWORD=true
             shift
@@ -161,6 +224,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Create virtual environment
+if [[ "${FORCE}" == "true" ]] && [[ -d "${VENV_DIR}" ]]; then
+    log_info "Removing existing virtual environment (--force)"
+    rm -rf "${VENV_DIR}"
+fi
+
 if [[ ! -d "${VENV_DIR}" ]]; then
     log_info "Creating virtual environment..."
     python3 -m venv "${VENV_DIR}"
@@ -171,16 +239,20 @@ source "${VENV_DIR}/bin/activate"
 
 # Upgrade pip
 log_info "Upgrading pip..."
-pip install --upgrade pip --quiet
+pip install --upgrade pip ${PIP_QUIET}
 
 # Install requirements
 log_info "Installing requirements..."
-pip install -r "${SCRIPT_DIR}/requirements.txt" --quiet
+REQ_FORCE_ARGS=()
+if [[ "${FORCE}" == "true" ]]; then
+    REQ_FORCE_ARGS=(--force-reinstall)
+fi
+pip install "${REQ_FORCE_ARGS[@]}" -r "${SCRIPT_DIR}/requirements.txt" ${PIP_QUIET}
 
 # Install omnia-auto plugin
 if [[ -f "${WHEEL_PATH}" ]]; then
     log_info "Installing omnia-auto plugin..."
-    pip install "${WHEEL_PATH}" --force-reinstall --quiet
+    pip install "${WHEEL_PATH}" --force-reinstall ${PIP_QUIET}
 else
     log_warn "omnia-auto wheel not found at ${WHEEL_PATH}"
     log_warn "Build it with: cd ${PLUGINS_DIR} && pip wheel . -w dist/"

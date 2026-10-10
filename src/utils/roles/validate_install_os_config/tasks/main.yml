@@ -126,11 +126,25 @@
     _nfs_iso_filename: "{{ custom_iso_path.split(':')[1] | basename }}"
     cacheable: true
 
-# Step 8a: Resolve local NFS mount path for deploy mode
-- name: Get NFS mounts for deploy mode
+# Step 8a: Resolve local NFS mount path for deploy mode.
+# Unlike build_iso/generate_ks (which mount/unmount NFS within their own
+# role), a standalone `--tags deploy` run has no other role to mount the
+# share first. So this step auto-mounts it here (to /tmp/install_os_nfs,
+# the same mount point iso_creation uses) when no existing mount already
+# covers the requested directory. iso_delivery unmounts it again after
+# the deployment completes, guarded by the _deploy_nfs_auto_mounted flag set here.
+- name: Initialize NFS auto-mount flag for deploy mode
+  ansible.builtin.set_fact:
+    _deploy_nfs_auto_mounted: false
+    cacheable: true
+  when:
+    - _mode_deploy | bool
+    - custom_iso_path | default('') | length > 0
+
+- name: Check if NFS is already mounted for deploy mode
   ansible.builtin.shell: |
     set -o pipefail
-    mount | grep -E ' type nfs[0-9]?' || true
+    mount | grep '{{ _nfs_server }}:' | awk '{print $1 " " $3}'
   register: _deploy_nfs_mounts
   changed_when: false
   failed_when: false
@@ -138,40 +152,90 @@
     - _mode_deploy | bool
     - custom_iso_path | default('') | length > 0
 
-- name: Resolve local ISO path from NFS mounts for deploy mode
-  when:
-    - _mode_deploy | bool
-    - custom_iso_path | default('') | length > 0
-  ansible.builtin.shell: |
-    set -o pipefail
-    mount | grep -E ' type nfs[0-9]?' | while read -r line; do
-      nfs_export=$(echo "$line" | awk '{print $1}')
-      local_mount=$(echo "$line" | awk '{print $3}')
-      if [[ "$nfs_export" == "{{ _nfs_server }}:"* ]]; then
-        remote_export="${nfs_export#{{ _nfs_server }}:}"
-        if [[ "{{ _nfs_dir }}" == "$remote_export" ]]; then
-          echo "$local_mount"
-          exit 0
-        elif [[ "{{ _nfs_dir }}" == "$remote_export"/* ]]; then
-          rel_path="{{ _nfs_dir }}"
-          rel_path="${rel_path#$remote_export/}"
-          echo "$local_mount/$rel_path"
-          exit 0
-        fi
-      fi
-    done
-  register: _local_iso_dir_result
-  changed_when: false
-  failed_when: false
-
-- name: Set local ISO directory fact for deploy mode
-  when:
-    - _mode_deploy | bool
-    - custom_iso_path | default('') | length > 0
-    - _local_iso_dir_result.stdout | default('') | trim | length > 0
+- name: Filter existing mounts to the ones whose export covers the requested directory
   ansible.builtin.set_fact:
-    _local_iso_dir: "{{ _local_iso_dir_result.stdout | trim }}"
+    _deploy_nfs_matching_mounts: >-
+      {% set mounts = _deploy_nfs_mounts.stdout_lines | default([]) %}
+      {% set target_nfs_dir = _nfs_dir %}
+      {% for line in mounts %}
+      {% set parts = line.split() %}
+      {% set nfs_export = parts[0].split(':')[1] %}
+      {% if target_nfs_dir == nfs_export or target_nfs_dir.startswith(nfs_export + '/') %}
+      {{ line }}
+      {% endif %}
+      {% endfor %}
+    cacheable: false
+  when:
+    - _mode_deploy | bool
+    - custom_iso_path | default('') | length > 0
+
+- name: Auto-mount NFS for deploy mode if no existing mount covers the requested directory
+  when:
+    - _mode_deploy | bool
+    - custom_iso_path | default('') | length > 0
+    - _deploy_nfs_matching_mounts | default('') | trim | length == 0
+  block:
+    - name: Create temporary NFS mount point for deploy mode
+      ansible.builtin.file:
+        path: /tmp/install_os_nfs
+        state: directory
+        mode: "0755"
+
+    - name: Mount NFS share for deploy mode
+      ansible.builtin.mount:
+        src: "{{ _nfs_server }}:{{ _nfs_dir | dirname }}"
+        path: /tmp/install_os_nfs
+        fstype: nfs
+        state: mounted
+
+    - name: Re-check NFS mounts after auto-mount for deploy mode
+      ansible.builtin.shell: |
+        set -o pipefail
+        mount | grep '{{ _nfs_server }}:' | awk '{print $1 " " $3}'
+      register: _deploy_nfs_remount_check
+      changed_when: false
+
+    - name: Update NFS mounts with remount check for deploy mode
+      ansible.builtin.set_fact:
+        _deploy_nfs_mounts: "{{ _deploy_nfs_remount_check }}"
+
+    - name: Set auto-mount flag for deploy mode cleanup
+      ansible.builtin.set_fact:
+        _deploy_nfs_auto_mounted: true
+        cacheable: true
+
+- name: Fail if NFS mount still not found for deploy mode
+  ansible.builtin.fail:
+    msg: "{{ nfs_mount_not_found_msg }}"
+  when:
+    - _mode_deploy | bool
+    - custom_iso_path | default('') | length > 0
+    - _deploy_nfs_mounts.stdout | default('') | trim | length == 0
+
+- name: Resolve local ISO directory from NFS mounts for deploy mode
+  ansible.builtin.set_fact:
+    _local_iso_dir: >-
+      {% set mounts = _deploy_nfs_mounts.stdout_lines | default([]) %}
+      {% set target_nfs_dir = _nfs_dir %}
+      {% set result = '' %}
+      {% for line in mounts %}
+      {% set parts = line.split() %}
+      {% set nfs_export = parts[0].split(':')[1] %}
+      {% set local_mount = parts[1] %}
+      {% if target_nfs_dir.startswith(nfs_export) %}
+      {% set rel_path = target_nfs_dir[nfs_export | length :].lstrip('/') %}
+      {% if rel_path | length > 0 %}
+      {{ local_mount }}/{{ rel_path }}
+      {% else %}
+      {{ local_mount }}
+      {% endif %}
+      {% endif %}
+      {% endfor %}
     cacheable: true
+  when:
+    - _mode_deploy | bool
+    - custom_iso_path | default('') | length > 0
+    - _deploy_nfs_mounts.stdout | default('') | trim | length > 0
 
 - name: Set local ISO path for deploy mode
   when:
@@ -179,6 +243,7 @@
     - custom_iso_path | default('') | length > 0
     - _local_iso_dir | default('') | trim | length > 0
   ansible.builtin.set_fact:
+    _local_iso_dir: "{{ _local_iso_dir | trim }}"
     _local_iso_path: "{{ _local_iso_dir | trim }}/{{ _nfs_iso_filename }}"
     cacheable: true
 

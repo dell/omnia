@@ -165,6 +165,26 @@ TEST_CASES = {
     },
 
     # ══════════════════════════════════════════════════════════════════════════
+    # NEGATIVE TEST CASES - COLLECT
+    # ══════════════════════════════════════════════════════════════════════════
+    "collect_output_not_writable_fails": {
+        "id": "UTILS_FVT_COLLECT_NEG001",
+        "title": "Verify collection fails when output directory is not writable",
+    },
+    "collect_no_nodes_configured_fails": {
+        "id": "UTILS_FVT_COLLECT_NEG002",
+        "title": "Verify collection fails when no nodes are configured in collect_pxe.yml",
+    },
+    "collect_missing_sources_warns": {
+        "id": "UTILS_FVT_COLLECT_NEG003",
+        "title": "Verify collection emits warning when some source log files are missing",
+    },
+    "collect_archive_failure_fails": {
+        "id": "UTILS_FVT_COLLECT_NEG004",
+        "title": "Verify collection fails when archive generation fails",
+    },
+
+    # ══════════════════════════════════════════════════════════════════════════
     # INSTALL_OS SCENARIO - Deploy Tests
     # ══════════════════════════════════════════════════════════════════════════
     "deploy_install_os": {
@@ -222,6 +242,38 @@ TEST_CASES = {
     "install_os_kickstart_generated": {
         "id": "UTILS_FVT_INSTALL_OS_V008",
         "title": "Verify kickstart.ks file generated",
+    },
+    "install_os_grub_config_in_iso": {
+        "id": "UTILS_FVT_INSTALL_OS_V009",
+        "title": "Verify GRUB config in ISO references correct kickstart path",
+    },
+    "install_os_kickstart_in_iso": {
+        "id": "UTILS_FVT_INSTALL_OS_V010",
+        "title": "Verify kickstart configuration is embedded in ISO",
+    },
+    "install_os_manifest_exists": {
+        "id": "UTILS_FVT_INSTALL_OS_V011",
+        "title": "Verify install_os_manifest.yml exists with correct structure",
+    },
+    "install_os_iso_checksum": {
+        "id": "UTILS_FVT_INSTALL_OS_V012",
+        "title": "Verify custom ISO checksum matches expected value",
+    },
+    "install_os_post_install_ssh_reachable": {
+        "id": "UTILS_FVT_INSTALL_OS_V013",
+        "title": "Verify SSH connectivity to installed target node",
+    },
+    "install_os_post_install_os_version": {
+        "id": "UTILS_FVT_INSTALL_OS_V014",
+        "title": "Verify installed OS version matches expected RHEL 10",
+    },
+    "install_os_post_install_gui_packages": {
+        "id": "UTILS_FVT_INSTALL_OS_V015",
+        "title": "Verify GUI packages are installed on target node",
+    },
+    "install_os_post_install_architecture": {
+        "id": "UTILS_FVT_INSTALL_OS_V016",
+        "title": "Verify installed OS architecture matches target_architecture",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
