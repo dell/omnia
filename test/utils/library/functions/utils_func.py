@@ -1025,6 +1025,63 @@ def verify_iso_checksum(host, iso_path: str, expected_checksum: str) -> Dict[str
         }
 
 
+def run_ssh_command(
+    host,
+    target_ip: str,
+    command: str,
+    ssh_key_path: str,
+    ssh_user: str = "root",
+    timeout: int = 30,
+) -> Dict[str, Any]:
+    """Run a command on a remote target via SSH using key-based authentication.
+
+    Args:
+        host: Testinfra host object (for local execution).
+        target_ip: Target node IP address.
+        command: Command to run on target.
+        ssh_key_path: Path to SSH private key (required).
+        ssh_user: SSH username (default: root).
+        timeout: Connection timeout in seconds (default: 30).
+
+    Returns:
+        dict: {"success": bool, "stdout": str, "stderr": str, "error": str}
+    """
+    try:
+        if not ssh_key_path:
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": "",
+                "error": "ssh_key_path is required for SSH authentication",
+            }
+
+        # Key-based authentication
+        cmd = (
+            f"ssh -o StrictHostKeyChecking=no "
+            f"-o ConnectTimeout={timeout} "
+            f"-o BatchMode=yes "
+            f"-o PasswordAuthentication=no "
+            f"-o IdentityFile={ssh_key_path} "
+            f"{ssh_user}@{target_ip} '{command}'"
+        )
+
+        result = host.run(cmd)
+
+        return {
+            "success": result.rc == 0,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "error": result.stderr if result.rc != 0 else "",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "stdout": "",
+            "stderr": "",
+            "error": str(exc),
+        }
+
+
 def verify_kickstart_in_iso(host, iso_path: str) -> Dict[str, Any]:
     """Verify Kickstart configuration is injected into ISO.
 

@@ -55,6 +55,7 @@ from .utils_func import (
     verify_iso_checksum,
     verify_kickstart_in_iso,
     resolve_nfs_path_to_local,
+    run_ssh_command,
 )
 
 from .host_func import (
@@ -177,6 +178,7 @@ __all__ = [
     "verify_iso_checksum",
     "verify_kickstart_in_iso",
     "resolve_nfs_path_to_local",
+    "run_ssh_command",
     "sync_project_to_remote",
     "sync_utils_input",
     "sync_install_os_credentials",

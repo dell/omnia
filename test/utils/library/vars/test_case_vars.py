@@ -259,6 +259,22 @@ TEST_CASES = {
         "id": "UTILS_FVT_INSTALL_OS_V012",
         "title": "Verify custom ISO checksum matches expected value",
     },
+    "install_os_post_install_ssh_reachable": {
+        "id": "UTILS_FVT_INSTALL_OS_V013",
+        "title": "Verify SSH connectivity to installed target node",
+    },
+    "install_os_post_install_os_version": {
+        "id": "UTILS_FVT_INSTALL_OS_V014",
+        "title": "Verify installed OS version matches expected RHEL 10",
+    },
+    "install_os_post_install_gui_packages": {
+        "id": "UTILS_FVT_INSTALL_OS_V015",
+        "title": "Verify GUI packages are installed on target node",
+    },
+    "install_os_post_install_architecture": {
+        "id": "UTILS_FVT_INSTALL_OS_V016",
+        "title": "Verify installed OS architecture matches target_architecture",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # CLEANUP_LOGS SCENARIO

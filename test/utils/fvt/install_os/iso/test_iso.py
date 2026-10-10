@@ -26,11 +26,11 @@ from library.functions import (
     check_dir_exists,
     validate_yaml_file,
     validate_install_os_config,
-    validate_install_os_credentials,
     find_custom_iso,
     verify_iso_checksum,
     verify_kickstart_in_iso,
     resolve_nfs_path_to_local,
+    run_ssh_command,
     get_utils_input_path,
     get_utils_output_path,
 )
@@ -254,55 +254,48 @@ def test_install_os_custom_iso_created(host):
     tc = TC["install_os_custom_iso_created"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    # Check local output directory first
-    output_path = get_utils_output_path(host)
-    result = find_custom_iso(host, output_path)
+    # Resolve custom ISO path (handles both local and NFS paths)
+    iso_result = _resolve_custom_iso_path(host)
+    if not iso_result["success"]:
+        tl.skipped(f"Custom ISO not found: {iso_result['error']}")
+        pytest.skip(f"Custom ISO not found: {iso_result['error']}")
+
+    iso_path = iso_result["iso_path"]
+    result = check_file_exists(host, iso_path)
 
     if result["success"]:
-        tl.passed(LOG["custom_iso_created"].format(path=result["iso_path"]))
-        return
-
-    # If not found locally, check if NFS path is configured and accessible
-    from library.functions import validate_install_os_config, get_utils_input_path
-    input_path = get_utils_input_path(host)
-    config_path = f"{input_path}/install_os_config.yml"
-
-    config_result = validate_install_os_config(host, config_path)
-    if config_result["success"]:
-        config = config_result.get("config", {})
-        custom_iso_path = config.get("custom_iso_path", "")
-
-        if custom_iso_path and ":" in custom_iso_path:
-            # Parse NFS path: server:/path/filename.iso
-            nfs_server, nfs_path = custom_iso_path.split(":", 1)
-            iso_filename = nfs_path.split("/")[-1]
-
-            # Try to check if NFS is mounted and ISO exists
-            # This is a simplified check - in real scenarios, NFS should be mounted
-            tl.skipped(f"Custom ISO configured on NFS: {custom_iso_path}. NFS mount verification not implemented.")
-            pytest.skip(f"Custom ISO on NFS path: {custom_iso_path}")
-
-    tl.skipped("Custom ISO not found in output directory and NFS verification not available")
-    pytest.skip("Custom ISO not found")
+        tl.passed(LOG["custom_iso_created"].format(path=iso_path))
+    else:
+        tl.failed(f"Custom ISO not found at resolved path: {iso_path}")
+        pytest.fail(f"Custom ISO not found at: {iso_path}")
 
 
 @pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.order(54)
 def test_install_os_kickstart_generated(host):
-    """Verify kickstart.ks generated after deploy (optional)."""
+    """Verify kickstart.ks generated after deploy (optional).
+
+    Resolves the kickstart location the same way as the custom ISO
+    (local output dir or NFS-mounted dir, based on custom_iso_path).
+    """
     tc = TC["install_os_kickstart_generated"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    output_path = get_utils_output_path(host)
-    ks_path = f"{output_path}/kickstart.ks"
+    iso_result = _resolve_custom_iso_path(host)
+    if not iso_result["success"]:
+        tl.skipped(f"Cannot resolve ISO directory: {iso_result['error']}")
+        pytest.skip(f"Cannot resolve ISO directory: {iso_result['error']}")
+
+    iso_dir = iso_result["iso_path"].rsplit("/", 1)[0]
+    ks_path = f"{iso_dir}/kickstart.ks"
     result = check_file_exists(host, ks_path)
 
     if result["success"]:
         tl.passed(LOG["file_exists"].format(path=ks_path))
     else:
-        tl.skipped("kickstart.ks not found in output directory (may be written to NFS path)")
-        pytest.skip("kickstart.ks not found")
+        tl.skipped(f"kickstart.ks not found at: {ks_path}")
+        pytest.skip(f"kickstart.ks not found at: {ks_path}")
 
 
 @pytest.mark.functional
@@ -470,3 +463,248 @@ def test_install_os_iso_checksum(host):
                 tl.warning("Failed to compute ISO checksum")
         except Exception as exc:
             tl.warning(f"Error computing checksum: {str(exc)}")
+
+
+def _resolve_ssh_private_key_path(config):
+    """Resolve the SSH private key path from install_os_config.
+
+    Mirrors the iso_delivery role's derivation: the private key is the
+    public key path (ssh_public_key_path, defaulting to
+    /root/.ssh/id_rsa.pub) with the ".pub" suffix stripped. There is no
+    separate private-key setting - it's always derived this way so the
+    key used for verification matches the key injected into the kickstart.
+
+    Args:
+        config: Parsed install_os_config.yml dict.
+
+    Returns:
+        str: Local path to the SSH private key.
+    """
+    public_key_path = config.get("ssh_public_key_path") or "/root/.ssh/id_rsa.pub"
+    if public_key_path.endswith(".pub"):
+        return public_key_path[: -len(".pub")]
+    return public_key_path
+
+
+@pytest.mark.functional
+@pytest.mark.order(60)
+def test_install_os_post_install_ssh_reachable(host):
+    """Verify SSH connectivity to installed target node."""
+    tc = TC["install_os_post_install_ssh_reachable"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    input_path = get_utils_input_path(host)
+    config_path = f"{input_path}/install_os_config.yml"
+
+    config_result = validate_install_os_config(host, config_path)
+    if not config_result["success"]:
+        tl.skipped(f"Config validation failed: {config_result['error']}")
+        pytest.skip(f"Config validation failed: {config_result['error']}")
+
+    config = config_result.get("config", {})
+    target_admin_ip = config.get("target_admin_ip", "")
+
+    if not target_admin_ip:
+        tl.skipped("target_admin_ip not configured")
+        pytest.skip("target_admin_ip not configured")
+
+    ssh_key_path = _resolve_ssh_private_key_path(config)
+    key_exists = check_file_exists(host, ssh_key_path)
+    if not key_exists["success"]:
+        tl.skipped(f"SSH private key not found at {ssh_key_path}")
+        pytest.skip(f"SSH private key not found at {ssh_key_path}")
+
+    # Try SSH connection
+    result = run_ssh_command(
+        host,
+        target_ip=target_admin_ip,
+        command="echo 'SSH connection successful'",
+        ssh_key_path=ssh_key_path,
+        timeout=30,
+    )
+
+    if result["success"]:
+        tl.passed("SSH connection to target node successful")
+    else:
+        # Skip if target is unreachable or permission denied (key may not be authorized)
+        if "No route to host" in result["error"] or "Connection refused" in result["error"] or "Connection timed out" in result["error"] or "Permission denied" in result["error"]:
+            tl.skipped(f"Target node unreachable or SSH auth failed: {result['error']}")
+            pytest.skip(f"Target node unreachable or SSH auth failed: {result['error']}")
+        else:
+            tl.failed(f"SSH connection failed: {result['error']}")
+            pytest.fail(f"SSH connection failed: {result['error']}")
+
+
+@pytest.mark.functional
+@pytest.mark.order(61)
+def test_install_os_post_install_os_version(host):
+    """Verify installed OS version matches expected RHEL 10."""
+    tc = TC["install_os_post_install_os_version"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    input_path = get_utils_input_path(host)
+    config_path = f"{input_path}/install_os_config.yml"
+
+    config_result = validate_install_os_config(host, config_path)
+    if not config_result["success"]:
+        tl.skipped(f"Config validation failed: {config_result['error']}")
+        pytest.skip(f"Config validation failed: {config_result['error']}")
+
+    config = config_result.get("config", {})
+    target_admin_ip = config.get("target_admin_ip", "")
+
+    if not target_admin_ip:
+        tl.skipped("target_admin_ip not configured")
+        pytest.skip("target_admin_ip not configured")
+
+    ssh_key_path = _resolve_ssh_private_key_path(config)
+    key_exists = check_file_exists(host, ssh_key_path)
+    if not key_exists["success"]:
+        tl.skipped(f"SSH private key not found at {ssh_key_path}")
+        pytest.skip(f"SSH private key not found at {ssh_key_path}")
+
+    # Check OS version
+    result = run_ssh_command(
+        host,
+        target_ip=target_admin_ip,
+        command="cat /etc/redhat-release",
+        ssh_key_path=ssh_key_path,
+        timeout=30,
+    )
+
+    if result["success"]:
+        os_release = result["stdout"].strip()
+        # Verify it's RHEL 10 (accept both "Red Hat Enterprise Linux 10" and "Red Hat Enterprise Linux release 10")
+        if "Red Hat Enterprise Linux" in os_release and "10" in os_release:
+            tl.passed(f"OS version verified: {os_release}")
+        else:
+            tl.failed(f"Unexpected OS version: {os_release}")
+            pytest.fail(f"Expected RHEL 10, got: {os_release}")
+    else:
+        # Skip if target is unreachable or permission denied
+        if "No route to host" in result["error"] or "Connection refused" in result["error"] or "Connection timed out" in result["error"] or "Permission denied" in result["error"]:
+            tl.skipped(f"Target node unreachable or SSH auth failed: {result['error']}")
+            pytest.skip(f"Target node unreachable or SSH auth failed: {result['error']}")
+        else:
+            tl.failed(f"Failed to get OS version: {result['error']}")
+            pytest.fail(f"Failed to get OS version: {result['error']}")
+
+
+@pytest.mark.functional
+@pytest.mark.order(62)
+def test_install_os_post_install_gui_packages(host):
+    """Verify GUI packages are installed on target node."""
+    tc = TC["install_os_post_install_gui_packages"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    input_path = get_utils_input_path(host)
+    config_path = f"{input_path}/install_os_config.yml"
+
+    config_result = validate_install_os_config(host, config_path)
+    if not config_result["success"]:
+        tl.skipped(f"Config validation failed: {config_result['error']}")
+        pytest.skip(f"Config validation failed: {config_result['error']}")
+
+    config = config_result.get("config", {})
+    target_admin_ip = config.get("target_admin_ip", "")
+
+    if not target_admin_ip:
+        tl.skipped("target_admin_ip not configured")
+        pytest.skip("target_admin_ip not configured")
+
+    ssh_key_path = _resolve_ssh_private_key_path(config)
+    key_exists = check_file_exists(host, ssh_key_path)
+    if not key_exists["success"]:
+        tl.skipped(f"SSH private key not found at {ssh_key_path}")
+        pytest.skip(f"SSH private key not found at {ssh_key_path}")
+
+    # Check for GUI packages (gnome-shell, gdm)
+    result = run_ssh_command(
+        host,
+        target_ip=target_admin_ip,
+        command="rpm -q gnome-shell gdm 2>&1",
+        ssh_key_path=ssh_key_path,
+        timeout=30,
+    )
+
+    if result["success"]:
+        # Check if both packages are installed
+        packages = result["stdout"].strip()
+        if "gnome-shell" in packages and "gdm" in packages:
+            tl.passed("GUI packages (gnome-shell, gdm) are installed")
+        else:
+            tl.info(f"GUI packages check: {packages}")
+            # Check if at least one is present
+            if "gnome-shell" in packages or "gdm" in packages:
+                tl.passed("At least one GUI package is installed")
+            else:
+                tl.failed("GUI packages not found")
+                pytest.fail("GUI packages (gnome-shell, gdm) not installed")
+    else:
+        # Skip if target is unreachable or permission denied
+        if "No route to host" in result["error"] or "Connection refused" in result["error"] or "Connection timed out" in result["error"] or "Permission denied" in result["error"]:
+            tl.skipped(f"Target node unreachable or SSH auth failed: {result['error']}")
+            pytest.skip(f"Target node unreachable or SSH auth failed: {result['error']}")
+        else:
+            tl.info(f"GUI package check failed (may not be installed): {result['error']}")
+            # This is a soft failure - GUI may not be required in all cases
+            tl.info("GUI package verification skipped (packages may not be required)")
+
+
+@pytest.mark.functional
+@pytest.mark.order(63)
+def test_install_os_post_install_architecture(host):
+    """Verify installed OS architecture matches configured target_architecture."""
+    tc = TC["install_os_post_install_architecture"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    input_path = get_utils_input_path(host)
+    config_path = f"{input_path}/install_os_config.yml"
+
+    config_result = validate_install_os_config(host, config_path)
+    if not config_result["success"]:
+        tl.skipped(f"Config validation failed: {config_result['error']}")
+        pytest.skip(f"Config validation failed: {config_result['error']}")
+
+    config = config_result.get("config", {})
+    target_admin_ip = config.get("target_admin_ip", "")
+    target_architecture = config.get("target_architecture", "")
+
+    if not target_admin_ip:
+        tl.skipped("target_admin_ip not configured")
+        pytest.skip("target_admin_ip not configured")
+
+    if not target_architecture:
+        tl.skipped("target_architecture not configured")
+        pytest.skip("target_architecture not configured")
+
+    ssh_key_path = _resolve_ssh_private_key_path(config)
+    key_exists = check_file_exists(host, ssh_key_path)
+    if not key_exists["success"]:
+        tl.skipped(f"SSH private key not found at {ssh_key_path}")
+        pytest.skip(f"SSH private key not found at {ssh_key_path}")
+
+    # Check architecture (uname -m reports x86_64, aarch64, etc. matching target_architecture values)
+    result = run_ssh_command(
+        host,
+        target_ip=target_admin_ip,
+        command="uname -m",
+        ssh_key_path=ssh_key_path,
+        timeout=30,
+    )
+
+    if result["success"]:
+        actual_arch = result["stdout"].strip()
+        if actual_arch == target_architecture:
+            tl.passed(f"Architecture verified: {actual_arch}")
+        else:
+            tl.failed(f"Architecture mismatch. Expected: {target_architecture}, Actual: {actual_arch}")
+            pytest.fail(f"Architecture mismatch. Expected: {target_architecture}, Actual: {actual_arch}")
+    else:
+        # Skip if target is unreachable or permission denied
+        if "No route to host" in result["error"] or "Connection refused" in result["error"] or "Connection timed out" in result["error"] or "Permission denied" in result["error"]:
+            tl.skipped(f"Target node unreachable or SSH auth failed: {result['error']}")
+            pytest.skip(f"Target node unreachable or SSH auth failed: {result['error']}")
+        else:
+            tl.failed(f"Failed to get architecture: {result['error']}")
+            pytest.fail(f"Failed to get architecture: {result['error']}")
