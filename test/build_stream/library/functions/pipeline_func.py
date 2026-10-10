@@ -1540,6 +1540,157 @@ def get_image_groups_for_job(host, job_id: str) -> Dict[str, Any]:
     return result
 
 
+def check_automatic_cleanup_runtime(host) -> Dict[str, Any]:
+    """Validate deployed integer retention settings and cleanup services."""
+    config_path = (
+        f"{resolve_build_stream_input_path(host)}/{BUILD_STREAM_CONFIG_FILE}"
+    )
+    try:
+        config = read_remote_yaml(host, config_path)
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return {"success": False, "error": f"Unable to read {config_path}: {exc}"}
+    retention = config.get("retention") if isinstance(config, dict) else None
+    if not isinstance(retention, dict):
+        return {"success": False, "error": f"retention mapping is missing from {config_path}"}
+    errors = []
+    if retention.get("auto_cleanup_enabled") is not True:
+        errors.append("retention.auto_cleanup_enabled must be true")
+    for key, minimum in (("retention_age_days", 1), ("evaluation_interval_hours", 1)):
+        value = retention.get(key)
+        if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+            errors.append(f"retention.{key} must be an integer >= {minimum}")
+    min_keep = retention.get("min_keep_count")
+    if isinstance(min_keep, bool) or not isinstance(min_keep, int) or min_keep < 0:
+        errors.append("retention.min_keep_count must be an integer >= 0")
+    for service in ("omnia_build_stream.service", "playbook-watcher.service"):
+        if run_on_host(host, f"systemctl is-active --quiet {service}").rc != 0:
+            errors.append(f"{service} must be active")
+    return {
+        "success": not errors,
+        "config_path": config_path,
+        "error": "; ".join(errors),
+    }
+
+
+def check_automatic_cleanup_target(host, job_id: str) -> Dict[str, Any]:
+    """Validate that automatic-cleanup execution can only affect one explicit job."""
+    result = {
+        "success": False,
+        "image_group_id": "",
+        "failed_count": 0,
+        "error": "",
+    }
+    if not re.fullmatch(
+        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+        r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        str(job_id),
+    ):
+        result["error"] = "automatic_cleanup_job_id must be a valid UUID"
+        return result
+
+    query = _exec_psql(
+        host,
+        "SELECT job_id, id FROM image_groups WHERE status = 'FAILED' "
+        "ORDER BY created_at",
+    )
+    if not query["success"]:
+        result["error"] = query["error"]
+        return result
+    failed = []
+    for row in query["rows"]:
+        parts = [part.strip() for part in row.split("|")]
+        if len(parts) >= 2:
+            failed.append((parts[0], parts[1]))
+    result["failed_count"] = len(failed)
+    if len(failed) != 1:
+        result["error"] = (
+            "Automatic cleanup acts on every FAILED ImageGroup; expected exactly "
+            f"one explicit test target, found {len(failed)}"
+        )
+        return result
+    if failed[0][0] != job_id:
+        result["error"] = (
+            f"The only FAILED ImageGroup belongs to job {failed[0][0]}, not "
+            f"configured automatic_cleanup_job_id {job_id}"
+        )
+        return result
+    result.update({"success": True, "image_group_id": failed[0][1]})
+    return result
+
+
+def run_automatic_cleanup_cycle(host, job_id: str) -> Dict[str, Any]:
+    """Run the production cleanup cron after validating its sole FAILED target."""
+    target = check_automatic_cleanup_target(host, job_id)
+    if not target["success"]:
+        return target
+    command = (
+        "podman exec omnia_build_stream python3 "
+        "/opt/omnia/build_stream/cleanup_cron.py"
+    )
+    execution = run_on_host(host, command)
+    return {
+        "success": execution.rc == 0,
+        "image_group_id": target["image_group_id"],
+        "rc": execution.rc,
+        "stdout": execution.stdout,
+        "stderr": execution.stderr,
+        "error": "" if execution.rc == 0 else (
+            f"Automatic cleanup cron exited with rc={execution.rc}: "
+            f"{execution.stderr or execution.stdout}"
+        ),
+    }
+
+
+def wait_for_automatic_cleanup(
+    host, job_id: str, image_group_id: str, timeout: int = 900,
+) -> Dict[str, Any]:
+    """Wait for the explicit automatic-cleanup target to reach CLEANED."""
+    deadline = time.time() + timeout
+    last_status = ""
+    while time.time() < deadline:
+        groups = get_image_groups_for_job(host, job_id)
+        if not groups["success"]:
+            return {"success": False, "status": last_status, "error": groups["error"]}
+        group = next(
+            (item for item in groups["image_groups"] if item["id"] == image_group_id),
+            None,
+        )
+        if group is None:
+            return {
+                "success": False,
+                "status": last_status,
+                "error": f"ImageGroup {image_group_id} no longer exists",
+            }
+        last_status = group["status"]
+        if last_status == "CLEANED":
+            log_path = resolve_omnia_path(
+                host, "build_stream", "log", job_id, f"{job_id}.log"
+            )
+            evidence = run_on_host(
+                host,
+                "grep -E 'Cleanup submitted:.*type=auto|Cleanup completed:.*"
+                "finalized to CLEANED' " + shlex.quote(log_path),
+            )
+            if evidence.rc != 0:
+                return {
+                    "success": False,
+                    "status": last_status,
+                    "error": "CLEANED status lacks type=auto cleanup log evidence",
+                }
+            return {
+                "success": True,
+                "status": last_status,
+                "evidence": evidence.stdout,
+                "error": "",
+            }
+        time.sleep(STAGE_POLL_INTERVAL)
+    return {
+        "success": False,
+        "status": last_status,
+        "error": f"Timed out waiting for {image_group_id} to reach CLEANED",
+    }
+
+
 def get_catalog_identity_for_job(host, job_id: str) -> Dict[str, Any]:
     """Return job and image-group catalog identities from PostgreSQL."""
     result = {
@@ -4000,7 +4151,7 @@ def push_catalog_from_examples(  # pylint: disable=too-many-locals
         result["error"] = (
             "catalog_path must be a relative JSON path below "
             "src/main/samples/catalogs (for example, "
-            "rhel/10.0/slurm_x86_64_no_vast.json)"
+            "rhel/10.2/slurm_x86_64_no_vast.json)"
         )
         return result
 

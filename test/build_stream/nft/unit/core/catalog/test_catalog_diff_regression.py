@@ -117,8 +117,8 @@ def _generate_adapter_output(catalog_path):
 # Files that are expected to be missing because the examples software_config
 # does not include the additional_packages bundle.
 _KNOWN_MISSING = {
-    ("aarch64/rhel/10.0", "additional_packages.json"),
-    ("x86_64/rhel/10.0", "additional_packages.json"),
+    ("aarch64/rhel/10.2", "additional_packages.json"),
+    ("x86_64/rhel/10.2", "additional_packages.json"),
 }
 
 

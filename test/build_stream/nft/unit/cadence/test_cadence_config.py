@@ -86,7 +86,7 @@ cadence:
             )
 
     @pytest.mark.unit
-    def test_interval_days_below_one_is_rejected(self, temp_dir):
+    def test_interval_days_below_minimum_is_rejected(self, temp_dir):
         """TC-UT-001-003: Runtime matches the schema minimum of one day."""
         config_file = temp_dir / "build_stream_config.yml"
         config_file.write_text(
@@ -95,6 +95,22 @@ cadence:
         )
 
         with pytest.raises(ValueError, match="interval_days"):
+            _load_unified_config(
+                str(config_file),
+                _defaults(),
+                strict=True,
+            )
+
+    @pytest.mark.unit
+    def test_fractional_interval_days_is_rejected(self, temp_dir):
+        """TC-UT-001-003b: Runtime rejects fractional day intervals."""
+        config_file = temp_dir / "build_stream_config.yml"
+        config_file.write_text(
+            "cadence:\n  enabled: true\n  interval_days: 0.5\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="must be an integer"):
             _load_unified_config(
                 str(config_file),
                 _defaults(),

@@ -170,6 +170,10 @@ def _run_retention_evaluation(  # pylint: disable=too-many-arguments,too-many-po
     from core.jobs.entities import (  # pylint: disable=import-outside-toplevel
         AuditEvent,
     )
+    from core.jobs.value_objects import (  # pylint: disable=import-outside-toplevel
+        ClientId,
+        CorrelationId,
+    )
     audit_repo = SqlAuditEventRepository(session=session)
     uuid_gen = UUIDv4Generator()
 
@@ -186,8 +190,10 @@ def _run_retention_evaluation(  # pylint: disable=too-many-arguments,too-many-po
             )
             audit_event = AuditEvent(
                 event_id=str(uuid_gen.generate()),
-                job_id=job_id_str,
+                job_id=ig.job_id,
                 event_type="RETENTION_DELETED",
+                correlation_id=CorrelationId(correlation_id),
+                client_id=ClientId("cron"),
                 details={
                     "image_group_id": str(ig.id),
                     "age_days": age_days,
@@ -198,7 +204,7 @@ def _run_retention_evaluation(  # pylint: disable=too-many-arguments,too-many-po
                     ),
                     "correlation_id": correlation_id,
                 },
-                created_at=datetime.now(timezone.utc),
+                timestamp=datetime.now(timezone.utc),
             )
             audit_repo.save(audit_event)
             session.commit()
@@ -232,6 +238,11 @@ def _run_retention_evaluation(  # pylint: disable=too-many-arguments,too-many-po
     return deleted, errors
 
 
+def _new_correlation_id() -> str:
+    """Return an audit-safe UUID correlation identifier."""
+    return str(uuid.uuid4())
+
+
 def main(retention_config: Optional[RetentionConfig] = None) -> int:
     """Run one pass of automated cleanup.
 
@@ -246,7 +257,7 @@ def main(retention_config: Optional[RetentionConfig] = None) -> int:
     started_at = datetime.now(timezone.utc).isoformat().replace(
         "+00:00", "Z"
     )
-    correlation_id = f"cron-{uuid.uuid4()}"
+    correlation_id = _new_correlation_id()
 
     log_secure_info(
         "info",

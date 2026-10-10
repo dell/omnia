@@ -38,7 +38,9 @@ from core.jobs.value_objects import (
     StageState,
 )
 from core.localrepo.entities import PlaybookResult
+from infra.repositories.in_memory import InMemoryImageGroupRepository
 from orchestrator.common.result_poller import ResultPoller
+from orchestrator.cleanup.retention_config import RetentionConfig
 
 
 # --- Mock dependencies ---
@@ -522,6 +524,173 @@ class TestRetentionEligibility:
         )
         eligible_ids = {str(ig.id) for ig in eligible}
         assert eligible_ids == {"eligible-v1", "eligible-failed-v1"}
+
+    def test_min_keep_count_keeps_newest_groups_per_catalog(self):
+        """Only the oldest excess groups are eligible within each catalog."""
+        repo = InMemoryImageGroupRepository()
+        now = datetime.now(timezone.utc)
+        for index, age in enumerate((150, 140, 130, 120), start=1):
+            repo.save(ImageGroup(
+                id=ImageGroupId(f"catalog-a-v{index}"),
+                job_id=JobId(str(uuid.uuid4())),
+                status=ImageGroupStatus.BUILT,
+                catalog_identifier="catalog-a",
+                deploy_count=0,
+                is_protected=False,
+                created_at=now - timedelta(days=age),
+            ))
+
+        eligible = repo.list_eligible_for_retention(
+            max_age_days=90, min_keep_count=2
+        )
+
+        assert [str(group.id) for group in eligible] == [
+            "catalog-a-v1", "catalog-a-v2",
+        ]
+
+    def test_min_keep_count_is_enforced_independently_per_catalog(self):
+        """Multiple catalogs retain their own configured minimum count."""
+        repo = InMemoryImageGroupRepository()
+        now = datetime.now(timezone.utc)
+        for catalog in ("catalog-a", "catalog-b"):
+            for index, age in enumerate((130, 120, 110), start=1):
+                repo.save(ImageGroup(
+                    id=ImageGroupId(f"{catalog}-v{index}"),
+                    job_id=JobId(str(uuid.uuid4())),
+                    status=ImageGroupStatus.BUILT,
+                    catalog_identifier=catalog,
+                    deploy_count=0,
+                    is_protected=False,
+                    created_at=now - timedelta(days=age),
+                ))
+
+        eligible = repo.list_eligible_for_retention(
+            max_age_days=90, min_keep_count=1
+        )
+
+        assert {str(group.id) for group in eligible} == {
+            "catalog-a-v1", "catalog-a-v2",
+            "catalog-b-v1", "catalog-b-v2",
+        }
+
+
+# =========================================================================
+# Test Class: Retention Evaluation Failure Isolation
+# =========================================================================
+
+class TestRetentionEvaluationFailures:
+    """Retention errors roll back locally and do not stop later groups."""
+
+    def test_cron_correlation_id_fits_audit_column(self):
+        """Cron correlations are UUIDs that fit the varchar(36) contract."""
+        from cleanup_cron import _new_correlation_id
+
+        correlation_id = _new_correlation_id()
+
+        assert len(correlation_id) == 36
+        assert str(uuid.UUID(correlation_id)) == correlation_id
+
+    @staticmethod
+    def _groups():
+        now = datetime.now(timezone.utc)
+        return [
+            ImageGroup(
+                id=ImageGroupId(f"retention-v{index}"),
+                job_id=JobId(str(uuid.uuid4())),
+                status=ImageGroupStatus.BUILT,
+                catalog_identifier="retention-test",
+                deploy_count=0,
+                is_protected=False,
+                created_at=now - timedelta(days=100 + index),
+            )
+            for index in (1, 2)
+        ]
+
+    def test_one_cleanup_failure_does_not_stop_later_groups(self):
+        """A failed first cleanup still executes the next eligible group."""
+        from cleanup_cron import _run_retention_evaluation
+
+        groups = self._groups()
+        repo = type("Repo", (), {
+            "list_eligible_for_retention": lambda self, **_kwargs: groups,
+        })()
+        calls = []
+
+        class UseCase:
+            def execute_auto(self, job_id_str, **_kwargs):
+                calls.append(job_id_str)
+                if len(calls) == 1:
+                    raise RuntimeError("first cleanup failed")
+
+        session = type("Session", (), {
+            "commits": 0,
+            "rollbacks": 0,
+            "commit": lambda self: setattr(self, "commits", self.commits + 1),
+            "rollback": lambda self: setattr(
+                self, "rollbacks", self.rollbacks + 1
+            ),
+        })()
+        audit_repo = type("AuditRepo", (), {"save": lambda self, _event: None})()
+
+        with patch(
+            "infra.db.repositories.SqlAuditEventRepository",
+            return_value=audit_repo,
+        ):
+            deleted, errors = _run_retention_evaluation(
+                session, repo, UseCase(), str(uuid.uuid4()),
+                RetentionConfig(retention_age_days=90, min_keep_count=0),
+            )
+
+        assert calls == [str(group.job_id) for group in groups]
+        assert (deleted, errors) == (1, 1)
+        assert session.commits == 1
+        assert session.rollbacks == 1
+
+    def test_audit_failure_rolls_back_and_next_group_succeeds(self):
+        """An audit insert failure rolls back before processing continues."""
+        from cleanup_cron import _run_retention_evaluation
+
+        groups = self._groups()
+        repo = type("Repo", (), {
+            "list_eligible_for_retention": lambda self, **_kwargs: groups,
+        })()
+        calls = []
+
+        class UseCase:
+            def execute_auto(self, job_id_str, **_kwargs):
+                calls.append(job_id_str)
+
+        class AuditRepo:
+            def __init__(self):
+                self.calls = 0
+
+            def save(self, _event):
+                self.calls += 1
+                if self.calls == 1:
+                    raise ValueError("correlation_id exceeds varchar(36)")
+
+        session = type("Session", (), {
+            "commits": 0,
+            "rollbacks": 0,
+            "commit": lambda self: setattr(self, "commits", self.commits + 1),
+            "rollback": lambda self: setattr(
+                self, "rollbacks", self.rollbacks + 1
+            ),
+        })()
+
+        with patch(
+            "infra.db.repositories.SqlAuditEventRepository",
+            return_value=AuditRepo(),
+        ):
+            deleted, errors = _run_retention_evaluation(
+                session, repo, UseCase(), str(uuid.uuid4()),
+                RetentionConfig(retention_age_days=90, min_keep_count=0),
+            )
+
+        assert calls == [str(group.job_id) for group in groups]
+        assert (deleted, errors) == (1, 1)
+        assert session.rollbacks == 1
+        assert session.commits == 1
 
 
 # =========================================================================

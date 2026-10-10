@@ -14,6 +14,7 @@ The automation covers the complete BuildStream lifecycle:
 | `build_pipeline` | Upload a catalog, build images, and validate database, registry, and S3 artifacts | Build/deploy lifecycle |
 | `deploy_pipeline` | Select the image group bound to `job_id`, run deploy/restart/validate, and verify the final state | Build/deploy lifecycle |
 | `cadence_pipeline` | Trigger the cadence watcher and validate its repository sync plus unified eight-job lifecycle | Default lifecycle |
+| `automatic_cleanup` | Execute and verify automatic cleanup for one explicitly configured failed Job | Explicit destructive suite; excluded from lifecycles |
 | `buildstream_cleanup` | Remove and validate GitLab and BuildStream resources | Explicit tag |
 | `cleanup_pipeline` | Delete one built image group's database, S3, and registry artifacts through GitLab CI | Explicit suite |
 | `manual` | Trigger build or deploy with `PIPELINE_TYPE` instead of a catalog-change pipeline | Explicit suite |
@@ -120,12 +121,17 @@ The shared `job_id` remains the single source of truth:
 
 Cadence service controls such as `enabled` and polling intervals remain product
 configuration in `build_stream_config.yml`; the test configuration does not
-duplicate them.
+duplicate them. `interval_days` remains an integer with a minimum of one day.
+The fast NFT timer test uses a controlled wait expiry (not the manual trigger)
+to prove that `interval_days: 1` becomes 86400 seconds and starts one automatic
+cycle. Real wall-clock automatic triggering requires a one-day soak and is not
+part of sanity.
 
 ## FVT scenarios
 
 | Scenario | Purpose | Suites |
 |---|---|---|
+| `automatic_cleanup` | Run production automatic cleanup for an explicit sole failed target | `automatic_cleanup` |
 | `buildstream_cleanup` | Run one explicitly selected cleanup operation | `gitlab_cleanup`, `buildstream_cleanup`, `cleanup_pipeline` |
 | `buildstream_install` | Install and verify GitLab and BuildStream services | `health`, `buildstream_install` |
 | `build_pipeline` | Trigger and verify the image build pipeline | `build_pipeline`, `manual` |
@@ -135,10 +141,10 @@ duplicate them.
 An untagged FVT command runs the default `sanity` lifecycle in this order:
 `buildstream_install`, then `cadence_pipeline`. For `test`,
 each scenario is executed and verified before the runner advances. The
-lifecycle stops at the first failure. Cleanup is excluded from untagged
-commands and requires exactly one explicit `buildstream_cleanup` suite. This
-prevents GitLab cleanup, BuildStream cleanup, and image cleanup from running
-together accidentally.
+lifecycle stops at the first failure. Cleanup and automatic cleanup are
+excluded from untagged commands and require one explicit suite. This prevents
+GitLab cleanup, BuildStream cleanup, image cleanup, and the automatic cleanup
+cron from running together accidentally.
 
 The named `build_deploy_lifecycle` group runs `buildstream_install`,
 `build_pipeline`, then `deploy_pipeline` through the same ordered execution,
@@ -181,6 +187,10 @@ The same lifecycle and explicit-only labels are displayed by both
 
 # Trigger watcher repo sync and verify all eight cadence jobs
 ./run_validation.sh fvt_build_stream cadence_pipeline test --marker sanity
+
+# Automatic cleanup (requires explicit failed Job ID and approval in test_config.yml)
+./run_validation.sh fvt_build_stream automatic_cleanup test \
+  --suite automatic_cleanup --marker sanity
 
 # Explicit GitLab cleanup
 ./run_validation.sh fvt_build_stream buildstream_cleanup test \
@@ -249,6 +259,22 @@ catalog with `[skip ci]`, triggers `PIPELINE_TYPE=build`, and persists the new
   --suite manual --marker manual
 ./run_validation.sh fvt_build_stream deploy_pipeline test \
   --suite manual --marker manual
+```
+
+Automatic cleanup is also destructive and explicit, but it is not a GitLab
+pipeline. Configure `automatic_cleanup_job_id` with a dedicated failed Job and
+set `automatic_cleanup_allow_execution: true`. Execution refuses to continue
+unless that Job owns the only `FAILED` ImageGroup, because the production cron
+cleans every failed group. `exec` invokes the deployed cron, `verify` only
+checks the saved target, and `test` runs both phases.
+
+```bash
+./run_validation.sh fvt_build_stream automatic_cleanup exec \
+  --suite automatic_cleanup --marker sanity
+./run_validation.sh fvt_build_stream automatic_cleanup verify \
+  --suite automatic_cleanup --marker sanity
+./run_validation.sh fvt_build_stream automatic_cleanup test \
+  --suite automatic_cleanup --marker sanity
 ```
 
 The image cleanup pipeline is destructive and explicit. It resolves the image
@@ -339,8 +365,8 @@ values.
 They also always load the catalog selected by `catalog_path` below
 `src/main/samples/catalogs/`, give its catalog identifier a unique value, and
 replace the canonical `catalog_rhel.json` in GitLab. For example,
-`catalog_path: "rhel/10.0/slurm_service_k8s_x86_64_no_vast.json"` selects the
-RHEL 10.0 Slurm and Kubernetes catalog. A path under `hybrid/` selects a
+`catalog_path: "rhel/10.2/slurm_service_k8s_x86_64_no_vast.json"` selects the
+RHEL 10.2 Slurm and Kubernetes catalog. A path under `hybrid/` selects a
 mixed-RHEL-version catalog. Only a pipeline created after that upload is
 accepted as the pipeline for the current execution.
 

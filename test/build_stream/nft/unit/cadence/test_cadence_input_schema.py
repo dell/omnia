@@ -68,6 +68,7 @@ def test_cadence_schema_accepts_supported_boundaries():
     [
         ("enabled", "true"),
         ("interval_days", 0),
+        ("interval_days", 0.5),
         ("interval_days", True),
         ("sync_timeout_seconds", 59),
         ("sync_poll_interval_seconds", 0),

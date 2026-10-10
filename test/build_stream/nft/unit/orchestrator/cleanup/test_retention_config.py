@@ -78,6 +78,17 @@ def test_values_are_read_from_config(tmp_path):
     )
 
 
+def test_fractional_values_are_rejected(tmp_path):
+    """Fractional age and interval values keep the last good settings."""
+    path = _write(tmp_path / "c.yml", {"retention": {
+        "retention_age_days": 0.5,
+        "evaluation_interval_hours": 0.5,
+    }})
+    last_good = RetentionConfig(retention_age_days=30)
+
+    assert load_retention_config(path, fallback=last_good) == last_good
+
+
 def test_partial_group_fills_missing_keys_with_defaults(tmp_path):
     """Keys absent from the retention group keep the defaults."""
     path = _write(tmp_path / "c.yml", {"retention": {"retention_age_days": 120}})
@@ -90,10 +101,12 @@ def test_partial_group_fills_missing_keys_with_defaults(tmp_path):
 
 @pytest.mark.parametrize("section", [
     {"retention_age_days": 0},
+    {"retention_age_days": 0.5},
     {"retention_age_days": "90"},
     {"retention_age_days": True},
     {"min_keep_count": -1},
     {"evaluation_interval_hours": 0},
+    {"evaluation_interval_hours": 0.5},
     {"auto_cleanup_enabled": "yes"},
     {"unknown_key": 1},
 ])

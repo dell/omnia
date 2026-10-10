@@ -109,6 +109,7 @@ def validate_test_config() -> Dict[str, Any]:
     boolean_fields = (
         "sync_build_stream_input",
         "allow_pipeline_cancel",
+        "automatic_cleanup_allow_execution",
         "nft_allow_pipeline_cancel",
         "nft_allow_service_restart",
         "nft_allow_active_stage_restart",
