@@ -8,6 +8,25 @@ Run command: export LDMS_REPO=<PATH_TO_LDMS_CLONE>
     exit 1
 fi
 
+# Input validation functions
+validate_repo_url() {
+    local url="$1"
+    # Must be valid URL format (http/https)
+    if [[ ! $url =~ ^https?://[a-zA-Z0-9._/-]+$ ]]; then
+        echo "Error: Invalid repo URL format" >&2
+        return 1
+    fi
+}
+
+validate_repo_name() {
+    local name="$1"
+    # Alphanumeric, underscore, dash only
+    if [[ ! $name =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        echo "Error: Invalid repo name format" >&2
+        return 1
+    fi
+}
+
 # Take inputs
 if [ $# -lt 2 ]; then
     echo "Warning: slurm repo_url and slurm repo_name are not set"
@@ -15,6 +34,19 @@ fi
 
 REPO_URL="$1"
 REPO_NAME="$2"
+
+# Validate inputs if provided
+if [[ -n "$REPO_URL" ]]; then
+    if ! validate_repo_url "$REPO_URL"; then
+        exit 1
+    fi
+fi
+
+if [[ -n "$REPO_NAME" ]]; then
+    if ! validate_repo_name "$REPO_NAME"; then
+        exit 1
+    fi
+fi
 
 export LDMS_REPO="$(readlink -f "$LDMS_REPO")"
 
@@ -49,19 +81,21 @@ if [[ -z "$REPO_URL" && -z "$REPO_NAME" ]]; then
     --mount type=bind,source="$LDMS_REPO",target=/builds/ovis,z \
     --mount type=bind,source="$SCRIPT_DIR",target=/builds/scripts,z \
     rockylinux:10.0 \
-    bash -c "
-        echo 'Running LDMS build...'
+    bash -c '
+        echo "Running LDMS build..."
         pushd /builds/ovis/ && /builds/scripts/build_ldms.rockylinux10.bash
-    "
+    '
 else
     podman run -it --rm \
     --arch "$ARCH_NAME" \
     --mount type=bind,source="$LDMS_REPO",target=/builds/ovis,z \
     --mount type=bind,source="$SCRIPT_DIR",target=/builds/scripts,z \
+    -e REPO_URL="$REPO_URL" \
+    -e REPO_NAME="$REPO_NAME" \
     rockylinux:10.0 \
-    bash -c "
-        echo 'Configuring repo inside container...'
-        cat <<EOF > /etc/yum.repos.d/${REPO_NAME}.repo
+    bash -c '
+        echo "Configuring repo inside container..."
+        cat > /etc/yum.repos.d/"${REPO_NAME}".repo <<EOF
 [${REPO_NAME}]
 name=${REPO_NAME}
 baseurl=${REPO_URL}
@@ -71,7 +105,7 @@ EOF
 
         dnf clean all && dnf repolist
 
-        echo 'Running LDMS build...'
+        echo "Running LDMS build..."
         pushd /builds/ovis/ && /builds/scripts/build_ldms.rockylinux10.bash
-    "
+    '
 fi
