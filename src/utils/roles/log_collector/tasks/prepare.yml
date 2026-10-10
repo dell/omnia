@@ -42,8 +42,12 @@
     slurm_nodes_x86: "{{ _grouped | selectattr('key', 'match', slurm_nodes_x86_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
     slurm_nodes_arm: "{{ _grouped | selectattr('key', 'match', slurm_nodes_arm_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
     login_nodes: "{{ _grouped | selectattr('key', 'match', login_nodes_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
-    login_compiler_nodes_x86: "{{ _grouped | selectattr('key', 'match', login_compiler_nodes_x86_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
-    login_compiler_nodes_arm: "{{ _grouped | selectattr('key', 'match', login_compiler_nodes_arm_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
+    login_compiler_nodes_x86: >-
+      {{ _grouped | selectattr('key', 'match', login_compiler_nodes_x86_pattern)
+      | map(attribute='value') | map('default', [], true) | flatten }}
+    login_compiler_nodes_arm: >-
+      {{ _grouped | selectattr('key', 'match', login_compiler_nodes_arm_pattern)
+      | map(attribute='value') | map('default', [], true) | flatten }}
 
 - name: Combine slurm nodes from both architectures
   ansible.builtin.set_fact:
