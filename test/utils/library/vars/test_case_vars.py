@@ -243,6 +243,22 @@ TEST_CASES = {
         "id": "UTILS_FVT_INSTALL_OS_V008",
         "title": "Verify kickstart.ks file generated",
     },
+    "install_os_grub_config_in_iso": {
+        "id": "UTILS_FVT_INSTALL_OS_V009",
+        "title": "Verify GRUB config in ISO references correct kickstart path",
+    },
+    "install_os_kickstart_in_iso": {
+        "id": "UTILS_FVT_INSTALL_OS_V010",
+        "title": "Verify kickstart configuration is embedded in ISO",
+    },
+    "install_os_manifest_exists": {
+        "id": "UTILS_FVT_INSTALL_OS_V011",
+        "title": "Verify install_os_manifest.yml exists with correct structure",
+    },
+    "install_os_iso_checksum": {
+        "id": "UTILS_FVT_INSTALL_OS_V012",
+        "title": "Verify custom ISO checksum matches expected value",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # CLEANUP_LOGS SCENARIO

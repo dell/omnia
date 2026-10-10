@@ -54,6 +54,7 @@ from .utils_func import (
     find_custom_iso,
     verify_iso_checksum,
     verify_kickstart_in_iso,
+    resolve_nfs_path_to_local,
 )
 
 from .host_func import (
@@ -175,6 +176,7 @@ __all__ = [
     "find_custom_iso",
     "verify_iso_checksum",
     "verify_kickstart_in_iso",
+    "resolve_nfs_path_to_local",
     "sync_project_to_remote",
     "sync_utils_input",
     "sync_install_os_credentials",

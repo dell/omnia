@@ -874,6 +874,72 @@ def validate_install_os_credentials(host, path: str) -> Dict[str, Any]:
     }
 
 
+def resolve_nfs_path_to_local(host, nfs_uri: str) -> Dict[str, Any]:
+    """Resolve an NFS URI ("server:/export/dir/file") to a local mounted path.
+
+    Mirrors the resolution logic used by the iso_creation role: finds an
+    existing mount for the NFS server whose exported path covers the
+    requested directory, then maps the remaining relative path onto the
+    local mount point. Does not mount anything itself - the NFS share must
+    already be mounted (e.g., by a prior playbook run).
+
+    Args:
+        host: Testinfra host object.
+        nfs_uri: NFS URI in "server:/path/filename" format.
+
+    Returns:
+        dict: {"success": bool, "local_path": str, "error": str}
+    """
+    try:
+        if ":" not in nfs_uri:
+            return {
+                "success": False,
+                "local_path": "",
+                "error": f"Invalid NFS URI (missing ':'): {nfs_uri}",
+            }
+
+        nfs_server, nfs_path = nfs_uri.split(":", 1)
+        nfs_dir = nfs_path.rsplit("/", 1)[0] if "/" in nfs_path else nfs_path
+        filename = nfs_path.rsplit("/", 1)[-1]
+
+        cmd = f"mount | grep '{nfs_server}:' | awk '{{print $1 \" \" $3}}'"
+        result = host.run(cmd)
+
+        if result.rc != 0 or not result.stdout.strip():
+            return {
+                "success": False,
+                "local_path": "",
+                "error": f"NFS server '{nfs_server}' is not mounted locally",
+            }
+
+        for line in result.stdout.strip().splitlines():
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            mount_src, local_mount = parts[0], parts[1]
+            nfs_export = mount_src.split(":", 1)[1] if ":" in mount_src else ""
+            if nfs_dir == nfs_export or nfs_dir.startswith(nfs_export.rstrip("/") + "/"):
+                rel_path = nfs_dir[len(nfs_export):].strip("/")
+                local_dir = f"{local_mount}/{rel_path}" if rel_path else local_mount
+                return {
+                    "success": True,
+                    "local_path": f"{local_dir}/{filename}",
+                    "error": "",
+                }
+
+        return {
+            "success": False,
+            "local_path": "",
+            "error": f"No local mount covers NFS directory '{nfs_dir}' on server '{nfs_server}'",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "local_path": "",
+            "error": str(exc),
+        }
+
+
 def find_custom_iso(host, output_dir: str) -> Dict[str, Any]:
     """Find custom ISO file in output directory.
 
