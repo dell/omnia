@@ -18,9 +18,10 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 
 # ---------------------------------------------------------------------------
 # Local work directory on the aarch64 node (no NFS mount required)
-# Derived from OMNIA_DATA_PATH on the OIM; aarch64 node uses the same base path.
+# Same root as the OIM domain data dir (shared_path = IMAGE_BUILD_MANAGER_DATA_PATH,
+# default <OMNIA_DATA_PATH>/image_build_manager); aarch64 node uses the same path.
 # ---------------------------------------------------------------------------
-aarch64_work_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/image_build_manager"
+aarch64_work_dir: "{{ hostvars['localhost']['shared_path'] }}"
 ochami_aarch_64_dir: "{{ aarch64_work_dir }}/openchami/aarch64"
 
 # ---------------------------------------------------------------------------
@@ -45,7 +46,7 @@ regctl_bin_path: "/usr/local/bin/regctl"
 
 # regctl for aarch64 — downloaded on OIM first, then SCP'd to aarch64 node
 regctl_download_url: "https://github.com/regclient/regclient/releases/latest/download/regctl-linux-arm64"
-regctl_oim_staging_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/image_build_manager/aarch64"
+regctl_oim_staging_dir: "{{ aarch64_work_dir }}/aarch64"
 regctl_oim_staging_path: "{{ regctl_oim_staging_dir }}/regctl-linux-arm64"
 
 # Permissions constants

@@ -200,8 +200,8 @@ _check_existing_files() {
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Copy flat input/ files to the runtime project directory
-# Source:  src/<domain>/input/            (flat — no project subdirectory)
-# Dest:   <OMNIA_DATA_PATH>/<domain>/input/<project>/
+# Source:  src/image_build_manager/input/            (flat — no project subdirectory)
+# Dest:   <OMNIA_DATA_PATH>/image_build_manager/input/<project>/
 # ─────────────────────────────────────────────────────────────────────────────
 copy_input_files() {
     local src_dir="$SCRIPT_DIR/input"
@@ -229,7 +229,7 @@ copy_input_files() {
 
     # Use rsync if available (preserves permissions, only copies changed files)
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --update "$src_dir/" "$dest_dir/" --exclude='.*'
+        rsync -a "$src_dir/" "$dest_dir/" --exclude='.*'
     else
         cp -a "$src_dir"/. "$dest_dir/"
     fi

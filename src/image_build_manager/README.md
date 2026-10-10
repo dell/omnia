@@ -108,12 +108,14 @@ ansible-playbook image_build_manager.yml --tags cleanup_images \
 
 | Extra Variable | Default | Description |
 |---------------|---------|-------------|
-| `cleanup_image_pattern` | `*` | Glob pattern for images to delete |
+| `cleanup_image_pattern` | `*` | Text/glob matched as "contains" against the S3 path and registry repo (`*` = any characters, `?` = one character; other characters, including `.`, are literal). Example: `*slurm_node_*`. If nothing matches, a warning lists the available images. |
 | `skip_approval` | `false` | Skip interactive approval prompt (for automation) |
 
 S3 deletion requires `s3cmd` plus `/root/.s3cfg`; registry deletion requires
 `regctl` plus an active service or managed registry storage. Missing tooling is
-reported and that side of cleanup is skipped.
+reported and that side of cleanup is skipped. Package hash cache files of the
+cleaned images (`<IMAGE_BUILD_MANAGER_DATA_PATH>/log/<project>/.*_pkg_hash_*`)
+are removed too, so the next build rebuilds them instead of skipping.
 
 ---
 
