@@ -60,13 +60,17 @@
     - cm.nersc-ldms-conf.yaml
   register: ldms_generated_config_files
 
+# Note: ldms_chart_sync_result and ldms_decompose_copy_result are deliberately
+# excluded here. They sync static vendored tool files (Makefile, scripts) that
+# never change between runs, and must not drive a rebuild (and the resulting
+# StatefulSet restart) on every deploy. Only the Ansible-rendered dynamic
+# inputs (machine config, host map) and missing generated templates should
+# trigger a rebuild.
 - name: Determine whether LDMS aggregator configuration must be rebuilt
   ansible.builtin.set_fact:
     ldms_aggregator_build_required: >-
       {{
-        (ldms_chart_sync_result.changed | default(false) | bool)
-        or (ldms_decompose_copy_result.changed | default(false) | bool)
-        or (ldms_machine_config_result.changed | default(false) | bool)
+        (ldms_machine_config_result.changed | default(false) | bool)
         or (ldms_host_map_result.changed | default(false) | bool)
         or
         (
@@ -211,6 +215,47 @@
   register: ldms_helm_upgrade
   changed_when: "'deployed' in ldms_helm_upgrade.stdout | default('')"
   when: ldms_helm_status.rc == 0
+
+# Helm 3-way merge does not restore replicas when chart values are unchanged
+# (e.g. after disable scaled to 0). Explicit scale ensures pods are running.
+# kubectl scale always prints "scaled" even when the replica count is already
+# correct, so the current count is checked first to keep this idempotent and
+# avoid an unconditional kubectl call (and false "changed") on every run.
+- name: Get current LDMS aggregator replica count
+  ansible.builtin.command: >
+    kubectl get statefulset {{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }} -o jsonpath='{.spec.replicas}'
+  register: current_agg_replicas
+  changed_when: false
+  when: ldms_helm_status.rc == 0
+
+- name: Ensure LDMS aggregator replicas are restored
+  ansible.builtin.command: >
+    kubectl scale statefulset {{ ldms_aggregator_name }}
+    -n {{ telemetry_namespace }} --replicas=1
+  register: restore_agg_replicas
+  changed_when: "'scaled' in restore_agg_replicas.stdout"
+  when:
+    - ldms_helm_status.rc == 0
+    - (current_agg_replicas.stdout | default('0') | int) != 1
+
+- name: Get current LDMS store replica counts
+  ansible.builtin.command: >
+    kubectl get statefulset -l app={{ ldms_store_name }}
+    -n {{ telemetry_namespace }} -o jsonpath='{.items[*].spec.replicas}'
+  register: current_store_replicas
+  changed_when: false
+  when: ldms_helm_status.rc == 0
+
+- name: Ensure LDMS store replicas are restored
+  ansible.builtin.command: >
+    kubectl scale statefulset -l app={{ ldms_store_name }}
+    -n {{ telemetry_namespace }} --replicas=1
+  register: restore_store_replicas
+  changed_when: "'scaled' in restore_store_replicas.stdout"
+  when:
+    - ldms_helm_status.rc == 0
+    - (current_store_replicas.stdout | default('') | trim).split() | reject('equalto', '1') | list | length > 0
 
 - name: Restart LDMS aggregator after configuration or authentication updates
   ansible.builtin.command: >

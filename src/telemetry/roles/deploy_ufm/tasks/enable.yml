@@ -13,11 +13,20 @@
 # limitations under the License.
 ---
 
+# =============================================================================
+# deploy_ufm — Enable UFM telemetry
+# =============================================================================
 # Deploy UFM InfiniBand Telemetry (Metrics Only)
 # Gated by: telemetry_sources.ufm.metrics_enabled
 #
 # DATA PIPELINE:
 #   UFM Prometheus Exporter (HTTPS) → vmagent(shared) → victoria_metrics
+#
+# Prerequisites:
+#   - Service K8s cluster running with kubectl access
+#   - telemetry_config.yml populated with UFM source enabled
+#   - telemetry_credentials.yml with ufm_username/ufm_password
+#   - deploy_victoria role run before this role
 #
 # What Omnia does:
 #   - Validates UFM endpoint, port, TLS mode, auth mode, credentials
@@ -26,33 +35,82 @@
 #
 # What Omnia does NOT do:
 #   - Omnia does NOT deploy or configure UFM itself
+# =============================================================================
 
 - name: Set UFM configuration facts
   ansible.builtin.set_fact:
     _ufm_config: "{{ telemetry_config.telemetry_sources.ufm }}"
     _ufm_detailed_config: "{{ telemetry_config.ufm_configuration }}"
 
-# --- Validate UFM telemetry inputs ---
+# --- Detect re-enable state ---
+
+- name: Check whether the telemetry namespace exists before enable
+  ansible.builtin.command: >
+    kubectl get namespace {{ telemetry_namespace }} --ignore-not-found
+    -o jsonpath='{.metadata.name}'
+  register: ufm_enable_namespace_check
+  changed_when: false
+  failed_when: false
+
+- name: Check for a previously disabled UFM (secret exists, service absent)
+  ansible.builtin.command: >
+    kubectl get secret {{ ufm_credentials_secret_name }}
+    -n {{ telemetry_namespace }} --ignore-not-found
+    -o jsonpath='{.metadata.name}'
+  register: ufm_enable_secret_check
+  changed_when: false
+  failed_when: false
+  when:
+    - ufm_enable_namespace_check.rc == 0
+    - ufm_enable_namespace_check.stdout | trim | length > 0
+
+- name: Check if UFM external service already exists
+  ansible.builtin.command: >
+    kubectl get service {{ ufm_external_service_name }}
+    -n {{ telemetry_namespace }} --ignore-not-found
+    -o jsonpath='{.metadata.name}'
+  register: ufm_enable_svc_check
+  changed_when: false
+  failed_when: false
+  when:
+    - ufm_enable_namespace_check.rc == 0
+    - ufm_enable_namespace_check.stdout | trim | length > 0
+
+- name: Set UFM re-enable state
+  ansible.builtin.set_fact:
+    ufm_is_reenable: >-
+      {{ ufm_enable_secret_check is not skipped
+         and ufm_enable_secret_check.rc | default(1) == 0
+         and (ufm_enable_secret_check.stdout | default('') | trim | length > 0)
+         and (ufm_enable_svc_check is skipped
+              or ufm_enable_svc_check.rc | default(1) != 0
+              or (ufm_enable_svc_check.stdout | default('') | trim | length == 0)) }}
+
+# --- Validate UFM telemetry inputs (skip on re-enable) ---
 
 - name: Validate UFM endpoint is not empty
   ansible.builtin.fail:
     msg: "{{ ufm_endpoint_empty_msg }}"
   when:
+    - not (ufm_is_reenable | default(false) | bool)
     - _ufm_config.metrics_enabled | default(false) | bool
     - _ufm_detailed_config.ufm_endpoint | default('') | trim == ''
 
 - name: Validate UFM metrics port range
   ansible.builtin.fail:
     msg: "{{ ufm_port_range_msg }}"
-  when: >-
-    (_ufm_config.metrics_enabled | default(false) | bool) and
-    ((_ufm_detailed_config.ufm_metrics_port | default(9090) | int < 1) or
-    (_ufm_detailed_config.ufm_metrics_port | default(9090) | int > 65535))
+  when:
+    - not (ufm_is_reenable | default(false) | bool)
+    - >-
+      (_ufm_config.metrics_enabled | default(false) | bool) and
+      ((_ufm_detailed_config.ufm_metrics_port | default(9090) | int < 1) or
+      (_ufm_detailed_config.ufm_metrics_port | default(9090) | int > 65535))
 
 - name: Validate UFM TLS mode
   ansible.builtin.fail:
     msg: "{{ ufm_tls_mode_invalid_msg }}"
   when:
+    - not (ufm_is_reenable | default(false) | bool)
     - _ufm_config.metrics_enabled | default(false) | bool
     - _ufm_detailed_config.tls_mode | default('self_signed') not in ['self_signed', 'ca_signed']
 
@@ -60,6 +118,7 @@
   ansible.builtin.fail:
     msg: "{{ ufm_auth_mode_invalid_msg }}"
   when:
+    - not (ufm_is_reenable | default(false) | bool)
     - _ufm_config.metrics_enabled | default(false) | bool
     - _ufm_detailed_config.auth_mode | default('basic') not in ['basic', 'none']
 
@@ -67,6 +126,7 @@
   ansible.builtin.fail:
     msg: "{{ ufm_credentials_missing_msg }}"
   when:
+    - not (ufm_is_reenable | default(false) | bool)
     - _ufm_config.metrics_enabled | default(false) | bool
     - _ufm_detailed_config.auth_mode | default('basic') == 'basic'
     - >-
@@ -75,6 +135,7 @@
 
 - name: Validate CA certificate file when tls_mode is ca_signed
   when:
+    - not (ufm_is_reenable | default(false) | bool)
     - _ufm_config.metrics_enabled | default(false) | bool
     - _ufm_detailed_config.tls_mode | default('self_signed') == 'ca_signed'
   block:
@@ -98,7 +159,9 @@
       - "TLS mode: {{ _ufm_detailed_config.tls_mode | default('self_signed') }}"
       - "Auth mode: {{ _ufm_detailed_config.auth_mode | default('basic') }}"
     verbosity: 2
-  when: _ufm_config.metrics_enabled | default(false) | bool
+  when:
+    - not (ufm_is_reenable | default(false) | bool)
+    - _ufm_config.metrics_enabled | default(false) | bool
 
 # --- Create UFM credentials Kubernetes Secret ---
 
@@ -108,6 +171,7 @@
   register: _ufm_ca_cert_content
   delegate_to: localhost
   when:
+    - not (ufm_is_reenable | default(false) | bool)
     - _ufm_config.metrics_enabled | default(false) | bool
     - _ufm_detailed_config.tls_mode | default('self_signed') == 'ca_signed'
     - _ufm_detailed_config.ufm_ca_cert_path | default('') | trim != ''
@@ -120,11 +184,20 @@
     - _ufm_ca_cert_content is not skipped
     - _ufm_ca_cert_content.content is defined
 
-# --- Generate UFM deployment manifests ---
+# --- Generate UFM deployment manifests (fresh enable) ---
 
 - name: Generate UFM kustomization manifests
   ansible.builtin.include_tasks: generate_manifests.yml
-  when: _ufm_config.metrics_enabled | default(false) | bool
+  when:
+    - not (ufm_is_reenable | default(false) | bool)
+    - _ufm_config.metrics_enabled | default(false) | bool
+
+# --- Restore previously disabled UFM service (re-enable) ---
+
+- name: Restore previously disabled UFM telemetry
+  ansible.builtin.include_tasks: restore.yml
+  when:
+    - ufm_is_reenable | default(false) | bool
 
 - name: Display UFM integration summary
   ansible.builtin.debug:

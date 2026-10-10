@@ -129,6 +129,7 @@ def get_victoria_logs_resource_count(host):
 # FUNCTIONAL TEST CASES — SHORT-FORM PARAMETER SUPPORT
 # =============================================================================
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(80)
@@ -220,6 +221,7 @@ def test_cleanup_sinks_short_form_single(host):
     assert kafka_after_count == 0, "All Kafka pods should be removed"
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(81)
@@ -314,6 +316,7 @@ def test_cleanup_sinks_short_form_comma_separated(host):
     assert vm_after_count == 0, "All VictoriaMetrics pods should be removed"
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(82)
@@ -397,6 +400,7 @@ def test_cleanup_sinks_short_form_all_three(host):
     assert vl_after_count == 0, "All VictoriaLogs pods should be removed"
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(83)
@@ -474,6 +478,7 @@ def test_cleanup_sinks_short_form_separate_flags(host):
     assert vm_result["success"], "VictoriaMetrics should be cleaned"
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(84)
@@ -528,6 +533,7 @@ def test_cleanup_sinks_short_form_vs_explicit(host):
     assert result_explicit["success"], "Playbook should succeed"
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(85)
@@ -590,6 +596,7 @@ def test_cleanup_sinks_dependency_blocking_short_form(host):
     assert playbook_failed, "Playbook should fail with non-zero rc"
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(86)
@@ -653,6 +660,7 @@ def test_cleanup_sinks_volume_preservation_short_form(host):
     assert kafka_result["success"], "Kafka pods should be removed"
 
 
+@pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.sink
 @pytest.mark.order(87)

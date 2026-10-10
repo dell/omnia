@@ -163,6 +163,12 @@ from .validation_func import (
     ConfigValidationError,
 )
 
+# --- Cleanup config-driven execution ---
+from .cleanup_func import (
+    cleanup_extra_vars,
+    cleanup_selection_fields,
+)
+
 
 def run_playbook(tag=None, **kwargs):
     """Wrapper that injects module-specific playbook and workdir."""
@@ -277,4 +283,7 @@ __all__ = [
     "validate_test_config",
     "validate_all",
     "ConfigValidationError",
+    # cleanup config-driven
+    "cleanup_extra_vars",
+    "cleanup_selection_fields",
 ]

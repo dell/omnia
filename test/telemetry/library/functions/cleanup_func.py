@@ -18,11 +18,15 @@ Telemetry — Cleanup Verification Functions.
 Functions for verifying that telemetry cleanup has properly removed
 K8s resources (pods, PVCs, services, deployments, statefulsets)
 from the telemetry namespace.
+
+Also provides ``cleanup_extra_vars()`` and ``cleanup_selection_fields()``
+for deterministic, config-driven cleanup execution (aligned with the
+orchestrator pattern).
 """
 
 from typing import Dict, Any, List
 
-from omnia_auto import read_remote_env
+from omnia_auto import load_test_config, read_remote_env
 
 from .telemetry_func import run_on_kube_vip
 
@@ -44,6 +48,82 @@ from library.vars.common_vars import (
     KAFKA_POD_PREFIXES,
     KAFKA_BRIDGE_PREFIX,
 )
+
+
+# =============================================================================
+# CLEANUP EXTRA VARS (config-driven, aligned with orchestrator pattern)
+# =============================================================================
+
+def cleanup_extra_vars(config: Dict[str, Any] | None = None) -> Dict[str, str]:
+    """Return deterministic cleanup extra variables from ``test_config.yml``.
+
+    Reads ``delete_sinks_volume``, ``cleanup_credentials``, and
+    ``cleanup_logs`` from the test configuration and maps them to the
+    Ansible extra-variable names expected by the cleanup playbook.
+
+    Args:
+        config: Optional pre-loaded config dict. When *None* the config
+            is loaded from ``test_config.yml`` via ``load_test_config()``.
+
+    Returns:
+        dict mapping Ansible extra-variable names to string values.
+    """
+    source = dict(config if config is not None else load_test_config())
+    extra_vars: Dict[str, str] = {}
+    if source.get("delete_sinks_volume", False):
+        extra_vars["Delete_sinks_volume"] = "true"
+    if not source.get("cleanup_credentials", True):
+        extra_vars["cleanup_credentials"] = "false"
+    if not source.get("cleanup_logs", True):
+        extra_vars["cleanup_logs"] = "false"
+    return extra_vars
+
+
+def cleanup_selection_fields(
+    config: Dict[str, Any] | None = None,
+) -> List[tuple]:
+    """Describe the **effective** product behavior selected for cleanup.
+
+    When ``delete_sinks_volume`` is *true*, the Ansible role overrides
+    individual ``cleanup_credentials`` and ``cleanup_logs`` preservation
+    flags — credentials and logs are always deleted.  This function
+    reflects that effective behavior so display output matches what the
+    playbook actually does.
+
+    Returns a list of ``(label, value)`` tuples suitable for structured
+    test-log output, matching the orchestrator's
+    ``cleanup_selection_fields()`` pattern.
+
+    Args:
+        config: Optional pre-loaded config dict.
+
+    Returns:
+        list of (str, str) tuples.
+    """
+    source = dict(config if config is not None else load_test_config())
+
+    delete_volume = bool(source.get("delete_sinks_volume", False))
+    cleanup_creds = bool(source.get("cleanup_credentials", True))
+    cleanup_logs = bool(source.get("cleanup_logs", True))
+
+    # delete_sinks_volume=true forces credential and log removal
+    effective_creds = cleanup_creds or delete_volume
+    effective_logs = cleanup_logs or delete_volume
+
+    return [
+        (
+            "Sink volumes",
+            "delete" if delete_volume else "preserve",
+        ),
+        (
+            "Credentials",
+            "remove" if effective_creds else "preserve",
+        ),
+        (
+            "Logs",
+            "remove" if effective_logs else "preserve",
+        ),
+    ]
 
 
 # =============================================================================

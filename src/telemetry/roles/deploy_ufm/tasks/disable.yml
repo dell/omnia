@@ -16,32 +16,86 @@
 # =============================================================================
 # deploy_ufm — Disable UFM telemetry
 # =============================================================================
+# Removes the UFM external Service, Endpoints, and VMServiceScrape when
+# telemetry_sources.ufm.metrics_enabled is false.
+#
+# This stops UFM metrics collection while preserving the UFM credentials
+# Secret for future re-enablement.
+#
+# Resources removed:
+#   - Service (ufm-external) — headless service pointing to external UFM
+#   - Endpoints (ufm-external) — IP mapping for the external UFM endpoint
+#   - VMServiceScrape (ufm-infiniband-metrics) — VMAgent scrape config
+#
+# Resources preserved:
+#   - Secret (ufm-telemetry-credentials) — for re-enablement
+# =============================================================================
 
-- name: Load telemetry configuration
-  ansible.builtin.include_role:
-    name: common
-    tasks_from: load_telemetry_config
-
-- name: Check if UFM resources exist
+- name: Check if the telemetry namespace exists
   ansible.builtin.command: >
-    kubectl get service ufm-telemetry-external -n {{ telemetry_namespace }}
-  register: ufm_check
+    kubectl get namespace {{ telemetry_namespace }} --ignore-not-found
+    -o jsonpath='{.metadata.name}'
+  register: ufm_namespace_check
   changed_when: false
   failed_when: false
 
-- name: Delete UFM external service
+- name: Check if UFM external service exists
   ansible.builtin.command: >
-    kubectl delete service ufm-telemetry-external -n {{ telemetry_namespace }}
-  register: delete_result
-  changed_when: "'deleted' in delete_result.stdout"
-  when: ufm_check.rc == 0
+    kubectl get service {{ ufm_external_service_name }}
+    -n {{ telemetry_namespace }} --ignore-not-found
+    -o jsonpath='{.metadata.name}'
+  register: ufm_svc_check
+  changed_when: false
+  failed_when: false
+  when:
+    - ufm_namespace_check.rc == 0
+    - ufm_namespace_check.stdout | trim | length > 0
 
-- name: Display result
-  ansible.builtin.debug:
-    msg: "UFM telemetry resources removed"
-  when: ufm_check.rc == 0
+- name: Set current UFM service state
+  ansible.builtin.set_fact:
+    ufm_svc_exists: >-
+      {{ ufm_svc_check is not skipped and ufm_svc_check.rc | default(1) == 0
+         and (ufm_svc_check.stdout | default('') | trim | length > 0) }}
 
-- name: UFM resources not found
+- name: Delete UFM external service (preserving credentials secret)
+  ansible.builtin.command: >
+    kubectl delete service {{ ufm_external_service_name }}
+    -n {{ telemetry_namespace }}
+  register: ufm_delete_svc_result
+  changed_when: "'deleted' in ufm_delete_svc_result.stdout"
+  failed_when: false
+  when:
+    - ufm_svc_exists | bool
+
+- name: Delete UFM endpoints (preserving credentials secret)
+  ansible.builtin.command: >
+    kubectl delete endpoints {{ ufm_external_service_name }}
+    -n {{ telemetry_namespace }} --ignore-not-found
+  register: ufm_delete_ep_result
+  changed_when: "'deleted' in ufm_delete_ep_result.stdout"
+  failed_when: false
+  when:
+    - ufm_svc_exists | bool
+
+- name: Delete UFM VMServiceScrape (stop VMAgent from scraping UFM)
+  ansible.builtin.command: >
+    kubectl delete vmservicescrape {{ ufm_vmscrape_name }}
+    -n {{ telemetry_namespace }} --ignore-not-found
+  register: ufm_delete_vmscrape_result
+  changed_when: "'deleted' in ufm_delete_vmscrape_result.stdout"
+  failed_when: false
+  when:
+    - ufm_namespace_check.rc == 0
+    - ufm_namespace_check.stdout | trim | length > 0
+
+- name: Display scale down result
   ansible.builtin.debug:
-    msg: "UFM telemetry resources not found, nothing to remove"
-  when: ufm_check.rc != 0
+    msg: "{{ ufm_service_disabled_msg }}"
+  when:
+    - ufm_svc_exists | bool
+
+- name: UFM service not found - nothing to disable
+  ansible.builtin.debug:
+    msg: "{{ ufm_service_not_found_msg }}"
+  when:
+    - not (ufm_svc_exists | bool)
