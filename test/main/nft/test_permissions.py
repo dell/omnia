@@ -26,7 +26,7 @@ import pytest
 
 from library.vars import TEST_CASES as TC
 
-from library.functions import TestLogger
+from library.functions import TestLogger, run_on_host
 from library.functions.omnia_main_func import (
     _resolve_clone_path,
 )
@@ -36,8 +36,6 @@ from library.vars.common_vars import (
     OMNIA_CLI_PATH,
     DOMAINS_WITH_INIT,
 )
-
-from omnia_auto import run_on_host
 
 
 @pytest.mark.nft

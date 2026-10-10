@@ -148,7 +148,7 @@ See `samples/` for example input and output files.
 | Section | Key Fields |
 |---------|-----------|
 | **S3 storage** | `s3_configurations.provider` (minio / powerscale), `endpoint_url` |
-| **Upstream** | `repo_manager_output_path` (path to `repo_status.yml`) |
+| **Upstream** | `repo_manager_output_path` (optional override; empty uses the current Repo Manager project output) |
 | **Builder** | `image_build_type` (image-builder / image-thrillhouse) |
 | **Groups** | `functional_groups_source` (`config` / `catalog`) |
 | **Build controls** | `build_image.max_parallel`, `build_image.build_timeout`, `build_image.force_rebuild`, `build_image.backup_s3_images`, `build_image.repo_ssl_verify` |
