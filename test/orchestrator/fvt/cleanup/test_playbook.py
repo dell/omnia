@@ -29,7 +29,7 @@ from library.vars import TEST_CASES as TC
 @pytest.mark.destructive
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(0)
+@pytest.mark.order(50000)
 def test_deploy_cleanup(host):
     """Run ``orchestrator.yml --tags cleanup`` exactly once."""
     tc = TC["deploy_cleanup"]

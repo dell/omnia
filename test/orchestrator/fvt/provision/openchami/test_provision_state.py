@@ -52,83 +52,91 @@ def _assert_result(test_log, component, result):
     )
 
 
-def _run_check(host, registry_key, check):
-    """Create the registered logger and run one provision check."""
-    tc = TC[registry_key]
-    _assert_result(TestLogger(tc["title"], tc["id"]), tc["component"], check(host))
-
-
 @pytest.mark.sanity
-@pytest.mark.order(101)
+@pytest.mark.order(30101)
 def test_provision_reports(host):
     """Verify the provision report and generated inventory contracts."""
-    _run_check(host, "provision_reports", check_provision_reports)
+    tc = TC["provision_reports"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_provision_reports(host))
 
 
 @pytest.mark.sanity
-@pytest.mark.order(102)
+@pytest.mark.order(30102)
 def test_smd_identity(host):
     """Verify XNAME, administrative MAC, and IP identity in SMD."""
-    _run_check(host, "smd_identity", check_smd_identity)
+    tc = TC["smd_identity"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_smd_identity(host))
 
 
 @pytest.mark.sanity
-@pytest.mark.order(103)
+@pytest.mark.order(30103)
 def test_smd_group_membership(host):
     """Verify expected groups and reject competing cloud-init groups."""
-    _run_check(host, "smd_groups", check_smd_groups)
+    tc = TC["smd_groups"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_smd_groups(host))
 
 
 @pytest.mark.sanity
-@pytest.mark.order(104)
+@pytest.mark.order(30104)
 def test_boot_service_configurations(host):
     """Verify BootConfigurations and their mapped administrative MACs."""
-    _run_check(
-        host,
-        "boot_configurations",
-        check_boot_configurations,
-    )
+    tc = TC["boot_configurations"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_boot_configurations(host))
 
 
 @pytest.mark.sanity
-@pytest.mark.order(105)
+@pytest.mark.order(30105)
 def test_boot_service_node_identity(host):
     """Verify synchronized XNAME-to-bootMac records."""
-    _run_check(host, "boot_nodes", check_boot_nodes)
+    tc = TC["boot_nodes"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_boot_nodes(host))
 
 
 @pytest.mark.sanity
-@pytest.mark.order(106)
+@pytest.mark.order(30106)
 def test_metadata_service_groups(host):
     """Verify one usable cloud-init template per functional group."""
-    _run_check(host, "metadata_groups", check_metadata_groups)
+    tc = TC["metadata_groups"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_metadata_groups(host))
 
 
 @pytest.mark.sanity
-@pytest.mark.order(107)
+@pytest.mark.order(30107)
 def test_metadata_service_instances(host):
     """Verify unique per-node hostname metadata."""
-    _run_check(
-        host,
-        "metadata_instances",
-        check_metadata_instances,
-    )
+    tc = TC["metadata_instances"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_metadata_instances(host))
 
 
 @pytest.mark.sanity
-@pytest.mark.order(108)
+@pytest.mark.order(30108)
 def test_coredhcp_and_coredns_inventory(host):
     """Verify the SMD identity records consumed by CoreDHCP/CoreDNS."""
-    _run_check(host, "network_inventory", check_network_inventory)
+    tc = TC["network_inventory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_network_inventory(host))
 
 
-@pytest.mark.order(109)
+@pytest.mark.boot_image
+@pytest.mark.order(30109)
 def test_boot_image_identity(host):
     """Verify Boot Service kernel/initrd paths match build_status.yml."""
-    _run_check(host, "boot_image_identity", check_boot_image_identity)
+    tc = TC["boot_image_identity"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_boot_image_identity(host))
 
 
-@pytest.mark.order(110)
+@pytest.mark.boot_image
+@pytest.mark.order(30110)
 def test_boot_image_architecture(host):
     """Verify build_status.yml architecture keys match functional group names."""
-    _run_check(host, "boot_image_architecture", check_boot_image_architecture)
+    tc = TC["boot_image_architecture"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    _assert_result(test_log, tc["component"], check_boot_image_architecture(host))

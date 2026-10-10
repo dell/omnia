@@ -16,10 +16,12 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_cleanup_idempotency,
     check_precheck_idempotency,
     check_prepare_idempotency,
 )
+from library.vars import TEST_CASES as TC
 
 from nft.result import verify_nft
 
@@ -27,24 +29,30 @@ from nft.result import verify_nft
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.destructive
-@pytest.mark.order(30)
+@pytest.mark.order(60003)
 def test_prepare_idempotency(host):
     """Require repeated prepare to preserve runtime identity and readiness."""
-    verify_nft(host, "prepare_idempotency", check_prepare_idempotency)
+    tc = TC["prepare_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_prepare_idempotency)
 
 
 @pytest.mark.nft
 @pytest.mark.idempotency
-@pytest.mark.order(50)
+@pytest.mark.order(60005)
 def test_precheck_idempotency(host):
     """Require repeated precheck to remain read-only."""
-    verify_nft(host, "precheck_idempotency", check_precheck_idempotency)
+    tc = TC["precheck_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_precheck_idempotency)
 
 
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.destructive
-@pytest.mark.order(91)
+@pytest.mark.order(60011)
 def test_cleanup_idempotency(host):
     """Require repeated full cleanup to remain successful and unchanged."""
-    verify_nft(host, "cleanup_idempotency", check_cleanup_idempotency)
+    tc = TC["cleanup_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_cleanup_idempotency)

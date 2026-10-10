@@ -18,6 +18,8 @@ import os
 import re
 import shlex
 
+from omnia_auto import log
+
 from ..vars.pxeboot_vars import (
     APPTAINER_ARRAY_SIZE,
     APPTAINER_CONCURRENT_JOB_COUNT,
@@ -27,7 +29,6 @@ from ..vars.pxeboot_vars import (
 )
 from ._apptainer_helpers import (
     _wait_for_array_accounting,
-    _wait_for_job_accounting,
     apptainer_context,
     command_error,
     grouped_node_fields,
@@ -37,7 +38,12 @@ from ._apptainer_helpers import (
     safe_node_name,
 )
 from ._pxeboot_helpers import remote_command, runtime_exception, runtime_result
-from ._workload_helpers import ldap_test_username, optional_skip, require_functional
+from ._workload_helpers import (
+    ldap_identity_skip,
+    ldap_test_username,
+    optional_skip,
+    require_functional,
+)
 
 
 def _functional_context(host, summary):
@@ -179,10 +185,9 @@ def check_apptainer_ldap_job(host):
         )
         if isinstance(_result, dict) and "skipped" in _result:
             return _result
-        if not context["features"].get("openldap", False):
-            return optional_skip(
-                summary, "OpenLDAP is not selected for the mapped Slurm roles"
-            )
+        reason = ldap_identity_skip(context)
+        if reason:
+            return optional_skip(summary, reason)
         return _targeted_job_check(host, summary, username=ldap_test_username())
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -354,10 +359,9 @@ def check_apptainer_restricted_sif(host):
                     % shlex.quote(restricted),
                 )
             except (OSError, RuntimeError, TypeError, ValueError) as exc:
-                print(
-                    f"    ! cleanup: restricted SIF removal failed: "
-                    f"{str(exc)[:100]}",
-                    flush=True,
+                log(
+                    f"cleanup: restricted SIF removal failed: {str(exc)[:100]}",
+                    "WARN",
                 )
 
 

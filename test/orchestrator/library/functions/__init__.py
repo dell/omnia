@@ -174,6 +174,11 @@ from .cleanup_func import (
     cleanup_extra_vars,
     cleanup_selection_fields,
 )
+from .external_ldap_pxeboot_func import (
+    check_external_ldap_backend,
+    check_external_ldap_proxy,
+    reconcile_external_ldap_proxy,
+)
 from .kubernetes_etcd_pxeboot_func import (
     check_kubernetes_etcd_health,
     check_kubernetes_etcd_topology,
@@ -194,6 +199,7 @@ from .kubernetes_recovery_pxeboot_func import (
 from .kubernetes_runtime_pxeboot_func import (
     check_kubernetes_configured_versions,
     check_kubernetes_local_etcd_integrity,
+    check_kubernetes_local_etcd_media,
     check_kubernetes_local_etcd_provisioning,
     check_kubernetes_version_compatibility,
 )
@@ -267,6 +273,7 @@ from .mount_config_precheck_func import (
 from .oim_readiness_precheck_func import (
     check_oim_cpu_threshold,
     check_oim_disk_threshold,
+    check_oim_forced_pxe_public_overlap,
     check_oim_internet_reachability,
     check_oim_memory_threshold,
     check_oim_os_version,
@@ -516,6 +523,8 @@ __all__ = [
     "check_hpc_benchmarks_tools_dir_creation",
     "check_kubernetes_configured_versions",
     "check_kubernetes_control_plane",
+    "check_external_ldap_backend",
+    "check_external_ldap_proxy",
     "check_kubernetes_control_plane_recovery",
     "check_kubernetes_csi_dynamic_provisioning",
     "check_kubernetes_default_storage_class",
@@ -523,6 +532,7 @@ __all__ = [
     "check_kubernetes_etcd_topology",
     "check_kubernetes_local_etcd",
     "check_kubernetes_local_etcd_integrity",
+    "check_kubernetes_local_etcd_media",
     "check_kubernetes_local_etcd_provisioning",
     "check_kubernetes_local_etcd_recovery",
     "check_kubernetes_nfs_dynamic_provisioning",
@@ -575,6 +585,17 @@ __all__ = [
     "check_node_os_version",
     "check_node_ping",
     "check_node_ssh",
+    "check_oim_cpu_threshold",
+    "check_oim_disk_threshold",
+    "check_oim_forced_pxe_public_overlap",
+    "check_oim_internet_reachability",
+    "check_oim_memory_threshold",
+    "check_oim_os_version",
+    "check_oim_public_nic_present",
+    "check_oim_pxe_nic_ipv4",
+    "check_oim_pxe_nic_present",
+    "check_oim_pxe_public_overlap",
+    "check_oim_ssh_preflight",
     "check_precheck_admin_ipv4",
     "check_precheck_dependencies",
     "check_precheck_hostname_domain",
@@ -658,5 +679,6 @@ __all__ = [
     "cleanup_selection_fields",
     "persistent_changed_count",
     "resolve_nft_thresholds",
+    "reconcile_external_ldap_proxy",
     "run_playbook",
 ]

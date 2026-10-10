@@ -15,14 +15,20 @@
 """Slurm storage postconditions produced by full Orchestrator cleanup."""
 
 import pytest
-from library.functions import check_cleanup_slurm
+from library.functions import (
+    TestLogger,
+    check_cleanup_slurm,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_cleanup
 
 
 @pytest.mark.sanity
 @pytest.mark.destructive
-@pytest.mark.order(3)
+@pytest.mark.order(50301)
 def test_slurm_cleanup(host):
     """Verify Slurm's selected data policy and configured storage detachment."""
-    verify_cleanup(host, "cleanup_slurm", "Slurm cleanup", check_cleanup_slurm)
+    tc = TC["cleanup_slurm"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_cleanup(test_log, host, "Slurm cleanup", check_cleanup_slurm)

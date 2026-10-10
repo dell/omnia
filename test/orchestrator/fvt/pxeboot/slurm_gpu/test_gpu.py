@@ -16,10 +16,12 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_slurm_gpu_inventory,
     check_slurm_gpu_job,
     check_slurm_gpu_memory_stress,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -28,10 +30,12 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(257)
+@pytest.mark.order(41401)
 def test_slurm_gpu_inventory(host):
     """Verify NVIDIA runtime state on scheduler-declared GPU nodes."""
-    verify_pxeboot(host, "slurm_gpu_inventory", check_slurm_gpu_inventory)
+    tc = TC["slurm_gpu_inventory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_gpu_inventory)
 
 
 @pytest.mark.buildstream
@@ -39,10 +43,12 @@ def test_slurm_gpu_inventory(host):
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
 @pytest.mark.functional
-@pytest.mark.order(258)
+@pytest.mark.order(41402)
 def test_slurm_gpu_job(host):
     """Allocate a GPU through Slurm and query the device."""
-    verify_pxeboot(host, "slurm_gpu_job", check_slurm_gpu_job)
+    tc = TC["slurm_gpu_job"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_gpu_job)
 
 
 @pytest.mark.buildstream
@@ -50,7 +56,9 @@ def test_slurm_gpu_job(host):
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
 @pytest.mark.functional
-@pytest.mark.order(259)
+@pytest.mark.order(41403)
 def test_slurm_gpu_memory_stress(host):
     """Compile and run a bounded GPU memory workload through Slurm."""
-    verify_pxeboot(host, "slurm_gpu_memory", check_slurm_gpu_memory_stress)
+    tc = TC["slurm_gpu_memory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_gpu_memory_stress)

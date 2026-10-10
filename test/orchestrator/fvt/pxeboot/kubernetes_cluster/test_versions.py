@@ -16,9 +16,11 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_kubernetes_configured_versions,
     check_kubernetes_version_compatibility,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -26,20 +28,20 @@ from fvt.result import verify_pxeboot
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(207)
+@pytest.mark.order(40803)
 def test_kubernetes_version_compatibility(host):
     """Verify Kubernetes, kubeadm, and CRI-O version alignment."""
-    verify_pxeboot(host, "kubernetes_versions", check_kubernetes_version_compatibility)
+    tc = TC["kubernetes_versions"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_version_compatibility)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(208)
+@pytest.mark.order(40804)
 def test_kubernetes_configured_versions(host):
     """Verify deployed component versions against the selected catalog."""
-    verify_pxeboot(
-        host,
-        "kubernetes_configured_versions",
-        check_kubernetes_configured_versions,
-    )
+    tc = TC["kubernetes_configured_versions"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_configured_versions)

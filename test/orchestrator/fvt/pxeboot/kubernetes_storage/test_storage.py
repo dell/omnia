@@ -16,12 +16,14 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_kubernetes_csi_dynamic_provisioning,
     check_kubernetes_default_storage_class,
     check_kubernetes_nfs_dynamic_provisioning,
     check_kubernetes_snapshot_controller,
     check_kubernetes_storage,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -29,53 +31,55 @@ from fvt.result import verify_pxeboot
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(218)
+@pytest.mark.order(41001)
 def test_kubernetes_storage(host):
     """Verify configured NFS and PowerScale storage objects."""
-    verify_pxeboot(host, "kubernetes_storage", check_kubernetes_storage)
+    tc = TC["kubernetes_storage"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_storage)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(219)
+@pytest.mark.order(41002)
 def test_kubernetes_default_storage_class(host):
     """Verify exactly one expected default StorageClass."""
-    verify_pxeboot(
-        host, "kubernetes_default_storage", check_kubernetes_default_storage_class
-    )
+    tc = TC["kubernetes_default_storage"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_default_storage_class)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(220)
+@pytest.mark.order(41003)
 def test_kubernetes_snapshot_controller(host):
     """Verify PowerScale snapshot components when configured."""
-    verify_pxeboot(
-        host, "kubernetes_snapshot_controller", check_kubernetes_snapshot_controller
-    )
+    tc = TC["kubernetes_snapshot_controller"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_snapshot_controller)
 
 
 @pytest.mark.functional
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(222)
+@pytest.mark.order(41004)
 def test_kubernetes_nfs_dynamic_provisioning(host):
     """Create and remove an isolated NFS-backed workload."""
-    verify_pxeboot(
-        host, "kubernetes_nfs_dynamic", check_kubernetes_nfs_dynamic_provisioning
-    )
+    tc = TC["kubernetes_nfs_dynamic"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_nfs_dynamic_provisioning)
 
 
 @pytest.mark.functional
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(223)
+@pytest.mark.order(41005)
 def test_kubernetes_csi_dynamic_provisioning(host):
     """Create and remove an isolated PowerScale-backed workload."""
-    verify_pxeboot(
-        host, "kubernetes_csi_dynamic", check_kubernetes_csi_dynamic_provisioning
-    )
+    tc = TC["kubernetes_csi_dynamic"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_csi_dynamic_provisioning)

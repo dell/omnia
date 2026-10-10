@@ -20,7 +20,6 @@ import re
 import secrets
 import shlex
 import socket
-import subprocess
 import time
 from pathlib import Path
 
@@ -28,6 +27,8 @@ import paramiko
 from omnia_auto import (
     connection_params,
     load_test_credentials,
+    log,
+    run_on_host,
 )
 
 from ..vars.pxeboot_vars import (
@@ -47,6 +48,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import ldap_identity_skip as _ldap_identity_skip
 from ._workload_helpers import ldap_test_username as _ldap_username
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import require_functional as _require_functional
@@ -114,6 +116,7 @@ def _mapped_host_key_matches(exc: paramiko.BadHostKeyException, target: str) -> 
 
 
 def _remove_stale_mapped_host_key(
+    host,
     target: str,
     replacement_key: paramiko.PKey,
 ) -> tuple[bool, str]:
@@ -124,16 +127,15 @@ def _remove_stale_mapped_host_key(
     if not os.path.isfile(known_hosts):
         return False, f"known-hosts file does not exist: {known_hosts}"
     try:
-        result = subprocess.run(
-            ["ssh-keygen", "-R", target, "-f", known_hosts],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
+        result = run_on_host(
+            host,
+            PXEBOOT_COMMANDS["ssh_remove_host_key"],
+            shlex.quote(target),
+            shlex.quote(known_hosts),
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return False, f"unable to remove the stale SSH host key: {exc}"
-    if result.returncode != 0:
+    if result.rc != 0:
         detail = (result.stderr or result.stdout).strip()
         return False, detail or "ssh-keygen could not remove the stale host key"
     key_type = replacement_key.get_name()
@@ -154,7 +156,7 @@ def _remove_stale_mapped_host_key(
 
 
 def _ldap_ssh_identity(
-    target: str, username: str, auth_secret: str
+    host, target: str, username: str, auth_secret: str
 ) -> tuple[bool, str]:
     if not _HOST_RE.fullmatch(target) or not _IDENTITY_RE.fullmatch(username):
         raise ValueError("LDAP SSH target or identity is invalid")
@@ -222,7 +224,7 @@ def _ldap_ssh_identity(
             return True, detail
         except paramiko.BadHostKeyException as exc:
             if attempt == 0 and _mapped_host_key_matches(exc, target):
-                removed, detail = _remove_stale_mapped_host_key(target, exc.key)
+                removed, detail = _remove_stale_mapped_host_key(host, target, exc.key)
                 if removed:
                     host_key_reconciled = True
                     continue
@@ -242,7 +244,9 @@ def _ldap_ssh_identity(
     return False, "SSH host-key reconciliation did not establish a session"
 
 
-def _open_ldap_persistent_session(target: str, username: str, auth_secret: str):
+def _open_ldap_persistent_session(
+    host, target: str, username: str, auth_secret: str
+):
     """Open an LDAP SSH command that must be killed when its job ends."""
     if not _HOST_RE.fullmatch(target) or not _IDENTITY_RE.fullmatch(username):
         raise ValueError("LDAP SSH target or identity is invalid")
@@ -315,7 +319,7 @@ def _open_ldap_persistent_session(target: str, username: str, auth_secret: str):
             return session, detail
         except paramiko.BadHostKeyException as exc:
             if attempt == 0 and _mapped_host_key_matches(exc, target):
-                removed, detail = _remove_stale_mapped_host_key(target, exc.key)
+                removed, detail = _remove_stale_mapped_host_key(host, target, exc.key)
                 if removed:
                     host_key_reconciled = True
                     continue
@@ -607,17 +611,24 @@ def _check_slurm_role_ldap_authentication(
     try:
         context, rows, _control, _config = _context(host)
         if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+            return _skip(
+                summary, "OpenLDAP is not enabled" if rows else "No Slurm nodes are mapped"
+            )
         role_rows = _role_rows(rows, role_prefix)
         if not role_rows:
             return _skip(summary, f"No {missing_role} nodes are mapped")
+        reason = _ldap_identity_skip(context)
+        if reason:
+            return _skip(summary, reason)
         username, auth_secret = _ldap_credentials()
         credential = (
             "invalid-" + secrets.token_urlsafe(24) if invalid_password else auth_secret
         )
         outcomes = {}
         for row in role_rows:
-            accepted, detail = _ldap_ssh_identity(row["ADMIN_IP"], username, credential)
+            accepted, detail = _ldap_ssh_identity(
+                host, row["ADMIN_IP"], username, credential
+            )
             success = not accepted if invalid_password else accepted
             outcomes[row["HOSTNAME"]] = {
                 "success": success,
@@ -750,8 +761,9 @@ def check_slurm_pam_no_job_access(host):
     summary = "Slurm PAM no-job access policy"
     try:
         context, rows, control, _config = _context(host)
-        if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+        reason = _ldap_identity_skip(context) if rows else "No Slurm nodes are mapped"
+        if reason:
+            return _skip(summary, reason)
         username, auth_secret = _ldap_credentials()
         computes = _compute_rows(rows)
         if not computes:
@@ -782,7 +794,7 @@ def check_slurm_pam_no_job_access(host):
         outcomes = {}
         for row in computes:
             allowed, _detail = _ldap_ssh_identity(
-                row["ADMIN_IP"], username, auth_secret
+                host, row["ADMIN_IP"], username, auth_secret
             )
             outcomes[row["HOSTNAME"]] = (
                 not allowed,
@@ -840,13 +852,18 @@ def _check_slurm_role_pam_job_access(
             return _skip(summary, "Select the functional marker to authorize test jobs")
         context, rows, control, slurm_config = _context(host)
         if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+            return _skip(
+                summary, "OpenLDAP is not enabled" if rows else "No Slurm nodes are mapped"
+            )
         computes = _compute_rows(rows)
         submit_rows = _role_rows(rows, role_prefix)
         if not submit_rows:
             return _skip(summary, f"No {missing_role} nodes are mapped")
         if not computes:
             return _skip(summary, "At least one Slurm compute node is required")
+        reason = _ldap_identity_skip(context)
+        if reason:
+            return _skip(summary, reason)
         username, auth_secret = _ldap_credentials()
         workspace_info = _prepare_ldap_workspace(
             host,
@@ -904,6 +921,7 @@ def _check_slurm_role_pam_job_access(
                 )
                 if running:
                     session, login_detail = _open_ldap_persistent_session(
+                        host,
                         compute["ADMIN_IP"],
                         username,
                         auth_secret,
@@ -927,7 +945,7 @@ def _check_slurm_role_pam_job_access(
                     persistent_sessions.remove(session)
             time.sleep(PAM_ACCESS_SETTLE_SECONDS)
             access_after, post_login_detail = _ldap_ssh_identity(
-                compute["ADMIN_IP"], username, auth_secret
+                host, compute["ADMIN_IP"], username, auth_secret
             )
             stdout, stderr = _job_artifacts(host, control, workspace, job_id)
             output_lines = [
@@ -1110,10 +1128,10 @@ def _check_slurm_role_pam_job_access(
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
                 except (OSError, RuntimeError, TypeError, ValueError) as exc:
-                    print(
-                        f"    ! cleanup: failed to cancel PAM job {job_id}: "
+                    log(
+                        f"cleanup: failed to cancel PAM job {job_id}: "
                         f"{str(exc)[:100]}",
-                        flush=True,
+                        "WARN",
                     )
         if control is not None and workspace_info is not None and username:
             try:
@@ -1124,10 +1142,9 @@ def _check_slurm_role_pam_job_access(
                     username,
                 )
             except (OSError, RuntimeError, TypeError, ValueError) as exc:
-                print(
-                    f"    ! cleanup: LDAP workspace removal failed: "
-                    f"{str(exc)[:100]}",
-                    flush=True,
+                log(
+                    f"cleanup: LDAP workspace removal failed: {str(exc)[:100]}",
+                    "WARN",
                 )
 
 
@@ -1169,8 +1186,9 @@ def check_slurm_invalid_ldap_identity(host):
     summary = "Slurm invalid LDAP identity rejection"
     try:
         context, rows, _control, _config = _context(host)
-        if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+        reason = _ldap_identity_skip(context) if rows else "No Slurm nodes are mapped"
+        if reason:
+            return _skip(summary, reason)
         invalid_user = "omnia_missing_" + secrets.token_hex(6)
         allowed = _allowed_rows(rows)
         outcomes = {}
@@ -1215,13 +1233,18 @@ def _check_slurm_role_ldap_jobs(
             return gated
         context, rows, control, slurm_config = _context(host)
         if not rows or not context["features"].get("openldap", False):
-            return _skip(summary, "OpenLDAP is not enabled")
+            return _skip(
+                summary, "OpenLDAP is not enabled" if rows else "No Slurm nodes are mapped"
+            )
         submit_rows = _role_rows(rows, role_prefix)
         if not submit_rows:
             return _skip(summary, f"No {missing_role} nodes are mapped")
         computes = _compute_rows(rows)
         if not computes:
             return _skip(summary, "At least one Slurm compute node is required")
+        reason = _ldap_identity_skip(context)
+        if reason:
+            return _skip(summary, reason)
         username = _ldap_username()
         workspace_info = _prepare_ldap_workspace(
             host,
@@ -1409,10 +1432,10 @@ def _check_slurm_role_ldap_jobs(
                         PXEBOOT_COMMANDS["slurm_cancel_job"] % job_id,
                     )
                 except (OSError, RuntimeError, TypeError, ValueError) as exc:
-                    print(
-                        f"    ! cleanup: failed to cancel LDAP job {job_id}: "
+                    log(
+                        f"cleanup: failed to cancel LDAP job {job_id}: "
                         f"{str(exc)[:100]}",
-                        flush=True,
+                        "WARN",
                     )
         if control is not None and workspace_info is not None and username:
             try:
@@ -1423,10 +1446,9 @@ def _check_slurm_role_ldap_jobs(
                     username,
                 )
             except (OSError, RuntimeError, TypeError, ValueError) as exc:
-                print(
-                    f"    ! cleanup: LDAP workspace removal failed: "
-                    f"{str(exc)[:100]}",
-                    flush=True,
+                log(
+                    f"cleanup: LDAP workspace removal failed: {str(exc)[:100]}",
+                    "WARN",
                 )
 
 

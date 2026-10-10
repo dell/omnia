@@ -9,21 +9,27 @@ tests.
 
 | Order | TC ID | Test | Marker | Contract |
 |---:|---|---|---|---|
-| 10 | `ORCH_NFT_001` | `test_precheck_performance` | `performance` | Precheck completes within its configured threshold. |
-| 20 | `ORCH_NFT_002` | `test_prepare_performance` | `performance`, `destructive` | Prepare completes within its configured threshold. |
-| 30 | `ORCH_NFT_005` | `test_prepare_idempotency` | `idempotency`, `destructive` | The second prepare has no persistent changes, preserves container identity, and leaves all required OpenCHAMI services ready. |
-| 40 | `ORCH_NFT_003` | `test_provision_performance` | `performance`, `destructive` | Provision completes within its configured threshold. |
-| 50 | `ORCH_NFT_006` | `test_precheck_idempotency` | `idempotency` | The second precheck succeeds without persistent changes. |
-| 60 | `ORCH_NFT_008` | `test_credential_file_permissions` | `security` | The encrypted credential file is root-owned and mode `0600` or `0640`. |
-| 61 | `ORCH_NFT_009` | `test_ssh_private_key_permissions` | `security` | `/root/.ssh/oim_rsa` is root-owned and mode `0600`. |
-| 62 | `ORCH_NFT_010` | `test_log_file_permissions` | `security` | Orchestrator log files are root-owned and have no permissions for other users. |
-| 63 | `ORCH_NFT_011` | `test_vault_encryption` | `security` | Product credentials have a supported Ansible Vault header and a root-owned mode-`0600` key. |
-| 90 | `ORCH_NFT_004` | `test_cleanup_performance` | `performance`, `destructive` | Full cleanup completes within its configured threshold. |
-| 91 | `ORCH_NFT_007` | `test_cleanup_idempotency` | `idempotency`, `destructive` | Two cleanup executions succeed, the second has no persistent changes, and every cleanup FVT postcondition passes. |
+| 60001 | `ORCH_NFT_001` | `test_precheck_performance` | `performance` | Precheck completes within its configured threshold. |
+| 60002 | `ORCH_NFT_002` | `test_prepare_performance` | `performance`, `destructive` | Prepare completes within its configured threshold. |
+| 60003 | `ORCH_NFT_005` | `test_prepare_idempotency` | `idempotency`, `destructive` | The second prepare has no persistent changes, preserves container identity, and leaves all required OpenCHAMI services ready. |
+| 60004 | `ORCH_NFT_003` | `test_provision_performance` | `performance`, `destructive` | Provision completes within its configured threshold. |
+| 60005 | `ORCH_NFT_006` | `test_precheck_idempotency` | `idempotency` | The second precheck succeeds without persistent changes. |
+| 60006 | `ORCH_NFT_008` | `test_credential_file_permissions` | `security` | The encrypted credential file is root-owned and mode `0600` or `0640`. |
+| 60007 | `ORCH_NFT_009` | `test_ssh_private_key_permissions` | `security` | `/root/.ssh/oim_rsa` is root-owned and mode `0600`. |
+| 60008 | `ORCH_NFT_010` | `test_log_file_permissions` | `security` | Orchestrator log files are root-owned and have no permissions for other users. |
+| 60009 | `ORCH_NFT_011` | `test_vault_encryption` | `security` | Product credentials have a supported Ansible Vault header and a root-owned mode-`0600` key. |
+| 60010 | `ORCH_NFT_004` | `test_cleanup_performance` | `performance`, `destructive` | Full cleanup completes within its configured threshold. |
+| 60011 | `ORCH_NFT_007` | `test_cleanup_idempotency` | `idempotency`, `destructive` | Two cleanup executions succeed, the second has no persistent changes, and every cleanup FVT postcondition passes. |
+| 60012 | `ORCH_NFT_012` | `test_clean_baseline` | `lifecycle`, `destructive` | The OIM starts from a clean baseline before a fresh install. |
+| 60013 | `ORCH_NFT_013` | `test_lifecycle_fresh_install` | `lifecycle`, `destructive` | The complete fresh-install lifecycle succeeds from the clean baseline. |
+| 60014 | `ORCH_NFT_014` | `test_lifecycle_provision_verify` | `lifecycle` | Provision and node state are valid after the fresh-install lifecycle. |
 
 `ORCH_NFT_001` and `ORCH_NFT_006` use the current `precheck` lifecycle. They
 retain the stable IDs formerly associated with the retired standalone
 validation operation.
+
+Orders use the NFT block `60000` in `TEST_ORDER_BLOCKS`; the sequence follows
+the lifecycle phase each contract exercises.
 
 ## Performance thresholds
 
