@@ -59,6 +59,7 @@ ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
 
 TELEMETRY_CONFIG_FILE = "telemetry_config.yml"
 TELEMETRY_PACKAGES_FILE = "telemetry_packages.yml"
+TELEMETRY_STATUS_FILE = "telemetry_status.yml"
 
 # =============================================================================
 # PLAYBOOK CONFIGURATION
@@ -182,6 +183,53 @@ POWERSCALE_OTEL_DEPLOY_NAME = "otel-collector"
 POWERSCALE_CSI_EXPORTER_DEPLOY_NAME = "csi-volume-exporter"
 POWERSCALE_CSI_DRIVER_DEPLOY_NAME = "isilon-controller"
 POWERSCALE_SECRET_NAME = "isilon-creds"
+# PowerScale metrics/logs channel transitions exercised by the NFT test.
+# Each step sets the source flags, runs the execute playbook, and expects the
+# reported per-channel status in telemetry_status.yml.
+POWERSCALE_CHANNEL_STEPS = [
+    {
+        "name": "Step 1: Baseline (true, true)",
+        "metrics_enabled": True,
+        "logs_enabled": True,
+        "expected_metrics": "deployed",
+        "expected_logs": "deployed",
+    },
+    {
+        "name": "Step 2: Metrics only (true, false)",
+        "metrics_enabled": True,
+        "logs_enabled": False,
+        "expected_metrics": "deployed",
+        "expected_logs": "disabled",
+    },
+    {
+        "name": "Step 3: Logs only (false, true)",
+        "metrics_enabled": False,
+        "logs_enabled": True,
+        "expected_metrics": "disabled",
+        "expected_logs": "deployed",
+    },
+    {
+        "name": "Step 4: Both disabled (false, false)",
+        "metrics_enabled": False,
+        "logs_enabled": False,
+        "expected_metrics": "disabled",
+        "expected_logs": "disabled",
+    },
+    {
+        "name": "Step 5: Re-enable both (true, true)",
+        "metrics_enabled": True,
+        "logs_enabled": True,
+        "expected_metrics": "deployed",
+        "expected_logs": "deployed",
+    },
+    {
+        "name": "Step 6: Idempotency (true, true)",
+        "metrics_enabled": True,
+        "logs_enabled": True,
+        "expected_metrics": "deployed",
+        "expected_logs": "deployed",
+    },
+]
 # Karavi Observability metrics (from CSM Metrics PowerScale + OTEL Collector)
 POWERSCALE_KARAVI_METRICS = [
     "karavi_topology_metrics",

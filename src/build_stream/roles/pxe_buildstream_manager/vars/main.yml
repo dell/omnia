@@ -94,3 +94,12 @@ node_registration_final_success_msg: >
   [Node-Registration] All {{ target_node_admin_ips | length }}
   nodes completed cloud-init and registered successfully.
   Proceeding with BuildStream post-processing.
+
+# Input validation messages
+gitlab_host_invalid_format_msg: >-
+  gitlab_host in build_stream_config.yml contains invalid characters or template syntax.
+  Value must be a valid hostname containing only alphanumeric characters, dots, and hyphens.
+
+gitlab_config_invalid_format_msg: >-
+  build_stream_config.yml contains invalid values or template syntax.
+  Ensure gitlab_host, gitlab_project_name, and gitlab_default_branch contain only valid characters.

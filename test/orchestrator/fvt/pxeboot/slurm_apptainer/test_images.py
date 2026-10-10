@@ -25,6 +25,7 @@ from fvt.result import verify_pxeboot
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.image_download
@@ -36,6 +37,7 @@ def test_apptainer_download(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.image_download
@@ -51,6 +53,7 @@ def test_apptainer_download_idempotency(host):
 
 
 @pytest.mark.apptainer
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.image_download

@@ -137,7 +137,7 @@ from requests.exceptions import (
 )
 packages.urllib3.disable_warnings()
 
-def is_bmc_reachable_or_auth(ip, username, password, module):
+def is_bmc_reachable_or_auth(ip, username, password, module) -> tuple:
     """
     Check if the BMC is reachable and if the credentials are valid.
     Returns True if reachable and authenticated, False otherwise.
@@ -176,7 +176,7 @@ def is_bmc_reachable_or_auth(ip, username, password, module):
 
     return False, 500  # Return 500 for general errors
 
-def read_entries_csv(csv_path, module):
+def read_entries_csv(csv_path, module) -> dict:
     "Reading existing entries from the CSV file"
     entries = {}
     expected_columns = {'BMC_IP', 'GROUP_NAME', 'PARENT'}
@@ -208,7 +208,7 @@ def read_entries_csv(csv_path, module):
     return entries
 
 
-def write_entries_csv(csv_path, entries):
+def write_entries_csv(csv_path, entries) -> None:
     "Writing BMC with group details entries to the CSV file"
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     with open(csv_path, mode='w', newline='', encoding='utf-8') as csvfile:
@@ -218,7 +218,7 @@ def write_entries_csv(csv_path, entries):
         for entry in entries.values():
             writer.writerow(entry)
 
-def delete_bmc_entries(nodes, existing_entries, result):
+def delete_bmc_entries(nodes, existing_entries, result) -> None:
     """
     Delete BMC entries from the existing entries based on the provided nodes.
     """
@@ -229,7 +229,7 @@ def delete_bmc_entries(nodes, existing_entries, result):
             result['deleted'].append(bmc_ip)
             result['changed'] = True
 
-def add_bmc_entries(nodes, existing_entries, bmc_creds, module, result):
+def add_bmc_entries(nodes, existing_entries, bmc_creds, module, result) -> None:
     """
     Add BMC entries to the existing entries based on the provided nodes.
     """
@@ -257,7 +257,7 @@ def add_bmc_entries(nodes, existing_entries, bmc_creds, module, result):
                     result['unreachable_bmc'].append(bmc_ip)
             result['changed'] = True
 
-def verify_bmc_entries(nodes, bmc_creds, module, result):
+def verify_bmc_entries(nodes, bmc_creds, module, result) -> None:
     """
     Verify reachability and authentication of BMC entries in the existing entries.
     """
@@ -278,7 +278,7 @@ def verify_bmc_entries(nodes, bmc_creds, module, result):
     result['changed'] = True
 
 
-def main():
+def main() -> None:
     "Main function for the custom ansible module - update_bmc_group_entry"
     module_args = {
         'csv_path': {'type': 'str', 'required': True},

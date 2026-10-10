@@ -28,6 +28,7 @@ from library.functions import (
 )
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(310)
 @pytest.mark.powervault_mounts
@@ -36,6 +37,7 @@ def test_powervault_gpt_partition(host):
     verify_pxeboot(host, "powervault_gpt_partition", check_powervault_gpt_partition)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(311)
 @pytest.mark.powervault_mounts
@@ -44,6 +46,7 @@ def test_powervault_filesystem_type(host):
     verify_pxeboot(host, "powervault_filesystem_type", check_powervault_filesystem_type)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(312)
 @pytest.mark.powervault_mounts
@@ -52,6 +55,7 @@ def test_powervault_mount_point_directory(host):
     verify_pxeboot(host, "powervault_mount_point_directory", check_powervault_mount_point_directory)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(313)
 @pytest.mark.powervault_mounts
@@ -60,6 +64,7 @@ def test_powervault_volume_mounted(host):
     verify_pxeboot(host, "powervault_volume_mounted", check_powervault_volume_mounted)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(314)
 @pytest.mark.powervault_mounts
@@ -68,6 +73,7 @@ def test_powervault_mount_options(host):
     verify_pxeboot(host, "powervault_mount_options", check_powervault_mount_options)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(315)
 @pytest.mark.powervault_mounts
@@ -76,6 +82,7 @@ def test_powervault_fstab_entry(host):
     verify_pxeboot(host, "powervault_fstab_entry", check_powervault_fstab_entry)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.order(327)
 @pytest.mark.powervault_mounts

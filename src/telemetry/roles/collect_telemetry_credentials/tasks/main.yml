@@ -65,12 +65,14 @@
             owner: root
             create: true
           when: not telemetry_vault_key_stat.stat.exists
+          no_log: true
 
         - name: Encrypt newly created credential file
           ansible.builtin.command: >-
             ansible-vault encrypt "{{ telemetry_credential_file.file_path }}"
             --vault-password-file "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
+          no_log: true
 
     # Step 3: Create vault key if file exists but key is missing
     - name: Ensure vault key exists for existing credential file
@@ -83,6 +85,7 @@
       when:
         - telemetry_cred_file_stat.stat.exists
         - not telemetry_vault_key_stat.stat.exists
+      no_log: true
 
     # Step 4: Decrypt and load existing credentials
     - name: Load existing credentials
@@ -94,6 +97,7 @@
             --vault-password-file "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
+          no_log: true
 
         - name: Load credentials into namespaced variable
           ansible.builtin.include_vars:
@@ -107,6 +111,7 @@
             --vault-password-file "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
+          no_log: true
 
     - name: Default telemetry_loaded_creds if not loaded
       ansible.builtin.set_fact:
@@ -130,6 +135,7 @@
             --vault-password-file "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
+          no_log: true
 
         - name: Load final credentials
           ansible.builtin.include_vars:
@@ -143,6 +149,7 @@
             --vault-password-file "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
+          no_log: true
 
     # Step 8: Mark credentials as loaded to prevent re-prompting
     - name: Set credentials loaded guard

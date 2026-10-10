@@ -270,6 +270,29 @@ TEST_LOG_MSGS = {
     "git_repo_cloned": "Git repo cloned: {repo}",
     "git_repo_not_cloned": "Git repo not cloned: {repo}",
     "deployment_success": "Deployment successful: {component}",
+
+    # PowerScale channel transitions (NFT)
+    "powerscale_channel_step": (
+        "[{step}] Applying metrics_enabled={metrics}, logs_enabled={logs}"
+    ),
+    "powerscale_channel_config_failed": (
+        "[{step}] Failed to update telemetry_config.yml"
+    ),
+    "powerscale_channel_deploy_failed": (
+        "[{step}] Deploy failed (rc={rc})"
+    ),
+    "powerscale_channel_status_unreadable": (
+        "[{step}] Failed to read telemetry status"
+    ),
+    "powerscale_channel_status_mismatch": (
+        "[{step}] PowerScale status mismatch"
+    ),
+    "powerscale_channel_step_passed": (
+        "[{step}] Status verified: metrics={metrics}, logs={logs}"
+    ),
+    "powerscale_channel_all_passed": (
+        "All PowerScale metrics/logs channel transitions validated"
+    ),
 }
 
 # --- Assertion Messages ---
@@ -802,6 +825,20 @@ TEST_ASSERT_MSGS = {
         "HOW TO FIX:\n"
         "  1. Check sampler.conf on compute node for plugin configuration\n"
         "  2. Verify LDMS sampler is running: ldms_ls -h localhost -p 10001\n"
+    ),
+    "powerscale_channel_config_failed": (
+        "[{step}] Could not update telemetry_config.yml: {error}"
+    ),
+    "powerscale_channel_deploy_failed": (
+        "[{step}] Deploy failed with exit code {rc}"
+    ),
+    "powerscale_channel_status_unreadable": (
+        "[{step}] Could not read telemetry status: {error}"
+    ),
+    "powerscale_channel_status_mismatch": (
+        "[{step}] PowerScale status mismatch: expected "
+        "metrics={expected_metrics}, logs={expected_logs}; got "
+        "metrics={actual_metrics}, logs={actual_logs}"
     ),
 }
 

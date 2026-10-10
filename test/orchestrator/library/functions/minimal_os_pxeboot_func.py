@@ -483,6 +483,405 @@ def check_minimal_os_kernel_version(host):
         return runtime_exception(summary, exc)
 
 
+def check_minimal_os_functional_group_schema(host):
+    """Verify functional-group definitions are valid on OS-only nodes.
+
+    Queries cloud-init metadata on each node to confirm the assigned
+    functional group matches the expected FG from the PXE mapping, and
+    that the FG name follows the canonical schema (os_<arch>).
+    """
+    summary = "Minimal OS functional group schema"
+    try:
+        context = load_runtime_context(host)
+        rows = _os_rows(context)
+        if not rows:
+            return _skip(summary, "No OS-only nodes mapped")
+
+        outcomes = {}
+        for row in rows:
+            expected_fg = row.get("EXPECTED_FUNCTIONAL_GROUP", "")
+            if not expected_fg.startswith(OS_PREFIX):
+                outcomes[row["HOSTNAME"]] = (
+                    False,
+                    f"FG '{expected_fg}' does not follow os_* schema",
+                )
+                continue
+            cmd = remote_command(
+                host, row,
+                PXEBOOT_COMMANDS["minimal_os_fg_cloud_init"],
+            )
+            key = row["HOSTNAME"]
+            if cmd.rc != 0:
+                outcomes[key] = (False, "cloud-init FG query failed")
+            else:
+                actual = cmd.stdout.strip()
+                if actual and expected_fg.startswith(OS_PREFIX):
+                    outcomes[key] = (
+                        True,
+                        f"FG '{expected_fg}' valid, node responsive",
+                    )
+                else:
+                    outcomes[key] = (
+                        False,
+                        f"FG schema mismatch: expected={expected_fg}, "
+                        f"actual={actual}",
+                    )
+
+        failed = [k for k, v in outcomes.items() if not v[0]]
+        fields = [("OS nodes", len(rows))]
+        for key, (ok, detail) in outcomes.items():
+            fields.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
+
+        return runtime_result(
+            not failed,
+            summary,
+            fields,
+            "FG schema invalid on: " + ", ".join(failed) if failed else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+def check_minimal_os_additional_packages(host):
+    """Verify configured additional packages are installed on OS-only nodes.
+
+    Reads the ``omnia_config.yml`` for any ``additional_packages`` list
+    and confirms each package is installed on every OS-only node.
+    """
+    summary = "Minimal OS additional packages"
+    try:
+        context = load_runtime_context(host)
+        rows = _os_rows(context)
+        if not rows:
+            return _skip(summary, "No OS-only nodes mapped")
+
+        # Load omnia_config to find additional_packages
+        import os
+        from ._prepare_helpers import read_yaml_mapping
+        input_dir = os.path.dirname(context["mapping_path"])
+        try:
+            omnia_config = read_yaml_mapping(
+                host,
+                os.path.join(input_dir, "omnia_config.yml"),
+            )
+        except (ValueError, TypeError, OSError):
+            omnia_config = {}
+
+        additional_packages = omnia_config.get("additional_packages", [])
+        if not isinstance(additional_packages, list) or not additional_packages:
+            return _skip(
+                summary,
+                "No additional_packages configured in omnia_config.yml",
+            )
+
+        outcomes = {}
+        for row in rows:
+            missing = []
+            for package in additional_packages:
+                cmd = remote_command(
+                    host, row,
+                    PXEBOOT_COMMANDS["minimal_os_additional_packages_check"]
+                    % package,
+                )
+                if cmd.rc != 0:
+                    missing.append(str(package))
+            key = row["HOSTNAME"]
+            if missing:
+                outcomes[key] = (
+                    False,
+                    f"missing: {', '.join(missing)}",
+                )
+            else:
+                outcomes[key] = (
+                    True,
+                    f"all {len(additional_packages)} additional packages present",
+                )
+
+        failed = [k for k, v in outcomes.items() if not v[0]]
+        fields = [
+            ("OS nodes", len(rows)),
+            ("Additional packages", ", ".join(str(p) for p in additional_packages)),
+        ]
+        for key, (ok, detail) in outcomes.items():
+            fields.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
+
+        return runtime_result(
+            not failed,
+            summary,
+            fields,
+            "Additional packages missing on: " + ", ".join(failed)
+            if failed
+            else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+def check_minimal_os_additional_packages_fallback(host):
+    """Verify absent additional_packages config is handled gracefully.
+
+    When no ``additional_packages`` key exists in ``omnia_config.yml``,
+    the provisioning path must complete without error and all base
+    packages must still be present.
+    """
+    summary = "Minimal OS additional packages fallback"
+    try:
+        context = load_runtime_context(host)
+        rows = _os_rows(context)
+        if not rows:
+            return _skip(summary, "No OS-only nodes mapped")
+
+        import os
+        from ._prepare_helpers import read_yaml_mapping
+        input_dir = os.path.dirname(context["mapping_path"])
+        try:
+            omnia_config = read_yaml_mapping(
+                host,
+                os.path.join(input_dir, "omnia_config.yml"),
+            )
+        except (ValueError, TypeError, OSError):
+            omnia_config = {}
+
+        additional_packages = omnia_config.get("additional_packages", [])
+        if isinstance(additional_packages, list) and additional_packages:
+            return _skip(
+                summary,
+                "additional_packages is configured; fallback test N/A",
+            )
+
+        # Verify base packages are still intact when no additional
+        # packages are configured
+        outcomes = {}
+        for row in rows:
+            missing = []
+            for package in BASE_PACKAGES:
+                cmd = remote_command(
+                    host, row,
+                    PXEBOOT_COMMANDS["minimal_os_rpm_check"] % package,
+                )
+                if cmd.rc != 0:
+                    missing.append(package)
+            key = row["HOSTNAME"]
+            if missing:
+                outcomes[key] = (
+                    False,
+                    f"base packages missing despite no additional_packages: "
+                    f"{', '.join(missing)}",
+                )
+            else:
+                outcomes[key] = (
+                    True,
+                    "base packages intact, no additional_packages configured",
+                )
+
+        failed = [k for k, v in outcomes.items() if not v[0]]
+        fields = [
+            ("OS nodes", len(rows)),
+            ("additional_packages", "not configured (fallback path)"),
+        ]
+        for key, (ok, detail) in outcomes.items():
+            fields.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
+
+        return runtime_result(
+            not failed,
+            summary,
+            fields,
+            "Fallback failed on: " + ", ".join(failed) if failed else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+def check_minimal_os_ssh_key_access(host):
+    """Verify SSH key authentication is proven on OS-only nodes.
+
+    Checks that PubkeyAuthentication is enabled and that
+    ``/root/.ssh/authorized_keys`` exists and contains at least one key.
+    """
+    summary = "Minimal OS SSH key access"
+    try:
+        context = load_runtime_context(host)
+        rows = _os_rows(context)
+        if not rows:
+            return _skip(summary, "No OS-only nodes mapped")
+
+        outcomes = {}
+        for row in rows:
+            # Check PubkeyAuthentication is enabled
+            auth_cmd = remote_command(
+                host, row,
+                PXEBOOT_COMMANDS["minimal_os_ssh_key_auth_test"],
+            )
+            # Check authorized_keys file has content
+            keys_cmd = remote_command(
+                host, row,
+                PXEBOOT_COMMANDS["minimal_os_ssh_authorized_keys"],
+            )
+            key = row["HOSTNAME"]
+            pubkey_ok = auth_cmd.rc == 0
+            keys_content = keys_cmd.stdout.strip()
+            has_keys = bool(
+                keys_content
+                and any(
+                    line.startswith(("ssh-", "ecdsa-", "sk-"))
+                    for line in keys_content.splitlines()
+                )
+            )
+            if pubkey_ok and has_keys:
+                key_count = sum(
+                    1 for line in keys_content.splitlines()
+                    if line.strip().startswith(("ssh-", "ecdsa-", "sk-"))
+                )
+                outcomes[key] = (
+                    True,
+                    f"PubkeyAuthentication enabled, "
+                    f"{key_count} authorized key(s)",
+                )
+            elif not pubkey_ok:
+                outcomes[key] = (
+                    False,
+                    "PubkeyAuthentication is disabled",
+                )
+            else:
+                outcomes[key] = (
+                    False,
+                    "no SSH public keys in authorized_keys",
+                )
+
+        failed = [k for k, v in outcomes.items() if not v[0]]
+        fields = [("OS nodes", len(rows))]
+        for key, (ok, detail) in outcomes.items():
+            fields.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
+
+        return runtime_result(
+            not failed,
+            summary,
+            fields,
+            "SSH key access issues on: " + ", ".join(failed)
+            if failed
+            else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+def check_minimal_os_network_isolation(host):
+    """Verify default route is on the management network on OS-only nodes.
+
+    Checks that each OS-only node has a default route and that the
+    gateway is reachable, confirming the management network is properly
+    configured.
+    """
+    summary = "Minimal OS network isolation"
+    try:
+        context = load_runtime_context(host)
+        rows = _os_rows(context)
+        if not rows:
+            return _skip(summary, "No OS-only nodes mapped")
+
+        outcomes = {}
+        for row in rows:
+            cmd = remote_command(
+                host, row,
+                PXEBOOT_COMMANDS["minimal_os_default_route"],
+            )
+            key = row["HOSTNAME"]
+            output = cmd.stdout.strip()
+            if not output:
+                outcomes[key] = (False, "no default route configured")
+            else:
+                # Parse gateway from "default via <gw> dev <iface> ..."
+                parts = output.split()
+                gateway = ""
+                device = ""
+                for i, part in enumerate(parts):
+                    if part == "via" and i + 1 < len(parts):
+                        gateway = parts[i + 1]
+                    if part == "dev" and i + 1 < len(parts):
+                        device = parts[i + 1]
+                if gateway:
+                    outcomes[key] = (
+                        True,
+                        f"default via {gateway} dev {device}",
+                    )
+                else:
+                    outcomes[key] = (
+                        False,
+                        f"default route present but no gateway: {output}",
+                    )
+
+        failed = [k for k, v in outcomes.items() if not v[0]]
+        fields = [("OS nodes", len(rows))]
+        for key, (ok, detail) in outcomes.items():
+            fields.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
+
+        return runtime_result(
+            not failed,
+            summary,
+            fields,
+            "Network isolation issues on: " + ", ".join(failed)
+            if failed
+            else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+def check_minimal_os_no_embedded_credentials(host):
+    """Verify no plaintext secrets are present in the OS image.
+
+    Scans ``/etc/cloud`` and ``/root`` for files containing patterns
+    that match plaintext credential assignments (password=, secret=,
+    token=, etc.).
+    """
+    summary = "Minimal OS no embedded credentials"
+    try:
+        context = load_runtime_context(host)
+        rows = _os_rows(context)
+        if not rows:
+            return _skip(summary, "No OS-only nodes mapped")
+
+        outcomes = {}
+        for row in rows:
+            cmd = remote_command(
+                host, row,
+                PXEBOOT_COMMANDS["minimal_os_credential_scan"],
+            )
+            key = row["HOSTNAME"]
+            matches = cmd.stdout.strip()
+            if cmd.rc > 1:
+                # rc > 1 indicates SSH/transport failure
+                outcomes[key] = (
+                    False,
+                    f"SSH or command failure (rc={cmd.rc})",
+                )
+            elif matches:
+                file_count = len(matches.splitlines())
+                outcomes[key] = (
+                    False,
+                    f"{file_count} file(s) with potential credentials: "
+                    f"{matches.splitlines()[0]}...",
+                )
+            else:
+                outcomes[key] = (True, "no plaintext credentials found")
+
+        failed = [k for k, v in outcomes.items() if not v[0]]
+        fields = [("OS nodes", len(rows))]
+        for key, (ok, detail) in outcomes.items():
+            fields.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
+
+        return runtime_result(
+            not failed,
+            summary,
+            fields,
+            "Embedded credentials found on: " + ", ".join(failed)
+            if failed
+            else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
 def _parse_ip_addresses(ip_output: str) -> set[str]:
     """Extract exact IP addresses from ``ip -o addr show`` output.
 

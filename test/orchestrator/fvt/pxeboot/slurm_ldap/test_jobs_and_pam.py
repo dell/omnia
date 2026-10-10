@@ -54,6 +54,7 @@ def test_slurm_control_pam_job_access(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm
@@ -65,6 +66,7 @@ def test_slurm_login_ldap_jobs(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm
@@ -80,6 +82,7 @@ def test_slurm_login_pam_job_access(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm
@@ -91,6 +94,7 @@ def test_slurm_compiler_ldap_jobs(host):
 
 
 @pytest.mark.functional
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.openldap
 @pytest.mark.slurm

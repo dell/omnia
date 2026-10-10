@@ -240,7 +240,6 @@ list_images:
           lines.append("  artifacts:")
           lines.append("    reports:")
           lines.append("      dotenv: cleanup.env")
-          lines.append("    expire_in: 2 hours")
           lines.append("")
 
       # --- Append static template (cleanup + summary stages) ---
@@ -276,7 +275,6 @@ list_images:
   artifacts:
     paths:
       - cleanup_child.yml
-    expire_in: 2 hours
 
 # ============================= STAGE 2 ====================================
 # Trigger Cleanup -- Launch the dynamically generated child pipeline.

@@ -232,6 +232,7 @@ def pytest_configure(config):
     markers = {
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
+        "buildstream": "BuildStream validation subset",
         "functional": "Functional verification",
         "deploy": "Playbook deployment tests (requires full environment)",
         "openldap": "OpenLDAP service, endpoint, TLS, and data tests",
@@ -243,6 +244,11 @@ def pytest_configure(config):
         "additional_cloud_init": "Additional cloud-init post-boot verification checks",
         "mount_config": "NFS mount_config post-boot verification checks",
         "minimal_os": "Minimal OS validation for OS-only provisioned nodes",
+        "vast_installation": "VAST NFS client installation tests",
+        "vast_mounts": "VAST mount point and mount option validation",
+        "vast_targeting": "VAST functional group targeting validation",
+        "vast_scratch": "VAST scratch directory isolation and LDAP tests",
+        "vast_persistence": "VAST Slurm log persistence validation",
         "image_download": "Explicitly authorized Apptainer image download checks",
         "negative": "Expected-failure and rejection behavior checks",
         "non_disruptive": "Checks that do not reboot or drain cluster nodes",
@@ -293,6 +299,7 @@ def pytest_collection_modifyitems(session, config, items):
         explicitly_enabled
         & {
             "sanity",
+            "buildstream",
             "functional",
             "slurm",
             "kubernetes",
@@ -354,7 +361,11 @@ def pytest_collection_modifyitems(session, config, items):
                 and _item_has_marker(item, "image_download")
                 and "image_download" not in explicitly_enabled
                 and not (
-                    _item_has_marker(item, "sanity") and "sanity" in explicitly_enabled
+                    (_item_has_marker(item, "sanity") and "sanity" in explicitly_enabled)
+                    or (
+                        _item_has_marker(item, "buildstream")
+                        and "buildstream" in explicitly_enabled
+                    )
                 )
             ):
                 match = False
@@ -380,7 +391,7 @@ def pytest_runtest_setup(item):
     _mode, markers = _parse_marker_expression(marker_expr)
     selected = set(markers)
     sanity_authorized = _item_has_marker(item, "sanity") and (
-        not selected or "sanity" in selected
+        not selected or "sanity" in selected or "buildstream" in selected
     )
     authorized = set()
     if _item_has_marker(item, "functional") and (

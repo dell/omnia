@@ -21,6 +21,7 @@ from library.messages import PXEBOOT_TEST_LOG_MSGS as LOG
 from library.vars import TEST_CASES as TC
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.cloudinit
 @pytest.mark.order(204)

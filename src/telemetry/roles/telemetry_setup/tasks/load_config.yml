@@ -130,6 +130,7 @@
         cmd: "cp -an {{ input_source_dir }}/. {{ input_project_dir }}/"
       args:
         creates: "{{ input_project_dir }}/telemetry_config.yml"
+      changed_when: true
       become: true
 
     - name: Create runtime input directory if no source available

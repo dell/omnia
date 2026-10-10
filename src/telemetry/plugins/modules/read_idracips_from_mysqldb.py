@@ -119,7 +119,7 @@ import pymysql
 from ansible.module_utils.basic import AnsibleModule
 from kubernetes import client, config
 
-def load_kube_context():
+def load_kube_context() -> None:
     """Load Kubernetes configuration for accessing the cluster."""
     try:
         config.load_kube_config()
@@ -127,7 +127,7 @@ def load_kube_context():
         config.load_incluster_config()
 
 
-def resolve_pod_ip(namespace, pod):
+def resolve_pod_ip(namespace, pod) -> str:
     """Resolve the IP address of a Kubernetes pod via the K8s API.
 
     Args:
@@ -152,7 +152,7 @@ def resolve_pod_ip(namespace, pod):
 def run_mysql_read_in_pod(
     namespace, pod, mysqldb_container_port, mysqldb_name,
     mysql_user, mysql_password
-):
+) -> dict:
     """Read iDRAC IPs from MySQL using a PyMySQL connection.
 
     Connects directly to the MySQL pod over TCP (resolved via the K8s API)
@@ -213,7 +213,7 @@ def run_mysql_read_in_pod(
             conn.close()
 
 
-def main():
+def main() -> None:
     """Main function to execute the module logic."""
     module_args = {
         "telemetry_namespace": {"type": "str", "required": True},

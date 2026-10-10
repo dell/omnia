@@ -57,17 +57,19 @@
 
         - name: Create OpenLDAP directories
           ansible.builtin.file:
-            path: "{{ item }}"
+            path: "{{ item.path }}"
             state: directory
             owner: root
             group: root
-            mode: "0755"
+            mode: "{{ item.mode }}"
           loop:
-            - "{{ auth_base_dir }}"
-            - "{{ auth_config_dir }}"
-            - "{{ auth_certs_dir }}"
-            - "{{ auth_data_dir }}"
-            - "{{ auth_init_dir }}"
+            - { path: "{{ auth_base_dir }}", mode: "0755" }
+            - { path: "{{ auth_config_dir }}", mode: "0700" }
+            - { path: "{{ auth_certs_dir }}", mode: "0700" }
+            - { path: "{{ auth_data_dir }}", mode: "0700" }
+            - { path: "{{ auth_init_dir }}", mode: "0700" }
+          loop_control:
+            label: "{{ item.path }}"
 
         - name: Generate TLS certificates
           ansible.builtin.include_tasks: generate_tls_certs.yml
@@ -87,7 +89,7 @@
             dest: "{{ auth_init_dir }}/bootstrap.ldif"
             owner: root
             group: root
-            mode: "0644"
+            mode: "0600"
 
         - name: Pull omnia_auth container image
           ansible.builtin.command:

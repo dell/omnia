@@ -24,17 +24,28 @@ import pytest
 
 from fvt.result import verify_pxeboot
 from library.functions import (
+    check_minimal_os_additional_packages,
+    check_minimal_os_additional_packages_fallback,
     check_minimal_os_base_packages,
     check_minimal_os_excluded_packages,
     check_minimal_os_excluded_services,
+    check_minimal_os_functional_group_schema,
     check_minimal_os_kernel_version,
     check_minimal_os_ldms_packages,
+    check_minimal_os_ldms_service_state,
     check_minimal_os_network_identity,
+    check_minimal_os_network_isolation,
+    check_minimal_os_no_embedded_credentials,
     check_minimal_os_package_manager,
     check_minimal_os_required_services,
+    check_minimal_os_ssh_key_access,
 )
 
-pytestmark = [pytest.mark.sanity, pytest.mark.minimal_os]
+pytestmark = [
+    pytest.mark.buildstream,
+    pytest.mark.sanity,
+    pytest.mark.minimal_os,
+]
 
 
 @pytest.mark.order(600)
@@ -98,4 +109,74 @@ def test_minimal_os_network_identity(host):
     """Verify admin IP is configured on all OS-only nodes."""
     verify_pxeboot(
         host, "minimal_os_network_identity", check_minimal_os_network_identity
+    )
+
+
+@pytest.mark.order(609)
+def test_minimal_os_functional_group_schema(host):
+    """Verify functional-group definitions are valid on OS-only nodes."""
+    verify_pxeboot(
+        host,
+        "minimal_os_functional_group_schema",
+        check_minimal_os_functional_group_schema,
+    )
+
+
+@pytest.mark.order(610)
+def test_minimal_os_additional_packages(host):
+    """Verify configured extra packages are installed on OS-only nodes."""
+    verify_pxeboot(
+        host,
+        "minimal_os_additional_packages",
+        check_minimal_os_additional_packages,
+    )
+
+
+@pytest.mark.order(611)
+def test_minimal_os_additional_packages_fallback(host):
+    """Verify absent additional_packages config is handled on OS-only nodes."""
+    verify_pxeboot(
+        host,
+        "minimal_os_additional_packages_fallback",
+        check_minimal_os_additional_packages_fallback,
+    )
+
+
+@pytest.mark.order(612)
+def test_minimal_os_ldms_service_state(host):
+    """Verify LDMS service is installed but inactive at handoff."""
+    verify_pxeboot(
+        host,
+        "minimal_os_ldms_service_state",
+        check_minimal_os_ldms_service_state,
+    )
+
+
+@pytest.mark.order(613)
+def test_minimal_os_ssh_key_access(host):
+    """Verify SSH key authentication is proven on OS-only nodes."""
+    verify_pxeboot(
+        host,
+        "minimal_os_ssh_key_access",
+        check_minimal_os_ssh_key_access,
+    )
+
+
+@pytest.mark.order(614)
+def test_minimal_os_network_isolation(host):
+    """Verify default route is on management network on OS-only nodes."""
+    verify_pxeboot(
+        host,
+        "minimal_os_network_isolation",
+        check_minimal_os_network_isolation,
+    )
+
+
+@pytest.mark.order(615)
+def test_minimal_os_no_embedded_credentials(host):
+    """Verify no plaintext secrets are present in the OS image."""
+    verify_pxeboot(
+        host,
+        "minimal_os_no_embedded_credentials",
+        check_minimal_os_no_embedded_credentials,
     )

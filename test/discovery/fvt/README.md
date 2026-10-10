@@ -10,7 +10,7 @@ that registry; IDs and titles must not be hardcoded in test implementations.
 
 ## Test-case ID standard
 
-IDs use `DISCOVERY_FVT_<PHASE>_<TYPE><SEQ>`:
+IDs use `DISCOVERY_FVT_<PHASE>_<TYPE><SEQ>` for FVT and `DISCOVERY_NFT_<SEQ>` for NFT:
 
 | Segment | Meaning | Values or example |
 |---------|---------|-------------------|

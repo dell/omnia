@@ -78,6 +78,17 @@ cleanup phase, producing correct results.
   VMCluster health is verified via `.status.updateStatus` (expected: `operational`);
   Kafka health via `.status.conditions[Ready].status` (expected: `True`).
 
+### PowerScale Channel Tests
+
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TEL_NFT_025 | PowerScale metrics/logs channel transitions (six steps: baseline, metrics only, logs only, both disabled, re-enable, idempotency) | nft, source |
+
+Runs at order 122, after the resilience tests and before the cleanup tests. Each step updates the
+PowerScale source flags, runs the execute playbook, and compares the channel status reported in
+`telemetry_status.yml` with the expected state. The steps are defined in `POWERSCALE_CHANNEL_STEPS`
+in `library/vars/common_vars.py`.
+
 ## Execution
 
 ### Full NFT Test Suite (Recommended)

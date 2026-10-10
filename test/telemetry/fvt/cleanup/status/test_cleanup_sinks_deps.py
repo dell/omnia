@@ -802,7 +802,7 @@ def test_cleanup_sinks_dep_check_fail(host):
     AND the final message explains the validation failure.
 
     Note: This test verifies the rescue block in check_sink_dependencies.yml.
-    In practice, dependency check failure occurs when kubectl is unreachable.
+    In practice, dependency check failure occurs when the Kubernetes API is unreachable.
     This test verifies the general contract that sinks remain unchanged
     if the playbook does not run successfully.
     """

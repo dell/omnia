@@ -23,6 +23,7 @@ from library.functions import (
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(207)
@@ -31,6 +32,7 @@ def test_kubernetes_version_compatibility(host):
     verify_pxeboot(host, "kubernetes_versions", check_kubernetes_version_compatibility)
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
 @pytest.mark.order(208)

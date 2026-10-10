@@ -54,6 +54,7 @@ APPTAINER_GPU_MEMORY_SETTLE_SECONDS = 5
 HPC_TOOLS_BASE = "/hpc_tools"
 HPC_TOOLS_SCRIPTS_DIRECTORY = "/hpc_tools/scripts"
 HPC_TOOLS_BENCHMARKS_DIRECTORY = "/hpc_tools/benchmarks"
+HPC_TOOLS_PLATFORMS_DIRECTORY = "/hpc_tools/platforms"
 HPC_TOOLS_CONTAINER_IMAGES_DIRECTORY = "/hpc_tools/container_images"
 HPC_TOOLS_CUDA_DIRECTORY = "/hpc_tools/cuda"
 HPC_TOOLS_NVIDIA_SDK_DIRECTORY = "/hpc_tools/nvidia_sdk"
@@ -64,8 +65,10 @@ HPC_TOOLS_CORE_SUBDIRS: tuple[str, ...] = (
     "nvidia_sdk",
 )
 HPC_TOOLS_DIRECTORY_MODE = "755"
+HPC_BENCHMARKS_PLATFORM_SCRIPT = "/hpc_tools/scripts/omnia_platform.sh"
 HPC_BENCHMARKS_PULL_SCRIPT = "/hpc_tools/scripts/pull_benchmarks.sh"
 HPC_BENCHMARKS_TOOLS_LIST = "/hpc_tools/scripts/benchmark_tools.list"
+HPC_BENCHMARKS_CONTAINER_IMAGE_LIST = "/hpc_tools/scripts/container_image.list"
 HPC_BENCHMARKS_CUSTOM_JSON_SEARCH: tuple[str, ...] = (
     "/opt/omnia/config/slurm_custom.json",
     "/etc/omnia/slurm_custom.json",
@@ -622,9 +625,41 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "hpc_benchmarks_pull_script_var": (
         "awk -F= '/^%s=/{sub(/^%s=/,\"\"); gsub(/^\"|\"$/,\"\"); print; exit}' %s"
     ),
+    "hpc_benchmarks_platform_helper_var": (
+        ". /hpc_tools/scripts/omnia_platform.sh && omnia_detect_platform && echo ${%s}"
+    ),
+    "hpc_benchmarks_platform_script_check": (
+        "test -x /hpc_tools/scripts/omnia_platform.sh && "
+        "bash -n /hpc_tools/scripts/omnia_platform.sh"
+    ),
+    "hpc_benchmarks_container_image_list_check": (
+        "test -r /hpc_tools/scripts/container_image.list && "
+        "test -s /hpc_tools/scripts/container_image.list"
+    ),
     "hpc_benchmarks_pulp_list": (
         "curl -ksfL --connect-timeout 5 --max-time 15 %s 2>/dev/null | "
         "grep -oE 'href=\"[^\"]+\"' | grep -vE '(\\.\\./|index\\.html)' | head -20"
+    ),
+    "hpc_benchmarks_cleanup_platform_tools": (
+        "rm -rf %s 2>&1 && echo CLEANED"
+    ),
+    "hpc_benchmarks_nfs_export_check": (
+        "exportfs -v 2>/dev/null | grep -E '%s\\b' | head -5"
+    ),
+    "hpc_benchmarks_mount_type": (
+        "findmnt -n -o SOURCE,FSTYPE,OPTIONS %s 2>/dev/null"
+    ),
+    "hpc_benchmarks_tool_fingerprints": (
+        "find %s -type f -exec stat -c '%%n|%%s|%%Y' {} + 2>/dev/null | sort"
+    ),
+    "hpc_benchmarks_tool_sha256": (
+        "find %s -type f -exec sha256sum {} + 2>/dev/null | sort"
+    ),
+    "hpc_benchmarks_run_pull_script_bg": (
+        "nohup timeout %s %s %s >%s 2>&1 & echo $!"
+    ),
+    "hpc_benchmarks_wait_pid": (
+        "tail --pid=%s -f /dev/null 2>/dev/null; wait %s 2>/dev/null; echo $?"
     ),
     "coresmd_container_ps": (
         "podman ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | "
@@ -732,6 +767,24 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     ),
     "minimal_os_kernel_version": "uname -r",
     "minimal_os_ip_addr": "ip -o addr show 2>/dev/null",
+    "minimal_os_fg_cloud_init": (
+        "cloud-init query ds.meta_data.functional_group 2>/dev/null || "
+        "cloud-init query local-hostname 2>/dev/null"
+    ),
+    "minimal_os_additional_packages_check": "rpm -q %s >/dev/null 2>&1",
+    "minimal_os_ssh_authorized_keys": "cat /root/.ssh/authorized_keys 2>/dev/null",
+    "minimal_os_ssh_key_auth_test": (
+        "grep -qE '^PubkeyAuthentication\\s+yes' /etc/ssh/sshd_config 2>/dev/null || "
+        "! grep -qE '^PubkeyAuthentication\\s+no' /etc/ssh/sshd_config 2>/dev/null"
+    ),
+    "minimal_os_default_route": "ip -o route show default 2>/dev/null",
+    "minimal_os_credential_scan": (
+        "grep -rlE "
+        "'(password|secret|token|api_key|private_key)\\s*[:=]\\s*[A-Za-z0-9+/]{8,}' "
+        "/etc/cloud /root 2>/dev/null | "
+        "grep -v -E '\\.(pyc|pem|pub|crt|key)$' | head -20"
+    ),
+    "minimal_os_ldms_service_state": "systemctl is-active ldmsd",
     # ── DCGM / CUDA verification ──────────────────────────────────────
     "dcgm_nvidia_smi": "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
     "dcgm_cuda_version": (

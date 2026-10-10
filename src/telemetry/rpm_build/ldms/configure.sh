@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 echo "[>>] configure"
 CFLAGS="-ggdb3 -O0 -std=gnu17" \
 ./configure \

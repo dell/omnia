@@ -31,7 +31,7 @@ def validate_input_logic(
     omnia_base_dir,
     module_utils_base,
     project_name
-):
+) -> list:
     """
     Dispatches L2 validation to the appropriate telemetry validation function
     based on the input file name.
@@ -48,20 +48,6 @@ def validate_input_logic(
     Returns:
         list: A list of errors encountered during validation.
     """
-    validation_functions = {
-        "telemetry_config.yml": telemetry_validation.validate_telemetry_config,
-        "telemetry_storage_config.yml": telemetry_validation.validate_telemetry_storage_config,
-        "telemetry_packages.yml": telemetry_validation.validate_telemetry_packages,
-    }
-
-    path_parts = input_file_path.split("/")
-    file_name = path_parts[-1]
-
-    validation_function = validation_functions.get(file_name, None)
-    if validation_function:
-        return validation_function(
-            input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
-        )
-    message = f"Unsupported telemetry input file: {input_file_path}"
-    logger.error(message)
-    return []
+    return telemetry_validation.validate(
+        input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
+    )

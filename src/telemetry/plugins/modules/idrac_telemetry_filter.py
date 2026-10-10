@@ -101,7 +101,7 @@ from ansible.module_utils._text import to_native
 
 packages.urllib3.disable_warnings()
 
-def get_bmc_license_info(bmc_ip, username, password, module):
+def get_bmc_license_info(bmc_ip, username, password, module) -> bool:
     """
 	Queries the BMC for license information.
 
@@ -164,7 +164,7 @@ def get_bmc_license_info(bmc_ip, username, password, module):
         return False
 
 
-def get_bmc_firmware_info(bmc_ip, username, password, module, min_firmware_version_reqd):
+def get_bmc_firmware_info(bmc_ip, username, password, module, min_firmware_version_reqd) -> bool:
     """
 	Queries the BMC for firmware information.
 
@@ -212,7 +212,7 @@ def get_bmc_firmware_info(bmc_ip, username, password, module, min_firmware_versi
         return False
 
 
-def main():
+def main() -> None:
     """
 	Ansible module to filter BMCs based on their firmware version and license status.
 
