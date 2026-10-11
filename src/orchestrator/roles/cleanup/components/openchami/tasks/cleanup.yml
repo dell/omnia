@@ -293,6 +293,13 @@
     state: absent
   tags: openchami
 
+- name: Remove Omnia-managed OpenCHAMI unit files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ openchami_config.unit_files }}"
+  tags: openchami
+
 - name: Reload systemd after removing OpenCHAMI RPM packages
   ansible.builtin.systemd:
     daemon_reload: true

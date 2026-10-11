@@ -1,0 +1,10 @@
+# Managed by the Omnia deploy_openchami role.
+[Unit]
+Description=Renew OpenCHAMI service tokens before the 24 h TokenSmith refresh lifetime ends
+
+[Timer]
+OnActiveSec={{ openchami_token_renewal_interval }}
+OnUnitActiveSec={{ openchami_token_renewal_interval }}
+
+[Install]
+WantedBy=timers.target
