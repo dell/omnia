@@ -364,6 +364,7 @@ Review these `test_config.yml` settings first:
 | `cleanup_credentials` | Remove Orchestrator credential artifacts | Preserve them |
 | `cleanup_slurm` | Delete Slurm shared data, then detach storage | Preserve data, but detach storage |
 | `cleanup_k8s` | Delete Kubernetes shared data, then detach storage | Preserve data, but detach storage |
+| `cleanup_benchmark_tools` | Remove HPC benchmark staged artifacts after verification | Retain artifacts for inspection |
 
 All default to `true`. Cleanup removes deployment state and is not a harmless
 verification workflow.

@@ -62,3 +62,8 @@ ssh_key_comment: "omnia_gitlab"
 
 # Usage: validate_ssh.yml
 ssh_connection_failure_msg: 'Passwordless SSH to {{ gitlab_host }} failed. Verify connectivity manually.'
+
+# Input validation messages
+gitlab_host_invalid_format_msg: >-
+  gitlab_host in build_stream_config.yml contains invalid characters or template syntax.
+  Value must be a valid hostname containing only alphanumeric characters, dots, and hyphens.

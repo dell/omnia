@@ -21,12 +21,38 @@ behind the ``--run-destructive`` gate.
 
 import pytest
 from library.functions import (
+    check_hpc_benchmarks_concurrent_staging,
     check_hpc_benchmarks_e2e_provisioning,
+    check_hpc_benchmarks_staging_fingerprint_idempotency,
 )
 
 from fvt.result import verify_pxeboot
 
 pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
+
+
+@pytest.mark.functional
+@pytest.mark.benchmark
+@pytest.mark.order(296)
+def test_hpc_benchmarks_staging_fingerprint_idempotency(host):
+    """V096: Pull tools, validate tarballs, repeat — SHA-256, size, mtime must hold."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_staging_fingerprint_idempotency",
+        check_hpc_benchmarks_staging_fingerprint_idempotency,
+    )
+
+
+@pytest.mark.functional
+@pytest.mark.benchmark
+@pytest.mark.order(297)
+def test_hpc_benchmarks_concurrent_staging(host):
+    """V097: Start two same-platform pulls together; both see identical archives."""
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_concurrent_staging",
+        check_hpc_benchmarks_concurrent_staging,
+    )
 
 
 @pytest.mark.sanity

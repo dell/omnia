@@ -17,17 +17,46 @@
 import pytest
 from library.functions import (
     check_hpc_benchmarks_artifact_copy,
+    check_hpc_benchmarks_cleanup_staging,
     check_hpc_benchmarks_json_declaration,
     check_hpc_benchmarks_local_repo_sync,
     check_hpc_benchmarks_msr_safe_arch_boundary,
     check_hpc_benchmarks_post_staging_validation,
+    check_hpc_benchmarks_prerequisites,
     check_hpc_benchmarks_rhel_compatibility,
+    check_hpc_benchmarks_run_staging,
     check_hpc_benchmarks_tools_dir_creation,
 )
 
 from fvt.result import verify_pxeboot
 
 pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
+
+
+@pytest.mark.sanity
+@pytest.mark.functional
+@pytest.mark.benchmark
+@pytest.mark.order(295)
+def test_hpc_benchmarks_prerequisites(host):
+    """V095: Verify script presence, platform helper, tool list, mount (NFS export informational)."""
+    verify_pxeboot(
+        host, "hpc_benchmarks_prerequisites", check_hpc_benchmarks_prerequisites
+    )
+
+
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.order(330)
+def test_hpc_benchmarks_run_staging(host):
+    """TC-00: Execute pull_benchmarks.sh to populate staged artifacts.
+
+    This setup step runs before the artifact-verification TCs so they do
+    not skip with "staging not yet executed".  Skips gracefully when
+    pull_benchmarks.sh is not deployed.
+    """
+    verify_pxeboot(
+        host, "hpc_benchmarks_run_staging", check_hpc_benchmarks_run_staging
+    )
 
 
 @pytest.mark.buildstream
@@ -99,4 +128,20 @@ def test_hpc_benchmarks_rhel_compatibility(host):
     """TC-13: Verify every compute node runs the targeted RHEL major."""
     verify_pxeboot(
         host, "hpc_benchmarks_rhel_compatibility", check_hpc_benchmarks_rhel_compatibility
+    )
+
+
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.order(346)
+def test_hpc_benchmarks_cleanup_staging(host):
+    """TC-00b: Remove staged benchmark tool directories after verification.
+
+    Controlled by ``cleanup_benchmark_tools`` in ``test_config.yml``.
+    When false, staged artifacts are retained for manual inspection.
+    """
+    verify_pxeboot(
+        host,
+        "hpc_benchmarks_cleanup_staging",
+        check_hpc_benchmarks_cleanup_staging,
     )

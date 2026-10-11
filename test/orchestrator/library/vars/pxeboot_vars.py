@@ -640,6 +640,27 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "curl -ksfL --connect-timeout 5 --max-time 15 %s 2>/dev/null | "
         "grep -oE 'href=\"[^\"]+\"' | grep -vE '(\\.\\./|index\\.html)' | head -20"
     ),
+    "hpc_benchmarks_cleanup_platform_tools": (
+        "rm -rf %s 2>&1 && echo CLEANED"
+    ),
+    "hpc_benchmarks_nfs_export_check": (
+        "exportfs -v 2>/dev/null | grep -E '%s\\b' | head -5"
+    ),
+    "hpc_benchmarks_mount_type": (
+        "findmnt -n -o SOURCE,FSTYPE,OPTIONS %s 2>/dev/null"
+    ),
+    "hpc_benchmarks_tool_fingerprints": (
+        "find %s -type f -exec stat -c '%%n|%%s|%%Y' {} + 2>/dev/null | sort"
+    ),
+    "hpc_benchmarks_tool_sha256": (
+        "find %s -type f -exec sha256sum {} + 2>/dev/null | sort"
+    ),
+    "hpc_benchmarks_run_pull_script_bg": (
+        "nohup timeout %s %s %s >%s 2>&1 & echo $!"
+    ),
+    "hpc_benchmarks_wait_pid": (
+        "tail --pid=%s -f /dev/null 2>/dev/null; wait %s 2>/dev/null; echo $?"
+    ),
     "coresmd_container_ps": (
         "podman ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | "
         "grep -E '(^|\\|)%s(\\||-|$)' | head -5"

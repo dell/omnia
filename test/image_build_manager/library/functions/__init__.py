@@ -92,6 +92,11 @@ from .validation_func import (
     ConfigValidationError,
 )
 
+# --- Non-functional security (file permissions / ownership) ---
+from .security_func import (
+    check_file_permissions,
+)
+
 
 def run_playbook(tag=None, **kwargs):
     """Wrapper that injects module-specific playbook and workdir."""
@@ -164,5 +169,6 @@ __all__ = [
     "validate_test_config",
     "validate_all",
     "ConfigValidationError",
+    "check_file_permissions",
     "run_playbook",
 ]
