@@ -144,6 +144,13 @@
 - name: Render kickstart file
   when: not _custom_iso_stat.stat.exists or rebuild_iso | bool
   block:
+    - name: Generate build metadata
+      ansible.builtin.set_fact:
+        build_id: "{{ lookup('community.general.random_string', length=32, base64=false, special=false) }}"
+        build_timestamp: "{{ ansible_date_time.iso8601 }}"
+        custom_iso_path: "{{ custom_iso_path }}"
+        cacheable: false
+
     - name: Render Kickstart from template
       ansible.builtin.template:
         src: "{{ kickstart_template }}.ks.j2"

@@ -275,6 +275,10 @@ TEST_CASES = {
         "id": "UTILS_FVT_INSTALL_OS_V016",
         "title": "Verify installed OS architecture matches target_architecture",
     },
+    "install_os_post_install_build_identifier": {
+        "id": "UTILS_FVT_INSTALL_OS_V017",
+        "title": "Verify build identifier file exists and matches manifest",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
     # CLEANUP_LOGS SCENARIO

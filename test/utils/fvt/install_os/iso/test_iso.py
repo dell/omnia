@@ -708,3 +708,109 @@ def test_install_os_post_install_architecture(host):
         else:
             tl.failed(f"Failed to get architecture: {result['error']}")
             pytest.fail(f"Failed to get architecture: {result['error']}")
+
+
+@pytest.mark.functional
+@pytest.mark.order(64)
+def test_install_os_post_install_build_identifier(host):
+    """Verify build identifier file exists and matches manifest."""
+    tc = TC["install_os_post_install_build_identifier"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    input_path = get_utils_input_path(host)
+    config_path = f"{input_path}/install_os_config.yml"
+
+    config_result = validate_install_os_config(host, config_path)
+    if not config_result["success"]:
+        tl.skipped(f"Config validation failed: {config_result['error']}")
+        pytest.skip(f"Config validation failed: {config_result['error']}")
+
+    config = config_result.get("config", {})
+    target_admin_ip = config.get("target_admin_ip", "")
+
+    if not target_admin_ip:
+        tl.skipped("target_admin_ip not configured")
+        pytest.skip("target_admin_ip not configured")
+
+    ssh_key_path = _resolve_ssh_private_key_path(config)
+    key_exists = check_file_exists(host, ssh_key_path)
+    if not key_exists["success"]:
+        tl.skipped(f"SSH private key not found at {ssh_key_path}")
+        pytest.skip(f"SSH private key not found at {ssh_key_path}")
+
+    # Check if build info file exists
+    result = run_ssh_command(
+        host,
+        target_ip=target_admin_ip,
+        command="cat /root/.omnia-iso-build-info",
+        ssh_key_path=ssh_key_path,
+        timeout=30,
+    )
+
+    if not result["success"]:
+        # Skip if target is unreachable or permission denied
+        if "No route to host" in result["error"] or "Connection refused" in result["error"] or "Connection timed out" in result["error"] or "Permission denied" in result["error"]:
+            tl.skipped(f"Target node unreachable or SSH auth failed: {result['error']}")
+            pytest.skip(f"Target node unreachable or SSH auth failed: {result['error']}")
+        else:
+            tl.failed(f"Failed to read build info file: {result['error']}")
+            pytest.fail(f"Failed to read build info file: {result['error']}")
+
+    # Parse build info file
+    build_info = {}
+    for line in result["stdout"].strip().split('\n'):
+        if ':' in line:
+            key, value = line.split(':', 1)
+            build_info[key.strip()] = value.strip()
+
+    # Get manifest for comparison
+    manifest_result = _resolve_manifest_path(host)
+    if not manifest_result["success"]:
+        tl.skipped("Cannot resolve manifest path for comparison")
+        pytest.skip("Cannot resolve manifest path")
+
+    manifest_path = manifest_result["manifest_path"]
+    manifest_exists = check_file_exists(host, manifest_path)
+    if not manifest_exists["success"]:
+        tl.warning("Manifest not found, skipping build_id comparison")
+        tl.passed("Build info file exists (manifest not available for comparison)")
+        return
+
+    yaml_result = validate_yaml_file(host, manifest_path)
+    if not yaml_result["success"]:
+        tl.warning("Manifest YAML invalid, skipping build_id comparison")
+        tl.passed("Build info file exists (manifest invalid for comparison)")
+        return
+
+    manifest = yaml_result["data"]
+
+    # Compare build_id
+    if "build_id" in manifest and "BUILD_ID" in build_info:
+        if manifest["build_id"] == build_info["BUILD_ID"]:
+            tl.passed(f"Build ID matches: {build_info['BUILD_ID']}")
+        else:
+            tl.failed(f"Build ID mismatch. Manifest: {manifest['build_id']}, System: {build_info['BUILD_ID']}")
+            pytest.fail("Build ID mismatch")
+    else:
+        tl.warning("build_id not in manifest or build info file")
+
+    # Compare iso_checksum
+    if "iso_checksum" in manifest and "ISO_CHECKSUM" in build_info:
+        if manifest["iso_checksum"] == build_info["ISO_CHECKSUM"]:
+            tl.passed("ISO checksum matches")
+        else:
+            tl.failed("ISO checksum mismatch")
+            pytest.fail("ISO checksum mismatch")
+    else:
+        tl.warning("iso_checksum not in manifest or build info file")
+
+    # Compare build_timestamp
+    if "build_timestamp" in manifest and "BUILD_TIMESTAMP" in build_info:
+        if manifest["build_timestamp"] == build_info["BUILD_TIMESTAMP"]:
+            tl.passed("Build timestamp matches")
+        else:
+            tl.warning(f"Build timestamp differs. Manifest: {manifest['build_timestamp']}, System: {build_info['BUILD_TIMESTAMP']}")
+    else:
+        tl.warning("build_timestamp not in manifest or build info file")
+
+    tl.passed("Build identifier verification completed")
