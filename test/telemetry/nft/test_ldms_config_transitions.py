@@ -447,10 +447,7 @@ def test_ldms_config_transitions(host):
       - Pod states (scaled to 0 when disabled, running when enabled)
       - Status reporting (deployed/disabled/skipped)
     """
-    tc = TC.get("nft_ldms_transitions", {
-        "id": "TEL_NFT_LDMS_001",
-        "title": "LDMS configuration transitions (all 4 states)"
-    })
+    tc = TC["nft_ldms_transitions"]
     tl = TestLogger(tc["title"], tc["id"])
 
     # Transition 1: Baseline - LDMS=true, Vector=true
