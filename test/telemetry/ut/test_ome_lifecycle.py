@@ -191,5 +191,5 @@ def test_ome_status_reports_each_channel_as_deployed_or_disabled():
     assert "-l app=vlagent-vector" in deploy
     assert "_ome_metrics_forwarder_running" in deploy
     assert "_ome_logs_forwarder_running" in deploy
-    assert "'disabled' if not (_ome_m_on | bool)" in deploy
-    assert "'disabled' if not (_ome_l_on | bool)" in deploy
+    assert "'skipped' if not (_ome_m_on | bool)" in deploy
+    assert "'skipped' if not (_ome_l_on | bool)" in deploy

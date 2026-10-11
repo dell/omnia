@@ -551,9 +551,9 @@
 
 - name: Kafka | Parse Isilon endpoint and credentials
   ansible.builtin.set_fact:
-    _isilon_endpoint: "{{ (_isilon_creds_decoded | regex_findall('endpoint:\\s+\"([^\"]+)\"') | default(['172.20.10.74']) | first) }}"
-    _isilon_username: "{{ (_isilon_creds_decoded | regex_findall('username:\\s+\"([^\"]+)\"') | default(['root']) | first) }}"
-    _isilon_password: "{{ (_isilon_creds_decoded | regex_findall('password:\\s+\"([^\"]+)\"') | default(['Dap1234']) | first) }}"
+    _isilon_endpoint: "{{ (_isilon_creds_decoded | regex_findall('endpoint:\\s+\"([^\"]+)\"') | default([]) | first | default('', true)) }}"
+    _isilon_username: "{{ (_isilon_creds_decoded | regex_findall('username:\\s+\"([^\"]+)\"') | default([]) | first | default('', true)) }}"
+    _isilon_password: "{{ (_isilon_creds_decoded | regex_findall('password:\\s+\"([^\"]+)\"') | default([]) | first | default('', true)) }}"
   when: _isilon_creds_decoded | default('') | length > 0
   no_log: true
 

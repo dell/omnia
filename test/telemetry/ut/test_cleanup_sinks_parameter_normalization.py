@@ -79,6 +79,9 @@ class TestParameterNormalization:
             pytest.skip(f"Could not run bash test: {e}")
             return None
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V046")
+
+
     def test_single_sink_kafka_normalization(self):
         """UT_CLEANUP_PARAM_001: Single sink normalization (-e kafka).
 
@@ -93,6 +96,9 @@ class TestParameterNormalization:
             f"Should convert kafka to kafka=true, got: {result}"
         )
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V047")
+
+
     def test_single_sink_victoria_metrics_normalization(self):
         """UT_CLEANUP_PARAM_002: Victoria Metrics normalization.
 
@@ -105,6 +111,9 @@ class TestParameterNormalization:
         assert "-e" in result and "victoria_metrics=true" in result, (
             f"Should normalize victoria_metrics, got: {result}"
         )
+
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V048")
+
 
     def test_comma_separated_normalization(self):
         """UT_CLEANUP_PARAM_003: Comma-separated normalization.
@@ -119,6 +128,9 @@ class TestParameterNormalization:
             f"Should normalize comma-separated, got: {result}"
         )
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V049")
+
+
     def test_comma_separated_all_three_sinks(self):
         """UT_CLEANUP_PARAM_004: All three sinks comma-separated.
 
@@ -132,6 +144,9 @@ class TestParameterNormalization:
             f"Should normalize all three, got: {result}"
         )
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V050")
+
+
     def test_explicit_form_no_change(self):
         """UT_CLEANUP_PARAM_005: Explicit form should not change.
 
@@ -144,6 +159,9 @@ class TestParameterNormalization:
         assert "sinks=kafka" in result, (
             f"Should keep explicit form unchanged, got: {result}"
         )
+
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V051")
+
 
     def test_separate_flags_normalization(self):
         """UT_CLEANUP_PARAM_006: Separate flags normalization.
@@ -161,6 +179,9 @@ class TestParameterNormalization:
             f"Should normalize victoria_metrics, got: {result}"
         )
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V052")
+
+
     def test_case_insensitive_kafka(self):
         """UT_CLEANUP_PARAM_007: Case insensitive - Kafka (capital K).
 
@@ -174,6 +195,9 @@ class TestParameterNormalization:
             f"Should handle case variation, got: {result}"
         )
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V053")
+
+
     def test_case_insensitive_victoria_metrics(self):
         """UT_CLEANUP_PARAM_008: Case insensitive - Victoria_metrics.
 
@@ -186,6 +210,9 @@ class TestParameterNormalization:
         assert "-e" in result and "Victoria_metrics=true" in result, (
             f"Should handle case variation, got: {result}"
         )
+
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V054")
+
 
     def test_whitespace_in_comma_separated(self):
         """UT_CLEANUP_PARAM_009: Whitespace handling in comma-separated.
@@ -229,6 +256,9 @@ class TestParameterNormalization:
             f"Should reject mixed valid/invalid, got: {result}"
         )
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V055")
+
+
     def test_other_flags_unchanged(self):
         """UT_CLEANUP_PARAM_012: Other flags should remain unchanged.
 
@@ -248,6 +278,9 @@ class TestParameterNormalization:
         assert "-e" in result and "kafka=true" in result, (
             f"Should normalize kafka, got: {result}"
         )
+
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V056")
+
 
     def test_multiple_e_flags_normalization(self):
         """UT_CLEANUP_PARAM_013: Multiple -e flags.
@@ -270,6 +303,9 @@ class TestParameterNormalization:
             f"Should normalize victoria_logs, got: {result}"
         )
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V057")
+
+
     def test_empty_value_after_e(self):
         """UT_CLEANUP_PARAM_014: Empty value after -e.
 
@@ -280,6 +316,9 @@ class TestParameterNormalization:
         result = self.run_normalization_test(["-e", ""])
         assert result is not None
         # Should not normalize empty string
+
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V058")
+
 
     def test_normalization_preserves_order(self):
         """UT_CLEANUP_PARAM_015: Normalization preserves argument order.
@@ -303,6 +342,9 @@ class TestParameterNormalization:
 class TestParameterValidation:
     """Test suite for parameter validation logic."""
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V059")
+
+
     def test_valid_sink_names(self):
         """Verify valid sink names are recognized."""
         valid_names = [
@@ -323,6 +365,9 @@ class TestParameterValidation:
                 text=True
             )
             assert "valid" in result.stdout, f"{name} should be valid"
+
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V060")
+
 
     def test_invalid_sink_names(self):
         """Verify invalid sink names are rejected."""
@@ -353,6 +398,9 @@ class TestParameterValidation:
 class TestAnsibleVariableDetection:
     """Test suite for Ansible variable detection logic."""
 
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V061")
+
+
     def test_marker_variable_null_default(self):
         """Verify marker variables have null defaults."""
         with open(
@@ -365,6 +413,9 @@ class TestAnsibleVariableDetection:
         assert 'kafka: null' in content, "kafka should default to null"
         assert 'victoria_metrics: null' in content, "victoria_metrics should default to null"
         assert 'victoria_logs: null' in content, "victoria_logs should default to null"
+
+    @pytest.mark.test_id("TEL_UT_CLEANUP_V062")
+
 
     def test_short_form_detection_logic(self):
         """Verify short-form detection logic in initialize.yml."""
