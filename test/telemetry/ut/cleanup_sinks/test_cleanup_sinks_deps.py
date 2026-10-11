@@ -32,23 +32,23 @@ Dependency map:
                      Vector-OME (logs)
 
 Test cases:
-    TEL_FVT_CLEANUP_V019: Kafka cleanup allowed — no dependent sources
-    TEL_FVT_CLEANUP_V020: Kafka cleanup blocked — one dependent source
-    TEL_FVT_CLEANUP_V021: Kafka cleanup blocked — multiple dependent sources
-    TEL_FVT_CLEANUP_V022: Kafka volumes preserved by default
-    TEL_FVT_CLEANUP_V023: Kafka volumes deleted with delete_sinks_volume=true
-    TEL_FVT_CLEANUP_V024: VictoriaMetrics cleanup allowed
-    TEL_FVT_CLEANUP_V025: VictoriaMetrics cleanup blocked
-    TEL_FVT_CLEANUP_V026: VictoriaMetrics cleanup blocked — multiple sources
-    TEL_FVT_CLEANUP_V027: VictoriaLogs cleanup allowed
-    TEL_FVT_CLEANUP_V028: VictoriaLogs cleanup blocked
-    TEL_FVT_CLEANUP_V029: Sinks preserved on dependency check failure
-    TEL_FVT_CLEANUP_V030: Unrelated sources do not block cleanup
-    TEL_FVT_CLEANUP_V031: Repeated sink cleanup is idempotent
-    TEL_FVT_CLEANUP_V032: Selective cleanup does not affect other sinks
-    TEL_FVT_CLEANUP_V033: Volumes protected during blocked cleanup
-    TEL_FVT_CLEANUP_V034: All-or-nothing — blocked sink prevents cleanup of other sinks
-    TEL_FVT_CLEANUP_V035: Playbook fails with non-zero rc when sinks blocked
+    TEL_UT_CLEANUP_V019: Kafka cleanup allowed — no dependent sources
+    TEL_UT_CLEANUP_V020: Kafka cleanup blocked — one dependent source
+    TEL_UT_CLEANUP_V021: Kafka cleanup blocked — multiple dependent sources
+    TEL_UT_CLEANUP_V022: Kafka volumes preserved by default
+    TEL_UT_CLEANUP_V023: Kafka volumes deleted with delete_sinks_volume=true
+    TEL_UT_CLEANUP_V024: VictoriaMetrics cleanup allowed
+    TEL_UT_CLEANUP_V025: VictoriaMetrics cleanup blocked
+    TEL_UT_CLEANUP_V026: VictoriaMetrics cleanup blocked — multiple sources
+    TEL_UT_CLEANUP_V027: VictoriaLogs cleanup allowed
+    TEL_UT_CLEANUP_V028: VictoriaLogs cleanup blocked
+    TEL_UT_CLEANUP_V029: Sinks preserved on dependency check failure
+    TEL_UT_CLEANUP_V030: Unrelated sources do not block cleanup
+    TEL_UT_CLEANUP_V031: Repeated sink cleanup is idempotent
+    TEL_UT_CLEANUP_V032: Selective cleanup does not affect other sinks
+    TEL_UT_CLEANUP_V033: Volumes protected during blocked cleanup
+    TEL_UT_CLEANUP_V034: All-or-nothing — blocked sink prevents cleanup of other sinks
+    TEL_UT_CLEANUP_V035: Playbook fails with non-zero rc when sinks blocked
 """
 
 import pytest
@@ -81,7 +81,7 @@ from library.functions import run_playbook
 @pytest.mark.sink
 @pytest.mark.order(70)
 def test_cleanup_sinks_kafka_no_deps(host):
-    """TEL_FVT_CLEANUP_V019: Kafka cleanup allowed when no dependent sources running.
+    """TEL_UT_CLEANUP_V019: Kafka cleanup allowed when no dependent sources running.
 
     GIVEN no running telemetry source uses Kafka
     WHEN cleanup_sinks is executed with sinks=kafka
@@ -157,7 +157,7 @@ def test_cleanup_sinks_kafka_no_deps(host):
 @pytest.mark.sink
 @pytest.mark.order(71)
 def test_cleanup_sinks_kafka_blocked(host):
-    """TEL_FVT_CLEANUP_V020: Kafka cleanup blocked when dependent source running.
+    """TEL_UT_CLEANUP_V020: Kafka cleanup blocked when dependent source running.
 
     GIVEN one or more running telemetry sources use Kafka
     WHEN cleanup_sinks is executed with sinks=kafka
@@ -228,7 +228,7 @@ def test_cleanup_sinks_kafka_blocked(host):
 @pytest.mark.sink
 @pytest.mark.order(72)
 def test_cleanup_sinks_kafka_multi_blocked(host):
-    """TEL_FVT_CLEANUP_V021: Kafka cleanup blocked by multiple dependent sources.
+    """TEL_UT_CLEANUP_V021: Kafka cleanup blocked by multiple dependent sources.
 
     GIVEN multiple running telemetry sources use Kafka
     WHEN cleanup_sinks is executed with sinks=kafka
@@ -287,7 +287,7 @@ def test_cleanup_sinks_kafka_multi_blocked(host):
 @pytest.mark.sink
 @pytest.mark.order(73)
 def test_cleanup_sinks_kafka_volumes_preserved(host):
-    """TEL_FVT_CLEANUP_V022: Kafka volumes preserved by default.
+    """TEL_UT_CLEANUP_V022: Kafka volumes preserved by default.
 
     GIVEN no running source uses Kafka
     AND delete_sinks_volume is absent or false
@@ -342,7 +342,7 @@ def test_cleanup_sinks_kafka_volumes_preserved(host):
 @pytest.mark.sink
 @pytest.mark.order(74)
 def test_cleanup_sinks_kafka_volumes_deleted(host, delete_sinks_volume):
-    """TEL_FVT_CLEANUP_V023: Kafka volumes deleted with delete_sinks_volume=true.
+    """TEL_UT_CLEANUP_V023: Kafka volumes deleted with delete_sinks_volume=true.
 
     GIVEN no running source uses Kafka
     AND delete_sinks_volume=true
@@ -402,7 +402,7 @@ def test_cleanup_sinks_kafka_volumes_deleted(host, delete_sinks_volume):
 @pytest.mark.sink
 @pytest.mark.order(75)
 def test_cleanup_sinks_vm_no_deps(host):
-    """TEL_FVT_CLEANUP_V024: VictoriaMetrics cleanup allowed.
+    """TEL_UT_CLEANUP_V024: VictoriaMetrics cleanup allowed.
 
     GIVEN no running source uses VictoriaMetrics
     WHEN cleanup_sinks is executed with sinks=victoria_metrics
@@ -470,7 +470,7 @@ def test_cleanup_sinks_vm_no_deps(host):
 @pytest.mark.sink
 @pytest.mark.order(76)
 def test_cleanup_sinks_vm_blocked(host):
-    """TEL_FVT_CLEANUP_V025: VictoriaMetrics cleanup blocked.
+    """TEL_UT_CLEANUP_V025: VictoriaMetrics cleanup blocked.
 
     GIVEN one or more running sources use VictoriaMetrics
     WHEN cleanup_sinks is executed with sinks=victoria_metrics
@@ -534,7 +534,7 @@ def test_cleanup_sinks_vm_blocked(host):
 @pytest.mark.sink
 @pytest.mark.order(77)
 def test_cleanup_sinks_vm_multi_blocked(host):
-    """TEL_FVT_CLEANUP_V026: VictoriaMetrics cleanup blocked by multiple sources.
+    """TEL_UT_CLEANUP_V026: VictoriaMetrics cleanup blocked by multiple sources.
 
     GIVEN multiple running sources use VictoriaMetrics
     WHEN cleanup_sinks is executed with sinks=victoria_metrics
@@ -597,7 +597,7 @@ def test_cleanup_sinks_vm_multi_blocked(host):
 @pytest.mark.sink
 @pytest.mark.order(78)
 def test_cleanup_sinks_vl_no_deps(host):
-    """TEL_FVT_CLEANUP_V027: VictoriaLogs cleanup allowed.
+    """TEL_UT_CLEANUP_V027: VictoriaLogs cleanup allowed.
 
     GIVEN no running source uses VictoriaLogs
     WHEN cleanup_sinks is executed with sinks=victoria_logs
@@ -663,7 +663,7 @@ def test_cleanup_sinks_vl_no_deps(host):
 @pytest.mark.sink
 @pytest.mark.order(79)
 def test_cleanup_sinks_vl_blocked(host):
-    """TEL_FVT_CLEANUP_V028: VictoriaLogs cleanup blocked.
+    """TEL_UT_CLEANUP_V028: VictoriaLogs cleanup blocked.
 
     GIVEN one or more running sources use VictoriaLogs
     WHEN cleanup_sinks is executed with sinks=victoria_logs
@@ -733,7 +733,7 @@ def test_cleanup_sinks_vl_multi_blocked(host):
     AND the playbook fails with a non-zero return code
     AND all blocking sources are listed in the error message.
     """
-    tc = TC["cleanup_sinks_vl_multi_blocked"]
+    tc = TC["cleanup_sinks_vl_blocked"]
     tl = TestLogger(tc["title"], tc["id"])
 
     vl_deps = [
@@ -794,7 +794,7 @@ def test_cleanup_sinks_vl_multi_blocked(host):
 @pytest.mark.sink
 @pytest.mark.order(80)
 def test_cleanup_sinks_dep_check_fail(host):
-    """TEL_FVT_CLEANUP_V029: Sinks preserved on dependency check failure.
+    """TEL_UT_CLEANUP_V029: Sinks preserved on dependency check failure.
 
     GIVEN Omnia cannot determine whether dependent sources are running
     WHEN sink cleanup is requested
@@ -833,7 +833,7 @@ def test_cleanup_sinks_dep_check_fail(host):
 @pytest.mark.sink
 @pytest.mark.order(81)
 def test_cleanup_sinks_unrelated_running(host):
-    """TEL_FVT_CLEANUP_V030: Unrelated sources do not block cleanup.
+    """TEL_UT_CLEANUP_V030: Unrelated sources do not block cleanup.
 
     GIVEN sources that do NOT use Kafka are running (e.g. PowerScale, UFM, VAST)
     WHEN cleanup_sinks is executed with sinks=kafka
@@ -905,7 +905,7 @@ def test_cleanup_sinks_unrelated_running(host):
 @pytest.mark.sink
 @pytest.mark.order(82)
 def test_cleanup_sinks_repeated(host):
-    """TEL_FVT_CLEANUP_V031: Repeated sink cleanup is idempotent.
+    """TEL_UT_CLEANUP_V031: Repeated sink cleanup is idempotent.
 
     GIVEN a sink has already been cleaned
     WHEN cleanup_sinks is run again for the same sink
@@ -945,7 +945,7 @@ def test_cleanup_sinks_repeated(host):
 @pytest.mark.sink
 @pytest.mark.order(83)
 def test_cleanup_sinks_selective_isolation(host):
-    """TEL_FVT_CLEANUP_V032: Selective cleanup does not affect other sinks.
+    """TEL_UT_CLEANUP_V032: Selective cleanup does not affect other sinks.
 
     GIVEN VictoriaMetrics cleanup is requested
     WHEN cleanup_sinks is executed with sinks=victoria_metrics
@@ -992,7 +992,7 @@ def test_cleanup_sinks_selective_isolation(host):
 @pytest.mark.sink
 @pytest.mark.order(84)
 def test_cleanup_sinks_blocked_volumes_protected(host, delete_sinks_volume):
-    """TEL_FVT_CLEANUP_V033: Volumes protected during blocked cleanup.
+    """TEL_UT_CLEANUP_V033: Volumes protected during blocked cleanup.
 
     GIVEN a running source uses Kafka
     AND delete_sinks_volume=true
@@ -1061,7 +1061,7 @@ def test_cleanup_sinks_blocked_volumes_protected(host, delete_sinks_volume):
 @pytest.mark.sink
 @pytest.mark.order(85)
 def test_cleanup_sinks_all_or_nothing(host):
-    """TEL_FVT_CLEANUP_V034: All-or-nothing — blocked sink prevents other sinks from being cleaned.
+    """TEL_UT_CLEANUP_V034: All-or-nothing — blocked sink prevents other sinks from being cleaned.
 
     GIVEN Kafka is blocked by a running dependent source
     AND VictoriaMetrics and VictoriaLogs are also requested
@@ -1150,7 +1150,7 @@ def test_cleanup_sinks_all_or_nothing(host):
 @pytest.mark.sink
 @pytest.mark.order(86)
 def test_cleanup_sinks_blocked_playbook_fails(host):
-    """TEL_FVT_CLEANUP_V035: Playbook fails with non-zero rc when sinks are blocked.
+    """TEL_UT_CLEANUP_V035: Playbook fails with non-zero rc when sinks are blocked.
 
     GIVEN one or more running sources block at least one requested sink
     WHEN cleanup_sinks is executed

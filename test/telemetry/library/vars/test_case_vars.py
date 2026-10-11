@@ -514,119 +514,9 @@ TEST_CASES = {
         "title": "Verify VictoriaLogs pods removed after cleanup",
     },
     # -- Cleanup: Sink dependency checking ----------------------------------
-    "cleanup_sinks_kafka_no_deps": {
-        "id": "TEL_FVT_CLEANUP_V019",
-        "title": "Verify Kafka cleanup allowed when no dependent sources running",
-    },
-    "cleanup_sinks_kafka_blocked": {
-        "id": "TEL_FVT_CLEANUP_V020",
-        "title": "Verify Kafka cleanup blocked when dependent source running",
-    },
-    "cleanup_sinks_kafka_multi_blocked": {
-        "id": "TEL_FVT_CLEANUP_V021",
-        "title": "Verify Kafka cleanup blocked by multiple dependent sources",
-    },
-    "cleanup_sinks_kafka_volumes_preserved": {
-        "id": "TEL_FVT_CLEANUP_V022",
-        "title": "Verify Kafka volumes preserved by default",
-    },
-    "cleanup_sinks_kafka_volumes_deleted": {
-        "id": "TEL_FVT_CLEANUP_V023",
-        "title": "Verify Kafka volumes deleted with delete_sinks_volume=true",
-    },
-    "cleanup_sinks_vm_no_deps": {
-        "id": "TEL_FVT_CLEANUP_V024",
-        "title": "Verify VictoriaMetrics cleanup allowed when no dependent sources",
-    },
-    "cleanup_sinks_vm_blocked": {
-        "id": "TEL_FVT_CLEANUP_V025",
-        "title": "Verify VictoriaMetrics cleanup blocked by dependent source",
-    },
-    "cleanup_sinks_vm_multi_blocked": {
-        "id": "TEL_FVT_CLEANUP_V026",
-        "title": "Verify VictoriaMetrics cleanup blocked by multiple sources",
-    },
-    "cleanup_sinks_vl_no_deps": {
-        "id": "TEL_FVT_CLEANUP_V027",
-        "title": "Verify VictoriaLogs cleanup allowed when no dependent sources",
-    },
-    "cleanup_sinks_vl_blocked": {
-        "id": "TEL_FVT_CLEANUP_V028",
-        "title": "Verify VictoriaLogs cleanup blocked by dependent source",
-    },
-    "cleanup_sinks_vl_multi_blocked": {
-        "id": "TEL_FVT_CLEANUP_V049",
-        "title": "Verify VictoriaLogs cleanup blocked by multiple dependent sources",
-    },
-    "cleanup_sinks_dep_check_fail": {
-        "id": "TEL_FVT_CLEANUP_V029",
-        "title": "Verify sinks preserved on dependency check failure",
-    },
-    "cleanup_sinks_unrelated_running": {
-        "id": "TEL_FVT_CLEANUP_V030",
-        "title": "Verify unrelated sources do not block sink cleanup",
-    },
-    "cleanup_sinks_repeated": {
-        "id": "TEL_FVT_CLEANUP_V031",
-        "title": "Verify repeated sink cleanup is idempotent",
-    },
-    "cleanup_sinks_selective_isolation": {
-        "id": "TEL_FVT_CLEANUP_V032",
-        "title": "Verify selective sink cleanup does not affect other sinks",
-    },
-    "cleanup_sinks_blocked_volumes_protected": {
-        "id": "TEL_FVT_CLEANUP_V033",
-        "title": "Verify volumes protected during blocked cleanup with delete_sinks_volume=true",
-    },
-    "cleanup_sinks_all_or_nothing": {
-        "id": "TEL_FVT_CLEANUP_V034",
-        "title": "Verify all-or-nothing: blocked sink prevents cleanup of other sinks",
-    },
-    "cleanup_sinks_blocked_playbook_fails": {
-        "id": "TEL_FVT_CLEANUP_V035",
-        "title": "Verify playbook fails with non-zero rc when sinks are blocked",
-    },
-    # -- Cleanup: Sinks Short-Form Parameter Support -------------------------
-    "cleanup_sinks_short_form_single": {
-        "id": "TEL_FVT_CLEANUP_V036",
-        "title": "Verify short-form parameter -e kafka works correctly",
-    },
-    "cleanup_sinks_short_form_comma_separated": {
-        "id": "TEL_FVT_CLEANUP_V037",
-        "title": "Verify comma-separated parameter -e kafka,victoria_metrics works",
-    },
-    "cleanup_sinks_short_form_all_three": {
-        "id": "TEL_FVT_CLEANUP_V038",
-        "title": "Verify comma-separated all three sinks -e kafka,victoria_metrics,victoria_logs",
-    },
-    "cleanup_sinks_short_form_separate_flags": {
-        "id": "TEL_FVT_CLEANUP_V039",
-        "title": "Verify separate flags -e kafka -e victoria_metrics work correctly",
-    },
-    "cleanup_sinks_short_form_vs_explicit": {
-        "id": "TEL_FVT_CLEANUP_V040",
-        "title": "Verify short-form and explicit form produce same results",
-    },
-    "cleanup_sinks_short_form_normalization": {
-        "id": "TEL_FVT_CLEANUP_V041",
-        "title": "Verify parameter normalization in omnia.sh",
-    },
-    "cleanup_sinks_actual_resource_cleanup": {
-        "id": "TEL_FVT_CLEANUP_V042",
-        "title": "Verify actual resource cleanup for all sinks",
-    },
-    "cleanup_sinks_dependency_blocking_short_form": {
-        "id": "TEL_FVT_CLEANUP_V043",
-        "title": "Verify dependency checking with short-form parameters",
-    },
-    "cleanup_sinks_all_or_nothing_short_form": {
-        "id": "TEL_FVT_CLEANUP_V044",
-        "title": "Verify all-or-nothing behavior with short-form parameters",
-    },
-    "cleanup_sinks_volume_preservation_short_form": {
-        "id": "TEL_FVT_CLEANUP_V045",
-        "title": "Verify volume preservation with short-form parameters",
-    },
+    # NOTE: These tests have been moved to UT (ut/cleanup_sinks/)
+    # See ut_cleanup_sinks_* entries below for the UT versions
+    # Kept for backward compatibility with legacy ID mapping
     # -- Cleanup: Sources ---------------------------------------------------
     "cleanup_idrac": {
         "id": "TEL_FVT_CLEANUP_V006",
@@ -789,6 +679,177 @@ TEST_CASES = {
     "nft_ldms_transitions": {
         "id": "TEL_NFT_LDMS_001",
         "title": "LDMS configuration transitions (all 4 states)",
+    },
+    # -- UT: Cleanup Sinks Dependency Checking --------------------------------
+    "cleanup_sinks_kafka_no_deps": {
+        "id": "TEL_UT_CLEANUP_V019",
+        "title": "UT: Kafka cleanup allowed when no dependent sources",
+    },
+    "cleanup_sinks_kafka_blocked": {
+        "id": "TEL_UT_CLEANUP_V020",
+        "title": "UT: Kafka cleanup blocked by dependent source",
+    },
+    "cleanup_sinks_kafka_multi_blocked": {
+        "id": "TEL_UT_CLEANUP_V021",
+        "title": "UT: Kafka cleanup blocked by multiple sources",
+    },
+    "cleanup_sinks_kafka_volumes_preserved": {
+        "id": "TEL_UT_CLEANUP_V022",
+        "title": "UT: Kafka volumes preserved by default",
+    },
+    "cleanup_sinks_kafka_volumes_deleted": {
+        "id": "TEL_UT_CLEANUP_V023",
+        "title": "UT: Kafka volumes deleted with delete_sinks_volume=true",
+    },
+    "cleanup_sinks_vm_no_deps": {
+        "id": "TEL_UT_CLEANUP_V024",
+        "title": "UT: VictoriaMetrics cleanup allowed",
+    },
+    "cleanup_sinks_vm_blocked": {
+        "id": "TEL_UT_CLEANUP_V025",
+        "title": "UT: VictoriaMetrics cleanup blocked",
+    },
+    "cleanup_sinks_vm_multi_blocked": {
+        "id": "TEL_UT_CLEANUP_V026",
+        "title": "UT: VictoriaMetrics cleanup blocked by multiple sources",
+    },
+    "cleanup_sinks_vl_no_deps": {
+        "id": "TEL_UT_CLEANUP_V027",
+        "title": "UT: VictoriaLogs cleanup allowed",
+    },
+    "cleanup_sinks_vl_blocked": {
+        "id": "TEL_UT_CLEANUP_V028",
+        "title": "UT: VictoriaLogs cleanup blocked",
+    },
+    "cleanup_sinks_dep_check_fail": {
+        "id": "TEL_UT_CLEANUP_V029",
+        "title": "UT: Sinks preserved on dependency check failure",
+    },
+    "cleanup_sinks_unrelated_running": {
+        "id": "TEL_UT_CLEANUP_V030",
+        "title": "UT: Unrelated sources do not block cleanup",
+    },
+    "cleanup_sinks_repeated": {
+        "id": "TEL_UT_CLEANUP_V031",
+        "title": "UT: Repeated sink cleanup is idempotent",
+    },
+    "cleanup_sinks_selective_isolation": {
+        "id": "TEL_UT_CLEANUP_V032",
+        "title": "UT: Selective cleanup does not affect other sinks",
+    },
+    "cleanup_sinks_blocked_volumes_protected": {
+        "id": "TEL_UT_CLEANUP_V033",
+        "title": "UT: Volumes protected during blocked cleanup",
+    },
+    "cleanup_sinks_all_or_nothing": {
+        "id": "TEL_UT_CLEANUP_V034",
+        "title": "UT: All-or-nothing — blocked sink prevents cleanup of others",
+    },
+    "cleanup_sinks_blocked_playbook_fails": {
+        "id": "TEL_UT_CLEANUP_V035",
+        "title": "UT: Playbook fails when sinks are blocked",
+    },
+    # -- UT: Cleanup Sinks Short-Form Parameters --------------------------------
+    "cleanup_sinks_short_form_single": {
+        "id": "TEL_UT_CLEANUP_V036",
+        "title": "UT: Short-form parameter -e kafka",
+    },
+    "cleanup_sinks_short_form_comma_separated": {
+        "id": "TEL_UT_CLEANUP_V037",
+        "title": "UT: Comma-separated -e kafka,victoria_metrics",
+    },
+    "cleanup_sinks_short_form_all_three": {
+        "id": "TEL_UT_CLEANUP_V038",
+        "title": "UT: All three sinks -e kafka,victoria_metrics,victoria_logs",
+    },
+    "cleanup_sinks_short_form_separate_flags": {
+        "id": "TEL_UT_CLEANUP_V039",
+        "title": "UT: Separate flags -e kafka -e victoria_metrics",
+    },
+    "cleanup_sinks_short_form_vs_explicit": {
+        "id": "TEL_UT_CLEANUP_V040",
+        "title": "UT: Short-form and explicit form equivalence",
+    },
+    "cleanup_sinks_actual_resource_cleanup": {
+        "id": "TEL_UT_CLEANUP_V042",
+        "title": "UT: Actual resource cleanup for all sinks",
+    },
+    "cleanup_sinks_dependency_blocking_short_form": {
+        "id": "TEL_UT_CLEANUP_V043",
+        "title": "UT: Dependency checking with short-form",
+    },
+    "cleanup_sinks_volume_preservation_short_form": {
+        "id": "TEL_UT_CLEANUP_V045",
+        "title": "UT: Volume preservation with short-form",
+    },
+    # -- UT: Cleanup Sinks Parameter Normalization --------------------------------
+    "single_sink_kafka_normalization": {
+        "id": "TEL_UT_CLEANUP_V046",
+        "title": "UT: Single sink Kafka normalization",
+    },
+    "single_sink_victoria_metrics_normalization": {
+        "id": "TEL_UT_CLEANUP_V047",
+        "title": "UT: Single sink VictoriaMetrics normalization",
+    },
+    "comma_separated_normalization": {
+        "id": "TEL_UT_CLEANUP_V048",
+        "title": "UT: Comma-separated normalization",
+    },
+    "comma_separated_all_three_sinks": {
+        "id": "TEL_UT_CLEANUP_V049",
+        "title": "UT: Comma-separated all three sinks",
+    },
+    "explicit_form_no_change": {
+        "id": "TEL_UT_CLEANUP_V050",
+        "title": "UT: Explicit form no change",
+    },
+    "separate_flags_normalization": {
+        "id": "TEL_UT_CLEANUP_V051",
+        "title": "UT: Separate flags normalization",
+    },
+    "case_insensitive_kafka": {
+        "id": "TEL_UT_CLEANUP_V052",
+        "title": "UT: Case insensitive Kafka",
+    },
+    "case_insensitive_victoria_metrics": {
+        "id": "TEL_UT_CLEANUP_V053",
+        "title": "UT: Case insensitive VictoriaMetrics",
+    },
+    "whitespace_in_comma_separated": {
+        "id": "TEL_UT_CLEANUP_V054",
+        "title": "UT: Whitespace in comma-separated",
+    },
+    "other_flags_unchanged": {
+        "id": "TEL_UT_CLEANUP_V055",
+        "title": "UT: Other flags unchanged",
+    },
+    "multiple_e_flags_normalization": {
+        "id": "TEL_UT_CLEANUP_V056",
+        "title": "UT: Multiple -e flags normalization",
+    },
+    "empty_value_after_e": {
+        "id": "TEL_UT_CLEANUP_V057",
+        "title": "UT: Empty value after -e",
+    },
+    "normalization_preserves_order": {
+        "id": "TEL_UT_CLEANUP_V058",
+        "title": "UT: Normalization preserves order",
+    },
+    "valid_sink_names": {
+        "id": "TEL_UT_CLEANUP_V059",
+        "title": "UT: Valid sink names",
+    },
+    "invalid_sink_names": {
+        "id": "TEL_UT_CLEANUP_V060",
+        "title": "UT: Invalid sink names",
+    },
+    "marker_variable_null_default": {
+        "id": "TEL_UT_CLEANUP_V061",
+        "title": "UT: Marker variable null default",
+    },
+    "short_form_detection_logic": {
+        "id": "TEL_UT_CLEANUP_V062",
+        "title": "UT: Short-form detection logic",
     },
 }
 

@@ -56,6 +56,10 @@ Run from inside the `test/telemetry/` directory:
 ./run_validation.sh fvt_telemetry list                   # List available tags
 ./run_validation.sh --config                             # Batch from test_run_config.yml
 ./run_validation.sh --help                               # Full help
+
+# Unit Tests (UT)
+./run_validation.sh ut_telemetry verify                   # Run all UT tests
+./run_validation.sh ut_telemetry test                     # Run UT with exec (if applicable)
 ```
 
 ### Commands
@@ -135,6 +139,43 @@ delete_sinks_volume=true ./run_validation.sh fvt_telemetry cleanup test
 When `delete_sinks_volume=true`, credentials and logs are deleted regardless of their preservation flags (override behavior).
 
 See `fvt/README.md` for the full cleanup test case registry.
+
+### Selective Sink Configuration (FVT Only)
+
+The `deploy_sinks` and `cleanup_sinks` tags support selective sink operations via `test_config.yml`:
+
+| Variable | Default | Behavior |
+|----------|---------|----------|
+| `deploy_sinks_enabled` | `[]` | Which sinks to deploy. Empty list or `"all"` deploys all sinks |
+| `cleanup_sinks_enabled` | `[]` | Which sinks to cleanup. Empty list or `"all"` cleans all sinks |
+
+**Valid sink values:** `kafka`, `victoria_metrics`, `victoria_logs`
+
+**Invalid sink names will raise an error** with a clear message showing the invalid names and valid options:
+```
+ValueError: Invalid sink name(s) in 'deploy_sinks_enabled': ['kafsa']. 
+Valid sinks are: ['kafka', 'victoria_logs', 'victoria_metrics']
+```
+
+```yaml
+# Deploy only Kafka
+deploy_sinks_enabled: ["kafka"]
+
+# Deploy Kafka + VictoriaMetrics (skip VictoriaLogs)
+deploy_sinks_enabled: ["kafka", "victoria_metrics"]
+
+# Cleanup only VictoriaMetrics
+cleanup_sinks_enabled: ["victoria_metrics"]
+
+# Default: operate on all sinks
+deploy_sinks_enabled: []
+cleanup_sinks_enabled: []
+```
+
+When selective sinks are configured:
+- The playbook receives extra-vars to operate only on selected sinks
+- Verify tests for non-selected sinks are automatically skipped
+- Default behavior (empty list) is unchanged — all sinks are included
 
 ### NFT: Consolidated Test Execution
 
@@ -400,6 +441,20 @@ test/telemetry/
 │       ├── test_playbook.py  # Playbook --tags cleanup_vast
 │       └── test_verify.py    # Verify VAST removed
 │
+├── ut/                       # Unit Tests
+│   ├── test_ome_func.py      # OME pipeline selection, Kafka configuration, etc.
+│   ├── test_ome_victoria_func.py  # Victoria metric timestamps, identifiers, etc.
+│   ├── test_idrac_lifecycle.py  # iDRAC enable/disable routing, retained-state restore, etc.
+│   ├── test_sink_enablement.py  # Direct source targets and derived sink enablement
+│   ├── test_ome_lifecycle.py  # OME independent metrics/logs reconciliation, etc.
+│   ├── test_kafka_topic_lifecycle.py  # Topic-manifest cleanup, readiness gating
+│   ├── test_disabled_state_fvt.py  # Disabled workload detection, shared-sink health
+│   ├── cleanup_sinks/         # Cleanup sink dependency checking and short-form syntax
+│   │   ├── test_cleanup_sinks_deps.py  # Dependency checking tests (V019-V035)
+│   │   ├── test_cleanup_sinks_shortform.py  # Short-form parameter tests (V036-V045)
+│   │   └── __init__.py
+│   └── test_cleanup_sinks_parameter_normalization.py  # Parameter normalization (V046-V062)
+│
 └── nft/                      # Non-Functional Tests
     ├── test_performance.py   # Performance thresholds (validate, deploy, cleanup)
     ├── test_idempotency.py   # Idempotency tests (deploy, cleanup)
@@ -420,12 +475,30 @@ test/telemetry/
 | Cleanup Sinks | 4 | functional + sink |
 | Cleanup Per-Source | 12 | sanity + source |
 | Full-stack alternate ID | 1 | deploy |
-| **FVT Total** | **166 tests / 150 reportable IDs** | |
+| **FVT Total** | **140 tests / 130 reportable IDs** | |
 
 \* Cleanup test case IDs are dynamically selected based on `test_config.yml`:
 - `delete_sinks_volume=false` (default): Reports V014 (PVCs preserved), V015/V017 (credentials/logs preserved)
 - `delete_sinks_volume=true`: Reports V013 (all PVCs deleted), V016/V018 (credentials/logs deleted)
 - Override behavior: `delete_sinks_volume=true` forces deletion of credentials and logs
+
+### UT (Unit Tests)
+
+| Area | TCs | Marker |
+|------|-----|--------|
+| OME Functions | 22 | ut |
+| OME Victoria | 6 | ut |
+| iDRAC Lifecycle | 8 | ut |
+| Sink Enablement | 3 | ut |
+| OME Lifecycle | 7 | ut |
+| Kafka Topic Lifecycle | 3 | ut |
+| Disabled-State FVT Helpers | 7 | ut |
+| Cleanup Sinks Dependency Checking | 17 | ut |
+| Cleanup Sinks Short-Form Parameters | 9 | ut |
+| Cleanup Sinks Parameter Normalization | 17 | ut |
+| **UT Total** | **113 tests / 113 reportable IDs** | |
+
+**Note**: Detailed cleanup_sinks dependency checking and short-form parameter tests have been moved from FVT to UT to provide faster, more granular testing. FVT cleanup now focuses on simple single-execution patterns with basic verification.
 
 ### NFT (Non-Functional Tests)
 
@@ -440,7 +513,14 @@ NFT cleanup tests run in two phases: Phase 1 (without volume deletion,
 PVCs preserved) and Phase 2 (with volume deletion, all PVCs deleted).
 All 21 tests execute in a single `./run_validation.sh nft_telemetry test` run.
 
-### Grand Total: **134 reportable IDs across 131 test functions**
+### Grand Total: **274 tests / 264 reportable IDs**
+
+| Suite | Tests | Reportable IDs |
+|-------|-------|----------------|
+| FVT | 140 | 130 |
+| UT | 113 | 113 |
+| NFT | 21 | 21 |
+| **Total** | **274** | **264** |
 
 Optional-source configuration determines which source-related cases
 run or skip in a particular environment.

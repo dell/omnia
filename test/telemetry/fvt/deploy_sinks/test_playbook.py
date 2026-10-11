@@ -21,6 +21,9 @@ Covers the ``deploy_sinks`` Ansible tag which deploys sink infrastructure
 The runner sets ``OMNIA_DEPLOY_TAG=deploy_sinks`` before invoking this
 test, so ``run_playbook(tag=tag)`` executes the correct Ansible tag.
 
+When ``deploy_sinks_enabled`` is configured in ``test_config.yml``,
+only the specified sinks are deployed.  An empty list deploys all sinks.
+
 Test cases:
     TEL_FVT_DEPLOY_SINKS_E001: Deploy sinks (--tags deploy_sinks)
 """
@@ -35,6 +38,10 @@ from library.messages.telemetry_msgs import (
     TEST_LOG_MSGS as LOG_MSGS,
     TEST_ASSERT_MSGS as ASSERT_MSGS,
 )
+from library.functions.cleanup_func import (
+    deploy_sinks_enabled,
+    sinks_extra_vars,
+)
 
 
 @pytest.mark.deploy
@@ -46,16 +53,20 @@ def test_deploy_sinks(host):
     tag = os.environ.get("OMNIA_DEPLOY_TAG", "deploy_sinks")
     tc = TC["deploy_deploy_sinks"]
     tl = TestLogger(tc["title"], tc["id"])
-    tl.check(f"Running telemetry playbook --tags {tag}")
 
-    result = run_playbook(tag=tag)
+    enabled = deploy_sinks_enabled()
+    extra_vars = sinks_extra_vars(enabled)
+    sink_label = ", ".join(enabled) if enabled else "all"
+    tl.check(f"Running telemetry playbook --tags {tag} (sinks: {sink_label})")
+
+    result = run_playbook(tag=tag, extra_vars=extra_vars or None)
 
     if result["success"]:
         tl.passed(
             LOG_MSGS["playbook_success"].format(
                 duration=f"{result['duration']:.1f}s",
             ),
-            f"rc={result['rc']}",
+            f"rc={result['rc']}, sinks={sink_label}",
         )
     else:
         tl.failed(
