@@ -2924,6 +2924,7 @@ summary:
     - export TARGET_PASS="${TARGET_PASS}"
     - export OMNIA_INSTALL_PATH="${OMNIA_INSTALL_PATH}"
     - export OMNIA_BRANCH="${OMNIA_BRANCH}"
+    - export ATTACH_ALL_LOGS="${ATTACH_ALL_LOGS}"
 
     - echo "Sending email notification..."
     - python3 send_email.py || echo "Email notification failed (non-fatal)"
@@ -2934,4 +2935,5 @@ summary:
     paths:
       - pipeline_reports/
       - pipeline_job_status/
+      - pipeline_job_logs/
     when: always

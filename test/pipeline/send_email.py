@@ -26,23 +26,37 @@ All configuration is read from GitLab CI/CD variables (environment):
     DOMAINS               - Comma-separated domain list (optional)
     CLUSTER               - Cluster name, shown in email subject and body (optional)
     TARGET_IP             - Cluster target IP, shown in email body (optional)
+    ATTACH_ALL_LOGS       - Attach all job logs to email (default: false, only failed jobs)
+    GITLAB_API_TOKEN      - Project Access Token with 'read_api' scope (required for job logs)
 
 GitLab-provided variables used automatically:
     PIPELINE_TRIGGER_TIME - Set by initialization stage
     CI_PIPELINE_URL       - Auto-set by GitLab
+    CI_SERVER_URL         - GitLab server URL for fetching job logs
+    CI_PROJECT_ID         - Project ID for fetching job logs
+    CI_PIPELINE_ID       - Pipeline ID for fetching job logs
+    CI_JOB_TOKEN          - Job token for authenticating to GitLab API
 """
 import glob
 import json
 import os
 import re
 import smtplib
+import ssl
 import subprocess
 import time
 import traceback
+import urllib.request
+import urllib.error
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email import encoders
+
+# SSL context for GitLab API calls (handles self-signed certificates)
+_ssl_ctx = ssl.create_default_context()
+_ssl_ctx.check_hostname = False
+_ssl_ctx.verify_mode = ssl.CERT_NONE
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +88,15 @@ target_user = os.environ.get("TARGET_USER", "")
 target_pass = os.environ.get("TARGET_PASS", "")
 omnia_install_path = os.environ.get("OMNIA_INSTALL_PATH", "")
 omnia_branch = os.environ.get("OMNIA_BRANCH", "")
+
+# GitLab CI/CD variables for fetching job logs
+ci_server_url = os.environ.get("CI_SERVER_URL", "")
+ci_project_id = os.environ.get("CI_PROJECT_ID", "")
+ci_pipeline_id = os.environ.get("CI_PIPELINE_ID", "")
+ci_job_token = os.environ.get("CI_JOB_TOKEN", "")
+# GITLAB_API_TOKEN: Project Access Token with 'read_api' scope (required for fetching job traces)
+gitlab_api_token = os.environ.get("GITLAB_API_TOKEN", "")
+attach_all_logs = os.environ.get("ATTACH_ALL_LOGS", "false").lower() == "true"
 
 # Get the actual commit ID from the cloned repo on target server
 # SSH into target server and run: cd $OMNIA_INSTALL_PATH && git rev-parse HEAD
@@ -158,6 +181,126 @@ def load_job_statuses():
         print(f"Error loading job statuses: {e}")
         return {}
 
+
+def _api_auth_header():
+    """Return the appropriate authentication header for GitLab API calls.
+
+    Prefers GITLAB_API_TOKEN (Project Access Token with 'read_api' scope)
+    over CI_JOB_TOKEN, since CI_JOB_TOKEN cannot fetch job traces.
+    """
+    if gitlab_api_token:
+        return "PRIVATE-TOKEN", gitlab_api_token
+    return "JOB-TOKEN", ci_job_token
+
+
+def fetch_job_logs():
+    """Fetch job logs from GitLab API for failed jobs (or all if ATTACH_ALL_LOGS is true).
+
+    Uses the GitLab API directly to list all jobs in the current pipeline
+    and fetch their traces, instead of relying on after_script metadata files.
+
+    Requires GITLAB_API_TOKEN (Project Access Token with 'read_api' scope)
+    stored as a CI/CD variable for fetching job traces.
+    """
+    job_logs = []
+
+    api_token = gitlab_api_token or ci_job_token
+    if not ci_server_url or not ci_project_id or not ci_pipeline_id or not api_token:
+        print("Missing GitLab CI/CD variables for fetching job logs")
+        print(f"  CI_SERVER_URL: {ci_server_url}")
+        print(f"  CI_PROJECT_ID: {ci_project_id}")
+        print(f"  CI_PIPELINE_ID: {ci_pipeline_id}")
+        print(f"  GITLAB_API_TOKEN: {'***' if gitlab_api_token else 'NOT SET'}")
+        print(f"  CI_JOB_TOKEN: {'***' if ci_job_token else 'NOT SET'}")
+        if not gitlab_api_token:
+            print("  NOTE: GITLAB_API_TOKEN is required for fetching job traces.")
+            print("  Create a Project Access Token with 'read_api' scope in GitLab")
+            print("  and add it as CI/CD variable GITLAB_API_TOKEN.")
+        return job_logs
+
+    auth_header, auth_value = _api_auth_header()
+    token_type = "GITLAB_API_TOKEN" if gitlab_api_token else "CI_JOB_TOKEN"
+    print(f"Using {token_type} for GitLab API authentication")
+
+    # Step 1: List all jobs in the pipeline via GitLab API
+    jobs_url = f"{ci_server_url}/api/v4/projects/{ci_project_id}/pipelines/{ci_pipeline_id}/jobs?per_page=100"
+    print(f"Fetching pipeline jobs list from GitLab API...")
+
+    try:
+        request = urllib.request.Request(jobs_url)
+        request.add_header(auth_header, auth_value)
+
+        with urllib.request.urlopen(request, timeout=30, context=_ssl_ctx) as response:
+            jobs_data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        print(f"HTTP error listing pipeline jobs: {e.code} {e.reason}")
+        if e.code in (401, 403):
+            print(f"  {token_type} does not have permission to list jobs.")
+            print("  Create a Project Access Token with 'read_api' scope in GitLab")
+            print("  and add it as CI/CD variable GITLAB_API_TOKEN.")
+        return job_logs
+    except Exception as e:
+        print(f"Error listing pipeline jobs: {e}")
+        return job_logs
+
+    print(f"Found {len(jobs_data)} jobs in pipeline {ci_pipeline_id}")
+
+    # Step 2: Filter jobs and fetch their traces
+    logs_dir = f"pipeline_job_logs/{ci_pipeline_id}"
+    os.makedirs(logs_dir, exist_ok=True)
+
+    for job in jobs_data:
+        job_name = job.get("name", "unknown")
+        job_status = job.get("status", "unknown")
+        job_id = job.get("id", "")
+
+        # Skip the summary job itself
+        if job_name == "summary":
+            continue
+
+        # Only fetch logs for failed jobs unless ATTACH_ALL_LOGS is true
+        if job_status != "failed" and not attach_all_logs:
+            continue
+
+        if not job_id:
+            print(f"Skipping {job_name}: no job ID")
+            continue
+
+        # Step 3: Fetch job trace (log) from GitLab API
+        trace_url = f"{ci_server_url}/api/v4/projects/{ci_project_id}/jobs/{job_id}/trace"
+        print(f"Fetching log for job '{job_name}' (ID: {job_id}, status: {job_status})")
+
+        try:
+            request = urllib.request.Request(trace_url)
+            request.add_header(auth_header, auth_value)
+
+            with urllib.request.urlopen(request, timeout=60, context=_ssl_ctx) as response:
+                log_content = response.read().decode("utf-8", errors="replace")
+
+            # Save log to file
+            log_filename = f"{job_name}_{job_id}.log"
+            log_path = os.path.join(logs_dir, log_filename)
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(log_content)
+
+            job_logs.append(log_path)
+            print(f"  Saved log: {log_filename} ({len(log_content)} bytes)")
+
+        except urllib.error.HTTPError as e:
+            print(f"  HTTP error fetching log for {job_name}: {e.code} {e.reason}")
+            if e.code in (401, 403):
+                print(f"  {token_type} does not have permission to read job traces.")
+                if not gitlab_api_token:
+                    print("  Create a Project Access Token with 'read_api' scope in GitLab")
+                    print("  and add it as CI/CD variable GITLAB_API_TOKEN.")
+        except urllib.error.URLError as e:
+            print(f"  URL error fetching log for {job_name}: {e.reason}")
+        except Exception as e:
+            print(f"  Error fetching log for {job_name}: {e}")
+
+    print(f"Fetched {len(job_logs)} job log(s)")
+    return job_logs
+
 # ---------------------------------------------------------------------------
 # Collect test report summary
 test_reports_summary = ""
@@ -165,6 +308,9 @@ test_report_files = []
 
 # Load job statuses to determine which tests actually ran
 job_statuses = load_job_statuses()
+
+# Fetch job logs for failed jobs (or all if ATTACH_ALL_LOGS is true)
+job_log_files = fetch_job_logs()
 
 # Load report names mapping from pipeline_reports/report_names.json
 # This maps domain -> report_name (user-configurable from test_config.yml)
@@ -752,6 +898,14 @@ if test_report_files:
         attach_file(msg, report_file)
 else:
     print("No test report files to attach")
+
+# Attach job log files (failed jobs or all if ATTACH_ALL_LOGS is true)
+if job_log_files:
+    print(f"\nAttaching {len(job_log_files)} job log file(s)...")
+    for log_file in job_log_files:
+        attach_file(msg, log_file)
+else:
+    print("No job log files to attach")
 
 # ---------------------------------------------------------------------------
 def send_email_with_retry(message, smtp_server, smtp_port, smtp_user, smtp_pw, max_retries=3, retry_delay=5):
