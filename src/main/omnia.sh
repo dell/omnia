@@ -243,6 +243,27 @@ readonly SYSTEM_ENV_DIR="/etc/omnia"
 readonly SYSTEM_ENV_FILE="${SYSTEM_ENV_DIR}/omnia.env"
 readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 
+# Refuse to source an environment file that an untrusted user could have
+# tampered with. Sourcing executes the file's contents, so a symbolic link or a
+# group-/world-writable file is a privilege-escalation vector (CWE-59,
+# CWE-427, CWE-732). We reject symlinks and any file writable by group or
+# others; the owner is trusted (setup is commonly run as the admin who owns the
+# checkout, e.g. via sudo).
+validate_env_file_trust() {
+    local env_file="$1"
+
+    if [ -L "$env_file" ] || [ ! -f "$env_file" ]; then
+        echo -e "${RED}ERROR: Environment file must be a regular file (no symbolic links): ${env_file}${NC}"
+        return 1
+    fi
+
+    if [ -n "$(find -P "$env_file" -maxdepth 0 -perm /022 2>/dev/null)" ]; then
+        echo -e "${RED}ERROR: Environment file must not be group- or world-writable: ${env_file}${NC}"
+        echo -e "${YELLOW}  Fix with: chmod go-w ${env_file}${NC}"
+        return 1
+    fi
+}
+
 validate_env_source() {
     local env_file="$1"
     local errors=0
@@ -252,15 +273,23 @@ validate_env_source() {
         return 1
     fi
 
+    if ! validate_env_file_trust "$env_file"; then
+        return 1
+    fi
+
     if ! bash -n "$env_file"; then
         echo -e "${RED}ERROR: Environment file has invalid Bash syntax: ${env_file}${NC}"
         return 1
     fi
 
     # Read from a clean environment so inherited variables cannot hide a
-    # missing value in the file being validated.
+    # missing value in the file being validated. Resolve the helper binaries
+    # from a fixed, trusted PATH (and invoke them by absolute path) so a
+    # writable directory in the caller's PATH cannot inject a trojan env/bash
+    # that would run with the privileges of this setup, often root (CWE-426).
     local ip_value
-    ip_value="$(env -i PATH="$PATH" bash --noprofile --norc -c \
+    ip_value="$(/usr/bin/env -i PATH="/usr/sbin:/usr/bin:/sbin:/bin" \
+        /usr/bin/bash --noprofile --norc -c \
         '. "$1"; printf "%s" "${SYSTEM_ADMIN_NIC_IPV4:-}"' bash "$env_file")"
 
     if [ -z "$ip_value" ]; then
@@ -1245,6 +1274,36 @@ cleanup_domain_initializer_artifacts() {
     done
 }
 
+# Safely remove a directory tree during cleanup. Guards every recursive delete
+# against symlink/TOCTOU and unvalidated-path mistakes (CWE-59, CWE-367,
+# CWE-73): it refuses an empty path, refuses a path whose final component is a
+# symbolic link, resolves the path, refuses the same deny-list of system
+# directories as validate_full_cleanup_state(), and passes --one-file-system so
+# a swapped-in mount/symlink parent cannot carry the delete into another tree.
+safe_rm_dir() {
+    local target="$1"
+    local resolved
+
+    if [ -z "$target" ]; then
+        echo -e "${RED}ERROR: Refusing to remove an empty path.${NC}" >&2
+        return 1
+    fi
+    if [ -L "$target" ]; then
+        echo -e "${RED}ERROR: Refusing to remove a symbolic link: ${target}${NC}" >&2
+        return 1
+    fi
+    if ! resolved="$(realpath -m -- "$target")"; then
+        echo -e "${RED}ERROR: Cannot resolve path for removal: ${target}${NC}" >&2
+        return 1
+    fi
+    if [[ "$resolved" != /* ]] || [[ "$resolved" =~ ^(/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)$ ]]; then
+        echo -e "${RED}ERROR: Refusing to remove unsafe system path: ${resolved} (from ${target})${NC}" >&2
+        return 1
+    fi
+
+    rm -rf --one-file-system -- "$resolved"
+}
+
 cleanup_omnia() {
     local cleanup_all="${1:-false}"
     local skip_approval="${2:-false}"
@@ -1316,7 +1375,7 @@ cleanup_omnia() {
     # Remove venv
     if [ -d "$OMNIA_VENV_PATH" ]; then
         echo -e "${BLUE}Removing venv: ${OMNIA_VENV_PATH}${NC}"
-        rm -rf "$OMNIA_VENV_PATH"
+        safe_rm_dir "$OMNIA_VENV_PATH" || return 1
         echo -e "  ${GREEN}Removed.${NC}"
     else
         echo -e "  ${YELLOW}Venv not found at ${OMNIA_VENV_PATH} — skipping.${NC}"
@@ -1365,7 +1424,7 @@ cleanup_omnia() {
     local deps_cache_dir="${OMNIA_DATA_PATH}/.data/deps-cache"
     if [ -d "$deps_cache_dir" ]; then
         echo -e "${BLUE}Removing dependency cache: ${deps_cache_dir}${NC}"
-        rm -rf "$deps_cache_dir"
+        safe_rm_dir "$deps_cache_dir" || return 1
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
@@ -1374,7 +1433,7 @@ cleanup_omnia() {
     if [ "$cleanup_all" = true ]; then
         if [ -d "$OMNIA_DATA_PATH" ]; then
             echo -e "${BLUE}Removing all data: ${OMNIA_DATA_PATH}${NC}"
-            rm -rf "$OMNIA_DATA_PATH"
+            safe_rm_dir "$OMNIA_DATA_PATH" || return 1
             echo -e "  ${GREEN}Removed.${NC}"
         fi
     fi
@@ -2004,7 +2063,7 @@ DOMAINS:
 
 DEPENDENCY CACHING:
   On first run, each domain's requirements.txt and requirements.yml are hashed
-  (MD5).  On subsequent runs, if the file hasn't changed the install step is
+  (SHA-256).  On subsequent runs, if the file hasn't changed the install step is
   skipped entirely — saving 10-30 seconds per domain.  Use --force-deps to
   bypass the cache.  Cache files are stored at \$OMNIA_DATA_PATH/.data/deps-cache/.
 
