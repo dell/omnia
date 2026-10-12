@@ -24,7 +24,7 @@
 
 - name: Determine hash cache directory
   ansible.builtin.set_fact:
-    _hash_cache_dir: "{{ image_build_log_base }}"
+    _hash_cache_dir: "{{ image_build_hash_cache_dir }}"
 
 - name: Check if hash cache directory exists
   ansible.builtin.stat:
@@ -40,6 +40,7 @@
       - ".compute_pkg_hash_*"
       - ".base_image_pkg_hash_*"
     file_type: file
+    hidden: true
   register: _hash_cache_files
   when: _hash_cache_dir_stat.stat.exists | default(false)
   delegate_to: localhost

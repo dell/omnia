@@ -63,6 +63,8 @@ OMNIA_CLI_PATH = "src/main/omnia-cli"
 SYSTEM_ENV_DIR = "/etc/omnia"
 SYSTEM_ENV_FILE = "/etc/omnia/omnia.env"
 PROFILE_DROP_IN = "/etc/profile.d/omnia-env.sh"
+ANSIBLE_LOG_ROOT = "/var/log/omnia"
+LEGACY_DATA_LOG_PATH = "/opt/omnia/log"
 
 # Default data path (may be overridden by env)
 DEFAULT_DATA_PATH = "/opt/omnia"

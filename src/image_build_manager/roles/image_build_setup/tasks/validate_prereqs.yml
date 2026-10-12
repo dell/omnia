@@ -24,7 +24,12 @@
     file: "{{ input_project_dir }}/image_build_config.yml"
 
 - name: Set build config facts from config (single source of truth)
+  vars:
+    _default_repo_status_path: >-
+      {{ omnia_data_path }}/repo_manager/output/{{ project_name }}/repo_status.yml
   ansible.builtin.set_fact:
+    repo_manager_output_path: >-
+      {{ repo_manager_output_path | default(_default_repo_status_path, true) }}
     build_image_build_timeout: "{{ build_image.build_timeout | default(build_image.job_async | default(7200)) }}"
     build_image_max_parallel: "{{ build_image.max_parallel | default(0) }}"
     build_image_force_rebuild: "{{ build_image.force_rebuild | default(false) | bool }}"
