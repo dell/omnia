@@ -465,7 +465,7 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "HOW TO FIX:\n"
         "  1. Edit test_config.yml and set catalog_path to a JSON file\n"
         "     below src/main/samples/catalogs/\n"
-        "  2. Example: catalog_path: rhel/10.0/slurm_x86_64_no_vast.json"
+        "  2. Example: catalog_path: rhel/10.2/slurm_x86_64_no_vast.json"
     ),
     "job_id_not_set": (
         "job_id is empty in test_config.yml.\n"

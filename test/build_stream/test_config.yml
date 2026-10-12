@@ -128,7 +128,7 @@ allow_pipeline_cancel: false
 # GitLab catalog with uniquely identified content to trigger a new pipeline.
 # Required for build-pipeline exec/test. Build-pipeline verify reads the job_id
 # and does not load or upload a catalog.
-catalog_path: "rhel/10.0/slurm_x86_64_no_vast.json"
+catalog_path: "rhel/10.2/slurm_x86_64_no_vast.json"
 
 # Job ID from the most recent build pipeline run.
 # Always overwritten with the newly created job during build-pipeline
@@ -136,6 +136,13 @@ catalog_path: "rhel/10.0/slurm_x86_64_no_vast.json"
 # Must be set manually before running --verify if no prior --test was run.
 # Format: UUID (e.g. 019bf590-1234-7890-abcd-ef1234567890)
 job_id: ""
+
+# Explicit target for the automatic-cleanup FVT. The selected Job must own the
+# only FAILED ImageGroup in the database because the production cleanup cron
+# processes every FAILED group. Verify is read-only; exec/test require the
+# safety flag and transition this exact target to CLEANED.
+automatic_cleanup_job_id: ""
+automatic_cleanup_allow_execution: false
 
 # Deploy pipeline always resolves the image group and prior GitLab pipeline
 # from job_id. It never falls back to the latest image.
