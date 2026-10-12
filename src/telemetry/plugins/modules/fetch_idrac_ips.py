@@ -79,7 +79,7 @@ idrac_podname_ips:
 
 from ansible.module_utils.basic import AnsibleModule
 
-def fetch_pod_to_idracips(service_cluster_metadata, parent_to_bmc_ip_details, module):
+def fetch_pod_to_idracips(service_cluster_metadata, parent_to_bmc_ip_details, module) -> dict:
     """
     Maps iDRAC podnames to their associated IPs using service cluster metadata and BMC group data.
     Returns a dictionary where keys are iDRAC podnames and values are lists of IPs.
@@ -115,7 +115,7 @@ def fetch_pod_to_idracips(service_cluster_metadata, parent_to_bmc_ip_details, mo
 
     return idrac_podname_ips
 
-def main():
+def main() -> None:
     """Main function to execute the module logic."""
     # Define the module arguments
     # service_cluster_metadata: Metadata about the service cluster

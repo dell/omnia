@@ -26,17 +26,19 @@ This is critical because:
 
 Execution order:
   - Deploy idempotency runs early (order 105) — stack stays deployed.
-  - Cleanup tests run LAST (orders 131-140) — cleanup deletes credentials
-    from the src flow, so no deploy can follow.
-  - A final warning (order 140) informs the user about the cluster state.
+  - Cleanup Phase 1 (orders 131-133) — cleanup without volume deletion,
+    PVCs preserved. Verifies no pods and PVCs preserved.
+  - Cleanup Phase 2 (orders 141-143) — cleanup with volume deletion,
+    all PVCs deleted. Verifies no pods and no PVCs remain.
 
 Test cases:
-    TEL_NFT_004: Deploy idempotency (second run exits 0)
-    TEL_NFT_005: Cleanup idempotency (second run exits 0)
-    TEL_NFT_015: Verify no pods after idempotent cleanup
-    TEL_NFT_016: Verify no PVCs after idempotent cleanup
-    TEL_NFT_017: Verify PVCs preserved after idempotent cleanup
-    TEL_NFT_019: Final cluster state warning
+    TEL_NFT_004: Deploy idempotency (order 105)
+    TEL_NFT_005: Cleanup idempotency without volume (order 131)
+    TEL_NFT_015: Verify no pods after cleanup (order 132)
+    TEL_NFT_017: Verify PVCs preserved after cleanup (order 133)
+    TEL_NFT_021: Cleanup idempotency with volume deletion (order 141)
+    TEL_NFT_022: Verify no pods after cleanup with volume (order 142)
+    TEL_NFT_016: Verify no PVCs after cleanup with volume (order 143)
 """
 
 import pytest
@@ -127,32 +129,8 @@ def test_deploy_idempotency(host):
     )
 
 
-@pytest.mark.nft
-@pytest.mark.idempotency
-@pytest.mark.order(131)
-def test_cleanup_idempotency(host, delete_sinks_volume):
-    """TEL_NFT_005: Cleanup idempotency — second run exits 0.
-
-    Runs the full cleanup playbook twice in sequence:
-      1. First run: cleans up remaining resources after cleanup performance.
-      2. Second run: must succeed (rc=0) on an already-clean namespace.
-
-    This validates that all cleanup tasks handle missing resources
-    gracefully (--ignore-not-found, failed_when: false, helm guards).
-
-    Ordered AFTER cleanup performance (order 130) and AFTER all
-    resilience tests, because cleanup deletes credentials from the
-    src flow — any subsequent deploy would fail with missing creds.
-
-    The ``delete_sinks_volume`` fixture controls whether
-    ``Delete_sinks_volume=true`` is passed, matching the production cleanup
-    invocation.
-    """
-    tc = TC["nft_cleanup_idempotent"]
-    tl = TestLogger(tc["title"], tc["id"])
-
-    extra_vars = {"Delete_sinks_volume": "true"} if delete_sinks_volume else None
-
+def _run_cleanup_idempotency(host, tl, extra_vars=None):
+    """Shared cleanup idempotency logic for both volume modes."""
     # -- Run 1: Initial cleanup -------------------------------------------
     tl.check("Running first cleanup (initial cleanup)")
     run1 = run_playbook(
@@ -209,16 +187,42 @@ def test_cleanup_idempotency(host, delete_sinks_volume):
 
 @pytest.mark.nft
 @pytest.mark.idempotency
-@pytest.mark.order(132)
-def test_cleanup_idempotency_no_pods(host):
-    """TEL_NFT_015: Verify no pods after idempotent cleanup.
+@pytest.mark.order(131)
+def test_cleanup_idempotency(host):
+    """TEL_NFT_005: Cleanup idempotency — second run exits 0.
 
-    After two cleanup runs, the telemetry namespace must still have
-    zero pods — the second run must not re-create any resources.
+    Runs the full cleanup playbook twice in sequence WITHOUT volume deletion:
+      1. First run: cleans up remaining resources (PVCs preserved).
+      2. Second run: must succeed (rc=0) on an already-clean namespace.
+
+    Phase 1 of cleanup — ordered AFTER cleanup performance (order 130).
     """
-    tc = TC["nft_cleanup_no_pods"]
+    tc = TC["nft_cleanup_idempotent"]
     tl = TestLogger(tc["title"], tc["id"])
+    _run_cleanup_idempotency(host, tl)
 
+
+@pytest.mark.nft
+@pytest.mark.idempotency
+@pytest.mark.order(141)
+def test_cleanup_with_volume_idempotency(host):
+    """TEL_NFT_021: Cleanup with volume idempotency — second run exits 0.
+
+    Runs the full cleanup playbook twice in sequence WITH Delete_sinks_volume=true:
+      1. First run: cleans up all resources including PVCs.
+      2. Second run: must succeed (rc=0) on a fully-clean namespace.
+
+    Phase 2 of cleanup — ordered AFTER cleanup with volume performance (order 140).
+    """
+    tc = TC["nft_cleanup_vol_idempotent"]
+    tl = TestLogger(tc["title"], tc["id"])
+    _run_cleanup_idempotency(
+        host, tl, extra_vars={"Delete_sinks_volume": "true"},
+    )
+
+
+def _verify_no_pods(host, tl):
+    """Shared no-pods verification logic."""
     result = verify_no_pods_remaining(host)
 
     if result["success"]:
@@ -234,23 +238,36 @@ def test_cleanup_idempotency_no_pods(host):
     )
 
 
+# =========================================================================
+# Phase 1: Cleanup WITHOUT volume deletion (PVCs preserved)
+# =========================================================================
+
+
+@pytest.mark.nft
+@pytest.mark.idempotency
+@pytest.mark.order(132)
+def test_cleanup_idempotency_no_pods(host):
+    """TEL_NFT_015: Verify no pods after idempotent cleanup (Phase 1).
+
+    After two cleanup runs without volume deletion, the telemetry namespace
+    must have zero pods — the second run must not re-create any resources.
+    """
+    tc = TC["nft_cleanup_no_pods"]
+    tl = TestLogger(tc["title"], tc["id"])
+    _verify_no_pods(host, tl)
+
+
 @pytest.mark.nft
 @pytest.mark.idempotency
 @pytest.mark.order(133)
-def test_cleanup_idempotency_no_pvcs(host, delete_sinks_volume):
-    """TEL_NFT_016/TEL_NFT_017: Verify PVC state after idempotent cleanup.
+def test_cleanup_pvcs_preserved(host):
+    """TEL_NFT_017: Verify PVCs preserved after cleanup without volume deletion.
 
-    After two cleanup runs:
-      - With delete_sinks_volume=true: zero PVCs must remain (all deleted).
-      - With delete_sinks_volume=false: sink PVCs must be preserved and
-        source PVCs must be deleted.
+    After cleanup without Delete_sinks_volume=true:
+      - Source PVCs must be deleted
+      - Sink PVCs (Kafka, VictoriaMetrics, VictoriaLogs) must be preserved
     """
-    case_key = (
-        "nft_cleanup_no_pvcs"
-        if delete_sinks_volume
-        else "nft_cleanup_pvcs_preserved"
-    )
-    tc = TC[case_key]
+    tc = TC["nft_cleanup_pvcs_preserved"]
     tl = TestLogger(tc["title"], tc["id"])
 
     tl.check("Verifying source PVCs were deleted after idempotent cleanup")
@@ -264,82 +281,74 @@ def test_cleanup_idempotency_no_pvcs(host, delete_sinks_volume):
         f"Source PVCs were not deleted: {result_source['error']}"
     )
 
-    if delete_sinks_volume:
-        tl.check("Verifying sink PVCs were deleted after idempotent cleanup")
-        result_sink = verify_sink_pvcs_deleted(host)
-        if result_sink["success"]:
-            tl.passed(
-                LOG_MSGS["no_pvcs_remaining"],
-                f"{result_source['details']}\n{result_sink['details']}",
-            )
-        else:
-            tl.failed(
-                LOG_MSGS["pvcs_remaining"].format(count=result_sink["count"]),
-                result_sink["details"],
-            )
-        assert result_sink["success"], (
-            f"Sink PVCs were not deleted: {result_sink['error']}"
-        )
+    tl.check("Verifying sink PVCs were preserved after idempotent cleanup")
+    result = verify_pvcs_preserved(host)
+    if result["success"]:
+        tl.passed(LOG_MSGS["pvcs_preserved"], result["details"])
     else:
-        tl.check("Verifying sink PVCs were preserved after idempotent cleanup")
-        result = verify_pvcs_preserved(host)
-        if result["success"]:
-            tl.passed(LOG_MSGS["pvcs_preserved"], result["details"])
-        else:
-            tl.failed(
-                LOG_MSGS["pvcs_not_preserved"],
-                result["details"],
-            )
-        assert result["success"], ASSERT_MSGS["pvcs_not_preserved"]
+        tl.failed(
+            LOG_MSGS["pvcs_not_preserved"],
+            result["details"],
+        )
+    assert result["success"], ASSERT_MSGS["pvcs_not_preserved"]
+
+
+# =========================================================================
+# Phase 2: Cleanup WITH volume deletion (all PVCs deleted)
+# =========================================================================
 
 
 @pytest.mark.nft
 @pytest.mark.idempotency
-@pytest.mark.order(140)
-def test_nft_final_cluster_state_warning(host, delete_sinks_volume):
-    """TEL_NFT_019: Final cluster state warning after NFT cleanup.
+@pytest.mark.order(142)
+def test_cleanup_with_volume_no_pods(host):
+    """TEL_NFT_022: Verify no pods after cleanup with volume deletion (Phase 2).
 
-    This is the LAST test in the NFT suite.  It always passes and
-    prints a clear warning so the user knows the cluster has been
-    left in a cleaned-up state — no telemetry pods are running.
-
-    The message varies depending on the ``delete_sinks_volume`` flag:
-      - true:  all PVCs (including Kafka, VictoriaMetrics, VictoriaLogs)
-               have been deleted.
-      - false: sink PVCs are preserved; only source PVCs were deleted.
+    After two cleanup runs with Delete_sinks_volume=true, the telemetry
+    namespace must have zero pods.
     """
-    tc = TC["nft_final_warning"]
+    tc = TC["nft_cleanup_vol_no_pods"]
+    tl = TestLogger(tc["title"], tc["id"])
+    _verify_no_pods(host, tl)
+
+
+@pytest.mark.nft
+@pytest.mark.idempotency
+@pytest.mark.order(143)
+def test_cleanup_with_volume_no_pvcs(host):
+    """TEL_NFT_016: Verify no PVCs after cleanup with volume deletion.
+
+    After cleanup with Delete_sinks_volume=true:
+      - Source PVCs must be deleted
+      - Sink PVCs must also be deleted (all PVCs removed)
+    """
+    tc = TC["nft_cleanup_no_pvcs"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    if delete_sinks_volume:
-        warning_msg = (
-            "WARNING: The telemetry cluster is now in a FULLY CLEANED UP "
-            "state. All pods, services, and PVCs (including Kafka, "
-            "VictoriaMetrics, VictoriaLogs volumes) have been deleted. "
-            "A full re-deploy is required to restore telemetry services. "
-            "Run: ansible-playbook telemetry.yml --tags execute"
+    tl.check("Verifying source PVCs were deleted after idempotent cleanup")
+    result_source = verify_source_pvcs_deleted(host)
+    if not result_source["success"]:
+        tl.failed(
+            LOG_MSGS["pvcs_remaining"].format(count=result_source["count"]),
+            result_source["details"],
         )
-        details = (
-            "Delete_sinks_volume=true was used.\n"
-            "All sink and source PVCs have been removed.\n"
-            "Historical metric and log data has been lost.\n"
-            "To restore: ansible-playbook telemetry.yml --tags execute"
+    assert result_source["success"], (
+        f"Source PVCs were not deleted: {result_source['error']}"
+    )
+
+    tl.check("Verifying sink PVCs were deleted after idempotent cleanup")
+    result_sink = verify_sink_pvcs_deleted(host)
+    if result_sink["success"]:
+        tl.passed(
+            LOG_MSGS["no_pvcs_remaining"],
+            f"{result_source['details']}\n{result_sink['details']}",
         )
     else:
-        warning_msg = (
-            "WARNING: The telemetry cluster is now in a CLEANED UP state. "
-            "All pods and services have been deleted. Sink PVCs (Kafka, "
-            "VictoriaMetrics, VictoriaLogs) have been PRESERVED — "
-            "historical data is intact. A re-deploy will reattach "
-            "existing volumes. "
-            "Run: ansible-playbook telemetry.yml --tags execute"
+        tl.failed(
+            LOG_MSGS["pvcs_remaining"].format(count=result_sink["count"]),
+            result_sink["details"],
         )
-        details = (
-            "Delete_sinks_volume=false (default) was used.\n"
-            "Sink PVCs (Kafka, VictoriaMetrics, VictoriaLogs) are preserved.\n"
-            "Source PVCs (iDRAC, LDMS, etc.) have been removed.\n"
-            "Historical data is intact and will be available after re-deploy.\n"
-            "To restore: ansible-playbook telemetry.yml --tags execute"
-        )
+    assert result_sink["success"], (
+        f"Sink PVCs were not deleted: {result_sink['error']}"
+    )
 
-    tl.passed(warning_msg, details)

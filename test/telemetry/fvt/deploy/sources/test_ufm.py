@@ -29,7 +29,10 @@ Test cases:
     TEL_FVT_DEPLOY_V061: Verify UFM VMServiceScrape CR exists
     TEL_FVT_DEPLOY_V062: Verify UFM credentials K8s secret exists
     TEL_FVT_DEPLOY_V063: Verify UFM InfiniBand metrics in VictoriaMetrics
+    TEL_FVT_DEPLOY_V064: Verify configured-disabled UFM state
 """
+
+import time
 
 import pytest
 
@@ -40,11 +43,13 @@ from library.messages.ufm_msgs import (
     UFM_LOG_MSGS as LOG_MSGS,
 )
 from library.functions.telemetry_func import is_source_enabled, is_sink_enabled_for_source
+from library.functions.k8s_func import verify_enabled_shared_sinks
 from library.functions.ufm_func import (
     verify_ufm_external_service,
     verify_ufm_vmscrape,
     verify_ufm_credentials_secret,
     verify_ufm_metrics,
+    verify_ufm_resources_absent,
 )
 from library.vars.test_case_vars import TEST_CASES as TC
 from library.vars.ufm_vars import UFM_EXPECTED_METRICS, UFM_SOURCE_NAME
@@ -218,3 +223,85 @@ def test_ufm_metrics_in_vm(host):
     assert result["success"], ASSERT_MSGS["metrics_missing"].format(
         missing=", ".join(result["missing"]),
     )
+
+
+# =========================================================================
+# TEL_FVT_DEPLOY_V064: Verify configured-disabled UFM state
+# =========================================================================
+
+@pytest.mark.source
+@pytest.mark.sanity
+@pytest.mark.ufm
+@pytest.mark.order(74)
+def test_ufm_disabled_state(host):
+    """Verify disabled UFM has no Service, Endpoints, or VMServiceScrape."""
+    if is_source_enabled(host, UFM_SOURCE_NAME):
+        pytest.skip("UFM source is enabled; disabled-state check is not applicable")
+
+    tc = TC["ufm_disabled_state"]
+    tl = TestLogger(tc["title"], tc["id"])
+    tl.check(LOG_MSGS["disabled_check"])
+
+    # --- Verify UFM-owned resources are absent ---
+    absent = verify_ufm_resources_absent(host)
+
+    # --- Verify shared sinks remain healthy ---
+    shared = verify_enabled_shared_sinks(host)
+
+    # --- Verify no fresh UFM metrics are flowing ---
+    quiet_started = time.time()
+    vm_quiet = verify_ufm_metrics(host, UFM_EXPECTED_METRICS)
+    quiet_ended = time.time()
+    # Metrics should NOT be found when disabled
+    vm_data_stopped = (
+        not vm_quiet["found"]
+        or vm_quiet.get("error") == "vmselect endpoint not found"
+    )
+
+    # --- Build detail output ---
+    detail_lines = [
+        "Configured state: metrics_enabled=false",
+    ]
+    for resource in absent["resources"]:
+        detail_lines.append(
+            f"{resource['kind']}/{resource['name']}: "
+            f"{'absent' if resource['absent'] else 'STILL PRESENT'}"
+        )
+    detail_lines.append(
+        f"Credentials secret: "
+        f"{'preserved' if absent['secret_preserved'] else 'MISSING'}"
+    )
+    detail_lines.append(
+        f"VictoriaMetrics quiet window ({quiet_ended - quiet_started:.1f}s): "
+        f"metrics_found={len(vm_quiet['found'])}/{vm_quiet['expected_metric_count']}"
+    )
+    detail_lines.extend(
+        f"Shared {name}: {result['details']}"
+        for name, result in shared["sinks"].items()
+    )
+    details = "\n".join(detail_lines)
+
+    success = (
+        absent["success"]
+        and shared["success"]
+        and vm_data_stopped
+    )
+
+    if success:
+        tl.passed(LOG_MSGS["disabled_passed"], details)
+    else:
+        errors = []
+        if not absent["success"]:
+            errors.append(absent["error"])
+        if not shared["success"]:
+            errors.append(shared["error"])
+        if not vm_data_stopped:
+            errors.append(
+                "fresh UFM metrics arrived in VictoriaMetrics while disabled"
+            )
+        tl.failed(
+            LOG_MSGS["disabled_failed"],
+            "\n".join(filter(None, [details, *errors])),
+        )
+
+    assert success, ASSERT_MSGS["disabled_state_incorrect"]

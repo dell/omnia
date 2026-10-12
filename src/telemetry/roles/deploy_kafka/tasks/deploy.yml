@@ -266,28 +266,38 @@
 - name: Apply source-specific Kafka topics
   when: not (kafka_infra_only | default(false) | bool)
   block:
-    - name: Find generated Kafka topic manifests
-      ansible.builtin.find:
-        paths: "{{ telemetry_deployments_dir }}"
-        patterns: "kafka.*.topic.yaml"
-      register: topic_files
-
-    - name: Apply Kafka topic manifests
-      ansible.builtin.command: >
-        kubectl apply -f {{ item.path }}
-      loop: "{{ topic_files.files }}"
+    - name: Apply Kafka topic manifests for enabled sources
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - apply
+          - --filename
+          - "{{ telemetry_deployments_dir }}/kafka.{{ item }}.topic.yaml"
+      loop:
+        - idrac
+        - ldms
+      loop_control:
+        label: "{{ item }}"
       register: topic_apply
       changed_when: "'created' in (topic_apply.stdout | default('')) or 'configured' in (topic_apply.stdout | default(''))"
+      when:
+        - item in telemetry_config.telemetry_sources
+        - telemetry_config.telemetry_sources[item].metrics_enabled | default(false) | bool
 
-    - name: Wait for Kafka topics to be ready
+    - name: Wait for enabled Kafka topics to be ready
       ansible.builtin.command:
         argv:
           - kubectl
           - wait
           - --for=condition=Ready
-          - "--filename={{ item.path }}"
+          - "--filename={{ telemetry_deployments_dir }}/kafka.{{ item }}.topic.yaml"
           - "--timeout={{ kafka_deploy_timeout }}"
-      loop: "{{ topic_files.files }}"
+      loop:
+        - idrac
+        - ldms
       loop_control:
-        label: "{{ item.path | basename }}"
+        label: "{{ item }}"
       changed_when: false
+      when:
+        - item in telemetry_config.telemetry_sources
+        - telemetry_config.telemetry_sources[item].metrics_enabled | default(false) | bool

@@ -146,7 +146,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.input_validation.core import config
 from ansible.module_utils.input_validation.messages import en_us_validation_msg
 
-def validate_csv_structure(csv_file_path, logger=None):
+def validate_csv_structure(csv_file_path, logger=None) -> bool:
     """
     Validate CSV structure for PXE mapping files.
     
@@ -205,7 +205,7 @@ def validate_csv_structure(csv_file_path, logger=None):
         raise ValueError(error_msg)
 
 
-def createlogger(project_name, tag_name=None):
+def createlogger(project_name, tag_name=None) -> logging.Logger:
     """
     Creates a logger object for the given project name and tag name.
 
@@ -233,7 +233,7 @@ def createlogger(project_name, tag_name=None):
     logger.setLevel(logging.DEBUG)
     return logger
 
-def main():
+def main() -> None:
     """
     The main function that runs the input validation.
 

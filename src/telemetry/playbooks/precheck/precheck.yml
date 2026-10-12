@@ -21,8 +21,11 @@
 # Usage (standalone):
 #   ansible-playbook precheck/precheck.yml
 #
-# Usage (via orchestrator with tag):
+# Usage (check only, via orchestrator with tag):
 #   ansible-playbook telemetry.yml --tags precheck
+#
+# This playbook also runs automatically before the default, deploy, and execute
+# flows in telemetry.yml.
 #
 # Checks performed:
 #   [localhost]
