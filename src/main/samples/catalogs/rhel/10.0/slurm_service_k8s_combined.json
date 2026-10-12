@@ -469,7 +469,8 @@
           "gcc_cpp",
           "python3",
           "python3_pymysql",
-          "papi_rpm"
+          "papi_rpm",
+          "docker.io/bitnami/kubectl"
         ]
       },
       "service_kube_control_plane_group": {
@@ -5060,6 +5061,21 @@
             ]
           }
         ]
+      },
+      "docker.io/bitnami/kubectl": {
+        "name": "docker.io/bitnami/kubectl",
+        "packagetype": "image",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.0"
+            ],
+            "registry": "docker.io"
+          }
+        ],
+        "tag": "latest"
       }
     }
   }
