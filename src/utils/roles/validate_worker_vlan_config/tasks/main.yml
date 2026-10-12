@@ -15,6 +15,7 @@
 ---
 # Validates worker_vlan_config.yml for the configure_worker_vlan utility.
 # Ensures all required fields are present, correctly typed, and consistent.
+# Auto-generates worker VLAN assignments and BMC subnets from the cluster inventory.
 
 # Step 1: Resolve config file path
 - name: Resolve worker VLAN config path
@@ -90,7 +91,7 @@
 - name: Fail if vlan_gateway is not a valid IPv4 address
   ansible.builtin.fail:
     msg: "{{ vlan_gateway_invalid_msg }}"
-  when: not (worker_vlan_config.vlan_gateway | string | regex_search(ipv4_regex))
+  when: (worker_vlan_config.vlan_gateway | string | regex_search(ipv4_regex)) is none
 
 # Step 7: Validate route_metric
 - name: Fail if route_metric is not a positive integer
@@ -100,55 +101,32 @@
     worker_vlan_config.route_metric is defined and
     (worker_vlan_config.route_metric | int) < 1
 
-# Step 8: Validate worker_vlan_assignments
-- name: Fail if worker_vlan_assignments is empty
+# Step 8: Validate admin_subnet and vlan_subnet
+- name: Fail if admin_subnet is missing or empty
   ansible.builtin.fail:
-    msg: "{{ worker_assignments_empty_msg }}"
+    msg: "{{ admin_subnet_missing_msg }}"
   when: >-
-    worker_vlan_config.worker_vlan_assignments is not defined or
-    (worker_vlan_config.worker_vlan_assignments | length == 0)
+    worker_vlan_config.admin_subnet is not defined or
+    (worker_vlan_config.admin_subnet | string | trim | length == 0)
 
-- name: Validate each worker_vlan_assignment entry
-  ansible.builtin.assert:
-    that:
-      - item.worker_host is defined
-      - item.worker_host | string | trim | length > 0
-      - item.worker_host | string | regex_search(ipv4_regex)
-      - item.vlan_ip is defined
-      - item.vlan_ip | string | trim | length > 0
-      - item.vlan_ip | string | regex_search(ipv4_regex)
-    fail_msg: >-
-      Invalid worker_vlan_assignments entry at index {{ idx }}:
-      {{ item }}. Both 'worker_host' (valid IPv4) and 'vlan_ip' (valid IPv4) are required.
-  loop: "{{ worker_vlan_config.worker_vlan_assignments }}"
-  loop_control:
-    index_var: idx
-    label: "worker {{ item.worker_host | default('undefined') }}"
-
-- name: Check for duplicate VLAN IPs
-  ansible.builtin.set_fact:
-    _all_vlan_ips: "{{ worker_vlan_config.worker_vlan_assignments | map(attribute='vlan_ip') | list }}"
-
-- name: Fail if duplicate VLAN IPs exist
+- name: Fail if admin_subnet is not valid CIDR
   ansible.builtin.fail:
-    msg: >-
-      Duplicate 'vlan_ip' found in worker_vlan_assignments: '{{ item }}'.
-      Each worker must have a unique VLAN IP address.
-  when: _all_vlan_ips | select('equalto', item) | list | length > 1
-  loop: "{{ _all_vlan_ips | unique }}"
+    msg: "{{ admin_subnet_invalid_msg }}"
+  when: (worker_vlan_config.admin_subnet | string | regex_search(cidr_regex)) is none
 
-# Step 9: Validate bmc_subnets format (if provided)
-- name: Validate bmc_subnets CIDR format
-  ansible.builtin.assert:
-    that:
-      - item | string | regex_search(cidr_regex)
-    fail_msg: >-
-      Invalid CIDR in 'bmc_subnets': '{{ item }}'.
-      Each entry must be a valid IPv4 CIDR (e.g., 10.44.0.0/24).
-  loop: "{{ worker_vlan_config.bmc_subnets | default([]) }}"
-  when: worker_vlan_config.bmc_subnets | default([]) | length > 0
+- name: Fail if vlan_subnet is missing or empty
+  ansible.builtin.fail:
+    msg: "{{ vlan_subnet_missing_msg }}"
+  when: >-
+    worker_vlan_config.vlan_subnet is not defined or
+    (worker_vlan_config.vlan_subnet | string | trim | length == 0)
 
-# Step 10: Resolve and validate cluster_inventory path
+- name: Fail if vlan_subnet is not valid CIDR
+  ansible.builtin.fail:
+    msg: "{{ vlan_subnet_invalid_msg }}"
+  when: (worker_vlan_config.vlan_subnet | string | regex_search(cidr_regex)) is none
+
+# Step 9: Resolve and validate cluster_inventory path
 - name: Resolve cluster inventory path
   ansible.builtin.set_fact:
     _cluster_inventory_path: >-
@@ -169,36 +147,150 @@
     msg: "{{ cluster_inventory_missing_msg }}"
   when: not (_cluster_inv_stat.stat.exists | default(false))
 
-# Step 11: Resolve and validate bmc_group_data_path (required when bmc_subnets is empty)
-- name: Resolve BMC group data path
+- name: Load cluster inventory
+  ansible.builtin.include_vars:
+    file: "{{ _cluster_inventory_path | trim }}"
+    name: _cluster_inv
+
+# Step 10: Extract worker nodes from inventory (handles OS-versioned group names)
+- name: Extract worker node hosts from service_kube_node_* groups
   ansible.builtin.set_fact:
-    _bmc_group_data_path: >-
-      {% if worker_vlan_config.bmc_group_data_path is defined and
-            worker_vlan_config.bmc_group_data_path | string | trim | length > 0 -%}
-      {{ worker_vlan_config.bmc_group_data_path }}
-      {%- else -%}
-      {{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) | regex_replace('/$', '') }}/orchestrator/output/{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}/bmc_group_data.csv
-      {%- endif %}
+    _inventory_worker_hosts: >-
+      {{
+        (_cluster_inv.all.children | default({}))
+        | dict2items
+        | selectattr('key', 'match', '^service_kube_node')
+        | map(attribute='value')
+        | map(attribute='hosts', default={})
+        | map('dict2items')
+        | flatten
+        | map(attribute='value')
+        | list
+      }}
 
-- name: Check BMC group data file exists (required for auto-discovery)
-  ansible.builtin.stat:
-    path: "{{ _bmc_group_data_path | trim }}"
-  register: _bmc_data_stat
-  when: worker_vlan_config.bmc_subnets | default([]) | length == 0
-
-- name: Fail if BMC group data not found and no bmc_subnets provided
+- name: Fail if no worker nodes found in cluster inventory
   ansible.builtin.fail:
-    msg: "{{ bmc_group_data_missing_msg }}"
-  when:
-    - worker_vlan_config.bmc_subnets | default([]) | length == 0
-    - not (_bmc_data_stat.stat.exists | default(false))
+    msg: "{{ no_workers_msg }}"
+  when: _inventory_worker_hosts | length == 0
 
-# Step 12: Store validated config as cacheable facts
+- name: Display discovered worker nodes
+  ansible.builtin.debug:
+    msg: "Worker nodes from inventory: {{ _inventory_worker_hosts | map(attribute='ansible_host') | join(', ') }}"
+
+# Step 11: Auto-generate worker VLAN assignments from subnet pattern
+- name: Generate worker VLAN assignments via Python
+  ansible.builtin.shell:
+    cmd: |
+      python3 -c "
+      import ipaddress, json, sys
+      admin_subnet = ipaddress.ip_network(sys.argv[1], strict=False)
+      vlan_subnet = ipaddress.ip_network(sys.argv[2], strict=False)
+      workers = json.loads(sys.argv[3])
+      assignments = []
+      for w in workers:
+          ip = ipaddress.ip_address(w['ansible_host'])
+          if ip in admin_subnet:
+              # Compute host offset within admin subnet, apply to vlan subnet
+              offset = int(ip) - int(admin_subnet.network_address)
+              vlan_ip = str(ipaddress.ip_address(int(vlan_subnet.network_address) + offset))
+              assignments.append({'worker_host': str(ip), 'vlan_ip': vlan_ip})
+      print(json.dumps(assignments))
+      " "{{ worker_vlan_config.admin_subnet }}" "{{ worker_vlan_config.vlan_subnet }}" '{{ _inventory_worker_hosts | to_json }}'
+  register: _assignments_raw
+  changed_when: false
+
+- name: Set generated assignments fact
+  ansible.builtin.set_fact:
+    _generated_assignments: "{{ _assignments_raw.stdout | from_json }}"
+
+- name: Fail if no workers matched admin_subnet
+  ansible.builtin.fail:
+    msg: >-
+      No workers in the cluster inventory have admin IPs in the configured
+      admin_subnet '{{ worker_vlan_config.admin_subnet }}'.
+      Worker IPs found: {{ _inventory_worker_hosts | map(attribute='ansible_host') | join(', ') }}.
+      Verify admin_subnet matches the worker node network.
+  when: _generated_assignments | length == 0
+
+- name: Display generated worker VLAN assignments
+  ansible.builtin.debug:
+    msg: >-
+      Generated {{ _generated_assignments | length }} VLAN assignment(s):
+      {% for a in _generated_assignments %}
+        {{ a.worker_host }} -> {{ a.vlan_ip }}
+      {% endfor %}
+
+# Step 12: Auto-discover BMC subnets from inventory bmc_ip fields
+- name: Collect all BMC IPs from cluster inventory
+  ansible.builtin.set_fact:
+    _all_bmc_ips: >-
+      {{
+        (_cluster_inv.all.children | default({}))
+        | dict2items
+        | map(attribute='value')
+        | map(attribute='hosts', default={})
+        | map('dict2items')
+        | flatten
+        | map(attribute='value')
+        | selectattr('bmc_ip', 'defined')
+        | map(attribute='bmc_ip')
+        | map('string')
+        | select('match', '^[0-9]')
+        | unique
+        | sort
+        | list
+      }}
+
+- name: Display discovered BMC IPs
+  ansible.builtin.debug:
+    msg: "BMC IPs from cluster inventory: {{ _all_bmc_ips | join(', ') }}"
+
+- name: Derive unique BMC subnets from IPs and netmask
+  ansible.builtin.shell:
+    cmd: |
+      python3 -c "
+      import ipaddress, sys
+      netmask = int(sys.argv[1])
+      ips = sys.argv[2:]
+      subnets = set()
+      for ip_str in ips:
+          try:
+              net = ipaddress.ip_network(f'{ip_str}/{netmask}', strict=False)
+              subnets.add(str(net))
+          except ValueError:
+              pass
+      for s in sorted(subnets):
+          print(s)
+      " "{{ worker_vlan_config.vlan_netmask }}" {{ _all_bmc_ips | join(' ') }}
+  args:
+    executable: /bin/bash
+  register: _bmc_subnets_raw
+  changed_when: false
+  when: _all_bmc_ips | length > 0
+
+- name: Set resolved BMC subnets
+  ansible.builtin.set_fact:
+    _resolved_bmc_subnets: "{{ _bmc_subnets_raw.stdout_lines | default([]) }}"
+
+- name: Fail if no BMC subnets discovered
+  ansible.builtin.fail:
+    msg: >-
+      No BMC subnets could be derived from the cluster inventory.
+      Ensure the inventory contains bmc_ip fields on host entries.
+      Inventory path: {{ _cluster_inventory_path | trim }}.
+  when: _resolved_bmc_subnets | length == 0
+
+- name: Display auto-discovered BMC subnets
+  ansible.builtin.debug:
+    msg: "BMC subnets for static routes: {{ _resolved_bmc_subnets | join(', ') }}"
+
+# Step 13: Store validated config as cacheable facts
 - name: Store validated VLAN config facts
   ansible.builtin.set_fact:
     worker_vlan_config: "{{ worker_vlan_config }}"
     vlan_cluster_inventory_path: "{{ _cluster_inventory_path | trim }}"
-    vlan_bmc_group_data_path: "{{ _bmc_group_data_path | trim }}"
+    vlan_worker_assignments: "{{ _generated_assignments }}"
+    vlan_bmc_subnets: "{{ _resolved_bmc_subnets }}"
     cacheable: true
 
 - name: Log validation success
@@ -209,5 +301,7 @@
       - "  Netmask       : /{{ worker_vlan_config.vlan_netmask }}"
       - "  Gateway       : {{ worker_vlan_config.vlan_gateway }}"
       - "  Route metric  : {{ worker_vlan_config.route_metric | default(50) }}"
-      - "  Workers       : {{ worker_vlan_config.worker_vlan_assignments | length }}"
-      - "  BMC subnets   : {{ worker_vlan_config.bmc_subnets | default([]) | length }} ({{ 'manual' if (worker_vlan_config.bmc_subnets | default([]) | length > 0) else 'auto-discover' }})"
+      - "  Admin subnet  : {{ worker_vlan_config.admin_subnet }}"
+      - "  VLAN subnet   : {{ worker_vlan_config.vlan_subnet }}"
+      - "  Workers       : {{ _generated_assignments | length }}"
+      - "  BMC subnets   : {{ _resolved_bmc_subnets | length }} (auto-discovered from inventory)"

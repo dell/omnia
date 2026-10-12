@@ -27,39 +27,11 @@ worker_ssh_unreachable_msg: >-
   Ensure the worker is running and SSH access is configured.
   Skipping VLAN configuration for this worker.
 
-vlan_interface_exists_msg: >-
-  VLAN interface '{{ _vlan_interface }}' already exists on worker
-  '{{ _worker_host }}'. Skipping interface creation.
-
-vlan_configure_success_msg: >-
-  VLAN interface '{{ _vlan_interface }}' configured successfully on
-  worker '{{ _worker_host }}' with IP {{ _vlan_ip }}/{{ _vlan_netmask }}.
-
-route_exists_msg: >-
-  Route to '{{ _bmc_subnet }}' already exists on worker '{{ _worker_host }}'.
-  Skipping route addition.
-
-route_added_msg: >-
-  Static route to '{{ _bmc_subnet }}' via '{{ _vlan_gateway }}'
-  dev '{{ _vlan_interface }}' metric {{ _route_metric }} added on
-  worker '{{ _worker_host }}'.
-
 gateway_unreachable_msg: >-
   WARNING: VLAN gateway '{{ _vlan_gateway }}' is not reachable from
   worker '{{ _worker_host }}'. Verify the VLAN ID, gateway address,
   and switch configuration.
 
-connectivity_verified_msg: >-
-  BMC endpoint '{{ _test_bmc_ip }}' is reachable (HTTP {{ _http_code }})
-  from worker '{{ _worker_host }}'.
-
-connectivity_failed_msg: >-
-  WARNING: BMC endpoint '{{ _test_bmc_ip }}' is not reachable from
-  worker '{{ _worker_host }}'. HTTP code: {{ _http_code | default('N/A') }}.
-  Check VLAN configuration and network paths.
-
 no_bmc_subnets_msg: >-
-  No BMC subnets to configure. Either provide 'bmc_subnets' in
-  worker_vlan_config.yml or ensure bmc_group_data.csv contains BMC IPs.
-
-
+  No BMC subnets to configure. Ensure the cluster inventory contains
+  bmc_ip fields on host entries.

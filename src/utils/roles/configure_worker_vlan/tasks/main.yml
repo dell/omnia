@@ -19,69 +19,37 @@
 # Configures VLAN-tagged interfaces and static routes on Kubernetes worker
 # nodes so that Telemetry pods can reach BMC endpoints in separate subnets.
 #
+# Inputs (set by validate_worker_vlan_config role):
+#   worker_vlan_config      — validated config from worker_vlan_config.yml
+#   vlan_worker_assignments — auto-generated list of {worker_host, vlan_ip}
+#   vlan_bmc_subnets        — auto-discovered BMC subnet CIDRs
+#   vlan_cluster_inventory_path — resolved path to orchestrator_inventory.yml
+#
 # Steps:
-#   1. Load cluster inventory and resolve worker node list
-#   2. Auto-discover BMC subnets (if not provided)
+#   1. Display discovered workers and BMC subnets
+#   2. Set common VLAN parameters
 #   3. For each worker: configure VLAN interface, add routes, verify
 # =============================================================================
 
-# Step 1: Load cluster inventory
-- name: Load cluster inventory
-  ansible.builtin.include_vars:
-    file: "{{ vlan_cluster_inventory_path }}"
-    name: _cluster_inv
-
-- name: Extract worker node IPs from cluster inventory
-  ansible.builtin.set_fact:
-    _worker_node_ips: >-
-      {{
-        (_cluster_inv.all.children.service_kube_node_x86_64.hosts | default({}))
-        | dict2items
-        | map(attribute='value')
-        | map(attribute='ansible_host')
-        | list
-      }}
-
-- name: Fail if no worker nodes found in cluster inventory
-  ansible.builtin.fail:
-    msg: >-
-      No worker nodes (service_kube_node_x86_64) found in cluster inventory
-      at '{{ vlan_cluster_inventory_path }}'.
-  when: _worker_node_ips | length == 0
-
-- name: Display discovered worker nodes
+# Step 1: Display what was discovered during validation
+- name: Display worker nodes to configure
   ansible.builtin.debug:
-    msg: "Worker nodes from inventory: {{ _worker_node_ips | join(', ') }}"
+    msg: "Workers: {{ vlan_worker_assignments | map(attribute='worker_host') | join(', ') }}"
 
-# Step 2: Auto-discover BMC subnets if not provided
-- name: Auto-discover BMC subnets from bmc_group_data.csv
-  ansible.builtin.include_tasks: discover_bmc_subnets.yml
-  when: worker_vlan_config.bmc_subnets | default([]) | length == 0
-
-- name: Use manually specified BMC subnets
-  ansible.builtin.set_fact:
-    _resolved_bmc_subnets: "{{ worker_vlan_config.bmc_subnets }}"
-  when: worker_vlan_config.bmc_subnets | default([]) | length > 0
-
-- name: Fail if no BMC subnets resolved
-  ansible.builtin.fail:
-    msg: "{{ no_bmc_subnets_msg }}"
-  when: _resolved_bmc_subnets | default([]) | length == 0
-
-- name: Display BMC subnets to configure
+- name: Display BMC subnets for routes
   ansible.builtin.debug:
-    msg: "BMC subnets for static routes: {{ _resolved_bmc_subnets | join(', ') }}"
+    msg: "BMC subnets for static routes: {{ vlan_bmc_subnets | join(', ') }}"
 
-# Step 3: Set common VLAN parameters
+# Step 2: Set common VLAN parameters
 - name: Set VLAN configuration parameters
   ansible.builtin.set_fact:
     _vlan_id: "{{ worker_vlan_config.vlan_id }}"
     _vlan_netmask: "{{ worker_vlan_config.vlan_netmask }}"
     _vlan_gateway: "{{ worker_vlan_config.vlan_gateway }}"
     _route_metric: "{{ worker_vlan_config.route_metric | default(50) }}"
-    _parent_interface_override: "{{ worker_vlan_config.parent_interface | default('') }}"
+    _resolved_bmc_subnets: "{{ vlan_bmc_subnets }}"
 
-# Step 4: Configure each worker node
+# Step 3: Configure each worker node
 - name: Initialize VLAN configuration results
   ansible.builtin.set_fact:
     _vlan_results:
@@ -91,12 +59,12 @@
 
 - name: Configure VLAN on each worker node
   ansible.builtin.include_tasks: configure_worker.yml
-  loop: "{{ worker_vlan_config.worker_vlan_assignments }}"
+  loop: "{{ vlan_worker_assignments }}"
   loop_control:
     loop_var: _worker_assignment
     label: "worker {{ _worker_assignment.worker_host }}"
 
-# Step 5: Display summary
+# Step 4: Display summary
 - name: Display VLAN configuration summary
   ansible.builtin.debug:
     msg:
