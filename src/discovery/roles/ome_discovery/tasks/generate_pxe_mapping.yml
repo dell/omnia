@@ -18,6 +18,29 @@
     file: "{{ discovery_input_dir }}/network_spec.yml"
     name: network_spec_data
 
+- name: Parse catalog to extract OS type and version
+  when: catalog_file is defined
+  vars:
+    catalog_file: "{{ lookup('env', 'CATALOG_FILE_PATH') | default('/omnia/catalog/catalog_rhel.json') }}"
+  block:
+    - name: Check if catalog file exists
+      ansible.builtin.stat:
+        path: "{{ catalog_file }}"
+      register: catalog_stat
+
+    - name: Parse catalog JSON to extract OS metadata
+      ansible.builtin.set_fact:
+        _catalog_data: "{{ lookup('file', catalog_file) | from_yaml }}"
+      when: catalog_stat.stat.exists
+
+    - name: Extract OS type and version from catalog
+      ansible.builtin.set_fact:
+        discovery_os_type: "{{ _catalog_data.catalog.groups.baseos_group.os | default('') }}"
+        discovery_os_version: "{{ _catalog_data.catalog.groups.baseos_group.os_version | default('') }}"
+      when:
+        - catalog_stat.stat.exists
+        - _catalog_data.catalog.groups.baseos_group is defined
+
 - name: Set admin_subnet from network spec
   ansible.builtin.set_fact:
     admin_subnet: "{{ (network_spec_data.Networks | selectattr('admin_network', 'defined') | first).admin_network.subnet | default('') }}"
@@ -55,6 +78,8 @@
     hostname_padding: "{{ hostname_padding }}"
     ib_subnet: "{{ ib_subnet }}"
     admin_subnet: "{{ admin_subnet }}"
+    os_type: "{{ discovery_os_type | default('') }}"
+    os_version: "{{ discovery_os_version | default('') }}"
   register: pxe_mapping_result
 
 - name: Create symlink to latest PXE mapping file
