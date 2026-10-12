@@ -15,16 +15,20 @@
 """OpenCHAMI postconditions produced by full Orchestrator cleanup."""
 
 import pytest
-from library.functions import check_cleanup_openchami
+from library.functions import (
+    TestLogger,
+    check_cleanup_openchami,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_cleanup
 
 
 @pytest.mark.sanity
 @pytest.mark.destructive
-@pytest.mark.order(1)
+@pytest.mark.order(50101)
 def test_openchami_removed(host):
     """Verify OpenCHAMI runtime, volumes, packages and state are removed."""
-    verify_cleanup(
-        host, "cleanup_openchami", "OpenCHAMI cleanup", check_cleanup_openchami
-    )
+    tc = TC["cleanup_openchami"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_cleanup(test_log, host, "OpenCHAMI cleanup", check_cleanup_openchami)
