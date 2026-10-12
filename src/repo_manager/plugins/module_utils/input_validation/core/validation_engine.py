@@ -48,16 +48,17 @@ def schema(config):
     Returns:
         list: List of error messages, empty if validation passed.
     """
-    input_file_path = config["input_file_path"]
-    schema_file_path = config["schema_file_path"]
-    passwords_set = config["passwords_set"]
-    omnia_base_dir = config["omnia_base_dir"]
-    project_name = config["project_name"]
-    logger = config["logger"]
-    module = config["module"]
     error_bucket = []
 
     try:
+        input_file_path = config["input_file_path"]
+        schema_file_path = config["schema_file_path"]
+        passwords_set = config["passwords_set"]
+        omnia_base_dir = config["omnia_base_dir"]
+        project_name = config["project_name"]
+        logger = config["logger"]
+        module = config["module"]
+
         input_data, extension = file_utils.input_data(
             input_file_path, omnia_base_dir, project_name, logger, module
         )
@@ -133,18 +134,24 @@ def schema(config):
 
     except jsonschema.exceptions.SchemaError as schemaerror:
         message = f"Internal schema validation error: {schemaerror.message}"
-        logger.error(message)
+        error_bucket.append(message)
+    except KeyError as keyerror:
+        message = f"Missing required config key: {keyerror}"
         error_bucket.append(message)
     except ValueError as valueerror:
-        message = f"Value error at {input_file_path}: {valueerror}"
-        logger.error(message)
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"Value error at {input_path}: {valueerror}"
         error_bucket.append(message)
     except Exception as exception:
-        message = f"An unexpected error occurred: {exception}"
-        logger.error(message)
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"An unexpected error occurred at {input_path}: {exception}"
         error_bucket.append(message)
 
-    logger.info(msg.get_schema_success(input_file_path))
+    if not error_bucket:
+        input_path = config.get("input_file_path", "<unknown>")
+        logger = config.get("logger")
+        if logger:
+            logger.info(msg.get_schema_success(input_path))
     return error_bucket
 
 
@@ -164,15 +171,16 @@ def logic(config):
     Returns:
         list: List of error messages, empty if validation passed.
     """
-    input_file_path = config["input_file_path"]
-    omnia_base_dir = config["omnia_base_dir"]
-    module_utils_base = config["module_utils_base"]
-    project_name = config["project_name"]
-    logger = config["logger"]
-    module = config["module"]
     error_bucket = []
 
     try:
+        input_file_path = config["input_file_path"]
+        omnia_base_dir = config["omnia_base_dir"]
+        module_utils_base = config["module_utils_base"]
+        project_name = config["project_name"]
+        logger = config["logger"]
+        module = config["module"]
+
         input_data, extension = file_utils.input_data(
             input_file_path, omnia_base_dir, project_name, logger, module
         )
@@ -226,19 +234,23 @@ def logic(config):
             logger.error(msg.get_logic_failed(input_file_path))
             return error_bucket
 
-    except ValueError as valueerror:
-        message = f"Value error at {input_file_path}: {valueerror}"
+    except KeyError as keyerror:
+        message = f"Missing required config key: {keyerror}"
         error_bucket.append(message)
-        logger.error(message, exc_info=True)
+        return error_bucket
+    except ValueError as valueerror:
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"Value error at {input_path}: {valueerror}"
+        error_bucket.append(message)
         return error_bucket
     except Exception as exception:
-        message = f"An unexpected error occurred: {exception}"
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"An unexpected error occurred at {input_path}: {exception}"
         error_bucket.append(message)
-        logger.error(message, exc_info=True)
         return error_bucket
 
     logger.info(msg.get_logic_success(input_file_path))
-    return False
+    return error_bucket
 
 
 def validate_input_logic(
@@ -276,7 +288,6 @@ def validate_input_logic(
     file_name = path_parts[-1]
 
     validation_function = validation_functions.get(file_name, None)
-    print("validation_function", validation_function)
 
     if validation_function:
         return validation_function(
