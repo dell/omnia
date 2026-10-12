@@ -265,6 +265,21 @@
         },
         "csi_powerscale_driver_values_file_path": {
           "$ref": "#/definitions/optionalAbsolutePath"
+        },
+        "enable_k8s_ha": {
+          "type": "boolean"
+        },
+        "virtual_ip_address": {
+          "type": "string",
+          "description": "Kubernetes HA virtual IP. Required, non-empty, when the PXE mapping selects Kubernetes (enforced by L2 validation).",
+          "anyOf": [
+            {
+              "maxLength": 0
+            },
+            {
+              "format": "ipv4"
+            }
+          ]
         }
       },
       "allOf": [
