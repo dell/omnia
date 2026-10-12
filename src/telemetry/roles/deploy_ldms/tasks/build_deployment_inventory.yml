@@ -16,16 +16,21 @@
 # =============================================================================
 # deploy_ldms — Build deployment inventory
 # =============================================================================
-# Loads the Slurm cluster inventory, checks node reachability, inspects
-# munge keys, and populates the dynamic host groups used by subsequent
+# Loads the Slurm cluster inventory, checks node health via Slurm sinfo
+# (scales to large clusters without SSH overhead), inspects munge keys on
+# control nodes, and populates the dynamic host groups used by subsequent
 # plays in the deploy_ldms playbook:
 #
-#   ldms_deploy_reachable          — all reachable LDMS-enabled nodes
+#   ldms_deploy_reachable          — all healthy LDMS-enabled nodes (idle/mix/alloc)
 #   ldms_deploy_aggregator_control — the Slurm control node used for
 #                                     munge-key / auth preparation
 #
 # Called from enable.yml (enable path only — disable.yml only scales
 # existing K8s resources to zero and needs none of this).
+#
+# Performance note: Uses sinfo from control node instead of SSH to each
+# compute node, reducing O(n) SSH connections to O(1) for reachability checks.
+# This scales efficiently to clusters with 1000+ nodes.
 # =============================================================================
 
 # ---- Load Slurm inventory ----
@@ -137,7 +142,7 @@
       loop_control:
         label: "{{ item.key }}"
 
-# ---- Check reachability ----
+# ---- Check reachability using Slurm sinfo ----
 
 - name: Build list of all LDMS deployment nodes
   ansible.builtin.set_fact:
@@ -151,55 +156,71 @@
         ) | unique | sort
       }}
 
-- name: Check LDMS deployment node reachability
-  vars:
-    ansible_ssh_timeout: 10
-    ansible_ssh_retries: 0
-  ansible.builtin.ping:
-  delegate_to: "{{ item }}"
-  loop: "{{ _ldms_deploy_candidate_hosts | default([]) }}"
-  loop_control:
-    label: "{{ item }}"
-  register: _ldms_deploy_reachability
+- name: Get Slurm node status from control node (sinfo)
+  # Note: sinfo must be available on the control node's PATH.
+  # If Slurm binaries are only available via login shell profile scripts,
+  # ensure they are added to the system PATH or use a login shell wrapper.
+  ansible.builtin.command: "{{ ldms_sinfo_command }}"
+  delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
+  register: _ldms_sinfo_output
   changed_when: false
-  failed_when: false
-  ignore_unreachable: true
+  failed_when: _ldms_sinfo_output.rc != 0
 
-- name: Classify LDMS deployment node reachability
+- name: Fail fast if sinfo output is empty
+  ansible.builtin.assert:
+    that:
+      - (_ldms_sinfo_output.stdout | default('')) | length > 0
+    fail_msg: >-
+      sinfo returned empty output on
+      {{ (groups['slurm_control_node'] | default([])) | first }}.
+      sinfo stdout: "{{ _ldms_sinfo_output.stdout }}"
+      sinfo stderr: "{{ _ldms_sinfo_output.stderr | default('no stderr') }}"
+
+- name: Parse sinfo output to identify healthy nodes
+  # sinfo -r already filters for responsive nodes only, so all returned nodes
+  # are healthy. We just need to extract the node names from the output.
   ansible.builtin.set_fact:
-    _ldms_deploy_unreachable_hosts: >-
+    _ldms_sinfo_healthy_nodes: >-
       {{
-        (_ldms_deploy_reachability.results | default([]))
-        | selectattr('unreachable', 'defined')
-        | selectattr('unreachable')
-        | map(attribute='item') | unique | sort
+        (
+          _ldms_sinfo_output.stdout_lines
+          | default([])
+          | select('match', '^[a-zA-Z0-9._-]+$')
+          | list
+        )
       }}
+
+- name: Classify LDMS deployment node reachability from sinfo
+  ansible.builtin.set_fact:
     _ldms_deploy_reachable_hosts: >-
       {{
-        (_ldms_deploy_reachability.results | default([]))
-        | selectattr('ping', 'defined')
-        | selectattr('ping', 'equalto', 'pong')
-        | map(attribute='item') | unique | sort
+        _ldms_deploy_candidate_hosts
+        | intersect(_ldms_sinfo_healthy_nodes | default([]))
+        | unique | sort
+      }}
+    _ldms_deploy_unreachable_hosts: >-
+      {{
+        _ldms_deploy_candidate_hosts
+        | difference(_ldms_sinfo_healthy_nodes | default([]))
+        | unique | sort
       }}
 
 # ---- Inspect munge keys on control nodes ----
+# Note: sinfo -N only reports nodes known to Slurm as partition/compute
+# members — a dedicated (compute-less) control node is typically absent
+# from that list. So control-node reachability must NOT be pre-filtered
+# through the sinfo-derived _ldms_deploy_reachable_hosts; instead, the
+# munge-key stat task below (with ignore_unreachable: true) is itself the
+# source of truth for control-node SSH reachability.
 
-- name: Select reachable Slurm control nodes
-  ansible.builtin.set_fact:
-    _ldms_deploy_reachable_control_hosts: >-
-      {{
-        (groups['slurm_control_node'] | default([]))
-        | intersect(_ldms_deploy_reachable_hosts | default([])) | sort
-      }}
-
-- name: Inspect munge keys on reachable Slurm control nodes
+- name: Inspect munge keys on Slurm control nodes
   vars:
     ansible_ssh_timeout: 10
     ansible_ssh_retries: 0
   ansible.builtin.stat:
     path: "{{ munge_key_path | default('/etc/munge/munge.key') }}"
   delegate_to: "{{ item }}"
-  loop: "{{ _ldms_deploy_reachable_control_hosts | default([]) }}"
+  loop: "{{ groups['slurm_control_node'] | default([]) }}"
   loop_control:
     label: "{{ item }}"
   register: _ldms_deploy_control_munge_checks
@@ -223,6 +244,16 @@
         | selectattr('stat.exists', 'defined')
         | selectattr('stat.exists')
         | map(attribute='item') | unique | sort
+      }}
+    _ldms_deploy_reachable_control_hosts: >-
+      {{
+        (groups['slurm_control_node'] | default([]))
+        | difference(
+            (_ldms_deploy_control_munge_checks.results | default([]))
+            | selectattr('unreachable', 'defined')
+            | selectattr('unreachable')
+            | map(attribute='item') | list
+          ) | unique | sort
       }}
 
 - name: Exclude control nodes lost during aggregator preparation
@@ -296,17 +327,16 @@
   delegate_to: localhost
   delegate_facts: true
 
-- name: Validate usable LDMS deployment connections
+- name: Validate usable LDMS deployment connections (sinfo-based)
   ansible.builtin.assert:
     that:
-      - item.ping | default('') == 'pong'
+      - item in _ldms_sinfo_healthy_nodes | default([])
     fail_msg: >-
-      Connected to {{ item.item }}, but Ansible could not run its ping
-      module: {{ item.msg | default('No error message returned') }}
-  loop: "{{ _ldms_deploy_reachability.results | default([]) }}"
+      Node {{ item }} is not in healthy state according to Slurm sinfo.
+      Current sinfo status: {{ _ldms_sinfo_output.stdout }}
+  loop: "{{ _ldms_deploy_reachable_hosts | default([]) }}"
   loop_control:
-    label: "{{ item.item }}"
-  when: not (item.unreachable | default(false) | bool)
+    label: "{{ item }}"
 
 - name: Validate usable Slurm control-node connections
   ansible.builtin.assert:
@@ -318,7 +348,6 @@
   loop: "{{ _ldms_deploy_control_munge_checks.results | default([]) }}"
   loop_control:
     label: "{{ item.item }}"
-  when: not (item.unreachable | default(false) | bool)
 
 - name: Validate required LDMS deployment nodes
   ansible.builtin.assert:
