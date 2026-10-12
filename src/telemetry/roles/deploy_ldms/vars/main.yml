@@ -47,6 +47,16 @@ ldms_store_name: "nersc-ldms-store"
 slurm_config_path: "/etc/slurm"
 munge_key_path: "/etc/munge/munge.key"
 
+# LDMS node reachability check via Slurm sinfo
+# Uses sinfo to identify responsive compute nodes (excludes nodes with *, ~, # suffixes)
+# Flags:
+#   -h: Suppress header line
+#   -N: Node-centric format
+#   -r: Only show responsive nodes (excludes unresponsive, power-save, powering-up)
+#   -t: Filter by operational states (idle, alloc, mixed)
+#   -o: Output format (node name only)
+ldms_sinfo_command: "sinfo -h -N -r -t idle,alloc,mixed -o '%n'"
+
 # LDMS backup path for PXE change detection
 backup_pxe_mapping_ldms_path: "{{ telemetry_data_path | default('/opt/omnia/telemetry') }}/backup_pxe_mapping_ldms.csv"
 
