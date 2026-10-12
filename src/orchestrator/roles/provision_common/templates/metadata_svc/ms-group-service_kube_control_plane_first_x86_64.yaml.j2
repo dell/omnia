@@ -904,18 +904,25 @@
             echo "Installing Metallb"
             kubectl create -f {{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml
             echo "Waiting for MetalLB pods to be ready..."
-            kubectl wait --namespace metallb-system --for=condition=Ready pods --all --timeout=300s
+            kubectl wait --namespace metallb-system --for=condition=Ready pods --all --timeout=300s || echo "WARNING: Some MetalLB pods are not Ready yet. Continuing initialization."
             echo "Waiting for MetalLB webhook to be ready..."
+            METALLB_WEBHOOK_ATTEMPTS=0
+            METALLB_WEBHOOK_MAX=60
             until kubectl get endpoints metallb-webhook-service -n metallb-system \
               -o jsonpath='{.subsets[*].addresses[*].ip}' | grep -qE '[0-9]'; do
-              echo "Webhook endpoints not ready yet. Retrying in 5s..."
+              METALLB_WEBHOOK_ATTEMPTS=$((METALLB_WEBHOOK_ATTEMPTS + 1))
+              if [ "$METALLB_WEBHOOK_ATTEMPTS" -ge "$METALLB_WEBHOOK_MAX" ]; then
+                echo "WARNING: MetalLB webhook not ready after ${METALLB_WEBHOOK_MAX} attempts. Continuing."
+                break
+              fi
+              echo "Webhook endpoints not ready yet (attempt ${METALLB_WEBHOOK_ATTEMPTS}/${METALLB_WEBHOOK_MAX}). Retrying in 5s..."
               sleep 5
             done
-            echo "MetalLB webhook is ready."
+            echo "MetalLB webhook wait completed."
             echo "Deploy ipaddress pool"
-            kubectl create -f {{ k8s_client_mount_path }}/metallb/ipaddress_pool.yaml
+            kubectl create -f {{ k8s_client_mount_path }}/metallb/ipaddress_pool.yaml || echo "WARNING: Failed to create IP address pool. Continuing."
             echo "Deploy Layer2 Configuration"
-            kubectl create -f {{ k8s_client_mount_path }}/metallb/l2advertisement.yaml
+            kubectl create -f {{ k8s_client_mount_path }}/metallb/l2advertisement.yaml || echo "WARNING: Failed to create L2 advertisement. Continuing."
 
             #echo "Deploy Multus"
             #kubectl apply -f {{ k8s_client_mount_path }}/multus/{{ multus_package }}.yml
@@ -942,7 +949,7 @@
             kubectl rollout restart deployment coredns -n kube-system
             echo "Waiting for coredns pods to appear.."
             sleep 30
-            kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
+            kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s || echo "WARNING: CoreDNS pods not fully ready. Continuing."
 
             if [ "{{ hostvars['localhost'].get('enable_powerscale_csi', false) | bool | lower }}" == "true" ]; then
               /usr/local/bin/deploy-powerscale-csi.sh
@@ -955,7 +962,7 @@
             kubectl rollout restart deployment coredns -n kube-system
             sleep 30
             echo "Waiting for coredns pods to appear.."
-            kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s
+            kubectl wait --for=condition=Ready pod -l k8s-app=kube-dns -n kube-system --timeout=300s || echo "WARNING: CoreDNS pods not fully ready. Continuing."
             # Mark initialization complete so all of above is skipped on reboot!
             touch "$MARKER"
             echo "Cloud-Init has completed successfully."

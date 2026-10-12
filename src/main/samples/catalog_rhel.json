@@ -4545,9 +4545,9 @@
         ]
       },
       "helm_charts_2_18_0": {
-        "name": "helm-charts-2.17.0",
+        "name": "helm-charts-2.18.0",
         "packagetype": "git",
-        "version": "csi-isilon-2.17.0",
+        "version": "csi-isilon-2.18.0",
         "sources": [
           {
             "architecture": "x86_64",

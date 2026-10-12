@@ -96,7 +96,7 @@ karaviMetricsPowerscale:
     skipCertificateValidation: true
 
 otelCollector:
-  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.150.1
+  image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.160.0
   service:
     type: ClusterIP
 

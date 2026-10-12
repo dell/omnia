@@ -1188,7 +1188,7 @@
             "registry": "ghcr.io"
           }
         ],
-        "tag": "0.150.1"
+        "tag": "0.160.0"
       },
       "networkmanager": {
         "name": "NetworkManager",
@@ -1489,7 +1489,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.29"
+        "tag": "1.30.4"
       },
       "registry_k8s_io/sig_storage/snapshot_controller": {
         "name": "registry.k8s.io/sig-storage/snapshot-controller",
@@ -2523,9 +2523,9 @@
         "tag": "v1.149.0-cluster"
       },
       "helm_charts_2_18_0": {
-        "name": "helm-charts-2.17.0",
+        "name": "helm-charts-2.18.0",
         "packagetype": "git",
-        "version": "csi-isilon-2.17.0",
+        "version": "csi-isilon-2.18.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -3115,7 +3115,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "v1.12.0"
+        "tag": "v1.13.0"
       },
       "which": {
         "name": "which",

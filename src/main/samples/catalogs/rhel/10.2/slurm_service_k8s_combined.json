@@ -958,7 +958,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.29"
+        "tag": "1.30.4"
       },
       "docker.io/victoriametrics/vminsert": {
         "name": "docker.io/victoriametrics/vminsert",
@@ -988,7 +988,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "v1.12.0"
+        "tag": "v1.13.0"
       },
       "pymysql": {
         "name": "PyMySQL==1.1.2",
@@ -3152,7 +3152,7 @@
             "registry": "ghcr.io"
           }
         ],
-        "tag": "0.150.1"
+        "tag": "0.160.0"
       },
       "docker.io/calico/cni": {
         "name": "docker.io/calico/cni",
@@ -3192,9 +3192,9 @@
         ]
       },
       "helm_charts_2_18_0": {
-        "name": "helm-charts-2.17.0",
+        "name": "helm-charts-2.18.0",
         "packagetype": "git",
-        "version": "csi-isilon-2.17.0",
+        "version": "csi-isilon-2.18.0",
         "sources": [
           {
             "architecture": "x86_64",

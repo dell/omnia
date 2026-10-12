@@ -137,12 +137,12 @@ images:
   # Source: https://quay.io/organization/dell   https://github.com/dell/karavi-observability
   powerscale:
     csm_metrics: "quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.13.0"
-    otel_collector: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.150.1"
+    otel_collector: "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector:0.160.0"
     csm_authorization_sidecar: "quay.io/dell/container-storage-modules/csm-authorization-sidecar:v2.6.0"
     cert_manager_controller: "quay.io/jetstack/cert-manager-controller:v1.10.0"
     cert_manager_cainjector: "quay.io/jetstack/cert-manager-cainjector:v1.10.0"
     cert_manager_webhook: "quay.io/jetstack/cert-manager-webhook:v1.10.0"
-    nginx: "docker.io/nginxinc/nginx-unprivileged:1.29"
+    nginx: "docker.io/nginxinc/nginx-unprivileged:1.30.4"
     python: "docker.io/library/python:3.12-slim"
 
   # -- Source: LDMS -----------------------------------------------------------
@@ -216,7 +216,7 @@ git_repos:
     package: "helm-charts"
     filename: "helm-charts.tar.gz"
     online_url: "https://github.com/dell/helm-charts.git"
-    version: "container-storage-modules-1.11.0"
+    version: "csi-isilon-2.18.0"
 
 # =============================================================================
 # Python Pip Modules

@@ -1619,7 +1619,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.29"
+        "tag": "1.30.4"
       },
       "bash_completion": {
         "name": "bash-completion",
@@ -2017,7 +2017,7 @@
             "registry": "ghcr.io"
           }
         ],
-        "tag": "0.150.1"
+        "tag": "0.160.0"
       },
       "grep": {
         "name": "grep",
@@ -2713,7 +2713,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "v1.12.0"
+        "tag": "v1.13.0"
       },
       "gdb": {
         "name": "gdb",
@@ -3486,9 +3486,9 @@
         "tag": "v1.149.0"
       },
       "helm_charts_2_18_0": {
-        "name": "helm-charts-2.17.0",
+        "name": "helm-charts-2.18.0",
         "packagetype": "git",
-        "version": "csi-isilon-2.17.0",
+        "version": "csi-isilon-2.18.0",
         "sources": [
           {
             "architecture": "x86_64",
