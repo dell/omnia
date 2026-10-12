@@ -14,21 +14,18 @@
 
 """Additional cloud-init idempotency verification.
 
-Covers 2.2 baseline gaps TC-I01 .. TC-I03:
-- SMD group creation is stable across re-reads
-- BSS registration is stable across re-reads
-- Full pipeline (SMD + BSS) state is consistent
-
 Tests skip automatically when additional_cloud_init_config_file is empty
 or not configured in orchestrator_config.yml.
 """
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_additional_cloud_init_bss_idempotency,
     check_additional_cloud_init_pipeline_idempotency,
     check_additional_cloud_init_smd_idempotency,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -40,31 +37,27 @@ pytestmark = [
 ]
 
 
-@pytest.mark.order(339)
+@pytest.mark.order(40314)
 def test_additional_cloud_init_smd_idempotency(host):
     """Verify SMD group creation is idempotent across re-reads."""
-    verify_pxeboot(
-        host,
-        "additional_cloud_init_smd_idempotency",
-        check_additional_cloud_init_smd_idempotency,
-    )
+    tc = TC["additional_cloud_init_smd_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_smd_idempotency)
 
 
-@pytest.mark.order(340)
+@pytest.mark.order(40315)
 def test_additional_cloud_init_bss_idempotency(host):
     """Verify BSS registration is idempotent across re-reads."""
-    verify_pxeboot(
-        host,
-        "additional_cloud_init_bss_idempotency",
-        check_additional_cloud_init_bss_idempotency,
-    )
+    tc = TC["additional_cloud_init_bss_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_bss_idempotency)
 
 
-@pytest.mark.order(341)
+@pytest.mark.order(40316)
 def test_additional_cloud_init_pipeline_idempotency(host):
     """Verify full additional cloud-init pipeline state is consistent."""
+    tc = TC["additional_cloud_init_pipeline_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(
-        host,
-        "additional_cloud_init_pipeline_idempotency",
-        check_additional_cloud_init_pipeline_idempotency,
+        test_log, tc, host, check_additional_cloud_init_pipeline_idempotency,
     )
