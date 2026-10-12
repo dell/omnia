@@ -590,6 +590,32 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "Verify current job stage and log freshness",
     },
 
+    # --- Automatic cleanup (sanity marker; explicit destructive suite) ---
+    "execute_automatic_cleanup": {
+        "id": "BSM_FVT_AUTOMATIC_CLEANUP_E001",
+        "title": "Execute automatic cleanup for the sole FAILED ImageGroup",
+    },
+    "automatic_cleanup_runtime": {
+        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V001",
+        "title": "Verify automatic-cleanup integer configuration and services",
+    },
+    "automatic_cleanup_completed": {
+        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V002",
+        "title": "Verify automatic cleanup finalized the target to CLEANED",
+    },
+    "automatic_cleanup_nfs_absent": {
+        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V003",
+        "title": "Verify automatic cleanup removed target NFS artifacts",
+    },
+    "automatic_cleanup_s3_absent": {
+        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V004",
+        "title": "Verify automatic cleanup removed target S3 artifacts",
+    },
+    "automatic_cleanup_registry_absent": {
+        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V005",
+        "title": "Verify automatic cleanup removed target registry artifacts",
+    },
+
     # --- Cleanup pipeline (sanity marker; explicit suite only) ---
     "cleanup_gitlab_server_running": {
         "id": "BSM_FVT_CLEANUP_PIPELINE_V001",

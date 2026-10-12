@@ -18,6 +18,7 @@ import pytest
 
 from fvt.result import verify_pxeboot
 from library.functions import (
+    TestLogger,
     check_powervault_node_subdirectory,
     check_powervault_bind_mounts,
     check_powervault_bind_fstab_entries,
@@ -28,88 +29,103 @@ from library.functions import (
     check_powervault_slurm_mandatory_bind_mounts,
     check_powervault_mysql_data_on_mount,
 )
+from library.vars import TEST_CASES as TC
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(316)
+@pytest.mark.order(40616)
 @pytest.mark.powervault_binds
 def test_powervault_node_subdirectory(host):
     """Verify per-node subdirectory exists under mount point."""
-    verify_pxeboot(host, "powervault_node_subdirectory", check_powervault_node_subdirectory)
+    tc = TC["powervault_node_subdirectory"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_node_subdirectory)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(317)
+@pytest.mark.order(40617)
 @pytest.mark.powervault_binds
 def test_powervault_bind_mounts(host):
     """Verify bind mount targets are active on all target nodes."""
-    verify_pxeboot(host, "powervault_bind_mounts", check_powervault_bind_mounts)
+    tc = TC["powervault_bind_mounts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_bind_mounts)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(318)
+@pytest.mark.order(40618)
 @pytest.mark.powervault_binds
 def test_powervault_bind_fstab_entries(host):
     """Verify bind mount fstab entries are persistent on all target nodes."""
-    verify_pxeboot(host, "powervault_bind_fstab_entries", check_powervault_bind_fstab_entries)
+    tc = TC["powervault_bind_fstab_entries"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_bind_fstab_entries)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(319)
+@pytest.mark.order(40619)
 @pytest.mark.powervault_binds
 def test_powervault_bind_isolation(host):
     """Verify per-node data separation via bind mounts."""
-    verify_pxeboot(host, "powervault_bind_isolation", check_powervault_bind_isolation)
+    tc = TC["powervault_bind_isolation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_bind_isolation)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(320)
+@pytest.mark.order(40620)
 @pytest.mark.powervault_binds
 def test_powervault_functional_group_targeting(host):
     """Verify PV mount only on correct functional groups."""
-    verify_pxeboot(host, "powervault_functional_group_targeting", check_powervault_functional_group_targeting)
+    tc = TC["powervault_functional_group_targeting"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_functional_group_targeting)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(321)
+@pytest.mark.order(40621)
 @pytest.mark.powervault_binds
 def test_powervault_multiple_prefix_targeting(host):
     """Verify multiple prefixes target all groups correctly."""
-    verify_pxeboot(host, "powervault_multiple_prefix_targeting", check_powervault_multiple_prefix_targeting)
+    tc = TC["powervault_multiple_prefix_targeting"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_multiple_prefix_targeting)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(328)
+@pytest.mark.order(40628)
 @pytest.mark.powervault_binds
 def test_powervault_bind_io(host):
     """Verify bind-mount I/O reaches the PV backing store."""
-    verify_pxeboot(host, "powervault_bind_io", check_powervault_bind_io)
+    tc = TC["powervault_bind_io"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_bind_io)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(329)
+@pytest.mark.order(40629)
 @pytest.mark.powervault_binds
 def test_powervault_slurm_mandatory_bind_mounts(host):
     """Verify /var/lib/mysql and /var/spool/slurm configured as bind targets."""
-    verify_pxeboot(
-        host,
-        "powervault_slurm_mandatory_bind_mounts",
-        check_powervault_slurm_mandatory_bind_mounts,
-    )
+    tc = TC["powervault_slurm_mandatory_bind_mounts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_slurm_mandatory_bind_mounts)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(330)
+@pytest.mark.order(40630)
 @pytest.mark.powervault_binds
 def test_powervault_mysql_data_on_mount(host):
     """Verify MySQL/MariaDB datadir is on a PowerVault mount."""
-    verify_pxeboot(host, "powervault_mysql_data_on_mount", check_powervault_mysql_data_on_mount)
+    tc = TC["powervault_mysql_data_on_mount"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_mysql_data_on_mount)

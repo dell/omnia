@@ -12,13 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Kubernetes local-etcd mount and disk safety contracts."""
+"""Kubernetes local-etcd mount, provisioning, and disk-media contracts."""
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_kubernetes_local_etcd,
     check_kubernetes_local_etcd_integrity,
+    check_kubernetes_local_etcd_media,
+    check_kubernetes_local_etcd_provisioning,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -26,20 +30,38 @@ from fvt.result import verify_pxeboot
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(215)
+@pytest.mark.order(40903)
 def test_kubernetes_local_etcd(host):
     """Verify each control plane has the configured etcd mount."""
-    verify_pxeboot(host, "kubernetes_local_etcd", check_kubernetes_local_etcd)
+    tc = TC["kubernetes_local_etcd"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_local_etcd)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(216)
+@pytest.mark.order(40904)
 def test_kubernetes_local_etcd_integrity(host):
     """Verify disk selection, ext4 label, UUID fstab, and boot persistence."""
-    verify_pxeboot(
-        host,
-        "kubernetes_local_etcd_integrity",
-        check_kubernetes_local_etcd_integrity,
-    )
+    tc = TC["kubernetes_local_etcd_integrity"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_local_etcd_integrity)
+
+
+@pytest.mark.kubernetes
+@pytest.mark.order(40905)
+def test_kubernetes_local_etcd_provisioning(host):
+    """Verify GPT selection and local-etcd scripts, logs, and selected disk."""
+    tc = TC["kubernetes_local_etcd_provisioning"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_local_etcd_provisioning)
+
+
+@pytest.mark.kubernetes
+@pytest.mark.order(40906)
+def test_kubernetes_local_etcd_media(host):
+    """Verify every control plane places etcd on the configured disk media."""
+    tc = TC["kubernetes_local_etcd_media"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_local_etcd_media)

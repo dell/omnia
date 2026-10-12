@@ -16,12 +16,14 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_kubernetes_control_plane,
     check_kubernetes_node_services,
     check_kubernetes_nodes,
     check_kubernetes_system_pods,
     check_kubernetes_virtual_ip,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -29,43 +31,53 @@ from fvt.result import verify_pxeboot
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(205)
+@pytest.mark.order(40801)
 def test_kubernetes_nodes(host):
     """Verify mapped Kubernetes membership and Ready state."""
-    verify_pxeboot(host, "kubernetes_nodes", check_kubernetes_nodes)
+    tc = TC["kubernetes_nodes"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_nodes)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(206)
+@pytest.mark.order(40802)
 def test_kubernetes_node_services(host):
     """Verify required services on every Kubernetes role."""
-    verify_pxeboot(host, "kubernetes_services", check_kubernetes_node_services)
+    tc = TC["kubernetes_services"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_node_services)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(209)
+@pytest.mark.order(40805)
 def test_kubernetes_control_plane(host):
     """Verify API readiness and the configured control plane."""
-    verify_pxeboot(host, "kubernetes_control_plane", check_kubernetes_control_plane)
+    tc = TC["kubernetes_control_plane"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_control_plane)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(210)
+@pytest.mark.order(40806)
 def test_kubernetes_system_pods(host):
     """Verify required system, CNI, storage, and HA workloads."""
-    verify_pxeboot(host, "kubernetes_system_pods", check_kubernetes_system_pods)
+    tc = TC["kubernetes_system_pods"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_system_pods)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.kubernetes
-@pytest.mark.order(211)
+@pytest.mark.order(40807)
 def test_kubernetes_virtual_ip(host):
     """Verify exactly one owner for the configured Kubernetes VIP."""
-    verify_pxeboot(host, "kubernetes_virtual_ip", check_kubernetes_virtual_ip)
+    tc = TC["kubernetes_virtual_ip"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_virtual_ip)

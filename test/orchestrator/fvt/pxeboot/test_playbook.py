@@ -24,7 +24,7 @@ from library.vars import TEST_CASES as TC
 @pytest.mark.deploy
 @pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(200)
+@pytest.mark.order(40000)
 def test_deploy_pxeboot(host):
     """Run ``orchestrator.yml --tags pxeboot``."""
     tc = TC["deploy_pxeboot"]

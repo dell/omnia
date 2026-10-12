@@ -27,11 +27,13 @@ or not configured in orchestrator_config.yml.
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_additional_cloud_init_metadata_groups,
     check_additional_cloud_init_runcmd,
     check_additional_cloud_init_smd_groups,
     check_additional_cloud_init_write_files,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -40,53 +42,45 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.additional_cloud_init
 @pytest.mark.non_disruptive
-@pytest.mark.order(300)
+@pytest.mark.order(40301)
 def test_additional_cloud_init_smd_groups(host):
     """Verify SMD groups exist for additional cloud-init configuration."""
-    verify_pxeboot(
-        host,
-        "additional_cloud_init_smd_groups",
-        check_additional_cloud_init_smd_groups,
-    )
+    tc = TC["additional_cloud_init_smd_groups"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_smd_groups)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.additional_cloud_init
 @pytest.mark.non_disruptive
-@pytest.mark.order(301)
+@pytest.mark.order(40302)
 def test_additional_cloud_init_metadata_groups(host):
     """Verify metadata-service groups and templates for additional cloud-init."""
-    verify_pxeboot(
-        host,
-        "additional_cloud_init_metadata_groups",
-        check_additional_cloud_init_metadata_groups,
-    )
+    tc = TC["additional_cloud_init_metadata_groups"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_metadata_groups)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.additional_cloud_init
 @pytest.mark.non_disruptive
-@pytest.mark.order(302)
+@pytest.mark.order(40303)
 def test_additional_cloud_init_write_files(host):
     """Verify write_files entries were applied on provisioned nodes."""
-    verify_pxeboot(
-        host,
-        "additional_cloud_init_write_files",
-        check_additional_cloud_init_write_files,
-    )
+    tc = TC["additional_cloud_init_write_files"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_write_files)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.additional_cloud_init
 @pytest.mark.non_disruptive
-@pytest.mark.order(303)
+@pytest.mark.order(40304)
 def test_additional_cloud_init_runcmd(host):
     """Verify runcmd entries executed during cloud-init on provisioned nodes."""
-    verify_pxeboot(
-        host,
-        "additional_cloud_init_runcmd",
-        check_additional_cloud_init_runcmd,
-    )
+    tc = TC["additional_cloud_init_runcmd"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_runcmd)

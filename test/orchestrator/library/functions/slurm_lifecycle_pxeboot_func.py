@@ -33,17 +33,11 @@ from typing import Any
 
 from omnia_auto import load_test_config, run_on_host
 
-from ..vars.pxeboot_vars import PXEBOOT_COMMANDS, SLURM_COMPUTE_PREFIX
-from ._pxeboot_helpers import (
-    remote_command,
-    runtime_exception,
-    runtime_result,
-)
+from ..vars.pxeboot_vars import PXEBOOT_COMMANDS
+from ._pxeboot_helpers import remote_command, runtime_exception
 from ._provision_helpers import (
     api_json,
-    group_members,
     interface_ips,
-    load_context,
     normalise_mac,
     resource_list,
 )
@@ -55,6 +49,9 @@ _BACKUP_FILENAME = "pxe_mapping_file.csv.backup"
 
 # Functional group prefix for Slurm compute nodes.
 _SLURM_NODE_PREFIX = "slurm_node_"
+
+# Removal needs at least this many slurm_node rows in the PXE mapping.
+_MIN_SLURM_NODES = 2
 
 
 def _result(
@@ -140,8 +137,8 @@ def _resolve_target_nodes(
     Returns:
         ``(admin_ips, all_rows, header_line)`` when target nodes are
         identified, or ``None`` when the test should be skipped because
-        no ``slurm_node_*`` rows exist and the user did not provide
-        explicit IPs.
+        the mapping has fewer than ``_MIN_SLURM_NODES`` ``slurm_node_*``
+        rows.
 
     Raises:
         ValueError: When the user supplied explicit IPs that are invalid
@@ -160,6 +157,8 @@ def _resolve_target_nodes(
         row for row in all_rows
         if row.get("FUNCTIONAL_GROUP_NAME", "").startswith(_SLURM_NODE_PREFIX)
     ]
+    if len(slurm_node_rows) < _MIN_SLURM_NODES:
+        return None
 
     if configured:
         # User provided specific Admin IPs — validation failures are errors.
@@ -184,12 +183,16 @@ def _resolve_target_nodes(
             )
         return requested_ips, all_rows, header
 
-    # Default: remove the last slurm_node entry.  Skip when none exist.
-    if not slurm_node_rows:
-        return None
-
+    # Default: remove the last slurm_node entry.
     last_node = slurm_node_rows[-1]
     return [last_node["ADMIN_IP"]], all_rows, header
+
+
+def _write_remote_file(host, path: str, content: str) -> Any:
+    """Write content through a heredoc; the delimiter must be on its own line."""
+    if not content.endswith("\n"):
+        content += "\n"
+    return run_on_host(host, f"cat > {path} << 'OMNIA_EOF'\n{content}OMNIA_EOF")
 
 
 def _write_mapping(host, path: str, header: str, rows: list[dict[str, str]]) -> None:
@@ -203,10 +206,8 @@ def _write_mapping(host, path: str, header: str, rows: list[dict[str, str]]) -> 
     )
     writer.writeheader()
     writer.writerows(rows)
-    content = output.getvalue()
     # Write via shell to handle remote/local transparently.
-    escaped = content.replace("'", "'\\''")
-    result = run_on_host(host, f"cat > {path} << 'OMNIA_EOF'\n{escaped}OMNIA_EOF")
+    result = _write_remote_file(host, path, output.getvalue())
     if result.rc != 0:
         raise RuntimeError(f"Failed to write PXE mapping: {result.stderr}")
 
@@ -231,8 +232,7 @@ def restore_pxe_mapping(host) -> None:
         raise FileNotFoundError(f"PXE mapping backup not found: {source}")
     with open(source, encoding="utf-8") as fh:
         content = fh.read()
-    escaped = content.replace("'", "'\\''")
-    result = run_on_host(host, f"cat > {dest} << 'OMNIA_EOF'\n{escaped}OMNIA_EOF")
+    result = _write_remote_file(host, dest, content)
     if result.rc != 0:
         raise RuntimeError(f"Failed to restore PXE mapping: {result.stderr}")
 
@@ -437,7 +437,14 @@ def check_slurm_node_remove(host) -> dict[str, Any]:
         mapping_path = _mapping_path(host)
         resolved = _resolve_target_nodes(host, mapping_path)
         if resolved is None:
-            return _skip(summary, "No slurm_node entries in PXE mapping")
+            # A stale backup would make the add test restore an old mapping.
+            if os.path.isfile(_backup_path()):
+                os.remove(_backup_path())
+            return _skip(
+                summary,
+                f"At least {_MIN_SLURM_NODES} slurm_node entries are required "
+                "in the PXE mapping",
+            )
         remove_ips, all_rows, header = resolved
 
         removed_rows = [row for row in all_rows if row["ADMIN_IP"] in remove_ips]

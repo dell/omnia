@@ -405,10 +405,9 @@ The `hosted_gitlab` role syncs Omnia input files to the GitLab repository:
 | `storage_config.yml` | No | Storage configuration |
 | `telemetry_config.yml` | No | Telemetry settings |
 | `security_config.yml` | No | Security settings |
-| `high_availability_config.yml` | No | HA configuration |
 | `omnia_config.yml` | No | General Omnia config |
 
-**Fix Applied**: Added existence check before copying optional files (e.g., `high_availability_config.yml`) to prevent failures when files are missing.
+**Fix Applied**: Added existence check before copying optional files to prevent failures when files are missing.
 
 ### 7.4 Playbook Path Registry
 

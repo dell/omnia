@@ -18,9 +18,6 @@
 - name: Include storage vars
   ansible.builtin.include_vars: "{{ input_project_dir }}/storage_config.yml"
 
-- name: Include include_high_availability_config vars
-  ansible.builtin.include_vars: "{{ ha_config_file }}"
-
 - name: Identify deployed service Kubernetes configuration
   ansible.builtin.set_fact:
     deployed_service_k8s_cluster_matches: >-
@@ -33,7 +30,7 @@
   ansible.builtin.set_fact:
     deployed_service_k8s_cluster: >-
       {{ deployed_service_k8s_cluster_matches | first
-         | default(service_k8s_cluster | default([]) | first | default({})) }}
+         | default({}) }}
 
 - name: Set facts for service_k8s
   ansible.builtin.set_fact:
@@ -179,8 +176,12 @@
 
 - name: Set HA-related facts
   ansible.builtin.set_fact:
-    enable_k8s_ha: "{{ service_k8s_cluster_ha[0].enable_k8s_ha | default(false) }}"
-    kube_vip: "{{ service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+    enable_k8s_ha: >-
+      {{ hostvars['localhost']['service_k8s_deployed_cluster']
+         .enable_k8s_ha | default(false) }}
+    kube_vip: >-
+      {{ hostvars['localhost']['service_k8s_deployed_cluster']
+         .virtual_ip_address | default('') }}
 
 - name: Set fact for pulp mirror
   ansible.builtin.set_fact:

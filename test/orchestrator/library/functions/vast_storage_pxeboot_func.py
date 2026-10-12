@@ -40,7 +40,6 @@ Source of truth (2.3):
 """
 
 import os
-import re
 import time
 from typing import Any
 
@@ -48,7 +47,6 @@ from omnia_auto import load_test_credentials, run_on_host, run_ssh_command
 
 from ..vars.pxeboot_vars import (
     OMNIA_CONFIG,
-    PXEBOOT_COMMANDS,
     SLURM_COMPILER_PREFIX,
     SLURM_COMPUTE_PREFIX,
     SLURM_CONTROL_PREFIX,
@@ -59,7 +57,6 @@ from ._prepare_helpers import read_yaml_mapping
 from ._provision_helpers import load_context
 from ._pxeboot_helpers import (
     first_row,
-    remote_command,
     rows_matching,
     runtime_exception,
     runtime_result,

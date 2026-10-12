@@ -16,6 +16,7 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_slurm_configless_mode,
     check_slurm_configuration_consistency,
     check_slurm_cross_node_ssh,
@@ -23,6 +24,7 @@ from library.functions import (
     check_slurm_scheduler,
     check_slurm_services,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -31,59 +33,69 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(226)
+@pytest.mark.order(41101)
 def test_slurm_membership(host):
     """Verify mapped membership, healthy state, and basic hardware fields."""
-    verify_pxeboot(host, "slurm_membership", check_slurm_membership)
+    tc = TC["slurm_membership"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_membership)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(227)
+@pytest.mark.order(41102)
 def test_slurm_scheduler(host):
     """Verify mapped compute nodes have healthy, available partitions."""
-    verify_pxeboot(host, "slurm_scheduler", check_slurm_scheduler)
+    tc = TC["slurm_scheduler"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_scheduler)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(228)
+@pytest.mark.order(41103)
 def test_slurm_services(host):
     """Verify role and feature-specific Slurm services."""
-    verify_pxeboot(host, "slurm_services", check_slurm_services)
+    tc = TC["slurm_services"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_services)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(229)
+@pytest.mark.order(41104)
 def test_slurm_cross_node_ssh(host):
     """Verify every mapped Slurm role can reach every peer over root SSH."""
-    verify_pxeboot(host, "slurm_cross_ssh", check_slurm_cross_node_ssh)
+    tc = TC["slurm_cross_ssh"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_cross_node_ssh)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(230)
+@pytest.mark.order(41105)
 def test_slurm_configless_mode(host):
     """Verify configless controller access and expected cluster identity."""
-    verify_pxeboot(host, "slurm_configless", check_slurm_configless_mode)
+    tc = TC["slurm_configless"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_configless_mode)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(231)
+@pytest.mark.order(41106)
 def test_slurm_configuration_consistency(host):
     """Compare authoritative Slurm files with every configless client cache."""
-    verify_pxeboot(
-        host, "slurm_config_consistency", check_slurm_configuration_consistency
-    )
+    tc = TC["slurm_config_consistency"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_configuration_consistency)

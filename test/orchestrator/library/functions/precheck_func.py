@@ -421,21 +421,6 @@ def check_precheck_dependencies(host) -> dict[str, Any]:
     )
 
 
-def _mapping_functional_groups(host, path: str) -> set[str]:
-    """Read functional-group values needed for conditional file checks."""
-    remote = host.file(path)
-    if not remote.is_file:
-        return set()
-    reader = csv.DictReader(io.StringIO(remote.content_string))
-    if not reader.fieldnames or "FUNCTIONAL_GROUP_NAME" not in reader.fieldnames:
-        return set()
-    return {
-        str(row.get("FUNCTIONAL_GROUP_NAME") or "").strip()
-        for row in reader
-        if str(row.get("FUNCTIONAL_GROUP_NAME") or "").strip()
-    }
-
-
 def _mapping_targets(host, path: str) -> tuple[set[str], set[str]]:
     """Read functional and logical group targets from the active PXE mapping."""
     remote = host.file(path)
@@ -515,9 +500,6 @@ def check_precheck_inputs(host) -> dict[str, Any]:
         )
 
     required = [mapping_path]
-    groups = _mapping_functional_groups(host, mapping_path)
-    if any(group.startswith("service_kube_") for group in groups):
-        required.append(posixpath.join(input_dir, "high_availability_config.yml"))
     if _has_storage_reference(omnia):
         required.append(posixpath.join(input_dir, "storage_config.yml"))
     additional = str(config.get("additional_cloud_init_config_file") or "").strip()

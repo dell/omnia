@@ -23,7 +23,7 @@
 # Leave empty to use $ORCHESTRATOR_DATA_PATH/input/$OMNIA_PROJECT_NAME/pxe_mapping_file.csv.
 # The mapping file consists of the Service tag, Admin MAC,Hostname and its respective admin IP address and/or BMC IP.
 # Ensure that admin IPs given in mapping file are within the network defined in the network_spec.yml
-# A templates for mapping file exists in omnia/examples, namely, pxe_mapping_file.csv
+# The default template is staged at <ORCHESTRATOR_DATA_PATH>/input/<project>/pxe_mapping_file.csv.
 # Format of csv: FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP
 pxe_mapping_file_path: ""
 
@@ -51,7 +51,7 @@ dns_enabled: false
 #### Optional
 # Path to additional cloud-init configuration file for stateless node provisioning.
 # The file supports both common (all nodes) and per-functional-group cloud-init sections.
-# An example file is provided at omnia/examples/additional_cloud_init.yml
+# The default template is staged at <ORCHESTRATOR_DATA_PATH>/input/<project>/additional_cloud_init.yml.
 # Leave empty ("") to disable additional cloud-init.
 # Default: "" (disabled)
 additional_cloud_init_config_file: ""
@@ -80,9 +80,16 @@ catalog_file_path: ""
 # Default: true
 enable_pxe_boot: true
 
-# Leave empty to use the current OMNIA_DATA_PATH and OMNIA_PROJECT_NAME.
-# The BuildStream deploy pipeline sets this to the selected image group's
-# build_status.yml before uploading; the GitLab value is overridden there.
+#### Optional
+# Path to build_status.yml produced by image_build_manager.
+# The file contains the kernel, initrd, and rootfs artifact locations consumed
+# during image validation and node provisioning.
+# Leave empty to resolve the current project output dynamically as:
+# "$IMAGE_BUILD_MANAGER_DATA_PATH/output/$OMNIA_PROJECT_NAME/build_status.yml"
+# IMAGE_BUILD_MANAGER_DATA_PATH defaults to "$OMNIA_DATA_PATH/image_build_manager".
+# Set an explicit path only to consume another project or a versioned catalog
+# image build. The BuildStream deploy pipeline sets this field to the selected
+# image group's versioned build_status.yml before uploading the project inputs.
 image_build_manager_output_path: ""
 
 #### Optional

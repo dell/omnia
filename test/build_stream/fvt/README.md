@@ -185,6 +185,44 @@ contain the JobID from the cadence pipeline being checked.
 `generate-input-files` is retained as an explicit compatibility case but is
 skipped on 2.3 because that stage was retired.
 
+## Automatic cadence timing coverage
+
+The product configuration keeps `cadence.interval_days` as an integer with a
+minimum of one day. The cadence FVT uses the supported one-shot watcher signal
+to exercise the complete repository-sync and GitLab pipeline path without a
+one-day wait. The NFT cadence timer test separately loads the integer setting,
+lets the timer wait expire without setting the manual-trigger event, and
+verifies that `interval_days: 1` produces a `86400` second timeout and one
+automatic cycle. A real wall-clock automatic FVT would necessarily take at
+least one day and is intentionally not part of sanity or either lifecycle.
+
+```bash
+./run_validation.sh nft_build_stream test --marker nft
+```
+
+## Automatic cleanup sanity suite
+
+Automatic cleanup is an explicit destructive FVT and is never part of the
+default or named lifecycle. Set `automatic_cleanup_job_id` to a dedicated Job
+whose ImageGroup is `FAILED`. Execution is refused unless that Job owns the
+only `FAILED` ImageGroup, because the production cron processes every failed
+group. Set `automatic_cleanup_allow_execution: true` only after checking this
+precondition. `exec` runs the production cleanup cron, `verify` is read-only,
+and `test` runs both phases.
+
+```bash
+./run_validation.sh fvt_build_stream automatic_cleanup exec \
+  --suite automatic_cleanup --marker sanity
+./run_validation.sh fvt_build_stream automatic_cleanup verify \
+  --suite automatic_cleanup --marker sanity
+./run_validation.sh fvt_build_stream automatic_cleanup test \
+  --suite automatic_cleanup --marker sanity
+```
+
+The suite verifies integer retention settings, active BuildStream/watcher
+services, `type=auto` log evidence, the final `CLEANED` state, and removal of
+S3 and registry artifacts for the exact configured Job.
+
 ## Cleanup pipeline sanity suite
 
 The API-triggered cleanup pipeline is an explicit sanity suite. It is not part

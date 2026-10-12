@@ -835,6 +835,36 @@ class TestCadenceTimerThread:
 
         assert mock_cycle.call_count >= 2
 
+    @pytest.mark.nft
+    def test_configured_integer_days_drive_automatic_timeout(
+        self, sample_cadence_config, temp_dir
+    ):
+        """Automatic expiry uses interval_days without a manual trigger."""
+        config = dict(sample_cadence_config)
+        config["interval_days"] = 1
+        thread = CadenceTimerThread(
+            config,
+            temp_dir / "requests",
+            temp_dir / "results",
+            temp_dir / "processing",
+        )
+        observed_timeouts = []
+
+        def automatic_wait(timeout):
+            observed_timeouts.append(timeout)
+            if len(observed_timeouts) > 1:
+                thread.stop_event.set()
+                return True
+            return False
+
+        with patch.object(
+            thread.trigger_event, "wait", side_effect=automatic_wait
+        ), patch.object(thread, "_execute_cadence_cycle") as cycle:
+            thread.run()
+
+        assert observed_timeouts[0] == 86400
+        cycle.assert_called_once_with()
+
     def test_manual_trigger_executes_immediately(
         self, sample_cadence_config, temp_dir
     ):

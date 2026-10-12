@@ -14,80 +14,91 @@
 
 """OIM SSH, internet, and OS-version readiness contracts."""
 
+from functools import partial
+
 import pytest
 from library.functions import (
+    TestLogger,
     check_oim_internet_reachability,
     check_oim_os_version,
     check_oim_ssh_preflight,
 )
+from library.vars import OIM_NEGATIVE_INPUTS as NEG
+from library.vars import TEST_CASES as TC
 
-from fvt.result import verify_precheck
-
-pytestmark = [pytest.mark.sanity]
-
+from fvt.result import verify_precheck, verify_precheck_rejection
 
 # ── positive tests ──────────────────────────────────────────────────
 
 
-@pytest.mark.order(16)
+@pytest.mark.sanity
+@pytest.mark.order(10207)
 def test_oim_ssh_preflight(host):
     """Require passwordless SSH from OIM to a mapped target node."""
-    verify_precheck(host, "oim_ssh_preflight", check_oim_ssh_preflight)
+    tc = TC["oim_ssh_preflight"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_oim_ssh_preflight)
 
 
-@pytest.mark.order(18)
+@pytest.mark.sanity
+@pytest.mark.order(10208)
 def test_oim_internet_reachability(host):
     """Require internet reachability when not in air-gapped mode."""
-    verify_precheck(
-        host, "oim_internet_reachability", check_oim_internet_reachability
-    )
+    tc = TC["oim_internet_reachability"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_oim_internet_reachability)
 
 
-@pytest.mark.order(19)
+@pytest.mark.sanity
+@pytest.mark.order(10209)
 def test_oim_os_version(host):
     """Require the OIM OS to match the expected distribution and version."""
-    verify_precheck(host, "oim_os_version", check_oim_os_version)
-
-
-# ── negative tests ──────────────────────────────────────────────────
+    tc = TC["oim_os_version"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_oim_os_version)
 
 
 @pytest.mark.negative
-@pytest.mark.order(25)
+@pytest.mark.order(10215)
 def test_neg_internet_airgapped(host):
     """Verify air-gapped mode passes even without internet."""
-    result = check_oim_internet_reachability(host, require_internet=False)
-    assert result["success"], (
-        "Air-gapped mode must pass regardless of internet availability"
+    tc = TC["oim_airgapped_internet"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(
+        test_log,
+        tc,
+        host,
+        partial(check_oim_internet_reachability, require_internet=False),
     )
 
 
 @pytest.mark.negative
-@pytest.mark.order(27)
+@pytest.mark.order(10216)
 def test_neg_ssh_unreachable_target(host):
     """Detect SSH failure to a bogus target address."""
-    from library.functions.oim_readiness_precheck_func import (
-        OIM_READINESS_COMMANDS,
-        run_on_host,
-    )
-
-    bogus_target = "192.0.2.1"  # RFC 5737 TEST-NET, guaranteed unreachable
-    result = run_on_host(
-        host, OIM_READINESS_COMMANDS["ssh_check"], bogus_target
-    )
-    assert result.rc != 0, (
-        f"SSH to {bogus_target} should fail (unreachable TEST-NET address)"
+    tc = TC["oim_unreachable_ssh_rejection"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck_rejection(
+        test_log,
+        tc,
+        host,
+        partial(check_oim_ssh_preflight, target=NEG["unreachable_target"]),
     )
 
 
 @pytest.mark.negative
-@pytest.mark.order(28)
+@pytest.mark.order(10217)
 def test_neg_os_version_mismatch(host):
     """Detect failure when expected OS version does not match actual."""
-    result = check_oim_os_version(
-        host, expected_id="nonexistent_os", expected_version="0.0"
+    tc = TC["oim_os_mismatch_rejection"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck_rejection(
+        test_log,
+        tc,
+        host,
+        partial(
+            check_oim_os_version,
+            expected_id=NEG["os_id"],
+            expected_version=NEG["os_version"],
+        ),
     )
-    assert not result["success"], (
-        "OS check should fail when expected ID/version do not match"
-    )
-    assert result["error"], "Failure must include an actionable message"

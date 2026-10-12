@@ -1,0 +1,80 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Update telemetry_status.yml with PowerScale deployment result
+# =============================================================================
+
+- name: Set namespace for status checks
+  ansible.builtin.set_fact:
+    csm_observability_namespace: "{{ csm_namespace }}"
+
+- name: Check if karavi-metrics-powerscale deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment {{ karavi_observability.metrics_deployment }} -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
+  register: karavi_replicas_check
+  changed_when: false
+  failed_when: false
+
+- name: Check if karavi-metrics-powerscale pods are running
+  ansible.builtin.command: >
+    kubectl get pods -n {{ csm_observability_namespace }} -l app.kubernetes.io/name=karavi-metrics-powerscale -o jsonpath='{.items[*].status.phase}'
+  register: karavi_pods_check
+  changed_when: false
+  failed_when: false
+  retries: 36
+  delay: 5
+  until: not (powerscale_enabled | default(false) | bool) or 'Running' in karavi_pods_check.stdout
+
+- name: Determine PowerScale metrics deployment status
+  ansible.builtin.set_fact:
+    _ps_metrics_status: >-
+      {% set deployment_exists = karavi_replicas_check.rc == 0 %}
+      {% set replicas = karavi_replicas_check.stdout | int if deployment_exists else 0 %}
+      {% set pods_running = karavi_pods_check.rc == 0 and 'Running' in karavi_pods_check.stdout %}
+      {% if powerscale_enabled | default(false) | bool %}
+        {% if deployment_exists and replicas > 0 and pods_running %}deployed{% else %}failed{% endif %}
+      {% else %}
+        {% if deployment_exists and replicas == 0 %}disabled{% else %}skipped{% endif %}
+      {% endif %}
+
+- name: Set PowerScale deployment result on localhost
+  ansible.builtin.add_host:
+    name: localhost
+    _deploy_result_powerscale_metrics: "{{ _ps_metrics_status | trim }}"
+
+- name: Check if vlagent pods are running (PowerScale logs pipeline)
+  ansible.builtin.command: >
+    kubectl get pods -n {{ csm_observability_namespace }} -l app.kubernetes.io/name=vlagent -o jsonpath='{.items[*].status.phase}'
+  register: vlagent_pods_check
+  changed_when: false
+  failed_when: false
+  retries: 36
+  delay: 5
+  until: not (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) or 'Running' in vlagent_pods_check.stdout
+
+- name: Determine PowerScale logs deployment status
+  ansible.builtin.set_fact:
+    _ps_logs_status: >-
+      {% if telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool %}
+        {% if vlagent_pods_check.rc == 0 and 'Running' in vlagent_pods_check.stdout %}deployed{% else %}failed{% endif %}
+      {% else %}
+        {% if _ps_metrics_status | trim == 'skipped' %}skipped{% else %}disabled{% endif %}
+      {% endif %}
+
+- name: Set PowerScale logs deployment result on localhost
+  ansible.builtin.add_host:
+    name: localhost
+    _deploy_result_powerscale_logs: "{{ _ps_logs_status | trim }}"

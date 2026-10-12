@@ -44,6 +44,13 @@
     fail_msg: "Output ISO path contains invalid characters"
     quiet: true
 
+- name: Generate build metadata
+  ansible.builtin.set_fact:
+    build_id: "{{ lookup('community.general.random_string', length=32, base64=false, special=false) }}"
+    build_timestamp: "{{ ansible_date_time.iso8601 }}"
+    custom_iso_path: "{{ custom_iso_path }}"
+    cacheable: false
+
 - name: Render GRUB2 configuration with embedded kickstart reference
   ansible.builtin.template:
     src: grub_embedded.cfg.j2
@@ -95,6 +102,11 @@
     checksum_algorithm: sha256
   register: _custom_iso_stat_final
 
+- name: Set ISO checksum fact
+  ansible.builtin.set_fact:
+    iso_checksum: "{{ _custom_iso_stat_final.stat.checksum }}"
+    cacheable: false
+
 - name: Generate install manifest
   ansible.builtin.copy:
     content: |
@@ -111,6 +123,9 @@
       build_method: "xorriso_streaming_embedded_kickstart"
       architecture: "{{ os_arch }}"
       timestamp: "{{ ansible_date_time.iso8601 | default(lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ')) }}"
+      build_id: "{{ build_id }}"
+      build_timestamp: "{{ build_timestamp }}"
+      iso_checksum: "{{ iso_checksum }}"
     dest: "{{ _local_manifest_path }}"
     mode: "0644"
 

@@ -224,7 +224,6 @@ ldms_secret_resources:
   - { type: "secret", name: "nersc-munge-key" }
 
 ldms_configmap_label: "app=nersc-ldms"
-ldms_pvc_label: "app=nersc-ldms"
 ldms_pod_label: "app=nersc-ldms"
 
 # ---------------------------------------------------------------------------

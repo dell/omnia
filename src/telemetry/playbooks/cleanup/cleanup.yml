@@ -21,8 +21,13 @@
 # Usage:
 #   # Cleanup ALL telemetry components (sources + sinks)
 #   ansible-playbook telemetry.yml --tags cleanup
-#   # Delete PVCs as well (PVCs are preserved by default)
-#   ansible-playbook telemetry.yml --tags cleanup -e Delete_volume=true
+#   # Delete sink PVCs as well (PVCs are preserved by default)
+#   ansible-playbook telemetry.yml --tags cleanup -e Delete_sinks_volume=true
+#
+#   # Preserve credentials for redeployment
+#   ansible-playbook telemetry.yml --tags cleanup -e cleanup_credentials=false
+#   # Preserve both credentials and logs
+#   ansible-playbook telemetry.yml --tags cleanup -e cleanup_credentials=false -e cleanup_logs=false
 #
 #   # Cleanup specific sources only
 #   ansible-playbook telemetry.yml --tags cleanup_powerscale
@@ -30,27 +35,37 @@
 #   ansible-playbook telemetry.yml --tags cleanup_idrac
 #   ansible-playbook telemetry.yml --tags cleanup_ldms
 #
+#   # Granular cleanup preserving credentials
+#   ansible-playbook telemetry.yml --tags cleanup_idrac -e cleanup_credentials=false
+#
 #   # Cleanup multiple sources
 #   ansible-playbook telemetry.yml --tags cleanup_ome,cleanup_powerscale
 #
-#   # Cleanup multiple components
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_kafka,cleanup_ldms
-#   ansible-playbook cleanup/cleanup.yml --tags cleanup_kafka,cleanup_idrac
-#   ansible-playbook telemetry.yml --tags cleanup_kafka,cleanup_victoria_metrics
+#   # Selective sink cleanup (with dependency checking)
+#   ansible-playbook telemetry.yml --tags cleanup_sinks -e sinks=kafka
+#   ansible-playbook telemetry.yml --tags cleanup_sinks -e sinks=kafka,victoria_metrics
+#   ansible-playbook telemetry.yml --tags cleanup_sinks -e sinks=victoria_logs
+#   ansible-playbook telemetry.yml --tags cleanup_sinks  # default: all sinks
+#   # Short-form: individual -e flags (equivalent to -e sinks=...)
+#   ansible-playbook telemetry.yml --tags cleanup_sinks -e kafka
+#   ansible-playbook telemetry.yml --tags cleanup_sinks -e kafka -e victoria_logs
+#   # Delete sink volumes during selective cleanup
+#   ansible-playbook telemetry.yml --tags cleanup_sinks -e sinks=kafka -e Delete_sinks_volume=true
 #
 #   # Cleanup via orchestrator (all components)
 #   ansible-playbook telemetry.yml --tags cleanup
 #
-#   # Cleanup via orchestrator (single component)
-#   ansible-playbook telemetry.yml --tags cleanup_kafka
-#
 # Available tags:
-#   Sinks:   cleanup_kafka, cleanup_victoria_metrics, cleanup_victoria_logs
+#   Sinks:   cleanup_sinks (with -e sinks=kafka,victoria_metrics,victoria_logs
+#            or short-form -e kafka -e victoria_metrics -e victoria_logs)
 #   Sources: cleanup_idrac, cleanup_ldms, cleanup_ome, cleanup_powerscale,
 #            cleanup_ufm, cleanup_vast
 # Design: Sinks (Kafka, VictoriaMetrics, VictoriaLogs) are shared
-# infrastructure that multiple sources depend on. They are ONLY cleaned
-# when --tags cleanup (all) is used, never individually.
+# infrastructure. Selective sink cleanup (cleanup_sinks) checks for running
+# dependent sources before removing any sink. If ANY requested sink is blocked
+# by a running source, the entire selective cleanup is aborted and NO sinks
+# are cleaned. Full cleanup (cleanup) drains sources first and then removes
+# all sinks unconditionally.
 #
 # Resource ownership:
 #   OME cleanup includes Vector-OME bridge resources
@@ -67,15 +82,13 @@
   gather_facts: false
   tags:
     - cleanup
+    - cleanup_sinks
     - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
     - cleanup_ufm
     - cleanup_vast
-    - cleanup_kafka
-    - cleanup_victoria_metrics
-    - cleanup_victoria_logs
   tasks:
     - name: Initialize telemetry cleanup
       ansible.builtin.include_role:
@@ -90,15 +103,13 @@
   gather_facts: false
   tags:
     - cleanup
+    - cleanup_sinks
     - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
     - cleanup_ufm
     - cleanup_vast
-    - cleanup_kafka
-    - cleanup_victoria_metrics
-    - cleanup_victoria_logs
   tasks:
     - name: Execute selected telemetry cleanup
       ansible.builtin.include_role:
@@ -113,15 +124,13 @@
   gather_facts: false
   tags:
     - cleanup
+    - cleanup_sinks
     - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
     - cleanup_ufm
     - cleanup_vast
-    - cleanup_kafka
-    - cleanup_victoria_metrics
-    - cleanup_victoria_logs
   vars:
     telemetry_namespace: "telemetry"
   tasks:
@@ -136,15 +145,13 @@
   gather_facts: false
   tags:
     - cleanup
+    - cleanup_sinks
     - cleanup_idrac
     - cleanup_ldms
     - cleanup_ome
     - cleanup_powerscale
     - cleanup_ufm
     - cleanup_vast
-    - cleanup_kafka
-    - cleanup_victoria_metrics
-    - cleanup_victoria_logs
   tasks:
     - name: Finalize telemetry cleanup
       ansible.builtin.include_role:
