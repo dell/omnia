@@ -60,13 +60,13 @@ k8s_cluster_hostnames: "{{ hostvars['localhost']['k8s_cluster_hostnames'] | defa
 slurm_cluster_hostnames: "{{ hostvars['localhost']['slurm_cluster_hostnames'] | default([]) }}"
 k8s_cluster_ip_patterns: "{{ hostvars['localhost']['k8s_cluster_ip_patterns'] | default([]) }}"
 slurm_cluster_ip_patterns: "{{ hostvars['localhost']['slurm_cluster_ip_patterns'] | default([]) }}"
-slurm_control_ssh_patterns: "{{ hostvars['oim']['slurm_ssh_patterns'] | default('*') }}"
-k8s_control_ssh_patterns: "{{ hostvars['oim']['k8s_ssh_patterns'] | default('*') }}"
-all_group_names_present: "{{ hostvars['oim']['all_group_names_present'] | default(false) }}"
+slurm_control_ssh_patterns: "{{ hostvars['localhost']['slurm_ssh_patterns'] | default('*') }}"
+k8s_control_ssh_patterns: "{{ hostvars['localhost']['k8s_ssh_patterns'] | default('*') }}"
+all_group_names_present: "{{ hostvars['localhost']['all_group_names_present'] | default(false) }}"
 
 # Slurm node presence flags
-login_compiler_node_present: "{{ hostvars['oim']['login_compiler_node_present'] | default(false) }}"
-slurm_node_present: "{{ hostvars['oim']['slurm_node_present'] | default(false) }}"
+login_compiler_node_present: "{{ hostvars['localhost']['login_compiler_node_present'] | default(false) }}"
+slurm_node_present: "{{ hostvars['localhost']['slurm_node_present'] | default(false) }}"
 
 # DCGM
 dcgm_support: "{{ hostvars['localhost'].get('dcgm_support', true) | bool }}"

@@ -25,8 +25,6 @@
 #   ansible-playbook build_stream.yml --tags execute         # Deploy GitLab + CI/CD only
 #   ansible-playbook build_stream.yml --tags build           # prepare + execute
 #   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup, including credentials
-#   ansible-playbook build_stream.yml --tags upgrade         # Upgrade flow (placeholder)
-#   ansible-playbook build_stream.yml --tags rollback        # Rollback flow (placeholder)
 #
 # Tags (mutually exclusive — pick ONE):
 #   (none)       — Default flow: setup + validate + credentials + prepare + execute
@@ -37,11 +35,9 @@
 #   execute      — Deploy GitLab CE + CI/CD configuration (with credentials)
 #   build        — Alias: runs prepare + execute (full deploy, with credentials)
 #   cleanup      — Full domain cleanup: GitLab + BSM + Postgres + credentials
-#   upgrade      — Upgrade flow (placeholder — future release)
-#   rollback     — Rollback flow (placeholder — future release)
 #
 # Internal steps (always):
-#   Step 0: Setup — upgrade guard, load project config, input/output dirs, OIM metadata
+#   Step 0: Setup — load project config, input/output dirs, OIM metadata
 #   Step 1: Input validation (build_stream_config.yml schema + logic) — skipped for precheck/cleanup
 #   Step 2: Credential collection (skipped for precheck/cleanup/validate tags)
 
@@ -132,21 +128,3 @@
   tags:
     - never
     - cleanup
-
-# =========================================================================
-# FLOW: upgrade — Upgrade flow placeholder (opt-in only)
-# =========================================================================
-- name: Upgrade build_stream
-  ansible.builtin.import_playbook: upgrade/upgrade_build_stream.yml
-  tags:
-    - never
-    - upgrade
-
-# =========================================================================
-# FLOW: rollback — Rollback flow placeholder (opt-in only)
-# =========================================================================
-- name: Rollback build_stream
-  ansible.builtin.import_playbook: rollback/rollback_build_stream.yml
-  tags:
-    - never
-    - rollback

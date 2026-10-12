@@ -36,8 +36,6 @@
 #   ansible-playbook discovery.yml --tags cleanup \
 #     -e cleanup_credentials=false                                 # Preserve credentials
 #   ansible-playbook discovery.yml --tags cleanup_credentials      # Cleanup credentials only
-#   ansible-playbook discovery.yml --tags upgrade                  # Upgrade flow (placeholder)
-#   ansible-playbook discovery.yml --tags rollback                 # Rollback flow (placeholder)
 #
 # Tags (pick one; cleanup + cleanup_credentials is the only supported pair):
 #   (none)       -- Default flow: always + validate + credentials + execute (OME)
@@ -48,8 +46,6 @@
 #   execute      -- Run BMC discovery via OME (with credentials)
 #   cleanup      -- Cleanup Discovery outputs, logs, and credentials
 #   cleanup_credentials -- Cleanup Discovery credentials only
-#   upgrade      -- Upgrade flow (placeholder -- future release)
-#   rollback     -- Rollback flow (placeholder -- future release)
 #
 # Tag Validation:
 #   - Invalid tags will fail with error message
@@ -135,21 +131,3 @@
     - never
     - cleanup
     - cleanup_credentials
-
-# =========================================================================
-# FLOW: upgrade -- Upgrade flow placeholder (opt-in only)
-# =========================================================================
-- name: Upgrade discovery
-  ansible.builtin.import_playbook: upgrade/upgrade_discovery.yml
-  tags:
-    - never
-    - upgrade
-
-# =========================================================================
-# FLOW: rollback -- Rollback flow placeholder (opt-in only)
-# =========================================================================
-- name: Rollback discovery
-  ansible.builtin.import_playbook: rollback/rollback_discovery.yml
-  tags:
-    - never
-    - rollback

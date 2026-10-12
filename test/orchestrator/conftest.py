@@ -94,6 +94,7 @@ from library.functions.validation_func import (
 )
 from library.vars import TEST_CASES
 from omnia_auto import (
+    TestLogger,
     TestReport,
     add_session_result,
     build_report_name,
@@ -144,6 +145,9 @@ _TC_ID_MAP.update(
         "test_kubernetes_nfs_dynamic_provisioning": TEST_CASES[
             "kubernetes_nfs_dynamic"
         ]["id"],
+        "test_kubernetes_nfs_provisioner_contract": TEST_CASES[
+            "kubernetes_nfs_contract"
+        ]["id"],
         "test_kubernetes_csi_dynamic_provisioning": TEST_CASES[
             "kubernetes_csi_dynamic"
         ]["id"],
@@ -191,6 +195,19 @@ _TC_ID_MAP.update(
 )
 
 
+_TC_TITLE_MAP = {test_case["id"]: test_case["title"] for test_case in TEST_CASES.values()}
+
+
+def _skip_reason(result) -> str:
+    """Return the skip reason recorded by pytest, without its prefix."""
+    longrepr = result.longrepr
+    if isinstance(longrepr, tuple) and len(longrepr) == 3:
+        text = str(longrepr[2])
+    else:
+        text = str(longrepr or "")
+    return text.removeprefix("Skipped: ").strip()
+
+
 def _registered_test_case_id(item) -> str:
     """Return a deterministic TC ID without relying on logger state."""
     return _TC_ID_MAP.get(item.name, "")
@@ -229,6 +246,7 @@ def pytest_configure(config):
     markers = {
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
+        "buildstream": "BuildStream validation subset",
         "functional": "Functional verification",
         "deploy": "Playbook deployment tests (requires full environment)",
         "openldap": "OpenLDAP service, endpoint, TLS, and data tests",
@@ -237,14 +255,27 @@ def pytest_configure(config):
         "kubernetes": "Kubernetes post-boot checks",
         "slurm": "Slurm post-boot checks",
         "apptainer": "Apptainer runtime, image, and Slurm integration checks",
+        "benchmark": "HPC benchmark staging and execution tests",
         "additional_cloud_init": "Additional cloud-init post-boot verification checks",
         "mount_config": "NFS mount_config post-boot verification checks",
         "minimal_os": "Minimal OS validation for OS-only provisioned nodes",
+        "boot_image": "Provisioned boot image identity and architecture checks",
+        "powervault_infrastructure": "PowerVault iSCSI and multipath infrastructure checks",
+        "powervault_mounts": "PowerVault partition, filesystem, and mount checks",
+        "powervault_binds": "PowerVault bind-mount and targeting checks",
+        "powervault_cloudinit": "PowerVault cloud-init and setup-log checks",
+        "vast_installation": "VAST NFS client installation tests",
+        "vast_mounts": "VAST mount point and mount option validation",
+        "vast_targeting": "VAST functional group targeting validation",
+        "vast_scratch": "VAST scratch directory isolation and LDAP tests",
+        "vast_persistence": "VAST Slurm log persistence validation",
         "image_download": "Explicitly authorized Apptainer image download checks",
         "negative": "Expected-failure and rejection behavior checks",
         "non_disruptive": "Checks that do not reboot or drain cluster nodes",
-        "disruptive": "Explicitly enabled reboot or scheduler-state checks",
-        "reboot": "Node reboot and post-reboot recovery checks",
+        "reboot": "Node reboot checks; run only when --marker selects reboot",
+        "node_lifecycle": (
+            "Node remove/add checks; run only when --marker selects node_lifecycle"
+        ),
         "scheduler_state": "Scheduler drain, queue, and resume checks",
         "destructive": "Explicitly selected destructive cleanup checks",
         "nft": "Non-functional quality-contract checks",
@@ -279,6 +310,14 @@ def _item_has_marker(item, marker_name):
     return item.get_closest_marker(marker_name) is not None
 
 
+OPT_IN_MARKERS = ("reboot", "node_lifecycle")
+
+
+def _opt_in_markers(item):
+    """Return the opt-in markers a test carries."""
+    return {name for name in OPT_IN_MARKERS if _item_has_marker(item, name)}
+
+
 def pytest_collection_modifyitems(session, config, items):
     """Filter markers, apply safe defaults, and sort by order marker."""
     marker_expr = config.getoption("--marker", default="")
@@ -290,6 +329,7 @@ def pytest_collection_modifyitems(session, config, items):
         explicitly_enabled
         & {
             "sanity",
+            "buildstream",
             "functional",
             "slurm",
             "kubernetes",
@@ -298,35 +338,26 @@ def pytest_collection_modifyitems(session, config, items):
             "negative",
         }
     )
-    disruptive_authorized = bool(
-        explicitly_enabled & {"disruptive", "reboot", "scheduler_state"}
-    )
-
-    # Only apply the normal deploy auto-skip if no marker expression is given.
+    # Without a marker expression every collected test runs except opt-in
+    # (reboot, node_lifecycle) cases, which are deselected. Deploy cases still
+    # run only in the exec phase, which creates the verified state.
     if mode == "none":
+        selected = []
+        deselected = []
         for item in items:
+            if _opt_in_markers(item):
+                deselected.append(item)
+                continue
             if _item_has_marker(item, "deploy") and command_type != "exec":
                 item.add_marker(
                     pytest.mark.skip(
                         "Deploy tests run only during the runner exec phase"
                     )
                 )
-            elif _item_has_marker(item, "disruptive"):
-                item.add_marker(
-                    pytest.mark.skip(
-                        "Select a disruptive, reboot, or scheduler_state marker "
-                        "to authorize this test"
-                    )
-                )
-            elif _item_has_marker(item, "functional") and not _item_has_marker(
-                item, "sanity"
-            ):
-                item.add_marker(
-                    pytest.mark.skip(
-                        "Select a functional or workload capability marker "
-                        "to authorize this test"
-                    )
-                )
+            selected.append(item)
+        if deselected:
+            config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
     else:
         # Feature filters apply to verification cases. The execution phase
         # still needs its one deploy test to create the state being verified.
@@ -342,8 +373,9 @@ def pytest_collection_modifyitems(session, config, items):
             else:
                 match = _item_has_marker(item, markers[0])
 
-            if match and _item_has_marker(item, "disruptive"):
-                match = disruptive_authorized
+            opt_in = _opt_in_markers(item)
+            if match and opt_in:
+                match = bool(opt_in & explicitly_enabled)
             elif match and _item_has_marker(item, "functional"):
                 match = functional_authorized
             if (
@@ -351,7 +383,11 @@ def pytest_collection_modifyitems(session, config, items):
                 and _item_has_marker(item, "image_download")
                 and "image_download" not in explicitly_enabled
                 and not (
-                    _item_has_marker(item, "sanity") and "sanity" in explicitly_enabled
+                    (_item_has_marker(item, "sanity") and "sanity" in explicitly_enabled)
+                    or (
+                        _item_has_marker(item, "buildstream")
+                        and "buildstream" in explicitly_enabled
+                    )
                 )
             ):
                 match = False
@@ -372,12 +408,30 @@ def pytest_collection_modifyitems(session, config, items):
 
 
 def pytest_runtest_setup(item):
-    """Expose only explicitly selected mutation markers to runtime helpers."""
+    """Expose mutation authorization to runtime helpers.
+
+    With no marker every gate a test carries is authorized; opt-in cases are
+    deselected at collection. With a marker expression only the selected
+    mutation markers are.
+    """
     marker_expr = item.config.getoption("--marker", default="")
     _mode, markers = _parse_marker_expression(marker_expr)
     selected = set(markers)
+    if not selected:
+        # No marker selected: authorize every gate the test carries. Opt-in
+        # cases are deselected at collection.
+        authorized = {
+            marker
+            for marker in ("functional", "image_download")
+            if _item_has_marker(item, marker)
+        }
+        if authorized:
+            os.environ["OMNIA_FVT_AUTHORIZED_MARKERS"] = ",".join(sorted(authorized))
+        else:
+            os.environ.pop("OMNIA_FVT_AUTHORIZED_MARKERS", None)
+        return
     sanity_authorized = _item_has_marker(item, "sanity") and (
-        not selected or "sanity" in selected
+        not selected or "sanity" in selected or "buildstream" in selected
     )
     authorized = set()
     if _item_has_marker(item, "functional") and (
@@ -393,12 +447,7 @@ def pytest_runtest_setup(item):
         }
     ):
         authorized.add("functional")
-    if _item_has_marker(item, "disruptive") and selected & {
-        "disruptive",
-        "reboot",
-        "scheduler_state",
-    }:
-        authorized.add("disruptive")
+    authorized |= _opt_in_markers(item) & selected
     if _item_has_marker(item, "image_download") and (
         "image_download" in selected or sanity_authorized
     ):
@@ -564,13 +613,7 @@ def pytest_runtest_makereport(item, call):
     skip_reason = ""
 
     if result.skipped:
-        if hasattr(result, "wasxfail"):
-            status = "SKIPPED"
-        rep_text = str(result.longrepr) if result.longrepr else ""
-        if "Skipped:" in rep_text:
-            skip_reason = rep_text.split("Skipped:", 1)[-1].strip()
-        elif "SKIP" in rep_text:
-            skip_reason = rep_text.split("SKIP", 1)[-1].strip()
+        skip_reason = _skip_reason(result)
 
     if status == "SKIPPED" and skip_reason:
         details = (details + "\n" if details else "") + f"SKIPPED: {skip_reason}"
@@ -578,8 +621,7 @@ def pytest_runtest_makereport(item, call):
     doc = getattr(item.obj, "__doc__", "") or ""
     tc_id = _registered_test_case_id(item)
     doc_id = re.match(
-        r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})"
-        r"|TC_K8_\d{3})\s*:",
+        r"(ORCH_(?:FVT_[A-Z0-9_]+_[EV]\d{3}|NFT_\d{3}|UT_\d{3})" r"|TC_K8_\d{3})\s*:",
         doc.strip(),
     )
     if doc_id and not tc_id:
@@ -587,11 +629,19 @@ def pytest_runtest_makereport(item, call):
     if not tc_id:
         tc_id = get_last_tc_id()
 
+    if result.when == "setup":
+        # Marker and fixture skips happen before the test body creates its
+        # TestLogger, so record the start and skip lines here.
+        skip_log = TestLogger(_TC_TITLE_MAP.get(tc_id, item.name), tc_id)
+        skip_log.skipped(skip_reason or "Skipped before the test started")
+        details = skip_log.get_output() + (f"\nSKIPPED: {skip_reason}" if skip_reason else "")
+
     add_session_result(
         test_name=item.name,
         status=status,
         duration=getattr(result, "duration", 0),
         tc_id=tc_id,
+        reason=skip_reason,
     )
 
     report = get_current_report()

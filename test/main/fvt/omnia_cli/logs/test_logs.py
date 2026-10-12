@@ -16,7 +16,7 @@
 Omnia CLI — Logs Command Verification.
 
 MAIN_FVT_OMNIA_CLI_V013: Verify omnia-cli logs --help runs successfully
-MAIN_FVT_OMNIA_CLI_V014: Verify omnia-cli logs searches only /var/log/omnia (not /opt/omnia/log)
+MAIN_FVT_OMNIA_CLI_V014: Verify omnia-cli logs uses only the supported log root
 MAIN_FVT_OMNIA_CLI_V015: Verify omnia-cli logs --limit flag works
 MAIN_FVT_OMNIA_CLI_V016: Verify omnia-cli logs --limit rejects invalid values
 MAIN_FVT_OMNIA_CLI_V017: Verify omnia-cli logs -l short form works
@@ -27,6 +27,7 @@ import pytest
 from library.vars import TEST_CASES as TC
 
 from library.functions import TestLogger, check_cli_log_paths, run_omnia_cli_cmd
+from library.vars.common_vars import ANSIBLE_LOG_ROOT, LEGACY_DATA_LOG_PATH
 from library.messages import (
     TEST_LOG_MSGS as LOG,
     TEST_ASSERT_MSGS as ASSERT,
@@ -57,10 +58,9 @@ def test_cli_logs_help(host):
 @pytest.mark.functional
 @pytest.mark.order(14)
 def test_cli_logs_no_opt_omnia_log(host):
-    """MAIN_FVT_OMNIA_CLI_V014: Verify omnia-cli logs does not search /opt/omnia/log.
+    """MAIN_FVT_OMNIA_CLI_V014: Verify only the supported log root is searched.
 
-    The omnia-cli logs function should only search /var/log/omnia/ for
-    ansible logs, not /opt/omnia/log (which was previously a bug).
+    The omnia-cli logs function must not search the legacy data-log path.
     """
     tc = TC["cli_logs_no_opt_omnia_log"]
     tl = TestLogger(tc["title"], tc["id"])
@@ -70,20 +70,19 @@ def test_cli_logs_no_opt_omnia_log(host):
     if result["success"]:
         tl.passed_fields("omnia-cli uses only the supported log path", {
             "Source file": result["source_file"],
-            "Required log root": "/var/log/omnia",
-            "Prohibited expression": "${base}/log (not found)",
+            "Required log root": ANSIBLE_LOG_ROOT,
+            "Prohibited path": f"{LEGACY_DATA_LOG_PATH} (not found)",
         })
     else:
         tl.failed_fields("omnia-cli still references an unsupported log path", {
             "Source file": result["source_file"],
-            "Prohibited expression": "${base}/log (found)",
+            "Prohibited path": f"{LEGACY_DATA_LOG_PATH} (found)",
             "Error": result["error"],
         })
 
     assert result["success"], (
-        "omnia-cli should not search ${base}/log "
-        "(was /opt/omnia/log). "
-        "Only ANSIBLE_LOG_DEFAULT (/var/log/omnia) should be used."
+        f"omnia-cli should not search {LEGACY_DATA_LOG_PATH}. "
+        f"Only ANSIBLE_LOG_DEFAULT ({ANSIBLE_LOG_ROOT}) should be used."
     )
 
 

@@ -16,22 +16,32 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_kubernetes_etcd_health,
     check_kubernetes_etcd_topology,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.sanity, pytest.mark.kubernetes]
 
-
-@pytest.mark.order(212)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.kubernetes
+@pytest.mark.order(40901)
 def test_kubernetes_etcd_health(host):
     """Verify health for all etcd endpoints."""
-    verify_pxeboot(host, "kubernetes_etcd_health", check_kubernetes_etcd_health)
+    tc = TC["kubernetes_etcd_health"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_etcd_health)
 
 
-@pytest.mark.order(213)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.kubernetes
+@pytest.mark.order(40902)
 def test_kubernetes_etcd_topology(host):
     """Verify etcd membership, leader election, and raft consistency."""
-    verify_pxeboot(host, "kubernetes_etcd_topology", check_kubernetes_etcd_topology)
+    tc = TC["kubernetes_etcd_topology"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_etcd_topology)

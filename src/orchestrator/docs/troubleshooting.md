@@ -250,7 +250,7 @@ it does not replace component cleanup.
 | Log or report | Path |
 |---------------|------|
 | Top-level Ansible log | `/var/log/omnia/orchestrator/orchestrator.log` |
-| Phase logs | `/var/log/omnia/orchestrator/{precheck,prepare,deploy,provision,pxeboot,validate,cleanup,upgrade,rollback}.log` |
+| Phase logs | `/var/log/omnia/orchestrator/{precheck,prepare,deploy,provision,pxeboot,validate,cleanup}.log` |
 | Domain logs | `<ORCHESTRATOR_DATA_PATH>/log/` |
 | Provision report | `<ORCHESTRATOR_DATA_PATH>/output/<project>/provisioning_report.yml` |
 | Aggregate status | `<ORCHESTRATOR_DATA_PATH>/output/<project>/orchestrator_status.yml` |

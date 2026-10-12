@@ -21,63 +21,67 @@ mandatory-field or consistency rule and fails when the rule is violated.
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_precheck_mount_invalid_mount_params,
     check_precheck_mount_missing_mount_point,
     check_precheck_mount_missing_source,
     check_precheck_mount_missing_targeting,
     check_precheck_mount_node_key_without_mount_point,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_precheck
 
-pytestmark = [pytest.mark.sanity, pytest.mark.negative, pytest.mark.mount_config]
-
-
-@pytest.mark.order(30)
+@pytest.mark.negative
+@pytest.mark.mount_config
+@pytest.mark.order(10302)
 def test_mount_missing_mount_point(host):
     """TC-CI-NEG-001: Every mount entry must have a valid absolute mount_point."""
-    verify_precheck(
-        host,
-        "precheck_mount_missing_mount_point",
-        check_precheck_mount_missing_mount_point,
-    )
+    tc = TC["precheck_mount_missing_mount_point"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_mount_missing_mount_point)
 
 
-@pytest.mark.order(31)
+@pytest.mark.negative
+@pytest.mark.mount_config
+@pytest.mark.order(10303)
 def test_mount_missing_targeting(host):
     """TC-CI-NEG-002: Every mount entry must have targeting (prefix or groups)."""
-    verify_precheck(
-        host,
-        "precheck_mount_missing_targeting",
-        check_precheck_mount_missing_targeting,
-    )
+    tc = TC["precheck_mount_missing_targeting"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_mount_missing_targeting)
 
 
-@pytest.mark.order(32)
+@pytest.mark.negative
+@pytest.mark.mount_config
+@pytest.mark.order(10304)
 def test_mount_invalid_mount_params(host):
     """TC-CI-NEG-003: mount_params must reference an existing profile."""
-    verify_precheck(
-        host,
-        "precheck_mount_invalid_mount_params",
-        check_precheck_mount_invalid_mount_params,
-    )
+    tc = TC["precheck_mount_invalid_mount_params"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_mount_invalid_mount_params)
 
 
-@pytest.mark.order(33)
+@pytest.mark.negative
+@pytest.mark.mount_config
+@pytest.mark.order(10305)
 def test_mount_missing_source(host):
     """TC-CI-NEG-004: Every mount entry must have a non-empty source."""
-    verify_precheck(
-        host,
-        "precheck_mount_missing_source",
-        check_precheck_mount_missing_source,
-    )
+    tc = TC["precheck_mount_missing_source"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_mount_missing_source)
 
 
-@pytest.mark.order(34)
+@pytest.mark.negative
+@pytest.mark.mount_config
+@pytest.mark.order(10306)
 def test_mount_node_key_without_mount_point(host):
     """TC-CI-NEG-005: node_mount_point is mandatory when node_key is set."""
+    tc = TC["precheck_mount_node_key_without_mount_point"]
+    test_log = TestLogger(tc["title"], tc["id"])
     verify_precheck(
+        test_log,
+        tc,
         host,
-        "precheck_mount_node_key_without_mount_point",
         check_precheck_mount_node_key_without_mount_point,
     )

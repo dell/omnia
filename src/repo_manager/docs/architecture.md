@@ -65,7 +65,7 @@ ansible-playbook repo_manager.yml --tags "prepare,precheck,download,status"
 | `catalog_delete` | Delete catalog entries | No | No | Writes catalog |
 | `catalog_validate` | Validate a catalog | No | No | No |
 
-Cleanup, catalog, upgrade and rollback plays use the `never` tag. They run only
+Cleanup and catalog plays use the `never` tag. They run only
 when explicitly selected. Do not combine cleanup tags with the standard workflow.
 
 ---

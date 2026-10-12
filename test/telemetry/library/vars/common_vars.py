@@ -73,8 +73,6 @@ PLAYBOOK_TAGS = [
     "validate",
     "deploy",
     "cleanup",
-    "upgrade",
-    "rollback",
     "external_kafka",
     "external_victoria",
 ]

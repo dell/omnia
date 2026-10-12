@@ -53,8 +53,7 @@ Orchestrator deliberately does not:
 - infer a new hardware identity from CSV row position on later runs;
 - delete an SMD Hardware Inventory identity merely because a row is absent;
 - claim metadata is active on a running node before a verified new boot;
-- continuously monitor Kubernetes, Slurm, CSI, or application health; or
-- provide an in-place rollback for the v2.3 one-way OpenCHAMI upgrade.
+- continuously monitor Kubernetes, Slurm, CSI, or application health.
 
 ## Architectural Principles
 
@@ -153,12 +152,10 @@ state needed by independently selected phases.
 | `pxeboot` | iDRAC boot and optional node verification | No prompt | Yes |
 | `cleanup` | Selected component teardown | No prompt | Depends on target |
 | `cleanup_credentials` | Remove credential and vault-key files | No | No |
-| `upgrade` | Supported component upgrades | Existing | Yes |
-| `rollback` | Reserved; report that rollback is unsupported | Existing | Yes |
 
 The setup role rejects unsupported tags and known conflicting combinations.
-Cleanup, credential cleanup, upgrade, and rollback carry `never` and cannot run
-accidentally during the default lifecycle.
+Cleanup and credential cleanup carry `never` and cannot run accidentally during
+the default lifecycle.
 
 ### Public Tag Composition
 
@@ -188,7 +185,6 @@ prerequisites needed before deployment or provisioning.
 
 - Resolve `OMNIA_DATA_PATH`, `ORCHESTRATOR_DATA_PATH`, and project identity.
 - Reject unsupported or conflicting tags.
-- Enforce the upgrade-in-progress guard.
 - Initialize a missing project input directory from source templates.
 - Load domain variables and the selected project configuration.
 - Validate inputs before later setup tasks dereference them.
@@ -329,21 +325,6 @@ the result of every selected component. Component-specific cleanup is available
 through `playbooks/cleanup/cleanup_orchestrator.yml` for Slurm, Kubernetes,
 OpenCHAMI, OpenLDAP, storage mounts, artifacts, and credentials.
 
-### Step 7: Upgrade and Rollback
-
-Upgrade is an opt-in component workflow. The setup guard blocks normal
-lifecycle operations while an upgrade lock exists. The OpenCHAMI upgrade path
-detects the installed version, backs up configuration and SMD data, performs
-the supported one-way upgrade, restarts services, verifies readiness, and
-removes the lock after success. The OpenLDAP upgrade moves a deployed
-`omnia_auth` service to the configured target image and verifies LDAP health.
-
-Rollback is reserved for a future release. Both v2.3 rollback
-playbooks fail explicitly without modifying the deployment. Recovery from an
-unsuccessful one-way upgrade therefore depends on a full system backup taken
-before the upgrade; the existence of pre-upgrade artifacts does not make the
-`rollback` tag operational.
-
 ## OpenCHAMI Integration
 
 ```text
@@ -464,7 +445,7 @@ orchestrator/
 
 Ansible execution logs are stored under `/var/log/omnia/orchestrator/`, with
 separate files for the top-level, cleanup, credentials, deploy, prepare,
-provision, PXE, rollback, upgrade, and validation flows.
+provision, PXE, and validation flows.
 
 ### Desired State Versus Applied State
 
@@ -579,7 +560,6 @@ the lifecycle finishes.
 | Unreachable iDRAC | Node is reported failed at `pxe_boot` | Restore BMC access and rerun PXE |
 | SSH not yet ready | Action plugin returns retryable `unreachable` | Allow built-in retries or rerun PXE verification |
 | Cloud-init terminal failure | Node remains failed/reprovision-required | Correct metadata or node issue, then perform a fresh verified boot |
-| Interrupted upgrade | Upgrade lock blocks normal lifecycle | Resume supported upgrade or restore a full pre-upgrade backup |
 
 Provisioning is convergent, not transactional across every external service.
 Reports identify the last completed phase and per-node result so a rerun can
@@ -590,7 +570,7 @@ continue from a known desired-state input.
 | Path | Responsibility |
 |------|----------------|
 | `playbooks/orchestrator.yml` | Canonical lifecycle and public tag composition |
-| `playbooks/<phase>/` | Focused prepare, deploy, provision, validate, PXE, cleanup, upgrade, and reserved rollback plays |
+| `playbooks/<phase>/` | Focused prepare, deploy, provision, validate, PXE, and cleanup plays |
 | `roles/orchestrator_setup/` | Environment, path, tag, inventory, and persisted-state setup |
 | `roles/orchestrator_validations/` | Cross-file, image, storage, mapping, and environment prerequisites |
 | `roles/provision_common/` | Active category registration and OpenCHAMI publication |

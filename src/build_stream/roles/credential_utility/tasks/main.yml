@@ -36,6 +36,20 @@
         - name: Include build_stream_config.yml
           ansible.builtin.include_vars:
             file: "{{ input_project_dir }}/build_stream_config.yml"
+
+        - name: Check build_stream_config for Jinja template injection patterns
+          ansible.builtin.set_fact:
+            _gitlab_host_has_jinja: "{{ (gitlab_host | default('')) is search('\\{\\{|\\{%|\\{#') }}"
+
+        - name: Validate build_stream_config contains no Jinja template syntax
+          ansible.builtin.assert:
+            that:
+              - not _gitlab_host_has_jinja
+              - "(gitlab_host | default('')) is regex('^$|^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$')"
+            fail_msg: "{{ gitlab_host_invalid_format_msg }}"
+            quiet: true
+          when: gitlab_host is defined
+
       rescue:
         - name: Set enable_build_stream to false if config not found
           ansible.builtin.set_fact:

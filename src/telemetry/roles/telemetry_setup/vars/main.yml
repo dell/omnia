@@ -29,8 +29,6 @@ telemetry_usage_info_msg:
   - "  validate   - Validate telemetry input configuration"
   - "  deploy     - Deploy all enabled telemetry sources"
   - "  cleanup    - Remove all telemetry components"
-  - "  upgrade    - Upgrade telemetry components"
-  - "  rollback   - Rollback telemetry components"
   - ""
   - "Utility tags:"
   - "  external_kafka             - Fetch Kafka external connection details"

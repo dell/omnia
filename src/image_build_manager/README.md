@@ -59,7 +59,6 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 | `build` / `execute` | Build x86_64 + aarch64 OS images | Yes |
 | `cleanup` | Remove services, artifacts, credentials | No |
 | `cleanup_images` | Delete built images from S3 + registry (by pattern or all) | No |
-| `upgrade` / `rollback` | Reserved placeholders; no lifecycle action is implemented | Yes (current flow) |
 
 Run exactly one supported tag at a time. Although internal imported plays carry
 `x86_64` and `aarch64` tags, the top-level tag validator does not accept them as
@@ -109,12 +108,14 @@ ansible-playbook image_build_manager.yml --tags cleanup_images \
 
 | Extra Variable | Default | Description |
 |---------------|---------|-------------|
-| `cleanup_image_pattern` | `*` | Glob pattern for images to delete |
+| `cleanup_image_pattern` | `*` | Text/glob matched as "contains" against the S3 path and registry repo (`*` = any characters, `?` = one character; other characters, including `.`, are literal). Example: `*slurm_node_*`. If nothing matches, a warning lists the available images. |
 | `skip_approval` | `false` | Skip interactive approval prompt (for automation) |
 
 S3 deletion requires `s3cmd` plus `/root/.s3cfg`; registry deletion requires
 `regctl` plus an active service or managed registry storage. Missing tooling is
-reported and that side of cleanup is skipped.
+reported and that side of cleanup is skipped. Package hash cache files of the
+cleaned images (`<IMAGE_BUILD_MANAGER_DATA_PATH>/log/<project>/.*_pkg_hash_*`)
+are removed too, so the next build rebuilds them instead of skipping.
 
 ---
 
@@ -147,7 +148,7 @@ See `samples/` for example input and output files.
 | Section | Key Fields |
 |---------|-----------|
 | **S3 storage** | `s3_configurations.provider` (minio / powerscale), `endpoint_url` |
-| **Upstream** | `repo_manager_output_path` (path to `repo_status.yml`) |
+| **Upstream** | `repo_manager_output_path` (optional override; empty uses the current Repo Manager project output) |
 | **Builder** | `image_build_type` (image-builder / image-thrillhouse) |
 | **Groups** | `functional_groups_source` (`config` / `catalog`) |
 | **Build controls** | `build_image.max_parallel`, `build_image.build_timeout`, `build_image.force_rebuild`, `build_image.backup_s3_images`, `build_image.repo_ssl_verify` |
@@ -329,8 +330,6 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 +-- credentials.log           Credentials sub-playbook log
 +-- precheck.log              Precheck sub-playbook log
 +-- prepare.log               Prepare sub-playbook log
-+-- rollback.log              Rollback placeholder log
-+-- upgrade.log               Upgrade placeholder log
 +-- validate.log              Validate sub-playbook log
 ```
 

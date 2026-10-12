@@ -16,6 +16,7 @@
 """Ansible module to generate PXE mapping file from discovered server inventory."""
 
 import csv
+import ipaddress
 import os
 import re
 from ansible.module_utils.basic import AnsibleModule
@@ -152,6 +153,9 @@ def calculate_admin_ip(admin_subnet, bmc_ip):
     Derive admin IP from admin_subnet and BMC IP.
     First two octets come from admin_subnet, last two from bmc_ip.
     Example: admin_subnet=172.16.0.0, bmc_ip=172.16.0.250 -> 172.16.0.250
+
+    Returns an empty string when the inputs are missing or when the
+    derived address is not a valid IPv4 address.
     """
     if not admin_subnet or not bmc_ip:
         return ""
@@ -161,13 +165,26 @@ def calculate_admin_ip(admin_subnet, bmc_ip):
     if len(subnet_octets) != 4 or len(bmc_octets) != 4:
         return ""
 
-    return f"{subnet_octets[0]}.{subnet_octets[1]}.{bmc_octets[2]}.{bmc_octets[3]}"
+    candidate = f"{subnet_octets[0]}.{subnet_octets[1]}.{bmc_octets[2]}.{bmc_octets[3]}"
+
+    # Validate that the derived value is a well-formed IPv4 address.
+    # This prevents shell metacharacters or malformed data from propagating
+    # into downstream consumers (e.g. /etc/hosts generation).
+    try:
+        ipaddress.IPv4Address(candidate)
+    except (ipaddress.AddressValueError, ValueError):
+        return ""
+
+    return candidate
 
 
 def calculate_ib_ip(ib_subnet, bmc_ip):
     """
     Derive IB IP from ib_subnet and the last two octets of bmc_ip.
     Example: ib_subnet=192.168.2.0, bmc_ip=10.5.3.45 -> 192.168.3.45
+
+    Returns an empty string when the inputs are missing or when the
+    derived address is not a valid IPv4 address.
     """
     if not ib_subnet or not bmc_ip:
         return ""
@@ -177,7 +194,14 @@ def calculate_ib_ip(ib_subnet, bmc_ip):
     if len(subnet_octets) != 4 or len(bmc_octets) != 4:
         return ""
 
-    return f"{subnet_octets[0]}.{subnet_octets[1]}.{bmc_octets[2]}.{bmc_octets[3]}"
+    candidate = f"{subnet_octets[0]}.{subnet_octets[1]}.{bmc_octets[2]}.{bmc_octets[3]}"
+
+    try:
+        ipaddress.IPv4Address(candidate)
+    except (ipaddress.AddressValueError, ValueError):
+        return ""
+
+    return candidate
 
 
 def generate_hostname(prefix, number, padding):

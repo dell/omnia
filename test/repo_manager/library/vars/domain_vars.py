@@ -41,11 +41,11 @@ FVT_TAGS: List[str] = [
     "status",
     "cleanup",
     "cleanup_repos",
-    "policy",
-    "negative",
-    "catalog",
+    "catalog_generate",
+    "catalog_add",
+    "catalog_delete",
+    "catalog_validate",
     "user_registry",
-    "repo_sync",
 ]
 
 # =====================================================================
@@ -65,7 +65,6 @@ MARKERS: List[str] = [
     "performance",
     "idempotency",
     "security",
-    "repo_resync",
 ]
 
 # =====================================================================
@@ -73,17 +72,17 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "precheck": [],
-    "prepare": [],
-    "execute": [],
-    "status": [],
-    "cleanup": [],
-    "cleanup_repos": [],
-    "policy": [],
-    "negative": ["error_scenarios"],
-    "catalog": ["add", "delete", "generate", "negative", "validate"],
-    "user_registry": [],
-    "repo_sync": [],
+    "precheck": ["config", "negative"],
+    "prepare": ["pulp", "negative"],
+    "execute": ["repos", "artifacts", "policy", "negative"],
+    "status": ["status", "negative"],
+    "cleanup": ["cleanup", "negative"],
+    "cleanup_repos": ["selective"],
+    "catalog_generate": ["generate", "negative"],
+    "catalog_add": ["add", "negative"],
+    "catalog_delete": ["delete", "negative"],
+    "catalog_validate": ["validate"],
+    "user_registry": ["validation", "negative"],
 }
 
 # Ordered, non-destructive lifecycle used by an untagged ``exec`` or ``test``.
@@ -93,14 +92,19 @@ ALL_EXEC_MARKER: str = ""
 ALL_VERIFY_EXCLUDE_MARKERS: List[str] = ["negative", "destructive"]
 
 # These scenarios validate existing state and own no deployment trigger.
-VERIFY_ONLY_TAGS: List[str] = ["policy", "negative", "user_registry"]
+VERIFY_ONLY_TAGS: List[str] = ["user_registry"]
 
-# Catalog operations are ambiguous without one exact operation suite. The
-# negative suite verifies validation behavior and never executes a playbook.
-REQUIRED_SUITE_TAGS: List[str] = ["catalog"]
-VERIFY_ONLY_SUITES: Dict[str, List[str]] = {"catalog": ["negative"]}
-SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
-    "catalog": ["add", "delete", "generate", "validate"],
+# Suites that only verify (no playbook deploy step of their own).
+VERIFY_ONLY_SUITES: Dict[str, List[str]] = {
+    "precheck": ["negative"],
+    "prepare": ["negative"],
+    "execute": ["policy", "negative"],
+    "status": ["negative"],
+    "cleanup": ["negative"],
+    "catalog_generate": ["negative"],
+    "catalog_add": ["negative"],
+    "catalog_delete": ["negative"],
+    "user_registry": ["negative"],
 }
 
 # =====================================================================
@@ -110,5 +114,8 @@ SUITE_EXEC_OWNERS: Dict[str, List[str]] = {
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
     "cleanup_repos",
-    "repo_sync",
+    "catalog_generate",
+    "catalog_add",
+    "catalog_delete",
+    "catalog_validate",
 ]

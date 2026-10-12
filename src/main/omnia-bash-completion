@@ -108,22 +108,22 @@ _omnia_tags_for_domain() {
 
     case "$domain" in
         build_stream)
-            printf '%s' "precheck validate credentials prepare execute build cleanup upgrade rollback"
+            printf '%s' "precheck validate credentials prepare execute build cleanup"
             ;;
         discovery)
-            printf '%s' "precheck validate credentials prepare execute cleanup cleanup_credentials upgrade rollback"
+            printf '%s' "precheck validate credentials prepare execute cleanup cleanup_credentials"
             ;;
         image_build_manager)
-            printf '%s' "precheck validate credentials prepare execute build cleanup cleanup_images upgrade rollback"
+            printf '%s' "precheck validate credentials prepare execute build cleanup cleanup_images"
             ;;
         orchestrator)
-            printf '%s' "precheck validate credentials prepare deploy provision execute validate-deployment pxeboot cleanup cleanup_credentials upgrade rollback"
+            printf '%s' "precheck validate credentials prepare deploy provision execute validate-deployment pxeboot verify_node_registration cleanup cleanup_credentials"
             ;;
         repo_manager)
-            printf '%s' "precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos upgrade rollback catalog_generate catalog_add catalog_delete catalog_validate"
+            printf '%s' "precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos catalog_generate catalog_add catalog_delete catalog_validate"
             ;;
         telemetry)
-            printf '%s' "precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast upgrade rollback external_kafka external_victoria"
+            printf '%s' "precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast external_kafka external_victoria"
             ;;
         utils)
             printf '%s' "precheck setup collect install_os backup_oim_logs slurm_config_backup slurm_config_cleanup slurm_config_rollback cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs cleanup_slurm_config_backups upgrade rollback"
@@ -135,8 +135,26 @@ _omnia_extra_vars_for_domain() {
     local domain="$1"
 
     case "$domain" in
+        build_stream)
+            printf '%s' "postgres_backup=true postgres_backup=false"
+            ;;
+        discovery)
+            printf '%s' "cleanup_credentials=true cleanup_credentials=false cleanup_logs=true cleanup_logs=false"
+            ;;
+        image_build_manager)
+            printf '%s' "cleanup_image_pattern= skip_approval=true skip_approval=false"
+            ;;
+        orchestrator)
+            printf '%s' "cleanup_credentials=true cleanup_credentials=false pxeboot_scope=all enable_node_registration=true enable_node_registration=false pxeboot_inventory= cleanup_slurm=true cleanup_slurm=false cleanup_k8s=true cleanup_k8s=false"
+            ;;
+        repo_manager)
+            printf '%s' "resync_repos=all cleanup_logs=true cleanup_logs=false cleanup_credentials=true cleanup_credentials=false cleanup_repos=all cleanup_containers=all cleanup_files=all force=true force=false input_file="
+            ;;
         telemetry)
             printf '%s' "delete_sinks_volume=true delete_sinks_volume=false"
+            ;;
+        utils)
+            printf '%s' "backup_path= slurm_backup_path= pxe_mapping_path= omnia_config_path= storage_config_path= backup_base_name= rollback_backup_list_limit="
             ;;
     esac
 }

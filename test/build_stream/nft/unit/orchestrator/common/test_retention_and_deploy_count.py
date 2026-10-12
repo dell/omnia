@@ -539,7 +539,7 @@ class TestRetentionConfigLoading:
             DEFAULT_MIN_KEEP_COUNT,
         )
 
-        with patch("cleanup_cron.Path.exists", return_value=False):
+        with patch("pathlib.Path.exists", return_value=False):
             config = _load_retention_config()
 
         assert config["retention_age_days"] == DEFAULT_RETENTION_AGE_DAYS
@@ -558,7 +558,7 @@ class TestRetentionConfigLoading:
             }
         })
         m = mock_open(read_data=config_content)
-        with patch("cleanup_cron.Path.exists", return_value=True), \
+        with patch("pathlib.Path.exists", return_value=True), \
              patch("builtins.open", m):
             config = _load_retention_config()
 
@@ -573,7 +573,7 @@ class TestRetentionConfigLoading:
 
         config_content = _yaml.dump({"cadence": {"enabled": True}})
         m = mock_open(read_data=config_content)
-        with patch("cleanup_cron.Path.exists", return_value=True), \
+        with patch("pathlib.Path.exists", return_value=True), \
              patch("builtins.open", m):
             config = _load_retention_config()
 
@@ -583,7 +583,7 @@ class TestRetentionConfigLoading:
         """When config file is corrupt, defaults are returned."""
         from cleanup_cron import _load_retention_config, DEFAULT_RETENTION_AGE_DAYS
 
-        with patch("cleanup_cron.Path.exists", return_value=True), \
+        with patch("pathlib.Path.exists", return_value=True), \
              patch("builtins.open", side_effect=IOError("corrupt")):
             config = _load_retention_config()
 

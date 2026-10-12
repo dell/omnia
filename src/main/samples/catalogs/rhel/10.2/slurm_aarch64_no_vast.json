@@ -186,8 +186,6 @@
         "components": [
           "cffi==1_17_1",
           "cryptography==45_0_7",
-          "kubernetes==33_1_0",
-          "omsdk==1_2_518",
           "prettytable==3_14_0"
         ]
       },
@@ -928,19 +926,6 @@
           }
         ]
       },
-      "kubernetes==33_1_0": {
-        "name": "kubernetes==33.1.0",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "name": "pypi",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
       "zsh": {
         "name": "zsh",
         "packagetype": "rpm",
@@ -1547,19 +1532,6 @@
       },
       "cryptography==45_0_7": {
         "name": "cryptography==45.0.7",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "name": "pypi",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
-      "omsdk==1_2_518": {
-        "name": "omsdk==1.2.518",
         "packagetype": "pip_module",
         "sources": [
           {

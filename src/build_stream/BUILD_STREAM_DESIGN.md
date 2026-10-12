@@ -57,9 +57,7 @@ src/build_stream/
 │   ├── prepare_build_stream.yml         # Deploy Postgres + GitLab + BSM
 │   ├── setup_gitlab.yml                 # Configure GitLab CI/CD
 │   ├── cleanup_build_stream.yml         # Full domain cleanup
-│   ├── cleanup_gitlab.yml               # GitLab-specific cleanup
-│   ├── upgrade_build_stream.yml         # Upgrade flow
-│   └── rollback_build_stream.yml        # Rollback flow
+│   └── cleanup_gitlab.yml               # GitLab-specific cleanup
 ├── roles/
 │   ├── credential_utility/              # Domain-specific credential management
 │   │   ├── tasks/
@@ -220,8 +218,6 @@ Figure: build_stream.yml orchestration flow
 | `prepare` | Steps 0–1 only (deploy infra) |
 | `gitlab` | Steps 0 + 2 (GitLab deployment) |
 | `cleanup` | Cleanup BuildStream + GitLab + Postgres |
-| `upgrade` | Upgrade flow (placeholder) |
-| `rollback` | Rollback flow (placeholder) |
 
 ---
 

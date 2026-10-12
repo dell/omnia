@@ -22,17 +22,17 @@ All messages are centralized here for consistency and i18n readiness.
 # SCHEMA VALIDATION MESSAGES (L1)
 # =============================================================================
 
-def schema_type_mismatch_msg(file_label, expected, actual):
+def schema_type_mismatch_msg(file_label, expected, actual) -> str:
     """Returns message when top-level type doesn't match schema."""
     return f"[{file_label}] Expected type '{expected}', got '{actual}'."
 
 
-def missing_required_property_msg(file_label, prop):
+def missing_required_property_msg(file_label, prop) -> str:
     """Returns message for a missing required property."""
     return f"[{file_label}] Missing required property: '{prop}'."
 
 
-def invalid_enum_value_msg(file_label, prop, value, allowed):
+def invalid_enum_value_msg(file_label, prop, value, allowed) -> str:
     """Returns message for an invalid enum value."""
     return (
         f"[{file_label}] Invalid value for '{prop}': '{value}'. "
@@ -40,7 +40,7 @@ def invalid_enum_value_msg(file_label, prop, value, allowed):
     )
 
 
-def unexpected_property_msg(file_label, prop):
+def unexpected_property_msg(file_label, prop) -> str:
     """Returns message for an unexpected additional property."""
     return f"[{file_label}] Unexpected property: '{prop}'."
 
@@ -49,12 +49,12 @@ def unexpected_property_msg(file_label, prop):
 # BUILD STREAM CONFIG MESSAGES (L2)
 # =============================================================================
 
-def build_stream_disabled_msg():
+def build_stream_disabled_msg() -> str:
     """Returns message when build_stream is disabled."""
     return "enable_build_stream is set to false. Skipping validation."
 
 
-def missing_host_ip_msg():
+def missing_host_ip_msg() -> str:
     """Returns message when build_stream_host_ip is missing."""
     return (
         "build_stream_host_ip is required when enable_build_stream is true. "
@@ -62,7 +62,7 @@ def missing_host_ip_msg():
     )
 
 
-def invalid_port_msg(port):
+def invalid_port_msg(port) -> str:
     """Returns message for an invalid BSM port."""
     return (
         f"build_stream_port '{port}' is invalid. "
@@ -70,7 +70,7 @@ def invalid_port_msg(port):
     )
 
 
-def missing_gitlab_host_msg():
+def missing_gitlab_host_msg() -> str:
     """Returns message when gitlab_host is missing."""
     return (
         "gitlab_host is required when enable_build_stream is true. "
@@ -78,7 +78,7 @@ def missing_gitlab_host_msg():
     )
 
 
-def invalid_gitlab_port_msg(port):
+def invalid_gitlab_port_msg(port) -> str:
     """Returns message for an invalid GitLab HTTPS port."""
     return (
         f"gitlab_https_port '{port}' is invalid. "
@@ -86,7 +86,7 @@ def invalid_gitlab_port_msg(port):
     )
 
 
-def same_host_warning_msg():
+def same_host_warning_msg() -> str:
     """Returns warning when BSM and GitLab share the same host."""
     return (
         "WARNING: build_stream_host_ip and gitlab_host are the same. "
@@ -98,12 +98,12 @@ def same_host_warning_msg():
 # CREDENTIAL MESSAGES (L2)
 # =============================================================================
 
-def missing_credential_msg(field):
+def missing_credential_msg(field) -> str:
     """Returns message when a required credential field is missing."""
     return f"Required credential field '{field}' is missing or empty."
 
 
-def vault_encrypted_msg(file_path):
+def vault_encrypted_msg(file_path) -> str:
     """Returns message when a vault-encrypted file is encountered."""
     return (
         f"Credentials file '{file_path}' is Ansible Vault encrypted. "
@@ -116,17 +116,17 @@ def vault_encrypted_msg(file_path):
 # =============================================================================
 
 
-def required_file_not_found_msg(path):
+def required_file_not_found_msg(path) -> str:
     """Returns message when a required config file is missing."""
     return f"Required file not found: {path}"
 
 
-def yaml_parse_failed_msg(path):
+def yaml_parse_failed_msg(path) -> str:
     """Returns message when YAML parsing fails."""
     return f"Failed to parse YAML: {path}"
 
 
-def schema_file_not_found_msg(path):
+def schema_file_not_found_msg(path) -> str:
     """Returns message when a schema file is missing."""
     return f"Schema file not found: {path}"
 

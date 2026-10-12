@@ -359,7 +359,7 @@ the deployed configuration:
 Pipeline logs and stage artifacts are written below the runtime data path:
 
 ```text
-$OMNIA_DATA_PATH/build_stream/logs/<job_id>/
+$OMNIA_DATA_PATH/build_stream/log/<job_id>/
 $OMNIA_DATA_PATH/build_stream_root/artifacts/<job_id>/<stage>/attempt_<n>/
 ```
 

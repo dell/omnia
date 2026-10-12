@@ -75,4 +75,3 @@
       - "{{ boot_svc_config }}"
   register: _boot_configuration_reconcile
   no_log: true
-  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

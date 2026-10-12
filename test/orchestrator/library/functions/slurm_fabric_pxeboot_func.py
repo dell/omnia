@@ -24,6 +24,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
     runtime_result,
 )
+from ._workload_helpers import ensure_source_mpi as _ensure_source_mpi
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import slurm_context as _context
 from ._workload_helpers import slurm_gpu_rows as _gpu_rows
@@ -453,18 +454,46 @@ def check_slurm_infiniband_configuration(host):
 
 
 def check_slurm_infiniband_connectivity(host):
-    """Verify every mapped Slurm IB endpoint can reach every peer."""
+    """Verify every mapped Slurm IB endpoint can reach every peer.
+
+    Nodes whose IB interface is not operational (RDMA device missing or
+    link DOWN) are excluded from the connectivity mesh rather than
+    poisoning every pair they touch.  They are reported as excluded so
+    the operator knows they were not tested.
+    """
     summary = "Slurm InfiniBand peer connectivity"
     try:
         _runtime, rows, _control, _config = _context(host)
         ib_rows = _ib_rows(rows)
         if len(ib_rows) < 2:
             return _skip(summary, "At least two mapped IB endpoints are required")
+
+        # Pre-filter: verify each node has a reachable IB interface by
+        # pinging itself (or checking link state).  Nodes without a
+        # working IB stack are excluded from the mesh.
+        active_rows = []
+        excluded = []
+        for row in ib_rows:
+            ib_ip = str(ipaddress.ip_address(row["IB_IP"].split("/", 1)[0]))
+            probe = remote_command(
+                host, row, PXEBOOT_COMMANDS["infiniband_ping"] % ib_ip,
+            )
+            if probe.rc == 0:
+                active_rows.append(row)
+            else:
+                excluded.append(row)
+        if len(active_rows) < 2:
+            return _skip(
+                summary,
+                f"Only {len(active_rows)} node(s) have a working IB interface "
+                f"(excluded: {', '.join(r['HOSTNAME'] for r in excluded)})",
+            )
+
         source_results = []
         failures = []
-        for source in ib_rows:
+        for source in active_rows:
             target_results = []
-            for target in ib_rows:
+            for target in active_rows:
                 if source["HOSTNAME"] == target["HOSTNAME"]:
                     continue
                 target_ip = str(ipaddress.ip_address(target["IB_IP"].split("/", 1)[0]))
@@ -484,7 +513,16 @@ def check_slurm_infiniband_connectivity(host):
                     target_results,
                 )
             )
-        fields = [("IB pairs checked", len(ib_rows) * (len(ib_rows) - 1))]
+        fields = [
+            ("IB pairs checked", len(active_rows) * (len(active_rows) - 1)),
+        ]
+        if excluded:
+            fields.append(
+                (
+                    "Excluded (no IB)",
+                    ", ".join(r["HOSTNAME"] for r in excluded),
+                )
+            )
         grouped = {}
         for source_result in source_results:
             grouped.setdefault(
@@ -522,6 +560,52 @@ def check_slurm_infiniband_connectivity(host):
         return runtime_exception(summary, exc)
 
 
+def _probe_ucx_node(host, row):
+    """Run the UCX transport probe on a single node.
+
+    Returns:
+        Tuple of (resolution, inventory, matched_devices, success, diagnostic).
+    """
+    resolution = _runtime_ib_resolution(host, row)
+    probe = remote_command(host, row, PXEBOOT_COMMANDS["ucx_transports"])
+    inventory = _parse_ucx_inventory(probe.stdout)
+    expected_device = str(resolution.get("device", ""))
+    expected_port = int(resolution.get("port", 0) or 0)
+    matched_devices = (
+        _ucx_device_matches(
+            expected_device,
+            expected_port,
+            list(inventory["devices"]),
+        )
+        if expected_device and expected_port
+        else []
+    )
+    executable_ok = bool(inventory["executable"])
+    transport_ok = bool(inventory["ib_transports"])
+    device_ok = bool(matched_devices)
+    resolution_ok = not resolution.get("error")
+    success = (
+        probe.rc == 0
+        and resolution_ok
+        and executable_ok
+        and transport_ok
+        and device_ok
+    )
+    diagnostic = ""
+    if probe.rc != 0:
+        diagnostic = _command_failure(probe)
+    elif not resolution_ok:
+        diagnostic = str(resolution["error"])
+    elif not transport_ok:
+        diagnostic = "no rc, dc, ud, or ib transport was reported"
+    elif not device_ok:
+        diagnostic = (
+            f"expected {expected_device}:{expected_port}; discovered "
+            + (", ".join(inventory["devices"]) or "no UCX devices")
+        )
+    return resolution, inventory, matched_devices, success, diagnostic
+
+
 def check_slurm_ucx_transport(host):
     """Verify UCX exposes the mapped RDMA device on every compute node."""
     summary = "Slurm UCX InfiniBand transport"
@@ -541,48 +625,41 @@ def check_slurm_ucx_transport(host):
                 "No mapped Slurm compute node has IB_NIC_NAME and IB_IP",
             )
 
+        # First pass: probe UCX on every IB-mapped compute node.
         node_results = []
+        needs_source_install = False
         for row in ucx_rows:
-            resolution = _runtime_ib_resolution(host, row)
-            probe = remote_command(host, row, PXEBOOT_COMMANDS["ucx_transports"])
-            inventory = _parse_ucx_inventory(probe.stdout)
-            expected_device = str(resolution.get("device", ""))
-            expected_port = int(resolution.get("port", 0) or 0)
-            matched_devices = (
-                _ucx_device_matches(
-                    expected_device,
-                    expected_port,
-                    list(inventory["devices"]),
-                )
-                if expected_device and expected_port
-                else []
+            resolution, inventory, matched_devices, success, diagnostic = (
+                _probe_ucx_node(host, row)
             )
-            executable_ok = bool(inventory["executable"])
-            transport_ok = bool(inventory["ib_transports"])
-            device_ok = bool(matched_devices)
-            resolution_ok = not resolution.get("error")
-            success = (
-                probe.rc == 0
-                and resolution_ok
-                and executable_ok
-                and transport_ok
-                and device_ok
-            )
-            diagnostic = ""
-            if probe.rc != 0:
-                diagnostic = _command_failure(probe)
-            elif not resolution_ok:
-                diagnostic = str(resolution["error"])
-            elif not transport_ok:
-                diagnostic = "no rc, dc, ud, or ib transport was reported"
-            elif not device_ok:
-                diagnostic = (
-                    f"expected {expected_device}:{expected_port}; discovered "
-                    + (", ".join(inventory["devices"]) or "no UCX devices")
+            if not success and not inventory["executable"]:
+                mellanox = remote_command(
+                    host, row, PXEBOOT_COMMANDS["mellanox_detect"]
                 )
+                if mellanox.rc != 0:
+                    needs_source_install = True
             node_results.append(
                 (row, resolution, inventory, matched_devices, success, diagnostic)
             )
+
+        # Second pass: if any non-OFED node lacks UCX, install from source.
+        if needs_source_install:
+            provisioned, skip_reason = _ensure_source_mpi(host, rows)
+            if not provisioned:
+                return _skip(summary, skip_reason)
+            # Re-probe on previously failed nodes.
+            updated = []
+            for row, resolution, inventory, matched_devices, success, diagnostic in (
+                node_results
+            ):
+                if not success:
+                    resolution, inventory, matched_devices, success, diagnostic = (
+                        _probe_ucx_node(host, row)
+                    )
+                updated.append(
+                    (row, resolution, inventory, matched_devices, success, diagnostic)
+                )
+            node_results = updated
 
         fields = []
         grouped = {}

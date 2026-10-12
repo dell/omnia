@@ -37,8 +37,6 @@ supported_tags:
   - build
   - cleanup
   - cleanup_images
-  - upgrade
-  - rollback
 skip_credential_tags:
   - precheck
   - cleanup
@@ -55,35 +53,20 @@ invalid_tag_combinations:
   - [prepare, cleanup]
   - [build, cleanup]
   - [execute, cleanup]
-  - [prepare, upgrade]
-  - [build, upgrade]
-  - [execute, upgrade]
-  - [cleanup, upgrade]
-  - [prepare, rollback]
-  - [build, rollback]
-  - [execute, rollback]
-  - [cleanup, rollback]
-  - [upgrade, rollback]
   - [prepare, cleanup_images]
   - [build, cleanup_images]
   - [execute, cleanup_images]
   - [cleanup, cleanup_images]
-  - [upgrade, cleanup_images]
-  - [rollback, cleanup_images]
   - [precheck, prepare]
   - [precheck, build]
   - [precheck, execute]
   - [precheck, cleanup]
   - [precheck, cleanup_images]
-  - [precheck, upgrade]
-  - [precheck, rollback]
   - [credentials, prepare]
   - [credentials, build]
   - [credentials, execute]
   - [credentials, cleanup]
   - [credentials, cleanup_images]
-  - [credentials, upgrade]
-  - [credentials, rollback]
   - [credentials, precheck]
 # --- Tag validation messages ---
 tag_validation_fail_msg: |

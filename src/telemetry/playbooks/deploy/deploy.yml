@@ -399,17 +399,13 @@
     # Bridge status depends on both bridge config AND source config
     - name: Set bridge results
       vars:
-        _vldms_bridge_on: >-
-          {{ _cfg.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool }}
-        _ldms_src_on: >-
-          {{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}
+        _vldms_bridge_on: "{{ _cfg.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool }}"
+        _ldms_src_on: "{{ _cfg.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
         _vldms_running: >-
           {{ (_kv['_vector_ldms_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}
-        _vome_m: >-
-          {{ _cfg.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool }}
-        _vome_l: >-
-          {{ _cfg.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool }}
+        _vome_m: "{{ _cfg.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool }}"
+        _vome_l: "{{ _cfg.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool }}"
         _vome_running: >-
           {{ (_kv['_vector_ome_pods'].stdout_lines | default([])
              | select('search', 'Running') | list | length) > 0 }}

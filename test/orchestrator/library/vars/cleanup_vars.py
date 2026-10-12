@@ -34,16 +34,21 @@ OPENCHAMI_CLEANUP_CONTAINERS: tuple[str, ...] = (
 )
 
 OPENCHAMI_CLEANUP_UNITS: tuple[str, ...] = (
+    "openchami-cert-renewal.timer",
+    "openchami-cert-renewal.service",
     "openchami.target",
     "acme-deploy.service",
     "acme-register.service",
     "boot-service.service",
+    "boot-service-data-volume.service",
     "coresmd-coredhcp.service",
     "coresmd-coredns.service",
     "haproxy.service",
     "metadata-service.service",
+    "metadata-service-data-volume.service",
     "openchami-cert-trust.service",
     "postgres.service",
+    "postgres-data-volume.service",
     "smd-init.service",
     "smd.service",
     "step-ca.service",

@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 
 
-def resolve_base_and_paths(base_dir_arg: str):
+def resolve_base_and_paths(base_dir_arg: str) -> tuple[Path, Path]:
     base_dir = base_dir_arg
     if not os.path.exists(base_dir):
         repo_root = Path(__file__).resolve().parents[1]
@@ -43,7 +43,7 @@ def resolve_base_and_paths(base_dir_arg: str):
     return repo_root, Path(input_dir)
 
 
-def generate_example_catalogs(base_dir: str):
+def generate_example_catalogs(base_dir: str) -> list[tuple[str, str]]:
     repo_root, input_dir_path = resolve_base_and_paths(base_dir)
 
     # Use catalogs from src/main/samples directory instead of removed examples/catalog
@@ -99,7 +99,7 @@ def generate_example_catalogs(base_dir: str):
     return results
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description='List available catalog files from src/main/samples/ directory.'
     )

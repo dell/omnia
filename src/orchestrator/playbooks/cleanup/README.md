@@ -42,7 +42,7 @@ ansible-playbook playbooks/orchestrator.yml --tags cleanup,cleanup_credentials
 ```
 
 `cleanup` cannot be combined with deployment tags (`prepare`, `deploy`, `provision`,
-`execute`, `pxeboot`, `precheck`, `validate`, `upgrade`, `rollback`); doing so fails
+`execute`, `pxeboot`, `precheck`, `validate`); doing so fails
 with a tag-validation error.
 
 ## Component cleanup (via cleanup_orchestrator.yml)

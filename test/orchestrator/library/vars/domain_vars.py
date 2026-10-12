@@ -39,6 +39,7 @@ FVT_TAGS: list[str] = [
 
 MARKERS: list[str] = [
     "sanity",
+    "buildstream",
     "functional",
     "deploy",
     "openldap",
@@ -47,14 +48,25 @@ MARKERS: list[str] = [
     "kubernetes",
     "slurm",
     "apptainer",
+    "benchmark",
     "additional_cloud_init",
     "mount_config",
     "minimal_os",
+    "boot_image",
+    "powervault_infrastructure",
+    "powervault_mounts",
+    "powervault_binds",
+    "powervault_cloudinit",
+    "vast_installation",
+    "vast_mounts",
+    "vast_targeting",
+    "vast_scratch",
+    "vast_persistence",
     "image_download",
     "negative",
     "non_disruptive",
-    "disruptive",
     "reboot",
+    "node_lifecycle",
     "scheduler_state",
     "destructive",
     "nft",
@@ -69,28 +81,46 @@ MARKERS: list[str] = [
 # =====================================================================
 
 SUITES: dict[str, list[str]] = {
-    "precheck": ["environment", "storage", "dependencies", "inputs"],
-    "prepare": ["openchami", "network", "openldap"],
-    "provision": ["openchami"],
+    "precheck": [
+        "environment",
+        "oim_readiness",
+        "storage",
+        "dependencies",
+        "inputs",
+    ],
+    "prepare": [
+        "openchami",
+        "network",
+        "openldap",
+    ],
+    "provision": [
+        "openchami",
+    ],
     "pxeboot": [
         "connectivity",
         "cloudinit",
+        "additional_cloud_init",
+        "mount_config",
+        "minimal_os",
+        "powervault",
+        "coredns_coredhcp",
         "kubernetes_cluster",
         "kubernetes_etcd",
         "kubernetes_storage",
-        "kubernetes_recovery",
         "slurm_cluster",
         "slurm_jobs",
         "slurm_ldap",
         "slurm_gpu",
+        "slurm_dcgm",
         "slurm_openmpi",
         "slurm_ucx",
         "slurm_infiniband",
-        "slurm_recovery",
         "slurm_apptainer",
-        "additional_cloud_init",
-        "mount_config",
-        "minimal_os",
+        "slurm_hpc_benchmarks",
+        "vast_storage",
+        "kubernetes_recovery",
+        "slurm_recovery",
+        "slurm_lifecycle",
     ],
     "cleanup": [
         "openchami",
@@ -104,8 +134,8 @@ SUITES: dict[str, list[str]] = {
 
 # Each lifecycle owns one playbook execution followed by independent checks.
 ALL_EXEC_TAGS: list[str] = ["precheck", "prepare", "provision", "pxeboot"]
-ALL_EXEC_MARKER: str = "sanity"
-ALL_VERIFY_EXCLUDE_MARKERS: list[str] = ["disruptive", "negative"]
+ALL_EXEC_MARKER: str = ""
+ALL_VERIFY_EXCLUDE_MARKERS: list[str] = []
 
 VERIFY_ONLY_TAGS: list[str] = []
 

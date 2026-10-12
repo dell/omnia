@@ -60,7 +60,6 @@
     - name: Run kubernetes bolt-on services
       when:
         - target_functional_groups | length > 0
-        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
       block:
         - name: Load bolt-on configuration
           ansible.builtin.set_fact:
@@ -95,7 +94,6 @@
         mount_config_mode: "cloud-init"
       when:
         - target_functional_groups | length > 0
-        - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
         - "'mount_config' in (category_bolt_ons | default([]))"
 
     - name: Publish Kubernetes Boot Service and Metadata Service configuration

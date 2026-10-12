@@ -362,7 +362,9 @@ class ResultPoller:
                 log_secure_info(
                     "info",
                     f"Stage already in terminal state: job_id={result.job_id}, "
-                    f"stage={result.stage_name}, state={stage.stage_state}",
+                    f"stage={result.stage_name}, state={stage.stage_state}, "
+                    f"result_status={result.status}, "
+                    f"log_file={result.log_file_path or 'N/A'}",
                     job_id=str(result.job_id),
                 )
                 # The service archives the result file automatically.
@@ -461,14 +463,16 @@ class ResultPoller:
             if self._is_build_image_stage(result.stage_name):
                 self._emit_dictionary_hit_events(result)
 
-            # Update log file path if available
+            # Record the stage log path for every outcome
             if result.log_file_path:
                 stage.log_file_path = result.log_file_path
-                log_secure_info(
-                    "info",
-                    f"Updated stage log path: job_id={result.job_id}, stage={result.stage_name}",
-                    job_id=str(result.job_id),
-                )
+            log_secure_info(
+                "info" if result.log_file_path else "warning",
+                f"Stage log: job_id={result.job_id}, stage={result.stage_name}, "
+                f"attempt={stage.attempt}, status={result.status}, "
+                f"log_file={result.log_file_path or 'N/A (not reported by watcher)'}",
+                job_id=str(result.job_id),
+            )
 
             # Save updated stage and commit immediately to avoid stale API responses
             self._stage_repo.save(stage)
@@ -492,6 +496,8 @@ class ResultPoller:
                     "status": result.status,
                     "duration_seconds": result.duration_seconds,
                     "exit_code": result.exit_code,
+                    "attempt": stage.attempt,
+                    "log_file_path": result.log_file_path,
                 },
             )
             self._audit_repo.save(event)
@@ -868,6 +874,14 @@ class ResultPoller:
         Args:
             result: Playbook execution result from NFS queue.
         """
+        log_secure_info(
+            "info" if result.log_file_path else "warning",
+            f"Stage log: job_id={result.job_id}, stage=cleanup, "
+            f"status={result.status}, "
+            f"log_file={result.log_file_path or 'N/A (not reported by watcher)'}",
+            job_id=str(result.job_id),
+        )
+
         if self._image_group_repo is None:
             log_secure_info(
                 "warning",
@@ -981,6 +995,7 @@ class ResultPoller:
                     "status": result.status,
                     "error_code": result.error_code,
                     "error_summary": result.error_summary,
+                    "log_file_path": result.log_file_path,
                 },
             )
             self._audit_repo.save(event)

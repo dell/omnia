@@ -13,10 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Automated cleanup cron entry-point.
+"""Automated cleanup entry-point.
 
-Run from inside the BuildStream container, scheduled every 24 hours
-(configurable via ``CLEANUP_INTERVAL_HOURS``).
+Run inside the BuildStream container by the API's background
+``AutoCleanupScheduler`` every ``retention.evaluation_interval_hours``
+(default 24) from ``build_stream_config.yml``. It can also be run manually.
 
 **Phase 1 — FAILED cleanup** (existing):
 For each ImageGroup in status ``FAILED``:
@@ -31,7 +32,7 @@ For each ImageGroup in status ``FAILED``:
 
 **Phase 2 — Age-based retention** (ER-BSM-002 Story 4):
 For each ImageGroup that meets ALL retention criteria:
-  - age > retention_age_days (default 90)
+  - age > retention.retention_age_days (default 90)
   - deploy_count = 0 (never deployed)
   - not tagged as protected
   - functional group has more than min_keep_count peers
@@ -47,7 +48,7 @@ import os
 import sys
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
+from typing import Optional
 
 # Ensure local imports work whether invoked directly or via cron.
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -61,14 +62,21 @@ from core.localrepo.services import PlaybookQueueRequestService  # noqa: E402
 from infra.repositories import (  # noqa: E402
     NfsPlaybookQueueRequestRepository,
 )
+from orchestrator.cleanup.retention_config import (  # noqa: E402
+    DEFAULT_MIN_KEEP_COUNT,
+    DEFAULT_RETENTION_AGE_DAYS,
+    RetentionConfig,
+    load_retention_config,
+)
 from orchestrator.cleanup.use_cases.cleanup_job import (  # noqa: E402
     CleanupJobUseCase,
 )
 
-
-# ER-BSM-002 Story 4: Retention policy defaults
-DEFAULT_RETENTION_AGE_DAYS = 90
-DEFAULT_MIN_KEEP_COUNT = 5
+__all__ = [
+    "DEFAULT_MIN_KEEP_COUNT",
+    "DEFAULT_RETENTION_AGE_DAYS",
+    "main",
+]
 
 
 def _load_retention_config() -> dict:
@@ -77,40 +85,10 @@ def _load_retention_config() -> dict:
     Returns a dict with keys: retention_age_days, min_keep_count.
     Falls back to defaults if the config file is missing or malformed.
     """
-    import yaml  # pylint: disable=import-outside-toplevel
-
-    omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
-    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
-    config_path = (
-        omnia_data_path / "build_stream" / "input"
-        / project_name / "build_stream_config.yml"
-    )
-
-    retention_age_days = DEFAULT_RETENTION_AGE_DAYS
-    min_keep_count = DEFAULT_MIN_KEEP_COUNT
-
-    try:
-        if config_path.exists():
-            with open(config_path, encoding="utf-8") as fh:
-                raw = yaml.safe_load(fh) or {}
-            retention = raw.get("retention", {})
-            if isinstance(retention, dict):
-                retention_age_days = int(
-                    retention.get("retention_age_days", DEFAULT_RETENTION_AGE_DAYS)
-                )
-                min_keep_count = int(
-                    retention.get("min_keep_count", DEFAULT_MIN_KEEP_COUNT)
-                )
-    except Exception:  # pylint: disable=broad-except
-        log_secure_info(
-            "warning",
-            "Failed to load retention config, using defaults",
-            exc_info=True,
-        )
-
+    config = load_retention_config()
     return {
-        "retention_age_days": retention_age_days,
-        "min_keep_count": min_keep_count,
+        "retention_age_days": config.retention_age_days,
+        "min_keep_count": config.min_keep_count,
     }
 
 
@@ -141,8 +119,9 @@ def _build_use_case(session) -> CleanupJobUseCase:
     )
 
 
-def _run_retention_evaluation(
-    session, image_group_repo, use_case, correlation_id
+def _run_retention_evaluation(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    session, image_group_repo, use_case, correlation_id,
+    retention_config: Optional[RetentionConfig] = None,
 ) -> tuple:
     """Run age-based retention evaluation (ER-BSM-002 Story 4).
 
@@ -151,13 +130,15 @@ def _run_retention_evaluation(
         image_group_repo: ImageGroup repository instance.
         use_case: CleanupJobUseCase (or None — will be built if needed).
         correlation_id: Tracing identifier.
+        retention_config: Settings for this cycle; read from
+            ``build_stream_config.yml`` when omitted.
 
     Returns:
         Tuple of (retention_deleted, retention_errors).
     """
-    retention_config = _load_retention_config()
-    retention_age_days = retention_config["retention_age_days"]
-    min_keep_count = retention_config["min_keep_count"]
+    retention_config = retention_config or load_retention_config()
+    retention_age_days = retention_config.retention_age_days
+    min_keep_count = retention_config.min_keep_count
 
     log_secure_info(
         "info",
@@ -251,8 +232,17 @@ def _run_retention_evaluation(
     return deleted, errors
 
 
-def main() -> int:
-    """Run one pass of automated cleanup."""
+def main(retention_config: Optional[RetentionConfig] = None) -> int:
+    """Run one pass of automated cleanup.
+
+    Args:
+        retention_config: Settings for this pass. The scheduler passes the
+            configuration it just reloaded; a manual run reads
+            ``build_stream_config.yml`` directly.
+
+    Returns:
+        0 on success, 1 when some ImageGroups failed, 2 on fatal error.
+    """
     started_at = datetime.now(timezone.utc).isoformat().replace(
         "+00:00", "Z"
     )
@@ -335,7 +325,8 @@ def main() -> int:
 
         # Phase 2: Age-based retention evaluation (ER-BSM-002 Story 4)
         _ret_deleted, retention_errors = _run_retention_evaluation(
-            session, image_group_repo, use_case, correlation_id
+            session, image_group_repo, use_case, correlation_id,
+            retention_config,
         )
 
         total_errors = errors + retention_errors

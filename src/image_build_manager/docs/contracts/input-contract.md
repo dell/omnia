@@ -21,7 +21,7 @@ when the domain-specific path is unset.
 |-------|------|----------|---------------|-------------|
 | `s3_configurations.provider` | string | Yes | `"minio"` | `minio` (local) or `powerscale` (external) |
 | `s3_configurations.endpoint_url` | string | Yes | `""` | Must be empty for MinIO and an HTTP(S) URL for PowerScale |
-| `repo_manager_output_path` | string | Yes | Project path placeholder | Full path to upstream `repo_status.yml`; placeholders are resolved while staging |
+| `repo_manager_output_path` | string | Yes | `""` | Optional override; empty resolves to `<OMNIA_DATA_PATH>/repo_manager/output/<project>/repo_status.yml` |
 | `image_build_type` | string | Yes | `"image-thrillhouse"` | `image-builder` or `image-thrillhouse` |
 | `functional_groups_source` | string | Yes | `"catalog"` | `config` uses `package_groups.yml`; `catalog` uses `CATALOG_FILE_PATH` |
 | `build_image.max_parallel` | int | Yes | `0` | Concurrent compute builds; 0 means all at once |

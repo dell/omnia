@@ -162,14 +162,12 @@
           {% if cluster_inv is not defined -%}
           The orchestrator inventory file was not found at: {{ _cluster_inv_path | default('(not set)') }}.
           Ensure orchestrator has been run and the inventory file exists,
-          or set repo_url explicitly in telemetry_packages.yml.
-          {%- else -%}
+          or set repo_url explicitly in telemetry_packages.yml.{%- else -%}
           No group matching the pattern '*_rhel_<major>_<minor>_*' was found in the orchestrator inventory
           (e.g., service_kube_control_plane_first_rhel_10_2_x86_64).
-          Found groups: {{ cluster_inv.all.children.keys() | list }}
-          {%- endif %}
+          Found groups: {{ cluster_inv.all.children.keys() | list }}{%- endif %}
       when:
-        - (_pkg_raw.repo_url | default('')) | length == 0
+        - ((_pkg_raw.repo_url | default('')) or '') | length == 0
         - (pulp_os_version | default('')) | length == 0
 
     - name: Set kube_vip from telemetry_config (fallback)
@@ -223,7 +221,7 @@
       ansible.builtin.set_fact:
         _resolved_repo_url: >-
           {% set mode = _pkg_raw.install_mode | default('offline') -%}
-          {% set url = _pkg_raw.repo_url | default('') -%}
+          {% set url = (_pkg_raw.repo_url | default('')) or '' -%}
           {% if url | length > 0 -%}
           {{ url | regex_replace('/$', '') }}{%- elif mode == 'offline' -%}
           {% set nic_ip = lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default(admin_nic_ip | default(''), true) -%}
@@ -235,7 +233,7 @@
     - name: Notify - repo_url using default path
       when:
         - _pkg_raw is defined
-        - (_pkg_raw.repo_url | default('')) | length == 0
+        - ((_pkg_raw.repo_url | default('')) or '') | length == 0
       block:
         - name: Set default repo_url for display
           ansible.builtin.set_fact:
@@ -368,8 +366,10 @@
           images:
             victoria: "{{ _all_victoria }}"
             kafka: "{{ _images.kafka | default({}) }}"
+            strimzi: "{{ _images.strimzi | default({}) }}"
             victoria_operator:
               operator: "{{ (_images.victoria_metrics | default({})).operator | default('') }}"
+              config_reloader: "{{ (_images.victoria_metrics | default({})).config_reloader | default('') }}"
             idrac: "{{ _images.idrac | default({}) }}"
             powerscale: "{{ _images.powerscale | default({}) }}"
             ldms: "{{ _images.ldms | default({}) }}"

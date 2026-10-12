@@ -12,6 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+# pylint: disable=no-member,invalid-name
+# invalid-name: module name and revision identifiers are mandated by Alembic
+# no-member: alembic.op is a runtime proxy; pylint cannot see its members
+
 """Create artifact_metadata table
 
 Revision ID: 005
@@ -33,6 +37,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    """Apply migration: Create artifact_metadata table and indexes."""
     # Create artifact_metadata table
     op.create_table(
         'artifact_metadata',
@@ -44,20 +49,24 @@ def upgrade() -> None:
         sa.Column('kind', sa.String(length=20), nullable=False),
         sa.Column('content_type', sa.String(length=100), nullable=False),
         sa.Column('tags', sa.JSON(), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column(
+            'created_at', sa.DateTime(timezone=True),
+            server_default=sa.text('now()'), nullable=False,
+        ),
         sa.PrimaryKeyConstraint('id'),
         sa.ForeignKeyConstraint(['job_id'], ['jobs.job_id'], ondelete='CASCADE'),
     )
-    
+
     # Create indexes for performance
     op.create_index('idx_artifact_metadata_job_id', 'artifact_metadata', ['job_id'])
     op.create_index('idx_artifact_metadata_job_label', 'artifact_metadata', ['job_id', 'label'])
 
 
 def downgrade() -> None:
+    """Revert migration: Drop artifact_metadata table and indexes."""
     # Drop indexes
     op.drop_index('idx_artifact_metadata_job_label', table_name='artifact_metadata')
     op.drop_index('idx_artifact_metadata_job_id', table_name='artifact_metadata')
-    
+
     # Drop table
     op.drop_table('artifact_metadata')

@@ -23,20 +23,23 @@
 #   PIPELINE_MODE=cleanup  ->  Tear down all omnia domain state
 #
 # Domains selection (mandatory):
-#   DOMAINS=default             ->  All domains
+#   DOMAINS=default             ->  All domains (repo_manager, image_build_manager, orchestrator, build_stream)
 #   DOMAINS=repo_manager        ->  Only repo_manager
 #   DOMAINS=image_build_manager ->  Only image_build_manager
 #   DOMAINS=orchestrator        ->  Only orchestrator
+#   DOMAINS=build_stream        ->  Only build_stream
 #   DOMAINS=repo_manager|orchestrator -> Multiple domains (regex pattern)
+#   NOTE: discovery is NOT deployed in build_stream pipeline (only cleanup_discovery runs)
 #
 # Stage control variables:
 #   ENABLE_SETUP=true      ->  Force setup_environment in deploy/cleanup modes
+#   ENABLE_DISCOVERY=true  ->  Enable discovery stage (cluster pipeline only, not build_stream)
 #   TEST_MODE=true         ->  Enable test stages (test_main_installation + per-domain)
 #   DRY_RUN=true           ->  Log commands without executing ansible playbooks
 #   VERBOSE=true           ->  Run ansible playbooks with -vvv instead of -v
 #
 # Per-stage ansible tags (optional):
-#   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS
+#   REPO_MANAGER_TAGS, IMAGE_BUILD_MANAGER_TAGS, ORCHESTRATOR_TAGS, DISCOVERY_TAGS
 #
 # Credential management (OpenBao / Vault):
 #   Domain credentials are fetched from OpenBao using JWT authentication.
@@ -44,7 +47,8 @@
 #     secret/data/omnia/repo_manager
 #     secret/data/omnia/image_build_manager
 #     secret/data/omnia/orchestrator
-#     secret/data/omnia/telemetry
+#     secret/data/omnia/build_stream
+#   NOTE: discovery credentials are not fetched in build_stream pipeline
 #
 # Repository layout:
 #   clusters/<name>/inputs/omnia.env      -> Omnia environment config
@@ -61,21 +65,21 @@
 # Default mode stages (full cycle):
 #   1. initialization          -> Load cluster config, validate connectivity
 #   2. setup_environment       -> Clone repo, copy omnia.env, setup venv
-#   3. cleanup_telemetry       -> telemetry --tags cleanup
-#   4. cleanup_orchestrator    -> cleanup_orchestrator.yml standalone
-#   5. cleanup_image_build     -> image_build_manager --tags cleanup
-#   6. cleanup_repo_manager    -> repo_manager --tags cleanup
-#   7. cleanup_omnia           -> omnia.sh --cleanup --all
-#   8. setup_main             -> Re-run omnia.sh -s to rebuild venv
-#   9. test_main_installation       -> Validate omnia setup via test framework
-#  10. repo_manager            -> Copy inputs, encrypt creds, run playbook
-#  11. test_repo_manager       -> Run repo_manager validation tests
-#  12. image_build_manager     -> Copy inputs, encrypt creds, run playbook
-#  13. test_image_build_manager -> Run image_build_manager validation tests
-#  14. orchestrator            -> Copy inputs, encrypt creds, run playbook
+#   3. cleanup_build_stream    -> build_stream --tags cleanup
+#   4. cleanup_telemetry       -> telemetry --tags cleanup
+#   5. cleanup_orchestrator    -> cleanup_orchestrator.yml standalone
+#   6. cleanup_discovery       -> discovery --tags cleanup (always runs)
+#   7. cleanup_image_build     -> image_build_manager --tags cleanup
+#   8. cleanup_repo_manager    -> repo_manager --tags cleanup
+#   9. cleanup_omnia           -> omnia.sh --cleanup --all
+#  10. setup_main             -> Re-run omnia.sh -s to rebuild venv
+#  11. test_main_installation       -> Validate omnia setup via test framework
+#  12. prepare_base            -> Run omnia.sh --prepare-base (repo_manager, image_build_manager, orchestrator)
+#  13. test_repo_manager       -> Run repo_manager validation tests
+#  14. test_image_build_manager -> Run image_build_manager validation tests
 #  15. test_orchestrator       -> Run orchestrator validation tests
-#  16. telemetry              -> Copy inputs, encrypt creds, run playbook
-#  17. test_telemetry          -> Run telemetry validation tests
+#  16. build_stream            -> Copy inputs, encrypt creds, run playbook
+#  17. test_build_stream       -> Run build_stream validation tests
 #  18. summary                -> Pipeline report + email
 #
 # VENV GATE: Every domain stage resolves OMNIA_DATA_PATH from omnia.env
@@ -98,9 +102,10 @@ variables:
   TEST_ORCHESTRATOR_CMD: "./run_validation.sh fvt_orchestrator prepare verify"
   TEST_BUILD_STREAM_CMD: "./run_validation.sh fvt_build_stream test"
   # SKIP_STAGES: Comma-separated list of stages to skip.
-  # Valid values: repo_manager, image_build_manager, orchestrator, telemetry,
+  # Valid values: repo_manager, image_build_manager, orchestrator, build_stream,
   #   setup_environment, setup_main, cleanup_omnia
-  # Example: SKIP_STAGES="repo_manager,telemetry" skips cleanup+deploy+test for both.
+  # Example: SKIP_STAGES="repo_manager,build_stream" skips cleanup+deploy+test for both.
+  # NOTE: discovery is not a valid skip_stages value in build_stream pipeline
   #
   # OpenBao / Vault credential management (REQUIRED):
   #   Domain credentials are fetched from OpenBao (Vault-compatible) using JWT auth.
@@ -121,6 +126,7 @@ stages:
   - cleanup_telemetry
   - cleanup_utils
   - cleanup_orchestrator
+  - cleanup_discovery
   - cleanup_image_build
   - cleanup_repo_manager
   - cleanup_omnia
@@ -702,6 +708,60 @@ cleanup_orchestrator:
 
     - echo "========================================================"
     - echo "  orchestrator cleanup completed for cluster $CLUSTER"
+    - echo "========================================================"
+
+# ======================  CLEANUP: DISCOVERY  =============================
+# Cleans up discovery components on the target.
+# Uses the discovery cleanup playbook: src/discovery/playbooks/discovery.yml --tags cleanup
+# This stage always runs regardless of enable_discovery variable.
+# ---------------------------------------------------------------------------
+cleanup_discovery:
+  stage: cleanup_discovery
+  timeout: 3h
+  allow_failure: false
+  before_script: []
+  rules:
+    - if: '$SKIP_STAGES =~ /discovery/'
+      when: never
+    - if: '($PIPELINE_MODE == "cleanup" || $PIPELINE_MODE == "default")'
+      when: on_success
+  needs:
+    - job: cleanup_orchestrator
+      artifacts: true
+      optional: true
+    - job: setup_environment
+      artifacts: true
+      optional: true
+    - job: initialization
+      artifacts: true
+  script:
+    - echo "========================================================"
+    - echo "  Cleanup — discovery on cluster $CLUSTER"
+    - echo "========================================================"
+    - source target.env
+    - export SSHPASS="$TARGET_PASS"
+    - SSH_CMD="sshpass -e ssh -o StrictHostKeyChecking=no"
+    - TARGET="$TARGET_USER@$TARGET_IP"
+    - 'ANSIBLE_VERBOSITY=$( [ "$VERBOSE" = "true" ] && echo "-vvv" || echo "-v" )'
+
+    - echo "Running discovery cleanup"
+    - 'echo "  Tags: cleanup"'
+    - |
+      OMNIA_DATA_PATH=$($SSH_CMD $TARGET "grep '^OMNIA_DATA_PATH=' $OMNIA_INSTALL_PATH/src/main/omnia.env 2>/dev/null | cut -d= -f2" | tail -1)
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
+      OMNIA_DATA_PATH="${OMNIA_DATA_PATH%/}"
+      if [ "$DRY_RUN" = "true" ]; then
+        echo "DRY_RUN: Would execute discovery.yml --tags cleanup on $TARGET"
+      else
+        $SSH_CMD $TARGET "
+          source $OMNIA_DATA_PATH/activate-omnia.sh
+          cd $OMNIA_INSTALL_PATH/src/discovery/playbooks/
+          ansible-playbook discovery.yml --tags cleanup $ANSIBLE_VERBOSITY
+        " || true
+      fi
+
+    - echo "========================================================"
+    - echo "  discovery cleanup completed for cluster $CLUSTER"
     - echo "========================================================"
 
 # ======================  CLEANUP: BUILD STREAM  ============================
@@ -2182,12 +2242,13 @@ summary:
       except:
         pass
 
-      # Determine which test stages succeeded
+      # Determine which test stages executed (success or failure)
       test_stages_executed = {}
       for job in job_statuses:
         name = job.get("name", "")
         status = job.get("status", "")
-        if status == "success" and "test_" in name:
+        # Fetch reports for any test stage that ran (success, failure, or other non-skipped status)
+        if status not in ("skipped", "unknown", "created") and "test_" in name:
           # Extract domain from job name
           if "test_main" in name:
             test_stages_executed["main"] = True
