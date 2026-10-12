@@ -21,11 +21,7 @@ consumed by ``verify_pxeboot`` in ``fvt/result.py``.
 import re
 import time
 
-from ..vars.pxeboot_vars import (
-    PXEBOOT_COMMANDS,
-    SLURM_COMPILER_PREFIX,
-    SLURM_COMPUTE_PREFIX,
-)
+from ..vars.pxeboot_vars import PXEBOOT_COMMANDS, SLURM_COMPILER_PREFIX
 from ._pxeboot_helpers import (
     first_row,
     remote_command,

@@ -18,6 +18,9 @@ import ipaddress
 import time
 
 from ..vars.pxeboot_vars import (
+    ETCD_HEALTH_WAIT_TIMEOUT_SECONDS,
+    ETCD_SETUP_LOG,
+    ETCD_UPDATE_LOG,
     PXEBOOT_COMMANDS,
     RECOVERY_POLL_SECONDS,
     RECOVERY_WAIT_TIMEOUT_SECONDS,
@@ -36,7 +39,10 @@ from ._pxeboot_helpers import (
 from ._workload_helpers import kubernetes_context as _context
 from ._workload_helpers import optional_skip as _skip
 from .kubernetes_etcd_pxeboot_func import check_kubernetes_etcd_health
-from .kubernetes_runtime_pxeboot_func import check_kubernetes_local_etcd_integrity
+from .kubernetes_runtime_pxeboot_func import (
+    check_kubernetes_local_etcd_integrity,
+    etcd_boot_script_state,
+)
 
 
 def _vip_configuration(context, config) -> tuple[bool, str]:
@@ -103,6 +109,36 @@ def _wait_for_new_boot(host, row, previous_boot_id: str) -> bool:
     return False
 
 
+def _wait_for_etcd_health(host) -> dict:
+    """Poll etcd endpoint health until every member reports healthy."""
+    started = time.monotonic()
+    deadline = started + ETCD_HEALTH_WAIT_TIMEOUT_SECONDS
+    attempt = 0
+    result = check_kubernetes_etcd_health(host)
+    while not result["success"] and time.monotonic() < deadline:
+        attempt += 1
+        report_poll_progress(
+            "etcd endpoint health",
+            attempt,
+            started,
+            ETCD_HEALTH_WAIT_TIMEOUT_SECONDS,
+            result.get("error", ""),
+        )
+        time.sleep(RECOVERY_POLL_SECONDS)
+        result = check_kubernetes_etcd_health(host)
+    return result
+
+
+def _post_reboot_boot_scripts(host, row) -> tuple[bool, bool]:
+    """Return whether fstab-update completed and disk setup did not rerun."""
+    states, boot_time = etcd_boot_script_state(host, row)
+    update_time, update_done = states.get(ETCD_UPDATE_LOG, (None, False))
+    setup_time, _setup_done = states.get(ETCD_SETUP_LOG, (None, False))
+    update_ok = update_done and update_time is not None and update_time >= boot_time
+    setup_not_rerun = setup_time is None or setup_time < boot_time
+    return update_ok, setup_not_rerun
+
+
 def _cluster_node_name(host, control, row) -> str:
     """Return the node name used by the Kubernetes API."""
     payload = remote_json(host, control, PXEBOOT_COMMANDS["kubernetes_nodes"])
@@ -123,10 +159,10 @@ def check_kubernetes_control_plane_recovery(host):
     """Reboot the VIP owner and verify failover, cloud-init, and node recovery."""
     summary = "Kubernetes control-plane recovery"
     try:
-        if not marker_is_authorized("disruptive"):
+        if not marker_is_authorized("reboot"):
             return _skip(
                 summary,
-                "Select the disruptive marker to authorize a node reboot",
+                "Select the reboot marker to authorize a node reboot",
             )
         context, rows, _control, config = _context(host)
         if not rows:
@@ -197,6 +233,7 @@ def check_kubernetes_control_plane_recovery(host):
             )
         final_owners = _vip_owners(host, rows, vip)
         final_vip_ok = len(final_owners) == 1
+        etcd = _wait_for_etcd_health(host) if ready_ok else {"success": False}
         local_etcd = check_kubernetes_local_etcd_integrity(host)
         local_etcd_required = bool(config.get("etcd_on_local_disk", False))
         local_etcd_ok = (
@@ -208,6 +245,7 @@ def check_kubernetes_control_plane_recovery(host):
             and cloud_init_ok
             and ready_ok
             and final_vip_ok
+            and etcd["success"]
             and local_etcd_ok
         )
         error_parts = []
@@ -223,6 +261,8 @@ def check_kubernetes_control_plane_recovery(host):
             error_parts.append(
                 f"final VIP owners: {', '.join(final_owners) or 'none'}"
             )
+        if not etcd["success"]:
+            error_parts.append("etcd endpoint health check failed")
         if not local_etcd_ok:
             error_parts.append("local-etcd integrity failed")
         return runtime_result(
@@ -236,6 +276,7 @@ def check_kubernetes_control_plane_recovery(host):
                 ("VIP failover", "passed" if failover_ok else "FAILED"),
                 ("Cloud-init state", "passed" if cloud_init_ok else "FAILED"),
                 ("Kubernetes Ready", "passed" if ready_ok else "FAILED"),
+                ("etcd endpoint health", "passed" if etcd["success"] else "FAILED"),
                 (
                     "Local etcd persistence",
                     (
@@ -256,16 +297,24 @@ def check_kubernetes_local_etcd_recovery(host):
     """Reboot one control plane and prove local-etcd identity is preserved."""
     summary = "Kubernetes local-etcd reboot persistence"
     try:
-        if not marker_is_authorized("disruptive"):
+        if not marker_is_authorized("reboot"):
             return _skip(
                 summary,
-                "Select the disruptive marker to authorize a node reboot",
+                "Select the reboot marker to authorize a node reboot",
             )
         _context_data, rows, control, config = _context(host)
         if not rows or not bool(config.get("etcd_on_local_disk", False)):
             return _skip(summary, "etcd_on_local_disk is disabled")
+        control_rows = [
+            row for row in rows if "control_plane" in row["EXPECTED_FUNCTIONAL_GROUP"]
+        ]
+        if len(control_rows) < 2:
+            return _skip(summary, "At least two control-plane nodes are required")
+        watcher = next(
+            row for row in control_rows if row["HOSTNAME"] != control["HOSTNAME"]
+        )
         before_integrity = check_kubernetes_local_etcd_integrity(host)
-        cluster_node_name = _cluster_node_name(host, control, control)
+        cluster_node_name = _cluster_node_name(host, watcher, control)
         before = remote_command(
             host,
             control,
@@ -294,11 +343,14 @@ def check_kubernetes_local_etcd_recovery(host):
         if ssh_ok:
             ready_ok, _detail = wait_for_remote_command(
                 host,
-                control,
+                watcher,
                 PXEBOOT_COMMANDS["kubernetes_node_ready"] % cluster_node_name,
                 RECOVERY_WAIT_TIMEOUT_SECONDS,
                 RECOVERY_POLL_SECONDS,
             )
+        update_ok, setup_not_rerun = (
+            _post_reboot_boot_scripts(host, control) if ssh_ok else (False, False)
+        )
         after_integrity = check_kubernetes_local_etcd_integrity(host)
         after = remote_command(
             host,
@@ -310,11 +362,13 @@ def check_kubernetes_local_etcd_recovery(host):
             and bool(after.stdout.strip())
             and after.stdout.strip() == before_identity
         )
-        etcd = check_kubernetes_etcd_health(host)
+        etcd = _wait_for_etcd_health(host) if ready_ok else {"success": False}
         ok = (
             ssh_ok
             and cloud_ok
             and ready_ok
+            and update_ok
+            and setup_not_rerun
             and after_integrity["success"]
             and identity_preserved
             and etcd["success"]
@@ -326,6 +380,10 @@ def check_kubernetes_local_etcd_recovery(host):
             error_parts.append("cloud-init did not complete")
         if not ready_ok:
             error_parts.append("Kubernetes node not Ready")
+        if not update_ok:
+            error_parts.append("etcd-fstab-update.sh did not complete on this boot")
+        if not setup_not_rerun:
+            error_parts.append("etcd-disk-setup.sh ran again after reboot")
         if not identity_preserved:
             error_parts.append("mount source/UUID changed across reboot")
         if not after_integrity["success"]:
@@ -338,9 +396,18 @@ def check_kubernetes_local_etcd_recovery(host):
             [
                 ("Rebooted node", control["HOSTNAME"]),
                 ("Kubernetes identity", cluster_node_name),
+                ("Readiness observer", watcher["HOSTNAME"]),
                 ("New boot observed", "passed" if ssh_ok else "FAILED"),
                 ("Cloud-init completion", "passed" if cloud_ok else "FAILED"),
                 ("Kubernetes Ready", "passed" if ready_ok else "FAILED"),
+                (
+                    "etcd-fstab-update.sh this boot",
+                    "passed" if update_ok else "FAILED",
+                ),
+                (
+                    "etcd-disk-setup.sh not rerun",
+                    "passed" if setup_not_rerun else "FAILED",
+                ),
                 (
                     "Mount source and UUID preserved",
                     "passed" if identity_preserved else "FAILED",

@@ -19,6 +19,8 @@ prerequisite runner but not yet verified by the existing 2.3 precheck FVT.
 Every function is read-only and never mutates the target environment.
 """
 
+import csv
+import io
 import posixpath
 import re
 from typing import Any
@@ -56,6 +58,17 @@ def _admin_network(host) -> dict[str, Any]:
         ):
             return network["admin_network"]
     raise ValueError("network_spec.yml does not define admin_network")
+
+
+def _default_route_nic(host) -> tuple[str, str]:
+    """Return the default IPv4 route line and its device, or empty strings."""
+    result = run_on_host(host, OIM_READINESS_COMMANDS["default_route"])
+    line = result.stdout.strip() if result.rc == 0 else ""
+    parts = line.split()
+    for index, token in enumerate(parts):
+        if token == "dev" and index + 1 < len(parts):
+            return line, parts[index + 1]
+    return line, ""
 
 
 # ── hardware checks ────────────────────────────────────────────────
@@ -143,11 +156,12 @@ def check_oim_disk_threshold(
 # ── network checks ─────────────────────────────────────────────────
 
 
-def check_oim_pxe_nic_present(host) -> dict[str, Any]:
-    """Verify the configured admin NIC exists and is operationally UP."""
+def check_oim_pxe_nic_present(host, *, nic_name: str = "") -> dict[str, Any]:
+    """Verify the configured (or explicitly named) admin NIC exists and is UP."""
     try:
-        admin = _admin_network(host)
-        nic_name = str(admin.get("oim_nic_name") or "").strip()
+        if not nic_name:
+            admin = _admin_network(host)
+            nic_name = str(admin.get("oim_nic_name") or "").strip()
     except (OSError, TypeError, ValueError) as exc:
         return prepare_result(
             False, "Unable to resolve admin NIC", [], str(exc)
@@ -199,28 +213,18 @@ def check_oim_public_nic_present(host) -> dict[str, Any]:
     or PXE-only environments do not require a public interface).
     """
     try:
-        result = run_on_host(
-            host, "ip -4 route show default 2>/dev/null | head -1"
-        )
+        line, nic_name = _default_route_nic(host)
     except (OSError, RuntimeError) as exc:
         return prepare_result(
             False, "Unable to query default route", [], str(exc)
         )
 
-    line = result.stdout.strip()
     if not line:
         return prepare_result(
             True,
             "No default IPv4 route; public NIC check not applicable",
             [("Default route", "none"), ("Public NIC check", "skipped")],
         )
-
-    parts = line.split()
-    nic_name = ""
-    for i, token in enumerate(parts):
-        if token == "dev" and i + 1 < len(parts):
-            nic_name = parts[i + 1]
-            break
 
     if not nic_name:
         return prepare_result(
@@ -314,18 +318,7 @@ def check_oim_pxe_public_overlap(
             [("PXE NIC", "not configured")],
         )
 
-    route_result = run_on_host(
-        host, "ip -4 route show default 2>/dev/null | head -1"
-    )
-    route_line = route_result.stdout.strip()
-    public_nic = ""
-    if route_line:
-        parts = route_line.split()
-        for i, token in enumerate(parts):
-            if token == "dev" and i + 1 < len(parts):
-                public_nic = parts[i + 1]
-                break
-
+    _route_line, public_nic = _default_route_nic(host)
     if not public_nic:
         return prepare_result(
             True,
@@ -353,15 +346,34 @@ def check_oim_pxe_public_overlap(
     )
 
 
+def check_oim_forced_pxe_public_overlap(host) -> dict[str, Any]:
+    """Run the overlap check with the PXE NIC forced to the public NIC."""
+    try:
+        _route_line, public_nic = _default_route_nic(host)
+    except (OSError, RuntimeError) as exc:
+        return prepare_result(False, "Unable to query default route", [], str(exc))
+    if not public_nic:
+        return prepare_result(
+            True,
+            "No default route; forced overlap is not applicable",
+            [("Reason", "No default IPv4 route on the OIM")],
+            skipped=True,
+        )
+    return check_oim_pxe_public_overlap(host, nic_name=public_nic)
+
+
 # ── prerequisite checks ────────────────────────────────────────────
 
 
-def check_oim_ssh_preflight(host) -> dict[str, Any]:
+def check_oim_ssh_preflight(host, *, target: str = "") -> dict[str, Any]:
     """Verify passwordless SSH from OIM to a configured target node.
 
-    Uses the first mapped node from the PXE mapping CSV as the target.
-    Skips if no mapping is configured or no nodes are present.
+    Uses the first mapped node from the PXE mapping CSV as the target unless
+    ``target`` is given. Skips if no mapping is configured or no nodes are
+    present.
     """
+    if target:
+        return _ssh_preflight_result(host, target)
     try:
         input_dir = resolve_target_input_project_path(host)
         config = read_yaml_mapping(
@@ -384,7 +396,7 @@ def check_oim_ssh_preflight(host) -> dict[str, Any]:
         )
 
     # Read the first ADMIN_IP from the mapping
-    raw = run_on_host(host, "head -2 %s", mapping_path)
+    raw = run_on_host(host, OIM_READINESS_COMMANDS["mapping_head"], mapping_path)
     lines = raw.stdout.strip().split("\n") if raw.rc == 0 else []
     if len(lines) < 2:
         return prepare_result(
@@ -392,9 +404,6 @@ def check_oim_ssh_preflight(host) -> dict[str, Any]:
             "PXE mapping has no data rows; SSH preflight skipped",
             [("PXE mapping", mapping_path), ("SSH preflight", "skipped")],
         )
-
-    import csv
-    import io
 
     reader = csv.DictReader(io.StringIO(raw.stdout))
     row = next(reader, None)
@@ -405,7 +414,11 @@ def check_oim_ssh_preflight(host) -> dict[str, Any]:
             [("PXE mapping", mapping_path), ("SSH preflight", "skipped")],
         )
 
-    target = row["ADMIN_IP"].strip()
+    return _ssh_preflight_result(host, row["ADMIN_IP"].strip())
+
+
+def _ssh_preflight_result(host, target: str) -> dict[str, Any]:
+    """Return the structured passwordless-SSH result for one target."""
     ssh_result = run_on_host(
         host, OIM_READINESS_COMMANDS["ssh_check"], target
     )

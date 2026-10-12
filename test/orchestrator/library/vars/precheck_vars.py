@@ -59,6 +59,8 @@ OIM_READINESS_COMMANDS: dict[str, str] = {
     "disk_gb": "df -BG / | tail -1 | awk '{print $2}' | tr -d 'G'",
     "nic_operstate": "cat /sys/class/net/%s/operstate 2>/dev/null",
     "nic_ipv4": "ip -4 -o addr show %s scope global",
+    "default_route": "ip -4 route show default 2>/dev/null | head -1",
+    "mapping_head": "head -2 %s",
     "ssh_check": (
         "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "
         "-o BatchMode=yes %s whoami 2>/dev/null"
@@ -68,3 +70,15 @@ OIM_READINESS_COMMANDS: dict[str, str] = {
 }
 
 INTERNET_CHECK_HOSTS: tuple[str, ...] = ("8.8.8.8", "1.1.1.1", "208.67.222.222")
+
+# Deliberately unattainable inputs used by the read-only OIM negative cases.
+# 192.0.2.1 is RFC 5737 TEST-NET-1 and is never routable.
+OIM_NEGATIVE_INPUTS: dict[str, object] = {
+    "min_cores": 99999,
+    "min_memory_gb": 99999,
+    "min_disk_gb": 99999,
+    "missing_nic": "omnia_fvt_missing0",
+    "unreachable_target": "192.0.2.1",
+    "os_id": "omnia_fvt_missing_os",
+    "os_version": "0.0",
+}

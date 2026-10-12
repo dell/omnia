@@ -38,7 +38,6 @@ from ..vars.pxeboot_vars import (
     HPC_TOOLS_DIRECTORY_MODE,
     HPC_TOOLS_NVIDIA_SDK_DIRECTORY,
     HPC_TOOLS_PLATFORMS_DIRECTORY,
-    HPC_TOOLS_SCRIPTS_DIRECTORY,
     PXEBOOT_COMMANDS,
 )
 from ._hpc_benchmarks_helpers import (
@@ -71,7 +70,6 @@ from ._hpc_benchmarks_helpers import (
     snapshot_directories,
     snapshot_tool_fingerprints,
     source_only_scan_paths,
-    staged_tool_directories,
     tools_list_deployed,
     wait_for_pid,
 )
