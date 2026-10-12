@@ -1,0 +1,78 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Error and status messages for worker VLAN config validation
+
+config_file_missing_msg: >-
+  worker_vlan_config.yml not found at '{{ _vlan_config_path }}'.
+  Please create the configuration file in the input directory.
+
+vlan_id_missing_msg: >-
+  'vlan_id' is required in worker_vlan_config.yml.
+  Provide the VLAN ID trunked on the ToR switch for BMC traffic (1-4094).
+
+vlan_id_invalid_msg: >-
+  'vlan_id' must be an integer between 1 and 4094.
+  Current value: '{{ worker_vlan_config.vlan_id }}'.
+
+vlan_netmask_missing_msg: >-
+  'vlan_netmask' is required in worker_vlan_config.yml.
+  Provide the BMC VLAN subnet prefix length (1-30).
+
+vlan_netmask_invalid_msg: >-
+  'vlan_netmask' must be an integer between 1 and 30.
+  Current value: '{{ worker_vlan_config.vlan_netmask }}'.
+
+vlan_gateway_missing_msg: >-
+  'vlan_gateway' is required in worker_vlan_config.yml.
+  Provide the BMC VLAN gateway IPv4 address (e.g., 10.44.0.1).
+
+vlan_gateway_invalid_msg: >-
+  'vlan_gateway' must be a valid IPv4 address.
+  Current value: '{{ worker_vlan_config.vlan_gateway }}'.
+
+route_metric_invalid_msg: >-
+  'route_metric' must be a positive integer.
+  Current value: '{{ worker_vlan_config.route_metric }}'.
+
+admin_subnet_missing_msg: >-
+  'admin_subnet' is required in worker_vlan_config.yml.
+  Provide the admin/PXE subnet CIDR where worker nodes reside (e.g., 192.168.14.0/24).
+
+admin_subnet_invalid_msg: >-
+  'admin_subnet' must be a valid IPv4 CIDR notation.
+  Current value: '{{ worker_vlan_config.admin_subnet }}'.
+  Example: 192.168.14.0/24
+
+vlan_subnet_missing_msg: >-
+  'vlan_subnet' is required in worker_vlan_config.yml.
+  Provide the VLAN subnet CIDR where VLAN IPs will be assigned (e.g., 192.168.21.0/24).
+
+vlan_subnet_invalid_msg: >-
+  'vlan_subnet' must be a valid IPv4 CIDR notation.
+  Current value: '{{ worker_vlan_config.vlan_subnet }}'.
+  Example: 192.168.21.0/24
+
+cluster_inventory_missing_msg: >-
+  Cluster inventory file not found at '{{ _cluster_inventory_path }}'.
+  Provide a valid path in worker_vlan_config.yml or run orchestrator.yml first.
+
+no_workers_msg: >-
+  No worker nodes (service_kube_node_*) found in cluster inventory
+  at '{{ _cluster_inventory_path | trim }}'.
+  Ensure orchestrator.yml has been run and worker nodes are provisioned.
+
+ipv4_regex: '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$'
+cidr_regex: '^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'

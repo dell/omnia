@@ -1,0 +1,274 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# configure_worker.yml — Configure VLAN + routes + verify on a single worker.
+# Called in a loop from main.yml for each worker_vlan_assignment entry.
+#
+# All remote commands are executed via explicit SSH (not delegate_to) because
+# the play runs on localhost with connection: local. delegate_to with
+# connection: local does NOT SSH to the remote host — it runs locally.
+
+- name: "Set worker variables for {{ _worker_assignment.worker_host }}"
+  ansible.builtin.set_fact:
+    _worker_host: "{{ _worker_assignment.worker_host }}"
+    _vlan_ip: "{{ _worker_assignment.vlan_ip }}"
+    _ssh_opts: "-o ConnectTimeout={{ ssh_connect_timeout }} -o BatchMode=yes -o StrictHostKeyChecking=no"
+
+# Step 1: Test SSH connectivity
+- name: "Test SSH to worker {{ _worker_host }}"
+  ansible.builtin.command: >
+    ssh {{ _ssh_opts }} {{ _worker_host }} echo reachable
+  register: _ssh_test
+  failed_when: false
+  changed_when: false
+
+- name: "Skip worker {{ _worker_host }} — SSH unreachable"
+  when: _ssh_test.rc | default(1) != 0
+  block:
+    - name: Log SSH failure
+      ansible.builtin.debug:
+        msg: "{{ worker_ssh_unreachable_msg }}"
+
+    - name: Record skipped worker
+      ansible.builtin.set_fact:
+        _vlan_results: >-
+          {{ _vlan_results | combine({
+               'skipped': _vlan_results.skipped + [_worker_host]
+             }) }}
+
+# Step 2: Configure VLAN, routes, verify (only if SSH reachable)
+- name: "Configure VLAN on worker {{ _worker_host }}"
+  when: _ssh_test.rc | default(1) == 0
+  block:
+    # 2a: Detect parent interface (NIC that holds the worker's admin IP)
+    - name: "Detect parent interface on {{ _worker_host }}"
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          ssh {{ _ssh_opts }} {{ _worker_host }} "
+            iface=\$(ip -o -4 addr show | awk '/{{ _worker_host }}/ {print \$2; exit}')
+            if [ -n \"\$iface\" ]; then
+              echo \"\$iface\"
+            else
+              ip route show default | awk '/default/ {for(i=1;i<=NF;i++) if(\$i==\"dev\") print \$(i+1); exit}'
+            fi
+          "
+      args:
+        executable: /bin/bash
+      register: _parent_iface_result
+      changed_when: false
+
+    - name: "Set parent interface for {{ _worker_host }}"
+      ansible.builtin.set_fact:
+        _parent_interface: "{{ _parent_iface_result.stdout | trim }}"
+
+    - name: "Set VLAN interface name for {{ _worker_host }}"
+      ansible.builtin.set_fact:
+        _vlan_interface: "{{ _parent_interface }}.{{ _vlan_id }}"
+
+    # 2b: Check if nmcli connection OR VLAN interface already exists
+    - name: "Check if NetworkManager connection exists on {{ _worker_host }}"
+      ansible.builtin.command: >
+        ssh {{ _ssh_opts }} {{ _worker_host }}
+        nmcli -t -f NAME connection show
+      register: _nmcli_conn_list
+      failed_when: false
+      changed_when: false
+
+    - name: "Set nmcli connection exists flag"
+      ansible.builtin.set_fact:
+        _nmcli_conn_exists: "{{ (nmcli_conn_prefix ~ '-' ~ _vlan_id) in _nmcli_conn_list.stdout }}"
+
+    - name: "Check if VLAN interface {{ _vlan_interface }} already exists on {{ _worker_host }}"
+      ansible.builtin.command: >
+        ssh {{ _ssh_opts }} {{ _worker_host }}
+        ip link show {{ _vlan_interface }}
+      register: _vlan_iface_exists
+      failed_when: false
+      changed_when: false
+
+    # 2c: Handle existing manual VLAN interface (not managed by nmcli)
+    - name: "Remove manually-configured VLAN interface {{ _vlan_interface }} on {{ _worker_host }}"
+      ansible.builtin.shell:
+        cmd: |
+          ssh {{ _ssh_opts }} {{ _worker_host }} bash -s <<'REMOTE_SCRIPT'
+          set -e
+          # Remove any runtime routes through this interface
+          ip route show dev {{ _vlan_interface }} 2>/dev/null | while read -r route; do
+            ip route del $route 2>/dev/null || true
+          done
+          # Flush addresses and bring down the interface
+          ip addr flush dev {{ _vlan_interface }} 2>/dev/null || true
+          ip link set {{ _vlan_interface }} down 2>/dev/null || true
+          ip link delete {{ _vlan_interface }} 2>/dev/null || true
+          REMOTE_SCRIPT
+      args:
+        executable: /bin/bash
+      when:
+        - not _nmcli_conn_exists
+        - _vlan_iface_exists.rc == 0
+
+    - name: "Log adoption of existing interface"
+      ansible.builtin.debug:
+        msg: >-
+          Removed manually-configured VLAN interface '{{ _vlan_interface }}'
+          on '{{ _worker_host }}'. Will recreate it as a persistent
+          NetworkManager connection.
+      when:
+        - not _nmcli_conn_exists
+        - _vlan_iface_exists.rc == 0
+
+    # 2d: Create persistent VLAN interface via nmcli
+    - name: "Create nmcli VLAN connection on {{ _worker_host }}"
+      ansible.builtin.command: >
+        ssh {{ _ssh_opts }} {{ _worker_host }}
+        nmcli connection add
+        con-name "{{ nmcli_conn_prefix }}-{{ _vlan_id }}"
+        type vlan
+        ifname "{{ _vlan_interface }}"
+        dev "{{ _parent_interface }}"
+        id "{{ _vlan_id }}"
+        ipv4.addresses "{{ _vlan_ip }}/{{ _vlan_netmask }}"
+        ipv4.method manual
+        connection.autoconnect yes
+      when: not _nmcli_conn_exists
+
+    - name: "Activate VLAN connection on {{ _worker_host }}"
+      ansible.builtin.command: >
+        ssh {{ _ssh_opts }} {{ _worker_host }}
+        nmcli connection up "{{ nmcli_conn_prefix }}-{{ _vlan_id }}"
+      when: not _nmcli_conn_exists
+
+    - name: "Ensure existing VLAN connection is active on {{ _worker_host }}"
+      ansible.builtin.command: >
+        ssh {{ _ssh_opts }} {{ _worker_host }}
+        nmcli connection up "{{ nmcli_conn_prefix }}-{{ _vlan_id }}"
+      failed_when: false
+      changed_when: false
+      when: _nmcli_conn_exists
+
+    # 2e: Verify VLAN interface is up
+    - name: "Verify VLAN interface {{ _vlan_interface }} is up on {{ _worker_host }}"
+      ansible.builtin.command: >
+        ssh {{ _ssh_opts }} {{ _worker_host }}
+        ip -4 address show {{ _vlan_interface }}
+      register: _vlan_verify
+      changed_when: false
+
+    # 2f: Add all static routes (runtime + persistent via nmcli)
+    - name: "Add static routes to BMC subnets on {{ _worker_host }}"
+      ansible.builtin.shell:
+        cmd: |
+          ssh {{ _ssh_opts }} {{ _worker_host }} bash -s <<'REMOTE_SCRIPT'
+          set -e
+          {% for subnet in _resolved_bmc_subnets %}
+          # Add runtime route if missing
+          if ! ip route show | grep -qF '{{ subnet }}'; then
+            ip route add {{ subnet }} via {{ _vlan_gateway }} dev {{ _vlan_interface }} metric {{ _route_metric }} 2>/dev/null || true
+          fi
+          # Persist route in nmcli connection profile
+          if nmcli -t -f NAME connection show | grep -qF "{{ nmcli_conn_prefix }}-{{ _vlan_id }}"; then
+            existing_routes=$(nmcli -g ipv4.routes connection show "{{ nmcli_conn_prefix }}-{{ _vlan_id }}" 2>/dev/null || echo "")
+            if ! echo "$existing_routes" | grep -qF '{{ subnet }}'; then
+              nmcli connection modify "{{ nmcli_conn_prefix }}-{{ _vlan_id }}" +ipv4.routes "{{ subnet }} {{ _vlan_gateway }} {{ _route_metric }}"
+            fi
+          fi
+          {% endfor %}
+          REMOTE_SCRIPT
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    # 2g: Verify gateway reachability
+    - name: "Ping VLAN gateway {{ _vlan_gateway }} from {{ _worker_host }}"
+      ansible.builtin.command: >
+        ssh {{ _ssh_opts }} {{ _worker_host }}
+        ping -c {{ ping_count }} -W 3 {{ _vlan_gateway }}
+      register: _gateway_ping
+      failed_when: false
+      changed_when: false
+
+    - name: "Log gateway reachability for {{ _worker_host }}"
+      ansible.builtin.debug:
+        msg: >-
+          {% if _gateway_ping.rc == 0 %}
+          Gateway {{ _vlan_gateway }} is reachable from {{ _worker_host }}.
+          {% else %}
+          {{ gateway_unreachable_msg }}
+          {% endif %}
+
+    # 2h: Verify BMC Redfish reachability (test first BMC IP from inventory)
+    - name: "Get a test BMC IP from cluster inventory"
+      ansible.builtin.shell:
+        cmd: |
+          python3 -c "
+          import yaml, sys
+          with open(sys.argv[1]) as f:
+              inv = yaml.safe_load(f)
+          for grp in (inv.get('all',{}).get('children',{}) or {}).values():
+              for host in (grp.get('hosts',{}) or {}).values():
+                  bmc = host.get('bmc_ip','')
+                  if bmc:
+                      print(bmc)
+                      sys.exit(0)
+          " "{{ vlan_cluster_inventory_path }}"
+      register: _test_bmc_raw
+      changed_when: false
+      failed_when: false
+
+    - name: "Test Redfish HTTPS to {{ _test_bmc_raw.stdout | default('') | trim }} from {{ _worker_host }}"
+      ansible.builtin.shell:
+        cmd: >
+          ssh {{ _ssh_opts }} {{ _worker_host }}
+          curl --insecure --connect-timeout {{ curl_connect_timeout }}
+          --silent --output /dev/null --write-out '%{http_code}'
+          "https://{{ _test_bmc_raw.stdout | trim }}/redfish/v1/"
+      register: _redfish_test
+      failed_when: false
+      changed_when: false
+      when: _test_bmc_raw.stdout | default('') | trim | length > 0
+
+    - name: "Log BMC connectivity for {{ _worker_host }}"
+      ansible.builtin.debug:
+        msg: >-
+          {% if _test_bmc_raw.stdout | default('') | trim | length == 0 %}
+          No test BMC IP available — skipping Redfish check.
+          {% elif (_redfish_test.stdout | default('0') | int) > 0 %}
+          BMC {{ _test_bmc_raw.stdout | trim }} reachable (HTTP {{ _redfish_test.stdout }}). 401 is expected.
+          {% else %}
+          WARNING: BMC {{ _test_bmc_raw.stdout | trim }} not reachable from {{ _worker_host }}.
+          {% endif %}
+
+    # 2i: Record success
+    - name: "Record configured worker {{ _worker_host }}"
+      ansible.builtin.set_fact:
+        _vlan_results: >-
+          {{ _vlan_results | combine({
+               'configured': _vlan_results.configured + [_worker_host]
+             }) }}
+
+  rescue:
+    - name: "Log failure on {{ _worker_host }}"
+      ansible.builtin.debug:
+        msg: >-
+          VLAN configuration failed on '{{ _worker_host }}':
+          {{ ansible_failed_result.msg | default('Unknown error') }}
+
+    - name: "Record failed worker {{ _worker_host }}"
+      ansible.builtin.set_fact:
+        _vlan_results: >-
+          {{ _vlan_results | combine({
+               'failed': _vlan_results.failed + [_worker_host]
+             }) }}

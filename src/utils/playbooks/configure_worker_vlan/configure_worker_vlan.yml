@@ -1,0 +1,59 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# =============================================================================
+# configure_worker_vlan.yml — Worker Node VLAN Configuration Utility
+# =============================================================================
+# Configures VLAN-tagged interfaces and static routes on Kubernetes worker
+# nodes so that iDRAC Telemetry pods can reach BMC endpoints in separate
+# subnets.
+#
+# This is a prerequisite for iDRAC Telemetry in multi-subnet deployments
+# where BMC networks are not directly reachable from the worker-node
+# admin/PXE network.
+#
+# Usage:
+#   cd src/utils
+#   ansible-playbook playbooks/utils.yml --tags configure_worker_vlan
+#
+#   # Or directly:
+#   ansible-playbook playbooks/configure_worker_vlan/configure_worker_vlan.yml
+#
+# Prerequisites:
+#   1. Fill in src/utils/input/worker_vlan_config.yml
+#   2. Run orchestrator.yml first (generates bmc_group_data.csv and
+#      orchestrator_inventory.yml)
+#   3. Ensure SSH access from the OIM host to all worker nodes
+#   4. Ensure NetworkManager is running on worker nodes
+#
+# What it does:
+#   1. Validates input configuration (worker_vlan_config.yml)
+#   2. Auto-discovers BMC subnets from bmc_group_data.csv (if not specified)
+#   3. On each worker node (via SSH):
+#      a. Detects the parent NIC (from default route)
+#      b. Creates a persistent VLAN interface via NetworkManager (nmcli)
+#      c. Adds persistent static routes to each BMC subnet
+#      d. Verifies gateway and BMC Redfish endpoint reachability
+#   4. Displays a summary of configured/skipped/failed workers
+#
+# Configuration survives reboots via NetworkManager connection profiles.
+# =============================================================================
+
+- name: "Worker VLAN | Configure VLAN interfaces on worker nodes"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  roles:
+    - role: configure_worker_vlan
