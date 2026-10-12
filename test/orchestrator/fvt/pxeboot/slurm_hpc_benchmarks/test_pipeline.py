@@ -21,44 +21,47 @@ behind the ``--run-destructive`` gate.
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_hpc_benchmarks_concurrent_staging,
     check_hpc_benchmarks_e2e_provisioning,
     check_hpc_benchmarks_staging_fingerprint_idempotency,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
-
-
 @pytest.mark.functional
 @pytest.mark.benchmark
-@pytest.mark.order(296)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42002)
 def test_hpc_benchmarks_staging_fingerprint_idempotency(host):
-    """V096: Pull tools, validate tarballs, repeat — SHA-256, size, mtime must hold."""
+    """V226: Pull tools, validate tarballs, repeat — SHA-256, size, mtime must hold."""
+    tc = TC["hpc_benchmarks_staging_fingerprint_idempotency"]
+    test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(
-        host,
-        "hpc_benchmarks_staging_fingerprint_idempotency",
-        check_hpc_benchmarks_staging_fingerprint_idempotency,
+        test_log, tc, host, check_hpc_benchmarks_staging_fingerprint_idempotency
     )
 
 
 @pytest.mark.functional
 @pytest.mark.benchmark
-@pytest.mark.order(297)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42003)
 def test_hpc_benchmarks_concurrent_staging(host):
-    """V097: Start two same-platform pulls together; both see identical archives."""
-    verify_pxeboot(
-        host,
-        "hpc_benchmarks_concurrent_staging",
-        check_hpc_benchmarks_concurrent_staging,
-    )
+    """V227: Start two same-platform pulls together; both see identical archives."""
+    tc = TC["hpc_benchmarks_concurrent_staging"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_concurrent_staging)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(345)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(42019)
 def test_hpc_benchmarks_e2e_provisioning(host):
     """TC-09: Verify the end-to-end benchmark provisioning pipeline."""
-    verify_pxeboot(
-        host, "hpc_benchmarks_e2e_provisioning", check_hpc_benchmarks_e2e_provisioning
-    )
+    tc = TC["hpc_benchmarks_e2e_provisioning"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_e2e_provisioning)

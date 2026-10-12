@@ -22,6 +22,7 @@ configurations, and platform compatibility.
 import pytest
 
 from library.functions import (
+    TestLogger,
     check_dcgm_cuda_atomic_lock,
     check_dcgm_cuda_compute_node,
     check_dcgm_cuda_login_compiler,
@@ -37,117 +38,182 @@ from library.functions import (
     check_dcgm_rhel_compatibility,
     check_dcgm_toolkit_nfs_storage,
 )
+from library.vars import TEST_CASES as TC
 from fvt.result import verify_pxeboot
-
-pytestmark = [
-    pytest.mark.buildstream,
-    pytest.mark.sanity,
-    pytest.mark.slurm,
-    pytest.mark.non_disruptive,
-]
-
 
 # -- CUDA installation checks ------------------------------------------------
 
-@pytest.mark.order(300)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41501)
 def test_dcgm_cuda_validation(host):
     """Verify NVIDIA driver and CUDA toolkit are installed on GPU nodes."""
-    verify_pxeboot(host, "dcgm_cuda_validation", check_dcgm_cuda_validation)
+    tc = TC["dcgm_cuda_validation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_cuda_validation)
 
 
-@pytest.mark.order(301)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41502)
 def test_dcgm_cuda_atomic_lock(host):
     """Verify CUDA toolkit is installed to /hpc_tools/cuda via atomic lock."""
-    verify_pxeboot(host, "dcgm_cuda_atomic_lock", check_dcgm_cuda_atomic_lock)
+    tc = TC["dcgm_cuda_atomic_lock"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_cuda_atomic_lock)
 
 
-@pytest.mark.order(302)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41503)
 def test_dcgm_cuda_compute_node(host):
     """Verify both CUDA toolkit and CUDA driver on compute nodes."""
-    verify_pxeboot(host, "dcgm_cuda_compute_node", check_dcgm_cuda_compute_node)
+    tc = TC["dcgm_cuda_compute_node"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_cuda_compute_node)
 
 
-@pytest.mark.order(303)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41504)
 def test_dcgm_cuda_login_compiler(host):
     """Verify CUDA toolkit accessible on login_compiler nodes."""
-    verify_pxeboot(host, "dcgm_cuda_login_compiler", check_dcgm_cuda_login_compiler)
+    tc = TC["dcgm_cuda_login_compiler"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_cuda_login_compiler)
 
 
 # -- DCGM service and package checks -----------------------------------------
 
-@pytest.mark.order(304)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41505)
 def test_dcgm_package_installed(host):
     """Verify datacenter-gpu-manager RPM and dcgmi binary on GPU nodes."""
-    verify_pxeboot(host, "dcgm_package_installed", check_dcgm_package_installed)
+    tc = TC["dcgm_package_installed"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_package_installed)
 
 
-@pytest.mark.order(305)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41506)
 def test_dcgm_daemon_running(host):
     """Verify nvidia-dcgm service is active and enabled on GPU nodes."""
-    verify_pxeboot(host, "dcgm_daemon_running", check_dcgm_daemon_running)
+    tc = TC["dcgm_daemon_running"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_daemon_running)
 
 
 # -- GPU discovery and monitoring checks --------------------------------------
 
-@pytest.mark.order(306)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41507)
 def test_dcgm_gpu_discovery(host):
     """Verify dcgmi discovery enumerates GPUs with unique UUIDs."""
-    verify_pxeboot(host, "dcgm_gpu_discovery", check_dcgm_gpu_discovery)
+    tc = TC["dcgm_gpu_discovery"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_gpu_discovery)
 
 
-@pytest.mark.order(307)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41508)
 def test_dcgm_gpu_metrics(host):
     """Verify dcgmi dmon returns metric samples for each GPU node."""
-    verify_pxeboot(host, "dcgm_gpu_metrics", check_dcgm_gpu_metrics)
+    tc = TC["dcgm_gpu_metrics"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_gpu_metrics)
 
 
-@pytest.mark.order(308)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41509)
 def test_dcgm_multi_gpu_discovery(host):
     """Verify dcgmi discovery on multi-GPU nodes."""
-    verify_pxeboot(host, "dcgm_multi_gpu_discovery", check_dcgm_multi_gpu_discovery)
+    tc = TC["dcgm_multi_gpu_discovery"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_multi_gpu_discovery)
 
 
 # -- Multi-node configuration checks -----------------------------------------
 
-@pytest.mark.order(309)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41510)
 def test_dcgm_multi_gpu_no_login_compiler(host):
     """Verify GPU nodes work without login_compiler present."""
-    verify_pxeboot(
-        host,
-        "dcgm_multi_gpu_no_login_compiler",
-        check_dcgm_multi_gpu_no_login_compiler,
-    )
+    tc = TC["dcgm_multi_gpu_no_login_compiler"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_multi_gpu_no_login_compiler)
 
 
-@pytest.mark.order(310)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41511)
 def test_dcgm_multi_login_compiler_lock(host):
     """Verify CUDA toolkit install uses atomic lock with multiple login_compilers."""
-    verify_pxeboot(
-        host,
-        "dcgm_multi_login_compiler_lock",
-        check_dcgm_multi_login_compiler_lock,
-    )
+    tc = TC["dcgm_multi_login_compiler_lock"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_multi_login_compiler_lock)
 
 
 # -- Platform compatibility checks -------------------------------------------
 
-@pytest.mark.order(311)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41512)
 def test_dcgm_toolkit_nfs_storage(host):
     """Verify /hpc_tools is NFS-mounted and CUDA toolkit accessible."""
-    verify_pxeboot(host, "dcgm_toolkit_nfs_storage", check_dcgm_toolkit_nfs_storage)
+    tc = TC["dcgm_toolkit_nfs_storage"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_toolkit_nfs_storage)
 
 
-@pytest.mark.order(312)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41513)
 def test_dcgm_rhel_compatibility(host):
     """Verify GPU node OS is a supported RHEL version."""
-    verify_pxeboot(host, "dcgm_rhel_compatibility", check_dcgm_rhel_compatibility)
+    tc = TC["dcgm_rhel_compatibility"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_rhel_compatibility)
 
 
-@pytest.mark.order(313)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41514)
 def test_dcgm_cuda_version_compatibility(host):
     """Verify CUDA toolkit and DCGM daemon version compatibility."""
-    verify_pxeboot(
-        host,
-        "dcgm_cuda_version_compatibility",
-        check_dcgm_cuda_version_compatibility,
-    )
+    tc = TC["dcgm_cuda_version_compatibility"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dcgm_cuda_version_compatibility)

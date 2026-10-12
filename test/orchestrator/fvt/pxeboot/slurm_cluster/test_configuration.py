@@ -16,9 +16,11 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_slurm_custom_configuration,
     check_slurm_reconfigure,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -28,17 +30,21 @@ from fvt.result import verify_pxeboot
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
-@pytest.mark.order(232)
+@pytest.mark.order(41107)
 def test_slurm_reconfigure(host):
     """Reconfigure Slurm and verify membership remains healthy."""
-    verify_pxeboot(host, "slurm_reconfigure", check_slurm_reconfigure)
+    tc = TC["slurm_reconfigure"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_reconfigure)
 
 
 @pytest.mark.non_disruptive
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
-@pytest.mark.order(234)
+@pytest.mark.order(41109)
 def test_slurm_custom_configuration(host):
     """Verify custom values, NFS delivery, and effective visibility."""
-    verify_pxeboot(host, "slurm_custom_configuration", check_slurm_custom_configuration)
+    tc = TC["slurm_custom_configuration"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_custom_configuration)

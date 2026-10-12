@@ -16,24 +16,31 @@
 
 import pytest
 
-from fvt.result import verify_pxeboot
 from library.functions import (
+    TestLogger,
     check_vast_vastnfs_installation,
     check_vast_vastnfs_rpm_and_module,
 )
+from library.vars import TEST_CASES as TC
+
+from fvt.result import verify_pxeboot
 
 
 @pytest.mark.sanity
-@pytest.mark.order(700)
 @pytest.mark.vast_installation
+@pytest.mark.order(42101)
 def test_vast_vastnfs_installation(host):
     """Verify vastnfs-ctl status on compute nodes."""
-    verify_pxeboot(host, "vast_vastnfs_installation", check_vast_vastnfs_installation)
+    tc = TC["vast_vastnfs_installation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_vastnfs_installation)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(709)
 @pytest.mark.vast_installation
+@pytest.mark.order(42110)
 def test_vast_vastnfs_rpm_and_module(host):
     """Verify vastnfs RPM, kernel module, and service."""
-    verify_pxeboot(host, "vast_vastnfs_rpm_and_module", check_vast_vastnfs_rpm_and_module)
+    tc = TC["vast_vastnfs_rpm_and_module"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_vast_vastnfs_rpm_and_module)

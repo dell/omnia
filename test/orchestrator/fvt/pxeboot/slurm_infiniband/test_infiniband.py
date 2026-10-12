@@ -16,9 +16,11 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_slurm_infiniband_configuration,
     check_slurm_infiniband_connectivity,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -27,17 +29,21 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(263)
+@pytest.mark.order(41801)
 def test_slurm_infiniband_configuration(host):
     """Verify mapped IB interface, address, prefix, link, MTU, and OFED."""
-    verify_pxeboot(host, "slurm_ib_configuration", check_slurm_infiniband_configuration)
+    tc = TC["slurm_ib_configuration"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_infiniband_configuration)
 
 
 @pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(264)
+@pytest.mark.order(41802)
 def test_slurm_infiniband_connectivity(host):
     """Verify every mapped IB endpoint can reach every mapped peer."""
-    verify_pxeboot(host, "slurm_ib_connectivity", check_slurm_infiniband_connectivity)
+    tc = TC["slurm_ib_connectivity"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_infiniband_connectivity)

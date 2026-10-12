@@ -16,11 +16,13 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_apptainer_failure_cleanup,
     check_apptainer_invalid_sif,
     check_apptainer_missing_image_contract,
     check_apptainer_restricted_sif,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -29,41 +31,45 @@ from fvt.result import verify_pxeboot
 @pytest.mark.functional
 @pytest.mark.negative
 @pytest.mark.non_disruptive
-@pytest.mark.order(279)
+@pytest.mark.order(41914)
 def test_apptainer_missing_image_contract(host):
     """Verify the downloader records pull failures and exits non-zero."""
-    verify_pxeboot(
-        host,
-        "apptainer_missing_image_contract",
-        check_apptainer_missing_image_contract,
-    )
+    tc = TC["apptainer_missing_image_contract"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_missing_image_contract)
 
 
 @pytest.mark.apptainer
 @pytest.mark.functional
 @pytest.mark.negative
 @pytest.mark.non_disruptive
-@pytest.mark.order(284)
+@pytest.mark.order(41919)
 def test_apptainer_invalid_sif(host):
     """Verify a nonexistent SIF fails through the Slurm execution path."""
-    verify_pxeboot(host, "apptainer_invalid_sif", check_apptainer_invalid_sif)
+    tc = TC["apptainer_invalid_sif"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_invalid_sif)
 
 
 @pytest.mark.apptainer
 @pytest.mark.functional
 @pytest.mark.negative
 @pytest.mark.non_disruptive
-@pytest.mark.order(285)
+@pytest.mark.order(41920)
 def test_apptainer_restricted_sif(host):
     """Verify an unprivileged identity cannot execute a mode-0600 SIF."""
-    verify_pxeboot(host, "apptainer_restricted_sif", check_apptainer_restricted_sif)
+    tc = TC["apptainer_restricted_sif"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_restricted_sif)
 
 
 @pytest.mark.apptainer
 @pytest.mark.functional
 @pytest.mark.negative
 @pytest.mark.non_disruptive
-@pytest.mark.order(289)
+@pytest.mark.order(41924)
 def test_apptainer_failure_cleanup(host):
     """Verify a failed image launch leaves no matching runtime process."""
-    verify_pxeboot(host, "apptainer_failure_cleanup", check_apptainer_failure_cleanup)
+    tc = TC["apptainer_failure_cleanup"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_failure_cleanup)

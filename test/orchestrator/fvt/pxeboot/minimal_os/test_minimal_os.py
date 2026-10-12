@@ -24,6 +24,7 @@ import pytest
 
 from fvt.result import verify_pxeboot
 from library.functions import (
+    TestLogger,
     check_minimal_os_additional_packages,
     check_minimal_os_additional_packages_fallback,
     check_minimal_os_base_packages,
@@ -40,143 +41,169 @@ from library.functions import (
     check_minimal_os_required_services,
     check_minimal_os_ssh_key_access,
 )
-
-pytestmark = [
-    pytest.mark.buildstream,
-    pytest.mark.sanity,
-    pytest.mark.minimal_os,
-]
+from library.vars import TEST_CASES as TC
 
 
-@pytest.mark.order(600)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40501)
 def test_minimal_os_base_packages(host):
     """Verify base OS packages are installed on all OS-only nodes."""
-    verify_pxeboot(
-        host, "minimal_os_base_packages", check_minimal_os_base_packages
-    )
+    tc = TC["minimal_os_base_packages"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_base_packages)
 
 
-@pytest.mark.order(601)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40502)
 def test_minimal_os_ldms_packages(host):
     """Verify LDMS monitoring packages and binary on OS-only nodes."""
-    verify_pxeboot(
-        host, "minimal_os_ldms_packages", check_minimal_os_ldms_packages
-    )
+    tc = TC["minimal_os_ldms_packages"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_ldms_packages)
 
 
-@pytest.mark.order(602)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40503)
 def test_minimal_os_required_services(host):
     """Verify required services are active on all OS-only nodes."""
-    verify_pxeboot(
-        host, "minimal_os_required_services", check_minimal_os_required_services
-    )
+    tc = TC["minimal_os_required_services"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_required_services)
 
 
-@pytest.mark.order(604)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40504)
 def test_minimal_os_excluded_packages(host):
     """Verify workload-specific packages are NOT installed on OS-only nodes."""
-    verify_pxeboot(
-        host, "minimal_os_excluded_packages", check_minimal_os_excluded_packages
-    )
+    tc = TC["minimal_os_excluded_packages"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_excluded_packages)
 
 
-@pytest.mark.order(605)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40505)
 def test_minimal_os_excluded_services(host):
     """Verify workload-specific services are NOT active on OS-only nodes."""
-    verify_pxeboot(
-        host, "minimal_os_excluded_services", check_minimal_os_excluded_services
-    )
+    tc = TC["minimal_os_excluded_services"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_excluded_services)
 
 
-@pytest.mark.order(606)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40506)
 def test_minimal_os_package_manager(host):
     """Verify package manager is functional on OS-only nodes."""
-    verify_pxeboot(
-        host, "minimal_os_package_manager", check_minimal_os_package_manager
-    )
+    tc = TC["minimal_os_package_manager"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_package_manager)
 
 
-@pytest.mark.order(607)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40507)
 def test_minimal_os_kernel_version(host):
     """Verify kernel version is consistent across OS-only nodes per FG."""
-    verify_pxeboot(
-        host, "minimal_os_kernel_version", check_minimal_os_kernel_version
-    )
+    tc = TC["minimal_os_kernel_version"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_kernel_version)
 
 
-@pytest.mark.order(608)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40508)
 def test_minimal_os_network_identity(host):
     """Verify admin IP is configured on all OS-only nodes."""
-    verify_pxeboot(
-        host, "minimal_os_network_identity", check_minimal_os_network_identity
-    )
+    tc = TC["minimal_os_network_identity"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_network_identity)
 
 
-@pytest.mark.order(609)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40509)
 def test_minimal_os_functional_group_schema(host):
     """Verify functional-group definitions are valid on OS-only nodes."""
-    verify_pxeboot(
-        host,
-        "minimal_os_functional_group_schema",
-        check_minimal_os_functional_group_schema,
-    )
+    tc = TC["minimal_os_functional_group_schema"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_functional_group_schema)
 
 
-@pytest.mark.order(610)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40510)
 def test_minimal_os_additional_packages(host):
     """Verify configured extra packages are installed on OS-only nodes."""
-    verify_pxeboot(
-        host,
-        "minimal_os_additional_packages",
-        check_minimal_os_additional_packages,
-    )
+    tc = TC["minimal_os_additional_packages"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_additional_packages)
 
 
-@pytest.mark.order(611)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40511)
 def test_minimal_os_additional_packages_fallback(host):
     """Verify absent additional_packages config is handled on OS-only nodes."""
-    verify_pxeboot(
-        host,
-        "minimal_os_additional_packages_fallback",
-        check_minimal_os_additional_packages_fallback,
-    )
+    tc = TC["minimal_os_additional_packages_fallback"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_additional_packages_fallback)
 
 
-@pytest.mark.order(612)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40512)
 def test_minimal_os_ldms_service_state(host):
     """Verify LDMS service is installed but inactive at handoff."""
-    verify_pxeboot(
-        host,
-        "minimal_os_ldms_service_state",
-        check_minimal_os_ldms_service_state,
-    )
+    tc = TC["minimal_os_ldms_service_state"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_ldms_service_state)
 
 
-@pytest.mark.order(613)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40513)
 def test_minimal_os_ssh_key_access(host):
     """Verify SSH key authentication is proven on OS-only nodes."""
-    verify_pxeboot(
-        host,
-        "minimal_os_ssh_key_access",
-        check_minimal_os_ssh_key_access,
-    )
+    tc = TC["minimal_os_ssh_key_access"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_ssh_key_access)
 
 
-@pytest.mark.order(614)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40514)
 def test_minimal_os_network_isolation(host):
     """Verify default route is on management network on OS-only nodes."""
-    verify_pxeboot(
-        host,
-        "minimal_os_network_isolation",
-        check_minimal_os_network_isolation,
-    )
+    tc = TC["minimal_os_network_isolation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_network_isolation)
 
 
-@pytest.mark.order(615)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.minimal_os
+@pytest.mark.order(40515)
 def test_minimal_os_no_embedded_credentials(host):
     """Verify no plaintext secrets are present in the OS image."""
-    verify_pxeboot(
-        host,
-        "minimal_os_no_embedded_credentials",
-        check_minimal_os_no_embedded_credentials,
-    )
+    tc = TC["minimal_os_no_embedded_credentials"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_minimal_os_no_embedded_credentials)

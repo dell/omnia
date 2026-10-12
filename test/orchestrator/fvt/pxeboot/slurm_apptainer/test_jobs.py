@@ -16,6 +16,7 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_apptainer_concurrent_jobs,
     check_apptainer_job_array,
     check_apptainer_ldap_job,
@@ -24,6 +25,7 @@ from library.functions import (
     check_apptainer_single_node_job,
     check_apptainer_slurm_environment,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
@@ -33,10 +35,12 @@ from fvt.result import verify_pxeboot
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(280)
+@pytest.mark.order(41915)
 def test_apptainer_single_node_job(host):
     """Run one exact-node container job on every mapped compute."""
-    verify_pxeboot(host, "apptainer_single_node_job", check_apptainer_single_node_job)
+    tc = TC["apptainer_single_node_job"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_single_node_job)
 
 
 @pytest.mark.apptainer
@@ -44,20 +48,24 @@ def test_apptainer_single_node_job(host):
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(281)
+@pytest.mark.order(41916)
 def test_apptainer_multi_node_job(host):
     """Run one container allocation spanning all mapped computes."""
-    verify_pxeboot(host, "apptainer_multi_node_job", check_apptainer_multi_node_job)
+    tc = TC["apptainer_multi_node_job"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_multi_node_job)
 
 
 @pytest.mark.apptainer
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(282)
+@pytest.mark.order(41917)
 def test_apptainer_ldap_job(host):
     """Run targeted container jobs as the configured LDAP test identity."""
-    verify_pxeboot(host, "apptainer_ldap_job", check_apptainer_ldap_job)
+    tc = TC["apptainer_ldap_job"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_ldap_job)
 
 
 @pytest.mark.apptainer
@@ -65,10 +73,12 @@ def test_apptainer_ldap_job(host):
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(283)
+@pytest.mark.order(41918)
 def test_apptainer_concurrent_jobs(host):
     """Run bounded concurrent container jobs on distinct computes."""
-    verify_pxeboot(host, "apptainer_concurrent_jobs", check_apptainer_concurrent_jobs)
+    tc = TC["apptainer_concurrent_jobs"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_concurrent_jobs)
 
 
 @pytest.mark.apptainer
@@ -76,10 +86,12 @@ def test_apptainer_concurrent_jobs(host):
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(286)
+@pytest.mark.order(41921)
 def test_apptainer_nfs_visibility(host):
     """Verify containers can read the shared image path on every compute."""
-    verify_pxeboot(host, "apptainer_nfs_visibility", check_apptainer_nfs_visibility)
+    tc = TC["apptainer_nfs_visibility"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_nfs_visibility)
 
 
 @pytest.mark.apptainer
@@ -87,12 +99,12 @@ def test_apptainer_nfs_visibility(host):
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(287)
+@pytest.mark.order(41922)
 def test_apptainer_slurm_environment(host):
     """Verify Slurm allocation variables propagate into containers."""
-    verify_pxeboot(
-        host, "apptainer_slurm_environment", check_apptainer_slurm_environment
-    )
+    tc = TC["apptainer_slurm_environment"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_slurm_environment)
 
 
 @pytest.mark.apptainer
@@ -100,7 +112,9 @@ def test_apptainer_slurm_environment(host):
 @pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
-@pytest.mark.order(288)
+@pytest.mark.order(41923)
 def test_apptainer_job_array(host):
     """Submit and wait for a bounded Apptainer Slurm job array."""
-    verify_pxeboot(host, "apptainer_job_array", check_apptainer_job_array)
+    tc = TC["apptainer_job_array"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_apptainer_job_array)
