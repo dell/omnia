@@ -13,18 +13,36 @@
 #  limitations under the License.
 ---
 
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# ***********************************************************************
+
 # Dataset overlay: enables additional_cloud_init for FVT testing.
 #
 # The sync_orchestrator_input function stages the canonical
-# src/orchestrator/input/ tree, then overlays this file on top.  Only the
-# key below differs from the shipped default.
+# src/orchestrator/input/ tree, then overlays this file on top.
+# All values below match the shipped defaults except
+# additional_cloud_init_config_file.
 #
 # Usage:
 #   In test_config.yml (or test_run_config.yml per-scenario):
 #     dataset: "aci_enabled"
 #     sync_orchestrator_input: true
 
-#### Enable additional cloud-init
+pxe_mapping_file_path: ""
+language: "en_US.UTF-8"
+default_lease_time: "86400"
+dns_enabled: false
+
+#### Optional — CHANGED FROM DEFAULT
 # Points to the additional_cloud_init.yml synced alongside this file.
 # The runtime path is resolved relative to the active project input directory.
 additional_cloud_init_config_file: "additional_cloud_init.yml"
+
+boot_kernel_params: ""
+catalog_file_path: ""
+enable_pxe_boot: true
+image_build_manager_output_path: ""
+repo_manager_output_path: ""
+dcgm_enabled: true

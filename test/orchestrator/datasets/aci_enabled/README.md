@@ -6,12 +6,16 @@ Test dataset that enables the additional cloud-init feature for FVT testing.
 
 Overlays `orchestrator_config.yml` so that `additional_cloud_init_config_file`
 points to `additional_cloud_init.yml`.  The included cloud-init configuration
-creates verifiable artifacts on every provisioned node:
+creates verifiable artifacts on provisioned nodes:
 
-| Artifact | Source | Verification |
-|----------|--------|-------------|
-| `/etc/omnia/aci_common.conf` | `write_files` | File existence check |
-| `/var/log/omnia_aci_common.log` | `runcmd` redirect | File existence check |
+| Artifact | Scope | Source | Verification |
+|----------|-------|--------|-------------|
+| `/etc/omnia/aci_common.conf` | All nodes | `write_files` | File existence check |
+| `/var/log/omnia_aci_common.log` | All nodes | `runcmd` redirect | File existence check |
+| `/etc/omnia/aci_slurm_node.conf` | `slurm_node_rhel_10_0_x86_64` | `write_files` | Per-FG file check |
+| `/var/log/omnia_aci_slurm_node.log` | `slurm_node_rhel_10_0_x86_64` | `runcmd` redirect | Per-FG file check |
+| `/etc/omnia/aci_slurm_control.conf` | `slurm_control_node_rhel_10_0_x86_64` | `write_files` | Per-FG file check |
+| `/var/log/omnia_aci_slurm_control.log` | `slurm_control_node_rhel_10_0_x86_64` | `runcmd` redirect | Per-FG file check |
 
 ## Usage
 
@@ -39,6 +43,7 @@ Then run:
 
 ## Customization
 
-Edit `input/additional_cloud_init.yml` to add per-functional-group overrides.
-Replace the example group name in the `groups:` section with a functional group
-from your active `pxe_mapping_file.csv`.
+Edit `input/additional_cloud_init.yml` to adjust per-functional-group overrides.
+The shipped `groups` section includes `slurm_node_rhel_10_0_x86_64` and
+`slurm_control_node_rhel_10_0_x86_64`. Replace or extend these with functional
+groups from your active `pxe_mapping_file.csv`.
