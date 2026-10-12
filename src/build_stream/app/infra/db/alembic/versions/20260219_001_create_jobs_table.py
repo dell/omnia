@@ -12,6 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+# pylint: disable=no-member,invalid-name
+# invalid-name: module name and revision identifiers are mandated by Alembic
+# no-member: alembic.op is a runtime proxy; pylint cannot see its members
+
 """Create jobs table
 
 Revision ID: 001
@@ -33,6 +37,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    """Apply migration: Create jobs table and indexes."""
     op.create_table(
         "jobs",
         sa.Column("job_id", sa.String(36), primary_key=True, nullable=False),
@@ -57,6 +62,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Revert migration: Drop jobs table and indexes."""
     op.drop_index("ix_jobs_client_created", table_name="jobs")
     op.drop_index("ix_jobs_created_at", table_name="jobs")
     op.drop_index("ix_jobs_job_state", table_name="jobs")

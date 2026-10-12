@@ -487,6 +487,10 @@ class ParseCatalogUseCase:
             if hasattr(job, attr):
                 setattr(job, attr, value)
 
+        # Increment version before save — the job was already saved once
+        # in _mark_stage_started (via job.start()), so the DB version has
+        # advanced. We must advance the in-memory version to match.
+        job._update_metadata()  # pylint: disable=protected-access
         self._job_repo.save(job)
 
         log_secure_info(

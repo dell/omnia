@@ -190,8 +190,8 @@ s3_configurations:
 functional_group_images:
   - x86_64:
     - functional_group: "slurm_node_x86_64"
-      kernel: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/vmlinuz"
-      initrd: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/initramfs.img"
+      kernel: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/vmlinuz-6.12.0-55.103.1.el10_0.x86_64"
+      initrd: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/initramfs-6.12.0-55.103.1.el10_0.x86_64.img"
       image: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/rootfs.squashfs"
 ```
 
@@ -220,8 +220,8 @@ boot-images/
 
 ```text
 boot-images/<functional_group>/<image_name>-imgth/<release>/
-+-- vmlinuz
-+-- initramfs.img
++-- vmlinuz-<kernel-version>
++-- initramfs-<kernel-version>.img
 +-- rootfs.squashfs
 ```
 

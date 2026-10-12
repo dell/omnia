@@ -17,22 +17,63 @@ Collect PXE configuration validator.
 This module validates collect_pxe.yml for:
 - IP address format validation for each functional group
 - Valid functional group names
+
+Functional group names follow Omnia's PXE-mapping naming convention, which
+optionally inserts an OS name and version between the role and the
+architecture (e.g. ``slurm_node_rhel_10_0_aarch64``), in addition to the
+legacy bare form (``slurm_node_aarch64``). The OS name and version are not
+fixed — new RHEL point releases, and other OS families, must keep validating
+without code changes — so functional groups are matched by pattern instead of
+a hardcoded set of exact strings. This mirrors the normalization regex used
+by orchestrator's ``generate_functional_groups`` module.
 """
 import re
 from ansible.module_utils.input_validation.messages import (  # pylint: disable=E0401
     utils_messages as msg,
 )
 
-# Valid functional group names for log collection
+# Roles supported for log collection. "service_kube_control_plane_first"
+# (the primary control-plane node) must be listed before
+# "service_kube_control_plane" so the longer, more specific alternative is
+# preferred.
+FUNCTIONAL_GROUP_ROLES = (
+    "service_kube_control_plane_first",
+    "service_kube_control_plane",
+    "service_kube_node",
+    "slurm_control_node",
+    "slurm_node",
+    "login_node",
+    "login_compiler_node",
+)
+
+SUPPORTED_ARCHITECTURES = ("x86_64", "aarch64")
+SUPPORTED_OS_NAMES = ("rhel", "rocky", "ubuntu", "sles")
+
+_ROLE_PATTERN = "|".join(FUNCTIONAL_GROUP_ROLES)
+_ARCHITECTURE_PATTERN = "|".join(SUPPORTED_ARCHITECTURES)
+_OS_NAME_PATTERN = "|".join(SUPPORTED_OS_NAMES)
+
+# Optional "_<os>_<version segments>" suffix, e.g. "_rhel_10_0", inserted
+# between the role and the architecture on versioned functional group names.
+_OS_VERSION_SEGMENT = rf"(?:_(?:{_OS_NAME_PATTERN})(?:_[0-9]+)+)?"
+
+FUNCTIONAL_GROUP_NAME_PATTERN = re.compile(
+    rf"^(?:{_ROLE_PATTERN}){_OS_VERSION_SEGMENT}_(?:{_ARCHITECTURE_PATTERN})$"
+)
+
+# Representative legacy/base group names, used only for human-readable error
+# messages (the actual validation is pattern-based; any OS/version variant of
+# these is also accepted).
 VALID_FUNCTIONAL_GROUPS = {
-    "service_kube_control_plane_x86_64",
-    "service_kube_node_x86_64",
-    "slurm_control_node_x86_64",
-    "slurm_node_x86_64",
-    "slurm_node_aarch64",
-    "login_node_x86_64",
-    "login_compiler_node_aarch64",
+    f"{role}_{arch}"
+    for role in FUNCTIONAL_GROUP_ROLES
+    for arch in SUPPORTED_ARCHITECTURES
 }
+
+
+def is_valid_functional_group(group_name):
+    """Return True if group_name matches a supported role/OS-version/arch shape."""
+    return bool(FUNCTIONAL_GROUP_NAME_PATTERN.match(group_name))
 
 
 def _validate_ip_addresses(config_data, errors, logger=None):
@@ -81,11 +122,13 @@ def _validate_functional_groups(config_data, errors, logger=None):
     - All keys must be valid functional group names
     """
     for group_name in config_data.keys():
-        if group_name not in VALID_FUNCTIONAL_GROUPS:
+        if not is_valid_functional_group(group_name):
             valid_groups = ", ".join(sorted(VALID_FUNCTIONAL_GROUPS))
             error = (
                 f"collect_pxe_config: Invalid functional group '{group_name}'. "
-                f"Valid groups: {valid_groups}"
+                f"Expected <role>_<arch>, optionally with an OS/version segment "
+                f"(e.g. '{next(iter(sorted(VALID_FUNCTIONAL_GROUPS)))}' or "
+                f"'slurm_node_rhel_10_0_aarch64'). Valid roles: {valid_groups}"
             )
             errors.append(error)
             if logger:

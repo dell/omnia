@@ -16,42 +16,52 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_credential_file_permissions,
     check_log_file_permissions,
     check_ssh_private_key_permissions,
     check_vault_encryption,
 )
+from library.vars import TEST_CASES as TC
 
 from nft.result import verify_nft
 
 
 @pytest.mark.nft
 @pytest.mark.security
-@pytest.mark.order(60)
+@pytest.mark.order(60006)
 def test_credential_file_permissions(host):
     """Require restricted permissions on encrypted product credentials."""
-    verify_nft(host, "credential_file_permissions", check_credential_file_permissions)
+    tc = TC["credential_file_permissions"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_credential_file_permissions)
 
 
 @pytest.mark.nft
 @pytest.mark.security
-@pytest.mark.order(61)
+@pytest.mark.order(60007)
 def test_ssh_private_key_permissions(host):
     """Require root-only access to the OIM private key."""
-    verify_nft(host, "ssh_private_key_permissions", check_ssh_private_key_permissions)
+    tc = TC["ssh_private_key_permissions"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_ssh_private_key_permissions)
 
 
 @pytest.mark.nft
 @pytest.mark.security
-@pytest.mark.order(62)
+@pytest.mark.order(60008)
 def test_log_file_permissions(host):
     """Require Orchestrator logs to remain unavailable to other users."""
-    verify_nft(host, "log_file_permissions", check_log_file_permissions)
+    tc = TC["log_file_permissions"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_log_file_permissions)
 
 
 @pytest.mark.nft
 @pytest.mark.security
-@pytest.mark.order(63)
+@pytest.mark.order(60009)
 def test_vault_encryption(host):
     """Require supported vault encryption and a protected vault key."""
-    verify_nft(host, "vault_encryption", check_vault_encryption)
+    tc = TC["vault_encryption"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_nft(test_log, tc, host, check_vault_encryption)

@@ -5,8 +5,11 @@ exec > >(tee -a "$LOGFILE") 2>&1
 echo "===== Configuring UCX / OpenMPI environment (Slurm node) ====="
 
 CLIENT_MOUNT="/hpc_tools"
-UCX_PREFIX="/hpc_tools/benchmarks/ucx"
-OPENMPI_PREFIX="/hpc_tools/benchmarks/openmpi"
+PLATFORM_HELPER="${CLIENT_MOUNT}/scripts/omnia_platform.sh"
+. "$PLATFORM_HELPER" || exit 1
+omnia_detect_platform || exit 1
+UCX_PREFIX="${OMNIA_PLATFORM_ROOT}/benchmarks/ucx"
+OPENMPI_PREFIX="${OMNIA_PLATFORM_ROOT}/benchmarks/openmpi"
 
 PROFILE_DIR="/etc/profile.d"
 

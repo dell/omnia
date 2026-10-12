@@ -145,6 +145,21 @@
             location = "gcr.io"
             [[registry.mirror]]
             location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "registry.connect.redhat.com"
+            location = "registry.connect.redhat.com"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "registry.redhat.io"
+            location = "registry.redhat.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "registry.access.redhat.com"
+            location = "registry.access.redhat.com"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
 {% if user_registry | default([], true) | length > 0 %}
 {% for registry in user_registry | default([], true) %}
 

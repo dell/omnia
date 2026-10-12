@@ -21,7 +21,6 @@ not baked into the OS image.
 import json
 import pathlib
 import sys
-import types
 
 import pytest
 
@@ -30,30 +29,34 @@ import pytest
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 SAMPLE_CATALOG = (
-    REPO_ROOT / "src" / "main" / "samples"
-    / "catalog_rhel_10_0_x86_aarch64.json"
+    REPO_ROOT / "src" / "main" / "samples" / "catalogs" / "rhel" / "10.0"
+    / "slurm_x86_64_aarch64.json"
 )
 RHEL_10_2_CATALOG = (
-    REPO_ROOT / "src" / "main" / "samples"
-    / "catalog_rhel_10_2_x86_aarch64.json"
+    REPO_ROOT / "src" / "main" / "samples" / "catalogs" / "rhel" / "10.2"
+    / "slurm_x86_64_aarch64.json"
 )
+CATALOG_FILES = tuple(sorted(
+    (REPO_ROOT / "src" / "main" / "samples").rglob("*.json")
+))
 
-# ---------------------------------------------------------------------------
-# Mock ansible imports so parse_catalog.py can be imported outside Ansible
-# ---------------------------------------------------------------------------
-if "ansible" not in sys.modules:
-    _ansible = types.ModuleType("ansible")
-    _ansible_mu = types.ModuleType("ansible.module_utils")
-    _ansible_mu_basic = types.ModuleType("ansible.module_utils.basic")
 
-    class _FakeAnsibleModule:  # noqa: D101 — minimal stub
-        pass
+def _catalog_architecture_cases():
+    """Return every architecture declared by every bundled catalog."""
+    cases = []
+    for catalog_file in CATALOG_FILES:
+        document = json.loads(catalog_file.read_text(encoding="utf-8"))
+        layers = document["catalog"]["functionallayer"]
+        for architecture in ("x86_64", "aarch64"):
+            if any(
+                str(layer.get("name", "")).endswith(f"_{architecture}")
+                for layer in layers
+            ):
+                cases.append((catalog_file, architecture))
+    return cases
 
-    _ansible_mu_basic.AnsibleModule = _FakeAnsibleModule
-    _ansible.module_utils = _ansible_mu
-    sys.modules["ansible"] = _ansible
-    sys.modules["ansible.module_utils"] = _ansible_mu
-    sys.modules["ansible.module_utils.basic"] = _ansible_mu_basic
+
+CATALOG_ARCHITECTURE_CASES = tuple(_catalog_architecture_cases())
 
 # Add parse_catalog module to path
 _PLUGINS_DIR = (
@@ -394,3 +397,25 @@ def test_rhel_10_2_catalog_resolves_for_supported_architectures(build_arch):
     assert result["cluster_os_versions"] == ["10.2"]
     assert result["base_image_packages"]
     assert result["compute_images_dict"]
+
+
+@pytest.mark.parametrize(
+    ("catalog_file", "build_arch"),
+    CATALOG_ARCHITECTURE_CASES,
+    ids=lambda value: value.name if isinstance(value, pathlib.Path) else value,
+)
+def test_all_bundled_catalogs_resolve_nonempty_build_inputs(
+    catalog_file, build_arch,
+):
+    """Every bundled catalog/architecture must produce usable build input."""
+    result = resolve_catalog(
+        catalog_file=str(catalog_file),
+        build_arch=build_arch,
+    )
+
+    assert result["base_image_packages"]
+    assert result["compute_images_dict"]
+    assert all(
+        group["packages"]
+        for group in result["compute_images_dict"].values()
+    )

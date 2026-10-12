@@ -154,17 +154,20 @@ intentionally discard the installed values and replace them from
 Setup installs the default `samples/catalog_rhel.json`, which contains packages
 for both Slurm and service_k8s deployments, only when `CATALOG_FILE_PATH` does
 not already exist. Existing active catalogs are preserved.
-Additional catalogs are available under `samples/catalogs/10.0/` and
-`samples/catalogs/10.2/`, with Slurm-only, service_k8s-only, combined,
-x86_64/aarch64, and `_no_vast` variants. See `samples/README.md` for the full
-selection table.
+Additional catalogs are available under `samples/catalogs/rhel/10.0/`,
+`samples/catalogs/rhel/10.2/`, and `samples/catalogs/hybrid/`, with Slurm-only,
+service_k8s-only, combined, x86_64/aarch64, `_no_vast`, and mixed-RHEL-version
+variants. See `samples/README.md` for the full selection guide. The default,
+cadence, RHEL, and hybrid sample catalogs all pin
+`ghcr.io/openchami/image-thrillhouse:v0.0.26`, matching Image Build Manager's
+x86_64 and AArch64 runtime variables.
 
 For a small x86_64 Slurm-only test without VAST, use the catalog matching the
 RHEL version being built while keeping the configured path:
 
 ```bash
 ./omnia.sh --list-catalogs
-./omnia.sh --select-catalog 10.0/slurm_x86_64_no_vast.json
+./omnia.sh --select-catalog rhel/10.0/slurm_x86_64_no_vast.json
 # Or select the matching 10.2 catalog when building RHEL 10.2.
 ```
 
@@ -176,7 +179,7 @@ To retain a separate filename, copy the catalog and update the authoritative
 environment file:
 
 ```bash
-cp samples/catalogs/10.0/slurm_x86_64_no_vast.json \
+cp samples/catalogs/rhel/10.0/slurm_x86_64_no_vast.json \
   "${OMNIA_DATA_PATH}/catalog/slurm_x86_64_no_vast.json"
 vi /etc/omnia/omnia.env
 # Set CATALOG_FILE_PATH=${OMNIA_DATA_PATH}/catalog/slurm_x86_64_no_vast.json

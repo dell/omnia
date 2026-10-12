@@ -2,8 +2,11 @@
 set -e
 
 CLIENT_MOUNT="/hpc_tools"
-UCX_PREFIX="/hpc_tools/benchmarks/ucx"
-UCX_BUILD="/hpc_tools/compile/ucx"
+PLATFORM_HELPER="${CLIENT_MOUNT}/scripts/omnia_platform.sh"
+. "$PLATFORM_HELPER" || exit 1
+omnia_detect_platform || exit 1
+UCX_PREFIX="${OMNIA_PLATFORM_ROOT}/benchmarks/ucx"
+UCX_BUILD="${OMNIA_PLATFORM_ROOT}/compile/ucx"
 
 # Comprehensive logging
 LOGFILE="/var/log/ucx_installation.log"
@@ -39,7 +42,7 @@ esac
 if [ ! -f ucx.tar.gz ]; then
     echo "[INFO] Downloading UCX source code..."
     wget --no-check-certificate \
-      https://{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}/pulp/content/opt/omnia/offline_repo/cluster/${arch}/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/ucx/ucx.tar.gz \
+      https://{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}/pulp/content/offline_repo/cluster/${OMNIA_PULP_PLATFORM_PATH}/tarball/ucx/ucx.tar.gz \
       -O ucx.tar.gz >> "$LOGFILE" 2>&1
     echo "[INFO] UCX download completed"
 else
@@ -70,7 +73,7 @@ UCX_ENV_FILE="/etc/profile.d/ucx.sh"
 echo "[INFO] Setting up UCX environment variables in $UCX_ENV_FILE..."
 cat > "$UCX_ENV_FILE" <<EOF
 # UCX environment
-export UCX_HOME="/hpc_tools/benchmarks/ucx"
+export UCX_HOME="$UCX_PREFIX"
 export PATH="\$UCX_HOME/bin:\$PATH"
 export LD_LIBRARY_PATH="\$UCX_HOME/lib:\$LD_LIBRARY_PATH"
 EOF
@@ -90,11 +93,10 @@ fi
 echo "Log File Created:"
 echo "  - Installation Log: $LOGFILE" | tee -a "$LOGFILE"
 
-echo "[INFO] UCX installed under /hpc_tools/benchmarks/ucx" | tee -a "$LOGFILE"
+echo "[INFO] UCX installed under $UCX_PREFIX" | tee -a "$LOGFILE"
 echo "[INFO] UCX environment configured in $UCX_ENV_FILE" | tee -a "$LOGFILE"
 echo "[INFO] Run 'source $UCX_ENV_FILE' or re-login to use ucx_info" | tee -a "$LOGFILE"
 
 echo "===== UCX Installation Completed =====" | tee -a "$LOGFILE"
 echo "Completion Timestamp: $(date '+%Y-%m-%d %H:%M:%S')" | tee -a "$LOGFILE"
 echo "CLOUD-INIT: UCX installation completed successfully" | tee -a "$LOGFILE"
-

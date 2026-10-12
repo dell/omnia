@@ -1,0 +1,20 @@
+name: catalog-selection-gate
+version: 1.0.0
+description: >-
+  Validates an operator-requested os_version/architecture/stack/node_role/gpu/storage/network
+  selection against the Selection Catalogue's support_status before any functional group or
+  package set is emitted. Use when Catalog Generation, Catalog Editing, or an Analysis skill is
+  about to resolve or present a selection on one of those axes.
+author: Omnia Build Stream Team
+role: engineering
+domain: catalog-authoring
+tags:
+  - catalog
+  - selection-gate
+  - master-reference
+  - governance
+  - omnia
+dependencies: []
+status: active
+created: 2026-09-29
+updated: 2026-09-29

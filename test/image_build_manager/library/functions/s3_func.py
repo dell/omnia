@@ -35,7 +35,7 @@ _BUILD_STATUS_ARTIFACTS = (
     ("image", "rootfs"),
 )
 
-_THRILLHOUSE_FILENAMES = {
+_THRILLHOUSE_FIXED_FILENAMES = {
     "kernel": "vmlinuz",
     "initrd": "initramfs.img",
     "image": "rootfs.squashfs",
@@ -302,6 +302,89 @@ def _artifact_engine_error(
     return ""
 
 
+def _thrillhouse_boot_version(field: str, filename: str):
+    """Return the version encoded by a valid Thrillhouse boot filename.
+
+    Older Thrillhouse images used the fixed ``vmlinuz`` and
+    ``initramfs.img`` names. Current images publish a matched
+    ``vmlinuz-<version>`` and ``initramfs-<version>.img`` pair. An empty
+    string identifies the valid legacy form; ``None`` identifies an invalid
+    filename.
+    """
+    if field == "kernel":
+        prefix = "vmlinuz-"
+        suffix = ""
+    elif field == "initrd":
+        prefix = "initramfs-"
+        suffix = ".img"
+    else:
+        return None
+
+    if filename == _THRILLHOUSE_FIXED_FILENAMES[field]:
+        return ""
+    if not filename.startswith(prefix):
+        return None
+    if suffix and not filename.endswith(suffix):
+        return None
+    version_end = -len(suffix) if suffix else None
+    return filename[len(prefix):version_end] or None
+
+
+def _thrillhouse_filename_error(field: str, filename: str) -> str:
+    """Validate fixed and versioned Thrillhouse artifact filenames."""
+    if field == "image":
+        expected = _THRILLHOUSE_FIXED_FILENAMES[field]
+        if filename != expected:
+            return (
+                f"image-thrillhouse {field} filename must be "
+                f"'{expected}'"
+            )
+        return ""
+
+    if _thrillhouse_boot_version(field, filename) is None:
+        legacy = _THRILLHOUSE_FIXED_FILENAMES[field]
+        versioned = (
+            "vmlinuz-<kernel-version>"
+            if field == "kernel"
+            else "initramfs-<kernel-version>.img"
+        )
+        return (
+            f"image-thrillhouse {field} filename must be '{legacy}' "
+            f"or match '{versioned}'"
+        )
+    return ""
+
+
+def _validate_thrillhouse_boot_pair(records) -> None:
+    """Mark a valid-looking but unmatched Thrillhouse boot pair invalid."""
+    boot_records = {
+        record["field"]: record
+        for record in records
+        if record["field"] in ("kernel", "initrd")
+    }
+    kernel_record = boot_records.get("kernel")
+    initrd_record = boot_records.get("initrd")
+    if (
+        not kernel_record
+        or not initrd_record
+        or kernel_record["error"]
+        or initrd_record["error"]
+    ):
+        return
+
+    kernel_filename = kernel_record["expected_uri"].rsplit("/", 1)[-1]
+    initrd_filename = initrd_record["expected_uri"].rsplit("/", 1)[-1]
+    kernel_version = _thrillhouse_boot_version("kernel", kernel_filename)
+    initrd_version = _thrillhouse_boot_version("initrd", initrd_filename)
+    if kernel_version != initrd_version:
+        pair_error = (
+            "image-thrillhouse kernel and initrd filenames must use "
+            "the same kernel version"
+        )
+        kernel_record["error"] = pair_error
+        initrd_record["error"] = pair_error
+
+
 def _artifact_layout_result(
     field, s3_uri, status_bucket, functional_group, expected_suffix,
 ):
@@ -365,12 +448,9 @@ def _artifact_layout_result(
                 f"image directory '{image_directory}' must end with "
                 f"recorded builder suffix '{expected_suffix}'"
             )
-        expected_filename = _THRILLHOUSE_FILENAMES[field]
-        if filename != expected_filename:
-            return "", (
-                f"image-thrillhouse {field} filename must be "
-                f"'{expected_filename}'"
-            )
+        filename_error = _thrillhouse_filename_error(field, filename)
+        if filename_error:
+            return "", filename_error
         return f"{image_directory}/{release}", ""
 
     return "", _artifact_engine_error(
@@ -431,6 +511,9 @@ def _artifact_records(
                 f"artifact cohort '{record['cohort']}' does not match "
                 f"{anchor_field} cohort '{cohort_anchor}'"
             )
+
+    if expected_suffix == IMAGE_BUILD_TYPE_SUFFIXES["image-thrillhouse"]:
+        _validate_thrillhouse_boot_pair(records)
     return records
 
 
@@ -546,8 +629,8 @@ def check_s3_bucket_images(
     Performs fast pre-check of S3 bucket existence before attempting
     expensive recursive listing. Config/catalog input defines the expected
     group set, while build_status.yml defines each exact object path. This
-    supports image-builder's versioned filenames and image-thrillhouse's
-    fixed filenames without fuzzy matching.
+    supports versioned filenames from both engines and legacy fixed
+    image-thrillhouse boot filenames without fuzzy S3 matching.
 
     Args:
         host: testinfra host object

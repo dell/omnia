@@ -21,29 +21,18 @@
     - name: Validate Repo Manager file repository data
       ansible.builtin.assert:
         that:
-          - hostvars['localhost']['file_repos'] is defined
-          - hostvars['localhost']['file_repos'] is mapping
+          - hostvars['localhost']['service_k8s_repo_file_repos'] is defined
+          - hostvars['localhost']['service_k8s_repo_file_repos'] is mapping
         fail_msg: "{{ powerscale_repo_status_structure_fail_msg }}"
         quiet: true
 
-    - name: Read x86_64 file repositories
-      ansible.builtin.set_fact:
-        powerscale_x86_64_file_repos: >-
-          {{ hostvars['localhost']['file_repos'].get('x86_64', none) }}
-
-    - name: Validate x86_64 file repository data
-      ansible.builtin.assert:
-        that:
-          - powerscale_x86_64_file_repos is mapping
-        fail_msg: "{{ powerscale_repo_status_structure_fail_msg }}"
-        quiet: true
-
-    - name: Read x86_64 Git repositories
+    - name: Read service Kubernetes architecture Git repositories
       ansible.builtin.set_fact:
         powerscale_git_repos: >-
-          {{ powerscale_x86_64_file_repos.get('git', none) }}
+          {{ hostvars['localhost']['service_k8s_repo_file_repos']
+             .get('git', none) }}
 
-    - name: Validate x86_64 Git repository data
+    - name: Validate service Kubernetes architecture Git repository data
       ansible.builtin.assert:
         that:
           - powerscale_git_repos is mapping
@@ -274,6 +263,10 @@
           csi_powerscale_archive }}
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_archive }}"
         mode: "{{ permission_644 }}"
+      register: csi_powerscale_archive_download
+      retries: "{{ k8s_nfs_download_retries }}"
+      delay: "{{ k8s_nfs_download_delay }}"
+      until: csi_powerscale_archive_download is succeeded
 
     - name: Extract csi-powerscale tar file
       ansible.builtin.unarchive:
@@ -288,6 +281,10 @@
           helm_charts_archive }}
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ helm_charts_git }}"
         mode: "{{ permission_644 }}"
+      register: powerscale_helm_charts_download
+      retries: "{{ k8s_nfs_download_retries }}"
+      delay: "{{ k8s_nfs_download_delay }}"
+      until: powerscale_helm_charts_download is succeeded
 
     - name: Get external-snapshotter git tar
       ansible.builtin.get_url:
@@ -296,6 +293,10 @@
           external_snapshotter_archive }}
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_git }}"
         mode: "{{ permission_644 }}"
+      register: external_snapshotter_download
+      retries: "{{ k8s_nfs_download_retries }}"
+      delay: "{{ k8s_nfs_download_delay }}"
+      until: external_snapshotter_download is succeeded
 
     - name: Transfer storage class template to nfs share (inside versioned directory)
       ansible.builtin.template:

@@ -15,74 +15,63 @@
 # deploy_registry/tasks/main.yml — Deploy local container registry as a Quadlet service.
 # Extracted from prepare_oim/roles/deploy_containers/openchami/tasks/configs/registry.yml
 
-- name: Check if registry is already running
-  ansible.builtin.systemd:
+- name: Create registry storage directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ registry_storage_dir }}"
+    - "{{ data_oci_dir }}"
+
+- name: Render registry Quadlet service file
+  ansible.builtin.template:
+    src: registry/registry.service.j2
+    dest: /etc/containers/systemd/registry.container
+    mode: "0644"
+  register: registry_quadlet
+  notify: Reload systemd daemon
+
+- name: Flush handlers to reload systemd
+  ansible.builtin.meta: flush_handlers
+
+- name: Pre-pull registry image to avoid quadlet pull timeout
+  containers.podman.podman_image:
+    name: "{{ registry_image }}"
+    tag: "{{ registry_tag }}"
+    state: present
+  register: registry_image_pull
+  retries: "{{ image_pull_retries }}"
+  delay: "{{ image_pull_delay }}"
+  until: registry_image_pull is succeeded
+
+- name: Reconcile registry service with the configured image
+  ansible.builtin.systemd_service:
     name: registry
-  register: registry_service_status
-  failed_when: false
+    state: >-
+      {{ (registry_quadlet.changed or registry_image_pull.changed)
+         | ternary('restarted', 'started') }}
+    enabled: true
 
-- name: Skip registry deploy if already running
-  ansible.builtin.debug:
-    msg: "Registry service is already running on port {{ registry_port }} — skipping deploy (idempotent)"
-  when: registry_service_status.status.ActiveState | default('') == 'active'
+- name: Verify registry container is running
+  containers.podman.podman_container_info:
+    name: registry
+  register: registry_container_status
+  retries: "{{ max_retries }}"
+  delay: "{{ delay_count }}"
+  until:
+    - registry_container_status.containers | length > 0
+    - registry_container_status.containers[0].State.Status == 'running'
 
-- name: Deploy registry Quadlet service
-  when: registry_service_status.status.ActiveState | default('') != 'active'
-  block:
-    - name: Create registry storage directories
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        mode: "0755"
-      loop:
-        - "{{ registry_storage_dir }}"
-        - "{{ data_oci_dir }}"
-
-    - name: Render registry Quadlet service file
-      ansible.builtin.template:
-        src: registry/registry.service.j2
-        dest: /etc/containers/systemd/registry.container
-        mode: "0644"
-      notify: Reload systemd daemon
-
-    - name: Flush handlers to reload systemd
-      ansible.builtin.meta: flush_handlers
-
-    - name: Pre-pull registry image to avoid quadlet pull timeout
-      containers.podman.podman_image:
-        name: "{{ registry_image }}"
-        tag: "{{ registry_tag }}"
-        state: present
-      register: registry_image_pull
-      retries: "{{ image_pull_retries }}"
-      delay: "{{ image_pull_delay }}"
-      until: registry_image_pull is succeeded
-
-    - name: Enable and start registry service
-      ansible.builtin.systemd_service:
-        name: registry
-        state: started
-        enabled: true
-
-    - name: Verify registry container is running
-      containers.podman.podman_container_info:
-        name: registry
-      register: registry_container_status
-      retries: "{{ max_retries }}"
-      delay: "{{ delay_count }}"
-      until:
-        - registry_container_status.containers | length > 0
-        - registry_container_status.containers[0].State.Status == 'running'
-
-    - name: Wait for registry health endpoint to be ready
-      ansible.builtin.uri:
-        url: "http://localhost:{{ registry_port }}/v2/"
-        method: GET
-        status_code: 200
-      register: registry_health
-      retries: "{{ health_check_retries }}"
-      delay: "{{ health_check_delay }}"
-      until: registry_health.status == 200
+- name: Wait for registry health endpoint to be ready
+  ansible.builtin.uri:
+    url: "http://localhost:{{ registry_port }}/v2/"
+    method: GET
+    status_code: 200
+  register: registry_health
+  retries: "{{ health_check_retries }}"
+  delay: "{{ health_check_delay }}"
+  until: registry_health.status == 200
 
 # --- regctl installation and configuration ---
 - name: Check if regctl binary is already installed

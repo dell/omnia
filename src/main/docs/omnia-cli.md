@@ -25,6 +25,10 @@ The same completion definitions can therefore be used for diagnostics such as
 `./omnia.sh --run image_<Tab> --tags pre<Tab>`.
 Completions are command-aware: `omnia-cli` uses the canonical source domain names,
 and `omnia.sh --tags` suggests only tags supported by the selected domain.
+For `./omnia.sh --select-catalog`, completion recursively discovers selectors
+under `samples/catalogs/` and includes their family/version prefix, such as
+`rhel/10.2/slurm_x86_64_no_vast.json` or
+`hybrid/slurm_hybrid_10_2_10_0_x86_64.json`.
 
 After installation, run `omnia-cli` directly without `./` or path prefix:
 

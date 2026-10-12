@@ -14,9 +14,7 @@
 
 """OpenLDAP postcondition helpers for the prepare lifecycle."""
 
-import ipaddress
 import posixpath
-import re
 import time
 from typing import Any
 
@@ -37,20 +35,13 @@ from ..vars.prepare_vars import (
     PREPARE_COMMANDS,
 )
 from ._prepare_helpers import prepare_result, read_yaml_mapping
-from .external_ldap_func import (
-    configure_external_ldap_proxy,
-    domain_to_dn,
-    load_external_ldap_settings,
-    resolve_proxy_config_path,
-    verify_external_ldap_backend,
-)
 from .project_func import (
     resolve_target_omnia_data_path,
     resolve_target_output_project_path,
 )
 
 
-def _openldap_enabled(host) -> bool:
+def openldap_enabled(host) -> bool:
     """Read the authoritative catalog decision from Orchestrator state."""
     state_path = posixpath.join(
         resolve_target_output_project_path(host), "orchestrator_state.yml"
@@ -72,52 +63,10 @@ def _openldap_skip(component: str) -> dict[str, Any]:
     )
 
 
-def reconcile_prepare_external_ldap_proxy(host) -> dict[str, Any]:
-    """Reconcile and verify the opt-in external LDAP proxy configuration."""
-    try:
-        if not _openldap_enabled(host):
-            return _openldap_skip("External LDAP proxy")
-    except (TypeError, ValueError) as exc:
-        return prepare_result(False, "Unable to resolve OpenLDAP state", [], str(exc))
-
-    try:
-        settings = load_external_ldap_settings()
-        if not settings["validation_enabled"]:
-            return prepare_result(
-                True,
-                "External LDAP validation is not requested",
-                [("validate_external_ldap", False)],
-                skipped=True,
-            )
-    except (TypeError, ValueError) as exc:
-        return prepare_result(False, "External LDAP settings are invalid", [], str(exc))
-
-    reconciliation = configure_external_ldap_proxy(host)
-    fields = [
-        ("Configuration changed", reconciliation.get("changed", False)),
-        ("Reconciliation", reconciliation["details"]),
-    ]
-    if not reconciliation["success"]:
-        return prepare_result(
-            False,
-            reconciliation["details"],
-            fields,
-            reconciliation["error"],
-        )
-
-    verification = check_prepare_external_ldap_proxy(host)
-    return prepare_result(
-        verification["success"],
-        "External LDAP proxy reconciled and verified",
-        [*fields, *verification["fields"]],
-        verification["error"],
-    )
-
-
 def check_prepare_openldap_runtime(host) -> dict[str, Any]:
     """Verify enabled OpenLDAP has a healthy service and container."""
     try:
-        if not _openldap_enabled(host):
+        if not openldap_enabled(host):
             return _openldap_skip("OpenLDAP runtime")
     except (TypeError, ValueError) as exc:
         return prepare_result(False, "Unable to resolve OpenLDAP state", [], str(exc))
@@ -165,7 +114,7 @@ def check_prepare_openldap_runtime(host) -> dict[str, Any]:
 def check_prepare_openldap_artifacts(host) -> dict[str, Any]:
     """Verify OpenLDAP secret modes, certificate lifetime and slapd syntax."""
     try:
-        if not _openldap_enabled(host):
+        if not openldap_enabled(host):
             return _openldap_skip("OpenLDAP artifacts")
     except (TypeError, ValueError) as exc:
         return prepare_result(False, "Unable to resolve OpenLDAP state", [], str(exc))
@@ -218,7 +167,7 @@ def check_prepare_openldap_artifacts(host) -> dict[str, Any]:
 def check_prepare_openldap_endpoint(host) -> dict[str, Any]:
     """Verify local LDAP health and both published listeners."""
     try:
-        if not _openldap_enabled(host):
+        if not openldap_enabled(host):
             return _openldap_skip("OpenLDAP endpoint")
     except (TypeError, ValueError) as exc:
         return prepare_result(False, "Unable to resolve OpenLDAP state", [], str(exc))
@@ -244,106 +193,4 @@ def check_prepare_openldap_endpoint(host) -> dict[str, Any]:
         "OpenLDAP local health and published listeners checked",
         fields,
         "; ".join(failures),
-    )
-
-
-def check_prepare_external_ldap_proxy(host) -> dict[str, Any]:
-    """Verify the deployed external LDAP meta-proxy configuration."""
-    try:
-        if not _openldap_enabled(host):
-            return _openldap_skip("External LDAP proxy")
-        settings = load_external_ldap_settings()
-        if not settings["validation_enabled"]:
-            return prepare_result(
-                True,
-                "External LDAP validation is not requested",
-                [("validate_external_ldap", False)],
-                skipped=True,
-            )
-        path = resolve_proxy_config_path(host, settings)
-        deployed = host.file(path)
-        if not deployed.is_file:
-            return prepare_result(
-                False,
-                "External LDAP proxy config missing",
-                [("Path", path)],
-                path,
-            )
-        content = deployed.content_string
-        external_dn = domain_to_dn(str(settings["domain"]))
-        endpoint_host = str(settings["server_ip"])
-        try:
-            if ipaddress.ip_address(endpoint_host).version == 6:
-                endpoint_host = f"[{endpoint_host}]"
-        except ValueError:
-            pass
-        expected = {
-            "database meta": bool(
-                re.search(r"^database\s+meta\s*$", content, re.MULTILINE)
-            ),
-            "back_ldap module": "back_ldap" in content,
-            "back_meta module": "back_meta" in content,
-            "external endpoint": (
-                f"ldap://{endpoint_host}:{settings['server_port']}/" in content
-            ),
-            "suffix massage": external_dn in content,
-            "idassert bind": bool(
-                re.search(r"^idassert-bind\s*$", content, re.MULTILINE)
-            ),
-        }
-    except (OSError, TypeError, ValueError) as exc:
-        return prepare_result(
-            False, "External LDAP proxy verification failed", [], str(exc)
-        )
-
-    fields = [
-        (name, "present" if value else "missing") for name, value in expected.items()
-    ]
-    failures = [name for name, value in expected.items() if not value]
-    fields.extend(
-        [
-            ("Config owner", f"{deployed.user}:{deployed.group}"),
-            ("Config mode", oct(deployed.mode)),
-        ]
-    )
-    if deployed.user != "root" or deployed.group != "root":
-        failures.append("config owner")
-    if deployed.mode != 0o600:
-        failures.append("config mode")
-    return prepare_result(
-        not failures,
-        "External LDAP meta-proxy configuration checked",
-        fields,
-        "; ".join(failures),
-    )
-
-
-def check_prepare_external_ldap_backend(host) -> dict[str, Any]:
-    """Verify external LDAP is reachable from the omnia_auth container."""
-    try:
-        if not _openldap_enabled(host):
-            return _openldap_skip("External LDAP backend")
-        settings = load_external_ldap_settings()
-        if not settings["validation_enabled"]:
-            return prepare_result(
-                True,
-                "External LDAP validation is not requested",
-                [("validate_external_ldap", False)],
-                skipped=True,
-            )
-    except (TypeError, ValueError) as exc:
-        return prepare_result(False, "External LDAP settings are invalid", [], str(exc))
-
-    probe = verify_external_ldap_backend(host)
-    return prepare_result(
-        probe["success"],
-        probe["details"],
-        [
-            ("Endpoint", probe.get("endpoint", "unavailable")),
-            (
-                "LDAP protocol reachability",
-                "passed" if probe["success"] else "failed",
-            ),
-        ],
-        probe["error"],
     )

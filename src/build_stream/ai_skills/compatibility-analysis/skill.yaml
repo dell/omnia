@@ -1,0 +1,20 @@
+name: compatibility-analysis
+version: 1.0.0
+description: >-
+  Cross-references a package or catalog definition against online upstream documentation and the
+  Red Hat Compatibility Matrix, with a disclosed fallback to master reference file data only. Use
+  when confirming whether a package/version is compatible with a target OS, architecture, or
+  another catalog package.
+author: Omnia Build Stream Team
+role: engineering
+domain: catalog-analysis
+tags:
+  - analysis
+  - compatibility
+  - catalog
+  - omnia
+dependencies:
+  - connectivity-layer
+status: active
+created: 2026-09-29
+updated: 2026-09-29

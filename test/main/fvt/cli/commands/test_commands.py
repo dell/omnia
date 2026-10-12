@@ -29,13 +29,14 @@ MAIN_FVT_CLI_V011: Verify --check-deps runs
 MAIN_FVT_CLI_V012: Verify --setup-venv --skip-catalog --deps-only accepted
 MAIN_FVT_CLI_V013: Verify --skip-omnia-cli flag appears in help output
 MAIN_FVT_CLI_V014: Verify --setup-venv --skip-omnia-cli --deps-only accepted
+MAIN_FVT_CLI_V035: Verify catalog listing discovers versioned directories
 """
 
 import pytest
 
 from library.vars import TEST_CASES as TC
 
-from library.functions import TestLogger
+from library.functions import TestLogger, command_result_fields
 from library.functions.omnia_main_func import (
     run_omnia_cmd,
     run_omnia_cmd_expect_error,
@@ -277,25 +278,32 @@ def test_force_deps_invalid(host):
 @pytest.mark.sanity
 @pytest.mark.order(11)
 def test_check_deps_runs(host):
-    """MAIN_FVT_CLI_V011: Verify --check-deps command runs."""
+    """MAIN_FVT_CLI_V011: Verify --check-deps reports aligned dependencies."""
     tc = TC["check_deps_runs"]
     tl = TestLogger(tc["title"], tc["id"])
     result = run_omnia_cmd(host, "omnia_sh_check_deps")
-    tl.bind_result(result)
+    fields = command_result_fields(
+        result,
+        expected="return code 0 and no dependency version mismatches",
+    )
 
-    # --check-deps may exit 0 (no mismatches) or 1 (mismatches found).
-    # Both are valid executions.  We check that it produces output.
     output = result.get("output", "")
-    ran = "Dependency Version Audit" in output
+    audit_clean = (
+        result["success"]
+        and "Dependency Version Audit" in output
+        and "All dependency versions are consistent across domains." in output
+        and "MISMATCH:" not in output
+    )
 
-    if ran:
-        tl.passed(LOG["check_deps_ok"])
+    if audit_clean:
+        tl.passed_fields(LOG["check_deps_ok"], fields)
     else:
-        tl.failed(LOG["check_deps_failed"].format(
-            rc=result["rc"]
-        ))
+        tl.failed_fields(
+            LOG["check_deps_failed"].format(rc=result["rc"]),
+            fields,
+        )
 
-    assert ran, ASSERT["check_deps_failed"].format(
+    assert audit_clean, ASSERT["check_deps_failed"].format(
         rc=result["rc"],
     )
 
@@ -397,4 +405,36 @@ def test_skip_omnia_cli_accepted(host):
 
     assert accepted, ASSERT["skip_omnia_cli_failed"].format(
         rc=result["rc"],
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(35)
+def test_list_catalogs_versioned_tree(host):
+    """MAIN_FVT_CLI_V035: Discover RHEL and hybrid catalog selectors."""
+    tc = TC["list_catalogs_versioned_tree"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = run_omnia_cmd(host, "omnia_sh_list_catalogs")
+    tl.bind_result(result)
+    output = result.get("output", "")
+    expected_selectors = (
+        "default",
+        "rhel/10.0/slurm_x86_64_no_vast.json",
+        "rhel/10.2/slurm_x86_64_no_vast.json",
+        "hybrid/slurm_hybrid_10_2_10_0_x86_64.json",
+    )
+    missing = [item for item in expected_selectors if item not in output]
+    success = result["success"] and not missing
+
+    if success:
+        tl.passed("RHEL 10.0, RHEL 10.2, and hybrid selectors were listed")
+    else:
+        tl.failed(
+            "Catalog listing failed or omitted selectors: "
+            + ", ".join(missing)
+        )
+
+    assert success, (
+        f"Expected versioned catalog selectors; rc={result['rc']}, "
+        f"missing={missing}"
     )

@@ -36,7 +36,10 @@ service_k8s_cluster:
 
 When enabled, the role resolves exactly one `csi-powerscale`, `helm-charts`,
 and `external-snapshotter` artifact from `repo_status.yml` under
-`file_repos.x86_64.git`. The catalog does not enable or disable CSI at
+`file_repos.<service_k8s_os_version>.<service_k8s_architecture>.git`. The OS
+version and architecture are derived from the base OS referenced by the
+service Kubernetes functional layers; artifacts from another OS minor version
+are never used as a fallback. The catalog does not enable or disable CSI at
 Orchestrator runtime.
 
 ## Requirements

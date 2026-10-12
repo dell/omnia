@@ -63,6 +63,8 @@ OMNIA_CLI_PATH = "src/main/omnia-cli"
 SYSTEM_ENV_DIR = "/etc/omnia"
 SYSTEM_ENV_FILE = "/etc/omnia/omnia.env"
 PROFILE_DROP_IN = "/etc/profile.d/omnia-env.sh"
+ANSIBLE_LOG_ROOT = "/var/log/omnia"
+LEGACY_DATA_LOG_PATH = "/opt/omnia/log"
 
 # Default data path (may be overridden by env)
 DEFAULT_DATA_PATH = "/opt/omnia"
@@ -151,6 +153,8 @@ VALID_CLI_COMMANDS: List[str] = [
     "--init", "-i",
     "--prepare-base",
     "--run", "-r",
+    "--list-catalogs",
+    "--select-catalog",
     "--cleanup",
     "--check-deps",
     "--help", "-h",
@@ -263,6 +267,10 @@ CMDS: Dict[str, str] = {
     "omnia_sh_check_deps": (
         "cd {clone_path} && bash {omnia_sh}"
         " --check-deps 2>&1"
+    ),
+    "omnia_sh_list_catalogs": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --list-catalogs 2>&1"
     ),
     "omnia_sh_init_domain": (
         "cd {clone_path} && bash {omnia_sh}"
@@ -416,7 +424,7 @@ CMDS: Dict[str, str] = {
         " nonexistent_cmd 2>&1"
     ),
     "omnia_cli_log_dirs_source": (
-        "grep -F 'ansible_log_dirs' -- {omnia_cli}"
+        "! grep -F '${{base}}/log' -- {omnia_cli}"
     ),
     # --- omnia-cli logs ---
     "omnia_cli_logs_help": (

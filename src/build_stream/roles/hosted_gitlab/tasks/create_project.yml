@@ -109,6 +109,58 @@
     gitlab_project_url: "{{ new_project.json.web_url if not project_exists else project_search.json[0].web_url }}"
     gitlab_project_http_url: "{{ new_project.json.http_url_to_repo if not project_exists else project_search.json[0].http_url_to_repo }}"
 
+- name: Persist GitLab API credentials to build_stream_credentials.yml
+  delegate_to: localhost
+  block:
+    - name: Load credentials file path from localhost
+      ansible.builtin.set_fact:
+        bs_cred_file_local: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_credentials.yml"
+        bs_vault_file_local: "{{ hostvars['localhost']['input_project_dir'] }}/.build_stream_credentials_key"
+
+    - name: Check if credentials file is encrypted
+      ansible.builtin.shell: >-
+        set -o pipefail && head -n1 "{{ bs_cred_file_local }}" | grep -q '\$ANSIBLE_VAULT;'
+      register: cred_encrypted_check
+      changed_when: false
+      failed_when: false
+
+    - name: Decrypt credentials file if encrypted
+      ansible.builtin.command: >-
+        ansible-vault decrypt "{{ bs_cred_file_local }}"
+        --vault-password-file "{{ bs_vault_file_local }}"
+      when: cred_encrypted_check.rc == 0
+      changed_when: false
+
+    - name: Update GitLab credentials in file
+      ansible.builtin.lineinfile:
+        path: "{{ bs_cred_file_local }}"
+        regexp: "^{{ item.key }}:"
+        line: "{{ item.key }}: \"{{ item.value }}\""
+        state: present
+      loop:
+        - { key: "gitlab_root_token", value: "{{ gitlab_root_token }}" }
+        - { key: "gitlab_project_id", value: "{{ gitlab_project_id }}" }
+      no_log: true
+
+    - name: Re-encrypt credentials file if it was encrypted
+      ansible.builtin.command: >-
+        ansible-vault encrypt "{{ bs_cred_file_local }}"
+        --vault-password-file "{{ bs_vault_file_local }}"
+      when: cred_encrypted_check.rc == 0
+      changed_when: false
+  rescue:
+    - name: Re-encrypt credentials on failure
+      ansible.builtin.command: >-
+        ansible-vault encrypt "{{ bs_cred_file_local }}"
+        --vault-password-file "{{ bs_vault_file_local }}"
+      when: cred_encrypted_check.rc == 0
+      changed_when: false
+      failed_when: false
+
+    - name: Fail with credential persistence error
+      ansible.builtin.fail:
+        msg: "Failed to persist GitLab credentials to {{ bs_cred_file_local }}"
+
 - name: Set project CI/CD job timeout
   block:
     - name: Update project job timeout via GitLab API

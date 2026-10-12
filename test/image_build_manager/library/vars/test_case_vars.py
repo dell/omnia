@@ -87,6 +87,10 @@ TEST_CASES = {
         "id": "IMGBM_FVT_PREPARE_V007",
         "title": "Verify required S3 buckets exist after prepare",
     },
+    "registry_image_version": {
+        "id": "IMGBM_FVT_PREPARE_V008",
+        "title": "Verify registry container uses version 3.1.2",
+    },
     # ── Build ─────────────────────────────────────────────────────────────
     "s3_images_x86_64": {
         "id": "IMGBM_FVT_BUILD_V006",
@@ -207,6 +211,10 @@ TEST_CASES = {
         "id": "IMGBM_FVT_CATALOG_REUSE_V010",
         "title": "Keep config-mode cache and backup behavior independent",
     },
+    "catalog_suite_restores_target_state": {
+        "id": "IMGBM_FVT_CATALOG_REUSE_V011",
+        "title": "Restore target state after catalog-reuse E2E scenarios",
+    },
     # ── Precheck ──────────────────────────────────────────────────────────
     "deploy_precheck": {
         "id": "IMGBM_FVT_PRECHECK_E001",
@@ -302,5 +310,14 @@ TEST_CASES = {
     "prepare_idempotent": {
         "id": "IMGBM_NFT_004",
         "title": "NFT: Prepare idempotency",
+    },
+    # ── Non-functional security (file permissions / ownership) ──────────
+    "minio_quadlet_permissions": {
+        "id": "IMGBM_NFT_SECURITY_001",
+        "title": "NFT: MinIO quadlet is 0600 root:root",
+    },
+    "s3cfg_permissions": {
+        "id": "IMGBM_NFT_SECURITY_002",
+        "title": "NFT: /root/.s3cfg is 0600 root:root",
     },
 }

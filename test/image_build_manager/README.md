@@ -255,21 +255,21 @@ inferred unambiguously from `-imgbld` or `-imgth` artifact directories.
 
 #### Catalog dictionary reuse scenarios (within `build` tag)
 
-The `catalog_reuse` suite owns its execution lifecycle and runs ten ordered
+The `catalog_reuse` suite owns its execution lifecycle and runs eleven ordered
 catalog dictionary scenarios. Each scenario performs its required state change
-and immediately validates the result. Run all ten scenarios with either:
+and immediately validates the result. Run all eleven scenarios with either:
 
 ```bash
-# Execute all ten scenario actions and assertions
+# Execute all eleven scenario actions and assertions
 ./run_validation.sh fvt_image_build_manager build exec \
   --suite catalog_reuse
 
-# Execute the same ten scenarios, followed by the runner's verification phase
+# Execute the same eleven scenarios, followed by the runner's verification phase
 ./run_validation.sh fvt_image_build_manager build test \
   --suite catalog_reuse
 ```
 
-All ten tests are deploy-marked. Consequently, standalone `verify` selects
+All eleven tests are deploy-marked. Consequently, standalone `verify` selects
 only `not deploy` tests and has no catalog-reuse cases to execute. Do not use
 the following command to validate a previous catalog-reuse run:
 
@@ -278,10 +278,17 @@ the following command to validate a previous catalog-reuse run:
   --suite catalog_reuse
 ```
 
+The suite updates the configured catalog, Image Build Manager configuration,
+and repository status files atomically in place, then restores their original
+content. Interrupt-recovery copies are isolated under
+`<image_build_manager_data_path>/.test-recovery/catalog-reuse/`; the suite
+does not create backup files beside production inputs or in a shared temporary
+directory.
+
 The suite covers the first build, dictionary reuse, selective package and
 repository rebuilds, forced rebuild, missing S3 artifact recovery, switching
 between Image Builder and Image Thrillhouse, catalog-versioned status output,
-and config-mode isolation.
+config-mode isolation, and restoration of the target's pre-suite state.
 
 ### Options
 
@@ -350,12 +357,10 @@ MinIO/registry deployment, build output, configuration, and domain credentials.
 For PowerScale, see the [full cleanup](#full-cleanup) caveat before using
 `cleanup test`.
 
-NFT is an independent destructive flow, not the cleanup phase of the FVT
-workflow. A full NFT run measures prepare, build, and cleanup performance and
-checks repeated prepare execution. Its final timed cleanup removes the deployed
-environment and domain credentials, so restore credentials before any later
-playbook run by rerunning `./setup_env.sh --set-domain-creds` on the execution
-OIM.
+The default NFT flow measures prepare and build performance and checks repeated
+prepare execution. It leaves the deployed environment intact. Cleanup timing
+is an explicit destructive NFT case; run it only with `--marker destructive`.
+The FVT `cleanup` tag remains the end-to-end cleanup and postcondition flow.
 
 ### Complete Commands by Flow
 
@@ -370,19 +375,26 @@ OIM.
 ./run_validation.sh fvt_image_build_manager cleanup test         # Full cleanup + verify
 ```
 
-#### Non-Functional Flow (includes timed cleanup)
+#### Non-Functional Flow (non-destructive by default)
 
 ```bash
 ./run_validation.sh fvt_image_build_manager precheck verify      # Check target prerequisites
 ./run_validation.sh fvt_image_build_manager validate verify      # Check existing inputs and credentials
-./run_validation.sh nft_image_build_manager test                 # Prepare/build timing, repeated prepare, cleanup timing
+./run_validation.sh nft_image_build_manager test                 # Prepare/build timing and repeated prepare
 ```
 
-The NFT suite performs its own prepare, build, and cleanup playbook runs. It
-does not run the FVT cleanup verification cases. Run
-`./run_validation.sh fvt_image_build_manager cleanup verify` immediately
-after NFT when those assertions are required; the cleanup playbook has already
-run.
+The default NFT suite performs its own prepare and build playbook runs and does
+not delete deployed state. To measure cleanup only, use the explicit opt-in:
+
+```bash
+./run_validation.sh nft_image_build_manager test --marker destructive
+```
+
+For end-to-end cleanup with postcondition checks, use the FVT flow instead:
+
+```bash
+./run_validation.sh fvt_image_build_manager cleanup test
+```
 
 #### Build and x86_64 Verification
 
@@ -525,8 +537,9 @@ The batch runner attempts every enabled entry even when an earlier entry fails,
 then returns non-zero if any entry failed. The image build manager batch file
 does not define a skip-after-failure setting.
 
-Run NFT separately from a complete FVT cleanup batch. FVT `cleanup` removes the
-domain credentials that the later NFT build would require.
+Run the default NFT flow before an explicit FVT cleanup batch. FVT `cleanup`,
+and the opt-in destructive NFT case, remove domain credentials required by a
+later build.
 
 ### Execution Modes
 
@@ -689,16 +702,17 @@ the UT ID ranges and maintenance rule.
 |-------|---------------|------------------|-----------|
 | precheck | `IMGBM_FVT_PRECHECK_E001` | `IMGBM_FVT_PRECHECK_V001`–`005` | 6 |
 | validate | `IMGBM_FVT_VALIDATE_E001` | `IMGBM_FVT_VALIDATE_V001`–`004` | 5 |
-| prepare | `IMGBM_FVT_PREPARE_E001` | `IMGBM_FVT_PREPARE_V001`–`007` | 8 |
+| prepare | `IMGBM_FVT_PREPARE_E001` | `IMGBM_FVT_PREPARE_V001`–`008` | 9 |
 | build | `IMGBM_FVT_BUILD_E001` | `IMGBM_FVT_BUILD_V001`–`019` | 20 |
+| catalog reuse E2E | — | `IMGBM_FVT_CATALOG_REUSE_V001`–`011` | 11 |
 | cleanup_images | `IMGBM_FVT_CLEANUP_IMAGES_E001` | `IMGBM_FVT_CLEANUP_IMAGES_V001`–`002` | 3 |
 | cleanup | `IMGBM_FVT_CLEANUP_E001` | `IMGBM_FVT_CLEANUP_V001`–`008` | 9 |
 | full-stack alternate | `IMGBM_FVT_FULL_E001` | — | 1 reportable ID |
 | nft | `IMGBM_NFT_001`–`004` | — | 4 |
-| ut | `IMGBM_UT_001`–`099` | — | 99 |
-| **Reportable IDs** | | | **155** |
+| ut | `IMGBM_UT_001`–`154` | — | 154 |
+| **Reportable IDs** | | | **222** |
 
-There are 154 physical test functions (51 FVT, 4 NFT, and 99 UT).
+There are 221 physical test functions (63 FVT, 4 NFT, and 154 UT).
 `IMGBM_FVT_FULL_E001` is the alternate full-stack ID emitted by the same build deploy
 function that reports `IMGBM_FVT_BUILD_E001` for a tagged build.
 
@@ -771,8 +785,10 @@ test/image_build_manager/
 └── ut/                          # Unit Tests
     ├── README.md                   # UT ID ranges and execution
     ├── conftest.py
-    ├── test_catalog_validation.py
-    ├── test_driver_group_skip.py
+    ├── test_catalog_validation.py    # IMGBM_UT_001–014, 149, 153
+    ├── test_catalog_reuse_state.py   # IMGBM_UT_140–144, 152, 155–156
+    ├── test_registry_version_contract.py # IMGBM_UT_150–151
+    ├── test_driver_group_skip.py     # IMGBM_UT_015–032, 114, 154
     ├── test_functional_group_packages.py
     ├── test_input_validation_schema.py  # IMGBM_UT_074–099
     ├── test_standalone_independence.py

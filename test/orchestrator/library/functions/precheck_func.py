@@ -685,25 +685,30 @@ def _published_repositories(repo_status: Mapping[str, Any]) -> list[dict[str, st
                     }
                 )
 
-    file_architectures = repo_status.get("file_repos", {}) or {}
-    if not isinstance(file_architectures, dict):
+    file_versions = repo_status.get("file_repos", {}) or {}
+    if not isinstance(file_versions, dict):
         raise TypeError("file_repos must be a mapping")
-    for architecture, repo_types in file_architectures.items():
-        if not isinstance(repo_types, dict):
-            raise TypeError(f"file_repos[{architecture!r}] must be a mapping")
-        for repo_type, repositories in repo_types.items():
-            if not isinstance(repositories, dict):
+    for version, file_architectures in file_versions.items():
+        if not isinstance(file_architectures, dict):
+            raise TypeError(f"file_repos[{version!r}] must be a mapping")
+        for architecture, repo_types in file_architectures.items():
+            if not isinstance(repo_types, dict):
                 raise TypeError(
-                    f"file_repos[{architecture!r}][{repo_type!r}] must be a mapping"
+                    f"file_repos[{version!r}][{architecture!r}] must be a mapping"
                 )
-            for name, url in repositories.items():
-                published.append(
-                    {
-                        "label": f"File [{architecture}/{repo_type}/{name}]",
-                        "url": _validated_url(url, f"file repository {name!r} URL")
-                        + "/",
-                    }
-                )
+            for repo_type, repositories in repo_types.items():
+                if not isinstance(repositories, dict):
+                    raise TypeError(
+                        f"file_repos[{version!r}][{architecture!r}][{repo_type!r}] must be a mapping"
+                    )
+                for name, url in repositories.items():
+                    published.append(
+                        {
+                            "label": f"File [{version}/{architecture}/{repo_type}/{name}]",
+                            "url": _validated_url(url, f"file repository {name!r} URL")
+                            + "/",
+                        }
+                    )
     if not published:
         raise ValueError("repo_status.yml contains no published repositories")
     return published

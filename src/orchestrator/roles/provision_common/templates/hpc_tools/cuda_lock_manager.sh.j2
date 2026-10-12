@@ -1,10 +1,14 @@
 #!/bin/bash
 # Distributed lock manager for CUDA toolkit install on shared NFS.
-# Backed by atomic mkdir on /hpc_tools/cuda/.nfs_lock_cuda.
+# Backed by atomic mkdir in this node platform's shared CUDA directory.
 # Exposes: acquire | release | wait | is_stale
 set -euo pipefail
 
-LOCK_ROOT="/hpc_tools/cuda"
+PLATFORM_HELPER="/hpc_tools/scripts/omnia_platform.sh"
+. "$PLATFORM_HELPER" || exit 1
+omnia_detect_platform || exit 1
+LOCK_ROOT="${OMNIA_PLATFORM_ROOT}/cuda"
+mkdir -p "$LOCK_ROOT"
 LOCK_DIR="$LOCK_ROOT/.nfs_lock_cuda"
 OWNER_FILE="$LOCK_DIR/owner.txt"
 DONE_FILE="$LOCK_ROOT/.done_cuda"

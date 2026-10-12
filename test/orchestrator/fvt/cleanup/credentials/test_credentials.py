@@ -15,19 +15,20 @@
 """Credential postconditions produced by full Orchestrator cleanup."""
 
 import pytest
-from library.functions import check_cleanup_credentials
+from library.functions import (
+    TestLogger,
+    check_cleanup_credentials,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_cleanup
 
 
 @pytest.mark.sanity
 @pytest.mark.destructive
-@pytest.mark.order(6)
+@pytest.mark.order(50601)
 def test_credentials_follow_selected_policy(host):
     """Verify credentials are removed or preserved as selected."""
-    verify_cleanup(
-        host,
-        "cleanup_credentials",
-        "Credential cleanup",
-        check_cleanup_credentials,
-    )
+    tc = TC["cleanup_credentials"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_cleanup(test_log, host, "Credential cleanup", check_cleanup_credentials)

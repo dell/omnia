@@ -15,15 +15,22 @@
 """Slurm homogeneous and heterogeneous hardware-discovery contracts."""
 
 import pytest
-from library.functions import check_slurm_hardware_discovery
+from library.functions import (
+    TestLogger,
+    check_slurm_hardware_discovery,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
-@pytest.mark.order(233)
+@pytest.mark.order(41108)
 def test_slurm_hardware_discovery(host):
     """Verify runtime hardware matches the configured discovery strategy."""
-    verify_pxeboot(host, "slurm_hardware_discovery", check_slurm_hardware_discovery)
+    tc = TC["slurm_hardware_discovery"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_hardware_discovery)

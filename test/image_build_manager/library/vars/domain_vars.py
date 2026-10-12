@@ -54,7 +54,10 @@ MARKERS: List[str] = [
     "functional",
     "regression",
     "deploy",
+    "destructive",
+    "security",
 ]
+    
 
 # =====================================================================
 # Suite directories per FVT tag

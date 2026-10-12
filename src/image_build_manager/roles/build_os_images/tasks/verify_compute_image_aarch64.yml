@@ -1,0 +1,86 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: List aarch64 compute osimages in registry
+  ansible.builtin.command:
+    cmd: "/usr/local/bin/regctl repo ls --limit 500 {{ registry_host }}:5000"
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
+  changed_when: false
+  register: verify_compute_osimages
+
+- name: Display verified aarch64 compute images
+  ansible.builtin.debug:
+    msg: "{{ verify_compute_osimages.stdout_lines }}"
+
+- name: Verify each aarch64 compute image exists in registry
+  ansible.builtin.fail:
+    msg: "{{ compute_registry_missing_fail_msg }}"
+  when: >-
+    verify_compute_osimages.stdout_lines | default([])
+    | select('match', '^' + host_name + '/rhel-' + item.key + omnia_suffix + '.*' + _build_type_suffix + '$')
+    | list | length == 0
+  loop: "{{ compute_images_dict | dict2items }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.key }}"
+
+- name: Verify aarch64 compute images have tags in registry
+  ansible.builtin.shell: |
+    /usr/local/bin/regctl tag ls \
+      {{ registry_host }}:5000/{{ host_name }}/rhel-{{ item.key }}{{ omnia_suffix }}{{ compute_image_suffix | default('') }}{{ _build_type_suffix }} \
+      2>/dev/null
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
+  changed_when: false
+  failed_when: false
+  register: _compute_tag_check
+  loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.key }}"
+
+- name: Fail if aarch64 compute image has no tags
+  ansible.builtin.fail:
+    msg: "{{ compute_registry_tags_missing_fail_msg }}"
+  when: item.stdout_lines | default([]) | length == 0
+  loop: "{{ _compute_tag_check.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+
+- name: Verify aarch64 compute images exist in S3
+  ansible.builtin.shell: |
+    set -o pipefail
+    s3cmd ls -r \
+      s3://{{ s3_configurations.bucket | default('boot-images') }}/{{ item.key }}/ \
+      2>/dev/null | grep -c 'rhel-{{ item.key }}' || echo 0
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  connection: local
+  changed_when: false
+  failed_when: false
+  register: _compute_s3_check
+  loop: "{{ _compute_rebuild_dict | default({}) | dict2items }}"
+  loop_control:
+    loop_var: item
+    label: "{{ item.key }}"
+
+- name: Fail if aarch64 compute image not in S3
+  ansible.builtin.fail:
+    msg: "{{ compute_s3_missing_fail_msg }}"
+  when: (item.stdout | default('0') | trim | int) == 0
+  loop: "{{ _compute_s3_check.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.key }}"

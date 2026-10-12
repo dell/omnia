@@ -229,7 +229,7 @@ UT_TEST_CASE_IDS = {
             100: "test_supported_rhel_catalog_samples_pass_schema",
             101: "test_repo_status_ignores_unneeded_producer_fields",
             102: "test_repo_status_ignores_registry_metadata",
-            103: "test_repo_status_allows_repository_entry_without_url",
+            103: "test_repo_status_rejects_repository_entry_without_url",
             104: "test_repo_status_allows_aarch64_only_repository_output",
             105: "test_repo_status_ignores_context_version_mismatch",
             106: "test_repo_status_ignores_context_architecture_mismatch",
@@ -283,6 +283,56 @@ UT_TEST_CASE_IDS = {
             134: "test_force_rebuild_is_the_only_rebuild_control",
             135: "test_latest_project_status_is_written_for_every_mode",
             136: "test_catalog_status_copy_is_catalog_mode_only",
+        },
+    ),
+    **_module_cases(
+        "test_s3_artifact_layout.py",
+        {
+            137: "test_thrillhouse_accepts_legacy_and_versioned_boot_pairs",
+            138: "test_thrillhouse_rejects_unmatched_boot_pairs",
+            139: "test_thrillhouse_rejects_malformed_boot_filenames",
+        },
+    ),
+    **_module_cases(
+        "test_catalog_reuse_state.py",
+        {
+            140: "test_restore_reinstates_original_build_status",
+            141: "test_restore_removes_build_status_created_by_scenarios",
+            142: "test_restore_failure_preserves_recovery_artifacts",
+            143: "test_stale_absence_marker_recovers_absent_baseline",
+            144: "test_stale_backup_recovers_baseline_before_snapshot",
+            152: "test_selective_mutation_skips_layers_without_unique_groups",
+            155: "test_recovery_directory_is_private_to_domain_data_root",
+            156: "test_restore_prunes_empty_recovery_directories",
+        },
+    ),
+    **_module_cases(
+        "test_runner_lifecycle_safety.py",
+        {
+            145: "test_default_nft_skips_destructive_cleanup",
+            146: "test_destructive_nft_marker_explicitly_enables_cleanup",
+            147: "test_default_fvt_verification_excludes_cleanup_flows",
+            148: "test_catalog_reuse_e2e_owns_execution_and_restores_state",
+        },
+    ),
+    **_module_cases(
+        "test_catalog_validation.py",
+        {
+            149: "test_all_catalogs_match_thrillhouse_runtime_version",
+            153: "test_all_bundled_catalogs_pass_schema_and_reference_checks",
+        },
+    ),
+    **_module_cases(
+        "test_driver_group_skip.py",
+        {
+            154: "test_all_bundled_catalogs_resolve_nonempty_build_inputs",
+        },
+    ),
+    **_module_cases(
+        "test_registry_version_contract.py",
+        {
+            150: "test_registry_image_pin_is_aligned_across_lifecycle",
+            151: "test_registry_deploy_reconciles_pin_changes_for_active_service",
         },
     ),
 }

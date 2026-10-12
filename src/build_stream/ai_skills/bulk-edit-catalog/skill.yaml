@@ -1,0 +1,22 @@
+name: bulk-edit-catalog
+version: 1.0.0
+description: >-
+  Applies a requested change consistently across every catalog it affects, with per-catalog
+  schema-validation failure isolation, subject to the Pre-Edit Impact & Compatibility Gate. Use
+  when an edit must be applied identically across more than one catalog, not just a single file.
+author: Omnia Build Stream Team
+role: engineering
+domain: catalog-authoring
+tags:
+  - catalog
+  - bulk-edit
+  - validation
+  - impact-analysis
+  - omnia
+dependencies:
+  - pre-edit-gate
+  - impact-analysis
+  - compatibility-analysis
+status: active
+created: 2026-09-29
+updated: 2026-09-29

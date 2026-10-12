@@ -46,32 +46,42 @@ repositories:
         priority: 100
 
 file_repos:
-  x86_64:
-    git:
-      example_git: "https://192.0.2.10:2225/pulp/content/example/git/example/"
-    tarball:
-      example_tarball: "https://192.0.2.10:2225/pulp/content/example/tarball/example/"
-    manifest:
-      example_manifest: "https://192.0.2.10:2225/pulp/content/example/manifest/example/"
-    pip_module:
-      example_module: "https://192.0.2.10:2225/pypi/example/pip_module/example/"
-    shell:
-      example_script: "https://192.0.2.10:2225/pulp/content/example/shell/example/"
-    iso:
-      example_iso: "https://192.0.2.10:2225/pulp/content/example/iso/example/"
-    ansible_galaxy_collection:
-      example_collection: "https://192.0.2.10:2225/pulp/content/example/ansible_galaxy_collection/example/"
-  aarch64: {}
+  "10.0":
+    x86_64:
+      git:
+        whereabouts-v0_9_2: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/whereabouts-v0.9.2/"
+        csi-powerscale-v2_17_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/csi-powerscale-v2.17.0/"
+        helm-charts-2_17_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/helm-charts-2.17.0/"
+        external-snapshotter-v8_5_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/external-snapshotter-v8.5.0/"
+      tarball:
+        helm-v3_20_1-amd64: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/helm-v3.20.1-amd64/"
+      manifest:
+        calico-v3_32_1: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/manifest/calico-v3.32.1/"
+      pip_module:
+        kubernetes_33_1_0: "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/kubernetes==33.1.0/"
+    aarch64: {}
+  "10.2":
+    x86_64:
+      git:
+        whereabouts-v0_9_2: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/git/whereabouts-v0.9.2/"
+      tarball:
+        helm-v3_20_1-amd64: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/tarball/helm-v3.20.1-amd64/"
+      manifest:
+        calico-v3_32_1: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/manifest/calico-v3.32.1/"
+      pip_module:
+        kubernetes_33_1_0: "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/rhel/10.2/pip_module/kubernetes==33.1.0/"
 
-tarball_base_url: "https://192.0.2.10:2225/pulp/content/example/tarball/example/"
-manifest_base_url: "https://192.0.2.10:2225/pulp/content/example/manifest/example/"
-pip_base_url: "https://192.0.2.10:2225/pypi/example/pip_module/example/"
-git_base_url: "https://192.0.2.10:2225/pulp/content/example/git/example/"
-
-offline_tarball_path: "https://192.0.2.10:2225/pulp/content/example/tarball/example/"
-offline_manifest_path: "https://192.0.2.10:2225/pulp/content/example/manifest/example/"
-offline_pip_module_path: "https://192.0.2.10:2225/pypi/example/pip_module/example/"
-offline_git_path: "https://192.0.2.10:2225/pulp/content/example/git/example/"
-offline_shell_path: "https://192.0.2.10:2225/pulp/content/example/shell/example/"
-offline_iso_path: "https://192.0.2.10:2225/pulp/content/example/iso/example/"
-offline_ansible_galaxy_collection_path: "https://192.0.2.10:2225/pulp/content/example/ansible_galaxy_collection/example/"
+base_urls:
+  "10.0":
+    x86_64:
+      git: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/"
+      tarball: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/"
+      manifest: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/manifest/"
+      pip_module: "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/rhel/10.0/pip_module/"
+    aarch64: {}
+  "10.2":
+    x86_64:
+      git: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/git/"
+      tarball: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/tarball/"
+      manifest: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/manifest/"
+      pip_module: "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/rhel/10.2/pip_module/"

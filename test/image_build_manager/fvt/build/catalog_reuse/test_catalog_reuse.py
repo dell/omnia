@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import shlex
+import uuid
 
 import pytest
 
@@ -216,20 +217,18 @@ def test_catalog_missing_artifact_rebuild(catalog_reuse_context):
     artifact = target["s3_paths"]["rootfs"]
     artifact_uri = artifact if artifact.startswith("s3://") else f"s3://{artifact}"
     backup_uri = f"{artifact_uri}.catalog-reuse-backup"
+    ctx.recover_s3_artifact(artifact_uri, backup_uri)
     copied = ctx.run_command(
         f"s3cmd cp {shlex.quote(artifact_uri)} {shlex.quote(backup_uri)}"
     )
-    assert copied.rc == 0, f"Unable to back up test artifact: {artifact_uri}"
-    deleted = ctx.run_command(f"s3cmd del {shlex.quote(artifact_uri)}")
-    assert deleted.rc == 0, f"Unable to remove test artifact: {artifact_uri}"
+    backup_ready = copied.rc == 0 and ctx.s3_object_exists(backup_uri)
+    assert backup_ready, f"Unable to back up test artifact: {artifact_uri}"
     try:
+        deleted = ctx.run_command(f"s3cmd del {shlex.quote(artifact_uri)}")
+        assert deleted.rc == 0, f"Unable to remove test artifact: {artifact_uri}"
         _require_build(ctx.build(), tl)
     finally:
-        if ctx.run_command(f"s3cmd info {shlex.quote(artifact_uri)}").rc != 0:
-            ctx.run_command(
-                f"s3cmd cp {shlex.quote(backup_uri)} {shlex.quote(artifact_uri)}"
-            )
-        ctx.run_command(f"s3cmd del {shlex.quote(backup_uri)}")
+        ctx.recover_s3_artifact(artifact_uri, backup_uri)
     after = ctx.current_group_entries(
         ctx.load_dictionary(), "image-builder"
     )
@@ -321,10 +320,16 @@ def test_catalog_versioned_output(catalog_reuse_context):
     ctx.configure(engine="image-builder")
     document = ctx.catalog
     root = document["catalog"]
-    new_version = f"{root.get('version', '1.0')}-catalog-reuse"
+    new_version = (
+        f"{root.get('version', '1.0')}-catalog-reuse-"
+        f"{uuid.uuid4().hex[:8]}"
+    )
     root["version"] = new_version
     image_group_id = f"{root['identifier']}-v{new_version}"
     status_dir = f"{ctx.output_dir}/{image_group_id}"
+    assert not ctx.exists(status_dir), (
+        f"Refusing to reuse an existing scenario output: {status_dir}"
+    )
     ctx.created_output_paths.add(status_dir)
     ctx.write_catalog(document)
     try:
@@ -393,3 +398,21 @@ def test_config_mode_cache_isolation(catalog_reuse_context):
     else:
         tl.failed("Config mode modified or consulted the global dictionary")
     assert success
+
+
+@pytest.mark.deploy
+@pytest.mark.regression
+@pytest.mark.x86_64
+@pytest.mark.order(11)
+def test_catalog_suite_restores_target_state(catalog_reuse_context):
+    """The E2E suite restores every mutable target file before it exits."""
+    ctx = catalog_reuse_context
+    tl = _logger("catalog_suite_restores_target_state")
+
+    ctx.restore()
+    restored = ctx.baseline_is_restored()
+    if restored:
+        tl.passed("Catalog-reuse inputs, manifest, and dictionary were restored")
+    else:
+        tl.failed("Catalog-reuse suite left modified target state")
+    assert restored

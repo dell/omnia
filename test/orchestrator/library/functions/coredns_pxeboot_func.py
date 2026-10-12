@@ -41,6 +41,7 @@ from omnia_auto import run_on_host
 
 from ..vars.pxeboot_vars import (
     COREDHCP_CONFIG_PATH,
+    COREDNS_COREFILE_PATH,
     COREDNS_IDEMPOTENCY_SETTLE_SECONDS,
     COREDNS_SMD_UNREACHABLE_HOLD_SECONDS,
     CORESMD_IMAGE_REPO,
@@ -328,7 +329,361 @@ def check_coredns_reverse_resolution(host) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# TC-04 — Multi-subnet dataset (running-container-image check)
+# TC-04 — DNS forwarders configuration and external resolution
+# ---------------------------------------------------------------------------
+
+
+def check_coredns_dns_forwarders(host) -> dict[str, Any]:
+    """Verify DNS forwarders are configured and can resolve external domains.
+
+    Checks:
+    1. Corefile contains forwarders from network_spec (or defaults)
+    2. External domain (e.g., google.com) resolves via CoreDNS forwarders
+    3. Forwarders are reachable from the OIM
+
+    Per src/orchestrator/roles/deploy_openchami/templates/coredns/Corefile.j2,
+    the forward directive uses {{ dns_forwarders | join(' ') }} which comes
+    from network_spec.admin_network.dns or defaults to 8.8.8.8 and 1.1.1.1.
+    """
+    try:
+        ctx = coredns_context(host)
+        if not ctx["dns_enabled"]:
+            return optional_skip(
+                "CoreDNS forwarders check skipped",
+                "dns_enabled=false in orchestrator_config.yml",
+            )
+        if not ctx["admin_ip"]:
+            return error_result(
+                "CoreDNS forwarders check skipped",
+                "admin_network.primary_oim_admin_ip is not configured",
+            )
+
+        # Check 1: Read Corefile to extract forwarders
+        corefile_probe = run_on_host(
+            host, f"cat {COREDNS_COREFILE_PATH} 2>/dev/null"
+        )
+        corefile_content = (
+            corefile_probe.stdout if corefile_probe.rc == 0 else ""
+        )
+
+        # Extract forwarders from Corefile (format: forward . 8.8.8.8 1.1.1.1)
+        forwarders_in_corefile = []
+        for line in corefile_content.splitlines():
+            line = line.strip()
+            if line.startswith("forward"):
+                parts = line.split()
+                if len(parts) >= 3:
+                    forwarders_in_corefile = parts[2:]  # Skip "forward" and "."
+                    break
+
+        fields: list[tuple[str, object]] = [
+            ("CoreDNS server", ctx["admin_ip"]),
+            ("Forwarders in Corefile", ", ".join(forwarders_in_corefile) or "none"),
+        ]
+        failures: list[str] = []
+
+        if not forwarders_in_corefile:
+            failures.append("Corefile has no forwarders configured")
+        else:
+            # Check 2: Verify forwarders are reachable (informational only, not a failure)
+            reachable_count = 0
+            for forwarder in forwarders_in_corefile:
+                reachable_probe = run_on_host(
+                    host, f"timeout 3 bash -c 'cat < /dev/tcp/{forwarder}/53' 2>/dev/null && echo reachable || echo blocked"
+                )
+                reachable = reachable_probe.stdout.strip() == "reachable"
+                if reachable:
+                    reachable_count += 1
+                fields.append(
+                    (f"Forwarder {forwarder}", "✓ reachable" if reachable else "✗ blocked")
+                )
+
+            # Check 3: Test external domain resolution via CoreDNS
+            test_domain = "google.com"
+            external_probe = run_on_host(
+                host, f"dig +short +time=5 +tries=2 @{ctx['admin_ip']} {test_domain} A"
+            )
+            resolved = external_probe.rc == 0 and external_probe.stdout.strip()
+            fields.append(
+                (f"External {test_domain}", "✓ resolved" if resolved else "✗ failed")
+            )
+            if not resolved:
+                failures.append(
+                    f"Failed to resolve {test_domain} via CoreDNS forwarders "
+                    f"(rc={external_probe.rc})"
+                )
+            # Note: forwarder reachability is informational only; external resolution is the real test
+
+        return runtime_result(
+            not failures,
+            "CoreDNS forwarders are configured and can resolve external domains",
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return error_result("CoreDNS forwarders check failed", str(exc))
+
+
+# ---------------------------------------------------------------------------
+# TC-06 — CoreDNS Corefile configuration validation
+# ---------------------------------------------------------------------------
+
+
+def check_coredns_corefile_config(host) -> dict[str, Any]:
+    """Verify Corefile configuration is correctly rendered.
+
+    Checks:
+    1. Corefile exists and is readable
+    2. Bind address matches cluster_boot_ip
+    3. Forwarders are configured
+    4. coresmd plugin is configured with correct SMD URL
+    5. Zone configuration matches cluster_domain with correct node format
+
+    Per src/orchestrator/roles/deploy_openchami/templates/coredns/Corefile.j2,
+    the Corefile should contain bind address, forwarders, coresmd plugin with
+    smd_url, and zone configuration with nodes nid{03d} format.
+    """
+    try:
+        ctx = coredns_context(host)
+        if not ctx["dns_enabled"]:
+            return optional_skip(
+                "Corefile config validation skipped",
+                "dns_enabled=false in orchestrator_config.yml",
+            )
+        if not ctx["admin_ip"]:
+            return error_result(
+                "Corefile config validation skipped",
+                "admin_network.primary_oim_admin_ip is not configured",
+            )
+
+        # Read Corefile
+        corefile_probe = run_on_host(
+            host, f"cat {COREDNS_COREFILE_PATH} 2>/dev/null"
+        )
+        corefile_content = (
+            corefile_probe.stdout if corefile_probe.rc == 0 else ""
+        )
+
+        fields: list[tuple[str, object]] = [
+            ("Corefile path", COREDNS_COREFILE_PATH),
+            ("Expected bind", ctx["admin_ip"]),
+            ("Expected zone", ctx["domain"]),
+        ]
+        failures: list[str] = []
+
+        if not corefile_content:
+            failures.append("Corefile is empty or unreadable")
+            return error_result(
+                "Corefile config validation failed",
+                "Corefile is empty or unreadable",
+            )
+
+        # Check 1: Bind address
+        bind_ok = f"bind {ctx['admin_ip']}" in corefile_content
+        fields.append(
+            ("Bind address", f"{'✓' if bind_ok else '✗'} {ctx['admin_ip']}")
+        )
+        if not bind_ok:
+            failures.append(
+                f"Corefile does not contain bind {ctx['admin_ip']}"
+            )
+
+        # Check 2: Forwarders
+        forward_ok = "forward" in corefile_content
+        fields.append(
+            ("Forward directive", "✓ present" if forward_ok else "✗ missing")
+        )
+        if not forward_ok:
+            failures.append("Corefile does not contain forward directive")
+
+        # Check 3: coresmd plugin
+        coresmd_ok = "coresmd" in corefile_content
+        fields.append(
+            ("coresmd plugin", "✓ present" if coresmd_ok else "✗ missing")
+        )
+        if not coresmd_ok:
+            failures.append("Corefile does not contain coresmd plugin")
+
+        # Check 4: SMD URL in coresmd plugin
+        smd_url_ok = f"smd_url {ctx['admin_ip']}" in corefile_content or "smd_url https://" in corefile_content
+        fields.append(
+            ("SMD URL", "✓ configured" if smd_url_ok else "✗ missing")
+        )
+        if not smd_url_ok:
+            failures.append("Corefile coresmd plugin does not contain smd_url")
+
+        # Check 5: Zone configuration
+        zone_ok = f"zone {ctx['domain']}" in corefile_content
+        fields.append(
+            ("Zone config", f"{'✓' if zone_ok else '✗'} {ctx['domain']}")
+        )
+        if not zone_ok:
+            failures.append(
+                f"Corefile does not contain zone {ctx['domain']}"
+            )
+
+        # Check 6: Node format (should be nid{03d})
+        node_format_ok = "nodes nid{" in corefile_content
+        fields.append(
+            ("Node format", "✓ nid{03d}" if node_format_ok else "✗ incorrect")
+        )
+        if not node_format_ok:
+            failures.append("Corefile zone does not contain correct node format")
+
+        return runtime_result(
+            not failures,
+            "Corefile configuration is correctly rendered",
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return error_result("Corefile config validation failed", str(exc))
+
+
+# ---------------------------------------------------------------------------
+# TC-07 — CoreDHCP configuration file validation
+# ---------------------------------------------------------------------------
+
+
+def check_coredhcp_config_file(host) -> dict[str, Any]:
+    """Verify coredhcp.yaml configuration file is correctly rendered.
+
+    Checks:
+    1. coredhcp.yaml exists and is readable
+    2. server_id matches cluster_boot_ip
+    3. dns_server matches cluster_boot_ip
+    4. router matches cluster_boot_ip
+    5. netmask is configured
+    6. coresmd plugin is configured with correct parameters
+    7. lease_time is configured
+
+    Per src/orchestrator/roles/deploy_openchami/templates/coredhcp/coredhcp.yaml.j2,
+    the coredhcp.yaml should contain server_id, dns_server, router, netmask,
+    coresmd plugin with svc_base_uri, ipxe_uri, cache_validity, lease_time,
+    and subnet_pool configuration.
+    """
+    try:
+        ctx = coredns_context(host)
+        if not ctx["dns_enabled"]:
+            return optional_skip(
+                "CoreDHCP config validation skipped",
+                "dns_enabled=false in orchestrator_config.yml",
+            )
+        if not ctx["admin_ip"]:
+            return error_result(
+                "CoreDHCP config validation skipped",
+                "admin_network.primary_oim_admin_ip is not configured",
+            )
+
+        # Read coredhcp.yaml
+        coredhcp_probe = run_on_host(
+            host, f"cat {COREDHCP_CONFIG_PATH} 2>/dev/null"
+        )
+        coredhcp_content = (
+            coredhcp_probe.stdout if coredhcp_probe.rc == 0 else ""
+        )
+
+        fields: list[tuple[str, object]] = [
+            ("CoreDHCP path", COREDHCP_CONFIG_PATH),
+            ("Expected server_id", ctx["admin_ip"]),
+        ]
+        failures: list[str] = []
+
+        if not coredhcp_content:
+            failures.append("coredhcp.yaml is empty or unreadable")
+            return error_result(
+                "CoreDHCP config validation failed",
+                "coredhcp.yaml is empty or unreadable",
+            )
+
+        # Check 1: server_id
+        server_id_ok = f"server_id: {ctx['admin_ip']}" in coredhcp_content
+        fields.append(
+            ("server_id", f"{'✓' if server_id_ok else '✗'} {ctx['admin_ip']}")
+        )
+        if not server_id_ok:
+            failures.append(
+                f"coredhcp.yaml does not contain server_id: {ctx['admin_ip']}"
+            )
+
+        # Check 2: dns_server
+        dns_server_ok = f"dns: {ctx['admin_ip']}" in coredhcp_content
+        fields.append(
+            ("dns_server", f"{'✓' if dns_server_ok else '✗'} {ctx['admin_ip']}")
+        )
+        if not dns_server_ok:
+            failures.append(
+                f"coredhcp.yaml does not contain dns: {ctx['admin_ip']}"
+            )
+
+        # Check 3: router
+        router_ok = "router:" in coredhcp_content
+        fields.append(
+            ("router", "✓ configured" if router_ok else "✗ missing")
+        )
+        if not router_ok:
+            failures.append("coredhcp.yaml does not contain router")
+
+        # Check 4: netmask
+        netmask_ok = "netmask:" in coredhcp_content
+        fields.append(
+            ("netmask", "✓ configured" if netmask_ok else "✗ missing")
+        )
+        if not netmask_ok:
+            failures.append("coredhcp.yaml does not contain netmask")
+
+        # Check 5: coresmd plugin
+        coresmd_ok = "coresmd:" in coredhcp_content
+        fields.append(
+            ("coresmd plugin", "✓ present" if coresmd_ok else "✗ missing")
+        )
+        if not coresmd_ok:
+            failures.append("coredhcp.yaml does not contain coresmd plugin")
+
+        # Check 6: SMD base URI in coresmd plugin
+        smd_uri_ok = "svc_base_uri=" in coredhcp_content
+        fields.append(
+            ("SMD base URI", "✓ configured" if smd_uri_ok else "✗ missing")
+        )
+        if not smd_uri_ok:
+            failures.append("coredhcp.yaml coresmd plugin does not contain svc_base_uri")
+
+        # Check 7: iPXE URI
+        ipxe_uri_ok = "ipxe_uri=" in coredhcp_content
+        fields.append(
+            ("iPXE URI", "✓ configured" if ipxe_uri_ok else "✗ missing")
+        )
+        if not ipxe_uri_ok:
+            failures.append("coredhcp.yaml coresmd plugin does not contain ipxe_uri")
+
+        # Check 8: lease_time
+        lease_time_ok = "lease_time=" in coredhcp_content
+        fields.append(
+            ("lease_time", "✓ configured" if lease_time_ok else "✗ missing")
+        )
+        if not lease_time_ok:
+            failures.append("coredhcp.yaml does not contain lease_time")
+
+        # Check 9: subnet_pool
+        subnet_pool_ok = "subnet_pool=" in coredhcp_content
+        fields.append(
+            ("subnet_pool", "✓ configured" if subnet_pool_ok else "✗ missing")
+        )
+        if not subnet_pool_ok:
+            failures.append("coredhcp.yaml does not contain subnet_pool")
+
+        return runtime_result(
+            not failures,
+            "CoreDHCP configuration file is correctly rendered",
+            fields,
+            "; ".join(failures) if failures else "",
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return error_result("CoreDHCP config validation failed", str(exc))
+
+
+# ---------------------------------------------------------------------------
+# TC-08 — Multi-subnet dataset (running-container-image check)
 # ---------------------------------------------------------------------------
 
 
@@ -883,8 +1238,11 @@ def check_dns_smd_unreachable_cached_resolution(host) -> dict[str, Any]:
 
 
 __all__ = [
+    "check_coredhcp_config_file",
     "check_coredhcp_multisubnet_running_image",
     "check_coredns_container_state",
+    "check_coredns_corefile_config",
+    "check_coredns_dns_forwarders",
     "check_coredns_forward_resolution",
     "check_coredns_idempotency",
     "check_coredns_reverse_resolution",

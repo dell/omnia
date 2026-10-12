@@ -129,6 +129,46 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify OIM OS matches expected distribution and version",
         "component": "OIM OS version",
     },
+    "oim_cpu_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V110",
+        "title": "Reject an unattainable OIM CPU threshold",
+        "component": "OIM CPU threshold",
+    },
+    "oim_memory_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V111",
+        "title": "Reject an unattainable OIM memory threshold",
+        "component": "OIM memory threshold",
+    },
+    "oim_disk_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V112",
+        "title": "Reject an unattainable OIM disk threshold",
+        "component": "OIM disk threshold",
+    },
+    "oim_missing_nic_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V113",
+        "title": "Reject a nonexistent admin NIC",
+        "component": "OIM admin NIC",
+    },
+    "oim_nic_overlap_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V114",
+        "title": "Reject a PXE NIC that equals the public NIC",
+        "component": "PXE/public NIC overlap",
+    },
+    "oim_airgapped_internet": {
+        "id": "ORCH_FVT_PRECHECK_V115",
+        "title": "Accept missing internet access in air-gapped mode",
+        "component": "Internet reachability",
+    },
+    "oim_unreachable_ssh_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V116",
+        "title": "Reject SSH to an unreachable target",
+        "component": "OIM SSH preflight",
+    },
+    "oim_os_mismatch_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V117",
+        "title": "Reject a mismatched OIM OS identity",
+        "component": "OIM OS version",
+    },
 }
 
 PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
@@ -164,10 +204,6 @@ PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PREPARE_V007",
         "title": "Verify CoreDHCP and CoreDNS match network_spec.yml",
     },
-    "external_ldap_proxy": {
-        "id": "ORCH_FVT_PREPARE_V008",
-        "title": "Reconcile and verify the external LDAP proxy",
-    },
     "openldap_runtime": {
         "id": "ORCH_FVT_PREPARE_V009",
         "title": "Verify OpenLDAP service and container health",
@@ -179,10 +215,6 @@ PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
     "openldap_endpoint": {
         "id": "ORCH_FVT_PREPARE_V011",
         "title": "Verify OpenLDAP listeners and local endpoint",
-    },
-    "external_ldap_backend": {
-        "id": "ORCH_FVT_PREPARE_V012",
-        "title": "Verify external LDAP backend reachability",
     },
     "postgresql_readiness": {
         "id": "ORCH_FVT_PREPARE_V013",
@@ -288,7 +320,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "Kubernetes version compatibility",
     },
     "kubernetes_configured_versions": {
-        "id": "ORCH_FVT_PXEBOOT_V101",
+        "id": "ORCH_FVT_PXEBOOT_V519",
         "title": "Verify configured Kubernetes component versions",
         "component": "Kubernetes configured versions",
     },
@@ -333,9 +365,14 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "Kubernetes local-etcd disk integrity",
     },
     "kubernetes_local_etcd_provisioning": {
-        "id": "ORCH_FVT_PXEBOOT_V102",
+        "id": "ORCH_FVT_PXEBOOT_V520",
         "title": "Verify Kubernetes local-etcd provisioning contract",
         "component": "Kubernetes local-etcd provisioning",
+    },
+    "kubernetes_local_etcd_media": {
+        "id": "ORCH_FVT_PXEBOOT_V523",
+        "title": "Verify Kubernetes local-etcd disk media",
+        "component": "Kubernetes local-etcd disk media",
     },
     "kubernetes_storage": {
         "id": "ORCH_FVT_PXEBOOT_V016",
@@ -353,7 +390,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "Kubernetes snapshot components",
     },
     "kubernetes_nfs_contract": {
-        "id": "ORCH_FVT_PXEBOOT_V103",
+        "id": "ORCH_FVT_PXEBOOT_V521",
         "title": "Verify Kubernetes NFS provisioner and backend contract",
         "component": "Kubernetes NFS provisioner",
     },
@@ -456,6 +493,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V038",
         "title": "Verify Slurm drain queue and resume behavior",
         "component": "Slurm drain and queue",
+    },
+    "external_ldap_proxy": {
+        "id": "ORCH_FVT_PXEBOOT_V524",
+        "title": "Reconcile and verify the external LDAP proxy",
+        "component": "External LDAP proxy",
+    },
+    "external_ldap_backend": {
+        "id": "ORCH_FVT_PXEBOOT_V525",
+        "title": "Verify external LDAP backend reachability",
+        "component": "External LDAP backend",
     },
     "slurm_pam": {
         "id": "ORCH_FVT_PXEBOOT_V039",
@@ -737,6 +784,31 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify Apptainer artifacts after compute reboot",
         "component": "Apptainer artifact recovery",
     },
+    "hpc_benchmarks_run_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V223",
+        "title": "Execute pull_benchmarks.sh to populate staged artifacts",
+        "component": "HPC benchmarks staging execution",
+    },
+    "hpc_benchmarks_cleanup_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V224",
+        "title": "Remove staged benchmark tool directories after verification",
+        "component": "HPC benchmarks staging cleanup",
+    },
+    "hpc_benchmarks_prerequisites": {
+        "id": "ORCH_FVT_PXEBOOT_V225",
+        "title": "Verify benchmark prerequisites: script, platform, tools list, mount (NFS export informational)",
+        "component": "HPC benchmarks prerequisites",
+    },
+    "hpc_benchmarks_staging_fingerprint_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V226",
+        "title": "Verify staging idempotency with SHA-256, size, and mtime fingerprints",
+        "component": "HPC benchmarks staging fingerprint idempotency",
+    },
+    "hpc_benchmarks_concurrent_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V227",
+        "title": "Verify concurrent staging from two compute nodes on shared storage",
+        "component": "HPC benchmarks concurrent staging",
+    },
     "hpc_benchmarks_json_declaration": {
         "id": "ORCH_FVT_PXEBOOT_V200",
         "title": "Verify HPC benchmarks tool declaration (benchmark_tools.list)",
@@ -762,6 +834,26 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify msr-safe is staged only for x86_64",
         "component": "HPC benchmarks msr-safe arch boundary",
     },
+    "hpc_benchmarks_platform_script": {
+        "id": "ORCH_FVT_PXEBOOT_V219",
+        "title": "Verify omnia_platform.sh deployment and platform detection",
+        "component": "HPC benchmarks platform script",
+    },
+    "hpc_benchmarks_platform_directory_structure": {
+        "id": "ORCH_FVT_PXEBOOT_V221",
+        "title": "Verify platform-specific directory structure exists per architecture",
+        "component": "HPC benchmarks platform directory structure",
+    },
+    "hpc_benchmarks_offline_package_copy": {
+        "id": "ORCH_FVT_PXEBOOT_V222",
+        "title": "Verify offline packages are copied to slurm_config_path/packages/{arch}/",
+        "component": "HPC benchmarks offline package copy",
+    },
+    "hpc_benchmarks_container_image_list": {
+        "id": "ORCH_FVT_PXEBOOT_V220",
+        "title": "Verify container_image.list deployment and content validation",
+        "component": "HPC benchmarks container image list",
+    },
     "hpc_benchmarks_container_first_guidance": {
         "id": "ORCH_FVT_PXEBOOT_V205",
         "title": "Verify pull_benchmarks.sh and benchmark_tools.list are deployed",
@@ -771,11 +863,6 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V206",
         "title": "Verify no compile or build commands are staged",
         "component": "HPC benchmarks source-only delivery",
-    },
-    "hpc_benchmarks_per_tool_staging_report": {
-        "id": "ORCH_FVT_PXEBOOT_V207",
-        "title": "Verify per-tool staging report from pull_benchmarks.sh",
-        "component": "HPC benchmarks per-tool staging report",
     },
     "hpc_benchmarks_e2e_provisioning": {
         "id": "ORCH_FVT_PXEBOOT_V208",
@@ -847,8 +934,23 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify CoreDNS reverse resolution from OIM for mapped admin IPs",
         "component": "CoreDNS reverse resolution",
     },
-    "coredhcp_multisubnet_running_image": {
+    "coredns_dns_forwarders": {
         "id": "ORCH_FVT_PXEBOOT_V303",
+        "title": "Verify DNS forwarders are configured and can resolve external domains",
+        "component": "CoreDNS forwarders configuration",
+    },
+    "coredns_corefile_config": {
+        "id": "ORCH_FVT_PXEBOOT_V304",
+        "title": "Verify Corefile configuration is correctly rendered",
+        "component": "CoreDNS Corefile configuration",
+    },
+    "coredhcp_config_file": {
+        "id": "ORCH_FVT_PXEBOOT_V305",
+        "title": "Verify coredhcp.yaml configuration file is correctly rendered",
+        "component": "CoreDHCP configuration file",
+    },
+    "coredhcp_multisubnet_running_image": {
+        "id": "ORCH_FVT_PXEBOOT_V306",
         "title": (
             "Verify multi-subnet coresmd containers and rendered subnet "
             "configuration (defect 843 open for live subnet validation)"
@@ -856,22 +958,22 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "CoreDHCP multi-subnet image and config",
     },
     "dns_compute_resolv_conf": {
-        "id": "ORCH_FVT_PXEBOOT_V304",
+        "id": "ORCH_FVT_PXEBOOT_V307",
         "title": "Verify /etc/resolv.conf on every compute uses CoreDNS as primary",
         "component": "Compute /etc/resolv.conf",
     },
     "dns_compute_forward_getent": {
-        "id": "ORCH_FVT_PXEBOOT_V305",
+        "id": "ORCH_FVT_PXEBOOT_V308",
         "title": "Verify every compute resolves peers via getent hosts",
         "component": "Compute getent hosts resolution",
     },
     "coredns_idempotency": {
-        "id": "ORCH_FVT_PXEBOOT_V306",
+        "id": "ORCH_FVT_PXEBOOT_V309",
         "title": "Verify CoreDNS/CoreDHCP state stability (no-drift)",
         "component": "CoreDNS state stability",
     },
     "dns_node_addition_pipeline": {
-        "id": "ORCH_FVT_PXEBOOT_V307",
+        "id": "ORCH_FVT_PXEBOOT_V310",
         "title": (
             "Verify SMD-to-CoreDNS pipeline readiness (existing registrations "
             "only; defect 843 open for live add-node)"
@@ -879,7 +981,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "CoreDNS node-addition pipeline readiness",
     },
     "dns_smd_unreachable_cached_resolution": {
-        "id": "ORCH_FVT_PXEBOOT_V308",
+        "id": "ORCH_FVT_PXEBOOT_V311",
         "title": "Verify CoreDNS serves cached records when SMD is unavailable",
         "component": "CoreDNS SMD-unavailable cached resolution",
     },
@@ -1059,7 +1161,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
     },
     # ── DCGM / CUDA verification (ORCH_FVT_PXEBOOT_V501-V518) ─────────
     "dcgm_cuda_validation": {
-        "id": "ORCH_FVT_PXEBOOT_V501",
+        "id": "ORCH_FVT_PXEBOOT_V522",
         "title": "Verify NVIDIA driver and CUDA toolkit on GPU nodes",
         "component": "CUDA driver and toolkit validation",
     },
@@ -1147,6 +1249,92 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V518",
         "title": "Verify error handling when DCGM package is unavailable",
         "component": "DCGM package install failure",
+    },
+    # ---- VAST Storage (TC-001 .. TC-017) ----
+    "vast_vastnfs_installation": {
+        "id": "ORCH_FVT_PXEBOOT_V700",
+        "title": "Verify VAST NFS client installation on compute nodes",
+        "component": "VAST NFS installation",
+    },
+    "vast_mount_points": {
+        "id": "ORCH_FVT_PXEBOOT_V701",
+        "title": "Verify VAST mount point directories exist on compute nodes",
+        "component": "VAST mount points",
+    },
+    "vast_scratch_hostname_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V702",
+        "title": "Verify /scratch/<hostname>/ isolation across nodes",
+        "component": "VAST scratch hostname isolation",
+    },
+    "vast_mount_options": {
+        "id": "ORCH_FVT_PXEBOOT_V703",
+        "title": "Verify VAST mount options proto=rdma and port=20049",
+        "component": "VAST mount options",
+    },
+    "vast_ldapuser_scratch_directory": {
+        "id": "ORCH_FVT_PXEBOOT_V704",
+        "title": "Verify /scratch/<ldapuser>/ on login_compiler nodes",
+        "component": "VAST LDAP scratch directory",
+    },
+    "vast_ldapuser_subdirectories": {
+        "id": "ORCH_FVT_PXEBOOT_V705",
+        "title": "Verify data/jobs/results/tmp subdirectories in scratch",
+        "component": "VAST LDAP subdirectories",
+    },
+    "vast_ldapuser_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V706",
+        "title": "Verify LDAP user permission isolation on VAST scratch",
+        "component": "VAST LDAP permissions",
+    },
+    "vast_scratch_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V707",
+        "title": "Verify file isolation between VAST scratch subdirectories",
+        "component": "VAST scratch isolation",
+    },
+    "vast_control_node_no_vast": {
+        "id": "ORCH_FVT_PXEBOOT_V708",
+        "title": "Verify Slurm control node has no VAST storage mounted",
+        "component": "VAST control node exclusion",
+    },
+    "vast_vastnfs_rpm_and_module": {
+        "id": "ORCH_FVT_PXEBOOT_V709",
+        "title": "Verify vastnfs RPM, kernel module, and service",
+        "component": "VAST NFS RPM and module",
+    },
+    "vast_fstab_entries": {
+        "id": "ORCH_FVT_PXEBOOT_V710",
+        "title": "Verify /etc/fstab VAST entries with proto=rdma",
+        "component": "VAST fstab entries",
+    },
+    "vast_rdma_mount": {
+        "id": "ORCH_FVT_PXEBOOT_V711",
+        "title": "Verify VAST RDMA mount and 1 GB I/O checksum",
+        "component": "VAST RDMA mount and I/O",
+    },
+    "vast_qss_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V712",
+        "title": "Verify VAST QSS mounts on compute/login only",
+        "component": "VAST QSS mount assignment",
+    },
+    "vast_slurm_logs_persistence": {
+        "id": "ORCH_FVT_PXEBOOT_V713",
+        "title": "Verify Slurm logs on persistent storage",
+        "component": "VAST Slurm log persistence",
+    },
+    "vast_control_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V714",
+        "title": "Verify control node mount table (no VAST)",
+        "component": "VAST control node mounts",
+    },
+    "vast_compute_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V715",
+        "title": "Verify compute node mount table (NFS + VAST)",
+        "component": "VAST compute node mounts",
+    },
+    "vast_login_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V716",
+        "title": "Verify login/compiler node mount table",
+        "component": "VAST login node mounts",
     },
     "additional_cloud_init_smd_groups": {
         "id": "ORCH_FVT_PXEBOOT_V095",
@@ -1281,6 +1469,41 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify admin IP is configured on OS-only nodes",
         "component": "Minimal OS network identity",
     },
+    "minimal_os_functional_group_schema": {
+        "id": "ORCH_FVT_PXEBOOT_V122",
+        "title": "Verify functional-group definitions on OS-only nodes",
+        "component": "Minimal OS functional group schema",
+    },
+    "minimal_os_additional_packages": {
+        "id": "ORCH_FVT_PXEBOOT_V123",
+        "title": "Verify configured additional packages on OS-only nodes",
+        "component": "Minimal OS additional packages",
+    },
+    "minimal_os_additional_packages_fallback": {
+        "id": "ORCH_FVT_PXEBOOT_V124",
+        "title": "Verify absent additional_packages handled on OS-only nodes",
+        "component": "Minimal OS additional packages fallback",
+    },
+    "minimal_os_ldms_service_state": {
+        "id": "ORCH_FVT_PXEBOOT_V125",
+        "title": "Verify LDMS service inactive at handoff on OS-only nodes",
+        "component": "Minimal OS LDMS service state",
+    },
+    "minimal_os_ssh_key_access": {
+        "id": "ORCH_FVT_PXEBOOT_V126",
+        "title": "Verify SSH key authentication on OS-only nodes",
+        "component": "Minimal OS SSH key access",
+    },
+    "minimal_os_network_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V127",
+        "title": "Verify default route on management network on OS-only nodes",
+        "component": "Minimal OS network isolation",
+    },
+    "minimal_os_no_embedded_credentials": {
+        "id": "ORCH_FVT_PXEBOOT_V128",
+        "title": "Verify no plaintext secrets in image on OS-only nodes",
+        "component": "Minimal OS no embedded credentials",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
@@ -1380,4 +1603,82 @@ TEST_CASES: dict[str, dict[str, str]] = {
     **PXEBOOT_TEST_CASES,
     **CLEANUP_TEST_CASES,
     **NFT_TEST_CASES,
+}
+
+
+# =====================================================================
+# Pytest execution order blocks
+# =====================================================================
+# Every test's @pytest.mark.order value lies inside its suite's block:
+#
+#   block start = lifecycle base + suite slot * ORDER_BLOCK_SIZE
+#   order       = block start + position in suite (1..99)
+#
+# Lifecycle bases are 10000 apart, so values are unique across lifecycles.
+# "root" holds the lifecycle execution case at the block start itself. Suites
+# are listed in dependency order: reachability and node state first, then
+# cluster health, temporary workloads, and finally reboot or node-removal
+# suites. Within a suite, reboot and destructive cases come last. Add a
+# test by taking the next free number in its suite block; add a suite by
+# appending a new block.
+ORDER_BLOCK_SIZE = 100
+
+TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
+    "precheck": {
+        "root": 10000,
+        "environment": 10100,
+        "oim_readiness": 10200,
+        "storage": 10300,
+        "dependencies": 10400,
+        "inputs": 10500,
+    },
+    "prepare": {
+        "root": 20000,
+        "openchami": 20100,
+        "network": 20200,
+        "openldap": 20300,
+    },
+    "provision": {
+        "root": 30000,
+        "openchami": 30100,
+    },
+    "pxeboot": {
+        "root": 40000,
+        "connectivity": 40100,
+        "cloudinit": 40200,
+        "additional_cloud_init": 40300,
+        "mount_config": 40400,
+        "minimal_os": 40500,
+        "powervault": 40600,
+        "coredns_coredhcp": 40700,
+        "kubernetes_cluster": 40800,
+        "kubernetes_etcd": 40900,
+        "kubernetes_storage": 41000,
+        "slurm_cluster": 41100,
+        "slurm_jobs": 41200,
+        "slurm_ldap": 41300,
+        "slurm_gpu": 41400,
+        "slurm_dcgm": 41500,
+        "slurm_openmpi": 41600,
+        "slurm_ucx": 41700,
+        "slurm_infiniband": 41800,
+        "slurm_apptainer": 41900,
+        "slurm_hpc_benchmarks": 42000,
+        "vast_storage": 42100,
+        "kubernetes_recovery": 42200,
+        "slurm_recovery": 42300,
+        "slurm_lifecycle": 42400,
+    },
+    "cleanup": {
+        "root": 50000,
+        "openchami": 50100,
+        "openldap": 50200,
+        "slurm": 50300,
+        "kubernetes": 50400,
+        "artifacts": 50500,
+        "credentials": 50600,
+    },
+    "nft": {
+        "root": 60000,
+    },
 }

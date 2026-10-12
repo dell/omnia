@@ -136,6 +136,48 @@ Per-domain configuration. Key sections:
 - **`build_stream_port`** — API server port (default: `8010`)
 - **`gitlab_host`** — Target host for GitLab deployment
 - **`gitlab_project_name`** — GitLab project name (default: `omnia-catalog`)
+- **`cadence.enabled`** — Enable periodic repository reconciliation and catalog-driven pipelines
+- **`cadence.interval_days`** — Poll interval for cadence cycles (default 7 days, minimum 1 day)
+- **`cadence.sync_timeout_seconds`** — Maximum wait for repository synchronization
+- **`cadence.sync_poll_interval_seconds`** — Poll interval while waiting for repository synchronization
+- **`retention.auto_cleanup_enabled`** — Enable automatic image cleanup (default `true`)
+- **`retention.retention_age_days`** — Age after which a never-deployed, unprotected image group is cleaned up (default 90, minimum 1)
+- **`retention.min_keep_count`** — Image groups always kept per functional group (default 5)
+- **`retention.evaluation_interval_hours`** — Interval between automatic cleanup cycles (default 24, minimum 1)
+
+The cadence catalog (`cadence_catalog_rhel.json`) and reconciliation playbook
+(`repo_sync.yml`) are fixed system contracts. Cadence settings are reloaded at
+the start of each cycle. Disabling cadence suppresses work but keeps the timer
+alive so it can be re-enabled without restarting `playbook-watcher.service`.
+
+### Automatic Image Cleanup
+
+The `omnia_build_stream` API container runs automatic cleanup in the
+background (`AutoCleanupScheduler`). Each cycle cleans up `FAILED` image
+groups and then image groups older than `retention.retention_age_days` that
+were never deployed, are not protected, and whose functional group keeps more
+than `retention.min_keep_count` groups. The `retention` settings are re-read
+every minute, so changes apply without restarting the container; an invalid
+value keeps the last valid settings. The first cycle runs 5 minutes after
+the container starts. A manual pass can be run inside the container with
+`python3 /opt/omnia/build_stream/cleanup_cron.py`.
+
+### Cadence Pipeline
+
+When cadence is enabled, the playbook-watcher runs the registered
+`repo_sync.yml` playbook and validates `repo_resync_status.yml`. A failed sync,
+a non-zero stale-package count, or incomplete cleanup stops the cycle before
+the catalog is changed. After every successful reconciliation, the watcher
+increments the catalog version and pushes exactly one GitLab commit. That
+commit starts the unified pipeline:
+
+`initialization` → `parse-catalog` → `configure-local-repository` →
+`build-images` → `deploy` → `restart` → `validate` → `summary`
+
+Cadence never suppresses the pipeline based on `packages_added` or
+`packages_removed`. Those counts cannot reveal a package-version replacement
+that leaves the total package count unchanged. A successful exact-mirror sync
+therefore always advances the full cadence pipeline.
 
 ## High-Level Workflow
 
@@ -152,7 +194,7 @@ All runtime output goes to `<OMNIA_DATA_PATH>/build_stream/` (default: `/opt/omn
 
 | Path | Purpose |
 |------|---------|
-| `<data_path>/build_stream/log/playbooks/` | Ansible playbook logs |
+| `<data_path>/build_stream/log/` | BuildStream job logs: API event log, per-job API logs and copies of per-attempt stage playbook logs (`log/<job_id>/`), cadence sync log copies (`log/cadence-<timestamp>/`), and validation logs (`log/<project>/`). Watcher-run playbooks log to `/var/log/omnia/<domain>/` like a manual run; that log is copied here when the stage ends |
 | `<data_path>/build_stream/input/<project>/` | Staged input files |
 | `<data_path>/build_stream/output/<project>/` | Build status output |
 | `<data_path>/build_stream/playbook_queue/` | Watcher job queue |
@@ -223,6 +265,25 @@ credential files and vault keys:
 ```bash
 cd src/main
 sudo ./omnia.sh --run build_stream --tags cleanup
+```
+
+BuildStream cleanup removes its project output, validation and watcher logs,
+active and archived playbook queues, API logs, TLS/runtime data, host playbook
+logs under `/var/log/omnia/build_stream`, and generated Python bytecode caches.
+The initializer-owned application source and non-credential input files remain
+available for redeployment.
+PostgreSQL data is preserved by default; pass `-e postgres_backup=false` when
+the database data must also be deleted.
+
+Because cleanup removes the initializer-managed runtime and host log
+directories, reinitialize the BuildStream domain before redeploying. Use the
+public `omnia.sh` commands; `--init build_stream` invokes `domain-init.sh` and
+recreates the required directories:
+
+```bash
+cd src/main
+sudo ./omnia.sh --init build_stream
+sudo ./omnia.sh --run build_stream
 ```
 
 `src/build_stream/domain-init.sh --cleanup` is a non-interactive initializer

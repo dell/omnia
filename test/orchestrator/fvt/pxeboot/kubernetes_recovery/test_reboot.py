@@ -16,30 +16,30 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_kubernetes_control_plane_recovery,
     check_kubernetes_local_etcd_recovery,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
 
-@pytest.mark.disruptive
 @pytest.mark.reboot
 @pytest.mark.kubernetes
-@pytest.mark.order(224)
+@pytest.mark.order(42201)
 def test_kubernetes_local_etcd_recovery(host):
     """Reboot a control plane and prove its local-etcd UUID is preserved."""
-    verify_pxeboot(
-        host,
-        "kubernetes_local_etcd_recovery",
-        check_kubernetes_local_etcd_recovery,
-    )
+    tc = TC["kubernetes_local_etcd_recovery"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_local_etcd_recovery)
 
 
-@pytest.mark.disruptive
 @pytest.mark.reboot
 @pytest.mark.kubernetes
-@pytest.mark.order(225)
+@pytest.mark.order(42202)
 def test_kubernetes_control_plane_recovery(host):
     """Reboot the VIP owner and verify control-plane recovery."""
-    verify_pxeboot(host, "kubernetes_recovery", check_kubernetes_control_plane_recovery)
+    tc = TC["kubernetes_recovery"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_kubernetes_control_plane_recovery)

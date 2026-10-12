@@ -16,22 +16,28 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_precheck_admin_ipv4,
     check_precheck_hostname_domain,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_precheck
 
 
 @pytest.mark.sanity
-@pytest.mark.order(1)
+@pytest.mark.order(10101)
 def test_precheck_hostname_domain(host):
     """Require the host identity to match omnia.env exactly."""
-    verify_precheck(host, "precheck_hostname_domain", check_precheck_hostname_domain)
+    tc = TC["precheck_hostname_domain"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_hostname_domain)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(2)
+@pytest.mark.order(10102)
 def test_precheck_admin_ipv4(host):
     """Require the configured administrative IPv4 on a global interface."""
-    verify_precheck(host, "precheck_admin_ipv4", check_precheck_admin_ipv4)
+    tc = TC["precheck_admin_ipv4"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_admin_ipv4)

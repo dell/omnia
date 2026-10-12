@@ -58,6 +58,7 @@ vi test_config.yml
 ./run_validation.sh fvt_main precheck exec       # Precheck execution only
 ./run_validation.sh fvt_main cleanup exec        # Explicit cleanup only
 ./run_validation.sh nft_main test                # Performance + idempotency NFT
+python3 -m unittest discover -s ut -p 'test_*.py' # Local CLI/catalog unit contracts
 ```
 
 ### Setup modes
@@ -147,6 +148,9 @@ test/main/
 │   │   ├── errors/                   # verify: unknown command errors
 │   │   └── logs/                     # verify: log commands
 │   └── cleanup/             # explicit destructive cleanup scenario
+├── ut/                      # Local source-level CLI and catalog tests
+│   ├── README.md            # Unit-test coverage and command
+│   └── test_omnia_cli.py    # omnia-cli, completion, and catalog contracts
 └── nft/                     # Non-Functional Tests
     ├── README.md            # NFT test cases and thresholds
     ├── __init__.py
@@ -164,7 +168,7 @@ test/main/
 | `init` | `omnia.sh --init` | Domain log dirs, input file staging (7 domains) |
 | `precheck` | `--run image_build_manager --tags precheck` | Command completion and precheck contract |
 | `validate` | `--run image_build_manager --tags validate` | Command completion and validation contract |
-| `cli` | `omnia.sh --help` (entry point) | Help output, flag parsing, error handling, tags, --prepare-base |
+| `cli` | `omnia.sh --help` (entry point) | Help output, flag parsing, error handling, tags, --prepare-base, and recursive catalog listing |
 | `omnia_cli` | `omnia-cli help` | Status, check, version, domain queries, logs, errors |
 | `cleanup` | `omnia.sh --cleanup` | Explicit cleanup only; excluded from aggregate runs |
 | `nft` | `--setup-venv`, `--init`, `omnia-cli status` | Performance thresholds, idempotency, file permissions |

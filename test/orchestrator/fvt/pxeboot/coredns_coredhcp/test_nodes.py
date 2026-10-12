@@ -22,27 +22,34 @@ as the primary nameserver on every provisioned node.
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_dns_compute_forward_getent,
     check_dns_compute_resolv_conf,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [pytest.mark.slurm, pytest.mark.non_disruptive]
-
-
+@pytest.mark.buildstream
 @pytest.mark.sanity
-@pytest.mark.order(355)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(40709)
 def test_dns_compute_resolv_conf(host):
-    """TC-05: /etc/resolv.conf on every compute has CoreDNS as primary."""
-    verify_pxeboot(host, "dns_compute_resolv_conf", check_dns_compute_resolv_conf)
+    """TC-09: /etc/resolv.conf on every compute has CoreDNS as primary."""
+    tc = TC["dns_compute_resolv_conf"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dns_compute_resolv_conf)
 
 
+@pytest.mark.buildstream
 @pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(356)
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(40710)
 def test_dns_compute_forward_getent(host):
-    """TC-06: getent hosts on every compute resolves every mapped peer."""
-    verify_pxeboot(
-        host, "dns_compute_forward_getent", check_dns_compute_forward_getent
-    )
+    """TC-10: getent hosts on every compute resolves every mapped peer."""
+    tc = TC["dns_compute_forward_getent"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_dns_compute_forward_getent)

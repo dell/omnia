@@ -15,6 +15,7 @@
 """Focused unit contracts for PXE parsers, features, and safety gates."""
 
 import json
+import subprocess
 from types import SimpleNamespace
 
 import pytest
@@ -27,6 +28,7 @@ from library.functions import kubernetes_runtime_pxeboot_func as kubernetes_runt
 from library.functions import kubernetes_storage_pxeboot_func as kubernetes_storage
 from library.functions import slurm_auth_pxeboot_func as slurm_auth
 from library.functions import slurm_configuration_pxeboot_func as slurm_config
+from library.functions import slurm_lifecycle_pxeboot_func as slurm_lifecycle
 from library.functions import slurm_pxeboot_func as slurm
 
 
@@ -201,11 +203,11 @@ def test_marker_authorization_requires_exact_explicit_selection(monkeypatch):
     """ORCH_UT_006: Mutation helpers trust only exact authorized markers."""
     monkeypatch.setenv(
         "OMNIA_FVT_AUTHORIZED_MARKERS",
-        "functional,disruptive",
+        "functional,reboot",
     )
     assert helpers.marker_is_authorized("functional")
-    assert helpers.marker_is_authorized("disruptive")
-    assert not helpers.marker_is_authorized("reboot")
+    assert helpers.marker_is_authorized("reboot")
+    assert not helpers.marker_is_authorized("image_download")
     monkeypatch.delenv("OMNIA_FVT_AUTHORIZED_MARKERS")
     assert not helpers.marker_is_authorized("functional")
 
@@ -703,3 +705,132 @@ def test_apptainer_without_slurm_compute_skips_before_node_probe(monkeypatch):
     assert dict(result["details"]["fields"])["Reason"] == (
         "No Slurm compute nodes are mapped"
     )
+
+
+@pytest.mark.parametrize("content", ["H,A\nr1,x\n", "H,A\nr1,x", "H,A\nr1,'q'"])
+def test_slurm_lifecycle_mapping_write_keeps_content_exact(
+    monkeypatch, tmp_path, content
+):
+    """ORCH_UT_090: Heredoc writes never append the delimiter to the data."""
+    def run_locally(_host, command):
+        proc = subprocess.run(
+            ["bash", "-c", command], capture_output=True, text=True, check=False
+        )
+        return SimpleNamespace(rc=proc.returncode, stdout=proc.stdout,
+                               stderr=proc.stderr)
+
+    monkeypatch.setattr(slurm_lifecycle, "run_on_host", run_locally)
+    target = tmp_path / "pxe_mapping_file.csv"
+    result = slurm_lifecycle._write_remote_file(None, str(target), content)
+
+    assert result.rc == 0
+    written = target.read_text(encoding="utf-8")
+    assert "OMNIA_EOF" not in written
+    assert written.rstrip("\n") == content.rstrip("\n")
+
+
+_LIFECYCLE_HEADER = "FUNCTIONAL_GROUP_NAME,GROUP_NAME,HOSTNAME,ADMIN_MAC,ADMIN_IP"
+
+
+@pytest.mark.parametrize(
+    ("slurm_nodes", "configured", "expected"),
+    [
+        (1, "", None),
+        (1, "192.0.2.11", None),
+        (2, "", ["192.0.2.12"]),
+        (2, "192.0.2.11", ["192.0.2.11"]),
+    ],
+)
+def test_slurm_node_remove_requires_two_slurm_nodes(
+    monkeypatch, slurm_nodes, configured, expected
+):
+    """ORCH_UT_091: Node removal skips with fewer than two slurm_node rows."""
+    rows = ["slurm_control_node_x86_64,grp2,ctl,aa:bb:cc:dd:ee:00,192.0.2.10"]
+    rows += [
+        f"slurm_node_x86_64,grp3,node{i},aa:bb:cc:dd:ee:0{i},192.0.2.1{i}"
+        for i in range(1, slurm_nodes + 1)
+    ]
+    content = "\n".join([_LIFECYCLE_HEADER, *rows]) + "\n"
+    host = SimpleNamespace(
+        file=lambda _path: SimpleNamespace(is_file=True, content_string=content)
+    )
+    monkeypatch.setattr(
+        slurm_lifecycle,
+        "load_test_config",
+        lambda: {"slurm_lifecycle_remove_add_nodes": configured},
+    )
+
+    resolved = slurm_lifecycle._resolve_target_nodes(host, "mapping.csv")
+
+    assert (resolved[0] if resolved else None) == expected
+
+
+def test_slurm_node_remove_skip_discards_stale_backup(monkeypatch, tmp_path):
+    """ORCH_UT_092: A skipped removal leaves no backup for the add test."""
+    backup = tmp_path / "pxe_mapping_file.csv.backup"
+    backup.write_text("stale", encoding="utf-8")
+    monkeypatch.setattr(slurm_lifecycle, "_backup_path", lambda: str(backup))
+    monkeypatch.setattr(slurm_lifecycle, "_mapping_path", lambda _host: "m.csv")
+    monkeypatch.setattr(
+        slurm_lifecycle, "_resolve_target_nodes", lambda _host, _path: None
+    )
+
+    result = slurm_lifecycle.check_slurm_node_remove(None)
+
+    assert result["skipped"] and result["success"]
+    assert "At least 2 slurm_node" in result["details"]["fields"][0][1]
+    assert not backup.exists()
+
+
+def test_stale_host_key_removal_uses_central_runner(monkeypatch, tmp_path):
+    """ORCH_UT_093: Host-key reconciliation uses the centralized local runner."""
+    known_hosts = tmp_path / "known_hosts"
+    known_hosts.write_text("old key\n", encoding="utf-8")
+    monkeypatch.setenv("OMNIA_SSH_KNOWN_HOSTS", str(known_hosts))
+    calls = []
+
+    def run_locally(host, command, *args):
+        calls.append((host, command, args))
+        return SimpleNamespace(rc=0, stdout="", stderr="")
+
+    monkeypatch.setattr(slurm_auth, "run_on_host", run_locally)
+    key = SimpleNamespace(
+        get_name=lambda: "ssh-ed25519",
+        get_base64=lambda: "A" * 68,
+    )
+    host = object()
+
+    success, _detail = slurm_auth._remove_stale_mapped_host_key(
+        host, "192.0.2.10", key
+    )
+
+    assert success
+    assert calls == [
+        (
+            host,
+            slurm_auth.PXEBOOT_COMMANDS["ssh_remove_host_key"],
+            ("192.0.2.10", str(known_hosts)),
+        )
+    ]
+    assert known_hosts.read_text(encoding="utf-8").endswith(
+        f"192.0.2.10 ssh-ed25519 {'A' * 68}\n"
+    )
+
+
+def test_poll_progress_uses_structured_logging(monkeypatch):
+    """ORCH_UT_094: Poll progress is emitted through structured logging."""
+    messages = []
+    monkeypatch.setattr(
+        helpers, "log", lambda message, level: messages.append((message, level))
+    )
+    monkeypatch.setattr(helpers.time, "monotonic", lambda: 12.0)
+
+    helpers.report_poll_progress("node reboot", 2, 10.0, 30, "booting")
+
+    assert messages == [
+        (
+            "    ↻ node reboot: still in progress; retrying status check "
+            "(attempt 2, elapsed 2s, remaining 28s) | last state: booting",
+            "INFO",
+        )
+    ]

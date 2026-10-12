@@ -253,6 +253,7 @@ def pytest_configure(config):
         "deploy": "Playbook deployment tests",
         "x86_64": "x86_64 architecture tests",
         "aarch64": "aarch64 architecture tests",
+        "repo_resync": "Catalog-scoped RPM exact-mirror reconciliation",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
