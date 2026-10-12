@@ -422,6 +422,113 @@ UT_TEST_CASE_IDS = {
             223: "test_repository_failure_blocks_orphan_cleanup_and_later_repos",
         },
     ),
+    **_class_cases(
+        "test_exact_mirror_reconciliation.py",
+        "ExactMirrorCommandTests",
+        {
+            224: "test_repomd_validation_rejects_non_https_origin",
+            225: "test_repomd_validation_rejects_xml_entities",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_compatibility_warnings.py",
+        "Con004ImageTagTests",
+        {
+            226: "test_agreeing_image_tags_and_rpm_versions_produce_no_warning",
+            227: "test_image_tag_downgrade_relative_to_sibling_rpm_is_flagged",
+            228: "test_untouched_disagreement_is_not_reported",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_compatibility_warnings.py",
+        "Con004RepositoryIdentifierTests",
+        {
+            229: "test_reponame_and_rpm_name_in_agreement_produce_no_warning",
+            230: "test_reponame_downgrade_independent_of_rpm_name_is_flagged",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_component_diff.py",
+        "ComponentDiffTests",
+        {
+            231: "test_exhaustive_small_sequences",
+            232: "test_htop_append_contains_only_added_component",
+            233: "test_invalid_component_operations_fail_without_mutation",
+            234: "test_large_list_small_edit_stays_compact",
+            235: "test_late_failure_leaves_source_unchanged",
+            236: "test_legacy_set_and_whole_owner_add_remove",
+            237: "test_metadata_changes_use_legacy_replacement",
+            238: "test_multiple_edits_count_as_one_changed_owner",
+            239: "test_no_change_is_empty",
+            240: "test_ordered_edits_and_duplicates_round_trip",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_diff_cli.py",
+        "DiffOutputCollisionTests",
+        {
+            241: "test_distinct_output_paths_succeed",
+            242: "test_forward_and_reverse_outputs_cannot_collide",
+            243: "test_output_cannot_equal_an_input",
+            244: "test_symlinked_output_alias_of_an_input_is_rejected",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_diff_cli.py",
+        "DiffSchemaRequiredTests",
+        {
+            245: "test_allow_schemaless_succeeds_with_disclosed_degraded_warning",
+            246: "test_component_append_emits_compact_patch_and_changed_group_report",
+            247: "test_missing_schema_and_no_override_is_rejected",
+            248: "test_schema_supplied_succeeds_without_degraded_warning",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_schema_prerequisites.py",
+        "SchemaPrerequisiteTests",
+        {
+            249: "test_commands_fail_without_touching_catalogs_or_outputs",
+            250: "test_invalid_catalog_is_rejected_when_schema_runs",
+            251: "test_missing_library_rejects_valid_and_invalid_catalogs",
+            252: "test_missing_schema_is_an_error",
+            253: "test_no_schema_keeps_explicit_business_rule_only_behavior",
+            254: "test_unreadable_schema_is_an_error",
+            255: "test_valid_catalog_passes_with_schema_library_available",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_write_boundary.py",
+        "FindPathCollisionsTests",
+        {
+            256: "test_differently_spelled_same_path_collides",
+            257: "test_falsy_paths_are_ignored",
+            258: "test_identical_path_strings_collide",
+            259: "test_no_collision_among_distinct_paths",
+            260: "test_symlink_alias_collides_with_its_target",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_write_boundary.py",
+        "ResolveAndValidateCatalogPathTests",
+        {
+            261: "test_absolute_path_elsewhere_is_rejected",
+            262: "test_dotdot_escape_is_rejected",
+            263: "test_path_inside_root_is_accepted",
+            264: "test_root_itself_is_accepted",
+            265: "test_symlinked_leaf_escape_is_rejected",
+            266: "test_symlinked_parent_directory_escape_is_rejected",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_write_boundary.py",
+        "WriteCatalogBoundaryTests",
+        {
+            267: "test_no_temp_file_left_behind_on_success",
+            268: "test_without_allowed_root_behavior_is_unchanged",
+            269: "test_write_inside_root_succeeds",
+            270: "test_write_outside_root_raises_and_writes_nothing",
+        },
+    ),
 }
 
 
