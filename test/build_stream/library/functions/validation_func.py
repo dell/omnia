@@ -20,9 +20,10 @@ from typing import Any, Dict, List
 
 import yaml
 
+from omnia_auto import get_module_root
+
 from ..vars.common_vars import (
     IPV4_PATTERN,
-    MODULE_ROOT,
     REQUIRED_CONFIG_FIELDS,
     REQUIRED_DATASET_FILES,
     REQUIRED_SRC_FILES,
@@ -53,7 +54,7 @@ def _validate_dataset(dataset: str) -> List[str]:
     ):
         return [f"Unsafe dataset name: {dataset!r}"]
 
-    dataset_root = os.path.realpath(os.path.join(MODULE_ROOT, "datasets"))
+    dataset_root = os.path.realpath(os.path.join(get_module_root(), "datasets"))
     dataset_path = os.path.join(dataset_root, dataset)
     if os.path.islink(dataset_path) or not os.path.isdir(dataset_path):
         return [f"Dataset directory not found: datasets/{dataset}/"]
@@ -71,7 +72,7 @@ def _validate_dataset(dataset: str) -> List[str]:
 
 def validate_test_config() -> Dict[str, Any]:
     """Validate required settings, paths, formats, and dataset files."""
-    config_path = os.path.join(MODULE_ROOT, "test_config.yml")
+    config_path = os.path.join(get_module_root(), "test_config.yml")
     errors: List[str] = []
     warnings: List[str] = []
 

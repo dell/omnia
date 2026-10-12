@@ -1,0 +1,22 @@
+---
+oim_server_ip: ""
+oim_ssh_user: root
+oim_ssh_port: 22
+clone_path: "/omnia"
+dataset: ""
+sync_build_stream_input: false
+report_path: /opt/omnia/reports
+report_name: build_stream_integration_report
+run_id: ""
+allow_pipeline_cancel: false
+cadence_catalog_path: "rhel/10.2/slurm_x86_64_no_vast.json"
+job_id: ""
+automatic_cleanup_job_id: ""
+automatic_cleanup_allow_execution: false
+nft_allow_pipeline_cancel: false
+nft_allow_service_restart: false
+nft_allow_active_stage_restart: false
+nft_allow_watcher_restart: false
+nft_allow_security_mutation: false
+nft_recovery_timeout_seconds: 120
+nft_pipeline_timeout_seconds: 300

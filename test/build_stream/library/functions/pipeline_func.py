@@ -32,7 +32,7 @@ import time
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Dict, List, Optional
 
-from omnia_auto import load_test_config, read_remote_yaml, run_on_host
+from omnia_auto import get_module_root, load_test_config, read_remote_yaml, run_on_host
 
 from library.cadence_artifact_contract import (
     artifact_basenames_match_engine,
@@ -4225,10 +4225,7 @@ def update_job_id_in_config(job_id: str) -> bool:
     Returns:
         True if successfully written, False otherwise.
     """
-    test_dir = os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)
-    )))
-    config_path = os.path.join(test_dir, "test_config.yml")
+    config_path = os.path.join(get_module_root(), "test_config.yml")
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:

@@ -37,11 +37,20 @@ if _TEST_DIR not in sys.path:
 # --- Initialize omnia_auto BEFORE any imports that use it ---
 import omnia_auto  # noqa: E402 - configured after module path setup
 
+_MODULE_ROOT = os.environ.get("OMNIA_TEST_MODULE_ROOT", _TEST_DIR)
+_CONFIG_FILE = os.environ.get("OMNIA_TEST_CONFIG_FILE", "test_config.yml")
+_CREDENTIALS_FILE = os.environ.get(
+    "OMNIA_TEST_CREDENTIALS_FILE", "test_creds.yml",
+)
+_CREDENTIALS_KEY = os.environ.get(
+    "OMNIA_TEST_CREDENTIALS_KEY", ".test_creds.key",
+)
+
 omnia_auto.configure(
-    module_root=_TEST_DIR,
-    config_file="test_config.yml",
-    credentials_file="test_creds.yml",
-    credentials_key=".test_creds.key",
+    module_root=_MODULE_ROOT,
+    config_file=_CONFIG_FILE,
+    credentials_file=_CREDENTIALS_FILE,
+    credentials_key=_CREDENTIALS_KEY,
 )
 
 # --- Common functions from omnia_auto ---
