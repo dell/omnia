@@ -467,7 +467,7 @@
           "python3",
           "python3_pymysql",
           "papi_rpm",
-          "docker.io/bitnami/kubectl"
+          "docker.io/alpine/kubectl"
         ]
       },
       "service_kube_control_plane_group": {
@@ -1205,17 +1205,9 @@
               "10.2"
             ],
             "url": "https://github.com/dell/karavi-observability.git"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://github.com/dell/karavi-observability.git"
           }
         ],
-        "version": "v1.15.0"
+        "version": "v1.16.0"
       },
       "quay.io/jetstack/cert-manager-controller": {
         "name": "quay.io/jetstack/cert-manager-controller",
@@ -5005,21 +4997,6 @@
             ]
           }
         ]
-      },
-      "docker.io/bitnami/kubectl": {
-        "name": "docker.io/bitnami/kubectl",
-        "packagetype": "image",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "registry": "docker.io"
-          }
-        ],
-        "tag": "latest"
       }
     }
   }

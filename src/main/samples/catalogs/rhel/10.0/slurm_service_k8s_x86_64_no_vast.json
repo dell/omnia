@@ -431,7 +431,7 @@
           "python3",
           "python3_pymysql",
           "papi_rpm",
-          "docker.io/bitnami/kubectl"
+          "docker.io/alpine/kubectl"
         ]
       },
       "service_kube_control_plane_group": {
@@ -3458,7 +3458,7 @@
             "url": "https://github.com/dell/karavi-observability.git"
           }
         ],
-        "version": "v1.15.0"
+        "version": "v1.16.0"
       },
       "docker.io/victoriametrics/victoria-metrics": {
         "name": "docker.io/victoriametrics/victoria-metrics",
@@ -3663,21 +3663,6 @@
             ]
           }
         ]
-      },
-      "docker.io/bitnami/kubectl": {
-        "name": "docker.io/bitnami/kubectl",
-        "packagetype": "image",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "registry": "docker.io"
-          }
-        ],
-        "tag": "latest"
       }
     }
   }
