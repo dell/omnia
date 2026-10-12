@@ -48,24 +48,22 @@
     name: collect_pxe_config
   when: _config_file_stat.stat.exists | default(false)
 
-# Step 4: Define valid group names
-- name: Set valid group names
+# Step 4: Define the functional group name pattern.
+# Accepts "<role>_<arch>" (the legacy bare form) and Omnia's PXE-mapping
+# convention of "<role>_<os>_<version segments>_<arch>" (e.g.
+# "slurm_node_rhel_10_0_aarch64"), so new OS/version combinations keep
+# validating without changes here.
+- name: Set functional group name pattern
   ansible.builtin.set_fact:
-    _valid_group_names:
-      - service_kube_control_plane_x86_64
-      - service_kube_node_x86_64
-      - slurm_control_node_x86_64
-      - slurm_node_x86_64
-      - slurm_node_aarch64
-      - login_node_x86_64
-      - login_compiler_node_aarch64
+    _functional_group_pattern: >-
+      ^(service_kube_control_plane_first|service_kube_control_plane|service_kube_node|slurm_control_node|slurm_node|login_node|login_compiler_node)(_(rhel|rocky|ubuntu|sles)(_[0-9]+)+)?_(x86_64|aarch64)$
 
 # Step 5: Validate group names
 - name: Validate group names in config
   ansible.builtin.set_fact:
     _invalid_groups: >-
       {{ collect_pxe_config.keys()
-         | difference(_valid_group_names)
+         | reject('match', _functional_group_pattern)
          | list }}
   when: collect_pxe_config is defined
 
@@ -75,6 +73,8 @@
   when:
     - collect_pxe_config is defined
     - _invalid_groups | length > 0
+  vars:
+    invalid_group: "{{ _invalid_groups[0] }}"
 
 # Step 6: Validate IP address formats
 - name: Validate IP address formats
@@ -135,7 +135,7 @@
   ansible.builtin.set_fact:
     validated_groups: >-
       {{ collect_pxe_config.keys()
-         | intersect(_valid_group_names)
+         | select('match', _functional_group_pattern)
          | list }}
     total_ip_count: "{{ _total_ip_count }}"
     cacheable: true

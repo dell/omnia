@@ -60,13 +60,16 @@ Each dataset contains:
 
 ### Log Collector Configuration
 
-- `service_kube_control_plane_x86_64` - List of K8s control plane IPs
-- `service_kube_node_x86_64` - List of K8s worker node IPs
-- `slurm_control_node_x86_64` - List of Slurm control node IPs
-- `slurm_node_x86_64` - List of Slurm compute node IPs (x86_64)
+Functional group names follow the convention `<role>_<os>_<version>_<arch>` where the OS/version segment is optional. Both forms are accepted:
+
+- `service_kube_control_plane_x86_64` - List of K8s control plane IPs (also accepts `service_kube_control_plane_rhel_10_0_x86_64`)
+- `service_kube_node_x86_64` - List of K8s worker node IPs (also accepts OS/version variants)
+- `slurm_control_node_x86_64` - List of Slurm control node IPs (also accepts OS/version variants)
+- `slurm_node_x86_64` - List of Slurm compute node IPs (x86_64, also accepts `slurm_node_rhel_10_0_aarch64`)
 - `slurm_node_aarch64` - List of Slurm compute node IPs (aarch64)
-- `login_node_x86_64` - List of login node IPs
-- `login_compiler_node_aarch64` - List of login compiler node IPs
+- `login_node_x86_64` - List of login node IPs (also accepts OS/version variants)
+- `login_compiler_node_x86_64` - List of login compiler node IPs (x86_64, also accepts `login_compiler_node_rhel_10_0_aarch64`)
+- `login_compiler_node_aarch64` - List of login compiler node IPs (aarch64)
 
 ### Install OS Configuration
 

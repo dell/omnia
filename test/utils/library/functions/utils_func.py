@@ -28,6 +28,9 @@ from typing import Dict, Any, List
 from ..vars.common_vars import (
     CMDS,
     FUNCTIONAL_GROUPS,
+    FUNCTIONAL_GROUP_NAME_PATTERN,
+    K8S_FUNCTIONAL_GROUP_PATTERN,
+    SLURM_FUNCTIONAL_GROUP_PATTERN,
     LOG_BUNDLE_PATTERN,
     METADATA_FILE,
     CUSTOM_ISO_PATTERN,
@@ -284,7 +287,7 @@ def validate_collect_pxe_file(host, path: str) -> Dict[str, Any]:
     invalid_groups = []
 
     for key in data.keys():
-        if key in FUNCTIONAL_GROUPS:
+        if FUNCTIONAL_GROUP_NAME_PATTERN.match(key):
             found_groups.append(key)
         else:
             invalid_groups.append(key)
@@ -514,18 +517,15 @@ def validate_bundle_log_files(host, tar_path: str) -> Dict[str, Any]:
         has_slurm = False
         
         if config:
-            # Check K8s groups
-            k8s_groups = ["service_kube_control_plane_x86_64", "service_kube_node_x86_64"]
-            for group in k8s_groups:
-                if group in config and config[group] and len(config[group]) > 0:
+            # Check K8s groups (any OS/version/arch variant)
+            for group, ips in config.items():
+                if K8S_FUNCTIONAL_GROUP_PATTERN.match(group) and ips:
                     has_k8s = True
                     break
-            
-            # Check Slurm groups
-            slurm_groups = ["slurm_control_node_x86_64", "slurm_node_x86_64", 
-                           "login_node_x86_64", "login_compiler_node_aarch64"]
-            for group in slurm_groups:
-                if group in config and config[group] and len(config[group]) > 0:
+
+            # Check Slurm/login groups (any OS/version/arch variant)
+            for group, ips in config.items():
+                if SLURM_FUNCTIONAL_GROUP_PATTERN.match(group) and ips:
                     has_slurm = True
                     break
 
@@ -874,6 +874,72 @@ def validate_install_os_credentials(host, path: str) -> Dict[str, Any]:
     }
 
 
+def resolve_nfs_path_to_local(host, nfs_uri: str) -> Dict[str, Any]:
+    """Resolve an NFS URI ("server:/export/dir/file") to a local mounted path.
+
+    Mirrors the resolution logic used by the iso_creation role: finds an
+    existing mount for the NFS server whose exported path covers the
+    requested directory, then maps the remaining relative path onto the
+    local mount point. Does not mount anything itself - the NFS share must
+    already be mounted (e.g., by a prior playbook run).
+
+    Args:
+        host: Testinfra host object.
+        nfs_uri: NFS URI in "server:/path/filename" format.
+
+    Returns:
+        dict: {"success": bool, "local_path": str, "error": str}
+    """
+    try:
+        if ":" not in nfs_uri:
+            return {
+                "success": False,
+                "local_path": "",
+                "error": f"Invalid NFS URI (missing ':'): {nfs_uri}",
+            }
+
+        nfs_server, nfs_path = nfs_uri.split(":", 1)
+        nfs_dir = nfs_path.rsplit("/", 1)[0] if "/" in nfs_path else nfs_path
+        filename = nfs_path.rsplit("/", 1)[-1]
+
+        cmd = f"mount | grep '{nfs_server}:' | awk '{{print $1 \" \" $3}}'"
+        result = host.run(cmd)
+
+        if result.rc != 0 or not result.stdout.strip():
+            return {
+                "success": False,
+                "local_path": "",
+                "error": f"NFS server '{nfs_server}' is not mounted locally",
+            }
+
+        for line in result.stdout.strip().splitlines():
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            mount_src, local_mount = parts[0], parts[1]
+            nfs_export = mount_src.split(":", 1)[1] if ":" in mount_src else ""
+            if nfs_dir == nfs_export or nfs_dir.startswith(nfs_export.rstrip("/") + "/"):
+                rel_path = nfs_dir[len(nfs_export):].strip("/")
+                local_dir = f"{local_mount}/{rel_path}" if rel_path else local_mount
+                return {
+                    "success": True,
+                    "local_path": f"{local_dir}/{filename}",
+                    "error": "",
+                }
+
+        return {
+            "success": False,
+            "local_path": "",
+            "error": f"No local mount covers NFS directory '{nfs_dir}' on server '{nfs_server}'",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "local_path": "",
+            "error": str(exc),
+        }
+
+
 def find_custom_iso(host, output_dir: str) -> Dict[str, Any]:
     """Find custom ISO file in output directory.
 
@@ -955,6 +1021,63 @@ def verify_iso_checksum(host, iso_path: str, expected_checksum: str) -> Dict[str
         return {
             "success": False,
             "actual_checksum": "",
+            "error": str(exc),
+        }
+
+
+def run_ssh_command(
+    host,
+    target_ip: str,
+    command: str,
+    ssh_key_path: str,
+    ssh_user: str = "root",
+    timeout: int = 30,
+) -> Dict[str, Any]:
+    """Run a command on a remote target via SSH using key-based authentication.
+
+    Args:
+        host: Testinfra host object (for local execution).
+        target_ip: Target node IP address.
+        command: Command to run on target.
+        ssh_key_path: Path to SSH private key (required).
+        ssh_user: SSH username (default: root).
+        timeout: Connection timeout in seconds (default: 30).
+
+    Returns:
+        dict: {"success": bool, "stdout": str, "stderr": str, "error": str}
+    """
+    try:
+        if not ssh_key_path:
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": "",
+                "error": "ssh_key_path is required for SSH authentication",
+            }
+
+        # Key-based authentication
+        cmd = (
+            f"ssh -o StrictHostKeyChecking=no "
+            f"-o ConnectTimeout={timeout} "
+            f"-o BatchMode=yes "
+            f"-o PasswordAuthentication=no "
+            f"-o IdentityFile={ssh_key_path} "
+            f"{ssh_user}@{target_ip} '{command}'"
+        )
+
+        result = host.run(cmd)
+
+        return {
+            "success": result.rc == 0,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "error": result.stderr if result.rc != 0 else "",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "stdout": "",
+            "stderr": "",
             "error": str(exc),
         }
 
