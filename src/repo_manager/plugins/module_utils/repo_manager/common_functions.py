@@ -23,10 +23,12 @@ This module provides:
 """
 
 import os
+import shutil
 import subprocess
 import stat
 import string
 import secrets
+import tempfile
 import base64
 import tomllib as toml
 from pathlib import Path
@@ -125,11 +127,23 @@ def process_file(file_path, vault_key, mode):
         if not currently_encrypted:
             success, message = True, f"Already decrypted: {file_path}"
         else:
-            code, _, err = run_vault_command('decrypt', file_path, vault_key)
-            if code == 0:
-                success, message = True, f"Decrypted: {file_path}"
-            else:
-                message = f"Failed to decrypt {file_path}: {err}"
+            parent_dir = os.path.dirname(os.path.abspath(file_path))
+            temp_fd, temp_path = tempfile.mkstemp(
+                prefix=".vault_decrypt_", dir=parent_dir
+            )
+            try:
+                os.close(temp_fd)
+                shutil.copy2(file_path, temp_path)
+                os.chmod(temp_path, 0o600)
+                code, _, err = run_vault_command('decrypt', temp_path, vault_key)
+                if code == 0:
+                    os.replace(temp_path, file_path)
+                    success, message = True, f"Decrypted: {file_path}"
+                else:
+                    message = f"Failed to decrypt {file_path}: {err}"
+            finally:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
     else:
         message = f"Invalid mode for {file_path}"
 
