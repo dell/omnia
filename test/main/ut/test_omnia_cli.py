@@ -926,7 +926,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("Workloads: Slurm", result.stdout)
         self.assertIn("Architectures: x86_64", result.stdout)
         self.assertIn("VAST client: not included", result.stdout)
-        self.assertIn("Functional layers: 4", result.stdout)
+        self.assertIn("Functional layers: 5", result.stdout)
 
     def test_select_catalog_public_option_activates_exact_selector(self):
         catalog_target = self.data_path / "catalog" / "catalog_rhel.json"

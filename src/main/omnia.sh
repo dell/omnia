@@ -247,8 +247,8 @@ readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 # tampered with. Sourcing executes the file's contents, so a symbolic link or a
 # group-/world-writable file is a privilege-escalation vector (CWE-59,
 # CWE-427, CWE-732). We reject symlinks and any file writable by group or
-# others; the owner is trusted (setup is commonly run as the admin who owns the
-# checkout, e.g. via sudo).
+# others, and require the owner to be root or the invoking user (setup is
+# commonly run as the admin who owns the checkout, e.g. via sudo).
 validate_env_file_trust() {
     local env_file="$1"
 
@@ -257,7 +257,14 @@ validate_env_file_trust() {
         return 1
     fi
 
-    if [ -n "$(find -P "$env_file" -maxdepth 0 -perm /022 2>/dev/null)" ]; then
+    local env_owner
+    env_owner="$(/usr/bin/stat -c '%u' -- "$env_file" 2>/dev/null)"
+    if [ "$env_owner" != "0" ] && [ "$env_owner" != "$(/usr/bin/id -u)" ]; then
+        echo -e "${RED}ERROR: Environment file must be owned by root or the invoking user: ${env_file}${NC}"
+        return 1
+    fi
+
+    if [ -n "$(/usr/bin/find -P "$env_file" -maxdepth 0 -perm /022 2>/dev/null)" ]; then
         echo -e "${RED}ERROR: Environment file must not be group- or world-writable: ${env_file}${NC}"
         echo -e "${YELLOW}  Fix with: chmod go-w ${env_file}${NC}"
         return 1
@@ -277,7 +284,7 @@ validate_env_source() {
         return 1
     fi
 
-    if ! bash -n "$env_file"; then
+    if ! /usr/bin/bash -n "$env_file"; then
         echo -e "${RED}ERROR: Environment file has invalid Bash syntax: ${env_file}${NC}"
         return 1
     fi
@@ -846,8 +853,6 @@ run_domain() {
         esac
     done
 
-    # Normalize extra args (convert -e kafka to -e kafka=true)
-    normalize_extra_args extra_args
     # The telemetry deploy_sinks and cleanup_sinks flows accept sink names as a concise -e value:
     #   -e kafka
     #   -e kafka,victoria_metrics
@@ -913,6 +918,11 @@ run_domain() {
         fi
         extra_args=("${normalized_args[@]}")
     fi
+
+    # Normalize any remaining sink shorthand (runs after the deploy_sinks/
+    # cleanup_sinks conversion above so it cannot turn -e kafka into kafka=true
+    # before that conversion produces the "sinks" list the playbooks consume).
+    normalize_extra_args extra_args
 
     # Validate domain exists
     local domain_found=false
@@ -1292,7 +1302,7 @@ safe_rm_dir() {
         echo -e "${RED}ERROR: Refusing to remove a symbolic link: ${target}${NC}" >&2
         return 1
     fi
-    if ! resolved="$(realpath -m -- "$target")"; then
+    if ! resolved="$(/usr/bin/realpath -m -- "$target")"; then
         echo -e "${RED}ERROR: Cannot resolve path for removal: ${target}${NC}" >&2
         return 1
     fi
@@ -1301,7 +1311,18 @@ safe_rm_dir() {
         return 1
     fi
 
-    rm -rf --one-file-system -- "$resolved"
+    # Only paths inside the configured data path, or the configured venv itself,
+    # may be removed (CWE-73). Both anchors are resolved the same way.
+    local data_root venv_root
+    data_root="$(/usr/bin/realpath -m -- "${OMNIA_DATA_PATH:-/nonexistent}")"
+    venv_root="$(/usr/bin/realpath -m -- "${OMNIA_VENV_PATH:-/nonexistent}")"
+    if [ "$resolved" != "$data_root" ] && [[ "$resolved" != "$data_root"/* ]] \
+        && [ "$resolved" != "$venv_root" ]; then
+        echo -e "${RED}ERROR: Refusing to remove a path outside the Omnia data/venv paths: ${resolved}${NC}" >&2
+        return 1
+    fi
+
+    /usr/bin/rm -rf --one-file-system -- "$resolved"
 }
 
 cleanup_omnia() {
