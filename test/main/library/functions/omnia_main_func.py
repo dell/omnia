@@ -22,7 +22,6 @@ All functions return a dict with keys: success, details, error.
 """
 
 import os
-import shlex
 import time
 from typing import Any, Dict, List
 
@@ -33,7 +32,7 @@ from omnia_auto import (
     run_on_host,
 )
 from ..vars.common_vars import (
-    CMDS,
+    build_cmd,
     REPO_ROOT,
     OMNIA_SH_PATH,
     OMNIA_ENV_PATH,
@@ -166,7 +165,7 @@ def run_omnia_cmd(host, cmd_key: str, **kwargs) -> Dict[str, Any]:
     kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_sh", OMNIA_SH_PATH)
 
-    cmd = CMDS[cmd_key].format(**kwargs)
+    cmd = build_cmd(cmd_key, **kwargs)
     start = time.time()
     result = run_on_host(host, cmd)
     duration = time.time() - start
@@ -200,7 +199,7 @@ def run_omnia_cmd_expect_error(
     kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_sh", OMNIA_SH_PATH)
 
-    cmd = CMDS[cmd_key].format(**kwargs)
+    cmd = build_cmd(cmd_key, **kwargs)
     result = run_on_host(host, cmd)
 
     return {
@@ -287,7 +286,7 @@ def check_env_file_installed(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error.
     """
-    cmd = CMDS["file_exists"].format(path=SYSTEM_ENV_FILE)
+    cmd = build_cmd("file_exists", path=SYSTEM_ENV_FILE)
     result = run_on_host(host, cmd)
 
     if "exists" in result.stdout:
@@ -312,7 +311,7 @@ def check_profile_drop_in(host) -> Dict[str, Any]:
     Returns:
         Dict with keys: success, details, error.
     """
-    cmd = CMDS["file_exists"].format(path=PROFILE_DROP_IN)
+    cmd = build_cmd("file_exists", path=PROFILE_DROP_IN)
     result = run_on_host(host, cmd)
 
     if "exists" in result.stdout:
@@ -341,7 +340,8 @@ def check_env_vars_loaded(host) -> Dict[str, Any]:
     loaded: List[str] = []
 
     for var_name in OPTIONAL_ENV_VARS:
-        cmd = CMDS["source_profile_and_check"].format(
+        cmd = build_cmd(
+            "source_profile_and_check",
             profile_file=PROFILE_DROP_IN,
             var_name=var_name,
         )
@@ -383,7 +383,7 @@ def check_venv_created(host) -> Dict[str, Any]:
     venv_path = resolve_runtime_paths(host)["venv_path"]
 
     activate = f"{venv_path}/bin/activate"
-    cmd = CMDS["file_exists"].format(path=activate)
+    cmd = build_cmd("file_exists", path=activate)
     result = run_on_host(host, cmd)
 
     if "exists" in result.stdout:
@@ -410,7 +410,7 @@ def check_ansible_available(host) -> Dict[str, Any]:
     """
     venv_path = resolve_runtime_paths(host)["venv_path"]
 
-    cmd = CMDS["venv_ansible_version"].format(venv_path=venv_path)
+    cmd = build_cmd("venv_ansible_version", venv_path=venv_path)
     result = run_on_host(host, cmd)
 
     if result.rc == 0 and result.stdout.strip():
@@ -437,9 +437,7 @@ def check_cli_log_paths(host) -> Dict[str, Any]:
         Dict with keys: success, details, error, source_file, and output.
     """
     cli_path = f"{_resolve_clone_path()}/{OMNIA_CLI_PATH}"
-    cmd = CMDS["omnia_cli_log_dirs_source"].format(
-        omnia_cli=shlex.quote(cli_path)
-    )
+    cmd = build_cmd("omnia_cli_log_dirs_source", omnia_cli=cli_path)
     result = run_on_host(host, cmd)
     output = result.stdout.strip()
     has_unsupported_path = "${base}/log" in output
@@ -473,7 +471,7 @@ def check_base_dirs_created(host) -> Dict[str, Any]:
 
     for dir_tmpl in BASE_DIRS:
         dir_path = dir_tmpl.format(data_path=data_path)
-        cmd = CMDS["dir_exists"].format(path=dir_path)
+        cmd = build_cmd("dir_exists", path=dir_path)
         result = run_on_host(host, cmd)
         if "exists" in result.stdout:
             present.append(dir_path)
@@ -507,7 +505,7 @@ def check_activate_helper(host) -> Dict[str, Any]:
     data_path = resolve_runtime_paths(host)["data_path"]
     helper_path = f"{data_path}/activate-omnia.sh"
 
-    cmd = CMDS["file_exists"].format(path=helper_path)
+    cmd = build_cmd("file_exists", path=helper_path)
     result = run_on_host(host, cmd)
 
     if "exists" in result.stdout:
@@ -545,7 +543,7 @@ def check_domain_log_dirs(
 
     check_domains = domains if domains is not None else DOMAINS_WITH_INIT
     for domain in check_domains:
-        cmd = CMDS["domain_log_dir_exists"].format(domain=domain)
+        cmd = build_cmd("domain_log_dir_exists", domain=domain)
         result = run_on_host(host, cmd)
         log_dir = f"/var/log/omnia/{domain}"
         if "exists" in result.stdout:
@@ -586,7 +584,8 @@ def check_domain_input_staged(
     data_path = runtime["data_path"]
     project = runtime["project_name"]
 
-    cmd = CMDS["domain_input_file_count"].format(
+    cmd = build_cmd(
+        "domain_input_file_count",
         data_path=data_path,
         domain=domain,
         project=project,
@@ -633,7 +632,8 @@ def check_domain_output_dirs(
     present: List[str] = []
 
     for domain in DOMAINS_WITH_INIT:
-        cmd = CMDS["domain_output_dir_exists"].format(
+        cmd = build_cmd(
+            "domain_output_dir_exists",
             data_path=data_path,
             domain=domain,
             project=project,
@@ -752,7 +752,7 @@ def run_omnia_cli_cmd(
     kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
 
-    cmd = CMDS[cmd_key].format(**kwargs)
+    cmd = build_cmd(cmd_key, **kwargs)
     result = run_on_host(host, cmd)
 
     return {
@@ -783,7 +783,7 @@ def run_omnia_cli_expect_error(
     kwargs.setdefault("clone_path", _resolve_clone_path())
     kwargs.setdefault("omnia_cli", OMNIA_CLI_PATH)
 
-    cmd = CMDS[cmd_key].format(**kwargs)
+    cmd = build_cmd(cmd_key, **kwargs)
     result = run_on_host(host, cmd)
 
     return {
