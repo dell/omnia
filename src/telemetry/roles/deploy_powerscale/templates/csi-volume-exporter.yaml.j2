@@ -97,7 +97,14 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              pip3 install --no-index --find-links=/wheels --target=/pip-packages kubernetes==33.1.0 prometheus_client==0.20.0
+              pip3 install --no-index --find-links=/wheels --target=/pip-packages kubernetes=={{ csi_k8s_pip_version }} prometheus_client=={{ csi_prometheus_pip_version }}
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "256Mi"
+            limits:
+              cpu: "200m"
+              memory: "512Mi"
       containers:
         - name: exporter
           image: {{ csi_volume_exporter.image }}

@@ -88,10 +88,10 @@ victoria_logs_cluster_storage:
     pvc_size: "5Gi"
     resources:
       requests:
-        memory: "64Mi"
+        memory: "128Mi"
         cpu: "25m"
       limits:
-        memory: "256Mi"
+        memory: "512Mi"
         cpu: "100m"
 
 # Vector components
@@ -153,6 +153,33 @@ csm_metrics_powerscale_storage:
   limits:
     cpu: "500m"
     memory: "512Mi"
+
+# Cert-Manager resource limits
+cert_manager_storage:
+  controller:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+  cainjector:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+  webhook:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
 
 # iDRAC Telemetry Container resources
 idrac_telemetry_storage:

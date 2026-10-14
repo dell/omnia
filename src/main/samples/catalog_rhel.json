@@ -3455,14 +3455,6 @@
             ],
             "url": "https://github.com/dell/karavi-observability.git"
           },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ],
-            "url": "https://github.com/dell/karavi-observability.git"
-          }
         ],
         "version": "v1.16.0"
       },

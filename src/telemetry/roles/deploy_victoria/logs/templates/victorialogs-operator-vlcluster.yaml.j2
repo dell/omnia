@@ -107,18 +107,17 @@ spec:
         insecureSkipVerify: true
 {% endif %}
 
+    # Pod anti-affinity — required to guarantee one vlstorage per node (prevents OOM from piling)
     affinity:
       podAntiAffinity:
-        preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                  - key: app.kubernetes.io/name
-                    operator: In
-                    values:
-                      - vlstorage
-              topologyKey: "kubernetes.io/hostname"
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - vlstorage
+            topologyKey: "kubernetes.io/hostname"
 
     tolerations:
       - effect: NoExecute

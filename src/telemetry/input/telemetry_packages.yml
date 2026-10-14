@@ -216,7 +216,7 @@ git_repos:
     package: "helm-charts"
     filename: "helm-charts.tar.gz"
     online_url: "https://github.com/dell/helm-charts.git"
-    version: "csi-isilon-2.18.0"
+    version: "container-storage-modules-1.11.0"
 
 # =============================================================================
 # Python Pip Modules
