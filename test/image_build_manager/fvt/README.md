@@ -71,7 +71,7 @@ default build flows.
 | 1 | IMGBM_FVT_VALIDATE_V001 | `test_input_config_exists` | sanity | Resolves the active project input directory on the target. | `image_build_config.yml` exists at the runtime input path. |
 | 2 | IMGBM_FVT_VALIDATE_V002 | `test_credentials_present` | sanity | Resolves the separate domain-credential path on the execution OIM. | `image_build_credentials.yml` exists; credential values are not printed. |
 | 3 | IMGBM_FVT_VALIDATE_V003 | `test_repo_ssl_verify_config` | sanity | Reads the explicit or default effective `repo_ssl_verify` value. | Configuration resolves to a valid Boolean value and its source is reported. |
-| 4 | IMGBM_FVT_VALIDATE_V004 | `test_repo_ssl_verify_applied` | x86_64, functional | Inspects the RHEL base and compute source templates. | Both templates reference `repo_ssl_verify`, `sslverify`, and `gpgcheck`; the case skips when the effective configuration cannot be read or validated. |
+| 4 | IMGBM_FVT_VALIDATE_V004 | `test_repo_ssl_verify_applied` | x86_64, functional | Inspects the Image Thrillhouse base and compute source templates. | Both templates reference `repo_ssl_verify`, `sslverify`, and `gpgcheck`; the case skips when the effective configuration cannot be read or validated. |
 
 ## Prepare test cases
 
