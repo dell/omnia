@@ -291,8 +291,9 @@ authoritative cloud-init state.
 | 40303 | `ORCH_FVT_PXEBOOT_V099` | `test_additional_cloud_init_write_files` | `additional_cloud_init` | `additional_cloud_init`, `buildstream`, `non_disruptive`, `sanity` | Verify write_files entries were applied on provisioned nodes. | All stated checks pass for every applicable target. |
 | 40304 | `ORCH_FVT_PXEBOOT_V100` | `test_additional_cloud_init_runcmd` | `additional_cloud_init` | `additional_cloud_init`, `buildstream`, `non_disruptive`, `sanity` | Verify runcmd entries executed during cloud-init on provisioned nodes. | All stated checks pass for every applicable target. |
 
-These cases skip when `additional_cloud_init_config_file` is empty or not
-configured in `orchestrator_config.yml`.
+These cases skip when `validate_additional_cloud_init` is false in
+`test_config.yml`, or when `additional_cloud_init_config_file` is empty or
+not configured in `orchestrator_config.yml`.
 
 ### Mount configuration (`mount_config`)
 
@@ -640,8 +641,9 @@ seconds. The reboot cases share one reboot state and run last in the suite.
 | 40322 | `ORCH_FVT_PXEBOOT_V621` | `test_additional_cloud_init_e2e_packages` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify additional cloud-init integration with additional packages. | All stated checks pass for every applicable target. |
 
 Additional cloud-init tests skip automatically when
+`validate_additional_cloud_init` is false in `test_config.yml`, or when
 `additional_cloud_init_config_file` is empty or not configured in
-`orchestrator_config.yml`. When enabled, V600-V601 verify controller-side
+`orchestrator_config.yml`. When enabled, V095-V096 verify controller-side
 state (SMD groups and metadata-service templates); V602-V603 verify
 node-side artifacts (files created by `write_files` and cloud-init completion
 confirming `runcmd` execution); V604-V609 verify template rendering and BSS

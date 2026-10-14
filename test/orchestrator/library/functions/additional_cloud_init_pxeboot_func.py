@@ -20,6 +20,8 @@ import time
 
 import yaml
 
+from omnia_auto import load_test_config
+
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS
 from ..vars.provision_vars import ADDITIONAL_METADATA_PREFIX
 from ._pxeboot_helpers import (
@@ -55,12 +57,23 @@ def _load_cloud_init_context(host):
     return context
 
 
+def _is_aci_validation_enabled():
+    """Return True when validate_additional_cloud_init is set in test_config."""
+    config = load_test_config()
+    return bool(config.get("validate_additional_cloud_init", False))
+
+
 def _load_additional_cloud_init_config(host, context):
     """Read the additional_cloud_init YAML from the OIM input directory.
 
     Returns (enabled, config_data, config_path) where config_data is the
     parsed YAML dict (with 'common' and/or 'groups' keys).
+
+    The function checks validate_additional_cloud_init in test_config.yml
+    first: when false the suite is skipped before touching the OIM.
     """
+    if not _is_aci_validation_enabled():
+        return False, {}, ""
     orchestrator_config = context.get("orchestrator_config", {})
     aci_path = str(
         orchestrator_config.get("additional_cloud_init_config_file") or ""

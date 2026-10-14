@@ -1,12 +1,15 @@
 # aci_enabled dataset
 
-Test dataset that enables the additional cloud-init feature for FVT testing.
+Test dataset that provides the `additional_cloud_init.yml` input for FVT
+testing. The cloud-init configuration creates verifiable artifacts on
+provisioned nodes.
 
 ## What it does
 
-Overlays `orchestrator_config.yml` so that `additional_cloud_init_config_file`
-points to `additional_cloud_init.yml`.  The included cloud-init configuration
-creates verifiable artifacts on provisioned nodes:
+Supplies `additional_cloud_init.yml` which the dataset sync copies into the
+active project's input directory on the execution OIM. The live
+`orchestrator_config.yml` on the OIM must already have
+`additional_cloud_init_config_file` set to `"additional_cloud_init.yml"`.
 
 | Artifact | Scope | Source | Verification |
 |----------|-------|--------|-------------|
@@ -23,6 +26,7 @@ creates verifiable artifacts on provisioned nodes:
 # test_config.yml
 dataset: "aci_enabled"
 sync_orchestrator_input: true
+validate_additional_cloud_init: true
 ```
 
 Or per-scenario in `test_run_config.yml`:

@@ -250,6 +250,17 @@ cleanup_k8s: true
 cleanup_benchmark_tools: true
 
 # =============================================================================
+# ADDITIONAL CLOUD-INIT VERIFICATION
+# =============================================================================
+# Set this flag to true to run the additional cloud-init pxeboot verification
+# suite. When false (default), every additional_cloud_init test is skipped.
+#
+# When true, the check functions read additional_cloud_init_config_file from
+# the live orchestrator_config.yml on the execution OIM. If that variable is
+# empty or the referenced file does not exist, the tests still skip gracefully.
+validate_additional_cloud_init: false
+
+# =============================================================================
 # SLURM NODE REMOVE/ADD LIFECYCLE
 # =============================================================================
 # Admin IPs of existing Slurm compute nodes (slurm_node_* roles only) to
