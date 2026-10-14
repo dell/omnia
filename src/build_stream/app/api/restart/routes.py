@@ -62,9 +62,9 @@ def _build_error_response(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Trigger restart stage",
     description=(
-        "Triggers PXE-based node restart for the deployed Image Group. "
-        "Executes utils/set_pxe_boot.yml via the playbook queue. "
-        "Handles node diffs: only newly added nodes are PXE booted."
+        "Triggers the BuildStream pre-PXE, Orchestrator PXE, and BuildStream "
+        "post-PXE restart sequence for the deployed Image Group. Nodes already "
+        "recorded as successful are excluded from retry runs."
     ),
     responses={
         202: {"description": "Stage accepted", "model": CreateRestartResponse},
