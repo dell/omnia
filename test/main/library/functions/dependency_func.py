@@ -22,7 +22,7 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
-from ..vars.common_vars import CMDS, DOMAINS_WITH_INIT
+from ..vars.common_vars import build_cmd, DOMAINS_WITH_INIT
 from .omnia_main_func import _resolve_clone_path, resolve_runtime_paths
 
 CORE_PACKAGES = ("pip", "setuptools", "wheel")
@@ -37,7 +37,7 @@ def _read_domain_requirements(host) -> Tuple[Dict[str, List[Requirement]], List[
 
     for domain in DOMAINS_WITH_INIT:
         path = f"{clone_path}/src/{domain}/requirements.txt"
-        result = run_on_host(host, CMDS["cat_file"].format(path=path))
+        result = run_on_host(host, build_cmd("cat_file", path=path))
         if result.rc != 0:
             missing_files.append(path)
             continue
@@ -60,7 +60,7 @@ def _read_domain_requirements(host) -> Tuple[Dict[str, List[Requirement]], List[
 
 def _read_installed_packages(host, venv_path: str) -> Tuple[Dict[str, str], str]:
     """Return normalized package/version pairs from the target venv."""
-    command = CMDS["venv_pip_list"].format(venv_path=venv_path)
+    command = build_cmd("venv_pip_list", venv_path=venv_path)
     result = run_on_host(host, command)
     if result.rc != 0:
         return {}, result.stderr.strip() or "pip list failed"
@@ -156,7 +156,7 @@ def check_pip_packages(host) -> Dict[str, Any]:
 def check_galaxy_collections(host) -> Dict[str, Any]:
     """List installed Ansible Galaxy collections and their versions."""
     venv_path = resolve_runtime_paths(host)["venv_path"]
-    command = CMDS["venv_galaxy_list"].format(venv_path=venv_path)
+    command = build_cmd("venv_galaxy_list", venv_path=venv_path)
     result = run_on_host(host, command)
     collections = []
     for line in result.stdout.splitlines():

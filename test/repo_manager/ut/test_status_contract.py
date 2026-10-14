@@ -298,8 +298,8 @@ class StatusPublicationTests(unittest.TestCase):
             data["file_repos"]["10.2"]["x86_64"]["pip_module"][
                 "PyMySQL_1_1_2"
             ],
-            "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/"
-            "rhel/10.2/pip_module/PyMySQL==1.1.2/",
+            "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/"
+            "x86_64/rhel/10.2/pip_module/PyMySQL==1.1.2/",
         )
         self.assertEqual(
             data["base_urls"]["10.0"]["x86_64"]["tarball"],
@@ -313,8 +313,8 @@ class StatusPublicationTests(unittest.TestCase):
         )
         self.assertEqual(
             data["base_urls"]["10.2"]["x86_64"]["pip_module"],
-            "https://192.0.2.10:2225/pypi/offline_repo/cluster/x86_64/"
-            "rhel/10.2/pip_module/",
+            "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/"
+            "x86_64/rhel/10.2/pip_module/",
         )
         self.assertEqual(
             set(data["base_urls"]["10.0"]["x86_64"]),
