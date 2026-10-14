@@ -132,12 +132,12 @@ access and host policy blocks them.
     - Baseos layers -> `base_image_packages`; compute layers -> `compute_images_dict`
     - OS type extracted from baseos group's `os` field
     - OS version extracted from baseos group's `os_version` field
-- Build base OS image (OpenCHAMI image-builder or image-thrillhouse)
+- Build the base OS image with OpenCHAMI Image Thrillhouse
 - Build compute images per functional group with concurrency control
 - Skip compute builds when `compute_images_dict` is empty
 - Verify pushed images via `regctl manifest`
-- Upload artifacts to the `boot-images` bucket. For `image-builder`, kernel and
-  initrd objects use an `efi-images/` key prefix inside that bucket.
+- Upload kernel, initrd, and rootfs artifacts to the `boot-images` bucket under
+  the functional-group, image, and release path
 - Write `build_status.yml` with per-group S3 artifact paths
 
 #### AArch64 Build Flow
@@ -175,9 +175,8 @@ When `aarch64_inventory_host_ip` is set in `image_build_config.yml`:
 
 `build_status.yml` records exact endpoint-relative S3 object paths. Paths include
 the `boot-images` bucket, omit the endpoint and `s3://` scheme, and end with a
-filename. The layout is selected globally by `image_build_type`.
-The manifest records that producing engine so its artifact paths remain
-self-describing if the input configuration changes later.
+filename. Image Thrillhouse is the only build engine. The manifest records
+`image_build_type: image-thrillhouse` as fixed build provenance.
 
 ```yaml
 overall_status: "success"
@@ -195,28 +194,7 @@ functional_group_images:
       image: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/rootfs.squashfs"
 ```
 
-For `image-builder`, the three fields instead use these exact object shapes:
-
-```text
-boot-images/efi-images/<functional_group>/<image_name>-imgbld/vmlinuz-<kernel-version>
-boot-images/efi-images/<functional_group>/<image_name>-imgbld/initramfs-<kernel-version>.img
-boot-images/<functional_group>/<image_name>-imgbld/<rootfs-filename>
-```
-
 ### S3 Artifacts
-
-`image-builder`:
-
-```text
-boot-images/
-+-- efi-images/<functional_group>/<image_name>-imgbld/
-|   +-- vmlinuz-<kernel-version>
-|   +-- initramfs-<kernel-version>.img
-+-- <functional_group>/<image_name>-imgbld/
-    +-- <rootfs-filename>
-```
-
-`image-thrillhouse`:
 
 ```text
 boot-images/<functional_group>/<image_name>-imgth/<release>/
