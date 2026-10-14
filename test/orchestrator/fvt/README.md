@@ -286,8 +286,8 @@ authoritative cloud-init state.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 40301 | `ORCH_FVT_PXEBOOT_V095` | `test_additional_cloud_init_smd_groups` | `additional_cloud_init` | `additional_cloud_init`, `buildstream`, `non_disruptive`, `sanity` | Verify SMD groups exist for additional cloud-init configuration. | All stated checks pass for every applicable target. |
-| 40302 | `ORCH_FVT_PXEBOOT_V096` | `test_additional_cloud_init_metadata_groups` | `additional_cloud_init` | `additional_cloud_init`, `buildstream`, `non_disruptive`, `sanity` | Verify metadata-service groups and templates for additional cloud-init. | All stated checks pass for every applicable target. |
+| 40301 | `ORCH_FVT_PXEBOOT_V600` | `test_additional_cloud_init_smd_groups` | `additional_cloud_init` | `additional_cloud_init`, `buildstream`, `non_disruptive`, `sanity` | Verify SMD groups exist for additional cloud-init configuration. | All stated checks pass for every applicable target. |
+| 40302 | `ORCH_FVT_PXEBOOT_V601` | `test_additional_cloud_init_metadata_groups` | `additional_cloud_init` | `additional_cloud_init`, `buildstream`, `non_disruptive`, `sanity` | Verify metadata-service groups and templates for additional cloud-init. | All stated checks pass for every applicable target. |
 | 40303 | `ORCH_FVT_PXEBOOT_V099` | `test_additional_cloud_init_write_files` | `additional_cloud_init` | `additional_cloud_init`, `buildstream`, `non_disruptive`, `sanity` | Verify write_files entries were applied on provisioned nodes. | All stated checks pass for every applicable target. |
 | 40304 | `ORCH_FVT_PXEBOOT_V100` | `test_additional_cloud_init_runcmd` | `additional_cloud_init` | `additional_cloud_init`, `buildstream`, `non_disruptive`, `sanity` | Verify runcmd entries executed during cloud-init on provisioned nodes. | All stated checks pass for every applicable target. |
 
@@ -617,8 +617,8 @@ seconds. The reboot cases share one reboot state and run last in the suite.
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 40301 | `ORCH_FVT_PXEBOOT_V095` | `test_additional_cloud_init_smd_groups` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify SMD groups exist for additional cloud-init configuration. | All stated checks pass for every applicable target. |
-| 40302 | `ORCH_FVT_PXEBOOT_V096` | `test_additional_cloud_init_metadata_groups` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify metadata-service groups and templates for additional cloud-init. | All stated checks pass for every applicable target. |
+| 40301 | `ORCH_FVT_PXEBOOT_V600` | `test_additional_cloud_init_smd_groups` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify SMD groups exist for additional cloud-init configuration. | All stated checks pass for every applicable target. |
+| 40302 | `ORCH_FVT_PXEBOOT_V601` | `test_additional_cloud_init_metadata_groups` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify metadata-service groups and templates for additional cloud-init. | All stated checks pass for every applicable target. |
 | 40303 | `ORCH_FVT_PXEBOOT_V602` | `test_additional_cloud_init_write_files` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify write_files entries were applied on provisioned nodes. | All stated checks pass for every applicable target. |
 | 40304 | `ORCH_FVT_PXEBOOT_V603` | `test_additional_cloud_init_runcmd` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify runcmd entries executed during cloud-init on provisioned nodes. | All stated checks pass for every applicable target. |
 | 40305 | `ORCH_FVT_PXEBOOT_V604` | `test_additional_cloud_init_common_template` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify common cloud-init template rendered with merge_how directive. | All stated checks pass for every applicable target. |
@@ -643,7 +643,7 @@ seconds. The reboot cases share one reboot state and run last in the suite.
 Additional cloud-init tests skip automatically when
 `validate_additional_cloud_init` is false in `test_config.yml`, or when
 `additional_cloud_init_config_file` is empty or not configured in
-`orchestrator_config.yml`. When enabled, V095-V096 verify controller-side
+`orchestrator_config.yml`. When enabled, V600-V601 verify controller-side
 state (SMD groups and metadata-service templates); V602-V603 verify
 node-side artifacts (files created by `write_files` and cloud-init completion
 confirming `runcmd` execution); V604-V609 verify template rendering and BSS

@@ -1337,12 +1337,12 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "VAST login node mounts",
     },
     "additional_cloud_init_smd_groups": {
-        "id": "ORCH_FVT_PXEBOOT_V095",
+        "id": "ORCH_FVT_PXEBOOT_V600",
         "title": "Verify additional cloud-init SMD groups",
         "component": "Additional cloud-init SMD groups",
     },
     "additional_cloud_init_metadata_groups": {
-        "id": "ORCH_FVT_PXEBOOT_V096",
+        "id": "ORCH_FVT_PXEBOOT_V601",
         "title": "Verify additional cloud-init metadata-service groups",
         "component": "Additional cloud-init metadata-service groups",
     },
