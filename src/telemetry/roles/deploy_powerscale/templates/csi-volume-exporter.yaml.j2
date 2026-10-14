@@ -79,45 +79,28 @@ spec:
     spec:
       serviceAccountName: {{ csi_volume_exporter.service_account_name }}
       volumes:
-        - name: pip-packages
-          emptyDir: {}
         - name: nfs-pip-wheels
           hostPath:
             path: {{ telemetry_deployments_dir }}/pip-packages
-            type: Directory
-      initContainers:
-        - name: install-deps
+            type: DirectoryOrCreate
+      containers:
+        - name: exporter
           image: {{ csi_volume_exporter.image }}
           volumeMounts:
-            - name: pip-packages
-              mountPath: /pip-packages
             - name: nfs-pip-wheels
               mountPath: /wheels
               readOnly: true
           command: ["/bin/sh", "-c"]
           args:
             - |
-              pip3 install --no-index --find-links=/wheels --target=/pip-packages kubernetes=={{ csi_k8s_pip_version }} prometheus_client=={{ csi_prometheus_pip_version }}
-          resources:
-            requests:
-              cpu: "50m"
-              memory: "256Mi"
-            limits:
-              cpu: "200m"
-              memory: "512Mi"
-      containers:
-        - name: exporter
-          image: {{ csi_volume_exporter.image }}
-          env:
-            - name: PYTHONPATH
-              value: "/pip-packages"
-          volumeMounts:
-            - name: pip-packages
-              mountPath: /pip-packages
-              readOnly: true
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
+              echo "Installing Python dependencies..."
+              timeout 120 pip3 install --no-index --find-links=/wheels \
+                kubernetes=={{ csi_k8s_pip_version }} prometheus_client=={{ csi_prometheus_pip_version }} 2>&1
+              if [ $? -ne 0 ]; then
+                echo "Offline install failed, trying online install..."
+                timeout 120 pip3 install \
+                  kubernetes=={{ csi_k8s_pip_version }} prometheus_client=={{ csi_prometheus_pip_version }} 2>&1
+              fi
               mkdir -p /app
               cat > /app/exporter.py <<'PYEOF'
               from prometheus_client import start_http_server, Gauge, Counter, Info

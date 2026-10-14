@@ -140,10 +140,10 @@ csi_volume_exporter_storage:
   resources:
     requests:
       cpu: "50m"
-      memory: "64Mi"
+      memory: "128Mi"
     limits:
       cpu: "200m"
-      memory: "256Mi"
+      memory: "512Mi"
 
 # CSM Metrics PowerScale resource limits
 csm_metrics_powerscale_storage:
