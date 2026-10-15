@@ -71,8 +71,8 @@
 # --- Base image cache check (per-version) ---
 # Compute a per-version hash of base_image_packages + repo config + build
 # engine.  When a version's hash matches the previous build, skip the
-# rebuild.  Including the engine ensures switching between image-builder and
-# image-thrillhouse triggers the required base-image rebuild.
+# rebuild. Including the pinned Image Thrillhouse runtime ensures version
+# changes trigger the required base-image rebuild.
 - name: Compute per-version base image package hashes
   ansible.builtin.set_fact:
     _base_pkg_hashes: >-

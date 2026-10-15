@@ -32,16 +32,10 @@ cd datasets/generator/
   --profile image-thrillhouse-internet-config
 ```
 
-The eight canonical profiles explicitly select Image Thrillhouse or Image
-Builder along with offline/internet repositories and catalog/config package
-resolution. The recommended `image-thrillhouse-internet-config` profile uses
-public repositories and minimal public package groups. To use Image Builder
-with the same topology:
-
-```bash
-./generate_dataset.py create my_image_builder \
-  --profile image-builder-internet-config
-```
+The four canonical Image Thrillhouse profiles cover offline/internet
+repositories and catalog/config package resolution. The recommended
+`image-thrillhouse-internet-config` profile uses public repositories and
+minimal public package groups.
 
 For an offline dataset, supply one real Repo Manager host for every generated
 URL:

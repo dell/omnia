@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial Galaxy collection structure (`omnia.image_build`)
-- Support for `image-builder` and `image-thrillhouse` build types
+- Image Thrillhouse as the sole image build engine
 - Dual-mode functional groups: `config` (package_groups.yml) and `catalog` (JSON catalog)
 - x86_64 and aarch64 image build support
 - MinIO S3 and OCI Registry deployment

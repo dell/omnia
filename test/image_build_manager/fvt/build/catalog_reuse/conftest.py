@@ -426,13 +426,12 @@ class CatalogReuseContext:
         self,
         *,
         source: str = "catalog",
-        engine: str = "image-builder",
+        engine: str = "image-thrillhouse",
         force_rebuild: bool = False,
         backup_s3_images: bool = False,
     ) -> None:
         config = deepcopy(self.original_config)
         config["functional_groups_source"] = source
-        config["image_build_type"] = engine
         config.setdefault("build_image", {})["force_rebuild"] = force_rebuild
         config["build_image"]["backup_s3_images"] = backup_s3_images
         self.write_text(
@@ -461,8 +460,6 @@ class CatalogReuseContext:
     @staticmethod
     def entry_engine(entry: dict[str, Any]) -> str:
         paths = " ".join(entry.get("s3_paths", {}).values())
-        if "-imgbld/" in paths:
-            return "image-builder"
         if "-imgth/" in paths:
             return "image-thrillhouse"
         return ""

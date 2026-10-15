@@ -150,14 +150,6 @@ TEST_CASES = {
         "title": "Verify aarch64 node is ARM architecture",
     },
     # ── Build — naming convention (IMGBM_FVT_BUILD_V013-017) ─────────────────────────
-    "registry_naming_ib_x86_64": {
-        "id": "IMGBM_FVT_BUILD_V013",
-        "title": "Verify image-builder registry naming (-imgbld suffix, x86_64)",
-    },
-    "s3_naming_ib_x86_64": {
-        "id": "IMGBM_FVT_BUILD_V014",
-        "title": "Verify image-builder S3 naming (-imgbld suffix, x86_64)",
-    },
     "registry_naming_th_x86_64": {
         "id": "IMGBM_FVT_BUILD_V015",
         "title": "Verify image-thrillhouse registry naming (-imgth suffix, x86_64)",
@@ -165,10 +157,6 @@ TEST_CASES = {
     "s3_naming_th_x86_64": {
         "id": "IMGBM_FVT_BUILD_V016",
         "title": "Verify image-thrillhouse S3 naming (-imgth suffix, x86_64)",
-    },
-    "artifact_suffix_isolation": {
-        "id": "IMGBM_FVT_BUILD_V017",
-        "title": "Verify -imgbld and -imgth artifact paths are fully isolated",
     },
     # -- Build: catalog reuse and rebuild policy ---------------------------
     "catalog_first_build": {
@@ -195,13 +183,9 @@ TEST_CASES = {
         "id": "IMGBM_FVT_CATALOG_REUSE_V006",
         "title": "Rebuild a dictionary hit with a missing S3 artifact",
     },
-    "catalog_switch_to_thrillhouse": {
+    "catalog_thrillhouse_output": {
         "id": "IMGBM_FVT_CATALOG_REUSE_V007",
-        "title": "Build new artifacts after switching to image-thrillhouse",
-    },
-    "catalog_switch_to_image_builder": {
-        "id": "IMGBM_FVT_CATALOG_REUSE_V008",
-        "title": "Select image-builder artifacts after switching back",
+        "title": "Build Image Thrillhouse catalog artifacts",
     },
     "catalog_versioned_output": {
         "id": "IMGBM_FVT_CATALOG_REUSE_V009",
