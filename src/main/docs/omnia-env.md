@@ -151,9 +151,11 @@ intentionally discard the installed values and replace them from
 
 ## Choose a Different Catalog
 
-Setup installs the default `samples/catalog_rhel.json`, which contains packages
-for both Slurm and service_k8s deployments, only when `CATALOG_FILE_PATH` does
-not already exist. Existing active catalogs are preserved.
+Setup installs the default `samples/catalog_rhel.json`, a hybrid catalog with
+RHEL 10.2 x86_64 Slurm/Kubernetes control roles, RHEL 10.0 x86_64 Slurm login,
+and RHEL 10.0 aarch64 Slurm node and login-compiler roles (without VAST), only
+when `CATALOG_FILE_PATH` does not already exist. Existing active catalogs are
+preserved.
 Additional catalogs are available under `samples/catalogs/rhel/10.0/`,
 `samples/catalogs/rhel/10.2/`, and `samples/catalogs/hybrid/`, with Slurm-only,
 service_k8s-only, combined, x86_64/aarch64, `_no_vast`, and mixed-RHEL-version
