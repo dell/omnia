@@ -495,8 +495,8 @@ class UploadFilesUseCase:
     def _write_to_restart_state_directory(self, job_id: str, filename: str, content: bytes):
         """Write file to job-specific restart_state directory for playbook consumption.
 
-        The set_pxe_boot.yml Play 1.5 reads failed_nodes.json from
-        ``{RESTART_STATE_DIR}/{job_id}/`` for the retry logic.
+        The BuildStream pre-PXE playbook reads failed_nodes.json from
+        ``{RESTART_STATE_DIR}/{job_id}/`` for retry filtering.
         When the GitLab pipeline uploads failed_nodes.json via PUT /upload,
         it must also land in this job-specific directory.
 

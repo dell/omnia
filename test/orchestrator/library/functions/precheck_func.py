@@ -390,7 +390,7 @@ def _dependency_paths(host) -> tuple[str, str]:
 
 
 def check_precheck_dependencies(host) -> dict[str, Any]:
-    """Verify configured/default Image Builder and Repo Manager outputs."""
+    """Verify configured/default Image Build Manager and Repo Manager outputs."""
     try:
         build_path, repo_path = _dependency_paths(host)
     except (OSError, TypeError, ValueError) as exc:

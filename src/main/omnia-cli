@@ -952,13 +952,10 @@ cmd_image_build_manager() {
     echo -e "  S3 bucket: ${bucket:-unknown}"
     echo -e "  Functional-group images: ${image_count}"
 
-    case "$build_type" in
-        image-builder|image-thrillhouse) ;;
-        *)
-            echo -e "  ${FAIL} Unsupported or missing image_build_type"
-            validation_errors=$((validation_errors + 1))
-            ;;
-    esac
+    if [ "$build_type" != "image-thrillhouse" ]; then
+        echo -e "  ${FAIL} Unsupported or missing image_build_type"
+        validation_errors=$((validation_errors + 1))
+    fi
     if [ -z "$endpoint" ] || [ -z "$bucket" ]; then
         echo -e "  ${FAIL} S3 endpoint_url and bucket must be recorded"
         validation_errors=$((validation_errors + 1))
