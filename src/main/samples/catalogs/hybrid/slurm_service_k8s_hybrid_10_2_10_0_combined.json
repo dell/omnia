@@ -4,7 +4,7 @@
     "version": "1.0",
     "schema_version": 2,
     "identifier": "omnia-slurm-k8s-hybrid-10-2-10-0-x86-64-aarch64",
-    "description": "Full Slurm + Kubernetes hybrid catalog: RHEL 10.2 x86_64 (Slurm control, K8s control-plane and K8s node) + RHEL 10.0 x86_64 (Slurm login) + RHEL 10.0 aarch64 (Slurm node and login-compiler).",
+    "description": "Full Slurm + Kubernetes hybrid catalog: RHEL 10.2 x86_64 (Slurm control, Slurm login, K8s control-plane and K8s node) + RHEL 10.0 aarch64 (Slurm node and login-compiler).",
     "functionallayer": [
       {
         "name": "os_rhel_10_2_x86_64",
@@ -29,9 +29,9 @@
         ]
       },
       {
-        "name": "login_node_rhel_10_0_x86_64",
+        "name": "login_node_rhel_10_2_x86_64",
         "components": [
-          "baseos_group_10.0",
+          "baseos_group_10.2",
           "admin_debug_group",
           "slurm_custom_group",
           "openldap_group",
