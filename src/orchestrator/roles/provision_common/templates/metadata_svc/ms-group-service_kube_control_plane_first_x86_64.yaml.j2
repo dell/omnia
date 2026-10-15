@@ -907,7 +907,7 @@
             kubectl wait --namespace metallb-system --for=condition=Ready pods --all --timeout=300s || echo "WARNING: Some MetalLB pods are not Ready yet. Continuing initialization."
             echo "Waiting for MetalLB webhook to be ready..."
             METALLB_WEBHOOK_ATTEMPTS=0
-            METALLB_WEBHOOK_MAX=60
+            METALLB_WEBHOOK_MAX=120
             until kubectl get endpoints metallb-webhook-service -n metallb-system \
               -o jsonpath='{.subsets[*].addresses[*].ip}' | grep -qE '[0-9]'; do
               METALLB_WEBHOOK_ATTEMPTS=$((METALLB_WEBHOOK_ATTEMPTS + 1))
