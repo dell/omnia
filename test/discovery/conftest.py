@@ -343,6 +343,22 @@ def pytest_report_teststatus(report, config):
 
 
 # =============================================================================
+# SESSION CLEANUP
+# =============================================================================
+
+def pytest_sessionfinish(session, exitstatus):
+    """Clean up resources at end of test session."""
+    # Close OME session if one was opened (follows src pattern)
+    try:
+        from library.functions import close_ome_session
+        host = get_testinfra_host()
+        close_ome_session(host)
+    except Exception:
+        # Best-effort cleanup - don't fail tests due to cleanup issues
+        pass
+
+
+# =============================================================================
 # HOST FIXTURE
 # =============================================================================
 

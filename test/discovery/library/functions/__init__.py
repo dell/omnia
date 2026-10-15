@@ -76,6 +76,7 @@ from .ome_func import (
     check_admin_mac_validation,
     check_ib_nic_name_validation,
     clear_ome_cache,
+    close_ome_session,
 )
 
 # --- Validation ---

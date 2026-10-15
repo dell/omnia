@@ -44,11 +44,61 @@ from .discovery_func import _get_output_path, _read_pxe_mapping_raw
 # Module-level cache for OME session
 _ome_session_cache: Dict[str, Any] = {}
 
+# OME session logout endpoint (matches src pattern)
+OME_SESSION_LOGOUT_ENDPOINT: str = "/api/SessionService/Sessions('current')"
+
 
 def clear_ome_cache():
-    """Clear OME session cache."""
+    """Clear OME session cache (does not invalidate session on OME server)."""
     global _ome_session_cache
     _ome_session_cache.clear()
+
+
+def close_ome_session(host) -> Dict[str, Any]:
+    """Logout and invalidate the OME session.
+
+    Follows the same pattern as src/discovery/plugins/modules/ome_server_inventory.py
+    to properly invalidate the session on the OME server.
+
+    Args:
+        host: Testinfra host object
+
+    Returns:
+        Dict with success, details, error
+    """
+    global _ome_session_cache
+
+    result = {
+        "success": True,
+        "details": "",
+        "error": "",
+    }
+
+    token = _ome_session_cache.get("token")
+    ome_ip = _ome_session_cache.get("ome_ip")
+
+    if not token or not ome_ip:
+        result["details"] = "No active OME session to close"
+        clear_ome_cache()
+        return result
+
+    # Call DELETE on session endpoint to invalidate token
+    resp = _ome_api_request(
+        host, ome_ip, OME_SESSION_LOGOUT_ENDPOINT,
+        method="DELETE", auth_token=token
+    )
+
+    # Clear cache regardless of response (session may have already expired)
+    clear_ome_cache()
+
+    if resp["success"] or resp["status_code"] in [200, 204, 401]:
+        # 401 means session already expired - that's fine
+        result["details"] = "OME session closed successfully"
+    else:
+        # Log but don't fail - session cleanup is best-effort
+        result["details"] = f"OME session logout returned {resp['status_code']}"
+
+    return result
 
 
 def _ome_api_request(
