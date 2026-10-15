@@ -16,7 +16,7 @@ and every catalog pin together when adopting a later Thrillhouse release.
 
 | File | Description |
 |------|-------------|
-| `catalog_rhel.json` | Default hybrid catalog — RHEL 10.2 x86_64 (Slurm control, K8s control-plane and K8s node) + RHEL 10.0 x86_64 (Slurm login) + RHEL 10.0 aarch64 (Slurm node and login-compiler), without VAST |
+| `catalog_rhel.json` | Default hybrid catalog — RHEL 10.2 x86_64 (Slurm control, Slurm login, K8s control-plane and K8s node) + RHEL 10.0 aarch64 (Slurm node and login-compiler), without VAST |
 | `cadence_catalog_rhel.json` | Catalog watched by the BuildStream cadence pipeline for periodic package syncs (ER-BSM-002) |
 
 ### Modular Catalogs (catalogs/ directory)

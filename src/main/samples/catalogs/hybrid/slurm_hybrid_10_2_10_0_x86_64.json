@@ -46,9 +46,9 @@
         ]
       },
       {
-        "name": "login_node_rhel_10_0_x86_64",
+        "name": "login_node_rhel_10_2_x86_64",
         "components": [
-          "baseos_group_10.0",
+          "baseos_group_10.2",
           "admin_debug_group",
           "slurm_custom_group",
           "openldap_group",

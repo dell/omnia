@@ -152,7 +152,7 @@ intentionally discard the installed values and replace them from
 ## Choose a Different Catalog
 
 Setup installs the default `samples/catalog_rhel.json`, a hybrid catalog with
-RHEL 10.2 x86_64 Slurm/Kubernetes control roles, RHEL 10.0 x86_64 Slurm login,
+RHEL 10.2 x86_64 Slurm/Kubernetes control and login roles,
 and RHEL 10.0 aarch64 Slurm node and login-compiler roles (without VAST), only
 when `CATALOG_FILE_PATH` does not already exist. Existing active catalogs are
 preserved.

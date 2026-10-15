@@ -2,7 +2,7 @@ FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_M
 slurm_control_node_rhel_10_2_x86_64,grp0,ABCD12,,slurm-control-node1,xx:yy:zz:aa:bb:cc,172.16.107.52,xx:yy:zz:aa:bb:dd,172.17.107.52,InfiniBand.Slot.7-1,192.168.0.100
 slurm_node_rhel_10_0_aarch64,grp1,ABCD34,ABFL82,slurm-node1,aa:bb:cc:dd:ee:ff,172.16.107.43,aa:bb:cc:dd:ee:gg,172.17.107.43,InfiniBand.Slot.7-2,192.168.0.101
 slurm_node_rhel_10_0_aarch64,grp1,ABFG34,ABKD88,slurm-node2,bb:cc:dd:ee:ff:aa,172.16.107.44,aa:bb:cc:dd:ff:gg,172.17.107.44,NIC.InfiniBand.1-3,192.168.0.102
-login_node_rhel_10_0_x86_64,grp2,ABFG78,,login-node1,cc:dd:ee:ff:aa:bb,172.16.107.42,aa:bb:cc:dd:ee:bb,172.17.107.42,NIC.InfiniBand.1-1,192.168.0.103
+login_node_rhel_10_2_x86_64,grp2,ABFG78,,login-node1,cc:dd:ee:ff:aa:bb,172.16.107.42,aa:bb:cc:dd:ee:bb,172.17.107.42,NIC.InfiniBand.1-1,192.168.0.103
 login_compiler_node_rhel_10_0_aarch64,grp3,ABCD78,,login-compiler-node1,dd:ee:ff:aa:bb:cc,172.16.107.41,aa:bb:cc:dd:ee:aa,172.17.107.41,InfiniBand.PCIe.Slot.8-1,192.168.0.104
 service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFG79,,service-kube-cp1,ee:ff:aa:bb:cc:dd,172.16.107.53,xx:yy:zz:aa:bb:ff,172.17.107.53,,
 service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFH78,,service-kube-cp2,ff:aa:bb:cc:dd:ee,172.16.107.54,xx:yy:zz:aa:bb:hh,172.17.107.54,,
