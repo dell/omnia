@@ -88,18 +88,6 @@
   # that are still restarting, causing the entire helm upgrade to fail after 10m.
   # We replace it with an Ansible-managed readiness check after helm completes.
 
-- name: Clean up orphaned cert-manager readiness hook resources  # noqa: risky-shell-pipe
-  ansible.builtin.shell: |
-    kubectl delete job cert-manager-readiness-check -n {{ csm_observability_namespace }} --ignore-not-found=true 2>/dev/null
-    kubectl delete sa cert-manager-readiness-check -n {{ csm_observability_namespace }} --ignore-not-found=true 2>/dev/null
-    kubectl delete role cert-manager-readiness-check -n {{ csm_observability_namespace }} --ignore-not-found=true 2>/dev/null
-    kubectl delete rolebinding cert-manager-readiness-check -n {{ csm_observability_namespace }} --ignore-not-found=true 2>/dev/null
-    kubectl delete clusterrole cert-manager-readiness-check-karavi-observability --ignore-not-found=true 2>/dev/null
-    kubectl delete clusterrolebinding cert-manager-readiness-check-karavi-observability --ignore-not-found=true 2>/dev/null
-    exit 0
-  changed_when: false
-  failed_when: false
-
 - name: Write cert-manager resource limits override
   ansible.builtin.copy:
     dest: "{{ _cert_manager_resources_override }}"
@@ -108,27 +96,27 @@
       cert-manager:
         resources:
           requests:
-            memory: "64Mi"
-            cpu: "25m"
+            memory: "{{ telemetry_storage_config.cert_manager_storage.controller.resources.requests.memory }}"
+            cpu: "{{ telemetry_storage_config.cert_manager_storage.controller.resources.requests.cpu }}"
           limits:
-            memory: "128Mi"
-            cpu: "100m"
+            memory: "{{ telemetry_storage_config.cert_manager_storage.controller.resources.limits.memory }}"
+            cpu: "{{ telemetry_storage_config.cert_manager_storage.controller.resources.limits.cpu }}"
         webhook:
           resources:
             requests:
-              memory: "64Mi"
-              cpu: "25m"
+              memory: "{{ telemetry_storage_config.cert_manager_storage.webhook.resources.requests.memory }}"
+              cpu: "{{ telemetry_storage_config.cert_manager_storage.webhook.resources.requests.cpu }}"
             limits:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: "{{ telemetry_storage_config.cert_manager_storage.webhook.resources.limits.memory }}"
+              cpu: "{{ telemetry_storage_config.cert_manager_storage.webhook.resources.limits.cpu }}"
         cainjector:
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "25m"
+              memory: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.requests.memory }}"
+              cpu: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.requests.cpu }}"
             limits:
-              memory: "256Mi"
-              cpu: "100m"
+              memory: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.limits.memory }}"
+              cpu: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.limits.cpu }}"
 
 - name: Upgrade existing karavi-observability release
   ansible.builtin.command: >
@@ -161,7 +149,7 @@
   ansible.builtin.command: >
     kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
     --type=json
-    -p=[{"op":"replace","path":"/spec/template/spec/containers/0/resources","value":{"requests":{"memory":"32Mi","cpu":"10m"},"limits":{"memory":"64Mi","cpu":"50m"}}},{"op":"replace","path":"/spec/template/spec/containers/1/resources","value":{"requests":{"memory":"128Mi","cpu":"50m"},"limits":{"memory":"512Mi","cpu":"250m"}}}]
+    -p=[{"op":"replace","path":"/spec/template/spec/containers/0/resources","value":{"requests":{"memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.memory }}","cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.cpu }}"},"limits":{"memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.memory }}","cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.cpu }}"}}},{"op":"replace","path":"/spec/template/spec/containers/1/resources","value":{"requests":{"memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.memory }}","cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.cpu }}"},"limits":{"memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.memory }}","cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.cpu }}"}}}]
   changed_when: false
   failed_when: false
 
@@ -169,7 +157,7 @@
   ansible.builtin.command: >
     kubectl patch deployment karavi-metrics-powerscale -n {{ csm_observability_namespace }}
     --type=json
-    -p=[{"op":"replace","path":"/spec/template/spec/containers/0/resources","value":{"requests":{"memory":"64Mi","cpu":"25m"},"limits":{"memory":"256Mi","cpu":"200m"}}}]
+    -p=[{"op":"replace","path":"/spec/template/spec/containers/0/resources","value":{"requests":{"memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.memory }}","cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.cpu }}"},"limits":{"memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.memory }}","cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.cpu }}"}}}]
   changed_when: false
   failed_when: false
 

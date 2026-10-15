@@ -145,8 +145,8 @@ karaviMetricsPowerscale:
     # default isiSkipCertificateValidation: true to skip OneFS API server's certificates
     isiSkipCertificateValidation: true
     # set isiAuthType to 0/1 to enables session-based/basic Authentication
-    # default isiAuthType: 0 to use basic Authentication
-    isiAuthType: 0
+    # default isiAuthType: 0 to use session-based Authentication
+    isiAuthType: 1
     # set isiLogVerbose to 0/1/2 decide High/Medium/Low content of the OneFS REST API message should be logged in debug level logs
     # default isiLogVerbose: 0 to log full content of the HTTP request and response
     isiLogVerbose: 0

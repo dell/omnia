@@ -88,10 +88,10 @@ victoria_logs_cluster_storage:
     pvc_size: "5Gi"
     resources:
       requests:
-        memory: "128Mi"
+        memory: "64Mi"
         cpu: "25m"
       limits:
-        memory: "512Mi"
+        memory: "256Mi"
         cpu: "100m"
 
 # Vector components
@@ -140,10 +140,10 @@ csi_volume_exporter_storage:
   resources:
     requests:
       cpu: "50m"
-      memory: "128Mi"
+      memory: "64Mi"
     limits:
       cpu: "200m"
-      memory: "512Mi"
+      memory: "256Mi"
 
 # CSM Metrics PowerScale resource limits
 csm_metrics_powerscale_storage:
@@ -153,6 +153,25 @@ csm_metrics_powerscale_storage:
   limits:
     cpu: "500m"
     memory: "512Mi"
+
+# OTEL Collector resource limits (Helm chart deploys with resources: {})
+otel_collector_storage:
+  nginx_proxy:
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "32Mi"
+      limits:
+        cpu: "50m"
+        memory: "64Mi"
+  otel_collector:
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "128Mi"
+      limits:
+        cpu: "250m"
+        memory: "512Mi"
 
 # Cert-Manager resource limits
 cert_manager_storage:

@@ -468,7 +468,7 @@
         "description": "Dell PowerScale CSI driver and related storage components",
         "components": [
           "csi_powerscale_v2_18_0",
-          "external_snapshotter_v8_5_0",
+          "external_snapshotter_v8_6_0",
           "helm_charts_2_18_0",
           "registry_k8s_io/sig_storage/csi_attacher",
           "registry_k8s_io/sig_storage/csi_provisioner",
@@ -2461,21 +2461,6 @@
           }
         ]
       },
-      "external_snapshotter_v8_5_0": {
-        "name": "external-snapshotter-v8.5.0",
-        "packagetype": "git",
-        "version": "v8.5.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "hwloc": {
         "name": "hwloc",
         "packagetype": "rpm",
@@ -3658,6 +3643,21 @@
             "architecture": "x86_64",
             "registry": "nvcr.io",
             "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "external_snapshotter_v8_6_0": {
+        "name": "external-snapshotter-v8.6.0",
+        "packagetype": "git",
+        "version": "v8.6.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
             "version": [
               "10.0"
             ]
