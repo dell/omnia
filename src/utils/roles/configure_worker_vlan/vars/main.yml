@@ -1,0 +1,37 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# NetworkManager connection name prefix for VLAN interfaces
+nmcli_conn_prefix: "omnia-bmc-vlan"
+
+# Timeouts
+ssh_connect_timeout: 10
+ping_count: 2
+curl_connect_timeout: 30
+
+# Status messages
+worker_ssh_unreachable_msg: >-
+  Worker node '{{ _worker_host }}' is not reachable via SSH.
+  Ensure the worker is running and SSH access is configured.
+  Skipping VLAN configuration for this worker.
+
+gateway_unreachable_msg: >-
+  WARNING: VLAN gateway '{{ _vlan_gateway }}' is not reachable from
+  worker '{{ _worker_host }}'. Verify the VLAN ID, gateway address,
+  and switch configuration.
+
+no_bmc_subnets_msg: >-
+  No BMC subnets to configure. Ensure the cluster inventory contains
+  bmc_ip fields on host entries.
