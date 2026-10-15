@@ -109,6 +109,8 @@ def pytest_configure(config):
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "nft": "Non-functional tests (performance, idempotency)",
+        "contract": "Contract tests (verify interface compatibility)",
+        "ome": "OME integration tests (require OME connectivity)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
