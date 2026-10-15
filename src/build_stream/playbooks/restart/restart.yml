@@ -6,22 +6,89 @@
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 ---
-- name: Prepare BuildStream PXE retry inventory
-  ansible.builtin.import_playbook: pre_pxe.yml
-  when: &buildstream_restart_enabled >-
-    (enable_build_stream | default(false) | bool)
-    and job_id is defined
-    and (job_id | string | length == 36)
-    and ((job_id | string) is match('^[0-9a-fA-F-]+$'))
+- name: Calculate BuildStream effective PXE inventory
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  pre_tasks:
+    - name: Stop when BuildStream restart context is absent
+      ansible.builtin.meta: end_play
+      when: >-
+        not (enable_build_stream | default(false) | bool)
+        or (job_id | default('') | string | length != 36)
+        or not ((job_id | default('') | string) is match('^[0-9a-fA-F-]+$'))
+  tasks:
+    - name: Initialize Orchestrator PXE environment
+      ansible.builtin.include_role:
+        name: pxe_boot_setup
+
+    - name: Calculate effective inventory for BuildStream retry
+      ansible.builtin.include_role:
+        name: pxe_buildstream_manager
+        tasks_from: generate_effective_csv.yml
+      when: not (pxe_boot_skip | default(false) | bool)
 
 - name: Run Orchestrator PXE boot
   ansible.builtin.import_playbook: ../../../orchestrator/playbooks/pxeboot/pxeboot.yml
   when:
-    - *buildstream_restart_enabled
+    - enable_build_stream | default(false) | bool
+    - job_id is defined
+    - job_id | string | length == 36
+    - (job_id | string) is match('^[0-9a-fA-F-]+$')
     - not (bsm_skip_pxe | default(false) | bool)
   vars:
     defer_pxe_failure: true
 
 - name: Persist BuildStream PXE restart results
-  ansible.builtin.import_playbook: post_pxe.yml
-  when: *buildstream_restart_enabled
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  pre_tasks:
+    - name: Stop when BuildStream restart context is absent
+      ansible.builtin.meta: end_play
+      when: >-
+        not (enable_build_stream | default(false) | bool)
+        or (job_id | default('') | string | length != 36)
+        or not ((job_id | default('') | string) is match('^[0-9a-fA-F-]+$'))
+  tasks:
+    - name: Run BuildStream post-PXE processing
+      block:
+        - name: Write BuildStream node results
+          ansible.builtin.include_role:
+            name: pxe_buildstream_manager
+            tasks_from: write_node_results.yml
+
+        - name: Update BuildStream restart state
+          ansible.builtin.include_role:
+            name: pxe_buildstream_manager
+            tasks_from: update_restart_state.yml
+
+        - name: Register BuildStream GitLab host
+          ansible.builtin.include_role:
+            name: pxe_buildstream_manager
+            tasks_from: gitlab_host.yml
+
+        - name: Upload failed-node report to GitLab
+          ansible.builtin.include_role:
+            name: pxe_buildstream_manager
+            tasks_from: upload_to_gitlab.yml
+      rescue:
+        - name: Preserve BuildStream post-PXE failure
+          ansible.builtin.set_fact:
+            bsm_post_pxe_failed: true
+            bsm_post_pxe_failure_message: >-
+              {{ ansible_failed_result.msg
+                 | default(ansible_failed_result | string)
+                 | default('BuildStream post-PXE processing failed') }}
+
+    - name: Preserve original Orchestrator PXE failure
+      ansible.builtin.fail:
+        msg: "{{ pxeboot_failure_message }}"
+      when: pxeboot_failed | default(false) | bool
+
+    - name: Report BuildStream post-PXE failure
+      ansible.builtin.fail:
+        msg: "{{ bsm_post_pxe_failure_message }}"
+      when:
+        - not (pxeboot_failed | default(false) | bool)
+        - bsm_post_pxe_failed | default(false) | bool
