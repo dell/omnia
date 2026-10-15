@@ -294,14 +294,14 @@
   register: _ssh_key_stat
   when:
     - not (_mode_credentials_only | bool)
-    - (_mode_build_iso | bool or _mode_generate_ks | bool or ansible_run_tags | length == 0)
+    - (_mode_build_iso | bool or _mode_generate_ks | bool or _mode_deploy | bool or ansible_run_tags | length == 0)
 
 - name: Fail if SSH public key not found
   ansible.builtin.fail:
     msg: "{{ ssh_key_not_found_msg }}"
   when:
     - not (_mode_credentials_only | bool)
-    - (_mode_build_iso | bool or _mode_generate_ks | bool or ansible_run_tags | length == 0)
+    - (_mode_build_iso | bool or _mode_generate_ks | bool or _mode_deploy | bool or ansible_run_tags | length == 0)
     - not (_ssh_key_stat.stat.exists | default(false))
 
 # Step 13: Set derived variables for downstream roles
