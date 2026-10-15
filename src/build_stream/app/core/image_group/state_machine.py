@@ -50,16 +50,19 @@ ALLOWED_TRANSITIONS = {
 }
 
 # Status flow per stage (on_start, on_success, on_failure)
+# Deploy/restart failures do not mark ImageGroup FAILED — those are job-level
+# failures (e.g. configuration issues) and do not indicate image problems.
+# Only validate failure transitions ImageGroup to FAILED.
 STATUS_FLOW = {
     "deploy": (
         ImageGroupStatus.DEPLOYING,
         ImageGroupStatus.DEPLOYED,
-        ImageGroupStatus.FAILED,
+        None,
     ),
     "restart": (
         ImageGroupStatus.RESTARTING,
         ImageGroupStatus.RESTARTED,
-        ImageGroupStatus.FAILED,
+        None,
     ),
     "validate": (
         ImageGroupStatus.VALIDATING,
