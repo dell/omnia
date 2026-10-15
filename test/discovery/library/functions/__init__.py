@@ -62,6 +62,21 @@ from .discovery_func import (
     check_status_files_removed,
     check_log_files_removed,
     check_log_files_preserved,
+    # PXE Mapping Validation (V007-V009, V014)
+    check_functional_groups_supported,
+    check_ip_correlation,
+    check_parent_service_tag,
+    check_pxe_mapping_orchestrator_contract,
+)
+
+# --- OME Integration (V010-V013) ---
+from .ome_func import (
+    check_ome_static_groups_match,
+    check_ome_unassigned_devices,
+    check_admin_mac_validation,
+    check_ib_nic_name_validation,
+    clear_ome_cache,
+    close_ome_session,
 )
 
 # --- Validation ---
