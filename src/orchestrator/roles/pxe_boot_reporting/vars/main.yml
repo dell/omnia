@@ -16,6 +16,4 @@ pxe_boot_reporting_directory_mode: "0755"
 pxe_boot_reporting_provisioning_file: "{{ orchestrator_output_dir }}/provisioning_report.yml"
 pxe_boot_reporting_status_file: "{{ orchestrator_output_dir }}/orchestrator_status.yml"
 pxe_boot_reporting_failed_nodes_file: "{{ orchestrator_output_dir }}/failed_nodes.json"
-pxe_boot_reporting_buildstream_failure_msg: >-
-  BuildStream post-processing failed, but PXE boot results were preserved.
 pxe_boot_reporting_node_failure_msg: Node failures detected.

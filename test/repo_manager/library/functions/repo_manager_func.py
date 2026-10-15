@@ -140,7 +140,8 @@ def check_repo_configured(host, repo_name: str, arch: str = "x86_64", os_version
         "name=sys.argv[4]; repo=repos.get(name); "
         "repo=repo if repo is not None else repos.get('additional_repos',{}).get(name); "
         "repo=repo if repo is not None else repos.get('user_repos',{}).get(name); "
-        "print('configured' if repo is not None else 'not_configured')"
+        "url=(repo.get('url','') if isinstance(repo,dict) else '') or ''; "
+        "print('configured' if repo is not None and url.strip() else 'not_configured')"
     )
     cmd = "python3 -c {} {} {} {} {}".format(
         shlex.quote(script),

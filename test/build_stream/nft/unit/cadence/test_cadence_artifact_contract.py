@@ -23,32 +23,6 @@ from library.cadence_artifact_contract import (
 pytestmark = pytest.mark.unit
 
 
-@pytest.mark.parametrize(
-    "artifacts",
-    [
-        {
-            "image": "boot-images/slurm/rhel-slurm-imgbld/rhel-10.2-rootfs",
-            "kernel": (
-                "boot-images/efi-images/slurm/rhel-slurm-imgbld/"
-                "vmlinuz-6.12.0-124.8.1.el10_1.x86_64"
-            ),
-            "initrd": (
-                "boot-images/efi-images/slurm/rhel-slurm-imgbld/"
-                "initramfs-6.12.0-124.8.1.el10_1.x86_64.img"
-            ),
-        },
-        {
-            "image": "boot-images/slurm/rhel-slurm-imgbld/rhel-rootfs",
-            "kernel": "boot-images/efi-images/slurm/imgbld/vmlinuz",
-            "initrd": "boot-images/efi-images/slurm/imgbld/initramfs.img",
-        },
-    ],
-)
-def test_image_builder_artifact_names_are_accepted(artifacts):
-    """Accept the exact basename patterns selected by image-builder."""
-    assert artifact_basenames_match_engine("image-builder", artifacts)
-
-
 def test_current_thrillhouse_artifact_names_are_accepted():
     """Accept a matched versioned kernel/initrd Thrillhouse cohort."""
     artifacts = {
@@ -78,14 +52,6 @@ def test_legacy_thrillhouse_artifact_names_are_accepted():
 @pytest.mark.parametrize(
     ("engine", "artifacts"),
     [
-        (
-            "image-builder",
-            {
-                "image": "boot-images/slurm/rootfs.squashfs",
-                "kernel": "boot-images/slurm/vmlinuz-1",
-                "initrd": "boot-images/slurm/initramfs-1.img",
-            },
-        ),
         (
             "image-thrillhouse",
             {

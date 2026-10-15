@@ -81,7 +81,7 @@ deployment through iDRAC.
 | `netmask` | string | `255.255.255.0` | Static network mask |
 | `gateway` | string | `""` | Optional gateway |
 | `dns_server` | string | `""` | Optional DNS server |
-| `ssh_public_key_path` | string | `""` | Defaults to `/root/.ssh/id_rsa.pub`; required for build/generate flow |
+| `ssh_public_key_path` | string | `""` | Defaults to `/root/.ssh/id_rsa.pub`; required for build/generate/deploy flows; used for post-install SSH verification |
 | `install_disk` | string | `sda` | Target installation disk |
 | `timezone` | string | `UTC` | Installed-system timezone |
 
@@ -115,7 +115,7 @@ and Kickstart generation.
 |-------|------|----------|-------------|
 | `bmc_username` | string | Yes | iDRAC user |
 | `bmc_password` | string | Yes | iDRAC password |
-| `os_root_password` | string | Yes | Root password; converted to a Kickstart-compatible hash |
+| `os_root_password` | string | Yes | Root password for the installed OS (converted to a Kickstart-compatible hash). Used for manual access only; automated post-install verification uses SSH key-based authentication. |
 
 The credential document is encrypted with Ansible Vault and both it and the key
 use restrictive permissions. Plaintext credential content is not an input

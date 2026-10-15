@@ -3203,9 +3203,7 @@ def check_build_status(
     if status.get("overall_status") != "success":
         result["error"] = "build_status.yml overall_status is not success"
         return result
-    if status.get("image_build_type") not in {
-        "image-builder", "image-thrillhouse",
-    }:
+    if status.get("image_build_type") != "image-thrillhouse":
         result["error"] = "build_status.yml has an invalid image_build_type"
         return result
     s3_config = status.get("s3_configurations")
@@ -3467,10 +3465,7 @@ def check_cadence_artifact_identity(
         return result
 
     engine = build_status["data"].get("image_build_type")
-    engine_token = {
-        "image-builder": "-imgbld",
-        "image-thrillhouse": "-imgth",
-    }.get(engine)
+    engine_token = {"image-thrillhouse": "-imgth"}.get(engine)
     if not engine_token:
         result["error"] = f"Unsupported image build engine: {engine!r}"
         return result
