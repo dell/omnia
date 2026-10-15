@@ -67,17 +67,32 @@
   changed_when: "'Bucket' in boot_images_bucket.stdout"
   when: '"s3://boot-images" not in s3_bucket_output.stdout'
 
-# === Set ACL to public on buckets AND all objects (recursive) ===
+# === Set ACL on buckets AND all objects (recursive) ===
 # NOTE: On PowerScale, bucket-level ACL only grants listing.
 # Object-level ACL (--recursive) is REQUIRED for anonymous GetObject.
+#
+# WARNING (CWE-732/CWE-284): public-read ACL exposes every boot artifact
+# to unauthenticated network peers. For production on untrusted networks,
+# set s3_enable_anonymous_access to false and configure a restrictive
+# bucket policy (IP-range allow-list or pre-signed URLs) instead.
 
 - name: Set ACL to public for 'efi' bucket and all objects
   ansible.builtin.command: s3cmd setacl s3://efi --acl-public --recursive
   changed_when: true
+  when: s3_enable_anonymous_access | default(true) | bool
 
 - name: Set ACL to public for 'boot-images' bucket and all objects
   ansible.builtin.command: s3cmd setacl s3://boot-images --acl-public --recursive
   changed_when: true
+  when: s3_enable_anonymous_access | default(true) | bool
+
+- name: Warn when anonymous S3 access is disabled
+  ansible.builtin.debug:
+    msg: >-
+      s3_enable_anonymous_access is false — S3 buckets are NOT set to public.
+      Configure a restrictive bucket policy (IP-range or pre-signed URLs)
+      to enable PXE boot access before provisioning nodes.
+  when: not (s3_enable_anonymous_access | default(true) | bool)
 
 # === Verify Buckets ===
 

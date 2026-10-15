@@ -61,7 +61,14 @@ epel10_gpg_key: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10
 
 # Fixed S3 bucket names — NOT user-modifiable
 s3_boot_images_bucket: "boot-images"
-s3_efi_images_bucket: "efi-images"
+s3_efi_bucket: "efi"
+
+# S3 anonymous access for PXE boot.
+# WARNING (CWE-732): When true, any network peer that can reach the S3
+# endpoint can list and download every boot artifact without authentication.
+# Set to false and configure a restrictive bucket policy (IP-range or
+# pre-signed URLs) for production deployments on untrusted networks.
+s3_enable_anonymous_access: true
 
 # Retry and delay settings
 max_retries: 10
