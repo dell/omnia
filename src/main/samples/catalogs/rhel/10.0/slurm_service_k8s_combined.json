@@ -1848,6 +1848,21 @@
         ],
         "tag": "6.3.0"
       },
+      "external_snapshotter_v8_6_0": {
+        "name": "external-snapshotter-v8.6.0",
+        "packagetype": "git",
+        "version": "v8.6.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
       "openssl_devel": {
         "name": "openssl-devel",
         "packagetype": "rpm",
@@ -5025,21 +5040,6 @@
             "architecture": "aarch64",
             "registry": "nvcr.io",
             "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "external_snapshotter_v8_6_0": {
-        "name": "external-snapshotter-v8.6.0",
-        "packagetype": "git",
-        "version": "v8.6.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
             "version": [
               "10.0"
             ]

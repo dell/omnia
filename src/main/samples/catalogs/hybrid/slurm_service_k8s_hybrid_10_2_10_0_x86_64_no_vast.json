@@ -926,6 +926,21 @@
         ],
         "tag": "6.3.0"
       },
+      "external_snapshotter_v8_6_0": {
+        "name": "external-snapshotter-v8.6.0",
+        "packagetype": "git",
+        "version": "v8.6.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
+      },
       "docker.io/victoriametrics/operator_1": {
         "name": "docker.io/victoriametrics/operator",
         "packagetype": "image",
@@ -3813,21 +3828,6 @@
             "architecture": "x86_64",
             "reponame": "baseos",
             "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
-      "external_snapshotter_v8_6_0": {
-        "name": "external-snapshotter-v8.6.0",
-        "packagetype": "git",
-        "version": "v8.6.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
             "version": [
               "10.2"
             ]
