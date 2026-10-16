@@ -29,14 +29,10 @@ from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.additional_cloud_init,
-    pytest.mark.non_disruptive,
-    pytest.mark.state_stability,
-]
-
-
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
+@pytest.mark.state_stability
 @pytest.mark.order(40313)
 def test_additional_cloud_init_smd_stability(host):
     """Verify SMD group state is stable across consecutive reads."""
@@ -45,6 +41,10 @@ def test_additional_cloud_init_smd_stability(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_smd_stability)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
+@pytest.mark.state_stability
 @pytest.mark.order(40314)
 def test_additional_cloud_init_bss_stability(host):
     """Verify BSS registration state is stable across consecutive reads."""
@@ -53,6 +53,10 @@ def test_additional_cloud_init_bss_stability(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_bss_stability)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
+@pytest.mark.state_stability
 @pytest.mark.order(40315)
 def test_additional_cloud_init_pipeline_stability(host):
     """Verify full additional cloud-init pipeline state is stable."""

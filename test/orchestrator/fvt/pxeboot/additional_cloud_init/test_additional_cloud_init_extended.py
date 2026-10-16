@@ -38,16 +38,12 @@ from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.additional_cloud_init,
-    pytest.mark.non_disruptive,
-]
-
-
 # ── Template rendering (TC-F08 .. TC-F10) ──────────────────────────────
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40305)
 def test_additional_cloud_init_common_template(host):
     """Verify common cloud-init template rendered with merge_how directive."""
@@ -56,6 +52,9 @@ def test_additional_cloud_init_common_template(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_common_template)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40306)
 def test_additional_cloud_init_per_fg_template(host):
     """Verify per-FG cloud-init templates rendered correctly."""
@@ -64,6 +63,9 @@ def test_additional_cloud_init_per_fg_template(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_per_fg_template)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40307)
 def test_additional_cloud_init_conditional_rendering(host):
     """Verify empty sections are omitted from rendered cloud-init templates."""
@@ -77,6 +79,9 @@ def test_additional_cloud_init_conditional_rendering(host):
 # ── BSS registration (TC-F11 .. TC-F13) ────────────────────────────────
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40308)
 def test_additional_cloud_init_bss_common(host):
     """Verify BSS registration for the common cloud-init group."""
@@ -85,6 +90,9 @@ def test_additional_cloud_init_bss_common(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_bss_common)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40309)
 def test_additional_cloud_init_bss_per_fg(host):
     """Verify BSS registration for per-functional-group cloud-init groups."""
@@ -93,6 +101,9 @@ def test_additional_cloud_init_bss_per_fg(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_bss_per_fg)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40310)
 def test_additional_cloud_init_merge_behavior(host):
     """Verify merge_how=no_replace preserves platform defaults."""
@@ -101,9 +112,12 @@ def test_additional_cloud_init_merge_behavior(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_merge_behavior)
 
 
-# ── Compatibility (TC-C01 .. TC-C03) ───────────────────────────────────
+# ── Compatibility (TC-C01 .. TC-C02) ───────────────────────────────────
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40311)
 def test_additional_cloud_init_rhel_compat(host):
     """Verify additional cloud-init works on RHEL 10.x nodes."""
@@ -112,6 +126,9 @@ def test_additional_cloud_init_rhel_compat(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_rhel_compat)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40312)
 def test_additional_cloud_init_multi_fg_compat(host):
     """Verify additional cloud-init with multiple functional groups."""

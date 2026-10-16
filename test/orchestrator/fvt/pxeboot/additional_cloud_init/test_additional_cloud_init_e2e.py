@@ -36,16 +36,12 @@ from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.additional_cloud_init,
-    pytest.mark.non_disruptive,
-]
-
-
 # -- End-to-end node verification (TC-F16 .. TC-F20) --------------------
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40316)
 def test_additional_cloud_init_e2e_common_only(host):
     """Verify end-to-end cloud-init with common section only."""
@@ -54,6 +50,9 @@ def test_additional_cloud_init_e2e_common_only(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_e2e_common_only)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40317)
 def test_additional_cloud_init_e2e_per_fg_only(host):
     """Verify end-to-end cloud-init with per-FG section only."""
@@ -62,6 +61,9 @@ def test_additional_cloud_init_e2e_per_fg_only(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_e2e_per_fg_only)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40318)
 def test_additional_cloud_init_e2e_combined(host):
     """Verify end-to-end cloud-init with common + per-FG combined."""
@@ -70,6 +72,9 @@ def test_additional_cloud_init_e2e_combined(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_e2e_combined)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40319)
 def test_additional_cloud_init_e2e_multiple_fgs(host):
     """Verify end-to-end cloud-init with multiple functional groups."""
@@ -78,6 +83,9 @@ def test_additional_cloud_init_e2e_multiple_fgs(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_e2e_multiple_fgs)
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40320)
 def test_additional_cloud_init_e2e_mixed_directives(host):
     """Verify end-to-end cloud-init with mixed write_files and runcmd."""
@@ -91,6 +99,9 @@ def test_additional_cloud_init_e2e_mixed_directives(host):
 # -- Package integration (TC-F21) ---------------------------------------
 
 
+@pytest.mark.sanity
+@pytest.mark.additional_cloud_init
+@pytest.mark.non_disruptive
 @pytest.mark.order(40321)
 def test_additional_cloud_init_e2e_packages(host):
     """Verify additional cloud-init integration with additional packages."""
