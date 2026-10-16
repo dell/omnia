@@ -96,7 +96,7 @@ def check_dcgm_cuda_validation(host):
 
 
 def check_dcgm_cuda_atomic_lock(host):
-    """Verify CUDA toolkit is installed to /hpc_tools/cuda via atomic lock."""
+    """Verify CUDA toolkit is installed via atomic lock."""
     summary = "CUDA atomic lock installation"
     try:
         _ctx, rows, control, _cfg, gpu = _dcgm_context(host)
@@ -113,9 +113,10 @@ def check_dcgm_cuda_atomic_lock(host):
         path_ok = path_result.rc == 0 and bool(path_result.stdout.strip())
         lock_done = "UNLOCKED" in (lock_result.stdout or "")
         ok = path_ok and lock_done
+        cuda_path = path_result.stdout.strip() if path_ok else "not found"
         fields = [
             ("Target node", f"{row['HOSTNAME']} | {row['ADMIN_IP']}"),
-            ("CUDA path", "/hpc_tools/cuda"),
+            ("CUDA path", cuda_path),
             ("Path exists", "yes" if path_ok else "no"),
             (
                 "Lock status",
@@ -125,7 +126,7 @@ def check_dcgm_cuda_atomic_lock(host):
         ]
         return runtime_result(
             ok, summary, fields,
-            "CUDA toolkit not found at /hpc_tools/cuda or install lock still held"
+            "CUDA toolkit not found or install lock still held"
             if not ok else "",
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
