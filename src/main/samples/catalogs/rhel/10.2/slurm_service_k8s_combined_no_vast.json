@@ -446,7 +446,8 @@
           "gcc_cpp",
           "python3",
           "python3_pymysql",
-          "papi_rpm"
+          "papi_rpm",
+          "docker.io/alpine/kubectl"
         ]
       },
       "service_kube_control_plane_group": {
@@ -482,9 +483,9 @@
         "type": "group",
         "description": "Dell PowerScale CSI driver and related storage components",
         "components": [
-          "csi_powerscale_v2_17_0",
-          "external_snapshotter_v8_5_0",
-          "helm_charts_2_17_0",
+          "csi_powerscale_v2_18_0",
+          "external_snapshotter_v8_6_0",
+          "helm_charts_2_18_0",
           "registry_k8s_io/sig_storage/csi_attacher",
           "registry_k8s_io/sig_storage/csi_provisioner",
           "registry_k8s_io/sig_storage/csi_snapshotter",
@@ -591,7 +592,7 @@
       "registry_k8s_io/sig_storage/csi_resizer": {
         "name": "registry.k8s.io/sig-storage/csi-resizer",
         "packagetype": "image",
-        "tag": "v2.1.0",
+        "tag": "v2.2.1",
         "sources": [
           {
             "architecture": "x86_64",
@@ -687,7 +688,7 @@
       "registry_k8s_io/sig_storage/csi_provisioner": {
         "name": "registry.k8s.io/sig-storage/csi-provisioner",
         "packagetype": "image",
-        "tag": "v6.2.0",
+        "tag": "v6.3.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -927,7 +928,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.29"
+        "tag": "1.30.4"
       },
       "docker.io/victoriametrics/vminsert": {
         "name": "docker.io/victoriametrics/vminsert",
@@ -957,7 +958,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "v1.12.0"
+        "tag": "v1.13.0"
       },
       "pymysql": {
         "name": "PyMySQL==1.1.2",
@@ -1095,7 +1096,7 @@
       "quay_io/dell/container_storage_modules/csm_authorization_sidecar": {
         "name": "quay.io/dell/container-storage-modules/csm-authorization-sidecar",
         "packagetype": "image",
-        "tag": "v2.5.0",
+        "tag": "v2.6.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -1184,17 +1185,9 @@
               "10.2"
             ],
             "url": "https://github.com/dell/karavi-observability.git"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://github.com/dell/karavi-observability.git"
           }
         ],
-        "version": "v1.15.0"
+        "version": "v1.16.0"
       },
       "quay.io/jetstack/cert-manager-controller": {
         "name": "quay.io/jetstack/cert-manager-controller",
@@ -1727,7 +1720,7 @@
             "url": "https://github.com/dell/helm-charts.git"
           }
         ],
-        "version": "container-storage-modules-1.10.0"
+        "version": "container-storage-modules-1.11.0"
       },
       "python3_firewall": {
         "name": "python3-firewall",
@@ -1840,10 +1833,10 @@
         ],
         "tag": "v1.10.0"
       },
-      "csi_powerscale_v2_17_0": {
-        "name": "csi-powerscale-v2.17.0",
+      "csi_powerscale_v2_18_0": {
+        "name": "csi-powerscale-v2.18.0",
         "packagetype": "git",
-        "version": "v2.17.0",
+        "version": "v2.18.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -1947,7 +1940,7 @@
       "quay_io/dell/container_storage_modules/podmon": {
         "name": "quay.io/dell/container-storage-modules/podmon",
         "packagetype": "image",
-        "tag": "v1.16.0",
+        "tag": "v1.17.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -2092,7 +2085,7 @@
       "registry_k8s_io/sig_storage/csi_external_health_monitor_controller": {
         "name": "registry.k8s.io/sig-storage/csi-external-health-monitor-controller",
         "packagetype": "image",
-        "tag": "v0.17.0",
+        "tag": "v0.18.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -2516,29 +2509,6 @@
           }
         ]
       },
-      "external_snapshotter_v8_5_0": {
-        "name": "external-snapshotter-v8.5.0",
-        "packagetype": "git",
-        "version": "v8.5.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
-            "version": [
-              "10.2"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
       "valgrind_devel": {
         "name": "valgrind-devel",
         "packagetype": "rpm",
@@ -2674,7 +2644,7 @@
       "quay_io/dell/container_storage_modules/csi_isilon": {
         "name": "quay.io/dell/container-storage-modules/csi-isilon",
         "packagetype": "image",
-        "tag": "v2.17.0",
+        "tag": "v2.18.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -2838,7 +2808,7 @@
       "quay_io/dell/container_storage_modules/csi_metadata_retriever": {
         "name": "quay.io/dell/container-storage-modules/csi-metadata-retriever",
         "packagetype": "image",
-        "tag": "v1.14.0",
+        "tag": "v1.15.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -2954,7 +2924,7 @@
       "quay_io/dell/container_storage_modules/dell_csi_replicator": {
         "name": "quay.io/dell/container-storage-modules/dell-csi-replicator",
         "packagetype": "image",
-        "tag": "v1.15.0",
+        "tag": "v1.16.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -3068,7 +3038,7 @@
             "registry": "ghcr.io"
           }
         ],
-        "tag": "0.150.1"
+        "tag": "0.160.0"
       },
       "docker.io/calico/cni": {
         "name": "docker.io/calico/cni",
@@ -3107,10 +3077,10 @@
           }
         ]
       },
-      "helm_charts_2_17_0": {
-        "name": "helm-charts-2.17.0",
+      "helm_charts_2_18_0": {
+        "name": "helm-charts-2.18.0",
         "packagetype": "git",
-        "version": "csi-isilon-2.17.0",
+        "version": "csi-isilon-2.18.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -3233,10 +3203,25 @@
         ],
         "tag": "6.3.0"
       },
+      "external_snapshotter_v8_6_0": {
+        "name": "external-snapshotter-v8.6.0",
+        "packagetype": "git",
+        "version": "v8.6.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
+      },
       "registry_k8s_io/sig_storage/csi_node_driver_registrar": {
         "name": "registry.k8s.io/sig-storage/csi-node-driver-registrar",
         "packagetype": "image",
-        "tag": "v2.16.0",
+        "tag": "v2.18.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -3288,7 +3273,7 @@
       "registry_k8s_io/sig_storage/csi_snapshotter": {
         "name": "registry.k8s.io/sig-storage/csi-snapshotter",
         "packagetype": "image",
-        "tag": "v8.5.0",
+        "tag": "v8.6.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -3340,7 +3325,7 @@
       "registry_k8s_io/sig_storage/csi_attacher": {
         "name": "registry.k8s.io/sig-storage/csi-attacher",
         "packagetype": "image",
-        "tag": "v4.11.0",
+        "tag": "v4.13.0",
         "sources": [
           {
             "architecture": "x86_64",

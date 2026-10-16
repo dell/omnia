@@ -77,12 +77,77 @@
 - name: Set Helm values file path on NFS
   ansible.builtin.set_fact:
     _helm_values_nfs: "{{ telemetry_deploy_dir }}/karavi-observability/csm_metrics_values.yaml"
+    _cert_manager_resources_override: "{{ telemetry_deploy_dir }}/karavi-observability/cert-manager-resources.yaml"
+
+- name: Remove cert-manager-readiness-check hook from Helm chart
+  ansible.builtin.file:
+    path: "{{ karavi_helm_chart_path }}/templates/cert-manager-readiness-check.yaml"
+    state: absent
+  # The hook runs a kubectl Job during helm install/upgrade that races against
+  # cert-manager pod rollouts. On upgrade, the hook times out waiting for pods
+  # that are still restarting, causing the entire helm upgrade to fail after 10m.
+  # We replace it with an Ansible-managed readiness check after helm completes.
+  # NOTE: This file will reappear if the Helm chart is updated. Ensure it is
+  # removed again after chart updates.
+
+- name: Remove cert-manager post-install hook from Helm chart
+  ansible.builtin.file:
+    path: "{{ karavi_helm_chart_path }}/templates/cert-manager.yaml"
+    state: absent
+  # The post-install hook attempts to call the cert-manager webhook on port 443,
+  # but the webhook actually listens on port 10250. This causes "connection refused"
+  # errors during helm install/upgrade. Since cert-manager is already deployed and
+  # fully functional as part of the Helm chart, this hook is redundant and can be
+  # safely removed without affecting functionality.
+  # NOTE: This file will reappear if the Helm chart is updated. Ensure it is
+  # removed again after chart updates.
+
+- name: Verify cert-manager hooks were removed
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: _hook_check
+  failed_when: _hook_check.stat.exists
+  with_items:
+    - "{{ karavi_helm_chart_path }}/templates/cert-manager-readiness-check.yaml"
+    - "{{ karavi_helm_chart_path }}/templates/cert-manager.yaml"
+  changed_when: false
+
+- name: Write cert-manager resource limits override
+  ansible.builtin.copy:
+    dest: "{{ _cert_manager_resources_override }}"
+    mode: "0644"
+    content: |
+      cert-manager:
+        resources:
+          requests:
+            memory: "{{ telemetry_storage_config.cert_manager_storage.controller.resources.requests.memory }}"
+            cpu: "{{ telemetry_storage_config.cert_manager_storage.controller.resources.requests.cpu }}"
+          limits:
+            memory: "{{ telemetry_storage_config.cert_manager_storage.controller.resources.limits.memory }}"
+            cpu: "{{ telemetry_storage_config.cert_manager_storage.controller.resources.limits.cpu }}"
+        webhook:
+          resources:
+            requests:
+              memory: "{{ telemetry_storage_config.cert_manager_storage.webhook.resources.requests.memory }}"
+              cpu: "{{ telemetry_storage_config.cert_manager_storage.webhook.resources.requests.cpu }}"
+            limits:
+              memory: "{{ telemetry_storage_config.cert_manager_storage.webhook.resources.limits.memory }}"
+              cpu: "{{ telemetry_storage_config.cert_manager_storage.webhook.resources.limits.cpu }}"
+        cainjector:
+          resources:
+            requests:
+              memory: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.requests.memory }}"
+              cpu: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.requests.cpu }}"
+            limits:
+              memory: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.limits.memory }}"
+              cpu: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.limits.cpu }}"
 
 - name: Upgrade existing karavi-observability release
   ansible.builtin.command: >
     helm upgrade karavi-observability {{ karavi_helm_chart_path }}
     -n {{ csm_observability_namespace }}
     -f {{ _helm_values_nfs }}
+    -f {{ _cert_manager_resources_override }}
     --timeout 10m
   when: _karavi_helm_check.rc == 0
   register: _helm_upgrade
@@ -93,10 +158,76 @@
     helm install karavi-observability {{ karavi_helm_chart_path }}
     -n {{ csm_observability_namespace }}
     -f {{ _helm_values_nfs }}
+    -f {{ _cert_manager_resources_override }}
     --timeout 10m
   when: _karavi_helm_check.rc != 0
   register: _helm_install
   changed_when: "'deployed' in (_helm_install.stdout | default(''))"
+
+# --- Post-install: Set resource limits on pods deployed with resources: {} ---
+# The Helm chart hardcodes resources: {} for otel-collector, nginx-proxy, and
+# karavi-metrics-powerscale. Without limits these pods get BestEffort QoS and
+# are OOMKilled first under node memory pressure, cascading into CrashLoopBackOff.
+
+- name: Patch otel-collector deployment with resource limits
+  ansible.builtin.command: >
+    kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
+    --type=json
+    -p='[
+      {
+        "op":"replace",
+        "path":"/spec/template/spec/containers/0/resources",
+        "value":{
+          "requests":{
+            "memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.memory }}",
+            "cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.cpu }}"
+          },
+          "limits":{
+            "memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.memory }}",
+            "cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.cpu }}"
+          }
+        }
+      },
+      {
+        "op":"replace",
+        "path":"/spec/template/spec/containers/1/resources",
+        "value":{
+          "requests":{
+            "memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.memory }}",
+            "cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.cpu }}"
+          },
+          "limits":{
+            "memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.memory }}",
+            "cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.cpu }}"
+          }
+        }
+      }
+    ]'
+  changed_when: false
+  failed_when: false
+
+- name: Patch karavi-metrics-powerscale deployment with resource limits
+  ansible.builtin.command: >
+    kubectl patch deployment karavi-metrics-powerscale -n {{ csm_observability_namespace }}
+    --type=json
+    -p='[
+      {
+        "op":"replace",
+        "path":"/spec/template/spec/containers/0/resources",
+        "value":{
+          "requests":{
+            "memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.memory }}",
+            "cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.cpu }}"
+          },
+          "limits":{
+            "memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.memory }}",
+            "cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.cpu }}"
+          }
+        }
+      }
+    ]'
+  changed_when: false
+  failed_when: false
 
 # --- Post-install: Patch OTEL Collector ---
 
@@ -148,19 +279,54 @@
   ansible.builtin.command: >
     kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
     --type=json
-    -p=[{"op":"add","path":"/spec/template/spec/volumes/-","value":{"name":"otel-collector-data","persistentVolumeClaim":{"claimName":"otel-collector-data"}}},{"op":"add","path":"/spec/template/spec/containers/0/volumeMounts/-","value":{"name":"otel-collector-data","mountPath":"/data"}}]
+    -p='[
+      {
+        "op":"add",
+        "path":"/spec/template/spec/volumes/-",
+        "value":{
+          "name":"otel-collector-data",
+          "persistentVolumeClaim":{
+            "claimName":"otel-collector-data"
+          }
+        }
+      },
+      {
+        "op":"add",
+        "path":"/spec/template/spec/containers/0/volumeMounts/-",
+        "value":{
+          "name":"otel-collector-data",
+          "mountPath":"/data"
+        }
+      }
+    ]'
   changed_when: false
   failed_when: false
 
-- name: Wait for cert-manager pods to be ready
+- name: Wait for cert-manager deployments to be available
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Available
+    deployment/karavi-observability-cert-manager
+    deployment/karavi-observability-cert-manager-cainjector
+    deployment/karavi-observability-cert-manager-webhook
+    -n {{ csm_observability_namespace }} --timeout=300s
+  changed_when: false
+  failed_when: false
+
+- name: Wait for cert-manager webhook caBundle to be populated
   ansible.builtin.shell:
     cmd: |
-      set -o pipefail
-      kubectl get pods -n {{ csm_observability_namespace }} -l app.kubernetes.io/instance=karavi-observability \
-        --no-headers --field-selector=status.phase!=Succeeded \
-        -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' \
-        | xargs -I {} kubectl wait pod/{} -n {{ csm_observability_namespace }} \
-          --for=condition=Ready --timeout=300s 2>&1 || true
+      for i in $(seq 1 30); do
+        CA_BUNDLE=$(kubectl get mutatingwebhookconfiguration \
+          karavi-observability-cert-manager-webhook \
+          -o jsonpath='{.webhooks[0].clientConfig.caBundle}' 2>/dev/null)
+        if [ -n "$CA_BUNDLE" ]; then
+          echo "caBundle populated on attempt $i"
+          exit 0
+        fi
+        sleep 5
+      done
+      echo "WARNING: caBundle not populated after 150s - continuing anyway"
+      exit 0
     executable: /bin/bash
   changed_when: false
   failed_when: false
