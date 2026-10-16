@@ -60,7 +60,7 @@ IMAGE = {
 DOMAIN_INIT = ORCHESTRATOR_ROOT / "domain-init.sh"
 
 
-def _write_mapping(path, functional_group="research_rhel_10_0_x86_64"):
+def _write_mapping(path, functional_group="fg_research_rhel_10_0_x86_64"):
     path.write_text(
         "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,"
         "HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP\n"
@@ -70,7 +70,7 @@ def _write_mapping(path, functional_group="research_rhel_10_0_x86_64"):
     )
 
 
-def _validate(tmp_path, config, group="research_rhel_10_0_x86_64", **orchestrator):
+def _validate(tmp_path, config, group="fg_research_rhel_10_0_x86_64", **orchestrator):
     mapping = tmp_path / "pxe_mapping_file.csv"
     _write_mapping(mapping, group)
     return functional_validator.validate(
@@ -96,7 +96,7 @@ def test_group_resolution_preserves_precedence_empty_inheritance_and_provenance(
             "cloud_init": {"config_file": "/input/common-x86_64.yml"},
         },
         "groups": {
-            "research_rhel_10_0_x86_64": {
+            "fg_research_rhel_10_0_x86_64": {
                 "boot_kernel_params": "",
                 "post_config": [{"runcmd": ["echo ready"]}],
                 "image_override": IMAGE,
@@ -104,7 +104,7 @@ def test_group_resolution_preserves_precedence_empty_inheritance_and_provenance(
         },
     }
 
-    resolved = resolver.resolve_group(config, "research_rhel_10_0_x86_64", "legacy=1")
+    resolved = resolver.resolve_group(config, "fg_research_rhel_10_0_x86_64", "legacy=1")
     other = resolver.resolve_group(config, "other_rhel_10_0_x86_64")
 
     assert resolved.boot_kernel_params == ("audit=1", "common")
@@ -246,7 +246,7 @@ def test_functional_group_validator_treats_empty_template_as_inactive(tmp_path):
 def test_kernel_parameters_reject_protected_and_unsafe_values(tmp_path, params, expected):
     """ORCH_UT_117: Protected and quote/control-character parameters fail."""
     errors = _validate(
-        tmp_path, {"groups": {"research_rhel_10_0_x86_64": {"boot_kernel_params": params}}}
+        tmp_path, {"groups": {"fg_research_rhel_10_0_x86_64": {"boot_kernel_params": params}}}
     )
 
     assert any(expected in error for error in errors), errors
@@ -266,7 +266,7 @@ def test_kernel_parameters_reject_protected_and_unsafe_values(tmp_path, params, 
 def test_image_override_requires_complete_safe_tuple(tmp_path, override, expected):
     """ORCH_UT_118: image_override is an all-or-none safe artifact tuple."""
     errors = _validate(
-        tmp_path, {"groups": {"research_rhel_10_0_x86_64": {"image_override": override}}}
+        tmp_path, {"groups": {"fg_research_rhel_10_0_x86_64": {"image_override": override}}}
     )
 
     assert any(expected in error for error in errors), errors
@@ -282,7 +282,7 @@ def test_valid_image_override_and_cloud_init_pass(tmp_path):
         {
             "common": {},
             "groups": {
-                "research_rhel_10_0_x86_64": {
+                "fg_research_rhel_10_0_x86_64": {
                     "image_override": IMAGE,
                     "cloud_init": {"config_file": str(cloud_init)},
                 }
@@ -290,7 +290,7 @@ def test_valid_image_override_and_cloud_init_pass(tmp_path):
         },
     )
     assert not _validate(
-        tmp_path, {"groups": {"research_rhel_10_0_x86_64": {"image_override": {}}}}
+        tmp_path, {"groups": {"fg_research_rhel_10_0_x86_64": {"image_override": {}}}}
     )
 
 
@@ -302,7 +302,7 @@ def test_cloud_init_reference_rules(tmp_path):
     empty.write_text("# nothing\n", encoding="utf-8")
     vaulted = tmp_path / "vault-x86_64.yml"
     vaulted.write_text("$ANSIBLE_VAULT;1.1;AES256\n6162\n", encoding="utf-8")
-    group = "research_rhel_10_0_x86_64"
+    group = "fg_research_rhel_10_0_x86_64"
 
     for path, expected in (
         (outside, "outside the allowed roots"),
@@ -330,7 +330,7 @@ def test_functional_group_validator_checks_content_and_architecture(tmp_path):
         tmp_path,
         {
             "groups": {
-                "research_rhel_10_0_x86_64": {
+                "fg_research_rhel_10_0_x86_64": {
                     "cloud_init": {"config_file": str(cloud_init)},
                     "image_override": {**IMAGE, "rootfs": "images/rootfs-aarch64"},
                 }
@@ -345,7 +345,7 @@ def test_functional_group_validator_checks_content_and_architecture(tmp_path):
 def test_unsupported_os_is_warning_not_failure(tmp_path, caplog):
     """ORCH_UT_122: Unsupported OS versions warn while valid input proceeds."""
     mapping = tmp_path / "pxe_mapping_file.csv"
-    group = "research_rhel_11_0_x86_64"
+    group = "fg_research_rhel_11_0_x86_64"
     _write_mapping(mapping, group)
 
     warnings = []
@@ -372,10 +372,133 @@ def test_common_cloud_init_architecture_is_checked_for_inheriting_groups(tmp_pat
     errors = _validate(
         tmp_path,
         {"common": {"cloud_init": {"config_file": str(cloud_init)}}},
-        group="research_rhel_10_0_aarch64",
+        group="fg_research_rhel_10_0_aarch64",
     )
 
     assert any("targets architecture 'aarch64'" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    "predefined_group",
+    [
+        "slurm_node_rhel_10_0_x86_64",
+        "slurm_control_node_rhel_10_0_x86_64",
+        "service_kube_control_plane_rhel_10_0_x86_64",
+        "service_kube_node_rhel_10_0_x86_64",
+        "login_node_rhel_10_0_x86_64",
+        "login_compiler_node_rhel_10_0_x86_64",
+        "os_rhel_10_0_x86_64",
+    ],
+)
+def test_predefined_groups_cannot_be_configured(tmp_path, predefined_group):
+    """ORCH_UT_125: Only fg_ groups may be configured; predefined keys fail.
+
+    Proves a predefined Slurm, Kubernetes, login, or OS group cannot be
+    overridden through functional_group_config.yml, so flexible-group
+    configuration never reaches predefined provisioning.
+    """
+    errors = _validate(
+        tmp_path,
+        {"groups": {predefined_group: {"boot_kernel_params": "audit=1"}}},
+        group=predefined_group,
+    )
+
+    assert any("flexible functional group" in error for error in errors), errors
+    assert any(predefined_group in error for error in errors), errors
+
+
+def test_custom_log_paths_resolution_group_over_common():
+    """ORCH_UT_126: custom_log_paths resolves group over common, empty inherits."""
+    config = {
+        "common": {
+            "custom_log_paths": {
+                "directories": ["/var/log/common"],
+                "files": ["/opt/common.log"],
+            }
+        },
+        "groups": {
+            "fg_research_rhel_10_0_x86_64": {
+                "custom_log_paths": {"directories": ["/var/log/app"]}
+            },
+            "fg_other_rhel_10_0_x86_64": {},
+        },
+    }
+
+    group = resolver.resolve_group(config, "fg_research_rhel_10_0_x86_64")
+    inherits = resolver.resolve_group(config, "fg_other_rhel_10_0_x86_64")
+    default = resolver.resolve_group({}, "fg_research_rhel_10_0_x86_64")
+
+    assert group.custom_log_paths == (
+        {"directories": ["/var/log/app"]},
+        "group",
+    )
+    assert inherits.custom_log_paths.source == "common"
+    assert default.custom_log_paths == ({}, "default")
+
+
+@pytest.mark.parametrize(
+    "custom_log_paths, expected",
+    [
+        ({"directories": ["relative/dir"]}, "absolute node-local path"),
+        ({"files": ["opt/app.log"]}, "absolute node-local path"),
+        ({"directories": ["/var/log/../../etc"]}, "no '..' segments"),
+        ({"files": ["/opt/app/../../etc/shadow"]}, "no '..' segments"),
+        ({"directories": "/var/log/app"}, "expected a list"),
+        ("/var/log/app", "expected a mapping"),
+    ],
+)
+def test_custom_log_paths_reject_invalid_entries(tmp_path, custom_log_paths, expected):
+    """ORCH_UT_127: custom_log_paths must be absolute node-local path lists."""
+    errors = _validate(
+        tmp_path,
+        {"groups": {"fg_research_rhel_10_0_x86_64": {"custom_log_paths": custom_log_paths}}},
+    )
+
+    assert any(expected in error for error in errors), errors
+
+
+def test_valid_custom_log_paths_pass(tmp_path):
+    """ORCH_UT_128: A well-formed custom_log_paths mapping is accepted."""
+    assert not _validate(
+        tmp_path,
+        {
+            "groups": {
+                "fg_research_rhel_10_0_x86_64": {
+                    "custom_log_paths": {
+                        "directories": ["/var/log/app"],
+                        "files": ["/opt/app/service.log"],
+                    }
+                }
+            }
+        },
+    )
+
+
+def test_flexible_classification_precedes_custom_catch_all():
+    """ORCH_UT_129: fg_ groups classify as flexible, not the custom catch-all."""
+    classification = yaml.safe_load(
+        (ORCHESTRATOR_ROOT / "vars/functional_group_classification.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    categories = classification["functional_group_categories"]
+
+    names = list(categories)
+    assert names.index("flexible") < names.index("custom")
+    assert categories["flexible"]["patterns"] == ["^fg_"]
+    assert classification["category_provisioning_map"]["flexible"] == (
+        "manage_functional_group"
+    )
+    assert classification["default_bolt_ons"]["flexible"] == []
+
+
+def test_custom_provisioning_excludes_flexible_groups():
+    """ORCH_UT_130: provision_custom's catch-all excludes fg_ groups."""
+    provision_custom = (
+        ORCHESTRATOR_ROOT / "playbooks/provision/provision_custom.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "rejectattr('name', 'match', '^fg_')" in provision_custom
 
 
 def test_shipped_template_is_valid_and_inactive():
@@ -392,3 +515,23 @@ def test_shipped_template_is_valid_and_inactive():
 
     assert not list(Draft7Validator(schema).iter_errors(template))
     assert not resolver.has_effective_configuration(template)
+
+
+def test_flexible_group_flows_are_opt_in_only():
+    """ORCH_UT_129: fg_ publication flows carry the 'never' tag.
+
+    A default full orchestrator run must not republish flexible groups.
+    """
+    playbook = yaml.safe_load(
+        (ORCHESTRATOR_ROOT / "playbooks/orchestrator.yml").read_text(encoding="utf-8")
+    )
+    flexible_tags = {"manage-functional-group", "configure-functional-groups"}
+    imports = [
+        play
+        for play in playbook
+        if flexible_tags & set(play.get("tags", []))
+        and "ansible.builtin.import_playbook" in play
+    ]
+
+    assert len(imports) == 3
+    assert all("never" in play["tags"] for play in imports)

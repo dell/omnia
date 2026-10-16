@@ -69,7 +69,7 @@ def functional_group_setting(
             mapping when the optional file is absent.
         functional_group: Exact PXE functional-group name.
         setting: One of ``boot_kernel_params``, ``cloud_init_config_file``,
-            ``post_config``, or ``image_override``.
+            ``post_config``, ``image_override``, or ``custom_log_paths``.
 
     Returns:
         The resolved value for that setting.

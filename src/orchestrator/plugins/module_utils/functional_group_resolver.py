@@ -42,6 +42,7 @@ OMNIA_DEFAULTS: dict[str, Any] = {
     "cloud_init_config_file": "",
     "post_config": [],
     "image_override": {},
+    "custom_log_paths": {},
 }
 
 #: Artifact references an ``image_override`` must supply together.
@@ -55,6 +56,10 @@ _FIRST_CONTROL_PLANE = re.compile(r"^service_kube_control_plane_first_")
 #: Keys resolved from a scope mapping, with the scope path each one reads.
 _SCALAR_KEYS = ("boot_kernel_params",)
 _LIST_KEYS = ("post_config",)
+#: Mapping-valued keys resolved group -> common -> default. ``custom_log_paths``
+#: is consumed by Utils log collection for flexible (fg_) groups; an empty
+#: mapping inherits from the next level.
+_MAPPING_KEYS = ("custom_log_paths",)
 #: ``image_override`` is group-only: ``common`` cannot set it, because an image
 #: applies to one group's hardware and architecture rather than to a cluster.
 _GROUP_ONLY_KEYS = ("image_override",)
@@ -75,6 +80,7 @@ class ResolvedGroupConfig(NamedTuple):
     cloud_init_config_file: ResolvedValue
     post_config: ResolvedValue
     image_override: ResolvedValue
+    custom_log_paths: ResolvedValue
 
     def provenance(self) -> dict[str, str]:
         """Return a ``{setting: level}`` map for current-run evidence."""
@@ -83,6 +89,7 @@ class ResolvedGroupConfig(NamedTuple):
             "cloud_init_config_file": self.cloud_init_config_file.source,
             "post_config": self.post_config.source,
             "image_override": self.image_override.source,
+            "custom_log_paths": self.custom_log_paths.source,
         }
 
     def values(self) -> dict[str, Any]:
@@ -92,6 +99,7 @@ class ResolvedGroupConfig(NamedTuple):
             "cloud_init_config_file": self.cloud_init_config_file.value,
             "post_config": self.post_config.value,
             "image_override": self.image_override.value,
+            "custom_log_paths": self.custom_log_paths.value,
         }
 
 
@@ -193,6 +201,15 @@ def resolve_group(
         OMNIA_DEFAULTS["cloud_init_config_file"],
     )
 
+    for key in _MAPPING_KEYS:
+        resolved[key] = _resolve(
+            [
+                (LEVEL_GROUP, group.get(key)),
+                (LEVEL_COMMON, common.get(key)),
+            ],
+            OMNIA_DEFAULTS[key],
+        )
+
     for key in _GROUP_ONLY_KEYS:
         resolved[key] = _resolve(
             [(LEVEL_GROUP, group.get(key))], OMNIA_DEFAULTS[key]
@@ -204,6 +221,7 @@ def resolve_group(
         cloud_init_config_file=resolved["cloud_init_config_file"],
         post_config=resolved["post_config"],
         image_override=resolved["image_override"],
+        custom_log_paths=resolved["custom_log_paths"],
     )
 
 
@@ -249,6 +267,13 @@ def has_effective_configuration(config_data: Any) -> bool:
         for key, value in scope.items():
             if key == "cloud_init" and isinstance(value, dict):
                 if not _is_inherit(value.get("config_file")):
+                    return True
+            elif key == "custom_log_paths" and isinstance(value, dict):
+                # An all-empty custom_log_paths (the shipped template shape)
+                # inherits; only populated directories/files are active.
+                if not _is_inherit(value.get("directories")) or not _is_inherit(
+                    value.get("files")
+                ):
                     return True
             elif not _is_inherit(value):
                 return True

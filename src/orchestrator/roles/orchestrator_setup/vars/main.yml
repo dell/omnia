@@ -40,6 +40,8 @@ supported_tags:
   - validate-deployment
   - pxeboot
   - verify_node_registration
+  - manage-functional-group
+  - configure-functional-groups
   - cleanup
   - cleanup_credentials
 
@@ -56,6 +58,11 @@ skip_credential_tags:
 # an existing repo_status.yml.
 # Note: prepare and deploy tags only deploy containers (OpenCHAMI/OpenLDAP),
 # they don't configure nodes, so repo_status.yml is not needed until provision.
+# Note: the flexible-group tags (manage-functional-group,
+# configure-functional-groups) are intentionally absent (ER-ORCH-009 FR-4.1,
+# FR-4.3). Repository, registry, and package configuration for flexible groups
+# is the user's responsibility via cloud_init.config_file, post_config, or
+# pre-baked images, so these flows must proceed without a repo_status.yml.
 repo_status_required_tags:
   - all
   - precheck
@@ -76,11 +83,17 @@ catalog_required_tags:
   - provision
   - execute
   - validate-deployment
+  - manage-functional-group
+  - configure-functional-groups
 
 # Flows that produce or consume persistent Orchestrator runtime output. The
 # setup role remains available to every playbook for read-only context
 # resolution, but only these lifecycle flows may initialize the output tree
 # and refresh orchestrator_state.yml.
+# manage-functional-group mutates OpenCHAMI/BSS/metadata state and so may
+# initialize the output tree; configure-functional-groups only republishes BSS
+# and cloud-init metadata for existing groups and so is intentionally absent
+# (ER-ORCH-009 HLD §2.4).
 state_initialization_tags:
   - prepare
   - deploy
@@ -88,6 +101,7 @@ state_initialization_tags:
   - execute
   - pxeboot
   - verify_node_registration
+  - manage-functional-group
 
 # Lifecycle flows that validate local project inputs before setup dereferences
 # them. Credential-only and operational recovery flows remain lightweight.
@@ -100,6 +114,8 @@ input_validation_tags:
   - execute
   - validate-deployment
   - pxeboot
+  - manage-functional-group
+  - configure-functional-groups
 
 invalid_tag_combinations:
   - [precheck, cleanup]
@@ -112,6 +128,8 @@ invalid_tag_combinations:
   - [execute, cleanup]
   - [pxeboot, cleanup]
   - [verify_node_registration, cleanup]
+  - [manage-functional-group, cleanup]
+  - [configure-functional-groups, cleanup]
   - [precheck, cleanup_credentials]
   - [validate, cleanup_credentials]
   - [validate-deployment, cleanup_credentials]
@@ -122,6 +140,8 @@ invalid_tag_combinations:
   - [execute, cleanup_credentials]
   - [pxeboot, cleanup_credentials]
   - [verify_node_registration, cleanup_credentials]
+  - [manage-functional-group, cleanup_credentials]
+  - [configure-functional-groups, cleanup_credentials]
   - [pxeboot, verify_node_registration]
   - [execute, verify_node_registration]
   - [provision, verify_node_registration]
