@@ -183,39 +183,73 @@ class ContractValidator:
         }
 
     @staticmethod
-    def validate_driver_alignment(contract: Dict[str, Any], 
-                                  os_version: str) -> Dict[str, Any]:
-        """Validate driver version alignment with OS version.
-        
+    def validate_driver_alignment(repo_status: Dict[str, Any],
+                                  os_version: str,
+                                  required_drivers: Optional[List[str]] = None,
+                                  ) -> Dict[str, Any]:
+        """Validate driver repo version alignment with an OS version.
+
+        Checks that the required driver repositories exist under the
+        version-scoped ``repositories.<os_version>.x86_64`` section of
+        ``repo_status.yml`` and that each URL encodes the correct OS
+        version path segment (e.g. ``/rhel/10.2/``).
+
         Args:
-            contract: Contract dictionary (repo_status or build_status)
-            os_version: OS version to check (e.g., "10.2")
-            
+            repo_status: Loaded repo_status.yml dictionary.
+            os_version: OS version to check (e.g., "10.2").
+            required_drivers: Driver repo names to verify.  Defaults to
+                ``["cuda", "doca", "nvidia-hpc-sdk"]``.
+
         Returns:
-            Validation result with 'valid' bool and 'errors' list
+            Dict with ``valid`` (bool), ``errors`` (list), and
+            ``drivers`` (dict mapping driver name to its URL).
         """
-        errors = []
-        
-        # Check for driver metadata
-        driver_metadata = contract.get("driver_metadata", {})
-        if not driver_metadata:
-            errors.append(f"No driver metadata found for OS {os_version}")
-            return {"valid": False, "errors": errors}
-        
-        version_drivers = driver_metadata.get(os_version, {})
-        if not version_drivers:
-            errors.append(f"No driver metadata for OS version {os_version}")
-            return {"valid": False, "errors": errors}
-        
-        # Check for required drivers
-        required_drivers = ["cuda", "doca_ofed", "hpc_sdk"]
+        if required_drivers is None:
+            required_drivers = ["cuda", "doca", "nvidia-hpc-sdk"]
+
+        errors: List[str] = []
+        found_drivers: Dict[str, str] = {}
+
+        repositories = repo_status.get("repositories", {})
+        version_repos = repositories.get(os_version, {})
+        if not version_repos:
+            errors.append(
+                f"OS version {os_version} not found in repo_status.yml repositories"
+            )
+            return {"valid": False, "errors": errors, "drivers": found_drivers}
+
+        arch_repos = version_repos.get("x86_64", {})
+        if not arch_repos:
+            errors.append(
+                f"x86_64 architecture not found under repositories.{os_version}"
+            )
+            return {"valid": False, "errors": errors, "drivers": found_drivers}
+
         for driver in required_drivers:
-            if driver not in version_drivers:
-                errors.append(f"Missing {driver} version for OS {os_version}")
-            elif not version_drivers[driver]:
-                errors.append(f"Empty {driver} version for OS {os_version}")
-        
+            entry = arch_repos.get(driver)
+            if not entry:
+                errors.append(
+                    f"Missing {driver} repository under {os_version}.x86_64"
+                )
+                continue
+
+            url = entry.get("url", entry) if isinstance(entry, dict) else entry
+            if not url or not isinstance(url, str):
+                errors.append(f"Empty or invalid URL for {driver} under {os_version}")
+                continue
+
+            # Verify the URL encodes the correct OS version path segment
+            version_segment = f"/rhel/{os_version}/"
+            if version_segment not in url:
+                errors.append(
+                    f"{driver} URL does not contain expected version path "
+                    f"'{version_segment}': {url}"
+                )
+            else:
+                found_drivers[driver] = url
+
         return {
             "valid": len(errors) == 0,
-            "errors": errors
+            "errors": errors,
+            "drivers": found_drivers,
         }

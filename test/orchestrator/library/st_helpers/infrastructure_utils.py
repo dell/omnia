@@ -137,12 +137,38 @@ class InfrastructureUtils:
 
     @classmethod
     def get_gpu_hosts(cls) -> List[str]:
-        """Return addresses of any functional group whose name mentions GPU."""
+        """Return addresses of nodes with GPUs.
+
+        First checks inventory group names for a 'gpu' hint.  If none are
+        found, probes every managed host for ``nvidia-smi`` (the inventory
+        may classify GPU nodes under a generic group name such as
+        ``slurm_node_rhel_10_0_x86_64``).  Results are cached.
+        """
+        if getattr(cls, "_gpu_hosts_cache", None) is not None:
+            return cls._gpu_hosts_cache
+
+        # Strategy 1: group-name hint
         groups = cls.get_groups()
         addresses = []
         for group_name in groups:
             if GPU_HINT in group_name.lower():
                 addresses.extend(cls.get_group_addresses(group_name))
+
+        if addresses:
+            cls._gpu_hosts_cache = addresses
+            return addresses
+
+        # Strategy 2: hardware probe via nvidia-smi on all managed hosts
+        for host in cls.get_all_managed_hosts():
+            rc, stdout, _ = cls.ssh_command(
+                host,
+                "nvidia-smi --query-gpu=gpu_name --format=csv,noheader 2>/dev/null",
+                timeout=10,
+            )
+            if rc == 0 and stdout.strip():
+                addresses.append(host)
+
+        cls._gpu_hosts_cache = addresses
         return addresses
 
     @classmethod

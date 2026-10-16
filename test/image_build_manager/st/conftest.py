@@ -21,7 +21,9 @@ ER: ER-ORCH-010-rhel-10-2-x86-64-support
 Reporting: Inherits from domain-level conftest.py (image_build_manager/conftest.py)
 """
 
+import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -62,6 +64,44 @@ def build_status(build_status_path):
         pytest.skip(f"Failed to load build_status.yml: {str(e)}")
 
 
+@pytest.fixture(scope="session")
+def repo_status_path(omnia_data_path, omnia_project_name):
+    """Return path to repo_status.yml."""
+    return Path(omnia_data_path) / "repo_manager" / "output" / omnia_project_name / "repo_status.yml"
+
+
+@pytest.fixture(scope="session")
+def repo_status(repo_status_path):
+    """Load repo_status.yml contract."""
+    if not repo_status_path.exists():
+        pytest.skip(f"repo_status.yml not found: {repo_status_path}")
+
+    try:
+        with open(repo_status_path, 'r') as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        pytest.skip(f"Failed to load repo_status.yml: {str(e)}")
+
+
+@pytest.fixture(scope="session")
+def catalog_path(omnia_data_path):
+    """Return path to catalog_rhel.json."""
+    return Path(omnia_data_path) / "catalog" / "catalog_rhel.json"
+
+
+@pytest.fixture(scope="session")
+def catalog(catalog_path):
+    """Load the RHEL catalog."""
+    if not catalog_path.exists():
+        pytest.skip(f"catalog_rhel.json not found: {catalog_path}")
+
+    try:
+        with open(catalog_path, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        pytest.skip(f"Failed to load catalog: {str(e)}")
+
+
 # ============================================================================
 # Fixtures: Test Logging and Reporting
 # ============================================================================
@@ -93,4 +133,5 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "st: system test (spans multiple domains)")
     config.addinivalue_line("markers", "tier1: Tier 1 - Image Pipeline tests")
     config.addinivalue_line("markers", "rhel102: RHEL 10.2 EUS support tests")
+    config.addinivalue_line("markers", "rhel100: RHEL 10.0 EUS support tests")
     config.addinivalue_line("markers", "image_build_manager: image_build_manager domain tests")

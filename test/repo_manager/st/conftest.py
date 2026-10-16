@@ -21,7 +21,9 @@ ER: ER-ORCH-010-rhel-10-2-x86-64-support
 Reporting: Inherits from domain-level conftest.py (repo_manager/conftest.py)
 """
 
+import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -54,12 +56,53 @@ def repo_status(repo_status_path):
     """Load repo_status.yml contract."""
     if not repo_status_path.exists():
         pytest.skip(f"repo_status.yml not found: {repo_status_path}")
-    
+
     try:
         with open(repo_status_path, 'r') as f:
             return yaml.safe_load(f)
     except Exception as e:
         pytest.skip(f"Failed to load repo_status.yml: {str(e)}")
+
+
+@pytest.fixture(scope="session")
+def build_status_path(omnia_data_path, omnia_project_name):
+    """Return path to build_status.yml."""
+    return (
+        Path(omnia_data_path) / "image_build_manager" / "output"
+        / omnia_project_name / "build_status.yml"
+    )
+
+
+@pytest.fixture(scope="session")
+def build_status(build_status_path):
+    """Load build_status.yml contract."""
+    if not build_status_path.exists():
+        pytest.skip(f"build_status.yml not found: {build_status_path}")
+
+    try:
+        with open(build_status_path, 'r') as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        pytest.skip(f"Failed to load build_status.yml: {str(e)}")
+
+
+@pytest.fixture(scope="session")
+def catalog_path(omnia_data_path):
+    """Return path to catalog_rhel.json."""
+    return Path(omnia_data_path) / "catalog" / "catalog_rhel.json"
+
+
+@pytest.fixture(scope="session")
+def catalog(catalog_path):
+    """Load the RHEL catalog."""
+    if not catalog_path.exists():
+        pytest.skip(f"catalog_rhel.json not found: {catalog_path}")
+
+    try:
+        with open(catalog_path, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        pytest.skip(f"Failed to load catalog: {str(e)}")
 
 
 # ============================================================================
@@ -93,4 +136,5 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "st: system test (spans multiple domains)")
     config.addinivalue_line("markers", "tier1: Tier 1 - Image Pipeline tests")
     config.addinivalue_line("markers", "rhel102: RHEL 10.2 EUS support tests")
+    config.addinivalue_line("markers", "rhel100: RHEL 10.0 EUS support tests")
     config.addinivalue_line("markers", "repo_manager: repo_manager domain tests")

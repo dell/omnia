@@ -30,6 +30,7 @@ from .test_case_vars import (
     PREPARE_TEST_CASES,
     PROVISION_TEST_CASES,
     PXEBOOT_TEST_CASES,
+    ST_TEST_CASES,
     TEST_CASES,
     TEST_ORDER_BLOCKS,
 )
@@ -48,6 +49,7 @@ __all__ = [
     "PREPARE_TEST_CASES",
     "PROVISION_TEST_CASES",
     "PXEBOOT_TEST_CASES",
+    "ST_TEST_CASES",
     "TEST_CASES",
     "TEST_ORDER_BLOCKS",
 ]
