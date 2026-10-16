@@ -249,7 +249,10 @@
     --output=name --ignore-not-found=true
   register: _kafka_existing_cluster
   changed_when: false
-  when: _cleanup_preserve_sink_volumes | bool
+  failed_when: false
+  when:
+    - _cleanup_preserve_sink_volumes | bool
+    - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
 
 - name: Kafka | Read retained node pool cluster IDs
   ansible.builtin.command:
@@ -385,7 +388,7 @@
   when:
     - _cleanup_preserve_sink_volumes | bool
     - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
-    - _kafka_existing_cluster.stdout | trim | length > 0
+    - _kafka_existing_cluster.stdout | default('') | trim | length > 0
 
 - name: Kafka | Wait for reconciliation to pause
   ansible.builtin.command: >
@@ -396,7 +399,7 @@
   when:
     - _cleanup_preserve_sink_volumes | bool
     - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
-    - _kafka_existing_cluster.stdout | trim | length > 0
+    - _kafka_existing_cluster.stdout | default('') | trim | length > 0
 
 - name: Kafka | Delete Kafka cluster
   ansible.builtin.command: >

@@ -106,6 +106,18 @@
   changed_when: _powerscale_crd_delete.rc == 0
   failed_when: false
 
+- name: PowerScale | Clean up orphaned cert-manager readiness hook resources  # noqa: risky-shell-pipe
+  ansible.builtin.shell: |
+    kubectl delete job cert-manager-readiness-check -n {{ telemetry_namespace }} --ignore-not-found=true 2>/dev/null
+    kubectl delete sa cert-manager-readiness-check -n {{ telemetry_namespace }} --ignore-not-found=true 2>/dev/null
+    kubectl delete role cert-manager-readiness-check -n {{ telemetry_namespace }} --ignore-not-found=true 2>/dev/null
+    kubectl delete rolebinding cert-manager-readiness-check -n {{ telemetry_namespace }} --ignore-not-found=true 2>/dev/null
+    kubectl delete clusterrole cert-manager-readiness-check-karavi-observability --ignore-not-found=true 2>/dev/null
+    kubectl delete clusterrolebinding cert-manager-readiness-check-karavi-observability --ignore-not-found=true 2>/dev/null
+    exit 0
+  changed_when: false
+  failed_when: false
+
 - name: PowerScale | Delete cert-manager resources
   ansible.builtin.command: >
     kubectl -n {{ telemetry_namespace }} delete {{ item }}

@@ -210,7 +210,7 @@ class TestVersionStrings:
             all_arch_target_configs=configs,
         )
         entry = _software_by_name(_read_output(str(tmp_path)), "csi_driver_powerscale")
-        assert entry["version"] == "v2.17.0"
+        assert entry["version"] == "v2.18.0"
 
     def test_regular_target_has_no_version(self, tmp_path: str) -> None:
         configs = {"x86_64": {"openldap.json": {
@@ -412,7 +412,7 @@ class TestRealisticScenario:
         # csi_driver_powerscale: x86_64 only
         csi = _software_by_name(result, "csi_driver_powerscale")
         assert csi["arch"] == ["x86_64"]
-        assert csi["version"] == "v2.17.0"
+        assert csi["version"] == "v2.18.0"
 
         # slurm_custom subgroups
         assert "slurm_custom" in result
