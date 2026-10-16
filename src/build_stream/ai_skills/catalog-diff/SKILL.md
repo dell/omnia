@@ -11,7 +11,7 @@ companion skills and shared instructions.
 Answer "what changed between `<current_catalog>` and `<future_catalog>`?" by
 running the existing, deterministic catalog diff/patch engine — never by
 hand-comparing two large JSON files or asking a model to eyeball the
-difference (`ER-BSM-001-nersc-ai-skills-catalog-authoring`, FR-4.1/FR-4.2,
+difference (FR-4.1/FR-4.2,
 AC-010). This skill operates entirely on the two catalog files without live dependency resolution
 supplied; it does not call any online source.
 
@@ -181,7 +181,7 @@ is skipped, as described above.
 
 - It does not check any compatibility caveat that requires an online
   source (e.g. the Red Hat Compatibility Matrix) — that remains
-  `ER-BSM-001-analysis-skills`'s Compatibility Analysis skill.
+  the Compatibility Analysis skill.
 - It does not apply either catalog's changes or generate a release note —
   Release Note Generation is deferred (out of scope for this ER); this
   skill only produces the reusable diff/changelog contract a future

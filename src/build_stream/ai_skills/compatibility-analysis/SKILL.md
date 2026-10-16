@@ -9,8 +9,7 @@ companion skills and shared instructions.
 ## Purpose
 
 Answer "is `<package>` `<version>` compatible with `<target OS/architecture
-or another catalog package>`?" (`ER-BSM-001-nersc-ai-skills-catalog-
-authoring`, FR-3.2, AC-009), replacing manual Compatibility Matrix research
+or another catalog package>`?" (FR-3.2, AC-009), replacing manual Compatibility Matrix research
 for the operator.
 
 ## Inputs You Must Read First
