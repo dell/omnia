@@ -20,7 +20,7 @@ k8s_config:
   # NFS cleanup configuration
   nfs_cleanup: true
   unmount_mounts: true
-  cleanup_nfs_server: true
+  cleanup_nfs_server: false
   cleanup_node_ips: false
 
   # Never allow a configuration error to turn cleanup into a system-root wipe.
