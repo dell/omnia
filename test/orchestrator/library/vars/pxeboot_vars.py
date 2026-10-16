@@ -601,7 +601,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "find %s -mindepth 1 -maxdepth 2 -printf '%%p|%%y|%%s\\n' 2>/dev/null"
     ),
     "hpc_tools_tool_executables": (
-        "find %s -type f \\( -perm -u+x -o -perm -g+x -o -perm -o+x \\) "
+        "find %s \\( -type d \\( %s \\) -prune \\) -o "
+        "-type f \\( -perm -u+x -o -perm -g+x -o -perm -o+x \\) "
         "! -name '*.sh' ! -name '*.py' ! -name '*.tar*' ! -name '*.tgz' "
         "! -name '*.gz' ! -name '*.bz2' ! -name '*.xz' ! -name '*.zip' "
         "-printf '%%p\\n' 2>/dev/null | head -20"
