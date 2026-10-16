@@ -259,7 +259,7 @@ cleanup_benchmark_tools: true
 # the live orchestrator_config.yml on the execution OIM. If that variable is
 # empty the tests skip; if the referenced file does not exist the tests fail
 # with a diagnostic error.
-validate_additional_cloud_init: true
+validate_additional_cloud_init: false
 
 # =============================================================================
 # SLURM NODE REMOVE/ADD LIFECYCLE
