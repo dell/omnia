@@ -52,9 +52,8 @@ class PulpCommandBuilderTests(unittest.TestCase):
             ["/tmp/file with spaces.tar", "--relative-path", "artifact.tar"],
         )
 
-    def test_container_password_cannot_add_arguments(self):
-        """Shell punctuation in a password remains one opaque argument."""
-        password = "secret'; touch /tmp/not-executed; #"
+    def test_container_remote_command_does_not_accept_credentials(self):
+        """Credentials cannot be passed on process argv (CWE-214)."""
         command = build_container_remote_command(
             "create",
             name="remote",
@@ -62,11 +61,9 @@ class PulpCommandBuilderTests(unittest.TestCase):
             upstream_name="library/image",
             policy="on_demand",
             include_tags=["1.0"],
-            username="user",
-            password=password,
         )
-        self.assertEqual(command[command.index("--password") + 1], password)
-        self.assertEqual(command.count(password), 1)
+        self.assertNotIn("--password", command)
+        self.assertNotIn("--username", command)
 
     def test_task_filters_are_built_centrally(self):
         """Exact task correlation retains the established CLI ordering."""

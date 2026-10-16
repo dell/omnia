@@ -233,14 +233,14 @@ def build_container_tags_href(repository_version, tag=None):
 
 def build_container_remote_command(action, *, name, url, upstream_name,
                                    policy, include_tags=None,
-                                   username=None, password=None,
                                    tls_validation=None, ca_cert=None,
                                    client_cert=None, client_key=None,
                                    clear_missing=False):
     """Build a container remote create/update command.
 
-    Credentials remain individual argv entries so they can be redacted by
-    option position and can never alter command structure.
+    This function builds argv for unauthenticated (public) remotes only.
+    Authenticated remotes must use reconcile_authenticated_container_remote()
+    which sends credentials over the Pulp REST API, never on process argv.
     """
     if action not in {"create", "update"}:
         raise ValueError(f"Unsupported container remote action: {action}")
@@ -252,10 +252,6 @@ def build_container_remote_command(action, *, name, url, upstream_name,
     if include_tags is not None:
         command.extend(["--include-tags", json.dumps(list(include_tags))])
     command.extend(["--exclude-tags", '["*sha256*.sig"]'])
-    if username is not None:
-        command.extend(["--username", str(username)])
-    if password is not None:
-        command.extend(["--password", str(password)])
     if tls_validation is not None:
         command.extend([
             "--tls-validation", "true" if tls_validation else "false",
@@ -268,10 +264,6 @@ def build_container_remote_command(action, *, name, url, upstream_name,
             command.extend([option, str(value)])
         elif clear_missing:
             command.extend([option, ""])
-    if username is None and clear_missing:
-        command.extend(["--username", ""])
-    if password is None and clear_missing:
-        command.extend(["--password", ""])
     return command
 
 
@@ -422,30 +414,6 @@ pulp_container_commands = {
         "container", "remote", "update", "--name", "%s", "--url", "%s",
         "--upstream-name", "%s", "--policy", "%s",
         "--include-tags", "%s", "--exclude-tags", '["*sha256*.sig"]',
-    ),
-    "create_container_remote_auth": _template(
-        "container", "remote", "create", "--name", "%s", "--url", "%s",
-        "--upstream-name", "%s", "--policy", "%s",
-        "--include-tags", "%s", "--exclude-tags", '["*sha256*.sig"]',
-        "--username", "%s", "--password", "%s",
-    ),
-    "update_container_remote_auth": _template(
-        "container", "remote", "update", "--name", "%s", "--url", "%s",
-        "--upstream-name", "%s", "--policy", "%s",
-        "--include-tags", "%s", "--exclude-tags", '["*sha256*.sig"]',
-        "--username", "%s", "--password", "%s",
-    ),
-    "create_container_remote_for_digest_auth": _template(
-        "container", "remote", "create", "--name", "%s", "--url", "%s",
-        "--upstream-name", "%s", "--policy", "%s",
-        "--exclude-tags", '["*sha256*.sig"]',
-        "--username", "%s", "--password", "%s",
-    ),
-    "update_remote_for_digest_auth": _template(
-        "container", "remote", "update", "--name", "%s", "--url", "%s",
-        "--upstream-name", "%s", "--policy", "%s",
-        "--exclude-tags", '["*sha256*.sig"]',
-        "--username", "%s", "--password", "%s",
     ),
     "sync_repository": _template(
         "container", "repository", "sync", "--name", "%s", "--remote", "%s",
