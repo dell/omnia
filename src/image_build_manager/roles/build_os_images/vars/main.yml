@@ -156,14 +156,19 @@ regctl_not_found_fail_msg: >-
 # preflight_selinux_check.yml
 selinux_module_name: "omnia-crun-bpf"
 selinux_policy_dir: "/etc/selinux/targeted/custom"
+selinux_policy_checksum_path: "{{ selinux_policy_dir }}/omnia-crun-bpf.sha256"
 podman_verify_fail_msg: >-
   Podman cannot start containers on this node.
   Ensure the node was rebooted after the kernel update and that the
   omnia-crun-bpf SELinux module loaded successfully
   (semodule -lfull | grep omnia-crun-bpf).
+selinux_install_fail_msg: >-
+  Failed to install or verify the omnia-crun-bpf SELinux policy module while
+  SELinux is enforcing. Check SELinux policy tools and the audit log before
+  retrying the image build.
 selinux_install_warn_msg: >-
   WARNING: Failed to install omnia-crun-bpf SELinux policy module.
-  Build will continue but may fail if the eBPF device filter issue is present.
+  Build will continue because SELinux is not enforcing.
   Check SELinux policy tools and audit log on this node.
 
 # S3 image backup messages
