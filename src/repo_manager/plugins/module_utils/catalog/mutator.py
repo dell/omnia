@@ -69,7 +69,7 @@ def upsert_packages(catalog, parsed):
                 'description': group_entry.get('description', ''),
                 'components': []
             }
-            if group_entry.get('type') == 'base_os':
+            if group_entry.get('type') == 'baseos':
                 groups[group_key]['os'] = group_entry.get('os', '')
                 groups[group_key]['os_version'] = group_entry.get('os_version', '')
             summary['groups_created'] += 1
