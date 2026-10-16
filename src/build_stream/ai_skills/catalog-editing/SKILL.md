@@ -72,9 +72,7 @@ to the matching catalog under `src/main/samples/catalogs/` instead.
 
 ### Step 1 — Resolve the request to a concrete edit
 
-Identify: the target catalog file, the operation (add / remove / change a
-package; pin/change a version; correct a metadata field), and the
-specific package/group/field affected. If the operator's request is
+Identify: the target catalog file, the catalog's target OS version (inspect `catalog.groups` for the `base_os` group's `os_version` field, e.g., `10.2`; in hybrid catalogs spanning multiple OS versions such as `baseos_group_10.2` and `baseos_group_10.0`, trace the consuming functional layers to determine which OS version applies to the target group, or include multiple OS versions in the package sources if the package is intended for both OS tracks), the operation (add / remove / change a package; pin/change a version; correct a metadata field), and the specific package/group/field affected. If the operator's request is
 ambiguous about which catalog or which package key, ask rather than
 guess — per the no-fabrication rule, do not silently pick one candidate
 among several plausible package keys.
@@ -113,7 +111,8 @@ or sources to resolve them. Preserve the pre-edit approval requirement.
 the JSON or write a new mutation script:**
 
 - **Add/update a package:** build a small input file in the existing
-  `catalog_manager.py` input format (see Worked Example), including only the
+  `catalog_manager.py` input format (see Worked Example, specifying `os_version=<version>`
+  per package line when possible), including only the
   confirmed requested packages and explicit dependency additions in their
   approved groups, and run:
   ```bash
@@ -123,10 +122,7 @@ the JSON or write a new mutation script:**
     --schema src/repo_manager/schemas/catalog_schema.json \
     --catalog-root src/main/samples/catalogs
   ```
-  **Always pass `--default-os-version` matching the target catalog's own
-  version** — the tool's own default is `10.0` and will silently pin a
-  new package to the wrong OS version if the target catalog is a
-  different version and you omit this flag.
+  **Always pass `--default-os-version` matching the target catalog's own OS version resolved in Step 1** (e.g. `10.2`) — the tool's CLI default is `10.0`, which will silently pin a new package to the wrong OS version if the target catalog is a different version (such as RHEL 10.2) and this flag is omitted. Never omit `--default-os-version` when running `add`.
 - **One input line describes one architecture and one OS version.** For
   a package that needs several, repeat the line with `arch=` and
   `os_version=` overrides (see the hybrid example below). Lines with the
@@ -209,7 +205,7 @@ addition and the operator approves the Pre-Edit Gate findings:
 Input file (`add_curl.txt`):
 ```
 [baseos_group]
-curl, rpm, curl, baseos
+curl, rpm, curl, baseos, os_version=10.2
 ```
 
 ```bash

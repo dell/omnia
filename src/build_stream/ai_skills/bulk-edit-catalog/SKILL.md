@@ -80,7 +80,9 @@ For each catalog the operator approved:
 
 - **If the change is a package add/remove**, reuse the `catalog-editing`
   skill's mechanics (`catalog_manager.py add`/`delete`) once per catalog
-  file —
+  file — specifying `os_version=<version>` per package line when possible and
+  always passing `--default-os-version` matching each target catalog's
+  specific `base_os` OS version —
   each invocation reads, validates, and writes exactly one file, so one
   catalog's schema failure cannot affect another's already-completed
   write.
