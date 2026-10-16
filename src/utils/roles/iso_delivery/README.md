@@ -17,9 +17,16 @@ virtual media and optionally verifies the installed system over SSH.
 3. Validate iDRAC Redfish access.
 4. Eject existing media, attach the NFS ISO, set one-time UEFI CD boot, and
    force-restart the server.
-5. Wait for SSH, verify key-only root access, and read installed OS details when
+5. Wait for SSH, verify SSH key-based root access, and read installed OS details when
    `ssh_verify_enabled` is true.
 6. Eject virtual media after installation.
+
+## SSH Verification
+
+Post-installation verification uses SSH key-based authentication only. The SSH public key
+is injected into the kickstart during ISO creation and is used for automated verification.
+The root password (set in the kickstart) is available for manual access if needed, but is
+not used for automated verification.
 
 ## Key Variables
 

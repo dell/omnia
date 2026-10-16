@@ -776,7 +776,7 @@ deploy:
       fi
 
 # ============================= STAGE 5B ===================================
-# Restart — Invoke orchestrator.yml --tags pxeboot on provisioned nodes
+# Restart - Run BuildStream pre-PXE, Orchestrator PXE, and post-PXE
 # ==========================================================================
 restart:
   stage: restart
@@ -785,7 +785,7 @@ restart:
     - |
       echo "============================================================"
       echo "  CADENCE PIPELINE — STAGE 5B: Restart"
-      echo "  (Invokes orchestrator.yml --tags pxeboot)"
+      echo "  (Invokes the BuildStream pre-PXE → Orchestrator PXE → post-PXE sequence)"
       echo "============================================================"
       echo ""
 
@@ -821,7 +821,7 @@ restart:
 
       jq "." restart_response.json 2>/dev/null || cat restart_response.json
       echo ""
-      echo "  [OK] Restart request accepted (orchestrator.yml --tags pxeboot)"
+      echo "  [OK] Restart request accepted (the BuildStream pre-PXE → Orchestrator PXE → post-PXE sequence)"
       echo ""
 
       # Poll for restart completion

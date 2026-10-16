@@ -538,8 +538,8 @@ deploy:
 # Restart stage -- marks restart as complete via BSM API
 # Runs automatically after deploy completes
 #
-# NOTE (Omnia 2.3+): The restart stage invokes orchestrator.yml --tags pxeboot
-# to perform PXE boot on provisioned nodes.  The playbook execution is
+# NOTE (Omnia 2.3+): Restart invokes the BuildStream pre-PXE,
+# Orchestrator PXE, and BuildStream post-PXE sequence. Execution is
 # asynchronous - this stage polls for completion.
 #
 # Can be skipped for VM deployments by setting SKIP_RESTART=true
@@ -553,7 +553,7 @@ restart:
     - |
       echo "============================================================"
       echo "  RESTART STAGE"
-      echo "  (Invokes orchestrator.yml --tags pxeboot)"
+      echo "  (Invokes the BuildStream pre-PXE → Orchestrator PXE → post-PXE sequence)"
       echo "============================================================"
       echo ""
       echo "  Job ID:         ${JOB_ID}"
@@ -668,7 +668,7 @@ restart:
 
       jq "." restart_response.json 2>/dev/null || cat restart_response.json
       echo ""
-      echo "  [OK] Restart request accepted (orchestrator.yml --tags pxeboot)"
+      echo "  [OK] Restart request accepted (the BuildStream pre-PXE → Orchestrator PXE → post-PXE sequence)"
       echo ""
 
       # Poll for restart completion

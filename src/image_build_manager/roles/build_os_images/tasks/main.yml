@@ -61,16 +61,9 @@
 # ---------------------------------------------------------------------------
 # Discover exact artifact object keys from S3.
 #
-# The two supported build engines publish different layouts:
-#   image-builder:
-#     kernel/initrd: efi-images/<group>/<image>/versioned-filename
-#     rootfs:        <group>/<image>/rhel-versioned-filename
-#   image-thrillhouse:
-#     kernel/initrd: <group>/<image>/<release>/versioned-filename
-#     rootfs:        <group>/<image>/<release>/rootfs.squashfs
-#
-# Keep build_status.yml engine-neutral by recording the exact endpoint-relative
-# S3 path (bucket + object key) instead of reconstructing paths from basenames.
+# Image Thrillhouse publishes kernel, initrd, and rootfs artifacts below
+# <group>/<image>/<release>/. Record exact endpoint-relative S3 paths instead
+# of reconstructing paths from basenames.
 # ---------------------------------------------------------------------------
 # S3 artifact discovery uses a two-stage lookup:
 #   1. Try the current image name (with current catalog suffix)
@@ -88,13 +81,11 @@
     _build_suffix="{{ _build_type_suffix }}"
     _group_root="s3://${_s3_bucket}/{{ item.key }}/"
     _image_root="${_group_root}${_image_name}/"
-    _thrillhouse="{{ (_is_thrillhouse | bool) | ternary('true', 'false') }}"
     _release_tag="{{ item.value.os_version | default(rhel_tag, true) }}"
 
     # Resolve the current image directory. When a catalog ID changes without
     # a rebuild, locate the newest complete rootfs candidate for this release
-    # and engine. This prevents mixing image-builder, Thrillhouse, and backup
-    # artifact cohorts.
+    # and engine. This prevents mixing Image Thrillhouse and backup cohorts.
     _root_listing=$(s3cmd ls -r "${_image_root}" 2>/dev/null)
     if [ -z "${_root_listing}" ]; then
       _group_objects=$(s3cmd ls -r "${_group_root}" 2>/dev/null \
@@ -112,15 +103,8 @@
           *) continue ;;
         esac
 
-        if [ "${_thrillhouse}" = "true" ]; then
-          [ "${_candidate_artifact}" = \
-            "${_release_tag}/rootfs.squashfs" ] || continue
-        else
-          case "${_candidate_artifact}" in
-            rhel*) ;;
-            *) continue ;;
-          esac
-        fi
+        [ "${_candidate_artifact}" = \
+          "${_release_tag}/rootfs.squashfs" ] || continue
 
         _found_dir="${_group_root}${_candidate_image}/"
         break
@@ -137,52 +121,41 @@
     initrd_uri=""
     rootfs_uri=""
 
-    if [ "${_thrillhouse}" = "true" ]; then
-      _release_root="${_image_root}${_release_tag}/"
+    _release_root="${_image_root}${_release_tag}/"
 
-      # Thrillhouse publishes a matched, kernel-versioned vmlinuz/initramfs
-      # pair. Prefer the newest complete pair when an image directory contains
-      # artifacts from more than one build.
-      while IFS= read -r _kernel_candidate; do
-        [ -n "${_kernel_candidate}" ] || continue
-        _kernel_version="${_kernel_candidate#"${_release_root}vmlinuz-"}"
-        _initrd_candidate="${_release_root}initramfs-${_kernel_version}.img"
-        _matched_initrd=$(printf '%s\n' "${_root_listing}" \
-          | awk -v expected="${_initrd_candidate}" \
-            '$NF == expected {print $NF; exit}')
-        if [ -n "${_matched_initrd}" ]; then
-          kernel_uri="${_kernel_candidate}"
-          initrd_uri="${_matched_initrd}"
-          break
-        fi
-      done < <(printf '%s\n' "${_root_listing}" \
-        | LC_ALL=C sort -r \
-        | awk -v prefix="${_release_root}vmlinuz-" \
-          'index($NF, prefix) == 1 && length($NF) > length(prefix) {print $NF}')
-
-      # Retain compatibility with cached artifacts produced by older
-      # Thrillhouse releases, which used fixed filenames.
-      if [ -z "${kernel_uri}" ]; then
-        kernel_uri=$(printf '%s\n' "${_root_listing}" \
-          | awk -v expected="${_release_root}vmlinuz" \
-            '$NF == expected {print $NF; exit}')
-        initrd_uri=$(printf '%s\n' "${_root_listing}" \
-          | awk -v expected="${_release_root}initramfs.img" \
-            '$NF == expected {print $NF; exit}')
-      fi
-      rootfs_uri=$(printf '%s\n' "${_root_listing}" \
-        | awk -v expected="${_release_root}rootfs.squashfs" \
+    # Image Thrillhouse publishes a matched, kernel-versioned vmlinuz/initramfs
+    # pair. Prefer the newest complete pair when an image directory contains
+    # artifacts from more than one build.
+    while IFS= read -r _kernel_candidate; do
+      [ -n "${_kernel_candidate}" ] || continue
+      _kernel_version="${_kernel_candidate#"${_release_root}vmlinuz-"}"
+      _initrd_candidate="${_release_root}initramfs-${_kernel_version}.img"
+      _matched_initrd=$(printf '%s\n' "${_root_listing}" \
+        | awk -v expected="${_initrd_candidate}" \
           '$NF == expected {print $NF; exit}')
-    else
-      _efi_root="s3://${_s3_bucket}/efi-images/{{ item.key }}/${_image_name}/"
-      _efi_listing=$(s3cmd ls "${_efi_root}" 2>/dev/null)
-      kernel_uri=$(printf '%s\n' "${_efi_listing}" \
-        | awk '$NF ~ /\/vmlinuz[^/]*$/ {print $NF; exit}')
-      initrd_uri=$(printf '%s\n' "${_efi_listing}" \
-        | awk '$NF ~ /\/initramfs[^/]*$/ {print $NF; exit}')
-      rootfs_uri=$(printf '%s\n' "${_root_listing}" \
-        | awk '$NF ~ /\/rhel[^/]*$/ {print $NF; exit}')
+      if [ -n "${_matched_initrd}" ]; then
+        kernel_uri="${_kernel_candidate}"
+        initrd_uri="${_matched_initrd}"
+        break
+      fi
+    done < <(printf '%s\n' "${_root_listing}" \
+      | LC_ALL=C sort -r \
+      | awk -v prefix="${_release_root}vmlinuz-" \
+        'index($NF, prefix) == 1 && length($NF) > length(prefix) {print $NF}')
+
+    # Retain compatibility with cached artifacts produced by older
+    # Image Thrillhouse releases, which used fixed filenames.
+    if [ -z "${kernel_uri}" ]; then
+      kernel_uri=$(printf '%s\n' "${_root_listing}" \
+        | awk -v expected="${_release_root}vmlinuz" \
+          '$NF == expected {print $NF; exit}')
+      initrd_uri=$(printf '%s\n' "${_root_listing}" \
+        | awk -v expected="${_release_root}initramfs.img" \
+          '$NF == expected {print $NF; exit}')
     fi
+    rootfs_uri=$(printf '%s\n' "${_root_listing}" \
+      | awk -v expected="${_release_root}rootfs.squashfs" \
+        '$NF == expected {print $NF; exit}')
 
     # Strip only the URI scheme. The resulting endpoint-relative paths retain
     # the bucket name (for example, boot-images/...) as required by consumers.

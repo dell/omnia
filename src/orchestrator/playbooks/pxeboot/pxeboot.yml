@@ -51,42 +51,6 @@
     - role: pxe_boot_setup
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 1.5: BuildStream — Compute effective inventory for retry support
-#
-# When BuildStream is enabled (bsm_enabled) and a job_id is provided,
-# this play reads restart_state.json and failed_nodes.json to determine
-# which nodes have already been successfully booted.  It generates a
-# filtered CSV containing only the nodes that still need PXE boot and
-# sets the pxeboot_inventory fact so Play 3 uses the filtered inventory.
-#
-# On first run (no restart_state), all nodes are included.
-# On retry, nodes marked status=success in failed_nodes.json (manually
-# booted by the user in GitLab) are excluded.
-# ─────────────────────────────────────────────────────────────────────────
-- name: BuildStream effective inventory computation
-  hosts: localhost
-  connection: local
-  gather_facts: true
-  tags: [pxeboot]
-  pre_tasks:
-    - name: Skip if PXE boot disabled
-      ansible.builtin.meta: end_play
-      when: hostvars['localhost']['pxe_boot_skip'] | default(false) | bool
-
-    - name: Skip if BuildStream is not enabled
-      ansible.builtin.meta: end_play
-      when: not (enable_build_stream | default(false) | bool)
-
-    - name: Skip if job_id is not provided
-      ansible.builtin.meta: end_play
-      when: job_id is not defined or (job_id | string | length == 0)
-  tasks:
-    - name: Compute effective inventory for BuildStream retry
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-        tasks_from: generate_effective_csv.yml
-
-# ─────────────────────────────────────────────────────────────────────────
 # Play 2: Load credentials from orchestrator credential store
 # ─────────────────────────────────────────────────────────────────────────
 - name: Load orchestrator credentials
