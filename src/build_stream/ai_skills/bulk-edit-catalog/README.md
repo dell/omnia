@@ -27,7 +27,7 @@ Pin RHEL from 10.0 to 10.2 for service_k8s_x86_64 and slurm_aarch64
 
 ### Bulk package add
 ```
-Add curl to every catalog with a base_os group
+Add curl to every catalog with a baseos group
 ```
 
 ## Capabilities

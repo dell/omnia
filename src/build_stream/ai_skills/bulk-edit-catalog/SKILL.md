@@ -54,7 +54,7 @@ Search the catalog set recursively (`src/main/samples/catalogs/**/*.json` —
 do not assume every catalog lives exactly one directory level below
 `catalogs/`; a versioned (`rhel/<os_version>/`) or `hybrid/` subtree is
 still in scope) for the condition the operator named (e.g. every catalog
-with a `base_os` group whose `os_version` is `10.0`). List every match
+with a `baseos` group whose `os_version` is `10.0`). List every match
 before proceeding — do not apply to a partial set silently.
 
 ### Step 2 — Run the Pre-Edit Gate per catalog
@@ -85,7 +85,7 @@ For each catalog the operator approved:
   catalog's schema failure cannot affect another's already-completed
   write.
 - **If the change is a structural field edit with no dedicated CLI verb**
-  (e.g. bumping a `base_os` group's `os_version`, which `add`/`delete`
+  (e.g. bumping a `baseos` group's `os_version`, which `add`/`delete`
   don't cover), use the same validate-before-write discipline directly
   via the existing catalog I/O and validator functions — never write a
   new ad hoc mutation path that skips validation:
@@ -138,7 +138,7 @@ never leaves the failing one itself half-applied either.
 > `slurm_aarch64`"
 
 Two real catalogs from `src/main/samples/catalogs/rhel/10.0/`, both with a
-`baseos_group` (`type: base_os`) pinned to `os_version: "10.0"`. One
+`baseos_group` (`type: baseos`) pinned to `os_version: "10.0"`. One
 (`slurm_aarch64`, in this trace) is deliberately missing its `os` field
 to demonstrate the isolation path with a genuine schema failure, not a
 contrived error message.
@@ -153,7 +153,7 @@ Running Step 3's field-edit pattern against both files independently:
       "path": "slurm_aarch64.json",
       "errors": [
         "Schema validation failed: 'os' is a required property",
-        "base_os group 'baseos_group' missing 'os' field"
+        "baseos group 'baseos_group' missing 'os' field"
       ]
     }
   ]

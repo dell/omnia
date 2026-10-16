@@ -480,7 +480,7 @@
       },
       "baseos_group_10.0": {
         "name": "baseos_group",
-        "type": "base_os",
+        "type": "baseos",
         "os_version": "10.0",
         "os": "rhel",
         "description": "Base OS packages for RHEL 10.0 cluster nodes",
@@ -523,7 +523,7 @@
       },
       "baseos_group_10.2": {
         "name": "baseos_group",
-        "type": "base_os",
+        "type": "baseos",
         "os_version": "10.2",
         "os": "rhel",
         "description": "Base OS packages for RHEL 10.2 cluster nodes",

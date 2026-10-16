@@ -17,15 +17,15 @@
     _service_k8s_layers: >-
       {{ catalog_data.catalog.functionallayer
          | selectattr('name', 'match', '^service_kube_') | list }}
-    _catalog_base_os_group_names: >-
+    _catalog_baseos_group_names: >-
       {{ catalog_data.catalog.groups | dict2items
-         | selectattr('value.type', 'equalto', 'base_os')
+         | selectattr('value.type', 'equalto', 'baseos')
          | map(attribute='key') | list }}
 
 - name: Resolve service Kubernetes base OS and architecture references
   ansible.builtin.set_fact:
-    _service_k8s_base_os_group_names: >-
-      {{ _catalog_base_os_group_names
+    _service_k8s_baseos_group_names: >-
+      {{ _catalog_baseos_group_names
          | intersect(_service_k8s_layers
                      | map(attribute='components') | flatten | list)
          | unique | list }}
@@ -38,16 +38,16 @@
   ansible.builtin.assert:
     that:
       - _service_k8s_layers | length > 0
-      - _service_k8s_base_os_group_names | length == 1
+      - _service_k8s_baseos_group_names | length == 1
       - _service_k8s_architectures | length == 1
       - _service_k8s_architectures | first == 'x86_64'
       - >-
         catalog_data.catalog.groups[
-          _service_k8s_base_os_group_names | first
+          _service_k8s_baseos_group_names | first
         ].os | default('') | length > 0
       - >-
         catalog_data.catalog.groups[
-          _service_k8s_base_os_group_names | first
+          _service_k8s_baseos_group_names | first
         ].os_version | default('') | length > 0
     fail_msg: "{{ service_k8s_catalog_context_fail_msg }}"
     quiet: true
@@ -56,11 +56,11 @@
   ansible.builtin.set_fact:
     service_k8s_os_type: >-
       {{ catalog_data.catalog.groups[
-           _service_k8s_base_os_group_names | first
+           _service_k8s_baseos_group_names | first
          ].os }}
     service_k8s_os_version: >-
       {{ catalog_data.catalog.groups[
-           _service_k8s_base_os_group_names | first
+           _service_k8s_baseos_group_names | first
          ].os_version }}
     service_k8s_architecture: >-
       {{ _service_k8s_architectures | first }}

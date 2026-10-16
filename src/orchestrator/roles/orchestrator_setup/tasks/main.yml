@@ -468,24 +468,24 @@
   block:
     - name: Extract base OS group from catalog
       ansible.builtin.set_fact:
-        _base_os_group: >-
+        _baseos_group: >-
           {{ catalog_data.catalog.groups | dict2items
-             | selectattr('value.type', 'equalto', 'base_os')
+             | selectattr('value.type', 'equalto', 'baseos')
              | map(attribute='value') | first | default({}) }}
 
     - name: Validate catalog base OS metadata
       ansible.builtin.assert:
         that:
-          - _base_os_group | length > 0
-          - _base_os_group.os | default('') | length > 0
-          - _base_os_group.os_version | default('') | length > 0
+          - _baseos_group | length > 0
+          - _baseos_group.os | default('') | length > 0
+          - _baseos_group.os_version | default('') | length > 0
         fail_msg: "{{ catalog_invalid_fail_msg }}"
         quiet: true
 
     - name: Set cluster OS metadata from catalog
       ansible.builtin.set_fact:
-        cluster_os_type: "{{ _base_os_group.os }}"
-        cluster_os_version: "{{ _base_os_group.os_version }}"
+        cluster_os_type: "{{ _baseos_group.os }}"
+        cluster_os_version: "{{ _baseos_group.os_version }}"
         cacheable: true
 
     - name: Derive feature flags from catalog functionallayers and groups
