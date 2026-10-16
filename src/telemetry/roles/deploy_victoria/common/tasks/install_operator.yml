@@ -34,7 +34,7 @@
 # ---------------------------------------------------------------------------
 # Parse operator and config_reloader images from telemetry_registry
 # ---------------------------------------------------------------------------
-# Images in telemetry_packages.yml are specified as full URLs (e.g., docker.io/victoriametrics/operator:v0.68.3)
+# Images in telemetry_packages.yml are specified as full URLs (e.g., docker.io/victoriametrics/operator:v0.75.0)
 # We need to extract registry, repository, and tag for Helm --set flags
 #
 # Offline mode with container_registry set:
@@ -45,10 +45,10 @@
 #   Use the original registry from the image URL in telemetry_packages.yml.
 - name: Parse operator image components from telemetry_registry
   vars:
-    _operator_image: "{{ telemetry_registry.images.victoria_operator.operator | default('docker.io/victoriametrics/operator:v0.68.3') }}"
+    _operator_image: "{{ telemetry_registry.images.victoria_operator.operator | default('docker.io/victoriametrics/operator:v0.75.0') }}"
     _config_reloader_image: >-
       {{ telemetry_registry.images.victoria_operator.config_reloader |
-      default('docker.io/victoriametrics/operator:config-reloader-v0.68.3') }}
+      default('docker.io/victoriametrics/operator:config-reloader-v0.75.0') }}
     _custom_registry: "{{ telemetry_registry.host | default('') }}"
   ansible.builtin.set_fact:
     _operator_image_tag: "{{ _operator_image.split(':')[-1] }}"
