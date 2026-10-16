@@ -42,10 +42,7 @@
 
 - name: Warn when anonymous S3 access is disabled
   ansible.builtin.debug:
-    msg: >-
-      s3_enable_anonymous_access is false — PowerScale S3 buckets are NOT
-      set to public. Configure a restrictive bucket policy to enable PXE
-      boot access before provisioning nodes.
+    msg: "{{ s3_anonymous_access_disabled_msg }}"
   when: not (s3_enable_anonymous_access | default(true) | bool)
 
 - name: Verify S3 bucket ACLs are set

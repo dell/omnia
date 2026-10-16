@@ -90,3 +90,36 @@ class TestS3AclGuard:
             assert len(warn_tasks) >= 1, (
                 f"{path.name} must have a warning task when anonymous access is disabled"
             )
+
+
+_POLICY_UPDATE_YML = _SRC_ROOT / "roles" / "deploy_minio" / "tasks" / "policy_update.yml"
+_BUILD_OS_IMAGES_VARS = _SRC_ROOT / "roles" / "build_os_images" / "vars" / "main.yml"
+
+
+class TestPolicyGatingAndMessages:
+    """MinIO public-read policies and operator messages follow the same contract."""
+
+    def test_minio_public_policy_tasks_are_gated(self) -> None:
+        """No public-read policy may be rendered or applied when access is disabled."""
+        tasks = _load_tasks(_POLICY_UPDATE_YML)
+        assert tasks
+        for task in tasks:
+            when = task.get("when")
+            when = " ".join(when) if isinstance(when, list) else str(when)
+            assert "s3_enable_anonymous_access" in when, (
+                f"policy task '{task.get('name')}' is missing s3_enable_anonymous_access guard"
+            )
+
+    def test_disabled_warning_message_lives_in_vars(self) -> None:
+        """The warning text is defined in role vars, not inline in the tasks."""
+        for tasks_path, vars_path in (
+            (_S3_BUCKET_YML, _DEPLOY_MINIO_VARS),
+            (_SET_S3_ACL_YML, _BUILD_OS_IMAGES_VARS),
+        ):
+            with open(vars_path, "r", encoding="utf-8") as f:
+                assert yaml.safe_load(f).get("s3_anonymous_access_disabled_msg")
+            warn = [t for t in _load_tasks(tasks_path) if "warn" in str(t.get("name", "")).lower()]
+            assert warn
+            for task in warn:
+                msg = task["ansible.builtin.debug"]["msg"]
+                assert msg == "{{ s3_anonymous_access_disabled_msg }}"
