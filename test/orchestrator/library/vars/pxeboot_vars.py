@@ -800,13 +800,14 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "nvcc --version 2>/dev/null | grep -oP 'release \\K[0-9]+\\.[0-9]+'"
     ),
     "dcgm_cuda_toolkit_path": (
-        "source /hpc_tools/scripts/omnia_platform.sh && "
-        "omnia_detect_platform && "
-        "if test -f /usr/local/cuda/bin/nvcc; then ls /usr/local/cuda/ 2>/dev/null; "
-        "elif test -f \${OMNIA_PLATFORM_ROOT}/cuda/bin/nvcc; then ls \${OMNIA_PLATFORM_ROOT}/cuda/ 2>/dev/null; fi"
+        ". /hpc_tools/scripts/omnia_platform.sh && omnia_detect_platform && "
+        "test -x ${OMNIA_PLATFORM_ROOT}/cuda/bin/nvcc && "
+        "test -f ${OMNIA_PLATFORM_ROOT}/cuda/.done_cuda && "
+        "echo ${OMNIA_PLATFORM_ROOT}/cuda"
     ),
     "dcgm_cuda_lock_check": (
-        "test -f /hpc_tools/cuda/.install_lock && echo LOCKED || echo UNLOCKED"
+        ". /hpc_tools/scripts/omnia_platform.sh && omnia_detect_platform && "
+        "test -d ${OMNIA_PLATFORM_ROOT}/cuda/.nfs_lock_cuda && echo LOCKED || echo UNLOCKED"
     ),
     "dcgm_rpm_check": "rpm -qa 2>/dev/null | grep '^datacenter-gpu-manager' | head -1",
     "dcgm_binary_check": "command -v dcgmi 2>/dev/null && dcgmi --version 2>/dev/null",
