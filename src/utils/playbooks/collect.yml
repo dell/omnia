@@ -96,6 +96,16 @@
     - role: log_collector
       stage: login_compiler_node
 
+- name: Collect flexible functional-group logs
+  hosts: flexible_nodes
+  gather_facts: false
+  ignore_unreachable: true
+  tags:
+    - flexible
+  roles:
+    - role: log_collector
+      stage: flexible
+
 - name: Bundle collected logs and publish summary
   hosts: localhost
   gather_facts: true

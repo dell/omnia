@@ -25,6 +25,7 @@ from jsonschema.validators import validator_for
 from ..messages import orchestrator_messages as msg
 from ..validators import (
     additional_cloud_init_validator,
+    functional_group_config_validator,
     network_spec_validator,
     omnia_config_validator,
     orchestrator_config_validator,
@@ -166,6 +167,19 @@ def logic_additional_cloud_init(
     )
 
 
+def logic_functional_group_config(
+    config_data: Any,
+    orchestrator_data: Any,
+    input_project_dir: str,
+    logger: Logger | None = None,
+    warnings: list[str] | None = None,
+) -> list[str]:
+    """Dispatch ``functional_group_config.yml`` L2 validation."""
+    return functional_group_config_validator.validate(
+        config_data, orchestrator_data, input_project_dir, logger, warnings
+    )
+
+
 def logic_security(
     config_data: Any,
     logger: Logger | None = None,
@@ -189,3 +203,8 @@ def logic_storage(
         input_project_dir,
         logger,
     )
+
+
+def functional_group_config_applicable(input_project_dir: str) -> bool:
+    """Return whether the optional functional-group input is present."""
+    return functional_group_config_validator.is_applicable(input_project_dir)

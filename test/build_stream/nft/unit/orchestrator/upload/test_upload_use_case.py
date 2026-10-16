@@ -1075,6 +1075,7 @@ class TestDomainFileRouting:
             "package_groups.yml",
             "orchestrator_config.yml",
             "additional_cloud_init.yml",
+            "functional_group_config.yml",
         }
 
         for fname in expected_domain_files:
@@ -1126,4 +1127,3 @@ class TestDomainFileRouting:
                 paths=Mock(build_stream_base_path=str(tmp_path / "buildstream")),
             ),
         )
-

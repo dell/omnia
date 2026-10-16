@@ -33,6 +33,39 @@
     additional_metadata_svc_fg_names: []
   when: additional_metadata_svc_file_path == ''
 
+# The fixed-name functional-group input replaces the legacy global file when it
+# contains effective values. Resolve every group through the shared filter and
+# feed the existing SMD group/template publication path; no parallel metadata
+# API is introduced.
+- name: Initialize functional-group cloud-init data
+  ansible.builtin.set_fact:
+    _functional_group_cloud_init_data: {}
+  when: additional_metadata_svc_file_path == ''
+
+# Key cloud-init data by canonical group name: the runtime "_first" control-plane
+# group shares the plain group's additional metadata SMD group.
+- name: Resolve functional-group cloud-init configuration
+  ansible.builtin.include_tasks: load_functional_group_cloud_init.yml
+  loop: >-
+    {{ target_fg_names | default([])
+       | map('functional_group_canonical_name') | unique | list }}
+  loop_control:
+    loop_var: functional_group_cloud_init_name
+  when: additional_metadata_svc_file_path == ''
+
+- name: Publish functional-group cloud-init metadata facts
+  ansible.builtin.set_fact:
+    additional_metadata_svc_common_enabled: false
+    additional_metadata_svc_groups_data: >-
+      {{ _functional_group_cloud_init_data | default({}) }}
+    additional_metadata_svc_fg_names: >-
+      {{ (_functional_group_cloud_init_data | default({})).keys() | list }}
+    additional_metadata_svc_groups_enabled: >-
+      {{ _functional_group_cloud_init_data | default({}) | length > 0 }}
+    additional_metadata_svc_enabled: >-
+      {{ _functional_group_cloud_init_data | default({}) | length > 0 }}
+  when: additional_metadata_svc_file_path == ''
+
 - name: Create metadata-service directory
   ansible.builtin.file:
     path: "{{ metadata_svc_dir }}"

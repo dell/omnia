@@ -38,8 +38,14 @@
     - name: Fetch additional images
       ansible.builtin.include_tasks: fetch_additional_images.yml
 
+    # fg_publish_cloud_init gates cloud-init / metadata-service publication. It
+    # defaults to true, so every provisioning caller behaves unchanged; the
+    # configuration-only flow (configure-functional-groups) sets it to false for
+    # a boot-only scope. Skipping this validation leaves the downstream
+    # additional_metadata_svc_*_enabled flags false, disabling that chain.
     - name: Validate additional metadata-service configuration
       ansible.builtin.include_tasks: validate_additional_metadata_svc.yml
+      when: fg_publish_cloud_init | default(true) | bool
 
     - name: Scope additional metadata-service groups to the registered category
       ansible.builtin.set_fact:
@@ -80,6 +86,9 @@
         _category_mac_list: >-
           {{ _category_nodes | map(attribute='ADMIN_MAC') | map('lower') | list }}
 
+    # fg_publish_boot gates Boot Service publication. It defaults to true, so
+    # every provisioning caller behaves unchanged; the configuration-only flow
+    # (configure-functional-groups) sets it to false for a cloud_init-only scope.
     - name: Prune stale Boot Service configurations for current node MACs
       openchami_reconcile:
         action: prune_boot_configurations
@@ -90,12 +99,14 @@
         boot_configuration_macs: "{{ _category_mac_list }}"
       register: _stale_boot_config_prune
       no_log: true
+      when: fg_publish_boot | default(true) | bool
 
     - name: Configure boot-service boot params for each functional group
       ansible.builtin.include_tasks: configure_boot_svc.yml
       loop: "{{ target_functional_groups | map(attribute='name') | list }}"
       loop_control:
         loop_var: fg_name
+      when: fg_publish_boot | default(true) | bool
 
     - name: Read Boot Service configurations through the verified API client
       openchami_reconcile:
@@ -216,6 +227,7 @@
       loop: "{{ target_functional_groups | map(attribute='name') | list }}"
       loop_control:
         loop_var: fg_name
+      when: fg_publish_cloud_init | default(true) | bool
 
     - name: Configure additional metadata-service
       ansible.builtin.include_tasks: configure_metadata_svc_additional.yml

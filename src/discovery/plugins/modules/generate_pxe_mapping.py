@@ -119,6 +119,10 @@ PARENT_TAG_SOURCE_PREFIX = "service_kube_node_"
 # OME static group names must match one of these prefixes (followed by an
 # optional OS version segment and an architecture suffix) to be included
 # in the PXE mapping file.
+# "fg_" is the flexible functional-group prefix (ER-ORCH-009). Flexible-group
+# names (fg_<label>_<os>_<version>_<arch>) are accepted and preserved verbatim
+# through the operator-reviewed mapping handoff; Discovery does not interpret
+# them further.
 SUPPORTED_ROLE_PREFIXES = (
     "service_kube_control_plane_",
     "service_kube_node_",
@@ -127,6 +131,7 @@ SUPPORTED_ROLE_PREFIXES = (
     "slurm_control_node_",
     "slurm_node_",
     "os_",
+    "fg_",
 )
 
 SUPPORTED_ARCHITECTURES = ("x86_64", "aarch64")
