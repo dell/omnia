@@ -20,7 +20,7 @@ from omnia_auto import run_playbook as _run_playbook
 from ..vars.common_vars import PLAYBOOK_ENTRY_POINT, PLAYBOOK_WORKDIR
 from .additional_cloud_init_pxeboot_func import (
     check_additional_cloud_init_bss_common,
-    check_additional_cloud_init_bss_idempotency,
+    check_additional_cloud_init_bss_stability,
     check_additional_cloud_init_bss_per_fg,
     check_additional_cloud_init_common_template,
     check_additional_cloud_init_conditional_rendering,
@@ -34,12 +34,11 @@ from .additional_cloud_init_pxeboot_func import (
     check_additional_cloud_init_metadata_groups,
     check_additional_cloud_init_multi_fg_compat,
     check_additional_cloud_init_per_fg_template,
-    check_additional_cloud_init_pipeline_idempotency,
+    check_additional_cloud_init_pipeline_stability,
     check_additional_cloud_init_rhel_compat,
     check_additional_cloud_init_runcmd,
     check_additional_cloud_init_smd_groups,
-    check_additional_cloud_init_smd_idempotency,
-    check_additional_cloud_init_upgrade_mode,
+    check_additional_cloud_init_smd_stability,
     check_additional_cloud_init_write_files,
 )
 from .apptainer_accelerator_pxeboot_func import (
@@ -410,7 +409,7 @@ def run_playbook(tag: str | None = None, **kwargs):
 __all__ = [
     "TestLogger",
     "check_additional_cloud_init_bss_common",
-    "check_additional_cloud_init_bss_idempotency",
+    "check_additional_cloud_init_bss_stability",
     "check_additional_cloud_init_bss_per_fg",
     "check_additional_cloud_init_common_template",
     "check_additional_cloud_init_conditional_rendering",
@@ -424,12 +423,11 @@ __all__ = [
     "check_additional_cloud_init_metadata_groups",
     "check_additional_cloud_init_multi_fg_compat",
     "check_additional_cloud_init_per_fg_template",
-    "check_additional_cloud_init_pipeline_idempotency",
+    "check_additional_cloud_init_pipeline_stability",
     "check_additional_cloud_init_rhel_compat",
     "check_additional_cloud_init_runcmd",
     "check_additional_cloud_init_smd_groups",
-    "check_additional_cloud_init_smd_idempotency",
-    "check_additional_cloud_init_upgrade_mode",
+    "check_additional_cloud_init_smd_stability",
     "check_additional_cloud_init_write_files",
     "check_apptainer_concurrent_jobs",
     "check_apptainer_cuda_workload",

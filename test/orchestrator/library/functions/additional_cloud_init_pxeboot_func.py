@@ -906,7 +906,7 @@ def check_additional_cloud_init_merge_behavior(host):
 
 
 # =====================================================================
-# Compatibility tests (TC-C01 .. TC-C03 from 2.2)
+# Compatibility tests (TC-C01 .. TC-C02 from 2.2)
 # =====================================================================
 
 
@@ -931,6 +931,7 @@ def check_additional_cloud_init_rhel_compat(host):
                 host, row, PXEBOOT_COMMANDS["aci_os_release"],
             )
             if result.rc != 0:
+                failures.append(f"{row['HOSTNAME']}: unreachable")
                 fields.append((f"  {row['HOSTNAME']}", "unreachable"))
                 continue
             os_info = {}
@@ -1021,69 +1022,8 @@ def check_additional_cloud_init_multi_fg_compat(host):
         )
 
 
-def check_additional_cloud_init_upgrade_mode(host):
-    """TC-C03: Verify upgrade mode skips delete/set operations."""
-    summary = "Additional cloud-init upgrade mode compatibility"
-    try:
-        context = _load_cloud_init_context(host)
-        enabled, config_data, aci_path = _load_additional_cloud_init_config(
-            host, context
-        )
-        if not enabled:
-            return _skip(summary, "Additional cloud-init is not configured")
-
-        orchestrator_config = context.get("orchestrator_config", {})
-
-        failures = []
-        fields = [("Config file", aci_path)]
-
-        # Config loading must succeed regardless of upgrade_mode
-        fields.append(("Config loading", "OK"))
-
-        # Validate the structure is correct (same validation runs in
-        # both normal and upgrade mode)
-        common_data = config_data.get("common") or {}
-        groups_data = config_data.get("groups") or {}
-        fields.append(("Common section", "present" if common_data else "empty"))
-        fields.append(("Groups section", f"{len(groups_data)} FG(s)"))
-
-        # Verify SMD groups still exist (upgrade mode preserves them)
-        smd_groups = api_json(host, "smd_groups")
-        smd_group_list = resource_list(smd_groups)
-        if isinstance(smd_groups, dict) and "Groups" in smd_groups:
-            smd_group_list = resource_list(smd_groups, "Groups")
-        smd_labels = {
-            str(item.get("label") or "").strip()
-            for item in smd_group_list
-        }
-
-        if common_data:
-            expected = ADDITIONAL_METADATA_PREFIX
-            present = expected in smd_labels
-            fields.append(("Common SMD group", "present" if present else "MISSING"))
-            if not present:
-                failures.append(f"Common SMD group '{expected}' missing")
-
-        for fg_name in groups_data:
-            if not groups_data[fg_name]:
-                continue
-            expected = f"{ADDITIONAL_METADATA_PREFIX}_{fg_name}"
-            present = expected in smd_labels
-            fields.append(
-                (f"  FG {fg_name} SMD", "present" if present else "MISSING")
-            )
-            if not present:
-                failures.append(f"FG SMD group '{expected}' missing")
-
-        return runtime_result(not failures, summary, fields, "; ".join(failures))
-    except (OSError, RuntimeError, TypeError, ValueError) as exc:
-        return runtime_exception(
-            "Upgrade mode compatibility could not be validated", exc
-        )
-
-
 # =====================================================================
-# Idempotency tests (TC-I01 .. TC-I03 from 2.2)
+# State stability tests (TC-I01 .. TC-I03 from 2.2)
 # =====================================================================
 
 
@@ -1110,9 +1050,9 @@ def _snapshot_metadata_names(host):
     }
 
 
-def check_additional_cloud_init_smd_idempotency(host):
-    """TC-I01: Verify SMD group creation is idempotent across re-runs."""
-    summary = "Additional cloud-init SMD group idempotency"
+def check_additional_cloud_init_smd_stability(host):
+    """TC-I01: Verify SMD group state is stable across consecutive reads."""
+    summary = "Additional cloud-init SMD group state stability"
     try:
         context = _load_cloud_init_context(host)
         enabled, config_data, aci_path = _load_additional_cloud_init_config(
@@ -1126,7 +1066,7 @@ def check_additional_cloud_init_smd_idempotency(host):
         if not before:
             return _skip(summary, "No additional cloud-init SMD groups exist")
 
-        # Snapshot again immediately (no re-provision -- just verify stability)
+        # Snapshot again immediately -- verify state does not drift
         after = _snapshot_smd_labels(host)
 
         failures = []
@@ -1149,13 +1089,13 @@ def check_additional_cloud_init_smd_idempotency(host):
         return runtime_result(not failures, summary, fields, "; ".join(failures))
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(
-            "SMD idempotency could not be validated", exc
+            "SMD state stability could not be validated", exc
         )
 
 
-def check_additional_cloud_init_bss_idempotency(host):
-    """TC-I02: Verify BSS registration is idempotent across re-reads."""
-    summary = "Additional cloud-init BSS registration idempotency"
+def check_additional_cloud_init_bss_stability(host):
+    """TC-I02: Verify BSS registration state is stable across consecutive reads."""
+    summary = "Additional cloud-init BSS registration state stability"
     try:
         context = _load_cloud_init_context(host)
         enabled, config_data, aci_path = _load_additional_cloud_init_config(
@@ -1193,13 +1133,13 @@ def check_additional_cloud_init_bss_idempotency(host):
         return runtime_result(not failures, summary, fields, "; ".join(failures))
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(
-            "BSS idempotency could not be validated", exc
+            "BSS state stability could not be validated", exc
         )
 
 
-def check_additional_cloud_init_pipeline_idempotency(host):
-    """TC-I03: Verify full pipeline (SMD + BSS) is idempotent."""
-    summary = "Additional cloud-init full pipeline idempotency"
+def check_additional_cloud_init_pipeline_stability(host):
+    """TC-I03: Verify full pipeline (SMD + BSS) state is stable."""
+    summary = "Additional cloud-init full pipeline state stability"
     try:
         context = _load_cloud_init_context(host)
         enabled, config_data, aci_path = _load_additional_cloud_init_config(
@@ -1246,7 +1186,7 @@ def check_additional_cloud_init_pipeline_idempotency(host):
         return runtime_result(not failures, summary, fields, "; ".join(failures))
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(
-            "Pipeline idempotency could not be validated", exc
+            "Pipeline state stability could not be validated", exc
         )
 
 
@@ -1272,19 +1212,15 @@ def _verify_files_on_row(host, row, file_paths):
 def _verify_runcmd_on_row(host, row, log_paths):
     """Check runcmd artifacts on a single node.
 
-    If *log_paths* is non-empty, checks those files exist.  Otherwise
-    falls back to cloud-init status.
+    Every runcmd entry must use a ``>>`` redirect so that the test has a
+    concrete file to verify.  When *log_paths* is empty the command has
+    no deterministic artifact and we report an error rather than silently
+    falling back to cloud-init status (which does not prove that the
+    specific command ran).
     """
     if log_paths:
         return _verify_files_on_row(host, row, log_paths)
-    result = remote_command(
-        host, row, PXEBOOT_COMMANDS["cloud_init_status"],
-    )
-    if result.rc != 0:
-        return ["cloud-init status unavailable"]
-    if "done" not in result.stdout.lower():
-        return ["cloud-init not done"]
-    return []
+    return ["runcmd has no verifiable artifact (use >> redirect)"]
 
 
 def _e2e_verify_scope(host, rows, write_files, runcmd, scope_label):
@@ -1323,8 +1259,8 @@ def _e2e_verify_scope(host, rows, write_files, runcmd, scope_label):
 
 
 def check_additional_cloud_init_e2e_common_only(host):
-    """TC-F16: End-to-end verification with common section only."""
-    summary = "Additional cloud-init e2e common only"
+    """TC-F16: Verify common-section directives are applied on all nodes."""
+    summary = "Additional cloud-init e2e common scope"
     try:
         context = _load_cloud_init_context(host)
         enabled, config_data, aci_path = _load_additional_cloud_init_config(
@@ -1334,11 +1270,8 @@ def check_additional_cloud_init_e2e_common_only(host):
             return _skip(summary, "Additional cloud-init is not configured")
 
         common = config_data.get("common") or {}
-        groups = config_data.get("groups") or {}
         if not common:
             return _skip(summary, "No common section in config")
-        if groups:
-            return _skip(summary, "Config has groups section (not common-only)")
 
         rows = context["rows"]
         if not rows:
@@ -1354,7 +1287,7 @@ def check_additional_cloud_init_e2e_common_only(host):
         )
         fields = [
             ("Config file", aci_path),
-            ("Mode", "common-only"),
+            ("Scope", "common"),
             ("Nodes", len(rows)),
             ("write_files", len(write_files)),
             ("runcmd", len(runcmd)),
@@ -1363,13 +1296,13 @@ def check_additional_cloud_init_e2e_common_only(host):
         return runtime_result(not failures, summary, fields, "; ".join(failures))
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(
-            "E2E common-only could not be validated", exc
+            "E2E common scope could not be validated", exc
         )
 
 
 def check_additional_cloud_init_e2e_per_fg_only(host):
-    """TC-F17: End-to-end verification with per-FG section only."""
-    summary = "Additional cloud-init e2e per-FG only"
+    """TC-F17: Verify per-FG directives are applied on matching nodes."""
+    summary = "Additional cloud-init e2e per-FG scope"
     try:
         context = _load_cloud_init_context(host)
         enabled, config_data, aci_path = _load_additional_cloud_init_config(
@@ -1378,12 +1311,9 @@ def check_additional_cloud_init_e2e_per_fg_only(host):
         if not enabled:
             return _skip(summary, "Additional cloud-init is not configured")
 
-        common = config_data.get("common") or {}
         groups = config_data.get("groups") or {}
         if not groups:
             return _skip(summary, "No groups section in config")
-        if common:
-            return _skip(summary, "Config has common section (not per-FG-only)")
 
         rows = context["rows"]
         if not rows:
@@ -1392,7 +1322,7 @@ def check_additional_cloud_init_e2e_per_fg_only(host):
         all_failures = []
         fields = [
             ("Config file", aci_path),
-            ("Mode", "per-FG-only"),
+            ("Scope", "per-FG"),
             ("Functional groups", len(groups)),
         ]
 
@@ -1405,7 +1335,7 @@ def check_additional_cloud_init_e2e_per_fg_only(host):
             ]
             if not matching:
                 all_failures.append(f"FG {fg_name}: no matching nodes")
-                fields.append((f"  FG {fg_name}", "✗ no matching nodes"))
+                fields.append((f"  FG {fg_name}", "no matching nodes"))
                 continue
             wf = fg_section.get("write_files") or []
             rc = fg_section.get("runcmd") or []
@@ -1420,7 +1350,7 @@ def check_additional_cloud_init_e2e_per_fg_only(host):
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(
-            "E2E per-FG-only could not be validated", exc
+            "E2E per-FG scope could not be validated", exc
         )
 
 
@@ -1473,6 +1403,8 @@ def check_additional_cloud_init_e2e_combined(host):
                 if r.get("FUNCTIONAL_GROUP_NAME", "") == fg_name
             ]
             if not matching:
+                all_failures.append(f"FG {fg_name}: no matching nodes")
+                fields.append((f"  FG {fg_name}", "no matching nodes"))
                 continue
             wf = fg_section.get("write_files") or []
             rc = fg_section.get("runcmd") or []
@@ -1633,8 +1565,11 @@ def check_additional_cloud_init_e2e_mixed_directives(host):
                 target_rows = rows
 
             if not target_rows:
+                all_failures.append(
+                    f"FG {scope_label}: no matching nodes"
+                )
                 fields.append(
-                    (f"  {scope_label}", "✗ no matching nodes")
+                    (f"  {scope_label}", "no matching nodes")
                 )
                 continue
 

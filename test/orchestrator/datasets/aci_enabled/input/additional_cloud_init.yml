@@ -33,6 +33,7 @@ common:
       permissions: '0644'
   runcmd:
     - echo "omnia-aci-common $(date -u +%Y%m%dT%H%M%SZ)" >> /var/log/omnia_aci_common.log
+    - rpm -q bash >> /var/log/omnia_aci_pkg_check.log
 
 groups:
   slurm_node_rhel_10_0_x86_64:

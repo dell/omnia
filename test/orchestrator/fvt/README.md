@@ -629,16 +629,15 @@ seconds. The reboot cases share one reboot state and run last in the suite.
 | 40310 | `ORCH_FVT_PXEBOOT_V609` | `test_additional_cloud_init_merge_behavior` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify merge_how=no_replace preserves platform defaults. | All stated checks pass for every applicable target. |
 | 40311 | `ORCH_FVT_PXEBOOT_V610` | `test_additional_cloud_init_rhel_compat` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify additional cloud-init works on RHEL 10.x nodes. | All stated checks pass for every applicable target. |
 | 40312 | `ORCH_FVT_PXEBOOT_V611` | `test_additional_cloud_init_multi_fg_compat` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify additional cloud-init with multiple functional groups. | All stated checks pass for every applicable target. |
-| 40313 | `ORCH_FVT_PXEBOOT_V612` | `test_additional_cloud_init_upgrade_mode` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify additional cloud-init upgrade mode compatibility. | All stated checks pass for every applicable target. |
-| 40314 | `ORCH_FVT_PXEBOOT_V613` | `test_additional_cloud_init_smd_idempotency` | `additional_cloud_init` | `additional_cloud_init`, `idempotency`, `non_disruptive`, `sanity` | Verify SMD group creation is idempotent across re-reads. | All stated checks pass for every applicable target. |
-| 40315 | `ORCH_FVT_PXEBOOT_V614` | `test_additional_cloud_init_bss_idempotency` | `additional_cloud_init` | `additional_cloud_init`, `idempotency`, `non_disruptive`, `sanity` | Verify BSS registration is idempotent across re-reads. | All stated checks pass for every applicable target. |
-| 40316 | `ORCH_FVT_PXEBOOT_V615` | `test_additional_cloud_init_pipeline_idempotency` | `additional_cloud_init` | `additional_cloud_init`, `idempotency`, `non_disruptive`, `sanity` | Verify full additional cloud-init pipeline state is consistent. | All stated checks pass for every applicable target. |
-| 40317 | `ORCH_FVT_PXEBOOT_V616` | `test_additional_cloud_init_e2e_common_only` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify end-to-end cloud-init with common section only. | All stated checks pass for every applicable target. |
-| 40318 | `ORCH_FVT_PXEBOOT_V617` | `test_additional_cloud_init_e2e_per_fg_only` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify end-to-end cloud-init with per-FG section only. | All stated checks pass for every applicable target. |
-| 40319 | `ORCH_FVT_PXEBOOT_V618` | `test_additional_cloud_init_e2e_combined` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify end-to-end cloud-init with common + per-FG combined. | All stated checks pass for every applicable target. |
-| 40320 | `ORCH_FVT_PXEBOOT_V619` | `test_additional_cloud_init_e2e_multiple_fgs` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify end-to-end cloud-init with multiple functional groups. | All stated checks pass for every applicable target. |
-| 40321 | `ORCH_FVT_PXEBOOT_V620` | `test_additional_cloud_init_e2e_mixed_directives` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify end-to-end cloud-init with mixed write_files and runcmd. | All stated checks pass for every applicable target. |
-| 40322 | `ORCH_FVT_PXEBOOT_V621` | `test_additional_cloud_init_e2e_packages` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify additional cloud-init integration with additional packages. | All stated checks pass for every applicable target. |
+| 40313 | `ORCH_FVT_PXEBOOT_V613` | `test_additional_cloud_init_smd_stability` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity`, `state_stability` | Verify SMD group state is stable across consecutive reads. | All stated checks pass for every applicable target. |
+| 40314 | `ORCH_FVT_PXEBOOT_V614` | `test_additional_cloud_init_bss_stability` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity`, `state_stability` | Verify BSS registration state is stable across consecutive reads. | All stated checks pass for every applicable target. |
+| 40315 | `ORCH_FVT_PXEBOOT_V615` | `test_additional_cloud_init_pipeline_stability` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity`, `state_stability` | Verify full additional cloud-init pipeline state is stable. | All stated checks pass for every applicable target. |
+| 40316 | `ORCH_FVT_PXEBOOT_V616` | `test_additional_cloud_init_e2e_common_only` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify common-section directives applied on all nodes. | All stated checks pass for every applicable target. |
+| 40317 | `ORCH_FVT_PXEBOOT_V617` | `test_additional_cloud_init_e2e_per_fg_only` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify per-FG directives applied on matching nodes. | All stated checks pass for every applicable target. |
+| 40318 | `ORCH_FVT_PXEBOOT_V618` | `test_additional_cloud_init_e2e_combined` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify end-to-end cloud-init with common + per-FG combined. | All stated checks pass for every applicable target. |
+| 40319 | `ORCH_FVT_PXEBOOT_V619` | `test_additional_cloud_init_e2e_multiple_fgs` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify end-to-end cloud-init with multiple functional groups. | All stated checks pass for every applicable target. |
+| 40320 | `ORCH_FVT_PXEBOOT_V620` | `test_additional_cloud_init_e2e_mixed_directives` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify end-to-end cloud-init with mixed write_files and runcmd. | All stated checks pass for every applicable target. |
+| 40321 | `ORCH_FVT_PXEBOOT_V621` | `test_additional_cloud_init_e2e_packages` | `additional_cloud_init` | `additional_cloud_init`, `non_disruptive`, `sanity` | Verify additional cloud-init integration with additional packages. | All stated checks pass for every applicable target. |
 
 Additional cloud-init tests skip automatically when
 `validate_additional_cloud_init` is false in `test_config.yml`, or when
@@ -647,8 +646,8 @@ Additional cloud-init tests skip automatically when
 state (SMD groups and metadata-service templates); V602-V603 verify
 node-side artifacts (files created by `write_files` and cloud-init completion
 confirming `runcmd` execution); V604-V609 verify template rendering and BSS
-registration; V610-V612 verify compatibility (RHEL, multi-FG, upgrade mode);
-V613-V615 verify idempotency (SMD, BSS, full pipeline); V616-V621 verify
+registration; V610-V611 verify compatibility (RHEL, multi-FG);
+V613-V615 verify state stability (SMD, BSS, full pipeline); V616-V621 verify
 end-to-end node provisioning scenarios and package integration.
 
 ### VAST storage (`vast_storage`)

@@ -46,7 +46,7 @@ pytestmark = [
 # -- End-to-end node verification (TC-F16 .. TC-F20) --------------------
 
 
-@pytest.mark.order(40317)
+@pytest.mark.order(40316)
 def test_additional_cloud_init_e2e_common_only(host):
     """Verify end-to-end cloud-init with common section only."""
     tc = TC["additional_cloud_init_e2e_common_only"]
@@ -54,7 +54,7 @@ def test_additional_cloud_init_e2e_common_only(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_e2e_common_only)
 
 
-@pytest.mark.order(40318)
+@pytest.mark.order(40317)
 def test_additional_cloud_init_e2e_per_fg_only(host):
     """Verify end-to-end cloud-init with per-FG section only."""
     tc = TC["additional_cloud_init_e2e_per_fg_only"]
@@ -62,7 +62,7 @@ def test_additional_cloud_init_e2e_per_fg_only(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_e2e_per_fg_only)
 
 
-@pytest.mark.order(40319)
+@pytest.mark.order(40318)
 def test_additional_cloud_init_e2e_combined(host):
     """Verify end-to-end cloud-init with common + per-FG combined."""
     tc = TC["additional_cloud_init_e2e_combined"]
@@ -70,7 +70,7 @@ def test_additional_cloud_init_e2e_combined(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_e2e_combined)
 
 
-@pytest.mark.order(40320)
+@pytest.mark.order(40319)
 def test_additional_cloud_init_e2e_multiple_fgs(host):
     """Verify end-to-end cloud-init with multiple functional groups."""
     tc = TC["additional_cloud_init_e2e_multiple_fgs"]
@@ -78,7 +78,7 @@ def test_additional_cloud_init_e2e_multiple_fgs(host):
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_e2e_multiple_fgs)
 
 
-@pytest.mark.order(40321)
+@pytest.mark.order(40320)
 def test_additional_cloud_init_e2e_mixed_directives(host):
     """Verify end-to-end cloud-init with mixed write_files and runcmd."""
     tc = TC["additional_cloud_init_e2e_mixed_directives"]
@@ -91,7 +91,7 @@ def test_additional_cloud_init_e2e_mixed_directives(host):
 # -- Package integration (TC-F21) ---------------------------------------
 
 
-@pytest.mark.order(40322)
+@pytest.mark.order(40321)
 def test_additional_cloud_init_e2e_packages(host):
     """Verify additional cloud-init integration with additional packages."""
     tc = TC["additional_cloud_init_e2e_packages"]

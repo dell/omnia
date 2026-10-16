@@ -16,7 +16,7 @@
 
 Covers 2.2 baseline gaps:
 - TC-F08 .. TC-F13: template rendering and BSS registration
-- TC-C01 .. TC-C03: RHEL compatibility, multi-FG, upgrade mode
+- TC-C01 .. TC-C02: RHEL compatibility, multi-FG
 
 Tests skip automatically when additional_cloud_init_config_file is empty
 or not configured in orchestrator_config.yml.
@@ -33,7 +33,6 @@ from library.functions import (
     check_additional_cloud_init_multi_fg_compat,
     check_additional_cloud_init_per_fg_template,
     check_additional_cloud_init_rhel_compat,
-    check_additional_cloud_init_upgrade_mode,
 )
 from library.vars import TEST_CASES as TC
 
@@ -119,11 +118,3 @@ def test_additional_cloud_init_multi_fg_compat(host):
     tc = TC["additional_cloud_init_multi_fg_compat"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_additional_cloud_init_multi_fg_compat)
-
-
-@pytest.mark.order(40313)
-def test_additional_cloud_init_upgrade_mode(host):
-    """Verify additional cloud-init upgrade mode compatibility."""
-    tc = TC["additional_cloud_init_upgrade_mode"]
-    test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_upgrade_mode)

@@ -1548,26 +1548,21 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify additional cloud-init with multiple functional groups",
         "component": "Additional cloud-init multi-FG compatibility",
     },
-    "additional_cloud_init_upgrade_mode": {
-        "id": "ORCH_FVT_PXEBOOT_V612",
-        "title": "Verify additional cloud-init upgrade mode compatibility",
-        "component": "Additional cloud-init upgrade mode",
-    },
-    # ── Additional cloud-init: idempotency tests ───────────────────────
-    "additional_cloud_init_smd_idempotency": {
+    # ── Additional cloud-init: state stability tests ─────────────────────
+    "additional_cloud_init_smd_stability": {
         "id": "ORCH_FVT_PXEBOOT_V613",
-        "title": "Verify SMD group creation idempotency",
-        "component": "Additional cloud-init SMD idempotency",
+        "title": "Verify SMD group state stability",
+        "component": "Additional cloud-init SMD state stability",
     },
-    "additional_cloud_init_bss_idempotency": {
+    "additional_cloud_init_bss_stability": {
         "id": "ORCH_FVT_PXEBOOT_V614",
-        "title": "Verify BSS registration idempotency",
-        "component": "Additional cloud-init BSS idempotency",
+        "title": "Verify BSS registration state stability",
+        "component": "Additional cloud-init BSS state stability",
     },
-    "additional_cloud_init_pipeline_idempotency": {
+    "additional_cloud_init_pipeline_stability": {
         "id": "ORCH_FVT_PXEBOOT_V615",
-        "title": "Verify full additional cloud-init pipeline idempotency",
-        "component": "Additional cloud-init pipeline idempotency",
+        "title": "Verify full additional cloud-init pipeline state stability",
+        "component": "Additional cloud-init pipeline state stability",
     },
     # ── Additional cloud-init: end-to-end node verification ────────────
     "additional_cloud_init_e2e_common_only": {

@@ -15,6 +15,7 @@ active project's input directory on the execution OIM. The live
 |----------|-------|--------|-------------|
 | `/etc/omnia/aci_common.conf` | All nodes | `write_files` | File existence check |
 | `/var/log/omnia_aci_common.log` | All nodes | `runcmd` redirect | File existence check |
+| `/var/log/omnia_aci_pkg_check.log` | All nodes | `rpm -q bash` redirect | Package integration check |
 | `/etc/omnia/aci_slurm_node.conf` | `slurm_node_rhel_10_0_x86_64` | `write_files` | Per-FG file check |
 | `/var/log/omnia_aci_slurm_node.log` | `slurm_node_rhel_10_0_x86_64` | `runcmd` redirect | Per-FG file check |
 | `/etc/omnia/aci_slurm_control.conf` | `slurm_control_node_rhel_10_0_x86_64` | `write_files` | Per-FG file check |

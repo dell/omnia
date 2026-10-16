@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Additional cloud-init idempotency verification.
+"""Additional cloud-init state stability verification.
 
 Tests skip automatically when additional_cloud_init_config_file is empty
 or not configured in orchestrator_config.yml.
@@ -21,9 +21,9 @@ or not configured in orchestrator_config.yml.
 import pytest
 from library.functions import (
     TestLogger,
-    check_additional_cloud_init_bss_idempotency,
-    check_additional_cloud_init_pipeline_idempotency,
-    check_additional_cloud_init_smd_idempotency,
+    check_additional_cloud_init_bss_stability,
+    check_additional_cloud_init_pipeline_stability,
+    check_additional_cloud_init_smd_stability,
 )
 from library.vars import TEST_CASES as TC
 
@@ -33,31 +33,31 @@ pytestmark = [
     pytest.mark.sanity,
     pytest.mark.additional_cloud_init,
     pytest.mark.non_disruptive,
-    pytest.mark.idempotency,
+    pytest.mark.state_stability,
 ]
 
 
-@pytest.mark.order(40314)
-def test_additional_cloud_init_smd_idempotency(host):
-    """Verify SMD group creation is idempotent across re-reads."""
-    tc = TC["additional_cloud_init_smd_idempotency"]
+@pytest.mark.order(40313)
+def test_additional_cloud_init_smd_stability(host):
+    """Verify SMD group state is stable across consecutive reads."""
+    tc = TC["additional_cloud_init_smd_stability"]
     test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_smd_idempotency)
+    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_smd_stability)
+
+
+@pytest.mark.order(40314)
+def test_additional_cloud_init_bss_stability(host):
+    """Verify BSS registration state is stable across consecutive reads."""
+    tc = TC["additional_cloud_init_bss_stability"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_bss_stability)
 
 
 @pytest.mark.order(40315)
-def test_additional_cloud_init_bss_idempotency(host):
-    """Verify BSS registration is idempotent across re-reads."""
-    tc = TC["additional_cloud_init_bss_idempotency"]
-    test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_additional_cloud_init_bss_idempotency)
-
-
-@pytest.mark.order(40316)
-def test_additional_cloud_init_pipeline_idempotency(host):
-    """Verify full additional cloud-init pipeline state is consistent."""
-    tc = TC["additional_cloud_init_pipeline_idempotency"]
+def test_additional_cloud_init_pipeline_stability(host):
+    """Verify full additional cloud-init pipeline state is stable."""
+    tc = TC["additional_cloud_init_pipeline_stability"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(
-        test_log, tc, host, check_additional_cloud_init_pipeline_idempotency,
+        test_log, tc, host, check_additional_cloud_init_pipeline_stability,
     )
