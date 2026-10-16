@@ -87,6 +87,30 @@
   # cert-manager pod rollouts. On upgrade, the hook times out waiting for pods
   # that are still restarting, causing the entire helm upgrade to fail after 10m.
   # We replace it with an Ansible-managed readiness check after helm completes.
+  # NOTE: This file will reappear if the Helm chart is updated. Ensure it is
+  # removed again after chart updates.
+
+- name: Remove cert-manager post-install hook from Helm chart
+  ansible.builtin.file:
+    path: "{{ karavi_helm_chart_path }}/templates/cert-manager.yaml"
+    state: absent
+  # The post-install hook attempts to call the cert-manager webhook on port 443,
+  # but the webhook actually listens on port 10250. This causes "connection refused"
+  # errors during helm install/upgrade. Since cert-manager is already deployed and
+  # fully functional as part of the Helm chart, this hook is redundant and can be
+  # safely removed without affecting functionality.
+  # NOTE: This file will reappear if the Helm chart is updated. Ensure it is
+  # removed again after chart updates.
+
+- name: Verify cert-manager hooks were removed
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: _hook_check
+  failed_when: _hook_check.stat.exists
+  with_items:
+    - "{{ karavi_helm_chart_path }}/templates/cert-manager-readiness-check.yaml"
+    - "{{ karavi_helm_chart_path }}/templates/cert-manager.yaml"
+  changed_when: false
 
 - name: Write cert-manager resource limits override
   ansible.builtin.copy:

@@ -263,7 +263,7 @@ spec:
                   pvc_to_cluster = {}
                   for pv_name, (pvc_name, pvc_ns) in pv_to_pvc.items():
                       if pvc_name:
-                          pvc_to_cluster[(pvc_name, pvc_ns)] = pvc_to_cluster.get(pvc_name, 'unknown')
+                          pvc_to_cluster[(pvc_name, pvc_ns)] = pv_to_cluster.get(pv_name, 'unknown')
                   for pvc in pvcs.items:
                       key = (pvc.metadata.name, pvc.metadata.namespace)
                       if key not in pvc_set:
@@ -297,7 +297,7 @@ spec:
                   pvc_to_cluster = {}
                   for pv_name, (pvc_name, pvc_ns) in pv_to_pvc.items():
                       if pvc_name:
-                          pvc_to_cluster[(pvc_name, pvc_ns)] = pvc_to_cluster.get(pvc_name, 'unknown')
+                          pvc_to_cluster[(pvc_name, pvc_ns)] = pv_to_cluster.get(pv_name, 'unknown')
                   try:
                       events = v1.list_event_for_all_namespaces(
                           field_selector='reason=VolumeConditionAbnormal')
