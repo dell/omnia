@@ -31,7 +31,7 @@ against the surviving packages in each affected layer, as R1/R2 require.
    name/paste). Its `catalog.functionallayer`, `catalog.groups`, and
    `catalog.packages` sections are the primary evidence.
 2. `src/build_stream/ai_skills/shared/connectivity_layer.md` — the
-   online/offline fallback procedure. Note its clarified trigger: fall
+   online source lookup and fallback fallback procedure. Note its clarified trigger: fall
    back only on an actual lookup failure, never merely because a row is
    absent from one table.
 3. `src/build_stream/ai_skills/impact-analysis/references/trusted_source_policy.md`

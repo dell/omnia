@@ -107,11 +107,11 @@ Properties:
 - **Deterministic**: Uses sorted keys and stable ordering
 - **Comprehensive**: Tracks all catalog sections
 - **Reversible**: Forward and reverse diffs are inverses
-- **Offline**: No online lookups required
+- **No live dependency resolution**: No online lookups required
 
 ## Limitations
 
 - Requires schema-valid catalogs (rejects invalid inputs)
 - Single catalog pair only (not multi-way diffs)
-- Offline operation (no live dependency resolution)
+- Operation without live dependency resolution
 - Does not apply diffs (use catalog-editing for that)

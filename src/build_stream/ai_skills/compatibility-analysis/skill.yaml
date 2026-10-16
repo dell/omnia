@@ -2,7 +2,7 @@ name: compatibility-analysis
 version: 1.0.0
 description: >-
   Checks package compatibility and investigates dependencies for proposed catalog additions using
-  approved upstream/repository evidence, with disclosed offline gaps. Use when finding dependencies
+  approved upstream/repository evidence, with disclosed gaps when online sources are unavailable. Use when finding dependencies
   or checking compatibility with a target OS, architecture, kernel, or another catalog package,
   including driver/kernel changes.
 author: Omnia Build Stream Team

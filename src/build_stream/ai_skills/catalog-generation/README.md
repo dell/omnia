@@ -51,7 +51,7 @@ Generate a catalog for:
 | Architecture Constraints | Enforces architecture-specific limitations (e.g., Kubernetes x86_64-only) |
 | Functional Layer Expansion | Generates role-by-architecture functional layers with appropriate groups |
 | Custom Roles/Packages | Supports operator-defined functional roles and additional packages |
-| Package Resolution | Resolves package versions and sources via online/offline connectivity layer |
+| Package Resolution | Resolves package versions and sources via online source lookup and fallback connectivity layer |
 | Schema Validation | Validates generated catalogs against official schema before output |
 | Channel-Agnostic | Works in coding agent or browser-based AI assistant environments |
 

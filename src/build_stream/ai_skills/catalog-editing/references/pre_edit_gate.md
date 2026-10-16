@@ -76,7 +76,7 @@ If a check does not apply, say so explicitly in the findings (see Step
   `src/build_stream/ai_skills/compatibility-analysis/SKILL.md`'s
   procedure against the specific package/version/target.
 
-Both skills already carry their own online-preferred/offline-disclosed
+Both skills already carry their own online-preferred with disclosure when using the master reference file
 behavior and audit logging (`trusted_source_policy.md`) — do not
 duplicate or reinterpret that here; surface their result as-is.
 

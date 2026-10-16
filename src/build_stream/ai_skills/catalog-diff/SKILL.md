@@ -12,7 +12,7 @@ Answer "what changed between `<current_catalog>` and `<future_catalog>`?" by
 running the existing, deterministic catalog diff/patch engine — never by
 hand-comparing two large JSON files or asking a model to eyeball the
 difference (`ER-BSM-001-nersc-ai-skills-catalog-authoring`, FR-4.1/FR-4.2,
-AC-010). This skill operates entirely offline on the two catalog files
+AC-010). This skill operates entirely on the two catalog files without live dependency resolution
 supplied; it does not call any online source.
 
 Two artifacts are always produced, and are never merged into each other:
@@ -146,7 +146,7 @@ output is the fact record, per the no-fabrication rule (NFR-3).
   caveat (e.g. an NVIDIA driver / RHEL Compatibility-Matrix caveat), tell
   them this skill does not check that yet — it requires the online Red Hat
   Compatibility Matrix, which is the `compatibility-analysis` skill, not
-  this offline diff skill. Do not fabricate a caveat to answer the
+  this diff skill. Do not fabricate a caveat to answer the
   question.
 
 ## Worked Example

@@ -1,6 +1,6 @@
 ---
 name: online-offline-connectivity-layer
-description: Shared online/offline fallback decision procedure for package-metadata, impact, and compatibility resolution. Referenced (not duplicated) by the Catalog Generation skill and, later, by the Analysis skills. Channel-agnostic.
+description: Shared online source lookup and fallback fallback decision procedure for package-metadata, impact, and compatibility resolution. Referenced (not duplicated) by the Catalog Generation skill and, later, by the Analysis skills. Channel-agnostic.
 ---
 
 ## Purpose
@@ -120,7 +120,7 @@ recording it internally.
 > Result: `disclosure=false`; return the version from the repository
 > response.
 
-**Online unreachable, offline fallback used:**
+**Online unreachable, fallback used:**
 > The same request, but the CUDA repository times out.
 > Result: fall back to A.6 Pinned Version Table's `nvidia_driver` row;
 > `disclosure=true`; state: "The CUDA repository timed out, so this

@@ -142,7 +142,7 @@ a supported override. Do not create a role/platform cross-product.
    - Do NOT silently substitute one of those alternatives for the
      operator. Only apply an alternative after the operator explicitly
      confirms it.
-6. **Disclose offline mode** whenever you resolve step 4 or step 5 without
+6. **Disclose when using the master reference file** whenever you resolve step 4 or step 5 without
    online package-repository access: state which master-reference rows, catalog
    files/revisions and consumer contracts support the decision, rather than
    implying live source verification (NFR-5). Do not equate sample availability

@@ -13,9 +13,9 @@ Use this skill when you need to:
 
 ## Prerequisites
 
-- `src/build_stream/ai_skills/shared/connectivity_layer.md` — online/offline fallback procedure
+- `src/build_stream/ai_skills/shared/connectivity_layer.md` — online source lookup and fallback fallback procedure
 - `src/build_stream/ai_skills/impact-analysis/references/trusted_source_policy.md` — approved source classes and audit-logging contract
-- `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` — A.1/A.6/A.8 offline fallback data
+- `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` — A.1/A.6/A.8 master reference file data
 
 ## Usage
 
@@ -40,9 +40,9 @@ Is the kubernetes 1.35 image compatible with the kubernetes-v1-35 repository?
 
 ## References
 
-- `src/build_stream/ai_skills/shared/connectivity_layer.md` — online/offline fallback procedure
+- `src/build_stream/ai_skills/shared/connectivity_layer.md` — online source lookup and fallback fallback procedure
 - `src/build_stream/ai_skills/impact-analysis/references/trusted_source_policy.md` — approved source classes and audit-logging contract
-- `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` — offline fallback data (A.1, A.6, A.8)
+- `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` — master reference file data (A.1, A.6, A.8)
 
 ## Workflow
 
