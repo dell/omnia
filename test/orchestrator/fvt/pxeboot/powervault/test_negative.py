@@ -24,7 +24,6 @@ from library.functions import (
 
 
 @pytest.mark.negative
-@pytest.mark.sanity
 @pytest.mark.order(330)
 def test_neg_powervault_gpt_missing_label(host):
     """Verify GPT partition check correctly detects missing GPT label.
@@ -37,7 +36,6 @@ def test_neg_powervault_gpt_missing_label(host):
 
 
 @pytest.mark.negative
-@pytest.mark.sanity
 @pytest.mark.order(331)
 def test_neg_powervault_duplicate_fstab(host):
     """Verify duplicate fstab entry detection works correctly.
