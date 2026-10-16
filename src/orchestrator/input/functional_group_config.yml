@@ -32,7 +32,11 @@
 # release.
 #
 # Group keys MUST be exact PXE functional-group names as they appear in
-# pxe_mapping_file.csv. Prefixes and patterns are not supported.
+# pxe_mapping_file.csv, and they MUST carry the mandatory 'fg_' flexible-group
+# prefix (e.g. fg_webserver_rhel_10_2_x86_64). Predefined groups
+# (service_kube_, slurm_, login_node_, login_compiler_node_, os_) are configured
+# through omnia_config.yml and storage_config.yml, not here, and are rejected if
+# listed under groups. Prefixes and patterns are not supported.
 #
 # LEGACY INPUTS
 # -------------
@@ -69,28 +73,41 @@ common:
   # Same mapping shape as additional_cloud_init.yml common/group sections.
   post_config: []
 
-# Per-functional-group overrides, keyed by exact PXE functional-group name.
-# image_override is group-only: leave it {} to use Image Build Manager output,
-# or set all of kernel, initrd, and rootfs as object keys relative to the
-# image-storage endpoint (no scheme, leading "/", or "..").
+  # Node-local log sources Utils log collection gathers for flexible (fg_)
+  # groups. directories and files are lists of absolute node-local paths. Leave
+  # empty ({} or omit) to inherit; the shipped template collects nothing extra.
+  custom_log_paths:
+    directories: []
+    files: []
+
+# Per-functional-group overrides, keyed by exact flexible (fg_) PXE
+# functional-group name. image_override is group-only: leave it {} to use Image
+# Build Manager output, or set all of kernel, initrd, and rootfs as object keys
+# relative to the image-storage endpoint (no scheme, leading "/", or "..").
 #
 # Example:
 #
 # groups:
-#   research_ctl_rhel_10_0_x86_64:
+#   fg_webserver_rhel_10_2_x86_64:
 #     boot_kernel_params: "crashkernel=auto audit=1 numa=off"
 #     cloud_init:
-#       config_file: "<ORCHESTRATOR_DATA_PATH>/input/<project>/research-ctl-cloud-init-x86_64.yml"
+#       config_file: "<ORCHESTRATOR_DATA_PATH>/input/<project>/fg-webserver-cloud-init-x86_64.yml"
 #     post_config: []
+#     custom_log_paths:
+#       directories:
+#         - "/var/log/myapp"
+#       files:
+#         - "/opt/myapp/logs/service.log"
 #     image_override:
-#       kernel: "boot-images/research-ctl/vmlinuz-x86_64"
-#       initrd: "boot-images/research-ctl/initramfs-x86_64.img"
-#       rootfs: "boot-images/research-ctl/rootfs-x86_64.squashfs"
+#       kernel: "boot-images/fg-webserver/vmlinuz-x86_64"
+#       initrd: "boot-images/fg-webserver/initramfs-x86_64.img"
+#       rootfs: "boot-images/fg-webserver/rootfs-x86_64.squashfs"
 #
-#   research_node_rhel_10_0_aarch64:
+#   fg_mpi_worker_rhel_10_0_aarch64:
 #     boot_kernel_params: ""          # inherits common
 #     cloud_init:
 #       config_file: ""               # inherits common, then Omnia default
 #     post_config: []
+#     custom_log_paths: {}            # inherits common
 #     image_override: {}
 groups: {}

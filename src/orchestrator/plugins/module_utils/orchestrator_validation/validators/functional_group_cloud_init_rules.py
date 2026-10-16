@@ -135,6 +135,62 @@ def validate_cloud_init_reference(
         record_error(errors, logger, msg.functional_group_plaintext_secret_msg(file_ref))
 
 
+def validate_custom_log_paths(
+    scope: dict[str, Any],
+    referenced_by: str,
+    errors: list[str],
+    logger: Logger | None,
+) -> None:
+    """Validate ``custom_log_paths`` for Utils flexible-group log collection.
+
+    The optional mapping may declare ``directories`` and ``files`` lists of
+    absolute node-local paths (without ``..`` segments) that Utils log collection
+    gathers for ``fg_`` groups. Empty or absent values inherit, so only
+    populated values are checked.
+    """
+    custom_log_paths = scope.get("custom_log_paths")
+    if custom_log_paths is None:
+        return
+    if not isinstance(custom_log_paths, dict):
+        record_error(
+            errors,
+            logger,
+            msg.functional_group_log_paths_type_msg(
+                f"{referenced_by}.custom_log_paths",
+                type(custom_log_paths).__name__,
+                "a mapping",
+            ),
+        )
+        return
+    for field in ("directories", "files"):
+        entries = custom_log_paths.get(field)
+        if entries is None:
+            continue
+        field_ref = f"{referenced_by}.custom_log_paths.{field}"
+        if not isinstance(entries, list):
+            record_error(
+                errors,
+                logger,
+                msg.functional_group_log_paths_type_msg(
+                    field_ref, type(entries).__name__, "a list"
+                ),
+            )
+            continue
+        for entry in entries:
+            if (
+                not isinstance(entry, str)
+                or not entry.startswith("/")
+                or ".." in entry.split("/")
+            ):
+                record_error(
+                    errors,
+                    logger,
+                    msg.functional_group_log_path_not_absolute_msg(
+                        field_ref, entry
+                    ),
+                )
+
+
 def validate_post_config(
     scope: dict[str, Any],
     referenced_by: str,

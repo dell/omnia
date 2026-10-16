@@ -57,8 +57,14 @@ _OS_NAME_PATTERN = "|".join(SUPPORTED_OS_NAMES)
 # between the role and the architecture on versioned functional group names.
 _OS_VERSION_SEGMENT = rf"(?:_(?:{_OS_NAME_PATTERN})(?:_[0-9]+)+)?"
 
+# Flexible functional groups (ER-ORCH-009) carry the mandatory "fg_" prefix and
+# a free-form user label: fg_<label>[_<os>_<version>]_<arch>. The label matches
+# pattern-wise so new flexible group names validate without a source change.
+_FLEXIBLE_GROUP_LABEL = r"fg_[a-z0-9]+(?:_[a-z0-9]+)*"
+
 FUNCTIONAL_GROUP_NAME_PATTERN = re.compile(
-    rf"^(?:{_ROLE_PATTERN}){_OS_VERSION_SEGMENT}_(?:{_ARCHITECTURE_PATTERN})$"
+    rf"^(?:(?:{_ROLE_PATTERN})|{_FLEXIBLE_GROUP_LABEL})"
+    rf"{_OS_VERSION_SEGMENT}_(?:{_ARCHITECTURE_PATTERN})$"
 )
 
 # Representative legacy/base group names, used only for human-readable error
@@ -128,7 +134,9 @@ def _validate_functional_groups(config_data, errors, logger=None):
                 f"collect_pxe_config: Invalid functional group '{group_name}'. "
                 f"Expected <role>_<arch>, optionally with an OS/version segment "
                 f"(e.g. '{next(iter(sorted(VALID_FUNCTIONAL_GROUPS)))}' or "
-                f"'slurm_node_rhel_10_0_aarch64'). Valid roles: {valid_groups}"
+                f"'slurm_node_rhel_10_0_aarch64'), or a flexible group with the "
+                f"mandatory 'fg_' prefix (e.g. 'fg_webserver_rhel_10_2_x86_64'). "
+                f"Valid roles: {valid_groups}"
             )
             errors.append(error)
             if logger:

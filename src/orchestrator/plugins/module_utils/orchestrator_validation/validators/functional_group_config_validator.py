@@ -31,6 +31,7 @@ from ...functional_group_resolver import resolve_group
 from .additional_cloud_init_validator import _read_functional_group_names
 from .functional_group_cloud_init_rules import (
     validate_cloud_init_reference,
+    validate_custom_log_paths,
     validate_post_config,
 )
 from .functional_group_rules import (
@@ -121,6 +122,7 @@ def _validate_scope(
     validate_kernel_params(scope.get("boot_kernel_params"), referenced_by, errors, logger)
     validate_cloud_init_reference(scope, referenced_by, input_project_dir, errors, logger)
     validate_post_config(scope, referenced_by, errors, logger)
+    validate_custom_log_paths(scope, referenced_by, errors, logger)
     return scope
 
 
@@ -135,6 +137,14 @@ def _validate_groups(
 ) -> None:
     """Validate explicit group scopes and inherited cloud-init architecture."""
     for group, scope in groups.items():
+        # ER-ORCH-009 FR-1.2: only flexible groups (mandatory ``fg_`` prefix)
+        # may be configured here. Reject predefined Slurm, Kubernetes, login,
+        # and OS group keys up front so they never reach provisioning config.
+        if not str(group).startswith("fg_"):
+            record_error(
+                errors, logger, msg.functional_group_prefix_required_msg(group)
+            )
+            continue
         # `known_groups is None` means the mapping itself is unreadable, which
         # the PXE validator reports; avoid a misleading second error here.
         if known_groups is not None and group not in known_groups:
