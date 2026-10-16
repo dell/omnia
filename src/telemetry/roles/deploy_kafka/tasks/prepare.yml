@@ -84,6 +84,22 @@
 # When called from deploy_sinks.yml, kafka_infra_only=true skips these.
 # =============================================================================
 
+- name: Remove Kafka topic manifests for disabled sources
+  ansible.builtin.file:
+    path: "{{ telemetry_deployments_dir }}/kafka.{{ item }}.topic.yaml"
+    state: absent
+  loop:
+    - idrac
+    - ldms
+  loop_control:
+    label: "{{ item }}"
+  when: >-
+    not (
+      telemetry_config.telemetry_sources.get(item, {}).metrics_enabled
+      | default(false)
+      | bool
+    )
+
 - name: Generate Kafka topic manifests for idrac and ldms
   ansible.builtin.template:
     src: kafka.topic.yaml.j2

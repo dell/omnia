@@ -138,14 +138,14 @@ failed_ips:
       msg: "Failed after 3 attempts: Connection refused"
 '''
 
-def load_kube_context():
+def load_kube_context() -> None:
     """Load Kubernetes configuration for accessing the cluster."""
     try:
         config.load_kube_config()
     except ConfigException:
         config.load_incluster_config()
 
-def resolve_pod_ip(namespace, pod):
+def resolve_pod_ip(namespace, pod) -> str:
     """Resolve the IP address of a Kubernetes pod via the K8s API.
 
     Args:
@@ -176,7 +176,7 @@ def run_mysql_insert(
     service_type,
     auth_type,
     auth_json
-):
+) -> dict:
     """Run a MySQL insert using a PyMySQL parameterized query.
 
     Connects directly to the MySQL pod over TCP (resolved via the K8s API)
@@ -244,7 +244,7 @@ def insert_idracs_to_mysql(
     bmc_password,
     retries=3,
     delay=3,
-):
+) -> list:
     """Insert iDRAC IPs into MySQL database."""
 
     # Load Kubernetes context to access the cluster
@@ -285,7 +285,7 @@ def insert_idracs_to_mysql(
 
     return results
 
-def main():
+def main() -> None:
     """Main function to execute the module logic."""
     module_args = {
         "telemetry_namespace": {"type": "str", "required": True},

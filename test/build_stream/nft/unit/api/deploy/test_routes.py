@@ -202,6 +202,29 @@ class TestCreateDeploy:
             )
         assert exc_info.value.status_code == 412
 
+    def test_deploy_after_automatic_cleanup_returns_412(self):
+        """A CLEANED ImageGroup cannot be reused by a deploy retry."""
+        job_id = _uuid()
+        use_case = MockDeployUseCase(
+            error_to_raise=IGInvalidStateTransitionError(
+                current="CLEANED", required={"BUILT"}
+            )
+        )
+        request_body = DeployRequest(image_group_id="cleaned-cluster-v1")
+
+        with pytest.raises(HTTPException) as exc_info:
+            create_deploy(
+                job_id=job_id,
+                request_body=request_body,
+                token_data={"client_id": "test-client", "scopes": ["job:write"]},
+                use_case=use_case,
+                correlation_id=CorrelationId(_uuid()),
+                _=None,
+            )
+
+        assert exc_info.value.status_code == 412
+        assert "CLEANED" in str(exc_info.value.detail)
+
     def test_upstream_not_completed(self):
         """Returns 412 when upstream build stage not completed."""
         job_id = _uuid()

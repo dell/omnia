@@ -14,7 +14,7 @@
 
 """Domain exceptions for Catalog operations."""
 
-from typing import Optional
+from typing import Optional, Set
 
 
 class CatalogParseError(Exception):
@@ -87,6 +87,38 @@ class AdapterPolicyValidationError(CatalogParseError):
     ) -> None:
         super().__init__(message, correlation_id=correlation_id)
         self.policy_path = policy_path
+
+
+class UnsupportedSchemaVersionError(CatalogParseError):
+    """Catalog schema_version is missing or not in the supported set.
+
+    Raised during catalog parsing when the ``SchemaVersion`` field is
+    absent or contains a value not recognized by this release.
+
+    Attributes:
+        schema_version: The version found (or None if missing).
+        supported: Set of schema versions this release accepts.
+    """
+
+    def __init__(
+        self,
+        schema_version: Optional[int],
+        supported: Set[int],
+        correlation_id: Optional[str] = None,
+    ) -> None:
+        if schema_version is None:
+            msg = (
+                "Catalog is missing required 'SchemaVersion' field. "
+                f"Supported versions: {sorted(supported)}"
+            )
+        else:
+            msg = (
+                f"Unsupported catalog schema version {schema_version}. "
+                f"Supported versions: {sorted(supported)}"
+            )
+        super().__init__(msg, correlation_id=correlation_id)
+        self.schema_version = schema_version
+        self.supported = supported
 
 
 class ConfigGenerationError(CatalogParseError):

@@ -105,3 +105,28 @@ openldap_container_missing_msg: "{{ '\x1b[31m' }}\
   For more information, refer to the Omnia documentation on OpenLDAP configuration.\n\
   ==================================================================================\
   {{ '\x1b[0m' }}"
+
+# Centralized failure messages
+catalog_facts_fail_msg: >-
+  Catalog-derived facts are not available. Ensure orchestrator_setup has
+  run successfully and loaded the catalog file.
+build_status_missing_fail_msg: >-
+  build_status.yml not found at '{{ _build_status_path }}'.
+  Run image_build_manager before orchestrator to generate build_status.yml.
+build_status_invalid_fail_msg: >-
+  build_status.yml does not contain a successful, supported image build
+  and a valid S3 endpoint. Run image_build_manager successfully before
+  running Orchestrator.
+boot_artifacts_fail_msg: |-
+  Boot artifacts for '{{ functional_group_name }}' are not accessible from the OIM:
+  {% for failure in _orchestrator_validations_boot_artifact_failures %}
+  - {{ failure.name }}: {{ failure.url }}
+    HTTP status: {{ failure.status }}; error: {{ failure.message }}
+  {% endfor %}
+  Rebuild the functional group or restore the missing S3 objects, then rerun precheck.
+openldap_container_fail_msg: >-
+  OpenLDAP container is not running. See error details above.
+openldap_health_fail_msg: >-
+  OpenLDAP container is running but its LDAP endpoint is not healthy.
+  ldapwhoami exited with rc={{ openldap_health_check.rc | default('N/A') }}.
+  Check container logs with 'podman logs omnia_auth'.

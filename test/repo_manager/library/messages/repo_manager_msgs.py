@@ -102,6 +102,9 @@ TEST_NAMES = {
 }
 
 TEST_LOG_MSGS = {
+    # Playbook execution
+    "playbook_success": "Playbook completed successfully (duration: {duration})",
+    "playbook_failed": "Playbook failed (rc={rc}, duration: {duration})",
     # Precheck
     "input_config_ok": "repo_manager_config.yml found",
     "input_config_missing": "repo_manager_config.yml is missing",
@@ -239,6 +242,10 @@ TEST_LOG_MSGS = {
 }
 
 TEST_ASSERT_MSGS = {
+    # Playbook execution
+    "playbook_failed": (
+        "{playbook} --tags {tag} failed (rc={rc}, duration: {duration})"
+    ),
     "input_config_missing": "repo_manager_config.yml is required for precheck",
     "endpoint_config_missing": "repo_manager_endpoint_config.yml is required",
     "credentials_missing": "Credentials file is required for Pulp deployment",

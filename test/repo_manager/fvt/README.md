@@ -4,9 +4,9 @@ This document is the authoritative test-case registry for
 `test/repo_manager/fvt/`. It describes what each test validates and the
 condition required for the test to pass.
 
-All test-case IDs are defined inline in each test's docstring and
-`TestLogger` call. Test files must use these registered IDs; IDs and titles
-must not be invented outside the established pattern.
+All test-case IDs and titles are defined centrally in
+`library/vars/test_case_vars.py` as `TEST_CASES`. Test files reference
+`TC["key"]` to get consistent IDs and display names.
 
 ## Test-case ID standard
 
@@ -29,16 +29,25 @@ first by lifecycle phase, then by suite, and finally by
 ## Effective execution order
 
 An untagged `test` runs `precheck`, `prepare`, `execute`, and `status` in
-order, then verifies the non-destructive scenarios. Cleanup, negative, and
-catalog operations require explicit selection. Policy, negative, and user
-registry scenarios are verification-only.
+order, then verifies the non-destructive scenarios. Cleanup and catalog
+operations require explicit selection. User registry is verification-only.
 
-| Phase | Suite order |
-|-------|-------------|
-| precheck | `test_status` |
-| prepare | `test_status` |
-| execute | `test_status` |
-| status | `test_status` |
+Negative tests live inside each tag's `negative/` suite. Policy tests live
+inside `execute/policy/`.
+
+| Phase | Playbook | Suite directories |
+|-------|----------|-------------------|
+| precheck | `test_playbook.py` | `config/`, `negative/` |
+| prepare | `test_playbook.py` | `pulp/`, `negative/` |
+| execute | `test_playbook.py` | `repos/`, `artifacts/`, `policy/`, `negative/` |
+| status | `test_playbook.py` | `status/`, `negative/` |
+| cleanup | `test_playbook.py` | `cleanup/`, `negative/` |
+| cleanup_repos | `test_playbook.py` | `selective/` |
+| catalog_generate | `test_playbook.py` | `generate/`, `negative/` |
+| catalog_add | `test_playbook.py` | `add/`, `negative/` |
+| catalog_delete | `test_playbook.py` | `delete/`, `negative/` |
+| catalog_validate | `test_playbook.py` | `validate/` |
+| user_registry | `test_playbook.py` | `validation/`, `negative/` |
 
 ## Precheck test cases
 
@@ -48,11 +57,11 @@ only the verification cases.
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_PRECHECK_E001 | `test_precheck_environment` | deploy, sanity | Runs `repo_manager.yml --tags precheck`. | Playbook exits successfully. |
-| 1 | RM_FVT_PRECHECK_V001 | `test_input_config_exists` | sanity, positive | Resolves the input directory on the target. | `repo_manager_config.yml` exists at the runtime input path. |
-| 2 | RM_FVT_PRECHECK_V002 | `test_endpoint_config_exists` | sanity, positive | Checks the endpoint configuration file. | `repo_manager_endpoint_config.yml` exists at the runtime input path. |
-| 3 | RM_FVT_PRECHECK_V003 | `test_credentials_present` | sanity, positive | Resolves the domain-credential path on the execution OIM. | Credentials file is present. |
-| 4 | RM_FVT_PRECHECK_V004 | `test_precheck_environment_no_credentials` | sanity, positive | Validates input without prompting for credentials. | Precheck completes without credential prompting. |
+| 0 | RM_FVT_PRECHECK_E001 | `test_playbook.py::test_deploy_precheck` | deploy, sanity | Runs `repo_manager.yml --tags precheck`. | Playbook exits successfully. |
+| 1 | RM_FVT_PRECHECK_V001 | `config/test_config.py::test_input_config_exists` | sanity, positive | Resolves the input directory on the target. | `repo_manager_config.yml` exists at the runtime input path. |
+| 2 | RM_FVT_PRECHECK_V002 | `config/test_config.py::test_endpoint_config_exists` | sanity, positive | Checks the endpoint configuration file. | `repo_manager_endpoint_config.yml` exists at the runtime input path. |
+| 3 | RM_FVT_PRECHECK_V003 | `config/test_config.py::test_credentials_present` | sanity, positive | Resolves the domain-credential path on the execution OIM. | Credentials file is present. |
+| 4 | RM_FVT_PRECHECK_V004 | `config/test_config.py::test_precheck_no_credentials` | sanity, positive | Validates input without prompting for credentials. | Precheck completes without credential prompting. |
 
 ## Prepare test cases
 
@@ -60,16 +69,16 @@ These cases verify the Pulp infrastructure deployed by the `prepare` flow.
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_PREPARE_E001 | `test_prepare_pulp` | deploy, sanity | Runs `repo_manager.yml --tags prepare`. | Playbook exits successfully. |
-| 1 | RM_FVT_PREPARE_V001 | `test_pulp_container_running` | sanity, positive | Inspects the Pulp container with Podman. | Pulp container is running. |
-| 2 | RM_FVT_PREPARE_V002 | `test_pulp_status_healthy` | sanity, positive | Checks the Pulp health status. | Pulp status reports healthy. |
-| 3 | RM_FVT_PREPARE_V003 | `test_pulp_endpoint_reachable` | sanity, positive | Calls the Pulp API status endpoint. | Pulp API endpoint is reachable. |
-| 4 | RM_FVT_PREPARE_V004 | `test_pulp_cli_configured` | sanity, positive | Checks the Pulp CLI configuration. | Pulp CLI is configured and functional. |
-| 5 | RM_FVT_PREPARE_V005 | `test_pulp_certificates_exist` | functional, positive | Checks Pulp SSL certificate files. | Pulp SSL certificates exist on disk. |
-| 6 | RM_FVT_PREPARE_V006 | `test_pulp_cli_repository_list` | sanity, positive | Lists RPM repositories through the Pulp CLI. | Pulp CLI can list RPM repositories. |
-| 7 | RM_FVT_PREPARE_V007 | `test_pulp_api_detailed_status` | sanity, positive | Checks Pulp API detailed health (DB, workers, content apps, storage). | All Pulp health components report healthy. |
-| 8 | RM_FVT_PREPARE_E002 | `test_collect_credentials` | functional, positive | Verifies the `collect_repo_credentials` role functionality. | Credential collection completes successfully. |
-| 9 | RM_FVT_PREPARE_E003 | `test_credential_encryption` | functional, positive | Verifies credential encryption and vault handling. | Credentials are encrypted and vault-managed. |
+| 0 | RM_FVT_PREPARE_E001 | `test_playbook.py::test_deploy_prepare` | deploy, sanity | Runs `repo_manager.yml --tags prepare`. | Playbook exits successfully. |
+| 1 | RM_FVT_PREPARE_V001 | `pulp/test_pulp.py::test_pulp_container_running` | sanity, positive | Inspects the Pulp container with Podman. | Pulp container is running. |
+| 2 | RM_FVT_PREPARE_V002 | `pulp/test_pulp.py::test_pulp_status_healthy` | sanity, positive | Checks the Pulp health status. | Pulp status reports healthy. |
+| 3 | RM_FVT_PREPARE_V003 | `pulp/test_pulp.py::test_pulp_endpoint_reachable` | sanity, positive | Calls the Pulp API status endpoint. | Pulp API endpoint is reachable. |
+| 4 | RM_FVT_PREPARE_V004 | `pulp/test_pulp.py::test_pulp_cli_configured` | sanity, positive | Checks the Pulp CLI configuration. | Pulp CLI is configured and functional. |
+| 5 | RM_FVT_PREPARE_V005 | `pulp/test_pulp.py::test_pulp_certificates_exist` | functional, positive | Checks Pulp SSL certificate files. | Pulp SSL certificates exist on disk. |
+| 6 | RM_FVT_PREPARE_V006 | `pulp/test_pulp.py::test_pulp_cli_repository_list` | sanity, positive | Lists RPM repositories through the Pulp CLI. | Pulp CLI can list RPM repositories. |
+| 7 | RM_FVT_PREPARE_V007 | `pulp/test_pulp.py::test_pulp_api_detailed_status` | sanity, positive | Checks Pulp API detailed health (DB, workers, content apps, storage). | All Pulp health components report healthy. |
+| 8 | RM_FVT_PREPARE_E002 | `pulp/test_pulp.py::test_collect_credentials` | functional, positive | Verifies the `collect_repo_credentials` role functionality. | Credential collection completes successfully. |
+| 9 | RM_FVT_PREPARE_E003 | `pulp/test_pulp.py::test_credential_encryption` | functional, positive | Verifies credential encryption and vault handling. | Credentials are encrypted and vault-managed. |
 
 ## Execute test cases
 
@@ -78,21 +87,21 @@ the `execute` flow.
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_EXECUTE_E001 | `test_execute_download` | deploy, sanity | Runs `repo_manager.yml --tags execute`. | Playbook exits successfully. |
-| 1 | RM_FVT_EXECUTE_V001 | `test_repo_status_exists` | sanity, positive | Checks for `repo_status.yml` on the target. | `repo_status.yml` is generated. |
-| 2 | RM_FVT_EXECUTE_V002 | `test_repo_status_success` | sanity, positive | Parses the overall status field. | `overall_status` is `success`. |
-| 3 | RM_FVT_EXECUTE_V003 | `test_slurm_custom_repo_present` | sanity, positive | Checks for the SLURM custom repository. | `slurm_custom` repo is present if configured. |
-| 4 | RM_FVT_EXECUTE_V004 | `test_epel_repo_present` | sanity, positive | Checks for the EPEL repository. | `epel` repo is present if configured. |
-| 5 | RM_FVT_EXECUTE_V005 | `test_x86_64_repos_present` | sanity, positive | Checks for x86_64 `baseos` and `appstream` repositories. | x86_64 repos are present if configured. |
-| 6 | RM_FVT_EXECUTE_V006 | `test_file_repos_present` | functional, positive | Checks for file repositories (tarball type). | File repos are present if configured. |
-| 7 | RM_FVT_EXECUTE_V007 | `test_software_download_status` | sanity, positive | Checks `software.csv` download status per architecture. | Software download status CSV exists and reports results. |
-| 8 | RM_FVT_EXECUTE_V008 | `test_per_software_package_status` | sanity, positive | Checks per-software `status.csv` for individual package download results. | Per-package status is recorded. |
-| 9 | RM_FVT_EXECUTE_V009 | `test_pulp_repositories_synced` | sanity, positive | Verifies all RPM repositories have `latest_version_href`. | All RPM repositories show sync indicator. |
-| 10 | RM_FVT_EXECUTE_V010 | `test_pulp_distributions_published` | sanity, positive | Verifies all RPM distributions are published with repository attachment. | All RPM distributions are published. |
-| 11 | RM_FVT_EXECUTE_V011 | `test_container_repos_synced` | functional, positive | Verifies all container image repositories are synced. | Container repositories are synced. |
-| 12 | RM_FVT_EXECUTE_V012 | `test_file_repos_synced` | functional, positive | Verifies all file repositories (tarball, git, etc.) are synced. | File repositories are synced. |
-| 13 | RM_FVT_EXECUTE_V013 | `test_pulp_content_accessible` | sanity, positive | Verifies RPM content is reachable via HTTPS (`repomd.xml` check). | Pulp-served RPM content is accessible. |
-| 14 | RM_FVT_EXECUTE_V014 | `test_software_packages_in_pulp` | sanity, positive | Verifies all RPM packages from `software_config.json` are present in Pulp. | All expected software packages are in Pulp. |
+| 0 | RM_FVT_EXECUTE_E001 | `test_playbook.py::test_deploy_execute` | deploy, sanity | Runs `repo_manager.yml --tags execute`. | Playbook exits successfully. |
+| 1 | RM_FVT_EXECUTE_V001 | `repos/test_repos.py::test_repo_status_exists` | sanity, positive | Checks for `repo_status.yml` on the target. | `repo_status.yml` is generated. |
+| 2 | RM_FVT_EXECUTE_V002 | `repos/test_repos.py::test_repo_status_success` | sanity, positive | Parses the overall status field. | `overall_status` is `success`. |
+| 3 | RM_FVT_EXECUTE_V003 | `repos/test_repos.py::test_slurm_custom_repo_present` | sanity, positive | Checks for the SLURM custom repository. | `slurm_custom` repo is present if configured. |
+| 4 | RM_FVT_EXECUTE_V004 | `repos/test_repos.py::test_epel_repo_present` | sanity, positive | Checks for the EPEL repository. | `epel` repo is present if configured. |
+| 5 | RM_FVT_EXECUTE_V005 | `repos/test_repos.py::test_x86_64_repos_present` | sanity, positive | Checks for x86_64 `baseos` and `appstream` repositories. | x86_64 repos are present if configured. |
+| 6 | RM_FVT_EXECUTE_V006 | `repos/test_repos.py::test_file_repos_present` | functional, positive | Checks for file repositories (tarball type). | File repos are present if configured. |
+| 7 | RM_FVT_EXECUTE_V007 | `artifacts/test_artifacts.py::test_software_download_status` | sanity, positive | Checks `software.csv` download status per architecture. | Software download status CSV exists and reports results. |
+| 8 | RM_FVT_EXECUTE_V008 | `artifacts/test_artifacts.py::test_per_software_package_status` | sanity, positive | Checks per-software `status.csv` for individual package download results. | Per-package status is recorded. |
+| 9 | RM_FVT_EXECUTE_V009 | `artifacts/test_artifacts.py::test_pulp_repositories_synced` | sanity, positive | Verifies all RPM repositories have `latest_version_href`. | All RPM repositories show sync indicator. |
+| 10 | RM_FVT_EXECUTE_V010 | `artifacts/test_artifacts.py::test_pulp_distributions_published` | sanity, positive | Verifies all RPM distributions are published with repository attachment. | All RPM distributions are published. |
+| 11 | RM_FVT_EXECUTE_V011 | `artifacts/test_artifacts.py::test_container_repos_synced` | functional, positive | Verifies all container image repositories are synced. | Container repositories are synced. |
+| 12 | RM_FVT_EXECUTE_V012 | `artifacts/test_artifacts.py::test_file_repos_synced` | functional, positive | Verifies all file repositories (tarball, git, etc.) are synced. | File repositories are synced. |
+| 13 | RM_FVT_EXECUTE_V013 | `artifacts/test_artifacts.py::test_pulp_content_accessible` | sanity, positive | Verifies RPM content is reachable via HTTPS (`repomd.xml` check). | Pulp-served RPM content is accessible. |
+| 14 | RM_FVT_EXECUTE_V014 | `artifacts/test_artifacts.py::test_software_packages_in_pulp` | sanity, positive | Verifies all RPM packages from `software_config.json` are present in Pulp. | All expected software packages are in Pulp. |
 
 ## Status test cases
 
@@ -101,9 +110,9 @@ These cases verify the `repo_status.yml` generation performed by the
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_STATUS_E001 | `test_deploy_status` | deploy, sanity | Runs `repo_manager.yml --tags status`. | Playbook exits successfully. |
-| 1 | RM_FVT_STATUS_V001 | `test_repo_status_regenerated` | sanity, positive | Checks that `repo_status.yml` is regenerated. | `repo_status.yml` exists after status run. |
-| 2 | RM_FVT_STATUS_V002 | `test_repo_status_success_after_status` | sanity, positive | Parses the overall status field after regeneration. | `overall_status` is `success`. |
+| 0 | RM_FVT_STATUS_E001 | `test_playbook.py::test_deploy_status` | deploy, sanity | Runs `repo_manager.yml --tags status`. | Playbook exits successfully. |
+| 1 | RM_FVT_STATUS_V001 | `status/test_status.py::test_repo_status_regenerated` | sanity, positive | Checks that `repo_status.yml` is regenerated. | `repo_status.yml` exists after status run. |
+| 2 | RM_FVT_STATUS_V002 | `status/test_status.py::test_repo_status_success_after_status` | sanity, positive | Parses the overall status field after regeneration. | `overall_status` is `success`. |
 
 ## Cleanup test cases
 
@@ -112,10 +121,10 @@ requires explicit selection and is excluded from aggregate FVT execution.
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 100 | RM_FVT_CLEANUP_E001 | `test_deploy_cleanup` | deploy, sanity | Runs `repo_manager.yml --tags cleanup`. | Cleanup playbook exits successfully. |
-| 101 | RM_FVT_CLEANUP_V001 | `test_pulp_container_removed` | sanity, positive | Searches Podman for the Pulp container. | Pulp container is removed. |
-| 102 | RM_FVT_CLEANUP_V002 | `test_pulp_cli_preserved` | sanity, positive | Checks the managed Pulp CLI executable. | Managed Pulp CLI remains executable. |
-| 103 | RM_FVT_CLEANUP_V003 | `test_pulp_directories_removed` | functional, positive | Checks the Pulp data directories. | Pulp directories are removed. |
+| 100 | RM_FVT_CLEANUP_E001 | `test_playbook.py::test_deploy_cleanup` | deploy, sanity | Runs `repo_manager.yml --tags cleanup_pulp`. | Cleanup playbook exits successfully. |
+| 101 | RM_FVT_CLEANUP_V001 | `cleanup/test_verify_cleanup.py::test_pulp_container_removed` | sanity, positive | Searches Podman for the Pulp container. | Pulp container is removed. |
+| 102 | RM_FVT_CLEANUP_V002 | `cleanup/test_verify_cleanup.py::test_pulp_cli_preserved` | sanity, positive | Checks the managed Pulp CLI executable. | Managed Pulp CLI remains executable. |
+| 103 | RM_FVT_CLEANUP_V003 | `cleanup/test_verify_cleanup.py::test_pulp_directories_removed` | functional, positive | Checks the Pulp data directories. | Pulp directories are removed. |
 
 ## Selective cleanup test cases
 
@@ -124,17 +133,17 @@ They require explicit selection with the `destructive` marker.
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_CLEANUP_REPOS_E001 | `test_deploy_exact_repository_cleanup` | deploy, destructive | Removes an explicitly authorized exact RPM repository. | Cleanup playbook exits successfully for the named repository. |
-| 1 | RM_FVT_CLEANUP_REPOS_V001 | `test_exact_repository_is_absent_while_pulp_is_healthy` | destructive | Distinguishes verified absence from endpoint failure. | Target repository is absent and Pulp endpoint remains healthy. |
-| 2 | RM_FVT_CLEANUP_REPOS_V002 | `test_selective_cleanup_invalidates_repo_status` | destructive | Verifies stale consumer output is invalidated. | Stale consumer URLs are removed after verified cleanup. |
-| 3 | RM_FVT_CLEANUP_REPOS_V003 | `test_cleanup_status_records_exact_success` | destructive | Verifies one exact successful cleanup result. | Cleanup CSV records the requested identity successfully. |
+| 0 | RM_FVT_CLEANUP_REPOS_E001 | `test_playbook.py::test_deploy_cleanup_repos` | deploy, destructive | Removes an explicitly authorized exact RPM repository. | Cleanup playbook exits successfully for the named repository. |
+| 1 | RM_FVT_CLEANUP_REPOS_V001 | `selective/test_selective_cleanup.py::test_exact_repository_is_absent` | destructive | Distinguishes verified absence from endpoint failure. | Target repository is absent and Pulp endpoint remains healthy. |
+| 2 | RM_FVT_CLEANUP_REPOS_V002 | `selective/test_selective_cleanup.py::test_selective_cleanup_invalidates_repo_status` | destructive | Verifies stale consumer output is invalidated. | Stale consumer URLs are removed after verified cleanup. |
+| 3 | RM_FVT_CLEANUP_REPOS_V003 | `selective/test_selective_cleanup.py::test_cleanup_status_records_success` | destructive | Verifies one exact successful cleanup result. | Cleanup CSV records the requested identity successfully. |
 
-## Policy test cases
+## Policy test cases (`execute/policy/`)
 
-These cases verify repository policy configurations. All policy tests are
-verification-only and do not execute playbooks.
+These cases verify repository policy configurations. Policy tests are a
+verification-only suite within the `execute/` tag directory.
 
-### Priority order (`test_priority_order.py`)
+### Priority order (`execute/policy/test_priority_order.py`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
@@ -142,7 +151,7 @@ verification-only and do not execute playbooks.
 | 2 | RM_FVT_POLICY_V002 | `test_per_repo_caching_overrides_global` | sanity, positive | Per-repo caching should override global `CACHING_POLICY`. | Per-repo caching wins over global setting. |
 | 3 | RM_FVT_POLICY_V003 | `test_per_repo_complete_override` | sanity, positive | Per-repo should completely override global settings. | Complete per-repo override applies. |
 
-### Partial override (`test_partial_override.py`)
+### Partial override (`execute/policy/test_partial_override.py`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
@@ -150,7 +159,7 @@ verification-only and do not execute playbooks.
 | 5 | RM_FVT_POLICY_V005 | `test_per_repo_caching_only` | sanity, positive | Per-repo caching only; policy from global. | Mixed caching/global resolution works. |
 | 6 | RM_FVT_POLICY_V006 | `test_empty_per_repo_config` | sanity, positive | Empty per-repo config should use global settings. | Global settings apply when per-repo is empty. |
 
-### Policy combinations (`test_policy_combinations.py`)
+### Policy combinations (`execute/policy/test_policy_combinations.py`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
@@ -159,7 +168,7 @@ verification-only and do not execute playbooks.
 | 9 | RM_FVT_POLICY_V009 | `test_policy_partial_caching_false` | sanity, positive | `policy: partial + caching: false = streamed`. | Pulp policy resolves to `streamed`. |
 | 10 | RM_FVT_POLICY_V010 | `test_policy_partial_caching_true` | sanity, positive | `policy: partial + caching: true = on_demand`. | Pulp policy resolves to `on_demand`. |
 
-### Repo types (`test_repo_types.py`)
+### Repo types (`execute/policy/test_repo_types.py`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
@@ -167,7 +176,7 @@ verification-only and do not execute playbooks.
 | 12 | RM_FVT_POLICY_V012 | `test_url_repo_per_repo_override` | sanity, positive | URL repos should support per-repo overrides. | Per-repo overrides apply to URL repos. |
 | 13 | RM_FVT_POLICY_V013 | `test_subscription_and_url_identical_behavior` | sanity, positive | Subscription and URL repos should behave identically. | Identical policy resolution for both repo types. |
 
-### Pulp mode (`test_pulp_mode.py`)
+### Pulp mode (`execute/policy/test_pulp_mode.py`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
@@ -175,7 +184,7 @@ verification-only and do not execute playbooks.
 | 15 | RM_FVT_POLICY_V015 | `test_actual_pulp_repository_policy` | sanity, positive | Actual Pulp repository should have correct policy. | Valid Pulp policy combinations are enforced. |
 | 16 | RM_FVT_POLICY_V016 | `test_disk_space_savings` | sanity, positive | On-demand repos should save disk space. | On-demand policy selection applies. |
 
-### Integration Pulp policies (`test_integration_pulp_policies.py`)
+### Integration Pulp policies (`execute/policy/test_integration_pulp_policies.py`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
@@ -187,19 +196,19 @@ verification-only and do not execute playbooks.
 
 ## User registry test cases
 
-### Validation tests (`test_user_registry_validation.py`)
+### Validation tests (`validation/test_validation.py`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_USER_REGISTRY_E001 | `test_user_registry_validation_deploy` | deploy, sanity | Deploy validation playbook (includes registry checks). | Playbook exits successfully. |
-| 1 | RM_FVT_USER_REGISTRY_V001 | `test_user_registry_section_exists` | sanity, positive | Verify registries section exists in config. | `registries` section exists in `repo_manager_config.yml`. |
-| 2 | RM_FVT_USER_REGISTRY_V002 | `test_user_registry_structure_valid` | sanity, positive | Verify registry entries have valid structure. | Registry entries have required fields. |
-| 3 | RM_FVT_USER_REGISTRY_V003 | `test_user_registry_base_url_valid` | sanity, positive | Verify `base_url` is valid HTTP(S) origin. | All registry `base_url` values are valid origins. |
-| 4 | RM_FVT_USER_REGISTRY_V004 | `test_user_registry_reachable` | functional, positive | Verify configured registries are reachable. | All configured registries respond. |
-| 5 | RM_FVT_USER_REGISTRY_V005 | `test_user_registry_tls_cert_paths_valid` | functional, positive | Verify TLS certificate paths exist on disk. | TLS cert paths exist on target. |
-| 6 | RM_FVT_USER_REGISTRY_V006 | `test_user_registry_tls_pair_consistent` | sanity, positive | Verify client cert and key configured together. | Client cert and key are paired correctly. |
-| 7 | RM_FVT_USER_REGISTRY_V007 | `test_user_registry_auth_type_valid` | sanity, positive | Verify auth type is `none` or `basic`. | Auth type is a valid value. |
-| 8 | RM_FVT_USER_REGISTRY_V008 | `test_user_registry_credentials_present` | functional, positive | Verify credentials for basic auth registries. | Credentials exist for basic-auth registries. |
+| 0 | RM_FVT_USER_REGISTRY_E001 | `test_playbook.py::test_deploy_user_registry` | deploy, sanity | Deploy validation playbook (includes registry checks). | Playbook exits successfully. |
+| 1 | RM_FVT_USER_REGISTRY_V001 | `validation/test_validation.py::test_user_registry_section_exists` | sanity, positive | Verify registries section exists in config. | `registries` section exists in `repo_manager_config.yml`. |
+| 2 | RM_FVT_USER_REGISTRY_V002 | `validation/test_validation.py::test_user_registry_structure_valid` | sanity, positive | Verify registry entries have valid structure. | Registry entries have required fields. |
+| 3 | RM_FVT_USER_REGISTRY_V003 | `validation/test_validation.py::test_user_registry_base_url_valid` | sanity, positive | Verify `base_url` is valid HTTP(S) origin. | All registry `base_url` values are valid origins. |
+| 4 | RM_FVT_USER_REGISTRY_V004 | `validation/test_validation.py::test_user_registry_reachable` | functional, positive | Verify configured registries are reachable. | All configured registries respond. |
+| 5 | RM_FVT_USER_REGISTRY_V005 | `validation/test_validation.py::test_user_registry_tls_cert_paths_valid` | functional, positive | Verify TLS certificate paths exist on disk. | TLS cert paths exist on target. |
+| 6 | RM_FVT_USER_REGISTRY_V006 | `validation/test_validation.py::test_user_registry_tls_pair_consistent` | sanity, positive | Verify client cert and key configured together. | Client cert and key are paired correctly. |
+| 7 | RM_FVT_USER_REGISTRY_V007 | `validation/test_validation.py::test_user_registry_auth_type_valid` | sanity, positive | Verify auth type is `none` or `basic`. | Auth type is a valid value. |
+| 8 | RM_FVT_USER_REGISTRY_V008 | `validation/test_validation.py::test_user_registry_credentials_present` | functional, positive | Verify credentials for basic auth registries. | Credentials exist for basic-auth registries. |
 
 ### Negative tests (`test_user_registry_negative.py`)
 
@@ -212,100 +221,97 @@ verification-only and do not execute playbooks.
 | 5 | RM_FVT_USER_REGISTRY_NEG_005 | `test_registry_validation_detects_missing_cert_paths` | negative | Detects missing cert paths on disk. | Missing cert paths are detected. |
 | 6 | RM_FVT_USER_REGISTRY_NEG_006 | `test_registry_validation_detects_missing_vault_path` | negative | Detects missing `vault_path` for basic auth. | Missing `vault_path` is detected. |
 
-## Negative test cases (`fvt/negative/error_scenarios/`)
+## Negative test cases (distributed across tag directories)
 
-| Sequence | TC ID | Test | Markers | Validation | Pass criteria |
-|----------|-------|------|---------|------------|---------------|
-| 1 | RM_FVT_NEG_001 | `test_deploy_fails_missing_credentials` | negative | Deploy fails with missing credentials. | Deployment fails cleanly. |
-| 2 | RM_FVT_NEG_002 | `test_deploy_fails_invalid_endpoint_config` | negative | Deploy fails with invalid endpoint config. | Deployment fails cleanly. |
-| 3 | RM_FVT_NEG_003 | `test_download_fails_invalid_repo_url` | negative | Download fails with invalid repository URL. | Download fails cleanly. |
-| 4 | RM_FVT_NEG_004 | `test_status_fails_missing_repo_status` | negative | Status check fails with missing `repo_status.yml`. | Status check fails cleanly. |
-| 5 | RM_FVT_NEG_005 | `test_cleanup_fails_pulp_not_running` | negative | Cleanup fails when Pulp container not running. | Cleanup fails cleanly. |
-| 6 | RM_FVT_NEG_006 | `test_pulp_cli_fails_invalid_auth` | negative | Pulp CLI fails with invalid authentication. | CLI fails cleanly. |
-| 7 | RM_FVT_NEG_007 | `test_repo_sync_fails_network_issues` | negative | Repository sync fails with network connectivity issues. | Sync fails cleanly. |
-| 8 | RM_FVT_NEG_008 | `test_catalog_generation_fails_invalid_config` | negative | Catalog generation fails with invalid `software_config.json`. | Generation fails cleanly. |
-| 9 | RM_FVT_NEG_009 | `test_validate_fails_missing_config` | negative | Validation fails with missing `repo_manager_config.yml`. | Validation fails cleanly. |
-| 10 | RM_FVT_NEG_010 | `test_pulp_api_unreachable_port_closed` | negative | Pulp API unreachable when port is closed. | Unreachable state is detected cleanly. |
+Negative tests live inside each tag's `negative/` suite:
+
+| TC ID | Location | Test | Pass criteria |
+|-------|----------|------|---------------|
+| RM_FVT_NEG_001 | `precheck/negative/` | `test_deploy_fails_missing_credentials` | Deployment fails cleanly. |
+| RM_FVT_NEG_002 | `precheck/negative/` | `test_deploy_fails_invalid_endpoint_config` | Deployment fails cleanly. |
+| RM_FVT_NEG_009 | `precheck/negative/` | `test_validate_fails_missing_config` | Validation fails cleanly. |
+| RM_FVT_NEG_006 | `prepare/negative/` | `test_pulp_cli_fails_invalid_auth` | CLI fails cleanly. |
+| RM_FVT_NEG_010 | `prepare/negative/` | `test_pulp_api_unreachable_port_closed` | Unreachable state detected. |
+| RM_FVT_NEG_003 | `execute/negative/` | `test_download_fails_invalid_repo_url` | Download fails cleanly. |
+| RM_FVT_NEG_007 | `execute/negative/` | `test_repo_sync_fails_network_issues` | Sync fails cleanly. |
+| RM_FVT_NEG_008 | `execute/negative/` | `test_catalog_generation_fails_invalid_config` | Generation fails cleanly. |
+| RM_FVT_NEG_004 | `status/negative/` | `test_status_fails_missing_repo_status` | Status check fails cleanly. |
+| RM_FVT_NEG_005 | `cleanup/negative/` | `test_cleanup_fails_pulp_not_running` | Cleanup fails cleanly. |
 
 ## Catalog test cases
 
-Catalog lifecycle execution intentionally has no "run all" mode. Select one
-operation suite so generate, add, and delete cannot run accidentally in the
-same invocation.
+Each catalog operation is its own tag directory with `test_playbook.py`.
 
-### Catalog generate (`fvt/catalog/generate/`)
+### Catalog generate (`catalog_generate/`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_CATALOG_GENERATE_E001 | `test_catalog_generate_deploy` | deploy, sanity | Deploy the `catalog_generate` operation. | Playbook exits successfully. |
-| 0 | RM_FVT_CATALOG_GENERATE_V001 | `test_catalog_input_dir_exists` | sanity, positive | Verify catalog input directory exists. | Input directory exists on target. |
-| 1 | RM_FVT_CATALOG_GENERATE_V002 | `test_catalog_file_exists` | sanity, positive | Verify catalog file exists after generate. | Catalog JSON file is created. |
-| 2 | RM_FVT_CATALOG_GENERATE_V003 | `test_catalog_structure_valid` | sanity, positive | Verify catalog structure is valid. | Catalog has valid JSON structure. |
-| 3 | RM_FVT_CATALOG_GENERATE_V004 | `test_catalog_functional_layers` | sanity, positive | Verify catalog has functional layers. | Functional layers are present. |
-| 4 | RM_FVT_CATALOG_GENERATE_V005 | `test_catalog_groups` | sanity, positive | Verify catalog has groups. | Groups are present. |
-| 5 | RM_FVT_CATALOG_GENERATE_V006 | `test_catalog_packages` | sanity, positive | Verify catalog has packages. | Packages are present. |
-| 6 | RM_FVT_CATALOG_GENERATE_V007 | `test_catalog_log_file_exists` | deploy, functional, positive | Verify catalog log file exists. | Log file is created. |
+| 0 | RM_FVT_CATALOG_GENERATE_E001 | `test_playbook.py::test_deploy_catalog_generate` | deploy, sanity | Deploy the `catalog_generate` operation. | Playbook exits successfully. |
+| 0 | RM_FVT_CATALOG_GENERATE_V001 | `generate/test_generate.py::test_catalog_input_dir_exists` | sanity, positive | Verify catalog input directory exists. | Input directory exists on target. |
+| 1 | RM_FVT_CATALOG_GENERATE_V002 | `generate/test_generate.py::test_catalog_file_exists` | sanity, positive | Verify catalog file exists after generate. | Catalog JSON file is created. |
+| 2 | RM_FVT_CATALOG_GENERATE_V003 | `generate/test_generate.py::test_catalog_structure_valid` | sanity, positive | Verify catalog structure is valid. | Catalog has valid JSON structure. |
+| 3 | RM_FVT_CATALOG_GENERATE_V004 | `generate/test_generate.py::test_catalog_functional_layers` | sanity, positive | Verify catalog has functional layers. | Functional layers are present. |
+| 4 | RM_FVT_CATALOG_GENERATE_V005 | `generate/test_generate.py::test_catalog_groups` | sanity, positive | Verify catalog has groups. | Groups are present. |
+| 5 | RM_FVT_CATALOG_GENERATE_V006 | `generate/test_generate.py::test_catalog_packages` | sanity, positive | Verify catalog has packages. | Packages are present. |
+| 6 | RM_FVT_CATALOG_GENERATE_V007 | `generate/test_generate.py::test_catalog_log_file_exists` | deploy, functional, positive | Verify catalog log file exists. | Log file is created. |
 
-### Catalog add (`fvt/catalog/add/`)
-
-| Sequence | TC ID | Test | Markers | Validation | Pass criteria |
-|----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_CATALOG_ADD_E001 | `test_catalog_add_deploy` | deploy, sanity | Deploy `catalog_add` playbook. | Playbook exits successfully. |
-| 1 | RM_FVT_CATALOG_ADD_V001 | `test_catalog_add_operation_completed` | sanity, positive | Verify catalog add operation completed successfully. | Add operation succeeds. |
-| 2 | RM_FVT_CATALOG_ADD_V002 | `test_catalog_structure_valid_after_add` | functional, positive | Verify catalog structure still valid after add. | Catalog structure remains valid. |
-| 3 | RM_FVT_CATALOG_ADD_V003 | `test_catalog_has_functional_layers_after_add` | functional, positive | Verify catalog has functional layers after add. | Functional layers are present. |
-| 4 | RM_FVT_CATALOG_ADD_V004 | `test_catalog_has_groups_after_add` | functional, positive | Verify catalog has groups after add. | Groups are present. |
-| 5 | RM_FVT_CATALOG_ADD_V005 | `test_catalog_has_packages_after_add` | functional, positive | Verify catalog has packages after add. | Packages are present. |
-
-### Catalog delete (`fvt/catalog/delete/`)
+### Catalog add (`catalog_add/`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_CATALOG_DELETE_E001 | `test_catalog_delete_deploy` | deploy, sanity | Deploy `catalog_delete` playbook. | Playbook exits successfully. |
-| 1 | RM_FVT_CATALOG_DELETE_V001 | `test_catalog_delete_operation_completed` | sanity, positive | Verify catalog delete operation completed successfully. | Delete operation succeeds. |
-| 2 | RM_FVT_CATALOG_DELETE_V002 | `test_catalog_structure_valid_after_delete` | functional, positive | Verify catalog structure still valid after delete. | Catalog structure remains valid. |
-| 3 | RM_FVT_CATALOG_DELETE_V003 | `test_catalog_has_functional_layers_after_delete` | functional, positive | Verify catalog still has functional layers after delete. | Functional layers are present. |
-| 4 | RM_FVT_CATALOG_DELETE_V004 | `test_catalog_has_groups_after_delete` | functional, positive | Verify catalog still has groups after delete. | Groups are present. |
+| 0 | RM_FVT_CATALOG_ADD_E001 | `test_playbook.py::test_deploy_catalog_add` | deploy, sanity | Deploy `catalog_add` playbook. | Playbook exits successfully. |
+| 1 | RM_FVT_CATALOG_ADD_V001 | `add/test_add.py::test_catalog_add_operation_completed` | sanity, positive | Verify catalog add operation completed successfully. | Add operation succeeds. |
+| 2 | RM_FVT_CATALOG_ADD_V002 | `add/test_add.py::test_catalog_structure_valid_after_add` | functional, positive | Verify catalog structure still valid after add. | Catalog structure remains valid. |
+| 3 | RM_FVT_CATALOG_ADD_V003 | `add/test_add.py::test_catalog_has_functional_layers_after_add` | functional, positive | Verify catalog has functional layers after add. | Functional layers are present. |
+| 4 | RM_FVT_CATALOG_ADD_V004 | `add/test_add.py::test_catalog_has_groups_after_add` | functional, positive | Verify catalog has groups after add. | Groups are present. |
+| 5 | RM_FVT_CATALOG_ADD_V005 | `add/test_add.py::test_catalog_has_packages_after_add` | functional, positive | Verify catalog has packages after add. | Packages are present. |
 
-### Catalog validate (`fvt/catalog/validate/`)
-
-| Sequence | TC ID | Test | Markers | Validation | Pass criteria |
-|----------|-------|------|---------|------------|---------------|
-| 0 | RM_FVT_CATALOG_VALIDATE_E001 | `test_catalog_validate_deploy` | deploy, sanity | Deploy `catalog_validate` playbook. | Playbook exits successfully. |
-| 1 | RM_FVT_CATALOG_VALIDATE_V001 | `test_catalog_validation_completed` | sanity, positive | Verify catalog validation completed successfully. | Validation completes. |
-| 2 | RM_FVT_CATALOG_VALIDATE_V002 | `test_catalog_validation_log_exists` | deploy, functional, positive | Verify catalog validation log file exists. | Log file exists. |
-| 3 | RM_FVT_CATALOG_VALIDATE_V003 | `test_catalog_still_valid_after_validation` | functional, positive | Verify catalog file still valid after validation. | Catalog remains valid. |
-
-### Catalog negative (`fvt/catalog/negative/`)
+### Catalog delete (`catalog_delete/`)
 
 | Sequence | TC ID | Test | Markers | Validation | Pass criteria |
 |----------|-------|------|---------|------------|---------------|
-| 1 | RM_FVT_CATALOG_NEG_001 | `test_catalog_generate_missing_input_file` | negative | Verify `catalog_generate` fails with missing input file. | Fails cleanly. |
-| 2 | RM_FVT_CATALOG_NEG_002 | `test_catalog_add_missing_input_file` | negative | Verify `catalog_add` fails with missing input file. | Fails cleanly. |
-| 3 | RM_FVT_CATALOG_NEG_003 | `test_catalog_delete_missing_input_file` | negative | Verify `catalog_delete` fails with missing input file. | Fails cleanly. |
-| 4 | RM_FVT_CATALOG_NEG_004 | `test_catalog_input_directory_validation` | negative | Verify catalog input directory validation. | Invalid input directory is detected. |
-| 5 | RM_FVT_CATALOG_NEG_005 | `test_catalog_structure_validation` | negative | Verify catalog structure validation. | Invalid structure is detected. |
-| 6 | RM_FVT_CATALOG_NEG_006 | `test_catalog_file_existence_validation` | negative | Verify catalog file existence validation. | Missing catalog is detected. |
-| 7 | RM_FVT_CATALOG_NEG_007 | `test_catalog_log_file_validation` | negative | Verify catalog log file validation. | Missing log file is detected. |
+| 0 | RM_FVT_CATALOG_DELETE_E001 | `test_playbook.py::test_deploy_catalog_delete` | deploy, sanity | Deploy `catalog_delete` playbook. | Playbook exits successfully. |
+| 1 | RM_FVT_CATALOG_DELETE_V001 | `delete/test_delete.py::test_catalog_delete_operation_completed` | sanity, positive | Verify catalog delete operation completed successfully. | Delete operation succeeds. |
+| 2 | RM_FVT_CATALOG_DELETE_V002 | `delete/test_delete.py::test_catalog_structure_valid_after_delete` | functional, positive | Verify catalog structure still valid after delete. | Catalog structure remains valid. |
+| 3 | RM_FVT_CATALOG_DELETE_V003 | `delete/test_delete.py::test_catalog_has_functional_layers_after_delete` | functional, positive | Verify catalog still has functional layers after delete. | Functional layers are present. |
+| 4 | RM_FVT_CATALOG_DELETE_V004 | `delete/test_delete.py::test_catalog_has_groups_after_delete` | functional, positive | Verify catalog still has groups after delete. | Groups are present. |
+
+### Catalog validate (`catalog_validate/`)
+
+| Sequence | TC ID | Test | Markers | Validation | Pass criteria |
+|----------|-------|------|---------|------------|---------------|
+| 0 | RM_FVT_CATALOG_VALIDATE_E001 | `test_playbook.py::test_deploy_catalog_validate` | deploy, sanity | Deploy `catalog_validate` playbook. | Playbook exits successfully. |
+| 1 | RM_FVT_CATALOG_VALIDATE_V001 | `validate/test_validate.py::test_catalog_validation_completed` | sanity, positive | Verify catalog validation completed successfully. | Validation completes. |
+| 2 | RM_FVT_CATALOG_VALIDATE_V002 | `validate/test_validate.py::test_catalog_validation_log_exists` | deploy, functional, positive | Verify catalog validation log file exists. | Log file exists. |
+| 3 | RM_FVT_CATALOG_VALIDATE_V003 | `validate/test_validate.py::test_catalog_still_valid_after_validation` | functional, positive | Verify catalog file still valid after validation. | Catalog remains valid. |
+
+### Catalog negative tests (distributed across catalog tag directories)
+
+| TC ID | Location | Test | Pass criteria |
+|-------|----------|------|---------------|
+| RM_FVT_CATALOG_NEG_001 | `catalog_generate/negative/` | `test_catalog_generate_missing_input_file` | Fails cleanly. |
+| RM_FVT_CATALOG_NEG_004 | `catalog_generate/negative/` | `test_catalog_input_directory_validation` | Invalid input directory detected. |
+| RM_FVT_CATALOG_NEG_005 | `catalog_generate/negative/` | `test_catalog_structure_validation` | Invalid structure detected. |
+| RM_FVT_CATALOG_NEG_006 | `catalog_generate/negative/` | `test_catalog_file_existence_validation` | Missing catalog detected. |
+| RM_FVT_CATALOG_NEG_007 | `catalog_generate/negative/` | `test_catalog_log_file_validation` | Missing log file detected. |
+| RM_FVT_CATALOG_NEG_002 | `catalog_add/negative/` | `test_catalog_add_missing_input_file` | Fails cleanly. |
+| RM_FVT_CATALOG_NEG_003 | `catalog_delete/negative/` | `test_catalog_delete_missing_input_file` | Fails cleanly. |
 
 ## Registry summary
 
 | Phase | Execution IDs | Verification IDs | Total | Notes |
 |-------|---------------|------------------|-------|-------|
-| Precheck | `RM_FVT_PRECHECK_E001` | `RM_FVT_PRECHECK_V001`--`V004` | 5 | Input and credential validation. |
-| Prepare | `RM_FVT_PREPARE_E001`--`E003` | `RM_FVT_PREPARE_V001`--`V007` | 10 | Pulp infrastructure deployment. |
-| Execute | `RM_FVT_EXECUTE_E001` | `RM_FVT_EXECUTE_V001`--`V014` | 15 | Repository download and sync. |
-| Status | `RM_FVT_STATUS_E001` | `RM_FVT_STATUS_V001`--`V002` | 3 | Status generation. |
-| Cleanup | `RM_FVT_CLEANUP_E001` | `RM_FVT_CLEANUP_V001`--`V003` | 4 | Full Pulp cleanup. |
+| Precheck | `RM_FVT_PRECHECK_E001` | `RM_FVT_PRECHECK_V001`--`V004` + `NEG_001`,`NEG_002`,`NEG_009` | 8 | Input/credential validation + negative. |
+| Prepare | `RM_FVT_PREPARE_E001`--`E003` | `RM_FVT_PREPARE_V001`--`V007` + `NEG_006`,`NEG_010` | 12 | Pulp infrastructure + negative. |
+| Execute | `RM_FVT_EXECUTE_E001` | `RM_FVT_EXECUTE_V001`--`V014` + `POLICY_V001`--`V021` + `NEG_003`,`NEG_007`,`NEG_008` | 39 | Repos, artifacts, policy, negative. |
+| Status | `RM_FVT_STATUS_E001` | `RM_FVT_STATUS_V001`--`V002` + `NEG_004` | 4 | Status generation + negative. |
+| Cleanup | `RM_FVT_CLEANUP_E001` | `RM_FVT_CLEANUP_V001`--`V003` + `NEG_005` | 5 | Full Pulp cleanup + negative. |
 | Selective cleanup | `RM_FVT_CLEANUP_REPOS_E001` | `RM_FVT_CLEANUP_REPOS_V001`--`V003` | 4 | Exact repository cleanup. |
-| Policy | -- | `RM_FVT_POLICY_V001`--`V021` | 21 | Repository policy verification. |
-| User registry | `RM_FVT_USER_REGISTRY_E001` | `RM_FVT_USER_REGISTRY_V001`--`V008`, `NEG_001`--`NEG_006` | 15 | User registry validation. |
-| Negative | -- | `RM_FVT_NEG_001`--`NEG_010` | 10 | Error scenario verification. |
-| Catalog generate | `RM_FVT_CATALOG_GENERATE_E001` | `RM_FVT_CATALOG_GENERATE_V001`--`V007` | 8 | Catalog generation. |
-| Catalog add | `RM_FVT_CATALOG_ADD_E001` | `RM_FVT_CATALOG_ADD_V001`--`V005` | 6 | Catalog add operation. |
-| Catalog delete | `RM_FVT_CATALOG_DELETE_E001` | `RM_FVT_CATALOG_DELETE_V001`--`V004` | 5 | Catalog delete operation. |
+| Catalog generate | `RM_FVT_CATALOG_GENERATE_E001` | `RM_FVT_CATALOG_GENERATE_V001`--`V007` + `CATALOG_NEG_001`,`004`--`007` | 13 | Catalog generation + negative. |
+| Catalog add | `RM_FVT_CATALOG_ADD_E001` | `RM_FVT_CATALOG_ADD_V001`--`V005` + `CATALOG_NEG_002` | 7 | Catalog add + negative. |
+| Catalog delete | `RM_FVT_CATALOG_DELETE_E001` | `RM_FVT_CATALOG_DELETE_V001`--`V004` + `CATALOG_NEG_003` | 6 | Catalog delete + negative. |
 | Catalog validate | `RM_FVT_CATALOG_VALIDATE_E001` | `RM_FVT_CATALOG_VALIDATE_V001`--`V003` | 4 | Catalog validate operation. |
-| Catalog negative | -- | `RM_FVT_CATALOG_NEG_001`--`NEG_007` | 7 | Catalog negative tests. |
+| User registry | `RM_FVT_USER_REGISTRY_E001` | `RM_FVT_USER_REGISTRY_V001`--`V008`, `NEG_001`--`NEG_006` | 15 | User registry validation. |
 | **Total FVT** | | | **117** | |
 
 ## Execution commands
@@ -326,16 +332,13 @@ Run from `test/repo_manager/`:
 ./run_validation.sh fvt_repo_manager verify
 
 # Focused verification
-./run_validation.sh fvt_repo_manager policy verify
 ./run_validation.sh fvt_repo_manager user_registry test
-./run_validation.sh fvt_repo_manager negative verify
 
-# Catalog operations (one suite at a time)
-./run_validation.sh fvt_repo_manager catalog test --suite generate
-./run_validation.sh fvt_repo_manager catalog test --suite add
-./run_validation.sh fvt_repo_manager catalog test --suite delete
-./run_validation.sh fvt_repo_manager catalog test --suite validate
-./run_validation.sh fvt_repo_manager catalog verify --suite negative
+# Catalog operations (each is its own tag)
+./run_validation.sh fvt_repo_manager catalog_generate test
+./run_validation.sh fvt_repo_manager catalog_add test
+./run_validation.sh fvt_repo_manager catalog_delete test
+./run_validation.sh fvt_repo_manager catalog_validate test
 
 # Destructive flows; run only when explicit
 ./run_validation.sh fvt_repo_manager cleanup test --marker destructive

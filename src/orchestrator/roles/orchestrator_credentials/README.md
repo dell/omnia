@@ -1,35 +1,60 @@
-# Orchestrator credentials role
+# orchestrator_credentials
 
-## Overview
+Creates, validates, loads, and updates the project-scoped credential store used
+by Orchestrator.
 
-Creates, loads, and updates the credentials owned by the Orchestrator domain.
-Credentials are stored in a project-scoped Ansible Vault file and are exposed
-as facts for downstream Orchestrator roles during the current playbook run.
+## What It Does
 
-## Responsibilities
+1. Creates the credential template and a root-owned Vault key when absent.
+2. Recovers a plaintext credential file left by an interrupted run.
+3. Loads existing values without printing secret content.
+4. Prompts for missing or invalid provisioning credentials.
+5. Collects conditional Slurm, OpenLDAP, and PowerScale CSI credentials only
+   when those features are enabled.
+6. Reloads the final values as facts and re-encrypts the file.
+7. Skips repeated collection after credentials are loaded in the current run.
 
-- Create the credential file and vault key when they do not exist.
-- Recover and encrypt a plaintext credential file left by an interrupted run.
-- Prompt for mandatory credentials that are missing or no longer satisfy the
-  current validation rules.
-- Collect conditional credentials for enabled Slurm, OpenLDAP, and PowerScale
-  CSI functionality.
-- Reload the final values and re-encrypt the credential file.
-- Skip repeated collection after credentials are loaded in the current run.
+## Requirements
 
-Sensitive credential values are loaded with `no_log: true`. The role reports
-only the names of available credential keys, never their values.
+- Interactive input for credentials that are not already valid.
+- `ansible-vault` available in the active Omnia environment.
+- Project paths and feature flags established by `orchestrator_setup`.
 
-When a stored value is invalid, the role requests a replacement through the
-same confirmation and update flow used for a missing value. The credential
-file is decrypted only for the update and is re-encrypted before the role
-continues.
+## Role Variables
 
-## Role variables
+| Variable | Purpose |
+|----------|---------|
+| `credential_files` | Credential, Vault-key, template, and permission definitions |
+| `orchestrator_credentials_definitions` | Mandatory and conditional credential fields |
+| `orchestrator_credentials_loaded` | Prevent duplicate collection in one run |
 
-Credential paths, field definitions, and user-facing messages are declared in
-`vars/main.yml`. The role relies on project paths and feature flags established
-by `orchestrator_setup`.
+Complete field rules and messages are in `vars/main.yml`.
+
+## Outputs
+
+```text
+<ORCHESTRATOR_DATA_PATH>/input/<project>/orchestrator_credentials.yml
+<ORCHESTRATOR_DATA_PATH>/input/<project>/.orchestrator_credentials_key
+```
+
+The credential file is Ansible Vault encrypted. Sensitive task output uses
+`no_log`; summary output contains key names only.
+
+## Dependencies
+
+No automatic dependency is declared in `meta/main.yml`.
+
+## Example
+
+```yaml
+- hosts: localhost
+  connection: local
+  roles:
+    - orchestrator_credentials
+```
+
+The normal entry point is `orchestrator.yml --tags credentials` or
+`orchestrator.yml --tags prepare`.
 
 ## License
 

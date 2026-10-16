@@ -16,10 +16,6 @@
 # Slurm Post-Cleanup Task
 # Verifies cleanup success and updates component state
 
-- name: Set role path
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-
 - name: Load Slurm component configuration
   ansible.builtin.include_vars:
     file: "{{ role_path }}/components/slurm/vars/component_spec.yml"

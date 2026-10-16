@@ -123,7 +123,7 @@ log_file:
 VALIDATION_LOG_PATH = "/var/log/omnia/build_stream/"  # Default — overridden by log_dir param
 
 
-def run_module():
+def run_module() -> None:
     """Main entry point for the Ansible module."""
     module_args = dict(
         input_project_dir=dict(type="str", required=True),
@@ -245,7 +245,7 @@ def run_module():
     )
 
 
-def main():
+def main() -> None:
     """Main entry point."""
     run_module()
 

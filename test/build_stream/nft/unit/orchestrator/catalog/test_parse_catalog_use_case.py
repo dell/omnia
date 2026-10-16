@@ -210,7 +210,7 @@ class TestUniquenessCheck:
         result = use_case.execute(cmd)
 
         assert result.stage_state == "COMPLETED"
-        assert result.image_group_id == "new-group-id"
+        assert result.image_group_id == "new-group-id-v1.0"
         assert stage_repo.find_by_job_and_name(
             jid, StageName(StageType.PARSE_CATALOG.value)
         ).stage_state.value == "COMPLETED"
@@ -237,7 +237,7 @@ class TestUniquenessCheck:
             artifact_store=artifact_store,
             artifact_metadata_repo=artifact_metadata_repo,
             image_group_repo=FakeImageGroupRepo(
-                existing_ids={"omnia-services-rhel-10-0-slurm-test"}
+                existing_ids={"omnia-services-rhel-10-0-slurm-test-v1.0"}
             ),
         )
         cmd = ParseCatalogCommand(job_id=jid, client_id=client, correlation_id=_correlation_id())
@@ -298,7 +298,7 @@ class TestUniquenessCheck:
         cmd = ParseCatalogCommand(job_id=jid, client_id=client, correlation_id=_correlation_id())
 
         result = use_case.execute(cmd)
-        assert result.image_group_id == "lowercase-group-id"
+        assert result.image_group_id == "lowercase-group-id-v1.0"
 
 
 # ---------------------------------------------------------------------------
@@ -505,4 +505,275 @@ class TestStageGuards:
 
         result = use_case.execute(cmd)
         assert result.stage_state == "COMPLETED"
-        assert result.image_group_id == "retry-group"
+        assert result.image_group_id == "retry-group-v1.0"
+
+
+# ---------------------------------------------------------------------------
+# TC-UT-002: Schema Version Validation (ER-BSM-002)
+# ---------------------------------------------------------------------------
+
+class TestSchemaVersionValidation:
+    """Test cases for catalog schema version validation (FR-2B.1, AC-013).
+    
+    Validates that ParseCatalogUseCase properly validates schema_version
+    field presence and compatibility, recording it in Job and ImageGroup entities.
+    """
+
+    def test_parse_catalog_with_valid_schema_version(self):
+        """Catalog with valid SchemaVersion=2 is accepted.
+        
+        Scenario: Parse catalog with valid schema version
+          Given a catalog with catalog_schema_version: 2
+          And the catalog structure matches the Omnia 2.3 schema
+          When ParseCatalogUseCase processes the catalog
+          Then the catalog is accepted
+          And catalog_schema_version is recorded in the Job entity
+          And no validation error is raised
+        """
+        # Arrange
+        jid = _job_id()
+        client = _client_id()
+        job_repo = InMemoryJobRepository()
+        stage_repo = InMemoryStageRepository()
+        _make_job_and_stage(job_repo, stage_repo, jid, client)
+
+        artifact_store = FakeArtifactStore()
+        artifact_metadata_repo = FakeArtifactMetadataRepo()
+        
+        catalog_data = {
+            "Catalog": {
+                "Identifier": "omnia-slurm-rhel-10-0-x86-64-aarch64",
+                "Version": "1.0",
+                "SchemaVersion": 2,
+                "Name": "Omnia Slurm Stack",
+                "FunctionalLayer": [
+                    {"Name": "slurm_node_rhel_10_0_x86_64"},
+                ],
+            }
+        }
+        _upload_catalog(artifact_store, artifact_metadata_repo, jid, catalog_data)
+
+        use_case = _build_use_case(
+            job_repo=job_repo,
+            stage_repo=stage_repo,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+            image_group_repo=FakeImageGroupRepo(existing_ids=set()),
+        )
+        cmd = ParseCatalogCommand(job_id=jid, client_id=client, correlation_id=_correlation_id())
+
+        # Act
+        result = use_case.execute(cmd)
+
+        # Assert
+        assert result.stage_state == "COMPLETED"
+        assert result.image_group_id == "omnia-slurm-rhel-10-0-x86-64-aarch64-v1.0"
+
+        # Verify schema_version recorded in Job entity
+        job = job_repo.find_by_id(jid)
+        assert job.catalog_schema_version == 2
+        assert job.catalog_identifier == "omnia-slurm-rhel-10-0-x86-64-aarch64"
+        assert job.catalog_version == "1.0"
+
+    def test_parse_catalog_with_schema_version_1(self):
+        """Catalog with SchemaVersion=1 (legacy) is accepted.
+        
+        Scenario: Parse catalog with legacy schema version
+          Given a catalog with catalog_schema_version: 1
+          When ParseCatalogUseCase processes the catalog
+          Then the catalog is accepted (backward compatibility)
+          And catalog_schema_version=1 is recorded in the Job entity
+        """
+        # Arrange
+        jid = _job_id()
+        client = _client_id()
+        job_repo = InMemoryJobRepository()
+        stage_repo = InMemoryStageRepository()
+        _make_job_and_stage(job_repo, stage_repo, jid, client)
+
+        artifact_store = FakeArtifactStore()
+        artifact_metadata_repo = FakeArtifactMetadataRepo()
+        
+        catalog_data = {
+            "Catalog": {
+                "Identifier": "legacy-catalog",
+                "Version": "1.0",
+                "SchemaVersion": 1,
+                "Name": "Legacy Catalog",
+                "FunctionalLayer": [],
+            }
+        }
+        _upload_catalog(artifact_store, artifact_metadata_repo, jid, catalog_data)
+
+        use_case = _build_use_case(
+            job_repo=job_repo,
+            stage_repo=stage_repo,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+            image_group_repo=FakeImageGroupRepo(existing_ids=set()),
+        )
+        cmd = ParseCatalogCommand(job_id=jid, client_id=client, correlation_id=_correlation_id())
+
+        # Act
+        result = use_case.execute(cmd)
+
+        # Assert
+        assert result.stage_state == "COMPLETED"
+        
+        # Verify schema_version recorded in Job entity
+        job = job_repo.find_by_id(jid)
+        assert job.catalog_schema_version == 1
+
+    def test_parse_catalog_without_schema_version_defaults_to_1(self):
+        """Catalog without SchemaVersion field defaults to 1 for backward compatibility.
+        
+        Scenario: Parse catalog without schema version
+          Given a catalog without the catalog_schema_version field
+          When ParseCatalogUseCase processes the catalog
+          Then the catalog is accepted (defaults to schema version 1)
+          And catalog_schema_version=1 is recorded in the Job entity
+        """
+        # Arrange
+        jid = _job_id()
+        client = _client_id()
+        job_repo = InMemoryJobRepository()
+        stage_repo = InMemoryStageRepository()
+        _make_job_and_stage(job_repo, stage_repo, jid, client)
+
+        artifact_store = FakeArtifactStore()
+        artifact_metadata_repo = FakeArtifactMetadataRepo()
+        
+        # Catalog without SchemaVersion field
+        catalog_data = {
+            "Catalog": {
+                "Identifier": "no-schema-version",
+                "Version": "1.0",
+                "Name": "No Schema Version Catalog",
+                "FunctionalLayer": [],
+            }
+        }
+        _upload_catalog(artifact_store, artifact_metadata_repo, jid, catalog_data)
+
+        use_case = _build_use_case(
+            job_repo=job_repo,
+            stage_repo=stage_repo,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+            image_group_repo=FakeImageGroupRepo(existing_ids=set()),
+        )
+        cmd = ParseCatalogCommand(job_id=jid, client_id=client, correlation_id=_correlation_id())
+
+        # Act
+        result = use_case.execute(cmd)
+
+        # Assert
+        assert result.stage_state == "COMPLETED"
+        
+        # Verify schema_version defaults to 1
+        job = job_repo.find_by_id(jid)
+        assert job.catalog_schema_version == 1
+
+    def test_parse_catalog_composite_image_group_id_format(self):
+        """Composite ImageGroupID follows {identifier}-v{version} format.
+        
+        Scenario: Generate composite ImageGroupID
+          Given catalog.identifier is "omnia-slurm-rhel-10-0-x86-64-aarch64"
+          And catalog.version is "1.2"
+          When ParseCatalogUseCase processes the catalog
+          Then the composite ImageGroupID is "omnia-slurm-rhel-10-0-x86-64-aarch64-v1.2"
+          And the format is "{identifier}-v{version}"
+        """
+        # Arrange
+        jid = _job_id()
+        client = _client_id()
+        job_repo = InMemoryJobRepository()
+        stage_repo = InMemoryStageRepository()
+        _make_job_and_stage(job_repo, stage_repo, jid, client)
+
+        artifact_store = FakeArtifactStore()
+        artifact_metadata_repo = FakeArtifactMetadataRepo()
+        
+        catalog_data = {
+            "Catalog": {
+                "Identifier": "omnia-slurm-rhel-10-0-x86-64-aarch64",
+                "Version": "1.2",
+                "SchemaVersion": 2,
+                "Name": "Omnia Slurm v1.2",
+                "FunctionalLayer": [],
+            }
+        }
+        _upload_catalog(artifact_store, artifact_metadata_repo, jid, catalog_data)
+
+        use_case = _build_use_case(
+            job_repo=job_repo,
+            stage_repo=stage_repo,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+            image_group_repo=FakeImageGroupRepo(existing_ids=set()),
+        )
+        cmd = ParseCatalogCommand(job_id=jid, client_id=client, correlation_id=_correlation_id())
+
+        # Act
+        result = use_case.execute(cmd)
+
+        # Assert
+        assert result.stage_state == "COMPLETED"
+        assert result.image_group_id == "omnia-slurm-rhel-10-0-x86-64-aarch64-v1.2"
+
+        # Verify Job entity has correct catalog metadata
+        job = job_repo.find_by_id(jid)
+        assert job.catalog_identifier == "omnia-slurm-rhel-10-0-x86-64-aarch64"
+        assert job.catalog_version == "1.2"
+        assert job.catalog_schema_version == 2
+
+    def test_parse_catalog_version_field_recorded(self):
+        """Catalog version field is recorded separately in Job entity.
+        
+        Scenario: Catalog version tracking
+          Given a catalog with Version="2.5"
+          When ParseCatalogUseCase processes the catalog
+          Then Job.catalog_version is "2.5"
+          And Job.catalog_identifier is recorded
+          And Job.composite_image_group_id combines both
+        """
+        # Arrange
+        jid = _job_id()
+        client = _client_id()
+        job_repo = InMemoryJobRepository()
+        stage_repo = InMemoryStageRepository()
+        _make_job_and_stage(job_repo, stage_repo, jid, client)
+
+        artifact_store = FakeArtifactStore()
+        artifact_metadata_repo = FakeArtifactMetadataRepo()
+        
+        catalog_data = {
+            "Catalog": {
+                "Identifier": "test-catalog",
+                "Version": "2.5",
+                "SchemaVersion": 2,
+                "Name": "Test Catalog v2.5",
+                "FunctionalLayer": [],
+            }
+        }
+        _upload_catalog(artifact_store, artifact_metadata_repo, jid, catalog_data)
+
+        use_case = _build_use_case(
+            job_repo=job_repo,
+            stage_repo=stage_repo,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+            image_group_repo=FakeImageGroupRepo(existing_ids=set()),
+        )
+        cmd = ParseCatalogCommand(job_id=jid, client_id=client, correlation_id=_correlation_id())
+
+        # Act
+        result = use_case.execute(cmd)
+
+        # Assert
+        assert result.stage_state == "COMPLETED"
+        
+        # Verify all catalog metadata fields recorded
+        job = job_repo.find_by_id(jid)
+        assert job.catalog_identifier == "test-catalog"
+        assert job.catalog_version == "2.5"
+        assert job.catalog_schema_version == 2

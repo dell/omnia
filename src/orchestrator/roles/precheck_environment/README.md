@@ -1,28 +1,48 @@
-# Precheck environment role
+# precheck_environment
 
-## Overview
+Performs read-only checks of the OIM environment before deployment or
+provisioning.
 
-Performs read-only checks of the OIM environment before Orchestrator proceeds
-with deployment and provisioning operations.
+## What It Does
 
-## Responsibilities
+- Checks whether `/etc/omnia/omnia.env` is installed.
+- Cross-validates configured hostname, domain, management address, and data
+  paths through `validate_system_environment`.
+- Locates Image Build Manager `build_status.yml` for the active project.
+- Checks functional-group image coverage when build results are available.
+- Verifies referenced kernel artifacts in S3.
+- Displays a consolidated per-check summary.
 
-- Check whether the system-wide `omnia.env` file is installed.
-- Cross-validate the configured hostname, domain, management address, and data
-  paths.
-- Locate the Image Build Manager `build_status.yml` for the active project.
-- Inspect functional-group image status when build results are available.
-- Display a consolidated environment precheck summary.
+Missing environment and build-status artifacts are warnings in this role;
+environment inconsistencies reported by the validation module remain failures.
 
-Missing `omnia.env` and build-status artifacts are reported as warnings by the
-current role implementation. Environment inconsistencies reported by the
-validation module remain validation failures.
+## Requirements
 
-## Role variables
+- Local execution on the OIM/controller.
+- Resolved environment and project facts from the calling setup workflow.
+- Network access to S3 when image artifacts are validated.
 
-The environment-file path and warning messages are declared in
-`vars/main.yml`. Resolved environment and project facts are supplied by
-`orchestrator_setup`.
+## Role Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `system_env_file` | `/etc/omnia/omnia.env` | Installed environment file |
+| `build_status_path` | Project-derived | Image Build Manager output checked by the role |
+
+Messages are defined in `vars/main.yml`.
+
+## Dependencies
+
+No automatic dependency is declared in `meta/main.yml`.
+
+## Example
+
+```yaml
+- hosts: localhost
+  connection: local
+  roles:
+    - precheck_environment
+```
 
 ## License
 

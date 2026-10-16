@@ -90,6 +90,44 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "Verify discovery report CSV created",
     },
 
+    # ── Execute — PXE Mapping Validation (V007-V009, V014) ──────────────────
+    "functional_groups_supported": {
+        "id": "DISCOVERY_FVT_EXECUTE_V007",
+        "title": "Verify all functional groups follow Omnia 2.3 pattern",
+    },
+    "ip_correlation": {
+        "id": "DISCOVERY_FVT_EXECUTE_V008",
+        "title": "Verify ADMIN_IP/IB_IP correlation with BMC_IP",
+    },
+    "parent_service_tag": {
+        "id": "DISCOVERY_FVT_EXECUTE_V009",
+        "title": "Verify PARENT_SERVICE_TAG references (optional - validate if present)",
+    },
+
+    # ── Execute — OME Integration Validation (V010-V013) ────────────────────
+    "ome_static_groups_match": {
+        "id": "DISCOVERY_FVT_EXECUTE_V010",
+        "title": "Verify OME static groups match PXE mapping functional groups",
+    },
+    "ome_unassigned_devices": {
+        "id": "DISCOVERY_FVT_EXECUTE_V011",
+        "title": "Verify OME devices without static group assignment",
+    },
+    "admin_mac_validation": {
+        "id": "DISCOVERY_FVT_EXECUTE_V012",
+        "title": "Verify ADMIN_MAC matches OME first active non-iDRAC NIC",
+    },
+    "ib_nic_name_validation": {
+        "id": "DISCOVERY_FVT_EXECUTE_V013",
+        "title": "Verify IB_NIC_NAME matches OME first active InfiniBand NIC",
+    },
+
+    # ── Execute — Contract Tests (V014) ─────────────────────────────────────
+    "pxe_mapping_orchestrator_contract": {
+        "id": "DISCOVERY_FVT_EXECUTE_V014",
+        "title": "Verify PXE mapping CSV format for Orchestrator compatibility",
+    },
+
     # ── Discovery (Full Run) ────────────────────────────────────────────────
     "deploy_discovery": {
         "id": "DISCOVERY_FVT_DISCOVERY_E001",
@@ -148,25 +186,25 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
 
     # ── NFT — Performance ──────────────────────────────────────────────────
     "precheck_performance": {
-        "id": "DISC_NFT_001",
+        "id": "DISCOVERY_NFT_001",
         "title": "NFT: Precheck completes within threshold",
     },
     "execute_performance": {
-        "id": "DISC_NFT_002",
+        "id": "DISCOVERY_NFT_002",
         "title": "NFT: Execute completes within threshold",
     },
     "cleanup_performance": {
-        "id": "DISC_NFT_003",
+        "id": "DISCOVERY_NFT_003",
         "title": "NFT: Cleanup completes within threshold",
     },
 
     # ── NFT — Idempotency ──────────────────────────────────────────────────
     "precheck_idempotent": {
-        "id": "DISC_NFT_004",
+        "id": "DISCOVERY_NFT_004",
         "title": "NFT: Precheck idempotent (two runs succeed)",
     },
     "cleanup_idempotent": {
-        "id": "DISC_NFT_005",
+        "id": "DISCOVERY_NFT_005",
         "title": "NFT: Cleanup idempotent (two runs succeed, state clean)",
     },
 }

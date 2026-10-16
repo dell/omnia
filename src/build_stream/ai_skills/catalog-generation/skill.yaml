@@ -1,0 +1,25 @@
+name: catalog-generation
+version: 1.0.0
+description: >-
+  Generates Omnia catalogs from operator-described roles, OS families/versions, architectures, and
+  packages. Use when creating single-platform, hybrid-OS, or mixed-stack catalogs from verified
+  catalog and consumer support.
+author: Omnia Build Stream Team
+role: engineering
+domain: catalog-authoring
+tags:
+  - catalog
+  - generation
+  - omnia
+  - slurm
+  - kubernetes
+  - schema-validation
+dependencies:
+  - catalog-selection-gate
+  - compatibility-analysis
+  - connectivity-layer
+  - working-directory
+  - skill-scope
+status: active
+created: 2026-09-29
+updated: 2026-10-16

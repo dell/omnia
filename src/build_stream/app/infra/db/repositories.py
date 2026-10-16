@@ -18,7 +18,7 @@ These implement the repository Protocol ports defined in core/jobs/repositories.
 using SQLAlchemy ORM against PostgreSQL.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 
 from sqlalchemy import select, func
@@ -169,7 +169,7 @@ class SqlStageRepository:
             StageModel.stage_name == stage.stage_name.value,
         )
         existing = self.session.execute(stmt).scalar_one_or_none()
-        
+
         if existing:
             if existing.version != stage.version - 1:
                 raise OptimisticLockError(
@@ -344,7 +344,7 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
     def save(self, record: ArtifactRecord) -> None:
         """Save an artifact record to the database."""
         from infra.db.models import ArtifactMetadata
-        
+
         db_record = ArtifactMetadata(
             id=record.id,
             job_id=str(record.job_id),
@@ -367,7 +367,7 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
     ) -> Optional[ArtifactRecord]:
         """Get artifact record by job ID and label."""
         from infra.db.models import ArtifactMetadata
-        
+
         db_record = (
             self._session.query(ArtifactMetadata)
             .filter(
@@ -376,10 +376,10 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
             )
             .first()
         )
-        
+
         if not db_record:
             return None
-            
+
         return self._db_record_to_entity(db_record)
 
     def find_by_job_stage_and_label(
@@ -390,7 +390,7 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
     ) -> Optional[ArtifactRecord]:
         """Find an artifact record by job, stage, and label."""
         from infra.db.models import ArtifactMetadata
-        
+
         db_record = (
             self._session.query(ArtifactMetadata)
             .filter(
@@ -400,28 +400,28 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
             )
             .first()
         )
-        
+
         if not db_record:
             return None
-            
+
         return self._db_record_to_entity(db_record)
 
     def list_by_job_id(self, job_id: JobId) -> List[ArtifactRecord]:
         """List all artifact records for a job."""
         from infra.db.models import ArtifactMetadata
-        
+
         db_records = (
             self._session.query(ArtifactMetadata)
             .filter(ArtifactMetadata.job_id == str(job_id))
             .all()
         )
-        
+
         return [self._db_record_to_entity(r) for r in db_records]
 
     def _db_record_to_entity(self, db_record) -> ArtifactRecord:
         """Convert database record to domain entity."""
         from infra.db.models import ArtifactMetadata
-        
+
         artifact_ref_data = db_record.artifact_ref
         artifact_ref = ArtifactRef(
             key=ArtifactKey(artifact_ref_data["key"]),
@@ -429,7 +429,7 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
             size_bytes=artifact_ref_data["size_bytes"],
             uri=artifact_ref_data["uri"],
         )
-        
+
         return ArtifactRecord(
             id=db_record.id,
             job_id=JobId(db_record.job_id),
@@ -650,6 +650,89 @@ class SqlImageGroupRepository(ImageGroupRepository):
             )
         )
         return self.session.execute(stmt).scalar() or 0
+
+    def increment_deploy_count(
+        self, image_group_id: ImageGroupId
+    ) -> None:
+        """Atomically increment deploy_count and set last_deployed_at."""
+        model = self.session.get(ImageGroupModel, str(image_group_id))
+        if model:
+            model.deploy_count = (model.deploy_count or 0) + 1
+            model.last_deployed_at = datetime.now(timezone.utc)
+            model.updated_at = datetime.now(timezone.utc)
+            self.session.flush()
+
+    def list_eligible_for_retention(
+        self,
+        max_age_days: int,
+        min_keep_count: int,
+    ) -> List[ImageGroup]:
+        """Return ImageGroups eligible for age-based retention.
+
+        Filters: not protected, older than max_age_days, deploy_count=0,
+        not CLEANED/CLEANING status.  The min_keep_count check is applied
+        in Python after grouping by catalog_identifier (functional group
+        proxy) because SQL window-function support varies.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+
+        stmt = (
+            select(ImageGroupModel)
+            .where(
+                ImageGroupModel.is_protected.is_(False),
+                ImageGroupModel.deploy_count == 0,
+                ImageGroupModel.created_at < cutoff,
+                ImageGroupModel.status.notin_([
+                    ImageGroupStatus.CLEANED.value,
+                    ImageGroupStatus.CLEANING.value,
+                ]),
+            )
+            .options(selectinload(ImageGroupModel.images))
+            .order_by(ImageGroupModel.created_at.asc())
+        )
+        result = self.session.execute(stmt)
+        candidates = [
+            ImageGroupMapper.to_domain(m)
+            for m in result.scalars().unique().all()
+        ]
+
+        # Enforce min_keep_count per catalog_identifier (functional group proxy)
+        if min_keep_count <= 0:
+            return candidates
+
+        # Count total non-CLEANED groups per catalog_identifier
+        count_stmt = (
+            select(
+                ImageGroupModel.catalog_identifier,
+                func.count().label("total"),
+            )
+            .where(
+                ImageGroupModel.status.notin_([
+                    ImageGroupStatus.CLEANED.value,
+                    ImageGroupStatus.CLEANING.value,
+                ]),
+            )
+            .group_by(ImageGroupModel.catalog_identifier)
+        )
+        count_result = self.session.execute(count_stmt)
+        group_counts = {
+            row.catalog_identifier: row.total
+            for row in count_result
+        }
+
+        eligible = []
+        # Track how many we plan to delete per group to avoid
+        # going below min_keep_count
+        pending_deletes: dict = {}
+        for ig in candidates:
+            cat_id = ig.catalog_identifier or "__unknown__"
+            total = group_counts.get(cat_id, 0)
+            already_pending = pending_deletes.get(cat_id, 0)
+            if total - already_pending > min_keep_count:
+                eligible.append(ig)
+                pending_deletes[cat_id] = already_pending + 1
+
+        return eligible
 
     def list_by_status_all(
         self, status: ImageGroupStatus

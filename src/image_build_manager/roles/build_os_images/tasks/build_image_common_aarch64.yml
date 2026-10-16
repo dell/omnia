@@ -15,7 +15,7 @@
 
 - name: Fail if s3_configurations not loaded
   ansible.builtin.fail:
-    msg: "s3_configurations is not defined. Ensure image_build_config.yml is loaded before this role."
+    msg: "{{ s3_configurations_missing_fail_msg }}"
   when: s3_configurations is not defined
 
 - name: Set facts for aarch64 image templates vars
@@ -24,11 +24,16 @@
     host_name: "{{ hostvars['localhost']['host_name'] }}"
     domain_name: "{{ hostvars['localhost']['domain_name'] }}"
     rhel_arch_repos: "{{ hostvars['localhost']['rhel_arch_repos'] }}"
+    rhel_arch_repos_by_version: "{{ hostvars['localhost']['rhel_arch_repos_by_version'] | default({}) }}"
     base_image_packages: "{{ hostvars['localhost']['base_image_packages'] }}"
+    base_image_packages_by_version: "{{ hostvars['localhost']['base_image_packages_by_version'] | default({}) }}"
     compute_images_dict: "{{ hostvars['localhost']['compute_images_dict'] }}"
+    cluster_os_versions: "{{ hostvars['localhost']['cluster_os_versions'] | default([]) }}"
 
 # Compute a hash of the repo configuration (URLs, priorities, names) so the
 # build cache is invalidated when repo settings change — not just packages.
+# When multiple OS versions are present, compute a per-version hash so each
+# base image tracks its own repo fingerprint independently.
 - name: Compute repo configuration hash
   ansible.builtin.set_fact:
     _repo_config_hash: >-
@@ -38,27 +43,44 @@
          | sort
          | join('|')
          | hash('sha256') }}
+    _repo_config_hash_by_version: >-
+      {% set result = {} -%}
+      {% for ver, repos in (rhel_arch_repos_by_version | default({})).items() -%}
+        {% set h = repos | map('dictsort') | map('join', '=')
+                         | sort | join('|') | hash('sha256') -%}
+        {% set _ = result.update({ver: h}) -%}
+      {% endfor -%}
+      {{ result }}
 
 - name: Configure registry host and regctl TLS
   ansible.builtin.include_tasks: configure_registry.yml
 
-- name: Compute image tag suffix from source and job_id
+- name: Compute image tag suffix inputs
   ansible.builtin.set_fact:
     _pkg_source: "{{ hostvars['localhost']['functional_groups_source'] | default('config') }}"
     _catalog_id: "{{ hostvars['localhost']['catalog_identifier'] | default('', true) }}"
+    _catalog_version: "{{ hostvars['localhost']['catalog_version'] | default('', true) }}"
+    _catalog_schema_version: "{{ hostvars['localhost']['catalog_schema_version'] | default('', true) }}"
     _job_id: "{{ hostvars['localhost']['job_id'] | default('', true) }}"
     base_image_suffix: ""
     compute_image_suffix: ""
     aarch64_build_host: "{{ groups['admin_aarch64'][0] }}"
 
+- name: Set catalog image group identifier
+  ansible.builtin.set_fact:
+    _catalog_image_group_id: >-
+      {{ _catalog_id ~ ('-v' ~ _catalog_version
+         if (_catalog_version | length) > 0 else '') }}
+  when: _pkg_source == 'catalog'
+
 - name: Build image tag suffix
   ansible.builtin.set_fact:
     _image_tag_suffix: >-
       {%- set parts = [] -%}
-      {%- if _pkg_source == 'catalog' and (_catalog_id | default('', true) | length) > 0 -%}
-        {%- set _ = parts.append(_catalog_id) -%}
-      {%- endif -%}
-      {%- if (_job_id | default('', true) | length) > 0 -%}
+      {%- if _pkg_source == 'catalog'
+             and (_catalog_image_group_id | default('', true) | length) > 0 -%}
+        {%- set _ = parts.append(_catalog_image_group_id) -%}
+      {%- elif (_job_id | default('', true) | length) > 0 -%}
         {%- set _ = parts.append(_job_id) -%}
       {%- endif -%}
       {{ ('_' + parts | join('_')) if parts | length > 0 else '' }}
@@ -104,5 +126,5 @@
 
 - name: Fail if Podman container runtime is broken
   ansible.builtin.fail:
-    msg: "{{ podman_verify_fail_msg }} Error: {{ _podman_verify.stderr | default('unknown') }}"
+    msg: "{{ podman_verify_error_fail_msg }}"
   when: _podman_verify.rc != 0

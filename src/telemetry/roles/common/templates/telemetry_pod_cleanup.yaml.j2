@@ -75,8 +75,13 @@ spec:
                         cleanup_pod="pvc-clean-$RANDOM"
 
                         # Create cleanup pod - remove lock files recursively
-                        kubectl run $cleanup_pod --image=busybox:1.36 -n telemetry --restart=Never \
-                          --overrides="{\"spec\":{\"containers\":[{\"name\":\"cleanup\",\"image\":\"busybox:1.36\",\"command\":[\"sh\",\"-c\",\"echo 'Cleaning lock files in /data...'; find /data -type f \\\\( -name '.lock' -o -name '*.lock' -o -name '*.sock' -o -name '*.pid' \\\\) -exec rm -fv {} \\\\; 2>/dev/null || true; echo 'Done'\"],\"volumeMounts\":[{\"name\":\"data\",\"mountPath\":\"/data\"}]}],\"volumes\":[{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"$pvc\"}}]}}" \
+                        # Use container_registry override if set
+                        BUSYBOX_IMAGE="{{ telemetry_registry.host | default('') }}/library/busybox:1.36"
+                        if [ -z "{{ telemetry_registry.host | default('') }}" ]; then
+                          BUSYBOX_IMAGE="busybox:1.36"
+                        fi
+                        kubectl run $cleanup_pod --image=$BUSYBOX_IMAGE -n telemetry --restart=Never \
+                          --overrides="{\"spec\":{\"containers\":[{\"name\":\"cleanup\",\"image\":\"$BUSYBOX_IMAGE\",\"command\":[\"sh\",\"-c\",\"echo 'Cleaning lock files in /data...'; find /data -type f \\\\( -name '.lock' -o -name '*.lock' -o -name '*.sock' -o -name '*.pid' \\\\) -exec rm -fv {} \\\\; 2>/dev/null || true; echo 'Done'\"],\"volumeMounts\":[{\"name\":\"data\",\"mountPath\":\"/data\"}]}],\"volumes\":[{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"$pvc\"}}]}}" \
                           2>/dev/null || echo " Failed to create $cleanup_pod"
 
                         # Wait for it to complete (max 20s), then show logs and delete

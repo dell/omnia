@@ -9,6 +9,12 @@ for PowerScale; local MinIO defaults an empty access ID to `admin`. The ARM
 password is currently required whenever `aarch64_inventory_host_ip` is set;
 `prepare_aarch64_node` uses it to install a passwordless SSH key.
 
+## Structure
+
+- `tasks/main.yml` loads, creates, and encrypts the credential file.
+- `tasks/prompt_credential_field.yml` validates and stores one credential field.
+- `templates/image_build_credential.j2` renders the credential document.
+
 ## Requirements
 
 - Ansible Vault for encrypted credential storage
@@ -17,15 +23,18 @@ password is currently required whenever `aarch64_inventory_host_ip` is set;
 
 See `vars/main.yml` for the full list.
 
-## Orchestration Prerequisite
+## Dependencies
 
 The role has no metadata dependency, but callers must first provide the paths
 and configuration facts set by `image_build_setup`.
 
-## Example
+## Example Playbook
 
 ```yaml
-- hosts: localhost
+- name: Collect Image Build Manager credentials
+  hosts: localhost
+  connection: local
+  gather_facts: false
   roles:
-    - collect_build_credentials
+    - role: collect_build_credentials
 ```

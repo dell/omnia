@@ -4,6 +4,13 @@ Resolves RPM packages required for OS image building using **dual-mode** package
 resolution: config mode (from `package_groups.yml`) or catalog mode (from
 `catalog_rhel.json` via the `parse_catalog` Python module).
 
+## Structure
+
+- `tasks/main.yml` selects config or catalog package resolution.
+- `tasks/parse_catalog.yml` delegates catalog processing to a Python module.
+- `tasks/fetch_repo_manager_repos.yml` resolves repositories by OS version.
+- `tasks/check_functional_group.yml` validates architecture-specific groups.
+
 ## Modes
 
 | Mode | Source | When |
@@ -56,18 +63,21 @@ from those groups but skip their packages (already in the base image).
 
 See `vars/main.yml` for the full list.
 
-## Orchestration Prerequisite
+## Dependencies
 
 No dependency is declared in `meta/main.yml`; callers must first run
 `image_build_setup` so configuration and repository facts are available.
 
-## Example
+## Example Playbook
 
 ```yaml
 # Config mode
-- hosts: localhost
+- name: Resolve Image Build Manager packages
+  hosts: localhost
+  connection: local
+  gather_facts: false
   roles:
-    - fetch_build_packages
+    - role: fetch_build_packages
 
 # Catalog mode — set in image_build_config.yml:
 #   functional_groups_source: "catalog"

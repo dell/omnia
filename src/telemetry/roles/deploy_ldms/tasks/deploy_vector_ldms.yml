@@ -18,6 +18,12 @@
 # =============================================================================
 # Purpose: Kafka-to-VictoriaMetrics ingestion pipeline for LDMS metrics
 # Architecture: Kafka 'ldms' topic → Vector-LDMS → vmagent-vector:8429 → vminsert:8480
+#
+# Call chain:
+#   deploy_ldms.yml (Play 1) → enable.yml → reconcile_vector_ldms_bridge.yml → this file
+#
+# Only invoked when telemetry_bridges.vector_ldms.metrics_enabled is true.
+# Handles both deployment (scale to desired replicas) and disable (scale to 0).
 # =============================================================================
 
 - name: Check if Vector-LDMS deployment exists
@@ -28,25 +34,39 @@
   changed_when: false
   failed_when: false
 
-- name: Apply vmagent-vector Deployment (metrics write-buffer)
+# vmagent-vector is a shared metrics write-buffer (also used by Vector-OME).
+# Create it only once; later LDMS enable/disable/re-enable cycles must not
+# touch an already-running shared write-buffer or its sink-bound pods.
+- name: Check if vmagent-vector deployment exists
+  ansible.builtin.command: >
+    kubectl get deployment vmagent-vector
+    -n {{ telemetry_namespace }}
+  register: vmagent_vector_check
+  changed_when: false
+  failed_when: false
+
+- name: Apply vmagent-vector Deployment (metrics write-buffer, first creation only)
   ansible.builtin.command: >
     kubectl apply -f {{ telemetry_deployments_dir }}/vector/vmagent-vector-deployment.yaml
   register: vmagent_vector_deploy_result
   changed_when: "'configured' in vmagent_vector_deploy_result.stdout or 'created' in vmagent_vector_deploy_result.stdout"
+  when: vmagent_vector_check.rc != 0
 
-- name: Apply vmagent-vector Service
+- name: Apply vmagent-vector Service (first creation only)
   ansible.builtin.command: >
     kubectl apply -f {{ telemetry_deployments_dir }}/vector/vmagent-vector-service.yaml
   register: vmagent_vector_svc_result
   changed_when: "'configured' in vmagent_vector_svc_result.stdout or 'created' in vmagent_vector_svc_result.stdout"
+  when: vmagent_vector_check.rc != 0
 
-- name: Wait for vmagent-vector deployment rollout
+- name: Wait for vmagent-vector deployment rollout (first creation only)
   ansible.builtin.command: >
     kubectl rollout status deployment/vmagent-vector
     -n {{ telemetry_namespace }}
     --timeout={{ ldms_deploy_timeout }}
   register: vmagent_vector_rollout
   changed_when: false
+  when: vmagent_vector_check.rc != 0
 
 - name: Apply Vector-LDMS ConfigMap
   ansible.builtin.command: >
@@ -59,6 +79,27 @@
     kubectl apply -f {{ telemetry_deployments_dir }}/vector/vector-ldms-deployment.yaml
   register: vector_deployment_result
   changed_when: "'configured' in vector_deployment_result.stdout or 'created' in vector_deployment_result.stdout"
+
+# kubectl apply 3-way merge does not restore replicas when the manifest is
+# unchanged (e.g. after disable scaled to 0). Explicit scale ensures pods run.
+# kubectl scale always prints "scaled" even when the replica count is already
+# correct, so the current count is checked first to keep this idempotent and
+# avoid an unconditional kubectl call (and false "changed") on every run.
+- name: Get current Vector-LDMS replica count
+  ansible.builtin.command: >
+    kubectl get deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }} -o jsonpath='{.spec.replicas}'
+  register: current_vector_replicas
+  changed_when: false
+
+- name: Ensure Vector-LDMS replicas are restored
+  ansible.builtin.command: >
+    kubectl scale deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }}
+    --replicas={{ vector.ldms.replicas | default(2) }}
+  register: restore_vector_replicas
+  changed_when: "'scaled' in restore_vector_replicas.stdout"
+  when: (current_vector_replicas.stdout | default('0') | int) != (vector.ldms.replicas | default(2) | int)
 
 - name: Apply Vector-LDMS Service
   ansible.builtin.command: >

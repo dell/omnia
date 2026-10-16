@@ -1,0 +1,124 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Run Orchestrator setup when not initialized
+  ansible.builtin.include_role:
+    name: orchestrator_setup
+  vars:
+    openchami_vars_support: false
+  when: input_project_dir is not defined
+
+- name: Report disabled PXE boot
+  ansible.builtin.debug:
+    msg: "{{ pxe_boot_setup_disabled_msg }}"
+  when: not (enable_pxe_boot | default(true) | bool)
+
+- name: Set PXE boot skip flag
+  ansible.builtin.set_fact:
+    pxe_boot_skip: "{{ not (enable_pxe_boot | default(true) | bool) }}"
+    cacheable: true
+
+- name: Check for optional PXE boot configuration
+  ansible.builtin.stat:
+    path: "{{ pxe_boot_setup_config_file }}"
+  register: _pxe_config_stat
+  when: not (pxe_boot_skip | bool)
+
+- name: Load PXE boot configuration when present
+  ansible.builtin.include_vars:
+    file: "{{ pxe_boot_setup_config_file }}"
+  when:
+    - not (pxe_boot_skip | bool)
+    - _pxe_config_stat.stat.exists
+
+- name: Report use of PXE boot defaults
+  ansible.builtin.debug:
+    msg: "{{ pxe_boot_setup_defaults_msg }}"
+  when:
+    - not (pxe_boot_skip | bool)
+    - not _pxe_config_stat.stat.exists
+
+- name: Set PXE configuration defaults
+  ansible.builtin.set_fact:
+    enable_node_registration: >-
+      {{ enable_node_registration
+         | default(enable_phone_home | default(true)) }}
+    node_registration_pause_minutes: >-
+      {{ node_registration_pause_minutes
+         | default(phone_home_pause_minutes | default(3)) }}
+    node_registration_retries: >-
+      {{ node_registration_retries
+         | default(phone_home_retries | default(120)) }}
+    node_registration_delay: >-
+      {{ node_registration_delay
+         | default(phone_home_delay | default(15)) }}
+    restart_host: "{{ restart_host | default(true) }}"
+    force_restart: "{{ force_restart | default(true) }}"
+    boot_source_override_enabled: >-
+      {{ boot_source_override_enabled | default('continuous') }}
+    boot_source_override_target: >-
+      {{ boot_source_override_target | default('pxe') }}
+    pxeboot_scope_effective: >-
+      {{ pxeboot_scope | default('pending') | string | lower }}
+    pxeboot_buildstream_active: >-
+      {{ (enable_build_stream | default(false) | bool)
+         and (job_id is defined)
+         and (job_id | default('') | string | length > 0) }}
+    cacheable: true
+  when: not (pxe_boot_skip | bool)
+
+- name: Validate PXE boot configuration
+  ansible.builtin.assert:
+    that:
+      - enable_node_registration is boolean or (enable_node_registration is string and enable_node_registration | lower in ['true', 'false'])
+      - (node_registration_pause_minutes | string) is match('^[0-9]+$')
+      - (node_registration_retries | string) is match('^[1-9][0-9]*$')
+      - (node_registration_delay | string) is match('^[1-9][0-9]*$')
+      - restart_host is boolean or (restart_host is string and restart_host | lower in ['true', 'false'])
+      - force_restart is boolean or (force_restart is string and force_restart | lower in ['true', 'false'])
+      - boot_source_override_enabled in pxe_boot_setup_override_modes
+      - boot_source_override_target in pxe_boot_setup_override_targets
+      - pxeboot_scope_effective in pxe_boot_setup_scopes
+    fail_msg: "{{ pxe_boot_setup_invalid_config_msg }}"
+    success_msg: "{{ pxe_boot_setup_valid_config_msg }}"
+    quiet: true
+  when: not (pxe_boot_skip | bool)
+
+- name: Normalize PXE boot configuration types
+  ansible.builtin.set_fact:
+    enable_node_registration: "{{ enable_node_registration | bool }}"
+    node_registration_pause_minutes: "{{ node_registration_pause_minutes | int }}"
+    node_registration_retries: "{{ node_registration_retries | int }}"
+    node_registration_delay: "{{ node_registration_delay | int }}"
+    restart_host: "{{ restart_host | bool }}"
+    force_restart: "{{ force_restart | bool }}"
+  when: not (pxe_boot_skip | bool)
+
+- name: Warn when persistent PXE boot override is enabled
+  ansible.builtin.debug:
+    msg: "{{ pxe_boot_setup_continuous_override_msg }}"
+  when:
+    - not (pxe_boot_skip | bool)
+    - boot_source_override_enabled == 'continuous'
+
+- name: Emit deprecation warning for legacy phone-home variables
+  ansible.builtin.debug:
+    msg: "{{ pxe_boot_setup_legacy_variables_msg }}"
+  when:
+    - not (pxe_boot_skip | bool)
+    - >-
+      enable_phone_home is defined
+      or phone_home_pause_minutes is defined
+      or phone_home_retries is defined
+      or phone_home_delay is defined
