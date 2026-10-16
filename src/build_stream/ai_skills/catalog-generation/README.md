@@ -20,6 +20,8 @@ Use this skill when you need to:
 
 ## Usage
 
+> **Note:** The example invocations below are natural-language prompts intended for an AI coding agent or assistant, not direct CLI commands.
+
 ### Basic Invocation
 
 ```

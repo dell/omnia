@@ -11,8 +11,7 @@ companion skills and shared instructions.
 This is not a standalone operator-facing skill. It is the shared decision
 procedure that Catalog Generation, Catalog Editing, and the Analysis skills
 each follow before emitting a functional group or package set for a
-selection the operator requested (FR-2, AC-005, NFR-6, ER-BSM-001-nersc-ai-
-skills-catalog-authoring). It is channel-agnostic: apply it identically
+selection the operator requested (FR-2, AC-005, NFR-6). It is channel-agnostic: apply it identically
 whether you are running as a coding agent with file-system access or as a
 browser-based AI assistant that was only given the file's contents.
 

@@ -11,7 +11,7 @@ companion skills and shared instructions.
 Apply the same logical change — "pin RHEL from 10.0 to 10.2 across all
 functional groups," "add a package to every catalog with X" — consistently
 across every catalog it affects, and report exactly which catalogs
-changed (`ER-BSM-001-nersc-ai-skills-catalog-authoring`, FR-1.3, AC-005).
+changed (FR-1.3, AC-005).
 Every catalog in the bulk edit is gated independently by
 `pre_edit_gate.md` (FR-6.1) — a bulk edit is not a bypass of the gate,
 it's the gate applied per catalog with per-catalog approval.
@@ -80,7 +80,9 @@ For each catalog the operator approved:
 
 - **If the change is a package add/remove**, reuse the `catalog-editing`
   skill's mechanics (`catalog_manager.py add`/`delete`) once per catalog
-  file —
+  file — specifying `os_version=<version>` per package line when possible and
+  always passing `--default-os-version` matching each target catalog's
+  specific `base_os` OS version —
   each invocation reads, validates, and writes exactly one file, so one
   catalog's schema failure cannot affect another's already-completed
   write.

@@ -7,8 +7,7 @@ description: Shared gate every catalog edit (single-catalog or bulk) must pass t
 
 This is not a standalone operator-facing skill. It is the shared
 orchestration procedure the `catalog-editing` and `bulk-edit-catalog`
-skills both call before applying any change (FR-6.1 of
-`ER-BSM-001-nersc-ai-skills-catalog-authoring`). There is no path in
+skills both call before applying any change (FR-6.1). There is no path in
 either editing skill that applies an edit without going through this
 gate first — a "trivial" or "metadata-only" edit still runs this
 procedure; it may determine a check is not applicable, but that
