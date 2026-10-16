@@ -800,8 +800,10 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "nvcc --version 2>/dev/null | grep -oP 'release \\K[0-9]+\\.[0-9]+'"
     ),
     "dcgm_cuda_toolkit_path": (
-        "if test -f /usr/local/cuda/bin/nvcc; then ls /usr/local/cuda/ 2>/dev/null;"
-        " elif test -f /hpc_tools/cuda/bin/nvcc; then ls /hpc_tools/cuda/ 2>/dev/null; fi"
+        "source /hpc_tools/scripts/omnia_platform.sh && "
+        "omnia_detect_platform && "
+        "if test -f /usr/local/cuda/bin/nvcc; then ls /usr/local/cuda/ 2>/dev/null; "
+        "elif test -f \${OMNIA_PLATFORM_ROOT}/cuda/bin/nvcc; then ls \${OMNIA_PLATFORM_ROOT}/cuda/ 2>/dev/null; fi"
     ),
     "dcgm_cuda_lock_check": (
         "test -f /hpc_tools/cuda/.install_lock && echo LOCKED || echo UNLOCKED"
