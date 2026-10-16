@@ -22,6 +22,8 @@ Use this skill when you need to:
 
 ## Usage
 
+> **Note:** The example invocations below are natural-language prompts intended for an AI coding agent or assistant, not direct CLI commands. The agent interprets the request, resolves target OS versions (including hybrid catalog mappings), executes the skill procedure (pre-edit impact checks and schema validation), and runs the underlying catalog manager tools.
+
 ### Add Package
 ```
 Add curl to the base-os catalog

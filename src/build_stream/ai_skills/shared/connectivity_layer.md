@@ -10,19 +10,17 @@ connectivity-decision procedure that any catalog-authoring or analysis skill
 follows when it needs to resolve package metadata, a compatibility fact, or
 an impact relationship that is not already fixed by the master reference
 file's pinned tables (A.5, A.6). It implements FR-3 of
-`ER-BSM-001-catalog-generation-skill` and is the shared foundation
-`ER-BSM-001-analysis-skills` reuses for FR-3.1 (Impact Analysis) and FR-3.2
+the catalog-generation skill and is the shared foundation
+the analysis skills reuse for FR-3.1 (Impact Analysis) and FR-3.2
 (Compatibility & Dependency Analysis).
 
 Every skill that references this file MUST follow the same disclosure
 contract below — the packaging is a shared instructions file, not a
-duplicated-but-possibly-diverging description per skill (per the resolved
-Open Question in `ER-BSM-001-catalog-generation-skill`'s `spec.md`, §8).
+duplicated-but-possibly-diverging description per skill.
 
 ## Approved Source Classes Only
 
-Prefer, in this order, only the following source classes (HLD §4.1 of
-`ER-BSM-001-nersc-ai-skills-catalog-authoring`):
+Prefer, in this order, only the following source classes:
 
 1. **Red Hat Compatibility Matrix** — OS/architecture/package compatibility
    facts.
