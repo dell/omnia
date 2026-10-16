@@ -8,7 +8,7 @@ description: Shared trusted-source-restriction policy fragment referenced by Imp
 This is not a standalone operator-facing skill. It is the shared policy
 fragment that the `impact-analysis` and `compatibility-analysis` skills
 (`../SKILL.md` and `../../compatibility-analysis/SKILL.md`) each apply
-for FR-3 of `ER-BSM-001-analysis-skills` (trusted-source restriction) and
+for FR-3 (trusted-source restriction) and
 for the audit-logging requirement in NFR-3 (Req-SEC-I-5). Both skills
 reference this file rather than duplicating its rules, so their behavior
 cannot silently diverge.

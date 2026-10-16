@@ -12,7 +12,7 @@ Apply an operator-requested single-catalog change — "add curl to the
 base-os catalog," "remove nvidia-driver from gpu-compute," "pin RHEL to
 10.2" — with the change landing in the correct group/package section,
 consistent metadata, and the rest of the catalog untouched
-(`ER-BSM-001-nersc-ai-skills-catalog-authoring`, FR-1.2, AC-005). Every
+(FR-1.2, AC-005). Every
 edit this skill applies is gated by
 `src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md` —
 there is no "apply an edit" path here that skips it (FR-6.1).
