@@ -36,7 +36,7 @@ common:
     - rpm -q bash >> /var/log/omnia_aci_pkg_check.log
 
 groups:
-  slurm_node_rhel_10_0_x86_64:
+  slurm_node_rhel_10_2_x86_64:
     write_files:
       - path: /etc/omnia/aci_slurm_node.conf
         content: |
@@ -46,7 +46,7 @@ groups:
     runcmd:
       - echo "omnia-aci-slurm-node $(date -u +%Y%m%dT%H%M%SZ)" >> /var/log/omnia_aci_slurm_node.log
 
-  slurm_control_node_rhel_10_0_x86_64:
+  slurm_control_node_rhel_10_2_x86_64:
     write_files:
       - path: /etc/omnia/aci_slurm_control.conf
         content: |
