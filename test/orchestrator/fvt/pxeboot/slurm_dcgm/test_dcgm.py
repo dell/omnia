@@ -79,8 +79,6 @@ def test_dcgm_cuda_compute_node(host):
     verify_pxeboot(test_log, tc, host, check_dcgm_cuda_compute_node)
 
 
-@pytest.mark.buildstream
-@pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
 @pytest.mark.order(41504)

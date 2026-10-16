@@ -69,8 +69,6 @@ def test_apptainer_ldap_job(host):
 
 
 @pytest.mark.apptainer
-@pytest.mark.buildstream
-@pytest.mark.sanity
 @pytest.mark.functional
 @pytest.mark.non_disruptive
 @pytest.mark.order(41918)
