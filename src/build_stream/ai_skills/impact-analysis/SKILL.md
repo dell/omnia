@@ -31,7 +31,7 @@ against the surviving packages in each affected layer, as R1/R2 require.
    name/paste). Its `catalog.functionallayer`, `catalog.groups`, and
    `catalog.packages` sections are the primary evidence.
 2. `src/build_stream/ai_skills/shared/connectivity_layer.md` — the
-   online/offline fallback procedure. Note its clarified trigger: fall
+   online source lookup and fallback fallback procedure. Note its clarified trigger: fall
    back only on an actual lookup failure, never merely because a row is
    absent from one table.
 3. `src/build_stream/ai_skills/impact-analysis/references/trusted_source_policy.md`
@@ -316,5 +316,6 @@ cap it at Low just because another package requires the driver.
 
 - Cross-catalog impact tracing (out of scope, FR-3.1).
 - Applying the change or updating a changelog — that is the Pre-Edit Gate
-  in `ER-BSM-001-catalog-editing-skill` (not yet implemented), which calls
-  this skill and then requires operator approval before any edit.
+  (`src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md`),
+  which calls this skill and then requires operator approval before any
+  edit.

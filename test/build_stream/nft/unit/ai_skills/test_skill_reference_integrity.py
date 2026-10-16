@@ -46,6 +46,25 @@ AI_SKILLS_ROOT = REPO_ROOT / "src" / "build_stream" / "ai_skills"
 # `src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md`
 _ABS_PATH_RE = re.compile(r"`(src/build_stream/ai_skills/[A-Za-z0-9_\-./]+)`")
 
+# Any repo-relative source path, backtick-quoted or plain (the master
+# reference tables cite provenance paths as plain text), e.g.
+# src/orchestrator/roles/provision_common/templates/vast/x.sh.j2
+_SRC_PATH_RE = re.compile(r"(?<![\w./-])(src/[A-Za-z0-9_\-./<>*{}$]+)")
+
+# A backtick-quoted path relative to the referencing file, e.g.
+# `../catalog-selection-gate/SKILL.md`
+_REL_PATH_RE = re.compile(r"`(\.\./[A-Za-z0-9_\-./]+\.md)`")
+
+# Manifest dependency names that are not skill packages (see
+# shared/skill_scope.md).
+_DEPENDENCY_ALIASES = {
+    "pre-edit-gate": "catalog-editing/references/pre_edit_gate.md",
+    "connectivity-layer": "shared/connectivity_layer.md",
+    "working-directory": "shared/working_directory.md",
+    "skill-scope": "shared/skill_scope.md",
+    "trusted-source-policy": "impact-analysis/references/trusted_source_policy.md",
+}
+
 # YAML line-length ceiling enforced by the repository's ansible-lint
 # "production" profile (yamllint's default `line-length` rule, max 160).
 _YAML_MAX_LINE_LENGTH = 160
@@ -91,6 +110,38 @@ class AbsoluteReferenceIntegrityTests(unittest.TestCase):
         self.assertEqual(
             missing, [],
             "Broken ai_skills path reference(s):\n" + "\n".join(sorted(set(missing))),
+        )
+
+    def test_every_repository_source_reference_resolves(self):
+        """Every `src/...` path (orchestrator templates, repo_manager modules,
+        schemas, ...), quoted or plain, must exist."""
+        missing = []
+        for md_file in _iter_markdown_files():
+            text = md_file.read_text(encoding="utf-8")
+            for match in _SRC_PATH_RE.finditer(text):
+                path = match.group(1).rstrip("/.,;:")
+                if any(c in path for c in "<>*{}$") or path.endswith(".log"):
+                    continue
+                if not (REPO_ROOT / path).exists():
+                    missing.append(f"{md_file.relative_to(REPO_ROOT)} references "
+                                   f"'{path}', which does not exist")
+        self.assertEqual(
+            missing, [],
+            "Broken source path reference(s):\n" + "\n".join(sorted(set(missing))),
+        )
+
+    def test_every_relative_reference_resolves(self):
+        """Backtick-quoted `../...` paths resolve from the referencing file."""
+        missing = []
+        for md_file in _iter_markdown_files():
+            text = md_file.read_text(encoding="utf-8")
+            for match in _REL_PATH_RE.finditer(text):
+                if not (md_file.parent / match.group(1)).resolve().is_file():
+                    missing.append(f"{md_file.relative_to(REPO_ROOT)} references "
+                                   f"'{match.group(1)}', which does not exist")
+        self.assertEqual(
+            missing, [],
+            "Broken relative reference(s):\n" + "\n".join(sorted(set(missing))),
         )
 
     def test_no_reference_uses_a_pre_rename_underscore_directory(self):
@@ -161,6 +212,32 @@ class SkillPackageLayoutTests(unittest.TestCase):
                     f"{skill_dir.name}/skill.yaml declares name '{manifest.get('name')}'"
                 )
         self.assertEqual(mismatches, [], "\n".join(mismatches))
+
+    def test_skill_yaml_dependencies_resolve(self):
+        """Each manifest dependency is a skill package or a documented alias."""
+        unresolved = []
+        scope = (AI_SKILLS_ROOT / "shared" / "skill_scope.md").read_text(encoding="utf-8")
+        for skill_dir in _iter_skill_package_dirs():
+            manifest = yaml.safe_load((skill_dir / "skill.yaml").read_text(encoding="utf-8"))
+            for dep in manifest.get("dependencies") or []:
+                target = _DEPENDENCY_ALIASES.get(dep, f"{dep}/SKILL.md")
+                if not (AI_SKILLS_ROOT / target).is_file():
+                    unresolved.append(f"{skill_dir.name}: '{dep}' -> missing {target}")
+                elif dep in _DEPENDENCY_ALIASES and f"`{dep}`" not in scope:
+                    unresolved.append(f"{skill_dir.name}: alias '{dep}' is not "
+                                      f"documented in shared/skill_scope.md")
+        self.assertEqual(unresolved, [], "\n".join(unresolved))
+
+    def test_skill_yaml_description_matches_skill_md(self):
+        """The manifest and SKILL.md frontmatter describe the skill identically."""
+        drift = []
+        for skill_dir in _iter_skill_package_dirs():
+            manifest = yaml.safe_load((skill_dir / "skill.yaml").read_text(encoding="utf-8"))
+            frontmatter = _read_frontmatter(skill_dir / "SKILL.md")
+            if " ".join(str(manifest.get("description", "")).split()) != " ".join(
+                    str(frontmatter.get("description", "")).split()):
+                drift.append(f"{skill_dir.name}: skill.yaml description differs from SKILL.md")
+        self.assertEqual(drift, [], "\n".join(drift))
 
 
 class SkillYamlLintComplianceTests(unittest.TestCase):

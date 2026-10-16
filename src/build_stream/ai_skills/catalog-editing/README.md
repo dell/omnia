@@ -46,7 +46,9 @@ Pin RHEL to 10.2 in the slurm catalog
 | Metadata Consistency | Maintains consistent package metadata |
 | Schema Validation | Validates catalog against schema after edits |
 | Path Boundary Enforcement | Restricts writes to catalog repository only |
-| Rollback Support | Preserves original catalog for rollback |
+| Source Merging | Updating a package keeps its sources for other architectures and OS versions |
+| Every-Layer Additions | Adds a package to every functional layer, including both `base_os` groups of a hybrid catalog |
+| Changelog | Records each approved edit as a reversible diff and changelog (apply the reverse diff to undo it); the pre-edit snapshot itself is deleted after the changelog is copied |
 
 ## Write-Path Security
 
@@ -81,5 +83,6 @@ the validated directory.
 
 - Single-catalog edits only (not cross-catalog changes)
 - Requires pre-edit gate approval
-- Path restricted to catalog repository
+- Path restricted to catalog repository; the BuildStream runtime catalogs (`src/main/samples/catalog_rhel.json`, `src/main/samples/cadence_catalog_rhel.json`) are out of scope
 - Does not create new catalogs (use `catalog-generation`)
+- Deleting a group's last package also removes that group from its functional layers (reported before approval)
