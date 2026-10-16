@@ -19,9 +19,14 @@ Two artifacts are always produced, and are never merged into each other:
 1. **Machine-readable diff** — a reversible pair (`forward_diff`,
    `reverse_diff`) such that `current_catalog + forward_diff = future_catalog`
    and `future_catalog + reverse_diff = current_catalog`.
-2. **Human-readable changelog** — plain-English text, plus a rich HTML
-   report, summarizing package/group/functional-layer/base-OS/architecture
-   changes and any compatibility/dependency warning found in the diff.
+2. **Human-readable changelog** — plain-English text summarizing
+   package/group/functional-layer/base-OS/architecture changes and any
+   compatibility/dependency warning found in the diff. A rich HTML report
+   is also written when `--output-html` is given **and** the `jinja2`
+   library is installed. `jinja2` is not in the build_stream or
+   repo_manager requirements; without it the tool prints "HTML report
+   requested but jinja2 is not installed -- skipped", still exits 0, and
+   writes only the text changelog. Tell the operator when that happens.
 
 ## Inputs You Must Read First
 
@@ -76,11 +81,15 @@ Copy `changelog.md`/`changelog.html` (and, if the operator wants them,
 
 - **Exit code 0:** the diff was computed and the reversibility invariant
   verified. `forward_diff.json`/`reverse_diff.json` are the machine-readable
-  artifacts; `changelog.md`/`changelog.html` are the human-readable ones.
-- **Exit code 1 with "--schema is required...":** you omitted `--schema`
-  and did not pass `--allow-schemaless`. Add `--schema` (the normal case),
-  or pass `--allow-schemaless` only if the operator explicitly accepts a
-  degraded, text-only comparison — say so plainly if you do.
+  artifacts; `changelog.md` (and `changelog.html`, if `jinja2` is
+  installed) are the human-readable ones.
+- **Exit code 2 with "--schema is required...":** you omitted `--schema`
+  and did not pass `--allow-schemaless` (argparse rejects the command, so
+  nothing is written). Add `--schema` (the normal case), or pass
+  `--allow-schemaless` only if the operator explicitly accepts a
+  degraded, text-only comparison — say so plainly if you do. Exit code 2
+  also means another required argument is missing, e.g. one of the
+  `--output-*` paths.
 - **Exit code 1 with `[ERROR]` lines and "Diff rejected: '<current|future>'
   catalog fails schema validation":** report the specific violation(s)
   verbatim to the operator. Do NOT emit a diff against an invalid catalog,
@@ -122,7 +131,9 @@ output is the fact record, per the no-fabrication rule (NFR-3).
   it sources is still named `kubelet-1.35.1`. Present this prominently —
   it is a blocking constraint, not a stylistic note.
 - `CON-007` (warning): a group removed from one functional layer is still
-  referenced by another. Tell the operator which other layer(s) are
+  referenced by another. When the only cause is a base-OS-version layer
+  rename, the tool instead emits a single `[INFO] CON-007` cutover line
+  listing the affected groups; that is not an orphaned reference. Tell the operator which other layer(s) are
   affected, since the "removal" in this catalog does not actually remove
   the group from those other layers.
 - `SCHEMA-DEGRADED` (warning, only present when `--allow-schemaless` was
@@ -145,19 +156,26 @@ output is the fact record, per the no-fabrication rule (NFR-3).
 
 Running Step 1 against the real shipped sample catalogs
 (`src/main/samples/catalogs/rhel/10.0/service_k8s_x86_64.json` and
-`src/main/samples/catalogs/rhel/10.2/service_k8s_x86_64.json`) produces a
-198-operation forward diff (and an exactly-inverse 198-operation reverse
-diff — the reversibility invariant holds), 0 package additions/removals
-(every package key persists across versions; several package *values*
-change, e.g. the source `version` list moving from `["10.0"]` to
-`["10.2"]`), and 21 `CON-007` warnings — because the two catalogs' functional
-layers are named per-OS-version (`..._rhel_10_0_x86_64` vs.
-`..._rhel_10_2_x86_64`), so every group in the "current" (10.0) layer looks
-"removed" relative to the "future" (10.2) layer set, while the same group
-is still referenced by the 10.2 layers. Present this distinction to the
-operator plainly: this is a full base-OS-version cutover, not a
-same-layer package change, and the `CON-007` warnings reflect that layer
-naming pattern rather than an unintended orphaned reference.
+`src/main/samples/catalogs/rhel/10.2/service_k8s_x86_64.json`, verified
+2026-10-16) produces a 203-operation forward diff and an exactly-inverse
+203-operation reverse diff (the reversibility invariant holds). The
+changelog reports:
+
+- **Packages: 0 added, 1 removed, 189 changed.** `python3_3_12_9` is
+  removed; `python3` changes from `python3-3.12.9` to unpinned `python3`;
+  the other 188 changes are only the source `version` moving from
+  `["10.0"]` to `["10.2"]`, summarized on one line.
+- **Groups: 2 changed. Functional layers: 3 added, 3 removed**, because
+  layer names carry the OS version (`..._rhel_10_0_x86_64` →
+  `..._rhel_10_2_x86_64`).
+- **One `[INFO] CON-007` line** that names the 10 groups that look
+  "removed" only because their layers were renamed. It is not an
+  orphaned-group warning.
+
+Present this to the operator plainly: it is a full base-OS-version
+cutover plus one real package change (`python3_3_12_9` → `python3`),
+not a set of same-layer package edits. Without `jinja2` the HTML report
+is skipped, as described above.
 
 ## What This Skill Does Not Do
 
@@ -168,7 +186,7 @@ naming pattern rather than an unintended orphaned reference.
   Release Note Generation is deferred (out of scope for this ER); this
   skill only produces the reusable diff/changelog contract a future
   Release Note Generation skill would consume.
-- It does not invoke this diff as part of a pre-edit approval flow — that
-  orchestration belongs to `ER-BSM-001-catalog-editing-skill`'s Pre-Edit
-  Gate (not yet implemented), which calls this skill and then requires
-  operator approval before any edit.
+- It does not run a pre-edit approval flow itself — that orchestration
+  belongs to the Pre-Edit Gate
+  (`src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md`),
+  which calls this skill after an approved edit to record the change.

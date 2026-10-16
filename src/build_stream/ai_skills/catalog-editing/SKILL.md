@@ -43,6 +43,14 @@ without it, `catalog_manager.py` still writes wherever it's told (the
 flag is opt-in so the same general-purpose CLI stays usable for
 production catalog paths outside this git-tracked sample tree).
 
+**Out of scope:** the BuildStream runtime catalogs
+`src/main/samples/catalog_rhel.json` (the default BuildStream catalog)
+and `src/main/samples/cadence_catalog_rhel.json` (version-bumped by
+`src/build_stream/app/playbook-watcher/cadence_manager.py` and pushed to
+GitLab) are outside the catalog root, so this skill does not write them.
+If the operator asks to change one, say so and offer to apply the change
+to the matching catalog under `src/main/samples/catalogs/` instead.
+
 ## Inputs You Must Read First
 
 1. `src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md`
@@ -119,6 +127,26 @@ the JSON or write a new mutation script:**
   version** — the tool's own default is `10.0` and will silently pin a
   new package to the wrong OS version if the target catalog is a
   different version and you omit this flag.
+- **One input line describes one architecture and one OS version.** For
+  a package that needs several, repeat the line with `arch=` and
+  `os_version=` overrides (see the hybrid example below). Lines with the
+  same package key are merged into one entry.
+- **Updating an existing package merges its sources.** `add` changes
+  only the (architecture, OS version) pairs named in the input and keeps
+  every other source, so updating a package on a mixed-arch or hybrid
+  catalog does not drop its other platforms. Re-adding an identical
+  source changes nothing. Two cases replace instead of merge: an
+  `image` line replaces the existing source for the same architecture,
+  and a different `packagetype` replaces the whole entry. Report either
+  case in the gate findings before applying.
+- **Adding a package to every functional layer** means adding it to a
+  group that every layer includes. In a single-version catalog that is
+  the `base_os` group. A hybrid catalog has one `base_os` group per OS
+  version (e.g. `baseos_group_10.2` and `baseos_group_10.0`), so add the
+  package to each, with a source for every architecture and version
+  those layers use. After the edit, confirm that every layer reaches
+  the package through one of its groups and that each layer's
+  (architecture, OS version) has a matching source.
 - **Delete a package:** build a delete-input file (see
   `parse_delete_file`'s format) and run:
   ```bash
@@ -127,6 +155,16 @@ the JSON or write a new mutation script:**
     --schema src/repo_manager/schemas/catalog_schema.json \
     --catalog-root src/main/samples/catalogs
   ```
+  **Side effect:** if the delete removes a group's last package, the
+  empty group is also removed from every functional layer that lists
+  it, and the tool logs `Removed empty group [<group>] from functional
+  layer(s): …`. A package that no group references any more is deleted
+  from `catalog.packages`. Check for both before the gate and list the
+  affected layers in the findings.
+- **Old (1.0) catalogs** with a `Catalog` root key are rejected by every
+  command with a message to run `catalog_manager.py transform` first.
+  Ask the operator before transforming; do not do it as part of an
+  edit.
 - **Both commands validate the in-memory result before writing** (fixed
   2026-09-27) — a schema-violating edit is rejected with the specific
   `[ERROR]` line(s) printed and the file left byte-for-byte unchanged; it
@@ -189,6 +227,33 @@ and appended to `baseos_group`'s `components`. Every other package,
 every other group, and `catalog.functionallayer` compared dict-equal to
 the pre-edit catalog (verified via a real before/after diff, not
 assumed).
+
+## Worked Example: every layer of a hybrid catalog (real, verified 2026-10-16)
+
+> Operator: "Add tmux to every functional layer"
+> (target: `src/main/samples/catalogs/hybrid/slurm_service_k8s_hybrid_10_2_10_0_combined.json`)
+
+This catalog has 9 layers. Five RHEL 10.2 x86_64 layers include
+`baseos_group_10.2`. The RHEL 10.0 layers (`os_rhel_10_0_x86_64`,
+`os_rhel_10_0_aarch64`, `slurm_node_rhel_10_0_aarch64`,
+`login_compiler_node_rhel_10_0_aarch64`) include `baseos_group_10.0`.
+After the dependency and gate review, the input file covers every
+group and platform:
+
+```
+[baseos_group_10.2]
+tmux, rpm, tmux, baseos, arch=x86_64, os_version=10.2
+
+[baseos_group_10.0]
+tmux, rpm, tmux, baseos, arch=x86_64, os_version=10.0
+tmux, rpm, tmux, baseos, arch=aarch64, os_version=10.0
+```
+
+Verified result: one `tmux` entry with sources `x86_64 ["10.2", "10.0"]`
+and `aarch64 ["10.0"]`, reachable from all 9 layers. Every other
+package and every layer was unchanged. Running the same input again
+left the file unchanged, and a later 10.2-only update of
+`openssh_clients` kept its aarch64 source and its 10.0 version.
 
 ## What This Skill Does Not Do
 

@@ -42,7 +42,7 @@ What is the impact of removing ldms_group from compute nodes?
 | Capability | Description |
 |------------|-------------|
 | Multi-Tier Analysis | Traces impact across package, role, cluster, and workload tiers |
-| Severity Rating | Assigns CRITICAL, HIGH, MEDIUM, LOW severity to changes |
+| Severity Rating | Assigns Critical, High, Medium, Low (or Unresolved) severity per affected layer |
 | Online-Preferred | Uses live dnf/repo lookups before falling back to offline data |
 | Dependency Tracing | Checks surviving dependency paths per affected layer after the full proposed change |
 | Customer Summaries | Generates plain-English impact reports |
@@ -59,10 +59,11 @@ What is the impact of removing ldms_group from compute nodes?
 
 | Severity | Criteria |
 |----------|----------|
-| CRITICAL | Breaks core cluster functionality or prevents boot |
-| HIGH | Impacts major services or multiple roles |
-| MEDIUM | Affects optional features or single role |
-| LOW | Minimal impact, cosmetic, or documentation-only |
+| Critical | The cluster cannot provision nodes or schedule jobs |
+| High | A whole role or user-facing capability is lost |
+| Medium | A degraded or optional feature |
+| Low | Cosmetic, or a removal with proven equivalent retention in every affected layer and no other operational effect |
+| Unresolved | No severity is supportable from the available evidence (never defaulted to Low) |
 
 ## References
 

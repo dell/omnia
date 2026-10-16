@@ -40,7 +40,7 @@ Create changelog for upgrade from RHEL 10.0 to 10.2 catalog
 | Reversible Diffs | Generates forward and reverse diff pairs |
 | Deterministic Output | Same inputs always produce identical diffs |
 | Machine-Readable | JSON diff format for automation |
-| Human-Readable | Plain text and HTML changelog formats |
+| Human-Readable | Plain text changelog; HTML report too when `jinja2` is installed |
 | Multi-Level Changes | Tracks package, group, layer, and OS changes |
 | Compatibility Warnings | Flags breaking changes and dependencies |
 
@@ -69,7 +69,7 @@ Properties:
 - Architecture changes
 - Compatibility warnings
 
-**Rich HTML Format:**
+**Rich HTML Format** (only when `jinja2` is installed; otherwise skipped with a message and exit code 0):
 - Color-coded changes
 - Expandable sections
 - Severity indicators
@@ -98,7 +98,7 @@ Properties:
 3. **Generate Forward Diff**: Compute changes from current to future
 4. **Generate Reverse Diff**: Compute changes from future to current
 5. **Verify Reversibility**: Confirm forward + reverse = identity
-6. **Create Changelog**: Generate text and HTML summaries
+6. **Create Changelog**: Generate the text summary, and the HTML report if `jinja2` is installed
 7. **Flag Warnings**: Identify compatibility/dependency issues
 8. **Output**: Deliver diff JSON and changelog artifacts
 

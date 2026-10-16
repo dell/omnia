@@ -192,5 +192,6 @@ an automated kernel/driver validator.
 
 - It does not replace FR-4.2's changelog compatibility-warning summary —
   that's generated as part of a diff/changelog request (the `catalog-diff`
-  skill), which invokes this skill's logic but packages the result
-  differently.
+  skill). That skill runs fully offline and only reports the A.8 rules it
+  can check from the two catalog files (CON-004, CON-007); it does not run
+  this skill's online lookups.

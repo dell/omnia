@@ -1,10 +1,10 @@
 name: compatibility-analysis
 version: 1.0.0
 description: >-
-  Cross-references a package or catalog definition against online upstream documentation and the
-  Red Hat Compatibility Matrix, with a disclosed fallback to master reference file data only. Use
-  when confirming whether a package/version is compatible with a target OS, architecture, or
-  another catalog package.
+  Checks package compatibility and investigates dependencies for proposed catalog additions using
+  approved upstream/repository evidence, with disclosed offline gaps. Use when finding dependencies
+  or checking compatibility with a target OS, architecture, kernel, or another catalog package,
+  including driver/kernel changes.
 author: Omnia Build Stream Team
 role: engineering
 domain: catalog-analysis
@@ -15,6 +15,9 @@ tags:
   - omnia
 dependencies:
   - connectivity-layer
+  - trusted-source-policy
+  - catalog-selection-gate
+  - skill-scope
 status: active
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16

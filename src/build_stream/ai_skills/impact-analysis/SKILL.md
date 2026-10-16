@@ -316,5 +316,6 @@ cap it at Low just because another package requires the driver.
 
 - Cross-catalog impact tracing (out of scope, FR-3.1).
 - Applying the change or updating a changelog — that is the Pre-Edit Gate
-  in `ER-BSM-001-catalog-editing-skill` (not yet implemented), which calls
-  this skill and then requires operator approval before any edit.
+  (`src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md`),
+  which calls this skill and then requires operator approval before any
+  edit.

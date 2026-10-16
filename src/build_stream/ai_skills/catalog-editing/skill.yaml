@@ -17,7 +17,10 @@ dependencies:
   - pre-edit-gate
   - impact-analysis
   - compatibility-analysis
+  - catalog-diff
   - catalog-selection-gate
+  - working-directory
+  - skill-scope
 status: active
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16

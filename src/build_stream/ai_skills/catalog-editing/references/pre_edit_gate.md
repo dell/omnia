@@ -53,15 +53,15 @@ changelog; decline -> unchanged) still apply afterward.
 For the requested edit against one catalog:
 - **Impact Analysis applies** whenever the edit removes or changes a
   package, group, or functional-layer reference (i.e., anything
-  `impact_analysis.md` can trace a blast radius for). It does not apply
-  to a pure metadata correction (e.g. fixing a typo in a `description`
-  field) that changes no package/group/layer reference.
+  the `impact-analysis` skill can trace a blast radius for), including a
+  delete that empties a group and so removes it from functional layers.
+  It does not apply to a pure metadata correction (e.g. fixing a typo in
+  a `description` field) that changes no package/group/layer reference.
 - **Compatibility & Dependency Analysis applies** whenever the edit
-  introduces or changes a version/tag, or adds a package whose
-  compatibility with the catalog's declared OS/architecture is not
-  already certain from the master reference file's A.1/A.6/A.8 tables.
-  It does not apply to a same-version, same-repo package addition with
-  no version pin to check.
+  introduces or changes a version/tag, or adds a package (including an
+  unpinned, same-repository addition: its dependencies still have to be
+  investigated, per `catalog-editing/SKILL.md` Step 2). It does not
+  apply to a removal or a metadata-only correction.
 
 If a check does not apply, say so explicitly in the findings (see Step
 3) — do not simply omit mentioning it.
@@ -111,8 +111,12 @@ approval for a newly-presented finding.
      <the now-edited catalog file>` to generate/update its changelog.
      Write the diff/changelog outputs into the same working directory,
      then copy the changelog (and, if the operator wants it, the
-     machine-readable diff) to wherever the operator's changelog record
-     for this catalog lives, before the working directory is cleaned up.
+     machine-readable diff) to the destination the operator names for
+     this catalog's changelog record, before the working directory is
+     cleaned up. There is no default location: if the operator has not
+     named one, ask. Never invent a path, and never write it inside
+     `src/main/samples/catalogs/`, where it would be picked up as a
+     catalog.
   4. Report both the applied edit and the changelog update.
   5. Clean up the working directory (including the pre-edit snapshot)
      per `working_directory.md` once the changelog has been copied to

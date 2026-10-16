@@ -53,5 +53,5 @@ Is the kubernetes 1.35 image compatible with the kubernetes-v1-35 repository?
 
 ## Limitations
 
-- Does not replace the changelog's compatibility-warning summary (`catalog-diff` skill), which invokes this skill's logic but packages the result differently
+- Does not replace the changelog's compatibility-warning summary (`catalog-diff` skill), which runs offline and checks only CON-004/CON-007 from the two catalog files
 - Never performs an open-ended general web search or consults an unofficial/third-party mirror
