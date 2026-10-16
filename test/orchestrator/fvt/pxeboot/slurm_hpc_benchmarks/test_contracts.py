@@ -90,7 +90,6 @@ def test_hpc_benchmarks_container_first_guidance(host):
     verify_pxeboot(test_log, tc, host, check_hpc_benchmarks_container_first_guidance)
 
 
-@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive
