@@ -122,21 +122,21 @@ def _validate_business_rules(catalog):
             })
         
         # Check for exactly one baseos group in components
-        baseos_count = 0
+        base_os_count = 0
         for comp_ref in components:
             comp_group = groups.get(comp_ref, {})
             if comp_group.get('type') == 'baseos':
-                baseos_count += 1
+                base_os_count += 1
         
-        if baseos_count == 0:
+        if base_os_count == 0:
             issues.append({
                 'severity': 'error',
                 'message': f"Functional layer '{layer_name}' must have exactly one baseos group (found 0)"
             })
-        elif baseos_count > 1:
+        elif base_os_count > 1:
             issues.append({
                 'severity': 'error',
-                'message': f"Functional layer '{layer_name}' must have exactly one baseos group (found {baseos_count})"
+                'message': f"Functional layer '{layer_name}' must have exactly one baseos group (found {base_os_count})"
             })
 
     # Check for duplicate entries in group components
