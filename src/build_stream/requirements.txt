@@ -15,9 +15,9 @@
 # =============================================================================
 
 # --- Core Ansible ---
-ansible-core>=2.20
+ansible-core==2.21.5
 
 # --- Python Libraries ---
-PyYAML>=6.0.3
-jsonschema>=4.17
-cryptography>=48.0.0
+PyYAML==6.0.3
+jsonschema==4.26.0
+cryptography==50.0.2
