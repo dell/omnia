@@ -214,9 +214,9 @@
         "type": "group",
         "description": "Common libraries and utilities shared across services",
         "components": [
-          "cffi==1_17_1",
-          "cryptography==45_0_7",
-          "prettytable==3_14_0"
+          "cffi==2_1_1",
+          "cryptography==50_0_2",
+          "prettytable==3_18_0"
         ]
       },
       "slurm_custom_group": {
@@ -357,11 +357,11 @@
           "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
           "docker.io/dellhpcomniaaisolution/kafkapump",
           "docker.io/dellhpcomniaaisolution/victoriapump",
-          "cryptography==45_0_7",
-          "omsdk==1_2_518",
-          "cffi==1_17_1",
-          "prometheus_client==0_20_0",
-          "kubernetes==33_1_0",
+          "cryptography==50_0_2",
+          "omsdk==1_2_519",
+          "cffi==2_1_1",
+          "prometheus_client==0_26_0",
+          "kubernetes==37_0_1",
           "quay.io/strimzi/operator",
           "quay.io/strimzi/kafka",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
@@ -415,10 +415,10 @@
           "docker.io/dellhpcomniaaisolution/kafkapump",
           "docker.io/dellhpcomniaaisolution/victoriapump",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
-          "cryptography==45_0_7",
-          "omsdk==1_2_518",
-          "cffi==1_17_1",
-          "prometheus_client==0_20_0",
+          "cryptography==50_0_2",
+          "omsdk==1_2_519",
+          "cffi==2_1_1",
+          "prometheus_client==0_26_0",
           "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
           "docker.io/nginxinc/nginx-unprivileged",
           "docker.io/timberio/vector",
@@ -451,9 +451,9 @@
           "metallb_native_v0_16_1",
           "helm_v3_20_1_amd64",
           "nfs_subdir_external_provisioner_4_0_18",
-          "prettytable==3_14_0",
+          "prettytable==3_18_0",
           "python3_3_12_9",
-          "PyMySQL==1_1_2"
+          "PyMySQL==1_2_3"
         ]
       },
       "service_kube_node_group": {
@@ -1421,7 +1421,7 @@
         ]
       },
       "pymysql": {
-        "name": "PyMySQL==1.1.2",
+        "name": "PyMySQL==1.2.3",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -1706,8 +1706,8 @@
           }
         ]
       },
-      "cryptography==45_0_7": {
-        "name": "cryptography==45.0.7",
+      "cryptography==50_0_2": {
+        "name": "cryptography==50.0.2",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -1763,8 +1763,8 @@
           }
         ]
       },
-      "omsdk==1_2_518": {
-        "name": "omsdk==1.2.518",
+      "omsdk==1_2_519": {
+        "name": "omsdk==1.2.519",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -1876,8 +1876,8 @@
           }
         ]
       },
-      "cffi==1_17_1": {
-        "name": "cffi==1.17.1",
+      "cffi==2_1_1": {
+        "name": "cffi==2.1.1",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -2290,8 +2290,8 @@
           }
         ]
       },
-      "prometheus_client==0_20_0": {
-        "name": "prometheus_client==0.20.0",
+      "prometheus_client==0_26_0": {
+        "name": "prometheus_client==0.26.0",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -2969,8 +2969,8 @@
           }
         ]
       },
-      "kubernetes==33_1_0": {
-        "name": "kubernetes==33.1.0",
+      "kubernetes==37_0_1": {
+        "name": "kubernetes==37.0.1",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -3070,8 +3070,8 @@
           }
         ]
       },
-      "prettytable==3_14_0": {
-        "name": "prettytable==3.14.0",
+      "prettytable==3_18_0": {
+        "name": "prettytable==3.18.0",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -3241,8 +3241,8 @@
         ],
         "tag": "v1.149.0-cluster"
       },
-      "PyMySQL==1_1_2": {
-        "name": "PyMySQL==1.1.2",
+      "PyMySQL==1_2_3": {
+        "name": "PyMySQL==1.2.3",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -3668,6 +3668,214 @@
             "architecture": "x86_64",
             "registry": "nvcr.io",
             "name": "rhel",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "urllib3==2_8_0": {
+        "name": "urllib3==2.8.0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "certifi==2026_7_22": {
+        "name": "certifi==2026.7.22",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "charset_normalizer==3_5_2": {
+        "name": "charset-normalizer==3.5.2",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "idna==3_20": {
+        "name": "idna==3.20",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "requests==2_32_5": {
+        "name": "requests==2.32.5",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "pyyaml==6_0_3": {
+        "name": "pyyaml==6.0.3",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "python_dateutil==2_9_0_post0": {
+        "name": "python-dateutil==2.9.0.post0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "six==1_17_0": {
+        "name": "six==1.17.0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "oauthlib==3_2_2": {
+        "name": "oauthlib==3.2.2",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "requests_oauthlib==2_0_0": {
+        "name": "requests-oauthlib==2.0.0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "websocket_client==1_8_0": {
+        "name": "websocket-client==1.8.0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "google_auth==2_36_0": {
+        "name": "google-auth==2.36.0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "cachetools==5_5_0": {
+        "name": "cachetools==5.5.0",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "pyasn1==0_6_1": {
+        "name": "pyasn1==0.6.1",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "pyasn1_modules==0_4_1": {
+        "name": "pyasn1-modules==0.4.1",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.0"
+            ]
+          }
+        ]
+      },
+      "rsa==4_9": {
+        "name": "rsa==4.9",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
             "version": [
               "10.0"
             ]
