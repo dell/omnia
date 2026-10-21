@@ -16,10 +16,6 @@
 # OpenLDAP Pre-Cleanup Task
 # Validates prerequisites and creates cleanup checkpoint
 
-- name: Set role path
-  ansible.builtin.set_fact:
-    role_path: "{{ playbook_dir | dirname | dirname }}/roles/cleanup"
-
 - name: Load OpenLDAP component configuration
   ansible.builtin.include_vars:
     file: "{{ role_path }}/components/openldap/vars/component_spec.yml"
@@ -49,7 +45,7 @@
 
 - name: Fail if OpenLDAP not deployed and cleanup is required
   ansible.builtin.fail:
-    msg: "OpenLDAP not deployed - cannot cleanup"
+    msg: "{{ openldap_cleanup_prerequisite_fail_msg }}"
   when: not openldap_deployed.stat.exists and component_config.requires_confirmation | default(false) | bool
 
 - name: Check OpenLDAP service status

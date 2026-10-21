@@ -95,7 +95,9 @@ provisioning.
 The supported cleanup does not remove or create the current-project output
 directory. When the directory exists, cleanup removes every entry inside it,
 including timestamped mappings, the latest symlink, reports, hidden
-directories, and status files, and leaves the empty directory in place:
+directories, and status files, and leaves the empty directory in place. It
+also resets the current-project runtime log directory to an empty directory
+and removes `/var/log/omnia/discovery`:
 
 ```bash
 ansible-playbook playbooks/discovery.yml --tags cleanup
@@ -109,14 +111,23 @@ ansible-playbook playbooks/discovery.yml --tags cleanup \
   -e cleanup_credentials=false
 ```
 
+Preserve runtime logs while still cleaning generated outputs and credentials:
+
+```bash
+ansible-playbook playbooks/discovery.yml --tags cleanup \
+  -e cleanup_logs=false
+```
+
 All other Discovery input files are preserved in both cases.
 Use `--tags cleanup_credentials` to remove only the credential file and vault
 key without changing the Discovery output contents.
 An explicit `cleanup_credentials` tag takes precedence over
 `cleanup_credentials=false`.
 
-Cleanup affects only the project selected by `OMNIA_PROJECT_NAME`. Discovery
-log files and all non-credential input files are preserved.
+Cleanup affects only the project selected by `OMNIA_PROJECT_NAME`. Runtime log
+files are removed by default, while all non-credential input files are
+preserved. Intentionally retained runtime logs can block guarded global cleanup
+until they are removed.
 
 Copy any mapping required by Orchestrator to its input project directory before
 running full Discovery cleanup. Cleanup removes both timestamped mappings and

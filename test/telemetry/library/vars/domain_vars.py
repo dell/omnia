@@ -38,7 +38,15 @@ FVT_TAGS: List[str] = [
     "precheck",
     "validate",
     "deploy",
+    "deploy_sinks",
     "cleanup",
+    "cleanup_sinks",
+    "cleanup_idrac",
+    "cleanup_ldms",
+    "cleanup_ome",
+    "cleanup_powerscale",
+    "cleanup_ufm",
+    "cleanup_vast",
 ]
 
 # =====================================================================
@@ -70,8 +78,41 @@ SUITES: Dict[str, List[str]] = {
     "precheck": ["cluster"],
     "validate": ["input"],
     "deploy": ["sinks", "sources"],
-    "cleanup": ["cleanup"],
+    "deploy_sinks": [],
+    "cleanup": ["cleanup", "status"],
+    "cleanup_sinks": ["status"],
+    "cleanup_idrac": [],
+    "cleanup_ldms": [],
+    "cleanup_ome": [],
+    "cleanup_powerscale": [],
+    "cleanup_ufm": [],
+    "cleanup_vast": [],
 }
+
+# =====================================================================
+# Advanced runner configuration (aligned with orchestrator pattern)
+# =====================================================================
+
+# Tags that require playbook execution during "all" runs.
+ALL_EXEC_TAGS: List[str] = ["precheck", "validate", "deploy"]
+
+# Default marker for exec phase.
+ALL_EXEC_MARKER: str = "sanity"
+
+# Markers excluded from broad verification runs.
+ALL_VERIFY_EXCLUDE_MARKERS: List[str] = []
+
+# Tags restricted to verify-only mode.
+VERIFY_ONLY_TAGS: List[str] = []
+
+# Tags requiring specific suite selection.
+REQUIRED_SUITE_TAGS: List[str] = []
+
+# Suites restricted to verify-only mode.
+VERIFY_ONLY_SUITES: Dict[str, List[str]] = {}
+
+# Suites that manage their own playbook execution.
+SUITE_EXEC_OWNERS: Dict[str, List[str]] = {}
 
 # =====================================================================
 # Tags excluded from "all" verify (run only when explicit)
@@ -79,4 +120,11 @@ SUITES: Dict[str, List[str]] = {
 
 EXCLUDE_TAGS: List[str] = [
     "cleanup",
+    "cleanup_sinks",
+    "cleanup_idrac",
+    "cleanup_ldms",
+    "cleanup_ome",
+    "cleanup_powerscale",
+    "cleanup_ufm",
+    "cleanup_vast",
 ]

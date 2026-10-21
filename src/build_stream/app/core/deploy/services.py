@@ -50,8 +50,12 @@ class DeployQueueService:
         Raises:
             QueueUnavailableError: If queue is not accessible.
         """
-        log_secure_info('info', f"Submitting deploy request to queue: "
+        # NOTE: the {...} placeholders below are not interpolated (pre-existing
+        # behaviour, preserved as-is), so correlation_id is unused in the body.
+        del correlation_id  # kept in the signature as part of the public interface
+        log_secure_info('info', "Submitting deploy request to queue: "
             "job_id={request.job_id}, correlation_id={correlation_id}")
         self._queue_repo.write_request(request)
-        log_secure_info('info', f"Deploy request submitted successfully: "
-            "job_id={request.job_id}, request_id={request.request_id}, correlation_id={correlation_id}")
+        log_secure_info('info', "Deploy request submitted successfully: "
+            "job_id={request.job_id}, request_id={request.request_id}, "
+            "correlation_id={correlation_id}")

@@ -15,7 +15,6 @@
 # =============================================================================
 # Discovery — Test Configuration
 # =============================================================================
----
 
 # Target OIM server IP (leave empty for local execution)
 oim_server_ip: ""
@@ -30,18 +29,14 @@ oim_ssh_port: 22
 clone_path: "/root/omnia"
 
 # The dataset name selects the local folder under test/discovery/datasets/.
+# When empty, uses src/discovery/input/ directly.
 dataset: "data_set_01"
-
-# Only change if the target uses a different project name than the dataset.
-project_name: "project_default"
 
 # Sync discovery input files (discovery_config.yml, network_spec.yml)
 sync_discovery_input: true
 
-# Convention: /opt/omnia/discovery
-shared_path: "/opt/omnia/discovery"
-
 # Report output path (no spaces allowed)
+# Falls back to OMNIA_DATA_PATH/reports if not set
 report_path: /opt/omnia/reports
 
 # Report file name (no spaces, only letters/numbers/underscores/hyphens)

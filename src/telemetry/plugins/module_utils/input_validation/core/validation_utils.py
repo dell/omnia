@@ -20,7 +20,7 @@ import subprocess
 from ansible.module_utils.input_validation.messages import en_us_validation_msg
 from ansible.module_utils.input_validation.core import config
 
-def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module):
+def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module) -> dict | None:
     """
     Loads a YAML file as JSON.
 
@@ -69,7 +69,7 @@ def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module):
         # validation failure, in case there are other validations to perform
         return None
 
-def create_error_msg(key, value, msg):
+def create_error_msg(key, value, msg) -> dict:
     """
     Creates an error message dictionary.
 
@@ -83,7 +83,7 @@ def create_error_msg(key, value, msg):
     """
     return {"error_key": key, "error_value": value, "error_msg": msg}
 
-def is_string_empty(value):
+def is_string_empty(value) -> bool:
     """
     Checks if a string is empty.
 
@@ -100,7 +100,7 @@ def is_string_empty(value):
     return len(value.strip()) < 1
 
 # Encryption-related functions (used by data_fetch.py)
-def is_file_encrypted(file_path):
+def is_file_encrypted(file_path) -> bool:
     """
     Checks if a file is encrypted.
 
@@ -117,7 +117,7 @@ def is_file_encrypted(file_path):
     except (IOError, OSError):
         return False
 
-def run_subprocess(cmd):
+def run_subprocess(cmd) -> bool:
     """
     Runs a subprocess command and returns True if successful, False otherwise.
 
@@ -139,7 +139,7 @@ def run_subprocess(cmd):
     except subprocess.CalledProcessError:
         return False
 
-def encrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
+def encrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file) -> bool:
     """
     Encrypts a file using Ansible Vault.
 
@@ -162,7 +162,7 @@ def encrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
     ]
     return run_subprocess(cmd)
 
-def decrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
+def decrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file) -> bool:
     """
     Decrypts a file using Ansible Vault.
 
@@ -185,7 +185,7 @@ def decrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
     ]
     return run_subprocess(cmd)
 
-def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, module):
+def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, module) -> dict:
     """
     Decrypts an encrypted file, loads the data, and encrypts the file again.
 

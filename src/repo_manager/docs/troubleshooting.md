@@ -230,7 +230,9 @@ reports them together by architecture.
 1. The catalog `reponame` exactly matches the configured repository key.
 2. The catalog version and architecture exist under `repositories`.
 3. The repository URL and GPG key are reachable.
-4. A catalog item with `packagetype: rpm_repo` does not resolve to `streamed`.
+4. For a catalog item with `packagetype: rpm_repo`, confirm the repository
+   policy is `always` or `partial`. Effective `streamed` mappings are
+   validation-only.
 5. The detailed group log contains the failing package and repository.
 
 `rpm` downloads selected packages and dependencies. `rpm_repo` synchronizes the
@@ -336,7 +338,35 @@ pulp task list --state running --state failed
 
 Resolve the storage, registry, certificate, or source-repository failure before
 rerunning `download`. Successful composite mirror identities are reused, so a
-rerun does not intentionally download every completed artifact again.
+normal rerun selects only new, changed, failed or pending packages. Successful
+RPMs are intentionally selected again only for an exact targeted resync,
+`resync_repos=all`, a recovered repository synchronization, or an effective
+Pulp-policy transition.
+
+---
+
+### 16. Exact RPM reconciliation fails or reports a stale checkpoint
+
+Run the standalone operation only after a successful normal download:
+
+```bash
+ansible-playbook repo_operations/repo_sync.yml
+```
+
+Inspect `output/<project>/repo_resync_status.yml` and the applicable
+`log/<os>/<version>/standard.log`. A failed repository checkpoint has
+`retry_required: true` in
+`log/<os>/<version>/mirror_status/pulp_mirror_index.json`. When Pulp can identify
+the distribution's live repository version, that HREF is stored even if later
+pruning fails. When the live version is indeterminate, the failed checkpoint's
+HREF is empty; the next run preflights the serving chain and retries rather than
+trusting stale state.
+
+Do not delete Pulp versions manually and do not run exact reconciliation at the
+same time as download or cleanup. After successful exact reconciliation, run
+the normal download workflow to process RPM package rows marked pending, then
+run `--tags status` only if consumer output must be regenerated for another
+reason. Stable repository endpoint URLs do not change during exact sync.
 
 ---
 

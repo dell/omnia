@@ -1,0 +1,292 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# =============================================================================
+# Sink Dependency Check — Runtime Source Detection
+# =============================================================================
+# Checks whether any running telemetry source depends on each requested sink.
+# Sets per-sink blocking facts on localhost so cleanup_sinks.yml can gate
+# each sink's cleanup accordingly.
+#
+# Dependency map:
+#   Kafka:           iDRAC (kafka target), LDMS, Vector-LDMS, Vector-OME
+#   VictoriaMetrics: iDRAC (VM target), PowerScale, UFM, VAST,
+#                    Vector-LDMS, Vector-OME (metrics)
+#   VictoriaLogs:    PowerScale (logs), UFM (logs), VAST (logs),
+#                    Vector-OME (logs)
+#
+# This file is only included for selective cleanup (cleanup_sinks tag).
+# Full cleanup (cleanup tag) drains sources before sink cleanup and
+# does not need dependency checking.
+# =============================================================================
+
+- name: Dependency check | Detect running telemetry sources
+  block:
+    # -----------------------------------------------------------------
+    # Step 1: Check all source pods and resources in the namespace
+    # -----------------------------------------------------------------
+    - name: Dependency check | Check iDRAC pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }}
+        -l app=idrac-telemetry --no-headers --ignore-not-found -o name
+      register: _dep_check_idrac
+      changed_when: false
+      failed_when: false
+
+    - name: Dependency check | Check LDMS pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }}
+        -l app=nersc-ldms --no-headers --ignore-not-found -o name
+      register: _dep_check_ldms
+      changed_when: false
+      failed_when: false
+
+    - name: Dependency check | Check Vector-LDMS pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }}
+        -l app=vector-ldms --no-headers --ignore-not-found -o name
+      register: _dep_check_vector_ldms
+      changed_when: false
+      failed_when: false
+
+    - name: Dependency check | Check Vector-OME pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }}
+        -l app=vector-ome --no-headers --ignore-not-found -o name
+      register: _dep_check_vector_ome
+      changed_when: false
+      failed_when: false
+
+    - name: Dependency check | Check PowerScale pods
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }}
+        -l app.kubernetes.io/name=karavi-metrics-powerscale
+        --no-headers --ignore-not-found -o name
+      register: _dep_check_powerscale
+      changed_when: false
+      failed_when: false
+
+    - name: Dependency check | Check UFM service
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} get service ufm-external
+        --output=name --ignore-not-found=true
+      register: _dep_check_ufm
+      changed_when: false
+      failed_when: false
+
+    - name: Dependency check | Check VAST service
+      ansible.builtin.command: >
+        kubectl -n {{ telemetry_namespace }} get service vast-external
+        --output=name --ignore-not-found=true
+      register: _dep_check_vast
+      changed_when: false
+      failed_when: false
+    # -----------------------------------------------------------------
+    # Step 2: Build blocking sources for each sink
+    # -----------------------------------------------------------------
+    - name: Dependency check | Determine Kafka blocking sources
+      vars:
+        _tc: "{{ hostvars['localhost']['telemetry_config'] | default({}) }}"
+        _ts: "{{ _tc.telemetry_sources | default({}) }}"
+        _idrac_targets: "{{ (_ts.idrac | default({})).collection_targets | default([]) }}"
+        _idrac_running: "{{ _dep_check_idrac.stdout | default('') | trim | length > 0 }}"
+        _ldms_running: "{{ _dep_check_ldms.stdout | default('') | trim | length > 0 }}"
+        _vector_ldms_running: "{{ _dep_check_vector_ldms.stdout | default('') | trim | length > 0 }}"
+        _vector_ome_running: "{{ _dep_check_vector_ome.stdout | default('') | trim | length > 0 }}"
+      ansible.builtin.set_fact:
+        _kafka_blocking_sources: >-
+          {{
+            ([]
+             + (['iDRAC'] if (_idrac_running | bool) and ('kafka' in _idrac_targets) else [])
+             + (['LDMS'] if (_ldms_running | bool) else [])
+             + (['Vector-LDMS'] if (_vector_ldms_running | bool) else [])
+             + (['Vector-OME'] if (_vector_ome_running | bool) else [])
+            )
+          }}
+      delegate_to: localhost
+      delegate_facts: true
+      when: "'kafka' in hostvars['localhost']['_cleanup_sinks_requested']"
+
+    - name: Dependency check | Set Kafka cleanup blocked flag
+      ansible.builtin.set_fact:
+        _kafka_cleanup_blocked: >-
+          {{ hostvars['localhost']['_kafka_blocking_sources'] | default([]) | length > 0 }}
+      delegate_to: localhost
+      delegate_facts: true
+      when: "'kafka' in hostvars['localhost']['_cleanup_sinks_requested']"
+
+    - name: Dependency check | Kafka not requested
+      ansible.builtin.set_fact:
+        _kafka_cleanup_blocked: false
+        _kafka_blocking_sources: []
+      delegate_to: localhost
+      delegate_facts: true
+      when: "'kafka' not in hostvars['localhost']['_cleanup_sinks_requested']"
+
+    - name: Dependency check | Determine VictoriaMetrics blocking sources
+      vars:
+        _tc: "{{ hostvars['localhost']['telemetry_config'] | default({}) }}"
+        _ts: "{{ _tc.telemetry_sources | default({}) }}"
+        _tb: "{{ _tc.telemetry_bridges | default({}) }}"
+        _idrac_targets: "{{ (_ts.idrac | default({})).collection_targets | default([]) }}"
+        _idrac_running: "{{ _dep_check_idrac.stdout | default('') | trim | length > 0 }}"
+        _powerscale_running: "{{ _dep_check_powerscale.stdout | default('') | trim | length > 0 }}"
+        _ufm_running: "{{ _dep_check_ufm.stdout | default('') | trim | length > 0 }}"
+        _vast_running: "{{ _dep_check_vast.stdout | default('') | trim | length > 0 }}"
+        _vector_ldms_running: "{{ _dep_check_vector_ldms.stdout | default('') | trim | length > 0 }}"
+        _vector_ome_running: "{{ _dep_check_vector_ome.stdout | default('') | trim | length > 0 }}"
+        _ome_metrics_enabled: "{{ (_tb.vector_ome | default({})).metrics_enabled | default(false) | bool }}"
+        _ps_metrics_enabled: "{{ (_ts.powerscale | default({})).metrics_enabled | default(false) | bool }}"
+        _ufm_metrics_enabled: "{{ (_ts.ufm | default({})).metrics_enabled | default(false) | bool }}"
+        _vast_metrics_enabled: "{{ (_ts.vast | default({})).metrics_enabled | default(false) | bool }}"
+      ansible.builtin.set_fact:
+        _vm_blocking_sources: >-
+          {{
+            ([]
+             + (['iDRAC'] if (_idrac_running | bool) and ('victoria_metrics' in _idrac_targets) else [])
+             + (['PowerScale'] if (_powerscale_running | bool) and (_ps_metrics_enabled | bool) else [])
+             + (['UFM'] if (_ufm_running | bool) and (_ufm_metrics_enabled | bool) else [])
+             + (['VAST'] if (_vast_running | bool) and (_vast_metrics_enabled | bool) else [])
+             + (['Vector-LDMS'] if (_vector_ldms_running | bool) else [])
+             + (['Vector-OME'] if (_vector_ome_running | bool) and (_ome_metrics_enabled | bool) else [])
+            )
+          }}
+      delegate_to: localhost
+      delegate_facts: true
+      when: "'victoria_metrics' in hostvars['localhost']['_cleanup_sinks_requested']"
+
+    - name: Dependency check | Set VictoriaMetrics cleanup blocked flag
+      ansible.builtin.set_fact:
+        _vm_cleanup_blocked: >-
+          {{ hostvars['localhost']['_vm_blocking_sources'] | default([]) | length > 0 }}
+      delegate_to: localhost
+      delegate_facts: true
+      when: "'victoria_metrics' in hostvars['localhost']['_cleanup_sinks_requested']"
+
+    - name: Dependency check | VictoriaMetrics not requested
+      ansible.builtin.set_fact:
+        _vm_cleanup_blocked: false
+        _vm_blocking_sources: []
+      delegate_to: localhost
+      delegate_facts: true
+      when: "'victoria_metrics' not in hostvars['localhost']['_cleanup_sinks_requested']"
+
+    - name: Dependency check | Determine VictoriaLogs blocking sources
+      vars:
+        _tc: "{{ hostvars['localhost']['telemetry_config'] | default({}) }}"
+        _ts: "{{ _tc.telemetry_sources | default({}) }}"
+        _tb: "{{ _tc.telemetry_bridges | default({}) }}"
+        _powerscale_running: "{{ _dep_check_powerscale.stdout | default('') | trim | length > 0 }}"
+        _ufm_running: "{{ _dep_check_ufm.stdout | default('') | trim | length > 0 }}"
+        _vast_running: "{{ _dep_check_vast.stdout | default('') | trim | length > 0 }}"
+        _vector_ome_running: "{{ _dep_check_vector_ome.stdout | default('') | trim | length > 0 }}"
+        _ome_logs_enabled: "{{ (_tb.vector_ome | default({})).logs_enabled | default(false) | bool }}"
+        _ps_logs_enabled: "{{ (_ts.powerscale | default({})).logs_enabled | default(false) | bool }}"
+        _ufm_logs_enabled: "{{ (_ts.ufm | default({})).logs_enabled | default(false) | bool }}"
+        _vast_logs_enabled: "{{ (_ts.vast | default({})).logs_enabled | default(false) | bool }}"
+      ansible.builtin.set_fact:
+        _vl_blocking_sources: >-
+          {{
+            ([]
+             + (['PowerScale'] if (_powerscale_running | bool) and (_ps_logs_enabled | bool) else [])
+             + (['UFM'] if (_ufm_running | bool) and (_ufm_logs_enabled | bool) else [])
+             + (['VAST'] if (_vast_running | bool) and (_vast_logs_enabled | bool) else [])
+             + (['Vector-OME'] if (_vector_ome_running | bool) and (_ome_logs_enabled | bool) else [])
+            )
+          }}
+      delegate_to: localhost
+      delegate_facts: true
+      when: "'victoria_logs' in hostvars['localhost']['_cleanup_sinks_requested']"
+
+    - name: Dependency check | Set VictoriaLogs cleanup blocked flag
+      ansible.builtin.set_fact:
+        _vl_cleanup_blocked: >-
+          {{ hostvars['localhost']['_vl_blocking_sources'] | default([]) | length > 0 }}
+      delegate_to: localhost
+      delegate_facts: true
+      when: "'victoria_logs' in hostvars['localhost']['_cleanup_sinks_requested']"
+
+    - name: Dependency check | VictoriaLogs not requested
+      ansible.builtin.set_fact:
+        _vl_cleanup_blocked: false
+        _vl_blocking_sources: []
+      delegate_to: localhost
+      delegate_facts: true
+      when: "'victoria_logs' not in hostvars['localhost']['_cleanup_sinks_requested']"
+
+    # -----------------------------------------------------------------
+    # Step 3: Display dependency check results
+    # -----------------------------------------------------------------
+    - name: Dependency check | Report Kafka blocked
+      ansible.builtin.debug:
+        msg: >-
+          Kafka cleanup BLOCKED — running source(s):
+          {{ hostvars['localhost']['_kafka_blocking_sources'] | join(', ') }}
+      when:
+        - "'kafka' in hostvars['localhost']['_cleanup_sinks_requested']"
+        - hostvars['localhost']['_kafka_cleanup_blocked'] | bool
+
+    - name: Dependency check | Report VictoriaMetrics blocked
+      ansible.builtin.debug:
+        msg: >-
+          VictoriaMetrics cleanup BLOCKED — running source(s):
+          {{ hostvars['localhost']['_vm_blocking_sources'] | join(', ') }}
+      when:
+        - "'victoria_metrics' in hostvars['localhost']['_cleanup_sinks_requested']"
+        - hostvars['localhost']['_vm_cleanup_blocked'] | bool
+
+    - name: Dependency check | Report VictoriaLogs blocked
+      ansible.builtin.debug:
+        msg: >-
+          VictoriaLogs cleanup BLOCKED — running source(s):
+          {{ hostvars['localhost']['_vl_blocking_sources'] | join(', ') }}
+      when:
+        - "'victoria_logs' in hostvars['localhost']['_cleanup_sinks_requested']"
+        - hostvars['localhost']['_vl_cleanup_blocked'] | bool
+
+    - name: Dependency check | Report allowed sinks
+      vars:
+        _allowed: >-
+          {{
+            ([]
+             + (['kafka'] if ('kafka' in hostvars['localhost']['_cleanup_sinks_requested'])
+                  and not (hostvars['localhost']['_kafka_cleanup_blocked'] | bool) else [])
+             + (['victoria_metrics'] if ('victoria_metrics' in hostvars['localhost']['_cleanup_sinks_requested'])
+                  and not (hostvars['localhost']['_vm_cleanup_blocked'] | bool) else [])
+             + (['victoria_logs'] if ('victoria_logs' in hostvars['localhost']['_cleanup_sinks_requested'])
+                  and not (hostvars['localhost']['_vl_cleanup_blocked'] | bool) else [])
+            )
+          }}
+      ansible.builtin.debug:
+        msg: >-
+          Sinks allowed for cleanup: {{ _allowed | join(', ') | default('none', true) }}
+
+  rescue:
+    # AC6 — Fail safely: if dependency detection fails, do not clean any sink
+    - name: Dependency check | Record dependency validation failure
+      ansible.builtin.set_fact:
+        _kafka_cleanup_blocked: true
+        _kafka_blocking_sources: ["dependency check failed"]
+        _vm_cleanup_blocked: true
+        _vm_blocking_sources: ["dependency check failed"]
+        _vl_cleanup_blocked: true
+        _vl_blocking_sources: ["dependency check failed"]
+        _sink_dependency_check_failed: true
+      delegate_to: localhost
+      delegate_facts: true
+
+    - name: Dependency check | Report failure
+      ansible.builtin.debug:
+        msg: "{{ cleanup_sinks_dependency_check_failed_msg }}"

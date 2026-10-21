@@ -35,7 +35,8 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 readonly DOMAIN_NAME="build_stream"
 
 # Color definitions
@@ -106,6 +107,7 @@ cleanup_initializer_artifacts() {
     local cleanup_paths=(
         "${domain_data_dir}/input"
         "${domain_data_dir}/log"
+        "${domain_data_dir}/logs"
         "${log_root}/${DOMAIN_NAME}"
     )
 
@@ -273,7 +275,7 @@ copy_input_files() {
 
     # Use rsync if available (preserves permissions, only copies changed files)
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --update "$src_dir/" "$dest_dir/" --exclude='.*'
+        rsync -a "$src_dir/" "$dest_dir/" --exclude='.*'
     else
         cp -a "$src_dir"/. "$dest_dir/"
     fi

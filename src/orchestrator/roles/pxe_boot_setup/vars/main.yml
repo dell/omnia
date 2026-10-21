@@ -1,0 +1,52 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+pxe_boot_setup_config_file: "{{ input_project_dir }}/set_pxe_boot_config.yml"
+pxe_boot_setup_override_modes:
+  - once
+  - continuous
+  - disabled
+pxe_boot_setup_override_targets:
+  - pxe
+  - uefi_http
+  - hdd
+  - cd
+  - floppy
+  - sd_card
+  - utilities
+  - bios_setup
+  - none
+pxe_boot_setup_scopes:
+  - pending
+  - all
+pxe_boot_setup_disabled_msg: >-
+  PXE boot is disabled (enable_pxe_boot: false in orchestrator_config.yml).
+  This is expected for virtual machine environments without iDRAC/BMC. To
+  enable it, set enable_pxe_boot: true in orchestrator_config.yml. Skipping all
+  PXE boot plays.
+pxe_boot_setup_defaults_msg: >-
+  Optional set_pxe_boot_config.yml was not found; using documented PXE boot and
+  node-registration defaults.
+pxe_boot_setup_invalid_config_msg: >-
+  Invalid set_pxe_boot_config.yml. Use booleans for enable/restart options,
+  non-negative numeric pause, positive integer retries and delay, and one of
+  the documented boot override values.
+pxe_boot_setup_valid_config_msg: PXE boot configuration is valid.
+pxe_boot_setup_continuous_override_msg: >-
+  WARNING: boot_source_override_enabled is continuous. Nodes will continue
+  selecting PXE on later restarts until the iDRAC boot override is changed.
+  Use once for a single PXE boot.
+pxe_boot_setup_legacy_variables_msg: >-
+  DEPRECATION WARNING: The phone_home_* variable names are deprecated and will
+  be removed in a future release. Use node_registration_* instead.

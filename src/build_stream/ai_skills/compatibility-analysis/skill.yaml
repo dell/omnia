@@ -1,0 +1,23 @@
+name: compatibility-analysis
+version: 1.0.0
+description: >-
+  Checks package compatibility and investigates dependencies for proposed catalog additions using
+  approved upstream/repository evidence, with disclosed gaps when online sources are unavailable. Use when finding dependencies
+  or checking compatibility with a target OS, architecture, kernel, or another catalog package,
+  including driver/kernel changes.
+author: Omnia Build Stream Team
+role: engineering
+domain: catalog-analysis
+tags:
+  - analysis
+  - compatibility
+  - catalog
+  - omnia
+dependencies:
+  - connectivity-layer
+  - trusted-source-policy
+  - catalog-selection-gate
+  - skill-scope
+status: active
+created: 2026-09-29
+updated: 2026-10-16

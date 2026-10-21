@@ -1,0 +1,43 @@
+#!/bin/bash
+# Resolve the RHEL minor version and architecture of the node running the script.
+
+omnia_detect_platform() {
+    local os_release="${1:-/etc/os-release}"
+    local detected_arch
+
+    if [ ! -r "$os_release" ]; then
+        echo "[ERROR] Cannot read $os_release"
+        return 1
+    fi
+
+    # shellcheck disable=SC1090
+    . "$os_release"
+    OMNIA_OS_TYPE="${ID,,}"
+    OMNIA_OS_VERSION="${VERSION_ID:-}"
+    detected_arch="${OMNIA_TEST_ARCH:-$(uname -m)}"
+
+    case "$detected_arch" in
+        x86_64|amd64) OMNIA_ARCH="x86_64" ;;
+        aarch64|arm64) OMNIA_ARCH="aarch64" ;;
+        *)
+            echo "[ERROR] Unsupported architecture: $detected_arch"
+            return 1
+            ;;
+    esac
+
+    if [[ ! "$OMNIA_OS_TYPE" =~ ^[a-z0-9._-]+$ ]]; then
+        echo "[ERROR] Invalid or missing operating-system ID: $OMNIA_OS_TYPE"
+        return 1
+    fi
+    if [[ ! "$OMNIA_OS_VERSION" =~ ^[0-9]+([.][0-9]+)*$ ]]; then
+        echo "[ERROR] Invalid or missing VERSION_ID: $OMNIA_OS_VERSION"
+        return 1
+    fi
+
+    OMNIA_HPC_TOOLS_DIR="${OMNIA_HPC_TOOLS_DIR:-/hpc_tools}"
+    OMNIA_PLATFORM_ROOT="${OMNIA_HPC_TOOLS_DIR}/platforms/${OMNIA_OS_TYPE}/${OMNIA_OS_VERSION}/${OMNIA_ARCH}"
+    OMNIA_PULP_PLATFORM_PATH="${OMNIA_ARCH}/${OMNIA_OS_TYPE}/${OMNIA_OS_VERSION}"
+
+    export OMNIA_OS_TYPE OMNIA_OS_VERSION OMNIA_ARCH
+    export OMNIA_HPC_TOOLS_DIR OMNIA_PLATFORM_ROOT OMNIA_PULP_PLATFORM_PATH
+}

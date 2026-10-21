@@ -346,6 +346,7 @@ def add_session_result(
     status: str,
     duration: float,
     tc_id: str = "",
+    reason: str = "",
 ) -> None:
     """Append a test result for the session summary table.
 
@@ -354,6 +355,7 @@ def add_session_result(
         status: ``PASSED``, ``FAILED``, or ``SKIPPED``.
         duration: Duration in seconds.
         tc_id: Test case ID (e.g. ``IMGBM_FVT_PREPARE_E001``).
+        reason: Skip reason shown below the summary table.
     """
     result = {
         "test_name": test_name,
@@ -361,6 +363,8 @@ def add_session_result(
         "status": status,
         "duration": duration,
     }
+    if reason:
+        result["reason"] = " ".join(str(reason).split())
     _SESSION_RESULTS.set((*_SESSION_RESULTS.get(), result))
 
 
@@ -473,5 +477,14 @@ def _render_summary(results) -> None:
         f"/ {total} total "
         f"({total_dur:.2f}s)"
     )
+    skip_reasons = [r for r in skipped if r.get("reason")]
+    if skip_reasons:
+        print(f"\n  {Colors.YELLOW}Skip reasons{Colors.RESET}")
+        for r in skip_reasons:
+            label = r.get("tc_id") or r["test_name"]
+            print(
+                f"  {Colors.CYAN}{label:<{tc_id_width}}{Colors.RESET} "
+                f"{TestLogger._truncate(r['reason'], MAX_LINE_WIDTH)}"
+            )
     print(sep)
     print()

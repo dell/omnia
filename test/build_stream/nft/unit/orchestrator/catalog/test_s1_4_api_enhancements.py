@@ -459,9 +459,9 @@ class TestResultPollerBuildImageCompletion:
         from orchestrator.common.result_poller import ResultPoller
         # Unified design (Omnia 2.3+): only "build-image" stage exists
         assert ResultPoller._is_build_image_stage("build-image")
-        # Legacy stage names should also be recognized for backward compatibility
-        assert ResultPoller._is_build_image_stage("build-image-x86_64")
-        assert ResultPoller._is_build_image_stage("build-image-aarch64")
+        # Retired arch-specific stage names are no longer recognized
+        assert not ResultPoller._is_build_image_stage("build-image-x86_64")
+        assert not ResultPoller._is_build_image_stage("build-image-aarch64")
         # Other stages should not be recognized
         assert not ResultPoller._is_build_image_stage("create-local-repository")
         assert not ResultPoller._is_build_image_stage("deploy")
@@ -531,7 +531,7 @@ class TestResultPollerBuildImageCompletion:
         # Create a mock result
         mock_result = MagicMock()
         mock_result.job_id = JobId(VALID_JOB_ID)
-        mock_result.stage_name = "build-image-x86_64"
+        mock_result.stage_name = "build-image"
 
         poller._on_build_image_success(mock_result)
 

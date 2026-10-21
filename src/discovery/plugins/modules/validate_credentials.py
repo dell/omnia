@@ -20,7 +20,7 @@
 import json
 import os
 import re
-from configparser import ConfigParser
+from typing import Any, Tuple
 
 from ansible.module_utils.basic import AnsibleModule
 
@@ -64,12 +64,13 @@ msg:
 '''
 
 
-def load_rules(file_path):
+def load_rules(file_path: str) -> dict[str, Any]:
     """Loads validation rules from a JSON file."""
     with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
 
-def validate_input(field, value, rules):
+
+def validate_input(field: str, value: str, rules: dict[str, Any]) -> Tuple[bool, str]:
     """Validates input against rules."""
     if field not in rules:
         return (False, f"Validation rules not found for '{field}'")
@@ -80,7 +81,8 @@ def validate_input(field, value, rules):
         return (False, f"'{field}' format is invalid. Description: {rule['description']}")
     return (True, f"'{field}' is valid")
 
-def main():
+
+def main() -> None:
     """Main module function."""
     module_args = {
         "credential_field": {"type": "str", "required": True},

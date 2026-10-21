@@ -853,7 +853,7 @@ def generate_configs_from_policy(
     )
 
 
-def main():
+def main() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Generate adapter configs from input JSONs using adapter policy"

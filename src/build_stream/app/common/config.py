@@ -63,8 +63,7 @@ def _expand_env(value: str) -> str:
     temporarily injected with the standard default so that expansion
     never produces a literal ``${OMNIA_DATA_PATH}`` in output paths.
     """
-    if "OMNIA_DATA_PATH" not in os.environ:
-        os.environ["OMNIA_DATA_PATH"] = "/opt/omnia"
+    os.environ.setdefault("OMNIA_DATA_PATH", "/opt/omnia")
     return os.path.expandvars(value)
 
 

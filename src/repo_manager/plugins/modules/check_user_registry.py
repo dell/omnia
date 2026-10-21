@@ -67,34 +67,17 @@ invalid_registries:
   type: list
   returned: always
 """
-# from ansible.module_utils.repo_manager.config import (
-#     USER_REG_CRED_INPUT,
-#     USER_REG_KEY_PATH
-# )
-
-
 def main():
     """
     Ansible module to validate user registry entries.
     """
     module = AnsibleModule(
-        # argument_spec=dict(
-        #     timeout=dict(type='int', default=5),
-        #     config_file=dict(type='str', required=True),
-        #     user_reg_cred_input=dict(type='str', required=False, default=USER_REG_CRED_INPUT),
-        #     user_reg_key_path=dict(type='str', required=False, default=USER_REG_KEY_PATH)
-        # ),
         argument_spec=dict(
             timeout=dict(type='int', default=5),
             config_file=dict(type='str', required=True)
         ),
         supports_check_mode=True
     )
-
-    # config_path = module.params['config_file']
-    # timeout = module.params['timeout']
-    # user_reg_cred_input = module.params["user_reg_cred_input"]
-    # user_reg_key_path = module.params["user_reg_key_path"]
 
     config_path = module.params['config_file']
     timeout = module.params['timeout']

@@ -54,6 +54,7 @@ from library.vars import TEST_CASES as TC
 from library.vars.common_vars import (
     GITLAB_CI_PIPELINE_FILE,
     GITLAB_CI_BUILD_FILE,
+    GITLAB_CI_CADENCE_FILE,
     GITLAB_CI_DEPLOY_FILE,
     GITLAB_CI_CLEANUP_FILE,
     GITLAB_CI_DEPLOY_CHILD_TEMPLATE,
@@ -591,5 +592,26 @@ def test_domain_input_dirs_in_repo(host):
         ASSERT["domain_dirs_missing"].format(
             missing=", ".join(result.get("missing", [])),
         )
+        + (f"\nRoot cause: {result['error']}" if result.get("error") else "")
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(23)
+def test_gitlab_ci_cadence_file_exists(host):
+    """Verify .gitlab-ci-cadence.yml exists in the GitLab repository."""
+    tc = TC["gitlab_ci_cadence_file_exists"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_gitlab_repo_file_exists(host, GITLAB_CI_CADENCE_FILE)
+
+    if result["success"]:
+        tl.passed(LOG["ci_file_ok"].format(file=GITLAB_CI_CADENCE_FILE))
+    else:
+        tl.failed(LOG["ci_file_missing"].format(
+            file=GITLAB_CI_CADENCE_FILE,
+        ))
+
+    assert result["success"], (
+        ASSERT["pipeline_file_missing"].format(file=GITLAB_CI_CADENCE_FILE)
         + (f"\nRoot cause: {result['error']}" if result.get("error") else "")
     )

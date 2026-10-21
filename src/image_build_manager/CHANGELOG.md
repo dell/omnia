@@ -16,6 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MinIO S3 and OCI Registry deployment
 - Input validation framework (4-directory pattern: core/messages/schema/validators)
 - `validate_system_environment` module for setup and precheck roles
-- Standard tag support: precheck, validate, credentials, prepare, execute/build, cleanup, upgrade, rollback
+- Standard tag support: precheck, validate, credentials, prepare, execute/build, cleanup
 - `domain-init.sh` with idempotent input staging and dependency caching
 - `docs/contracts/` with input and output contracts

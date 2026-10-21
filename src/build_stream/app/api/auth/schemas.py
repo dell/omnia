@@ -212,7 +212,8 @@ class TokenResponse(BaseModel):  # pylint: disable=too-few-public-methods
         "json_schema_extra": {
             "examples": [
                 {
-                    "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    # Example JWT header only; not a credential.
+                    "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",  # gitleaks:allow
                     "token_type": "Bearer",
                     "expires_in": 3600,
                     "scope": "catalog:read catalog:write",
