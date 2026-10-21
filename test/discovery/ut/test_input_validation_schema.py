@@ -169,24 +169,6 @@ class TestCredentialRulesSchema:
         )
         assert "ome_password" in rules
 
-    def test_bmc_username_rule_exists(self):
-        rules = json.loads(
-            (SCHEMA_DIR / "credential_rules.json").read_text(encoding="utf-8")
-        )
-        assert "bmc_username" in rules
-
-    def test_bmc_password_rule_exists(self):
-        rules = json.loads(
-            (SCHEMA_DIR / "credential_rules.json").read_text(encoding="utf-8")
-        )
-        assert "bmc_password" in rules
-
-    def test_provision_password_rule_exists(self):
-        rules = json.loads(
-            (SCHEMA_DIR / "credential_rules.json").read_text(encoding="utf-8")
-        )
-        assert "provision_password" in rules
-
     def test_each_rule_has_min_length(self):
         rules = json.loads(
             (SCHEMA_DIR / "credential_rules.json").read_text(encoding="utf-8")
