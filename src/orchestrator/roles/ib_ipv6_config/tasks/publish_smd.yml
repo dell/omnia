@@ -39,11 +39,38 @@
   loop_control:
     label: "{{ item.item }}"
   no_log: true
+  register: _ib_ipv6_smd_results
   when:
     - not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  ignore_errors: true
+
+- name: Detect SMD publication failures
+  ansible.builtin.set_fact:
+    _ib_ipv6_smd_failed_nodes: >-
+      {{ _ib_ipv6_smd_results.results
+         | default([])
+         | selectattr('failed', 'defined')
+         | selectattr('failed', 'equalto', true)
+         | map(attribute='item')
+         | map(attribute='item')
+         | list }}
+
+- name: Set SMD publication status
+  ansible.builtin.set_fact:
+    _ib_ipv6_smd_success: "{{ (_ib_ipv6_smd_failed_nodes | length) == 0 }}"
+
+- name: Report RECOVERY_REQUIRED for SMD publication failures
+  ansible.builtin.debug:
+    msg: >-
+      [IB-IPv6] RECOVERY_REQUIRED — SMD publication failed for node(s):
+      {{ _ib_ipv6_smd_failed_nodes | join(', ') }}.
+      failure_stage=SMD_PUBLICATION, retryable=true,
+      recommended_action=rerun provisioning for affected nodes.
+  when: not (_ib_ipv6_smd_success | bool)
 
 - name: Display SMD registration status
   ansible.builtin.debug:
     msg: >-
       [IB-IPv6] SMD registration complete for
       {{ _ib_ipv6_render.nodes_needing_update | length }} node(s)
+  when: _ib_ipv6_smd_success | bool
