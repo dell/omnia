@@ -20,20 +20,34 @@
   when: node_params is defined and (node_params | length > 0)
   no_log: "{{ _no_log }}"
 
-- name: Append login nodes to NodeName list
+- name: Append login nodes to NodeName list (with NodeAddr from PXE mapping if available)
   ansible.builtin.set_fact:
     apply_config: "{{ apply_config | default({})
      | combine({'slurm': (apply_config['slurm']
-     | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + [{'NodeName': item}]}))}) }}"
+     | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + [_login_entry]}))}) }}"
+  vars:
+    _login_entry: >-
+      {{ {'NodeName': item} | combine({'NodeAddr': _pxe_ib_nodeaddr_map[item]})
+         if (_pxe_ib_nodeaddr_map | default({})).get(item, '')
+         else ({'NodeName': item} | combine({'NodeAddr': _ib_nodeaddr_map[item]})
+               if (_ib_nodeaddr_map | default({})).get(item, '')
+               else {'NodeName': item}) }}
   loop: "{{ login_list }}"
   when: login_list is defined and (login_list | length > 0)
   no_log: "{{ _no_log }}"
 
-- name: Append compiler login nodes to NodeName list
+- name: Append compiler login nodes to NodeName list (with NodeAddr from PXE mapping if available)
   ansible.builtin.set_fact:
     apply_config: "{{ apply_config | default({})
      | combine({'slurm': (apply_config['slurm']
-     | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + [{'NodeName': item}]}))}) }}"
+     | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + [_compiler_entry]}))}) }}"
+  vars:
+    _compiler_entry: >-
+      {{ {'NodeName': item} | combine({'NodeAddr': _pxe_ib_nodeaddr_map[item]})
+         if (_pxe_ib_nodeaddr_map | default({})).get(item, '')
+         else ({'NodeName': item} | combine({'NodeAddr': _ib_nodeaddr_map[item]})
+               if (_ib_nodeaddr_map | default({})).get(item, '')
+               else {'NodeName': item}) }}
   loop: "{{ compiler_login_list }}"
   when: compiler_login_list is defined and (compiler_login_list | length > 0)
   no_log: "{{ _no_log }}"
@@ -43,6 +57,38 @@
     apply_config: "{{ apply_config | default({})
      | combine({'slurm': (apply_config['slurm']
      | combine({'PartitionName': (apply_config['slurm'].PartitionName | default([])) + [partition_params]}))}) }}"
+  when: node_params is defined and (node_params | length > 0)
+  no_log: "{{ _no_log }}"
+
+# Convenience partitions — additive, do not change default partition behaviour.
+# Slurm GRES-based scheduling ensures gpu partition jobs only land on GPU nodes.
+# Users submit: sbatch -p gpu --gres=gpu:1 job.sh
+#               sbatch -p cpu job.sh
+- name: Append GPU convenience partition
+  ansible.builtin.set_fact:
+    apply_config: "{{ apply_config | default({})
+     | combine({'slurm': (apply_config['slurm']
+     | combine({'PartitionName': (apply_config['slurm'].PartitionName | default([])) + [_gpu_partition]}))}) }}"
+  vars:
+    _gpu_partition:
+      PartitionName: gpu
+      Nodes: "{{ cmpt_list | join(',') if cmpt_list else 'ALL' }}"
+      MaxTime: INFINITE
+      State: UP
+  when: node_params is defined and (node_params | length > 0)
+  no_log: "{{ _no_log }}"
+
+- name: Append CPU convenience partition
+  ansible.builtin.set_fact:
+    apply_config: "{{ apply_config | default({})
+     | combine({'slurm': (apply_config['slurm']
+     | combine({'PartitionName': (apply_config['slurm'].PartitionName | default([])) + [_cpu_partition]}))}) }}"
+  vars:
+    _cpu_partition:
+      PartitionName: cpu
+      Nodes: "{{ cmpt_list | join(',') if cmpt_list else 'ALL' }}"
+      MaxTime: INFINITE
+      State: UP
   when: node_params is defined and (node_params | length > 0)
   no_log: "{{ _no_log }}"
 

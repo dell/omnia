@@ -26,6 +26,7 @@ from ..messages import orchestrator_messages as msg
 from ..validators import (
     additional_cloud_init_validator,
     high_availability_validator,
+    ib_ipv6_allocation_validator,
     network_spec_validator,
     omnia_config_validator,
     orchestrator_config_validator,
@@ -206,3 +207,35 @@ def logic_storage(
 def high_availability_applicable(input_project_dir: str) -> bool:
     """Return whether high-availability input applies to this project."""
     return high_availability_validator.is_applicable(input_project_dir)
+
+
+def schema_ib_ipv6_allocation(
+    data: Any,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Validate IPoIB IPv6 allocation export against its JSON Schema.
+
+    Args:
+        data: Parsed allocation export JSON.
+        logger: Optional validation logger.
+
+    Returns:
+        JSON Schema errors, or an empty list for valid input.
+    """
+    return ib_ipv6_allocation_validator.validate_schema(data, logger)
+
+
+def logic_ib_ipv6_allocation(
+    data: Any,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch IPoIB IPv6 allocation L2 semantic validation.
+
+    Args:
+        data: Parsed allocation export JSON (already L1-valid).
+        logger: Optional validation logger.
+
+    Returns:
+        L2 validation errors.
+    """
+    return ib_ipv6_allocation_validator.validate_semantic(data, logger)

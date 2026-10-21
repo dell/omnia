@@ -108,7 +108,7 @@ def _mapped_addresses(
     mapped: dict[str, set[str]] = {
         "ADMIN_IP": set(),
         "BMC_IP": set(),
-        "IB_IP": set(),
+        "IB_IPV4": set(),
     }
     for row in rows:
         for field in mapped:
