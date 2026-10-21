@@ -27,9 +27,14 @@
 # =============================================================================
 
 - name: Check if Vector-LDMS deployment exists
-  ansible.builtin.command: >
-    kubectl get deployment {{ vector.ldms.app_name }}
-    -n {{ telemetry_namespace }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - deployment
+      - "{{ vector.ldms.app_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
   register: vector_ldms_check
   changed_when: false
   failed_when: false
@@ -38,45 +43,71 @@
 # Create it only once; later LDMS enable/disable/re-enable cycles must not
 # touch an already-running shared write-buffer or its sink-bound pods.
 - name: Check if vmagent-vector deployment exists
-  ansible.builtin.command: >
-    kubectl get deployment vmagent-vector
-    -n {{ telemetry_namespace }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - deployment
+      - vmagent-vector
+      - -n
+      - "{{ telemetry_namespace }}"
   register: vmagent_vector_check
   changed_when: false
   failed_when: false
 
 - name: Apply vmagent-vector Deployment (metrics write-buffer, first creation only)
-  ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vmagent-vector-deployment.yaml
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ telemetry_deployments_dir }}/vector/vmagent-vector-deployment.yaml"
   register: vmagent_vector_deploy_result
   changed_when: "'configured' in vmagent_vector_deploy_result.stdout or 'created' in vmagent_vector_deploy_result.stdout"
   when: vmagent_vector_check.rc != 0
 
 - name: Apply vmagent-vector Service (first creation only)
-  ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vmagent-vector-service.yaml
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ telemetry_deployments_dir }}/vector/vmagent-vector-service.yaml"
   register: vmagent_vector_svc_result
   changed_when: "'configured' in vmagent_vector_svc_result.stdout or 'created' in vmagent_vector_svc_result.stdout"
   when: vmagent_vector_check.rc != 0
 
 - name: Wait for vmagent-vector deployment rollout (first creation only)
-  ansible.builtin.command: >
-    kubectl rollout status deployment/vmagent-vector
-    -n {{ telemetry_namespace }}
-    --timeout={{ ldms_deploy_timeout }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - rollout
+      - status
+      - deployment/vmagent-vector
+      - -n
+      - "{{ telemetry_namespace }}"
+      - "--timeout={{ ldms_deploy_timeout }}"
   register: vmagent_vector_rollout
   changed_when: false
   when: vmagent_vector_check.rc != 0
 
 - name: Apply Vector-LDMS ConfigMap
-  ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vector-ldms-configmap.yaml
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ telemetry_deployments_dir }}/vector/vector-ldms-configmap.yaml"
   register: vector_configmap_result
   changed_when: "'configured' in vector_configmap_result.stdout or 'created' in vector_configmap_result.stdout"
 
 - name: Apply Vector-LDMS Deployment
-  ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vector-ldms-deployment.yaml
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ telemetry_deployments_dir }}/vector/vector-ldms-deployment.yaml"
   register: vector_deployment_result
   changed_when: "'configured' in vector_deployment_result.stdout or 'created' in vector_deployment_result.stdout"
 
@@ -86,41 +117,68 @@
 # correct, so the current count is checked first to keep this idempotent and
 # avoid an unconditional kubectl call (and false "changed") on every run.
 - name: Get current Vector-LDMS replica count
-  ansible.builtin.command: >
-    kubectl get deployment {{ vector.ldms.app_name }}
-    -n {{ telemetry_namespace }} -o jsonpath='{.spec.replicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - deployment
+      - "{{ vector.ldms.app_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -o
+      - jsonpath={.spec.replicas}
   register: current_vector_replicas
   changed_when: false
 
 - name: Ensure Vector-LDMS replicas are restored
-  ansible.builtin.command: >
-    kubectl scale deployment {{ vector.ldms.app_name }}
-    -n {{ telemetry_namespace }}
-    --replicas={{ vector.ldms.replicas | default(2) }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - scale
+      - deployment
+      - "{{ vector.ldms.app_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - "--replicas={{ vector.ldms.replicas | default(2) }}"
   register: restore_vector_replicas
   changed_when: "'scaled' in restore_vector_replicas.stdout"
   when: (current_vector_replicas.stdout | default('0') | int) != (vector.ldms.replicas | default(2) | int)
 
 - name: Apply Vector-LDMS Service
-  ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/vector/vector-ldms-service.yaml
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ telemetry_deployments_dir }}/vector/vector-ldms-service.yaml"
   register: vector_service_result
   changed_when: "'configured' in vector_service_result.stdout or 'created' in vector_service_result.stdout"
 
 - name: Wait for Vector-LDMS deployment rollout
-  ansible.builtin.command: >
-    kubectl rollout status deployment/{{ vector.ldms.app_name }}
-    -n {{ telemetry_namespace }}
-    --timeout={{ ldms_deploy_timeout }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - rollout
+      - status
+      - "deployment/{{ vector.ldms.app_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - "--timeout={{ ldms_deploy_timeout }}"
   register: vector_rollout
   changed_when: false
 
 - name: Wait for Vector-LDMS pods to be ready
-  ansible.builtin.command: >
-    kubectl wait --for=condition=Ready
-    pod -l app={{ vector.ldms.app_name }}
-    -n {{ telemetry_namespace }}
-    --timeout={{ ldms_verify_timeout }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - --for=condition=Ready
+      - pod
+      - -l
+      - "app={{ vector.ldms.app_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - "--timeout={{ ldms_verify_timeout }}"
   register: vector_pods_ready
   changed_when: false
   retries: "{{ pod_ready_retries }}"

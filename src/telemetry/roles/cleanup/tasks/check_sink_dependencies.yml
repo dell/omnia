@@ -38,58 +38,121 @@
     # Step 1: Check all source pods and resources in the namespace
     # -----------------------------------------------------------------
     - name: Dependency check | Check iDRAC pods
-      ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }}
-        -l app=idrac-telemetry --no-headers --ignore-not-found -o name
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - pods
+          - -n
+          - "{{ telemetry_namespace }}"
+          - -l
+          - app=idrac-telemetry
+          - --no-headers
+          - --ignore-not-found
+          - -o
+          - name
       register: _dep_check_idrac
       changed_when: false
       failed_when: false
 
     - name: Dependency check | Check LDMS pods
-      ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }}
-        -l app=nersc-ldms --no-headers --ignore-not-found -o name
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - pods
+          - -n
+          - "{{ telemetry_namespace }}"
+          - -l
+          - app=nersc-ldms
+          - --no-headers
+          - --ignore-not-found
+          - -o
+          - name
       register: _dep_check_ldms
       changed_when: false
       failed_when: false
 
     - name: Dependency check | Check Vector-LDMS pods
-      ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }}
-        -l app=vector-ldms --no-headers --ignore-not-found -o name
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - pods
+          - -n
+          - "{{ telemetry_namespace }}"
+          - -l
+          - app=vector-ldms
+          - --no-headers
+          - --ignore-not-found
+          - -o
+          - name
       register: _dep_check_vector_ldms
       changed_when: false
       failed_when: false
 
     - name: Dependency check | Check Vector-OME pods
-      ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }}
-        -l app=vector-ome --no-headers --ignore-not-found -o name
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - pods
+          - -n
+          - "{{ telemetry_namespace }}"
+          - -l
+          - app=vector-ome
+          - --no-headers
+          - --ignore-not-found
+          - -o
+          - name
       register: _dep_check_vector_ome
       changed_when: false
       failed_when: false
 
     - name: Dependency check | Check PowerScale pods
-      ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }}
-        -l app.kubernetes.io/name=karavi-metrics-powerscale
-        --no-headers --ignore-not-found -o name
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - pods
+          - -n
+          - "{{ telemetry_namespace }}"
+          - -l
+          - app.kubernetes.io/name=karavi-metrics-powerscale
+          - --no-headers
+          - --ignore-not-found
+          - -o
+          - name
       register: _dep_check_powerscale
       changed_when: false
       failed_when: false
 
     - name: Dependency check | Check UFM service
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} get service ufm-external
-        --output=name --ignore-not-found=true
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - "{{ telemetry_namespace }}"
+          - get
+          - service
+          - ufm-external
+          - --output=name
+          - --ignore-not-found=true
       register: _dep_check_ufm
       changed_when: false
       failed_when: false
 
     - name: Dependency check | Check VAST service
-      ansible.builtin.command: >
-        kubectl -n {{ telemetry_namespace }} get service vast-external
-        --output=name --ignore-not-found=true
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - "{{ telemetry_namespace }}"
+          - get
+          - service
+          - vast-external
+          - --output=name
+          - --ignore-not-found=true
       register: _dep_check_vast
       changed_when: false
       failed_when: false

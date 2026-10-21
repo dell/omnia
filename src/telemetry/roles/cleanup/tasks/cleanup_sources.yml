@@ -28,9 +28,16 @@
     or hostvars['localhost']['_cleanup_idrac'] | bool
 
 - name: Check if iDRAC resources exist
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get statefulset idrac-telemetry
-    --ignore-not-found=true --output=name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - statefulset
+      - idrac-telemetry
+      - --ignore-not-found=true
+      - --output=name
   register: _idrac_check
   changed_when: false
   when: >-
@@ -113,9 +120,16 @@
     or hostvars['localhost']['_cleanup_ldms'] | bool
 
 - name: Check if LDMS resources exist
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get statefulset nersc-ldms-aggr
-    --ignore-not-found=true --output=name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - statefulset
+      - nersc-ldms-aggr
+      - --ignore-not-found=true
+      - --output=name
   register: _ldms_check
   changed_when: false
   when: >-
@@ -198,9 +212,16 @@
     or hostvars['localhost']['_cleanup_ome'] | bool
 
 - name: Check if OME resources exist
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get deployment vector-ome
-    --ignore-not-found=true --output=name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - deployment
+      - vector-ome
+      - --ignore-not-found=true
+      - --output=name
   register: _ome_check
   changed_when: false
   when: >-
@@ -274,9 +295,16 @@
     or hostvars['localhost']['_cleanup_powerscale'] | bool
 
 - name: Check if PowerScale resources exist
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get deployment karavi-metrics-powerscale
-    --ignore-not-found=true --output=name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - deployment
+      - karavi-metrics-powerscale
+      - --ignore-not-found=true
+      - --output=name
   register: _powerscale_check
   changed_when: false
   when: >-
@@ -359,9 +387,16 @@
     or hostvars['localhost']['_cleanup_ufm'] | bool
 
 - name: Check if UFM resources exist
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get service ufm-external
-    --ignore-not-found=true --output=name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - service
+      - ufm-external
+      - --ignore-not-found=true
+      - --output=name
   register: _ufm_check
   changed_when: false
   when: >-
@@ -444,9 +479,16 @@
     or hostvars['localhost']['_cleanup_vast'] | bool
 
 - name: Check if VAST resources exist
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get service vast-external
-    --ignore-not-found=true --output=name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - service
+      - vast-external
+      - --ignore-not-found=true
+      - --output=name
   register: _vast_check
   changed_when: false
   when: >-

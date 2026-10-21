@@ -21,9 +21,16 @@
   failed_when: false
 
 - name: "UFM | Delete resources (non-CRD)"
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ ufm_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -33,9 +40,16 @@
   failed_when: false
 
 - name: "UFM | Delete resources (CRD)"
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ ufm_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -48,9 +62,18 @@
   failed_when: false
 
 - name: "UFM | Force delete pods"
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pod -l {{ ufm_pod_label }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - pod
+      - -l
+      - "{{ ufm_pod_label }}"
+      - "--grace-period={{ cleanup_resource_grace_period }}"
+      - --force
+      - --ignore-not-found=true
   register: _ufm_pod_delete
   changed_when: _ufm_pod_delete.rc == 0 and 'deleted' in _ufm_pod_delete.stdout
   failed_when: false

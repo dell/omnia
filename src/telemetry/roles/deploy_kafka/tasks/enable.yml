@@ -37,9 +37,14 @@
   no_log: true
 
 - name: Build telemetry namespace manifest for Kafka discovery
-  ansible.builtin.command: >
-    kubectl create namespace {{ telemetry_namespace }}
-    --dry-run=client --output=yaml
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - create
+      - namespace
+      - "{{ telemetry_namespace }}"
+      - --dry-run=client
+      - --output=yaml
   register: kafka_discovery_namespace_manifest
   changed_when: false
 
@@ -81,9 +86,15 @@
   no_log: true
 
 - name: Check whether Kafka is already ready
-  ansible.builtin.command: >
-    kubectl get kafka/kafka -n {{ telemetry_namespace }} --ignore-not-found
-    --output=jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status}{end}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - kafka/kafka
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - '--output=jsonpath={range .status.conditions[?(@.type=="Ready")]}{.status}{end}'
   register: _kafka_existing_ready
   changed_when: false
   when: "'kafkas.kafka.strimzi.io' in kafka_strimzi_api_resources.stdout_lines"
@@ -133,9 +144,17 @@
   no_log: true
 
 - name: Discover retained Kafka PVCs
-  ansible.builtin.command: >
-    kubectl get pvc -n {{ telemetry_namespace }} -l strimzi.io/cluster=kafka
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pvc
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -l
+      - strimzi.io/cluster=kafka
+      - --output=name
+      - --ignore-not-found=true
   register: _kafka_pvc_discovery
   changed_when: false
 
@@ -253,26 +272,45 @@
   ansible.builtin.include_tasks: prepare.yml
 
 - name: Check if Kafka is already deployed
-  ansible.builtin.command: >
-    kubectl get kafka/kafka -n {{ telemetry_namespace }} --ignore-not-found
-    --output=jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status}{end}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - kafka/kafka
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - '--output=jsonpath={range .status.conditions[?(@.type=="Ready")]}{.status}{end}'
   register: kafka_existing
   changed_when: false
   when: "'kafkas.kafka.strimzi.io' in kafka_strimzi_api_resources.stdout_lines"
 
 - name: Check whether the Strimzi operator is available
-  ansible.builtin.command: >
-    kubectl get deployment strimzi-cluster-operator
-    -n {{ telemetry_namespace }} --ignore-not-found
-    --output=jsonpath='{.status.availableReplicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - deployment
+      - strimzi-cluster-operator
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - --output=jsonpath={.status.availableReplicas}
   register: kafka_existing_operator
   changed_when: false
 
 - name: Count running Kafka cluster pods
-  ansible.builtin.command: >
-    kubectl get pods -n {{ telemetry_namespace }}
-    -l strimzi.io/cluster=kafka --field-selector=status.phase=Running
-    --output=name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pods
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -l
+      - strimzi.io/cluster=kafka
+      - --field-selector=status.phase=Running
+      - --output=name
   register: kafka_existing_pods
   changed_when: false
 
@@ -297,9 +335,15 @@
       ansible.builtin.include_tasks: deploy.yml
 
 - name: Verify Kafka cluster is ready
-  ansible.builtin.command: >
-    kubectl wait kafka/kafka -n {{ telemetry_namespace }}
-    --for=condition=Ready --timeout={{ kafka_deploy_timeout }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - kafka/kafka
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --for=condition=Ready
+      - "--timeout={{ kafka_deploy_timeout }}"
   register: kafka_ready
   changed_when: false
   failed_when: false

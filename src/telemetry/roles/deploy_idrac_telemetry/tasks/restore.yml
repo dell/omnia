@@ -17,17 +17,29 @@
 # volumeClaimTemplates, Secrets, ConfigMaps, Services, and stable PVC names.
 
 - name: Restore iDRAC telemetry StatefulSet replicas
-  ansible.builtin.command: >
-    kubectl scale statefulset {{ idrac_telemetry_k8s_name }}
-    -n {{ telemetry_namespace }} --replicas={{ idrac_replica_count }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - scale
+      - statefulset
+      - "{{ idrac_telemetry_k8s_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - "--replicas={{ idrac_replica_count }}"
   register: idrac_restore_scale
   changed_when: "'scaled' in idrac_restore_scale.stdout"
   failed_when: false
 
 - name: Wait for restored iDRAC telemetry StatefulSet rollout
-  ansible.builtin.command: >
-    kubectl rollout status statefulset/{{ idrac_telemetry_k8s_name }}
-    -n {{ telemetry_namespace }} --timeout={{ idrac_deploy_timeout }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - rollout
+      - status
+      - "statefulset/{{ idrac_telemetry_k8s_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - "--timeout={{ idrac_deploy_timeout }}"
   register: idrac_restore_rollout
   changed_when: false
   failed_when: false

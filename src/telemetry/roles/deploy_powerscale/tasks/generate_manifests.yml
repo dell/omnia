@@ -25,8 +25,16 @@
   failed_when: false
 
 - name: Check if external-health-monitor-controller container is running
-  ansible.builtin.command: >
-    kubectl get pod {{ isilon_pod.stdout }} -n isilon -o jsonpath='{.status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pod
+      - "{{ isilon_pod.stdout }}"
+      - -n
+      - isilon
+      - -o
+      - "jsonpath={.status.containerStatuses[?(@.name==\"external-health-monitor-controller\")].ready}"
   register: health_monitor_ready
   changed_when: false
   failed_when: false
@@ -100,13 +108,21 @@
         mode: "0755"
 
     - name: Download kubernetes and prometheus_client wheels from Pulp (offline mode)
-      ansible.builtin.command: >
-        pip3 download --no-index
-        --find-links {{ offline_pip_module_path }}/kubernetes=={{ csi_k8s_pip_version }}
-        --find-links {{ offline_pip_module_path }}/prometheus_client=={{ csi_prometheus_pip_version }}
-        --trusted-host {{ pulp_server_ip }}
-        -d {{ telemetry_deployments_dir }}/pip-packages
-        kubernetes=={{ csi_k8s_pip_version }} prometheus_client=={{ csi_prometheus_pip_version }}
+      ansible.builtin.command:
+        argv:
+          - pip3
+          - download
+          - --no-index
+          - --find-links
+          - "{{ offline_pip_module_path }}/kubernetes=={{ csi_k8s_pip_version }}"
+          - --find-links
+          - "{{ offline_pip_module_path }}/prometheus_client=={{ csi_prometheus_pip_version }}"
+          - --trusted-host
+          - "{{ pulp_server_ip }}"
+          - -d
+          - "{{ telemetry_deployments_dir }}/pip-packages"
+          - "kubernetes=={{ csi_k8s_pip_version }}"
+          - "prometheus_client=={{ csi_prometheus_pip_version }}"
       register: pip_download_offline
       changed_when: "'Saved' in pip_download_offline.stdout"
       failed_when: pip_download_offline.rc != 0
@@ -116,9 +132,14 @@
         - offline_pip_module_path | length > 0
 
     - name: Download kubernetes and prometheus_client wheels from PyPI (online mode)
-      ansible.builtin.command: >
-        pip3 download -d {{ telemetry_deployments_dir }}/pip-packages
-        kubernetes=={{ csi_k8s_pip_version }} prometheus_client=={{ csi_prometheus_pip_version }}
+      ansible.builtin.command:
+        argv:
+          - pip3
+          - download
+          - -d
+          - "{{ telemetry_deployments_dir }}/pip-packages"
+          - "kubernetes=={{ csi_k8s_pip_version }}"
+          - "prometheus_client=={{ csi_prometheus_pip_version }}"
       register: pip_download_online
       changed_when: "'Saved' in pip_download_online.stdout"
       failed_when: pip_download_online.rc != 0
@@ -133,8 +154,12 @@
   when: deploy_csi_exporter
 
 - name: Apply CSI Volume Exporter manifest
-  ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/csi-volume-exporter.yaml
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ telemetry_deployments_dir }}/csi-volume-exporter.yaml"
   changed_when: false
   when: deploy_csi_exporter
 

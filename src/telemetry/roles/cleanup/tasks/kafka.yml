@@ -37,7 +37,7 @@
       - deployment
       - kafka-entity-operator
       - --ignore-not-found=true
-      - --output=jsonpath={.status.availableReplicas}
+      - "--output=jsonpath={.status.availableReplicas}"
   register: _kafka_topic_operator_replicas
   changed_when: false
   when: not (_cleanup_preserve_sink_volumes | bool)
@@ -52,9 +52,16 @@
   when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: Kafka | Delete bridge resources
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ kafka_bridge_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -65,9 +72,16 @@
   failed_when: false
 
 - name: Kafka | Delete user resources
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ kafka_user_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -76,9 +90,16 @@
   failed_when: false
 
 - name: Kafka | Wait for bridge resource to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get kafkabridge bridge
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - kafkabridge
+      - bridge
+      - --output=name
+      - --ignore-not-found=true
   register: _kafka_bridge_wait
   changed_when: false
   until: _kafka_bridge_wait.stdout | trim | length == 0
@@ -88,9 +109,16 @@
   failed_when: false
 
 - name: Kafka | Wait for user resource to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get kafkauser kafkapump
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - kafkauser
+      - kafkapump
+      - --output=name
+      - --ignore-not-found=true
   register: _kafka_user_wait
   changed_when: false
   until: _kafka_user_wait.stdout | trim | length == 0
@@ -100,9 +128,17 @@
   failed_when: false
 
 - name: Kafka | Delete KafkaTopic CRDs
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete kafkatopic -l {{ kafka_topic_label }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - kafkatopic
+      - -l
+      - "{{ kafka_topic_label }}"
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   when:
     - not (_cleanup_preserve_sink_volumes | bool)
@@ -215,9 +251,17 @@
     - "'strimzi.io/topic-operator' in _kafka_topic_finalizers"
 
 - name: Kafka | Wait for topic resources to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get kafkatopic -l {{ kafka_topic_label }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - kafkatopic
+      - -l
+      - "{{ kafka_topic_label }}"
+      - --output=name
+      - --ignore-not-found=true
   register: _kafka_topic_wait
   changed_when: false
   until: _kafka_topic_wait.stdout | trim | length == 0
@@ -236,17 +280,31 @@
   when: false
 
 - name: Kafka | Discover retained Kafka PVCs
-  ansible.builtin.command: >
-    kubectl get pvc -n {{ telemetry_namespace }} -l {{ kafka_pvc_label }}
-    --output=name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pvc
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --output=name
   register: _kafka_retained_pvcs
   changed_when: false
   when: _cleanup_preserve_sink_volumes | bool
 
 - name: Kafka | Discover existing Kafka cluster resource
-  ansible.builtin.command: >
-    kubectl get kafka kafka -n {{ telemetry_namespace }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - kafka
+      - kafka
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --output=name
+      - --ignore-not-found=true
   register: _kafka_existing_cluster
   changed_when: false
   failed_when: false
@@ -264,7 +322,7 @@
       - --namespace
       - "{{ telemetry_namespace }}"
       - --ignore-not-found
-      - --output=jsonpath={.status.clusterId}
+      - "--output=jsonpath={.status.clusterId}"
   loop:
     - controller
     - broker
@@ -286,7 +344,7 @@
       - --namespace
       - "{{ telemetry_namespace }}"
       - --ignore-not-found
-      - --output=jsonpath={.status.nodeIds}
+      - "--output=jsonpath={.status.nodeIds}"
   loop:
     - controller
     - broker
@@ -380,9 +438,16 @@
   no_log: true
 
 - name: Kafka | Pause reconciliation before preserving cluster metadata
-  ansible.builtin.command: >
-    kubectl annotate kafka kafka -n {{ telemetry_namespace }}
-    strimzi.io/pause-reconciliation=true --overwrite
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - annotate
+      - kafka
+      - kafka
+      - -n
+      - "{{ telemetry_namespace }}"
+      - strimzi.io/pause-reconciliation=true
+      - --overwrite
   register: _kafka_reconciliation_pause
   changed_when: "'annotated' in _kafka_reconciliation_pause.stdout"
   when:
@@ -391,10 +456,15 @@
     - _kafka_existing_cluster.stdout | default('') | trim | length > 0
 
 - name: Kafka | Wait for reconciliation to pause
-  ansible.builtin.command: >
-    kubectl wait kafka/kafka -n {{ telemetry_namespace }}
-    --for=condition=ReconciliationPaused=True
-    --timeout={{ cleanup_kafka_wait_timeout }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - kafka/kafka
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --for=condition=ReconciliationPaused=True
+      - "--timeout={{ cleanup_kafka_wait_timeout }}"
   changed_when: false
   when:
     - _cleanup_preserve_sink_volumes | bool
@@ -402,9 +472,16 @@
     - _kafka_existing_cluster.stdout | default('') | trim | length > 0
 
 - name: Kafka | Delete Kafka cluster
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ kafka_cluster_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -415,9 +492,16 @@
   failed_when: false
 
 - name: Kafka | Wait for Kafka cluster to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get kafka kafka
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - kafka
+      - kafka
+      - --output=name
+      - --ignore-not-found=true
   register: _kafka_cluster_wait
   changed_when: false
   until: _kafka_cluster_wait.stdout | trim | length == 0
@@ -429,25 +513,48 @@
   failed_when: false
 
 - name: Kafka | Delete Strimzi pod sets
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete strimzipodset
-    -l {{ kafka_pvc_label }} --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - strimzipodset
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   when: "'strimzipodsets.core.strimzi.io' in _kafka_core_api_resources.stdout_lines"
   failed_when: false
 
 - name: Kafka | Delete retained-cluster runtime deployments
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete deployment
-    -l {{ kafka_pvc_label }} --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - deployment
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   when: _cleanup_preserve_sink_volumes | bool
   failed_when: false
 
 - name: Kafka | Delete node pools
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ kafka_nodepool_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -458,9 +565,17 @@
   failed_when: false
 
 - name: Kafka | Wait for Strimzi pod sets to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get strimzipodset
-    -l {{ kafka_pvc_label }} --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - strimzipodset
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --output=name
+      - --ignore-not-found=true
   register: _kafka_pod_set_wait
   changed_when: false
   until: _kafka_pod_set_wait.stdout | trim | length == 0
@@ -477,9 +592,15 @@
   when: false
 
 - name: Kafka | Wait for Strimzi custom resources to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get {{ item }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - "{{ item }}"
+      - --output=name
+      - --ignore-not-found=true
   loop:
     - kafkabridge
     - kafkauser
@@ -499,31 +620,59 @@
   failed_when: false
 
 - name: Kafka | Delete PVCs
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pvc -l {{ kafka_pvc_label }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - pvc
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   when: not (_cleanup_preserve_sink_volumes | bool)
   failed_when: false
 
 - name: Kafka | Force delete any remaining Kafka PVCs
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pvc -l strimzi.io/cluster=kafka
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - pvc
+      - -l
+      - strimzi.io/cluster=kafka
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   when: not (_cleanup_preserve_sink_volumes | bool)
   failed_when: false
 
 - name: Kafka | Get Kafka PVs
-  ansible.builtin.command: >
-    kubectl get pv -l {{ kafka_pvc_label }} --output=name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pv
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --output=name
   register: _kafka_pvs
   changed_when: false
   failed_when: false
 
 - name: Kafka | Get Kafka PV details for export cleanup
-  ansible.builtin.command: >
-    kubectl get pv -l {{ kafka_pvc_label }} --output=jsonpath={.items[*].spec.csi.volumeHandle}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pv
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - "--output=jsonpath={.items[*].spec.csi.volumeHandle}"
   register: _kafka_pv_handles
   changed_when: false
   failed_when: false
@@ -580,8 +729,14 @@
   no_log: true
 
 - name: Kafka | Remove CSI finalizers from PVs
-  ansible.builtin.command: >
-    kubectl patch {{ item }} -p '{"metadata":{"finalizers":[]}}' --type=merge
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - patch
+      - "{{ item }}"
+      - -p
+      - '{"metadata":{"finalizers":[]}}'
+      - --type=merge
   loop: "{{ _kafka_pvs.stdout_lines | default([]) }}"
   loop_control:
     label: "{{ item }}"
@@ -593,8 +748,12 @@
   failed_when: false
 
 - name: Kafka | Delete PVs
-  ansible.builtin.command: >
-    kubectl delete {{ item }} --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - delete
+      - "{{ item }}"
+      - --ignore-not-found=true
   loop: "{{ _kafka_pvs.stdout_lines | default([]) }}"
   loop_control:
     label: "{{ item }}"
@@ -606,8 +765,15 @@
   failed_when: false
 
 - name: Kafka | Wait for PVs to be deleted
-  ansible.builtin.command: >
-    kubectl get pv -l {{ kafka_pvc_label }} --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pv
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --output=name
+      - --ignore-not-found=true
   register: _kafka_pv_wait
   changed_when: false
   until: _kafka_pv_wait.stdout | trim | length == 0
@@ -619,16 +785,31 @@
   failed_when: false
 
 - name: Kafka | Delete labeled secrets
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete secret -l {{ kafka_secret_label }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - secret
+      - -l
+      - "{{ kafka_secret_label }}"
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   failed_when: false
 
 - name: Kafka | Delete named secrets
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete secret {{ item }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - secret
+      - "{{ item }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ kafka_secret_resources }}"
   changed_when: false
   when:
@@ -636,32 +817,63 @@
   failed_when: false
 
 - name: Kafka | Delete services
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete service {{ item }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - service
+      - "{{ item }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ kafka_service_resources }}"
   changed_when: false
   failed_when: false
 
 - name: Kafka | Delete retained-cluster labeled services
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete service
-    -l {{ kafka_pvc_label }} --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - service
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   when: _cleanup_preserve_sink_volumes | bool
   failed_when: false
 
 - name: Kafka | Delete ConfigMaps by label
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete configmap -l app=kafka
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - configmap
+      - -l
+      - app=kafka
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   failed_when: false
 
 - name: Kafka | Delete retained-cluster derived resources
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item }}
-    -l {{ kafka_pvc_label }} --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item }}"
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop:
     - configmap
     - poddisruptionbudget
@@ -674,33 +886,64 @@
   failed_when: false
 
 - name: Kafka | Delete named ConfigMaps
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete configmap {{ item }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - configmap
+      - "{{ item }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ kafka_configmap_resources }}"
   changed_when: false
   failed_when: false
 
 - name: Kafka | Delete TLS test jobs
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete job {{ item }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - job
+      - "{{ item }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ kafka_job_resources }}"
   changed_when: false
   failed_when: false
 
 - name: Kafka | Force delete pods
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - pod
+      - -l
+      - "{{ item }}"
+      - "--grace-period={{ cleanup_resource_grace_period }}"
+      - --force
+      - --ignore-not-found=true
   loop: "{{ kafka_pod_labels }}"
   changed_when: false
   failed_when: false
 
 - name: Kafka | Wait for pods to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get pod -l {{ item }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - pod
+      - -l
+      - "{{ item }}"
+      - --output=name
+      - --ignore-not-found=true
   loop: "{{ kafka_pod_labels }}"
   register: _kafka_pod_wait
   changed_when: false
@@ -710,9 +953,17 @@
   failed_when: false
 
 - name: Kafka | Wait for PVCs to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get pvc -l {{ kafka_pvc_label }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - pvc
+      - -l
+      - "{{ kafka_pvc_label }}"
+      - --output=name
+      - --ignore-not-found=true
   register: _kafka_pvc_wait
   changed_when: false
   when: not (_cleanup_preserve_sink_volumes | bool)
@@ -722,39 +973,74 @@
   failed_when: false
 
 - name: Kafka | Check Strimzi Helm release
-  ansible.builtin.command: >
-    helm list --namespace {{ telemetry_namespace }} --all --short
-    --filter ^strimzi-cluster-operator$
+  ansible.builtin.command:
+    argv:
+      - helm
+      - list
+      - --namespace
+      - "{{ telemetry_namespace }}"
+      - --all
+      - --short
+      - --filter
+      - ^strimzi-cluster-operator$
   register: _strimzi_helm_releases
   changed_when: false
   failed_when: false
 
 - name: Kafka | Uninstall Strimzi Helm release
-  ansible.builtin.command: >
-    helm uninstall strimzi-cluster-operator -n {{ telemetry_namespace }}
-    --no-hooks --ignore-not-found
+  ansible.builtin.command:
+    argv:
+      - helm
+      - uninstall
+      - strimzi-cluster-operator
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --no-hooks
+      - --ignore-not-found
   changed_when: true
   when: "'strimzi-cluster-operator' in _strimzi_helm_releases.stdout_lines"
   failed_when: false
 
 - name: Kafka | Delete Strimzi operator deployment
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete deployment strimzi-cluster-operator
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - deployment
+      - strimzi-cluster-operator
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   failed_when: false
 
 - name: Kafka | Delete Strimzi Helm release secret
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete secret {{ kafka_strimzi_helm_secret }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - secret
+      - "{{ kafka_strimzi_helm_secret }}"
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   failed_when: false
 
 - name: Kafka | Delete all Strimzi Helm release revisions
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete secret
-    -l {{ kafka_strimzi_helm_secret_label }} --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - secret
+      - -l
+      - "{{ kafka_strimzi_helm_secret_label }}"
+      - --ignore-not-found=true
+      - --wait=false
   changed_when: false
   failed_when: false
 

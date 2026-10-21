@@ -20,9 +20,16 @@
   changed_when: false
 
 - name: VictoriaLogs | Delete CRD resources
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ _vl_resources.crd_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -32,9 +39,16 @@
     _victoria_logs_api_resources.stdout_lines
 
 - name: VictoriaLogs | Wait for custom resources to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get {{ item.type }} {{ item.name }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --output=name
+      - --ignore-not-found=true
   loop: "{{ _vl_resources.crd_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -48,9 +62,16 @@
     _victoria_logs_api_resources.stdout_lines
 
 - name: VictoriaLogs | Delete generated scrape resources
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ _vl_resources.generated_scrape_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -60,9 +81,16 @@
     _victoria_logs_api_resources.stdout_lines
 
 - name: VictoriaLogs | Wait for generated scrape resources to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get {{ item.type }} {{ item.name }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --output=name
+      - --ignore-not-found=true
   loop: "{{ _vl_resources.generated_scrape_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -80,35 +108,64 @@
     seconds: "{{ cleanup_post_delete_pause }}"
 
 - name: VictoriaLogs | Delete cluster components
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ _vl_resources.cluster_resources + _vl_resources.agent_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
 
 - name: VictoriaLogs | Delete shared resources
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ _vl_resources.shared_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
 
 - name: VictoriaLogs | Delete PVCs by label
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pvc -l {{ item }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - pvc
+      - -l
+      - "{{ item }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ _vl_resources.pvc_labels }}"
   changed_when: false
   when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaLogs | Delete named PVCs (vlstorage + vlagent 0-9)
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pvc {{ item.0 }}-{{ item.1 }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - pvc
+      - "{{ item.0 }}-{{ item.1 }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ _vl_resources.named_pvc_prefixes | product(range(0, 10) | list) | list }}"
   loop_control:
     label: "{{ item.0 }}-{{ item.1 }}"
@@ -117,26 +174,50 @@
 
 # --- vlagent-vector log write-buffer cleanup (VL-side adapter for vector-ome) ---
 - name: VictoriaLogs | Delete vlagent-vector resources
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ _vl_resources.vlagent_vector_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
   changed_when: false
 
 - name: VictoriaLogs | Force delete pods
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
-    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - pod
+      - -l
+      - "{{ item }}"
+      - "--grace-period={{ cleanup_resource_grace_period }}"
+      - --force
+      - --ignore-not-found=true
   loop: "{{ _vl_resources.pod_labels }}"
   changed_when: false
   when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaLogs | Wait for pods to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get pod -l {{ item }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - pod
+      - -l
+      - "{{ item }}"
+      - --output=name
+      - --ignore-not-found=true
   loop: "{{ _vl_resources.pod_labels }}"
   register: _victoria_logs_pod_wait
   changed_when: false
@@ -145,9 +226,17 @@
   delay: "{{ cleanup_custom_resource_delay }}"
 
 - name: VictoriaLogs | Wait for label-selected PVCs to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get pvc -l {{ item }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - pvc
+      - -l
+      - "{{ item }}"
+      - --output=name
+      - --ignore-not-found=true
   loop: "{{ _vl_resources.pvc_labels }}"
   register: _victoria_logs_pvc_label_wait
   changed_when: false
@@ -157,9 +246,16 @@
   when: not (_cleanup_preserve_sink_volumes | bool)
 
 - name: VictoriaLogs | Wait for named PVCs to terminate
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get pvc {{ item.0 }}-{{ item.1 }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - pvc
+      - "{{ item.0 }}-{{ item.1 }}"
+      - --output=name
+      - --ignore-not-found=true
   loop: "{{ _vl_resources.named_pvc_prefixes | product(range(0, 10) | list) | list }}"
   loop_control:
     label: "{{ item.0 }}-{{ item.1 }}"
@@ -173,9 +269,15 @@
 # --- Victoria operator cleanup (shared between VM and VL) ---
 # Only delete the operator if VictoriaMetrics is NOT running
 - name: VictoriaLogs | Check if VictoriaMetrics workloads still exist
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get {{ item }}
-    --output=name --ignore-not-found=true
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - get
+      - "{{ item }}"
+      - --output=name
+      - --ignore-not-found=true
   loop: "{{ ['vmcluster'] + _vm_resources.crd_all_resources }}"
   register: _victoria_metrics_workload_checks
   changed_when: false
@@ -193,9 +295,16 @@
       }}
 
 - name: VictoriaLogs | Delete shared TLS secret when VictoriaMetrics is absent
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ _vm_resources.tls_secret_resource }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -241,9 +350,16 @@
       (_victoria_logs_operator_release.stdout_lines | default([]))
 
 - name: VictoriaLogs | Delete operator (no VictoriaMetrics workloads found)
-  ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
-    --ignore-not-found=true --wait=false
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - -n
+      - "{{ telemetry_namespace }}"
+      - delete
+      - "{{ item.type }}"
+      - "{{ item.name }}"
+      - --ignore-not-found=true
+      - --wait=false
   loop: "{{ victoria_operator_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"

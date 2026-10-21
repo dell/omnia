@@ -32,18 +32,31 @@
 # =============================================================================
 
 - name: Check if the telemetry namespace exists
-  ansible.builtin.command: >
-    kubectl get namespace {{ telemetry_namespace }} --ignore-not-found
-    -o jsonpath='{.metadata.name}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - namespace
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - -o
+      - "jsonpath={.metadata.name}"
   register: ufm_namespace_check
   changed_when: false
   failed_when: false
 
 - name: Check if UFM external service exists
-  ansible.builtin.command: >
-    kubectl get service {{ ufm_external_service_name }}
-    -n {{ telemetry_namespace }} --ignore-not-found
-    -o jsonpath='{.metadata.name}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - service
+      - "{{ ufm_external_service_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - -o
+      - "jsonpath={.metadata.name}"
   register: ufm_svc_check
   changed_when: false
   failed_when: false
@@ -58,9 +71,14 @@
          and (ufm_svc_check.stdout | default('') | trim | length > 0) }}
 
 - name: Delete UFM external service (preserving credentials secret)
-  ansible.builtin.command: >
-    kubectl delete service {{ ufm_external_service_name }}
-    -n {{ telemetry_namespace }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - delete
+      - service
+      - "{{ ufm_external_service_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
   register: ufm_delete_svc_result
   changed_when: "'deleted' in ufm_delete_svc_result.stdout"
   failed_when: false
@@ -68,9 +86,15 @@
     - ufm_svc_exists | bool
 
 - name: Delete UFM endpoints (preserving credentials secret)
-  ansible.builtin.command: >
-    kubectl delete endpoints {{ ufm_external_service_name }}
-    -n {{ telemetry_namespace }} --ignore-not-found
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - delete
+      - endpoints
+      - "{{ ufm_external_service_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
   register: ufm_delete_ep_result
   changed_when: "'deleted' in ufm_delete_ep_result.stdout"
   failed_when: false
@@ -78,9 +102,15 @@
     - ufm_svc_exists | bool
 
 - name: Delete UFM VMServiceScrape (stop VMAgent from scraping UFM)
-  ansible.builtin.command: >
-    kubectl delete vmservicescrape {{ ufm_vmscrape_name }}
-    -n {{ telemetry_namespace }} --ignore-not-found
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - delete
+      - vmservicescrape
+      - "{{ ufm_vmscrape_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
   register: ufm_delete_vmscrape_result
   changed_when: "'deleted' in ufm_delete_vmscrape_result.stdout"
   failed_when: false

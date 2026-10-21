@@ -33,8 +33,15 @@
   ansible.builtin.include_tasks: ../../logs/tasks/deploy.yml
 
 - name: Verify VLCluster is ready
-  ansible.builtin.command: >
-    kubectl get vlcluster -n {{ telemetry_namespace }} -o name
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - vlcluster
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -o
+      - name
   register: vlcluster_status
   changed_when: false
   failed_when: false

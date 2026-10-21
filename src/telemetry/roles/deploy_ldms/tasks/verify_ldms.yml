@@ -18,28 +18,47 @@
 # =============================================================================
 
 - name: Check LDMS aggregator StatefulSet status
-  ansible.builtin.command: >
-    kubectl get statefulset {{ ldms_aggregator_name }}
-    -n {{ telemetry_namespace }}
-    -o jsonpath='{.status.readyReplicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - statefulset
+      - "{{ ldms_aggregator_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -o
+      - jsonpath={.status.readyReplicas}
   register: ldms_agg_status
   changed_when: false
   failed_when: false
 
 - name: Check LDMS store daemon pod status
-  ansible.builtin.command: >
-    kubectl get pods -l app={{ ldms_store_name }}
-    -n {{ telemetry_namespace }}
-    -o jsonpath='{.items[0].status.phase}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pods
+      - -l
+      - "app={{ ldms_store_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -o
+      - "jsonpath={.items[0].status.phase}"
   register: ldms_store_status
   changed_when: false
   failed_when: false
 
 - name: Check Vector-LDMS deployment status
-  ansible.builtin.command: >
-    kubectl get deployment {{ vector.ldms.app_name }}
-    -n {{ telemetry_namespace }}
-    -o jsonpath='{.status.readyReplicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - deployment
+      - "{{ vector.ldms.app_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -o
+      - jsonpath={.status.readyReplicas}
   register: vector_ldms_status
   changed_when: false
   failed_when: false
@@ -48,9 +67,14 @@
     - victoria_metrics_support | default(false) | bool
 
 - name: Verify Kafka 'ldms' topic exists
-  ansible.builtin.command: >
-    kubectl get kafkatopic ldms
-    -n {{ telemetry_namespace }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - kafkatopic
+      - ldms
+      - -n
+      - "{{ telemetry_namespace }}"
   register: ldms_topic_check
   changed_when: false
   failed_when: false

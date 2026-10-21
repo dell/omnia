@@ -24,17 +24,31 @@
   when: telemetry_config is not defined
 
 - name: Check if OME Vector resources exist
-  ansible.builtin.command: >
-    kubectl get deployment vector-ome -n {{ telemetry_namespace }}
-    --ignore-not-found -o jsonpath='{.spec.replicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - deployment
+      - vector-ome
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - -o
+      - jsonpath={.spec.replicas}
   register: ome_check
   changed_when: false
   failed_when: false
 
 - name: Scale down OME Vector resources
-  ansible.builtin.command: >
-    kubectl scale deployment vector-ome
-    -n {{ telemetry_namespace }} --replicas=0
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - scale
+      - deployment
+      - vector-ome
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --replicas=0
   register: scale_down_result
   changed_when: "'scaled' in scale_down_result.stdout"
   when:

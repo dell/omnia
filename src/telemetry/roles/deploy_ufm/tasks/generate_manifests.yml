@@ -30,8 +30,12 @@
       dest: "ufm-external-service.yaml"
 
 - name: Apply UFM telemetry manifests
-  ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/{{ item }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - -f
+      - "{{ telemetry_deployments_dir }}/{{ item }}"
   loop:
     - ufm-telemetry-secret.yaml
     - ufm-external-service.yaml

@@ -23,15 +23,27 @@
     tasks_from: load_telemetry_config
 
 - name: Check if VAST resources exist
-  ansible.builtin.command: >
-    kubectl get service vast-telemetry-external -n {{ telemetry_namespace }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - service
+      - vast-telemetry-external
+      - -n
+      - "{{ telemetry_namespace }}"
   register: vast_check
   changed_when: false
   failed_when: false
 
 - name: Delete VAST external service
-  ansible.builtin.command: >
-    kubectl delete service vast-telemetry-external -n {{ telemetry_namespace }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - delete
+      - service
+      - vast-telemetry-external
+      - -n
+      - "{{ telemetry_namespace }}"
   register: delete_svc_result
   changed_when: "'deleted' in delete_svc_result.stdout"
   when: vast_check.rc == 0

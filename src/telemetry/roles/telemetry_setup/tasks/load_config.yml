@@ -127,8 +127,11 @@
     - name: Copy input files from source to runtime directory
       when: _source_dir_check.stat.exists
       ansible.builtin.command:
-        cmd: "cp -an {{ input_source_dir }}/. {{ input_project_dir }}/"
-      args:
+        argv:
+          - cp
+          - -an
+          - "{{ input_source_dir }}/."
+          - "{{ input_project_dir }}/"
         creates: "{{ input_project_dir }}/telemetry_config.yml"
       changed_when: true
       become: true

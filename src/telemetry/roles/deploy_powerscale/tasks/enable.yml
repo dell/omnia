@@ -139,16 +139,31 @@
 # This handles the case where metrics were disabled (scaled to 0) and then re-enabled
 
 - name: Check if karavi-metrics-powerscale deployment exists
-  ansible.builtin.command: >
-    kubectl get deployment {{ karavi_observability.metrics_deployment }} -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - deployment
+      - "{{ karavi_observability.metrics_deployment }}"
+      - -n
+      - "{{ csm_observability_namespace }}"
+      - -o
+      - "jsonpath={.spec.replicas}"
   register: karavi_replicas_check
   changed_when: false
   failed_when: false
   when: powerscale_enabled | bool
 
 - name: Scale up karavi-metrics-powerscale if at 0 replicas
-  ansible.builtin.command: >
-    kubectl scale deployment {{ karavi_observability.metrics_deployment }} -n {{ csm_observability_namespace }} --replicas=1
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - scale
+      - deployment
+      - "{{ karavi_observability.metrics_deployment }}"
+      - -n
+      - "{{ csm_observability_namespace }}"
+      - --replicas=1
   register: karavi_scaleup_result
   changed_when: "'scaled' in karavi_scaleup_result.stdout or karavi_scaleup_result.rc == 0"
   when:
@@ -157,16 +172,31 @@
     - karavi_replicas_check.stdout == "0"
 
 - name: Check if otel-collector deployment exists
-  ansible.builtin.command: >
-    kubectl get deployment {{ karavi_observability.otel_collector_deployment }} -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - deployment
+      - "{{ karavi_observability.otel_collector_deployment }}"
+      - -n
+      - "{{ csm_observability_namespace }}"
+      - -o
+      - "jsonpath={.spec.replicas}"
   register: otel_replicas_check
   changed_when: false
   failed_when: false
   when: powerscale_enabled | bool
 
 - name: Scale up otel-collector if at 0 replicas
-  ansible.builtin.command: >
-    kubectl scale deployment {{ karavi_observability.otel_collector_deployment }} -n {{ csm_observability_namespace }} --replicas=1
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - scale
+      - deployment
+      - "{{ karavi_observability.otel_collector_deployment }}"
+      - -n
+      - "{{ csm_observability_namespace }}"
+      - --replicas=1
   register: otel_scaleup_result
   changed_when: "'scaled' in otel_scaleup_result.stdout or otel_scaleup_result.rc == 0"
   when:
@@ -175,16 +205,31 @@
     - otel_replicas_check.stdout == "0"
 
 - name: Check if csi-volume-exporter deployment exists
-  ansible.builtin.command: >
-    kubectl get deployment {{ csi_volume_exporter.app_name }} -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - deployment
+      - "{{ csi_volume_exporter.app_name }}"
+      - -n
+      - "{{ csm_observability_namespace }}"
+      - -o
+      - "jsonpath={.spec.replicas}"
   register: csi_replicas_check
   changed_when: false
   failed_when: false
   when: powerscale_enabled | bool
 
 - name: Scale up csi-volume-exporter if at 0 replicas
-  ansible.builtin.command: >
-    kubectl scale deployment {{ csi_volume_exporter.app_name }} -n {{ csm_observability_namespace }} --replicas=1
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - scale
+      - deployment
+      - "{{ csi_volume_exporter.app_name }}"
+      - -n
+      - "{{ csm_observability_namespace }}"
+      - --replicas=1
   register: csi_scaleup_result
   changed_when: "'scaled' in csi_scaleup_result.stdout or csi_scaleup_result.rc == 0"
   when:

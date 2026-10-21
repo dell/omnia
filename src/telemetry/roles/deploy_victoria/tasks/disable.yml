@@ -29,16 +29,28 @@
     tasks_from: load_telemetry_config
 
 - name: Check if VictoriaMetrics StatefulSet exists
-  ansible.builtin.command: >
-    kubectl get statefulset {{ victoria_statefulset_name }} -n {{ telemetry_namespace }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - statefulset
+      - "{{ victoria_statefulset_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
   register: victoria_sts_check
   changed_when: false
   failed_when: false
 
 - name: Scale down VictoriaMetrics StatefulSet to 0
-  ansible.builtin.command: >
-    kubectl scale statefulset {{ victoria_statefulset_name }}
-    -n {{ telemetry_namespace }} --replicas=0
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - scale
+      - statefulset
+      - "{{ victoria_statefulset_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --replicas=0
   register: scale_down_victoria_result
   changed_when: "'scaled' in scale_down_victoria_result.stdout"
   when: victoria_sts_check.rc == 0

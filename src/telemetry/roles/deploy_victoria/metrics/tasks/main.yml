@@ -32,9 +32,15 @@
   ansible.builtin.include_tasks: ../../metrics/tasks/deploy.yml
 
 - name: Verify VMCluster is ready
-  ansible.builtin.command: >
-    kubectl get vmcluster -n {{ telemetry_namespace }}
-    -o jsonpath='{.items[0].status.updateStatus}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - vmcluster
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -o
+      - "jsonpath={.items[0].status.updateStatus}"
   register: vmcluster_status
   changed_when: false
   failed_when: false

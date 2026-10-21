@@ -29,7 +29,13 @@
 
 - name: Check kube_vip is reachable via ICMP ping
   ansible.builtin.command:
-    cmd: "ping -c {{ precheck_ping_count }} -W {{ precheck_ping_timeout }} {{ kube_vip }}"
+    argv:
+      - ping
+      - -c
+      - "{{ precheck_ping_count }}"
+      - -W
+      - "{{ precheck_ping_timeout }}"
+      - "{{ kube_vip }}"
   register: ping_result
   changed_when: false
   failed_when: false

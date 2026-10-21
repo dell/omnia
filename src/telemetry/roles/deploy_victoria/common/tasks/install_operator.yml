@@ -25,8 +25,13 @@
 # =============================================================================
 
 - name: Check if VictoriaMetrics operator is installed
-  ansible.builtin.command: >
-    helm status victoria-metrics-operator -n {{ telemetry_namespace }}
+  ansible.builtin.command:
+    argv:
+      - helm
+      - status
+      - victoria-metrics-operator
+      - -n
+      - "{{ telemetry_namespace }}"
   register: victoria_operator_status
   changed_when: false
   failed_when: false
@@ -86,29 +91,40 @@
       --set configReloader.image.tag={{ _config_reloader_image_tag }}
 
 - name: Install VictoriaMetrics operator
-  ansible.builtin.command: >
-    helm -n {{ telemetry_namespace }} install victoria-metrics-operator
-    {{ victoria_operator_pkg }}
+  ansible.builtin.shell: >
+    helm -n {{ telemetry_namespace | quote }} install victoria-metrics-operator
+    {{ victoria_operator_pkg | quote }}
     {{ _helm_image_args }}
   when: victoria_operator_status.rc != 0
   changed_when: true
 
 - name: Upgrade VictoriaMetrics operator
-  ansible.builtin.command: >
-    helm -n {{ telemetry_namespace }} upgrade victoria-metrics-operator
-    {{ victoria_operator_pkg }}
+  ansible.builtin.shell: >
+    helm -n {{ telemetry_namespace | quote }} upgrade victoria-metrics-operator
+    {{ victoria_operator_pkg | quote }}
     {{ _helm_image_args }}
   when: victoria_operator_status.rc == 0
   changed_when: true
 
 - name: Wait for VictoriaMetrics operator deployment to be available
-  ansible.builtin.command: >
-    kubectl wait --for=condition=available --timeout=300s
-    deployment/victoria-metrics-operator -n {{ telemetry_namespace }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - --for=condition=available
+      - --timeout=300s
+      - deployment/victoria-metrics-operator
+      - -n
+      - "{{ telemetry_namespace }}"
   changed_when: false
 
 - name: Wait for VictoriaMetrics CRDs to be registered
-  ansible.builtin.command: kubectl get crd {{ item }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - crd
+      - "{{ item }}"
   loop:
     - vmclusters.operator.victoriametrics.com
     - vmagents.operator.victoriametrics.com

@@ -43,18 +43,31 @@
   when: kafka_support is not defined
 
 - name: Check whether the telemetry namespace exists before enable
-  ansible.builtin.command: >
-    kubectl get namespace {{ telemetry_namespace }} --ignore-not-found
-    -o jsonpath='{.metadata.name}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - namespace
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - -o
+      - jsonpath={.metadata.name}
   register: idrac_enable_namespace_check
   changed_when: false
   failed_when: false
 
 - name: Check for a previously disabled iDRAC StatefulSet
-  ansible.builtin.command: >
-    kubectl get statefulset {{ idrac_telemetry_k8s_name }}
-    -n {{ telemetry_namespace }} --ignore-not-found
-    -o jsonpath='{.spec.replicas} {.metadata.annotations.telemetry\.omnia\.dell\.com/desired-replicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - statefulset
+      - "{{ idrac_telemetry_k8s_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --ignore-not-found
+      - -o
+      - 'jsonpath={.spec.replicas} {.metadata.annotations.telemetry\.omnia\.dell\.com/desired-replicas}'
   register: idrac_enable_sts_check
   changed_when: false
   failed_when: false

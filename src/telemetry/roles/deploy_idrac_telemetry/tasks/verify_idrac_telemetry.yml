@@ -23,9 +23,16 @@
 #   4. VictoriaMetrics has iDRAC metrics ingested
 
 - name: Verify iDRAC StatefulSet is ready
-  ansible.builtin.command: >
-    kubectl get statefulset {{ idrac_telemetry_k8s_name }} -n {{ telemetry_namespace }}
-    -o jsonpath='{.status.readyReplicas}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - statefulset
+      - "{{ idrac_telemetry_k8s_name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -o
+      - jsonpath={.status.readyReplicas}
   register: sts_ready
   changed_when: false
   retries: "{{ pod_ready_retries }}"
@@ -35,17 +42,31 @@
     >= (idrac_replica_count | default(1) | int)
 
 - name: Get pod name for iDRAC telemetry
-  ansible.builtin.command: >
-    kubectl get pods -n {{ telemetry_namespace }}
-    -l app={{ idrac_telemetry_k8s_name }}
-    -o jsonpath='{.items[0].metadata.name}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pods
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -l
+      - "app={{ idrac_telemetry_k8s_name }}"
+      - -o
+      - jsonpath={.items[0].metadata.name}
   register: idrac_pod_name
   changed_when: false
 
 - name: Verify all containers are running in iDRAC pod
-  ansible.builtin.command: >
-    kubectl get pod {{ idrac_pod_name.stdout }} -n {{ telemetry_namespace }}
-    -o jsonpath='{range .status.containerStatuses[*]}{.name}={.ready}{"\n"}{end}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - pod
+      - "{{ idrac_pod_name.stdout }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - -o
+      - 'jsonpath={range .status.containerStatuses[*]}{.name}={.ready}{"\n"}{end}'
   register: container_status
   changed_when: false
   retries: "{{ pod_ready_retries }}"
@@ -61,11 +82,15 @@
     msg: "{{ container_status.stdout_lines }}"
 
 - name: Verify Kafka 'idrac' topic is ready
-  ansible.builtin.command: >
-    kubectl wait kafkatopic/{{ kafka.topics.idrac.name }}
-    -n {{ telemetry_namespace }}
-    --for=condition=Ready
-    --timeout={{ idrac_verify_timeout }}
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - "kafkatopic/{{ kafka.topics.idrac.name }}"
+      - -n
+      - "{{ telemetry_namespace }}"
+      - --for=condition=Ready
+      - "--timeout={{ idrac_verify_timeout }}"
   register: kafka_topic_ready
   changed_when: false
   when:
@@ -73,10 +98,20 @@
     - "'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
 
 - name: Verify VictoriaMetrics has iDRAC metrics (via victoriapump scrape target)
-  ansible.builtin.command: >
-    kubectl exec -n {{ telemetry_namespace }}
-    {{ idrac_pod_name.stdout }} -c victoria-pump --
-    wget -qO- http://localhost:2112/metrics 2>/dev/null
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - exec
+      - -n
+      - "{{ telemetry_namespace }}"
+      - "{{ idrac_pod_name.stdout }}"
+      - -c
+      - victoria-pump
+      - --
+      - wget
+      - -qO-
+      - http://localhost:2112/metrics
+      - 2>/dev/null
   register: victoria_metrics_check
   changed_when: false
   failed_when: false
