@@ -49,7 +49,7 @@ One row per selectable option across every decision axis.
 | os_version | RHEL 10.0 | supported |  | src/main/samples/catalogs/rhel/10.0/ (captured 2026-09-25) |
 | os_version | RHEL 10.2 | supported | Content-equivalent to 10.0 apart from version pinning (verified by diffing every 10.0/10.2 catalog pair after normalizing version substrings) | src/main/samples/catalogs/rhel/10.2/ (captured 2026-09-25) |
 | architecture | x86_64 | supported |  | src/main/samples/catalogs/**/*_x86_64*.json (captured 2026-09-25) |
-| architecture | aarch64 | supported | Some image-builder and helm artifacts are arch-specific | src/main/samples/catalogs/**/*_aarch64*.json (captured 2026-09-25) |
+| architecture | aarch64 | supported | Some image-thrillhouse and helm artifacts are arch-specific | src/main/samples/catalogs/**/*_aarch64*.json (captured 2026-09-25) |
 | stack | slurm | supported |  | src/main/samples/catalogs/**/slurm_*.json (captured 2026-09-25) |
 | stack | service_k8s | supported | Kubernetes is not supported on aarch64 in this release; every service_k8s functional layer in the RHEL and hybrid catalogs is x86_64 | src/main/samples/catalogs/**/service_k8s_*.json (captured 2026-09-30) |
 | stack | slurm + service_k8s | supported | Mixed-stack catalogs are a shipped configuration; x86_64 only when Kubernetes is included | src/main/samples/catalogs/**/slurm_service_k8s_*.json (captured 2026-09-25) |
@@ -240,8 +240,8 @@ Per OS version and architecture, the repositories/registries a package source ma
 | strimzi_kafka_operator_helm_3_chart | 1.1.0 | packages.strimzi_kafka_operator_helm_3_chart (packagetype=tarball) | see per-architecture catalog file list in provenance | master catalogs: 10 files, e.g. src/main/samples/catalogs/rhel/10.0/service_k8s_x86_64.json, src/main/samples/catalogs/rhel/10.0/slurm_service_k8s_combined.json (captured 2026-09-25) |
 | strimzi_kafka_operator_helm_3_chart_1_1_0 | 1.1.0 | packages.strimzi_kafka_operator_helm_3_chart_1_1_0 (packagetype=tarball) | see per-architecture catalog file list in provenance | master catalogs: 10 files, e.g. src/main/samples/catalogs/rhel/10.0/service_k8s_x86_64.json, src/main/samples/catalogs/rhel/10.0/slurm_service_k8s_combined.json (captured 2026-09-25) |
 | vastnfs | 4.1 | packages.vastnfs (packagetype=rpm) | see per-architecture catalog file list in provenance | master catalogs: 10 files, e.g. src/main/samples/catalogs/rhel/10.0/slurm_aarch64.json, src/main/samples/catalogs/rhel/10.0/slurm_service_k8s_combined.json (captured 2026-09-25) |
-| victoria_metrics_operator | 0.59.3 | packages.victoria_metrics_operator (packagetype=tarball) | see per-architecture catalog file list in provenance | master catalogs: 10 files, e.g. src/main/samples/catalogs/rhel/10.0/service_k8s_x86_64.json, src/main/samples/catalogs/rhel/10.0/slurm_service_k8s_combined.json (captured 2026-09-25) |
-| victoria_metrics_operator_0_59_3 | 0.59.3 | packages.victoria_metrics_operator_0_59_3 (packagetype=tarball) | see per-architecture catalog file list in provenance | master catalogs: 10 files, e.g. src/main/samples/catalogs/rhel/10.0/service_k8s_x86_64.json, src/main/samples/catalogs/rhel/10.0/slurm_service_k8s_combined.json (captured 2026-09-25) |
+| victoria_metrics_operator | 0.68.1 | packages.victoria_metrics_operator (packagetype=tarball) | see per-architecture catalog file list in provenance | master catalogs: 10 files, e.g. src/main/samples/catalogs/rhel/10.0/service_k8s_x86_64.json, src/main/samples/catalogs/rhel/10.0/slurm_service_k8s_combined.json (captured 2026-09-25) |
+| victoria_metrics_operator_0_68_1 | 0.68.1 | packages.victoria_metrics_operator_0_68_1 (packagetype=tarball) | see per-architecture catalog file list in provenance | master catalogs: 10 files, e.g. src/main/samples/catalogs/rhel/10.0/service_k8s_x86_64.json, src/main/samples/catalogs/rhel/10.0/slurm_service_k8s_combined.json (captured 2026-09-25) |
 
 ---
 

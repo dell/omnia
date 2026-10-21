@@ -15,13 +15,19 @@
 """Configured NFS endpoint reachability contract."""
 
 import pytest
-from library.functions import check_precheck_nfs_servers
+from library.functions import (
+    TestLogger,
+    check_precheck_nfs_servers,
+)
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_precheck
 
 
 @pytest.mark.sanity
-@pytest.mark.order(3)
+@pytest.mark.order(10301)
 def test_precheck_nfs_servers(host):
     """Require every mapping-selected NFS server to answer ICMP from the OIM."""
-    verify_precheck(host, "precheck_nfs_servers", check_precheck_nfs_servers)
+    tc = TC["precheck_nfs_servers"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_nfs_servers)

@@ -41,14 +41,14 @@ karavi_observability_git: "karavi-observability.tar.gz"
 karavi_helm_charts_git: "helm-charts.tar.gz"
 karavi_helm_chart_path: "{{ telemetry_deploy_dir }}/karavi-observability/helm-charts/charts/karavi-observability"
 
-# CSM Metrics PowerScale resource limits
+# CSM Metrics PowerScale resource limits (read from telemetry_storage_config input)
 csm_metrics_powerscale_resources:
   requests:
-    cpu: "100m"
-    memory: "128Mi"
+    cpu: "{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.cpu | default('100m') }}"
+    memory: "{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.memory | default('128Mi') }}"
   limits:
-    cpu: "500m"
-    memory: "512Mi"
+    cpu: "{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.cpu | default('500m') }}"
+    memory: "{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.memory | default('512Mi') }}"
 
 # File permissions
 file_permissions_644: "0644"
@@ -118,8 +118,17 @@ csi_volume_exporter:
   scrape_interval_seconds: 30
   resources:
     requests:
-      cpu: "50m"
-      memory: "64Mi"
+      cpu: "{{ telemetry_storage_config.csi_volume_exporter_storage.resources.requests.cpu | default('50m') }}"
+      memory: "{{ telemetry_storage_config.csi_volume_exporter_storage.resources.requests.memory | default('64Mi') }}"
     limits:
-      cpu: "200m"
-      memory: "256Mi"
+      cpu: "{{ telemetry_storage_config.csi_volume_exporter_storage.resources.limits.cpu | default('200m') }}"
+      memory: "{{ telemetry_storage_config.csi_volume_exporter_storage.resources.limits.memory | default('256Mi') }}"
+
+# Karavi Observability Deployment Names
+# ============================================================================
+# These are the deployment names created by karavi-observability Helm chart
+# Used for scaling down during disable operations and scaling up during enable
+karavi_observability:
+  metrics_deployment: "karavi-metrics-powerscale"
+  otel_collector_deployment: "otel-collector"
+  otel_collector_pvc: "otel-collector-data"

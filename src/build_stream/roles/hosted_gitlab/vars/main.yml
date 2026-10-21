@@ -78,10 +78,10 @@ gitlab_initial_root_password_path: "/etc/gitlab/initial_root_password"
 gitlab_root_token_file_path: "/root/.gitlab_root_token"
 
 # Runner container
-gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v19.2.0"
-gitlab_runner_default_image: "docker.io/library/alpine:3.23.3"
+gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v19.5.0"
+gitlab_runner_default_image: "docker.io/library/alpine:3.24.2"
 gitlab_runner_helper_image_registry: "registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper"
-gitlab_runner_helper_image_version: "v19.2.0"
+gitlab_runner_helper_image_version: "v19.5.0"
 gitlab_runner_container_name: "gitlab-runner"
 gitlab_restart_policy: "always"
 gitlab_runner_description: "Omnia Hosted Runner"
@@ -142,6 +142,11 @@ gitlab_catalog_json_source: "{{ (role_path | realpath) ~ '/../../../main/samples
 # Cadence catalog — watched by the cadence pipeline (ER-BSM-002: AC-015)
 gitlab_cadence_catalog_repo_path: "cadence_catalog_rhel.json"
 gitlab_cadence_catalog_json_source: "{{ (role_path | realpath) ~ '/../../../main/samples/cadence_catalog_rhel.json' }}"  # noqa: yaml[line-length]
+
+# Catalogs kept only at the repository root (never duplicated under catalog/)
+gitlab_top_level_catalog_files:
+  - "{{ gitlab_catalog_repo_path }}"
+  - "{{ gitlab_cadence_catalog_repo_path }}"
 gitlab_input_repo_dir: "input"
 
 # --- Domain-segregated input layout (Omnia 2.3+) ---
@@ -181,8 +186,6 @@ gitlab_input_files:
     src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/security_config.yml"
   - name: "orchestrator/storage_config.yml"
     src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/storage_config.yml"
-  - name: "orchestrator/high_availability_config.yml"
-    src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/high_availability_config.yml"
   - name: "orchestrator/additional_cloud_init.yml"
     src: "{{ gitlab_omnia_data_path }}/orchestrator/input/{{ gitlab_omnia_project_name }}/additional_cloud_init.yml"
   - name: "orchestrator/pxe_mapping_file.csv"
@@ -381,3 +384,12 @@ gitlab_deployment_complete_msg:
   - "IMPORTANT: For any new GitLab reconfiguration, run cleanup_gitlab.yml before running gitlab.yml"
   - ""
   - "============================================"
+
+# Input validation messages
+gitlab_host_invalid_format_msg: >-
+  gitlab_host in build_stream_config.yml contains invalid characters or template syntax.
+  Value must be a valid hostname containing only alphanumeric characters, dots, and hyphens.
+
+gitlab_config_invalid_format_msg: >-
+  build_stream_config.yml contains invalid values or template syntax.
+  Ensure gitlab_host and gitlab_project_name contain only valid characters.

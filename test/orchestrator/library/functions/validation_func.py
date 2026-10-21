@@ -144,7 +144,7 @@ def _validate_repo_status(path: Path) -> list[str]:
 
 
 def _validate_build_status(path: Path) -> list[str]:
-    """Validate the image-builder handoff consumed during provisioning."""
+    """Validate the image-thrillhouse handoff consumed during provisioning."""
     try:
         value = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError) as exc:
@@ -295,6 +295,20 @@ def validate_test_config() -> dict[str, Any]:
         load_external_ldap_settings(config)
     except ValueError as exc:
         errors.append(str(exc))
+
+    # Validate slurm_lifecycle_remove_add_nodes (optional, comma-separated IPs).
+    lifecycle_nodes = config.get("slurm_lifecycle_remove_add_nodes", "")
+    if lifecycle_nodes and not isinstance(lifecycle_nodes, str):
+        errors.append("'slurm_lifecycle_remove_add_nodes' must be a string")
+    elif isinstance(lifecycle_nodes, str) and lifecycle_nodes.strip():
+        _IP_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+        for token in lifecycle_nodes.split(","):
+            token = token.strip()
+            if token and not _IP_RE.match(token):
+                errors.append(
+                    f"'slurm_lifecycle_remove_add_nodes' contains invalid "
+                    f"Admin IP: {token}"
+                )
 
     errors.extend(_validate_dataset(config))
 

@@ -172,10 +172,7 @@ SQUASHFS_PACKAGE = "squashfs-tools"
 S3_BOOT_IMAGES_BUCKET = "s3://boot-images"
 
 # Image engine identifiers and their collision-safe artifact suffixes.
-IMAGE_BUILD_TYPE_SUFFIXES = {
-    "image-builder": "-imgbld",
-    "image-thrillhouse": "-imgth",
-}
+IMAGE_BUILD_TYPE_SUFFIXES = {"image-thrillhouse": "-imgth"}
 
 # =============================================================================
 # CONFIG VALIDATION CONSTANTS
@@ -332,6 +329,9 @@ CMDS = {
         "test -f /etc/profile.d/omnia-env.sh && "
         "source /etc/profile.d/omnia-env.sh && "
         "echo ${env_var} 2>/dev/null"
+    ),
+    "latest_build_log": (
+        "ls -t {log_dir}*.log 2>/dev/null | head -1"
     ),
     "cat_build_log": (
         "tail -n {lines} {log_path} 2>/dev/null"

@@ -86,7 +86,6 @@ A shipped filtered profile produces:
 datasets/<dataset_name>/
 ├── input/
 │   ├── additional_cloud_init.yml
-│   ├── high_availability_config.yml
 │   ├── network_spec.yml
 │   ├── omnia_config.yml
 │   ├── orchestrator_config.yml

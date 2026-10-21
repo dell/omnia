@@ -468,3 +468,63 @@ def test_negative_invalid_yaml_config(host):
     finally:
         # Restore original config
         host.run(f"mv {backup_path} {config_path} 2>/dev/null || true")
+
+
+@pytest.mark.regression
+@pytest.mark.order(64)
+def test_negative_deploy_mode_missing_ssh_key(host):
+    """Test that deploy mode validates SSH key availability.
+
+    Since password-based authentication has been removed, SSH key is now
+    mandatory for deploy mode. This test verifies that the playbook fails
+    gracefully when the SSH key is missing during deploy.
+    """
+    from library.functions import get_utils_input_path, read_remote_file
+    import base64
+
+    tc = TC["deploy_install_os_deploy"]
+    tl = TestLogger(tc["title"], tc["id"])
+
+    input_path = get_utils_input_path(host)
+    config_path = f"{input_path}/install_os_config.yml"
+    backup_path = f"{config_path}.neg_test_backup"
+
+    # Read current config
+    config_result = read_remote_file(host, config_path)
+    if not config_result["success"]:
+        tl.skipped(f"Cannot read config: {config_result['error']}")
+        pytest.skip(f"Cannot read config: {config_result['error']}")
+
+    original_config = config_result["content"]
+
+    try:
+        # Backup original config
+        host.run(f"cp {config_path} {backup_path}")
+
+        # Modify config to use non-existent SSH key path
+        import re
+        modified_config = re.sub(
+            r'ssh_public_key_path:\s*"[^"]*"',
+            'ssh_public_key_path: "/nonexistent/fake_ssh_key_12345.pub"',
+            original_config
+        )
+
+        # Write modified config using base64 to handle special chars
+        b64 = base64.b64encode(modified_config.encode("utf-8")).decode("ascii")
+        host.run(f"echo '{b64}' | base64 -d > {config_path}")
+
+        # Run deploy tag - should fail validation for missing SSH key
+        result = run_playbook(playbook=PLAYBOOK_INSTALL_OS, tag="deploy")
+
+        output = (result.get("output") or "") + (result.get("error") or "")
+
+        if not result["success"]:
+            # Expected: playbook fails due to missing SSH key in deploy mode
+            tl.passed("Playbook correctly failed with missing SSH key in deploy mode")
+        else:
+            tl.failed("Playbook should fail when SSH key doesn't exist in deploy mode")
+            pytest.fail("Playbook should fail when SSH key doesn't exist in deploy mode")
+
+    finally:
+        # Restore original config
+        host.run(f"mv {backup_path} {config_path} 2>/dev/null || true")

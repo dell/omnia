@@ -14,6 +14,10 @@
 
 """Canonical registry for Orchestrator lifecycle test cases."""
 
+# pylint: disable=too-many-lines
+# This is a data registry file that grows with test cases; the line count
+# reflects the number of test cases, not code complexity.
+
 PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
     "deploy_precheck": {
         "id": "ORCH_FVT_PRECHECK_E001",
@@ -79,6 +83,92 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify node_mount_point is set when node_key is specified",
         "component": "Mount config node_key consistency",
     },
+    # ── OIM readiness (V100-V118) ───────────────────────────────────
+    "oim_cpu_threshold": {
+        "id": "ORCH_FVT_PRECHECK_V100",
+        "title": "Verify OIM CPU core count meets minimum threshold",
+        "component": "OIM CPU threshold",
+    },
+    "oim_memory_threshold": {
+        "id": "ORCH_FVT_PRECHECK_V101",
+        "title": "Verify OIM memory meets minimum threshold",
+        "component": "OIM memory threshold",
+    },
+    "oim_disk_threshold": {
+        "id": "ORCH_FVT_PRECHECK_V102",
+        "title": "Verify OIM root filesystem meets minimum threshold",
+        "component": "OIM disk threshold",
+    },
+    "oim_pxe_nic_present": {
+        "id": "ORCH_FVT_PRECHECK_V103",
+        "title": "Verify configured admin NIC exists and is UP",
+        "component": "OIM admin NIC presence",
+    },
+    "oim_public_nic_present": {
+        "id": "ORCH_FVT_PRECHECK_V104",
+        "title": "Verify public/default-route NIC exists and is UP",
+        "component": "OIM public NIC presence",
+    },
+    "oim_pxe_nic_ipv4": {
+        "id": "ORCH_FVT_PRECHECK_V105",
+        "title": "Verify admin NIC carries the configured IPv4 address",
+        "component": "OIM admin NIC IPv4",
+    },
+    "oim_ssh_preflight": {
+        "id": "ORCH_FVT_PRECHECK_V107",
+        "title": "Verify passwordless SSH from OIM to mapped target node",
+        "component": "OIM SSH preflight",
+    },
+    "oim_internet_reachability": {
+        "id": "ORCH_FVT_PRECHECK_V108",
+        "title": "Verify internet reachability via ICMP ping",
+        "component": "Internet reachability",
+    },
+    "oim_os_version": {
+        "id": "ORCH_FVT_PRECHECK_V109",
+        "title": "Verify OIM OS matches expected distribution and version",
+        "component": "OIM OS version",
+    },
+    "oim_cpu_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V110",
+        "title": "Reject an unattainable OIM CPU threshold",
+        "component": "OIM CPU threshold",
+    },
+    "oim_memory_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V111",
+        "title": "Reject an unattainable OIM memory threshold",
+        "component": "OIM memory threshold",
+    },
+    "oim_disk_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V112",
+        "title": "Reject an unattainable OIM disk threshold",
+        "component": "OIM disk threshold",
+    },
+    "oim_missing_nic_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V113",
+        "title": "Reject a nonexistent admin NIC",
+        "component": "OIM admin NIC",
+    },
+    "oim_nic_overlap_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V114",
+        "title": "Reject a PXE NIC that equals the public NIC",
+        "component": "PXE/public NIC overlap",
+    },
+    "oim_airgapped_internet": {
+        "id": "ORCH_FVT_PRECHECK_V115",
+        "title": "Accept missing internet access in air-gapped mode",
+        "component": "Internet reachability",
+    },
+    "oim_unreachable_ssh_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V116",
+        "title": "Reject SSH to an unreachable target",
+        "component": "OIM SSH preflight",
+    },
+    "oim_os_mismatch_rejection": {
+        "id": "ORCH_FVT_PRECHECK_V117",
+        "title": "Reject a mismatched OIM OS identity",
+        "component": "OIM OS version",
+    },
 }
 
 PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
@@ -114,10 +204,6 @@ PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PREPARE_V007",
         "title": "Verify CoreDHCP and CoreDNS match network_spec.yml",
     },
-    "external_ldap_proxy": {
-        "id": "ORCH_FVT_PREPARE_V008",
-        "title": "Reconcile and verify the external LDAP proxy",
-    },
     "openldap_runtime": {
         "id": "ORCH_FVT_PREPARE_V009",
         "title": "Verify OpenLDAP service and container health",
@@ -129,10 +215,6 @@ PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
     "openldap_endpoint": {
         "id": "ORCH_FVT_PREPARE_V011",
         "title": "Verify OpenLDAP listeners and local endpoint",
-    },
-    "external_ldap_backend": {
-        "id": "ORCH_FVT_PREPARE_V012",
-        "title": "Verify external LDAP backend reachability",
     },
     "postgresql_readiness": {
         "id": "ORCH_FVT_PREPARE_V013",
@@ -197,7 +279,7 @@ PROVISION_TEST_CASES: dict[str, dict[str, str]] = {
     },
 }
 
-PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
+PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-error
     "deploy_pxeboot": {
         "id": "ORCH_FVT_PXEBOOT_E001",
         "title": "Execute Orchestrator PXE boot lifecycle",
@@ -236,6 +318,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V007",
         "title": "Verify Kubernetes component version compatibility",
         "component": "Kubernetes version compatibility",
+    },
+    "kubernetes_configured_versions": {
+        "id": "ORCH_FVT_PXEBOOT_V519",
+        "title": "Verify configured Kubernetes component versions",
+        "component": "Kubernetes configured versions",
     },
     "kubernetes_control_plane": {
         "id": "ORCH_FVT_PXEBOOT_V008",
@@ -277,6 +364,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Kubernetes local-etcd disk integrity",
         "component": "Kubernetes local-etcd disk integrity",
     },
+    "kubernetes_local_etcd_provisioning": {
+        "id": "ORCH_FVT_PXEBOOT_V520",
+        "title": "Verify Kubernetes local-etcd provisioning contract",
+        "component": "Kubernetes local-etcd provisioning",
+    },
+    "kubernetes_local_etcd_media": {
+        "id": "ORCH_FVT_PXEBOOT_V523",
+        "title": "Verify Kubernetes local-etcd disk media",
+        "component": "Kubernetes local-etcd disk media",
+    },
     "kubernetes_storage": {
         "id": "ORCH_FVT_PXEBOOT_V016",
         "title": "Verify Kubernetes NFS and CSI storage",
@@ -291,6 +388,11 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V018",
         "title": "Verify Kubernetes PowerScale snapshot components",
         "component": "Kubernetes snapshot components",
+    },
+    "kubernetes_nfs_contract": {
+        "id": "ORCH_FVT_PXEBOOT_V521",
+        "title": "Verify Kubernetes NFS provisioner and backend contract",
+        "component": "Kubernetes NFS provisioner",
     },
     "kubernetes_nfs_dynamic": {
         "id": "ORCH_FVT_PXEBOOT_V019",
@@ -391,6 +493,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "id": "ORCH_FVT_PXEBOOT_V038",
         "title": "Verify Slurm drain queue and resume behavior",
         "component": "Slurm drain and queue",
+    },
+    "external_ldap_proxy": {
+        "id": "ORCH_FVT_PXEBOOT_V524",
+        "title": "Reconcile and verify the external LDAP proxy",
+        "component": "External LDAP proxy",
+    },
+    "external_ldap_backend": {
+        "id": "ORCH_FVT_PXEBOOT_V525",
+        "title": "Verify external LDAP backend reachability",
+        "component": "External LDAP backend",
     },
     "slurm_pam": {
         "id": "ORCH_FVT_PXEBOOT_V039",
@@ -672,13 +784,565 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify Apptainer artifacts after compute reboot",
         "component": "Apptainer artifact recovery",
     },
+    "hpc_benchmarks_run_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V223",
+        "title": "Execute pull_benchmarks.sh to populate staged artifacts",
+        "component": "HPC benchmarks staging execution",
+    },
+    "hpc_benchmarks_cleanup_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V224",
+        "title": "Remove staged benchmark tool directories after verification",
+        "component": "HPC benchmarks staging cleanup",
+    },
+    "hpc_benchmarks_prerequisites": {
+        "id": "ORCH_FVT_PXEBOOT_V225",
+        "title": "Verify benchmark prerequisites: script, platform, tools list, mount (NFS export informational)",
+        "component": "HPC benchmarks prerequisites",
+    },
+    "hpc_benchmarks_staging_fingerprint_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V226",
+        "title": "Verify staging idempotency with SHA-256, size, and mtime fingerprints",
+        "component": "HPC benchmarks staging fingerprint idempotency",
+    },
+    "hpc_benchmarks_concurrent_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V227",
+        "title": "Verify concurrent staging from two compute nodes on shared storage",
+        "component": "HPC benchmarks concurrent staging",
+    },
+    "hpc_benchmarks_json_declaration": {
+        "id": "ORCH_FVT_PXEBOOT_V200",
+        "title": "Verify HPC benchmarks tool declaration (benchmark_tools.list)",
+        "component": "HPC benchmarks tool declaration",
+    },
+    "hpc_benchmarks_local_repo_sync": {
+        "id": "ORCH_FVT_PXEBOOT_V201",
+        "title": "Verify benchmark tarballs reachable via Pulp offline repo URL",
+        "component": "HPC benchmarks Pulp sync",
+    },
+    "hpc_benchmarks_tools_dir_creation": {
+        "id": "ORCH_FVT_PXEBOOT_V202",
+        "title": "Verify /hpc_tools directory layout and permissions",
+        "component": "HPC benchmarks directory creation",
+    },
+    "hpc_benchmarks_artifact_copy": {
+        "id": "ORCH_FVT_PXEBOOT_V203",
+        "title": "Verify declared benchmark artifacts are staged per tool",
+        "component": "HPC benchmarks artifact copy",
+    },
+    "hpc_benchmarks_msr_safe_arch_boundary": {
+        "id": "ORCH_FVT_PXEBOOT_V204",
+        "title": "Verify msr-safe is staged only for x86_64",
+        "component": "HPC benchmarks msr-safe arch boundary",
+    },
+    "hpc_benchmarks_platform_script": {
+        "id": "ORCH_FVT_PXEBOOT_V219",
+        "title": "Verify omnia_platform.sh deployment and platform detection",
+        "component": "HPC benchmarks platform script",
+    },
+    "hpc_benchmarks_platform_directory_structure": {
+        "id": "ORCH_FVT_PXEBOOT_V221",
+        "title": "Verify platform-specific directory structure exists per architecture",
+        "component": "HPC benchmarks platform directory structure",
+    },
+    "hpc_benchmarks_offline_package_copy": {
+        "id": "ORCH_FVT_PXEBOOT_V222",
+        "title": "Verify offline packages are copied to slurm_config_path/packages/{arch}/",
+        "component": "HPC benchmarks offline package copy",
+    },
+    "hpc_benchmarks_container_image_list": {
+        "id": "ORCH_FVT_PXEBOOT_V220",
+        "title": "Verify container_image.list deployment and content validation",
+        "component": "HPC benchmarks container image list",
+    },
+    "hpc_benchmarks_container_first_guidance": {
+        "id": "ORCH_FVT_PXEBOOT_V205",
+        "title": "Verify pull_benchmarks.sh and benchmark_tools.list are deployed",
+        "component": "HPC benchmarks staging artifacts",
+    },
+    "hpc_benchmarks_source_only_delivery": {
+        "id": "ORCH_FVT_PXEBOOT_V206",
+        "title": "Verify no compile or build commands are staged",
+        "component": "HPC benchmarks source-only delivery",
+    },
+    "hpc_benchmarks_e2e_provisioning": {
+        "id": "ORCH_FVT_PXEBOOT_V208",
+        "title": "Verify end-to-end benchmark provisioning pipeline",
+        "component": "HPC benchmarks end-to-end provisioning",
+    },
+    "hpc_benchmarks_nfs_accessibility": {
+        "id": "ORCH_FVT_PXEBOOT_V209",
+        "title": "Verify /hpc_tools NFS is mounted and readable on compute nodes",
+        "component": "HPC benchmarks NFS accessibility",
+    },
+    "hpc_benchmarks_airgapped_staging": {
+        "id": "ORCH_FVT_PXEBOOT_V210",
+        "title": "Verify benchmark staging completes without external egress",
+        "component": "HPC benchmarks air-gapped staging",
+    },
+    "hpc_benchmarks_post_staging_validation": {
+        "id": "ORCH_FVT_PXEBOOT_V211",
+        "title": "Verify post-staging validation of benchmark tool directories",
+        "component": "HPC benchmarks post-staging validation",
+    },
+    "hpc_benchmarks_rhel_compatibility": {
+        "id": "ORCH_FVT_PXEBOOT_V212",
+        "title": "Verify benchmark staging on RHEL 10.x",
+        "component": "HPC benchmarks RHEL compatibility",
+    },
+    "hpc_benchmarks_cuda_flow_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V213",
+        "title": "Verify CUDA flow is unaffected by benchmark staging",
+        "component": "HPC benchmarks CUDA flow invariance",
+    },
+    "hpc_benchmarks_nvhpc_flow_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V214",
+        "title": "Verify NVIDIA HPC SDK flow is unaffected by benchmark staging",
+        "component": "HPC benchmarks NVIDIA SDK flow invariance",
+    },
+    "hpc_benchmarks_container_image_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V215",
+        "title": "Verify container image flow is unaffected by benchmark staging",
+        "component": "HPC benchmarks container image flow invariance",
+    },
+    "hpc_benchmarks_openmpi_unaffected": {
+        "id": "ORCH_FVT_PXEBOOT_V216",
+        "title": "Verify OpenMPI/UCX are unaffected by benchmark staging",
+        "component": "HPC benchmarks OpenMPI invariance",
+    },
+    "hpc_benchmarks_existing_dirs_preserved": {
+        "id": "ORCH_FVT_PXEBOOT_V217",
+        "title": "Verify pre-existing /hpc_tools directories are preserved",
+        "component": "HPC benchmarks existing directory preservation",
+    },
+    "hpc_benchmarks_staging_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V218",
+        "title": "Verify benchmark staging is idempotent",
+        "component": "HPC benchmarks staging idempotency",
+    },
+    "coredns_container_state": {
+        "id": "ORCH_FVT_PXEBOOT_V300",
+        "title": "Verify coresmd container state matches dns_enabled dataset",
+        "component": "CoreDNS/CoreDHCP container state",
+    },
+    "coredns_forward_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V301",
+        "title": "Verify CoreDNS forward resolution from OIM for mapped nodes",
+        "component": "CoreDNS forward resolution",
+    },
+    "coredns_reverse_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V302",
+        "title": "Verify CoreDNS reverse resolution from OIM for mapped admin IPs",
+        "component": "CoreDNS reverse resolution",
+    },
+    "coredns_dns_forwarders": {
+        "id": "ORCH_FVT_PXEBOOT_V303",
+        "title": "Verify DNS forwarders are configured and can resolve external domains",
+        "component": "CoreDNS forwarders configuration",
+    },
+    "coredns_corefile_config": {
+        "id": "ORCH_FVT_PXEBOOT_V304",
+        "title": "Verify Corefile configuration is correctly rendered",
+        "component": "CoreDNS Corefile configuration",
+    },
+    "coredhcp_config_file": {
+        "id": "ORCH_FVT_PXEBOOT_V305",
+        "title": "Verify coredhcp.yaml configuration file is correctly rendered",
+        "component": "CoreDHCP configuration file",
+    },
+    "coredhcp_multisubnet_running_image": {
+        "id": "ORCH_FVT_PXEBOOT_V306",
+        "title": (
+            "Verify multi-subnet coresmd containers and rendered subnet "
+            "configuration (defect 843 open for live subnet validation)"
+        ),
+        "component": "CoreDHCP multi-subnet image and config",
+    },
+    "dns_compute_resolv_conf": {
+        "id": "ORCH_FVT_PXEBOOT_V307",
+        "title": "Verify /etc/resolv.conf on every compute uses CoreDNS as primary",
+        "component": "Compute /etc/resolv.conf",
+    },
+    "dns_compute_forward_getent": {
+        "id": "ORCH_FVT_PXEBOOT_V308",
+        "title": "Verify every compute resolves peers via getent hosts",
+        "component": "Compute getent hosts resolution",
+    },
+    "coredns_idempotency": {
+        "id": "ORCH_FVT_PXEBOOT_V309",
+        "title": "Verify CoreDNS/CoreDHCP state stability (no-drift)",
+        "component": "CoreDNS state stability",
+    },
+    "dns_node_addition_pipeline": {
+        "id": "ORCH_FVT_PXEBOOT_V310",
+        "title": (
+            "Verify SMD-to-CoreDNS pipeline readiness (existing registrations "
+            "only; defect 843 open for live add-node)"
+        ),
+        "component": "CoreDNS node-addition pipeline readiness",
+    },
+    "dns_smd_unreachable_cached_resolution": {
+        "id": "ORCH_FVT_PXEBOOT_V311",
+        "title": "Verify CoreDNS serves cached records when SMD is unavailable",
+        "component": "CoreDNS SMD-unavailable cached resolution",
+    },
+    "powervault_iscsi_service": {
+        "id": "ORCH_FVT_PXEBOOT_V400",
+        "title": "Verify iscsid is active and enabled on all PowerVault target nodes",
+        "component": "PowerVault iSCSI service",
+    },
+    "powervault_iscsi_initiator_name": {
+        "id": "ORCH_FVT_PXEBOOT_V401",
+        "title": "Verify iSCSI initiator name matches config on all target nodes",
+        "component": "PowerVault iSCSI initiator name",
+    },
+    "powervault_iscsi_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V402",
+        "title": "Verify iSCSI target discovery succeeds from all portal IPs",
+        "component": "PowerVault iSCSI target discovery",
+    },
+    "powervault_iscsi_sessions": {
+        "id": "ORCH_FVT_PXEBOOT_V403",
+        "title": "Verify iSCSI sessions are active on all target nodes",
+        "component": "PowerVault iSCSI sessions",
+    },
+    "powervault_iscsi_startup_automatic": {
+        "id": "ORCH_FVT_PXEBOOT_V404",
+        "title": "Verify iSCSI node startup is automatic on all target nodes",
+        "component": "PowerVault iSCSI startup automatic",
+    },
+    "powervault_portal_reachability": {
+        "id": "ORCH_FVT_PXEBOOT_V405",
+        "title": "Verify iSCSI portal ports are reachable and sessions healthy",
+        "component": "PowerVault portal reachability",
+    },
+    "powervault_multipath_service": {
+        "id": "ORCH_FVT_PXEBOOT_V406",
+        "title": "Verify multipathd is active and enabled on all target nodes",
+        "component": "PowerVault multipathd service",
+    },
+    "powervault_multipath_device": {
+        "id": "ORCH_FVT_PXEBOOT_V407",
+        "title": "Verify multipath device exists and matches volume_id",
+        "component": "PowerVault multipath device",
+    },
+    "powervault_multipath_redundancy": {
+        "id": "ORCH_FVT_PXEBOOT_V408",
+        "title": "Verify multipath device has multiple paths for redundancy",
+        "component": "PowerVault multipath redundancy",
+    },
+    "powervault_gpt_partition": {
+        "id": "ORCH_FVT_PXEBOOT_V409",
+        "title": "Verify GPT partition exists on multipath device",
+        "component": "PowerVault GPT partition",
+    },
+    "powervault_filesystem_type": {
+        "id": "ORCH_FVT_PXEBOOT_V410",
+        "title": "Verify filesystem formatted with correct type",
+        "component": "PowerVault filesystem type",
+    },
+    "powervault_mount_point_directory": {
+        "id": "ORCH_FVT_PXEBOOT_V411",
+        "title": "Verify mount point directory exists on all target nodes",
+        "component": "PowerVault mount point directory",
+    },
+    "powervault_volume_mounted": {
+        "id": "ORCH_FVT_PXEBOOT_V412",
+        "title": "Verify PowerVault volume is actively mounted on all target nodes",
+        "component": "PowerVault volume mounted",
+    },
+    "powervault_mount_options": {
+        "id": "ORCH_FVT_PXEBOOT_V413",
+        "title": "Verify mount options applied correctly on all target nodes",
+        "component": "PowerVault mount options",
+    },
+    "powervault_fstab_entry": {
+        "id": "ORCH_FVT_PXEBOOT_V414",
+        "title": "Verify persistent fstab entry created on all target nodes",
+        "component": "PowerVault fstab entry",
+    },
+    "powervault_node_subdirectory": {
+        "id": "ORCH_FVT_PXEBOOT_V415",
+        "title": "Verify per-node subdirectory exists under mount point",
+        "component": "PowerVault node subdirectory",
+    },
+    "powervault_bind_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V416",
+        "title": "Verify bind mount targets are active on all target nodes",
+        "component": "PowerVault bind mounts",
+    },
+    "powervault_bind_fstab_entries": {
+        "id": "ORCH_FVT_PXEBOOT_V417",
+        "title": "Verify bind mount fstab entries are persistent on all target nodes",
+        "component": "PowerVault bind fstab entries",
+    },
+    "powervault_bind_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V418",
+        "title": "Verify per-node data separation via bind mounts",
+        "component": "PowerVault bind isolation",
+    },
+    "powervault_functional_group_targeting": {
+        "id": "ORCH_FVT_PXEBOOT_V419",
+        "title": "Verify PV mount only on correct functional groups",
+        "component": "PowerVault functional group targeting",
+    },
+    "powervault_multiple_prefix_targeting": {
+        "id": "ORCH_FVT_PXEBOOT_V420",
+        "title": "Verify multiple prefixes target all groups correctly",
+        "component": "PowerVault multiple prefix targeting",
+    },
+    "powervault_setup_log": {
+        "id": "ORCH_FVT_PXEBOOT_V421",
+        "title": "Verify cloud-init runcmd log exists and shows completion",
+        "component": "PowerVault setup log",
+    },
+    "powervault_cloud_init_groups_dict": {
+        "id": "ORCH_FVT_PXEBOOT_V422",
+        "title": "Verify rendered iSCSI setup scripts deployed on target nodes",
+        "component": "PowerVault metadata-service scripts",
+    },
+    "powervault_no_duplicate_fstab": {
+        "id": "ORCH_FVT_PXEBOOT_V423",
+        "title": "Verify no duplicate fstab entries on all target nodes",
+        "component": "PowerVault no duplicate fstab",
+    },
+    "powervault_all_mounts_writable": {
+        "id": "ORCH_FVT_PXEBOOT_V424",
+        "title": "Verify all PV mounts (main + bind) are writable",
+        "component": "PowerVault mounts writable",
+    },
+    "powervault_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V425",
+        "title": "Verify permissions on mount point match config",
+        "component": "PowerVault permissions",
+    },
+    "powervault_io_write_read": {
+        "id": "ORCH_FVT_PXEBOOT_V426",
+        "title": "Verify write-read I/O on PV mount points",
+        "component": "PowerVault I/O write-read",
+    },
+    "powervault_bind_io": {
+        "id": "ORCH_FVT_PXEBOOT_V427",
+        "title": "Verify bind-mount I/O reaches PV backing store",
+        "component": "PowerVault bind I/O",
+    },
+    "powervault_slurm_mandatory_bind_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V428",
+        "title": (
+            "Verify /var/lib/mysql and /var/spool/slurm "
+            "configured as bind targets"
+        ),
+        "component": "PowerVault mandatory Slurm bind mounts",
+    },
+    "powervault_mysql_data_on_mount": {
+        "id": "ORCH_FVT_PXEBOOT_V429",
+        "title": "Verify MySQL datadir is on PowerVault mount",
+        "component": "PowerVault MySQL datadir",
+    },
+    # ── PowerVault negative tests (V430-V431) ───────────────────────────
+    "powervault_gpt_missing_label": {
+        "id": "ORCH_FVT_PXEBOOT_V430",
+        "title": "Verify GPT partition check correctly detects missing GPT label",
+        "component": "PowerVault GPT negative validation",
+    },
+    "powervault_duplicate_fstab": {
+        "id": "ORCH_FVT_PXEBOOT_V431",
+        "title": "Verify duplicate fstab entry detection works correctly",
+        "component": "PowerVault duplicate fstab negative validation",
+    },
+    "slurm_node_remove": {
+        "id": "ORCH_FVT_PXEBOOT_V500",
+        "title": "Verify Slurm compute node removal lifecycle",
+        "component": "Slurm node removal",
+    },
+    "slurm_node_add": {
+        "id": "ORCH_FVT_PXEBOOT_V501",
+        "title": "Verify Slurm compute node re-addition lifecycle",
+        "component": "Slurm node re-addition",
+    },
+    # ── DCGM / CUDA verification (ORCH_FVT_PXEBOOT_V501-V518) ─────────
+    "dcgm_cuda_validation": {
+        "id": "ORCH_FVT_PXEBOOT_V522",
+        "title": "Verify NVIDIA driver and CUDA toolkit on GPU nodes",
+        "component": "CUDA driver and toolkit validation",
+    },
+    "dcgm_cuda_atomic_lock": {
+        "id": "ORCH_FVT_PXEBOOT_V502",
+        "title": "Verify CUDA toolkit installed via atomic lock",
+        "component": "CUDA atomic lock installation",
+    },
+    "dcgm_package_installed": {
+        "id": "ORCH_FVT_PXEBOOT_V503",
+        "title": "Verify datacenter-gpu-manager RPM and DCGM binaries",
+        "component": "DCGM package installation",
+    },
+    "dcgm_daemon_running": {
+        "id": "ORCH_FVT_PXEBOOT_V504",
+        "title": "Verify nvidia-dcgm service is active and enabled",
+        "component": "DCGM daemon status",
+    },
+    "dcgm_gpu_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V505",
+        "title": "Verify dcgmi discovery enumerates GPUs with unique UUIDs",
+        "component": "DCGM GPU discovery",
+    },
+    "dcgm_gpu_metrics": {
+        "id": "ORCH_FVT_PXEBOOT_V506",
+        "title": "Verify dcgmi dmon returns metric samples for each GPU",
+        "component": "DCGM GPU metrics monitoring",
+    },
+    "dcgm_cuda_login_compiler": {
+        "id": "ORCH_FVT_PXEBOOT_V507",
+        "title": "Verify CUDA toolkit accessible on login_compiler nodes",
+        "component": "CUDA login_compiler installation",
+    },
+    "dcgm_cuda_compute_node": {
+        "id": "ORCH_FVT_PXEBOOT_V508",
+        "title": "Verify CUDA toolkit and driver on compute nodes",
+        "component": "CUDA compute node installation",
+    },
+    "dcgm_multi_gpu_discovery": {
+        "id": "ORCH_FVT_PXEBOOT_V509",
+        "title": "Verify dcgmi discovery on multi-GPU nodes",
+        "component": "DCGM multi-GPU discovery",
+    },
+    "dcgm_multi_gpu_no_login_compiler": {
+        "id": "ORCH_FVT_PXEBOOT_V510",
+        "title": "Verify GPU nodes work without login_compiler present",
+        "component": "Multi-GPU without login_compiler",
+    },
+    "dcgm_multi_login_compiler_lock": {
+        "id": "ORCH_FVT_PXEBOOT_V511",
+        "title": "Verify CUDA toolkit install uses atomic lock with multiple login_compilers",
+        "component": "Multi login_compiler atomic lock",
+    },
+    "dcgm_toolkit_nfs_storage": {
+        "id": "ORCH_FVT_PXEBOOT_V512",
+        "title": "Verify /hpc_tools is NFS-mounted and CUDA toolkit accessible",
+        "component": "CUDA NFS shared storage",
+    },
+    "dcgm_rhel_compatibility": {
+        "id": "ORCH_FVT_PXEBOOT_V513",
+        "title": "Verify GPU node OS is a supported RHEL version",
+        "component": "GPU RHEL compatibility",
+    },
+    "dcgm_cuda_version_compatibility": {
+        "id": "ORCH_FVT_PXEBOOT_V514",
+        "title": "Verify CUDA toolkit and DCGM daemon version compatibility",
+        "component": "CUDA version compatibility",
+    },
+    "dcgm_neg_cuda_prerequisite": {
+        "id": "ORCH_FVT_PXEBOOT_V515",
+        "title": "Verify DCGM deployment requires CUDA prerequisites",
+        "component": "CUDA prerequisite enforcement",
+    },
+    "dcgm_neg_daemon_recovery": {
+        "id": "ORCH_FVT_PXEBOOT_V516",
+        "title": "Verify DCGM daemon auto-recovery after SIGKILL",
+        "component": "DCGM daemon crash recovery",
+    },
+    "dcgm_neg_socket_inaccessible": {
+        "id": "ORCH_FVT_PXEBOOT_V517",
+        "title": "Verify dcgmi returns clear error when socket is removed",
+        "component": "DCGM socket inaccessible",
+    },
+    "dcgm_neg_package_install_failure": {
+        "id": "ORCH_FVT_PXEBOOT_V518",
+        "title": "Verify error handling when DCGM package is unavailable",
+        "component": "DCGM package install failure",
+    },
+    # ---- VAST Storage (TC-001 .. TC-017) ----
+    "vast_vastnfs_installation": {
+        "id": "ORCH_FVT_PXEBOOT_V700",
+        "title": "Verify VAST NFS client installation on compute nodes",
+        "component": "VAST NFS installation",
+    },
+    "vast_mount_points": {
+        "id": "ORCH_FVT_PXEBOOT_V701",
+        "title": "Verify VAST mount point directories exist on compute nodes",
+        "component": "VAST mount points",
+    },
+    "vast_scratch_hostname_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V702",
+        "title": "Verify /scratch/<hostname>/ isolation across nodes",
+        "component": "VAST scratch hostname isolation",
+    },
+    "vast_mount_options": {
+        "id": "ORCH_FVT_PXEBOOT_V703",
+        "title": "Verify VAST mount options proto=rdma and port=20049",
+        "component": "VAST mount options",
+    },
+    "vast_ldapuser_scratch_directory": {
+        "id": "ORCH_FVT_PXEBOOT_V704",
+        "title": "Verify /scratch/<ldapuser>/ on login_compiler nodes",
+        "component": "VAST LDAP scratch directory",
+    },
+    "vast_ldapuser_subdirectories": {
+        "id": "ORCH_FVT_PXEBOOT_V705",
+        "title": "Verify data/jobs/results/tmp subdirectories in scratch",
+        "component": "VAST LDAP subdirectories",
+    },
+    "vast_ldapuser_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V706",
+        "title": "Verify LDAP user permission isolation on VAST scratch",
+        "component": "VAST LDAP permissions",
+    },
+    "vast_scratch_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V707",
+        "title": "Verify file isolation between VAST scratch subdirectories",
+        "component": "VAST scratch isolation",
+    },
+    "vast_control_node_no_vast": {
+        "id": "ORCH_FVT_PXEBOOT_V708",
+        "title": "Verify Slurm control node has no VAST storage mounted",
+        "component": "VAST control node exclusion",
+    },
+    "vast_vastnfs_rpm_and_module": {
+        "id": "ORCH_FVT_PXEBOOT_V709",
+        "title": "Verify vastnfs RPM, kernel module, and service",
+        "component": "VAST NFS RPM and module",
+    },
+    "vast_fstab_entries": {
+        "id": "ORCH_FVT_PXEBOOT_V710",
+        "title": "Verify /etc/fstab VAST entries with proto=rdma",
+        "component": "VAST fstab entries",
+    },
+    "vast_rdma_mount": {
+        "id": "ORCH_FVT_PXEBOOT_V711",
+        "title": "Verify VAST RDMA mount and 1 GB I/O checksum",
+        "component": "VAST RDMA mount and I/O",
+    },
+    "vast_qss_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V712",
+        "title": "Verify VAST QSS mounts on compute/login only",
+        "component": "VAST QSS mount assignment",
+    },
+    "vast_slurm_logs_persistence": {
+        "id": "ORCH_FVT_PXEBOOT_V713",
+        "title": "Verify Slurm logs on persistent storage",
+        "component": "VAST Slurm log persistence",
+    },
+    "vast_control_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V714",
+        "title": "Verify control node mount table (no VAST)",
+        "component": "VAST control node mounts",
+    },
+    "vast_compute_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V715",
+        "title": "Verify compute node mount table (NFS + VAST)",
+        "component": "VAST compute node mounts",
+    },
+    "vast_login_node_mounts": {
+        "id": "ORCH_FVT_PXEBOOT_V716",
+        "title": "Verify login/compiler node mount table",
+        "component": "VAST login node mounts",
+    },
     "additional_cloud_init_smd_groups": {
-        "id": "ORCH_FVT_PXEBOOT_V095",
+        "id": "ORCH_FVT_PXEBOOT_V600",
         "title": "Verify additional cloud-init SMD groups",
         "component": "Additional cloud-init SMD groups",
     },
     "additional_cloud_init_metadata_groups": {
-        "id": "ORCH_FVT_PXEBOOT_V096",
+        "id": "ORCH_FVT_PXEBOOT_V601",
         "title": "Verify additional cloud-init metadata-service groups",
         "component": "Additional cloud-init metadata-service groups",
     },
@@ -692,16 +1356,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify live node OS version matches functional group",
         "component": "Node OS version",
     },
-    "additional_cloud_init_write_files": {
-        "id": "ORCH_FVT_PXEBOOT_V099",
-        "title": "Verify additional cloud-init write_files on nodes",
-        "component": "Additional cloud-init write_files",
-    },
-    "additional_cloud_init_runcmd": {
-        "id": "ORCH_FVT_PXEBOOT_V100",
-        "title": "Verify additional cloud-init runcmd on nodes",
-        "component": "Additional cloud-init runcmd",
-    },
+
     # mount_config NFS test cases (order 500+)
     "mount_config_mount_point": {
         "id": "ORCH_FVT_PXEBOOT_V101",
@@ -805,6 +1460,141 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Verify admin IP is configured on OS-only nodes",
         "component": "Minimal OS network identity",
     },
+    "minimal_os_functional_group_schema": {
+        "id": "ORCH_FVT_PXEBOOT_V122",
+        "title": "Verify functional-group definitions on OS-only nodes",
+        "component": "Minimal OS functional group schema",
+    },
+    "minimal_os_additional_packages": {
+        "id": "ORCH_FVT_PXEBOOT_V123",
+        "title": "Verify configured additional packages on OS-only nodes",
+        "component": "Minimal OS additional packages",
+    },
+    "minimal_os_additional_packages_fallback": {
+        "id": "ORCH_FVT_PXEBOOT_V124",
+        "title": "Verify absent additional_packages handled on OS-only nodes",
+        "component": "Minimal OS additional packages fallback",
+    },
+    "minimal_os_ldms_service_state": {
+        "id": "ORCH_FVT_PXEBOOT_V125",
+        "title": "Verify LDMS service inactive at handoff on OS-only nodes",
+        "component": "Minimal OS LDMS service state",
+    },
+    "minimal_os_ssh_key_access": {
+        "id": "ORCH_FVT_PXEBOOT_V126",
+        "title": "Verify SSH key authentication on OS-only nodes",
+        "component": "Minimal OS SSH key access",
+    },
+    "minimal_os_network_isolation": {
+        "id": "ORCH_FVT_PXEBOOT_V127",
+        "title": "Verify default route on management network on OS-only nodes",
+        "component": "Minimal OS network isolation",
+    },
+    "minimal_os_no_embedded_credentials": {
+        "id": "ORCH_FVT_PXEBOOT_V128",
+        "title": "Verify no plaintext secrets in image on OS-only nodes",
+        "component": "Minimal OS no embedded credentials",
+    },
+    # ── Additional cloud-init (V600 series) ──────────────────────────────
+    "additional_cloud_init_write_files": {
+        "id": "ORCH_FVT_PXEBOOT_V602",
+        "title": "Verify additional cloud-init write_files on nodes",
+        "component": "Additional cloud-init write_files",
+    },
+    "additional_cloud_init_runcmd": {
+        "id": "ORCH_FVT_PXEBOOT_V603",
+        "title": "Verify additional cloud-init runcmd on nodes",
+        "component": "Additional cloud-init runcmd",
+    },
+    # ── Additional cloud-init: template / BSS tests ────────────────────
+    "additional_cloud_init_common_template": {
+        "id": "ORCH_FVT_PXEBOOT_V604",
+        "title": "Verify common cloud-init template rendering with merge_how",
+        "component": "Additional cloud-init common template",
+    },
+    "additional_cloud_init_per_fg_template": {
+        "id": "ORCH_FVT_PXEBOOT_V605",
+        "title": "Verify per-FG cloud-init template rendering",
+        "component": "Additional cloud-init per-FG template",
+    },
+    "additional_cloud_init_conditional_rendering": {
+        "id": "ORCH_FVT_PXEBOOT_V606",
+        "title": "Verify empty sections omitted from rendered cloud-init",
+        "component": "Additional cloud-init conditional rendering",
+    },
+    "additional_cloud_init_bss_common": {
+        "id": "ORCH_FVT_PXEBOOT_V607",
+        "title": "Verify BSS registration for common cloud-init group",
+        "component": "Additional cloud-init BSS common",
+    },
+    "additional_cloud_init_bss_per_fg": {
+        "id": "ORCH_FVT_PXEBOOT_V608",
+        "title": "Verify BSS registration for per-FG cloud-init groups",
+        "component": "Additional cloud-init BSS per-FG",
+    },
+    "additional_cloud_init_merge_behavior": {
+        "id": "ORCH_FVT_PXEBOOT_V609",
+        "title": "Verify merge_how strategy preserves platform defaults",
+        "component": "Additional cloud-init merge behavior",
+    },
+    # ── Additional cloud-init: compatibility tests ─────────────────────
+    "additional_cloud_init_rhel_compat": {
+        "id": "ORCH_FVT_PXEBOOT_V610",
+        "title": "Verify additional cloud-init on RHEL 10.x nodes",
+        "component": "Additional cloud-init RHEL compatibility",
+    },
+    "additional_cloud_init_multi_fg_compat": {
+        "id": "ORCH_FVT_PXEBOOT_V611",
+        "title": "Verify additional cloud-init with multiple functional groups",
+        "component": "Additional cloud-init multi-FG compatibility",
+    },
+    # ── Additional cloud-init: state stability tests ─────────────────────
+    "additional_cloud_init_smd_stability": {
+        "id": "ORCH_FVT_PXEBOOT_V613",
+        "title": "Verify SMD group state stability",
+        "component": "Additional cloud-init SMD state stability",
+    },
+    "additional_cloud_init_bss_stability": {
+        "id": "ORCH_FVT_PXEBOOT_V614",
+        "title": "Verify BSS registration state stability",
+        "component": "Additional cloud-init BSS state stability",
+    },
+    "additional_cloud_init_pipeline_stability": {
+        "id": "ORCH_FVT_PXEBOOT_V615",
+        "title": "Verify full additional cloud-init pipeline state stability",
+        "component": "Additional cloud-init pipeline state stability",
+    },
+    # ── Additional cloud-init: end-to-end node verification ────────────
+    "additional_cloud_init_e2e_common_only": {
+        "id": "ORCH_FVT_PXEBOOT_V616",
+        "title": "Verify end-to-end cloud-init with common section only",
+        "component": "Additional cloud-init e2e common only",
+    },
+    "additional_cloud_init_e2e_per_fg_only": {
+        "id": "ORCH_FVT_PXEBOOT_V617",
+        "title": "Verify end-to-end cloud-init with per-FG section only",
+        "component": "Additional cloud-init e2e per-FG only",
+    },
+    "additional_cloud_init_e2e_combined": {
+        "id": "ORCH_FVT_PXEBOOT_V618",
+        "title": "Verify end-to-end cloud-init with common + per-FG combined",
+        "component": "Additional cloud-init e2e combined",
+    },
+    "additional_cloud_init_e2e_multiple_fgs": {
+        "id": "ORCH_FVT_PXEBOOT_V619",
+        "title": "Verify end-to-end cloud-init with multiple functional groups",
+        "component": "Additional cloud-init e2e multiple FGs",
+    },
+    "additional_cloud_init_e2e_mixed_directives": {
+        "id": "ORCH_FVT_PXEBOOT_V620",
+        "title": "Verify end-to-end cloud-init with mixed write_files and runcmd",
+        "component": "Additional cloud-init e2e mixed directives",
+    },
+    "additional_cloud_init_e2e_packages": {
+        "id": "ORCH_FVT_PXEBOOT_V621",
+        "title": "Verify additional cloud-init integration with additional packages",
+        "component": "Additional cloud-init packages integration",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
@@ -904,4 +1694,82 @@ TEST_CASES: dict[str, dict[str, str]] = {
     **PXEBOOT_TEST_CASES,
     **CLEANUP_TEST_CASES,
     **NFT_TEST_CASES,
+}
+
+
+# =====================================================================
+# Pytest execution order blocks
+# =====================================================================
+# Every test's @pytest.mark.order value lies inside its suite's block:
+#
+#   block start = lifecycle base + suite slot * ORDER_BLOCK_SIZE
+#   order       = block start + position in suite (1..99)
+#
+# Lifecycle bases are 10000 apart, so values are unique across lifecycles.
+# "root" holds the lifecycle execution case at the block start itself. Suites
+# are listed in dependency order: reachability and node state first, then
+# cluster health, temporary workloads, and finally reboot or node-removal
+# suites. Within a suite, reboot and destructive cases come last. Add a
+# test by taking the next free number in its suite block; add a suite by
+# appending a new block.
+ORDER_BLOCK_SIZE = 100
+
+TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
+    "precheck": {
+        "root": 10000,
+        "environment": 10100,
+        "oim_readiness": 10200,
+        "storage": 10300,
+        "dependencies": 10400,
+        "inputs": 10500,
+    },
+    "prepare": {
+        "root": 20000,
+        "openchami": 20100,
+        "network": 20200,
+        "openldap": 20300,
+    },
+    "provision": {
+        "root": 30000,
+        "openchami": 30100,
+    },
+    "pxeboot": {
+        "root": 40000,
+        "connectivity": 40100,
+        "cloudinit": 40200,
+        "additional_cloud_init": 40300,
+        "mount_config": 40400,
+        "minimal_os": 40500,
+        "powervault": 40600,
+        "coredns_coredhcp": 40700,
+        "kubernetes_cluster": 40800,
+        "kubernetes_etcd": 40900,
+        "kubernetes_storage": 41000,
+        "slurm_cluster": 41100,
+        "slurm_jobs": 41200,
+        "slurm_ldap": 41300,
+        "slurm_gpu": 41400,
+        "slurm_dcgm": 41500,
+        "slurm_openmpi": 41600,
+        "slurm_ucx": 41700,
+        "slurm_infiniband": 41800,
+        "slurm_apptainer": 41900,
+        "slurm_hpc_benchmarks": 42000,
+        "vast_storage": 42100,
+        "kubernetes_recovery": 42200,
+        "slurm_recovery": 42300,
+        "slurm_lifecycle": 42400,
+    },
+    "cleanup": {
+        "root": 50000,
+        "openchami": 50100,
+        "openldap": 50200,
+        "slurm": 50300,
+        "kubernetes": 50400,
+        "artifacts": 50500,
+        "credentials": 50600,
+    },
+    "nft": {
+        "root": 60000,
+    },
 }

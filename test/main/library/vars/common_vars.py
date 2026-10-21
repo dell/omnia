@@ -26,6 +26,7 @@ Only module-specific constants remain here.
 """
 
 import os
+import shlex
 from typing import Dict, List
 
 # =============================================================================
@@ -63,6 +64,8 @@ OMNIA_CLI_PATH = "src/main/omnia-cli"
 SYSTEM_ENV_DIR = "/etc/omnia"
 SYSTEM_ENV_FILE = "/etc/omnia/omnia.env"
 PROFILE_DROP_IN = "/etc/profile.d/omnia-env.sh"
+ANSIBLE_LOG_ROOT = "/var/log/omnia"
+LEGACY_DATA_LOG_PATH = "/opt/omnia/log"
 
 # Default data path (may be overridden by env)
 DEFAULT_DATA_PATH = "/opt/omnia"
@@ -218,7 +221,9 @@ OMNIA_CLI_HELP_SECTIONS: List[str] = [
 # CENTRALIZED SHELL COMMANDS
 # =============================================================================
 # All shell commands used by verification functions.
-# Use .format() with named placeholders to fill in runtime values.
+# Build commands with ``build_cmd()`` (below) rather than calling
+# ``CMDS[key].format(...)`` directly, so that every substituted value is
+# shell-quoted and cannot inject shell metacharacters (CWE-78).
 
 CMDS: Dict[str, str] = {
     # --- omnia.sh execution ---
@@ -494,3 +499,34 @@ CMDS: Dict[str, str] = {
         " build-stream 2>&1"
     ),
 }
+
+# Placeholders that are deliberately interpolated as shell syntax rather than
+# as a shell *argument* (e.g. a variable name inside ``${...}``). These must be
+# substituted verbatim; shell-quoting them would produce invalid shell.
+_RAW_CMD_PLACEHOLDERS = frozenset({"var_name"})
+
+
+def build_cmd(cmd_key: str, **kwargs) -> str:
+    """Format a ``CMDS`` template with all values shell-quoted.
+
+    Every substituted value is passed through :func:`shlex.quote` so that shell
+    metacharacters (``;``, ``|``, ``$()``, ...) in dynamic inputs — such as
+    ``clone_path`` from ``test_config.yml``, or ``domain``/``tag`` arguments —
+    cannot escape the intended command context (CWE-78, OS Command Injection).
+
+    Placeholders listed in :data:`_RAW_CMD_PLACEHOLDERS` are substituted
+    verbatim because they are used as shell-variable names inside ``${...}``
+    expansions and must not be quoted.
+
+    Args:
+        cmd_key: Key into the :data:`CMDS` dict.
+        **kwargs: Format parameters for the command template.
+
+    Returns:
+        The fully-formatted, injection-safe shell command string.
+    """
+    safe = {
+        key: value if key in _RAW_CMD_PLACEHOLDERS else shlex.quote(str(value))
+        for key, value in kwargs.items()
+    }
+    return CMDS[cmd_key].format(**safe)

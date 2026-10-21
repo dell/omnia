@@ -249,7 +249,10 @@
     --output=name --ignore-not-found=true
   register: _kafka_existing_cluster
   changed_when: false
-  when: _cleanup_preserve_sink_volumes | bool
+  failed_when: false
+  when:
+    - _cleanup_preserve_sink_volumes | bool
+    - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
 
 - name: Kafka | Read retained node pool cluster IDs
   ansible.builtin.command:
@@ -385,7 +388,7 @@
   when:
     - _cleanup_preserve_sink_volumes | bool
     - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
-    - _kafka_existing_cluster.stdout | trim | length > 0
+    - _kafka_existing_cluster.stdout | default('') | trim | length > 0
 
 - name: Kafka | Wait for reconciliation to pause
   ansible.builtin.command: >
@@ -396,7 +399,7 @@
   when:
     - _cleanup_preserve_sink_volumes | bool
     - "'kafkas.kafka.strimzi.io' in _kafka_api_resources.stdout_lines"
-    - _kafka_existing_cluster.stdout | trim | length > 0
+    - _kafka_existing_cluster.stdout | default('') | trim | length > 0
 
 - name: Kafka | Delete Kafka cluster
   ansible.builtin.command: >
@@ -551,9 +554,9 @@
 
 - name: Kafka | Parse Isilon endpoint and credentials
   ansible.builtin.set_fact:
-    _isilon_endpoint: "{{ (_isilon_creds_decoded | regex_findall('endpoint:\\s+\"([^\"]+)\"') | default(['172.20.10.74']) | first) }}"
-    _isilon_username: "{{ (_isilon_creds_decoded | regex_findall('username:\\s+\"([^\"]+)\"') | default(['root']) | first) }}"
-    _isilon_password: "{{ (_isilon_creds_decoded | regex_findall('password:\\s+\"([^\"]+)\"') | default(['Dap1234']) | first) }}"
+    _isilon_endpoint: "{{ (_isilon_creds_decoded | regex_findall('endpoint:\\s+\"([^\"]+)\"') | default([]) | first | default('', true)) }}"
+    _isilon_username: "{{ (_isilon_creds_decoded | regex_findall('username:\\s+\"([^\"]+)\"') | default([]) | first | default('', true)) }}"
+    _isilon_password: "{{ (_isilon_creds_decoded | regex_findall('password:\\s+\"([^\"]+)\"') | default([]) | first | default('', true)) }}"
   when: _isilon_creds_decoded | default('') | length > 0
   no_log: true
 

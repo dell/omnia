@@ -148,7 +148,7 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_070 | `test_selected_suite_is_forwarded_to_execution` | A full flow executes only the selected operation suite. |
 | RM_UT_071 | `test_shell_entrypoint_prefers_the_local_virtual_environment` | The public wrapper uses installed local dependencies when available. |
 | RM_UT_072 | `test_suite_execution_keeps_deploy_scope_exact` | Suite execution includes only its suite and any root trigger. |
-| RM_UT_073 | `test_suite_execution_preserves_image_builder_root_trigger` | Shared suite filtering keeps Image Builder's deploy-test layout. |
+| RM_UT_073 | `test_suite_execution_preserves_image_build_manager_root_trigger` | Shared suite filtering keeps Image Build Manager's deploy-test layout. |
 | RM_UT_074 | `test_unit_category_is_registered_in_batch_config` | The runner registers every deterministic test with a stable ID. |
 | RM_UT_075 | `test_unit_startup_does_not_connect_or_sync` | Deterministic unit execution bypasses FVT host setup and reporting. |
 | RM_UT_076 | `test_untagged_execution_uses_ordered_lifecycle_paths` | The real runner receives each safe lifecycle directory in order. |

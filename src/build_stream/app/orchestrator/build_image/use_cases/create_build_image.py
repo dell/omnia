@@ -162,7 +162,7 @@ class CreateBuildImageUseCase:
         """
         self._validate_job(command)
         stage = self._validate_stage_unified(command)
-        request = self._build_unified_playbook_request(command)
+        request = self._build_unified_playbook_request(command, stage.attempt)
         self._submit_to_queue_unified(command, request, stage)
         self._emit_stage_started_event_unified(command)
         return self._to_response_unified(command, request)
@@ -351,9 +351,12 @@ class CreateBuildImageUseCase:
         return stage
 
     def _build_unified_playbook_request(
-        self, command: CreateBuildImageCommand
+        self, command: CreateBuildImageCommand, attempt: int = 1
     ) -> BuildImageRequest:
-        """Create unified playbook request with job_id only."""
+        """Create unified playbook request with job_id and stage attempt.
+
+        The attempt number names the per-attempt stage log on retry.
+        """
         # Use image_build_manager.yml playbook
         full_path = get_playbook_path("image_build_manager.yml")
         if full_path is None:
@@ -363,11 +366,12 @@ class CreateBuildImageUseCase:
         playbook_name = full_path.split("/")[-1]
         playbook_path = PlaybookPath(playbook_name)
 
-        # Only pass job_id - playbook reads catalog for everything else.
+        # Only pass job_id and attempt - playbook reads catalog for everything else.
         # Rebuild control is handled by build_image.force_rebuild in the
         # pipeline configuration (build_stream_config.yml), not here.
         extra_vars_dict = {
             "job_id": str(command.job_id),
+            "attempt": attempt,
         }
         extra_vars = ExtraVars(extra_vars_dict)
 

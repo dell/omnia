@@ -16,27 +16,34 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_slurm_openmpi_installation,
     check_slurm_openmpi_job,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
 
-pytestmark = [
-    pytest.mark.sanity,
-    pytest.mark.slurm,
-    pytest.mark.non_disruptive,
-]
 
-
-@pytest.mark.order(257)
+@pytest.mark.buildstream
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
+@pytest.mark.order(41601)
 def test_slurm_openmpi_installation(host):
     """Verify OpenMPI discovery and version on every compute node."""
-    verify_pxeboot(host, "slurm_openmpi_installation", check_slurm_openmpi_installation)
+    tc = TC["slurm_openmpi_installation"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_openmpi_installation)
 
 
+@pytest.mark.sanity
+@pytest.mark.slurm
+@pytest.mark.non_disruptive
 @pytest.mark.functional
-@pytest.mark.order(258)
+@pytest.mark.order(41602)
 def test_slurm_openmpi_job(host):
     """Run an OpenMPI-backed job when OpenMPI is configured."""
-    verify_pxeboot(host, "slurm_openmpi_job", check_slurm_openmpi_job)
+    tc = TC["slurm_openmpi_job"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_slurm_openmpi_job)

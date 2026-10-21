@@ -68,7 +68,7 @@
     # Per-group hash of packages + repo config + build engine to detect changes.
     # Skip groups whose hash matches the previous build (unless force_rebuild
     # is set). Including the build engine ensures switching between
-    # image-builder and image-thrillhouse triggers the required rebuild.
+    # the pinned Image Thrillhouse runtime triggers the required rebuild.
     - name: Compute per-group package hashes
       ansible.builtin.set_fact:
         _compute_pkg_hashes: >-

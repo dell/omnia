@@ -25,7 +25,6 @@ from jsonschema.validators import validator_for
 from ..messages import orchestrator_messages as msg
 from ..validators import (
     additional_cloud_init_validator,
-    high_availability_validator,
     ib_ipv6_allocation_validator,
     network_spec_validator,
     omnia_config_validator,
@@ -168,17 +167,6 @@ def logic_additional_cloud_init(
     )
 
 
-def logic_high_availability(
-    config_data: Any,
-    input_project_dir: str,
-    logger: Logger | None = None,
-) -> list[str]:
-    """Dispatch Kubernetes high-availability L2 validation."""
-    return high_availability_validator.validate(
-        config_data, input_project_dir, logger
-    )
-
-
 def logic_security(
     config_data: Any,
     logger: Logger | None = None,
@@ -203,10 +191,6 @@ def logic_storage(
         logger,
     )
 
-
-def high_availability_applicable(input_project_dir: str) -> bool:
-    """Return whether high-availability input applies to this project."""
-    return high_availability_validator.is_applicable(input_project_dir)
 
 
 def schema_ib_ipv6_allocation(

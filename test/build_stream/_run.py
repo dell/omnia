@@ -119,6 +119,21 @@ def _print_manual_pipeline_help():
     print("  verify: reads mandatory job_id; never selects the latest job")
     print("  sanity coverage: 1 execution + 23 verification cases")
     print()
+    print("BUILDSTREAM AUTOMATIC CLEANUP (EXPLICIT; NOT IN LIFECYCLE)")
+    print(
+        "  ./run_validation.sh fvt_build_stream automatic_cleanup exec "
+        "--suite automatic_cleanup --marker sanity"
+    )
+    print(
+        "  ./run_validation.sh fvt_build_stream automatic_cleanup verify "
+        "--suite automatic_cleanup --marker sanity"
+    )
+    print(
+        "  ./run_validation.sh fvt_build_stream automatic_cleanup test "
+        "--suite automatic_cleanup --marker sanity"
+    )
+    print("  Requires automatic_cleanup_job_id and explicit execution approval.")
+    print()
     print("BUILDSTREAM EXPLICIT CLEANUP SUITES")
     print(
         "  ./run_validation.sh fvt_build_stream buildstream_cleanup test "

@@ -135,7 +135,8 @@ def _load_encrypted_credentials(path: Path, key_path: Path) -> dict[str, Any]:
     if key_path.stat().st_mode & 0o077:
         raise UtilityError(f"Credential key file must use mode 0600: {key_path}")
     try:
-        header = path.open(encoding="utf-8").readline().strip()
+        with path.open(encoding="utf-8") as credential_file:
+            header = credential_file.readline().strip()
     except OSError as exc:
         raise UtilityError(f"Unable to read credential file: {path}") from exc
     if not header.startswith("$ANSIBLE_VAULT;"):

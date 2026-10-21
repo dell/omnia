@@ -487,10 +487,10 @@ def _parse_task_href(output):
 
 def execute_command(command, log, type_json=None, seconds=None, repo_name=None):
     """
-    Executes a shell command and returns its output.
+    Executes a Pulp CLI command and returns its output.
 
     Args:
-        command (str or list): Pulp command represented as text or argv.
+        command (list or tuple): Pulp command as an argument vector.
         log (logging.Logger): Logger instance for logging the process and errors.
         type_json (bool, optional): If set to `True`, the function will attempt to
             parse the command's output as JSON.
@@ -500,16 +500,21 @@ def execute_command(command, log, type_json=None, seconds=None, repo_name=None):
 
     Returns:
         str or bool: Returns the command's output as a string, or `False` if the command failed.
+
+    Raises:
+        TypeError: If command is not a list or tuple.
     """
+    if not isinstance(command, (list, tuple)):
+        raise TypeError(
+            "execute_command requires a list or tuple, "
+            f"got {type(command).__name__}. "
+            "Build commands as argument lists to prevent injection."
+        )
 
     try:
         tag = f"[{repo_name}] - " if repo_name else ""
         log.info("%sExecuting command: %s", tag, mask_sensitive_data(command))
-        cmd_list = (
-            [str(value) for value in command]
-            if isinstance(command, (list, tuple))
-            else shlex.split(command)
-        )
+        cmd_list = [str(value) for value in command]
         cmd = _run_pulp_cli(
             cmd_list,
             log,
@@ -1246,12 +1251,13 @@ def _execute_pulp_task(command, log, repo_name, repository_href=None,
     unique CID is used to recover the server-side task instead of repeating the
     operation.
     """
+    if not isinstance(command, (list, tuple)):
+        raise TypeError(
+            "_execute_pulp_task requires a list or tuple, "
+            f"got {type(command).__name__}."
+        )
     task_cid = str(uuid.uuid4())
-    command_args = (
-        [str(value) for value in command]
-        if isinstance(command, (list, tuple))
-        else shlex.split(command)
-    )
+    command_args = [str(value) for value in command]
     command_args[1:1] = ["--background", "--cid", task_cid]
     _log(log, "debug", repo_name, f"Pulp correlation ID: {task_cid}")
 

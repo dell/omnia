@@ -232,7 +232,7 @@ copy_input_files() {
  
     # Use rsync if available (preserves permissions, only copies changed files)
     if command -v rsync >/dev/null 2>&1; then
-        rsync -a --update "$src_dir/" "$dest_dir/" --exclude='.*'
+        rsync -a "$src_dir/" "$dest_dir/" --exclude='.*'
     else
         cp -a "$src_dir"/. "$dest_dir/"
     fi
@@ -262,20 +262,20 @@ create_runtime_directories() {
 # Install domain-specific pip + Galaxy dependencies
 # Expects the shared Omnia venv to be activated before calling this script.
 #
-# Checksum-based skip: stores an MD5 hash of the requirements file after a
+# Checksum-based skip: stores a SHA-256 hash of the requirements file after a
 # successful install.  On re-run, if the hash matches, the install is skipped
 # entirely — saving 10-30 seconds per domain on re-runs.
 # Use --force-deps to bypass the cache and force a fresh install.
 # ─────────────────────────────────────────────────────────────────────────────
 _checksum_file() {
-    # Portable MD5: md5sum (Linux) or md5 (macOS)
-    if command -v md5sum >/dev/null 2>&1; then
-        md5sum "$1" | awk '{print $1}'
-    elif command -v md5 >/dev/null 2>&1; then
-        md5 -q "$1"
+    # Portable SHA-256: sha256sum (Linux) or shasum (macOS)
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$1" | awk '{print $1}'
     else
         # Fallback: always install
-        echo "no-md5"
+        echo "no-sha256"
     fi
 }
  
@@ -296,7 +296,7 @@ install_dependencies() {
         if command -v pip >/dev/null 2>&1; then
             local pip_hash pip_cache_file
             pip_hash="$(_checksum_file "$req_txt")"
-            pip_cache_file="${cache_dir}/${DOMAIN_NAME}.pip.md5"
+            pip_cache_file="${cache_dir}/${DOMAIN_NAME}.pip.sha256"
  
             if [ "$FORCE_DEPS" = false ] && [ -f "$pip_cache_file" ] && [ "$(cat "$pip_cache_file")" = "$pip_hash" ]; then
                 echo -e "  ${GREEN}[${DOMAIN_NAME}] pip deps unchanged (cached) — skipped${NC}"
@@ -318,7 +318,7 @@ install_dependencies() {
         if command -v ansible-galaxy >/dev/null 2>&1; then
             local galaxy_hash galaxy_cache_file
             galaxy_hash="$(_checksum_file "$req_yml")"
-            galaxy_cache_file="${cache_dir}/${DOMAIN_NAME}.galaxy.md5"
+            galaxy_cache_file="${cache_dir}/${DOMAIN_NAME}.galaxy.sha256"
  
             if [ "$FORCE_DEPS" = false ] && [ -f "$galaxy_cache_file" ] && [ "$(cat "$galaxy_cache_file")" = "$galaxy_hash" ]; then
                 echo -e "  ${GREEN}[${DOMAIN_NAME}] Galaxy deps unchanged (cached) — skipped${NC}"

@@ -1,6 +1,6 @@
 ---
 name: compatibility-analysis
-description: Checks package compatibility and investigates dependencies for proposed catalog additions using approved upstream/repository evidence, with disclosed offline gaps. Use when finding dependencies or checking compatibility with a target OS, architecture, kernel, or another catalog package, including driver/kernel changes.
+description: Checks package compatibility and investigates dependencies for proposed catalog additions using approved upstream/repository evidence, with disclosed gaps when online sources are unavailable. Use when finding dependencies or checking compatibility with a target OS, architecture, kernel, or another catalog package, including driver/kernel changes.
 ---
 
 Before starting, read `../shared/skill_scope.md` and use only this bundle's
@@ -9,8 +9,7 @@ companion skills and shared instructions.
 ## Purpose
 
 Answer "is `<package>` `<version>` compatible with `<target OS/architecture
-or another catalog package>`?" (`ER-BSM-001-nersc-ai-skills-catalog-
-authoring`, FR-3.2, AC-009), replacing manual Compatibility Matrix research
+or another catalog package>`?" (FR-3.2, AC-009), replacing manual Compatibility Matrix research
 for the operator.
 
 ## Inputs You Must Read First
@@ -78,7 +77,7 @@ a guarantee of complete dependency closure.
    packages, default repositories or running OS as the target. Do not install
    tools/packages, change repository configuration or run package scripts for
    discovery. If suitable tooling, access or metadata is unavailable, disclose
-   the gap and use evidenced offline information, not guessed dependencies.
+   the gap and use evidenced information from the master reference file, not guessed dependencies.
 3. **Resolve best effort:** distinguish required runtime/build prerequisites
    for the chosen installation method from optional/weak recommendations and
    packages merely bundled together in a reference group. Follow required
@@ -151,10 +150,10 @@ every affected consuming layer, including each hybrid platform separately.
    text. A successful local build alone is not a vendor-support verdict.
 4. **Report per combination:** give `supported`, `unsupported`, or `unresolved`,
    the checked tuple, prerequisite status, and source URL/document release
-   (or explicit offline reference) with the check date. A missing kernel/driver
+   (or explicit reference from the master reference file) with the check date. A missing kernel/driver
    version, missing prerequisites, absent evidence or unavailable sources must
    not become a pass. Distinguish documented incompatibility from missing
-   information. Apply the existing fallback/disclosure policy; offline pins
+   information. Apply the existing fallback/disclosure policy; pins from the master reference file
    alone cannot resolve this check.
 5. **Keep the result current:** a kernel/driver/platform/method change or a
    repository update that changes the resolved artifacts invalidates the earlier
@@ -192,5 +191,6 @@ an automated kernel/driver validator.
 
 - It does not replace FR-4.2's changelog compatibility-warning summary —
   that's generated as part of a diff/changelog request (the `catalog-diff`
-  skill), which invokes this skill's logic but packages the result
-  differently.
+  skill). That skill runs without live dependency resolution and only reports the A.8 rules it
+  can check from the two catalog files (CON-004, CON-007); it does not run
+  this skill's online lookups.

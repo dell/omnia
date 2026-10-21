@@ -19,8 +19,6 @@ from library.messages import (
 )
 from library.vars import TEST_CASES as TC
 
-pytestmark = [pytest.mark.sanity]
-
 
 def _assert_result(test_log, component, result):
     """Record a structured network result and enforce its postcondition."""
@@ -40,7 +38,8 @@ def _assert_result(test_log, component, result):
     )
 
 
-@pytest.mark.order(6)
+@pytest.mark.sanity
+@pytest.mark.order(20201)
 def test_firewall_and_podman_network_policy(host):
     """Verify OpenCHAMI ports and trusted Podman interfaces."""
     tc = TC["firewall_network"]
@@ -54,7 +53,7 @@ def test_firewall_and_podman_network_policy(host):
 
 @pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(7)
+@pytest.mark.order(20202)
 def test_coredhcp_and_coredns_configuration(host):
     """Verify rendered DHCP/DNS configuration and additional routes."""
     tc = TC["coredhcp_network"]

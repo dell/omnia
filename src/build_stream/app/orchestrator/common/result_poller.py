@@ -362,7 +362,9 @@ class ResultPoller:
                 log_secure_info(
                     "info",
                     f"Stage already in terminal state: job_id={result.job_id}, "
-                    f"stage={result.stage_name}, state={stage.stage_state}",
+                    f"stage={result.stage_name}, state={stage.stage_state}, "
+                    f"result_status={result.status}, "
+                    f"log_file={result.log_file_path or 'N/A'}",
                     job_id=str(result.job_id),
                 )
                 # The service archives the result file automatically.
@@ -431,11 +433,6 @@ class ResultPoller:
                 # S12: On restart failure, still persist node_results.json
                 if result.stage_name == "restart":
                     self._on_restart_completed(result)
-                    self._on_restart_failure(result)
-
-                # On deploy failure, mark ImageGroup FAILED
-                if result.stage_name == "deploy":
-                    self._on_deploy_failure(result)
 
                 # On validate failure, mark ImageGroup FAILED
                 if result.stage_name == "validate":
@@ -461,14 +458,16 @@ class ResultPoller:
             if self._is_build_image_stage(result.stage_name):
                 self._emit_dictionary_hit_events(result)
 
-            # Update log file path if available
+            # Record the stage log path for every outcome
             if result.log_file_path:
                 stage.log_file_path = result.log_file_path
-                log_secure_info(
-                    "info",
-                    f"Updated stage log path: job_id={result.job_id}, stage={result.stage_name}",
-                    job_id=str(result.job_id),
-                )
+            log_secure_info(
+                "info" if result.log_file_path else "warning",
+                f"Stage log: job_id={result.job_id}, stage={result.stage_name}, "
+                f"attempt={stage.attempt}, status={result.status}, "
+                f"log_file={result.log_file_path or 'N/A (not reported by watcher)'}",
+                job_id=str(result.job_id),
+            )
 
             # Save updated stage and commit immediately to avoid stale API responses
             self._stage_repo.save(stage)
@@ -492,6 +491,8 @@ class ResultPoller:
                     "status": result.status,
                     "duration_seconds": result.duration_seconds,
                     "exit_code": result.exit_code,
+                    "attempt": stage.attempt,
+                    "log_file_path": result.log_file_path,
                 },
             )
             self._audit_repo.save(event)
@@ -868,6 +869,14 @@ class ResultPoller:
         Args:
             result: Playbook execution result from NFS queue.
         """
+        log_secure_info(
+            "info" if result.log_file_path else "warning",
+            f"Stage log: job_id={result.job_id}, stage=cleanup, "
+            f"status={result.status}, "
+            f"log_file={result.log_file_path or 'N/A (not reported by watcher)'}",
+            job_id=str(result.job_id),
+        )
+
         if self._image_group_repo is None:
             log_secure_info(
                 "warning",
@@ -981,6 +990,7 @@ class ResultPoller:
                     "status": result.status,
                     "error_code": result.error_code,
                     "error_summary": result.error_summary,
+                    "log_file_path": result.log_file_path,
                 },
             )
             self._audit_repo.save(event)
@@ -1001,8 +1011,8 @@ class ResultPoller:
     def _on_restart_completed(self, result: PlaybookResult) -> None:
         """Store node_results.json and failed_nodes.json as artifacts on restart completion.
 
-        Both files are created by the playbook (Play 6 in set_pxe_boot.yml).
-        This method reads them from NFS and stores them in ArtifactStore
+        Both files are created by the BuildStream post-PXE playbook. This
+        method reads them from NFS and stores them in ArtifactStore
         so they can be downloaded via the API by GitLab CI.
 
         Args:
@@ -1267,94 +1277,4 @@ class ResultPoller:
                 exc_info=True,
             )
 
-    def _on_deploy_failure(self, result: PlaybookResult) -> None:
-        """Transition ImageGroup from DEPLOYING to FAILED on deploy failure."""
-        if self._image_group_repo is None:
-            log_secure_info(
-                "warning",
-                f"ImageGroup repo not available; skipping deploy failure "
-                f"update for job={result.job_id}",
-                job_id=str(result.job_id),
-            )
-            return
 
-        try:
-            image_group = self._image_group_repo.find_by_job_id(
-                JobId(str(result.job_id))
-            )
-            if image_group is None:
-                log_secure_info(
-                    "error",
-                    f"Deploy failure callback: No ImageGroup found for job={result.job_id}.",
-                    job_id=str(result.job_id),
-                )
-                return
-
-            self._image_group_repo.update_status(
-                image_group_id=image_group.id,
-                new_status=ImageGroupStatus.FAILED,
-            )
-
-            if hasattr(self._image_group_repo, 'session'):
-                self._image_group_repo.session.commit()
-
-            log_secure_info(
-                "warning",
-                f"Deploy FAILED for job={result.job_id}. "
-                f"ImageGroup '{image_group.id}' -> FAILED.",
-                job_id=str(result.job_id),
-            )
-        except Exception as exc:  # pylint: disable=broad-except
-            log_secure_info(
-                "error",
-                "Failed to update ImageGroup status on deploy "
-                f"failure for job={result.job_id}: {exc}",
-                job_id=str(result.job_id),
-                exc_info=True,
-            )
-
-    def _on_restart_failure(self, result: PlaybookResult) -> None:
-        """Transition ImageGroup from RESTARTING to FAILED on restart failure."""
-        if self._image_group_repo is None:
-            log_secure_info(
-                "warning",
-                f"ImageGroup repo not available; skipping restart failure "
-                f"update for job={result.job_id}",
-                job_id=str(result.job_id),
-            )
-            return
-
-        try:
-            image_group = self._image_group_repo.find_by_job_id(
-                JobId(str(result.job_id))
-            )
-            if image_group is None:
-                log_secure_info(
-                    "error",
-                    f"Restart failure callback: No ImageGroup found for job={result.job_id}.",
-                    job_id=str(result.job_id),
-                )
-                return
-
-            self._image_group_repo.update_status(
-                image_group_id=image_group.id,
-                new_status=ImageGroupStatus.FAILED,
-            )
-
-            if hasattr(self._image_group_repo, 'session'):
-                self._image_group_repo.session.commit()
-
-            log_secure_info(
-                "warning",
-                f"Restart FAILED for job={result.job_id}. "
-                f"ImageGroup '{image_group.id}' -> FAILED.",
-                job_id=str(result.job_id),
-            )
-        except Exception as exc:  # pylint: disable=broad-except
-            log_secure_info(
-                "error",
-                "Failed to update ImageGroup status on restart "
-                f"failure for job={result.job_id}: {exc}",
-                job_id=str(result.job_id),
-                exc_info=True,
-            )

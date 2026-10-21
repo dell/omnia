@@ -444,6 +444,7 @@ class CleanupJobUseCase:
             if hasattr(ctx.job, "composite_image_group_id") and ctx.job.composite_image_group_id:
                 composite_id = ctx.job.composite_image_group_id
 
+            attempt = self._next_cleanup_attempt(ctx.image_group.job_id)
             request = PlaybookRequest(
                 job_id=str(ctx.image_group.job_id),
                 stage_name="cleanup",
@@ -451,6 +452,7 @@ class CleanupJobUseCase:
                 extra_vars=ExtraVars(values={
                     "cleanup_image_pattern": ctx.image_group_id_str,
                     "composite_image_group_id": composite_id,
+                    "attempt": attempt,
                     # Required so the playbook's interactive approval
                     # prompt (ansible.builtin.pause) is bypassed. The
                     # playbook watcher runs headlessly (no TTY), so without
@@ -472,7 +474,7 @@ class CleanupJobUseCase:
                 "info",
                 f"Cleanup playbook submitted: image_group={ctx.image_group_id_str}, "
                 f"cleanup_image_pattern={ctx.image_group_id_str}, "
-                f"correlation_id={correlation_id}",
+                f"attempt={attempt}, correlation_id={correlation_id}",
                 job_id=str(ctx.image_group.job_id),
             )
             return True
@@ -484,6 +486,21 @@ class CleanupJobUseCase:
                 job_id=str(ctx.image_group.job_id),
             )
             return False
+
+    def _next_cleanup_attempt(self, job_id) -> int:
+        """Return the next cleanup attempt number for the job.
+
+        Cleanup has no Stage row, so prior submissions are counted from the
+        ``JOB_CLEANUP_SUBMITTED`` audit events.
+        """
+        try:
+            events = self._audit_repo.find_by_job(job_id)
+        except Exception:  # pylint: disable=broad-except
+            return 1
+        return 1 + sum(
+            1 for event in events
+            if getattr(event, "event_type", None) == "JOB_CLEANUP_SUBMITTED"
+        )
 
     def _delete_nfs_artifacts(self, job_id, correlation_id: str) -> int:
         """Remove the per-Job NFS artifact directory.

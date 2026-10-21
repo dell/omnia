@@ -123,12 +123,6 @@ _TC_ID_MAP.update(
         "test_build_status": TEST_CASES["build_status_file"]["id"],
         "test_image_packages_x86_64": TEST_CASES["packages_x86_64"]["id"],
         "test_image_packages_aarch64": TEST_CASES["packages_aarch64"]["id"],
-        "test_registry_naming_image_builder_x86_64": TEST_CASES[
-            "registry_naming_ib_x86_64"
-        ]["id"],
-        "test_s3_naming_image_builder_x86_64": TEST_CASES[
-            "s3_naming_ib_x86_64"
-        ]["id"],
         "test_registry_naming_image_thrillhouse_x86_64": TEST_CASES[
             "registry_naming_th_x86_64"
         ]["id"],
@@ -196,7 +190,9 @@ def pytest_configure(config):
         "deploy": "Playbook deployment tests",
         "nft": "Non-functional tests (performance, idempotency)",
         "destructive": "Opt-in tests that remove deployed state",
+        "security": "Security verification (permissions, credentials)",
     }
+        
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
 

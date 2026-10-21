@@ -10,7 +10,6 @@
         "name": "os_rhel_10_0_x86_64",
         "components": [
           "baseos_group",
-          "image_builder_x86_64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -48,7 +47,6 @@
         "name": "os_rhel_10_0_aarch64",
         "components": [
           "baseos_group",
-          "image_builder_aarch64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -132,24 +130,6 @@
           "gedit"
         ]
       },
-      "image_builder_x86_64_group": {
-        "name": "image_builder_x86_64_group",
-        "type": "group",
-        "os": "rhel",
-        "description": "Image builder for x86_64",
-        "components": [
-          "docker_io/dellhpcomniaaisolution/image_build_el10"
-        ]
-      },
-      "image_builder_aarch64_group": {
-        "name": "image_builder_aarch64_group",
-        "type": "group",
-        "os": "rhel",
-        "description": "Image builder for AArch64",
-        "components": [
-          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
-        ]
-      },
       "imagethrillhouse": {
         "name": "imagethrillhouse",
         "type": "group",
@@ -225,8 +205,6 @@
         "components": [
           "cffi==1_17_1",
           "cryptography==45_0_7",
-          "kubernetes==33_1_0",
-          "omsdk==1_2_518",
           "prettytable==3_14_0"
         ]
       },
@@ -1907,26 +1885,6 @@
           }
         ]
       },
-      "omsdk==1_2_518": {
-        "name": "omsdk==1.2.518",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "pypi",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "name": "pypi",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "device_mapper": {
         "name": "device-mapper",
         "packagetype": "rpm",
@@ -1987,21 +1945,6 @@
           {
             "architecture": "aarch64",
             "reponame": "appstream",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/image_build_aarch64": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-aarch64",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2334,21 +2277,6 @@
           {
             "architecture": "aarch64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/image_build_el10": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-el10",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.0"
@@ -2789,26 +2717,6 @@
             "architecture": "aarch64",
             "reponame": "slurm_custom",
             "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "kubernetes==33_1_0": {
-        "name": "kubernetes==33.1.0",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "pypi",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "name": "pypi",
             "version": [
               "10.0"
             ]
@@ -3348,7 +3256,7 @@
       "docker.io/curlimages/curl": {
         "name": "docker.io/curlimages/curl",
         "packagetype": "image",
-        "tag": "8.17.0",
+        "tag": "8.22.0",
         "sources": [
           {
             "architecture": "x86_64",

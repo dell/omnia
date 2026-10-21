@@ -56,8 +56,8 @@ variables:
   BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
   CURL_CONNECT_TIMEOUT: "15"
   CURL_MAX_TIME: "45"
-  # Defaults — overridden by omnia.env if present in the GitLab repo
-  OMNIA_DATA_PATH: "/opt/omnia"
+  # Defaults — overridden by omnia.env if present in the GitLab repo.
+  # OMNIA_DATA_PATH is read from omnia.env where needed (bsm_job_log_dir).
   OMNIA_PROJECT_NAME: "project_default"
 
 # ---------------------------------------------------------------------------
@@ -298,6 +298,63 @@ default:
         done
 
         echo "  [REFRESH] Updated ${_REFRESH_COUNT} build-domain files from latest commit (${_REFRESH_FAILED} not found/skipped)"
+      }
+
+      # ---------------------------------------------------------------------------
+      # Stage Log Reporter (POSIX sh compatible)
+      # Usage: print_stage_log_info <stage_name> [job_status_json_file]
+      #
+      # Prints the stage state, attempt number and playbook log file path
+      # reported by the BSM API. Called on every terminal outcome (success,
+      # failure, cancellation, job failure, polling timeout) so the log
+      # location is always shown, uniformly, across all pipelines.
+      # When the watcher has not reported a path yet, the per-job log
+      # directory on the OIM host is shown instead.
+      # ---------------------------------------------------------------------------
+      bsm_job_log_dir() {
+        OMNIA_DATA_PATH=$(sed -n 's/^[[:space:]]*OMNIA_DATA_PATH[[:space:]]*=[[:space:]]*//p' \
+          "${CI_PROJECT_DIR}/omnia.env" 2>/dev/null | tail -1 | tr -d "\"'")
+        echo "${OMNIA_DATA_PATH:-/opt/omnia}/build_stream/log/${1}/"
+      }
+
+      print_stage_log_info() {
+        _SLI_STAGE="$1"
+        _SLI_FILE="${2:-status_response.json}"
+        _SLI_STATE="UNKNOWN"
+        _SLI_ATTEMPT="N/A"
+        _SLI_LOG=""
+        if [ -s "${_SLI_FILE}" ]; then
+          _SLI_STATE=$(jq -r --arg s "${_SLI_STAGE}" \
+            'first(.stages[]? | select(.stage_name == $s) | .stage_state) // "UNKNOWN"' \
+            "${_SLI_FILE}" 2>/dev/null || echo "UNKNOWN")
+          _SLI_ATTEMPT=$(jq -r --arg s "${_SLI_STAGE}" \
+            'first(.stages[]? | select(.stage_name == $s) | .attempt) // "N/A"' \
+            "${_SLI_FILE}" 2>/dev/null || echo "N/A")
+          _SLI_LOG=$(jq -r --arg s "${_SLI_STAGE}" \
+            'first(.stages[]? | select(.stage_name == $s) | .log_file_path) // empty' \
+            "${_SLI_FILE}" 2>/dev/null || true)
+        fi
+        echo "  ------------------------------------------------------------"
+        printf "  %-22s %s\n" "Stage:" "${_SLI_STAGE}"
+        printf "  %-22s %s\n" "Stage State:" "${_SLI_STATE}"
+        printf "  %-22s %s\n" "Attempt:" "${_SLI_ATTEMPT}"
+        if [ -n "${_SLI_LOG}" ]; then
+          printf "  %-22s %s\n" "Log File Path:" "${_SLI_LOG}"
+        else
+          printf "  %-22s %s\n" "Log File Path:" "N/A (not reported yet)"
+          printf "  %-22s %s\n" "Job Log Directory:" "$(bsm_job_log_dir "${JOB_ID:-unknown}")"
+        fi
+        echo "  ------------------------------------------------------------"
+      }
+
+      # Synchronous API-only stages (no playbook) log to the per-job API log.
+      # Usage: print_api_stage_log_info <stage_name> <outcome>
+      print_api_stage_log_info() {
+        echo "  ------------------------------------------------------------"
+        printf "  %-22s %s\n" "Stage:" "$1"
+        printf "  %-22s %s\n" "Outcome:" "$2"
+        printf "  %-22s %s\n" "Log File Path:" "$(bsm_job_log_dir "${JOB_ID:-unknown}")${JOB_ID:-unknown}.log"
+        echo "  ------------------------------------------------------------"
       }
 
 
@@ -680,6 +737,7 @@ parse-catalog:
         echo ""
         echo "  ACTION REQUIRED: Change the Catalog.Identifier value in ${CATALOG_FILE}"
         echo "  to a unique image_group_id and re-trigger the pipeline."
+        print_api_stage_log_info "parse-catalog" "FAILED (HTTP ${HTTP_CODE})"
         exit 1
       fi
 
@@ -687,6 +745,7 @@ parse-catalog:
         echo "  ERROR: Precondition failed (catalog not uploaded yet, or job in a terminal state)"
         echo "  Response Body:"
         jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
+        print_api_stage_log_info "parse-catalog" "FAILED (HTTP ${HTTP_CODE})"
         exit 1
       fi
 
@@ -694,6 +753,7 @@ parse-catalog:
         echo "  ERROR: Parse-catalog request failed"
         echo "  Response Body:"
         jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
+        print_api_stage_log_info "parse-catalog" "FAILED (HTTP ${HTTP_CODE})"
         exit 1
       fi
 
@@ -701,6 +761,7 @@ parse-catalog:
       jq '.' parse_catalog_response.json 2>/dev/null || cat parse_catalog_response.json
       IMAGE_GROUP_ID=$(jq -r '.image_group_id // ""' parse_catalog_response.json 2>/dev/null)
       echo ""
+      print_api_stage_log_info "parse-catalog" "COMPLETED"
       echo "  [OK] Catalog parsed successfully -- image_group_id '${IMAGE_GROUP_ID}' is unique"
 
       # Save for downstream stages/summary (convenience only, not required)
@@ -839,6 +900,7 @@ configure-local-repository:
             echo ""
             echo "  Final Status Response:"
             jq '.stages[]? | select(.stage_name == "create-local-repository")' status_response.json 2>/dev/null
+            print_stage_log_info "create-local-repository" status_response.json
             break
             ;;
           FAILED|CANCELLED)
@@ -846,6 +908,7 @@ configure-local-repository:
             echo "  ERROR: Local repository stage reached ${REPO_STATE}"
             echo "  Stage Details:"
             jq '.stages[]? | select(.stage_name == "create-local-repository")' status_response.json 2>/dev/null
+            print_stage_log_info "create-local-repository" status_response.json
             exit 1
             ;;
         esac
@@ -854,6 +917,7 @@ configure-local-repository:
           FAILED|CANCELLED)
             echo ""
             echo "  ERROR: Job reached ${JOB_STATE} state"
+            print_stage_log_info "create-local-repository" status_response.json
             exit 1
             ;;
         esac
@@ -865,6 +929,7 @@ configure-local-repository:
       if [ "$STAGE_COMPLETED" = "false" ]; then
         echo ""
         echo "  ERROR: Polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        print_stage_log_info "create-local-repository" status_response.json
         exit 1
       fi
 
@@ -994,6 +1059,7 @@ build-images:
             echo ""
             echo "  Stage Details:"
             jq '.stages[]? | select(.stage_name == "build-image")' status_response.json 2>/dev/null
+            print_stage_log_info "build-image" status_response.json
             echo ""
             echo "  [OK] Build completed successfully (all architectures)"
             break
@@ -1003,6 +1069,7 @@ build-images:
             echo "  ERROR: build-image stage reached ${STAGE_STATE}"
             echo "  Stage Details:"
             jq '.stages[]? | select(.stage_name == "build-image")' status_response.json 2>/dev/null
+            print_stage_log_info "build-image" status_response.json
             exit 1
             ;;
           PENDING|IN_PROGRESS|RUNNING)
@@ -1017,6 +1084,7 @@ build-images:
           FAILED|CANCELLED)
             echo ""
             echo "  ERROR: Job reached ${JOB_STATE} state"
+            print_stage_log_info "build-image" status_response.json
             exit 1
             ;;
         esac
@@ -1029,6 +1097,7 @@ build-images:
         echo ""
         echo "  ERROR: Polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
         echo "  Last known stage state: ${STAGE_STATE}"
+        print_stage_log_info "build-image" status_response.json
         exit 1
       fi
 
@@ -1156,6 +1225,15 @@ summary:
       fi
 
       echo "  +-----------------------------------------------------------+"
+      echo ""
+
+      # Stage logs (attempt + log path) for every build stage, any outcome
+      echo "  Stage Logs:"
+      print_api_stage_log_info "parse-catalog" \
+        "$(jq -r 'first(.stages[]? | select(.stage_name == "parse-catalog") | .stage_state) // "NOT_RUN"' final_status.json 2>/dev/null)"
+      for _SUMMARY_STAGE in create-local-repository build-image; do
+        print_stage_log_info "${_SUMMARY_STAGE}" final_status.json
+      done
       echo ""
 
       if [ "$DISPLAY_STATE" = "FAILED" ]; then

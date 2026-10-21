@@ -22,7 +22,6 @@ permissions are applied, and the OIM-side mount is active.
 """
 
 import os
-import re
 from typing import Any
 
 from ..vars.pxeboot_vars import (
@@ -31,9 +30,7 @@ from ..vars.pxeboot_vars import (
     STORAGE_CONFIG,
 )
 from ._pxeboot_helpers import (
-    group_fields,
     load_runtime_context,
-    load_workload_context,
     remote_command,
     rows_matching,
     runtime_exception,

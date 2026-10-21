@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Generate manifest for cluster specific variables"""
 
 import argparse
@@ -6,6 +19,7 @@ import json
 import logging
 import os
 import sys
+from typing import Any
 
 import yaml
 
@@ -32,19 +46,19 @@ class NoIPException(Error):
     pass
 
 # Utility functions
-def remove_prefix(input_string, prefix):
+def remove_prefix(input_string, prefix) -> str:
     """pre-python-3.9 function to remove prefix string"""
     if prefix and input_string.startswith(prefix):
         return input_string[len(prefix):]
     return input_string
 
-def remove_suffix(input_string, suffix):
+def remove_suffix(input_string, suffix) -> str:
     """pre-python-3.9 function to remove suffix string"""
     if suffix and input_string.endswith(suffix):
         return input_string[:-len(suffix)]
     return input_string
 
-def safe_get(dic, keys, default=None):
+def safe_get(dic, keys, default=None) -> Any:
     """Safely get nested dict key."""
     for k in keys:
         if not isinstance(dic, dict):
@@ -54,7 +68,7 @@ def safe_get(dic, keys, default=None):
             return default
     return dic
 
-def load_yaml_file(path, required=True):
+def load_yaml_file(path, required=True) -> Any:
     """Load a YAML file, optionally required."""
     if not os.path.exists(path):
         if required:
@@ -66,7 +80,7 @@ def load_yaml_file(path, required=True):
     with open(path, 'r', encoding='utf-8') as fh:
         return yaml.safe_load(fh)
 
-def load_json_file(path, required=True):
+def load_json_file(path, required=True) -> Any:
     """Load a JSON file, optionally required."""
     if not os.path.exists(path):
         if required:
@@ -78,7 +92,7 @@ def load_json_file(path, required=True):
     with open(path, 'r', encoding='utf-8') as fh:
         return json.load(fh)
 
-def harvest_cluster_info(cluster_file):
+def harvest_cluster_info(cluster_file) -> str:
     """Extract machine name and network variables."""
     conf = load_yaml_file(cluster_file, required=False)
     if conf is None:
@@ -90,7 +104,7 @@ def harvest_cluster_info(cluster_file):
     logging.info(f"Machine name: {machine_name}")
     return machine_name
 
-def harvest_network_vars(vars_file):
+def harvest_network_vars(vars_file) -> dict:
     """Extract network-related variables from vars yaml."""
     vars_data = load_yaml_file(vars_file, required=False)
     if vars_data is None:
@@ -123,7 +137,7 @@ def harvest_network_vars(vars_file):
         'omni_network_prefix': omni_network_prefix,
     }
 
-def harvest_replica_info(map_file):
+def harvest_replica_info(map_file) -> tuple:
     """Process replica map JSON and extract aggs and replicas."""
     rep_map = load_json_file(map_file)
     store_stateful_replicas = {}
@@ -159,7 +173,7 @@ def harvest_replica_info(map_file):
     logging.debug(json.dumps(aggs, indent=4, sort_keys=True))
     return aggs, store_stateful_replicas, replicas_exporter
 
-def harvest_sys_config(sys_conf_path):
+def harvest_sys_config(sys_conf_path) -> tuple:
     """Extract namespace, imagePullSecretsOption, port config, and unique ldms auth info."""
     sys_conf = load_json_file(sys_conf_path)
     sys_opts = sys_conf.get('sys_opts', {})
@@ -202,7 +216,7 @@ def harvest_sys_config(sys_conf_path):
 
     return namespace, img_pull_sec_opt, agg_port, store_port, mounts
 
-def update_manifest(manifest, aggs, store_stateful_replicas, replicas_exporter, net_vars, namespace, img_pull_opts, agg_port, store_port, all_mounts):
+def update_manifest(manifest, aggs, store_stateful_replicas, replicas_exporter, net_vars, namespace, img_pull_opts, agg_port, store_port, all_mounts) -> dict:
 
     charts = safe_get(manifest, ['spec', 'charts'], [])
     for x in charts:
@@ -300,7 +314,7 @@ def update_manifest(manifest, aggs, store_stateful_replicas, replicas_exporter, 
             logging.info("Manifest updated for nersc-ldms-aggr chart.")
     return manifest
 
-def write_yaml_file(path, data, description=None):
+def write_yaml_file(path, data, description=None) -> None:
     """Write YAML data to file."""
     try:
         with open(path, 'w', encoding='utf-8') as fh:
@@ -316,7 +330,7 @@ def write_yaml_file(path, data, description=None):
         )
         raise FailedManifestCreateException() from e
 
-def main():  # pylint: disable=too-many-locals
+def main() -> None:  # pylint: disable=too-many-locals
     """Main function to generate LDMS manifest and values.yaml."""
     parser = argparse.ArgumentParser(description="Generate manifest for cluster specific variables")
     parser.add_argument('--cluster-file', default="/etc/shasta.yml", help="Path to cluster YAML")

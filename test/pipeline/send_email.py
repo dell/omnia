@@ -69,6 +69,7 @@ cluster_ip = os.environ.get("TARGET_IP", "")
 utils_enable = os.environ.get("UTILS_ENABLE", "false").lower() == "true"
 utils_mode = os.environ.get("UTILS_MODE", "default_logs")
 build_stream_enable = os.environ.get("BUILD_STREAM_ENABLE", "false").lower() == "true"
+enable_discovery = os.environ.get("ENABLE_DISCOVERY", "false").lower() == "true"
 target_user = os.environ.get("TARGET_USER", "")
 target_pass = os.environ.get("TARGET_PASS", "")
 omnia_install_path = os.environ.get("OMNIA_INSTALL_PATH", "")
@@ -169,6 +170,7 @@ _test_stage_map = {
     "main": "test_main_installation",
     "repo_manager": "test_repo_manager",
     "image_build_manager": "test_image_build_manager",
+    "discovery": "test_discovery",
     "orchestrator": "test_orchestrator",
     "telemetry": "test_telemetry",
     "build_stream": "test_build_stream",
@@ -196,7 +198,7 @@ def _domain_from_filename(filename, domain_order):
 
 
 if os.path.exists(TEST_REPORTS_PATH):
-    domain_order = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry", "build_stream"]
+    domain_order = ["main", "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry", "build_stream"]
 
     json_files = glob.glob(os.path.join(TEST_REPORTS_PATH, "*.json"))
     html_files = glob.glob(os.path.join(TEST_REPORTS_PATH, "*.html"))
@@ -231,7 +233,7 @@ if os.path.exists(TEST_REPORTS_PATH):
         print(f"Found {len(filtered_json_files)} JSON test report(s)")
         # Aggregate summary across all JSON reports with per-domain breakdown
         try:
-            domain_order = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry", "build_stream"]
+            domain_order = ["main", "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry", "build_stream"]
             domain_summaries = {}
             total_passed = 0
             total_failed = 0
@@ -400,7 +402,7 @@ if os.path.exists(TEST_REPORTS_PATH):
     else:
         # No JSON reports found, but still show domain status table if tests ran
         if executed_test_domains:
-            domain_order = ["main", "repo_manager", "image_build_manager", "orchestrator", "telemetry", "build_stream"]
+            domain_order = ["main", "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry", "build_stream"]
             domain_rows = ""
             row_idx = 0
             for domain in domain_order:
@@ -443,29 +445,28 @@ else:
 # Stage ordering per pipeline mode
 STAGE_ORDER_DEFAULT = [
     "initialization", "setup_environment",
-    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
     "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
-    "setup_main", "test_main_installation", "prepare_base",
+    "setup_main", "test_main_installation",
     "repo_manager", "test_repo_manager",
     "image_build_manager", "test_image_build_manager",
+    "discovery", "test_discovery",
     "orchestrator", "test_orchestrator",
-    "build_stream", "test_build_stream",
     "telemetry", "test_telemetry",
     "summary",
 ]
 STAGE_ORDER_DEPLOY = [
     "initialization", "setup_environment",
-    "prepare_base",
     "repo_manager", "test_repo_manager",
     "image_build_manager", "test_image_build_manager",
+    "discovery", "test_discovery",
     "orchestrator", "test_orchestrator",
-    "build_stream", "test_build_stream",
     "telemetry", "test_telemetry",
     "summary",
 ]
 STAGE_ORDER_CLEANUP = [
     "initialization", "setup_environment",
-    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
     "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
     "summary",
 ]
@@ -479,7 +480,7 @@ STAGE_ORDER_UTILS = [
 # Stage ordering for BUILD_STREAM_ENABLE (build_stream pipeline)
 STAGE_ORDER_BUILD_STREAM_DEFAULT = [
     "initialization", "setup_environment",
-    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
     "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
     "setup_main", "test_main_installation", "prepare_base",
     "test_repo_manager", "test_image_build_manager", "test_orchestrator",
@@ -495,7 +496,7 @@ STAGE_ORDER_BUILD_STREAM_DEPLOY = [
 ]
 STAGE_ORDER_BUILD_STREAM_CLEANUP = [
     "initialization", "setup_environment",
-    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator",
+    "cleanup_build_stream", "cleanup_telemetry", "cleanup_orchestrator", "cleanup_discovery",
     "cleanup_image_build_manager", "cleanup_repo_manager", "cleanup_utils", "cleanup_omnia",
     "summary",
 ]
@@ -513,7 +514,7 @@ STATUS_STYLES = {
 }
 
 
-def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_utils_pipeline=False, is_build_stream_pipeline=False):
+def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_utils_pipeline=False, is_build_stream_pipeline=False, enable_discovery=False):
     """Return stages applicable to the selected mode and domains."""
     if is_utils_pipeline:
         # Use utils pipeline stages when UTILS_ENABLE is true
@@ -531,8 +532,13 @@ def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_uti
         "deploy": STAGE_ORDER_DEPLOY,
     }.get(mode, STAGE_ORDER_DEFAULT)
     domain_names = {
-        "repo_manager", "image_build_manager", "orchestrator", "telemetry", "build_stream",
+        "repo_manager", "image_build_manager", "discovery", "orchestrator", "telemetry",
     }
+    # Discovery stages only appear when ENABLE_DISCOVERY is true
+    discovery_stages = {"discovery", "test_discovery"}
+    # cleanup_discovery always runs regardless of ENABLE_DISCOVERY
+    # Infrastructure cleanup stages that only run when DOMAINS == "default"
+    infrastructure_cleanup_stages = {"cleanup_build_stream", "cleanup_utils"}
     selected = domain_names if selected_domains == "default" else {
         value.strip() for value in re.split(r"[,|]", selected_domains) if value.strip()
     }
@@ -540,6 +546,12 @@ def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_uti
     for stage in order:
         domain = stage.removeprefix("cleanup_").removeprefix("test_")
         if domain in domain_names and domain not in selected:
+            continue
+        # Skip infrastructure cleanup stages when DOMAINS != "default"
+        if stage in infrastructure_cleanup_stages and selected_domains != "default":
+            continue
+        # Skip discovery deploy/test stages when ENABLE_DISCOVERY is false
+        if stage in discovery_stages and not enable_discovery:
             continue
         if stage.startswith("test_") and stage != "test_main_installation" and not include_tests:
             continue
@@ -553,10 +565,10 @@ def pick_stage_order(mode, selected_domains, include_tests, job_statuses, is_uti
     return applicable
 
 
-def build_stage_table_html(job_statuses, mode, selected_domains, include_tests, is_utils_pipeline=False, is_build_stream_pipeline=False):
+def build_stage_table_html(job_statuses, mode, selected_domains, include_tests, is_utils_pipeline=False, is_build_stream_pipeline=False, enable_discovery=False):
     """Build an HTML table showing each applicable stage and its status."""
     stage_order = pick_stage_order(
-        mode, selected_domains, include_tests, job_statuses, is_utils_pipeline, is_build_stream_pipeline
+        mode, selected_domains, include_tests, job_statuses, is_utils_pipeline, is_build_stream_pipeline, enable_discovery
     )
     rows = []
     has_failure = False
@@ -600,7 +612,7 @@ def build_stage_table_html(job_statuses, mode, selected_domains, include_tests, 
 # Load job statuses and build table
 job_statuses = load_job_statuses()
 stage_table_html, has_failure, failed_stage = build_stage_table_html(
-    job_statuses, pipeline_mode, domains, test_mode, utils_enable, build_stream_enable
+    job_statuses, pipeline_mode, domains, test_mode, utils_enable, build_stream_enable, enable_discovery
 )
 
 if not job_statuses:

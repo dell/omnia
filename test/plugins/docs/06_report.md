@@ -13,7 +13,6 @@ report files. The HTML report includes:
 - CSS conic-gradient donut chart
 - Suite breakdown table with progress bars
 - Detailed test results with search/filter/collapse by run_id
-- Skip classification badges (expected / unexpected / framework)
 - Sensitive data redaction (IPs, passwords, secrets, paths)
 - Pipeline-aware report naming (pipelineId_reportName for CI, reportName for CLI)
 - Multiple test run segregation by run_id (collapsible sections)
@@ -84,7 +83,7 @@ set_current_report(report)
 | `report_name` | `str` | **Yes** | Base filename for the report (without extension). Two files are created: `<report_name>.json` and `<report_name>.html`. | `"image_test_report"` |
 | `server_ip` | `str` | **Yes** | The IP address of the target server. Results in the report are grouped by this IP. | `"10.20.0.100"` |
 | `report_id` | `str` | No | A unique identifier for this test run. If not given, an auto-generated timestamp is used (e.g., `"20260730120000"`). Pass a shared `report_id` across multiple modules to group them in the same run. | `"20260730120000"` |
-| `server_hostname` | `str` | No | The hostname of the target server. If not given, it is resolved from `server_ip` automatically. | `"image-builder"` |
+| `server_hostname` | `str` | No | The hostname of the target server. If not given, it is resolved from `server_ip` automatically. | `"image-thrillhouse"` |
 | `suite` | `str` | No | Suite label shown in the report (informational). Defaults to the `OMNIA_SUITE` environment variable or `"all"`. | `"build"` |
 | `marker` | `str` | No | Marker label shown in the report (informational). Defaults to `OMNIA_MARKER` env var. | `"sanity"` |
 | `exec_command` | `str` | No | Command label shown in the report (informational). Defaults to `OMNIA_COMMAND_TYPE` env var. | `"test"` |

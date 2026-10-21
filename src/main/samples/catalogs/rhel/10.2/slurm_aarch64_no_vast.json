@@ -116,8 +116,7 @@
           "cloud_init",
           "glibc_langpack_en",
           "gedit",
-          "ghcr_io/openchami/image_thrillhouse",
-          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
+          "ghcr_io/openchami/image_thrillhouse"
         ]
       },
       "admin_debug_group": {
@@ -186,8 +185,6 @@
         "components": [
           "cffi==1_17_1",
           "cryptography==45_0_7",
-          "kubernetes==33_1_0",
-          "omsdk==1_2_518",
           "prettytable==3_14_0"
         ]
       },
@@ -928,19 +925,6 @@
           }
         ]
       },
-      "kubernetes==33_1_0": {
-        "name": "kubernetes==33.1.0",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "name": "pypi",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
       "zsh": {
         "name": "zsh",
         "packagetype": "rpm",
@@ -1292,21 +1276,6 @@
           }
         ]
       },
-      "docker_io/dellhpcomniaaisolution/image_build_aarch64": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-aarch64",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
       "iputils": {
         "name": "iputils",
         "packagetype": "rpm",
@@ -1547,19 +1516,6 @@
       },
       "cryptography==45_0_7": {
         "name": "cryptography==45.0.7",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "name": "pypi",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
-      "omsdk==1_2_518": {
-        "name": "omsdk==1.2.518",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -2204,7 +2160,7 @@
       "docker.io/curlimages/curl": {
         "name": "docker.io/curlimages/curl",
         "packagetype": "image",
-        "tag": "8.17.0",
+        "tag": "8.22.0",
         "sources": [
           {
             "architecture": "aarch64",

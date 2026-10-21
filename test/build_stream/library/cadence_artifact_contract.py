@@ -25,13 +25,6 @@ def artifact_basenames_match_engine(engine, artifacts):
         for key in ("image", "kernel", "initrd")
     }
 
-    if engine == "image-builder":
-        return bool(
-            re.fullmatch(r"rhel[^/]*", basenames["image"])
-            and re.fullmatch(r"vmlinuz[^/]*", basenames["kernel"])
-            and re.fullmatch(r"initramfs[^/]*", basenames["initrd"])
-        )
-
     if engine != "image-thrillhouse":
         return False
     if basenames["image"] != "rootfs.squashfs":

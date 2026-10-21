@@ -23,7 +23,7 @@ from library.vars import TEST_CASES as TC
 
 @pytest.mark.deploy
 @pytest.mark.sanity
-@pytest.mark.order(100)
+@pytest.mark.order(30000)
 def test_deploy_provision(host):
     """Run ``orchestrator.yml --tags provision``."""
     tc = TC["deploy_provision"]

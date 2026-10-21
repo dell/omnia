@@ -23,7 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any
 
-from omnia_auto import read_remote_env, run_on_host, run_ssh_command
+from omnia_auto import log, read_remote_env, run_on_host, run_ssh_command
 
 from ..vars.pxeboot_vars import (
     CATALOG_ROLE_PREFIXES,
@@ -136,10 +136,6 @@ def load_workload_context(
         host,
         os.path.join(input_dir, STORAGE_CONFIG),
     )
-    context["high_availability_config"] = read_yaml_mapping(
-        host,
-        os.path.join(input_dir, "high_availability_config.yml"),
-    )
     orchestrator_config = read_yaml_mapping(
         host,
         os.path.join(input_dir, "orchestrator_config.yml"),
@@ -163,6 +159,7 @@ def load_workload_context(
     catalog = catalog_document.get("catalog", {})
     if not isinstance(catalog, dict) or not isinstance(catalog.get("groups"), dict):
         raise TypeError(f"Catalog groups are invalid in {catalog_path}")
+    context["catalog"] = catalog
     feature_tokens = _catalog_feature_tokens(catalog, context["rows"])
     context["features"] = {
         "openldap": any("openldap" in token for token in feature_tokens),
@@ -442,10 +439,8 @@ def report_poll_progress(
         f"    ↻ {label}: still in progress; retrying status check "
         f"(attempt {attempt}, elapsed {elapsed}s, remaining {remaining}s){suffix}"
     )
-    # INFO logging is intentionally hidden in normal validation runs. Long-running
-    # pull/reboot polls must remain visible so the operator can distinguish active
-    # progress from a hung test.
-    print(message, flush=True)
+    # Poll progress is available in verbose output without bypassing structured logging.
+    log(message, "INFO")
 
 
 def run_remote_with_progress(
@@ -470,7 +465,7 @@ def run_remote_with_progress(
             try:
                 result = future.result(timeout=min(poll_seconds, remaining))
                 elapsed = int(time.monotonic() - started)
-                print(f"    ✓ {label}: completed after {elapsed}s", flush=True)
+                log(f"{label}: completed after {elapsed}s", "OK")
                 return result
             except FutureTimeoutError:
                 attempt += 1

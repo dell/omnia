@@ -165,7 +165,7 @@ def _check_remote_directory(host, mount_path):
 
 def validate_telemetry_config(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
-):
+) -> list:
     """
     Validates the telemetry configuration from telemetry_config.yml.
 
@@ -235,7 +235,7 @@ def validate_telemetry_config(
         else:
             # File exists and is a valid file - validation passed
             # Note: cluster_inventory can be an absolute path anywhere on the system
-            # (e.g., /opt/omnia/orchestrator/orchestrator.yml) - no directory restriction
+            # (e.g., $OMNIA_DATA_PATH/orchestrator/orchestrator.yml) - no directory restriction
             logger.info(f"cluster_inventory validated: {cluster_inv_full_path}")
     else:
         # Empty cluster_inventory is allowed — playbook resolves default from
@@ -252,7 +252,8 @@ def validate_telemetry_config(
     kube_vip = ""
     service_cluster_defined = False
 
-    # Extract kube_vip from cluster_inventory
+    # Resolve cluster_inventory path: use provided value or apply default
+    cluster_inv_full_path = None
     if cluster_inventory:
         cluster_inv_path = cluster_inventory.strip()
         if not os.path.isabs(cluster_inv_path):
@@ -261,8 +262,20 @@ def validate_telemetry_config(
             cluster_inv_full_path = os.path.join(telemetry_input_dir, cluster_inv_path)
         else:
             cluster_inv_full_path = cluster_inv_path
+    else:
+        # Apply default path when cluster_inventory is empty
+        # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+        omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
+        omnia_project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+        cluster_inv_full_path = os.path.join(
+            omnia_data_path, "orchestrator", "output", omnia_project_name, "orchestrator_inventory.yml"
+        )
+        logger.info(
+            f"cluster_inventory is empty — using default path: {cluster_inv_full_path}"
+        )
 
-        if os.path.exists(cluster_inv_full_path) and os.path.isfile(cluster_inv_full_path):
+    # Extract kube_vip from cluster_inventory
+    if cluster_inv_full_path and os.path.exists(cluster_inv_full_path) and os.path.isfile(cluster_inv_full_path):
             try:
                 with open(cluster_inv_full_path, "r", encoding="utf-8") as inv_file:
                     cluster_inv_data = yaml.safe_load(inv_file)
@@ -397,7 +410,7 @@ def validate_telemetry_config(
                 f"1. Run the orchestrator to generate bmc_group_data.csv:\n"
                 f"   ansible-playbook orchestrator.yml --tags execute\n"
                 f"   This will create the file at the default location:\n"
-                f"   /opt/omnia/orchestrator/output/project_default/bmc_group_data.csv\n\n"
+                f"   $OMNIA_DATA_PATH/orchestrator/output/project_default/bmc_group_data.csv\n\n"
                 f"2. OR provide the correct path in telemetry_config.yml:\n"
                 f"   idrac_telemetry_configurations:\n"
                 f"     bmc_group_data_path: \"/path/to/your/bmc_group_data.csv\"\n\n"
@@ -993,7 +1006,7 @@ def validate_telemetry_config(
 
 def validate_telemetry_storage_config(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
-):
+) -> list:
     """
     Validates the telemetry storage configuration from telemetry_storage_config.yml.
 
@@ -1170,7 +1183,7 @@ def validate_telemetry_storage_config(
 
 def validate_telemetry_packages(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
-):
+) -> list:
     """
     Validates the telemetry packages configuration from telemetry_packages.yml.
 
@@ -1268,7 +1281,7 @@ def validate_telemetry_packages(
                     safe_data_path = _validated_data_path(omnia_data_path)
                     if not safe_data_path:
                         logger.warning(
-                            "OMNIA_DATA_PATH is invalid or not absolute: %s; using /opt/omnia",
+                            "OMNIA_DATA_PATH is invalid or not absolute: %s; using the default data path",
                             omnia_data_path,
                         )
                         safe_data_path = "/opt/omnia"
@@ -1513,3 +1526,41 @@ def validate_telemetry_packages(
                         logger.info(f"helm_charts.{chart_name}.online_url validation PASSED")
 
     return errors
+
+
+def validate(
+    input_file_path,
+    data,
+    logger,
+    module,
+    omnia_base_dir,
+    module_utils_base,
+    project_name,
+) -> list:
+    """
+    Dispatch L2 validation to the validator matching the telemetry input file.
+
+    Args:
+        input_file_path (str): Path to the telemetry input file.
+        data (dict): Parsed YAML content of the input file.
+        logger (Logger): Logger instance.
+        module (AnsibleModule): Ansible module object.
+        omnia_base_dir (str): Base directory of Omnia.
+        module_utils_base (str): Base directory of module_utils.
+        project_name (str): Name of the project.
+
+    Returns:
+        list: Validation errors (empty if valid or the file is unsupported).
+    """
+    validators = {
+        "telemetry_config.yml": validate_telemetry_config,
+        "telemetry_storage_config.yml": validate_telemetry_storage_config,
+        "telemetry_packages.yml": validate_telemetry_packages,
+    }
+    validator = validators.get(input_file_path.split("/")[-1])
+    if validator is None:
+        logger.error("Unsupported telemetry input file: %s", input_file_path)
+        return []
+    return validator(
+        input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
+    )

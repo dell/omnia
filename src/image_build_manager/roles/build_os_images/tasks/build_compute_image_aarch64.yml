@@ -69,8 +69,8 @@
       connection: ssh
 
     # --- Compute image cache check ---
-    # Include the build engine so switching between image-builder and
-    # image-thrillhouse triggers the required rebuild.
+    # Include the pinned Image Thrillhouse runtime so version changes trigger
+    # the required rebuild.
     - name: Compute per-group package hashes
       ansible.builtin.set_fact:
         _compute_pkg_hashes: >-
