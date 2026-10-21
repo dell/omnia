@@ -10,7 +10,6 @@
         "name": "os_rhel_10_2_aarch64",
         "components": [
           "baseos_group_10.2",
-          "image_builder_aarch64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -19,7 +18,6 @@
         "name": "os_rhel_10_0_aarch64",
         "components": [
           "baseos_group_10.0",
-          "image_builder_aarch64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -276,15 +274,6 @@
           "cuda_toolkit",
           "datacenter_gpu_manager",
           "nvhpc"
-        ]
-      },
-      "image_builder_aarch64_group": {
-        "name": "image_builder_aarch64_group",
-        "type": "group",
-        "os": "rhel",
-        "description": "Image builder for AArch64",
-        "components": [
-          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
         ]
       },
       "imagethrillhouse": {
@@ -1401,22 +1390,6 @@
           {
             "architecture": "aarch64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/image_build_aarch64": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-aarch64",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.2",

@@ -27,7 +27,7 @@ from library.functions.omnia_main_func import (
 )
 from library.messages import TEST_ASSERT_MSGS as ASSERT
 from library.messages import TEST_LOG_MSGS as LOG
-from library.vars import CMDS
+from library.vars import build_cmd
 from library.vars import TEST_CASES as TC
 from library.vars.common_vars import PROFILE_DROP_IN, SYSTEM_ENV_FILE
 
@@ -52,7 +52,7 @@ def test_deploy_setup_deps_only(host):
     venv_path = resolve_runtime_paths(host)["venv_path"]
     venv_check = run_on_host(
         host,
-        CMDS["dir_exists"].format(path=f"{venv_path}/bin")
+        build_cmd("dir_exists", path=f"{venv_path}/bin")
     )
     if "exists" in venv_check.stdout:
         message = f"Venv already exists at {venv_path} — setup rerun not required"

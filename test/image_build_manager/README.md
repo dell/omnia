@@ -234,10 +234,8 @@ ARM-host readiness and tooling checks before artifact and package validation.
 
 #### Build-type naming convention (within `build` tag)
 
-Both `image-builder` and `image-thrillhouse` produce artifacts with distinct
-suffixes (`-imgbld` / `-imgth`). The naming tests confirm that at least one
-artifact for the recorded build type carries the expected suffix. Artifacts
-from another build type are allowed to coexist and are reported, not rejected.
+Image Thrillhouse artifacts use the `-imgth` suffix. The naming tests confirm
+that registry and S3 artifacts for the recorded build carry that suffix.
 
 Every new `build_status.yml` records the `image_build_type` that produced its
 artifact paths. Build verification uses that recorded value for engine-specific
@@ -245,7 +243,7 @@ S3 and naming checks, so changing the input configuration after a build does
 not cause the previous manifest to be interpreted with the wrong layout. The
 current input still defines the functional groups expected by the test. A
 legacy manifest without the field is accepted only when one engine can be
-inferred unambiguously from `-imgbld` or `-imgth` artifact directories.
+inferred unambiguously from `-imgth` or `-imgth` artifact directories.
 
 ```bash
 # Run only naming convention tests
@@ -286,9 +284,9 @@ does not create backup files beside production inputs or in a shared temporary
 directory.
 
 The suite covers the first build, dictionary reuse, selective package and
-repository rebuilds, forced rebuild, missing S3 artifact recovery, switching
-between Image Builder and Image Thrillhouse, catalog-versioned status output,
-config-mode isolation, and restoration of the target's pre-suite state.
+repository rebuilds, forced rebuild, missing S3 artifact recovery, Image
+Thrillhouse output, catalog-versioned status output, config-mode isolation,
+and restoration of the target's pre-suite state.
 
 ### Options
 
@@ -632,9 +630,9 @@ cd datasets/generator/
 ./generate_dataset.py create my_dataset \
   --profile image-thrillhouse-internet-config
 
-# Select Image Builder with the same internet/config topology
-./generate_dataset.py create my_image_builder \
-  --profile image-builder-internet-config
+# Generate an Image Thrillhouse internet/config dataset
+./generate_dataset.py create my_thrillhouse \
+  --profile image-thrillhouse-internet-config
 
 # Generate an offline dataset with one real host applied to every repo URL
 ./generate_dataset.py create my_offline \
@@ -716,15 +714,12 @@ There are 221 physical test functions (63 FVT, 4 NFT, and 154 UT).
 `IMGBM_FVT_FULL_E001` is the alternate full-stack ID emitted by the same build deploy
 function that reports `IMGBM_FVT_BUILD_E001` for a tagged build.
 
-### Build-type suffix checks (IMGBM_FVT_BUILD_V013 – IMGBM_FVT_BUILD_V017)
+### Image Thrillhouse suffix checks
 
-| Test | Build type | Checks |
-|------|-----------|--------|
-| IMGBM_FVT_BUILD_V013 | image-builder | At least one x86_64 registry repository ends with `-imgbld` |
-| IMGBM_FVT_BUILD_V014 | image-builder | At least one x86_64 S3 path includes `-imgbld` |
-| IMGBM_FVT_BUILD_V015 | image-thrillhouse | At least one x86_64 registry repository ends with `-imgth` |
-| IMGBM_FVT_BUILD_V016 | image-thrillhouse | At least one x86_64 S3 path includes `-imgth` |
-| IMGBM_FVT_BUILD_V017 | both | Every x86_64 registry/S3 artifact has exactly one engine suffix, full names are unique, and the build-status engine has at least one artifact |
+| Test | Checks |
+|------|--------|
+| IMGBM_FVT_BUILD_V015 | At least one x86_64 registry repository ends with `-imgth` |
+| IMGBM_FVT_BUILD_V016 | At least one x86_64 S3 path includes `-imgth` |
 
 ---
 

@@ -425,7 +425,7 @@ initialization:
         [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
       done
       for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
-             security_config.yml storage_config.yml high_availability_config.yml \
+             security_config.yml storage_config.yml \
              additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/orchestrator/${FNAME}"
         [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -775,7 +775,7 @@ deploy:
       fi
 
 # ============================= STAGE 5B ===================================
-# Restart — Invoke orchestrator.yml --tags pxeboot on provisioned nodes
+# Restart - Run BuildStream pre-PXE, Orchestrator PXE, and post-PXE
 # ==========================================================================
 restart:
   stage: restart
@@ -784,7 +784,7 @@ restart:
     - |
       echo "============================================================"
       echo "  CADENCE PIPELINE — STAGE 5B: Restart"
-      echo "  (Invokes orchestrator.yml --tags pxeboot)"
+      echo "  (Invokes the BuildStream pre-PXE → Orchestrator PXE → post-PXE sequence)"
       echo "============================================================"
       echo ""
 
@@ -820,7 +820,7 @@ restart:
 
       jq "." restart_response.json 2>/dev/null || cat restart_response.json
       echo ""
-      echo "  [OK] Restart request accepted (orchestrator.yml --tags pxeboot)"
+      echo "  [OK] Restart request accepted (the BuildStream pre-PXE → Orchestrator PXE → post-PXE sequence)"
       echo ""
 
       # Poll for restart completion

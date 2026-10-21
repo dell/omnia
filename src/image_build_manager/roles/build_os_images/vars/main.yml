@@ -13,18 +13,7 @@
 # limitations under the License.
 ---
 # Architecture-agnostic variables — build_arch is set by the calling playbook
-# ---------------------------------------------------------------------------
-# Build-type suffix — applied to all output artifact names (base image, compute
-# image, and S3 prefixes) so artifacts produced by the two build engines remain
-# distinct and can coexist without overwriting each other.
-#
-#   image-builder     → suffix "-imgbld", for example rhel-x86_64-base-imgbld
-#   image-thrillhouse → suffix "-imgth", for example rhel-x86_64-base-imgth
-#
-# The engine qualifier trails the semantic name so registry and S3 listings keep
-# related "rhel-*" artifacts grouped together.
-# ---------------------------------------------------------------------------
-_build_type_suffix: "{{ (_is_thrillhouse | bool) | ternary('-imgth', '-imgbld') }}"
+_build_type_suffix: "-imgth"
 rhel_arch_base_image_name: "rhel-{{ build_arch }}-base{{ _build_type_suffix }}"
 
 pull_image_retries: "5"
@@ -32,7 +21,7 @@ pull_image_delay: "10"
 pull_image_fallback_msg: "Pull from repo manager ({repo_path}) failed. Attempting direct pull from {upstream_image}..."
 pull_image_success_msg: "Successfully pulled {upstream_image} directly from upstream registry."
 pull_image_failure_msg: |
-  Failed to pull builder image from both sources:
+  Failed to pull the Image Thrillhouse container from both sources:
     1. Repo manager registry: {repo_path}
     2. Direct upstream:       {upstream_image}
   Ensure either the repo manager has synced the image or the host has internet access.
@@ -44,100 +33,43 @@ shared_path: "{{ hostvars['localhost']['shared_path'] }}"
 repo_cert_path: "{{ hostvars['localhost']['repo_cert_path'] | default('') }}"
 
 # Build timing and controls — single source of truth from image_build_config.yml
-# build_timeout: per-build timeout in seconds for the Python orchestrator.
-# Falls back to legacy job_async if build_timeout is not set (backward compat).
 build_timeout: "{{ hostvars['localhost']['build_image_build_timeout'] | default(hostvars['localhost']['build_image_job_async'] | default(7200)) }}"
 max_parallel: "{{ hostvars['localhost']['build_image_max_parallel'] | default(0) }}"
 force_rebuild: "{{ hostvars['localhost']['build_image_force_rebuild'] | default(false) | bool }}"
 backup_s3_images: "{{ hostvars['localhost']['build_image_backup_s3_images'] | default(false) | bool }}"
 
-# ---------------------------------------------------------------------------
-# Build type switching: image-builder vs image-thrillhouse
-# ---------------------------------------------------------------------------
-_image_build_type: "{{ hostvars['localhost']['image_build_type'] | default('image-thrillhouse') }}"
-_is_thrillhouse: "{{ _image_build_type == 'image-thrillhouse' }}"
-
-# Container images per build type
-_builder_container_image: "docker.io/dellhpcomniaaisolution/image-build-el10:1.3"
+_image_build_type: "image-thrillhouse"
 _thrillhouse_container_image: "ghcr.io/openchami/image-thrillhouse:v0.0.26"
-repo_builder_image: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_container_image, _builder_container_image) }}"
-
-# Local tag per build type
-_builder_local_tag: "{{ build_arch }}-image-builder/ochami"
-_thrillhouse_local_tag: "{{ build_arch }}-image-thrillhouse/ochami"
-local_tag: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_local_tag, _builder_local_tag) }}"
+repo_builder_image: "{{ _thrillhouse_container_image }}"
+local_tag: "{{ build_arch }}-image-thrillhouse/ochami"
+openchami_work_dir: "{{ shared_path }}/workdir/image-thrillhouse"
 
 # Cert destination inside the container — derived from repo_manager output filename.
-# Fallback to pulp_webserver.crt only when repo_cert_path is empty (cert unused).
 _cert_basename: "{{ repo_cert_path | basename | default('pulp_webserver.crt', true) }}"
 anchors_path: "/etc/pki/ca-trust/source/anchors/{{ _cert_basename }}"
-# Separate workdir per build type to avoid config file collisions
-_workdir_suffix: "{{ (_is_thrillhouse | bool) | ternary('image-thrillhouse', 'image-builder') }}"
-openchami_work_dir: "{{ shared_path }}/workdir/{{ _workdir_suffix }}"
-
-# The aarch64 preparation role copies the OIM certificate to anchors_path on the
-# remote build host. Delegated builds must mount that remote path, while x86_64
-# builds continue to mount the original OIM path.
 _cert_host_path: >-
   {{ (build_arch == 'aarch64') | ternary(anchors_path, repo_cert_path) }}
 _cert_mount: "-v {{ _cert_host_path }}:{{ anchors_path }}:z"
+_config_mount_path: "/config.yaml"
 
-# Config mount path differs: image-builder uses /home/builder/config.yaml, thrillhouse uses /config.yaml
-_config_mount_path: "{{ (_is_thrillhouse | bool) | ternary('/config.yaml', '/home/builder/config.yaml') }}"
-
-# --- Common privilege options per build type ---
-_builder_privilege_opts:
-  - "--user 0 --privileged"
-_thrillhouse_privilege_opts:
+_privilege_opts:
   - "--user 0 --privileged"
   - "--cap-add=SYS_ADMIN --cap-add=SETUID --cap-add=SETGID"
   - "--security-opt seccomp=unconfined --security-opt label=disable"
-_privilege_opts: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_privilege_opts, _builder_privilege_opts) }}"
-
-# Cert mount (only when repo_cert_path is set)
 _cert_opts: "{{ ([_cert_mount] if (repo_cert_path | default('') | length > 0) else []) }}"
-
-# Common mounts shared by all build commands (excludes version-specific config).
-# Base image builds construct the full mount list inline to support per-version
-# config files when multiple RHEL versions are present.
 ochami_common_mounts: "{{ _privilege_opts + _cert_opts }}"
-
-# Legacy alias — kept for backward compatibility.  Uses the primary rhel_tag.
 ochami_mounts: >-
   {{ ochami_common_mounts
      + ['-v ' + openchami_work_dir + '/images/' + rhel_arch_base_image_name + '-' + rhel_tag + '.yaml:' + _config_mount_path + ':z'] }}
 
-# Container image reference + entrypoint
-# image-builder needs --entrypoint /bin/bash (runs update-ca-trust + image-build).
-# image-thrillhouse runs directly — its Debian-based container has no
-# update-ca-trust; SSL is handled via sslcacert in the repo files instead.
-ochami_image: >-
-  {{ (_is_thrillhouse | bool)
-     | ternary(
-         ['localhost/' + local_tag],
-         ['--entrypoint /bin/bash', 'localhost/' + local_tag]
-       ) }}
-
-# Build command per type
-# image-builder: bash -c 'update-ca-trust && image-build --config ... --log-level DEBUG'
-# image-thrillhouse: image-thrillhouse build --config /config.yaml --log-level info
-_ca_trust_cmd: "{{ (repo_cert_path | default('') | length > 0) | ternary('update-ca-trust extract && ', '') }}"
-_builder_command:
-  - "-c '{{ _ca_trust_cmd }}image-build --config /home/builder/config.yaml --log-level DEBUG'"
-_thrillhouse_command:
+ochami_image:
+  - "localhost/{{ local_tag }}"
+ochami_base_command:
   - "image-thrillhouse build --config /config.yaml --log-level info"
-ochami_base_command: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_command, _builder_command) }}"
+openchami_base_image_config_template: "{{ role_path }}/templates/images/thrillhouse-base-config.yaml.j2"
+openchami_compute_image_config_template: "{{ role_path }}/templates/images/thrillhouse-compute-config.yaml.j2"
 
-# Config templates per build type
-_builder_base_config_template: "{{ role_path }}/templates/images/rhel-base-config.yaml.j2"
-_builder_compute_config_template: "{{ role_path }}/templates/images/rhel-compute-config.yaml.j2"
-_thrillhouse_base_config_template: "{{ role_path }}/templates/images/thrillhouse-base-config.yaml.j2"
-_thrillhouse_compute_config_template: "{{ role_path }}/templates/images/thrillhouse-compute-config.yaml.j2"
-openchami_base_image_config_template: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_base_config_template, _builder_base_config_template) }}"
-openchami_compute_image_config_template: "{{ (_is_thrillhouse | bool) | ternary(_thrillhouse_compute_config_template, _builder_compute_config_template) }}"
-
-# Log paths — include build-type suffix so image-builder and image-thrillhouse
-# write to separate log files (e.g. x86_64_base_image-imgth.log vs -imgbld.log)
+# Log paths use the fixed Image Thrillhouse suffix.
 image_build_log_dir: "{{ hostvars['localhost']['log_dir'] | default(shared_path + '/log') }}"
 image_build__base_image_log_path: "{{ image_build_log_dir }}/{{ build_arch }}_base_image{{ _build_type_suffix }}.log"
 base_image_failure_msg: |

@@ -18,7 +18,6 @@
 #   - orchestrator_config.yml       (required)
 #   - omnia_config.yml              (required; workload-aware L1/L2 checks)
 #   - network_spec.yml              (required; cross-validated with mapping)
-#   - high_availability_config.yml  (required when Kubernetes is selected)
 #   - resolved PXE mapping CSV      (structure and cross-file relationships)
 #   - additional cloud-init YAML    (when configured)
 #   - storage_config.yml            (when selected workloads reference storage)
