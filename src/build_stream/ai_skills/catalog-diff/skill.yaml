@@ -1,8 +1,9 @@
 name: catalog-diff
 version: 1.0.0
 description: >-
-  Produces deterministic, reversible machine-readable diffs between catalog versions plus human-readable
-  changelogs. Use when comparing catalog versions or generating upgrade documentation.
+  Produces deterministic, reversible machine-readable diffs between catalog versions plus
+  human-readable changelogs. Use when comparing catalog versions or generating upgrade
+  documentation.
 author: Omnia Build Stream Team
 role: engineering
 domain: catalog-authoring
@@ -15,6 +16,8 @@ tags:
   - omnia
 dependencies:
   - catalog-selection-gate
+  - working-directory
+  - skill-scope
 status: active
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-16

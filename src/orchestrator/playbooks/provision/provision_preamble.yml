@@ -162,11 +162,16 @@
   roles:
     - passwordless_ssh
 
-# Step 6: Authenticate with OpenCHAMI (token stored as fact)
-- name: Authenticate with OpenCHAMI
+# Step 6: Renew service credentials and authenticate with OpenCHAMI
+- name: Renew service credentials and authenticate with OpenCHAMI
   hosts: oim
   connection: ssh
   tasks:
+    - name: Renew OpenCHAMI service tokens
+      ansible.builtin.include_role:
+        name: deploy_openchami
+        tasks_from: renew_service_tokens.yml
+
     - name: Set oim_node_name on oim host
       ansible.builtin.set_fact:
         oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"

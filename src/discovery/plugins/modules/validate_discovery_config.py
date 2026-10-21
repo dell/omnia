@@ -20,6 +20,7 @@ Ansible module for discovery-specific input validation.
 
 Performs L1 (JSON schema) and L2 (cross-field logic) validation on:
   - discovery_config.yml (required)
+  - network_spec.yml (required)
 
 Usage in a playbook:
   - name: Validate discovery configuration
@@ -32,6 +33,7 @@ import json
 import logging
 import os
 import re
+from typing import Any, Optional, Tuple
 
 import yaml
 from ansible.module_utils.basic import AnsibleModule
@@ -94,10 +96,17 @@ VALIDATION_FILES = [
         "schema_file": "discovery_config.json",
         "required": True,
     },
+    {
+        "config_file": "network_spec.yml",
+        "schema_file": "network_spec.json",
+        "required": True,
+    },
 ]
 
 
-def create_logger(project_name, log_dir=VALIDATION_LOG_PATH):
+def create_logger(
+    project_name: str, log_dir: str = VALIDATION_LOG_PATH
+) -> Tuple[logging.Logger, str]:
     """Create a logger for discovery validation."""
     log_file = os.path.join(
         log_dir, f"discovery_validation_{project_name}.log"
@@ -116,7 +125,7 @@ def create_logger(project_name, log_dir=VALIDATION_LOG_PATH):
 VAULT_HEADER = "$ANSIBLE_VAULT"
 
 
-def is_vault_encrypted(path):
+def is_vault_encrypted(path: str) -> bool:
     """Check if a file is Ansible Vault encrypted."""
     if not os.path.isfile(path):
         return False
@@ -125,7 +134,7 @@ def is_vault_encrypted(path):
     return first_line.startswith(VAULT_HEADER)
 
 
-def load_yaml(path):
+def load_yaml(path: str) -> Optional[dict[str, Any]]:
     """Load a YAML file, returning None on failure."""
     if not os.path.isfile(path):
         return None
@@ -133,7 +142,7 @@ def load_yaml(path):
         return yaml.safe_load(f)
 
 
-def load_json(path):
+def load_json(path: str) -> Optional[dict[str, Any]]:
     """Load a JSON file, returning None on failure."""
     if not os.path.isfile(path):
         return None
@@ -141,7 +150,13 @@ def load_json(path):
         return json.load(f)
 
 
-def validate_against_schema(data, schema, file_label, errors, logger):
+def validate_against_schema(
+    data: Any,
+    schema: dict[str, Any],
+    file_label: str,
+    errors: list[str],
+    logger: logging.Logger
+) -> None:
     """
     Validate data against a JSON schema (L1).
     Enforces required, type, enum, and string constraints without a jsonschema
@@ -232,7 +247,7 @@ def validate_against_schema(data, schema, file_label, errors, logger):
             logger.error(msg)
 
 
-def run_module():
+def run_module() -> None:
     """Main entry point for the Ansible module."""
     module_args = {
         "input_project_dir": {"type": "str", "required": True},

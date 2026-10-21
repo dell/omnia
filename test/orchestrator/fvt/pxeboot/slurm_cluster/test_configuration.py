@@ -27,8 +27,6 @@ from fvt.result import verify_pxeboot
 
 @pytest.mark.non_disruptive
 @pytest.mark.functional
-@pytest.mark.buildstream
-@pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.order(41107)
 def test_slurm_reconfigure(host):
