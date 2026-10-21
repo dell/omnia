@@ -117,7 +117,7 @@ class OMEClient:
     # Initial backoff delay in seconds; doubles on each retry
     BACKOFF_BASE = 2
 
-    def __init__(self, ip, username, password, verify_ssl=False, page_size=200):
+    def __init__(self, ip, username, password, verify_ssl=False, page_size=200, module=None):
         self.base_url = f"https://{ip}"
         self.username = username
         self.password = password
@@ -127,9 +127,13 @@ class OMEClient:
         self.session = requests.Session()
         self.session.verify = verify_ssl
         self.auth_token = None
+        self.module = module
         if not verify_ssl:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-            logger.warning("SSL verification disabled — connections are not secure")
+            if module:
+                module.warn("SSL verification disabled — connections are not secure")
+            else:
+                logger.warning("SSL verification disabled — connections are not secure")
 
     def authenticate(self):
         """Authenticate with OME and obtain session token."""
@@ -567,7 +571,8 @@ def main():
         module.params['ome_username'],
         module.params['ome_password'],
         verify_ssl,
-        page_size
+        page_size,
+        module
     )
 
     try:
