@@ -100,31 +100,6 @@ def _redact_sensitive(text: str) -> str:
     return text
 
 
-# ── Skip Classification ─────────────────────────────────────────────────────
-
-def _classify_skip(details: str = "", error: str = "") -> str:
-    """Classify a skipped test."""
-    text = ((details or "") + " " + (error or "")).lower()
-    if not text.strip():
-        return "unexpected"
-    framework_kw = [
-        "fixture", "setup failed", "import error", "conftest",
-        "collection error", "module not found", "no module named",
-        "parametrize", "setup error", "teardown error",
-    ]
-    if any(kw in text for kw in framework_kw):
-        return "framework"
-    expected_kw = [
-        "not enabled", "not configured", "disabled", "not supported",
-        "not available", "not applicable", "not installed", "feature not",
-        "requires", "only applies", "not present", "skipping",
-        "condition", "marker", "prerequisite",
-    ]
-    if any(kw in text for kw in expected_kw):
-        return "expected"
-    return "unexpected"
-
-
 # ── Log Issue Counter ────────────────────────────────────────────────────────
 
 def _count_log_issues(logs: str) -> dict:
@@ -208,7 +183,6 @@ def generate_html(data: Dict[str, Any]) -> str:
                         "details": _redact_sensitive(result.get("details", "")),
                         "error": _redact_sensitive(result.get("error", "")),
                         "server": server_ip,
-                        "skip_type": result.get("skip_type", ""),
                         "tc_id": result.get("tc_id", ""),
                         "run_id": run_id,
                     })
@@ -313,16 +287,6 @@ def generate_html(data: Dict[str, Any]) -> str:
                 has_log = bool(t.get("details") or t.get("error"))
                 log_icon = '<span class="log-link">View</span>' if has_log else '<span class="text-muted">&mdash;</span>'
 
-                # Skip type badge
-                skip_badge = ""
-                if status_raw == "SKIPPED" and t.get("skip_type"):
-                    skip_cls = {
-                        "expected": "badge-skip",
-                        "unexpected": "badge-warn",
-                        "framework": "badge-fail",
-                    }.get(t["skip_type"], "badge-skip")
-                    skip_badge = f' <span class="badge {skip_cls}" style="font-size:9px;padding:1px 6px;">{_escape_html(t["skip_type"])}</span>'
-
                 # TC ID display
                 tc_prefix = f"[{_escape_html(t['tc_id'])}] " if t.get("tc_id") else ""
 
@@ -347,7 +311,7 @@ def generate_html(data: Dict[str, Any]) -> str:
                     <tr class="test-row {sc}" onclick="toggleLog('log-{idx}')"
                         data-status="{sc}" data-suite="{esc_name}">
                       <td>{tc_prefix}{_escape_html(t["test_name"])}</td>
-                      <td class="center"><span class="badge badge-{sc}">{sl}</span>{skip_badge}</td>
+                      <td class="center"><span class="badge badge-{sc}">{sl}</span></td>
                       <td class="center">{t["duration"]:.2f}s</td>
                       <td class="center">{log_icon}</td>
                     </tr>{log_section}'''

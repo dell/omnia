@@ -15,8 +15,6 @@
 
 import importlib.util
 from pathlib import Path
-import sys
-import types
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -27,21 +25,6 @@ MODULE_PATH = (
 SAMPLE_DIR = (
     REPO_ROOT / "src/image_build_manager/samples/repo_manager_output"
 )
-
-
-if "ansible" not in sys.modules:
-    ansible = types.ModuleType("ansible")
-    module_utils = types.ModuleType("ansible.module_utils")
-    basic = types.ModuleType("ansible.module_utils.basic")
-
-    class FakeAnsibleModule:  # pylint: disable=too-few-public-methods
-        """Minimal import stub; module entry points are not exercised here."""
-
-    basic.AnsibleModule = FakeAnsibleModule
-    ansible.module_utils = module_utils
-    sys.modules["ansible"] = ansible
-    sys.modules["ansible.module_utils"] = module_utils
-    sys.modules["ansible.module_utils.basic"] = basic
 
 
 SPEC = importlib.util.spec_from_file_location("parse_repo_status", MODULE_PATH)

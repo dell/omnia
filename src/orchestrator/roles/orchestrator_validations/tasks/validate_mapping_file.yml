@@ -43,10 +43,6 @@
   vars:
     normalized_pxe_mapping_path: "{{ temp_pxe_file_path }}"
 
-- name: Generate xnames in temporary mapping file
-  generate_xname_in_mapping_file:
-    mapping_file_path: "{{ temp_pxe_file_path }}"
-
 - name: Read host mapping file from CSV file and return a dictionary
   block:
     - name: Read host mapping file from CSV file and return a dictionary

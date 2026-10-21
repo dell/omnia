@@ -53,4 +53,3 @@
       - Cleanup framework logs: cleaned
       - Cleanup framework state: cleaned
       - Functional groups config: cleaned with the Orchestrator output directory
-      - Upgrade lock: preserved (coordination file, not deployment output)

@@ -1,30 +1,60 @@
-# Orchestrator — `test_creds.yml` Reference
+# test_creds.yml — Credentials Reference
+
+`test_creds.yml` is the local encrypted test credential store. Its vault key
+is `.test_creds.key`. Both files are mode `0600`, excluded from Git, and must
+never be copied into datasets or reports.
 
 ## Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `oim_password` | string | No | SSH password for remote target. Leave empty for key-based auth. |
-| `ldap_username` | string | No | POSIX directory account used by LDAP/Slurm verification. |
-| `ldap_password` | string | No | Password for the LDAP test account. |
-| `external_ldap_admin_password` | string | No | Required only by the explicit external LDAP setup utility. |
+| Field | Required when | Purpose |
+|---|---|---|
+| `oim_password` | Password-based remote SSH is used | Authenticate to the execution OIM. |
+| `ldap_username` | LDAP identity tests are selected | LDAP identity used by SSH, PAM, Slurm, and proxy verification. |
+| `ldap_password` | LDAP identity tests are selected | Authenticate the LDAP test identity. |
+| `external_ldap_bind_password` | External LDAP validation and reconciliation are enabled | Bind `omnia_auth` to the external directory. |
 
-## Auto-Encryption
+Product credentials such as BMC, provisioning, Slurm database, OpenLDAP
+database, and CSI values belong in the separate project-domain store created
+with `--set-domain-creds`.
 
-On first test run, `test_creds.yml` is automatically encrypted with Ansible Vault.
-The vault key is stored in `.test_creds.key` (gitignored).
-
-## Setup
-
-Use `setup_env.sh`; do not edit or decrypt the file manually:
+## Interactive setup
 
 ```bash
 ./setup_env.sh --set-creds
-./setup_env.sh --set-ldap-test-creds
+./setup_env.sh --update-creds
 ```
 
-The LDAP password entered here must be the password reconciled on the
-directory. Running `.venv/bin/python3 utility/create_ldap_user.py` creates a
-new configured user or updates an existing user's password accordingly. When
-changing to a new username, also select unused `external_ldap.uid_number` and
-`external_ldap.gid_number` values in `test_config.yml`.
+When external LDAP is disabled, the prompt contains only `oim_password`.
+When it is enabled, the same schema additionally requires all three LDAP
+fields. Existing encrypted values can be retained during an update.
+
+## Non-interactive setup
+
+Send one bounded JSON object through standard input:
+
+```bash
+credential_provider | ./setup_env.sh --creds-stdin
+```
+
+External LDAP enabled:
+
+```json
+{
+  "oim_password": "<SSH_SECRET>",
+  "ldap_username": "<LDAP_TEST_IDENTITY>",
+  "ldap_password": "<LDAP_TEST_SECRET>",
+  "external_ldap_bind_password": "<LDAP_BIND_SECRET>"
+}
+```
+
+External LDAP disabled:
+
+```json
+{
+  "oim_password": "<SSH_SECRET>"
+}
+```
+
+Unknown fields, missing required fields, invalid types, and oversized input
+are rejected by the shared `omnia_auto` credential API. Do not place secrets
+in command arguments, environment variables, source, logs, or shell history.

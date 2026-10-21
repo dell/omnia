@@ -28,11 +28,21 @@ import os
 from typing import Any, Dict
 
 from omnia_auto import (
-    load_test_config,
+    connection_params,
+    ensure_remote_dir,
     get_module_root,
+    load_test_config,
+    read_remote_env,
+    resolve_domain_input_path,
     sync_files,
 )
-from ..vars.common_vars import DOMAIN_NAME, INPUT_PATH_TEMPLATE
+from ..vars.common_vars import (
+    DOMAIN_NAME,
+    ENV_OMNIA_DATA_PATH,
+    ENV_DISCOVERY_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+    SRC_INPUT_DIR,
+)
 
 
 def sync_project_to_remote(_host) -> Dict[str, Any]:
@@ -93,8 +103,8 @@ def sync_discovery_input(host) -> Dict[str, Any]:
     """Sync discovery input files (dataset) to target.
 
     This function synchronizes the discovery input files from the local dataset
-    directory to the target host's input directory. It supports both local and
-    remote synchronization modes.
+    directory to the target host's input directory. It reads the target's
+    environment variables to resolve the destination path dynamically.
 
     Args:
         host: Testinfra host connection for the target server.
@@ -107,38 +117,50 @@ def sync_discovery_input(host) -> Dict[str, Any]:
 
     Notes:
         - The local input path is constructed as: <module_root>/datasets/<dataset>/input
-        - The remote input path is constructed using INPUT_PATH_TEMPLATE with the project name
+        - The remote input path is resolved from target env vars:
+          <DISCOVERY_DATA_PATH>/input/<project> or
+          <OMNIA_DATA_PATH>/discovery/input/<project>
         - Uses sync_files from omnia_auto for the actual file transfer
     """
     config = load_test_config()
     dataset = config.get("dataset", "data_set_01")
-    project = config.get("project_name", "project_default")
     module_root = get_module_root()
-    oim_server_ip = config.get("oim_server_ip", "")
+    conn = connection_params()
 
-    local_input = f"{module_root}/datasets/{dataset}/input"
-    remote_input = INPUT_PATH_TEMPLATE.format(project=project)
+    # Resolve local input directory from dataset or src/
+    if dataset:
+        local_input = f"{module_root}/datasets/{dataset}/input"
+    else:
+        local_input = SRC_INPUT_DIR
+
+    # Resolve remote input path from target environment variables
+    remote_input = resolve_domain_input_path(
+        host,
+        DOMAIN_NAME,
+        ENV_OMNIA_DATA_PATH,
+        ENV_OMNIA_PROJECT_NAME,
+        domain_data_path_var=ENV_DISCOVERY_DATA_PATH,
+    )
+    ensure_remote_dir(host, remote_input)
 
     try:
-        if oim_server_ip:
-            result = sync_files(
-                mode="remote",
-                src=local_input,
-                dest=remote_input,
-                ip=oim_server_ip,
-                user=config.get("oim_ssh_user", "root"),
-                password=None,
-            )
-        else:
-            result = sync_files(
-                mode="local",
-                src=local_input,
-                dest=remote_input,
-            )
-        return result
+        result = sync_files(
+            mode=conn["mode"],
+            src=local_input,
+            dest=remote_input,
+            ip=conn["ip"],
+            user=conn["user"],
+            port=conn["port"],
+            auth_secret=conn["auth_secret"],
+            ssh_opts=conn["ssh_opts"],
+        )
     except Exception as exc:  # pylint: disable=broad-except
         return {
             "success": False,
             "details": "",
             "error": f"Input sync failed: {exc}",
         }
+
+    if result["success"]:
+        result["details"] = f"Synced {local_input} -> {remote_input}"
+    return result

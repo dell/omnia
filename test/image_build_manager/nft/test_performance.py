@@ -97,9 +97,10 @@ def test_build_performance():
 
 
 @pytest.mark.nft
+@pytest.mark.destructive
 @pytest.mark.order(3)
 def test_cleanup_performance():
-    """Verify cleanup completes within threshold."""
+    """Verify opt-in cleanup completes within threshold."""
     tc = TC["cleanup_performance"]
     tl = TestLogger(tc["title"], tc["id"])
     result = run_playbook(

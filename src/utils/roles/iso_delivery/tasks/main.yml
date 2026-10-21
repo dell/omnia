@@ -18,3 +18,14 @@
 
 - name: Deploy OS via iDRAC virtual media
   ansible.builtin.include_tasks: deploy_os.yml
+
+# Clean up the NFS mount auto-mounted by validate_install_os_config for a
+# standalone `--tags deploy` run (or a no-tags end-to-end run where
+# iso_creation found the share already mounted and left it alone). Only
+# unmounts when this role's own resolution chain was the one that mounted it.
+- name: Unmount NFS auto-mounted for deploy mode
+  ansible.builtin.command:
+    cmd: umount /tmp/install_os_nfs
+  when: _deploy_nfs_auto_mounted | default(false) | bool
+  changed_when: true
+  failed_when: false

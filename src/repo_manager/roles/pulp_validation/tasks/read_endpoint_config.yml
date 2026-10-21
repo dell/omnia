@@ -38,15 +38,25 @@
         msg: "{{ endpoint_config_file_not_found_msg }}"
       when: not endpoint_config_file.stat.exists
 
-    - name: Include endpoint config file
-      ansible.builtin.include_vars:
-        file: "{{ repo_manager_endpoint_config }}"
-        name: endpoint_config
+    - name: Parse and validate endpoint config file
+      load_validated_yaml:
+        path: "{{ repo_manager_endpoint_config }}"
+      register: _endpoint_config_load
+
+    - name: Publish validated endpoint configuration
+      ansible.builtin.set_fact:
+        endpoint_config: "{{ _endpoint_config_load.data }}"
 
   rescue:
-    - name: Failed to include repo_manager_endpoint_config.yml
+    - name: Reject invalid repo_manager_endpoint_config.yml
       ansible.builtin.fail:
-        msg: "{{ endpoint_config_syntax_fail_msg }}"
+        msg: >-
+          {{ endpoint_config_syntax_fail_msg }}
+          Runtime configuration must contain literal YAML values without
+          Jinja template syntax. Error code:
+          {{ _endpoint_config_load.error_code | default('validation_failed') }}.
+          Location:
+          {{ _endpoint_config_load.error_location | default('$') }}.
 
 - name: Resolve system administration IP fallback
   ansible.builtin.set_fact:

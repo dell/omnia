@@ -27,18 +27,69 @@
 # Phase 1: Ensure SSH keypair exists on OIM
 # =========================================================================
 
-- name: Check if SSH keypair exists
+- name: Ensure SSH directory exists
+  ansible.builtin.file:
+    path: "{{ aarch64_ssh_private_key_path | dirname }}"
+    state: directory
+    mode: "0700"
+
+- name: Check if SSH private key exists
   ansible.builtin.stat:
-    path: /root/.ssh/id_rsa
-  register: _ssh_key_stat
+    path: "{{ aarch64_ssh_private_key_path }}"
+  register: _ssh_private_key_stat
+
+- name: Check if SSH public key exists
+  ansible.builtin.stat:
+    path: "{{ aarch64_ssh_public_key_path }}"
+  register: _ssh_public_key_stat
+
+- name: Fail when SSH public key has no matching private key
+  ansible.builtin.fail:
+    msg: "{{ ssh_orphaned_public_key_fail_msg }}"
+  when:
+    - not _ssh_private_key_stat.stat.exists
+    - _ssh_public_key_stat.stat.exists
 
 - name: Generate SSH keypair
-  when: not _ssh_key_stat.stat.exists
+  when:
+    - not _ssh_private_key_stat.stat.exists
+    - not _ssh_public_key_stat.stat.exists
   ansible.builtin.command:
-    cmd: ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N ""
-    creates: /root/.ssh/id_rsa
+    argv:
+      - ssh-keygen
+      - -t
+      - rsa
+      - -b
+      - "4096"
+      - -f
+      - "{{ aarch64_ssh_private_key_path }}"
+      - -N
+      - ""
+    creates: "{{ aarch64_ssh_private_key_path }}"
   register: _ssh_keygen
   changed_when: _ssh_keygen.rc == 0
+
+- name: Enforce SSH private key permissions
+  ansible.builtin.file:
+    path: "{{ aarch64_ssh_private_key_path }}"
+    state: file
+    mode: "0600"
+
+- name: Derive public key from managed private key
+  ansible.builtin.command:
+    argv:
+      - ssh-keygen
+      - -y
+      - -f
+      - "{{ aarch64_ssh_private_key_path }}"
+  register: _ssh_derived_public_key
+  changed_when: false
+
+- name: Reconcile matching SSH public key
+  ansible.builtin.copy:
+    content: "{{ _ssh_derived_public_key.stdout | trim }}\n"
+    dest: "{{ aarch64_ssh_public_key_path }}"
+    mode: "0644"
 
 # =========================================================================
 # Phase 2: Add aarch64 host to known_hosts
@@ -54,9 +105,21 @@
 # =========================================================================
 
 - name: Check if passwordless SSH is already enabled
-  ansible.builtin.command: >-
-    ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no
-    {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }} 'echo OK'
+  ansible.builtin.command:
+    argv:
+      - ssh
+      - -i
+      - "{{ aarch64_ssh_private_key_path }}"
+      - -o
+      - IdentitiesOnly=yes
+      - -o
+      - BatchMode=yes
+      - -o
+      - ConnectTimeout=10
+      - -o
+      - StrictHostKeyChecking=no
+      - "{{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }}"
+      - echo OK
   register: _ssh_check
   changed_when: false
   failed_when: false
@@ -64,6 +127,7 @@
 - name: Set SSH passwordless status
   ansible.builtin.set_fact:
     aarch64_ssh_passwordless: "{{ (_ssh_check.rc | default(1) == 0) | bool }}"
+    aarch64_ssh_initially_configured: "{{ (_ssh_check.rc | default(1) == 0) | bool }}"
     cacheable: true
 
 # =========================================================================
@@ -74,14 +138,22 @@
   when: not (aarch64_ssh_passwordless | bool)
   ansible.builtin.expect:
     command: >-
-      ssh-copy-id -o StrictHostKeyChecking=no
-      -i /root/.ssh/id_rsa.pub
+      ssh-copy-id -o StrictHostKeyChecking=no -o IdentitiesOnly=yes
+      -i {{ aarch64_ssh_public_key_path }}
       {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }}
     responses:
       "(?i)password:": "{{ aarch64_ssh_password | default('') }}"
   no_log: true
   register: _ssh_copy_id_result
+  changed_when: _ssh_copy_id_result.rc | default(1) == 0
   failed_when: false
+
+- name: Fail safely if SSH public key installation failed
+  when:
+    - not (aarch64_ssh_passwordless | bool)
+    - _ssh_copy_id_result.rc | default(1) != 0
+  ansible.builtin.fail:
+    msg: "{{ ssh_key_install_fail_msg }}"
 
 # =========================================================================
 # Phase 5: Verify passwordless SSH works
@@ -89,17 +161,34 @@
 
 - name: Verify passwordless SSH is working
   when: not (aarch64_ssh_passwordless | bool)
-  ansible.builtin.command: >-
-    ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=no
-    {{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }} 'echo OK'
+  ansible.builtin.command:
+    argv:
+      - ssh
+      - -i
+      - "{{ aarch64_ssh_private_key_path }}"
+      - -o
+      - IdentitiesOnly=yes
+      - -o
+      - BatchMode=yes
+      - -o
+      - ConnectTimeout=10
+      - -o
+      - StrictHostKeyChecking=no
+      - "{{ aarch64_ssh_user | default('root') }}@{{ aarch64_inventory_host_ip }}"
+      - echo OK
   register: _ssh_verify
   changed_when: false
   failed_when: false
 
+- name: Update SSH passwordless status after key installation
+  ansible.builtin.set_fact:
+    aarch64_ssh_passwordless: >-
+      {{ (aarch64_ssh_passwordless | bool)
+         or (_ssh_verify.rc | default(1) == 0) }}
+    cacheable: true
+
 - name: Fail if SSH setup failed
-  when:
-    - not (aarch64_ssh_passwordless | bool)
-    - _ssh_verify.rc | default(1) != 0
+  when: not (aarch64_ssh_passwordless | bool)
   ansible.builtin.fail:
     msg: "{{ ssh_setup_fail_msg }}"
 
@@ -107,5 +196,5 @@
   ansible.builtin.debug:
     msg: >-
       SSH to {{ aarch64_inventory_host_ip }}:
-      {{ 'already configured (passwordless)' if (aarch64_ssh_passwordless | bool)
+      {{ 'already configured (passwordless)' if (aarch64_ssh_initially_configured | bool)
          else 'configured via ssh-copy-id' }}

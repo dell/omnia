@@ -17,7 +17,7 @@
 #
 # Cleans up the BuildStream infrastructure (NOT GitLab):
 #   1. Stops and removes omnia_build_stream container & quadlet service
-#   2. Stops and removes playbook_watcher service
+#   2. Stops and removes playbook-watcher service
 #   3. Removes automation framework (molecule/validate)
 #   4. Stops and removes omnia_postgres container & quadlet service
 #   5. Cleans up NFS directories (logs, queue, SSL, inventory, etc.)

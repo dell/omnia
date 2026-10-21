@@ -28,16 +28,15 @@ The Catalog workflow provides:
 ## Key Logic Locations
 
 **Primary Files:**
-- `api/catalog_roles/routes.py` - HTTP endpoints for catalog operations
 - `api/parse_catalog/routes.py` - Catalog parsing endpoints
 - `orchestrator/catalog/use_cases/parse_catalog.py` - Catalog parsing logic
-- `orchestrator/catalog/use_cases/generate_input_files.py` - Input file generation
 
 **Main Components:**
 - **ParseCatalogUseCase** - Handles catalog parsing and validation
-- **GenerateInputFilesUseCase** - Creates Ansible input files
-- **CatalogRolesService** - Role generation and management
 - **CatalogRepository** - Catalog data persistence
+
+The `/catalog/roles` API and the `generate-input-files` stage were retired
+in Omnia 2.3; each domain now consumes the catalog directly.
 
 ## Workflow Flow
 

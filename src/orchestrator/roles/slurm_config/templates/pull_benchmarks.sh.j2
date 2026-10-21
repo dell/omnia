@@ -5,21 +5,24 @@
 # Downloads from Pulp mirror only (no internet fallback)
 # Usage: pull_benchmarks.sh
 
-LOGFILE="/var/log/pull_benchmarks.log"
+LOGFILE="${OMNIA_BENCHMARK_LOGFILE:-/var/log/pull_benchmarks.log}"
 exec > >(tee -a "$LOGFILE") 2>&1
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BENCHMARK_TOOLS_LIST="${SCRIPT_DIR}/benchmark_tools.list"
-HPC_TOOLS_DIR="/hpc_tools"
-ARCH="$(uname -m)"
-OS_VERSION="{{ hostvars['localhost']['cluster_os_version'] }}"
+HPC_TOOLS_DIR="${OMNIA_HPC_TOOLS_DIR:-/hpc_tools}"
+PLATFORM_HELPER="${HPC_TOOLS_DIR}/scripts/omnia_platform.sh"
+. "$PLATFORM_HELPER" || exit 1
+omnia_detect_platform || exit 1
+ARCH="$OMNIA_ARCH"
 PULP_SERVER="{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
 PULP_CONTENT_BASE="https://${PULP_SERVER}/pulp/content/offline_repo/cluster"
 
 echo "===== Starting Benchmark Tarball Pull Script (Pulp Only) ====="
 echo "[INFO] Timestamp: $(date)"
 echo "[INFO] Architecture: $ARCH"
+echo "[INFO] Platform: $OMNIA_OS_TYPE $OMNIA_OS_VERSION"
 echo "[INFO] Pulp mirror: $PULP_SERVER"
 
 # Check prerequisites
@@ -39,6 +42,37 @@ if [ ! -d "$HPC_TOOLS_DIR" ]; then
     echo "[ERROR] /hpc_tools is not mounted or does not exist"
     exit 1
 fi
+
+# Serialize same-platform pulls on shared NFS using atomic directory creation.
+# Every owner checks the archives again after acquiring the lock.
+mkdir -p "$OMNIA_PLATFORM_ROOT" || exit 1
+LOCK_DIR="${OMNIA_PLATFORM_ROOT}/.pull_benchmarks.lock"
+LOCK_TIMEOUT="${OMNIA_BENCHMARK_LOCK_TIMEOUT:-1800}"
+if [[ ! "$LOCK_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[ERROR] Invalid benchmark lock timeout: $LOCK_TIMEOUT"
+    exit 1
+fi
+LOCK_STARTED=$SECONDS
+while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+    if (( SECONDS - LOCK_STARTED >= LOCK_TIMEOUT )); then
+        echo "[ERROR] Timed out waiting for benchmark lock: $LOCK_DIR"
+        exit 1
+    fi
+    sleep 1
+done
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+tool_directory_valid() {
+    local archive found=0
+    [ -d "$1" ] || return 1
+    while IFS= read -r -d '' archive; do
+        found=1
+        tar -tzf "$archive" >/dev/null 2>&1 || return 1
+    done < <(find "$1" -maxdepth 1 -type f -name '*.tar.gz' -print0)
+    [ "$found" -eq 1 ]
+}
 
 # Function to download all files from a Pulp content directory into a local directory.
 # Uses wget (preferred) or curl as fallback.
@@ -105,17 +139,22 @@ while IFS= read -r tool || [ -n "$tool" ]; do
         continue
     fi
 
-    PULP_URL="${PULP_CONTENT_BASE}/${ARCH}/rhel/${OS_VERSION}/tarball/${tool}"
-    DEST_DIR="${HPC_TOOLS_DIR}/${tool}"
+    PULP_URL="${PULP_CONTENT_BASE}/${OMNIA_PULP_PLATFORM_PATH}/tarball/${tool}"
+    DEST_DIR="${OMNIA_PLATFORM_ROOT}/${tool}"
 
     echo "[INFO] Pulp URL: $PULP_URL"
     echo "[INFO] Destination: $DEST_DIR"
 
-    # Skip if already staged
-    if [ -d "$DEST_DIR" ] && [ -n "$(ls -A "$DEST_DIR" 2>/dev/null)" ]; then
+    # Reuse only complete archives; preserve damaged content for diagnosis.
+    if tool_directory_valid "$DEST_DIR"; then
         echo "[WARN] $tool already present at $DEST_DIR. Skipping."
         echo "[INFO] Remove the directory to re-download."
         ((SKIPPED_COUNT++))
+        continue
+    elif [ -d "$DEST_DIR" ] && [ -n "$(ls -A "$DEST_DIR" 2>/dev/null)" ]; then
+        echo "[ERROR] Invalid or incomplete benchmark content: $DEST_DIR"
+        ((FAILED_COUNT++))
+        FAILED_TOOLS="${FAILED_TOOLS}\n  - ${tool} (invalid content)"
         continue
     fi
 
@@ -124,13 +163,13 @@ while IFS= read -r tool || [ -n "$tool" ]; do
     echo "[INFO] Pulling from Pulp mirror..."
 
     if pull_from_pulp "$PULP_URL" "$DEST_DIR"; then
-        if [ -n "$(ls -A "$DEST_DIR" 2>/dev/null)" ]; then
+        if tool_directory_valid "$DEST_DIR"; then
             echo "[SUCCESS] $tool staged at $DEST_DIR"
             echo "[SOURCE] Downloaded from: PULP MIRROR ($PULP_SERVER)"
             ls -lh "$DEST_DIR"
             ((SUCCESS_COUNT++))
         else
-            echo "[ERROR] Pull returned success but no files found for $tool"
+            echo "[ERROR] Pull did not produce valid tar.gz archives for $tool"
             rmdir "$DEST_DIR" 2>/dev/null
             ((FAILED_COUNT++))
             FAILED_TOOLS="${FAILED_TOOLS}\n  - ${tool} (no files downloaded)"

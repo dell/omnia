@@ -12,45 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Create an SMD group for a single functional group.
-# Extracted from configure_ochami/tasks/create_groups.yml.
-# Called in a loop with fg_name set by the caller.
+# Reconcile one functional group's complete membership directly through SMD.
 
-- name: Set functional_group_name for template compatibility
-  ansible.builtin.set_fact:
-    functional_group_name: "{{ fg_name }}"
-
-- name: Generate SMD groups YAML for {{ fg_name }}
-  ansible.builtin.template:
-    src: "{{ openchami_groups_template }}"
-    dest: "{{ nodes_dir }}/groups-{{ fg_name }}.yml"
-    mode: "{{ file_permissions_644 }}"
-  vars:
-    smd_group_nodes: >-
-      {{ hostvars['localhost']['read_mapping_file']['dict'] | dict2items
-         | selectattr('value.FUNCTIONAL_GROUP_NAME', 'in', target_fg_names)
-         | list }}
-
-- name: Get current SMD groups
-  ansible.builtin.command: /usr/bin/ochami smd group get
-  changed_when: false
-  register: smd_group_data
-  retries: 3
-  delay: 15
-  until: smd_group_data.rc == 0
-
-- name: Parse existing SMD groups
-  ansible.builtin.set_fact:
-    existing_smd_groups: "{{ smd_group_data.stdout | from_json }}"
-    existing_smd_group_names: "{{ (smd_group_data.stdout | from_json) | map(attribute='label') | list }}"
-
-- name: POST new SMD group - {{ fg_name }}
-  ansible.builtin.command: >
-    /usr/bin/ochami smd group add -f yaml
-    -d @{{ nodes_dir }}/groups-{{ fg_name }}.yml
-  changed_when: true
-  when: fg_name not in existing_smd_group_names
-
-- name: Update existing SMD group - {{ fg_name }}
-  ansible.builtin.include_tasks: "{{ role_path }}/../configure_ochami/tasks/update_smd_groups.yaml"
-  when: fg_name in existing_smd_group_names
+- name: Reconcile SMD group - {{ fg_name }}
+  openchami_reconcile:
+    action: reconcile_groups
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    smd_groups:
+      - label: "{{ fg_name }}"
+        members:
+          ids: >-
+            {{ hostvars['localhost']['read_mapping_file']['dict']
+               | dict2items
+               | selectattr('value.FUNCTIONAL_GROUP_NAME', 'equalto', fg_name)
+               | map(attribute='value.XNAME') | sort | list }}
+  register: _functional_group_reconcile
+  no_log: true

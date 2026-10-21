@@ -63,6 +63,14 @@ login_node_x86_64:
 {% endfor %}
 {% endif %}
 
+# Login Compiler Nodes (x86_64)
+{% if login_compiler_node_x86_64 %}
+login_compiler_node_x86_64:
+{% for ip in login_compiler_node_x86_64 %}
+  - "{{ ip }}"
+{% endfor %}
+{% endif %}
+
 # Login Compiler Nodes (aarch64)
 {% if login_compiler_node_aarch64 %}
 login_compiler_node_aarch64:

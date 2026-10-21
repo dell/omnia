@@ -4,6 +4,14 @@ Setup role that runs first under the `always` tag. It resolves environment and
 project paths, creates runtime directories, validates tags, loads the image
 configuration, and conditionally validates/parses `repo_status.yml`.
 
+## Structure
+
+- `tasks/main.yml` is the composition entry point.
+- `tasks/validate_tags.yml` validates lifecycle tags and combinations.
+- `tasks/load_config.yml` resolves environment, project paths, and directories.
+- `tasks/validate_prereqs.yml` checks lifecycle-specific input requirements.
+- `tasks/load_repo_status.yml` validates and loads the repository contract.
+
 ## What It Does
 
 1. Validates requested top-level tags and rejects unsupported combinations.
@@ -43,16 +51,20 @@ performed by the separate `validate_image_build_input` role.
 
 ## Role Variables
 
-See `vars/main.yml`; this role has no `defaults/main.yml`.
+See `vars/main.yml` for internal constants, supported tags, and messages. The
+role does not currently expose user-overridable defaults.
 
 ## Dependencies
 
 None (this is the first role to run).
 
-## Example
+## Example Playbook
 
 ```yaml
-- hosts: localhost
+- name: Initialize Image Build Manager
+  hosts: localhost
+  connection: local
+  gather_facts: false
   roles:
-    - image_build_setup
+    - role: image_build_setup
 ```

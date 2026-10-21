@@ -912,10 +912,7 @@ class ValidationRunner:
                 count = _count_test_files(self.nft_dir)
                 _yellow("NFT Tests:")
                 _green("  nft", end="")
-                print(
-                    f"  ({count} test files"
-                    " — performance, idempotency)"
-                )
+                print(f"  ({count} non-functional test files)")
             else:
                 _warn("NFT directory not found")
         elif category == "ut":
@@ -1474,6 +1471,32 @@ class ValidationRunner:
     # HELP
     # -----------------------------------------------------------------
 
+    def _print_suite_exec_owner_help(self) -> None:
+        """Print commands for suites that own their execution lifecycle."""
+        if not self._suite_exec_owners:
+            return
+
+        _yellow("SUITE-OWNED EXECUTION")
+        print(
+            "  Deploy-marked scenario tests in these suites run during "
+            "exec and test."
+        )
+        print(
+            "  verify runs only non-deploy tests and may have no cases "
+            "for such a suite."
+        )
+        for tag, suites in self._suite_exec_owners.items():
+            for suite in suites:
+                print(
+                    f"  ./run_validation.sh {self.cat_fvt} {tag} exec"
+                    f" --suite {suite}"
+                )
+                print(
+                    f"  ./run_validation.sh {self.cat_fvt} {tag} test"
+                    f" --suite {suite}"
+                )
+        print()
+
     def _print_help(self) -> None:  # pylint: disable=too-many-statements
         """Print top-level help text."""
         d = self.domain
@@ -1541,6 +1564,7 @@ class ValidationRunner:
         print("  -v, --verbose     Increase verbosity")
         print("  --debug           Full debug (-vvs)")
         print()
+        self._print_suite_exec_owner_help()
         f = self.cat_fvt
         n = self.cat_nft
         u = self.cat_ut
@@ -1570,7 +1594,7 @@ class ValidationRunner:
             print(f"  ./run_validation.sh {u} test")
         print()
 
-    def _print_fvt_help(self) -> None:
+    def _print_fvt_help(self) -> None:  # pylint: disable=too-many-statements
         """Print FVT-specific help text."""
         f = self.cat_fvt
         _separator()
@@ -1626,6 +1650,7 @@ class ValidationRunner:
             for m in self._domain_markers:
                 print(f"  {m}")
             print()
+        self._print_suite_exec_owner_help()
         _yellow("EXAMPLES")
         # Dynamic examples based on domain config
         tags = self._get_fvt_tags()

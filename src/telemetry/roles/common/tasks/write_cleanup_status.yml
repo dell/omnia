@@ -143,9 +143,15 @@
     _has_failed: >-
       {{ 'failed' in _component_values or _cleanup_failures | length > 0 }}
     _has_cleaned: "{{ 'cleaned' in _component_values }}"
+    _has_blocked: "{{ 'blocked' in _component_values }}"
+    _is_selective_blocked: >-
+      {{ (_cleanup_sinks | default(false) | bool)
+         and not (_cleanup_all | default(false) | bool)
+         and (_cleanup_sinks_any_blocked | default(false) | bool) }}
   ansible.builtin.set_fact:
     _cleanup_status: >-
-      {% if _has_failed %}failed{% elif _has_cleaned %}passed{% else %}skipped{% endif %}
+      {% if _has_failed %}failed{% elif _is_selective_blocked | bool %}blocked
+      {% elif _has_cleaned %}passed{% elif _has_blocked %}passed{% else %}skipped{% endif %}
     _status_type: cleanup
 
 - name: Build per-component volume cleanup results
@@ -156,11 +162,8 @@
           'skipped' if _cleanup_components.idrac == 'skipped'
           else ('cleaned' if _cleanup_components.idrac == 'cleaned' else 'failed')
         }}
-      ldms: >-
-        {{
-          'skipped' if _cleanup_components.ldms == 'skipped'
-          else ('cleaned' if _cleanup_components.ldms == 'cleaned' else 'failed')
-        }}
+      # LDMS has no persistent volume; no volume cleanup is applicable.
+      ldms: skipped
       ome: skipped
       powerscale: >-
         {{
@@ -171,7 +174,7 @@
       vast: skipped
       kafka: >-
         {{
-          'skipped' if _cleanup_components.kafka == 'skipped'
+          'skipped' if _cleanup_components.kafka in ['skipped', 'blocked']
           else (
             'preserved' if not (_cleanup_delete_sinks_volume_enabled | bool)
             else ('cleaned' if _cleanup_components.kafka == 'cleaned' else 'failed')
@@ -179,7 +182,7 @@
         }}
       victoria_metrics: >-
         {{
-          'skipped' if _cleanup_components.victoria_metrics == 'skipped'
+          'skipped' if _cleanup_components.victoria_metrics in ['skipped', 'blocked']
           else (
             'preserved' if not (_cleanup_delete_sinks_volume_enabled | bool)
             else ('cleaned' if _cleanup_components.victoria_metrics == 'cleaned' else 'failed')
@@ -187,7 +190,7 @@
         }}
       victoria_logs: >-
         {{
-          'skipped' if _cleanup_components.victoria_logs == 'skipped'
+          'skipped' if _cleanup_components.victoria_logs in ['skipped', 'blocked']
           else (
             'preserved' if not (_cleanup_delete_sinks_volume_enabled | bool)
             else ('cleaned' if _cleanup_components.victoria_logs == 'cleaned' else 'failed')
@@ -240,7 +243,9 @@
   ansible.builtin.debug:
     msg:
       - "======================================================"
-      - "Telemetry Cleanup Status: {{ _cleanup_status | upper | trim }}"
+      - >-
+        Telemetry Cleanup Status: {{ _cleanup_status | upper | trim }}{%- if
+        _cleanup_status | trim == 'blocked' %} (sink dependencies prevent cleanup){% endif %}
       - "Volumes: {{ _cleanup_volume_status | upper | trim }}"
       - "======================================================"
       - "Output: {{ _output_base }}/telemetry_status.yml"

@@ -1,0 +1,48 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Build additional metadata SMD group membership
+  ansible.builtin.set_fact:
+    _additional_smd_group_label: >-
+      {{ additional_metadata_svc_fg_group_prefix }}{{ additional_group_fg_name }}
+    _additional_smd_group_members: >-
+      {% set result = [] -%}
+      {% set target = additional_group_fg_name
+                      | regex_replace('^service_kube_control_plane_first_',
+                                      'service_kube_control_plane_') -%}
+      {% for entry in hostvars['localhost']['read_mapping_file']['dict']
+                          | dict2items -%}
+      {% set candidate = entry.value.FUNCTIONAL_GROUP_NAME
+                         | regex_replace('^service_kube_control_plane_first_',
+                                         'service_kube_control_plane_') -%}
+      {% if candidate == target -%}
+      {% set _ = result.append(entry.value.XNAME) -%}
+      {% endif -%}
+      {% endfor -%}
+      {{ result | sort }}
+
+- name: Reconcile additional metadata SMD group
+  openchami_reconcile:
+    action: reconcile_groups
+    cluster_uri: "{{ openchami_api_uri }}"
+    access_token: >-
+      {{ ochami_env[cluster_env_key] }}
+    ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+    smd_groups:
+      - label: "{{ _additional_smd_group_label }}"
+        members:
+          ids: "{{ _additional_smd_group_members }}"
+  register: _additional_smd_group_reconcile
+  no_log: true

@@ -101,9 +101,7 @@
 - name: Build iDRAC StatefulSet readiness summary
   ansible.builtin.set_fact:
     idrac_statefulset_summary: >-
-      {{ idrac_telemetry_k8s_name }}
-      ({{ sts_ready.stdout | default('0') }}/
-      {{- idrac_replica_count | default(1) }} ready)
+      {{ idrac_telemetry_k8s_name }} ({{ sts_ready.stdout | default('0') }}/{{- idrac_replica_count | default(1) }} ready)
 
 - name: Display verification summary
   ansible.builtin.debug:

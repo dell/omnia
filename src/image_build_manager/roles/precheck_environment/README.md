@@ -6,6 +6,25 @@ This role runs **after** `image_build_setup` (which has `tags: always`), so all
 env var facts (`admin_nic_ip`, `host_name`, `domain_name`, etc.) are already
 loaded and validated as non-empty.
 
+## Structure
+
+- `tasks/main.yml` performs setup, host identity, network, path, and repository checks.
+- `vars/main.yml` contains precheck paths and user-facing messages.
+
+## Requirements
+
+- The Omnia environment must be loaded before the role runs.
+- The target host must provide standard hostname and IP inspection commands.
+
+## Role Variables
+
+See `vars/main.yml` for the setup marker and repository-status paths.
+
+## Dependencies
+
+No automatic role dependency is declared. Callers run `image_build_setup`
+first so validated environment and project facts are available.
+
 ## Separation of concerns
 
 | Concern | Who handles it | How |
@@ -31,7 +50,18 @@ are SET; this role checks they MATCH the actual system.
 | Data path | `validate_system_environment` (`stat`) | Fail | OMNIA_DATA_PATH directory exists |
 | repo_status.yml | `stat` | Warning | repo_manager output exists |
 
-## Usage
+## Example Playbook
+
+```yaml
+- name: Precheck Image Build Manager environment
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: precheck_environment
+```
+
+## Command Example
 
 ```bash
 cd src/image_build_manager/playbooks

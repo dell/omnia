@@ -108,7 +108,7 @@ def validate_against_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> tup
     return True, []
 
 
-def main():
+def main() -> None:
     """Main module entry point."""
     module = AnsibleModule(
         argument_spec=dict(

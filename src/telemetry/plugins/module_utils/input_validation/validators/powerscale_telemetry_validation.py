@@ -37,7 +37,7 @@ def validate_powerscale_telemetry_config(
     data, powerscale_collection_targets,
     is_service_cluster_defined, config_paths, logger, errors,
     telemetry_packages_file_path=None
-):
+) -> None:
     """
     Validates PowerScale telemetry configuration in telemetry_config.yml.
 

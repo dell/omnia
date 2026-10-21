@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 orchestrator_config_file: "{{ hostvars['localhost']['orchestrator_config_file'] | default('orchestrator_config.yml') }}"
 omnia_config_file: "omnia_config.yml"
 omnia_config_dir: "{{ hostvars['localhost']['omnia_project_input_dir'] | default(input_project_dir) }}"
 functional_groups_config_path: >-
   {{ orchestrator_output_dir }}/.data/functional_groups_config.yml
+# Centralized failure messages
+functional_groups_file_fail_msg: "Failed to create functional groups file at {{ functional_groups_config_path }}"

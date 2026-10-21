@@ -65,6 +65,10 @@ class JobMapper:
             request_client_id=job.request_client_id,
             client_name=job.client_name,
             job_state=job.job_state.value,
+            composite_image_group_id=job.composite_image_group_id,
+            catalog_identifier=job.catalog_identifier,
+            catalog_version=job.catalog_version,
+            catalog_schema_version=job.catalog_schema_version,
             created_at=job.created_at,
             updated_at=job.updated_at,
             version=job.version,
@@ -87,6 +91,10 @@ class JobMapper:
             request_client_id=model.request_client_id,
             client_name=model.client_name,
             job_state=JobState(model.job_state),
+            composite_image_group_id=model.composite_image_group_id,
+            catalog_identifier=model.catalog_identifier,
+            catalog_version=model.catalog_version,
+            catalog_schema_version=model.catalog_schema_version,
             created_at=model.created_at,
             updated_at=model.updated_at,
             version=model.version,
@@ -250,9 +258,15 @@ class ImageGroupMapper:
         return ImageGroupModel(
             id=str(entity.id),
             job_id=str(entity.job_id),
+            catalog_identifier=entity.catalog_identifier,
+            catalog_version=entity.catalog_version,
+            catalog_schema_version=entity.catalog_schema_version,
             status=entity.status.value,
+            deploy_count=entity.deploy_count,
+            is_protected=entity.is_protected,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
+            last_deployed_at=entity.last_deployed_at,
         )
 
     @staticmethod
@@ -270,9 +284,15 @@ class ImageGroupMapper:
             id=ImageGroupId(model.id),
             job_id=JobId(model.job_id),
             status=ImageGroupStatus(model.status),
+            catalog_identifier=model.catalog_identifier,
+            catalog_version=model.catalog_version,
+            catalog_schema_version=model.catalog_schema_version,
+            deploy_count=model.deploy_count,
+            is_protected=model.is_protected,
             images=images,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            last_deployed_at=model.last_deployed_at,
         )
 
 
@@ -294,6 +314,7 @@ class ImageMapper:
             image_group_id=entity.image_group_id,
             role=entity.role,
             image_name=entity.image_name,
+            manifest_path=entity.manifest_path,
             created_at=entity.created_at,
         )
 
@@ -312,5 +333,6 @@ class ImageMapper:
             image_group_id=model.image_group_id,
             role=model.role,
             image_name=model.image_name,
+            manifest_path=model.manifest_path,
             created_at=model.created_at,
         )
