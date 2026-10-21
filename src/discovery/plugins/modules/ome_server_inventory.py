@@ -31,8 +31,6 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 DOCUMENTATION = r'''
 ---
 module: ome_server_inventory
@@ -129,6 +127,9 @@ class OMEClient:
         self.session = requests.Session()
         self.session.verify = verify_ssl
         self.auth_token = None
+        if not verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            logger.warning("SSL verification disabled — connections are not secure")
 
     def authenticate(self):
         """Authenticate with OME and obtain session token."""
