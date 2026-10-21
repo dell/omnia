@@ -102,6 +102,10 @@ from library.functions.pipeline_func import (
     get_stage_state,
     verify_stage_completed,
     get_image_groups_for_job,
+    check_automatic_cleanup_runtime,
+    check_automatic_cleanup_target,
+    run_automatic_cleanup_cycle,
+    wait_for_automatic_cleanup,
     get_catalog_identity_for_job,
     get_images_for_job,
     resolve_deploy_image_group,
@@ -199,6 +203,11 @@ from library.functions.validation_func import (
     validate_test_config,
     validate_all,
     ConfigValidationError,
+)
+
+# --- Non-functional security (file permissions / ownership) ---
+from library.functions.security_func import (
+    check_file_permissions,
 )
 
 # --- Non-functional resilience and security ---
@@ -397,4 +406,6 @@ __all__ = [
     "validate_test_config",
     "validate_all",
     "ConfigValidationError",
+    # NFT security (file permissions / ownership)
+    "check_file_permissions",
 ]

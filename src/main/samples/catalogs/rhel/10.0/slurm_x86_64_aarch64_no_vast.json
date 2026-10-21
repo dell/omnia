@@ -222,8 +222,6 @@
         "components": [
           "cffi==1_17_1",
           "cryptography==45_0_7",
-          "kubernetes==33_1_0",
-          "omsdk==1_2_518",
           "prettytable==3_14_0"
         ]
       },
@@ -1896,26 +1894,6 @@
           }
         ]
       },
-      "omsdk==1_2_518": {
-        "name": "omsdk==1.2.518",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "pypi",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "name": "pypi",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "device_mapper": {
         "name": "device-mapper",
         "packagetype": "rpm",
@@ -2755,26 +2733,6 @@
             "architecture": "aarch64",
             "reponame": "slurm_custom",
             "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "kubernetes==33_1_0": {
-        "name": "kubernetes==33.1.0",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "pypi",
-            "version": [
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "name": "pypi",
             "version": [
               "10.0"
             ]

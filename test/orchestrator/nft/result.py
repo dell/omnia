@@ -14,15 +14,10 @@
 
 """Render and enforce structured Orchestrator NFT results."""
 
-from library.functions import TestLogger
-from library.vars import TEST_CASES
 
-
-def verify_nft(host, key, checker, *args):
+def verify_nft(test_log, case, host, checker, *args):
     """Execute one NFT contract, report safe fields, and enforce success."""
-    case = TEST_CASES[key]
     result = checker(host, *args)
-    test_log = TestLogger(case["title"], case["id"])
     if result["success"]:
         test_log.passed_fields(result["details"], result["fields"])
     else:

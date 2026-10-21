@@ -84,7 +84,7 @@ The Build Stream domain provides a FastAPI-based RESTful service that orchestrat
 
 ### Output Files
 - `build_stream_status.yml`: API endpoints and status
-- Job logs: Per-job execution logs in `/opt/omnia/log/build_stream/`
+- Job logs: Per-job API and per-attempt stage playbook logs in `${OMNIA_DATA_PATH}/build_stream/log/<job_id>/`
 
 ## Security Considerations
 

@@ -332,6 +332,9 @@ class MockImageGroupRepo:
         if key in self._groups:
             self._groups[key].status = new_status
 
+    def list_by_status_all(self, status):
+        return [ig for ig in self._groups.values() if ig.status == status]
+
 
 class MockImageRepo:
     """In-memory Image repository for testing."""
@@ -635,15 +638,16 @@ class TestBuildImageSuccess:
         assert ig is None, "ImageGroup should not be created for non-build-image stages"
 
 
-class TestDeployFailureMarksImageGroupFailed:
-    """Regression tests for commit df9466d — deploy failure must mark ImageGroup FAILED.
+class TestDeployFailureDoesNotMarkImageGroupFailed:
+    """Deploy failure must NOT transition ImageGroup to FAILED.
 
-    Before this fix, deploy failures left the ImageGroup in DEPLOYING state,
-    which blocked cleanup from running against it.
+    Deploy failures are job-level failures (configuration issues, queue
+    problems, etc.) and do not indicate anything wrong with the images.
+    Only validate failure should mark ImageGroup FAILED.
     """
 
-    def test_deploy_failure_marks_image_group_failed(self):
-        """Failed deploy result should transition ImageGroup to FAILED."""
+    def test_deploy_failure_does_not_mark_image_group_failed(self):
+        """Failed deploy result should NOT transition ImageGroup to FAILED."""
         job_id = JobId(str(uuid.uuid4()))
 
         stage_repo = MockStageRepo()
@@ -686,8 +690,9 @@ class TestDeployFailureMarksImageGroupFailed:
         poller._on_result_received(result)
 
         saved_ig = ig_repo.find_by_job_id(job_id)
-        assert saved_ig.status == ImageGroupStatus.FAILED, (
-            "Deploy failure must transition ImageGroup to FAILED for cleanup eligibility"
+        assert saved_ig.status == ImageGroupStatus.DEPLOYING, (
+            "Deploy failure must NOT transition ImageGroup to FAILED; "
+            "ImageGroup should remain in DEPLOYING state"
         )
 
     def test_deploy_failure_without_image_group_does_not_crash(self):
@@ -733,15 +738,16 @@ class TestDeployFailureMarksImageGroupFailed:
         assert saved_stage.stage_state == StageState.FAILED
 
 
-class TestRestartFailureMarksImageGroupFailed:
-    """Regression tests for commit df9466d — restart failure must mark ImageGroup FAILED.
+class TestRestartFailureDoesNotMarkImageGroupFailed:
+    """Restart failure must NOT transition ImageGroup to FAILED.
 
-    Same fix as deploy — restart failures were also leaving ImageGroup in
-    RESTARTING state, blocking cleanup.
+    Restart failures are job-level failures (configuration issues, queue
+    problems, etc.) and do not indicate anything wrong with the images.
+    Only validate failure should mark ImageGroup FAILED.
     """
 
-    def test_restart_failure_marks_image_group_failed(self):
-        """Failed restart result should transition ImageGroup to FAILED."""
+    def test_restart_failure_does_not_mark_image_group_failed(self):
+        """Failed restart result should NOT transition ImageGroup to FAILED."""
         job_id = JobId(str(uuid.uuid4()))
 
         stage_repo = MockStageRepo()
@@ -784,8 +790,9 @@ class TestRestartFailureMarksImageGroupFailed:
         poller._on_result_received(result)
 
         saved_ig = ig_repo.find_by_job_id(job_id)
-        assert saved_ig.status == ImageGroupStatus.FAILED, (
-            "Restart failure must transition ImageGroup to FAILED for cleanup eligibility"
+        assert saved_ig.status == ImageGroupStatus.RESTARTING, (
+            "Restart failure must NOT transition ImageGroup to FAILED; "
+            "ImageGroup should remain in RESTARTING state"
         )
 
     def test_restart_failure_without_image_group_does_not_crash(self):
@@ -924,9 +931,8 @@ class TestCleanupResultHandling:
         poller._on_result_received(result)
 
         saved_ig = ig_repo.find_by_job_id(job_id)
-        # Left in CLEANING (not CLEANED, not reverted) so a retry DELETE
-        # can resubmit the cleanup playbook.
-        assert saved_ig.status == ImageGroupStatus.CLEANING
+        assert saved_ig.status == ImageGroupStatus.CLEANUP_FAILED
+        assert saved_ig.status != ImageGroupStatus.CLEANED
         assert job.tombstoned is False
         assert any(e.event_type == "JOB_CLEANUP_FAILED" for e in audit_repo._events)
 
@@ -1310,3 +1316,202 @@ class TestCreateLocalRepoSuccess:
             "Synthetic _first variant should be auto-added"
         )
         assert "service_kube_control_plane_first_x86_64" in metadata["role_images"]
+
+
+class TestAutoCleanupDoesNotCleanDeployOrRestartFailures:
+    """Automatic cleanup must NOT clean images stuck in DEPLOYING or RESTARTING.
+
+    The auto-cleanup cron queries only ImageGroupStatus.FAILED. Since deploy
+    and restart failures no longer transition ImageGroup to FAILED (they
+    remain in DEPLOYING/RESTARTING), those images must not appear in the
+    cleanup candidate list.
+    """
+
+    def test_deploying_image_group_not_in_failed_cleanup_list(self):
+        """ImageGroup in DEPLOYING state must not be returned by FAILED query."""
+        job_id = JobId(str(uuid.uuid4()))
+        ig_repo = MockImageGroupRepo()
+
+        ig = ImageGroup(
+            id=ImageGroupId("deploy-stuck-v1"),
+            job_id=job_id,
+            status=ImageGroupStatus.DEPLOYING,
+        )
+        ig_repo.save(ig)
+
+        failed_groups = ig_repo.list_by_status_all(ImageGroupStatus.FAILED)
+        assert len(failed_groups) == 0, (
+            "DEPLOYING ImageGroup must NOT appear in FAILED cleanup list"
+        )
+
+    def test_restarting_image_group_not_in_failed_cleanup_list(self):
+        """ImageGroup in RESTARTING state must not be returned by FAILED query."""
+        job_id = JobId(str(uuid.uuid4()))
+        ig_repo = MockImageGroupRepo()
+
+        ig = ImageGroup(
+            id=ImageGroupId("restart-stuck-v1"),
+            job_id=job_id,
+            status=ImageGroupStatus.RESTARTING,
+        )
+        ig_repo.save(ig)
+
+        failed_groups = ig_repo.list_by_status_all(ImageGroupStatus.FAILED)
+        assert len(failed_groups) == 0, (
+            "RESTARTING ImageGroup must NOT appear in FAILED cleanup list"
+        )
+
+    def test_only_validate_failed_image_group_in_cleanup_list(self):
+        """Only ImageGroups set to FAILED (by validate) should be cleaned up."""
+        ig_repo = MockImageGroupRepo()
+
+        # Simulate deploy failure — stays in DEPLOYING
+        ig_deploy = ImageGroup(
+            id=ImageGroupId("deploy-fail-v1"),
+            job_id=JobId(str(uuid.uuid4())),
+            status=ImageGroupStatus.DEPLOYING,
+        )
+        ig_repo.save(ig_deploy)
+
+        # Simulate restart failure — stays in RESTARTING
+        ig_restart = ImageGroup(
+            id=ImageGroupId("restart-fail-v1"),
+            job_id=JobId(str(uuid.uuid4())),
+            status=ImageGroupStatus.RESTARTING,
+        )
+        ig_repo.save(ig_restart)
+
+        # Simulate validate failure — correctly set to FAILED
+        ig_validate = ImageGroup(
+            id=ImageGroupId("validate-fail-v1"),
+            job_id=JobId(str(uuid.uuid4())),
+            status=ImageGroupStatus.FAILED,
+        )
+        ig_repo.save(ig_validate)
+
+        failed_groups = ig_repo.list_by_status_all(ImageGroupStatus.FAILED)
+        assert len(failed_groups) == 1, (
+            f"Only validate-failed ImageGroup should be in cleanup list, "
+            f"got {len(failed_groups)}"
+        )
+        assert str(failed_groups[0].id) == "validate-fail-v1"
+
+    def test_deploy_failure_then_cleanup_query_returns_empty(self):
+        """End-to-end: deploy failure via ResultPoller leaves ImageGroup
+        in DEPLOYING, and the cleanup FAILED query returns nothing."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("deploy"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+        ig = ImageGroup(
+            id=ImageGroupId("e2e-deploy-v1"),
+            job_id=job_id,
+            status=ImageGroupStatus.DEPLOYING,
+        )
+        ig_repo.save(ig)
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="deploy",
+            request_id=str(uuid.uuid4()),
+            status="failed",
+            exit_code=1,
+            error_code="DEPLOY_FAILED",
+            error_summary="Deploy playbook failed",
+        )
+
+        poller._on_result_received(result)
+
+        # ImageGroup must still be DEPLOYING
+        saved_ig = ig_repo.find_by_job_id(job_id)
+        assert saved_ig.status == ImageGroupStatus.DEPLOYING
+
+        # Cleanup query must return empty
+        failed_groups = ig_repo.list_by_status_all(ImageGroupStatus.FAILED)
+        assert len(failed_groups) == 0, (
+            "Deploy-failed ImageGroup must NOT be eligible for auto-cleanup"
+        )
+
+    def test_restart_failure_then_cleanup_query_returns_empty(self):
+        """End-to-end: restart failure via ResultPoller leaves ImageGroup
+        in RESTARTING, and the cleanup FAILED query returns nothing."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("restart"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+        ig = ImageGroup(
+            id=ImageGroupId("e2e-restart-v1"),
+            job_id=job_id,
+            status=ImageGroupStatus.RESTARTING,
+        )
+        ig_repo.save(ig)
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="restart",
+            request_id=str(uuid.uuid4()),
+            status="failed",
+            exit_code=1,
+            error_code="RESTART_FAILED",
+            error_summary="Restart playbook failed",
+        )
+
+        poller._on_result_received(result)
+
+        # ImageGroup must still be RESTARTING
+        saved_ig = ig_repo.find_by_job_id(job_id)
+        assert saved_ig.status == ImageGroupStatus.RESTARTING
+
+        # Cleanup query must return empty
+        failed_groups = ig_repo.list_by_status_all(ImageGroupStatus.FAILED)
+        assert len(failed_groups) == 0, (
+            "Restart-failed ImageGroup must NOT be eligible for auto-cleanup"
+        )
+
+    def test_cleanup_allowed_transitions_excludes_deploying_restarting(self):
+        """ALLOWED_TRANSITIONS for cleanup must not include DEPLOYING/RESTARTING."""
+        from core.image_group.state_machine import ALLOWED_TRANSITIONS
+
+        cleanup_allowed = ALLOWED_TRANSITIONS["cleanup"]
+        assert ImageGroupStatus.DEPLOYING not in cleanup_allowed, (
+            "DEPLOYING must not be in cleanup ALLOWED_TRANSITIONS"
+        )
+        assert ImageGroupStatus.RESTARTING not in cleanup_allowed, (
+            "RESTARTING must not be in cleanup ALLOWED_TRANSITIONS"
+        )

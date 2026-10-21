@@ -81,10 +81,158 @@ SHARED_PATH = (
 CREDENTIALS_FILE_NAME = "discovery_credentials.yml"
 CREDENTIALS_KEY_NAME = ".discovery_credentials_key"
 
+# Default functional group for devices without valid OME static groups
+DEFAULT_FUNCTIONAL_GROUP = "slurm_node_rhel_10_0_aarch64"
+
 # Output file patterns
 PXE_MAPPING_PATTERN = "bmc_pxe_mapping_file*.csv"
 PXE_MAPPING_SYMLINK = "bmc_pxe_mapping_file.csv"
 DISCOVERY_REPORT_PATTERN = "bmc_discovery_report*.csv"
+
+# =============================================================================
+# Supported functional groups (Omnia 2.3)
+# =============================================================================
+# Supported OS types in functional group names
+# Only RHEL is supported
+SUPPORTED_OS_TYPES: List[str] = [
+    "rhel",
+]
+
+# Supported architectures in functional group names
+SUPPORTED_ARCHITECTURES: List[str] = [
+    "x86_64",
+    "aarch64",
+]
+
+# Dynamic functional group pattern (Omnia 2.3):
+# <any_prefix>_rhel_<major>_<minor>_<arch>
+#
+# This is the MANDATORY format for all functional groups in Omnia 2.3.
+# - The prefix can be ANY string (e.g., slurm_node, os, sujal, custom_group)
+# - The OS MUST be "rhel"
+# - The OS version (major_minor) is REQUIRED
+# - The architecture (x86_64 or aarch64) is REQUIRED
+#
+# Valid examples:
+#   slurm_control_node_rhel_10_2_x86_64   ✅
+#   slurm_node_rhel_10_2_x86_64           ✅
+#   os_rhel_10_2_x86_64                   ✅
+#   sujal_rhel_10_0_x86_64                ✅  (custom prefix allowed)
+#   my_custom_group_rhel_9_4_aarch64      ✅  (any prefix allowed)
+#   login_node_rhel_10_0_x86_64           ✅
+#
+# Invalid examples:
+#   slurm_node_rocky_9_4_aarch64          ❌ (only rhel supported)
+#   slurm_node_ubuntu_22_04_x86_64        ❌ (only rhel supported)
+#   slurm_node_x86_64                     ❌ (missing _rhel_<version>_)
+#   slurm_node                            ❌ (missing _rhel_<version>_<arch>)
+#
+# Pattern regex: ^.+_rhel_\d+_\d+_(x86_64|aarch64)$
+import re
+FUNCTIONAL_GROUP_PATTERN = re.compile(
+    r'^(.+)_rhel_(\d+)_(\d+)_(x86_64|aarch64)$'
+)
+
+# Combined list for backward compatibility (empty - all groups must be dynamic now)
+SUPPORTED_FUNCTIONAL_GROUPS: List[str] = []
+
+
+def is_supported_functional_group(group_name: str) -> bool:
+    """Check if a functional group name is supported.
+
+    In Omnia 2.3, ALL functional groups MUST follow the pattern:
+        <any_prefix>_rhel_<major>_<minor>_<arch>
+
+    The prefix can be ANY string. The mandatory part is:
+        _rhel_<major>_<minor>_(x86_64|aarch64)
+
+    Valid examples:
+        slurm_control_node_rhel_10_2_x86_64   ✅
+        slurm_node_rhel_10_2_x86_64           ✅
+        os_rhel_10_2_x86_64                   ✅
+        sujal_rhel_10_0_x86_64                ✅
+        my_custom_group_rhel_9_4_aarch64      ✅
+
+    Invalid examples:
+        slurm_node_rocky_9_4_aarch64          ❌ (only rhel supported)
+        slurm_node_ubuntu_22_04_x86_64        ❌ (only rhel supported)
+        slurm_node_x86_64                     ❌ (missing _rhel_<version>_)
+
+    Args:
+        group_name: Functional group name to validate.
+
+    Returns:
+        True if the group is supported, False otherwise.
+    """
+    if not group_name:
+        return False
+
+    # Pattern: <any_prefix>_rhel_<major>_<minor>_<arch>
+    if FUNCTIONAL_GROUP_PATTERN.match(group_name):
+        return True
+
+    return False
+
+
+def parse_functional_group(group_name: str) -> Dict[str, str]:
+    """Parse a functional group name into its components.
+
+    Args:
+        group_name: Functional group name to parse.
+
+    Returns:
+        Dict with keys: prefix, os_type, os_major, os_minor, arch, is_valid.
+        Returns dict with is_valid=False if not a valid group.
+    """
+    result = {
+        "prefix": "",
+        "os_type": "",
+        "os_major": "",
+        "os_minor": "",
+        "arch": "",
+        "is_valid": False,
+    }
+
+    if not group_name:
+        return result
+
+    # Check pattern: <any_prefix>_rhel_<major>_<minor>_<arch>
+    match = FUNCTIONAL_GROUP_PATTERN.match(group_name)
+    if match:
+        result["prefix"] = match.group(1)
+        result["os_type"] = "rhel"
+        result["os_major"] = match.group(2)
+        result["os_minor"] = match.group(3)
+        result["arch"] = match.group(4)
+        result["is_valid"] = True
+
+    return result
+
+# Required columns for PXE mapping CSV (Orchestrator contract)
+ORCHESTRATOR_REQUIRED_COLUMNS: List[str] = [
+    "FUNCTIONAL_GROUP_NAME",
+    "SERVICE_TAG",
+    "HOSTNAME",
+    "ADMIN_MAC",
+    "ADMIN_IP",
+    "BMC_IP",
+    "GROUP_NAME",
+]
+
+# Optional columns that Orchestrator may use
+ORCHESTRATOR_OPTIONAL_COLUMNS: List[str] = [
+    "IB_IP",
+    "IB_NIC_NAME",
+    "PARENT_SERVICE_TAG",
+    "MODEL",
+    "ARCHITECTURE",
+]
+
+# OME API configuration
+OME_API_TIMEOUT: int = 30
+OME_SESSION_ENDPOINT: str = "/api/SessionService/Sessions"
+OME_GROUPS_ENDPOINT: str = "/api/GroupService/Groups"
+OME_GROUP_DEVICES_ENDPOINT: str = "/api/GroupService/Groups({group_id})/Devices"
 
 # =============================================================================
 # Shell commands — all commands MUST be in this dict.

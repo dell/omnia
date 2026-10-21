@@ -18,6 +18,7 @@ import base64
 import json
 import re
 import secrets
+import shlex
 from collections.abc import Mapping
 from typing import Any
 
@@ -29,6 +30,7 @@ from ..vars.pxeboot_vars import (
 )
 from ._kubernetes_helpers import pod_ready
 from ._pxeboot_helpers import (
+    group_fields,
     marker_is_authorized,
     remote_command,
     remote_json,
@@ -37,6 +39,39 @@ from ._pxeboot_helpers import (
 )
 from ._workload_helpers import kubernetes_context as _context
 from ._workload_helpers import optional_skip as _skip
+
+
+def _kubernetes_nfs_storage(context, config) -> dict[str, str]:
+    """Resolve the NFS storage selected by the deployed Kubernetes cluster."""
+    storage_name = str(config.get("nfs_storage_name") or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", storage_name):
+        raise ValueError("service_k8s_cluster.nfs_storage_name is missing or invalid")
+    mounts = context.get("storage_config", {}).get("mounts", [])
+    if not isinstance(mounts, list):
+        raise TypeError("storage_config.mounts must be a list")
+    matches = [
+        item
+        for item in mounts
+        if isinstance(item, Mapping) and item.get("name") == storage_name
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"Storage '{storage_name}' must resolve to exactly one mount entry"
+        )
+    source = str(matches[0].get("source") or "").strip()
+    mount_point = str(matches[0].get("mount_point") or "").rstrip("/")
+    source_match = re.fullmatch(r"([A-Za-z0-9_.-]+):(/[A-Za-z0-9_./-]+)", source)
+    if source_match is None:
+        raise ValueError(f"Storage '{storage_name}' must use an NFS source")
+    if not re.fullmatch(r"/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*", mount_point):
+        raise ValueError(f"Storage '{storage_name}' has an invalid mount point")
+    return {
+        "name": storage_name,
+        "source": source,
+        "server": source_match.group(1),
+        "export": source_match.group(2),
+        "mount_point": mount_point,
+    }
 
 
 def check_kubernetes_default_storage_class(host):
@@ -80,9 +115,11 @@ def check_kubernetes_default_storage_class(host):
                 ("Expected default", expected),
                 ("Observed defaults", ", ".join(defaults) or "none"),
             ],
-            "The default StorageClass does not match the deployment contract"
-            if not ok
-            else "",
+            (
+                "The default StorageClass does not match the deployment contract"
+                if not ok
+                else ""
+            ),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -115,9 +152,164 @@ def check_kubernetes_snapshot_controller(host):
             not failures,
             summary,
             fields,
-            "Missing or unhealthy CSI components: " + ", ".join(failures)
-            if failures
-            else "",
+            (
+                "Missing or unhealthy CSI components: " + ", ".join(failures)
+                if failures
+                else ""
+            ),
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+        return runtime_exception(summary, exc)
+
+
+def check_kubernetes_nfs_provisioner_contract(host):
+    """Verify the NFS provisioner and selected backend configuration."""
+    summary = "Kubernetes NFS provisioner and backend contract"
+    try:
+        context, rows, control, config = _context(host)
+        if not rows:
+            return _skip(summary, "No Kubernetes nodes are mapped")
+        storage = _kubernetes_nfs_storage(context, config)
+        storage_payload = remote_json(
+            host,
+            control,
+            PXEBOOT_COMMANDS["kubernetes_storage_classes"],
+        )
+        storage_classes = [
+            item
+            for item in storage_payload.get("items", [])
+            if isinstance(item, Mapping)
+            and item.get("metadata", {}).get("name") == "nfs-client"
+        ]
+        if len(storage_classes) != 1:
+            raise ValueError("Exactly one nfs-client StorageClass is required")
+        storage_class = storage_classes[0]
+        provisioner = str(storage_class.get("provisioner") or "")
+        reclaim_policy = str(storage_class.get("reclaimPolicy") or "Delete")
+        binding_mode = str(storage_class.get("volumeBindingMode") or "Immediate")
+        storage_class_ok = (
+            "nfs" in provisioner.lower()
+            and provisioner != "kubernetes.io/no-provisioner"
+            and reclaim_policy == "Retain"
+            and binding_mode == "Immediate"
+        )
+
+        deployments_payload = remote_json(
+            host,
+            control,
+            PXEBOOT_COMMANDS["kubernetes_deployments"],
+        )
+        provisioner_containers = []
+        for deployment in deployments_payload.get("items", []):
+            if not isinstance(deployment, Mapping):
+                continue
+            for container in (
+                deployment.get("spec", {})
+                .get("template", {})
+                .get("spec", {})
+                .get("containers", [])
+            ):
+                if not isinstance(container, Mapping):
+                    continue
+                identity = " ".join(
+                    (
+                        str(container.get("name") or ""),
+                        str(container.get("image") or ""),
+                    )
+                ).lower()
+                if "nfs-subdir-external-provisioner" in identity:
+                    provisioner_containers.append(container)
+        if len(provisioner_containers) != 1:
+            raise ValueError(
+                "Exactly one NFS subdirectory provisioner container is required"
+            )
+        environment = {
+            str(entry.get("name") or ""): str(entry.get("value") or "")
+            for entry in provisioner_containers[0].get("env", [])
+            if isinstance(entry, Mapping)
+        }
+        backend_ok = (
+            environment.get("NFS_SERVER") == storage["server"]
+            and environment.get("NFS_PATH") == storage["export"]
+        )
+
+        mount_outcomes = {}
+        for row in rows:
+            mount_payload = remote_json(
+                host,
+                row,
+                PXEBOOT_COMMANDS["mount_contract"]
+                % shlex.quote(storage["mount_point"]),
+            )
+            filesystems = (
+                mount_payload.get("filesystems", [])
+                if isinstance(mount_payload, Mapping)
+                else []
+            )
+            source = (
+                str(filesystems[0].get("source") or "")
+                if len(filesystems) == 1 and isinstance(filesystems[0], Mapping)
+                else ""
+            )
+            mount_outcomes[row["HOSTNAME"]] = (
+                source == storage["source"],
+                f"source={source or 'missing'}",
+            )
+        mount_failures = [
+            name for name, outcome in mount_outcomes.items() if not outcome[0]
+        ]
+        fields: list[tuple[str, object]] = [
+            ("Storage name", storage["name"]),
+            ("Configured NFS source", storage["source"]),
+            (
+                "StorageClass provisioner",
+                f"{'✓' if 'nfs' in provisioner.lower() else '✗'} "
+                + (provisioner or "missing"),
+            ),
+            (
+                "Reclaim policy",
+                f"{'✓' if reclaim_policy == 'Retain' else '✗'} {reclaim_policy}",
+            ),
+            (
+                "Volume binding mode",
+                f"{'✓' if binding_mode == 'Immediate' else '✗'} {binding_mode}",
+            ),
+            (
+                "Provisioner backend",
+                f"{'✓' if backend_ok else '✗'} "
+                + f"{environment.get('NFS_SERVER', 'missing')}:"
+                + f"{environment.get('NFS_PATH', 'missing')}",
+            ),
+        ]
+        fields.extend(group_fields(rows, mount_outcomes))
+        ok = storage_class_ok and backend_ok and not mount_failures
+        error_parts = []
+        if not storage_class_ok:
+            sc_problems = []
+            if "nfs" not in provisioner.lower():
+                sc_problems.append(f"provisioner={provisioner or 'missing'}")
+            if reclaim_policy != "Retain":
+                sc_problems.append(f"reclaimPolicy={reclaim_policy}")
+            if binding_mode != "Immediate":
+                sc_problems.append(f"bindingMode={binding_mode}")
+            error_parts.append(
+                "StorageClass mismatch: " + ", ".join(sc_problems)
+            )
+        if not backend_ok:
+            error_parts.append(
+                f"provisioner backend mismatch: "
+                f"NFS_SERVER={environment.get('NFS_SERVER', 'missing')} "
+                f"NFS_PATH={environment.get('NFS_PATH', 'missing')}"
+            )
+        if mount_failures:
+            error_parts.append(
+                "NFS mount source mismatch on: " + ", ".join(mount_failures)
+            )
+        return runtime_result(
+            ok,
+            summary,
+            fields,
+            "; ".join(error_parts),
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         return runtime_exception(summary, exc)
@@ -299,10 +491,19 @@ def _run_functional_manifest(host, control, storage_class: str = ""):
                     PXEBOOT_COMMANDS["kubernetes_delete_test_pv"] % volume_name,
                 )
                 cleanup_ok = cleanup_ok and pv_cleanup.rc == 0
-            fields.append(("Cleanup", "passed" if cleanup_ok else "failed"))
+            fields.append(("Cleanup", "passed" if cleanup_ok else "FAILED"))
             if not cleanup_ok:
-                success = False
-                error = "The isolated validation namespace was not removed"
+                cleanup_error = (
+                    "cleanup: namespace/PV removal failed "
+                    f"(ns rc={cleanup.rc}"
+                    + (f", pv rc={pv_cleanup.rc}" if volume_name else "")
+                    + ")"
+                )
+                if not success:
+                    error = f"{error}; {cleanup_error}"
+                else:
+                    success = False
+                    error = cleanup_error
     return success, fields, error
 
 

@@ -719,6 +719,78 @@ warn_stage_order() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Normalize Extra Args for Ansible
+# Converts short-form sink parameters to proper Ansible format:
+#   -e kafka                              → -e kafka=true
+#   -e kafka,victoria_metrics             → -e sinks=kafka,victoria_metrics
+#   -e kafka -e victoria_metrics          → -e kafka=true -e victoria_metrics=true
+# ─────────────────────────────────────────────────────────────────────────────
+normalize_extra_args() {
+    local -n args_ref=$1
+    local normalized_args=()
+    local i=0
+
+    while [ $i -lt ${#args_ref[@]} ]; do
+        local arg="${args_ref[$i]}"
+        
+        # Check if this is a -e flag followed by a value
+        if [ "$arg" = "-e" ] && [ $((i + 1)) -lt ${#args_ref[@]} ]; then
+            local next_arg="${args_ref[$((i + 1))]}"
+            
+            # Check if next arg contains comma-separated sink names (e.g., kafka,victoria_metrics)
+            if [[ "$next_arg" =~ ^[a-zA-Z_,]+$ ]] && [[ "$next_arg" =~ , ]] && [[ ! "$next_arg" =~ = ]]; then
+                # Validate that all parts are valid sink names
+                local valid=true
+                local invalid_sink=""
+                IFS=',' read -ra sinks <<< "$next_arg"
+                for sink in "${sinks[@]}"; do
+                    if [[ ! "$sink" =~ ^(kafka|Kafka|victoria_metrics|Victoria_metrics|victoria_logs|Victoria_logs)$ ]]; then
+                        valid=false
+                        invalid_sink="$sink"
+                        break
+                    fi
+                done
+                
+                if [ "$valid" = true ]; then
+                    # Convert -e kafka,victoria_metrics to -e sinks=kafka,victoria_metrics
+                    normalized_args+=("-e" "sinks=${next_arg}")
+                    i=$((i + 2))
+                    continue
+                else
+                    # Error: invalid sink name in comma-separated list
+                    echo -e "${RED}ERROR: Invalid telemetry sink '${invalid_sink}' in '${next_arg}'${NC}"
+                    echo -e "${YELLOW}Valid sinks: kafka, victoria_metrics, victoria_logs${NC}"
+                    exit 1
+                fi
+            fi
+            
+            # Check if next arg is a single sink name without = sign
+            if [[ "$next_arg" =~ ^(kafka|Kafka|victoria_metrics|Victoria_metrics|victoria_logs|Victoria_logs)$ ]] && [[ ! "$next_arg" =~ = ]]; then
+                # Convert -e kafka to -e kafka=true
+                normalized_args+=("-e" "${next_arg}=true")
+                i=$((i + 2))
+                continue
+            fi
+            
+            # Check if next arg looks like a sink name but is invalid (no = sign, not a valid sink)
+            if [[ ! "$next_arg" =~ = ]] && [[ "$next_arg" =~ ^[a-zA-Z_]+$ ]]; then
+                # It looks like a sink name but doesn't match valid pattern
+                echo -e "${RED}ERROR: Invalid telemetry sink '${next_arg}'${NC}"
+                echo -e "${YELLOW}Valid sinks: kafka, victoria_metrics, victoria_logs${NC}"
+                exit 1
+            fi
+        fi
+        
+        # Otherwise, keep the arg as-is
+        normalized_args+=("$arg")
+        i=$((i + 1))
+    done
+    
+    # Update the array reference with normalized args
+    args_ref=("${normalized_args[@]}")
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Run Domain Playbook
 # ─────────────────────────────────────────────────────────────────────────────
 run_domain() {
@@ -744,6 +816,74 @@ run_domain() {
                 ;;
         esac
     done
+
+    # Normalize extra args (convert -e kafka to -e kafka=true)
+    normalize_extra_args extra_args
+    # The telemetry deploy_sinks and cleanup_sinks flows accept sink names as a concise -e value:
+    #   -e kafka
+    #   -e kafka,victoria_metrics
+    #   -e kafka -e victoria_logs
+    # Convert that shorthand into the "sinks" list consumed by Ansible while
+    # leaving ordinary extra-vars (key=value, JSON/YAML, and @file) untouched.
+    if [ "$domain" = "telemetry" ] && ([[ ",${tags}," == *",deploy_sinks,"* ]] || [[ ",${tags}," == *",cleanup_sinks,"* ]]); then
+        local normalized_args=()
+        local selected_sinks=()
+        local arg_index=0
+        local extra_value=""
+        local sink_name=""
+        local sink_is_valid=false
+
+        while [ "$arg_index" -lt "${#extra_args[@]}" ]; do
+            if [ "${extra_args[$arg_index]}" != "-e" ] && [ "${extra_args[$arg_index]}" != "--extra-vars" ]; then
+                normalized_args+=("${extra_args[$arg_index]}")
+                arg_index=$((arg_index + 1))
+                continue
+            fi
+
+            if [ $((arg_index + 1)) -ge "${#extra_args[@]}" ]; then
+                echo -e "${RED}ERROR: ${extra_args[$arg_index]} requires a value${NC}"
+                exit 1
+            fi
+
+            extra_value="${extra_args[$((arg_index + 1))]}"
+            if [[ "$extra_value" == *=* || "$extra_value" == @* || "$extra_value" == \{* || "$extra_value" == \[* ]]; then
+                normalized_args+=("${extra_args[$arg_index]}" "$extra_value")
+                arg_index=$((arg_index + 2))
+                continue
+            fi
+
+            IFS=',' read -ra sink_candidates <<< "$extra_value"
+            for sink_name in "${sink_candidates[@]}"; do
+                sink_name="${sink_name//[[:space:]]/}"
+                sink_is_valid=false
+                case "$sink_name" in
+                    kafka|victoria_metrics|victoria_logs)
+                        sink_is_valid=true
+                        ;;
+                esac
+                if [ "$sink_is_valid" = false ]; then
+                    echo -e "${RED}ERROR: Invalid telemetry sink '${sink_name}'${NC}"
+                    echo -e "${YELLOW}Valid sinks: kafka, victoria_metrics, victoria_logs${NC}"
+                    exit 1
+                fi
+                if [[ " ${selected_sinks[*]} " != *" ${sink_name} "* ]]; then
+                    selected_sinks+=("$sink_name")
+                fi
+            done
+            arg_index=$((arg_index + 2))
+        done
+
+        if [ "${#selected_sinks[@]}" -gt 0 ]; then
+            local sinks_json="["
+            for sink_name in "${selected_sinks[@]}"; do
+                [ "$sinks_json" = "[" ] || sinks_json+=","
+                sinks_json+="\"${sink_name}\""
+            done
+            sinks_json+="]"
+            normalized_args+=("-e" "sinks=${sinks_json}")
+        fi
+        extra_args=("${normalized_args[@]}")
+    fi
 
     # Validate domain exists
     local domain_found=false
@@ -1805,7 +1945,7 @@ RECOMMENDED EXECUTION ORDER:
     image_build_manager: precheck validate credentials prepare execute build cleanup cleanup_images
     orchestrator:        precheck validate credentials prepare deploy provision execute validate-deployment pxeboot verify_node_registration cleanup cleanup_credentials
     repo_manager:        precheck credentials prepare deploy execute download status cleanup cleanup_pulp cleanup_repos catalog_generate catalog_add catalog_delete catalog_validate
-    telemetry:           precheck validate validation prepare credentials execute deploy cleanup cleanup_kafka cleanup_victoria_metrics cleanup_victoria_logs cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast external_kafka external_victoria
+    telemetry:           precheck validate validation prepare credentials execute deploy deploy_sinks cleanup cleanup_sinks cleanup_idrac cleanup_ldms cleanup_ome cleanup_powerscale cleanup_ufm cleanup_vast external_kafka external_victoria
     utils:               precheck setup collect install_os backup_oim_logs slurm_config_backup slurm_config_cleanup slurm_config_rollback cleanup cleanup_logs cleanup_install_os cleanup_backup_oim_logs cleanup_slurm_config_backups upgrade rollback
 
   Without --tags, each playbook runs its full default flow. Tags marked with

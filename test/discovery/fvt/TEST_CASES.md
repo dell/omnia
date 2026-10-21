@@ -54,6 +54,26 @@
 | TC_EX_005 | `test_pxe_mapping_symlink` | Verify symlink to latest file | sanity |
 | TC_EX_006 | `test_discovery_report_created` | Verify discovery report CSV | functional |
 
+### PXE Mapping Validation (`fvt/execute/output/test_pxe_validation.py`)
+
+| TC ID | Test Function | Description | Marker |
+|-------|---------------|-------------|--------|
+| DISCOVERY_FVT_EXECUTE_V007 | `test_functional_groups_supported` | Verify all functional groups are Omnia-supported | functional |
+| DISCOVERY_FVT_EXECUTE_V008 | `test_ip_correlation` | Verify ADMIN_IP/IB_IP correlation with BMC_IP | functional |
+| DISCOVERY_FVT_EXECUTE_V009 | `test_parent_service_tag` | Verify PARENT_SERVICE_TAG rules for slurm_node groups | functional |
+| DISCOVERY_FVT_EXECUTE_V014 | `test_pxe_mapping_orchestrator_contract` | Verify PXE mapping CSV format for Orchestrator | functional, contract |
+
+### OME Integration Validation (`fvt/execute/ome/test_ome_validation.py`)
+
+| TC ID | Test Function | Description | Marker |
+|-------|---------------|-------------|--------|
+| DISCOVERY_FVT_EXECUTE_V010 | `test_ome_static_groups_match` | Verify OME static groups match PXE mapping | functional, ome |
+| DISCOVERY_FVT_EXECUTE_V011 | `test_ome_unassigned_devices` | Verify OME devices without static group | functional, ome |
+| DISCOVERY_FVT_EXECUTE_V012 | `test_admin_mac_validation` | Verify ADMIN_MAC matches OME first active NIC | functional, ome |
+| DISCOVERY_FVT_EXECUTE_V013 | `test_ib_nic_name_validation` | Verify IB_NIC_NAME matches OME first active IB NIC | functional, ome |
+
+> **Note:** OME integration tests require OME connectivity and credentials configured in `test_config.yml`. Tests are skipped if OME is not configured.
+
 ---
 
 ## Discovery Scenario (`fvt/discovery/`) — Full Run

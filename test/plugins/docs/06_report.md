@@ -13,7 +13,6 @@ report files. The HTML report includes:
 - CSS conic-gradient donut chart
 - Suite breakdown table with progress bars
 - Detailed test results with search/filter/collapse by run_id
-- Skip classification badges (expected / unexpected / framework)
 - Sensitive data redaction (IPs, passwords, secrets, paths)
 - Pipeline-aware report naming (pipelineId_reportName for CI, reportName for CLI)
 - Multiple test run segregation by run_id (collapsible sections)

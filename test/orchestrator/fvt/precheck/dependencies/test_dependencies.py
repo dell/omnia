@@ -16,30 +16,38 @@
 
 import pytest
 from library.functions import (
+    TestLogger,
     check_precheck_dependencies,
     check_precheck_repositories,
     check_precheck_s3_artifacts,
 )
+from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_precheck
 
 
 @pytest.mark.sanity
-@pytest.mark.order(4)
+@pytest.mark.order(10401)
 def test_precheck_dependencies(host):
     """Require both configured/default dependency outputs to be usable."""
-    verify_precheck(host, "precheck_dependencies", check_precheck_dependencies)
+    tc = TC["precheck_dependencies"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_dependencies)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(6)
+@pytest.mark.order(10402)
 def test_precheck_s3_artifacts(host):
     """Require every kernel, initrd, and rootfs artifact to be reachable."""
-    verify_precheck(host, "precheck_s3_artifacts", check_precheck_s3_artifacts)
+    tc = TC["precheck_s3_artifacts"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_s3_artifacts)
 
 
 @pytest.mark.sanity
-@pytest.mark.order(7)
+@pytest.mark.order(10403)
 def test_precheck_repositories(host):
     """Require every published RPM and file repository to be reachable."""
-    verify_precheck(host, "precheck_repositories", check_precheck_repositories)
+    tc = TC["precheck_repositories"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_precheck(test_log, tc, host, check_precheck_repositories)

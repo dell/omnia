@@ -28,9 +28,11 @@ empty_group_msg: >-
 
 invalid_group_name_msg: >-
   Invalid group name '{{ invalid_group }}' in collect_pxe.yml.
-  Valid group names are: service_kube_control_plane_x86_64, service_kube_node_x86_64,
-  slurm_control_node_x86_64, slurm_node_x86_64, slurm_node_aarch64,
-  login_node_x86_64, login_compiler_node_aarch64.
+  Expected '<role>_<arch>', optionally with an OS/version segment before the
+  architecture (e.g. 'slurm_node_aarch64' or 'slurm_node_rhel_10_0_aarch64').
+  Valid roles are: service_kube_control_plane_first, service_kube_control_plane,
+  service_kube_node, slurm_control_node, slurm_node, login_node,
+  login_compiler_node. Valid architectures are: x86_64, aarch64.
 
 config_validated_msg: >-
   collect_pxe.yml validated successfully.

@@ -3,16 +3,17 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 
-"""OpenLDAP postconditions produced by Orchestrator prepare."""
+"""Local OpenLDAP postconditions produced by Orchestrator prepare.
+
+External LDAP proxy cases run in the pxeboot slurm_ldap suite.
+"""
 
 import pytest
 from library.functions import TestLogger
 from library.functions.openldap_prepare_func import (
-    check_prepare_external_ldap_backend,
     check_prepare_openldap_artifacts,
     check_prepare_openldap_endpoint,
     check_prepare_openldap_runtime,
-    reconcile_prepare_external_ldap_proxy,
 )
 from library.messages import (
     PREPARE_TEST_ASSERT_MSGS as ASSERT,
@@ -21,8 +22,6 @@ from library.messages import (
     PREPARE_TEST_LOG_MSGS as LOG,
 )
 from library.vars import TEST_CASES as TC
-
-pytestmark = [pytest.mark.openldap]
 
 
 def _assert_result(test_log, component, result):
@@ -49,21 +48,9 @@ def _assert_result(test_log, component, result):
     )
 
 
+@pytest.mark.openldap
 @pytest.mark.sanity
-@pytest.mark.order(8)
-def test_external_ldap_proxy(host):
-    """Reconcile and verify the explicitly enabled LDAP meta-proxy."""
-    tc = TC["external_ldap_proxy"]
-    test_log = TestLogger(tc["title"], tc["id"])
-    _assert_result(
-        test_log,
-        "External LDAP proxy",
-        reconcile_prepare_external_ldap_proxy(host),
-    )
-
-
-@pytest.mark.sanity
-@pytest.mark.order(9)
+@pytest.mark.order(20301)
 def test_openldap_runtime(host):
     """Verify the enabled service and container are healthy."""
     tc = TC["openldap_runtime"]
@@ -75,8 +62,9 @@ def test_openldap_runtime(host):
     )
 
 
+@pytest.mark.openldap
 @pytest.mark.sanity
-@pytest.mark.order(10)
+@pytest.mark.order(20302)
 def test_openldap_artifacts(host):
     """Verify configuration modes, syntax and TLS lifetime."""
     tc = TC["openldap_artifacts"]
@@ -88,9 +76,10 @@ def test_openldap_artifacts(host):
     )
 
 
+@pytest.mark.openldap
 @pytest.mark.functional
 @pytest.mark.sanity
-@pytest.mark.order(11)
+@pytest.mark.order(20303)
 def test_openldap_endpoint(host):
     """Verify the local LDAP endpoint and published listeners."""
     tc = TC["openldap_endpoint"]
@@ -99,18 +88,4 @@ def test_openldap_endpoint(host):
         test_log,
         "OpenLDAP endpoint",
         check_prepare_openldap_endpoint(host),
-    )
-
-
-@pytest.mark.functional
-@pytest.mark.sanity
-@pytest.mark.order(12)
-def test_external_ldap_backend(host):
-    """Verify external LDAP reachability from the omnia_auth container."""
-    tc = TC["external_ldap_backend"]
-    test_log = TestLogger(tc["title"], tc["id"])
-    _assert_result(
-        test_log,
-        "External LDAP backend",
-        check_prepare_external_ldap_backend(host),
     )

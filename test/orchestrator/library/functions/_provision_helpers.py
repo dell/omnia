@@ -275,7 +275,7 @@ def interface_ips(interface: Mapping[str, Any]) -> set[str]:
     return {
         str(value.get("IPAddress") if isinstance(value, dict) else value).strip()
         for value in values
-        if (value.get("IPAddress") if isinstance(value, dict) else value)
+        if str(value.get("IPAddress") if isinstance(value, dict) else value).strip()
     }
 
 

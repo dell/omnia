@@ -19,6 +19,8 @@ Common utilities come from the omnia_auto package.
 Module-specific functions remain here.
 """
 
+from typing import Any, Dict
+
 # --- Common (from omnia_auto package) ---
 from omnia_auto import (
     Colors,
@@ -92,8 +94,13 @@ from .validation_func import (
     ConfigValidationError,
 )
 
+# --- Non-functional security (file permissions / ownership) ---
+from .security_func import (
+    check_file_permissions,
+)
 
-def run_playbook(tag=None, **kwargs):
+
+def run_playbook(tag: Any = None, **kwargs: Any) -> Dict[str, Any]:
     """Wrapper that injects module-specific playbook and workdir."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
@@ -164,5 +171,6 @@ __all__ = [
     "validate_test_config",
     "validate_all",
     "ConfigValidationError",
+    "check_file_permissions",
     "run_playbook",
 ]

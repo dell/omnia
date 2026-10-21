@@ -4,7 +4,7 @@
     "version": "1.0",
     "schema_version": 2,
     "identifier": "omnia-slurm-hybrid-10-2-10-0-x86_64",
-    "description": "Hybrid Slurm catalog for x86_64: RHEL 10.2 (control) + RHEL 10.0 (node, login and login-compiler).",
+    "description": "Hybrid Slurm catalog for x86_64: RHEL 10.2 (control and login) + RHEL 10.0 (node and login-compiler).",
     "functionallayer": [
       {
         "name": "os_rhel_10_2_x86_64",
@@ -46,9 +46,9 @@
         ]
       },
       {
-        "name": "login_node_rhel_10_0_x86_64",
+        "name": "login_node_rhel_10_2_x86_64",
         "components": [
-          "baseos_group_10.0",
+          "baseos_group_10.2",
           "admin_debug_group",
           "slurm_custom_group",
           "openldap_group",
@@ -155,8 +155,6 @@
         "components": [
           "cffi==1_17_1",
           "cryptography==45_0_7",
-          "kubernetes==33_1_0",
-          "omsdk==1_2_518",
           "prettytable==3_14_0"
         ]
       },
@@ -934,20 +932,6 @@
             "architecture": "x86_64",
             "reponame": "baseos",
             "name": "rhel",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "kubernetes==33_1_0": {
-        "name": "kubernetes==33.1.0",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "pypi",
             "version": [
               "10.2",
               "10.0"
@@ -2257,20 +2241,6 @@
             "architecture": "x86_64",
             "reponame": "baseos",
             "name": "rhel",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "omsdk==1_2_518": {
-        "name": "omsdk==1.2.518",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "pypi",
             "version": [
               "10.2",
               "10.0"

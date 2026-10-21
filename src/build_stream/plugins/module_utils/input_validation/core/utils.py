@@ -16,9 +16,10 @@ Generic validation helpers for build_stream input validation.
 """
 import logging
 import os
+from typing import Tuple
 
 
-def create_logger(log_path, project_name):
+def create_logger(log_path, project_name) -> Tuple[logging.Logger, str]:
     """
     Create a logger for build_stream validation.
 

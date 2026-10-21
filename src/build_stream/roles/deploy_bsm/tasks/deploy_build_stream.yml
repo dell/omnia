@@ -294,7 +294,10 @@
       ansible.builtin.template:
         src: "build_stream.j2"
         dest: "{{ build_stream_quadlet_path }}"
+        owner: root
+        group: root
         mode: "{{ build_stream_quadlet_file_mode }}"
+      no_log: true
       notify:
         - Reload systemd
 

@@ -12,6 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+# pylint: disable=no-member,invalid-name
+# invalid-name: module name and revision identifiers are mandated by Alembic
+# no-member: alembic.op is a runtime proxy; pylint cannot see its members
+
 """Create audit_events table
 
 Revision ID: 004
@@ -34,6 +38,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    """Apply migration: Create audit_events table and indexes."""
     op.create_table(
         "audit_events",
         sa.Column("event_id", sa.String(36), primary_key=True, nullable=False),
@@ -59,6 +64,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """Revert migration: Drop audit_events table and indexes."""
     op.drop_index("ix_audit_client_timestamp", table_name="audit_events")
     op.drop_index("ix_audit_job_timestamp", table_name="audit_events")
     op.drop_index("ix_audit_timestamp", table_name="audit_events")

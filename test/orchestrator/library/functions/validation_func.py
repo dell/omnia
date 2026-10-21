@@ -296,6 +296,20 @@ def validate_test_config() -> dict[str, Any]:
     except ValueError as exc:
         errors.append(str(exc))
 
+    # Validate slurm_lifecycle_remove_add_nodes (optional, comma-separated IPs).
+    lifecycle_nodes = config.get("slurm_lifecycle_remove_add_nodes", "")
+    if lifecycle_nodes and not isinstance(lifecycle_nodes, str):
+        errors.append("'slurm_lifecycle_remove_add_nodes' must be a string")
+    elif isinstance(lifecycle_nodes, str) and lifecycle_nodes.strip():
+        _IP_RE = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+        for token in lifecycle_nodes.split(","):
+            token = token.strip()
+            if token and not _IP_RE.match(token):
+                errors.append(
+                    f"'slurm_lifecycle_remove_add_nodes' contains invalid "
+                    f"Admin IP: {token}"
+                )
+
     errors.extend(_validate_dataset(config))
 
     server_ip = config.get("oim_server_ip", "")

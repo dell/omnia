@@ -24,19 +24,52 @@ Provides:
 - Remote clone and dataset sync on session startup
 """
 
-import sys
+import inspect
 import os
+import re
+import sys
 from datetime import datetime
 
 import pytest
 
 _TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 _PLUGIN_DIR = os.path.abspath(os.path.join(_TEST_DIR, "..", "plugins"))
-while _PLUGIN_DIR in sys.path:
-    sys.path.remove(_PLUGIN_DIR)
-sys.path.insert(0, _PLUGIN_DIR)
 if _TEST_DIR not in sys.path:
     sys.path.insert(0, _TEST_DIR)
+if _PLUGIN_DIR not in sys.path:
+    sys.path.insert(0, _PLUGIN_DIR)
+
+# Match the runtime contract used by orchestrator and image_build_manager.
+# Explicit shell values win; otherwise load the target Omnia environment
+# before any path resolver or playbook wrapper is imported.
+_OMNIA_ENV_FILE = "/etc/omnia/omnia.env"
+if os.path.exists(_OMNIA_ENV_FILE):
+    try:
+        with open(_OMNIA_ENV_FILE, "r", encoding="utf-8") as _env_file:
+            for _line in _env_file:
+                _line = _line.strip()
+                if not _line or _line.startswith("#") or "=" not in _line:
+                    continue
+                _key, _value = _line.split("=", 1)
+                _key = _key.strip()
+                _value = _value.strip()
+                if (
+                    len(_value) >= 2
+                    and _value[0] == _value[-1]
+                    and _value[0] in {"'", '"'}
+                ):
+                    _value = _value[1:-1]
+                _value = re.sub(
+                    r"\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)",
+                    lambda match: os.environ.get(
+                        match.group(1) or match.group(2), match.group(0)
+                    ),
+                    _value,
+                )
+                if _key and _key not in os.environ:
+                    os.environ[_key] = _value
+    except OSError:
+        pass
 
 # --- Initialize omnia_auto BEFORE any imports that use it ---
 import omnia_auto  # noqa: E402
@@ -80,6 +113,40 @@ from library.functions.validation_func import (  # noqa: E402
 )
 from library.vars import TEST_CASES, UT_TEST_CASE_IDS  # noqa: E402
 
+# FVT phases and suites have independent local @pytest.mark.order(n) sequences.
+# Apply lifecycle and suite ranks first so equal local order values do not
+# interleave during an untagged verification run.
+# (Aligned with image_build_manager's two-tier ordering.)
+_FVT_SCENARIO_ORDER = {
+    "precheck": 0,
+    "validate": 1,
+    "deploy": 2,
+    "deploy_sinks": 3,
+    "cleanup": 4,
+    "cleanup_sinks": 5,
+    "cleanup_idrac": 6,
+    "cleanup_ldms": 7,
+    "cleanup_ome": 8,
+    "cleanup_powerscale": 9,
+    "cleanup_ufm": 10,
+    "cleanup_vast": 11,
+}
+
+_FVT_SUITE_ORDER = {
+    "precheck": {"": 0, "cluster": 1},
+    "validate": {"": 0, "input": 1},
+    "deploy": {"": 0, "sinks": 1, "sources": 2},
+    "deploy_sinks": {"": 0},
+    "cleanup": {"": 0, "cleanup": 1, "status": 2},
+    "cleanup_sinks": {"": 0, "status": 1},
+    "cleanup_idrac": {"": 0},
+    "cleanup_ldms": {"": 0},
+    "cleanup_ome": {"": 0},
+    "cleanup_powerscale": {"": 0},
+    "cleanup_ufm": {"": 0},
+    "cleanup_vast": {"": 0},
+}
+
 # Build test-function-name -> TC ID map for deterministic report resolution.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
 _TC_ID_MAP.update(
@@ -120,6 +187,21 @@ _TC_ID_MAP.update(
         "test_cleanup_idempotency_no_pods": TEST_CASES[
             "nft_cleanup_no_pods"
         ]["id"],
+        "test_cleanup_pvcs_preserved": TEST_CASES[
+            "nft_cleanup_pvcs_preserved"
+        ]["id"],
+        "test_cleanup_with_volume_performance": TEST_CASES[
+            "nft_cleanup_vol_perf"
+        ]["id"],
+        "test_cleanup_with_volume_idempotency": TEST_CASES[
+            "nft_cleanup_vol_idempotent"
+        ]["id"],
+        "test_cleanup_with_volume_no_pods": TEST_CASES[
+            "nft_cleanup_vol_no_pods"
+        ]["id"],
+        "test_cleanup_with_volume_no_pvcs": TEST_CASES[
+            "nft_cleanup_no_pvcs"
+        ]["id"],
         "test_validate_performance": TEST_CASES["nft_validate_perf"]["id"],
         "test_deploy_performance": TEST_CASES["nft_deploy_perf"]["id"],
         "test_cleanup_performance": TEST_CASES["nft_cleanup_perf"]["id"],
@@ -145,13 +227,16 @@ _TC_ID_MAP.update(
             "nft_data_after_restart"
         ]["id"],
         "test_node_reboot_recovery": TEST_CASES["nft_node_reboot"]["id"],
+        "test_idrac_data_lifecycle": TEST_CASES[
+            "nft_idrac_data_lifecycle"
+        ]["id"],
+        "test_ome_channel_data_lifecycle": TEST_CASES[
+            "nft_ome_channel_lifecycle"
+        ]["id"],
         "test_full_lifecycle": TEST_CASES["nft_full_lifecycle"]["id"],
         "test_operator_pod_recovery": TEST_CASES["nft_operator_recovery"][
             "id"
         ],
-        "test_nft_final_cluster_state_warning": TEST_CASES[
-            "nft_final_warning"
-        ]["id"],
     }
 )
 
@@ -164,16 +249,10 @@ def _ut_test_node_key(item):
     return normalized_node_id.split("ut/", 1)[1].split("[", 1)[0]
 
 
-def _delete_sinks_volume_enabled(config):
-    """Resolve the sink cleanup-volume mode without requesting a fixture."""
-    cli_value = config.getoption("--delete-sinks-volume")
-    if cli_value is not None:
-        return cli_value.lower() in ("true", "1", "yes")
-    return os.environ.get("DELETE_SINKS_VOLUME", "").lower() in (
-        "true",
-        "1",
-        "yes",
-    )
+def _delete_sinks_volume_enabled(config=None):
+    """Resolve the sink cleanup-volume mode from test_config.yml."""
+    source = config if config is not None else load_test_config()
+    return source.get("delete_sinks_volume", False)
 
 
 def _registered_test_case_id(item):
@@ -187,22 +266,12 @@ def _registered_test_case_id(item):
         deploy_key = "deploy_deploy" if deploy_tag else "deploy_telemetry"
         return TEST_CASES[deploy_key]["id"]
 
-    if item.name in {
-        "test_no_pvcs_after_full_cleanup",
-        "test_cleanup_idempotency_no_pvcs",
-    }:
-        if item.name == "test_no_pvcs_after_full_cleanup":
-            case_key = (
-                "no_pvcs_after_full_cleanup"
-                if _delete_sinks_volume_enabled(item.config)
-                else "pvcs_preserved_after_cleanup"
-            )
-        else:
-            case_key = (
-                "nft_cleanup_no_pvcs"
-                if _delete_sinks_volume_enabled(item.config)
-                else "nft_cleanup_pvcs_preserved"
-            )
+    if item.name == "test_no_pvcs_after_full_cleanup":
+        case_key = (
+            "no_pvcs_after_full_cleanup"
+            if _delete_sinks_volume_enabled()
+            else "pvcs_preserved_after_cleanup"
+        )
         return TEST_CASES[case_key]["id"]
 
     return _TC_ID_MAP.get(item.name, "")
@@ -213,7 +282,7 @@ def _registered_test_case_id(item):
 # =============================================================================
 
 def pytest_addoption(parser):
-    """Add --marker and --delete-sinks-volume options."""
+    """Add --marker option for custom marker expression filtering."""
     parser.addoption(
         "--marker",
         action="store",
@@ -222,18 +291,6 @@ def pytest_addoption(parser):
             "Marker filter expression. "
             "Use '+' for AND (both required): source+sanity. "
             "Use ',' for OR (either matches): sink,source."
-        ),
-    )
-    parser.addoption(
-        "--delete-sinks-volume",
-        action="store",
-        default=None,
-        help=(
-            "Control sink (Kafka, VictoriaMetrics, VictoriaLogs) PVC/volume deletion during cleanup. "
-            "When 'true', cleanup deletes all PVCs including sink volumes. "
-            "When 'false' or omitted (default), sink PVCs are preserved. "
-            "Source volumes (iDRAC, LDMS, PowerScale, etc.) are always deleted. "
-            "Also accepts DELETE_SINKS_VOLUME environment variable."
         ),
     )
 
@@ -326,9 +383,10 @@ def _item_has_marker(item, marker_name):
 
 
 def pytest_collection_modifyitems(session, config, items):
-    """Filter by --marker expression and sort by order marker."""
+    """Filter markers, auto-skip deploy in verify mode, sort by scenario+order."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
+    command_type = os.environ.get("OMNIA_COMMAND_TYPE", "exec")
 
     if mode != "none" and markers:
         selected = []
@@ -349,11 +407,43 @@ def pytest_collection_modifyitems(session, config, items):
             config.hook.pytest_deselected(items=deselected)
         items[:] = selected
 
+    # Auto-skip deploy-marked tests during verify-only runs.
+    # Applied unconditionally (not gated on marker mode) so that
+    # direct pytest invocations with --marker cannot bypass the
+    # deploy-skip safety.
+    if command_type != "exec":
+        for item in items:
+            if _item_has_marker(item, "deploy"):
+                item.add_marker(
+                    pytest.mark.skip(
+                        "Deploy tests run only during the runner exec phase"
+                    )
+                )
+
     def _get_order(item):
         marker = item.get_closest_marker("order")
-        if marker and marker.args:
-            return marker.args[0]
-        return 999
+        local_order = marker.args[0] if marker and marker.args else 999
+
+        # Two-tier ordering: scenario + suite + local order
+        # (aligned with image_build_manager pattern)
+        node_parts = item.nodeid.replace("\\", "/").split("/")
+        scenario = ""
+        suite = ""
+        if "fvt" in node_parts:
+            fvt_index = node_parts.index("fvt")
+            if len(node_parts) > fvt_index + 1:
+                scenario = node_parts[fvt_index + 1]
+            if len(node_parts) > fvt_index + 2:
+                candidate = node_parts[fvt_index + 2]
+                if not candidate.startswith("test_"):
+                    suite = candidate
+
+        suite_order = _FVT_SUITE_ORDER.get(scenario, {}).get(suite, 999)
+        return (
+            _FVT_SCENARIO_ORDER.get(scenario, 999),
+            suite_order,
+            local_order,
+        )
 
     items.sort(key=_get_order)
 
@@ -426,7 +516,9 @@ def pytest_sessionstart(session):
                 returncode=1,
             )
 
-    if not is_local_execution():
+    # Only sync during exec (deploy) phase — skip in verify-only mode
+    # (aligned with orchestrator's conditional sync pattern).
+    if not is_local_execution() and os.environ.get("OMNIA_COMMAND_TYPE") == "exec":
         sync_result = sync_project_to_remote(host)
         if sync_result["success"]:
             log(sync_result["details"], "OK")
@@ -456,16 +548,30 @@ def pytest_sessionstart(session):
     run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
     os.environ["RUN_ID"] = run_id
     base_name = str(config.get("report_name", "telemetry_test_report"))
-    report_name = build_report_name(
-        base_name=base_name,
+    report_name_args = {"base_name": base_name}
+    if "domain_name" in inspect.signature(build_report_name).parameters:
+        report_name_args["domain_name"] = "telemetry"
+    report_name = build_report_name(**report_name_args)
+    report_args = {
+        "module_name": module_name,
+        "report_path": str(
+            config.get(
+                "report_path",
+                os.environ.get("OMNIA_DATA_PATH", "/opt/omnia") + "/reports",
+            )
+        ),
+        "report_name": report_name,
+        "server_ip": str(config.get("oim_server_ip", "localhost")),
+    }
+    # Detect correct parameter name for forward/backward compatibility
+    # (aligned with image_build_manager's inspect-based construction).
+    report_id_argument = (
+        "run_id"
+        if "run_id" in inspect.signature(TestReport).parameters
+        else "report_id"
     )
-    report = TestReport(
-        module_name=module_name,
-        report_path=str(config.get("report_path", "/opt/omnia/reports")),
-        report_name=report_name,
-        server_ip=str(config.get("oim_server_ip", "localhost")),
-        run_id=run_id,
-    )
+    report_args[report_id_argument] = run_id
+    report = TestReport(**report_args)
     set_current_report(report)
 
 
@@ -579,23 +685,17 @@ def host():
 
 
 @pytest.fixture(scope="session")
-def delete_sinks_volume(request):
-    """Resolve delete_sinks_volume flag from CLI option or environment variable.
+def delete_sinks_volume():
+    """Resolve delete_sinks_volume flag from test_config.yml.
 
-    Priority order:
-      1. --delete-sinks-volume CLI option (if provided)
-      2. DELETE_SINKS_VOLUME environment variable (if set)
-      3. Default: false (Kafka and VictoriaMetrics/VictoriaLogs PVCs preserved)
+    Aligned with the orchestrator/image_build_manager pattern: all
+    cleanup behavioral parameters are driven by ``test_config.yml``
+    instead of CLI options or environment variables.
 
     Returns:
         bool: True if delete_sinks_volume=true, False otherwise.
     """
-    cli_value = request.config.getoption("--delete-sinks-volume")
-    if cli_value is not None:
-        return cli_value.lower() in ("true", "1", "yes")
+    return load_test_config().get("delete_sinks_volume", False)
 
-    env_value = os.environ.get("DELETE_SINKS_VOLUME")
-    if env_value is not None:
-        return env_value.lower() in ("true", "1", "yes")
 
-    return False
+

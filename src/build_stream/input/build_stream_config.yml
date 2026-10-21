@@ -100,6 +100,11 @@ gitlab_sidekiq_concurrency: 10
 #   This is the single source of truth for cadence configuration. All
 #   cadence settings live under the "cadence" group below.
 #
+#   These values are re-read at the start of every cadence cycle, so a change
+#   takes effect without restarting playbook_watcher.service. Send SIGUSR1 to
+#   the service to apply a change immediately instead of waiting for the next
+#   cycle; a changed interval otherwise governs the following wait window.
+#
 #   Fixed/internal parameters (not user-configurable):
 #         - Catalog filename (hardcoded: "cadence_catalog_rhel.json")
 #         - Repo sync playbook (hardcoded: "repo_sync.yml")
@@ -117,11 +122,9 @@ cadence:
   enabled: true
 
   # Polling interval for cadence syncs in days
-  # Accepted values: integer >= 1
-  # Default: 7
+  # Accepted values: integer >= 1 (1 day minimum)
+  # Default: 7 (7 days)
   interval_days: 7
-
-  # cadence_catalog_rhel.json and repo_sync.yml are fixed system contracts.
 
   # Timeout for repo sync playbook execution in seconds
   # Default: 3600 (1 hour)
@@ -130,3 +133,42 @@ cadence:
   # Poll interval while waiting for sync result in seconds
   # Default: 10
   sync_poll_interval_seconds: 10
+
+# ==========================================================================
+# Section 4 — Automatic Image Cleanup (Retention) Configuration
+#   ER Reference: ER-BSM-002 Story 4 (age-based retention)
+#
+#   The BuildStream API container runs automatic cleanup in the background.
+#   Each cycle:
+#     1. Cleans up image groups in FAILED status.
+#     2. Cleans up image groups older than retention_age_days that were
+#        never deployed, are not protected, and whose functional group keeps
+#        more than min_keep_count image groups.
+#
+#   These values are re-read every minute by the omnia_build_stream
+#   container, so a change takes effect without a restart. A cycle runs once
+#   evaluation_interval_hours have elapsed since the previous cycle; the
+#   first cycle runs 5 minutes after the container starts.
+# ==========================================================================
+
+retention:
+
+  # Enable or disable automatic image cleanup
+  # Accepted values: true | false
+  # Default: true
+  auto_cleanup_enabled: true
+
+  # Age in days after which a never-deployed image group is cleaned up
+  # Accepted values: integer >= 1
+  # Default: 90 (90 days)
+  retention_age_days: 90
+
+  # Minimum number of image groups always kept per functional group
+  # Accepted values: integer >= 0
+  # Default: 5
+  min_keep_count: 5
+
+  # Interval between automatic cleanup cycles in hours
+  # Accepted values: integer >= 1 (1 hour minimum)
+  # Default: 24 (24 hours)
+  evaluation_interval_hours: 24

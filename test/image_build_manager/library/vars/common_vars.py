@@ -333,6 +333,9 @@ CMDS = {
         "source /etc/profile.d/omnia-env.sh && "
         "echo ${env_var} 2>/dev/null"
     ),
+    "latest_build_log": (
+        "ls -t {log_dir}*.log 2>/dev/null | head -1"
+    ),
     "cat_build_log": (
         "tail -n {lines} {log_path} 2>/dev/null"
     ),

@@ -123,7 +123,7 @@ def test_quoted_boolean_values_fail(valid_config, field):
 @pytest.mark.parametrize(
     ("path", "value"),
     [
-        (("repo_manager_output_path",), ""),
+        (("repo_manager_output_path",), "with spaces"),
         (("image_build_type",), "   "),
         (("functional_groups_source",), None),
         (("s3_configurations", "provider"), ""),
@@ -137,6 +137,12 @@ def test_empty_scalar_values_fail(valid_config, path, value):
     target[path[-1]] = value
     errors = _validate(config, "image_build_config.json")
     assert errors
+
+
+def test_repo_manager_output_path_may_be_empty(valid_config):
+    valid_config["repo_manager_output_path"] = ""
+    errors = _validate(valid_config, "image_build_config.json")
+    assert not errors
 
 
 def test_optional_arm_host_may_be_empty(valid_config):
