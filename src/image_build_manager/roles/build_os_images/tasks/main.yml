@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+- name: Install SELinux policy module before using Podman
+  ansible.builtin.include_tasks: preflight_selinux_check.yml
+
 - name: Include prepare repo builder image task (x86_64 only)
   ansible.builtin.include_tasks: prepare_repo_builder_image.yml
   when: build_arch == 'x86_64'

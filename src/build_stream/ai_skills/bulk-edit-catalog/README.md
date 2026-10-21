@@ -20,10 +20,17 @@ Use this skill when you need to:
 
 ## Usage
 
+> **Note:** The example invocations below are natural-language prompts intended for an AI coding agent or assistant, not direct CLI commands.
+
 ### Bulk version pin
 ```
-Pin RHEL from 10.0 to 10.2 for service_k8s_x86_64 and slurm_aarch64
+Pin RHEL from 10.0 to 10.2 for slurm_x86_64, slurm_aarch64 and service_k8s_x86_64
 ```
+
+A RHEL version change renames every functional layer and updates every
+package source version, the `base_os` group and the catalog name together
+(see `switch_os_version()` in `SKILL.md`). Changing only the `base_os`
+group's `os_version` leaves repo_manager on the old version.
 
 ### Bulk package add
 ```

@@ -10,10 +10,9 @@ companion skills and shared instructions.
 
 Answer "what breaks if I remove/change `<target>` in `<catalog>`?" for a
 target at any level — package, group, functional layer, or OS — within
-**one catalog** (`ER-BSM-001-nersc-ai-skills-catalog-authoring`, FR-3.1,
-AC-005/AC-009). This skill does not trace impact across separate catalogs
+**one catalog** (FR-3.1, AC-005/AC-009). This skill does not trace impact across separate catalogs
 — that is explicitly out of scope per FR-3.1. It analyzes only; it never
-edits the catalog (that remains `ER-BSM-001-catalog-editing-skill`'s
+edits the catalog (that remains the catalog-editing skill's
 responsibility).
 
 This skill was enhanced post-review (2026-09-26) after a real
@@ -31,7 +30,7 @@ against the surviving packages in each affected layer, as R1/R2 require.
    name/paste). Its `catalog.functionallayer`, `catalog.groups`, and
    `catalog.packages` sections are the primary evidence.
 2. `src/build_stream/ai_skills/shared/connectivity_layer.md` — the
-   online/offline fallback procedure. Note its clarified trigger: fall
+   online source lookup and fallback fallback procedure. Note its clarified trigger: fall
    back only on an actual lookup failure, never merely because a row is
    absent from one table.
 3. `src/build_stream/ai_skills/impact-analysis/references/trusted_source_policy.md`
@@ -316,5 +315,6 @@ cap it at Low just because another package requires the driver.
 
 - Cross-catalog impact tracing (out of scope, FR-3.1).
 - Applying the change or updating a changelog — that is the Pre-Edit Gate
-  in `ER-BSM-001-catalog-editing-skill` (not yet implemented), which calls
-  this skill and then requires operator approval before any edit.
+  (`src/build_stream/ai_skills/catalog-editing/references/pre_edit_gate.md`),
+  which calls this skill and then requires operator approval before any
+  edit.
