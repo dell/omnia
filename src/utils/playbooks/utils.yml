@@ -30,6 +30,7 @@
 #   ansible-playbook playbooks/utils.yml --tags cleanup_install_os  # Cleanup OS installation only
 #   ansible-playbook playbooks/utils.yml --tags cleanup_backup_oim_logs  # Cleanup OIM log backups only
 #   ansible-playbook playbooks/utils.yml --tags cleanup_slurm_config_backups  # Cleanup Slurm config backups only
+#   ansible-playbook playbooks/utils.yml --tags configure_worker_vlan  # Configure VLAN on worker nodes for BMC reachability
 #   ansible-playbook playbooks/utils.yml --tags upgrade         # Upgrade flow (placeholder)
 #   ansible-playbook playbooks/utils.yml --tags rollback        # Rollback flow (placeholder)
 #
@@ -48,6 +49,7 @@
 #   cleanup_install_os - Cleanup OS installation artifacts only
 #   cleanup_backup_oim_logs - Cleanup OIM log backup artifacts only
 #   cleanup_slurm_config_backups - Cleanup Slurm config backup artifacts only
+#   configure_worker_vlan - Configure VLAN on worker nodes for BMC reachability
 #   upgrade           - Upgrade flow (placeholder)
 #   rollback          - Rollback flow (placeholder)
 #
@@ -110,6 +112,13 @@
           'slurm_config_backup' in ansible_run_tags or
           'slurm_config_cleanup' in ansible_run_tags or
           'slurm_config_rollback' in ansible_run_tags
+        - "not (skip_validation | default(false) | bool)"
+
+    - name: Run worker VLAN configuration validation
+      ansible.builtin.include_role:
+        name: validate_worker_vlan_config
+      when:
+        - "'configure_worker_vlan' in ansible_run_tags"
         - "not (skip_validation | default(false) | bool)"
   tags:
     - always
@@ -190,6 +199,18 @@
     - never
     - cleanup
     - cleanup_slurm_config_backups
+
+# =========================================================================
+# FLOW: configure_worker_vlan - Worker node VLAN configuration
+# =========================================================================
+# Configures VLAN-tagged interfaces and static routes on Kubernetes worker
+# nodes so that iDRAC Telemetry pods can reach BMC endpoints in separate
+# subnets. Uses NetworkManager (nmcli) for persistent configuration.
+- name: Configure worker node VLAN
+  ansible.builtin.import_playbook: configure_worker_vlan/configure_worker_vlan.yml
+  tags:
+    - never
+    - configure_worker_vlan
 
 # =========================================================================
 # FLOW: upgrade - Upgrade flow placeholder (opt-in only)

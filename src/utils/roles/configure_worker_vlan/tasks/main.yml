@@ -1,0 +1,93 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# =============================================================================
+# configure_worker_vlan — Main entry point
+# =============================================================================
+# Configures VLAN-tagged interfaces and static routes on Kubernetes worker
+# nodes so that Telemetry pods can reach BMC endpoints in separate subnets.
+#
+# Inputs (set by validate_worker_vlan_config role):
+#   worker_vlan_config      — validated config from worker_vlan_config.yml
+#   vlan_worker_assignments — auto-generated list of {worker_host, vlan_ip}
+#   vlan_bmc_subnets        — auto-discovered BMC subnet CIDRs
+#   vlan_cluster_inventory_path — resolved path to orchestrator_inventory.yml
+#
+# Steps:
+#   1. Display discovered workers and BMC subnets
+#   2. Set common VLAN parameters
+#   3. For each worker: configure VLAN interface, add routes, verify
+# =============================================================================
+
+# Step 1: Display what was discovered during validation
+- name: Display worker nodes to configure
+  ansible.builtin.debug:
+    msg: "Workers: {{ vlan_worker_assignments | map(attribute='worker_host') | join(', ') }}"
+
+- name: Display BMC subnets for routes
+  ansible.builtin.debug:
+    msg: "BMC subnets for static routes: {{ vlan_bmc_subnets | join(', ') }}"
+
+# Step 2: Set common VLAN parameters
+- name: Set VLAN configuration parameters
+  ansible.builtin.set_fact:
+    _vlan_id: "{{ worker_vlan_config.vlan_id }}"
+    _vlan_netmask: "{{ worker_vlan_config.vlan_netmask }}"
+    _vlan_gateway: "{{ worker_vlan_config.vlan_gateway }}"
+    _route_metric: "{{ worker_vlan_config.route_metric | default(50) }}"
+    _resolved_bmc_subnets: "{{ vlan_bmc_subnets }}"
+
+# Step 3: Configure each worker node
+- name: Initialize VLAN configuration results
+  ansible.builtin.set_fact:
+    _vlan_results:
+      configured: []
+      skipped: []
+      failed: []
+
+- name: Configure VLAN on each worker node
+  ansible.builtin.include_tasks: configure_worker.yml
+  loop: "{{ vlan_worker_assignments }}"
+  loop_control:
+    loop_var: _worker_assignment
+    label: "worker {{ _worker_assignment.worker_host }}"
+
+# Step 4: Display summary
+- name: Display VLAN configuration summary
+  ansible.builtin.debug:
+    msg:
+      - "============================================================"
+      - "Worker Node VLAN Configuration Summary"
+      - "============================================================"
+      - "  VLAN ID       : {{ _vlan_id }}"
+      - "  Gateway       : {{ _vlan_gateway }}"
+      - "  BMC subnets   : {{ _resolved_bmc_subnets | join(', ') }}"
+      - "  Route metric  : {{ _route_metric }}"
+      - "------------------------------------------------------------"
+      - "  Configured    : {{ _vlan_results.configured | length }} worker(s)"
+      - "  Skipped       : {{ _vlan_results.skipped | length }} worker(s)"
+      - "  Failed        : {{ _vlan_results.failed | length }} worker(s)"
+      - "============================================================"
+      - "{% if _vlan_results.configured | length > 0 %}  Configured: {{ _vlan_results.configured | join(', ') }}{% endif %}"
+      - "{% if _vlan_results.skipped | length > 0 %}  Skipped: {{ _vlan_results.skipped | join(', ') }}{% endif %}"
+      - "{% if _vlan_results.failed | length > 0 %}  Failed: {{ _vlan_results.failed | join(', ') }}{% endif %}"
+
+- name: Warn if any workers failed
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: VLAN configuration failed on {{ _vlan_results.failed | length }}
+      worker node(s): {{ _vlan_results.failed | join(', ') }}.
+      Review the errors above and retry after fixing the issues.
+  when: _vlan_results.failed | length > 0

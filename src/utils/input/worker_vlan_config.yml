@@ -1,0 +1,101 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# ***********************************************************************
+
+# =============================================================================
+# WORKER NODE VLAN CONFIGURATION
+# =============================================================================
+# Configures VLAN-tagged interfaces and static routes on Kubernetes worker
+# nodes so that iDRAC Telemetry pods can reach BMC endpoints that reside in
+# different subnets.
+#
+# When is this required?
+#   - iDRAC Telemetry is enabled
+#   - Control plane and worker nodes reside in different subnets
+#   - One or more BMC networks are not directly reachable from the worker-node
+#     admin/PXE network
+#   - VLAN tagging and static routes are needed to reach BMC endpoints
+#
+# How it works:
+#   The utility reads the cluster inventory (orchestrator_inventory.yml) to:
+#     1. Discover all K8s worker nodes (service_kube_node_* groups)
+#     2. Collect all BMC IPs (bmc_ip field) to derive BMC subnets
+#     3. Auto-generate VLAN IP assignments using subnet replacement
+#        (admin_subnet -> vlan_subnet, preserving host octets)
+#
+#   Example: admin_subnet=192.168.14.0/24, vlan_subnet=192.168.21.0/24
+#     Worker 192.168.14.113 -> VLAN IP 192.168.21.113
+#     Worker 192.168.14.123 -> VLAN IP 192.168.21.123
+#
+# See: HowTo/Telemetry/worker_node_vlan_configuration in the Omnia docs
+# =============================================================================
+
+# ----------------------------------------------------------------------------
+# CLUSTER INVENTORY
+# ----------------------------------------------------------------------------
+# Path to the Ansible inventory file that contains worker node definitions.
+# The utility reads service_kube_node_* groups to identify target workers,
+# and extracts bmc_ip fields to auto-discover BMC subnets.
+#
+# Default (when empty):
+#   $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
+# Example: "/opt/omnia/orchestrator/output/project_default/orchestrator_inventory.yml"
+cluster_inventory: ""
+
+# ----------------------------------------------------------------------------
+# VLAN PARAMETERS
+# ----------------------------------------------------------------------------
+
+# VLAN ID trunked on the Top-of-Rack switch port that carries BMC traffic.
+# Obtain this value from the site network team.
+# Required. Must be an integer between 1 and 4094.
+# Example: 702
+vlan_id:
+
+# Prefix length (netmask) for the BMC VLAN subnet.
+# Obtain this value from the site network team.
+# Required. Must be an integer between 1 and 30.
+# Example: 24
+vlan_netmask: 24
+
+# Gateway address that routes to the BMC subnets.
+# Obtain this value from the site network team.
+# Required. Must be a valid IPv4 address.
+# Example: "10.44.0.1"
+vlan_gateway: ""
+
+# Static route metric. Choose a value that does not conflict with existing
+# routes on the worker nodes. Verify with `ip route show` on each worker.
+# Default: 50
+route_metric: 50
+
+# ----------------------------------------------------------------------------
+# SUBNET MAPPING
+# ----------------------------------------------------------------------------
+# The admin subnet (where worker admin/PXE IPs reside) and the VLAN subnet
+# (where VLAN IPs will be assigned). The utility replaces the network prefix
+# of each worker's admin IP with the VLAN subnet prefix.
+#
+# Example: admin_subnet=192.168.14.0/24, vlan_subnet=192.168.21.0/24
+#   Worker 192.168.14.113 -> VLAN IP 192.168.21.113
+#   Worker 192.168.14.123 -> VLAN IP 192.168.21.123
+#
+# Required. Must be valid IPv4 CIDRs.
+admin_subnet: ""
+vlan_subnet: ""
