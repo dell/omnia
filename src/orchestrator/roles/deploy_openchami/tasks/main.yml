@@ -29,3 +29,6 @@
 
 - name: Configure OpenCHAMI certificate renewal
   ansible.builtin.include_tasks: configure_certificate_renewal.yml
+
+- name: Renew OpenCHAMI service tokens
+  ansible.builtin.include_tasks: renew_service_tokens.yml

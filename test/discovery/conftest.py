@@ -109,6 +109,8 @@ def pytest_configure(config):
         "regression": "Regression tests",
         "deploy": "Playbook deployment tests",
         "nft": "Non-functional tests (performance, idempotency)",
+        "contract": "Contract tests (verify interface compatibility)",
+        "ome": "OME integration tests (require OME connectivity)",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -338,6 +340,22 @@ def pytest_report_teststatus(report, config):
             return "failed", "", ""
     if report.skipped:
         return "skipped", "", ""
+
+
+# =============================================================================
+# SESSION CLEANUP
+# =============================================================================
+
+def pytest_sessionfinish(session, exitstatus):
+    """Clean up resources at end of test session."""
+    # Close OME session if one was opened (follows src pattern)
+    try:
+        from library.functions import close_ome_session
+        host = get_testinfra_host()
+        close_ome_session(host)
+    except Exception:
+        # Best-effort cleanup - don't fail tests due to cleanup issues
+        pass
 
 
 # =============================================================================
