@@ -11,7 +11,7 @@ companion skills and shared instructions.
 Apply the same logical change — "pin RHEL from 10.0 to 10.2 across all
 functional groups," "add a package to every catalog with X" — consistently
 across every catalog it affects, and report exactly which catalogs
-changed (`ER-BSM-001-nersc-ai-skills-catalog-authoring`, FR-1.3, AC-005).
+changed (FR-1.3, AC-005).
 Every catalog in the bulk edit is gated independently by
 `pre_edit_gate.md` (FR-6.1) — a bulk edit is not a bypass of the gate,
 it's the gate applied per catalog with per-catalog approval.
@@ -80,7 +80,9 @@ For each catalog the operator approved:
 
 - **If the change is a package add/remove**, reuse the `catalog-editing`
   skill's mechanics (`catalog_manager.py add`/`delete`) once per catalog
-  file —
+  file — specifying `os_version=<version>` per package line when possible and
+  always passing `--default-os-version` matching each target catalog's
+  specific `base_os` OS version —
   each invocation reads, validates, and writes exactly one file, so one
   catalog's schema failure cannot affect another's already-completed
   write.
@@ -96,6 +98,8 @@ For each catalog the operator approved:
   from catalog.catalog_io import read_catalog, write_catalog
   from catalog.validator import validate_catalog
 
+  CATALOG_ROOT = 'src/main/samples/catalogs'
+
   catalog = read_catalog(path)
   # ... apply the specific field mutation to catalog['catalog'] ...
   issues = validate_catalog(catalog, schema_path)
@@ -104,12 +108,59 @@ For each catalog the operator approved:
       # report and skip -- do NOT write
       ...
   else:
-      write_catalog(catalog, path)
+      write_catalog(catalog, path, allowed_root=CATALOG_ROOT)
   ```
 
   This is the same pattern `catalog_manager.py`'s `add`/`delete` commands
-  now follow (fixed 2026-09-27) — validate the in-memory result, write
-  only if it passes.
+  follow — validate the in-memory result, write only if it passes. A
+  path outside `CATALOG_ROOT` raises `CatalogPathError` and nothing is
+  written.
+
+#### Changing a catalog's RHEL version
+
+The OS version is stored in four places, and the consumers read
+different ones. Change all of them together, or repo_manager and the
+image builder will disagree about the catalog's version while schema
+validation still passes:
+
+| Field | Read by |
+|---|---|
+| Functional-layer names (`<role>_rhel_10_0_<arch>`) | repo_manager: takes the OS version from the layer name (`src/repo_manager/vars/default.yml`) |
+| Every package `sources[].version` list | repo_manager: each layer needs a source for its own version, otherwise "has no source for architecture … compatible with rhel X" |
+| `base_os` group `os_version` (and its description) | image builder |
+| Catalog `name`, `identifier`, `description` | operators and diffs |
+
+```python
+def switch_os_version(catalog, old, new):
+    """Move every layer, base_os group and package source from `old` to `new`."""
+    c = catalog['catalog']
+    old_s, new_s = old.replace('.', '_'), new.replace('.', '_')
+    for layer in c['functionallayer']:
+        layer['name'] = layer['name'].replace(f'_{old_s}_', f'_{new_s}_')
+    for group in c['groups'].values():
+        if group.get('type') == 'base_os' and group.get('os_version') == old:
+            group['os_version'] = new
+            group['description'] = group.get('description', '').replace(old, new)
+    for package in c['packages'].values():
+        for source in package['sources']:
+            versions = source.get('version')
+            if isinstance(versions, list) and old in versions:
+                source['version'] = list(dict.fromkeys(
+                    new if v == old else v for v in versions))
+    for key in ('name', 'description'):
+        c[key] = c[key].replace(old, new)
+    c['identifier'] = c['identifier'].replace(old.replace('.', '-'), new.replace('.', '-'))
+```
+
+Run this inside the validate-before-write pattern above. It is a
+mechanical rename only. Packages whose name or pin is specific to one
+minor version (e.g. `python3_3_12_9` on 10.0, plain `python3` on 10.2)
+are not changed by it. Compare against the shipped catalog for the
+target version, if one exists, and present each such package as a gate
+finding for that catalog. Do not swap them silently.
+
+Do not use this on a hybrid catalog, where only some layers move. Edit
+the named layers and their sources individually instead.
 
 ### Step 4 — Report
 
@@ -160,11 +211,12 @@ Running Step 3's field-edit pattern against both files independently:
 }
 ```
 
-Verified: `service_k8s_x86_64.json`'s `baseos_group.os_version` is now
-`"10.2"` on disk. `slurm_aarch64.json`'s file content is byte-for-byte
-identical to before the run (MD5 verified) — the failed catalog was
-never written, and the successful catalog's write was unaffected by the
-other's failure.
+Isolation path: when one catalog in the set fails validation after the
+change (in an earlier trace, a copy of `slurm_aarch64.json` with its
+`base_os` group's `os` field removed), it is reported under **Skipped**
+with the specific errors (`'os' is a required property`, `base_os group
+'baseos_group' missing 'os' field`). Its file stays byte-for-byte
+unchanged, and the other catalogs' writes are unaffected.
 
 ## What This Skill Does Not Do
 

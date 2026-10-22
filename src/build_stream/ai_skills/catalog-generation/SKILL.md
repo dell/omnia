@@ -59,8 +59,14 @@ or label a reduced RHEL-only result as the complete requested hybrid catalog.
 Known limits in the inspected checkout: the catalog schema accepts no `deb`
 package type, and `src/image_build_manager/plugins/modules/parse_catalog.py`
 returns one `cluster_os_type` and indexes base packages by version rather than
-family/version. Recheck these contracts in the active checkout before accepting
-multiple families; a schema-valid multi-family JSON alone is insufficient.
+family/version. In repo_manager, only the `rhel` profile is enabled in
+`src/repo_manager/vars/default.yml` (`sles` and `ubuntu` are disabled
+placeholders), and
+`src/repo_manager/plugins/module_utils/repo_manager/catalog_execution_context_resolver.py`
+stops with "Catalog functional layers must use exactly one OS type" when
+layers name more than one family. Recheck these contracts in the active
+checkout before accepting multiple families; a schema-valid multi-family JSON
+alone is insufficient.
 Explain required consumer/package-provider work if those limits still apply.
 This skill must not modify runtime code or promise deployment support it lacks.
 
@@ -149,6 +155,11 @@ compatibility checks below to the missing OS/architecture assignments.
   its associated compute pool, while permitting a supported explicit override.
   For multiple pools, ask which it serves instead of choosing the first tuple.
   Neither login role becomes mandatory.
+- In a hybrid-OS request, also disclose that every shipped hybrid sample puts
+  `login_node` on the **controller's** platform (RHEL 10.2, controller
+  architecture), not on the compute pool's. Offer that layout as the
+  alternative to the compute-pool default and record which one the operator
+  chose.
 
 Example: controller x86_64, compute aarch64 → compiler aarch64; login defaults to
 aarch64 but the operator can change it to x86_64. Kubernetes stays on x86_64.
@@ -162,14 +173,16 @@ The `slurm_service_k8s_hybrid_10_2_10_0_combined.json` catalog maps roles as fol
 | Kubernetes control-plane and worker | RHEL 10.2 | x86_64 | `baseos_group_10.2` |
 | Slurm compute | RHEL 10.0 | aarch64 | `baseos_group_10.0` |
 | Login/compiler | RHEL 10.0 | aarch64 | `baseos_group_10.0` |
-| Login | RHEL 10.0 | x86_64 | `baseos_group_10.0` |
+| Login | RHEL 10.2 | x86_64 | `baseos_group_10.2` |
 
 It has three `os` layers: RHEL 10.2/x86_64, RHEL 10.0/x86_64 and
-RHEL 10.0/aarch64. Its login architecture is an explicit departure from the
-compute default. Single-architecture hybrid variants keep controller on 10.2 and
-compute/login/compiler on 10.0, all on the chosen architecture. The `_no_vast`
-variants omit VAST without changing those platform assignments. Read the selected
-example's actual layers/groups, not just its filename or description.
+RHEL 10.0/aarch64. Its login node follows the controller (RHEL 10.2, x86_64),
+which departs from the compute-pool default above in both OS version and
+architecture. Single-architecture hybrid variants keep controller and login on
+10.2 and compute/compiler on 10.0, all on the chosen architecture. The
+`_no_vast` variants omit VAST without changing those platform assignments. Read
+the selected example's actual layers/groups, not just its filename or
+description.
 
 ### Hardware prompts
 
@@ -415,7 +428,7 @@ where the selected tuple has verified driver/package support:
 | `powerscale_csi_group` | Explicit PowerScale CSI | Kubernetes control-plane/worker only |
 
 Do not attach these groups to the standalone `os` layer. PowerScale NFS does not
-satisfy the CSI selection even though the older A.3 capture says `storage=PowerScale`.
+satisfy the CSI selection; A.3 governs `powerscale_csi_group` by `storage=PowerScale CSI`.
 
 For each standard group, search the approved catalog root recursively for that
 exact key (`rg -l` or direct file reads). Read actual component lists, not just
@@ -539,6 +552,18 @@ does **not** enforce all of the following; this is a separate model-performed re
    layers if assembly or source resolution changed the kernel, driver, platform
    or installation method since preflight. Report this result separately from
    schema validation; a floating kernel requires revalidation before deployment.
+9. The draft meets the repo_manager rules that schema validation does not
+   check. repo_manager stops with an error if any of these fail:
+   - every layer name ends in `_<os>_<major>_<minor>_<architecture>` (e.g.
+     `slurm_node_rhel_10_0_aarch64`);
+   - all layers use exactly one OS type;
+   - every package reachable from a layer has a source for that layer's
+     architecture (or `noarch`) and OS version (otherwise "has no source
+     for architecture … compatible with rhel X").
+
+   repo_manager reads the OS version from the layer name and the image
+   builder reads the `base_os` group's `os_version`, so the two must agree
+   for every layer.
 
 Report schema-validation results separately from this selection review. Do not
 claim these semantic checks ran automatically. Any unresolved or failed check

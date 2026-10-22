@@ -1,6 +1,6 @@
 ---
 name: online-offline-connectivity-layer
-description: Shared online/offline fallback decision procedure for package-metadata, impact, and compatibility resolution. Referenced (not duplicated) by the Catalog Generation skill and, later, by the Analysis skills. Channel-agnostic.
+description: Shared online source lookup and fallback fallback decision procedure for package-metadata, impact, and compatibility resolution. Referenced (not duplicated) by the Catalog Generation skill and, later, by the Analysis skills. Channel-agnostic.
 ---
 
 ## Purpose
@@ -10,19 +10,17 @@ connectivity-decision procedure that any catalog-authoring or analysis skill
 follows when it needs to resolve package metadata, a compatibility fact, or
 an impact relationship that is not already fixed by the master reference
 file's pinned tables (A.5, A.6). It implements FR-3 of
-`ER-BSM-001-catalog-generation-skill` and is the shared foundation
-`ER-BSM-001-analysis-skills` reuses for FR-3.1 (Impact Analysis) and FR-3.2
+the catalog-generation skill and is the shared foundation
+the analysis skills reuse for FR-3.1 (Impact Analysis) and FR-3.2
 (Compatibility & Dependency Analysis).
 
 Every skill that references this file MUST follow the same disclosure
 contract below — the packaging is a shared instructions file, not a
-duplicated-but-possibly-diverging description per skill (per the resolved
-Open Question in `ER-BSM-001-catalog-generation-skill`'s `spec.md`, §8).
+duplicated-but-possibly-diverging description per skill.
 
 ## Approved Source Classes Only
 
-Prefer, in this order, only the following source classes (HLD §4.1 of
-`ER-BSM-001-nersc-ai-skills-catalog-authoring`):
+Prefer, in this order, only the following source classes:
 
 1. **Red Hat Compatibility Matrix** — OS/architecture/package compatibility
    facts.
@@ -38,6 +36,16 @@ Prefer, in this order, only the following source classes (HLD §4.1 of
    it is a local, read-only file read with no outbound network or
    FIPS/allow-list implication (Req-SEC-C-1/C-2 unaffected), so it is
    reachability under this existing class, not a fifth source class.
+
+This order ranks sources for **compatibility facts**. For package
+**availability and dependency data** (which versions a repository offers,
+what a package requires), the repository metadata in classes 3–4 is the
+primary evidence: `impact-analysis` queries local `dnf` metadata first,
+and `compatibility-analysis` uses read-only package-manager queries
+against the target repositories for its dependency discovery. For kernel-dependent driver
+support, the driver vendor's own documentation (class 2, e.g. NVIDIA's
+supported-OS lists) outranks the Red Hat matrix. These are the same four
+classes applied to different questions, not a different policy.
 
 Never perform, and never cite, an open-ended general web search or an
 unofficial/third-party mirror. If none of the four source classes above can
@@ -110,7 +118,7 @@ recording it internally.
 > Result: `disclosure=false`; return the version from the repository
 > response.
 
-**Online unreachable, offline fallback used:**
+**Online unreachable, fallback used:**
 > The same request, but the CUDA repository times out.
 > Result: fall back to A.6 Pinned Version Table's `nvidia_driver` row;
 > `disclosure=true`; state: "The CUDA repository timed out, so this

@@ -4,7 +4,7 @@
     "version": "1.0",
     "schema_version": 2,
     "identifier": "omnia-slurm-hybrid-10-2-10-0-x86_64-no-vast",
-    "description": "Hybrid Slurm catalog for x86_64: RHEL 10.2 (control) + RHEL 10.0 (node, login and login-compiler), without VAST.",
+    "description": "Hybrid Slurm catalog for x86_64: RHEL 10.2 (control and login) + RHEL 10.0 (node and login-compiler), without VAST.",
     "functionallayer": [
       {
         "name": "os_rhel_10_2_x86_64",
@@ -52,9 +52,9 @@
         ]
       },
       {
-        "name": "login_node_rhel_10_0_x86_64",
+        "name": "login_node_rhel_10_2_x86_64",
         "components": [
-          "baseos_group_10.0",
+          "baseos_group_10.2",
           "admin_debug_group",
           "slurm_custom_group",
           "openldap_group",
@@ -2361,7 +2361,7 @@
       "docker.io/curlimages/curl": {
         "name": "docker.io/curlimages/curl",
         "packagetype": "image",
-        "tag": "8.17.0",
+        "tag": "8.22.0",
         "sources": [
           {
             "architecture": "x86_64",

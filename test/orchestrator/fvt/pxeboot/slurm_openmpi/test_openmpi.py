@@ -37,7 +37,6 @@ def test_slurm_openmpi_installation(host):
     verify_pxeboot(test_log, tc, host, check_slurm_openmpi_installation)
 
 
-@pytest.mark.buildstream
 @pytest.mark.sanity
 @pytest.mark.slurm
 @pytest.mark.non_disruptive

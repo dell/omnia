@@ -291,7 +291,7 @@ After `./omnia.sh -s`, the following structure is created at `$OMNIA_DATA_PATH`:
 ├── venv/                              # Shared Python venv
 ├── .data/                             # Internal metadata
 ├── catalog/                           # Catalog JSON files (from repo_manager)
-│   └── catalog_rhel.json              # RHEL services catalog
+│   └── catalog_rhel.json              # Default hybrid RHEL Slurm + Kubernetes catalog
 └── <domain>/                          # One per domain (repeats for each)
     ├── input/<project>/                # Staged input files (copied from src/)
     │   └── <domain>_config.yml         # Domain-specific config
