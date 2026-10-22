@@ -11,8 +11,7 @@ companion skills and shared instructions.
 This is not a standalone operator-facing skill. It is the shared decision
 procedure that Catalog Generation, Catalog Editing, and the Analysis skills
 each follow before emitting a functional group or package set for a
-selection the operator requested (FR-2, AC-005, NFR-6, ER-BSM-001-nersc-ai-
-skills-catalog-authoring). It is channel-agnostic: apply it identically
+selection the operator requested (FR-2, AC-005, NFR-6). It is channel-agnostic: apply it identically
 whether you are running as a coding agent with file-system access or as a
 browser-based AI assistant that was only given the file's contents.
 
@@ -58,7 +57,9 @@ Check exactly one matching base-OS group per layer, mandatory `os` coverage for
 each tuple, and OS-family/version/architecture source coverage. `noarch` does
 not remove OS compatibility requirements. Scope login/compiler and login
 defaults to their associated compute pool; explicit login overrides need their
-own supported tuple. Do not create a role/platform cross-product.
+own supported tuple. Every shipped hybrid sample places `login_node` with the
+controller (RHEL 10.2) rather than the compute pool, so treat that placement as
+a supported override. Do not create a role/platform cross-product.
 
 ## Procedure
 
@@ -140,7 +141,7 @@ own supported tuple. Do not create a role/platform cross-product.
    - Do NOT silently substitute one of those alternatives for the
      operator. Only apply an alternative after the operator explicitly
      confirms it.
-6. **Disclose offline mode** whenever you resolve step 4 or step 5 without
+6. **Disclose when using the master reference file** whenever you resolve step 4 or step 5 without
    online package-repository access: state which master-reference rows, catalog
    files/revisions and consumer contracts support the decision, rather than
    implying live source verification (NFR-5). Do not equate sample availability
@@ -183,8 +184,8 @@ own supported tuple. Do not create a role/platform cross-product.
 > manual review or a follow-up check once online access is available."
 
 **Hybrid OS versions (verify each role):**
-> Operator requests RHEL 10.2/x86_64 Slurm controller and Kubernetes roles,
-> RHEL 10.0/aarch64 Slurm compute/compiler, and RHEL 10.0/x86_64 login.
+> Operator requests RHEL 10.2/x86_64 Slurm controller, login and Kubernetes
+> roles, and RHEL 10.0/aarch64 Slurm compute/compiler.
 > Inspect `slurm_service_k8s_hybrid_10_2_10_0_combined.json` under the approved
 > catalog root: it uses those assignments, three `os` layers, and distinct
 > `baseos_group_10.2`/`baseos_group_10.0` dictionary keys. Check the active

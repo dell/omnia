@@ -28,6 +28,10 @@ class CatalogPathError(ValueError):
     """Raised when a catalog path resolves outside its allowed root."""
 
 
+class LegacyCatalogError(ValueError):
+    """Raised when a catalog uses the legacy Schema 1.0 'Catalog' root key."""
+
+
 def resolve_and_validate_catalog_path(filepath, allowed_root):
     """Resolve `filepath` to an absolute, symlink-free path and confirm it
     falls inside `allowed_root`.
@@ -138,12 +142,15 @@ def read_catalog(filepath):
     Raises:
         FileNotFoundError: If the file doesn't exist.
         json.JSONDecodeError: If the file is not valid JSON.
+        LegacyCatalogError: If the catalog uses the Schema 1.0 format.
         ValueError: If the catalog structure is invalid.
     """
     logger.info("Reading catalog from: %s", filepath)
     with open(filepath, 'r', encoding='utf-8') as fh:
         data = json.load(fh)
 
+    if 'catalog' not in data and 'Catalog' in data:
+        raise LegacyCatalogError(f"Legacy Schema 1.0 catalog in {filepath}")
     if 'catalog' not in data:
         raise ValueError(f"Invalid catalog file: missing 'catalog' key in {filepath}")
 

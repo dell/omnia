@@ -18,13 +18,14 @@ import pytest
 
 from fvt.result import verify_pxeboot
 from library.functions import (
+    TestLogger,
     check_powervault_gpt_missing_label,
     check_powervault_duplicate_fstab_detection,
 )
+from library.vars import TEST_CASES as TC
 
 
 @pytest.mark.negative
-@pytest.mark.sanity
 @pytest.mark.order(330)
 def test_neg_powervault_gpt_missing_label(host):
     """Verify GPT partition check correctly detects missing GPT label.
@@ -33,11 +34,12 @@ def test_neg_powervault_gpt_missing_label(host):
     without a valid GPT partition table, ensuring proper error detection
     for incorrectly formatted PowerVault volumes.
     """
-    verify_pxeboot(host, "powervault_gpt_missing_label", check_powervault_gpt_missing_label)
+    tc = TC["powervault_gpt_missing_label"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_gpt_missing_label)
 
 
 @pytest.mark.negative
-@pytest.mark.sanity
 @pytest.mark.order(331)
 def test_neg_powervault_duplicate_fstab(host):
     """Verify duplicate fstab entry detection works correctly.
@@ -46,4 +48,6 @@ def test_neg_powervault_duplicate_fstab(host):
     duplicate fstab entries, ensuring proper error detection for
     misconfigured persistent mount configurations.
     """
-    verify_pxeboot(host, "powervault_duplicate_fstab", check_powervault_duplicate_fstab_detection)
+    tc = TC["powervault_duplicate_fstab"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_powervault_duplicate_fstab_detection)

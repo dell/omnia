@@ -394,7 +394,7 @@
           "strimzi_kafka_operator_helm_3_chart_1_1_0",
           "quay.io/strimzi/kafka-bridge",
           "docker.io/victoriametrics/operator",
-          "victoria_metrics_operator_0_59_3",
+          "victoria_metrics_operator_0_68_1",
           "docker.io/timberio/vector",
           "apptainer",
           "iscsi_initiator_utils",
@@ -650,7 +650,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0-cluster"
+        "tag": "v1.153.0-cluster"
       },
       "authselect": {
         "name": "authselect",
@@ -887,7 +887,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "0.54.0-debian"
+        "tag": "0.59.0-debian"
       },
       "gdb": {
         "name": "gdb",
@@ -954,7 +954,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0-cluster"
+        "tag": "v1.153.0-cluster"
       },
       "quay.io/dell/container-storage-modules/csm-metrics-powerscale": {
         "name": "quay.io/dell/container-storage-modules/csm-metrics-powerscale",
@@ -1339,7 +1339,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v0.68.3"
+        "tag": "v0.75.0"
       },
       "docker.io/library/mysql": {
         "name": "docker.io/library/mysql",
@@ -1541,13 +1541,13 @@
           }
         ]
       },
-      "victoria_metrics_operator_0_59_3": {
-        "name": "victoria-metrics-operator-0.59.3",
+      "victoria_metrics_operator_0_68_1": {
+        "name": "victoria-metrics-operator-0.68.1",
         "packagetype": "tarball",
         "sources": [
           {
             "architecture": "x86_64",
-            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz",
+            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.68.1/victoria-metrics-operator-0.68.1.tgz",
             "name": "rhel",
             "version": [
               "10.2"
@@ -1555,7 +1555,7 @@
           },
           {
             "architecture": "aarch64",
-            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz",
+            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.68.1/victoria-metrics-operator-0.68.1.tgz",
             "name": "rhel",
             "version": [
               "10.2"
@@ -1576,7 +1576,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "config-reloader-v0.68.3"
+        "tag": "config-reloader-v0.75.0"
       },
       "openssl_libs": {
         "name": "openssl-libs",
@@ -1768,7 +1768,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0"
+        "tag": "v1.153.0"
       },
       "msr_safe": {
         "name": "msr-safe",
@@ -2519,7 +2519,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.50.0"
+        "tag": "v1.53.0"
       },
       "kernel_devel": {
         "name": "kernel-devel",
@@ -2703,7 +2703,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0"
+        "tag": "v1.153.0"
       },
       "datacenter_gpu_manager": {
         "name": "datacenter-gpu-manager-4-cuda13",
@@ -2800,7 +2800,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "1.1.0-kafka-4.3.0"
+        "tag": "1.2.0-kafka-4.3.1"
       },
       "quay.io/strimzi/kafka-bridge": {
         "name": "quay.io/strimzi/kafka-bridge",
@@ -2815,7 +2815,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "1.0.0"
+        "tag": "1.2.0"
       },
       "tar": {
         "name": "tar",
@@ -3201,7 +3201,7 @@
         ]
       },
       "victoria_metrics_operator": {
-        "name": "victoria-metrics-operator-0.59.3",
+        "name": "victoria-metrics-operator-0.68.1",
         "packagetype": "tarball",
         "sources": [
           {
@@ -3210,7 +3210,7 @@
             "version": [
               "10.2"
             ],
-            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz"
+            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.68.1/victoria-metrics-operator-0.68.1.tgz"
           },
           {
             "architecture": "aarch64",
@@ -3218,7 +3218,7 @@
             "version": [
               "10.2"
             ],
-            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz"
+            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.68.1/victoria-metrics-operator-0.68.1.tgz"
           }
         ]
       },
@@ -3235,7 +3235,22 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "6.3.0"
+        "tag": "6.3.2"
+      },
+      "external_snapshotter_v8_6_0": {
+        "name": "external-snapshotter-v8.6.0",
+        "packagetype": "git",
+        "version": "v8.6.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
       },
       "external_snapshotter_v8_6_0": {
         "name": "external-snapshotter-v8.6.0",
@@ -3372,12 +3387,12 @@
         ]
       },
       "strimzi_kafka_operator_helm_3_chart_1_1_0": {
-        "name": "strimzi-kafka-operator-helm-3-chart-1.1.0",
+        "name": "strimzi-kafka-operator-helm-3-chart-1.2.0",
         "packagetype": "tarball",
         "sources": [
           {
             "architecture": "x86_64",
-            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz",
+            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.2.0/strimzi-kafka-operator-helm-3-chart-1.2.0.tgz",
             "name": "rhel",
             "version": [
               "10.2"
@@ -3385,7 +3400,7 @@
           },
           {
             "architecture": "aarch64",
-            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz",
+            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.2.0/strimzi-kafka-operator-helm-3-chart-1.2.0.tgz",
             "name": "rhel",
             "version": [
               "10.2"
@@ -3961,7 +3976,7 @@
         ]
       },
       "strimzi_kafka_operator_helm_3_chart": {
-        "name": "strimzi-kafka-operator-helm-3-chart-1.1.0",
+        "name": "strimzi-kafka-operator-helm-3-chart-1.2.0",
         "packagetype": "tarball",
         "sources": [
           {
@@ -3970,7 +3985,7 @@
             "version": [
               "10.2"
             ],
-            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz"
+            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.2.0/strimzi-kafka-operator-helm-3-chart-1.2.0.tgz"
           },
           {
             "architecture": "aarch64",
@@ -3978,7 +3993,7 @@
             "version": [
               "10.2"
             ],
-            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz"
+            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.2.0/strimzi-kafka-operator-helm-3-chart-1.2.0.tgz"
           }
         ]
       },
@@ -4106,7 +4121,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "1.1.0"
+        "tag": "1.2.0"
       },
       "util_linux": {
         "name": "util-linux",
@@ -4180,7 +4195,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.50.0"
+        "tag": "v1.53.0"
       },
       "nfs4_acl_tools": {
         "name": "nfs4-acl-tools",
@@ -4367,7 +4382,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0-cluster"
+        "tag": "v1.153.0-cluster"
       },
       "kubectl_1_35_1": {
         "name": "kubectl-1.35.1",
@@ -4931,7 +4946,7 @@
       "docker.io/curlimages/curl": {
         "name": "docker.io/curlimages/curl",
         "packagetype": "image",
-        "tag": "8.17.0",
+        "tag": "8.22.0",
         "sources": [
           {
             "architecture": "x86_64",

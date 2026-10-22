@@ -37,7 +37,7 @@ ome_victoria_logs_required_msg: >-
 
 # Vector configuration for OME telemetry bridge
 vector:
-  image: "{{ hostvars['localhost']['telemetry_registry'].images.vector.vector | default('docker.io/timberio/vector:0.54.0-debian') }}"
+  image: "{{ hostvars['localhost']['telemetry_registry'].images.vector.vector | default('docker.io/timberio/vector:0.59.0-debian') }}"
   ome:
     app_name: "vector-ome"
     service_name: "vector-ome"
@@ -60,7 +60,7 @@ vector:
     service_name: "vmagent-vector"
     port: 8429
     replicas: 2
-    image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vmagent | default('victoriametrics/vmagent:v1.149.0')) }}"
+    image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vmagent | default('victoriametrics/vmagent:v1.153.0')) }}"
     remote_write_url: >-
       {{
         ('https' if victoria_cluster.tls_enabled | default(false) | bool else 'http')
@@ -81,7 +81,7 @@ vector:
     service_name: "vlagent-vector"
     port: 9427
     replicas: 2
-    image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vlagent | default('victoriametrics/vlagent:v1.50.0')) }}"
+    image: "{{ (hostvars['localhost']['telemetry_registry'].images.victoria.vlagent | default('victoriametrics/vlagent:v1.53.0')) }}"
     remote_write_url: >-
       {{
         ('https' if victoria_logs_cluster.tls_enabled | default(false) | bool else 'http')

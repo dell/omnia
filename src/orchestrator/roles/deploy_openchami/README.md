@@ -14,6 +14,8 @@ Installs or refreshes the OpenCHAMI 0.2.0 Fabrica deployment and starts the
 7. Refreshes network configuration when an installation already exists.
 8. Renews missing, mismatched, expired, or near-expiry HAProxy certificates
    and enables the packaged daily certificate-renewal timer.
+9. Restarts Metadata Service, Boot Service, and HAProxy to renew the services'
+   TokenSmith credentials during deployment and before provisioning.
 
 The deployment includes SMD and PostgreSQL, Boot Service, Metadata Service,
 TokenSmith, local CA/ACME units, CoreSMD DHCP/DNS, and HAProxy.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Generates schema-valid Omnia catalogs from operator-described functional groups, base OS, and package lists. Use when creating new catalogs for cluster configurations (Slurm, Kubernetes, or mixed-stack deployments).
+Generates Omnia catalogs from operator-described roles, OS families/versions, architectures, and packages. Use when creating single-platform, hybrid-OS, or mixed-stack catalogs from verified catalog and consumer support.
 
 ## When to Use
 
@@ -19,6 +19,8 @@ Use this skill when you need to:
 - Understanding of target cluster configuration (OS, stack, roles, storage, network)
 
 ## Usage
+
+> **Note:** The example invocations below are natural-language prompts intended for an AI coding agent or assistant, not direct CLI commands.
 
 ### Basic Invocation
 
@@ -42,27 +44,30 @@ Generate a catalog for:
 
 | Capability | Description |
 |------------|-------------|
-| Selection Interview | Guides operator through 9-step dependency-ordered configuration selection |
+| Selection Interview | Resolves seven configuration domains (platform, stack, compute, storage, network, packages and sources, output), asking only for missing answers |
+| Hybrid OS | Maps each role to its own OS version/architecture (e.g. controller and login on RHEL 10.2, compute on RHEL 10.0) |
+| repo_manager Contract Review | Checks layer naming, single OS type, and per-layer source coverage, which schema validation does not cover |
 | Catalog Naming | Offers configuration-specific names or accepts the operator's own name |
 | Hardware Prompts | GPU: NVIDIA or None (CPU-only software); InfiniBand: Yes or No |
 | Stack-Storage Filtering | Validates storage compatibility with selected software stack |
 | Architecture Constraints | Enforces architecture-specific limitations (e.g., Kubernetes x86_64-only) |
 | Functional Layer Expansion | Generates role-by-architecture functional layers with appropriate groups |
 | Custom Roles/Packages | Supports operator-defined functional roles and additional packages |
-| Package Resolution | Resolves package versions and sources via online/offline connectivity layer |
+| Package Resolution | Resolves package versions and sources via online source lookup and fallback connectivity layer |
 | Schema Validation | Validates generated catalogs against official schema before output |
 | Channel-Agnostic | Works in coding agent or browser-based AI assistant environments |
 
 ## Workflow
 
-1. **Selection Interview** (Steps 1-9): Collect OS, architecture, stack, roles, GPU, storage, network, source overrides, and additional packages
-2. **Name and Confirmation**: Offer catalog names or accept a custom name, then confirm the configuration, name, and output filename
-3. **Functional Layer Expansion**: Generate layers per role and architecture
-4. **Group Resolution**: Resolve group package composition from shipped catalogs
-5. **Package Resolution**: Resolve versions and sources via connectivity layer
-6. **Assembly**: Build complete catalog JSON structure
-7. **Validation**: Run schema validation (when shell access available)
-8. **Output**: Deliver validated catalog with repository-name consistency reminder
+The skill has seven steps (see `SKILL.md`):
+
+1. **Normalize the request**: extract supplied answers and ask only the missing ones, including catalog identity
+2. **Storage**: resolve storage by environment and purpose
+3. **Preflight and confirmation**: dependency review, Source Overrides checkpoint, cross-domain checks, single confirmation
+4. **Layer expansion and group resolution**: one layer per approved (role, OS, version, architecture), groups from shipped catalogs
+5. **Package resolution**: sources and versions for every consuming platform
+6. **Assemble and validate**: schema validation plus the model-performed review, including the repo_manager contract
+7. **Completion summary**: output path, validation status, unresolved items, repository mappings needed before sync
 
 ## References
 
@@ -75,7 +80,8 @@ Generate a catalog for:
 ## Limitations
 
 This skill does **not**:
-- Edit existing catalogs (see `edit-catalog` skill)
+- Edit existing catalogs (see `catalog-editing` skill)
+- Produce a deployable catalog for an OS family other than RHEL: only the `rhel` profile is enabled in repo_manager, so such output stays a blocked draft
 - Perform bulk catalog edits (see `bulk-edit-catalog` skill)
 - Analyze catalog impact or compatibility (see analysis skills)
 - Update master reference data (manual process)

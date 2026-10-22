@@ -19,7 +19,7 @@ gitlab_ctl_command: "gitlab-ctl"
 gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
 
 # Omnibus package
-gitlab_package_name: "gitlab-ce-18.8.0"
+gitlab_package_name: "gitlab-ce-19.5.0-ce.0"
 gitlab_package_state: "present"
 gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh"
 

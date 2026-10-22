@@ -36,6 +36,8 @@ discovery_cleanup_expected_log_dir: >-
 discovery_cleanup_credential_paths:
   - "{{ discovery_cleanup_input_dir }}/discovery_credentials.yml"
   - "{{ discovery_cleanup_input_dir }}/.discovery_credentials_key"
+  - "{{ discovery_cleanup_input_dir }}/discovery_credentials.yml.lock"
+  - "{{ discovery_cleanup_input_dir }}/.discovery_credentials_key.lock"
 
 discovery_cleanup_invalid_configuration_msg: >-
   Invalid Discovery cleanup configuration. DISCOVERY_DATA_PATH must resolve

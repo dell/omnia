@@ -601,7 +601,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "find %s -mindepth 1 -maxdepth 2 -printf '%%p|%%y|%%s\\n' 2>/dev/null"
     ),
     "hpc_tools_tool_executables": (
-        "find %s -type f \\( -perm -u+x -o -perm -g+x -o -perm -o+x \\) "
+        "find %s \\( -type d \\( %s \\) -prune \\) -o "
+        "-type f \\( -perm -u+x -o -perm -g+x -o -perm -o+x \\) "
         "! -name '*.sh' ! -name '*.py' ! -name '*.tar*' ! -name '*.tgz' "
         "! -name '*.gz' ! -name '*.bz2' ! -name '*.xz' ! -name '*.zip' "
         "-printf '%%p\\n' 2>/dev/null | head -20"
@@ -802,11 +803,14 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "nvcc --version 2>/dev/null | grep -oP 'release \\K[0-9]+\\.[0-9]+'"
     ),
     "dcgm_cuda_toolkit_path": (
-        "if test -f /usr/local/cuda/bin/nvcc; then ls /usr/local/cuda/ 2>/dev/null;"
-        " elif test -f /hpc_tools/cuda/bin/nvcc; then ls /hpc_tools/cuda/ 2>/dev/null; fi"
+        ". /hpc_tools/scripts/omnia_platform.sh && omnia_detect_platform && "
+        "test -x ${OMNIA_PLATFORM_ROOT}/cuda/bin/nvcc && "
+        "test -f ${OMNIA_PLATFORM_ROOT}/cuda/.done_cuda && "
+        "echo ${OMNIA_PLATFORM_ROOT}/cuda"
     ),
     "dcgm_cuda_lock_check": (
-        "test -f /hpc_tools/cuda/.install_lock && echo LOCKED || echo UNLOCKED"
+        ". /hpc_tools/scripts/omnia_platform.sh && omnia_detect_platform && "
+        "test -d ${OMNIA_PLATFORM_ROOT}/cuda/.nfs_lock_cuda && echo LOCKED || echo UNLOCKED"
     ),
     "dcgm_rpm_check": "rpm -qa 2>/dev/null | grep '^datacenter-gpu-manager' | head -1",
     "dcgm_binary_check": "command -v dcgmi 2>/dev/null && dcgmi --version 2>/dev/null",

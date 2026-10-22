@@ -161,6 +161,26 @@ initializer-owned staged input and domain log paths. It does not replace the
 Ansible cleanup tag. Both global cleanup modes prompt for `yes`; trusted
 automation can add `--skip-approval`.
 
+### Functional Groups
+
+Discovery assigns `FUNCTIONAL_GROUP_NAME` based on OME static groups:
+
+| Scenario | Result |
+|----------|--------|
+| Valid OME static group | Uses OME group name |
+| Invalid OME static group | Default: `slurm_node_rhel_10_0_aarch64` |
+| No OME static group | Default: `slurm_node_rhel_10_0_aarch64` |
+
+**Valid pattern:** `<prefix>_rhel_<major>_<minor>_(x86_64|aarch64)`
+
+Examples:
+- ✅ `slurm_node_rhel_10_0_x86_64`
+- ✅ `login_node_rhel_10_2_aarch64`
+- ❌ `login_node` (missing `_rhel_<version>_<arch>`)
+
+> **Note:** Discovery does not read from catalog. The default functional group
+> is a fixed value with no external dependencies.
+
 ### Logs
 
 Discovery keeps execution and runtime logs separate:

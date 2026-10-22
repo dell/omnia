@@ -38,7 +38,7 @@ from library.vars.test_case_vars import TEST_CASES as TC
 @pytest.mark.deploy
 @pytest.mark.sanity
 @pytest.mark.order(0)
-def test_deploy_cleanup(_host):
+def test_deploy_cleanup(host):
     """DISCOVERY_FVT_CLEANUP_E001: Deploy discovery.yml --tags cleanup (full cleanup)."""
     tc = TC["deploy_cleanup"]
     tl = TestLogger(
@@ -67,14 +67,14 @@ def test_deploy_cleanup(_host):
 @pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.order(1)
-def test_deploy_cleanup_preserve_credentials(_host):
+def test_deploy_cleanup_preserve_credentials(host):
     """DISCOVERY_FVT_CLEANUP_E002: Deploy discovery.yml --tags cleanup \
         -e cleanup_credentials=false (preserve credentials)."""
     tc = TC["deploy_cleanup_preserve_credentials"]
     tl = TestLogger(
         TEST_NAMES["deploy_cleanup_preserve_credentials"], tc["id"]
     )
-    result = run_playbook(tag="cleanup", extra_vars="cleanup_credentials=false")
+    result = run_playbook(tag="cleanup", extra_vars={"cleanup_credentials": "false"})
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
@@ -97,14 +97,14 @@ def test_deploy_cleanup_preserve_credentials(_host):
 @pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.order(2)
-def test_deploy_cleanup_preserve_logs(_host):
+def test_deploy_cleanup_preserve_logs(host):
     """DISCOVERY_FVT_CLEANUP_E003: Deploy discovery.yml --tags cleanup \
         -e cleanup_logs=false (preserve logs)."""
     tc = TC["deploy_cleanup_preserve_logs"]
     tl = TestLogger(
         TEST_NAMES["deploy_cleanup_preserve_logs"], tc["id"]
     )
-    result = run_playbook(tag="cleanup", extra_vars="cleanup_logs=false")
+    result = run_playbook(tag="cleanup", extra_vars={"cleanup_logs": "false"})
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
@@ -127,7 +127,7 @@ def test_deploy_cleanup_preserve_logs(_host):
 @pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.order(3)
-def test_deploy_cleanup_idempotent(_host):
+def test_deploy_cleanup_idempotent(host):
     """DISCOVERY_FVT_CLEANUP_E004: Deploy discovery.yml --tags cleanup \
         (idempotency test - run cleanup twice)."""
     tc = TC["deploy_cleanup_idempotent"]
