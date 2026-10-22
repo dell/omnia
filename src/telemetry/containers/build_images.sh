@@ -159,6 +159,28 @@ if [[ "$BUILD_ACTION" == "push" && "$BUILD_TOOL" != "docker" ]]; then
     exit 1
 fi
 
+# ── Validate tag and registry values (CVE-1324429373) ──
+TAG_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9._-]*$'
+REGISTRY_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9._/:@-]*$'
+
+for _tag_pair in \
+    "kafkapump_tag:${KAFKAPUMP_TAG}" \
+    "victoriapump_tag:${VICTORIAPUMP_TAG}" \
+    "telemetry_receiver_tag:${TELEMETRY_RECEIVER_TAG}" \
+    "ldms_tag:${LDMS_TAG}"; do
+    _tag_name="${_tag_pair%%:*}"
+    _tag_value="${_tag_pair#*:}"
+    if [[ ! "$_tag_value" =~ $TAG_PATTERN ]]; then
+        echo -e "${RED}Error: Invalid ${_tag_name} format '${_tag_value}'. Must match ${TAG_PATTERN}${NC}"
+        exit 1
+    fi
+done
+
+if [[ ! "$OMNIA_DOCKER_REGISTERY" =~ $REGISTRY_PATTERN ]]; then
+    echo -e "${RED}Error: Invalid registry format '${OMNIA_DOCKER_REGISTERY}'. Must match ${REGISTRY_PATTERN}${NC}"
+    exit 1
+fi
+
 # =============================================================================
 # Clone iDRAC Telemetry repo (shared by kafkapump, victoriapump, telemetry_receiver)
 # =============================================================================

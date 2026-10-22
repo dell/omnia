@@ -142,6 +142,7 @@ class OMEClient:
         response = self.session.post(auth_url, json=auth_payload, headers=headers)
         # Clear password from memory after authentication attempt
         self.password = None
+        del auth_payload
         if response.status_code in [200, 201]:
             self.auth_token = response.headers.get("X-Auth-Token")
             self.session.headers.update({"X-Auth-Token": self.auth_token})
@@ -156,6 +157,7 @@ class OMEClient:
                 self.session.delete(logout_url)
             except Exception:
                 pass
+            self.session.cookies.clear()
 
     def _request_with_retry(self, method, url, **kwargs):
         """Execute an HTTP request with retry on transient failures (5xx / timeout)."""
