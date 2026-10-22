@@ -60,10 +60,28 @@
     /usr/bin/ochami cloud-init group set -f yaml
     -d @{{ ib_ipv6_output_dir }}/ci-group-ipoib-ipv6.yaml
   changed_when: true
+  register: _ib_ipv6_bss_set_result
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
+  ignore_errors: true
+
+- name: Set BSS publication status
+  ansible.builtin.set_fact:
+    _ib_ipv6_bss_success: >-
+      {{ (_ib_ipv6_bss_set_result is not defined)
+         or (not (_ib_ipv6_bss_set_result.failed | default(false))) }}
+
+- name: Report RECOVERY_REQUIRED for BSS publication failure
+  ansible.builtin.debug:
+    msg: >-
+      [IB-IPv6] RECOVERY_REQUIRED — BSS publication failed.
+      failure_stage=BSS_PUBLICATION, retryable=true,
+      recommended_action=rerun provisioning for affected nodes.
+      SMD state is already published; idempotent rerun will retry BSS only.
+  when: not (_ib_ipv6_bss_success | bool)
 
 - name: Display BSS publication status
   ansible.builtin.debug:
     msg: >-
       [IB-IPv6] BSS cloud-init published for
       {{ _ib_ipv6_render.nodes_needing_update | length }} node(s)
+  when: _ib_ipv6_bss_success | bool

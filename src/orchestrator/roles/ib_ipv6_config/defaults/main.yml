@@ -14,8 +14,8 @@
 ---
 # IPoIB IPv6 configuration defaults
 
-# Path to the allocation export JSON file
-ib_ipv6_allocation_file: "{{ hostvars['localhost']['input_project_dir'] }}/ib_ipv6_allocation.json"
+# Path to the PXE mapping file (sole ingestion interface for IPoIB allocations)
+ib_ipv6_pxe_mapping_file: "{{ hostvars['localhost']['pxe_mapping_file'] | default(hostvars['localhost']['input_project_dir'] + '/pxe_mapping_file.csv') }}"
 
 # Approved IPv6 prefixes (from network_spec.yml)
 ib_ipv6_approved_prefixes: "{{ hostvars['localhost']['network_spec_data']['ib_ipv6_approved_prefixes'] | default([]) }}"
@@ -38,10 +38,6 @@ ib_ipv6_log_dir: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/om
 
 # OpenSM non-regression check (set to true to capture before/after snapshots)
 ib_ipv6_opensm_check: false
-
-# Hosts block management (disabled by default — NodeAddr in slurm.conf
-# is sufficient for Slurm IB communication without /etc/hosts entries)
-ib_ipv6_manage_hosts: false
 
 # Verification after configuration
 ib_ipv6_verify: true
