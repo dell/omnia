@@ -416,3 +416,95 @@ class InfrastructureUtils:
             user,
         )
         return rc == 0 and "ok" in stdout
+
+    # ------------------------------------------------------------------
+    # Slurm node lifecycle helpers (for TC-020)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def slurm_drain_node(cls, node_name: str, reason: str = "test") -> bool:
+        """Drain a Slurm compute node."""
+        rc, _, _ = cls.slurm_cmd(
+            f"scontrol update NodeName={node_name} State=DRAIN Reason=\"{reason}\""
+        )
+        return rc == 0
+
+    @classmethod
+    def slurm_resume_node(cls, node_name: str) -> bool:
+        """Resume a drained Slurm node."""
+        rc, _, _ = cls.slurm_cmd(
+            f"scontrol update NodeName={node_name} State=RESUME"
+        )
+        return rc == 0
+
+    @classmethod
+    def slurm_get_node_state(cls, node_name: str) -> Optional[str]:
+        """Return the state of a specific Slurm node."""
+        rc, stdout, _ = cls.slurm_cmd(
+            f"scontrol show node {node_name} 2>/dev/null | grep -oP 'State=\\K\\S+'"
+        )
+        return stdout.strip() if rc == 0 and stdout.strip() else None
+
+    @classmethod
+    def submit_slurm_job_on_node(cls, node_name: str, script: str = "hostname") -> Optional[str]:
+        """Submit a Slurm job targeting a specific node."""
+        rc, stdout, _ = cls.slurm_cmd(
+            f"sbatch --nodelist={node_name} --wrap=\"{script}\" "
+            f"| grep -oP 'Submitted batch job \\K[0-9]+'"
+        )
+        return stdout.strip() if rc == 0 and stdout.strip() else None
+
+    # ------------------------------------------------------------------
+    # Kubernetes control-plane helpers (for TC-021)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def kubectl_get_etcd_members(cls) -> List[str]:
+        """Return list of etcd member names from the real cluster."""
+        rc, stdout, _ = cls.kubectl(
+            "exec -n kube-system etcd-$(kubectl get nodes -l node-role.kubernetes.io/control-plane "
+            "-o jsonpath='{.items[0].metadata.name}') -- "
+            "etcdctl member list --write-out=simple 2>/dev/null || true",
+            timeout=30,
+        )
+        members = []
+        if rc == 0 and stdout.strip():
+            for line in stdout.strip().split("\n"):
+                if line.strip() and "," in line:
+                    parts = line.split(",")
+                    if len(parts) >= 3:
+                        members.append(parts[2].strip())
+        return members
+
+    @classmethod
+    def kubectl_get_control_plane_nodes(cls) -> List[str]:
+        """Return list of control-plane node names."""
+        rc, stdout, _ = cls.kubectl(
+            "get nodes -l node-role.kubernetes.io/control-plane --no-headers"
+        )
+        nodes = []
+        if rc == 0:
+            for line in stdout.strip().split("\n"):
+                if line.strip():
+                    parts = line.split()
+                    if parts:
+                        nodes.append(parts[0])
+        return nodes
+
+    @classmethod
+    def kubectl_get_control_plane_pods_on_node(cls, node_name: str) -> Dict[str, str]:
+        """Return {pod_name: status} for control-plane pods on a specific node."""
+        rc, stdout, _ = cls.kubectl(
+            f"get pods -n kube-system --field-selector spec.nodeName={node_name} --no-headers"
+        )
+        pods = {}
+        if rc == 0:
+            for line in stdout.strip().split("\n"):
+                if line.strip():
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        name = parts[0]
+                        if any(c in name for c in ("kube-apiserver", "kube-scheduler",
+                                                     "kube-controller-manager", "etcd")):
+                            pods[name] = parts[2]
+        return pods
