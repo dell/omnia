@@ -60,7 +60,9 @@ gitlab_ci_token_scopes:
 gitlab_ci_token_access_level: 40
 gitlab_ci_token_expiry_days: 360
 gitlab_ci_token_failure_msg: 'Failed to create the GitLab project access token {{ gitlab_ci_token_name }} for project {{ gitlab_project_name }}.'
-gitlab_protect_branch_failure_msg: 'Failed to protect branch {{ gitlab_default_branch }} of project {{ gitlab_project_name }}; protected CI/CD variables require it.'
+gitlab_protect_branch_failure_msg: >-
+  Failed to protect branch {{ gitlab_default_branch }} of project
+  {{ gitlab_project_name }}; protected CI/CD variables require it.
 
 # Host prerequisites
 gitlab_hosted_prereq_packages:
