@@ -276,12 +276,8 @@
   failed_when: false
 
 - name: Create OTEL Collector PVC  # noqa: risky-shell-pipe
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - -
+  ansible.builtin.command: kubectl apply -f -
+  args:
     stdin: |
       apiVersion: v1
       kind: PersistentVolumeClaim

@@ -31,12 +31,8 @@
   changed_when: false
 
 - name: Apply telemetry namespace
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - -
+  ansible.builtin.command: kubectl apply -f -
+  args:
     stdin: "{{ ns_yaml.stdout }}"
   register: ns_result
   changed_when: "'created' in ns_result.stdout | default('')"
@@ -290,12 +286,8 @@
   no_log: true
 
 - name: Save Kafka cluster ID for retained-volume redeployment
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - -
+  ansible.builtin.command: kubectl apply -f -
+  args:
     stdin: "{{ kafka_cluster_id_secret_manifest.stdout }}"
   register: kafka_cluster_id_secret_apply
   changed_when: >-
