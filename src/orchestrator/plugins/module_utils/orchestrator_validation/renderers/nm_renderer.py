@@ -37,8 +37,6 @@ from typing import Any
 
 PROFILE_PREFIX = "omnia-ipoib"
 MANAGED_MARKER = "# Managed by Omnia Orchestrator — do not edit"
-HOSTS_BEGIN_MARKER = "# BEGIN Omnia IPoIB managed block"
-HOSTS_END_MARKER = "# END Omnia IPoIB managed block"
 
 
 # ---------------------------------------------------------------------------
@@ -380,117 +378,6 @@ def render_smd_component(
         "NetType": "InfiniBand",
         "Interfaces": render_smd_interfaces(node_id, interfaces, logger),
     }
-
-
-# ---------------------------------------------------------------------------
-# Managed Hosts Renderer (Tasks 7-8)
-# ---------------------------------------------------------------------------
-
-def render_hostname_entry(
-    record: dict[str, Any],
-    is_single_interface: bool,
-) -> str:
-    """Render a single /etc/hosts entry from an allocation record.
-
-    Hostname convention (from ER FR-4):
-    - Canonical: ``<hostname>-<interface_id>`` (e.g., ``nid0001-ib0``)
-    - Single-interface alias: ``<hostname>-ib``
-
-    Args:
-        record: Single allocation record with ``address``, ``hostname``,
-                ``interface_id``.
-        is_single_interface: Whether the node has only one IPoIB interface.
-
-    Returns:
-        Hosts file line (e.g., ``fd00:1b::1  nid0001-ib0 nid0001-ib``).
-    """
-    address = record["address"]
-    hostname = record["hostname"]
-    interface_id = record["interface_id"]
-
-    canonical = f"{hostname}-{interface_id}"
-    parts = [address, canonical]
-
-    if is_single_interface:
-        parts.append(f"{hostname}-ib")
-
-    return "\t".join(parts)
-
-
-def render_managed_hosts_block(
-    all_active_nodes: dict[str, dict[str, list[dict[str, Any]]]],
-    logger: Logger | None = None,
-) -> str:
-    """Render the managed /etc/hosts block from the complete active snapshot.
-
-    The block contains entries for ALL active allocations in the cluster,
-    not just the nodes being provisioned. The block is delimited by markers
-    so it can be atomically replaced without disturbing user-managed content.
-
-    Args:
-        all_active_nodes: Complete per-node, per-interface allocation set.
-        logger: Optional validation logger.
-
-    Returns:
-        Multi-line string with the managed hosts block (including markers).
-    """
-    lines = [HOSTS_BEGIN_MARKER]
-    entry_count = 0
-
-    for node_id in sorted(all_active_nodes.keys()):
-        interfaces = all_active_nodes[node_id]
-        is_single = len(interfaces) == 1
-
-        for interface_id in sorted(interfaces.keys()):
-            for record in interfaces[interface_id]:
-                entry = render_hostname_entry(record, is_single)
-                lines.append(entry)
-                entry_count += 1
-
-    lines.append(HOSTS_END_MARKER)
-
-    if logger:
-        logger.info(
-            "[IB-IPv6] Hosts renderer: %d entries across %d nodes",
-            entry_count, len(all_active_nodes),
-        )
-
-    return "\n".join(lines)
-
-
-def apply_managed_hosts_block(
-    existing_content: str,
-    new_block: str,
-) -> str:
-    """Replace the managed block in /etc/hosts, preserving user content.
-
-    If the managed block markers exist, replace between them.
-    If not, append the block at the end.
-
-    Args:
-        existing_content: Current /etc/hosts content.
-        new_block: New managed block (with markers).
-
-    Returns:
-        Updated /etc/hosts content.
-    """
-    begin_idx = existing_content.find(HOSTS_BEGIN_MARKER)
-    end_idx = existing_content.find(HOSTS_END_MARKER)
-
-    if begin_idx >= 0 and end_idx >= 0:
-        # Replace existing block
-        end_of_marker = end_idx + len(HOSTS_END_MARKER)
-        # Consume trailing newline if present
-        if end_of_marker < len(existing_content) and \
-                existing_content[end_of_marker] == "\n":
-            end_of_marker += 1
-        return existing_content[:begin_idx] + new_block + "\n" + \
-            existing_content[end_of_marker:]
-
-    # Append at end
-    if existing_content and not existing_content.endswith("\n"):
-        return existing_content + "\n" + new_block + "\n"
-    return existing_content + new_block + "\n"
 
 
 # ---------------------------------------------------------------------------
