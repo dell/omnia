@@ -119,8 +119,7 @@
           "cloud_init",
           "glibc_langpack_en",
           "gedit",
-          "ghcr_io/openchami/image_thrillhouse",
-          "docker_io/dellhpcomniaaisolution/image_build_el10"
+          "ghcr_io/openchami/image_thrillhouse"
         ]
       },
       "admin_debug_group": {
@@ -1566,21 +1565,6 @@
           }
         ]
       },
-      "docker_io/dellhpcomniaaisolution/image_build_el10": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-el10",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
       "tcpdump": {
         "name": "tcpdump",
         "packagetype": "rpm",
@@ -2202,7 +2186,7 @@
       "docker.io/curlimages/curl": {
         "name": "docker.io/curlimages/curl",
         "packagetype": "image",
-        "tag": "8.17.0",
+        "tag": "8.22.0",
         "sources": [
           {
             "architecture": "x86_64",

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Image Builder — Image Package Verification Tests.
+Image Thrillhouse — Image Package Verification Tests.
 
 Verify packages in x86_64 S3 images
 Verify packages in aarch64 S3 images

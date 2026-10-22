@@ -46,9 +46,9 @@
 - name: Set Strimzi image overrides for container_registry
   ansible.builtin.set_fact:
     _strimzi_helm_args: >
-      {% set _operator_img = telemetry_registry.images.strimzi.operator | default('quay.io/strimzi/operator:1.1.0') %}
+      {% set _operator_img = telemetry_registry.images.strimzi.operator | default('quay.io/strimzi/operator:1.2.0') %}
       {% set _op_tag = _operator_img.split(':')[-1] %}
-      {% set _bridge_img = telemetry_registry.images.strimzi.kafka_bridge | default('quay.io/strimzi/kafka-bridge:1.0.0') %}
+      {% set _bridge_img = telemetry_registry.images.strimzi.kafka_bridge | default('quay.io/strimzi/kafka-bridge:1.2.0') %}
       {% set _br_tag = _bridge_img.split(':')[-1] %}
       {% if telemetry_registry.host | default('') %}
       --set defaultImageRegistry={{ telemetry_registry.host }}

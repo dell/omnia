@@ -149,7 +149,7 @@ See `samples/` for example input and output files.
 |---------|-----------|
 | **S3 storage** | `s3_configurations.provider` (minio / powerscale), `endpoint_url` |
 | **Upstream** | `repo_manager_output_path` (optional override; empty uses the current Repo Manager project output) |
-| **Builder** | `image_build_type` (image-builder / image-thrillhouse) |
+| **Build engine** | OpenCHAMI Image Thrillhouse (fixed) |
 | **Groups** | `functional_groups_source` (`config` / `catalog`) |
 | **Build controls** | `build_image.max_parallel`, `build_image.build_timeout`, `build_image.force_rebuild`, `build_image.backup_s3_images`, `build_image.repo_ssl_verify` |
 | **ARM** | `aarch64_inventory_host_ip`, `aarch64_ssh_user` |
@@ -213,8 +213,7 @@ See `samples/` for example input and output files.
 - x86_64 builds: Run directly on OIM host
 - aarch64 builds: Orchestrate via SSH to dedicated aarch64 node
 - `image-thrillhouse` uses `ghcr.io/openchami/image-thrillhouse:v0.0.26` on both
-  architectures. `image-builder` uses the architecture-specific Omnia images
-  `image-build-el10:1.3` and `image-build-aarch64:1.3` from Docker Hub.
+  architectures using the same pinned Image Thrillhouse container from GHCR.
 - The default, cadence, RHEL 10.0, RHEL 10.2, and hybrid catalogs under
   `src/main/samples/` pin the same Image Thrillhouse `v0.0.26` tag. Unit tests
   recursively enforce this catalog/runtime alignment.

@@ -434,7 +434,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         status_content = (
             "---\n"
             "overall_status: success\n"
-            "image_build_type: image-builder\n"
+            "image_build_type: image-thrillhouse\n"
             "s3_configurations:\n"
             '  endpoint_url: "http://192.0.2.25:9000"\n'
             '  bucket: "boot-images"\n'
@@ -453,7 +453,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
 
         output = self.run_cli("image_build_manager")
 
-        self.assertIn("Build type: image-builder", output)
+        self.assertIn("Build type: image-thrillhouse", output)
         self.assertIn("Functional-group images: 1", output)
         self.assertIn(snapshot.name, output)
         self.assertIn("image_build_manager output validation passed", output)
@@ -926,7 +926,7 @@ printf '%s\n' "${{COMPREPLY[@]}}"
         self.assertIn("Workloads: Slurm", result.stdout)
         self.assertIn("Architectures: x86_64", result.stdout)
         self.assertIn("VAST client: not included", result.stdout)
-        self.assertIn("Functional layers: 4", result.stdout)
+        self.assertIn("Functional layers: 5", result.stdout)
 
     def test_select_catalog_public_option_activates_exact_selector(self):
         catalog_target = self.data_path / "catalog" / "catalog_rhel.json"

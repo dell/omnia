@@ -159,7 +159,7 @@ A testinfra `Host` object.  You can run commands on it:
 
 ```python
 result = host.run("hostname")
-print(result.stdout)    # "image-builder"
+print(result.stdout)    # "image-thrillhouse"
 print(result.rc)        # 0
 ```
 

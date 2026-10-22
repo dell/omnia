@@ -390,44 +390,6 @@ def _artifact_layout_result(
 ):
     """Validate the engine layout and return its artifact cohort."""
     group_prefix = f"s3://{status_bucket}/{functional_group}/"
-    efi_prefix = (
-        f"s3://{status_bucket}/efi-images/{functional_group}/"
-    )
-
-    if expected_suffix == IMAGE_BUILD_TYPE_SUFFIXES["image-builder"]:
-        expected_prefix = (
-            efi_prefix if field in ("kernel", "initrd") else group_prefix
-        )
-        if not s3_uri.startswith(expected_prefix):
-            location = (
-                "efi-images"
-                if field in ("kernel", "initrd")
-                else "functional-group"
-            )
-            return "", (
-                f"image-builder {field} must use the {location} path "
-                f"'{expected_prefix}'"
-            )
-
-        relative = s3_uri[len(expected_prefix):]
-        parts = relative.split("/")
-        if len(parts) != 2 or not all(parts):
-            return "", (
-                f"image-builder {field} path must contain exactly an "
-                "image directory and filename"
-            )
-        image_directory, filename = parts
-        if not image_directory.endswith(expected_suffix):
-            return "", (
-                f"image directory '{image_directory}' must end with "
-                f"recorded builder suffix '{expected_suffix}'"
-            )
-        if field == "image" and not filename.startswith("rhel"):
-            return "", (
-                "image-builder rootfs filename must start with 'rhel'"
-            )
-        return image_directory, ""
-
     if expected_suffix == IMAGE_BUILD_TYPE_SUFFIXES["image-thrillhouse"]:
         if not s3_uri.startswith(group_prefix):
             return "", (
@@ -629,7 +591,7 @@ def check_s3_bucket_images(
     Performs fast pre-check of S3 bucket existence before attempting
     expensive recursive listing. Config/catalog input defines the expected
     group set, while build_status.yml defines each exact object path. This
-    supports versioned filenames from both engines and legacy fixed
+    supports versioned Image Thrillhouse filenames and legacy fixed
     image-thrillhouse boot filenames without fuzzy S3 matching.
 
     Args:

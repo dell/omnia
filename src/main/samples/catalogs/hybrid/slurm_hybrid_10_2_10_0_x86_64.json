@@ -10,7 +10,6 @@
         "name": "os_rhel_10_2_x86_64",
         "components": [
           "baseos_group_10.2",
-          "image_builder_x86_64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -82,7 +81,6 @@
         "name": "os_rhel_10_0_x86_64",
         "components": [
           "baseos_group_10.0",
-          "image_builder_x86_64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -287,15 +285,6 @@
           "cuda_toolkit",
           "datacenter_gpu_manager",
           "nvhpc"
-        ]
-      },
-      "image_builder_x86_64_group": {
-        "name": "image_builder_x86_64_group",
-        "type": "group",
-        "os": "rhel",
-        "description": "Image builder for x86_64",
-        "components": [
-          "docker_io/dellhpcomniaaisolution/image_build_el10"
         ]
       },
       "imagethrillhouse": {
@@ -1391,22 +1380,6 @@
           }
         ]
       },
-      "docker_io/dellhpcomniaaisolution/image_build_el10": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-el10",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          }
-        ]
-      },
       "slurm_slurmdbd": {
         "name": "slurm-slurmdbd",
         "packagetype": "rpm",
@@ -2415,7 +2388,7 @@
       "docker.io/curlimages/curl": {
         "name": "docker.io/curlimages/curl",
         "packagetype": "image",
-        "tag": "8.17.0",
+        "tag": "8.22.0",
         "sources": [
           {
             "architecture": "x86_64",

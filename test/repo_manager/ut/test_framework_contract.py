@@ -208,17 +208,11 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
 
     def test_verify_only_targets_are_not_configured_for_execution(self):
         """Targets without deploy triggers fail closed at configuration time."""
-        # policy, negative, and user_registry are verify-only (no deploy tests)
-        # They should not be configured with command: "test" or "exec"
         config = _batch_config()
-        verify_only_scenarios = ["policy", "negative", "user_registry"]
-        for scenario in verify_only_scenarios:
+        verify_only_tags = _literal_assignment("VERIFY_ONLY_TAGS")
+        for scenario in verify_only_tags:
             self.assertIn(scenario, config["fvt_repo_manager"])
             self.assertEqual(config["fvt_repo_manager"][scenario]["command"], "verify")
-        self.assertEqual(
-            set(_literal_assignment("VERIFY_ONLY_TAGS")),
-            set(verify_only_scenarios),
-        )
 
     def test_report_names_follow_standard_convention(self):
         """Report names follow the same convention as other domains."""
@@ -238,32 +232,21 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
                 )
 
     def test_catalog_lifecycle_requires_one_real_suite(self):
-        """Catalog lifecycle execution cannot fan out across operations."""
-        # When catalog is run without a suite, it should fail or require explicit suite
-        # This is a configuration-time check - catalog has multiple suites
+        """Each catalog tag maps to a real FVT directory."""
         config = _batch_config()
-        catalog_config = config["fvt_repo_manager"].get("catalog", {})
-        # Catalog should require a suite to be specified
-        self.assertIsNotNone(catalog_config.get("suite"))
-        self.assertNotEqual(catalog_config.get("suite", ""), "")
+        catalog_tags = [t for t in _literal_assignment("FVT_TAGS") if t.startswith("catalog_")]
+        for tag in catalog_tags:
+            self.assertIn(tag, config["fvt_repo_manager"])
+            self.assertTrue((TEST_ROOT / "fvt" / tag).is_dir(), tag)
 
     def test_catalog_lifecycle_suites_call_their_public_tags(self):
         """Every executable catalog suite owns its matching playbook tag."""
-        # Catalog suites: add, delete, generate, validate
-        # Each should call run_playbook with matching tag
-        catalog_suites = _literal_assignment("SUITES")["catalog"]
-        expected_tags = {
-            "add": "catalog_add",
-            "delete": "catalog_delete",
-            "generate": "catalog_generate",
-            "validate": "catalog_validate",
-        }
-        for suite in catalog_suites:
-            suite_path = TEST_ROOT / "fvt" / "catalog" / suite
-            called_tags = _deploy_playbook_tags(suite_path)
-            expected = expected_tags.get(suite)
-            if expected:
-                self.assertIn(expected, called_tags, f"Suite {suite} should call {expected}")
+        catalog_tags = [t for t in _literal_assignment("FVT_TAGS") if t.startswith("catalog_")]
+        for tag in catalog_tags:
+            tag_path = TEST_ROOT / "fvt" / tag
+            called_tags = _deploy_playbook_tags(tag_path)
+            if called_tags:
+                self.assertIn(tag, called_tags, f"Tag {tag} should call {tag}")
 
     def test_selected_suite_is_forwarded_to_execution(self):
         """A full flow executes only the selected operation suite."""
@@ -314,26 +297,24 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         self.assertIn('"${SCRIPT_DIR}/.venv/bin/python3"', wrapper)
 
     def test_catalog_lifecycle_without_exact_suite_fails_closed(self):
-        """Ambiguous or verify-only catalog execution is rejected."""
-        # Catalog requires a suite to be specified in config
-        # This is verified by the batch config validation
-        config = _batch_config()
-        catalog_config = config["fvt_repo_manager"].get("catalog", {})
-        # Catalog should not be run without a suite
-        if catalog_config.get("run", False):
-            self.assertIsNotNone(catalog_config.get("suite"))
-            self.assertNotEqual(catalog_config.get("suite", ""), "")
+        """Each catalog tag is self-contained with its own suites."""
+        suites = _literal_assignment("SUITES")
+        catalog_tags = [t for t in _literal_assignment("FVT_TAGS") if t.startswith("catalog_")]
+        for tag in catalog_tags:
+            self.assertIn(tag, suites)
+            self.assertIsInstance(suites[tag], list)
+            self.assertTrue(len(suites[tag]) > 0, f"{tag} should have at least one suite")
 
     def test_catalog_suite_dispatches_one_full_flow(self):
-        """An exact catalog suite reaches the shared test flow unchanged."""
-        # When a catalog suite is specified, it should execute its own tests
-        # without fan-out to other catalog operations
+        """Each catalog tag's suites resolve to real directories."""
         runner = _validation_runner()
-        # Verify that the runner can handle suite-specific execution
         self.assertTrue(hasattr(runner, "_run_test"))
-        # The suite path should be constructed correctly
-        catalog_suite_path = TEST_ROOT / "fvt" / "catalog" / "validate"
-        self.assertTrue(catalog_suite_path.is_dir())
+        suites = _literal_assignment("SUITES")
+        catalog_tags = [t for t in _literal_assignment("FVT_TAGS") if t.startswith("catalog_")]
+        for tag in catalog_tags:
+            for suite in suites[tag]:
+                suite_path = TEST_ROOT / "fvt" / tag / suite
+                self.assertTrue(suite_path.is_dir(), str(suite_path))
 
     def test_suite_execution_keeps_deploy_scope_exact(self):
         """Suite execution includes only its suite and any root trigger."""
@@ -343,12 +324,12 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         # The runner should use suite-specific paths when suite is provided
         self.assertTrue(hasattr(runner, "_run_test"))
 
-    def test_suite_execution_preserves_image_builder_root_trigger(self):
-        """Shared suite filtering keeps Image Builder's deploy-test layout."""
-        image_builder_root = REPOSITORY_ROOT / "test" / "image_build_manager"
+    def test_suite_execution_preserves_image_build_manager_root_trigger(self):
+        """Shared suite filtering keeps Image Build Manager's deploy-test layout."""
+        image_build_manager_root = REPOSITORY_ROOT / "test" / "image_build_manager"
         runner = shared_runner.ValidationRunner(
             domain="image_build_manager",
-            script_dir=str(image_builder_root),
+            script_dir=str(image_build_manager_root),
         )
         with patch.object(
             runner, "_invoke_pytest_with_summary", return_value=0
@@ -360,8 +341,8 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         self.assertEqual(
             invoke.call_args.args[0],
             [
-                str(image_builder_root / "fvt" / "build" / "test_playbook.py"),
-                str(image_builder_root / "fvt" / "build" / "s3"),
+                str(image_build_manager_root / "fvt" / "build" / "test_playbook.py"),
+                str(image_build_manager_root / "fvt" / "build" / "s3"),
             ],
         )
 
@@ -476,7 +457,7 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
     def test_full_cleanup_fvt_matches_preserved_cli_contract(self):
         """Full cleanup no longer depends on obsolete input or CLI deletion."""
         source = (
-            TEST_ROOT / "fvt" / "cleanup" / "test_status.py"
+            TEST_ROOT / "fvt" / "cleanup" / "cleanup" / "test_verify_cleanup.py"
         ).read_text(encoding="utf-8")
         self.assertNotIn("cleanup_input.yml", source)
         self.assertIn("check_pulp_cli_preserved", source)

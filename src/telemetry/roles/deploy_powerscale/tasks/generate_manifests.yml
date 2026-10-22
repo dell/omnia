@@ -85,6 +85,11 @@
     msg: "Skipping CSI Volume Exporter deployment due to missing external-health-monitor-controller"
   when: not deploy_csi_exporter
 
+- name: Set pip package versions from telemetry_packages_config
+  ansible.builtin.set_fact:
+    csi_k8s_pip_version: "{{ telemetry_packages_config.pip_modules.powerscale.kubernetes | default('33.1.0') }}"
+    csi_prometheus_pip_version: "{{ telemetry_packages_config.pip_modules.powerscale.prometheus_client | default('0.20.0') }}"
+
 - name: Download pip packages for CSI Volume Exporter
   when: deploy_csi_exporter
   block:
@@ -97,11 +102,11 @@
     - name: Download kubernetes and prometheus_client wheels from Pulp (offline mode)
       ansible.builtin.command: >
         pip3 download --no-index
-        --find-links {{ offline_pip_module_path }}/kubernetes==33.1.0
-        --find-links {{ offline_pip_module_path }}/prometheus_client==0.20.0
+        --find-links {{ offline_pip_module_path }}/kubernetes=={{ csi_k8s_pip_version }}
+        --find-links {{ offline_pip_module_path }}/prometheus_client=={{ csi_prometheus_pip_version }}
         --trusted-host {{ pulp_server_ip }}
         -d {{ telemetry_deployments_dir }}/pip-packages
-        kubernetes==33.1.0 prometheus_client==0.20.0
+        kubernetes=={{ csi_k8s_pip_version }} prometheus_client=={{ csi_prometheus_pip_version }}
       register: pip_download_offline
       changed_when: "'Saved' in pip_download_offline.stdout"
       failed_when: pip_download_offline.rc != 0
@@ -113,7 +118,7 @@
     - name: Download kubernetes and prometheus_client wheels from PyPI (online mode)
       ansible.builtin.command: >
         pip3 download -d {{ telemetry_deployments_dir }}/pip-packages
-        kubernetes==33.1.0 prometheus_client==0.20.0
+        kubernetes=={{ csi_k8s_pip_version }} prometheus_client=={{ csi_prometheus_pip_version }}
       register: pip_download_online
       changed_when: "'Saved' in pip_download_online.stdout"
       failed_when: pip_download_online.rc != 0

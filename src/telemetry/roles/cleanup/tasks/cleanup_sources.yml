@@ -505,34 +505,6 @@
     not (hostvars['localhost']['_cleanup_all'] | bool)
     and not (hostvars['localhost']['_cleanup_vast'] | bool)
 
-- name: Mark PowerScale cleanup as skipped (not selected)
-  ansible.builtin.set_fact:
-    _cleanup_active_component: ""
-    _cleanup_component_results: >-
-      {{
-        hostvars['localhost']['_cleanup_component_results']
-        | combine({'powerscale': 'skipped'})
-      }}
-  delegate_to: localhost
-  delegate_facts: true
-  when: >-
-    not (hostvars['localhost']['_cleanup_all'] | bool)
-    and not (hostvars['localhost']['_cleanup_powerscale'] | bool)
-
-- name: Mark UFM cleanup as skipped (not selected)
-  ansible.builtin.set_fact:
-    _cleanup_active_component: ""
-    _cleanup_component_results: >-
-      {{
-        hostvars['localhost']['_cleanup_component_results']
-        | combine({'ufm': 'skipped'})
-      }}
-  delegate_to: localhost
-  delegate_facts: true
-  when: >-
-    not (hostvars['localhost']['_cleanup_all'] | bool)
-    and not (hostvars['localhost']['_cleanup_ufm'] | bool)
-
 - name: Cleanup VAST credentials
   ansible.builtin.include_tasks: cleanup_credentials.yml
   vars:

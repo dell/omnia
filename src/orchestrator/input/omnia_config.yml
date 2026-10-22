@@ -149,7 +149,17 @@ slurm_cluster:
 # - cluster_name is required field
 
 # - deployment: Exactly one entry in both the service_k8s_cluster lists must have deployment set to true to indicate where Kubernetes should be deployed.
-# Please ensure corresponding cluster entry is added to high_availability_config.yml if deployment is set to true.
+
+# ----------------------------SERVICE K8S HIGH AVAILABILITY-----------------------------------
+# - enable_k8s_ha: (Mandatory on the deployed entry when Kubernetes nodes are mapped)
+# Indicates whether to enable HA for the Kubernetes service node.
+# Set to 'true' to enable, 'false' to disable.
+
+# - virtual_ip_address: (Mandatory on the deployed entry when Kubernetes nodes are mapped)
+# The virtual IP address for the K8s service node setup. It is used by kube-vip
+# even when enable_k8s_ha is false.
+# It must sit in the control-plane subnet, and must not collide with an address
+# assigned to a mapped node, a DHCP range, an OIM address, or pod_external_ip_range.
 
 # - Kubernetes SDN network.K8s_cni (Mandatory) - It can either be "calico" or "flannel".Default value assigned is "calico".
 # While setting up Kubernetes plugin for RoCE NIC, ensure that this value is set to "flannel"
@@ -198,3 +208,5 @@ service_k8s_cluster:
     enable_powerscale_csi: false
     csi_powerscale_driver_secret_file_path: ""
     csi_powerscale_driver_values_file_path: ""
+    enable_k8s_ha: true
+    virtual_ip_address: "172.16.107.1"

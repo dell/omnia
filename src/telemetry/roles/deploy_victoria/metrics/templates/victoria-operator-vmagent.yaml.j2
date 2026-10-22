@@ -43,7 +43,7 @@ spec:
   
   # Config reloader sidecar image (used by operator for config hot-reload)
   # In offline mode with container_registry set, use the custom registry; otherwise use the full image URL
-{% set _config_reloader_image = telemetry_registry.images.victoria_operator.config_reloader | default('docker.io/victoriametrics/operator:config-reloader-v0.68.3') %}
+{% set _config_reloader_image = telemetry_registry.images.victoria_operator.config_reloader | default('docker.io/victoriametrics/operator:config-reloader-v0.75.0') %}
 {% if telemetry_registry.host | default('') %}
 {% set _parts = _config_reloader_image | regex_replace(':[^:]+$', '') | split('/') %}
 {% set _repo = '/'.join(_parts[1:]) if (_parts | length) > 2 or '.' in _parts[0] else '/'.join(_parts) %}
