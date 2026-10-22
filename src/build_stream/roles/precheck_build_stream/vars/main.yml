@@ -30,6 +30,15 @@ required_containers:
   - name: registry
     domain: image_build_manager
 
+# NFS export checks for the Omnia data path
+data_path_unsafe_export_msg: >-
+  export the Omnia data path with root_squash (the default) and restrict the
+  allowed clients, then run 'exportfs -ra'.
+data_path_nfs_mount_warning_msg: >-
+  The Omnia data path {{ omnia_data_path }} is on an NFS mount. The BuildStream
+  playbook queue under it drives root playbook execution on this OIM. Ensure the
+  NFS server exports it with root_squash and only to trusted clients.
+
 # Credential files that must exist (created by credentials phase)
 required_credential_files:
   - path: "{{ omnia_data_path }}/repo_manager/input/{{ omnia_project_name }}/repo_manager_config_credentials.yml"

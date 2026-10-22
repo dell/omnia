@@ -14,145 +14,143 @@
 
 """Unit tests for JWT auth dependencies and scope enforcement (ER-BSM-002).
 
-Tests JWT authentication dependencies including admin scope enforcement
-and authorization failure handling.
+Tests the scope guards used by the job and catalog routes. The ``admin``
+scope is not grantable (see ``api.auth.scopes``), so no guard accepts it.
 
 Test coverage:
-- TC-UT-007: JWT admin scope enforcement (FR-5, AC-009)
+- TC-UT-007: scope enforcement and authorization failure handling
 """
 
 import pytest
 from fastapi import HTTPException
 
+from api.auth.scopes import GRANTABLE_SCOPES
 from api.dependencies import (
-    require_admin,
-    require_admin_or_catalog_write,
-    require_admin_or_job_write,
     require_any_scope,
+    require_catalog_read,
+    require_catalog_write,
+    require_job_read,
+    require_job_write,
     require_scope,
 )
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def token_with_admin_scope():
-    """Token data with admin scope."""
-    return {
-        "client_id": "test-client-123",
-        "scopes": ["admin"],
-        "exp": 1234567890,
-    }
+def _token(*scopes):
+    return {"client_id": "test-client", "scopes": list(scopes), "exp": 1234567890}
 
 
 @pytest.fixture
 def token_with_job_write_scope():
     """Token data with job:write scope."""
-    return {
-        "client_id": "test-client-456",
-        "scopes": ["job:write"],
-        "exp": 1234567890,
-    }
+    return _token("job:write")
+
+
+@pytest.fixture
+def token_with_job_read_scope():
+    """Token data with job:read scope."""
+    return _token("job:read")
 
 
 @pytest.fixture
 def token_with_catalog_write_scope():
     """Token data with catalog:write scope."""
-    return {
-        "client_id": "test-client-789",
-        "scopes": ["catalog:write"],
-        "exp": 1234567890,
-    }
+    return _token("catalog:write")
 
 
 @pytest.fixture
-def token_without_admin_scope():
-    """Token data without admin scope."""
-    return {
-        "client_id": "test-client-no-admin",
-        "scopes": ["job:read", "catalog:read"],
-        "exp": 1234567890,
-    }
+def token_with_catalog_read_scope():
+    """Token data with catalog:read scope."""
+    return _token("catalog:read")
+
+
+@pytest.fixture
+def token_with_admin_scope():
+    """Token data carrying the non-grantable admin scope."""
+    return _token("admin", "admin:write")
 
 
 @pytest.fixture
 def token_with_no_scopes():
     """Token data with empty scopes list."""
-    return {
-        "client_id": "test-client-empty",
-        "scopes": [],
-        "exp": 1234567890,
-    }
+    return _token()
 
 
-# ---------------------------------------------------------------------------
-# TC-UT-007: JWT Admin Scope Enforcement
-# ---------------------------------------------------------------------------
+class TestScopeVocabulary:
+    """The grantable scope list is the single source of truth."""
 
-class TestRequireAdminScope:
-    """Test cases for admin scope enforcement (FR-5, AC-009).
-    
-    Validates that require_admin dependency properly enforces admin scope
-    and raises 403 Forbidden for tokens without admin scope.
-    """
+    def test_grantable_scopes_exclude_admin(self):
+        """No admin scope can be granted."""
+        assert GRANTABLE_SCOPES == {
+            "catalog:read", "catalog:write", "job:read", "job:write",
+        }
+        assert not any(s.startswith("admin") for s in GRANTABLE_SCOPES)
 
-    def test_require_admin_scope_success(self, token_with_admin_scope):
-        """Token with admin scope passes admin requirement.
-        
-        Scenario: Config operation with admin scope succeeds
-          Given the user has a valid JWT with "admin" scope
-          When the require_admin dependency is invoked
-          Then the request is authorized
-          And the token data is returned
-        """
-        # Arrange
-        dependency = require_admin
 
-        # Act
-        result = dependency(token_with_admin_scope)
+class TestRequireJobWrite:
+    """require_job_write guards job create, delete and upload."""
 
-        # Assert
-        assert result == token_with_admin_scope
-        assert "admin" in result["scopes"]
+    def test_job_write_accepted(self, token_with_job_write_scope):
+        """job:write passes."""
+        assert require_job_write(token_with_job_write_scope) == token_with_job_write_scope
 
-    def test_require_admin_scope_missing(self, token_without_admin_scope):
-        """Token without admin scope raises 403 Forbidden.
-        
-        Scenario: Config operation without admin scope fails
-          Given the user has a valid JWT without "admin" scope
-          When the require_admin dependency is invoked
-          Then the request is rejected with 403 Forbidden
-          And an error message indicates missing admin scope
-        """
-        # Arrange
-        dependency = require_admin
-
-        # Act & Assert
+    @pytest.mark.parametrize(
+        "fixture_name",
+        [
+            "token_with_job_read_scope",
+            "token_with_catalog_write_scope",
+            "token_with_admin_scope",
+            "token_with_no_scopes",
+        ],
+    )
+    def test_other_scopes_rejected(self, fixture_name, request):
+        """Anything other than job:write is a 403."""
         with pytest.raises(HTTPException) as exc_info:
-            dependency(token_without_admin_scope)
-
-        # Verify 403 Forbidden
+            require_job_write(request.getfixturevalue(fixture_name))
         assert exc_info.value.status_code == 403
-        assert "admin" in str(exc_info.value.detail).lower()
 
-    def test_require_admin_scope_empty_scopes(self, token_with_no_scopes):
-        """Token with no scopes raises 403 Forbidden.
-        
-        Scenario: Token with empty scopes list
-          Given the user has a valid JWT with no scopes
-          When the require_admin dependency is invoked
-          Then the request is rejected with 403 Forbidden
-        """
-        # Arrange
-        dependency = require_admin
 
-        # Act & Assert
+class TestRequireJobRead:
+    """require_job_read guards job and artifact reads."""
+
+    def test_job_read_accepted(self, token_with_job_read_scope):
+        """job:read passes."""
+        assert require_job_read(token_with_job_read_scope) == token_with_job_read_scope
+
+    def test_job_write_accepted(self, token_with_job_write_scope):
+        """job:write also allows reads."""
+        assert require_job_read(token_with_job_write_scope) == token_with_job_write_scope
+
+    @pytest.mark.parametrize(
+        "fixture_name",
+        [
+            "token_with_catalog_read_scope",
+            "token_with_catalog_write_scope",
+            "token_with_admin_scope",
+            "token_with_no_scopes",
+        ],
+    )
+    def test_other_scopes_rejected(self, fixture_name, request):
+        """Tokens without a job scope are a 403."""
         with pytest.raises(HTTPException) as exc_info:
-            dependency(token_with_no_scopes)
+            require_job_read(request.getfixturevalue(fixture_name))
+        assert exc_info.value.status_code == 403
 
-        # Verify 403 Forbidden
+
+class TestRequireCatalogScopes:
+    """Catalog guards keep their exact-scope behaviour."""
+
+    def test_catalog_read(self, token_with_catalog_read_scope):
+        """catalog:read passes the read guard."""
+        assert require_catalog_read(token_with_catalog_read_scope)
+
+    def test_catalog_write(self, token_with_catalog_write_scope):
+        """catalog:write passes the write guard."""
+        assert require_catalog_write(token_with_catalog_write_scope)
+
+    def test_catalog_write_rejects_job_write(self, token_with_job_write_scope):
+        """A job scope does not open catalog writes."""
+        with pytest.raises(HTTPException) as exc_info:
+            require_catalog_write(token_with_job_write_scope)
         assert exc_info.value.status_code == 403
 
 
@@ -160,224 +158,47 @@ class TestRequireScopeFactory:
     """Test cases for the require_scope factory function."""
 
     def test_require_scope_creates_dependency(self):
-        """require_scope factory creates a callable dependency.
-        
-        Scenario: Create scope dependency
-          Given a scope name "admin"
-          When require_scope("admin") is called
-          Then a callable dependency is returned
-        """
-        # Act
-        dependency = require_scope("admin")
-
-        # Assert
-        assert callable(dependency)
+        """require_scope factory creates a callable dependency."""
+        assert callable(require_scope("job:write"))
 
     def test_require_scope_custom_scope_success(self):
-        """Custom scope requirement succeeds when token has the scope.
-        
-        Scenario: Custom scope enforcement
-          Given a token with "custom:scope"
-          When a dependency requires "custom:scope"
-          Then the request is authorized
-        """
-        # Arrange
+        """Custom scope requirement succeeds when token has the scope."""
         dependency = require_scope("custom:scope")
-        token_data = {
-            "client_id": "test",
-            "scopes": ["custom:scope"],
-            "exp": 123,
-        }
-
-        # Act
-        result = dependency(token_data)
-
-        # Assert
-        assert result == token_data
+        token_data = _token("custom:scope")
+        assert dependency(token_data) == token_data
 
     def test_require_scope_custom_scope_missing(self):
-        """Custom scope requirement fails when token lacks the scope.
-        
-        Scenario: Missing custom scope
-          Given a token without "custom:scope"
-          When a dependency requires "custom:scope"
-          Then the request is rejected with 403 Forbidden
-        """
-        # Arrange
+        """Custom scope requirement fails when token lacks the scope."""
         dependency = require_scope("custom:scope")
-        token_data = {
-            "client_id": "test",
-            "scopes": ["other:scope"],
-            "exp": 123,
-        }
-
-        # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
-            dependency(token_data)
+            dependency(_token("other:scope"))
+        assert exc_info.value.status_code == 403
 
+    def test_require_scope_empty_scopes(self, token_with_no_scopes):
+        """A token with no scopes is rejected."""
+        with pytest.raises(HTTPException) as exc_info:
+            require_scope("job:write")(token_with_no_scopes)
         assert exc_info.value.status_code == 403
 
 
 class TestRequireAnyScope:
     """Test cases for require_any_scope (OR logic for multiple scopes)."""
 
-    def test_require_any_scope_admin_passes(
-        self, token_with_admin_scope
-    ):
-        """Token with admin scope passes admin OR job:write requirement.
-        
-        Scenario: Multiple scope options (admin accepted)
-          Given a token with "admin" scope
-          When a dependency requires ("admin" OR "job:write")
-          Then the request is authorized
-        """
-        # Arrange
-        dependency = require_any_scope("admin", "job:write")
+    def test_first_scope_passes(self, token_with_job_read_scope):
+        """A token with the first scope passes."""
+        dependency = require_any_scope("job:read", "job:write")
+        assert dependency(token_with_job_read_scope) == token_with_job_read_scope
 
-        # Act
-        result = dependency(token_with_admin_scope)
+    def test_second_scope_passes(self, token_with_job_write_scope):
+        """A token with the second scope passes."""
+        dependency = require_any_scope("job:read", "job:write")
+        assert dependency(token_with_job_write_scope) == token_with_job_write_scope
 
-        # Assert
-        assert result == token_with_admin_scope
-
-    def test_require_any_scope_job_write_passes(
-        self, token_with_job_write_scope
-    ):
-        """Token with job:write scope passes admin OR job:write requirement.
-        
-        Scenario: Multiple scope options (job:write accepted)
-          Given a token with "job:write" scope
-          When a dependency requires ("admin" OR "job:write")
-          Then the request is authorized
-        """
-        # Arrange
-        dependency = require_any_scope("admin", "job:write")
-
-        # Act
-        result = dependency(token_with_job_write_scope)
-
-        # Assert
-        assert result == token_with_job_write_scope
-
-    def test_require_any_scope_none_present(
-        self, token_with_catalog_write_scope
-    ):
-        """Token with neither required scope raises 403 Forbidden.
-        
-        Scenario: No matching scope
-          Given a token with "catalog:write" scope
-          When a dependency requires ("admin" OR "job:write")
-          Then the request is rejected with 403 Forbidden
-        """
-        # Arrange
-        dependency = require_any_scope("admin", "job:write")
-
-        # Act & Assert
+    def test_none_present(self, token_with_catalog_write_scope):
+        """A token with neither scope raises 403 naming the scopes."""
+        dependency = require_any_scope("job:read", "job:write")
         with pytest.raises(HTTPException) as exc_info:
             dependency(token_with_catalog_write_scope)
-
-        # Verify 403 Forbidden
         assert exc_info.value.status_code == 403
-        # Error message should mention the required scopes
-        detail = str(exc_info.value.detail)
-        assert ("admin" in detail.lower() or "job:write" in detail.lower())
-
-
-class TestPredefinedScopeDependencies:
-    """Test cases for predefined scope dependency helpers."""
-
-    def test_require_admin_or_job_write_with_admin(
-        self, token_with_admin_scope
-    ):
-        """require_admin_or_job_write accepts admin scope.
-        
-        Scenario: Admin scope accepted
-          Given a token with "admin" scope
-          When require_admin_or_job_write is invoked
-          Then the request is authorized
-        """
-        # Act
-        result = require_admin_or_job_write(token_with_admin_scope)
-
-        # Assert
-        assert result == token_with_admin_scope
-
-    def test_require_admin_or_job_write_with_job_write(
-        self, token_with_job_write_scope
-    ):
-        """require_admin_or_job_write accepts job:write scope.
-        
-        Scenario: Job:write scope accepted
-          Given a token with "job:write" scope
-          When require_admin_or_job_write is invoked
-          Then the request is authorized
-        """
-        # Act
-        result = require_admin_or_job_write(token_with_job_write_scope)
-
-        # Assert
-        assert result == token_with_job_write_scope
-
-    def test_require_admin_or_job_write_missing_both(
-        self, token_with_catalog_write_scope
-    ):
-        """require_admin_or_job_write rejects token without either scope.
-        
-        Scenario: Missing both scopes
-          Given a token without "admin" or "job:write"
-          When require_admin_or_job_write is invoked
-          Then the request is rejected with 403 Forbidden
-        """
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            require_admin_or_job_write(token_with_catalog_write_scope)
-
-        assert exc_info.value.status_code == 403
-
-    def test_require_admin_or_catalog_write_with_admin(
-        self, token_with_admin_scope
-    ):
-        """require_admin_or_catalog_write accepts admin scope.
-        
-        Scenario: Admin scope accepted
-          Given a token with "admin" scope
-          When require_admin_or_catalog_write is invoked
-          Then the request is authorized
-        """
-        # Act
-        result = require_admin_or_catalog_write(token_with_admin_scope)
-
-        # Assert
-        assert result == token_with_admin_scope
-
-    def test_require_admin_or_catalog_write_with_catalog_write(
-        self, token_with_catalog_write_scope
-    ):
-        """require_admin_or_catalog_write accepts catalog:write scope.
-        
-        Scenario: Catalog:write scope accepted
-          Given a token with "catalog:write" scope
-          When require_admin_or_catalog_write is invoked
-          Then the request is authorized
-        """
-        # Act
-        result = require_admin_or_catalog_write(token_with_catalog_write_scope)
-
-        # Assert
-        assert result == token_with_catalog_write_scope
-
-    def test_require_admin_or_catalog_write_missing_both(
-        self, token_with_job_write_scope
-    ):
-        """require_admin_or_catalog_write rejects token without either scope.
-        
-        Scenario: Missing both scopes
-          Given a token without "admin" or "catalog:write"
-          When require_admin_or_catalog_write is invoked
-          Then the request is rejected with 403 Forbidden
-        """
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            require_admin_or_catalog_write(token_with_job_write_scope)
-
-        assert exc_info.value.status_code == 403
+        detail = str(exc_info.value.detail).lower()
+        assert "job:read" in detail or "job:write" in detail

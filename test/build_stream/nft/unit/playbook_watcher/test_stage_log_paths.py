@@ -76,6 +76,7 @@ def _request(job_id, attempt=None, stage="build-image"):
         "job_id": job_id,
         "stage_name": stage,
         "playbook_name": "image_build_manager.yml",
+        "tags": "execute",
         "extra_vars": extra_vars,
     }
 

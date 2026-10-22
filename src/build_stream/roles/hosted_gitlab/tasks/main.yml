@@ -41,6 +41,9 @@
 - name: Create GitLab project via API
   ansible.builtin.include_tasks: create_project.yml
 
+- name: Create CI/CD project access token
+  ansible.builtin.include_tasks: create_ci_token.yml
+
 - name: Create pipeline trigger
   ansible.builtin.include_tasks: create_trigger.yml
 

@@ -58,6 +58,10 @@ Environment=NFS_ARTIFACT_BASE={{ build_stream_container_omnia_path }}/build_stre
 # Volume mounts (NFS shared path)
 Volume={{ omnia_path }}:{{ build_stream_container_omnia_path }}{{ selinux_option }}
 Volume={{ build_stream_ssl_dir }}:/etc/ssl/omnia:ro{{ selinux_option | regex_replace('^:', ',') }}
+{% if (venv_path | realpath).startswith((omnia_path | realpath) ~ '/') %}
+# Hide the host venv: the root watcher executes ansible-playbook from it.
+Tmpfs={{ build_stream_container_omnia_path }}/{{ (venv_path | realpath) | relpath(omnia_path | realpath) }}:ro,size=1k,mode=0555
+{% endif %}
 
 [Service]
 Restart=always
