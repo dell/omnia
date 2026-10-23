@@ -80,10 +80,13 @@
 
 - name: Apply Strimzi CRDs from chart
   ansible.builtin.shell: |
+    set -euo pipefail
     _TMP=$(mktemp -d)
+    trap 'rm -rf "$_TMP"' EXIT
     tar -xzf {{ strimzi_kafka_pkg | quote }} -C "$_TMP"
     kubectl apply -f "$_TMP/strimzi-kafka-operator/crds/" --server-side --force-conflicts
-    rm -rf "$_TMP"
+  args:
+    executable: /bin/bash
   changed_when: false
 
 - name: Wait for Strimzi operator deployment
