@@ -23,6 +23,7 @@ Only module-specific constants remain here.
 """
 
 import os
+import shlex
 from typing import Dict, List
 
 # Module root: test/<domain>/ directory (where conftest.py lives)
@@ -236,7 +237,8 @@ OME_GROUP_DEVICES_ENDPOINT: str = "/api/GroupService/Groups({group_id})/Devices"
 
 # =============================================================================
 # Shell commands — all commands MUST be in this dict.
-# Use .format() with named placeholders to fill in runtime values.
+# Fill in runtime values with build_cmd(), which shell-quotes every value.
+# Placeholders must NOT be wrapped in quotes inside the templates.
 # =============================================================================
 CMDS: Dict[str, str] = {
     # --- Files ---
@@ -247,12 +249,12 @@ CMDS: Dict[str, str] = {
         "stat -c '%A %U:%G %s %n' {path} 2>/dev/null"
     ),
     "ls_files": "ls -1 {path} 2>/dev/null",
-    "find_csv": "find {path} -name '{pattern}' -type f 2>/dev/null",
+    "find_csv": "find {path} -name {pattern} -type f 2>/dev/null",
 
     # --- Ansible / Playbook ---
     "ansible_playbook": (
         "cd {workdir} && ansible-playbook {playbook}"
-        " -e '{extra_vars}' -v 2>&1"
+        " -e {extra_vars} -v 2>&1"
     ),
 
     # --- System ---
@@ -263,8 +265,8 @@ CMDS: Dict[str, str] = {
 
     # --- YAML validation ---
     "yaml_parse": (
-        "python3 -c \"import yaml; yaml.safe_load(open('{path}'))\""
-        " 2>&1"
+        "python3 -c \"import sys, yaml; yaml.safe_load(open(sys.argv[1]))\""
+        " {path} 2>&1"
     ),
 
     # --- CSV validation ---
@@ -284,3 +286,18 @@ CMDS: Dict[str, str] = {
     "git_remote_url": "git -C {path} remote get-url origin 2>/dev/null",
     "git_branch": "git -C {path} branch --show-current 2>/dev/null",
 }
+
+
+def build_cmd(name: str, **values: object) -> str:
+    """Build a shell command from CMDS with every value shell-quoted.
+
+    Args:
+        name: Key in CMDS.
+        **values: Placeholder values; each is converted with shlex.quote().
+
+    Returns:
+        The command string, safe against shell metacharacters in values.
+    """
+    return CMDS[name].format(
+        **{key: shlex.quote(str(val)) for key, val in values.items()}
+    )
