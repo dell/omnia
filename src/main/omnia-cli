@@ -198,6 +198,16 @@ readonly ANSIBLE_LOG_DEFAULT="${OMNIA_ANSIBLE_LOG_PATH:-/var/log/omnia}"
 # Environment Loading
 # ─────────────────────────────────────────────────────────────────────────────
 load_env() {
+    # Source the installed environment when available so omnia-cli works
+    # correctly in non-login shells (cron, systemd, SSH commands).
+    local system_env="/etc/omnia/omnia.env"
+    if [ -f "$system_env" ] && [ ! -L "$system_env" ] && [ -r "$system_env" ]; then
+        set -a
+        # shellcheck disable=SC1090
+        . "$system_env"
+        set +a
+    fi
+
     # Apply defaults for optional variables
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
     OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
@@ -760,6 +770,9 @@ cmd_status() {
     echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
     echo -e "  ${BOLD}${completed}/${total}${NC} domains completed for project ${CYAN}${project}${NC}"
     echo ""
+
+    # Return the count of incomplete domains so automation can detect issues.
+    return $(( total - completed ))
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1882,7 +1895,7 @@ main() {
     # Dispatch: edit/output/logs use the first positional argument as a domain.
     case "$command" in
         status)
-            cmd_status "$project" || true
+            cmd_status "$project"
             ;;
         check)
             cmd_check "$project"

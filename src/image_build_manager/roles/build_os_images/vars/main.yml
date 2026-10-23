@@ -144,3 +144,9 @@ compute_s3_missing_fail_msg: >-
 s3_artifact_resolution_fail_msg: >-
   Failed to resolve exact kernel, initrd, and rootfs S3 object keys for
   functional group {{ item.key }} using {{ _image_build_type }}.
+
+# Messages
+s3_anonymous_access_disabled_msg: >-
+  s3_enable_anonymous_access is false: PowerScale S3 buckets are NOT set to
+  public. Configure a restrictive bucket policy to enable PXE boot access
+  before provisioning nodes.
