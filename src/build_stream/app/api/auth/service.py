@@ -14,6 +14,7 @@
 
 """Authentication service for OAuth2 client management."""
 
+import hmac
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,6 +22,7 @@ from typing import List, Optional
 
 from api.auth.jwt_handler import JWTHandler, JWTCreationError
 from api.auth.password_handler import generate_credentials, verify_password
+from api.auth.scopes import GRANTABLE_SCOPES
 from api.logging_utils import log_auth_info
 from api.vault_client import VaultClient, VaultDecryptError, VaultNotFoundError
 from core.exceptions import (
@@ -131,7 +133,9 @@ class AuthService:
                 "Registration is not configured"
             ) from None
 
-        if username != stored_username:
+        if not hmac.compare_digest(
+            str(username).encode("utf-8"), str(stored_username).encode("utf-8")
+        ):
             raise AuthenticationError("Invalid credentials")
 
         if not verify_password(password, stored_password_hash):
@@ -267,7 +271,12 @@ class AuthService:
         
         client_data = self.verify_client_credentials(client_id, client_secret)
 
-        allowed_scopes = client_data.get("allowed_scopes", DEFAULT_SCOPES)
+        # Scopes stored for older clients (for example admin:*) that no route
+        # enforces are never placed in a token.
+        allowed_scopes = [
+            scope for scope in client_data.get("allowed_scopes", DEFAULT_SCOPES)
+            if scope in GRANTABLE_SCOPES
+        ]
         client_name = client_data.get("client_name", "")
 
         if requested_scope:

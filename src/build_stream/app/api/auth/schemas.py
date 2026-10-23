@@ -22,6 +22,8 @@ from typing import List, Optional
 from fastapi import Form, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
+from api.auth.scopes import GRANTABLE_SCOPES
+
 
 class ClientRegistrationRequest(BaseModel):  # pylint: disable=too-few-public-methods
     """Request model for client registration."""
@@ -57,10 +59,9 @@ class ClientRegistrationRequest(BaseModel):  # pylint: disable=too-few-public-me
     @classmethod
     def validate_scopes(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         """Validate that requested scopes are valid."""
-        valid_scopes = {"catalog:read", "catalog:write", "admin:read", "admin:write", "job:read", "job:write"}
         if v is not None:
             for scope in v:
-                if scope not in valid_scopes:
+                if scope not in GRANTABLE_SCOPES:
                     raise ValueError(f"Invalid scope: {scope}")
         return v
 

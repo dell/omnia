@@ -188,8 +188,8 @@ class UploadFilesUseCase:
         """
         log_secure_info('info', f"Executing upload files for job_id={command.job_id}")
 
-        # Validate job exists and is in valid state
-        self._current_job = self._validate_job(command.job_id)
+        # Validate job exists, belongs to the caller and is in valid state
+        self._current_job = self._validate_job(command.job_id, command.client_id)
 
         # Retrieve and validate upload stage
         stage = self._get_upload_stage(command.job_id)
@@ -257,21 +257,25 @@ class UploadFilesUseCase:
 
         return result
 
-    def _validate_job(self, job_id):
-        """Validate job exists and is not in terminal state.
+    def _validate_job(self, job_id, client_id):
+        """Validate job exists, is owned by the caller and is not terminal.
+
+        A job owned by another client is reported as not found, as in the
+        other stage use cases, so the response does not reveal that it exists.
 
         Args:
             job_id: Job identifier.
+            client_id: Client identifier from the access token.
 
         Returns:
             Job entity.
 
         Raises:
-            JobNotFoundError: If job does not exist.
+            JobNotFoundError: If job does not exist or belongs to another client.
             TerminalStateViolationError: If job is in terminal state.
         """
         job = self._job_repo.find_by_id(job_id)
-        if job is None:
+        if job is None or job.client_id != client_id:
             raise JobNotFoundError(f"Job not found: {job_id}")
 
         if job.is_completed() or job.is_cancelled():

@@ -36,6 +36,7 @@ def _uuid():
 
 
 VALID_JOB_ID = "018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10"
+MAX_FILE_SIZE = 1024 * 1024
 
 
 def _make_result(job_id=VALID_JOB_ID):
@@ -92,6 +93,7 @@ class TestUploadFilesRoute:
             token_data=token_data,
             correlation_id=corr,
             use_case=use_case,
+            max_file_size=MAX_FILE_SIZE,
         )
 
         assert result.job_id == VALID_JOB_ID
@@ -117,6 +119,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 400
         assert exc_info.value.detail["error_code"] == "INVALID_JOB_ID"
@@ -140,6 +143,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 404
         assert exc_info.value.detail["error_code"] == "JOB_NOT_FOUND"
@@ -163,6 +167,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 400
         assert exc_info.value.detail["error_code"] == "INVALID_FILENAME"
@@ -186,6 +191,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 400
         assert exc_info.value.detail["error_code"] == "FILE_SIZE_EXCEEDED"
@@ -214,6 +220,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 409
         assert exc_info.value.detail["error_code"] == "JOB_IN_TERMINAL_STATE"
@@ -235,6 +242,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail["error_code"] == "INTERNAL_ERROR"
