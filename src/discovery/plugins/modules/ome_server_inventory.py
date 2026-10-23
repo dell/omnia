@@ -139,10 +139,12 @@ class OMEClient:
         }
         headers = {"Content-Type": "application/json"}
 
-        response = self.session.post(auth_url, json=auth_payload, headers=headers)
-        # Clear password from memory after authentication attempt
-        self.password = None
-        del auth_payload
+        try:
+            response = self.session.post(auth_url, json=auth_payload, headers=headers)
+        finally:
+            # Clear password from memory after authentication attempt
+            self.password = None
+            del auth_payload
         if response.status_code in [200, 201]:
             self.auth_token = response.headers.get("X-Auth-Token")
             self.session.headers.update({"X-Auth-Token": self.auth_token})

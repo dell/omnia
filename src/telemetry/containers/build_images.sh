@@ -159,9 +159,9 @@ if [[ "$BUILD_ACTION" == "push" && "$BUILD_TOOL" != "docker" ]]; then
     exit 1
 fi
 
-# ── Validate tag and registry values (CVE-1324429373) ──
-TAG_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9._-]*$'
-REGISTRY_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9._/:@-]*$'
+# ── Validate tag and registry values ──
+TAG_PATTERN='^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$'
+REGISTRY_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9._/:-]*$'
 
 for _tag_pair in \
     "kafkapump_tag:${KAFKAPUMP_TAG}" \
