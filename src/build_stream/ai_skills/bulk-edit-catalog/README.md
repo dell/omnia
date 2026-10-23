@@ -34,7 +34,7 @@ group's `os_version` leaves repo_manager on the old version.
 
 ### Bulk package add
 ```
-Add curl to every catalog with a base_os group
+Add curl to every catalog with a baseos group
 ```
 
 ## Capabilities
