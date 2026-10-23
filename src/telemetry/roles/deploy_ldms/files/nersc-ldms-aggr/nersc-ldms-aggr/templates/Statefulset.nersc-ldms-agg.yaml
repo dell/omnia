@@ -48,6 +48,11 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           volumeMounts:
             - name: ldms-conf
               mountPath: /ldms_conf
@@ -65,7 +70,9 @@ spec:
       priority: 0
       restartPolicy: Always
       schedulerName: default-scheduler
-      securityContext: {}
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccount: default
       serviceAccountName: default
       subdomain: nersc-ldms-aggr

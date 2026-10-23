@@ -173,6 +173,7 @@
   changed_when: "'created' in tls_apply.stdout or 'configured' in tls_apply.stdout"
   when: _vm_manifests['victoria-tls-secret.yaml'] | default(false)
   failed_when: false
+  no_log: true
 
 - name: Apply VictoriaMetrics RBAC
   ansible.builtin.command: >

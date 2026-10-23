@@ -80,6 +80,7 @@
     - victoria_server_cert_b64 is defined
     - victoria_server_key_b64 is defined
     - victoria_ca_cert_b64 is defined
+  no_log: true
 
 - name: Generate VictoriaMetrics RBAC manifest
   ansible.builtin.template:

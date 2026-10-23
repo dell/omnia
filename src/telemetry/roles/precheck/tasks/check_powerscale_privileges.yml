@@ -65,7 +65,7 @@
       - "{{ ps_check_password }}"
       - ssh
       - -o
-      - StrictHostKeyChecking=no
+      - StrictHostKeyChecking=accept-new
       - -o
       - PubkeyAuthentication=no
       - -o
