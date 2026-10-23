@@ -40,11 +40,7 @@
         msg: "{{ victoria_err_kube_vip_unreachable }}"
 
 - name: Check kubectl availability
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - version
-      - --client=true
+  ansible.builtin.command: kubectl version --client=true
   register: _kubectl_check
   changed_when: false
   failed_when: _kubectl_check.rc != 0
@@ -62,17 +58,10 @@
 # =============================================================================
 
 - name: Get VictoriaMetrics pod status (vminsert, vmselect, vmstorage)
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - pods
-      - -n
-      - "{{ victoria_namespace }}"
-      - -l
-      - "app.kubernetes.io/instance=victoria-cluster"
-      - -o
-      - json
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ victoria_namespace }}
+    -l 'app.kubernetes.io/instance=victoria-cluster'
+    -o json
   register: _vm_pods_json
   changed_when: false
   failed_when: _vm_pods_json.rc != 0
@@ -95,17 +84,10 @@
     | list | length) > 0
 
 - name: Capture VictoriaMetrics pod status (wide)
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - pods
-      - -n
-      - "{{ victoria_namespace }}"
-      - -l
-      - "app.kubernetes.io/instance=victoria-cluster"
-      - -o
-      - wide
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ victoria_namespace }}
+    -l 'app.kubernetes.io/instance=victoria-cluster'
+    -o wide
   register: _vm_pod_status_wide
   changed_when: false
 
@@ -114,16 +96,9 @@
 # =============================================================================
 
 - name: Get vminsert LoadBalancer external IP
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - svc
-      - "{{ vm_vminsert_service }}"
-      - -n
-      - "{{ victoria_namespace }}"
-      - -o
-      - "jsonpath={.status.loadBalancer.ingress[0].ip}"
+  ansible.builtin.command: >-
+    kubectl get svc {{ vm_vminsert_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
   register: _vminsert_lb_ip
   changed_when: false
   failed_when: _vminsert_lb_ip.rc != 0
@@ -138,16 +113,9 @@
   when: _vminsert_ip | trim | length == 0
 
 - name: Get vmselect LoadBalancer external IP
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - svc
-      - "{{ vm_vmselect_service }}"
-      - -n
-      - "{{ victoria_namespace }}"
-      - -o
-      - "jsonpath={.status.loadBalancer.ingress[0].ip}"
+  ansible.builtin.command: >-
+    kubectl get svc {{ vm_vmselect_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
   register: _vmselect_lb_ip
   changed_when: false
   failed_when: _vmselect_lb_ip.rc != 0
@@ -166,16 +134,9 @@
 # =============================================================================
 
 - name: Check if VictoriaMetrics TLS secret exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - secret
-      - "{{ victoria_tls_secret }}"
-      - -n
-      - "{{ victoria_namespace }}"
-      - -o
-      - name
+  ansible.builtin.command: >-
+    kubectl get secret {{ victoria_tls_secret }} -n {{ victoria_namespace }}
+    -o name
   register: _vm_tls_check
   changed_when: false
   failed_when: false
@@ -235,16 +196,9 @@
 # =============================================================================
 
 - name: Check if vlinsert service exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - svc
-      - "{{ vl_vlinsert_service }}"
-      - -n
-      - "{{ victoria_namespace }}"
-      - -o
-      - "jsonpath={.status.loadBalancer.ingress[0].ip}"
+  ansible.builtin.command: >-
+    kubectl get svc {{ vl_vlinsert_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
   register: _vlinsert_lb_ip
   changed_when: false
   failed_when: false
@@ -255,16 +209,9 @@
     _vlinsert_ip: "{{ _vlinsert_lb_ip.stdout | trim | default('') }}"
 
 - name: Get vlselect LoadBalancer external IP
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - svc
-      - "{{ vl_vlselect_service }}"
-      - -n
-      - "{{ victoria_namespace }}"
-      - -o
-      - "jsonpath={.status.loadBalancer.ingress[0].ip}"
+  ansible.builtin.command: >-
+    kubectl get svc {{ vl_vlselect_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
   register: _vlselect_lb_ip
   changed_when: false
   failed_when: false
@@ -280,16 +227,9 @@
 # =============================================================================
 
 - name: Get VLAgent LoadBalancer external IP
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - svc
-      - "{{ vl_vlagent_service }}"
-      - -n
-      - "{{ victoria_namespace }}"
-      - -o
-      - "jsonpath={.status.loadBalancer.ingress[0].ip}"
+  ansible.builtin.command: >-
+    kubectl get svc {{ vl_vlagent_service }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
   register: _vlagent_lb_ip
   changed_when: false
   failed_when: false

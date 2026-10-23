@@ -30,12 +30,8 @@
       dest: "vast-external-service.yaml"
 
 - name: Apply VAST telemetry manifests
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ telemetry_deployments_dir }}/{{ item }}"
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/{{ item }}
   loop:
     - vast-telemetry-secret.yaml
     - vast-external-service.yaml

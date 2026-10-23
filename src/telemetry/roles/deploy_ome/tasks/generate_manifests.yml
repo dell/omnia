@@ -107,12 +107,8 @@
   when: telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
 
 - name: Apply Vector-OME manifests
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ item }}"
+  ansible.builtin.command: >
+    kubectl apply -f {{ item }}
   loop: "{{ _vector_ome_manifests }}"
   loop_control:
     label: "{{ item | basename }}"

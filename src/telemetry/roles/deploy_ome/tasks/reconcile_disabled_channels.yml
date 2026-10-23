@@ -23,17 +23,9 @@
       }}
 
 - name: Read disabled OME forwarding workload replica counts
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - deployment
-      - "{{ item }}"
-      - -n
-      - "{{ telemetry_namespace }}"
-      - --ignore-not-found
-      - -o
-      - jsonpath={.spec.replicas}
+  ansible.builtin.command: >-
+    kubectl get deployment {{ item }} -n {{ telemetry_namespace }}
+    --ignore-not-found -o jsonpath='{.spec.replicas}'
   loop: "{{ _ome_disabled_forwarders }}"
   loop_control:
     label: "deployment/{{ item }}"
@@ -42,15 +34,9 @@
   failed_when: false
 
 - name: Scale disabled OME forwarding workloads to zero
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - scale
-      - deployment
-      - "{{ item.item }}"
-      - -n
-      - "{{ telemetry_namespace }}"
-      - --replicas=0
+  ansible.builtin.command: >-
+    kubectl scale deployment {{ item.item }} -n {{ telemetry_namespace }}
+    --replicas=0
   loop: "{{ _ome_disabled_forwarder_state.results }}"
   loop_control:
     label: "deployment/{{ item.item }}"

@@ -229,80 +229,44 @@
     seconds: "{{ cleanup_post_delete_pause }}"
 
 - name: LDMS | Delete StatefulSets
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - delete
-      - statefulset
-      - "{{ item }}"
-      - --ignore-not-found=true
-      - --wait=false
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete statefulset {{ item }}
+    --ignore-not-found=true --wait=false
   loop: "{{ ldms_statefulset_resources }}"
   register: _ldms_statefulset_delete
   changed_when: _ldms_statefulset_delete.rc == 0
   failed_when: false
 
 - name: LDMS | Delete Services
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - delete
-      - service
-      - "{{ item }}"
-      - --ignore-not-found=true
-      - --wait=false
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete service {{ item }}
+    --ignore-not-found=true --wait=false
   loop: "{{ ldms_service_resources }}"
   register: _ldms_service_delete
   changed_when: _ldms_service_delete.rc == 0
   failed_when: false
 
 - name: LDMS | Delete named ConfigMaps
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - delete
-      - configmap
-      - "{{ item }}"
-      - --ignore-not-found=true
-      - --wait=false
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete configmap {{ item }}
+    --ignore-not-found=true --wait=false
   loop: "{{ ldms_configmap_resources }}"
   register: _ldms_configmap_delete
   changed_when: _ldms_configmap_delete.rc == 0
   failed_when: false
 
 - name: LDMS | Delete ConfigMaps by label
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - delete
-      - configmap
-      - -l
-      - "{{ ldms_configmap_label }}"
-      - --ignore-not-found=true
-      - --wait=false
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete configmap -l {{ ldms_configmap_label }}
+    --ignore-not-found=true --wait=false
   register: _ldms_configmap_label_delete
   changed_when: _ldms_configmap_label_delete.rc == 0 and 'deleted' in _ldms_configmap_label_delete.stdout
   failed_when: false
 
 - name: LDMS | Delete Secrets
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - delete
-      - "{{ item.type }}"
-      - "{{ item.name }}"
-      - --ignore-not-found=true
-      - --wait=false
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false
   loop: "{{ ldms_secret_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -311,35 +275,18 @@
   failed_when: false
 
 - name: LDMS | Force delete pods
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - delete
-      - pod
-      - -l
-      - "{{ item }}"
-      - "--grace-period={{ cleanup_resource_grace_period }}"
-      - --force
-      - --ignore-not-found=true
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete pod -l {{ item }}
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   loop: "{{ ldms_pod_labels }}"
   register: _ldms_pod_delete
   changed_when: _ldms_pod_delete.rc == 0 and 'deleted' in _ldms_pod_delete.stdout
   failed_when: false
 
 - name: LDMS | Wait for pods to terminate
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - get
-      - pod
-      - -l
-      - "{{ item }}"
-      - --output=name
-      - --ignore-not-found=true
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pod -l {{ item }}
+    --output=name --ignore-not-found=true
   loop: "{{ ldms_pod_labels }}"
   register: _ldms_pod_wait
   changed_when: false
@@ -349,16 +296,9 @@
   failed_when: false
 
 - name: LDMS | Delete Vector-LDMS bridge resources
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - delete
-      - "{{ item.type }}"
-      - "{{ item.name }}"
-      - --ignore-not-found=true
-      - --wait=false
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete {{ item.type }} {{ item.name }}
+    --ignore-not-found=true --wait=false
   loop: "{{ vector_ldms_resources }}"
   loop_control:
     label: "{{ item.type }}/{{ item.name }}"
@@ -367,18 +307,9 @@
   failed_when: false
 
 - name: LDMS | Force delete Vector-LDMS pods
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - delete
-      - pod
-      - -l
-      - "{{ vector_ldms_pod_label }}"
-      - "--grace-period={{ cleanup_resource_grace_period }}"
-      - --force
-      - --ignore-not-found=true
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} delete pod -l {{ vector_ldms_pod_label }}
+    --grace-period={{ cleanup_resource_grace_period }} --force --ignore-not-found=true
   register: _ldms_vector_pod_delete
   changed_when: _ldms_vector_pod_delete.rc == 0
   failed_when: false

@@ -40,11 +40,7 @@
         msg: "{{ kafka_err_kube_vip_unreachable }}"
 
 - name: Check kubectl availability
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - version
-      - --client=true
+  ansible.builtin.command: kubectl version --client=true
   register: _kubectl_check
   changed_when: false
   failed_when: _kubectl_check.rc != 0
@@ -54,17 +50,10 @@
 # =============================================================================
 
 - name: Get Kafka pod status (JSON)
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - pods
-      - -n
-      - "{{ kafka_namespace }}"
-      - -l
-      - app.kubernetes.io/name=kafka
-      - -o
-      - json
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ kafka_namespace }}
+    -l app.kubernetes.io/name=kafka
+    -o json
   register: _kafka_pods_json
   changed_when: false
   failed_when: _kafka_pods_json.rc != 0
@@ -106,31 +95,17 @@
 # =============================================================================
 
 - name: Get native Kafka bootstrap LoadBalancer external IP
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - svc
-      - "{{ kafka_bootstrap_service_name }}"
-      - -n
-      - "{{ kafka_namespace }}"
-      - -o
-      - "jsonpath={.status.loadBalancer.ingress[0].ip}"
+  ansible.builtin.command: >-
+    kubectl get svc {{ kafka_bootstrap_service_name }} -n {{ kafka_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
   register: _kafka_bootstrap_lb_ip
   changed_when: false
   failed_when: _kafka_bootstrap_lb_ip.rc != 0
 
 - name: Get native Kafka bootstrap service port
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - svc
-      - "{{ kafka_bootstrap_service_name }}"
-      - -n
-      - "{{ kafka_namespace }}"
-      - -o
-      - "jsonpath={.spec.ports[0].port}"
+  ansible.builtin.command: >-
+    kubectl get svc {{ kafka_bootstrap_service_name }} -n {{ kafka_namespace }}
+    -o jsonpath='{.spec.ports[0].port}'
   register: _kafka_bootstrap_lb_port
   changed_when: false
   failed_when: _kafka_bootstrap_lb_port.rc != 0
@@ -148,31 +123,17 @@
     _kafka_bootstrap_port | length == 0
 
 - name: Get Kafka HTTP Bridge LoadBalancer external IP
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - svc
-      - "{{ kafka_bridge_service_name }}"
-      - -n
-      - "{{ kafka_namespace }}"
-      - -o
-      - "jsonpath={.status.loadBalancer.ingress[0].ip}"
+  ansible.builtin.command: >-
+    kubectl get svc {{ kafka_bridge_service_name }} -n {{ kafka_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
   register: _kafka_bridge_lb_ip
   changed_when: false
   failed_when: _kafka_bridge_lb_ip.rc != 0
 
 - name: Get Kafka HTTP Bridge service port
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - svc
-      - "{{ kafka_bridge_service_name }}"
-      - -n
-      - "{{ kafka_namespace }}"
-      - -o
-      - "jsonpath={.spec.ports[0].port}"
+  ansible.builtin.command: >-
+    kubectl get svc {{ kafka_bridge_service_name }} -n {{ kafka_namespace }}
+    -o jsonpath='{.spec.ports[0].port}'
   register: _kafka_bridge_lb_port
   changed_when: false
   failed_when: _kafka_bridge_lb_port.rc != 0

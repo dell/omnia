@@ -18,15 +18,8 @@
 # =============================================================================
 
 - name: Ensure telemetry namespace exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - create
-      - namespace
-      - "{{ telemetry_namespace }}"
-      - --dry-run=client
-      - -o
-      - yaml
+  ansible.builtin.command: >
+    kubectl create namespace {{ telemetry_namespace }} --dry-run=client -o yaml
   register: ns_yaml
   changed_when: false
 
@@ -38,13 +31,8 @@
   changed_when: "'created' in ns_result.stdout | default('')"
 
 - name: Check if Strimzi operator is installed
-  ansible.builtin.command:
-    argv:
-      - helm
-      - status
-      - strimzi-cluster-operator
-      - -n
-      - "{{ telemetry_namespace }}"
+  ansible.builtin.command: >
+    helm status strimzi-cluster-operator -n {{ telemetry_namespace }}
   register: strimzi_status
   changed_when: false
   failed_when: false
@@ -99,15 +87,9 @@
   changed_when: false
 
 - name: Wait for Strimzi operator deployment
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - wait
-      - --for=condition=available
-      - "--timeout={{ kafka_operator_wait_timeout }}"
-      - deployment/strimzi-cluster-operator
-      - -n
-      - "{{ telemetry_namespace }}"
+  ansible.builtin.command: >
+    kubectl wait --for=condition=available --timeout={{ kafka_operator_wait_timeout }}
+    deployment/strimzi-cluster-operator -n {{ telemetry_namespace }}
   changed_when: false
   register: strimzi_wait
   failed_when: false
@@ -118,12 +100,7 @@
   when: strimzi_wait.rc != 0
 
 - name: Wait for Strimzi CRDs
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - crd
-      - "{{ item }}"
+  ansible.builtin.command: kubectl get crd {{ item }}
   loop:
     - kafkas.kafka.strimzi.io
     - kafkatopics.kafka.strimzi.io
@@ -136,12 +113,8 @@
   changed_when: false
 
 - name: Apply Kafka cluster manifest
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ telemetry_deployments_dir }}/kafka.kafka.yaml"
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/kafka.kafka.yaml
   register: kafka_apply
   changed_when: "'created' in kafka_apply.stdout or 'configured' in kafka_apply.stdout"
 
@@ -184,28 +157,16 @@
       no_log: true
 
 - name: Read Kafka reconciliation pause annotation
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - kafka
-      - kafka
-      - -n
-      - "{{ telemetry_namespace }}"
-      - --output=jsonpath={.metadata.annotations.strimzi\.io/pause-reconciliation}
+  ansible.builtin.command: >
+    kubectl get kafka kafka -n {{ telemetry_namespace }}
+    --output=jsonpath='{.metadata.annotations.strimzi\.io/pause-reconciliation}'
   register: kafka_reconciliation_pause
   changed_when: false
 
 - name: Resume Kafka reconciliation
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - annotate
-      - kafka
-      - kafka
-      - -n
-      - "{{ telemetry_namespace }}"
-      - strimzi.io/pause-reconciliation-
+  ansible.builtin.command: >
+    kubectl annotate kafka kafka -n {{ telemetry_namespace }}
+    strimzi.io/pause-reconciliation-
   register: kafka_reconciliation_resume
   changed_when: "'annotated' in kafka_reconciliation_resume.stdout"
   when: kafka_reconciliation_pause.stdout | trim == 'true'
@@ -215,32 +176,17 @@
 # =============================================================================
 
 - name: Wait for Kafka cluster to be ready
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - wait
-      - kafka/kafka
-      - -n
-      - "{{ telemetry_namespace }}"
-      - --for=condition=Ready
-      - "--timeout={{ kafka_deploy_timeout }}"
+  ansible.builtin.command: >
+    kubectl wait kafka/kafka -n {{ telemetry_namespace }}
+    --for=condition=Ready --timeout={{ kafka_deploy_timeout }}
   changed_when: false
   register: kafka_wait
   failed_when: false
 
 - name: Collect Kafka pod status on failure
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - -n
-      - "{{ telemetry_namespace }}"
-      - get
-      - pods
-      - -l
-      - strimzi.io/cluster=kafka
-      - -o
-      - wide
-      - --no-headers
+  ansible.builtin.command: >
+    kubectl -n {{ telemetry_namespace }} get pods -l strimzi.io/cluster=kafka
+    -o wide --no-headers
   register: kafka_pod_status
   changed_when: false
   failed_when: false
@@ -252,15 +198,9 @@
   when: kafka_wait.rc != 0
 
 - name: Read active Kafka cluster ID
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - kafkanodepool
-      - controller
-      - -n
-      - "{{ telemetry_namespace }}"
-      - --output=jsonpath={.status.clusterId}
+  ansible.builtin.command: >
+    kubectl get kafkanodepool controller -n {{ telemetry_namespace }}
+    --output=jsonpath='{.status.clusterId}'
   register: kafka_active_cluster_id
   changed_when: false
   retries: "{{ kafka_secret_wait_retries }}"
@@ -296,24 +236,14 @@
   no_log: true
 
 - name: Apply Kafka user manifest
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ telemetry_deployments_dir }}/kafka.kafkapump_user.yaml"
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/kafka.kafkapump_user.yaml
   register: user_apply
   changed_when: "'created' in user_apply.stdout or 'configured' in user_apply.stdout"
 
 - name: Wait for kafkapump secret to be created
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - secret
-      - kafkapump
-      - -n
-      - "{{ telemetry_namespace }}"
+  ansible.builtin.command: >
+    kubectl get secret kafkapump -n {{ telemetry_namespace }}
   register: kafkapump_secret
   retries: "{{ kafka_secret_wait_retries }}"
   delay: "{{ kafka_secret_wait_delay }}"
@@ -321,12 +251,8 @@
   changed_when: false
 
 - name: Apply Kafka bridge manifests
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ telemetry_deployments_dir }}/{{ item }}"
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/{{ item }}
   loop:
     - kafka.kafka_bridge.yaml
     - kafka.kafka_bridge_lb.yaml

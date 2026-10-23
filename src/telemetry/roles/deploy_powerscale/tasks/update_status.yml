@@ -22,32 +22,15 @@
     csm_observability_namespace: "{{ csm_namespace }}"
 
 - name: Check if karavi-metrics-powerscale deployment exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - deployment
-      - "{{ karavi_observability.metrics_deployment }}"
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - -o
-      - "jsonpath={.spec.replicas}"
+  ansible.builtin.command: >
+    kubectl get deployment {{ karavi_observability.metrics_deployment }} -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
   register: karavi_replicas_check
   changed_when: false
   failed_when: false
 
 - name: Check if karavi-metrics-powerscale pods are running
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - pods
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - -l
-      - app.kubernetes.io/name=karavi-metrics-powerscale
-      - -o
-      - "jsonpath={.items[*].status.phase}"
+  ansible.builtin.command: >
+    kubectl get pods -n {{ csm_observability_namespace }} -l app.kubernetes.io/name=karavi-metrics-powerscale -o jsonpath='{.items[*].status.phase}'
   register: karavi_pods_check
   changed_when: false
   failed_when: false
@@ -73,17 +56,8 @@
     _deploy_result_powerscale_metrics: "{{ _ps_metrics_status | trim }}"
 
 - name: Check if vlagent pods are running (PowerScale logs pipeline)
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - pods
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - -l
-      - app.kubernetes.io/name=vlagent
-      - -o
-      - "jsonpath={.items[*].status.phase}"
+  ansible.builtin.command: >
+    kubectl get pods -n {{ csm_observability_namespace }} -l app.kubernetes.io/name=vlagent -o jsonpath='{.items[*].status.phase}'
   register: vlagent_pods_check
   changed_when: false
   failed_when: false

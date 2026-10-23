@@ -18,15 +18,8 @@
 # =============================================================================
 
 - name: Ensure telemetry namespace exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - create
-      - namespace
-      - "{{ telemetry_namespace }}"
-      - --dry-run=client
-      - -o
-      - yaml
+  ansible.builtin.command: >
+    kubectl create namespace {{ telemetry_namespace }} --dry-run=client -o yaml
   register: ns_yaml
   changed_when: false
 
@@ -38,13 +31,8 @@
   changed_when: "'created' in ns_result.stdout | default('')"
 
 - name: Check if VictoriaMetrics operator is installed (Helm release)
-  ansible.builtin.command:
-    argv:
-      - helm
-      - status
-      - victoria-metrics-operator
-      - -n
-      - "{{ telemetry_namespace }}"
+  ansible.builtin.command: >
+    helm status victoria-metrics-operator -n {{ telemetry_namespace }}
   register: victoria_operator_status
   changed_when: false
   failed_when: false
@@ -139,17 +127,9 @@
     - victoria_operator_pkg is not defined
 
 - name: Wait for VictoriaMetrics operator deployment
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - wait
-      - --for=condition=available
-      - "--timeout={{ victoria_operator_wait_timeout }}"
-      - deployment
-      - -l
-      - app.kubernetes.io/name=victoria-metrics-operator
-      - -n
-      - "{{ telemetry_namespace }}"
+  ansible.builtin.command: >
+    kubectl wait --for=condition=available --timeout={{ victoria_operator_wait_timeout }}
+    deployment -l app.kubernetes.io/name=victoria-metrics-operator -n {{ telemetry_namespace }}
   changed_when: false
   register: vm_operator_wait
   failed_when: false
@@ -160,12 +140,7 @@
   when: vm_operator_wait.rc != 0
 
 - name: Wait for VictoriaMetrics CRDs
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - crd
-      - "{{ item }}"
+  ansible.builtin.command: kubectl get crd {{ item }}
   loop:
     - vmclusters.operator.victoriametrics.com
     - vmagents.operator.victoriametrics.com
@@ -192,58 +167,38 @@
     _vm_manifests: "{{ dict(manifest_stats.results | map(attribute='item') | zip(manifest_stats.results | map(attribute='stat') | map(attribute='exists'))) }}"
 
 - name: Apply VictoriaMetrics TLS secret
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ telemetry_deployments_dir }}/victoria-tls-secret.yaml"
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/victoria-tls-secret.yaml
   register: tls_apply
   changed_when: "'created' in tls_apply.stdout or 'configured' in tls_apply.stdout"
   when: _vm_manifests['victoria-tls-secret.yaml'] | default(false)
   failed_when: false
 
 - name: Apply VictoriaMetrics RBAC
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ telemetry_deployments_dir }}/victoria-vmagent-rbac.yaml"
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/victoria-vmagent-rbac.yaml
   register: rbac_apply
   changed_when: "'created' in rbac_apply.stdout or 'configured' in rbac_apply.stdout"
   when: _vm_manifests['victoria-vmagent-rbac.yaml'] | default(false)
   failed_when: false
 
 - name: Apply VMCluster CR
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ telemetry_deployments_dir }}/victoria-operator-vmcluster.yaml"
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/victoria-operator-vmcluster.yaml
   register: vmcluster_apply
   changed_when: "'created' in vmcluster_apply.stdout or 'configured' in vmcluster_apply.stdout"
   when: _vm_manifests['victoria-operator-vmcluster.yaml'] | default(false)
 
 - name: Apply VMAgent CR
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ telemetry_deployments_dir }}/victoria-operator-vmagent.yaml"
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/victoria-operator-vmagent.yaml
   register: vmagent_apply
   changed_when: "'created' in vmagent_apply.stdout or 'configured' in vmagent_apply.stdout"
   when: _vm_manifests['victoria-operator-vmagent.yaml'] | default(false)
 
 - name: Apply VMPodScrape CR
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -f
-      - "{{ telemetry_deployments_dir }}/victoria-operator-vmscrape.yaml"
+  ansible.builtin.command: >
+    kubectl apply -f {{ telemetry_deployments_dir }}/victoria-operator-vmscrape.yaml
   register: vmscrape_apply
   changed_when: "'created' in vmscrape_apply.stdout or 'configured' in vmscrape_apply.stdout"
   when: _vm_manifests['victoria-operator-vmscrape.yaml'] | default(false)

@@ -42,8 +42,7 @@
 
     - name: Generate victoria_metrics TLS certificates
       ansible.builtin.command:
-        argv:
-          - "{{ telemetry_deployments_dir }}/gen_victoria_certs.sh"
+        cmd: "{{ telemetry_deployments_dir }}/gen_victoria_certs.sh"
       changed_when: false
 
     - name: Read victoria_metrics server certificate
@@ -105,33 +104,16 @@
     force: true
 
 - name: Check health monitor status for CSI volume exporter scrape
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - pods
-      - -n
-      - isilon
-      - -l
-      - app=isilon-controller
-      - -o
-      - "jsonpath={.items[0].metadata.name}"
+  ansible.builtin.command: >
+    kubectl get pods -n isilon -l app=isilon-controller -o jsonpath='{.items[0].metadata.name}'
   register: isilon_pod
   changed_when: false
   failed_when: false
   when: telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
 
 - name: Check if external-health-monitor-controller container is running
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - pod
-      - "{{ isilon_pod.stdout }}"
-      - -n
-      - isilon
-      - -o
-      - 'jsonpath={.status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}'
+  ansible.builtin.command: >
+    kubectl get pod {{ isilon_pod.stdout }} -n isilon -o jsonpath='{.status.containerStatuses[?(@.name=="external-health-monitor-controller")].ready}'
   register: health_monitor_ready
   changed_when: false
   failed_when: false

@@ -20,36 +20,20 @@
 # Assumes: Kafka and VictoriaMetrics already running in telemetry namespace.
 
 - name: Create telemetry namespace
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - create
-      - namespace
-      - "{{ telemetry_namespace }}"
+  ansible.builtin.command: kubectl create namespace {{ telemetry_namespace }}
   register: ns_result
   changed_when: "'created' in ns_result.stdout"
   failed_when: false
 
 - name: Apply iDRAC telemetry using kustomization
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - -k
-      - "{{ telemetry_deployments_dir }}/idrac/"
+  ansible.builtin.command: kubectl apply -k {{ telemetry_deployments_dir }}/idrac/
   register: idrac_deploy_result
   changed_when: "'created' in idrac_deploy_result.stdout or 'configured' in idrac_deploy_result.stdout"
 
 - name: Wait for iDRAC telemetry StatefulSet rollout
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - rollout
-      - status
-      - "statefulset/{{ idrac_telemetry_k8s_name }}"
-      - -n
-      - "{{ telemetry_namespace }}"
-      - "--timeout={{ idrac_deploy_timeout }}"
+  ansible.builtin.command: >
+    kubectl rollout status statefulset/{{ idrac_telemetry_k8s_name }}
+    -n {{ telemetry_namespace }} --timeout={{ idrac_deploy_timeout }}
   register: rollout_result
   changed_when: false
 

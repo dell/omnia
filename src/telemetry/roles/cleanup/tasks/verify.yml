@@ -31,15 +31,8 @@
       delegate_facts: true
 
     - name: Final verification | Count remaining pods
-      ansible.builtin.command:
-        argv:
-          - kubectl
-          - get
-          - pods
-          - -n
-          - "{{ telemetry_namespace }}"
-          - --no-headers
-          - --ignore-not-found
+      ansible.builtin.command: >
+        kubectl get pods -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_pods
       changed_when: false
       until: >-
@@ -50,15 +43,8 @@
       delay: 5
 
     - name: Final verification | Count remaining PVCs
-      ansible.builtin.command:
-        argv:
-          - kubectl
-          - get
-          - pvc
-          - -n
-          - "{{ telemetry_namespace }}"
-          - --no-headers
-          - --ignore-not-found
+      ansible.builtin.command: >
+        kubectl get pvc -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_pvcs
       changed_when: false
       until: >-
@@ -70,15 +56,8 @@
       delay: 5
 
     - name: Final verification | Count remaining services
-      ansible.builtin.command:
-        argv:
-          - kubectl
-          - get
-          - svc
-          - -n
-          - "{{ telemetry_namespace }}"
-          - --no-headers
-          - --ignore-not-found
+      ansible.builtin.command: >
+        kubectl get svc -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_svcs
       changed_when: false
       until: >-
@@ -89,15 +68,9 @@
       delay: 5
 
     - name: Final verification | Count remaining workloads
-      ansible.builtin.command:
-        argv:
-          - kubectl
-          - get
-          - deployment,statefulset,daemonset,job
-          - -n
-          - "{{ telemetry_namespace }}"
-          - --no-headers
-          - --ignore-not-found
+      ansible.builtin.command: >
+        kubectl get deployment,statefulset,daemonset,job
+        -n {{ telemetry_namespace }} --no-headers --ignore-not-found
       register: remaining_workloads
       changed_when: false
       until: >-

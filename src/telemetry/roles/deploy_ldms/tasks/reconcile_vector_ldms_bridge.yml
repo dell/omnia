@@ -40,15 +40,9 @@
     - victoria_metrics_support | default(false) | bool
 
 - name: Scale down Vector-LDMS bridge when individually disabled
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - scale
-      - deployment
-      - "{{ vector.ldms.app_name }}"
-      - -n
-      - "{{ telemetry_namespace }}"
-      - --replicas=0
+  ansible.builtin.command: >
+    kubectl scale deployment {{ vector.ldms.app_name }}
+    -n {{ telemetry_namespace }} --replicas=0
   register: scale_down_vector_result
   changed_when: "'scaled' in scale_down_vector_result.stdout"
   failed_when: false

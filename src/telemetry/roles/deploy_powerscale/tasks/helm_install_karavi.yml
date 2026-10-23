@@ -24,13 +24,8 @@
   register: _cert_manager_crds
 
 - name: Apply cert-manager CRDs
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - apply
-      - --validate=false
-      - -f
-      - "{{ karavi_helm_chart_path }}/crds/cert-manager.crds.yaml"
+  ansible.builtin.command: >
+    kubectl apply --validate=false -f {{ karavi_helm_chart_path }}/crds/cert-manager.crds.yaml
   when: _cert_manager_crds.stat.exists | default(false)
   changed_when: false
   failed_when: false
@@ -38,16 +33,7 @@
 # --- Copy isilon-creds secret to telemetry namespace ---
 
 - name: Check if isilon-creds exists in isilon namespace
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - secret
-      - isilon-creds
-      - -n
-      - isilon
-      - -o
-      - name
+  ansible.builtin.command: kubectl get secret isilon-creds -n isilon -o name
   register: _isilon_creds_check
   changed_when: false
   failed_when: false
@@ -157,39 +143,23 @@
               cpu: "{{ telemetry_storage_config.cert_manager_storage.cainjector.resources.limits.cpu }}"
 
 - name: Upgrade existing karavi-observability release
-  ansible.builtin.command:
-    argv:
-      - helm
-      - upgrade
-      - karavi-observability
-      - "{{ karavi_helm_chart_path }}"
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - -f
-      - "{{ _helm_values_nfs }}"
-      - -f
-      - "{{ _cert_manager_resources_override }}"
-      - --timeout
-      - 10m
+  ansible.builtin.command: >
+    helm upgrade karavi-observability {{ karavi_helm_chart_path }}
+    -n {{ csm_observability_namespace }}
+    -f {{ _helm_values_nfs }}
+    -f {{ _cert_manager_resources_override }}
+    --timeout 10m
   when: _karavi_helm_check.rc == 0
   register: _helm_upgrade
   changed_when: "'has been upgraded' in (_helm_upgrade.stdout | default(''))"
 
 - name: Install karavi-observability Helm chart
-  ansible.builtin.command:
-    argv:
-      - helm
-      - install
-      - karavi-observability
-      - "{{ karavi_helm_chart_path }}"
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - -f
-      - "{{ _helm_values_nfs }}"
-      - -f
-      - "{{ _cert_manager_resources_override }}"
-      - --timeout
-      - 10m
+  ansible.builtin.command: >
+    helm install karavi-observability {{ karavi_helm_chart_path }}
+    -n {{ csm_observability_namespace }}
+    -f {{ _helm_values_nfs }}
+    -f {{ _cert_manager_resources_override }}
+    --timeout 10m
   when: _karavi_helm_check.rc != 0
   register: _helm_install
   changed_when: "'deployed' in (_helm_install.stdout | default(''))"
@@ -200,153 +170,145 @@
 # are OOMKilled first under node memory pressure, cascading into CrashLoopBackOff.
 
 - name: Patch otel-collector deployment with resource limits
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - patch
-      - deployment
-      - otel-collector
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - --type=json
-      - >-
-        -p=[
-        {"op":"replace","path":"/spec/template/spec/containers/0/resources","value":{
-        "requests":{"memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.memory }}",
-        "cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.cpu }}"},
-        "limits":{"memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.memory }}",
-        "cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.cpu }}"}}},
-        {"op":"replace","path":"/spec/template/spec/containers/1/resources","value":{
-        "requests":{"memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.memory }}",
-        "cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.cpu }}"},
-        "limits":{"memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.memory }}",
-        "cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.cpu }}"}}}
-        ]
+  ansible.builtin.command: >
+    kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
+    --type=json
+    -p='[
+      {
+        "op":"replace",
+        "path":"/spec/template/spec/containers/0/resources",
+        "value":{
+          "requests":{
+            "memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.memory }}",
+            "cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.cpu }}"
+          },
+          "limits":{
+            "memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.memory }}",
+            "cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.cpu }}"
+          }
+        }
+      },
+      {
+        "op":"replace",
+        "path":"/spec/template/spec/containers/1/resources",
+        "value":{
+          "requests":{
+            "memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.memory }}",
+            "cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.cpu }}"
+          },
+          "limits":{
+            "memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.memory }}",
+            "cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.cpu }}"
+          }
+        }
+      }
+    ]'
   changed_when: false
   failed_when: false
 
 - name: Patch karavi-metrics-powerscale deployment with resource limits
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - patch
-      - deployment
-      - karavi-metrics-powerscale
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - --type=json
-      - >-
-        -p=[
-        {"op":"replace","path":"/spec/template/spec/containers/0/resources","value":{
-        "requests":{"memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.memory }}",
-        "cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.cpu }}"},
-        "limits":{"memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.memory }}",
-        "cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.cpu }}"}}}
-        ]
+  ansible.builtin.command: >
+    kubectl patch deployment karavi-metrics-powerscale -n {{ csm_observability_namespace }}
+    --type=json
+    -p='[
+      {
+        "op":"replace",
+        "path":"/spec/template/spec/containers/0/resources",
+        "value":{
+          "requests":{
+            "memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.memory }}",
+            "cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.cpu }}"
+          },
+          "limits":{
+            "memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.memory }}",
+            "cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.cpu }}"
+          }
+        }
+      }
+    ]'
   changed_when: false
   failed_when: false
 
 # --- Post-install: Patch OTEL Collector ---
 
 - name: Patch OTEL Collector service for Prometheus metrics port
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - patch
-      - svc
-      - otel-collector
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - --patch
-      - '{"spec":{"ports":[{"name":"prometheus","port":8889,"targetPort":8889,"protocol":"TCP"}]}}'
+  ansible.builtin.command: >
+    kubectl patch svc otel-collector -n {{ csm_observability_namespace }}
+    --patch '{"spec":{"ports":[{"name":"prometheus","port":8889,"targetPort":8889,"protocol":"TCP"}]}}'
   changed_when: false
   failed_when: false
 
 - name: Add labels to OTEL Collector service for vmagent discovery
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - label
-      - svc
-      - otel-collector
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - app.kubernetes.io/name=otel-collector
-      - app.kubernetes.io/component=collector
-      - --overwrite
+  ansible.builtin.command: >
+    kubectl label svc otel-collector -n {{ csm_observability_namespace }}
+    app.kubernetes.io/name=otel-collector app.kubernetes.io/component=collector --overwrite
   changed_when: false
   failed_when: false
 
 # --- Create OTEL Collector PVC for persistent buffering ---
 
 - name: Check if OTEL Collector PVC exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - pvc
-      - otel-collector-data
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - -o
-      - name
+  ansible.builtin.command: >
+    kubectl get pvc otel-collector-data -n {{ csm_observability_namespace }} -o name
   register: _otel_pvc_check
   changed_when: false
   failed_when: false
 
 - name: Create OTEL Collector PVC  # noqa: risky-shell-pipe
-  ansible.builtin.command: kubectl apply -f -
-  args:
-    stdin: |
-      apiVersion: v1
-      kind: PersistentVolumeClaim
-      metadata:
-        name: otel-collector-data
-        namespace: {{ csm_observability_namespace }}
-        labels:
-          app.kubernetes.io/name: otel-collector
-          app.kubernetes.io/instance: karavi-observability
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: {{ telemetry_config.powerscale_configurations.otel_collector_storage_size | default('5Gi') }}
+  ansible.builtin.shell: |
+    cat <<EOF | kubectl apply -f -
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: otel-collector-data
+      namespace: {{ csm_observability_namespace }}
+      labels:
+        app.kubernetes.io/name: otel-collector
+        app.kubernetes.io/instance: karavi-observability
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: {{ telemetry_config.powerscale_configurations.otel_collector_storage_size | default('5Gi') }}
+    EOF
   when: _otel_pvc_check.rc != 0
   changed_when: true
 
 - name: Patch OTEL Collector deployment with persistent volume
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - patch
-      - deployment
-      - otel-collector
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - --type=json
-      - >-
-        -p=[
-        {"op":"add","path":"/spec/template/spec/volumes/-","value":{
-        "name":"otel-collector-data","persistentVolumeClaim":{"claimName":"otel-collector-data"}}},
-        {"op":"add","path":"/spec/template/spec/containers/0/volumeMounts/-","value":{
-        "name":"otel-collector-data","mountPath":"/data"}}
-        ]
+  ansible.builtin.command: >
+    kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
+    --type=json
+    -p='[
+      {
+        "op":"add",
+        "path":"/spec/template/spec/volumes/-",
+        "value":{
+          "name":"otel-collector-data",
+          "persistentVolumeClaim":{
+            "claimName":"otel-collector-data"
+          }
+        }
+      },
+      {
+        "op":"add",
+        "path":"/spec/template/spec/containers/0/volumeMounts/-",
+        "value":{
+          "name":"otel-collector-data",
+          "mountPath":"/data"
+        }
+      }
+    ]'
   changed_when: false
   failed_when: false
 
 - name: Wait for cert-manager deployments to be available
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - wait
-      - --for=condition=Available
-      - deployment/karavi-observability-cert-manager
-      - deployment/karavi-observability-cert-manager-cainjector
-      - deployment/karavi-observability-cert-manager-webhook
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - --timeout=300s
+  ansible.builtin.command: >
+    kubectl wait --for=condition=Available
+    deployment/karavi-observability-cert-manager
+    deployment/karavi-observability-cert-manager-cainjector
+    deployment/karavi-observability-cert-manager-webhook
+    -n {{ csm_observability_namespace }} --timeout=300s
   changed_when: false
   failed_when: false
 
@@ -370,15 +332,8 @@
   failed_when: false
 
 - name: Wait for OTEL Collector rollout
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - rollout
-      - status
-      - deployment/otel-collector
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - --timeout=120s
+  ansible.builtin.command: >
+    kubectl rollout status deployment/otel-collector -n {{ csm_observability_namespace }} --timeout=120s
   changed_when: false
   failed_when: false
 

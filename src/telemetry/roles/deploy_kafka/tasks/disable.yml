@@ -28,28 +28,16 @@
     tasks_from: load_telemetry_config
 
 - name: Check if Kafka StatefulSet exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - statefulset
-      - "{{ kafka_statefulset_name }}"
-      - -n
-      - "{{ telemetry_namespace }}"
+  ansible.builtin.command: >
+    kubectl get statefulset {{ kafka_statefulset_name }} -n {{ telemetry_namespace }}
   register: kafka_sts_check
   changed_when: false
   failed_when: false
 
 - name: Scale down Kafka StatefulSet to 0
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - scale
-      - statefulset
-      - "{{ kafka_statefulset_name }}"
-      - -n
-      - "{{ telemetry_namespace }}"
-      - --replicas=0
+  ansible.builtin.command: >
+    kubectl scale statefulset {{ kafka_statefulset_name }}
+    -n {{ telemetry_namespace }} --replicas=0
   register: scale_down_kafka_result
   changed_when: "'scaled' in scale_down_kafka_result.stdout"
   when: kafka_sts_check.rc == 0
@@ -60,15 +48,9 @@
   when: kafka_sts_check.rc == 0
 
 - name: Scale down Kafka Operator Deployment to 0
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - scale
-      - deployment
-      - "{{ kafka_operator_deployment_name }}"
-      - -n
-      - "{{ telemetry_namespace }}"
-      - --replicas=0
+  ansible.builtin.command: >
+    kubectl scale deployment {{ kafka_operator_deployment_name }}
+    -n {{ telemetry_namespace }} --replicas=0
   register: scale_down_operator_result
   changed_when: "'scaled' in scale_down_operator_result.stdout"
   when: kafka_sts_check.rc == 0

@@ -18,31 +18,16 @@
 # =============================================================================
 
 - name: Check if karavi-observability-cert-manager deployment exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - deployment
-      - karavi-observability-cert-manager
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - -o
-      - "jsonpath={.spec.replicas}"
+  ansible.builtin.command: >
+    kubectl get deployment karavi-observability-cert-manager -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
   register: cert_manager_replicas_check
   changed_when: false
   failed_when: false
   when: powerscale_enabled | bool
 
 - name: Scale up karavi-observability-cert-manager if at 0 replicas
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - scale
-      - deployment
-      - karavi-observability-cert-manager
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - --replicas=1
+  ansible.builtin.command: >
+    kubectl scale deployment karavi-observability-cert-manager -n {{ csm_observability_namespace }} --replicas=1
   register: cert_manager_scaleup_result
   changed_when: "'scaled' in cert_manager_scaleup_result.stdout or cert_manager_scaleup_result.rc == 0"
   when:
@@ -51,31 +36,16 @@
     - cert_manager_replicas_check.stdout == "0"
 
 - name: Check if karavi-observability-cert-manager-cainjector deployment exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - deployment
-      - karavi-observability-cert-manager-cainjector
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - -o
-      - "jsonpath={.spec.replicas}"
+  ansible.builtin.command: >
+    kubectl get deployment karavi-observability-cert-manager-cainjector -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
   register: cert_cainjector_replicas_check
   changed_when: false
   failed_when: false
   when: powerscale_enabled | bool
 
 - name: Scale up karavi-observability-cert-manager-cainjector if at 0 replicas
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - scale
-      - deployment
-      - karavi-observability-cert-manager-cainjector
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - --replicas=1
+  ansible.builtin.command: >
+    kubectl scale deployment karavi-observability-cert-manager-cainjector -n {{ csm_observability_namespace }} --replicas=1
   register: cert_cainjector_scaleup_result
   changed_when: "'scaled' in cert_cainjector_scaleup_result.stdout or cert_cainjector_scaleup_result.rc == 0"
   when:
@@ -84,31 +54,16 @@
     - cert_cainjector_replicas_check.stdout == "0"
 
 - name: Check if karavi-observability-cert-manager-webhook deployment exists
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - get
-      - deployment
-      - karavi-observability-cert-manager-webhook
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - -o
-      - "jsonpath={.spec.replicas}"
+  ansible.builtin.command: >
+    kubectl get deployment karavi-observability-cert-manager-webhook -n {{ csm_observability_namespace }} -o jsonpath='{.spec.replicas}'
   register: cert_webhook_replicas_check
   changed_when: false
   failed_when: false
   when: powerscale_enabled | bool
 
 - name: Scale up karavi-observability-cert-manager-webhook if at 0 replicas
-  ansible.builtin.command:
-    argv:
-      - kubectl
-      - scale
-      - deployment
-      - karavi-observability-cert-manager-webhook
-      - -n
-      - "{{ csm_observability_namespace }}"
-      - --replicas=1
+  ansible.builtin.command: >
+    kubectl scale deployment karavi-observability-cert-manager-webhook -n {{ csm_observability_namespace }} --replicas=1
   register: cert_webhook_scaleup_result
   changed_when: "'scaled' in cert_webhook_scaleup_result.stdout or cert_webhook_scaleup_result.rc == 0"
   when:

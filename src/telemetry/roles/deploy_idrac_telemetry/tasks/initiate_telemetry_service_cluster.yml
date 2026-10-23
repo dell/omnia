@@ -153,18 +153,9 @@
   ansible.builtin.include_tasks: remove_deleted_nodes.yml
 
 - name: Test SSH connectivity to worker node
-  ansible.builtin.command:
-    argv:
-      - ssh
-      - -o
-      - ConnectTimeout=10
-      - -o
-      - BatchMode=yes
-      - -o
-      - StrictHostKeyChecking=no
-      - "{{ worker_node }}"
-      - echo
-      - reachable
+  ansible.builtin.command: >
+    ssh -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=no
+    {{ worker_node }} echo reachable
   register: worker_ssh_test
   failed_when: false
   changed_when: false
@@ -316,14 +307,10 @@
     - telemetry_idrac | length > 0
   block:
     - name: Restart iDRAC telemetry StatefulSet
-      ansible.builtin.command:
-        argv:
-          - kubectl
-          - rollout
-          - restart
-          - "statefulset/{{ idrac_telemetry_k8s_name }}"
-          - -n
-          - "{{ telemetry_namespace }}"
+      ansible.builtin.command: >
+        kubectl rollout restart
+        statefulset/{{ idrac_telemetry_k8s_name }}
+        -n {{ telemetry_namespace }}
       register: restart_statefulset
       changed_when: restart_statefulset.rc == 0
   rescue:
