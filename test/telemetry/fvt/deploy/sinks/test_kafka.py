@@ -24,6 +24,7 @@ Test cases:
 import pytest
 
 from library.functions import TestLogger
+from library.functions.telemetry_func import is_sink_enabled
 from library.vars.test_case_vars import TEST_CASES as TC
 from library.vars.common_vars import (
     KAFKA_POD_PREFIXES,
@@ -46,6 +47,11 @@ def test_kafka_pods(host):
     """TEL_FVT_DEPLOY_V001: Verify Kafka broker/controller pods running."""
     tc = TC["kafka_pods"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if kafka sink is not enabled
+    if not is_sink_enabled(host, "kafka"):
+        tl.skipped("Kafka sink is not enabled in telemetry configuration")
+        pytest.skip("Kafka sink is not enabled")
 
     all_ok = True
     for role, prefix in KAFKA_POD_PREFIXES.items():
@@ -88,6 +94,11 @@ def test_kafka_ready(host):
     tc = TC["kafka_ready"]
     tl = TestLogger(tc["title"], tc["id"])
 
+    # Skip if kafka sink is not enabled
+    if not is_sink_enabled(host, "kafka"):
+        tl.skipped("Kafka sink is not enabled in telemetry configuration")
+        pytest.skip("Kafka sink is not enabled")
+
     tl.check("Checking Kafka cluster Ready condition")
     result = verify_kafka_ready(host)
 
@@ -116,6 +127,11 @@ def test_kafka_bridge(host):
     """TEL_FVT_DEPLOY_V003: Verify Kafka bridge pod running."""
     tc = TC["kafka_bridge"]
     tl = TestLogger(tc["title"], tc["id"])
+
+    # Skip if kafka sink is not enabled
+    if not is_sink_enabled(host, "kafka"):
+        tl.skipped("Kafka sink is not enabled in telemetry configuration")
+        pytest.skip("Kafka sink is not enabled")
 
     tl.check(f"Checking Kafka bridge pods (prefix: {KAFKA_BRIDGE_PREFIX})")
     result = verify_pods_by_prefix(host, KAFKA_BRIDGE_PREFIX, min_count=1)
