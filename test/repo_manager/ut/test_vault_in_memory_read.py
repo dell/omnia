@@ -220,3 +220,19 @@ def test_schema_missing_config_key_does_not_crash_without_logger():
     """A config without keys or a logger reports an error instead of crashing."""
     errors = validation_engine.schema({})
     assert len(errors) == 1 and "Missing expected field" in errors[0]
+
+
+def test_run_subprocess_timeout_returns_distinct_code(monkeypatch):
+    """A timed-out command returns rc 124 and a clear message, not 127."""
+    def timed_out(cmd, **_kwargs):
+        raise subprocess.TimeoutExpired(cmd, 5)
+    monkeypatch.setattr(file_utils.subprocess, "run", timed_out)
+    result = file_utils.run_subprocess(["sleep", "10"], timeout=5)
+    assert result.returncode == 124
+    assert "timed out after 5s" in result.stderr
+
+
+def test_run_subprocess_missing_command_returns_127():
+    """A command that cannot be started still returns rc 127."""
+    result = file_utils.run_subprocess(["definitely-not-a-real-command-xyz"])
+    assert result.returncode == 127

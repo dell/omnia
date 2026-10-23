@@ -329,6 +329,8 @@ def run_subprocess(cmd, timeout=30):
             text=True, timeout=timeout,
         )
         return SubprocessResult(proc.returncode, proc.stdout, proc.stderr)
+    except subprocess.TimeoutExpired:
+        return SubprocessResult(124, "", f"Command timed out after {timeout}s")
     except (OSError, subprocess.SubprocessError) as exc:
         return SubprocessResult(127, "", str(exc))
 

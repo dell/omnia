@@ -215,3 +215,19 @@ def test_schema_unexpected_error_names_file_and_logs_traceback(tmp_path, monkeyp
         errors = data_validation.schema(config)
     assert any(config["input_file_path"] in e and "boom" in e for e in errors)
     assert any(r.exc_info for r in caplog.records)
+
+
+def test_run_subprocess_timeout_returns_distinct_code(monkeypatch):
+    """A timed-out command returns rc 124 and a clear message, not 127."""
+    def timed_out(cmd, **_kwargs):
+        raise subprocess.TimeoutExpired(cmd, 5)
+    monkeypatch.setattr(validation_utils.subprocess, "run", timed_out)
+    result = validation_utils.run_subprocess(["sleep", "10"], timeout=5)
+    assert result.returncode == 124
+    assert "timed out after 5s" in result.stderr
+
+
+def test_run_subprocess_missing_command_returns_127():
+    """A command that cannot be started still returns rc 127."""
+    result = validation_utils.run_subprocess(["definitely-not-a-real-command-xyz"])
+    assert result.returncode == 127
