@@ -400,7 +400,7 @@ def reboot_node_and_wait(host, node_ip, wait_timeout=600, poll_interval=15):
     # ServerAliveInterval/CountMax ensure SSH won't hang if the
     # remote side drops mid-reboot.
     reboot_cmd = (
-        f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "
+        f"ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "
         f"-o ServerAliveInterval=5 -o ServerAliveCountMax=3 "
         f"root@{node_ip} 'nohup reboot &>/dev/null &' 2>&1 || true"
     )
@@ -412,7 +412,7 @@ def reboot_node_and_wait(host, node_ip, wait_timeout=600, poll_interval=15):
 
     # Confirm node went down (SSH should fail)
     down_cmd = (
-        f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "
+        f"ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "
         f"-o BatchMode=yes root@{node_ip} 'echo up' 2>/dev/null"
     )
     down_result = run_on_host(host, down_cmd)
@@ -426,7 +426,7 @@ def reboot_node_and_wait(host, node_ip, wait_timeout=600, poll_interval=15):
     while True:
         elapsed = time.time() - start
         ping_cmd = (
-            f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "
+            f"ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 "
             f"-o BatchMode=yes root@{node_ip} 'echo ok' 2>/dev/null"
         )
         result = run_on_host(host, ping_cmd)

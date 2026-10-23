@@ -154,7 +154,7 @@
 
 - name: Test SSH connectivity to worker node
   ansible.builtin.command: >
-    ssh -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=no
+    ssh -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=accept-new
     {{ worker_node }} echo reachable
   register: worker_ssh_test
   failed_when: false
