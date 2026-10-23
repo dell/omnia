@@ -40,10 +40,10 @@
 
 - name: Copy isilon-creds secret to telemetry namespace  # noqa: risky-shell-pipe
   ansible.builtin.shell: |
-    kubectl delete secret isilon-creds -n {{ csm_observability_namespace }} --ignore-not-found=true 2>/dev/null
+    kubectl delete secret isilon-creds -n {{ csm_observability_namespace | quote }} --ignore-not-found=true 2>/dev/null
     kubectl get secret isilon-creds -n isilon -o json \
       | jq 'del(.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.managedFields)' \
-      | jq ".metadata.namespace = \"{{ csm_observability_namespace }}\"" \
+      | jq --arg ns {{ csm_observability_namespace | quote }} '.metadata.namespace = $ns' \
       | kubectl create -f -
   when: _isilon_creds_check.rc == 0
   changed_when: false
@@ -53,11 +53,12 @@
 
 - name: Copy Karavi Authorization resources (Mode B)  # noqa: risky-shell-pipe
   ansible.builtin.shell: |
+    _NS={{ csm_observability_namespace | quote }}
     kubectl get configmap isilon-config-params -n isilon -o yaml \
-      | sed "s/namespace: isilon/namespace: {{ csm_observability_namespace }}/" \
+      | sed "s/namespace: isilon/namespace: ${_NS}/" \
       | kubectl apply -f - 2>/dev/null || true
     kubectl get secret proxy-server-root-certificate proxy-authz-tokens -n isilon -o yaml \
-      | sed "s/namespace: isilon/namespace: {{ csm_observability_namespace }}/" \
+      | sed "s/namespace: isilon/namespace: ${_NS}/" \
       | sed 's/name: proxy-server-root-certificate/name: isilon-proxy-server-root-certificate/' \
       | sed 's/name: proxy-authz-tokens/name: isilon-proxy-authz-tokens/' \
       | kubectl apply -f - 2>/dev/null || true
@@ -69,7 +70,7 @@
 
 - name: Check if karavi-observability Helm release exists  # noqa: risky-shell-pipe
   ansible.builtin.shell: >
-    helm list -n {{ csm_observability_namespace }} --filter karavi-observability -q 2>/dev/null | grep -q karavi-observability
+    helm list -n {{ csm_observability_namespace | quote }} --filter karavi-observability -q 2>/dev/null | grep -q karavi-observability
   register: _karavi_helm_check
   changed_when: false
   failed_when: false
