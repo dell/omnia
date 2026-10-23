@@ -61,6 +61,14 @@ _ERROR_CONTEXT_PATTERN = re.compile(
     re.MULTILINE,
 )
 
+# Sensitive keys to redact from result dict before serialization
+_SENSITIVE_RESULT_KEYS = {
+    'invocation',
+    'ansible_facts',
+    'ansible_module_name',
+    'ansible_module_args',
+}
+
 class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
     """
     Omnia stdout callback plugin.
@@ -128,6 +136,14 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
         self._task_start_times[task_name] = time.time()
         super().v2_playbook_on_handler_task_start(task)
 
+    @staticmethod
+    def _redact_sensitive_keys(result_dict):
+        """Return a copy of result_dict with credential-bearing keys removed."""
+        return {
+            k: v for k, v in result_dict.items()
+            if k not in _SENSITIVE_RESULT_KEYS
+        }
+
     def _format_result_msg(self, result_dict):
         """
         Format result dict for display.
@@ -135,11 +151,12 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
         If ``msg`` contains newlines, display them as real line breaks
         instead of escaped ``\\n`` characters.
         """
-        msg = result_dict.get("msg", "")
+        safe_dict = self._redact_sensitive_keys(result_dict)
+        msg = safe_dict.get("msg", "")
         if isinstance(msg, str) and "\n" in msg:
-            filtered = {k: v for k, v in result_dict.items() if k != "msg"}
+            filtered = {k: v for k, v in safe_dict.items() if k != "msg"}
             return f"{json.dumps(filtered, sort_keys=True)}\nmsg: |-\n  {msg.replace(chr(10), chr(10) + '  ')}"
-        return self._dump_results(result_dict)
+        return self._dump_results(safe_dict)
 
     def v2_runner_on_failed(self, result, ignore_errors=False):
         """
