@@ -193,8 +193,7 @@
     pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"
     pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
     dns: "{{ hostvars['localhost']['dns'] | default([]) }}"
-    offline_pip_module_path: >-
-      {{ metadata_k8s_repo_base_urls['pip_module'] }}
+    offline_pip_module_path: "{{ hostvars['localhost']['offline_pip_module_path'] | default('') }}"
   when: target_category | default('') == 'kubernetes'
 
 - name: Select K8s storage entry for metadata configuration
@@ -229,10 +228,9 @@
     - name: Set k8s_packages_file path
       ansible.builtin.set_fact:
         _k8s_packages_file: >-
-          {{ input_project_dir }}/config/{{
-          hostvars['localhost']['service_k8s_architecture'] }}/{{
-          hostvars['localhost']['service_k8s_os_type'] }}/{{
-          hostvars['localhost']['service_k8s_os_version']
+          {{ input_project_dir }}/config/x86_64/{{
+          hostvars['localhost']['cluster_os_type'] }}/{{
+          hostvars['localhost']['cluster_os_version']
           }}/service_k8s_v{{ service_k8s_version }}.json
 
     - name: Check if K8s packages JSON exists

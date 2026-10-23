@@ -25,6 +25,7 @@ from jsonschema.validators import validator_for
 from ..messages import orchestrator_messages as msg
 from ..validators import (
     additional_cloud_init_validator,
+    ib_ipv6_allocation_validator,
     network_spec_validator,
     omnia_config_validator,
     orchestrator_config_validator,
@@ -189,3 +190,36 @@ def logic_storage(
         input_project_dir,
         logger,
     )
+
+
+
+def schema_ib_ipv6_allocation(
+    data: Any,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Validate IPoIB IPv6 allocation export against its JSON Schema.
+
+    Args:
+        data: Parsed allocation export JSON.
+        logger: Optional validation logger.
+
+    Returns:
+        JSON Schema errors, or an empty list for valid input.
+    """
+    return ib_ipv6_allocation_validator.validate_schema(data, logger)
+
+
+def logic_ib_ipv6_allocation(
+    data: Any,
+    logger: Logger | None = None,
+) -> list[str]:
+    """Dispatch IPoIB IPv6 allocation L2 semantic validation.
+
+    Args:
+        data: Parsed allocation export JSON (already L1-valid).
+        logger: Optional validation logger.
+
+    Returns:
+        L2 validation errors.
+    """
+    return ib_ipv6_allocation_validator.validate_semantic(data, logger)
