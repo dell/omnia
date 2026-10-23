@@ -64,6 +64,7 @@ _SENSITIVE_RESULT_KEYS = {
     'ansible_facts',
     'ansible_module_name',
     'ansible_module_args',
+    'module_args',
 }
 
 
@@ -113,6 +114,8 @@ class CallbackModule(DefaultCallback):  # pylint: disable=too-many-ancestors
     @staticmethod
     def _redact_sensitive_keys(result_dict):
         """Return a copy of result_dict with credential-bearing keys removed."""
+        if not isinstance(result_dict, dict):
+            return result_dict
         return {
             k: v for k, v in result_dict.items()
             if k not in _SENSITIVE_RESULT_KEYS
