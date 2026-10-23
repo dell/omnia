@@ -54,7 +54,7 @@ Search the catalog set recursively (`src/main/samples/catalogs/**/*.json` —
 do not assume every catalog lives exactly one directory level below
 `catalogs/`; a versioned (`rhel/<os_version>/`) or `hybrid/` subtree is
 still in scope) for the condition the operator named (e.g. every catalog
-with a `base_os` group whose `os_version` is `10.0`). List every match
+with a `baseos` group whose `os_version` is `10.0`). List every match
 before proceeding — do not apply to a partial set silently.
 
 ### Step 2 — Run the Pre-Edit Gate per catalog
@@ -87,12 +87,10 @@ For each catalog the operator approved:
   catalog's schema failure cannot affect another's already-completed
   write.
 - **If the change is a structural field edit with no dedicated CLI verb**
-  (e.g. moving a catalog from one RHEL minor version to another, which
-  `add`/`delete` don't cover), use the same validate-before-write
-  discipline directly via the existing catalog I/O and validator
-  functions — never write a new ad hoc mutation path that skips
-  validation, and always pass `allowed_root` so the write gets the same
-  path check and atomic replacement as `--catalog-root`:
+  (e.g. bumping a `baseos` group's `os_version`, which `add`/`delete`
+  don't cover), use the same validate-before-write discipline directly
+  via the existing catalog I/O and validator functions — never write a
+  new ad hoc mutation path that skips validation:
 
   ```python
   import sys
@@ -185,24 +183,33 @@ No catalog is ever left partially edited: each catalog's mutate-validate
 catalog), so a failure on one never leaves another half-applied, and
 never leaves the failing one itself half-applied either.
 
-## Worked Example (real, verified 2026-10-16)
+## Worked Example (real, verified 2026-09-27)
 
-> Operator: "Pin RHEL from 10.0 to 10.2 for `slurm_x86_64`,
-> `slurm_aarch64` and `service_k8s_x86_64`"
+> Operator: "Pin RHEL from 10.0 to 10.2 for `service_k8s_x86_64` and
+> `slurm_aarch64`"
 
-Three real catalogs from `src/main/samples/catalogs/rhel/10.0/`. Each was
-moved with `switch_os_version(catalog, '10.0', '10.2')` inside the
-validate-before-write pattern, and the result was compared with the
-shipped `rhel/10.2/` catalog of the same name:
+Two real catalogs from `src/main/samples/catalogs/rhel/10.0/`, both with a
+`baseos_group` (`type: baseos`) pinned to `os_version: "10.0"`. One
+(`slurm_aarch64`, in this trace) is deliberately missing its `os` field
+to demonstrate the isolation path with a genuine schema failure, not a
+contrived error message.
 
-| Catalog | Gate finding | Result |
-|---|---|---|
-| `slurm_x86_64` | none | identical to shipped 10.2 |
-| `slurm_aarch64` | none | identical to shipped 10.2 |
-| `service_k8s_x86_64` | `python3_3_12_9` is a 10.0-specific build; 10.2 uses `python3` in `service_kube_control_plane_group` | same content as shipped 10.2 once the operator approved that replacement (via `catalog-editing` delete + add); only the position of `python3` in the group's `components` differs, because `add` appends |
+Running Step 3's field-edit pattern against both files independently:
 
-The two Slurm catalogs were applied while `service_k8s_x86_64` was held
-for its own approval, as Step 2 requires.
+```json
+{
+  "applied": ["service_k8s_x86_64.json"],
+  "skipped": [
+    {
+      "path": "slurm_aarch64.json",
+      "errors": [
+        "Schema validation failed: 'os' is a required property",
+        "baseos group 'baseos_group' missing 'os' field"
+      ]
+    }
+  ]
+}
+```
 
 Isolation path: when one catalog in the set fails validation after the
 change (in an earlier trace, a copy of `slurm_aarch64.json` with its

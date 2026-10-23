@@ -86,17 +86,17 @@
       --set configReloader.image.tag={{ _config_reloader_image_tag }}
 
 - name: Install VictoriaMetrics operator
-  ansible.builtin.command: >
-    helm -n {{ telemetry_namespace }} install victoria-metrics-operator
-    {{ victoria_operator_pkg }}
+  ansible.builtin.shell: >
+    helm -n {{ telemetry_namespace | quote }} install victoria-metrics-operator
+    {{ victoria_operator_pkg | quote }}
     {{ _helm_image_args }}
   when: victoria_operator_status.rc != 0
   changed_when: true
 
 - name: Upgrade VictoriaMetrics operator
-  ansible.builtin.command: >
-    helm -n {{ telemetry_namespace }} upgrade victoria-metrics-operator
-    {{ victoria_operator_pkg }}
+  ansible.builtin.shell: >
+    helm -n {{ telemetry_namespace | quote }} upgrade victoria-metrics-operator
+    {{ victoria_operator_pkg | quote }}
     {{ _helm_image_args }}
   when: victoria_operator_status.rc == 0
   changed_when: true

@@ -127,6 +127,14 @@ UT_TEST_CASE_IDS = {
             48: "test_network_spec_has_admin_network",
         },
     ),
+    # ── CSV formula injection sanitizer (test_input_validation_schema.py) ─
+    **_class_cases(
+        "test_input_validation_schema.py",
+        "TestCSVSanitizer",
+        {
+            49: "test_csv_formula_injection_characters_are_sanitized",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):
