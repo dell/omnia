@@ -24,6 +24,7 @@ import glob
 import json
 import os
 import subprocess
+from typing import NamedTuple
 
 import yaml
 
@@ -167,13 +168,12 @@ def yml_line_number(file_path, yml_path, omnia_base_dir, project_name):
 
     if is_file_encrypted(file_path):
         vault_password_file = get_vault_password(file_path)
-        decrypt_file(omnia_base_dir, project_name, file_path, vault_password_file)
-        with open(file_path, "r", encoding="utf-8") as file:
-            for lineno, line in enumerate(file, start=1):
-                if line and not line.startswith("#") and yml_path in line:
-                    encrypt_file(omnia_base_dir, project_name, file_path, vault_password_file)
-                    return lineno, is_line_num
-        encrypt_file(omnia_base_dir, project_name, file_path, vault_password_file)
+        lines = read_vault_text(
+            omnia_base_dir, project_name, file_path, vault_password_file
+        ).splitlines()
+        for lineno, line in enumerate(lines, start=1):
+            if line and not line.startswith("#") and yml_path in line:
+                return lineno, is_line_num
         return None
 
     with open(file_path, "r", encoding="utf-8") as file:
@@ -301,9 +301,69 @@ def is_file_encrypted(file_path):
         return False
 
 
+class VaultError(RuntimeError):
+    """Raised when an ansible-vault command fails."""
+
+
+class SubprocessResult(NamedTuple):
+    """Outcome of a subprocess call."""
+    returncode: int
+    stdout: str
+    stderr: str
+
+
+def run_subprocess(cmd, timeout=30):
+    """
+    Runs a subprocess command without raising and returns its outcome.
+
+    Args:
+        cmd (list): The command to run.
+        timeout (int): Seconds to wait before giving up.
+
+    Returns:
+        SubprocessResult: Return code, stdout and stderr of the command.
+    """
+    try:
+        proc = subprocess.run(
+            cmd, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, timeout=timeout,
+        )
+        return SubprocessResult(proc.returncode, proc.stdout, proc.stderr)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return SubprocessResult(127, "", str(exc))
+
+
+def read_vault_text(omnia_base_dir, project_name, vault_file, vault_password_file):
+    """
+    Reads an Ansible Vault encrypted file in memory using 'ansible-vault view'.
+    The file on disk is never decrypted or modified.
+
+    Args:
+        omnia_base_dir (str): The base directory of the Omnia project.
+        project_name (str): The name of the project.
+        vault_file (str): The path to the encrypted file.
+        vault_password_file (str): The path to the Ansible Vault password file.
+
+    Returns:
+        str: The decrypted file content.
+
+    Raises:
+        VaultError: If the file cannot be viewed.
+    """
+    password_full_path = os.path.join(os.path.dirname(vault_file), vault_password_file)
+    cmd = ["ansible-vault", "view", vault_file, "--vault-password-file", password_full_path]
+    result = run_subprocess(cmd)
+    if result.returncode != 0:
+        raise VaultError(
+            f"Unable to read vault file {vault_file} (rc={result.returncode}): "
+            f"{result.stderr.strip()}. Please check vault file for {vault_file}"
+        )
+    return result.stdout
+
+
 def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, module):
     """
-    Decrypts an encrypted file, loads the data, and encrypts the file again.
+    Reads an encrypted file in memory and loads its data.
 
     Args:
         yaml_file (str): The path to the encrypted file.
@@ -316,76 +376,16 @@ def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, modu
         dict: The loaded data from the encrypted file.
     """
     vault_password_file = get_vault_password(yaml_file)
-    decrypted_file = decrypt_file(omnia_base_dir, project_name, yaml_file, vault_password_file)
-
-    if decrypted_file:
-        try:
-            with open(yaml_file, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-                encrypt_file(omnia_base_dir, project_name, yaml_file, vault_password_file)
-                return data
-        except FileNotFoundError:
-            logger.error(f"File {yaml_file} not found")
-            module.fail_json(msg=f"File {yaml_file} not found")
-        except yaml.YAMLError:
-            logger.error("Unable to parse the YAML configuration")
-            module.fail_json(msg="Unable to parse the YAML configuration")
-    else:
-        msg = f"Error occurred when attempting to decrypt file. Please check vault file for {yaml_file}"
-        logger.error(msg)
-        module.fail_json(msg)
+    try:
+        return yaml.safe_load(
+            read_vault_text(omnia_base_dir, project_name, yaml_file, vault_password_file)
+        )
+    except VaultError as exc:
+        logger.error(str(exc))
+        module.fail_json(msg=str(exc))
+    except yaml.YAMLError as exc:
+        message = f"Error loading YAML in {yaml_file}: {exc}"
+        logger.error(message)
+        module.fail_json(msg=message)
 
     return None
-
-
-def run_subprocess(cmd):
-    """
-    Runs a subprocess command and returns True if successful.
-
-    Args:
-        cmd (list): The command to run.
-
-    Returns:
-        bool: True if the command was successful, False otherwise.
-    """
-    try:
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
-
-def encrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
-    """
-    Encrypts a file using Ansible Vault.
-
-    Args:
-        omnia_base_dir (str): The base directory of the Omnia project.
-        project_name (str): The name of the project.
-        vault_file (str): The path to the file to encrypt.
-        vault_password_file (str): The path to the Ansible Vault password file.
-
-    Returns:
-        bool: True if the encryption was successful, False otherwise.
-    """
-    password_full_path = os.path.join(os.path.dirname(vault_file), vault_password_file)
-    cmd = ["ansible-vault", "encrypt", vault_file, "--vault-password-file", password_full_path]
-    return run_subprocess(cmd)
-
-
-def decrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
-    """
-    Decrypts a file using Ansible Vault.
-
-    Args:
-        omnia_base_dir (str): The base directory of the Omnia project.
-        project_name (str): The name of the project.
-        vault_file (str): The path to the file to decrypt.
-        vault_password_file (str): The path to the Ansible Vault password file.
-
-    Returns:
-        bool: True if the decryption was successful, False otherwise.
-    """
-    password_full_path = os.path.join(os.path.dirname(vault_file), vault_password_file)
-    cmd = ["ansible-vault", "decrypt", vault_file, "--vault-password-file", password_full_path]
-    return run_subprocess(cmd)
