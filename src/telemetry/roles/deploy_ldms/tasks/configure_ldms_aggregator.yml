@@ -39,12 +39,29 @@
       The munge key disappeared from {{ munge_key_path }} on the selected
       Slurm control node. Refusing to reuse stale aggregator authentication.
 
+- name: Create secure temporary file for munge key
+  ansible.builtin.tempfile:
+    state: file
+    prefix: "munge_key_"
+    suffix: ".tmp"
+  register: munge_key_tempfile
+
+- name: Restrict munge key temp file permissions before fetch
+  ansible.builtin.file:
+    path: "{{ munge_key_tempfile.path }}"
+    mode: "{{ file_permissions_600 }}"
+
 - name: Fetch munge key from Slurm control node
   ansible.builtin.fetch:
     src: "{{ munge_key_path }}"
-    dest: "/tmp/munge.key"
+    dest: "{{ munge_key_tempfile.path }}"
     flat: true
   delegate_to: "{{ _ldms_deploy_aggregator_control_host }}"
+
+- name: Enforce restricted permissions on fetched munge key
+  ansible.builtin.file:
+    path: "{{ munge_key_tempfile.path }}"
+    mode: "{{ file_permissions_600 }}"
 
 - name: Use LDMS sampler password from localhost (exposed by telemetry_prereq)
   ansible.builtin.set_fact:
