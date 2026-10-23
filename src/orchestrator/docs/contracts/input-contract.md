@@ -283,7 +283,7 @@ file. Cleanup, credential-only, input-validation, and deployment-health flows al
 
 Repo Manager does not publish the removed flat `offline_*_path` or
 `*_base_url` aliases. For Kubernetes, Orchestrator derives the OS type, exact
-minor version, and architecture from the `base_os` group referenced by the
+minor version, and architecture from the `baseos` group referenced by the
 catalog's `service_kube_*` functional layers. It selects that exact
 version/architecture from `base_urls` and does not fall back to another
 version.
