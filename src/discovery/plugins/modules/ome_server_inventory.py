@@ -27,6 +27,14 @@ logger = logging.getLogger("ome_server_inventory")
 
 try:
     import requests
+    from requests.exceptions import (
+        ConnectionError,
+        HTTPError,
+        RequestException,
+        SSLError,
+        Timeout,
+        TooManyRedirects,
+    )
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
@@ -628,8 +636,20 @@ def main():
             pagination=pagination_stats
         )
 
-    except Exception as e:
-        module.fail_json(msg=f"Error collecting OME inventory: {str(e)}")
+    except ConnectionError:
+        module.fail_json(msg="Error collecting OME inventory: Failed to connect to OME. Check network connectivity and OME server status.")
+    except Timeout:
+        module.fail_json(msg="Error collecting OME inventory: Connection to OME timed out. Check network latency and OME server responsiveness.")
+    except SSLError:
+        module.fail_json(msg="Error collecting OME inventory: SSL certificate validation failed. Check OME certificate configuration.")
+    except HTTPError as e:
+        module.fail_json(msg=f"Error collecting OME inventory: OME returned HTTP error {e.response.status_code}. Check OME server logs.")
+    except TooManyRedirects:
+        module.fail_json(msg="Error collecting OME inventory: Too many redirects. Check OME URL configuration.")
+    except RequestException:
+        module.fail_json(msg="Error collecting OME inventory: Failed to communicate with OME. Check OME server and network configuration.")
+    except Exception:
+        module.fail_json(msg="Error collecting OME inventory: An unexpected error occurred. Check OME server logs and module configuration.")
     finally:
         client.logout()
 
