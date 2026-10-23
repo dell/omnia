@@ -209,7 +209,19 @@
       - -n
       - "{{ csm_observability_namespace }}"
       - --type=json
-      - "-p=[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/resources\",\"value\":{\"requests\":{\"memory\":\"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.memory }}\",\"cpu\":\"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.cpu }}\"},\"limits\":{\"memory\":\"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.memory }}\",\"cpu\":\"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.cpu }}\"}}},{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/1/resources\",\"value\":{\"requests\":{\"memory\":\"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.memory }}\",\"cpu\":\"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.cpu }}\"},\"limits\":{\"memory\":\"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.memory }}\",\"cpu\":\"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.cpu }}\"}}}]"
+      - >-
+        -p=[
+        {"op":"replace","path":"/spec/template/spec/containers/0/resources","value":{
+        "requests":{"memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.memory }}",
+        "cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.requests.cpu }}"},
+        "limits":{"memory":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.memory }}",
+        "cpu":"{{ telemetry_storage_config.otel_collector_storage.nginx_proxy.resources.limits.cpu }}"}}},
+        {"op":"replace","path":"/spec/template/spec/containers/1/resources","value":{
+        "requests":{"memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.memory }}",
+        "cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.requests.cpu }}"},
+        "limits":{"memory":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.memory }}",
+        "cpu":"{{ telemetry_storage_config.otel_collector_storage.otel_collector.resources.limits.cpu }}"}}}
+        ]
   changed_when: false
   failed_when: false
 
@@ -223,7 +235,14 @@
       - -n
       - "{{ csm_observability_namespace }}"
       - --type=json
-      - "-p=[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/resources\",\"value\":{\"requests\":{\"memory\":\"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.memory }}\",\"cpu\":\"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.cpu }}\"},\"limits\":{\"memory\":\"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.memory }}\",\"cpu\":\"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.cpu }}\"}}}]"
+      - >-
+        -p=[
+        {"op":"replace","path":"/spec/template/spec/containers/0/resources","value":{
+        "requests":{"memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.memory }}",
+        "cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.requests.cpu }}"},
+        "limits":{"memory":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.memory }}",
+        "cpu":"{{ telemetry_storage_config.csm_metrics_powerscale_storage.limits.cpu }}"}}}
+        ]
   changed_when: false
   failed_when: false
 
@@ -306,7 +325,13 @@
       - -n
       - "{{ csm_observability_namespace }}"
       - --type=json
-      - '-p=[{"op":"add","path":"/spec/template/spec/volumes/-","value":{"name":"otel-collector-data","persistentVolumeClaim":{"claimName":"otel-collector-data"}}},{"op":"add","path":"/spec/template/spec/containers/0/volumeMounts/-","value":{"name":"otel-collector-data","mountPath":"/data"}}]'
+      - >-
+        -p=[
+        {"op":"add","path":"/spec/template/spec/volumes/-","value":{
+        "name":"otel-collector-data","persistentVolumeClaim":{"claimName":"otel-collector-data"}}},
+        {"op":"add","path":"/spec/template/spec/containers/0/volumeMounts/-","value":{
+        "name":"otel-collector-data","mountPath":"/data"}}
+        ]
   changed_when: false
   failed_when: false
 
