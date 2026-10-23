@@ -240,14 +240,14 @@ pip_modules:
   # iDRAC telemetry
   # Required for: MySQL operations via kubernetes module
   idrac:
-    kubernetes: "33.1.0"
-    pymysql: "1.1.2"
+    kubernetes: "37.0.1"
+    pymysql: "1.2.3"
 
   # PowerScale / CSI volume exporter
   # Required for: K8s API interaction, PowerScale API calls, metrics export
   powerscale:
     # K8s API client
-    kubernetes: "33.1.0"
+    kubernetes: "37.0.1"
     # K8s dependencies
     python_dateutil: "2.9.0.post0"
     six: "1.17.0"
@@ -260,12 +260,12 @@ pip_modules:
     pyasn1_modules: "0.4.1"
     rsa: "4.9"
     # PowerScale API
-    requests: "2.32.3"
-    urllib3: "2.2.3"
-    certifi: "2024.8.30"
-    charset_normalizer: "3.4.0"
-    idna: "3.10"
+    requests: "2.32.5"
+    urllib3: "2.8.0"
+    certifi: "2026.7.22"
+    charset_normalizer: "3.5.2"
+    idna: "3.20"
     # Metrics export
-    prometheus_client: "0.20.0"
+    prometheus_client: "0.26.0"
     # YAML parsing
-    pyyaml: "6.0.2"
+    pyyaml: "6.0.3"

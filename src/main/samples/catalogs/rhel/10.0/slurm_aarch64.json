@@ -186,9 +186,9 @@
         "type": "group",
         "description": "Common libraries and utilities shared across services",
         "components": [
-          "cffi==1_17_1",
-          "cryptography==45_0_7",
-          "prettytable==3_14_0"
+          "cffi==2_1_1",
+          "cryptography==50_0_2",
+          "prettytable==3_18_0"
         ]
       },
       "slurm_custom_group": {
@@ -569,8 +569,8 @@
           }
         ]
       },
-      "cffi==1_17_1": {
-        "name": "cffi==1.17.1",
+      "cffi==2_1_1": {
+        "name": "cffi==2.1.1",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -1073,8 +1073,8 @@
           }
         ]
       },
-      "cryptography==45_0_7": {
-        "name": "cryptography==45.0.7",
+      "cryptography==50_0_2": {
+        "name": "cryptography==50.0.2",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -1593,8 +1593,8 @@
           }
         ]
       },
-      "prettytable==3_14_0": {
-        "name": "prettytable==3.14.0",
+      "prettytable==3_18_0": {
+        "name": "prettytable==3.18.0",
         "packagetype": "pip_module",
         "sources": [
           {
