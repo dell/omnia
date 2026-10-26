@@ -145,7 +145,7 @@ load_env() {
     local _path _resolved
     for _path in "$OMNIA_DATA_PATH" "$OMNIA_VENV_PATH"; do
         _resolved="$(/usr/bin/realpath -m -- "$_path" 2>/dev/null)" || _resolved="$_path"
-        if [[ "$_resolved" =~ ^(/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)$ ]]; then
+        if [[ "$_resolved" =~ ^(/|/boot|/dev|/etc|/home|/media|/mnt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)$ ]]; then
             echo -e "${RED}ERROR: Refusing unsafe path '${_path}' (resolves to '${_resolved}'). Check omnia.env.${NC}" >&2
             exit 1
         fi
