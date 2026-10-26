@@ -68,9 +68,13 @@
           no_log: true
 
         - name: Encrypt newly created credential file
-          ansible.builtin.command: >-
-            ansible-vault encrypt "{{ telemetry_credential_file.file_path }}"
-            --vault-password-file "{{ telemetry_credential_file.vault_path }}"
+          ansible.builtin.command:
+            argv:
+              - ansible-vault
+              - encrypt
+              - "{{ telemetry_credential_file.file_path }}"
+              - --vault-password-file
+              - "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
           no_log: true
 
@@ -92,9 +96,13 @@
       when: telemetry_cred_file_stat.stat.exists
       block:
         - name: Decrypt credential file
-          ansible.builtin.command: >-
-            ansible-vault decrypt "{{ telemetry_credential_file.file_path }}"
-            --vault-password-file "{{ telemetry_credential_file.vault_path }}"
+          ansible.builtin.command:
+            argv:
+              - ansible-vault
+              - decrypt
+              - "{{ telemetry_credential_file.file_path }}"
+              - --vault-password-file
+              - "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
           no_log: true
@@ -106,9 +114,13 @@
           no_log: true
 
         - name: Re-encrypt credential file
-          ansible.builtin.command: >-
-            ansible-vault encrypt "{{ telemetry_credential_file.file_path }}"
-            --vault-password-file "{{ telemetry_credential_file.vault_path }}"
+          ansible.builtin.command:
+            argv:
+              - ansible-vault
+              - encrypt
+              - "{{ telemetry_credential_file.file_path }}"
+              - --vault-password-file
+              - "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
           no_log: true
@@ -130,9 +142,13 @@
     - name: Reload final credentials
       block:
         - name: Decrypt for final load
-          ansible.builtin.command: >-
-            ansible-vault decrypt "{{ telemetry_credential_file.file_path }}"
-            --vault-password-file "{{ telemetry_credential_file.vault_path }}"
+          ansible.builtin.command:
+            argv:
+              - ansible-vault
+              - decrypt
+              - "{{ telemetry_credential_file.file_path }}"
+              - --vault-password-file
+              - "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
           no_log: true
@@ -144,9 +160,13 @@
           no_log: true
 
         - name: Re-encrypt after final load
-          ansible.builtin.command: >-
-            ansible-vault encrypt "{{ telemetry_credential_file.file_path }}"
-            --vault-password-file "{{ telemetry_credential_file.vault_path }}"
+          ansible.builtin.command:
+            argv:
+              - ansible-vault
+              - encrypt
+              - "{{ telemetry_credential_file.file_path }}"
+              - --vault-password-file
+              - "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
           failed_when: false
           no_log: true

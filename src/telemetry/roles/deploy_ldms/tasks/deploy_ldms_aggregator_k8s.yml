@@ -120,7 +120,7 @@
 
 - name: Copy munge key to kube_vip host
   ansible.builtin.copy:
-    src: "/tmp/munge.key"
+    src: "{{ munge_key_tempfile.path }}"
     dest: "{{ ldms_aggregator_share_path }}/munge.key"
     mode: "{{ file_permissions_400 }}"
   when: munge_key_check_result | default(false) | bool
@@ -160,8 +160,8 @@
   ansible.builtin.shell: >-
     set -o pipefail &&
     kubectl create secret generic nersc-munge-key
-    --from-file=munge.key={{ ldms_aggregator_share_path }}/munge.key
-    -n {{ telemetry_namespace }} --dry-run=client --output=yaml |
+    --from-file=munge.key={{ (ldms_aggregator_share_path + '/munge.key') | quote }}
+    -n {{ telemetry_namespace | quote }} --dry-run=client --output=yaml |
     kubectl apply -f -
   args:
     executable: /bin/bash
@@ -176,8 +176,8 @@
   ansible.builtin.shell: >-
     set -o pipefail &&
     kubectl create secret generic nersc-ldms-ovis-auth
-    --from-file=ldmsauth.conf={{ ldms_aggregator_share_path }}/ldmsauth.conf
-    -n {{ telemetry_namespace }} --dry-run=client --output=yaml |
+    --from-file=ldmsauth.conf={{ (ldms_aggregator_share_path + '/ldmsauth.conf') | quote }}
+    -n {{ telemetry_namespace | quote }} --dry-run=client --output=yaml |
     kubectl apply -f -
   args:
     executable: /bin/bash

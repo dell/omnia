@@ -196,7 +196,7 @@ UT_TEST_CASE_IDS = {
         {
             95: "test_cleanup_tokens_are_allowlisted",
             96: "test_compatibility_exports_remain_valid",
-            97: "test_container_password_cannot_add_arguments",
+            97: "test_container_remote_command_does_not_accept_credentials",
             98: "test_every_static_template_is_structured",
             99: "test_executable_override_changes_only_argv_zero",
             100: "test_file_path_with_spaces_remains_one_argument",

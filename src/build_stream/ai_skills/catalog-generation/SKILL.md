@@ -392,7 +392,7 @@ invent layers for unused combinations.
 
 ### Base groups and hybrid package identity
 
-- Every layer references **exactly one** `type: base_os` group whose `os` and
+- Every layer references **exactly one** `type: baseos` group whose `os` and
   `os_version` match that layer's confirmed tuple. Treat those fields as metadata,
   not something to guess from the group key or catalog name.
 - Single-OS references use `baseos_group`. The RHEL hybrid examples instead use

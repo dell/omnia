@@ -103,18 +103,15 @@ def yml_line_number(file_path, yml_path, omnia_base_dir, project_name) -> tuple:
     if "." in yml_path:
         yml_path = yml_path.split(".")[0]
         is_line_num = False
-    # If the file is encrypted, decrypt and read data, then reencrypt
+    # If the file is encrypted, read it in memory (the file on disk is never decrypted)
     if validation_utils.is_file_encrypted(file_path):
         vault_password_file = config.get_vault_password(file_path)
-        validation_utils.decrypt_file(omnia_base_dir, project_name, file_path, vault_password_file)
-        with open(file_path, "r", encoding="utf-8") as file:
-            for lineno, line in enumerate(file, start=1):
-                if line and not line.startswith("#") and yml_path in line:
-                    validation_utils.encrypt_file(
-                        omnia_base_dir, project_name, file_path, vault_password_file
-                    )
-                    return lineno, is_line_num
-        validation_utils.encrypt_file(omnia_base_dir, project_name, file_path, vault_password_file)
+        lines = validation_utils.read_vault_text(
+            omnia_base_dir, project_name, file_path, vault_password_file
+        ).splitlines()
+        for lineno, line in enumerate(lines, start=1):
+            if line and not line.startswith("#") and yml_path in line:
+                return lineno, is_line_num
         return None
     # else open file and read its line
     with open(file_path, "r", encoding="utf-8") as file:

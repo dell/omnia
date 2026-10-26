@@ -49,10 +49,26 @@ def _get_omnia_data_path() -> str:
 def _get_omnia_project_name() -> str:
     """Read OMNIA_PROJECT_NAME from environment (sourced from omnia.env).
 
+    Validates the value is a single safe path segment to prevent
+    path-traversal via crafted environment values.
+
     Returns:
         OMNIA_PROJECT_NAME value, defaults to 'project_default'.
+
+    Raises:
+        ValueError: If the project name contains path separators or
+            traversal components.
     """
-    return os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+    import re  # local import to avoid module-level side effects
+    project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+    if (
+        not project_name
+        or project_name in ('.', '..')
+        or os.path.basename(project_name) != project_name
+        or not re.match(r'^[A-Za-z0-9][A-Za-z0-9._-]*$', project_name)
+    ):
+        raise ValueError(f"Invalid OMNIA_PROJECT_NAME: '{project_name}'")
+    return project_name
 
 
 def _build_repo_manager_input_dir() -> str:
