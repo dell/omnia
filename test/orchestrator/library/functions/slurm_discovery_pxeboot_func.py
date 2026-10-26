@@ -17,7 +17,7 @@
 import re
 from collections import defaultdict
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS, SLURM_COMPUTE_PREFIX
 from ._pxeboot_helpers import (
@@ -74,7 +74,7 @@ def _expected_match(
     return not mismatches, mismatches
 
 
-def check_slurm_hardware_discovery(host):
+def check_slurm_hardware_discovery(host) -> Dict[str, Any]:
     """Verify homogeneous and heterogeneous hardware results by mapping group."""
     summary = "Slurm hardware discovery contract"
     try:

@@ -17,6 +17,7 @@
 import os
 import shlex
 import time
+from typing import Any, Dict
 
 import yaml
 
@@ -97,7 +98,7 @@ def _load_additional_cloud_init_config(host, context):
     return enabled, config_data, aci_path
 
 
-def check_additional_cloud_init_smd_groups(host):
+def check_additional_cloud_init_smd_groups(host) -> Dict[str, Any]:
     """Verify SMD groups exist for additional cloud-init configuration."""
     summary = "Additional cloud-init SMD groups"
     try:
@@ -171,7 +172,7 @@ def check_additional_cloud_init_smd_groups(host):
         )
 
 
-def check_additional_cloud_init_metadata_groups(host):
+def check_additional_cloud_init_metadata_groups(host) -> Dict[str, Any]:
     """Verify metadata-service groups exist for additional cloud-init."""
     summary = "Additional cloud-init metadata-service groups"
     try:
@@ -285,7 +286,7 @@ def check_additional_cloud_init_metadata_groups(host):
         )
 
 
-def check_additional_cloud_init_write_files(host):
+def check_additional_cloud_init_write_files(host) -> Dict[str, Any]:
     """Verify write_files entries were applied on provisioned nodes."""
     summary = "Additional cloud-init write_files on nodes"
     try:
@@ -425,7 +426,7 @@ def _extract_runcmd_log_paths(commands):
     return paths
 
 
-def check_additional_cloud_init_runcmd(host):
+def check_additional_cloud_init_runcmd(host) -> Dict[str, Any]:
     """Verify runcmd entries executed during cloud-init on provisioned nodes.
 
     Checks for runcmd execution by verifying that log files produced by
@@ -616,7 +617,7 @@ def _metadata_template_text(metadata_groups, expected_name):
     return None
 
 
-def check_additional_cloud_init_common_template(host):
+def check_additional_cloud_init_common_template(host) -> Dict[str, Any]:
     """TC-F08: Verify common cloud-init template rendered with merge_how."""
     summary = "Additional cloud-init common template rendering"
     try:
@@ -667,7 +668,7 @@ def check_additional_cloud_init_common_template(host):
         )
 
 
-def check_additional_cloud_init_per_fg_template(host):
+def check_additional_cloud_init_per_fg_template(host) -> Dict[str, Any]:
     """TC-F09: Verify per-FG cloud-init template rendering."""
     summary = "Additional cloud-init per-FG template rendering"
     try:
@@ -708,7 +709,7 @@ def check_additional_cloud_init_per_fg_template(host):
         )
 
 
-def check_additional_cloud_init_conditional_rendering(host):
+def check_additional_cloud_init_conditional_rendering(host) -> Dict[str, Any]:
     """TC-F10: Verify empty sections are omitted from rendered templates."""
     summary = "Additional cloud-init conditional rendering"
     try:
@@ -765,7 +766,7 @@ def check_additional_cloud_init_conditional_rendering(host):
         )
 
 
-def check_additional_cloud_init_bss_common(host):
+def check_additional_cloud_init_bss_common(host) -> Dict[str, Any]:
     """TC-F11: Verify BSS registration for common cloud-init group."""
     summary = "Additional cloud-init BSS common registration"
     try:
@@ -813,7 +814,7 @@ def check_additional_cloud_init_bss_common(host):
         )
 
 
-def check_additional_cloud_init_bss_per_fg(host):
+def check_additional_cloud_init_bss_per_fg(host) -> Dict[str, Any]:
     """TC-F12: Verify BSS registration for per-FG cloud-init groups."""
     summary = "Additional cloud-init BSS per-FG registration"
     try:
@@ -861,7 +862,7 @@ def check_additional_cloud_init_bss_per_fg(host):
         )
 
 
-def check_additional_cloud_init_merge_behavior(host):
+def check_additional_cloud_init_merge_behavior(host) -> Dict[str, Any]:
     """TC-F13: Verify merge_how=no_replace preserves platform defaults."""
     summary = "Additional cloud-init merge behavior"
     try:
@@ -910,7 +911,7 @@ def check_additional_cloud_init_merge_behavior(host):
 # =====================================================================
 
 
-def check_additional_cloud_init_rhel_compat(host):
+def check_additional_cloud_init_rhel_compat(host) -> Dict[str, Any]:
     """TC-C01: Verify additional cloud-init on RHEL 10.x nodes."""
     summary = "Additional cloud-init RHEL 10.x compatibility"
     try:
@@ -959,7 +960,7 @@ def check_additional_cloud_init_rhel_compat(host):
         )
 
 
-def check_additional_cloud_init_multi_fg_compat(host):
+def check_additional_cloud_init_multi_fg_compat(host) -> Dict[str, Any]:
     """TC-C02: Verify additional cloud-init with multiple functional groups."""
     summary = "Additional cloud-init multi-FG compatibility"
     try:
@@ -1050,7 +1051,7 @@ def _snapshot_metadata_names(host):
     }
 
 
-def check_additional_cloud_init_smd_stability(host):
+def check_additional_cloud_init_smd_stability(host) -> Dict[str, Any]:
     """TC-I01: Verify SMD group state is stable across consecutive reads."""
     summary = "Additional cloud-init SMD group state stability"
     try:
@@ -1093,7 +1094,7 @@ def check_additional_cloud_init_smd_stability(host):
         )
 
 
-def check_additional_cloud_init_bss_stability(host):
+def check_additional_cloud_init_bss_stability(host) -> Dict[str, Any]:
     """TC-I02: Verify BSS registration state is stable across consecutive reads."""
     summary = "Additional cloud-init BSS registration state stability"
     try:
@@ -1137,7 +1138,7 @@ def check_additional_cloud_init_bss_stability(host):
         )
 
 
-def check_additional_cloud_init_pipeline_stability(host):
+def check_additional_cloud_init_pipeline_stability(host) -> Dict[str, Any]:
     """TC-I03: Verify full pipeline (SMD + BSS) state is stable."""
     summary = "Additional cloud-init full pipeline state stability"
     try:
@@ -1258,7 +1259,7 @@ def _e2e_verify_scope(host, rows, write_files, runcmd, scope_label):
     return verified, failures, fields
 
 
-def check_additional_cloud_init_e2e_common_only(host):
+def check_additional_cloud_init_e2e_common_only(host) -> Dict[str, Any]:
     """TC-F16: Verify common-section directives are applied on all nodes."""
     summary = "Additional cloud-init e2e common scope"
     try:
@@ -1300,7 +1301,7 @@ def check_additional_cloud_init_e2e_common_only(host):
         )
 
 
-def check_additional_cloud_init_e2e_per_fg_only(host):
+def check_additional_cloud_init_e2e_per_fg_only(host) -> Dict[str, Any]:
     """TC-F17: Verify per-FG directives are applied on matching nodes."""
     summary = "Additional cloud-init e2e per-FG scope"
     try:
@@ -1354,7 +1355,7 @@ def check_additional_cloud_init_e2e_per_fg_only(host):
         )
 
 
-def check_additional_cloud_init_e2e_combined(host):
+def check_additional_cloud_init_e2e_combined(host) -> Dict[str, Any]:
     """TC-F18: End-to-end verification with common + per-FG combined."""
     summary = "Additional cloud-init e2e combined"
     try:
@@ -1424,7 +1425,7 @@ def check_additional_cloud_init_e2e_combined(host):
         )
 
 
-def check_additional_cloud_init_e2e_multiple_fgs(host):
+def check_additional_cloud_init_e2e_multiple_fgs(host) -> Dict[str, Any]:
     """TC-F19: End-to-end verification with multiple functional groups."""
     summary = "Additional cloud-init e2e multiple FGs"
     try:
@@ -1515,7 +1516,7 @@ def check_additional_cloud_init_e2e_multiple_fgs(host):
         )
 
 
-def check_additional_cloud_init_e2e_mixed_directives(host):
+def check_additional_cloud_init_e2e_mixed_directives(host) -> Dict[str, Any]:
     """TC-F20: End-to-end verification with write_files + runcmd together."""
     summary = "Additional cloud-init e2e mixed directives"
     try:
@@ -1590,7 +1591,7 @@ def check_additional_cloud_init_e2e_mixed_directives(host):
         )
 
 
-def check_additional_cloud_init_e2e_packages(host):
+def check_additional_cloud_init_e2e_packages(host) -> Dict[str, Any]:
     """TC-F21: Verify integration with additional packages in runcmd."""
     summary = "Additional cloud-init packages integration"
     try:

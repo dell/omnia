@@ -31,7 +31,7 @@ Source-of-truth alignment with omnia/src/orchestrator/roles/slurm_config:
 
 import re
 import shlex
-from typing import Any
+from typing import Any, Tuple
 
 from ..vars.pxeboot_vars import (
     HPC_BENCHMARKS_MSR_SAFE_PACKAGE,
@@ -64,13 +64,13 @@ _STAGING_EXCLUDED_SUBDIRS: frozenset[str] = frozenset(
 )
 
 
-def hpc_benchmarks_context(host):
+def hpc_benchmarks_context(host) -> Tuple[Any, Any, Any, Any, Any]:
     """Return workload context, Slurm rows, controller, and compute rows."""
     context, rows, control, config = slurm_context(host)
     return context, rows, control, slurm_compute_rows(rows), config
 
 
-def computes_or_skip(host, summary):
+def computes_or_skip(host, summary) -> Tuple[Any, Any, Any, Any]:
     """Return context+computes, or the canonical skip result when unmapped."""
     context, _rows, control, computes, _config = hpc_benchmarks_context(host)
     if not computes:
@@ -388,7 +388,7 @@ def pulp_directory_has_files(host, row, url: str) -> tuple[bool, int]:
     return bool(entries), len(entries)
 
 
-def run_pull_script(host, row, timeout_seconds: int):
+def run_pull_script(host, row, timeout_seconds: int) -> Any:
     """Run the deployed pull script and return the raw command result."""
     return remote_command(
         host,
@@ -557,7 +557,7 @@ def snapshot_tool_fingerprints(host, row, base: str) -> dict[str, tuple[str, int
     return fingerprints
 
 
-def run_pull_script_background(host, row, timeout_seconds: int, log_path: str):
+def run_pull_script_background(host, row, timeout_seconds: int, log_path: str) -> str:
     """Start pull_benchmarks.sh in the background and return the PID."""
     result = remote_command(
         host,
@@ -571,7 +571,7 @@ def run_pull_script_background(host, row, timeout_seconds: int, log_path: str):
     return pid
 
 
-def wait_for_pid(host, row, pid: str, timeout_seconds: int = 700):
+def wait_for_pid(host, row, pid: str, timeout_seconds: int = 700) -> int:
     """Wait for a background PID and return its exit code."""
     result = remote_command(
         host,
