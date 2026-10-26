@@ -52,12 +52,13 @@ component override is unset or empty.
 
 ### Validation Rules
 
-- The execute flow requires the file to exist and be parseable YAML.
-- Discovery currently consumes only `admin_network.subnet` and
-  `ib_network.subnet`; it does not consume `netmask_bits`.
-- These subnet values are not covered by the current L1/L2 validator. The
-  mapping generator derives output addresses from the first two subnet octets
-  and the last two BMC-IP octets.
+- The validate flow performs L1 JSON schema validation using the same
+  `network_spec.json` schema as Orchestrator.
+- File must exist and be valid YAML with a `Networks` array.
+- At least one `admin_network` entry is required with `subnet` and `netmask_bits`.
+- Discovery consumes `admin_network.subnet` and `ib_network.subnet` for IP
+  derivation; the mapping generator derives output addresses from the first
+  two subnet octets and the last two BMC-IP octets.
 
 ---
 

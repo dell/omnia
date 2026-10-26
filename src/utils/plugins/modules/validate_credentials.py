@@ -159,7 +159,7 @@ def validate_input(field: str, value: str, rules: Dict[str, Any]) -> Tuple[bool,
     rule = rules[field]
     if not rule["minLength"] <= len(value) <= rule["maxLength"]:
         return (False, f"'{field}' length must be between {rule['minLength']} and {rule['maxLength']} characters")
-    if "pattern" in rule and not re.match(rule["pattern"], value):
+    if "pattern" in rule and not re.fullmatch(rule["pattern"], value):
         return (False, f"'{field}' format is invalid. Description: {rule['description']}")
     return (True, f"'{field}' is valid")
 

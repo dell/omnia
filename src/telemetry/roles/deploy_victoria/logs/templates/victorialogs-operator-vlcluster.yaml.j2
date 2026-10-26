@@ -34,7 +34,6 @@ spec:
 {% set _tag = _img.split(':')[-1] %}
   vlstorage:
     replicaCount: {{ victoria_logs_cluster.vlstorage.replicas }}
-    replicationFactor: 2  # Data redundancy: each log written to 2 of 3 nodes
     image:
 {% if telemetry_registry.host | default('') %}
       repository: {{ telemetry_registry.host }}/{{ _repo }}
@@ -87,10 +86,6 @@ spec:
       periodSeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.period }}
       failureThreshold: {{ victoria_logs_cluster.vlstorage.startup_probe.failure_threshold }}
       timeoutSeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.timeout }}
-{% if victoria_logs_cluster.tls_enabled %}
-      tlsConfig:
-        insecureSkipVerify: true
-{% endif %}
 
     # Readiness probe - increased tolerance for WAL replay
     readinessProbe:
@@ -102,11 +97,8 @@ spec:
       periodSeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.period }}
       failureThreshold: {{ victoria_logs_cluster.vlstorage.readiness_probe.failure_threshold }}
       timeoutSeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.timeout }}
-{% if victoria_logs_cluster.tls_enabled %}
-      tlsConfig:
-        insecureSkipVerify: true
-{% endif %}
 
+    # Pod anti-affinity
     affinity:
       podAntiAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:

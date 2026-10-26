@@ -247,11 +247,21 @@ def source_only_scan_paths(host, row) -> list[str]:
 
 
 def scan_for_binaries(host, row, paths: list[str]) -> list[str]:
-    """Return executable files found under a bounded set of paths."""
+    """Return executable files found under a bounded set of paths.
+
+    Framework-owned subdirectories are pruned at any depth, so CUDA trees
+    staged under ``/hpc_tools/platforms/<os>/<ver>/<arch>/cuda`` are skipped.
+    """
     binaries: list[str] = []
+    prune = " -o ".join(
+        f"-name {shlex.quote(name)}" for name in sorted(_STAGING_EXCLUDED_SUBDIRS)
+    )
     for path in paths:
         result = remote_command(
-            host, row, PXEBOOT_COMMANDS["hpc_tools_tool_executables"] % path
+            host,
+            row,
+            PXEBOOT_COMMANDS["hpc_tools_tool_executables"]
+            % (shlex.quote(path), prune),
         )
         if result.rc != 0:
             continue

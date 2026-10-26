@@ -19,43 +19,58 @@
 # Installs test automation dependencies and configures credentials.
 #
 # INSTALL MODES:
-#   Default              — Installs dependencies with pip --user
-#   Active venv          — Installs into the currently active venv
-#   --venv               — Creates test/discovery/.venv and installs there
+#   Baremetal (default)  — Install into system Python (pip install --user)
+#   Active venv          — Auto-detected; installs into the currently active venv
+#   New venv (--venv)    — Creates .venv/ and installs there
 #
-# CREDENTIAL HANDLING:
-#   SSH credentials (OIM server):
-#     --set-creds          — Prompt for SSH password (asks twice for confirmation).
-#                            If credentials exist, asks whether to update them.
-#     --update-creds       — Force-update existing SSH password (prompt twice).
-#     --creds-stdin        — Read SSH password from standard input.
+# TWO CREDENTIAL FILES:
+#   1. test_creds.yml                — SSH password for OIM server access (local).
+#   2. discovery_credentials.yml     — Domain credentials (OME username/password).
+#      Created below DISCOVERY_DATA_PATH when set, otherwise below
+#      $OMNIA_DATA_PATH/discovery/input/$OMNIA_PROJECT_NAME/, and encrypted
+#      with ansible-vault.
 #
-#   Credentials are written atomically by omnia_auto to test_creds.yml and
-#   encrypted with Ansible Vault. They may be prepared before selecting a
-#   remote target; oim_server_ip is informational for credential setup.
+# SSH CREDENTIALS:
+#   --set-creds          Interactive prompt (2x confirmation). Asks to update if exists.
+#   --update-creds       Force-update existing SSH password (2x prompt).
+#   --creds-stdin        Read SSH password from standard input.
+#
+# DOMAIN CREDENTIALS (OME):
+#   --set-domain-creds     Interactive prompt for OME username/password.
+#   --update-domain-creds  Force-update domain credentials.
+#   --domain-creds-stdin   Read a non-interactive JSON object from stdin.
 #
 # Usage:
-#   ./setup_env.sh                         # Install with pip --user
-#   ./setup_env.sh --venv                  # Create .venv/ and install
-#   ./setup_env.sh --force                 # Force-reinstall dependencies
-#   ./setup_env.sh --venv --force          # Recreate .venv/ and install
-#   ./setup_env.sh --set-creds             # Prompt for SSH password
-#   ./setup_env.sh --update-creds          # Update existing SSH password
+#   ./setup_env.sh                        # Baremetal or active venv
+#   ./setup_env.sh --force                # Force-reinstall all requirements
+#   ./setup_env.sh --venv                 # Create .venv/ and install there
+#   ./setup_env.sh --venv --force         # Recreate .venv/ and reinstall requirements
+#   ./setup_env.sh --set-creds            # Prompt for SSH password
+#   ./setup_env.sh --update-creds         # Update existing SSH password
 #   approved-secret-provider | ./setup_env.sh --creds-stdin
-#   ./setup_env.sh --debug                 # Verbose pip output
-#   ./setup_env.sh --help                  # Show this help
+#   ./setup_env.sh --set-domain-creds     # Prompt for OME credentials
+#   credential-json-provider | ./setup_env.sh --domain-creds-stdin
+#   ./setup_env.sh --debug                # Verbose pip output
+#   ./setup_env.sh --help                 # Show this help
 # =============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
 WHEEL_PATH="${SCRIPT_DIR}/../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl"
+cd "$SCRIPT_DIR"
+
+# ── SSH credentials (local) ──
 CREDS_FILE="${SCRIPT_DIR}/test_creds.yml"
 CREDS_KEY="${SCRIPT_DIR}/.test_creds.key"
-TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
+
+# ── Domain credentials (at env-var path) ──
+DOMAIN_CREDS_FILENAME="discovery_credentials.yml"
+DOMAIN_CREDS_KEY_FILENAME=".discovery_credentials_key"
+DOMAIN_NAME="discovery"
+DOMAIN_DATA_PATH_ENV="DISCOVERY_DATA_PATH"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colors & helpers
@@ -73,79 +88,162 @@ warn()  { echo -e "  ${YELLOW}[WARN]${NC} $1"; }
 fail()  { echo -e "  ${RED}[FAIL]${NC} $1"; exit 1; }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Resolve domain creds path from env vars
+# ─────────────────────────────────────────────────────────────────────────────
+_resolve_domain_creds_dir() {
+    local _domain_root=""
+    if [[ -v "$DOMAIN_DATA_PATH_ENV" ]]; then
+        _domain_root="${!DOMAIN_DATA_PATH_ENV}"
+    fi
+    if [ -z "$_domain_root" ]; then
+        _domain_root="${OMNIA_DATA_PATH%/}/${DOMAIN_NAME}"
+    fi
+    echo "${_domain_root%/}/input/${OMNIA_PROJECT_NAME}"
+}
+
+_domain_creds_path() {
+    echo "$(_resolve_domain_creds_dir)/${DOMAIN_CREDS_FILENAME}"
+}
+
+_domain_creds_key_path() {
+    echo "$(_resolve_domain_creds_dir)/${DOMAIN_CREDS_KEY_FILENAME}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Parse arguments
 # ─────────────────────────────────────────────────────────────────────────────
 USE_VENV=false
 FORCE=false
+DEBUG=false
 PIP_QUIET="--quiet"
 SET_CREDS=false
 UPDATE_CREDS=false
 CREDS_FROM_STDIN=false
+SET_DOMAIN_CREDS=false
+UPDATE_DOMAIN_CREDS=false
+DOMAIN_CREDS_FROM_STDIN=false
+TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
 
+# shellcheck disable=SC2034
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --venv)        USE_VENV=true; shift ;;
-        --force|-f)     FORCE=true; shift ;;
-        --debug)        PIP_QUIET=""; shift ;;
-        --set-creds)     SET_CREDS=true; shift ;;
-        --update-creds)  UPDATE_CREDS=true; shift ;;
-        --creds-stdin)   CREDS_FROM_STDIN=true; shift ;;
-        --set-password|--update-password|--password-stdin)
-            fail "Compatibility credential aliases were removed. Use --set-creds, --update-creds, or --creds-stdin."
-            ;;
-        --creds|--creds=*|--password|--password=*)
+        --venv)              USE_VENV=true; shift ;;
+        --force|-f)          FORCE=true; shift ;;
+        --debug)             DEBUG=true; PIP_QUIET=""; shift ;;
+        --set-creds)         SET_CREDS=true; shift ;;
+        --update-creds)      UPDATE_CREDS=true; shift ;;
+        --creds-stdin)       CREDS_FROM_STDIN=true; shift ;;
+        --set-domain-creds)    SET_DOMAIN_CREDS=true; shift ;;
+        --update-domain-creds) UPDATE_DOMAIN_CREDS=true; shift ;;
+        --domain-creds-stdin) DOMAIN_CREDS_FROM_STDIN=true; shift ;;
+        --creds|--creds=*|--password|--password=*|--set-password|\
+        --update-password|--password-stdin)
             fail "Secret-valued command-line flags are no longer supported. Pipe the password to --creds-stdin."
             ;;
+        --domain-creds|--domain-creds=*)
+            fail "Secret-valued command-line flags are no longer supported. Pipe JSON to --domain-creds-stdin."
+            ;;
         --help|-h)
-            echo ""
-            echo "Discovery — Test Environment Setup"
-            echo ""
-            echo "Usage: ./setup_env.sh [OPTIONS]"
-            echo ""
-            echo "INSTALL"
-            echo "─────────────────────────────────────────────────────────────────"
-            echo "  (no flag)       Baremetal mode (pip install --user)."
-            echo "  --venv          Create .venv/ and install there."
-            echo "  --force, -f     Force-reinstall all requirements."
-            echo "                  With --venv, recreate .venv/ first."
-            echo ""
-            echo "CREDENTIAL MANAGEMENT"
-            echo "─────────────────────────────────────────────────────────────────"
-            echo "  SSH credentials are stored in test_creds.yml and encrypted with"
-            echo "  Ansible Vault automatically. They are gitignored and may be"
-            echo "  created before oim_server_ip is configured."
-            echo ""
-            echo "  --set-creds     Interactive SSH password setup. Prompts twice for"
-            echo "                  confirmation. If already set, asks yes/no to update."
-            echo ""
-            echo "  --update-creds"
-            echo "                  Force-update the existing SSH password."
-            echo ""
-            echo "  --creds-stdin   Read SSH password from standard input."
-            echo ""
-            echo "OTHER"
-            echo "─────────────────────────────────────────────────────────────────"
-            echo "  --debug         Show verbose pip install output."
-            echo "  --help, -h      Show this help message and exit."
-            echo ""
-            exit 0
-            ;;
+            cat <<'HELPEOF'
+
+Discovery — Test Environment Setup
+
+Usage: ./setup_env.sh [OPTIONS]
+
+INSTALL MODES
+─────────────────────────────────────────────────────────────────
+  (no flag)       Baremetal mode (pip install --user).
+  --venv          Create .venv/ and install there.
+  --force, -f     Force-reinstall all packages from requirements.txt.
+                  With --venv, also recreate .venv/ from scratch.
+
+SSH CREDENTIALS (test_creds.yml)
+─────────────────────────────────────────────────────────────────
+  --set-creds     Interactive SSH password setup (2x confirmation).
+  --update-creds  Force-update existing SSH password (2x prompt).
+  --creds-stdin   Read an SSH password from standard input.
+
+DOMAIN CREDENTIALS (discovery_credentials.yml)
+─────────────────────────────────────────────────────────────────
+  Created on this machine at:
+    $DISCOVERY_DATA_PATH/input/$OMNIA_PROJECT_NAME/, when set;
+    otherwise $OMNIA_DATA_PATH/discovery/input/$OMNIA_PROJECT_NAME/.
+  Fields: ome_username, ome_password.
+  For remote execution, run this command on the target OIM server.
+
+  --set-domain-creds     Interactive prompt for OME credentials.
+  --update-domain-creds  Update an existing valid domain credential store.
+  --domain-creds-stdin   Read a JSON object from standard input. Example:
+    credential-json-provider | ./setup_env.sh --domain-creds-stdin
+
+OTHER OPTIONS
+─────────────────────────────────────────────────────────────────
+  --debug         Verbose pip output.
+  --help, -h      Show this help.
+
+HELPEOF
+            exit 0 ;;
         *)
-            echo "Unknown option. Use --help for supported arguments."
-            echo "Usage: ./setup_env.sh [OPTIONS]"
-            exit 1
-            ;;
+            fail "Unknown option. Use --help for supported arguments." ;;
     esac
 done
 
-credential_action_count=0
-for selected in "$SET_CREDS" "$UPDATE_CREDS" "$CREDS_FROM_STDIN"; do
+_validate_domain_environment() {
+    if [ -z "${OMNIA_PROJECT_NAME:-}" ]; then
+        fail "OMNIA_PROJECT_NAME is required. Source /etc/omnia/omnia.env."
+    fi
+    if [[ ! "$OMNIA_PROJECT_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
+        fail "OMNIA_PROJECT_NAME contains unsupported characters."
+    fi
+    if [ "$OMNIA_PROJECT_NAME" = "." ] \
+        || [ "$OMNIA_PROJECT_NAME" = ".." ]; then
+        fail "OMNIA_PROJECT_NAME must name a project directory."
+    fi
+
+    local _domain_root=""
+    if [[ -v "$DOMAIN_DATA_PATH_ENV" ]]; then
+        _domain_root="${!DOMAIN_DATA_PATH_ENV}"
+    fi
+    if [ -z "$_domain_root" ]; then
+        if [ -z "${OMNIA_DATA_PATH:-}" ]; then
+            fail "$DOMAIN_DATA_PATH_ENV or OMNIA_DATA_PATH is required."
+        fi
+        _domain_root="${OMNIA_DATA_PATH%/}/${DOMAIN_NAME}"
+    fi
+    case "$_domain_root" in
+        /*) ;;
+        *) fail "Resolved domain data path must be absolute." ;;
+    esac
+    if [ "${_domain_root%/}" = "" ]; then
+        fail "Resolved domain data path must not be the filesystem root."
+    fi
+}
+
+_validate_domain_environment
+
+ssh_action_count=0
+for selected in "$CREDS_FROM_STDIN" "$SET_CREDS" "$UPDATE_CREDS"; do
     if [ "$selected" = true ]; then
-        credential_action_count=$((credential_action_count + 1))
+        ssh_action_count=$((ssh_action_count + 1))
     fi
 done
-if [ "$credential_action_count" -gt 1 ]; then
-    fail "Use only one SSH credential action per invocation."
+if [ "$ssh_action_count" -gt 1 ]; then
+    fail "Use only one OIM SSH credential action per invocation."
+fi
+
+domain_action_count=0
+for selected in \
+    "$DOMAIN_CREDS_FROM_STDIN" "$SET_DOMAIN_CREDS" "$UPDATE_DOMAIN_CREDS"; do
+    if [ "$selected" = true ]; then
+        domain_action_count=$((domain_action_count + 1))
+    fi
+done
+if [ "$domain_action_count" -gt 1 ]; then
+    fail "Use only one domain credential action per invocation."
+fi
+if [ "$CREDS_FROM_STDIN" = true ] \
+    && [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
+    fail "Only one credential payload can be read from stdin per invocation."
 fi
 
 echo ""
@@ -201,12 +299,16 @@ if [ "$USE_VENV" = true ]; then
     source "${VENV_DIR}/bin/activate" </dev/null
     PYTHON_CMD="${VENV_DIR}/bin/python"
     ok "Activated .venv/"
+
 elif [ -n "${VIRTUAL_ENV:-}" ]; then
     INSTALL_MODE="active-venv"
     PIP_USER_FLAG=""
     PYTHON_CMD="${VIRTUAL_ENV}/bin/python"
     ok "Detected active virtual environment: ${VIRTUAL_ENV}"
+
 else
+    INSTALL_MODE="baremetal"
+    PIP_USER_FLAG="--user"
     ok "Install mode: baremetal (system Python)"
 fi
 
@@ -305,21 +407,21 @@ fi
 ok "All dependencies installed"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Step 4: Credential setup (delegated to omnia_auto)
+# Step 4: Credential helpers (delegate to omnia_auto credential CLI)
 # ─────────────────────────────────────────────────────────────────────────────
 
 _credential_cli() {
     "$PYTHON_CMD" -m omnia_auto "$@"
 }
 
-# Display the configured target without requiring one during credential setup.
 _show_oim_server_ip() {
     if [ ! -f "$TEST_CONFIG" ]; then
         warn "test_config.yml not found — set oim_server_ip for remote mode."
         return
     fi
     local oim_ip
-    oim_ip=$(grep -E '^oim_server_ip:' "$TEST_CONFIG" 2>/dev/null | sed 's/^oim_server_ip:[[:space:]]*//; s/["'\''[:space:]]//g' || true)
+    oim_ip=$(grep -E '^oim_server_ip:' "$TEST_CONFIG" 2>/dev/null \
+        | sed 's/^oim_server_ip:[[:space:]]*//; s/["'\''[:space:]]//g' || true)
     if [ -n "$oim_ip" ]; then
         ok "Target server: ${oim_ip}"
     else
@@ -342,18 +444,60 @@ _write_ssh_creds_stdin() {
     ok "SSH credentials saved: test_creds.yml (encrypted)"
 }
 
-_ssh_credentials_are_set() {
-    if ! _credential_cli is-encrypted \
-        --creds-path "$CREDS_FILE" </dev/null >/dev/null 2>&1; then
-        return 1
-    fi
-    _credential_cli read-field \
-        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --field oim_password 2>/dev/null \
-        | grep -q '[^[:space:]]'
+# Write domain creds to discovery_credentials.yml (at env-var path)
+_write_domain_creds_stdin() {
+    local _path; _path=$(_domain_creds_path)
+    local _key;  _key=$(_domain_creds_key_path)
+    local _dir;  _dir=$(_resolve_domain_creds_dir)
+
+    mkdir -p "$_dir"
+    _credential_cli write-fields \
+        --creds-path "$_path" --key-path "$_key" \
+        --fields-stdin --spec "$DOMAIN_CRED_SPEC" \
+        --require-complete >/dev/null
+    ok "Domain credentials saved: $_path (encrypted)"
 }
 
-# Ask yes/no with strict validation (loops until valid answer)
+# Read a field from the domain creds file
+_read_domain_field() {
+    local _field="$1"
+    local _path; _path=$(_domain_creds_path)
+    local _key;  _key=$(_domain_creds_key_path)
+    _credential_cli read-field --creds-path "$_path" --key-path "$_key" \
+        --field "$_field" 2>/dev/null || true
+}
+
+_credential_fields_are_set() {
+    local _path="$1"
+    local _key="$2"
+    shift 2
+    if ! _credential_cli is-encrypted \
+        --creds-path "$_path" </dev/null >/dev/null 2>&1; then
+        return 1
+    fi
+    local _field
+    for _field in "$@"; do
+        if ! _credential_cli read-field \
+            --creds-path "$_path" --key-path "$_key" \
+            --field "$_field" 2>/dev/null \
+            | grep -q '[^[:space:]]'; then
+            return 1
+        fi
+    done
+}
+
+_ssh_credentials_are_set() {
+    _credential_fields_are_set \
+        "$CREDS_FILE" "$CREDS_KEY" oim_password
+}
+
+_domain_credentials_are_set() {
+    _credential_fields_are_set \
+        "$(_domain_creds_path)" "$(_domain_creds_key_path)" \
+        ome_password
+}
+
+# Ask yes/no
 _ask_yes_no() {
     local prompt="$1"
     while true; do
@@ -384,7 +528,6 @@ elif [ "$UPDATE_CREDS" = true ]; then
 
 elif [ "$SET_CREDS" = true ]; then
     _show_oim_server_ip
-
     if _ssh_credentials_are_set; then
         warn "SSH password is already set."
         if _ask_yes_no "  Do you want to update the SSH password?"; then
@@ -400,39 +543,127 @@ elif [ "$SET_CREDS" = true ]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# No credential flags — status report
+# Domain credential dispatch
 # ─────────────────────────────────────────────────────────────────────────────
-if [ "$CREDS_FROM_STDIN" = false ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ]; then
-    if _ssh_credentials_are_set; then
-        ok "SSH credentials: test_creds.yml (encrypted)"
-        ok "SSH: re-run with --set-creds or --update-creds to change"
-    else
-        warn "No valid SSH credentials found (test_creds.yml)"
-        warn "SSH creds: ./setup_env.sh --set-creds"
+
+# Domain credential field spec (JSON for prompt-fields CLI)
+# Discovery needs OME username and password
+DOMAIN_CRED_SPEC='[
+  {"field":"ome_username","label":"OME Username","group":"OpenManage Enterprise Credentials","secret":false,"optional":false},
+  {"field":"ome_password","label":"OME Password","secret":true,"confirm":true,"min_length":1}
+]'
+
+if [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
+    info "Reading domain credentials from standard input"
+    _write_domain_creds_stdin
+
+elif [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
+    _domain_path=$(_domain_creds_path)
+    _domain_key=$(_domain_creds_key_path)
+
+    if [ "$UPDATE_DOMAIN_CREDS" = true ] \
+        && ! _domain_credentials_are_set; then
+        fail "No valid domain credentials found. Use --set-domain-creds first."
+    fi
+
+    if [ "$SET_DOMAIN_CREDS" = true ] && _domain_credentials_are_set; then
+        warn "Domain credentials already exist: $_domain_path"
+        if ! _ask_yes_no "  Do you want to update domain credentials?"; then
+            ok "Domain credential update skipped."
+            SET_DOMAIN_CREDS=false
+        fi
+    fi
+
+    if [ "$UPDATE_DOMAIN_CREDS" = true ] || [ "$SET_DOMAIN_CREDS" = true ]; then
+        echo ""
+        echo -e "  ${CYAN}Discovery Credentials — OpenManage Enterprise (OME)${NC}"
+        echo -e "  ${CYAN}Press Enter to keep existing value.${NC}"
+
+        # Use the prompt-fields CLI to handle all prompting
+        mkdir -p "$(_resolve_domain_creds_dir)"
+        _credential_cli prompt-fields \
+            --creds-path "$_domain_path" \
+            --key-path "$_domain_key" \
+            --spec "$DOMAIN_CRED_SPEC" --require-complete </dev/tty
+
+        echo ""
+        ok "Domain credentials saved: $_domain_path (encrypted)"
     fi
 fi
 
+# ─────────────────────────────────────────────────────────────────────────────
+# No credential flags — status report
+# ─────────────────────────────────────────────────────────────────────────────
+if [ "$CREDS_FROM_STDIN" = false ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ] \
+   && [ "$DOMAIN_CREDS_FROM_STDIN" = false ] && [ "$SET_DOMAIN_CREDS" = false ] \
+   && [ "$UPDATE_DOMAIN_CREDS" = false ]; then
+    if _ssh_credentials_are_set; then
+        ok "SSH credentials: test_creds.yml (encrypted)"
+    else
+        warn "No SSH credentials (test_creds.yml)"
+        warn "  Set with: ./setup_env.sh --set-creds"
+    fi
+    _dc=$(_domain_creds_path)
+    if _domain_credentials_are_set; then
+        ok "Domain credentials: $_dc (encrypted)"
+    else
+        warn "No domain credentials: $_dc"
+        warn "  Set with: ./setup_env.sh --set-domain-creds"
+    fi
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 5: Make scripts executable
+# ─────────────────────────────────────────────────────────────────────────────
+chmod +x "${SCRIPT_DIR}/run_validation.sh" 2>/dev/null || true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Summary
+# ─────────────────────────────────────────────────────────────────────────────
 echo ""
-echo "================================================================="
-echo "  Environment Ready (${INSTALL_MODE})"
-echo "================================================================="
+echo -e "${GREEN}=================================================================${NC}"
+echo -e "${GREEN}  Environment Ready  (${INSTALL_MODE})${NC}"
+echo -e "${GREEN}=================================================================${NC}"
 echo ""
+
 case "$INSTALL_MODE" in
     venv)
         echo "  Next steps:"
         echo "    source .venv/bin/activate"
+        echo "    ./run_validation.sh --help"
+        echo "    ./run_validation.sh fvt_discovery list"
         ;;
     active-venv)
         echo "  Next steps (venv already active):"
+        echo "    ./run_validation.sh --help"
+        echo "    ./run_validation.sh fvt_discovery list"
         ;;
     baremetal)
         echo "  Next steps:"
+        echo "    ./run_validation.sh --help"
+        echo "    ./run_validation.sh fvt_discovery list"
         ;;
 esac
-echo "    vi test_config.yml                 # Set oim_server_ip"
-echo "    ./setup_env.sh --set-creds         # Optional SSH password"
-echo "    ./run_validation.sh --help"
-echo "    ./run_validation.sh fvt_discovery verify --marker sanity"
+
+echo ""
+echo "  Credentials (two separate files):"
+echo ""
+echo "    1. SSH credentials (test_creds.yml) — for remote test execution:"
+if _ssh_credentials_are_set; then
+    echo "       test_creds.yml is readable and contains the SSH password"
+    echo "       To update:  ./setup_env.sh --update-creds"
+else
+    echo "       Not set. Create with: ./setup_env.sh --set-creds"
+fi
+echo ""
+echo "    2. Discovery domain credentials (OME username/password):"
+_dc_summary=$(_domain_creds_path)
+if _domain_credentials_are_set; then
+    echo "       ${_dc_summary} is readable and contains required fields"
+    echo "       To update:  ./setup_env.sh --update-domain-creds"
+else
+    echo "       Not set. Create with: ./setup_env.sh --set-domain-creds"
+fi
 echo ""
 echo "================================================================="
 echo ""

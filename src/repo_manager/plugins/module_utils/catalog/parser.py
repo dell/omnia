@@ -19,7 +19,7 @@ Parses the INI-like input format:
   [defaults]
   arch=x86_64, os=rhel, os_version=10.0
 
-  [group_key | type=base_os, description=..., os=rhel, os_version=10.0]
+  [group_key | type=baseos, description=..., os=rhel, os_version=10.0]
   pkg_key, rpm, name, reponame
   pkg_key, tarball, name, url
   pkg_key, image, image_path, registry, tag
@@ -30,6 +30,8 @@ Parses the INI-like input format:
 
 import re
 import logging
+
+from .mutator import merge_package_entry
 
 logger = logging.getLogger(__name__)
 
@@ -218,7 +220,7 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
                     current_section = fl_entry
                     current_section_type = 'functional_layer'
                 else:
-                    # Regular group or base_os group
+                    # Regular group or baseos group
                     if section_key in groups:
                         raise ValueError(f"Line {line_num}: Duplicate group '{section_key}'")
 
@@ -228,7 +230,7 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
                         "description": section_desc,
                         "components": []
                     }
-                    if section_type == 'base_os':
+                    if section_type == 'baseos':
                         group_entry['os'] = meta.get('os', defaults['os'])
                         group_entry['os_version'] = meta.get('os_version', defaults['os_version'])
 
@@ -284,8 +286,13 @@ def parse_input_file(filepath, default_arch='x86_64', default_os='rhel', default
 
             overrides = _parse_trailing_overrides(fields, override_start)
             pkg_entry = _build_package_entry(pkg_type, fields, defaults, overrides)
+            if pkg_key in packages:
+                # Same key on several lines (e.g. one per arch/OS version):
+                # merge the sources instead of keeping only the last line.
+                pkg_entry = merge_package_entry(packages[pkg_key], pkg_entry)
             packages[pkg_key] = pkg_entry
-            groups[current_section]['components'].append(pkg_key)
+            if pkg_key not in groups[current_section]['components']:
+                groups[current_section]['components'].append(pkg_key)
 
     logger.info("Parsed input file: %d functional layers, %d groups, %d packages",
                 len(functional_layers), len(groups), len(packages))

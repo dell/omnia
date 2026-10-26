@@ -324,12 +324,12 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         # The runner should use suite-specific paths when suite is provided
         self.assertTrue(hasattr(runner, "_run_test"))
 
-    def test_suite_execution_preserves_image_builder_root_trigger(self):
-        """Shared suite filtering keeps Image Builder's deploy-test layout."""
-        image_builder_root = REPOSITORY_ROOT / "test" / "image_build_manager"
+    def test_suite_execution_preserves_image_build_manager_root_trigger(self):
+        """Shared suite filtering keeps Image Build Manager's deploy-test layout."""
+        image_build_manager_root = REPOSITORY_ROOT / "test" / "image_build_manager"
         runner = shared_runner.ValidationRunner(
             domain="image_build_manager",
-            script_dir=str(image_builder_root),
+            script_dir=str(image_build_manager_root),
         )
         with patch.object(
             runner, "_invoke_pytest_with_summary", return_value=0
@@ -341,8 +341,8 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
         self.assertEqual(
             invoke.call_args.args[0],
             [
-                str(image_builder_root / "fvt" / "build" / "test_playbook.py"),
-                str(image_builder_root / "fvt" / "build" / "s3"),
+                str(image_build_manager_root / "fvt" / "build" / "test_playbook.py"),
+                str(image_build_manager_root / "fvt" / "build" / "s3"),
             ],
         )
 

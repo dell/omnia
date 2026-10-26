@@ -21,6 +21,12 @@ skill registry:
   `catalog-editing/references/pre_edit_gate.md` under the bundle root.
 - `connectivity-layer` resolves to `shared/connectivity_layer.md` under the
   bundle root.
+- `working-directory` resolves to `shared/working_directory.md` under the
+  bundle root.
+- `skill-scope` resolves to `shared/skill_scope.md` (this file) under the
+  bundle root.
+- `trusted-source-policy` resolves to
+  `impact-analysis/references/trusted_source_policy.md` under the bundle root.
 
 This boundary governs skill instructions. It does not prevent reading the
 target catalogs, using this checkout's catalog CLI/schema, or consulting the

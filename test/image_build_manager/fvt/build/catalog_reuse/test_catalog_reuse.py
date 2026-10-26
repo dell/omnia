@@ -51,7 +51,7 @@ def test_catalog_first_build(catalog_reuse_context):
     tl = _logger("catalog_first_build")
     tl.check("Resetting the dictionary and running the first catalog build")
     ctx.restore_baseline_inputs()
-    ctx.configure(engine="image-builder")
+    ctx.configure(engine="image-thrillhouse")
     ctx.save_dictionary(
         {"dictionary_version": 1, "entries": {}, "last_updated": ""}
     )
@@ -59,7 +59,7 @@ def test_catalog_first_build(catalog_reuse_context):
     _require_build(ctx.build(), tl)
     groups = set(ctx.expected_groups())
     entries = ctx.current_group_entries(
-        ctx.load_dictionary(), "image-builder"
+        ctx.load_dictionary(), "image-thrillhouse"
     )
     success = set(entries) == groups and ctx.all_artifacts_exist(entries)
     if success:
@@ -80,9 +80,9 @@ def test_catalog_dictionary_reuse(catalog_reuse_context):
     ctx = catalog_reuse_context
     tl = _logger("catalog_dictionary_reuse")
     ctx.restore_baseline_inputs()
-    ctx.configure(engine="image-builder")
+    ctx.configure(engine="image-thrillhouse")
     before = ctx.current_group_entries(
-        ctx.load_dictionary(), "image-builder"
+        ctx.load_dictionary(), "image-thrillhouse"
     )
     timestamps = {
         group: entry.get("build_timestamp") for group, entry in before.items()
@@ -90,7 +90,7 @@ def test_catalog_dictionary_reuse(catalog_reuse_context):
 
     output = _require_build(ctx.build(), tl)
     after = ctx.current_group_entries(
-        ctx.load_dictionary(), "image-builder"
+        ctx.load_dictionary(), "image-thrillhouse"
     )
     reused = (
         len(before) == len(ctx.expected_groups())
@@ -117,7 +117,7 @@ def test_catalog_selective_package_rebuild(catalog_reuse_context):
     ctx = catalog_reuse_context
     tl = _logger("catalog_selective_package_rebuild")
     ctx.restore_baseline_inputs()
-    ctx.configure(engine="image-builder")
+    ctx.configure(engine="image-thrillhouse")
     changed_catalog, target_group = ctx.mutate_one_functional_group()
     before_keys = set(ctx.load_dictionary().get("entries", {}))
     ctx.write_catalog(changed_catalog)
@@ -145,7 +145,7 @@ def test_catalog_repository_change_rebuild(catalog_reuse_context):
     ctx = catalog_reuse_context
     tl = _logger("catalog_repository_change_rebuild")
     ctx.restore_baseline_inputs()
-    ctx.configure(engine="image-builder")
+    ctx.configure(engine="image-thrillhouse")
     changed_repo = ctx.mutate_repo_url()
     before_keys = set(ctx.load_dictionary().get("entries", {}))
     ctx.write_repo(changed_repo)
@@ -157,7 +157,7 @@ def test_catalog_repository_change_rebuild(catalog_reuse_context):
     rebuilt_groups = {
         after[key].get("functional_group")
         for key in set(after) - before_keys
-        if ctx.entry_engine(after[key]) == "image-builder"
+        if ctx.entry_engine(after[key]) == "image-thrillhouse"
     }
     success = rebuilt_groups == set(ctx.expected_groups())
     if success:
@@ -176,13 +176,13 @@ def test_catalog_force_rebuild(catalog_reuse_context):
     ctx = catalog_reuse_context
     tl = _logger("catalog_force_rebuild")
     ctx.restore_baseline_inputs()
-    ctx.configure(engine="image-builder", force_rebuild=True)
+    ctx.configure(engine="image-thrillhouse", force_rebuild=True)
     before = ctx.current_group_entries(
-        ctx.load_dictionary(), "image-builder"
+        ctx.load_dictionary(), "image-thrillhouse"
     )
     _require_build(ctx.build(), tl)
     after = ctx.current_group_entries(
-        ctx.load_dictionary(), "image-builder"
+        ctx.load_dictionary(), "image-thrillhouse"
     )
     refreshed = (
         set(after) == set(ctx.expected_groups())
@@ -208,9 +208,9 @@ def test_catalog_missing_artifact_rebuild(catalog_reuse_context):
     ctx = catalog_reuse_context
     tl = _logger("catalog_missing_artifact_rebuild")
     ctx.restore_baseline_inputs()
-    ctx.configure(engine="image-builder")
+    ctx.configure(engine="image-thrillhouse")
     before = ctx.current_group_entries(
-        ctx.load_dictionary(), "image-builder"
+        ctx.load_dictionary(), "image-thrillhouse"
     )
     target_group = sorted(before)[0]
     target = before[target_group]
@@ -230,7 +230,7 @@ def test_catalog_missing_artifact_rebuild(catalog_reuse_context):
     finally:
         ctx.recover_s3_artifact(artifact_uri, backup_uri)
     after = ctx.current_group_entries(
-        ctx.load_dictionary(), "image-builder"
+        ctx.load_dictionary(), "image-thrillhouse"
     )
     rebuilt = (
         after[target_group].get("build_timestamp")
@@ -248,10 +248,10 @@ def test_catalog_missing_artifact_rebuild(catalog_reuse_context):
 @pytest.mark.functional
 @pytest.mark.x86_64
 @pytest.mark.order(7)
-def test_catalog_switch_to_thrillhouse(catalog_reuse_context):
-    """Switching engines creates distinct Thrillhouse dictionary entries."""
+def test_catalog_thrillhouse_output(catalog_reuse_context):
+    """Image Thrillhouse creates complete dictionary entries."""
     ctx = catalog_reuse_context
-    tl = _logger("catalog_switch_to_thrillhouse")
+    tl = _logger("catalog_thrillhouse_output")
     ctx.restore_baseline_inputs()
     ctx.configure(engine="image-thrillhouse")
     before_keys = set(ctx.load_dictionary().get("entries", {}))
@@ -277,47 +277,13 @@ def test_catalog_switch_to_thrillhouse(catalog_reuse_context):
 @pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.x86_64
-@pytest.mark.order(8)
-def test_catalog_switch_to_image_builder(catalog_reuse_context):
-    """Switching back selects only image-builder artifacts."""
-    ctx = catalog_reuse_context
-    tl = _logger("catalog_switch_to_image_builder")
-    ctx.restore_baseline_inputs()
-    ctx.configure(engine="image-builder")
-    output = _require_build(ctx.build(), tl)
-    status = ctx.read_build_status()
-    paths = " ".join(
-        value
-        for arch in status.get("functional_group_images", [])
-        for entries in arch.values()
-        for entry in entries
-        for key, value in entry.items()
-        if key in {"kernel", "initrd", "image"}
-    )
-    success = (
-        status.get("image_build_type") == "image-builder"
-        and "-imgbld/" in paths
-        and "-imgth/" not in paths
-        and output.count("DICTIONARY_HIT functional_group=")
-        >= len(ctx.expected_groups())
-    )
-    if success:
-        tl.passed("Image Builder artifacts were selected without engine mixing")
-    else:
-        tl.failed("Build status mixed engines or missed dictionary reuse")
-    assert success
-
-
-@pytest.mark.deploy
-@pytest.mark.functional
-@pytest.mark.x86_64
 @pytest.mark.order(9)
 def test_catalog_versioned_output(catalog_reuse_context):
     """A new catalog version writes a composite-identity status contract."""
     ctx = catalog_reuse_context
     tl = _logger("catalog_versioned_output")
     ctx.restore_baseline_inputs()
-    ctx.configure(engine="image-builder")
+    ctx.configure(engine="image-thrillhouse")
     document = ctx.catalog
     root = document["catalog"]
     new_version = (
@@ -343,7 +309,7 @@ def test_catalog_versioned_output(catalog_reuse_context):
             and ctx.exists(latest_status_path)
             and catalog_status == latest_status
             and catalog_status.get("overall_status") == "success"
-            and catalog_status.get("image_build_type") == "image-builder"
+            and catalog_status.get("image_build_type") == "image-thrillhouse"
         )
     finally:
         ctx.write_text(ctx.catalog_path, ctx.original_catalog_text)
@@ -368,7 +334,7 @@ def test_config_mode_cache_isolation(catalog_reuse_context):
     ctx.restore_baseline_inputs()
     ctx.configure(
         source="config",
-        engine="image-builder",
+        engine="image-thrillhouse",
         backup_s3_images=True,
     )
     catalog_status_path = ctx.catalog_status_path()
