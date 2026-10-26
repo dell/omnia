@@ -26,9 +26,17 @@ It orchestrates the validation process and routes to appropriate validators.
 """
 import json
 import jsonschema
+import yaml
 
 from ansible.module_utils.input_validation.core import file_utils
 from ansible.module_utils.input_validation.messages import common_messages as msg
+
+
+def _log_error(config, message):
+    """Log an error with the stack trace if a logger is available."""
+    logger = config.get("logger")
+    if logger:
+        logger.error(message, exc_info=True)
 
 
 def schema(config):
@@ -48,16 +56,17 @@ def schema(config):
     Returns:
         list: List of error messages, empty if validation passed.
     """
-    input_file_path = config["input_file_path"]
-    schema_file_path = config["schema_file_path"]
-    passwords_set = config["passwords_set"]
-    omnia_base_dir = config["omnia_base_dir"]
-    project_name = config["project_name"]
-    logger = config["logger"]
-    module = config["module"]
     error_bucket = []
 
     try:
+        input_file_path = config["input_file_path"]
+        schema_file_path = config["schema_file_path"]
+        passwords_set = config["passwords_set"]
+        omnia_base_dir = config["omnia_base_dir"]
+        project_name = config["project_name"]
+        logger = config["logger"]
+        module = config["module"]
+
         input_data, extension = file_utils.input_data(
             input_file_path, omnia_base_dir, project_name, logger, module
         )
@@ -108,43 +117,65 @@ def schema(config):
                 error_bucket.append(error_msg)
 
                 # Get line number
-                line_number, is_line_num = None, False
-                if "json" in extension:
-                    line_number, is_line_num = file_utils.json_line_number(
-                        input_file_path, error_path, module
-                    )
-                elif "yml" in extension:
-                    line_number, is_line_num = file_utils.yml_line_number(
-                        input_file_path, error_path, omnia_base_dir, project_name
-                    )
-                    logger.info(line_number, is_line_num)
+                try:
+                    line_number, is_line_num = None, False
+                    if "json" in extension:
+                        line_number, is_line_num = file_utils.json_line_number(
+                            input_file_path, error_path, module
+                        )
+                    elif "yml" in extension:
+                        line_number, is_line_num = file_utils.yml_line_number(
+                            input_file_path, error_path, omnia_base_dir, project_name
+                        )
+                        logger.info("Line number: %s (exact=%s)", line_number, is_line_num)
 
-                if line_number:
-                    message = (
-                        f"Error occurs on line {line_number}"
-                        if is_line_num
-                        else f"Error occurs on object or list entry on line {line_number}"
+                    if line_number:
+                        message = (
+                            f"Error occurs on line {line_number}"
+                            if is_line_num
+                            else f"Error occurs on object or list entry on line {line_number}"
+                        )
+                        logger.error(message)
+                        error_bucket.append(message)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logger.warning(
+                        "Could not determine line number for %s",
+                        error_path, exc_info=True
                     )
-                    logger.error(message)
-                    error_bucket.append(message)
 
             logger.error(msg.get_schema_failed(input_file_path))
             error_bucket.append(msg.get_schema_failed(input_file_path))
 
     except jsonschema.exceptions.SchemaError as schemaerror:
         message = f"Internal schema validation error: {schemaerror.message}"
-        logger.error(message)
+        _log_error(config, message)
+        error_bucket.append(message)
+    except KeyError as keyerror:
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"Missing expected field {keyerror} while validating {input_path}"
+        _log_error(config, message)
+        error_bucket.append(message)
+    except (OSError, yaml.YAMLError) as exc:
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"Unable to read or parse {input_path}: {exc}"
+        _log_error(config, message)
         error_bucket.append(message)
     except ValueError as valueerror:
-        message = f"Value error at {input_file_path}: {valueerror}"
-        logger.error(message)
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"Value error at {input_path}: {valueerror}"
+        _log_error(config, message)
         error_bucket.append(message)
-    except Exception as exception:
-        message = f"An unexpected error occurred: {exception}"
-        logger.error(message)
+    except Exception as exception:  # pylint: disable=broad-exception-caught
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"An unexpected error occurred at {input_path}: {exception}"
+        _log_error(config, message)
         error_bucket.append(message)
 
-    logger.info(msg.get_schema_success(input_file_path))
+    if not error_bucket:
+        input_path = config.get("input_file_path", "<unknown>")
+        logger = config.get("logger")
+        if logger:
+            logger.info(msg.get_schema_success(input_path))
     return error_bucket
 
 
@@ -164,15 +195,16 @@ def logic(config):
     Returns:
         list: List of error messages, empty if validation passed.
     """
-    input_file_path = config["input_file_path"]
-    omnia_base_dir = config["omnia_base_dir"]
-    module_utils_base = config["module_utils_base"]
-    project_name = config["project_name"]
-    logger = config["logger"]
-    module = config["module"]
     error_bucket = []
 
     try:
+        input_file_path = config["input_file_path"]
+        omnia_base_dir = config["omnia_base_dir"]
+        module_utils_base = config["module_utils_base"]
+        project_name = config["project_name"]
+        logger = config["logger"]
+        module = config["module"]
+
         input_data, extension = file_utils.input_data(
             input_file_path, omnia_base_dir, project_name, logger, module
         )
@@ -198,47 +230,67 @@ def logic(config):
                 logger.error(err_msg)
 
                 # Log line number
-                if "yml" in extension:
-                    result = file_utils.yml_line_number(
-                        input_file_path, error_key, omnia_base_dir, project_name
+                try:
+                    if "yml" in extension:
+                        result = file_utils.yml_line_number(
+                            input_file_path, error_key, omnia_base_dir, project_name
+                        )
+                        if result is not None:
+                            line_number, is_line_num = result
+                            if line_number:
+                                message = (
+                                    f"Error occurs on line {line_number}"
+                                    if is_line_num
+                                    else f"Error occurs on object or list on line {line_number}"
+                                )
+                                logger.error(message)
+                    elif "json" in extension:
+                        result = file_utils.json_line_number(input_file_path, error_key, module)
+                        if result is not None:
+                            line_number, is_line_num = result
+                            if line_number:
+                                message = (
+                                    f"Error occurs on line {line_number}"
+                                    if is_line_num
+                                    else f"Error occurs on object or list on line {line_number}"
+                                )
+                                logger.error(message)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    logger.warning(
+                        "Could not determine line number for %s",
+                        error_key, exc_info=True
                     )
-                    if result is not None:
-                        line_number, is_line_num = result
-                        if line_number:
-                            message = (
-                                f"Error occurs on line {line_number}"
-                                if is_line_num
-                                else f"Error occurs on object or list on line {line_number}"
-                            )
-                            logger.error(message)
-                elif "json" in extension:
-                    result = file_utils.json_line_number(input_file_path, error_key, module)
-                    if result is not None:
-                        line_number, is_line_num = result
-                        if line_number:
-                            message = (
-                                f"Error occurs on line {line_number}"
-                                if is_line_num
-                                else f"Error occurs on object or list on line {line_number}"
-                            )
-                            logger.error(message)
 
             logger.error(msg.get_logic_failed(input_file_path))
             return error_bucket
 
-    except ValueError as valueerror:
-        message = f"Value error at {input_file_path}: {valueerror}"
+    except KeyError as keyerror:
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"Missing expected field {keyerror} while validating {input_path}"
+        _log_error(config, message)
         error_bucket.append(message)
-        logger.error(message, exc_info=True)
         return error_bucket
-    except Exception as exception:
-        message = f"An unexpected error occurred: {exception}"
+    except (OSError, yaml.YAMLError) as exc:
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"Unable to read or parse {input_path}: {exc}"
+        _log_error(config, message)
         error_bucket.append(message)
-        logger.error(message, exc_info=True)
+        return error_bucket
+    except ValueError as valueerror:
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"Value error at {input_path}: {valueerror}"
+        _log_error(config, message)
+        error_bucket.append(message)
+        return error_bucket
+    except Exception as exception:  # pylint: disable=broad-exception-caught
+        input_path = config.get("input_file_path", "<unknown>")
+        message = f"An unexpected error occurred at {input_path}: {exception}"
+        _log_error(config, message)
+        error_bucket.append(message)
         return error_bucket
 
     logger.info(msg.get_logic_success(input_file_path))
-    return False
+    return error_bucket
 
 
 def validate_input_logic(
@@ -276,7 +328,6 @@ def validate_input_logic(
     file_name = path_parts[-1]
 
     validation_function = validation_functions.get(file_name, None)
-    print("validation_function", validation_function)
 
     if validation_function:
         return validation_function(

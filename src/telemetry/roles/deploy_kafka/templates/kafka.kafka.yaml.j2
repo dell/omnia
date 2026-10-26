@@ -53,9 +53,9 @@ metadata:
 {% endif %}
 spec:
   kafka:
-    version: 4.3.0
+    version: 4.3.1
     metadataVersion: 4.3-IV0
-    image: "{% set _img = telemetry_registry.images.kafka.broker | default('quay.io/strimzi/kafka:1.1.0-kafka-4.3.0') %}{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ _img | regex_replace('^[^/]*\\.[^/]*/', '') }}{% else %}{{ _img }}{% endif %}"
+    image: "{% set _img = telemetry_registry.images.kafka.broker | default('quay.io/strimzi/kafka:1.2.0-kafka-4.3.1') %}{% if telemetry_registry.host %}{{ telemetry_registry.host }}/{{ _img | regex_replace('^[^/]*\\.[^/]*/', '') }}{% else %}{{ _img }}{% endif %}"
     listeners:
       - name: internal
         port: 9092

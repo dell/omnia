@@ -209,7 +209,7 @@ def sync_repo_manager_output(_host, config=None) -> dict[str, Any]:
 
 
 def sync_image_build_manager_output(_host, config=None) -> dict[str, Any]:
-    """Sync the image-builder ``build_status.yml`` handoff to the target."""
+    """Sync the image-thrillhouse ``build_status.yml`` handoff to the target."""
     config = config or load_test_config()
     conn = connection_params()
 

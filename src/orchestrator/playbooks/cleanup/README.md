@@ -126,15 +126,31 @@ or `prepare` run recreates the files and prompts for required values.
 
 ## Shared (NFS) data cleanup
 
-When selected, Slurm and K8s cleanup removes data from the **shared filesystem**,
+When selected, Slurm cleanup removes data from the **shared filesystem**,
 not just the local mount point, so the data is deleted on the NFS server. This is
 done by writing through the mount point while the share is still mounted, which
 means no SSH access to the NFS server is required and it works with NFS appliances.
-Kubernetes cleanup removes every entry below its configured NFS mount, including
-hidden and dynamically generated content. Slurm cleanup removes its configured
-data directories while retaining `preserve_directories`.
+Slurm cleanup removes its configured data directories while retaining
+`preserve_directories`.
 
-Order of operations per component:
+**Slurm and Kubernetes NFS share cleanup are disabled by default** and must be performed manually.
+When the Slurm daemons or Kubernetes cluster are running, files in the NFS share are locked by active
+processes, pods, or containers, causing automated cleanup to fail. To clean up Slurm or Kubernetes NFS
+data manually:
+
+**For Slurm:**
+1. Stop the Slurm daemons (slurmctld, slurmd) and ensure all jobs are terminated
+2. Manually delete the data from the NFS share path configured in `storage_config.yml`
+3. Run the orchestrator cleanup playbook with `cleanup_slurm=true` to unmount the share
+   and remove fstab entries
+
+**For Kubernetes:**
+1. Stop the Kubernetes cluster (or ensure all pods are terminated)
+2. Manually delete the data from the NFS share path configured in `storage_config.yml`
+3. Run the orchestrator cleanup playbook with `cleanup_k8s=true` to unmount the share
+   and remove fstab entries
+
+Order of operations per component (Slurm):
 
 1. Remove the component's directories via the mount point (deletes them on the server)
 2. Unmount the share and remove its `/etc/fstab` entry

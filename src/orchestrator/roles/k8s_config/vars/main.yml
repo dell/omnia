@@ -32,7 +32,6 @@ whereabouts_git_url: "{{ offline_git_path | regex_replace('/$', '') }}/{{ wherea
 file_mode: "0644"
 k8s_nfs_download_retries: 3
 k8s_nfs_download_delay: 5
-ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
 # Pulp cert path is read from repo_manager output (repo_status.yml) via orchestrator_setup
 pulp_webserver_cert_path: "{{ hostvars['localhost']['pulp_cert_path'] }}"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"

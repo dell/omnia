@@ -93,12 +93,14 @@ def main() -> None:
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     params = module.params
     module_utils_base = module.params["module_utils_path"]
+    # Resolve path to prevent traversal sequences (e.g., ../)
+    module_utils_base = os.path.realpath(module_utils_base)
     credentials_schema = os.path.join(module_utils_base,'discovery_validation','schema',\
                                       'credential_rules.json')
     # Load validation rules
     try:
         rules = load_rules(credentials_schema)
-    except ValueError as e:
+    except (ValueError, FileNotFoundError) as e:
         module.fail_json(msg=f"Failed to load rules: {e}")
 
     # Validate credential

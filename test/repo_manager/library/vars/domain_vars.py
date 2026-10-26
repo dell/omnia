@@ -94,6 +94,12 @@ ALL_VERIFY_EXCLUDE_MARKERS: List[str] = ["negative", "destructive"]
 # These scenarios validate existing state and own no deployment trigger.
 VERIFY_ONLY_TAGS: List[str] = ["user_registry"]
 
+# Tags that require an explicit --suite argument (empty after catalog split).
+REQUIRED_SUITE_TAGS: List[str] = []
+
+# Suites that own a deployment lifecycle per tag (empty after catalog split).
+SUITE_EXEC_OWNERS: Dict[str, List[str]] = {}
+
 # Suites that only verify (no playbook deploy step of their own).
 VERIFY_ONLY_SUITES: Dict[str, List[str]] = {
     "precheck": ["negative"],

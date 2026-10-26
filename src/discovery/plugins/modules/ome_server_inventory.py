@@ -27,6 +27,14 @@ logger = logging.getLogger("ome_server_inventory")
 
 try:
     import requests
+    from requests.exceptions import (
+        ConnectionError,
+        HTTPError,
+        RequestException,
+        SSLError,
+        Timeout,
+        TooManyRedirects,
+    )
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
@@ -145,9 +153,12 @@ class OMEClient:
         }
         headers = {"Content-Type": "application/json"}
 
-        response = self.session.post(auth_url, json=auth_payload, headers=headers)
-        # Clear password from memory after authentication attempt
-        self.password = None
+        try:
+            response = self.session.post(auth_url, json=auth_payload, headers=headers)
+        finally:
+            # Clear password from memory after authentication attempt
+            self.password = None
+            del auth_payload
         if response.status_code in [200, 201]:
             self.auth_token = response.headers.get("X-Auth-Token")
             self.session.headers.update({"X-Auth-Token": self.auth_token})
@@ -162,6 +173,7 @@ class OMEClient:
                 self.session.delete(logout_url)
             except Exception:
                 pass
+            self.session.cookies.clear()
 
     def _request_with_retry(self, method, url, **kwargs):
         """Execute an HTTP request with retry on transient failures (5xx / timeout)."""
@@ -628,8 +640,20 @@ def main():
             pagination=pagination_stats
         )
 
-    except Exception as e:
-        module.fail_json(msg=f"Error collecting OME inventory: {str(e)}")
+    except ConnectionError:
+        module.fail_json(msg="Error collecting OME inventory: Failed to connect to OME. Check network connectivity and OME server status.")
+    except Timeout:
+        module.fail_json(msg="Error collecting OME inventory: Connection to OME timed out. Check network latency and OME server responsiveness.")
+    except SSLError:
+        module.fail_json(msg="Error collecting OME inventory: SSL certificate validation failed. Check OME certificate configuration.")
+    except HTTPError as e:
+        module.fail_json(msg=f"Error collecting OME inventory: OME returned HTTP error {e.response.status_code}. Check OME server logs.")
+    except TooManyRedirects:
+        module.fail_json(msg="Error collecting OME inventory: Too many redirects. Check OME URL configuration.")
+    except RequestException:
+        module.fail_json(msg="Error collecting OME inventory: Failed to communicate with OME. Check OME server and network configuration.")
+    except Exception:
+        module.fail_json(msg="Error collecting OME inventory: An unexpected error occurred. Check OME server logs and module configuration.")
     finally:
         client.logout()
 

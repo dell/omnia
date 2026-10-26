@@ -26,16 +26,10 @@ from typing import Any
 import yaml
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
-    high_availability_applicable,
-)
-from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic as validate_orchestrator_config_l2,
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_additional_cloud_init as validate_additional_cloud_init,
-)
-from ansible.module_utils.orchestrator_validation.core.validation_engine import (
-    logic_high_availability as validate_high_availability,
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_network as validate_network_spec,
@@ -68,7 +62,7 @@ description:
   - Performs complete JSON Schema and cross-field validation.
   - Validates orchestrator_config.yml, omnia_config.yml, network_spec.yml,
     security_config.yml, and storage_config.yml.
-  - Validates high_availability_config.yml when Kubernetes is selected.
+  - Validates Kubernetes HA settings on the deployed service_k8s_cluster entry.
   - Validates PXE mapping and additional cloud-init cross-file contracts.
   - Validates storage_config.yml when present and requires it when referenced.
 options:
@@ -159,11 +153,6 @@ VALIDATION_FILES = (
         "required": True,
     },
 )
-HA_VALIDATION_FILE = {
-    "config_file": "high_availability_config.yml",
-    "schema_file": "high_availability_config.json",
-    "required": True,
-}
 VAULT_HEADER = "$ANSIBLE_VAULT"
 
 
@@ -442,24 +431,6 @@ def _run_l2_validation(
                 )
             )
 
-    ha_path = os.path.realpath(
-        os.path.join(input_project_dir, "high_availability_config.yml")
-    )
-    if isinstance(omnia_data, dict) and ha_path not in state.invalid_files:
-        errors = validate_high_availability(
-            state.loaded_data.get("high_availability_config.json"),
-            input_project_dir,
-            logger,
-        )
-        if errors:
-            state.errors.extend(errors)
-            state.mark_file(ha_path, False)
-            logger.error(
-                msg.l2_validation_errors_msg(
-                    "high_availability_config", errors
-                )
-            )
-
 
 def run_module() -> None:
     """Run the Ansible module and return structured validation results."""
@@ -485,14 +456,6 @@ def run_module() -> None:
     for file_config in VALIDATION_FILES:
         _validate_file(
             file_config, input_project_dir, schema_dir, state, logger
-        )
-    if high_availability_applicable(input_project_dir):
-        _validate_file(
-            HA_VALIDATION_FILE,
-            input_project_dir,
-            schema_dir,
-            state,
-            logger,
         )
     _run_l2_validation(input_project_dir, state, logger)
     logger.info(msg.VALIDATION_END_MSG)
