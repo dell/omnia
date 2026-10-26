@@ -50,9 +50,9 @@ file_repos:
     x86_64:
       git:
         whereabouts-v0_9_2: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/whereabouts-v0.9.2/"
-        csi-powerscale-v2_17_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/csi-powerscale-v2.17.0/"
-        helm-charts-2_17_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/helm-charts-2.17.0/"
-        external-snapshotter-v8_5_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/external-snapshotter-v8.5.0/"
+        csi-powerscale-v2_18_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/csi-powerscale-v2.18.0/"
+        helm-charts-2_18_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/helm-charts-2.18.0/"
+        external-snapshotter-v8_6_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/git/external-snapshotter-v8.6.0/"
       tarball:
         helm-v3_20_1-amd64: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.0/tarball/helm-v3.20.1-amd64/"
       manifest:
@@ -64,6 +64,9 @@ file_repos:
     x86_64:
       git:
         whereabouts-v0_9_2: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/git/whereabouts-v0.9.2/"
+        csi-powerscale-v2_18_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/git/csi-powerscale-v2.18.0/"
+        helm-charts-2_18_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/git/helm-charts-2.18.0/"
+        external-snapshotter-v8_6_0: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/git/external-snapshotter-v8.6.0/"
       tarball:
         helm-v3_20_1-amd64: "https://192.0.2.10:2225/pulp/content/offline_repo/cluster/x86_64/rhel/10.2/tarball/helm-v3.20.1-amd64/"
       manifest:

@@ -51,14 +51,14 @@ The text input uses an INI-like structure:
 [defaults]
 arch=x86_64, os=rhel, os_version=10.0
 
-[baseos_group_10.0 | type=base_os, description=base OS packages, os=rhel, os_version=10.0]
+[baseos_group_10.0 | type=baseos, description=base OS packages, os=rhel, os_version=10.0]
 systemd, rpm, systemd, baseos
 wget, rpm, wget, appstream
 
 [slurm_custom_group | description=Slurm packages]
 clustershell, rpm, clustershell, epel
 papi, tarball, papi, https://example.com/papi-7.2.0.tar.gz
-curl, image, docker.io/curlimages/curl, docker.io, 8.17.0
+curl, image, docker.io/curlimages/curl, docker.io, 8.22.0
 
 # Override one package source
 doca_ofed, rpm_repo, doca-ofed, doca, arch=aarch64
@@ -84,8 +84,8 @@ doca_ofed, rpm_repo, doca-ofed, doca, arch=aarch64
 | `rpm` | `key, rpm, name, reponame` | `wget, rpm, wget, appstream` |
 | `rpm_repo` | `key, rpm_repo, name, reponame` | `doca_ofed, rpm_repo, doca-ofed, doca` |
 | `tarball` | `key, tarball, name, url` | `papi, tarball, papi, https://...` |
-| `image` | `key, image, image_path, registry, tag` | `curl, image, docker.io/curlimages/curl, docker.io, 8.17.0` |
-| `git` | `key, git, name, url, version` | `csi_powerscale, git, csi-powerscale, https://github.com/dell/csi-powerscale.git, v2.17.0` |
+| `image` | `key, image, image_path, registry, tag` | `curl, image, docker.io/curlimages/curl, docker.io, 8.22.0` |
+| `git` | `key, git, name, url, version` | `csi_powerscale, git, csi-powerscale, https://github.com/dell/csi-powerscale.git, v2.18.0` |
 | `manifest` | `key, manifest, name, url` | `calico, manifest, calico-v3.32.1, https://raw.githubusercontent.com/.../calico.yaml` |
 | `pip_module` | `key, pip_module, name` | `cffi, pip_module, cffi==1.17.1` |
 
@@ -221,7 +221,7 @@ not be described as schema validation.
     "groups": {
       "baseos_group_10.0": {
         "name": "baseos_group_10.0",
-        "type": "base_os",
+        "type": "baseos",
         "description": "Base OS packages",
         "components": ["systemd"],
         "os": "rhel",

@@ -35,7 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from catalog.parser import parse_input_file, parse_delete_file
 from catalog.catalog_io import (
     read_catalog, write_catalog, new_catalog as create_new_catalog, catalog_exists,
-    CatalogPathError, find_path_collisions,
+    CatalogPathError, LegacyCatalogError, find_path_collisions,
 )
 from catalog.mutator import upsert_packages, delete_packages
 from catalog.validator import validate_catalog, format_issues
@@ -49,6 +49,8 @@ from catalog.report_renderer import (
 
 _CATALOG_FAILURE_MESSAGES = {
     "catalog_read": "Failed to read catalog.",
+    "catalog_legacy": ("Catalog uses the legacy Schema 1.0 format ('Catalog' root key). "
+                       "Run 'catalog_manager.py transform' to convert it first."),
     "delete_parse": "Failed to parse delete file.",
     "input_json_parse": "Failed to parse input JSON.",
     "input_parse": "Failed to parse input file.",
@@ -60,6 +62,11 @@ _CATALOG_FAILURE_MESSAGES = {
 def _log_catalog_failure(logger, operation):
     """Log a stable failure message without formatting exception-controlled data."""
     logger.error(_CATALOG_FAILURE_MESSAGES[operation])
+
+
+def _catalog_read_failure(exc):
+    """Return the failure-message key for a read_catalog exception."""
+    return "catalog_legacy" if isinstance(exc, LegacyCatalogError) else "catalog_read"
 
 
 def setup_logging(log_dir=None, log_file='catalog_manager.log'):
@@ -138,8 +145,8 @@ def cmd_add(args):
 
     try:
         catalog = read_catalog(args.catalog)
-    except (FileNotFoundError, ValueError):
-        _log_catalog_failure(logger, "catalog_read")
+    except (FileNotFoundError, ValueError) as exc:
+        _log_catalog_failure(logger, _catalog_read_failure(exc))
         return 1
 
     try:
@@ -185,8 +192,8 @@ def cmd_delete(args):
 
     try:
         catalog = read_catalog(args.catalog)
-    except (FileNotFoundError, ValueError):
-        _log_catalog_failure(logger, "catalog_read")
+    except (FileNotFoundError, ValueError) as exc:
+        _log_catalog_failure(logger, _catalog_read_failure(exc))
         return 1
 
     try:
@@ -227,8 +234,8 @@ def cmd_validate(args):
 
     try:
         catalog = read_catalog(args.catalog)
-    except (FileNotFoundError, ValueError):
-        _log_catalog_failure(logger, "catalog_read")
+    except (FileNotFoundError, ValueError) as exc:
+        _log_catalog_failure(logger, _catalog_read_failure(exc))
         return 1
 
     issues = validate_catalog(catalog, args.schema)
@@ -307,9 +314,9 @@ def cmd_transform(args):  # pylint: disable=too-many-locals,too-many-branches,to
     # Print group creation report
     print("\n── Group Creation ──")
     baseos_groups = [k for k, v in catalog_data['catalog']['groups'].items()
-                     if v['type'] == 'base_os']
+                     if v['type'] == 'baseos']
     other_groups = [k for k, v in catalog_data['catalog']['groups'].items()
-                    if v['type'] != 'base_os']
+                    if v['type'] != 'baseos']
     print(f"  BaseOS groups:          {len(baseos_groups)} "
           f"({', '.join(baseos_groups)})")
     print(f"  FunctionalLayer groups: {len(other_groups)}")
@@ -359,8 +366,8 @@ def cmd_optimize(args):  # pylint: disable=too-many-statements
     # Read catalog
     try:
         catalog = read_catalog(args.catalog)
-    except (FileNotFoundError, ValueError):
-        _log_catalog_failure(logger, "catalog_read")
+    except (FileNotFoundError, ValueError) as exc:
+        _log_catalog_failure(logger, _catalog_read_failure(exc))
         return 1
 
     # Verify 2.0 format
@@ -451,8 +458,8 @@ def cmd_diff(args):  # pylint: disable=too-many-locals
     try:
         current_catalog = read_catalog(args.current)
         future_catalog = read_catalog(args.future)
-    except (FileNotFoundError, ValueError):
-        _log_catalog_failure(logger, "catalog_read")
+    except (FileNotFoundError, ValueError) as exc:
+        _log_catalog_failure(logger, _catalog_read_failure(exc))
         return 1
 
     if args.schema:

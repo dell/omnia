@@ -26,9 +26,15 @@ LABEL org.opencontainers.image.base.name="cgr.dev/chainguard/wolfi-base"
 LABEL omnia.component="build_stream"
 LABEL omnia.type="api_service"
 
-# Install runtime packages
+# Install runtime packages and apply all available security patches
 # openssh: required by ansible-core for SSH connections to managed nodes
-RUN apk update && apk add --no-cache \
+# apk upgrade: pulls latest patched versions of all base packages to fix:
+#   CVE-2026-19931/18924/82209/80229/80230/80231/82208/13608 (curl >=8.22.0-r2)
+#   CVE-2026-85091  (zlib >=1.3.3-r0)
+#   CVE-2026-19499/77117/80489/8674/18374/89092/86805 (glibc >=2.44-r8)
+#   CVE-2026-82049/15806/17084/19672/87910 (python-3.13 >=3.13.16)
+#   CVE-2026-97689/97688 (py3.13-pip-base >=26.2.1-r2)
+RUN apk update && apk upgrade --no-cache && apk add --no-cache \
     python3 \
     py3-pip \
     curl \
@@ -39,10 +45,29 @@ RUN apk update && apk add --no-cache \
 # Install build-time dependencies (removed after compilation in a later step)
 RUN apk add --no-cache --virtual .build-deps build-base python3-dev
 
-# security fixes (GHSA-3cv2-h65g-fgmm, GHSA-4gg8-gxpx-9rph).
-COPY --from=ghcr.io/astral-sh/uv:0.11.15 /uv /uvx /usr/local/bin/
+# -------------------------------------------------------
+# FIX: Upgraded uv from 0.11.15 to 0.12.2 to fix:
+#   GHSA-2mjx-qc3c-rqvc (rustls >=0.23.45)
+#   GHSA-c8m5-c952-6cm4 (rustls >=0.23.46)
+#   GHSA-3g6h-r5qx-f6hq / GHSA-4w2j-m93h-cj5j (quinn-proto >=0.11.15)
+#   RUSTSEC-2026-0195 / RUSTSEC-2026-0194 (quick-xml >=0.41.0)
+#   CVE-2026-25800 (quinn-proto >=0.11.15)
+#   + GHSA-3cv2-h65g-fgmm, GHSA-4gg8-gxpx-9rph (from prior 0.11.15)
+#
+# NOTE: CVE-2023-49092 (rsa crate) has no upstream fix.
+# -------------------------------------------------------
+COPY --from=ghcr.io/astral-sh/uv:0.12.2 /uv /uvx /usr/local/bin/
 
 RUN pip3 install --no-cache-dir s3cmd==2.4.0
+
+# -------------------------------------------------------
+# KNOWN: CVE-2025-47273 (High 7.7) & CVE-2026-59890 (Medium 6.1)
+#   The wolfi py3-pip apk package vendors setuptools 70.3.0 internally.
+#   setuptools>=84.0.0 is installed as a top-level package (via pyproject.toml),
+#   which takes precedence at runtime. The vendored 70.3.0 copy inside pip is
+#   not used. This will be fully resolved once the wolfi upstream releases an
+#   updated py3-pip package with a patched vendored setuptools.
+# -------------------------------------------------------
 
 # =======================================================
 ENV UV_PYTHON_DOWNLOADS=never

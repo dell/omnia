@@ -23,6 +23,8 @@ metadata:
 spec:
   # Retention period from telemetry_config.yml
   retentionPeriod: "{{ telemetry_config.telemetry_sinks.victoria_metrics.retention_period }}h"
+  # Number of copies of each series across distinct vmstorage nodes (VMClusterSpec top-level field)
+  replicationFactor: {{ victoria_cluster.vmstorage.replication_factor | default(1) }}
   
   # VMStorage configuration
 {% set _img = victoria_cluster.vmstorage.image %}
@@ -31,7 +33,6 @@ spec:
 {% set _tag = _img.split(':')[-1] %}
   vmstorage:
     replicaCount: {{ victoria_cluster.vmstorage.replicas }}
-    replicationFactor: {{ victoria_cluster.vmstorage.replication_factor | default(1) }}
     image:
 {% if telemetry_registry.host | default('') %}
       repository: {{ telemetry_registry.host }}/{{ _repo }}
@@ -84,10 +85,6 @@ spec:
       periodSeconds: {{ victoria_cluster.startup_probe.period }}
       failureThreshold: {{ victoria_cluster.startup_probe.failure_threshold }}
       timeoutSeconds: {{ victoria_cluster.startup_probe.timeout }}
-{% if victoria_cluster.tls_enabled %}
-      tlsConfig:
-        insecureSkipVerify: true
-{% endif %}
 
     # Readiness probe - increased tolerance for WAL replay
     readinessProbe:
@@ -99,10 +96,6 @@ spec:
       periodSeconds: {{ victoria_cluster.readiness_probe.period }}
       failureThreshold: {{ victoria_cluster.readiness_probe.failure_threshold }}
       timeoutSeconds: {{ victoria_cluster.readiness_probe.timeout }}
-{% if victoria_cluster.tls_enabled %}
-      tlsConfig:
-        insecureSkipVerify: true
-{% endif %}
 
     # Pod anti-affinity
     affinity:

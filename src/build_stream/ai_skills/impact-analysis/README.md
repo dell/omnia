@@ -18,7 +18,7 @@ Use this skill when you need to:
 - Target catalog JSON file
 - Access to connectivity layer for online lookups
 - Local dnf/yum repositories (preferred)
-- Master reference file (offline fallback)
+- Master reference file (fallback when online sources unavailable)
 
 ## Usage
 
@@ -42,8 +42,8 @@ What is the impact of removing ldms_group from compute nodes?
 | Capability | Description |
 |------------|-------------|
 | Multi-Tier Analysis | Traces impact across package, role, cluster, and workload tiers |
-| Severity Rating | Assigns CRITICAL, HIGH, MEDIUM, LOW severity to changes |
-| Online-Preferred | Uses live dnf/repo lookups before falling back to offline data |
+| Severity Rating | Assigns Critical, High, Medium, Low (or Unresolved) severity per affected layer |
+| Online-Preferred | Uses live dnf/repo lookups before falling back to master reference file data |
 | Dependency Tracing | Checks surviving dependency paths per affected layer after the full proposed change |
 | Customer Summaries | Generates plain-English impact reports |
 | Single-Catalog Scope | Analyzes within one catalog (not cross-catalog) |
@@ -59,17 +59,18 @@ What is the impact of removing ldms_group from compute nodes?
 
 | Severity | Criteria |
 |----------|----------|
-| CRITICAL | Breaks core cluster functionality or prevents boot |
-| HIGH | Impacts major services or multiple roles |
-| MEDIUM | Affects optional features or single role |
-| LOW | Minimal impact, cosmetic, or documentation-only |
+| Critical | The cluster cannot provision nodes or schedule jobs |
+| High | A whole role or user-facing capability is lost |
+| Medium | A degraded or optional feature |
+| Low | Cosmetic, or a removal with proven equivalent retention in every affected layer and no other operational effect |
+| Unresolved | No severity is supportable from the available evidence (never defaulted to Low) |
 
 ## References
 
 - `src/build_stream/ai_skills/compatibility-analysis/SKILL.md` — Compatibility analysis skill
 - `references/trusted_source_policy.md` — Trusted source validation policy
 - `src/build_stream/ai_skills/shared/connectivity_layer.md` — Online/offline resolution
-- `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` — Offline reference data
+- `src/build_stream/ai_skills/catalog-selection-gate/references/master_reference_file.md` — Master reference file data
 
 ## Workflow
 
@@ -84,7 +85,7 @@ What is the impact of removing ldms_group from compute nodes?
 
 - Single-catalog analysis only (not cross-catalog)
 - Requires connectivity layer for best results
-- Offline mode uses master reference file (may be incomplete)
+- When online sources are unavailable, uses master reference file (may be incomplete)
 - Does not apply changes (analysis only)
 - A package definition or dependent in another layer does not prove retention;
   incomplete evidence is reported as unresolved. Retention does not cap the

@@ -4,7 +4,7 @@
     "version": "1.0",
     "schema_version": 2,
     "identifier": "omnia-slurm-hybrid-10-2-10-0-aarch64-no-vast",
-    "description": "Hybrid Slurm catalog for aarch64: RHEL 10.2 (control) + RHEL 10.0 (node, login and login-compiler), without VAST.",
+    "description": "Hybrid Slurm catalog for aarch64: RHEL 10.2 (control and login) + RHEL 10.0 (node and login-compiler), without VAST.",
     "functionallayer": [
       {
         "name": "os_rhel_10_2_aarch64",
@@ -52,9 +52,9 @@
         ]
       },
       {
-        "name": "login_node_rhel_10_0_aarch64",
+        "name": "login_node_rhel_10_2_aarch64",
         "components": [
-          "baseos_group_10.0",
+          "baseos_group_10.2",
           "admin_debug_group",
           "slurm_custom_group",
           "openldap_group",
@@ -287,7 +287,7 @@
       },
       "baseos_group_10.0": {
         "name": "baseos_group",
-        "type": "base_os",
+        "type": "baseos",
         "os_version": "10.0",
         "os": "rhel",
         "description": "Base OS packages for RHEL 10.0 aarch64 cluster nodes",
@@ -330,7 +330,7 @@
       },
       "baseos_group_10.2": {
         "name": "baseos_group",
-        "type": "base_os",
+        "type": "baseos",
         "os_version": "10.2",
         "os": "rhel",
         "description": "Base OS packages for RHEL 10.2 aarch64 cluster nodes",
@@ -2345,7 +2345,7 @@
       "docker.io/curlimages/curl": {
         "name": "docker.io/curlimages/curl",
         "packagetype": "image",
-        "tag": "8.17.0",
+        "tag": "8.22.0",
         "sources": [
           {
             "architecture": "aarch64",
