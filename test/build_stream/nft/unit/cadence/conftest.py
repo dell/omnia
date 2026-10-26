@@ -58,6 +58,13 @@ def temp_dir(tmp_path):  # pylint: disable=redefined-outer-name
     return tmp_path
 
 
+@pytest.fixture(autouse=True)
+def isolate_omnia_data_path(tmp_path, monkeypatch):
+    """Keep cadence state created by each test inside its temporary directory."""
+    monkeypatch.setenv("OMNIA_DATA_PATH", str(tmp_path))
+    return tmp_path
+
+
 @pytest.fixture
 def sample_catalog_json():
     """Sample cadence catalog JSON content."""
