@@ -55,13 +55,12 @@ Environment=JWT_PUBLIC_KEY_PATH="{{ build_stream_container_omnia_path }}/build_s
 Environment=BUILD_STREAM_CONFIG_PATH="{{ build_stream_container_omnia_path }}/build_stream/build_stream.ini"
 Environment=NFS_ARTIFACT_BASE={{ build_stream_container_omnia_path }}/build_stream_root
 
-# Volume mounts (NFS shared path)
-Volume={{ omnia_path }}:{{ build_stream_container_omnia_path }}{{ selinux_option }}
+# Volume mounts - selective mounts to avoid exposing host venv
+# Mount only the subdirectories the container needs, not the entire omnia_path
+Volume={{ omnia_path }}/build_stream:{{ build_stream_container_omnia_path }}/build_stream{{ selinux_option }}
+Volume={{ omnia_path }}/build_stream_root:{{ build_stream_container_omnia_path }}/build_stream_root{{ selinux_option }}
+Volume={{ omnia_path }}/playbook_queue:{{ build_stream_container_omnia_path }}/playbook_queue{{ selinux_option }}
 Volume={{ build_stream_ssl_dir }}:/etc/ssl/omnia:ro{{ selinux_option | regex_replace('^:', ',') }}
-{% if (venv_path | realpath).startswith((omnia_path | realpath) ~ '/') %}
-# Hide the host venv: the root watcher executes ansible-playbook from it.
-Tmpfs={{ build_stream_container_omnia_path }}/{{ (venv_path | realpath) | relpath(omnia_path | realpath) }}:ro,size=1k,mode=0555
-{% endif %}
 
 [Service]
 Restart=always
