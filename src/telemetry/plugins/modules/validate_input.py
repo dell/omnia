@@ -210,7 +210,7 @@ def createlogger(project_name, tag_name=None) -> logging.Logger:
     Creates a logger object for the given project name and tag name.
 
     Args:
-        project_name (str): The name of the project.
+        project_name (str): The name of the project (must be pre-validated).
         tag_name (str, optional): The name of the tag. Defaults to None.
 
     Returns:
@@ -223,6 +223,12 @@ def createlogger(project_name, tag_name=None) -> logging.Logger:
         project_name,
         log_filename
     )
+    log_file_path = os.path.realpath(log_file_path)
+    real_log_base = os.path.realpath(config.INPUT_VALIDATOR_LOG_PATH)
+    if not log_file_path.startswith(real_log_base + os.sep):
+        raise ValueError(
+            f"Log path escapes the log directory: {log_file_path}"
+        )
     os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
     logging.basicConfig(
         filename=log_file_path,
@@ -259,6 +265,12 @@ def main() -> None:
     tag_names = module.params["tag_names"]
     csv_file_path = module.params.get("csv_file_path", "")
 
+    # Validate project_name is a safe single-segment directory name.
+    try:
+        config.validate_project_name(project_name)
+    except ValueError as exc:
+        module.fail_json(msg=str(exc))
+
     schema_base_file_path = os.path.join(module_utils_base,'input_validation','schema')
     input_dir_path = os.path.join(omnia_base_dir, project_name)
     input_files = []
@@ -280,8 +292,8 @@ def main() -> None:
         error_message = f"The input directory {input_dir_path} does not exist."
         module.fail_json(msg=error_message)
 
-    input_files = fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
-    input_files = input_files + fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['yml'])
+    input_files = fetch.files_recursively(os.path.join(omnia_base_dir, project_name), extensions['json'])
+    input_files = input_files + fetch.files_recursively(os.path.join(omnia_base_dir, project_name), extensions['yml'])
 
     input_file_dict = { fetch.file_name_from_path(file_path): file_path for file_path in input_files }
 
@@ -334,7 +346,7 @@ def main() -> None:
 
             if input_file_path is None:
                 error_message = (
-                    f"{fname} file not found in directory: {omnia_base_dir}/{project_name}"
+                    f"{fname} file not found in directory: {os.path.join(omnia_base_dir, project_name)}"
                 )
                 logger.error(error_message)
                 module.fail_json(msg=error_message)
