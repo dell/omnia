@@ -273,10 +273,15 @@ class AuthService:
 
         # Scopes stored for older clients (for example admin:*) that no route
         # enforces are never placed in a token.
-        allowed_scopes = [
-            scope for scope in client_data.get("allowed_scopes", DEFAULT_SCOPES)
-            if scope in GRANTABLE_SCOPES
-        ]
+        stored_scopes = client_data.get("allowed_scopes", DEFAULT_SCOPES)
+        allowed_scopes = [scope for scope in stored_scopes if scope in GRANTABLE_SCOPES]
+        if len(allowed_scopes) != len(stored_scopes):
+            log_auth_info(
+                "warning",
+                f"Ignored non-grantable stored scopes, client_id={safe_client_id}",
+            )
+        if not allowed_scopes:
+            raise InvalidScopeError("Client has no grantable scopes")
         client_name = client_data.get("client_name", "")
 
         if requested_scope:

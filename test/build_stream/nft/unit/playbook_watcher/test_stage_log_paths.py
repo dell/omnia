@@ -318,3 +318,19 @@ def test_validate_timeout_logs_to_orchestrator_domain_and_copies(
     original = domain_root / "orchestrator" / log_path.name
     assert original.is_file()
     assert "partial out" in log_path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("key", sorted(WATCHER._PROTECTED_ENV_KEYS))
+def test_protected_env_key_blocked_even_when_unset(key, monkeypatch):
+    """omnia.env cannot set a protected key the systemd unit did not set."""
+    monkeypatch.delenv(key, raising=False)
+    assert WATCHER._is_protected_env_key(key)
+
+
+@pytest.mark.parametrize("key", ["LD_PRELOAD", "PYTHONPATH"])
+def test_loader_and_interpreter_prefixes_blocked(key):
+    assert WATCHER._is_protected_env_key(key)
+
+
+def test_regular_omnia_env_key_allowed():
+    assert not WATCHER._is_protected_env_key("CATALOG_FILE_PATH")

@@ -86,6 +86,13 @@ async def upload_files(
         file_tuples = []
         seen_filenames = set()
         for upload_file in files:
+            # Check the allow-list first, so only known names reach the
+            # messages below; the raw multipart filename is never echoed.
+            if upload_file.filename not in ALLOWED_CONFIG_FILES:
+                raise InvalidFilenameError(
+                    "Filename is not in allowed whitelist. "
+                    f"Allowed files: {sorted(ALLOWED_CONFIG_FILES)}"
+                )
             if upload_file.filename in seen_filenames:
                 raise InvalidFilenameError(
                     f"Duplicate filename in upload: '{upload_file.filename}'"

@@ -39,10 +39,10 @@ from threading import Thread, Semaphore
 from typing import Dict, Optional, Any, List, NoReturn
 
 
-# Keys the systemd unit sets for the watcher itself. omnia.env must not
-# override them, otherwise it could redirect the binaries and paths the root
-# watcher executes. Prefixed keys (loader and interpreter controls) are never
-# taken from omnia.env.
+# Keys that decide the binaries, paths and playbook mapping the root watcher
+# uses. omnia.env must never set them, whether or not the systemd unit does,
+# otherwise it could redirect what the watcher executes. Prefixed keys (loader
+# and interpreter controls) are never taken from omnia.env either.
 _PROTECTED_ENV_KEYS = frozenset({
     "PATH",
     "OMNIA_VENV_PATH",
@@ -64,7 +64,7 @@ def _is_protected_env_key(key: str) -> bool:
     """Return True if omnia.env must not set *key* for the watcher."""
     if key.startswith(_PROTECTED_ENV_PREFIXES):
         return True
-    return key in _PROTECTED_ENV_KEYS and key in os.environ
+    return key in _PROTECTED_ENV_KEYS
 
 
 def _resolve_omnia_env():
