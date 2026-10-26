@@ -29,9 +29,8 @@ building is enabled, pings the configured host, and dynamically adds the host
 to the `admin_aarch64` inventory group. SSH setup is performed later by
 `prepare_aarch64_node`.
 
-The `efi` fact matches the MinIO bucket name. Build tasks use `efi-images/` as
-an object-key prefix inside the `boot-images` bucket for kernel and initrd
-artifacts.
+The `efi` fact matches the MinIO bucket name. All boot artifacts (kernel,
+initrd, rootfs) are stored together under `boot-images/<functional_group>/`.
 
 ## Role Variables
 

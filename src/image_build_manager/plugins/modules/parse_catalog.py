@@ -233,7 +233,7 @@ def _is_baseos_component(
         True if this is a base OS component.
     """
     return (
-        group.get("type") == "baseos"
+        group.get("type") in ("baseos", "base_os")
         or comp_name.startswith(baseos_prefix)
     )
 
@@ -391,7 +391,7 @@ def _extract_baseos_packages(
     os_type: str = ""
 
     for group_name, group_data in groups.items():
-        if group_data.get("type") != "baseos":
+        if group_data.get("type") not in ("baseos", "base_os"):
             continue
 
         os_ver = group_data.get("os_version", "")
