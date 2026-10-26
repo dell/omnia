@@ -20,7 +20,7 @@ import urllib.parse
 from typing import Any, Callable, Dict, List, Optional
 
 from .api_func import http_json
-from ..messages.system_test_msgs import PROGRESS_MSGS as PROGRESS
+from ..messages.system_msgs import PROGRESS_MSGS as PROGRESS
 from ..vars.common_vars import (
     GITLAB_BUSY_STATUSES,
     PIPELINE_DETECT_INTERVAL,

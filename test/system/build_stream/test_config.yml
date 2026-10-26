@@ -215,7 +215,7 @@ cleanup:
 # Directory on this host where the reports are written.
 report_path: /opt/omnia/reports
 # Report file name without extension.
-report_name: system_test_build_stream_report
+report_name: system_build_stream_report
 # ID shown in the report to group this run. Empty = current timestamp
 # (YYYYMMDD_HHMMSS).
 run_id: ""

@@ -33,7 +33,7 @@ from . import (
 from .command_func import cleanup_command, run_domain_cleanup
 from .config_func import cleanup_fail_fast, cleanup_plan
 from .probe_func import capture_baseline
-from ..messages.system_test_msgs import TEST_LOG_MSGS as LOG
+from ..messages.system_msgs import TEST_LOG_MSGS as LOG
 from ..vars.common_vars import (
     CLEANUP_STATUS_DISABLED,
     CLEANUP_STATUS_FAILED,

@@ -22,7 +22,7 @@ import threading
 # =============================================================================
 # SUITE IDENTITY AND LAYOUT
 # =============================================================================
-DOMAIN_NAME = "system_test_build_stream"
+DOMAIN_NAME = "system_build_stream"
 
 MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)
@@ -202,8 +202,8 @@ PIPELINE_DETECT_TIMEOUT = 300
 PIPELINE_DETECT_INTERVAL = 10
 SELECT_JOBS_TIMEOUT = 600
 JOB_DB_TIMEOUT = 600
-COMMIT_MESSAGE_BUILD = "system_test: bump {file} to v{version}"
-COMMIT_MESSAGE_DEPLOY = "system_test: swap pxe mapping rows {first} and {second}"
+COMMIT_MESSAGE_BUILD = "system: bump {file} to v{version}"
+COMMIT_MESSAGE_DEPLOY = "system: swap pxe mapping rows {first} and {second}"
 
 # =============================================================================
 # PIPELINE STAGES (BuildStream job_stages.stage_name)

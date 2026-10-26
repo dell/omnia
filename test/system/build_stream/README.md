@@ -57,7 +57,7 @@ Runtime locations are read from `omnia.env` on the target: `OMNIA_DATA_PATH`,
 ## Quick start
 
 ```bash
-cd test/system_test/build_stream
+cd test/system/build_stream
 
 # Environment and credentials
 ./setup_env.sh --venv
@@ -107,5 +107,5 @@ deploy 2401, cadence 2501).
 ## Reports
 
 Each run writes `<report_path>/<report_name>.json` and `.html` (default
-`/opt/omnia/reports/system_test_build_stream_report.*`) and prints a summary
+`/opt/omnia/reports/system_build_stream_report.*`) and prints a summary
 table with the test-case IDs. Runner logs go to `reports/logs/`.

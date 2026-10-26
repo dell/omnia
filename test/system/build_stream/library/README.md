@@ -9,7 +9,7 @@ report; everything else lives here.
 | `vars/common_vars.py` | Constants, order bands, `CMDS` shell templates (every value shell-quoted by `run_cmd`) and `SQL` templates (identifiers validated first). |
 | `vars/test_case_vars.py` | Test-case registry: function name -> TC ID and title. |
 | `vars/domain_vars.py` | Validation-runner configuration (tags, suites, markers, default lifecycle). |
-| `messages/system_test_msgs.py` | `TEST_LOG_MSGS`, `TEST_ASSERT_MSGS` (with HOW TO FIX steps) and `PROGRESS_MSGS` (live progress lines of long-running functions). |
+| `messages/system_msgs.py` | `TEST_LOG_MSGS`, `TEST_ASSERT_MSGS` (with HOW TO FIX steps) and `PROGRESS_MSGS` (live progress lines of long-running functions). |
 
 | Module | Responsibility |
 |---|---|

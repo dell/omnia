@@ -52,7 +52,7 @@ from .probe_func import (
     run_cmd,
     summarize,
 )
-from ..messages.system_test_msgs import PROGRESS_MSGS as PROGRESS
+from ..messages.system_msgs import PROGRESS_MSGS as PROGRESS
 from ..vars.common_vars import (
     AUDIT_CLEANED,
     AUDIT_CLEANUP_FAILED,

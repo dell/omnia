@@ -63,5 +63,5 @@ repo_manager.
 | Field | Default | Purpose |
 |---|---|---|
 | `report_path` | `/opt/omnia/reports` | Directory for the JSON and HTML reports. |
-| `report_name` | `system_test_build_stream_report` | Report file name without extension. |
+| `report_name` | `system_build_stream_report` | Report file name without extension. |
 | `run_id` | `""` | Run identifier in the report; empty uses the timestamp. |

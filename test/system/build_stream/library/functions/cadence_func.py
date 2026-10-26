@@ -24,7 +24,7 @@ import time
 from typing import Any, Callable, Dict, List
 
 from .probe_func import data_path, run_cmd
-from ..messages.system_test_msgs import PROGRESS_MSGS as PROGRESS
+from ..messages.system_msgs import PROGRESS_MSGS as PROGRESS
 from ..vars.common_vars import (
     BSM_CONFIG_KEYS,
     BSM_PLAYBOOK_WATCHER_SERVICE,

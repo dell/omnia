@@ -14,6 +14,6 @@
 
 """BuildStream system test — messages."""
 
-from .system_test_msgs import PROGRESS_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
+from .system_msgs import PROGRESS_MSGS, TEST_ASSERT_MSGS, TEST_LOG_MSGS
 
 __all__ = ["PROGRESS_MSGS", "TEST_ASSERT_MSGS", "TEST_LOG_MSGS"]

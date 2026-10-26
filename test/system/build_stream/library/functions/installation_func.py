@@ -43,7 +43,7 @@ from .probe_func import (
     summarize,
     unit_active,
 )
-from ..messages.system_test_msgs import PROGRESS_MSGS as PROGRESS
+from ..messages.system_msgs import PROGRESS_MSGS as PROGRESS
 from ..vars.common_vars import (
     BSM_CONTAINER,
     BSM_EXPECTED_TABLES,

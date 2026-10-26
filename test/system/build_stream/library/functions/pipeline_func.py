@@ -25,7 +25,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from . import db_func, gitlab_func
 from .api_func import get_api_job
-from ..messages.system_test_msgs import PROGRESS_MSGS as PROGRESS
+from ..messages.system_msgs import PROGRESS_MSGS as PROGRESS
 from ..vars.common_vars import (
     GITLAB_BRIDGE_DEPLOY_CHILD,
     GITLAB_DEPLOY_JOB,
