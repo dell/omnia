@@ -68,7 +68,7 @@ vector:
         ~ telemetry_namespace
         ~ '.svc.cluster.local:8480/insert/0/prometheus/api/v1/write'
       }}
-    tmp_data_path: "/var/lib/vmagent-buffer"
+    tmp_data_path: "{{ telemetry_deploy_dir }}/vmagent-buffer"
     resources:
       requests:
         cpu: "100m"
@@ -89,7 +89,7 @@ vector:
         ~ telemetry_namespace
         ~ '.svc.cluster.local:9481/internal/insert'
       }}
-    tmp_data_path: "/var/lib/vlagent-buffer"
+    tmp_data_path: "{{ telemetry_deploy_dir }}/vlagent-buffer"
     resources:
       requests:
         cpu: "100m"

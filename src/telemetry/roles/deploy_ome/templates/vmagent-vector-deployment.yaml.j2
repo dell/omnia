@@ -44,7 +44,7 @@ spec:
           args:
             - "-httpListenAddr=:8429"
             - "-remoteWrite.url={{ vector.vmagent_vector.remote_write_url }}"
-            - "-remoteWrite.tmpDataPath={{ vector.vmagent_vector.tmp_data_path | default('/var/lib/vmagent-buffer') }}"
+            - "-remoteWrite.tmpDataPath={{ vector.vmagent_vector.tmp_data_path }}"
 {% if victoria_cluster.tls_enabled | default(false) | bool %}
             - "-remoteWrite.tlsCAFile=/etc/vmagent/victoria-certs/ca.crt"
 {% endif %}
@@ -75,7 +75,7 @@ spec:
               cpu: "{{ vector.vmagent_vector.resources.limits.cpu | default('500m') }}"
           volumeMounts:
             - name: buffer
-              mountPath: {{ vector.vmagent_vector.tmp_data_path | default('/var/lib/vmagent-buffer') }}
+              mountPath: {{ vector.vmagent_vector.tmp_data_path }}
 {% if victoria_cluster.tls_enabled | default(false) | bool %}
             - name: victoria-certs
               mountPath: /etc/vmagent/victoria-certs
