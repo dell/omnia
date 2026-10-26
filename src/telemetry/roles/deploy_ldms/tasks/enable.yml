@@ -106,5 +106,9 @@
       ansible.builtin.file:
         path: "{{ munge_key_tempfile.path }}"
         state: absent
-      when: munge_key_tempfile.path is defined
+      delegate_to: localhost
+      when:
+        - munge_key_tempfile is defined
+        - munge_key_tempfile.path is defined
+        - munge_key_tempfile.path | length > 0
       no_log: true
