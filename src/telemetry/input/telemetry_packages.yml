@@ -148,7 +148,7 @@ images:
   # -- Source: LDMS -----------------------------------------------------------
   # Source: https://hub.docker.com/r/dellhpcomniaaisolution/ubuntu-ldms
   ldms:
-    sampler: "docker.io/dellhpcomniaaisolution/ubuntu-ldms:1.1"
+    sampler: "docker.io/dellhpcomniaaisolution/ubuntu-ldms:1.2"
 
   # -- Bridge: Vector (Kafka-to-Victoria pipelines) ---------------------------
   # Source: https://hub.docker.com/r/timberio/vector

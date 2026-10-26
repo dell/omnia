@@ -17,7 +17,7 @@
 set -euo pipefail
 # Parse command-line inputs for SLURM repo URL and name.
 print_usage() {
-    echo "Usage: $0 -u|--url <SLURM_REPO_URL> -n|--name <SLURM_REPO_NAME>"
+    echo "Usage: $0 -u|--url <SLURM_REPO_URL> -n|--name <SLURM_REPO_NAME> [-v|--version <LDMS_VERSION>]"
     echo "       or: $0 <SLURM_REPO_URL> <SLURM_REPO_NAME>"
 }
 
@@ -60,6 +60,10 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+if [[ ! "$LDMS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Error: invalid LDMS version '$LDMS_VERSION' (expected X.Y.Z, e.g. 4.5.3)" >&2
+    exit 1
+fi
 echo "Using LDMS_VERSION=$LDMS_VERSION"
 if [[ -z "$SLURM_REPO_URL" || -z "$SLURM_REPO_NAME" ]]; then
     echo "Warning: SLURM_REPO_URL and SLURM_REPO_NAME are not provided, user might not be able to generate ldms slurm metrics."
@@ -78,21 +82,29 @@ TARGET_DIR="$SCRIPT_DIR/ldms"
 echo "Target directory: $TARGET_DIR"
 
 # === Step 1: Clone OVIS repo if not already present ===
+# Each version gets its own checkout so a different -v never reuses an old tree.
 REPO_URL="https://github.com/ovis-hpc/ovis.git"
 DEST_DIR="$HOME/ovis-code"
+OVIS_DIR="ovis-$LDMS_VERSION"
 
 mkdir -p "$DEST_DIR"
 cd "$DEST_DIR"
 
-if [ ! -d "ovis" ]; then
+if [ ! -d "$OVIS_DIR" ]; then
     echo "Cloning OVIS repository (version $LDMS_VERSION)..."
-    git clone --branch v"$LDMS_VERSION" --depth 1 "$REPO_URL"
+    git clone --branch "v$LDMS_VERSION" --depth 1 "$REPO_URL" "$OVIS_DIR"
 else
-    echo "Repository already exists at $DEST_DIR/ovis. Skipping clone."
+    CHECKED_OUT_TAG="$(git -C "$OVIS_DIR" describe --tags --exact-match 2>/dev/null || true)"
+    if [[ "$CHECKED_OUT_TAG" != "v$LDMS_VERSION" ]]; then
+        echo "Error: $DEST_DIR/$OVIS_DIR is at '${CHECKED_OUT_TAG:-unknown}', expected v$LDMS_VERSION." >&2
+        echo "Remove it or check out v$LDMS_VERSION, then re-run." >&2
+        exit 1
+    fi
+    echo "Repository already exists at $DEST_DIR/$OVIS_DIR (v$LDMS_VERSION). Skipping clone."
 fi
 
 # === Step 2: Export LDMS_REPO path ===
-export LDMS_REPO="$DEST_DIR/ovis"
+export LDMS_REPO="$DEST_DIR/$OVIS_DIR"
 echo "LDMS_REPO set to $LDMS_REPO"
 
 # === Step 3: Start container build script ===

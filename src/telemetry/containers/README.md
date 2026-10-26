@@ -76,7 +76,7 @@ Parameters:
   kafkapump_tag=<tag>     kafkapump tag (default: 1.3)
   victoriapump_tag=<tag>  victoriapump tag (default: 1.3)
   telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.3)
-  ldms_tag=<tag>          ldms tag (default: 1.1)
+  ldms_tag=<tag>          ldms tag (default: 1.2)
 ```
 
 ## Registry

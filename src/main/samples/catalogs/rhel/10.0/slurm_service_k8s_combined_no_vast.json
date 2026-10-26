@@ -4574,7 +4574,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.1"
+        "tag": "1.2"
       },
       "binutils": {
         "name": "binutils",

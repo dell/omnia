@@ -3525,7 +3525,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.1"
+        "tag": "1.2"
       },
       "registry_k8s_io/sig_storage/csi_snapshotter": {
         "name": "registry.k8s.io/sig-storage/csi-snapshotter",

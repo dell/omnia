@@ -3624,7 +3624,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.1"
+        "tag": "1.2"
       },
       "nvidia_driver_cuda": {
         "name": "nvidia-driver-cuda-580.159.04",

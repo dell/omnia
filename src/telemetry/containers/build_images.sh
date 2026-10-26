@@ -38,7 +38,7 @@
 #   kafkapump_tag=<tag>              kafkapump tag (default: 1.3)
 #   victoriapump_tag=<tag>           victoriapump tag (default: 1.3)
 #   telemetry_receiver_tag=<tag>     telemetry_receiver tag (default: 1.3)
-#   ldms_tag=<tag>                   ldms tag (default: 1.1)
+#   ldms_tag=<tag>                   ldms tag (default: 1.2)
 # =============================================================================
 
 set -euo pipefail
@@ -79,7 +79,7 @@ show_help() {
     echo "  kafkapump_tag=<tag>     kafkapump tag (default: 1.3)"
     echo "  victoriapump_tag=<tag>  victoriapump tag (default: 1.3)"
     echo "  telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.3)"
-    echo "  ldms_tag=<tag>          ldms tag (default: 1.1)"
+    echo "  ldms_tag=<tag>          ldms tag (default: 1.2)"
     echo ""
     echo -e "${BLUE}EXAMPLES:${NC}"
     echo "  ./build_images.sh"
@@ -113,7 +113,7 @@ OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
 KAFKAPUMP_TAG="1.3"
 VICTORIAPUMP_TAG="1.3"
 TELEMETRY_RECEIVER_TAG="1.3"
-LDMS_TAG="1.1"
+LDMS_TAG="1.2"
 
 # =============================================================================
 # Parse command-line parameters (key=value format)
@@ -250,7 +250,7 @@ build_telemetry_receiver() {
 
 build_ldms() {
     echo -e "${BLUE}Building ldms (tag: ${LDMS_TAG})...${NC}"
-    container_build "ldms" "${LDMS_TAG}" \
+    container_build "ubuntu-ldms" "${LDMS_TAG}" \
         "${SCRIPT_DIR}/ldms" "Containerfile.bld_n_run.ubuntu26.04"
 }
 

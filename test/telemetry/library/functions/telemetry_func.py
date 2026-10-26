@@ -353,6 +353,30 @@ def is_sink_enabled(host, sink_name):
     return False
 
 
+def is_bridge_enabled(host, bridge_name):
+    """Check if a telemetry bridge is enabled.
+
+    Checks if telemetry_bridges.<bridge_name>.metrics_enabled is true.
+    For bridges that support both metrics and logs (e.g., vector_ome),
+    you can check specific channels using is_bridge_channel_enabled().
+
+    Args:
+        host: Testinfra host connection to the OIM.
+        bridge_name: Bridge name (e.g., 'vector_ldms', 'vector_ome').
+
+    Returns:
+        bool: True if the bridge is enabled.
+    """
+    config = load_telemetry_config_from_target(host)
+    bridges = read_yaml_key(config, "telemetry_bridges", default={})
+    if not isinstance(bridges, dict):
+        return False
+    bridge = bridges.get(bridge_name, {})
+    if not isinstance(bridge, dict):
+        return False
+    return bool(bridge.get("metrics_enabled", False))
+
+
 def is_sink_enabled_for_source(host, source_name, sink_name):
     """Check if a specific source targets a specific sink.
 
