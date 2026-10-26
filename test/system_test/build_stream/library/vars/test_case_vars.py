@@ -26,7 +26,7 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     # --- prepare_base ---
     "precheck_prepare_base": {
         "id": "TC_PB_001",
-        "title": "Precheck: omnia.env, venv, omnia.sh and base domain credentials are ready",
+        "title": "Precheck: omnia.env, venv, omnia.sh, credentials and catalog placement",
     },
     "prepare_base": {
         "id": "TC_PB_002",
@@ -95,20 +95,20 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "TC_CL_002",
         "title": "Run every enabled domain cleanup playbook in order",
     },
-    "build_stream_cleanup": {
+    "postcondition_build_stream_cleanup": {
         "id": "TC_CL_003",
-        "title": "Verify build_stream cleanup postconditions",
+        "title": "Postcondition: build_stream cleanup artifacts removed",
     },
-    "orchestrator_cleanup": {
+    "postcondition_orchestrator_cleanup": {
         "id": "TC_CL_004",
-        "title": "Verify orchestrator cleanup postconditions",
+        "title": "Postcondition: orchestrator cleanup artifacts removed",
     },
-    "image_build_manager_cleanup": {
+    "postcondition_image_build_manager_cleanup": {
         "id": "TC_CL_005",
-        "title": "Verify image_build_manager cleanup postconditions",
+        "title": "Postcondition: image_build_manager cleanup artifacts removed",
     },
-    "repo_manager_cleanup": {
+    "postcondition_repo_manager_cleanup": {
         "id": "TC_CL_006",
-        "title": "Verify repo_manager cleanup postconditions",
+        "title": "Postcondition: repo_manager cleanup artifacts removed",
     },
 }

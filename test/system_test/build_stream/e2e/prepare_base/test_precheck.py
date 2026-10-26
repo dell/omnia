@@ -25,7 +25,13 @@ A failure skips the rest of the prepare_base scenario.
 
 import pytest
 
-from library.functions import TestLogger, failure_summary, precheck_prepare_base
+from library.functions import (
+    TestLogger,
+    failure_summary,
+    installation_settings,
+    load_test_config,
+    precheck_prepare_base,
+)
 from library.messages import TEST_ASSERT_MSGS as ASSERT, TEST_LOG_MSGS as LOG
 from library.vars import TEST_CASES as TC
 
@@ -43,7 +49,8 @@ def test_precheck_prepare_base(host):
     """Check the environment and base domain credentials before --prepare-base."""
     tc = TC["precheck_prepare_base"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = precheck_prepare_base(host)
+    settings = installation_settings(load_test_config())
+    result = precheck_prepare_base(host, catalog_selection=settings["catalog"])
 
     if result["success"]:
         tl.passed_fields(LOG["precheck_ok"].format(scenario=_SCENARIO), result["fields"])

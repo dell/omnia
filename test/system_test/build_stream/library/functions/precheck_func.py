@@ -79,17 +79,38 @@ def _credential_probes(host: Any, domains: Sequence[str]) -> List[Probe]:
     return probes
 
 
-def precheck_prepare_base(host: Any) -> Dict[str, Any]:
+def precheck_prepare_base(host: Any, catalog_selection: str = "") -> Dict[str, Any]:
     """Check that ``./omnia.sh --prepare-base`` can run unattended.
 
     Verifies the omnia.env variables, the shared venv, omnia.sh in the
     checkout and the repo_manager, image_build_manager and orchestrator
     credential stores. omnia.sh validates the domain inputs itself.
 
+    When *catalog_selection* is a non-empty catalog number or path (from
+    ``installation.catalog`` in test_config.yml), the selected catalog is
+    resolved and placed at CATALOG_FILE_PATH so that it is available before
+    prepare_base runs.
+
     Returns:
         Dict with keys: name, success, fields, failures.
     """
     probes = _environment_probes(host) + _credential_probes(host, PREPARE_BASE_DOMAINS)
+
+    if catalog_selection:
+        from .catalog_func import catalog_target, place_catalog
+        target = catalog_target(host)
+        if target["success"]:
+            result = place_catalog(host, catalog_selection)
+            if result["success"]:
+                label = (f"Catalog placed at {result['target']}"
+                         f" ({result['identifier']} v{result['version']})")
+                probes.append(("Catalog placement", label, True))
+            else:
+                probes.append(("Catalog placement", result["error"], False))
+        else:
+            probes.append(("Catalog placement",
+                           f"CATALOG_FILE_PATH not configured: {target['error']}", False))
+
     return summarize("precheck_prepare_base", probes)
 
 

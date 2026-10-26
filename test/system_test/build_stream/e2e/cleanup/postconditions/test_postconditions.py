@@ -45,9 +45,9 @@ from library.vars.common_vars import SCENARIO_CLEANUP
 @pytest.mark.cleanup
 @pytest.mark.sanity
 @pytest.mark.order(4101)
-def test_build_stream_cleanup(host):
+def test_postcondition_build_stream_cleanup(host):
     """Verify the build_stream cleanup postconditions match its flags."""
-    tc = TC["build_stream_cleanup"]
+    tc = TC["postcondition_build_stream_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
     name = "cleanup_build_stream"
     state = load_run_state(SCENARIO_CLEANUP)
@@ -75,9 +75,9 @@ def test_build_stream_cleanup(host):
 @pytest.mark.cleanup
 @pytest.mark.sanity
 @pytest.mark.order(4102)
-def test_orchestrator_cleanup(host):
+def test_postcondition_orchestrator_cleanup(host):
     """Verify the orchestrator cleanup postconditions match its flags."""
-    tc = TC["orchestrator_cleanup"]
+    tc = TC["postcondition_orchestrator_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
     name = "cleanup_orchestrator"
     state = load_run_state(SCENARIO_CLEANUP)
@@ -105,9 +105,9 @@ def test_orchestrator_cleanup(host):
 @pytest.mark.cleanup
 @pytest.mark.sanity
 @pytest.mark.order(4103)
-def test_image_build_manager_cleanup(host):
+def test_postcondition_image_build_manager_cleanup(host):
     """Verify the image_build_manager cleanup postconditions match its flags."""
-    tc = TC["image_build_manager_cleanup"]
+    tc = TC["postcondition_image_build_manager_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
     name = "cleanup_image_build_manager"
     state = load_run_state(SCENARIO_CLEANUP)
@@ -135,9 +135,9 @@ def test_image_build_manager_cleanup(host):
 @pytest.mark.cleanup
 @pytest.mark.sanity
 @pytest.mark.order(4104)
-def test_repo_manager_cleanup(host):
+def test_postcondition_repo_manager_cleanup(host):
     """Verify the repo_manager cleanup postconditions match its flags."""
-    tc = TC["repo_manager_cleanup"]
+    tc = TC["postcondition_repo_manager_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
     name = "cleanup_repo_manager"
     state = load_run_state(SCENARIO_CLEANUP)

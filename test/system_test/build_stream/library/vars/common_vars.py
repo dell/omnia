@@ -375,7 +375,7 @@ CLEANUP_DOMAINS = {
         "workdir": "src/repo_manager/playbooks",
         "tag": "cleanup_pulp",
         "supported_vars": {"cleanup_logs": True, "cleanup_credentials": True},
-        "config_flags": {"cleanup_logs": True, "cleanup_credentials": True},
+        "config_flags": {"cleanup_logs": False, "cleanup_credentials": True},
         "fixed_vars": {},
         "skip_tag_vars": {},
     },
