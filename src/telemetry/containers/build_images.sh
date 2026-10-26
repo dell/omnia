@@ -159,13 +159,42 @@ if [[ "$BUILD_ACTION" == "push" && "$BUILD_TOOL" != "docker" ]]; then
     exit 1
 fi
 
+# ── Validate tag and registry values ──
+TAG_PATTERN='^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$'
+REGISTRY_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9._/:-]*$'
+
+for _tag_pair in \
+    "kafkapump_tag:${KAFKAPUMP_TAG}" \
+    "victoriapump_tag:${VICTORIAPUMP_TAG}" \
+    "telemetry_receiver_tag:${TELEMETRY_RECEIVER_TAG}" \
+    "ldms_tag:${LDMS_TAG}"; do
+    _tag_name="${_tag_pair%%:*}"
+    _tag_value="${_tag_pair#*:}"
+    if [[ ! "$_tag_value" =~ $TAG_PATTERN ]]; then
+        echo -e "${RED}Error: Invalid ${_tag_name} format '${_tag_value}'. Must match ${TAG_PATTERN}${NC}"
+        exit 1
+    fi
+done
+
+if [[ ! "$OMNIA_DOCKER_REGISTERY" =~ $REGISTRY_PATTERN ]]; then
+    echo -e "${RED}Error: Invalid registry format '${OMNIA_DOCKER_REGISTERY}'. Must match ${REGISTRY_PATTERN}${NC}"
+    exit 1
+fi
+
 # =============================================================================
 # Clone iDRAC Telemetry repo (shared by kafkapump, victoriapump, telemetry_receiver)
 # =============================================================================
 clone_idrac_telemetry_repo() {
     if [ -d "$IDRAC_TELEMETRY_CLONE_DIR" ]; then
-        echo -e "${YELLOW}iDRAC-Telemetry-Reference-Tools already cloned.${NC}"
-        return
+        # Verify the existing clone is pinned to the expected commit (CWE-494 mitigation)
+        local current_commit
+        current_commit=$(git -C "$IDRAC_TELEMETRY_CLONE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+        if [ "$current_commit" = "$IDRAC_TELEMETRY_COMMIT" ]; then
+            echo -e "${YELLOW}iDRAC-Telemetry-Reference-Tools already cloned at pinned commit.${NC}"
+            return
+        fi
+        echo -e "${RED}WARNING: Clone directory exists but HEAD ($current_commit) does not match pinned commit ($IDRAC_TELEMETRY_COMMIT). Re-cloning...${NC}"
+        rm -rf "$IDRAC_TELEMETRY_CLONE_DIR"
     fi
     echo -e "${YELLOW}Cloning iDRAC-Telemetry-Reference-Tools at commit ${IDRAC_TELEMETRY_COMMIT}...${NC}"
     git clone "https://github.com/dell/iDRAC-Telemetry-Reference-Tools.git" "$IDRAC_TELEMETRY_CLONE_DIR"

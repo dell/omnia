@@ -401,7 +401,7 @@ def _base_os_notes(summary: dict) -> list:
     notes = []
     for item in summary["groups"]["changed"]:
         old_group, new_group = item["old"] or {}, item["new"] or {}
-        if old_group.get("type") != "base_os" and new_group.get("type") != "base_os":
+        if old_group.get("type") != "baseos" and new_group.get("type") != "baseos":
             continue
         old_os = f"{old_group.get('os', '')} {old_group.get('os_version', '')}".strip()
         new_os = f"{new_group.get('os', '')} {new_group.get('os_version', '')}".strip()

@@ -19,7 +19,7 @@
          | selectattr('name', 'match', '^service_kube_') | list }}
     _catalog_base_os_group_names: >-
       {{ catalog_data.catalog.groups | dict2items
-         | selectattr('value.type', 'equalto', 'base_os')
+         | selectattr('value.type', 'equalto', 'baseos')
          | map(attribute='key') | list }}
 
 - name: Resolve service Kubernetes base OS and architecture references

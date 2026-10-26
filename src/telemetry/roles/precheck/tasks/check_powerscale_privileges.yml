@@ -22,8 +22,16 @@
     ps_logs_enabled: "{{ hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
 
 - name: Get PowerScale endpoint from isilon-creds secret
-  ansible.builtin.command: >
-    kubectl get secret isilon-creds -n {{ isilon_namespace }} -o jsonpath='{.data.config}'
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - get
+      - secret
+      - isilon-creds
+      - -n
+      - "{{ isilon_namespace }}"
+      - -o
+      - "jsonpath={.data.config}"
   register: ps_secret_data
   changed_when: false
   failed_when: false
@@ -50,9 +58,20 @@
     - ps_secret_decoded.isilonClusters | length > 0
 
 - name: Check if PowerScale is accessible for privilege check
-  ansible.builtin.command: >
-    sshpass -p '{{ ps_check_password }}' ssh -o StrictHostKeyChecking=no -o PubkeyAuthentication=no
-    -o ConnectTimeout=10 {{ ps_check_username }}@{{ powerscale_endpoint }} "isi auth privileges"
+  ansible.builtin.command:
+    argv:
+      - sshpass
+      - -p
+      - "{{ ps_check_password }}"
+      - ssh
+      - -o
+      - StrictHostKeyChecking=no
+      - -o
+      - PubkeyAuthentication=no
+      - -o
+      - ConnectTimeout=10
+      - "{{ ps_check_username }}@{{ powerscale_endpoint }}"
+      - isi auth privileges
   register: ps_privilege_check
   changed_when: false
   failed_when: false

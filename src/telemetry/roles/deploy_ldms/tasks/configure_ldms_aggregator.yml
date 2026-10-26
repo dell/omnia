@@ -39,12 +39,32 @@
       The munge key disappeared from {{ munge_key_path }} on the selected
       Slurm control node. Refusing to reuse stale aggregator authentication.
 
+# The temp file is created on the Ansible controller (delegate_to: localhost)
+# because ansible.builtin.fetch writes to dest on the controller. The tempfile
+# module uses mkstemp(), which already creates the file with mode 0600, so no
+# separate permission step is needed before the fetch.
+- name: Create secure temporary file for munge key
+  ansible.builtin.tempfile:
+    state: file
+    prefix: "munge_key_"
+    suffix: ".tmp"
+  register: munge_key_tempfile
+  delegate_to: localhost
+
 - name: Fetch munge key from Slurm control node
   ansible.builtin.fetch:
     src: "{{ munge_key_path }}"
-    dest: "/tmp/munge.key"
+    dest: "{{ munge_key_tempfile.path }}"
     flat: true
   delegate_to: "{{ _ldms_deploy_aggregator_control_host }}"
+
+# Defense-in-depth: fetch writes into the existing 0600 file and normally keeps
+# its mode, but this does not rely on that behavior. Do not remove as redundant.
+- name: Enforce restricted permissions on fetched munge key
+  ansible.builtin.file:
+    path: "{{ munge_key_tempfile.path }}"
+    mode: "{{ file_permissions_600 }}"
+  delegate_to: localhost
 
 - name: Use LDMS sampler password from localhost (exposed by telemetry_prereq)
   ansible.builtin.set_fact:

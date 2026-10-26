@@ -4964,9 +4964,9 @@ def main():
                     "gpgkey": repo.get("gpgkey", ""),
                     "policy": resolved_policy,  # Use resolved Pulp policy
                     "caching": caching,
-                    "sslcacert": repo.get("sslcacert", ""),
-                    "sslclientkey": repo.get("sslclientkey", ""),
-                    "sslclientcert": repo.get("sslclientcert", ""),
+                    "ca_cert": repo.get("sslcacert", ""),
+                    "client_key": repo.get("sslclientkey", ""),
+                    "client_cert": repo.get("sslclientcert", ""),
                     "sw_arch": arch,
                     "os_type": cluster_os_type,
                     "os_version": cluster_os_version,
