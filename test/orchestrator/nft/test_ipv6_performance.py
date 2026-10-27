@@ -163,7 +163,6 @@ class TestArtifactGenerationThroughput:
             start = time.perf_counter()
             for node_id in sorted(normalized.keys()):
                 nm_renderer.render_node_full(node_id, normalized[node_id])
-            nm_renderer.render_managed_hosts_block(normalized)
             elapsed = time.perf_counter() - start
             timings.append(elapsed / max(len(normalized), 1))
         p95 = _percentile(timings, 95)
@@ -182,21 +181,6 @@ class TestArtifactGenerationThroughput:
             ci = result["cloud_init"]
             assert "write_files" in ci
             assert "runcmd" in ci
-
-    def test_hosts_block_generation(self):
-        """Verify managed hosts block contains all nodes."""
-        data = _generate_allocation_data(10)
-        normalized, _ = validator.preflight_validate(data)
-        block = nm_renderer.render_managed_hosts_block(normalized)
-        assert "BEGIN Omnia IPoIB managed block" in block
-        assert "END Omnia IPoIB managed block" in block
-        # Should contain entries for all active nodes
-        for node_id in normalized:
-            # Hostname should appear in the hosts block
-            assert any(
-                node_id in line or "node-" in line
-                for line in block.splitlines()
-            )
 
     def test_idempotent_detection(self):
         """Verify config hash enables idempotent reapplication detection."""

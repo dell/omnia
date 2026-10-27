@@ -64,6 +64,9 @@
 # Slurm GRES-based scheduling ensures gpu partition jobs only land on GPU nodes.
 # Users submit: sbatch -p gpu --gres=gpu:1 job.sh
 #               sbatch -p cpu job.sh
+# In minimal discovery mode, gpu_params is not populated (slurmd auto-reports
+# GPUs after registration), so the gpu partition is skipped until GPU evidence
+# is available.
 - name: Append GPU convenience partition
   ansible.builtin.set_fact:
     apply_config: "{{ apply_config | default({})
@@ -75,7 +78,9 @@
       Nodes: "{{ cmpt_list | join(',') if cmpt_list else 'ALL' }}"
       MaxTime: INFINITE
       State: UP
-  when: node_params is defined and (node_params | length > 0)
+  when:
+    - node_params is defined and (node_params | length > 0)
+    - gpu_params is defined and (gpu_params | length > 0)
   no_log: "{{ _no_log }}"
 
 - name: Append CPU convenience partition

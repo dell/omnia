@@ -222,7 +222,8 @@ ORCHESTRATOR_REQUIRED_COLUMNS: List[str] = [
 
 # Optional columns that Orchestrator may use
 ORCHESTRATOR_OPTIONAL_COLUMNS: List[str] = [
-    "IB_IP",
+    "IB_IPV4",
+    "IB_IPV6",
     "IB_NIC_NAME",
     "PARENT_SERVICE_TAG",
     "MODEL",

@@ -35,9 +35,9 @@ from module_utils.orchestrator_validation.validators import (  # noqa: E402
 def _write_mapping(path, functional_group="research_rhel_10_0_x86_64"):
     path.write_text(
         "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,"
-        "HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP\n"
+        "HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IPV4,IB_IPV6\n"
         f"{functional_group},group-a,tag-1,,node-1,00:11:22:33:44:55,"
-        "192.0.2.10,00:11:22:33:44:66,192.0.2.11,,\n",
+        "192.0.2.10,00:11:22:33:44:66,192.0.2.11,,,\n",
         encoding="utf-8",
     )
 

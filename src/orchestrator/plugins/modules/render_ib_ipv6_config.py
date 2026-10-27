@@ -12,13 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Render IPoIB IPv6 configuration artifacts for NM, SMD, BSS, and /etc/hosts.
+"""Render IPoIB IPv6 configuration artifacts for NM, SMD, and BSS.
 
 This module implements Story 2 (ER-ORCH-005-nm-config-publication):
 - Renders nmcli commands for each node/interface (dual-stack, IPv6-only, IPv4-only)
 - Generates cloud-init user-data (write_files + runcmd) for BSS delivery
 - Renders SMD component/interface payloads for hardware state registration
-- Renders managed /etc/hosts block from the complete active snapshot
 - Computes config hash for idempotent reapplication detection
 
 Consumes the normalized_nodes output from validate_ib_ipv6_allocation.
@@ -45,7 +44,6 @@ description:
   - Renders nmcli commands for NM profile creation per interface.
   - Generates cloud-init user-data scripts for BSS delivery.
   - Renders SMD component/interface payloads.
-  - Renders managed /etc/hosts block.
   - Computes config hashes for idempotent reapplication.
 options:
   normalized_nodes:
@@ -84,13 +82,6 @@ EXAMPLES = r'''
     previous_hashes: "{{ ib_ipv6_previous_hashes | default({}) }}"
     log_dir: "{{ omnia_data_path }}/log/core/playbooks"
   register: ib_ipv6_render
-
-- name: Write managed hosts block to OIM
-  ansible.builtin.blockinfile:
-    path: /etc/hosts
-    block: "{{ ib_ipv6_render.hosts_block_content }}"
-    marker: "# {mark} Omnia IPoIB managed block"
-  when: ib_ipv6_render.hosts_block_content | length > 0
 '''
 
 RETURN = r'''
@@ -106,14 +97,6 @@ smd_payloads:
   description: Dict of node_id to SMD component payload paths written to output_dir.
   returned: always
   type: dict
-hosts_block_content:
-  description: The rendered managed /etc/hosts block content.
-  returned: always
-  type: str
-hosts_block_file:
-  description: Path to the written hosts block file.
-  returned: always
-  type: str
 config_hashes:
   description: Dict of node_id to config hash for idempotent tracking.
   returned: always
@@ -237,14 +220,6 @@ def run_module() -> None:
             json.dump(result["smd_component"], fh, indent=2)
         smd_payloads[node_id] = smd_path
 
-    # Render managed hosts block from the complete active snapshot
-    hosts_block = nm_renderer.render_managed_hosts_block(
-        normalized_nodes, logger,
-    )
-    hosts_file = os.path.join(output_dir, "managed_hosts_block.txt")
-    with open(hosts_file, "w", encoding="utf-8") as fh:
-        fh.write(hosts_block)
-
     # Write config hashes for next run
     hashes_file = os.path.join(output_dir, "config_hashes.json")
     with open(hashes_file, "w", encoding="utf-8") as fh:
@@ -260,8 +235,6 @@ def run_module() -> None:
         node_results=node_results,
         cloud_init_scripts=cloud_init_scripts,
         smd_payloads=smd_payloads,
-        hosts_block_content=hosts_block,
-        hosts_block_file=hosts_file,
         config_hashes=config_hashes,
         nodes_needing_update=nodes_needing_update,
         nodes_skipped=nodes_skipped,

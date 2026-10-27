@@ -33,7 +33,8 @@ component override is unset or empty.
 | `BMC_MAC` | string | BMC/iDRAC MAC address |
 | `BMC_IP` | string | BMC/iDRAC IP address |
 | `IB_NIC_NAME` | string | InfiniBand NIC FQDD (if present) |
-| `IB_IP` | string | InfiniBand IP (derived from ib_subnet + BMC IP) |
+| `IB_IPV4` | string | InfiniBand IPv4 (derived from ib_subnet + BMC IP) |
+| `IB_IPV6` | string | InfiniBand IPv6 address (user-provided, empty by default) |
 
 ### Symlink
 

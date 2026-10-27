@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Slurm homogeneous and heterogeneous hardware-discovery contracts."""
+"""Slurm homogeneous, heterogeneous, and minimal hardware-discovery contracts."""
 
 import pytest
 from library.functions import (

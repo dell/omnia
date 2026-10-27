@@ -258,84 +258,6 @@ class TestSMDRegistration:
 # TC-FVT-012: Managed hosts block uses complete active snapshot
 # ===================================================================
 
-class TestManagedHostsBlock:
-    """TC-FVT-012: Managed hosts block from complete active snapshot."""
-
-    def test_all_active_nodes_present(self):
-        """ORCH_FVT_IPV6_E036: All active allocations present in hosts block.
-
-        Scenario: Managed hosts block uses complete active snapshot
-          GIVEN 5 nodes in the cluster
-          WHEN hostname data is rendered
-          THEN entries for all 5 active nodes are present
-        """
-        data = _dual_stack_cluster()
-        valid, _ = validator.preflight_validate(data, LOGGER)
-        block = nm_renderer.render_managed_hosts_block(valid, LOGGER)
-        for i in range(1, 6):
-            assert f"nid{i:04d}-ib0" in block
-
-    def test_multi_interface_hostnames_deterministic(self):
-        """ORCH_FVT_IPV6_E037: Multi-interface hostnames are deterministic.
-
-        Scenario: Multi-interface hostnames are deterministic
-          GIVEN a host with ib0 and ib1
-          WHEN hostname data is rendered
-          THEN nid0001-ib0 and nid0001-ib1 appear as canonical entries
-          AND no ambiguous short alias is generated
-        """
-        data = _multi_rail_cluster()
-        valid, _ = validator.preflight_validate(data, LOGGER)
-        block = nm_renderer.render_managed_hosts_block(valid, LOGGER)
-        assert "nid0001-ib0" in block
-        assert "nid0001-ib1" in block
-        # Multi-interface — no -ib alias
-        lines = block.split("\n")
-        content_lines = [l for l in lines if "nid0001" in l]
-        for line in content_lines:
-            assert "nid0001-ib\t" not in line
-            assert "nid0001-ib\n" not in line
-
-    def test_hosts_block_preserves_user_content(self):
-        """ORCH_FVT_IPV6_E038: Hosts block replacement preserves user content.
-
-        Scenario: Atomic block replacement preserves user-managed content
-          GIVEN existing /etc/hosts with user entries and old managed block
-          WHEN the new block is applied
-          THEN user entries outside the markers are preserved
-          AND old managed entries are replaced
-        """
-        existing = (
-            "127.0.0.1\tlocalhost\n"
-            "10.0.0.1\toim-server\n"
-            "# BEGIN Omnia IPoIB managed block\n"
-            "old-addr\told-host\n"
-            "# END Omnia IPoIB managed block\n"
-            "192.168.1.1\tcustom-entry\n"
-        )
-        data = _dual_stack_cluster()
-        valid, _ = validator.preflight_validate(data, LOGGER)
-        new_block = nm_renderer.render_managed_hosts_block(valid, LOGGER)
-        result = nm_renderer.apply_managed_hosts_block(existing, new_block)
-
-        # User content preserved
-        assert "127.0.0.1\tlocalhost" in result
-        assert "10.0.0.1\toim-server" in result
-        assert "192.168.1.1\tcustom-entry" in result
-        # Old managed content removed
-        assert "old-addr" not in result
-        # New managed content present
-        assert "nid0001-ib0" in result
-
-    def test_single_interface_gets_alias(self):
-        """ORCH_FVT_IPV6_E039: Single-interface nodes get hostname-ib alias."""
-        data = _dual_stack_cluster()
-        valid, _ = validator.preflight_validate(data, LOGGER)
-        block = nm_renderer.render_managed_hosts_block(valid, LOGGER)
-        # All nodes in this cluster are single-interface
-        assert "nid0001-ib" in block
-
-
 # ===================================================================
 # TC-FVT-013: Idempotent reapplication produces no duplicates
 # ===================================================================
@@ -382,13 +304,4 @@ class TestIdempotentReapplication:
             r2["config_hash"], r1["config_hash"]
         )
 
-    def test_hosts_block_idempotent(self):
-        """ORCH_FVT_IPV6_E042: Double application of hosts block is idempotent."""
-        data = _dual_stack_cluster()
-        valid, _ = validator.preflight_validate(data, LOGGER)
-        block = nm_renderer.render_managed_hosts_block(valid, LOGGER)
 
-        existing = "127.0.0.1\tlocalhost\n"
-        result1 = nm_renderer.apply_managed_hosts_block(existing, block)
-        result2 = nm_renderer.apply_managed_hosts_block(result1, block)
-        assert result1 == result2

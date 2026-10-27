@@ -16,7 +16,12 @@
 # Each node gets a configure-ipoib-<node_id>.sh script delivered
 # via cloud-init write_files + runcmd at first boot.
 
-- name: Build cloud-init group payload for IPoIB IPv6
+# Build the BSS payload from the complete active allocation snapshot,
+# not just nodes_needing_update.  The group-delete + group-set cycle
+# replaces the entire BSS cloud-init group, so every allocated node
+# must be present — otherwise previously-configured nodes lose their
+# IPoIB cloud-init data on an incremental run.
+- name: Build cloud-init group payload for IPoIB IPv6 (full snapshot)
   ansible.builtin.set_fact:
     _ib_ipv6_ci_group:
       name: "ipoib-ipv6"
@@ -24,7 +29,6 @@
         write_files: >-
           {{ _ib_ipv6_render.node_results
              | dict2items
-             | selectattr('key', 'in', _ib_ipv6_render.nodes_needing_update)
              | map(attribute='value')
              | map(attribute='cloud_init')
              | map(attribute='write_files')
@@ -33,7 +37,6 @@
         runcmd: >-
           {{ _ib_ipv6_render.node_results
              | dict2items
-             | selectattr('key', 'in', _ib_ipv6_render.nodes_needing_update)
              | map(attribute='value')
              | map(attribute='cloud_init')
              | map(attribute='runcmd')
@@ -83,5 +86,7 @@
   ansible.builtin.debug:
     msg: >-
       [IB-IPv6] BSS cloud-init published for
-      {{ _ib_ipv6_render.nodes_needing_update | length }} node(s)
+      {{ _ib_ipv6_render.node_results | length }} node(s)
+      ({{ _ib_ipv6_render.nodes_needing_update | length }} updated,
+      {{ _ib_ipv6_render.nodes_skipped | length }} unchanged)
   when: _ib_ipv6_bss_success | bool

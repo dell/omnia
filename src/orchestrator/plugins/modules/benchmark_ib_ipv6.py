@@ -221,8 +221,6 @@ def _bench_artifact_throughput(
         start = time.perf_counter()
         for node_id in sorted(normalized.keys()):
             nm_renderer.render_node_full(node_id, normalized[node_id])
-        # Hosts block
-        nm_renderer.render_managed_hosts_block(normalized)
         elapsed = time.perf_counter() - start
         s_per_node = elapsed / max(node_count, 1)
         per_node_s.append(s_per_node)

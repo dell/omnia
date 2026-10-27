@@ -23,12 +23,10 @@ Covers:
 - Mismatch warning (ipv4-only with ipv6 preference ignored)
 - No allocation file skips injection
 - Empty node_params skips injection
-- IB interface auto-discovery patching (generic -> predictable names)
 - Cloud-init /etc/hosts injection parsing
 
-These tests validate the logic embedded in inject_ib_nodeaddr.yml and the
-IB discovery pipeline in ib_ipv6_config/tasks/main.yml by testing the
-equivalent Python logic used in the Ansible shell tasks.
+These tests validate the logic embedded in inject_ib_nodeaddr.yml by testing
+the equivalent Python logic used in the Ansible shell tasks.
 """
 
 from __future__ import annotations
@@ -192,39 +190,6 @@ def add_enable_ipv6(
         slurm_conf["CommunicationParameters"] = new_val
         apply_config["slurm"] = slurm_conf
     return apply_config
-
-
-def patch_ib_interfaces(
-    normalized_nodes: Dict[str, Dict[str, List[Dict[str, Any]]]],
-    iface_map: Dict[str, List[str]],
-) -> Dict[str, Dict[str, List[Dict[str, Any]]]]:
-    """Patch normalized_nodes with discovered IB interface names.
-
-    Mirrors the inline Python in 'Patch normalized_nodes with discovered
-    interface names' task in ib_ipv6_config/tasks/main.yml.
-
-    Args:
-        normalized_nodes: Nodes keyed by node ID, then by interface name.
-        iface_map: hostname -> list of discovered IB interface names.
-
-    Returns:
-        Patched normalized_nodes with real interface names.
-    """
-    result = {}
-    for nid, nifaces in normalized_nodes.items():
-        first_rec = next(iter(next(iter(nifaces.values()))))
-        hostname = first_rec.get("hostname", "")
-        discovered = iface_map.get(hostname, [])
-        if discovered:
-            new_ifaces: Dict[str, List[Dict[str, Any]]] = {}
-            for idx, old_key in enumerate(nifaces):
-                new_key = discovered[idx] if idx < len(discovered) else old_key
-                updated = [dict(r, interface_id=new_key) for r in nifaces[old_key]]
-                new_ifaces[new_key] = updated
-            result[nid] = new_ifaces
-        else:
-            result[nid] = nifaces
-    return result
 
 
 def parse_hosts_block_for_cloudinit(raw: str) -> List[str]:
@@ -445,70 +410,6 @@ class TestEnableIPv6Injection:
         config = {"slurm": {"CommunicationParameters": ""}}
         result = add_enable_ipv6(config, "ipv6-only")
         assert result["slurm"]["CommunicationParameters"] == "EnableIPv6"
-
-
-# ===========================================================================
-# TC-UT-009: IB interface auto-discovery patching
-# ===========================================================================
-
-class TestIBInterfaceDiscoveryPatching:
-    """TC-UT-009: Verify IB interface name patching from discovery."""
-
-    def test_generic_to_predictable_name(self):
-        """Generic ib0 patched to discovered ibp10s0."""
-        nodes = {
-            "x1000c1s1b0n0": {
-                "ib0": [{"hostname": "nid001", "interface_id": "ib0",
-                         "address": "192.168.0.11"}]
-            }
-        }
-        iface_map = {"nid001": ["ibp10s0"]}
-        result = patch_ib_interfaces(nodes, iface_map)
-        assert "ibp10s0" in result["x1000c1s1b0n0"]
-        assert "ib0" not in result["x1000c1s1b0n0"]
-        assert result["x1000c1s1b0n0"]["ibp10s0"][0]["interface_id"] == "ibp10s0"
-
-    def test_multi_interface_patching(self):
-        """Multiple interfaces patched in order."""
-        nodes = {
-            "x1000c1s1b0n0": {
-                "ib0": [{"hostname": "nid001", "interface_id": "ib0",
-                         "address": "192.168.0.11"}],
-                "ib1": [{"hostname": "nid001", "interface_id": "ib1",
-                         "address": "192.168.1.11"}],
-            }
-        }
-        iface_map = {"nid001": ["ibp10s0", "ibp181s0"]}
-        result = patch_ib_interfaces(nodes, iface_map)
-        assert "ibp10s0" in result["x1000c1s1b0n0"]
-        assert "ibp181s0" in result["x1000c1s1b0n0"]
-
-    def test_no_discovered_interfaces_unchanged(self):
-        """Node with no discovered interfaces keeps generic names."""
-        nodes = {
-            "x1000c1s1b0n0": {
-                "ib0": [{"hostname": "nid001", "interface_id": "ib0",
-                         "address": "192.168.0.11"}]
-            }
-        }
-        iface_map = {}  # No discovery results
-        result = patch_ib_interfaces(nodes, iface_map)
-        assert "ib0" in result["x1000c1s1b0n0"]
-
-    def test_fewer_discovered_than_generic(self):
-        """If fewer discovered than generic, extra interfaces keep old name."""
-        nodes = {
-            "x1000c1s1b0n0": {
-                "ib0": [{"hostname": "nid001", "interface_id": "ib0",
-                         "address": "192.168.0.11"}],
-                "ib1": [{"hostname": "nid001", "interface_id": "ib1",
-                         "address": "192.168.1.11"}],
-            }
-        }
-        iface_map = {"nid001": ["ibp10s0"]}  # Only 1 discovered
-        result = patch_ib_interfaces(nodes, iface_map)
-        assert "ibp10s0" in result["x1000c1s1b0n0"]
-        assert "ib1" in result["x1000c1s1b0n0"]  # Kept old name
 
 
 # ===========================================================================

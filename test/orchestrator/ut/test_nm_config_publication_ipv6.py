@@ -485,86 +485,6 @@ class TestSMDRenderer:
 
 
 # ===================================================================
-# TC-UT-007: Hosts Renderer
-# ===================================================================
-
-class TestHostsRenderer:
-    """TC-UT-007: Managed /etc/hosts block rendering."""
-
-    def test_single_interface_gets_alias(self):
-        """ORCH_UT_NM_060: Single-interface gets canonical + alias."""
-        record = _ipv6_only()["ib0"][0]
-        entry = nm_renderer.render_hostname_entry(record, is_single_interface=True)
-        assert "nid0001-ib0" in entry
-        assert "nid0001-ib" in entry
-
-    def test_multi_interface_no_alias(self):
-        """ORCH_UT_NM_061: Multi-interface has canonical only, no -ib alias."""
-        record = _multi_interface()["ib0"][0]
-        entry = nm_renderer.render_hostname_entry(record, is_single_interface=False)
-        assert "nid0005-ib0" in entry
-        # No bare -ib alias
-        parts = entry.split("\t")
-        assert not any(p == "nid0005-ib" for p in parts)
-
-    def test_block_markers_present(self):
-        """ORCH_UT_NM_062: Managed block has BEGIN and END markers."""
-        nodes = {"nid0001": _ipv6_only()}
-        block = nm_renderer.render_managed_hosts_block(nodes, LOGGER)
-        assert nm_renderer.HOSTS_BEGIN_MARKER in block
-        assert nm_renderer.HOSTS_END_MARKER in block
-
-    def test_block_sorted_by_node_id(self):
-        """ORCH_UT_NM_063: Entries sorted by node ID."""
-        nodes = {
-            "nid0005": _multi_interface(),
-            "nid0001": _ipv6_only(),
-        }
-        block = nm_renderer.render_managed_hosts_block(nodes, LOGGER)
-        lines = [l for l in block.split("\n")
-                 if l and not l.startswith("#")]
-        assert "nid0001" in lines[0]
-
-    def test_apply_replaces_existing_block(self):
-        """ORCH_UT_NM_064: Apply replaces old block, preserves user content."""
-        existing = (
-            "127.0.0.1\tlocalhost\n"
-            "# BEGIN Omnia IPoIB managed block\n"
-            "old-entry\told-host\n"
-            "# END Omnia IPoIB managed block\n"
-            "::1\tlocalhost6\n"
-        )
-        new_block = nm_renderer.render_managed_hosts_block(
-            {"nid0001": _ipv6_only()}, LOGGER
-        )
-        result = nm_renderer.apply_managed_hosts_block(existing, new_block)
-        assert "old-entry" not in result
-        assert "nid0001-ib0" in result
-        assert "127.0.0.1" in result
-        assert "::1\tlocalhost6" in result
-
-    def test_apply_appends_when_no_markers(self):
-        """ORCH_UT_NM_065: Apply appends when no existing markers."""
-        existing = "127.0.0.1\tlocalhost\n"
-        new_block = nm_renderer.render_managed_hosts_block(
-            {"nid0001": _ipv6_only()}, LOGGER
-        )
-        result = nm_renderer.apply_managed_hosts_block(existing, new_block)
-        assert result.startswith("127.0.0.1")
-        assert "nid0001-ib0" in result
-
-    def test_double_apply_idempotent(self):
-        """ORCH_UT_NM_066: Double application is idempotent."""
-        existing = "127.0.0.1\tlocalhost\n"
-        block = nm_renderer.render_managed_hosts_block(
-            {"nid0001": _ipv6_only()}, LOGGER
-        )
-        r1 = nm_renderer.apply_managed_hosts_block(existing, block)
-        r2 = nm_renderer.apply_managed_hosts_block(r1, block)
-        assert r1 == r2
-
-
-# ===================================================================
 # TC-FVT-013: Idempotent reapplication via config hash
 # ===================================================================
 
@@ -669,14 +589,6 @@ class TestNoCredentials:
         content = ci["write_files"][0]["content"]
         for pattern in self._CREDENTIAL_PATTERNS:
             assert pattern not in content
-
-    def test_hosts_block_no_credentials(self):
-        """ORCH_UT_NM_092: Hosts block contains no credential patterns."""
-        block = nm_renderer.render_managed_hosts_block(
-            {"nid0001": _ipv6_only()}, LOGGER
-        )
-        for pattern in self._CREDENTIAL_PATTERNS:
-            assert pattern not in block
 
 
 # ===================================================================
