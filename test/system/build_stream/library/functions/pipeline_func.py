@@ -206,8 +206,15 @@ def verify_stage_record(host: Any, context: Dict[str, Any], job_id: str,
 def monitor_stages(host: Any, context: Dict[str, Any], job_id: str, stages: Sequence[str],
                    pipeline_ids: Sequence[int], poll: int, emit: Emit,
                    baseline: Optional[Dict[str, Dict[str, str]]] = None,
-                   debug_mode: bool = False) -> Dict[str, Any]:
+                   debug_mode: bool = False,
+                   stage_checks: Optional[Dict[str, Callable[[], Dict[str, Any]]]] = None,
+                   ) -> Dict[str, Any]:
     """Monitor each stage in order and verify it as soon as it finishes (no timeout).
+
+    ``stage_checks`` maps a stage name to an extra check run right after that
+    stage COMPLETED; it returns a dict with ``fields`` and ``failures``. A
+    failed extra check stops the monitoring, since later stages consume what
+    it verified.
 
     A stage is finished when its job_stages row is COMPLETED, FAILED or
     SKIPPED (and, when ``baseline`` is given, was re-run after it). Its DB
@@ -298,6 +305,14 @@ def monitor_stages(host: Any, context: Dict[str, Any], job_id: str, stages: Sequ
         if state == STAGE_FAILED and not failure:
             failure = (f"stage '{stage}' FAILED: {row.get('error_code') or ''} "
                        f"{row.get('error_summary') or ''}").strip()
+        extra = (stage_checks or {}).get(stage)
+        if extra and state == STAGE_COMPLETED and not failure:
+            result = extra()
+            for label, value in result["fields"]:
+                emit(PROGRESS["stage_check"].format(label=label, value=value))
+            fields.extend(result["fields"])
+            if result["failures"]:
+                failure = f"after stage '{stage}': {'; '.join(result['failures'])}"
         if failure:
             states = db_func.get_stages(host, job_id)
             for name in stages[index + 1:]:

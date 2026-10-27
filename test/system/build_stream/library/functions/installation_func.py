@@ -54,6 +54,7 @@ from ..vars.common_vars import (
     BSM_PLAYBOOK_WORKDIR,
     BSM_POSTGRES_CONTAINER,
     BUILD_STAGES,
+    BUILD_UPLOAD_STAGE,
     CADENCE_STAGES,
     COMMIT_MESSAGE_BUILD,
     COMMIT_MESSAGE_DEPLOY,
@@ -267,7 +268,33 @@ def _trigger_build(host: Any, context: Dict[str, Any], settings: Dict[str, Any],
     if not job["success"]:
         return {"error": job["error"]}
     return {"error": "", "pipeline_id": parent_id, "child_id": child["pipeline"]["id"],
-            "job_id": job["job_id"], "group_id": group_id}
+            "job_id": job["job_id"], "group_id": group_id,
+            "stage_checks": {BUILD_UPLOAD_STAGE: lambda: active_catalog_check(
+                host, selected["identifier"], version)}}
+
+
+def active_catalog_check(host: Any, identifier: str, version: str) -> Dict[str, Any]:
+    """Check that CATALOG_FILE_PATH on the host holds ``identifier`` v``version``.
+
+    The upload stage writes the committed catalog there for the host
+    playbooks (create-local-repository reads it). If it is not on the host
+    (for example the path is not mounted into omnia_build_stream), the
+    pipeline would build a different catalog.
+
+    Returns:
+        Dict with keys: fields, failures.
+    """
+    target = catalog_func.catalog_target(host)
+    active = catalog_func.read_catalog(host, target["path"]) if target["success"] else {}
+    found = f"{active.get('identifier') or '?'} v{active.get('version') or '?'}"
+    ok = active.get("identifier") == identifier and active.get("version") == version
+    fields = [(mark(ok, f"Host {target['path'] or 'CATALOG_FILE_PATH'}"),
+               found if ok else f"{found} (expected {identifier} v{version})")]
+    failures = [] if ok else [
+        f"{target['path'] or 'CATALOG_FILE_PATH'} on the host holds {found}, not the "
+        f"committed {identifier} v{version}; the upload stage did not write it to the "
+        f"host (check the {BSM_CONTAINER} volume mounts)"]
+    return {"fields": fields, "failures": failures}
 
 
 def _verify_only_ids(host: Any, block: Dict[str, Any], emit: Emit) -> Dict[str, Any]:
@@ -289,7 +316,8 @@ def _monitor_and_verify(host: Any, context: Dict[str, Any], settings: Dict[str, 
     watched = [pid for pid in (ids.get("pipeline_id"), ids.get("child_id")) if pid]
     monitor = pipeline_func.monitor_stages(
         host, context, ids["job_id"], stages, watched,
-        settings["poll_interval"], emit, baseline, settings.get("debug_mode", False))
+        settings["poll_interval"], emit, baseline, settings.get("debug_mode", False),
+        ids.get("stage_checks"))
     result["fields"].extend(monitor["fields"])
     if not monitor["success"]:
         _fail(result, monitor["error"])

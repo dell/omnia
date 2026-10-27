@@ -213,7 +213,9 @@ CADENCE_UPLOAD_PIPELINE_CHECK = 15
 # =============================================================================
 # PIPELINE STAGES (BuildStream job_stages.stage_name)
 # =============================================================================
-BUILD_STAGES = ("upload", "parse-catalog", "create-local-repository", "build-image")
+# The upload stage writes the committed catalog to CATALOG_FILE_PATH on the host.
+BUILD_UPLOAD_STAGE = "upload"
+BUILD_STAGES = (BUILD_UPLOAD_STAGE, "parse-catalog", "create-local-repository", "build-image")
 DEPLOY_STAGES = ("deploy", "restart", "validate")
 CADENCE_STAGES = BUILD_STAGES + DEPLOY_STAGES
 
