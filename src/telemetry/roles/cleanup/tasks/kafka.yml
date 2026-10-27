@@ -545,6 +545,7 @@
   register: _isilon_creds_base64
   changed_when: false
   failed_when: false
+  no_log: true
 
 - name: Kafka | Decode Isilon credentials
   ansible.builtin.set_fact:
