@@ -24,7 +24,7 @@
 #   ./build_images.sh                                        # Build all telemetry containers
 #   ./build_images.sh kafkapump                              # Single container
 #   ./build_images.sh kafkapump,ldms                         # Comma-separated
-#   ./build_images.sh kafkapump kafkapump_tag=1.4            # Custom tag
+#   ./build_images.sh kafkapump kafkapump_tag=1.5            # Custom tag
 #   ./build_images.sh all build_tool=docker                  # Use docker
 #   ./build_images.sh all build_tool=docker build_action=push # Push to registry
 #
@@ -35,10 +35,11 @@
 #   build_tool=<tool>                podman | docker (default: podman)
 #   build_action=<action>            load | push (default: load)
 #   registry=<url>                   Registry URL (default: docker.io/dellhpcomniaaisolution)
-#   kafkapump_tag=<tag>              kafkapump tag (default: 1.3)
-#   victoriapump_tag=<tag>           victoriapump tag (default: 1.3)
-#   telemetry_receiver_tag=<tag>     telemetry_receiver tag (default: 1.3)
+#   kafkapump_tag=<tag>              kafkapump tag (default: 1.4)
+#   victoriapump_tag=<tag>           victoriapump tag (default: 1.4)
+#   telemetry_receiver_tag=<tag>     telemetry_receiver tag (default: 1.4)
 #   ldms_tag=<tag>                   ldms tag (default: 1.2)
+#   idrac_telemetry_commit=<sha>     iDRAC-Telemetry-Reference-Tools commit (default: IDRAC_TELEMETRY_COMMIT)
 # =============================================================================
 
 set -euo pipefail
@@ -76,15 +77,16 @@ show_help() {
     echo "  build_tool=<tool>       podman | docker (default: podman)"
     echo "  build_action=<action>   load | push (default: load)"
     echo "  registry=<url>          Registry URL (default: docker.io/dellhpcomniaaisolution)"
-    echo "  kafkapump_tag=<tag>     kafkapump tag (default: 1.3)"
-    echo "  victoriapump_tag=<tag>  victoriapump tag (default: 1.3)"
-    echo "  telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.3)"
+    echo "  kafkapump_tag=<tag>     kafkapump tag (default: 1.4)"
+    echo "  victoriapump_tag=<tag>  victoriapump tag (default: 1.4)"
+    echo "  telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.4)"
     echo "  ldms_tag=<tag>          ldms tag (default: 1.2)"
+    echo "  idrac_telemetry_commit=<sha>  iDRAC-Telemetry-Reference-Tools commit (default: fixed commit below)"
     echo ""
     echo -e "${BLUE}EXAMPLES:${NC}"
     echo "  ./build_images.sh"
     echo "  ./build_images.sh kafkapump"
-    echo "  ./build_images.sh kafkapump kafkapump_tag=1.4"
+    echo "  ./build_images.sh kafkapump kafkapump_tag=1.5"
     echo "  ./build_images.sh all build_tool=docker"
     echo "  ./build_images.sh all build_tool=docker build_action=push"
     echo ""
@@ -100,7 +102,7 @@ SUCCESSFUL_BUILDS=()
 FAILED_BUILDS=()
 
 # ── iDRAC Telemetry repo settings ──
-IDRAC_TELEMETRY_COMMIT="cfa9102a900a76afe9de578d080e98f685625814"
+IDRAC_TELEMETRY_COMMIT="d9890c54a333cdb5dae05ed45a7f1a0f2bac781f"
 IDRAC_TELEMETRY_CLONE_DIR="${SCRIPT_DIR}/.idrac-telemetry-tools"
 
 # =============================================================================
@@ -110,9 +112,9 @@ BUILD_TOOL="podman"
 BUILD_ACTION="load"
 OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
 
-KAFKAPUMP_TAG="1.3"
-VICTORIAPUMP_TAG="1.3"
-TELEMETRY_RECEIVER_TAG="1.3"
+KAFKAPUMP_TAG="1.4"
+VICTORIAPUMP_TAG="1.4"
+TELEMETRY_RECEIVER_TAG="1.4"
 LDMS_TAG="1.2"
 
 # =============================================================================
@@ -130,12 +132,13 @@ for arg in "$@"; do
         victoriapump_tag=*)        VICTORIAPUMP_TAG="${arg#*=}" ;;
         telemetry_receiver_tag=*)  TELEMETRY_RECEIVER_TAG="${arg#*=}" ;;
         ldms_tag=*)                LDMS_TAG="${arg#*=}" ;;
+        idrac_telemetry_commit=*)  IDRAC_TELEMETRY_COMMIT="${arg#*=}" ;;
         -h|--help)
             show_help
             ;;
         *)
             echo -e "${RED}Error: Unknown parameter '$arg'${NC}"
-            echo -e "${YELLOW}Valid: build_tool, build_action, registry, kafkapump_tag, victoriapump_tag, telemetry_receiver_tag, ldms_tag${NC}"
+            echo -e "${YELLOW}Valid: build_tool, build_action, registry, kafkapump_tag, victoriapump_tag, telemetry_receiver_tag, ldms_tag, idrac_telemetry_commit${NC}"
             exit 1
             ;;
     esac
@@ -163,17 +166,18 @@ fi
 # Clone iDRAC Telemetry repo (shared by kafkapump, victoriapump, telemetry_receiver)
 # =============================================================================
 clone_idrac_telemetry_repo() {
-    if [ -d "$IDRAC_TELEMETRY_CLONE_DIR" ]; then
-        echo -e "${YELLOW}iDRAC-Telemetry-Reference-Tools already cloned.${NC}"
-        return
+    if [ ! -d "$IDRAC_TELEMETRY_CLONE_DIR" ]; then
+        echo -e "${YELLOW}Cloning iDRAC-Telemetry-Reference-Tools...${NC}"
+        git clone "https://github.com/dell/iDRAC-Telemetry-Reference-Tools.git" "$IDRAC_TELEMETRY_CLONE_DIR"
     fi
-    echo -e "${YELLOW}Cloning iDRAC-Telemetry-Reference-Tools at commit ${IDRAC_TELEMETRY_COMMIT}...${NC}"
-    git clone "https://github.com/dell/iDRAC-Telemetry-Reference-Tools.git" "$IDRAC_TELEMETRY_CLONE_DIR"
     cd "$IDRAC_TELEMETRY_CLONE_DIR" || exit 1
-    git fetch --all
-    git checkout "$IDRAC_TELEMETRY_COMMIT"
+    if [ "$(git rev-parse HEAD)" != "$IDRAC_TELEMETRY_COMMIT" ]; then
+        echo -e "${YELLOW}Checking out iDRAC-Telemetry-Reference-Tools at commit ${IDRAC_TELEMETRY_COMMIT}...${NC}"
+        git fetch origin "$IDRAC_TELEMETRY_COMMIT"
+        git checkout --force FETCH_HEAD
+    fi
     cd - > /dev/null || exit 1
-    echo -e "${GREEN}Repository cloned at ${IDRAC_TELEMETRY_COMMIT}.${NC}"
+    echo -e "${GREEN}Repository at ${IDRAC_TELEMETRY_COMMIT}.${NC}"
 }
 
 # =============================================================================

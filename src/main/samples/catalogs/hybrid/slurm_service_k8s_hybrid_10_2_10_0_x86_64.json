@@ -984,7 +984,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "ucx": {
         "name": "ucx",
@@ -1371,7 +1371,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "prometheus_client==0_20_0": {
         "name": "prometheus_client==0.20.0",
@@ -2476,7 +2476,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.36"
+        "tag": "1.38"
       },
       "ovis_ldms": {
         "name": "ovis-ldms",
@@ -2743,7 +2743,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "openssl_libs": {
         "name": "openssl-libs",

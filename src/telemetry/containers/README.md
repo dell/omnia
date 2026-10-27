@@ -21,7 +21,7 @@ This directory contains the build scripts and Containerfiles for building Omnia 
 ./build_images.sh all build_tool=docker build_action=push
 
 # Build with custom tag
-./build_images.sh kafkapump kafkapump_tag=1.4
+./build_images.sh kafkapump kafkapump_tag=1.5
 ```
 
 ## Container Images
@@ -52,8 +52,8 @@ This directory contains the build scripts and Containerfiles for building Omnia 
 - **For iDRAC containers**:
   - Auto-clones `iDRAC-Telemetry-Reference-Tools` into `.idrac-telemetry-tools/`
   - Repository URL: `https://github.com/dell/iDRAC-Telemetry-Reference-Tools.git`
-  - Fixed commit: `cfa9102a900a76afe9de578d080e98f685625814`
-  - **To update iDRAC commit**: Edit `IDRAC_TELEMETRY_COMMIT` in `build_images.sh`
+  - Fixed commit: `d9890c54a333cdb5dae05ed45a7f1a0f2bac781f`
+  - **To update iDRAC commit**: Edit `IDRAC_TELEMETRY_COMMIT` in `build_images.sh`, or pass `idrac_telemetry_commit=<sha>` for a one-off build
 
 - **For ldms**: Containerfile and configure script are local (copied from omnia-artifactory)
 
@@ -73,9 +73,9 @@ Parameters:
   build_tool=<tool>       podman | docker (default: podman)
   build_action=<action>   load | push (default: load)
   registry=<url>          Registry URL (default: docker.io/dellhpcomniaaisolution)
-  kafkapump_tag=<tag>     kafkapump tag (default: 1.3)
-  victoriapump_tag=<tag>  victoriapump tag (default: 1.3)
-  telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.3)
+  kafkapump_tag=<tag>     kafkapump tag (default: 1.4)
+  victoriapump_tag=<tag>  victoriapump tag (default: 1.4)
+  telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.4)
   ldms_tag=<tag>          ldms tag (default: 1.2)
 ```
 
