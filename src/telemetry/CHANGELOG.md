@@ -63,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `~/ovis-code/ovis-<version>` (previously a shared `~/ovis-code/ovis`, so
   `-v` with a new version silently rebuilt the old checkout), refuses a
   checkout at the wrong tag, and validates `-v`.
+- `rpm_build/build_rpm.sh` default OVIS LDMS version is now `4.5.3`
+  (previously `4.5.2`).
 - `containers/build_images.sh` now builds and pushes the LDMS image as
   `ubuntu-ldms` (previously `ldms`) with default tag `1.2`, matching the image
   consumed by the LDMS deployment.

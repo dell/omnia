@@ -12,7 +12,7 @@ Build custom RPM packages for Omnia components. Currently supports LDMS (OVIS) R
 ./build_rpm.sh
 
 # Specify LDMS version
-./build_rpm.sh -v 4.5.2 -u <SLURM_REPO_URL> -n <SLURM_REPO_NAME>
+./build_rpm.sh -v 4.5.3 -u <SLURM_REPO_URL> -n <SLURM_REPO_NAME>
 ```
 
 ## Directory Layout
@@ -51,7 +51,7 @@ No separate scripts are needed — the same `start_build_container.rockylinux10.
 
 | Parameter | Flag | Default | Description |
 |-----------|------|---------|-------------|
-| LDMS version | `-v`, `--version` | `4.5.2` | OVIS LDMS version tag to build |
+| LDMS version | `-v`, `--version` | `4.5.3` | OVIS LDMS version tag to build |
 | Slurm repo URL | `-u`, `--url` | — | YUM repo URL for Slurm (required for Slurm metrics) |
 | Slurm repo name | `-n`, `--name` | — | YUM repo name for Slurm |
 
