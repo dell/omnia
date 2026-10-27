@@ -53,7 +53,7 @@ The LDMS container is built via the main orchestrator script in the parent direc
 ./build_images.sh ldms build_tool=docker build_action=push
 
 # Or with custom tag
-./build_images.sh ldms ldms_tag=1.3
+./build_images.sh ldms ldms_tag=1.2
 ```
 
 **Image**: `dellhpcomniaaisolution/ubuntu-ldms`

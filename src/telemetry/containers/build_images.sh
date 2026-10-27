@@ -24,7 +24,7 @@
 #   ./build_images.sh                                        # Build all telemetry containers
 #   ./build_images.sh kafkapump                              # Single container
 #   ./build_images.sh kafkapump,ldms                         # Comma-separated
-#   ./build_images.sh kafkapump kafkapump_tag=1.5            # Custom tag
+#   ./build_images.sh kafkapump kafkapump_tag=1.4            # Custom tag
 #   ./build_images.sh all build_tool=docker                  # Use docker
 #   ./build_images.sh all build_tool=docker build_action=push # Push to registry
 #
@@ -86,7 +86,7 @@ show_help() {
     echo -e "${BLUE}EXAMPLES:${NC}"
     echo "  ./build_images.sh"
     echo "  ./build_images.sh kafkapump"
-    echo "  ./build_images.sh kafkapump kafkapump_tag=1.5"
+    echo "  ./build_images.sh kafkapump kafkapump_tag=1.4"
     echo "  ./build_images.sh all build_tool=docker"
     echo "  ./build_images.sh all build_tool=docker build_action=push"
     echo ""

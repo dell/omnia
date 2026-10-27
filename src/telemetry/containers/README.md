@@ -21,7 +21,7 @@ This directory contains the build scripts and Containerfiles for building Omnia 
 ./build_images.sh all build_tool=docker build_action=push
 
 # Build with custom tag
-./build_images.sh kafkapump kafkapump_tag=1.5
+./build_images.sh kafkapump kafkapump_tag=1.4
 ```
 
 ## Container Images
