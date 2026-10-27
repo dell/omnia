@@ -16,11 +16,12 @@
 #!/usr/bin/env python3
 """Generate updated catalog_rhel.json from input/config directory."""
 
+import argparse
 import csv
 import json
+import logging
 import os
 import re
-import argparse
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -779,6 +780,7 @@ if __name__ == '__main__':
         or os.path.basename(_project) != _project
         or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _project)
     ):
+        logging.warning("Invalid OMNIA_PROJECT_NAME; using project_default")
         _project = 'project_default'
     parser.add_argument(
         '--base-dir',

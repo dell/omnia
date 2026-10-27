@@ -15,6 +15,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import os
 import re
 from pathlib import Path
@@ -111,6 +112,7 @@ def main() -> None:
         or os.path.basename(_project) != _project
         or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _project)
     ):
+        logging.warning("Invalid OMNIA_PROJECT_NAME; using project_default")
         _project = 'project_default'
     parser.add_argument(
         '--base-dir',

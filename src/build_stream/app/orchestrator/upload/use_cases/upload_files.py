@@ -54,6 +54,7 @@ if (
     or os.path.basename(_raw_project) != _raw_project
     or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _raw_project)
 ):
+    log_secure_info("warning", "Invalid OMNIA_PROJECT_NAME; using project_default")
     _raw_project = "project_default"
 _OMNIA_PROJECT_NAME = _raw_project
 

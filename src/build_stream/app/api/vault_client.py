@@ -68,6 +68,7 @@ class VaultClient:  # pylint: disable=too-few-public-methods
             or os.path.basename(_project) != _project
             or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _project)
         ):
+            log_secure_info("warning", "Invalid OMNIA_PROJECT_NAME; using project_default")
             _project = "project_default"
         default_credentials_path = str(
             Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
