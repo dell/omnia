@@ -73,9 +73,22 @@ def _read_reference(
             errors, logger, msg.functional_group_file_missing_msg(configured, referenced_by)
         )
         return None
+    # Reject symlinks to prevent TOCTOU attacks
+    if os.path.islink(path):
+        record_error(
+            errors, logger, msg.functional_group_file_outside_allowed_root_msg(configured, roots)
+        )
+        return None
     try:
         with open(path, "r", encoding="utf-8") as handle:
-            return handle.read()
+            content = handle.read()
+            # Enforce size limit to prevent resource exhaustion
+            if len(content) > 1024 * 1024:  # 1MB limit
+                record_error(
+                    errors, logger, f"Cloud-init file exceeds maximum size (1MB): {configured}"
+                )
+                return None
+            return content
     except (OSError, UnicodeError) as exc:
         record_error(
             errors, logger, msg.functional_group_file_unreadable_msg(path, type(exc).__name__)

@@ -355,11 +355,22 @@ def _run_l2_validation(
         configured_mapping_path = orchestrator_data.get(
             "pxe_mapping_file_path", ""
         )
+        # Resolve path and enforce project root containment
         mapping_path = os.path.realpath(
             configured_mapping_path
             or os.path.join(input_project_dir, "pxe_mapping_file.csv")
         )
-        state.mark_file(mapping_path, not mapping_errors)
+        # Reject paths outside project directory
+        try:
+            os.path.relpath(mapping_path, input_project_dir)
+        except ValueError:
+            state.errors.append(
+                f"PXE mapping path must be inside project directory: {mapping_path}"
+            )
+            logger.error(f"PXE mapping path outside project: {mapping_path}")
+            mapping_path = None
+        if mapping_path:
+            state.mark_file(mapping_path, not mapping_errors)
         if mapping_errors:
             state.errors.extend(mapping_errors)
             logger.error(
@@ -381,7 +392,17 @@ def _run_l2_validation(
             cloud_init_path = os.path.realpath(
                 configured_cloud_init_path.strip()
             )
-            state.mark_file(cloud_init_path, not cloud_init_errors)
+            # Reject paths outside project directory
+            try:
+                os.path.relpath(cloud_init_path, input_project_dir)
+            except ValueError:
+                state.errors.append(
+                    f"Cloud-init path must be inside project directory: {cloud_init_path}"
+                )
+                logger.error(f"Cloud-init path outside project: {cloud_init_path}")
+                cloud_init_path = None
+            if cloud_init_path:
+                state.mark_file(cloud_init_path, not cloud_init_errors)
         if cloud_init_errors:
             state.errors.extend(cloud_init_errors)
             logger.error(

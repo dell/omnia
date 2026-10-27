@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# OMNIA_DATA_PATH with fallback
-omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+# OMNIA_DATA_PATH - required environment variable
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | mandatory }}"
 
 # Project name with fallback
 project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
