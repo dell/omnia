@@ -45,8 +45,8 @@
       register: _gitlab_host_keyscan
       changed_when: false
       failed_when: >-
-        _gitlab_host_keyscan.stdout_lines
-        | reject('match', '^#') | list | length == 0
+        _gitlab_host_keyscan.stdout_lines | map('trim')
+        | reject('equalto', '') | reject('match', '^#') | list | length == 0
 
     - name: Compute fingerprints of the scanned GitLab host keys
       ansible.builtin.command:
@@ -70,4 +70,6 @@
         name: "{{ gitlab_host }}"
         key: "{{ item }}"
         state: present
-      loop: "{{ _gitlab_host_keyscan.stdout_lines | reject('match', '^#') | list }}"
+      loop: >-
+        {{ _gitlab_host_keyscan.stdout_lines | map('trim')
+        | reject('equalto', '') | reject('match', '^#') | list }}

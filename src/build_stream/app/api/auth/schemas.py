@@ -62,7 +62,9 @@ class ClientRegistrationRequest(BaseModel):  # pylint: disable=too-few-public-me
         if v is not None:
             for scope in v:
                 if scope not in GRANTABLE_SCOPES:
-                    raise ValueError(f"Invalid scope: {scope}")
+                    raise ValueError(
+                        f"Invalid scope. Allowed scopes: {sorted(GRANTABLE_SCOPES)}"
+                    )
         return v
 
 

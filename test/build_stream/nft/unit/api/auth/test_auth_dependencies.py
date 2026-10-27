@@ -85,6 +85,28 @@ class TestScopeVocabulary:
         }
         assert not any(s.startswith("admin") for s in GRANTABLE_SCOPES)
 
+    def test_registration_rejects_unknown_scope_without_echoing_it(self):
+        """The validation message lists allowed scopes, never the raw value."""
+        from api.auth.schemas import ClientRegistrationRequest  # pylint: disable=import-outside-toplevel
+        from pydantic import ValidationError  # pylint: disable=import-outside-toplevel
+
+        raw = "x" * 5000 + "\r\nINJECTED"
+        with pytest.raises(ValidationError) as exc_info:
+            ClientRegistrationRequest(client_name="ci", allowed_scopes=[raw])
+        message = exc_info.value.errors()[0]["msg"]
+        assert "INJECTED" not in message
+        assert len(message) < 200
+        assert "job:write" in message
+
+    def test_registration_accepts_grantable_scopes(self):
+        """Every grantable scope is still accepted."""
+        from api.auth.schemas import ClientRegistrationRequest  # pylint: disable=import-outside-toplevel
+
+        request = ClientRegistrationRequest(
+            client_name="ci", allowed_scopes=sorted(GRANTABLE_SCOPES)
+        )
+        assert set(request.allowed_scopes) == set(GRANTABLE_SCOPES)
+
 
 class TestRequireJobWrite:
     """require_job_write guards job create, delete and upload."""
