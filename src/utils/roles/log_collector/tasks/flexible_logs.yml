@@ -15,9 +15,8 @@
 ---
 
 # Flexible functional-group (fg_) log collection (ER-ORCH-009).
-# Each flexible node carries its group's resolved custom_log_paths as the host
-# vars host_custom_log_dirs / host_custom_log_files (set at add_host time),
-# falling back to the role defaults when a node declares none.
+# Log sources are the Utils-domain defaults (flexible_log_dirs /
+# flexible_log_files), passed as host vars at add_host time.
 
 - name: Collect flexible functional-group logs
   when: stage == 'flexible'

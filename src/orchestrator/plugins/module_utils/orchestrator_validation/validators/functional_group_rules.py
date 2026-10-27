@@ -182,7 +182,7 @@ def validate_image_override(
         return
     for key in IMAGE_OVERRIDE_KEYS:
         value = override[key]
-        if not isinstance(value, str) or not IMAGE_ARTIFACT_PATTERN.match(value):
+        if not isinstance(value, str) or not IMAGE_ARTIFACT_PATTERN.fullmatch(value):
             record_error(
                 errors,
                 logger,

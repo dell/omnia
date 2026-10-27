@@ -19,6 +19,7 @@ import csv
 import ipaddress
 import os
 import re
+from typing import Optional
 
 from ansible.module_utils.basic import AnsibleModule
 

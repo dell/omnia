@@ -51,14 +51,10 @@ login_compiler_nodes_x86_pattern: "^login_compiler_node{{ _os_version_segment }}
 login_compiler_nodes_arm_pattern: "^login_compiler_node{{ _os_version_segment }}_aarch64$"
 
 # Flexible functional groups (ER-ORCH-009): any fg_<label>[_<os>_<version>]_<arch>
-# group. All flexible nodes route to a single stage; their log sources come from
-# the per-group custom_log_paths resolved from functional_group_config.yml, so no
-# source change is needed per new flexible group name.
+# group. All flexible nodes route to a single stage; log sources are the
+# Utils-domain defaults below (ER-ORCH-009 finalized spec routes log collection
+# by role prefix, not Orchestrator input).
 flexible_nodes_pattern: "^fg_[a-z0-9]+(_[a-z0-9]+)*{{ _os_version_segment }}_(x86_64|aarch64)$"
-
-# Producer-owned Orchestrator input that declares per-group custom_log_paths.
-# Optional: when absent, flexible nodes collect only the defaults below.
-functional_group_config_file: "{{ omnia_data_path }}/orchestrator/input/{{ project_name }}/functional_group_config.yml"
 
 # K8s master log paths
 k8s_master_log_dirs:
@@ -140,9 +136,8 @@ login_compiler_log_files:
   - /var/log/messages
 
 # Flexible functional-group default log sources. Collected for every flexible
-# (fg_) node in addition to any node-local custom_log_paths resolved from
-# functional_group_config.yml (group over common). Kept minimal because the
-# authoritative sources for a flexible group are user-declared.
+# (fg_) node. Kept minimal because the authoritative sources for a flexible
+# group are user-declared via cloud-init.
 flexible_log_dirs: []
 
 flexible_log_files:

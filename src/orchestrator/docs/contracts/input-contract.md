@@ -50,7 +50,7 @@ Catalog-independent flows do not refresh `orchestrator_state.yml`; they retain
 the feature flags derived by the latest catalog-backed lifecycle phase.
 
 `additional_cloud_init_config_file` is the legacy global cloud-init input. It
-cannot be combined with `cloud_init.config_file` or `post_config` values in
+cannot be combined with `cloud_init.config_file` values in
 `functional_group_config.yml`. The empty template staged by `domain-init.sh` is
 inactive and does not conflict. New boot and cloud-init configuration belongs
 in the fixed-name functional-group file described below.
@@ -411,16 +411,12 @@ common:
   boot_kernel_params: "audit=1"
   cloud_init:
     config_file: "$ORCHESTRATOR_DATA_PATH/input/<project>/common-x86_64.yml"
-  post_config: []
 
 groups:
-  research_rhel_10_0_x86_64:
+  fg_research_rhel_10_0_x86_64:
     boot_kernel_params: "numa=off"
     cloud_init:
-      config_file: ""
-    post_config:
-      - runcmd:
-          - "systemctl enable --now example.service"
+      config_file: "$ORCHESTRATOR_DATA_PATH/input/<project>/fg-research-cloud-init-x86_64.yml"
     image_override:
       kernel: "boot-images/research/vmlinuz-x86_64"
       initrd: "boot-images/research/initramfs-x86_64.img"
@@ -434,21 +430,23 @@ Every setting resolves in this order: exact `groups` entry, `common`, then the
 Omnia default. Empty strings, lists, and mappings inherit rather than clear a
 lower level. The runtime `service_kube_control_plane_first_*` group uses the
 `service_kube_control_plane_*` entry. `image_override` is group-only.
+Ordered customization is expressed as ordered `runcmd` inside
+`cloud_init.config_file`; the removed `post_config` and `custom_log_paths`
+fields are rejected as unknown fields.
 
-Group names must exactly match `FUNCTIONAL_GROUP_NAME` values in the PXE
-mapping and end in `x86_64` or `aarch64`. Referenced cloud-init files must be
-non-empty, plaintext (not vault-encrypted), regular files inside the active
-project input directory. Their document is a direct `write_files`/`runcmd`
-mapping, published as an additional per-group metadata section after the
-Omnia-generated cloud-init; `post_config` uses the same shape and is appended
-after the file. Protected kernel parameters (`root`, `ip`, `ip6`,
-`rd.live.image`, `rd.live.ram`, `rd.neednet`, `console`, `ds`, `selinux`,
-`apparmor`, and other boot-identity parameters), quotes, backslashes, control
-characters, and plaintext secrets are rejected.
+Group names must carry the mandatory `fg_` prefix and exactly match
+`FUNCTIONAL_GROUP_NAME` values in the PXE mapping, ending in `x86_64` or
+`aarch64`. Referenced cloud-init files must be non-empty, plaintext (not
+vault-encrypted), regular files inside the active project input directory.
+Their document is a direct `write_files`/`runcmd` mapping, published as the
+complete cloud-init for the flexible group. Protected kernel parameters
+(`root`, `ip`, `ip6`, `rd.live.image`, `rd.live.ram`, `rd.neednet`, `console`,
+`ds`, `selinux`, `apparmor`, and other boot-identity parameters), quotes,
+backslashes, control characters, and plaintext secrets are rejected.
 
 Legacy inputs are honored only where the new values are empty. Validation
 fails when `additional_cloud_init_config_file` is combined with a
-`cloud_init.config_file` or `post_config` value, or when the deprecated
+`cloud_init.config_file` value, or when the deprecated
 `orchestrator_config.yml:boot_kernel_params` is combined with a
 `boot_kernel_params` value. The deprecated value is otherwise a one-release
 fallback between `common` and the default, and passes the same kernel checks.

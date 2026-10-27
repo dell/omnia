@@ -143,33 +143,11 @@
 
 # =============================================================================
 # Flexible functional groups (ER-ORCH-009): fg_<label>[_<os>_<version>]_<arch>.
-# Every flexible node routes to the single "flexible" stage. Each node carries
-# its group's resolved custom_log_paths (group over common) from the optional,
-# producer-owned functional_group_config.yml, so no per-group source change is
-# needed.
+# Every flexible node routes to the single "flexible" stage. Log sources are
+# the Utils-domain defaults (flexible_log_dirs / flexible_log_files); log
+# collection is routed by role prefix, not Orchestrator input (ER-ORCH-009
+# finalized spec removed custom_log_paths from the contract).
 # =============================================================================
-
-- name: Check optional functional_group_config.yml exists
-  ansible.builtin.stat:
-    path: "{{ functional_group_config_file }}"
-  register: _fg_config_stat
-
-- name: Load functional_group_config.yml when present
-  ansible.builtin.include_vars:
-    file: "{{ functional_group_config_file }}"
-    name: _fg_config
-  when: _fg_config_stat.stat.exists | default(false)
-
-- name: Default functional-group configuration when absent
-  ansible.builtin.set_fact:
-    _fg_config: "{{ _fg_config | default({}) }}"
-    _fg_common_dirs: >-
-      {{ ((((_fg_config | default({})).common | default({})).custom_log_paths
-         | default({}, true)).directories | default([], true)) }}
-    _fg_common_files: >-
-      {{ ((((_fg_config | default({})).common | default({})).custom_log_paths
-         | default({}, true)).files | default([], true)) }}
-    _fg_groups_cfg: "{{ (_fg_config | default({})).groups | default({}) }}"
 
 - name: Select flexible (fg_) groups from inventory
   ansible.builtin.set_fact:
@@ -177,39 +155,13 @@
       {{ collect_pxe_data | default({}) | dict2items
          | selectattr('key', 'match', flexible_nodes_pattern) | list }}
 
-- name: Initialize resolved flexible log-path map
-  ansible.builtin.set_fact:
-    _flexible_resolved: {}
-
-- name: Resolve custom log paths per flexible group (group over common)
-  vars:
-    _group_dirs: >-
-      {{ ((_fg_groups_cfg[item.key] | default({})).custom_log_paths
-         | default({}, true)).directories | default([], true) }}
-    _group_files: >-
-      {{ ((_fg_groups_cfg[item.key] | default({})).custom_log_paths
-         | default({}, true)).files | default([], true) }}
-  ansible.builtin.set_fact:
-    _flexible_resolved: >-
-      {{ _flexible_resolved | combine({
-           item.key: {
-             'directories': (flexible_log_dirs
-                             + (_group_dirs if (_group_dirs | length > 0) else _fg_common_dirs)),
-             'files': (flexible_log_files
-                       + (_group_files if (_group_files | length > 0) else _fg_common_files))
-           }
-         }) }}
-  loop: "{{ _flexible_groups }}"
-  loop_control:
-    label: "{{ item.key }}"
-
 - name: Add dynamic hosts for flexible functional groups
   ansible.builtin.add_host:
     name: "flexible_{{ item.1 | replace('.', '_') }}"
     ansible_host: "{{ item.1 }}"
     groups: flexible_nodes
-    host_custom_log_dirs: "{{ _flexible_resolved[item.0.key].directories | unique }}"
-    host_custom_log_files: "{{ _flexible_resolved[item.0.key].files | unique }}"
+    host_custom_log_dirs: "{{ flexible_log_dirs }}"
+    host_custom_log_files: "{{ flexible_log_files }}"
   loop: "{{ _flexible_groups | subelements('value', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.key }} -> {{ item.1 }}"

@@ -1082,27 +1082,6 @@ def functional_group_prefix_required_msg(group: str) -> str:
     )
 
 
-def functional_group_log_paths_type_msg(
-    referenced_by: str, actual: str, expected: str
-) -> str:
-    """Return the custom_log_paths structural type error message."""
-    return (
-        f"functional_group_config: {referenced_by} is {actual}; "
-        f"expected {expected}."
-    )
-
-
-def functional_group_log_path_not_absolute_msg(
-    referenced_by: str, path: str
-) -> str:
-    """Return the non-absolute custom_log_paths entry error message."""
-    return (
-        f"functional_group_config: {referenced_by} entry '{path}' must be an "
-        "absolute node-local path beginning with '/' and "
-        "containing no '..' segments."
-    )
-
-
 def functional_group_file_missing_msg(path: str, referenced_by: str) -> str:
     """Return the missing referenced cloud-init file error message."""
     return (

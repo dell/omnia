@@ -98,30 +98,28 @@ def test_group_resolution_preserves_precedence_empty_inheritance_and_provenance(
         "groups": {
             "fg_research_rhel_10_0_x86_64": {
                 "boot_kernel_params": "",
-                "post_config": [{"runcmd": ["echo ready"]}],
                 "image_override": IMAGE,
             }
         },
     }
 
-    resolved = resolver.resolve_group(config, "fg_research_rhel_10_0_x86_64", "legacy=1")
+    resolved = resolver.resolve_group(config, "fg_research_rhel_10_0_x86_64")
     other = resolver.resolve_group(config, "other_rhel_10_0_x86_64")
 
     assert resolved.boot_kernel_params == ("audit=1", "common")
     assert resolved.cloud_init_config_file.source == "common"
-    assert resolved.post_config.source == "group"
     assert resolved.image_override == (IMAGE, "group")
     assert other.image_override == ({}, "default")
 
 
-def test_legacy_boot_parameters_are_only_a_fallback():
-    """ORCH_UT_111: Deprecated boot parameters sit below new scopes."""
-    legacy = resolver.resolve_group({}, "os_rhel_10_0_x86_64", "audit=1")
+def test_default_boot_parameters_fallback():
+    """ORCH_UT_111: Default boot parameters apply when no scope overrides."""
+    default = resolver.resolve_group({}, "os_rhel_10_0_x86_64")
     common = resolver.resolve_group(
-        {"common": {"boot_kernel_params": "numa=off"}}, "os_rhel_10_0_x86_64", "audit=1"
+        {"common": {"boot_kernel_params": "numa=off"}}, "os_rhel_10_0_x86_64"
     )
 
-    assert legacy.boot_kernel_params == ("audit=1", "legacy")
+    assert default.boot_kernel_params == ("", "default")
     assert common.boot_kernel_params == ("numa=off", "common")
 
 
@@ -220,11 +218,6 @@ def test_functional_group_validator_treats_empty_template_as_inactive(tmp_path):
         tmp_path, {"common": {"boot_kernel_params": "audit=1"}}, **legacy_cloud_init
     )
     errors = _validate(
-        tmp_path, {"common": {"post_config": [{"runcmd": ["echo x"]}]}}, **legacy_cloud_init
-    )
-    assert any("additional_cloud_init_config_file" in error for error in errors)
-
-    errors = _validate(
         tmp_path, {"common": {"boot_kernel_params": "audit=1"}}, boot_kernel_params="numa=off"
     )
     assert any("deprecated" in error for error in errors)
@@ -314,13 +307,6 @@ def test_cloud_init_reference_rules(tmp_path):
         )
         assert any(expected in error for error in errors), (path, errors)
 
-    errors = _validate(
-        tmp_path,
-        {"common": {"post_config": [{"runcmd": ["echo 'password: hunter2 # $ANSIBLE_VAULT'"]}]}},
-    )
-    assert any("plaintext secret" in error for error in errors)
-
-
 def test_functional_group_validator_checks_content_and_architecture(tmp_path):
     """ORCH_UT_121: Cloud-init content and architecture errors fail before mutation."""
     cloud_init = tmp_path / "cloud-init-aarch64.yml"
@@ -405,73 +391,6 @@ def test_predefined_groups_cannot_be_configured(tmp_path, predefined_group):
 
     assert any("flexible functional group" in error for error in errors), errors
     assert any(predefined_group in error for error in errors), errors
-
-
-def test_custom_log_paths_resolution_group_over_common():
-    """ORCH_UT_126: custom_log_paths resolves group over common, empty inherits."""
-    config = {
-        "common": {
-            "custom_log_paths": {
-                "directories": ["/var/log/common"],
-                "files": ["/opt/common.log"],
-            }
-        },
-        "groups": {
-            "fg_research_rhel_10_0_x86_64": {
-                "custom_log_paths": {"directories": ["/var/log/app"]}
-            },
-            "fg_other_rhel_10_0_x86_64": {},
-        },
-    }
-
-    group = resolver.resolve_group(config, "fg_research_rhel_10_0_x86_64")
-    inherits = resolver.resolve_group(config, "fg_other_rhel_10_0_x86_64")
-    default = resolver.resolve_group({}, "fg_research_rhel_10_0_x86_64")
-
-    assert group.custom_log_paths == (
-        {"directories": ["/var/log/app"]},
-        "group",
-    )
-    assert inherits.custom_log_paths.source == "common"
-    assert default.custom_log_paths == ({}, "default")
-
-
-@pytest.mark.parametrize(
-    "custom_log_paths, expected",
-    [
-        ({"directories": ["relative/dir"]}, "absolute node-local path"),
-        ({"files": ["opt/app.log"]}, "absolute node-local path"),
-        ({"directories": ["/var/log/../../etc"]}, "no '..' segments"),
-        ({"files": ["/opt/app/../../etc/shadow"]}, "no '..' segments"),
-        ({"directories": "/var/log/app"}, "expected a list"),
-        ("/var/log/app", "expected a mapping"),
-    ],
-)
-def test_custom_log_paths_reject_invalid_entries(tmp_path, custom_log_paths, expected):
-    """ORCH_UT_127: custom_log_paths must be absolute node-local path lists."""
-    errors = _validate(
-        tmp_path,
-        {"groups": {"fg_research_rhel_10_0_x86_64": {"custom_log_paths": custom_log_paths}}},
-    )
-
-    assert any(expected in error for error in errors), errors
-
-
-def test_valid_custom_log_paths_pass(tmp_path):
-    """ORCH_UT_128: A well-formed custom_log_paths mapping is accepted."""
-    assert not _validate(
-        tmp_path,
-        {
-            "groups": {
-                "fg_research_rhel_10_0_x86_64": {
-                    "custom_log_paths": {
-                        "directories": ["/var/log/app"],
-                        "files": ["/opt/app/service.log"],
-                    }
-                }
-            }
-        },
-    )
 
 
 def test_flexible_classification_precedes_custom_catch_all():
