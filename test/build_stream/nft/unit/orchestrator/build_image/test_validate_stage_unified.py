@@ -300,3 +300,23 @@ class TestValidateStageUnifiedNotFound:
 
         with pytest.raises(StageNotFoundError):
             use_case._validate_stage_unified(command)
+
+
+class TestUnifiedRequestAttempt:
+    """The build-image request carries the stage attempt for log naming."""
+
+    @pytest.mark.parametrize("attempt", [1, 4])
+    def test_request_extra_vars_include_attempt(
+        self, mock_job, command, attempt,
+    ):
+        """Retries are submitted with the incremented attempt number."""
+        use_case = _make_use_case(mock_job, {})
+        with patch(
+            "orchestrator.build_image.use_cases.create_build_image.get_playbook_path",
+            return_value="/opt/src/image_build_manager/playbooks/image_build_manager.yml",
+        ):
+            request = use_case._build_unified_playbook_request(command, attempt)
+
+        extra_vars = request.extra_vars.to_dict()
+        assert extra_vars["attempt"] == attempt
+        assert extra_vars["job_id"] == str(command.job_id)

@@ -45,6 +45,11 @@ repository_access_validate_catalog_version_and_architectures_exist_in_repository
   Catalog-selected repository configuration is missing for RHEL
   {{ cluster_os_version }} / {{ arch_item }}.
 
+repository_access_invalid_repo_manager_config_msg: >-
+  Repo Manager repository configuration is invalid or contains prohibited
+  Jinja template syntax. Runtime configuration must contain literal YAML
+  values.
+
 repository_access_fail_when_a_referenced_repository_has_no_explicit_url_msg: >-
   Repository URLs are required for RHEL {{ cluster_os_version }}:
   {{ invalid_explicit_repo_summary | join('; ') }}.

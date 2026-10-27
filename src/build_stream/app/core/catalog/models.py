@@ -21,20 +21,20 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 @dataclass
-class Package:
+class Package:  # pylint: disable=too-many-instance-attributes
     """Generic package entry from the catalog.
 
     Represents a single software package with name, version, supported OS list,
     architecture list, and optional source metadata.
     """
 
-    id: str
+    id: str  # pylint: disable=redefined-builtin
     name: str
     version: str
     supported_os: List[str]
     uri: str
     architecture: List[str]
-    type: str
+    type: str  # pylint: disable=redefined-builtin
     tag: str = ""
     sources: Optional[List[dict]] = None
 
@@ -47,10 +47,10 @@ class OsPackage(Package):
     """Package that belongs to the base OS layer of the catalog."""
 
 @dataclass
-class InfrastructurePackage:
+class InfrastructurePackage:  # pylint: disable=too-many-instance-attributes
     """Infrastructure package as described in the catalog."""
 
-    def __init__(self, id, name, version, uri, architecture, config, type, sources=None, tag=""):
+    def __init__(self, id, name, version, uri, architecture, config, type, sources=None, tag=""):  # pylint: disable=too-many-arguments,too-many-positional-arguments,redefined-builtin
         self.id = id
         self.name = name
         self.version = version
@@ -65,7 +65,7 @@ class InfrastructurePackage:
 class Driver:
     """Driver package entry used by the drivers layer of the catalog."""
 
-    def __init__(self, id, name, version, uri, architecture, config, type):
+    def __init__(self, id, name, version, uri, architecture, config, type):  # pylint: disable=too-many-arguments,too-many-positional-arguments,redefined-builtin
         self.id = id
         self.name = name
         self.version = version
@@ -75,15 +75,26 @@ class Driver:
         self.type = type
 
 @dataclass
-class Catalog:
+class Catalog:  # pylint: disable=too-many-instance-attributes
     """Top-level in-memory representation of the catalog JSON.
 
     Holds raw layer sections and the resolved package objects used by
     generator and adapter components.
+
+    Attributes:
+        name: Catalog display name.
+        version: Catalog version for package-level updates (e.g. "1.0").
+        schema_version: Structural schema version (integer, 2 for Omnia 2.3).
+        identifier: Human-readable catalog identifier
+            (e.g. "omnia-slurm-rhel-10-0-x86-64-aarch64").
+        composite_id: Composite identity: ``identifier-vVersion``
+            (e.g. "omnia-slurm-rhel-10-0-x86-64-aarch64-v1.0").
     """
 
     name: str
     version: str
+    schema_version: int
+    identifier: str
     functional_layer: List[dict]
     base_os: List[dict]
     infrastructure: List[dict]
@@ -93,3 +104,8 @@ class Catalog:
     os_packages: List[OsPackage]
     infrastructure_packages: List[InfrastructurePackage]
     miscellaneous: List[str]
+
+    @property
+    def composite_id(self) -> str:
+        """Return composite identity: ``identifier-vVersion``."""
+        return f"{self.identifier}-v{self.version}"

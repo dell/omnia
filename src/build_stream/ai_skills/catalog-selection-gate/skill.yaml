@@ -1,0 +1,21 @@
+name: catalog-selection-gate
+version: 1.0.0
+description: >-
+  Validates operator-requested OS families/versions, role architectures, stacks, GPU, storage, and
+  network selections against the Selection Catalogue and verified platform/consumer evidence before
+  emitting groups or packages. Use when generating, editing, or analyzing catalogs, including
+  hybrid-OS requests.
+author: Omnia Build Stream Team
+role: engineering
+domain: catalog-authoring
+tags:
+  - catalog
+  - selection-gate
+  - master-reference
+  - governance
+  - omnia
+dependencies:
+  - skill-scope
+status: active
+created: 2026-09-29
+updated: 2026-10-16

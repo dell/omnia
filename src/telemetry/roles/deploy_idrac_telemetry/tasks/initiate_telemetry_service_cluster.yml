@@ -107,10 +107,15 @@
   ansible.builtin.set_fact:
     worker_node_list: >-
       {{
-        (cluster_inv.all.children.service_kube_node_x86_64.hosts | default({}))
+        cluster_inv.all.children | default({})
         | dict2items
-        | map(attribute='value')
-        | map(attribute='ansible_host')
+        | selectattr('key', 'match', '^service_kube_node')
+        | map(attribute='value.hosts')
+        | map('default', {})
+        | map('dict2items')
+        | flatten
+        | map(attribute='value.ansible_host')
+        | select('defined')
         | list
       }}
   when:

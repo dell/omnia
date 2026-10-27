@@ -12,20 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Functional Verification Tests (FVT) for orchestrator.
-
-Scenarios:
-    precheck            — Verify OIM connectivity and environment prerequisites
-    validate            — Validate input configuration and OpenCHAMI settings
-    prepare             — Deploy infrastructure (OpenCHAMI, OpenLDAP)
-    deploy              — Verify OpenCHAMI deployment state
-    provision           — Provision Slurm and Kubernetes clusters
-    execute             — Execute lifecycle and feature tests
-    pxeboot             — PXE boot verification and contracts
-    check               — Post-deployment verification (Slurm, Kubernetes, features)
-    cleanup             — Clean up all deployed resources
-    rollback            — Rollback deployment state
-    negative            — Invalid input and error scenario handling
-    playbooks           — Source-contract and playbook structure tests
-"""
+"""Functional verification for Orchestrator lifecycle modules."""

@@ -90,6 +90,54 @@ dataset: ""
 sync_telemetry_input: false
 
 # =============================================================================
+# FULL TELEMETRY CLEANUP
+# =============================================================================
+# Cleanup FVT invokes: ansible-playbook playbooks/telemetry.yml --tags cleanup
+#
+# delete_sinks_volume:
+#   true  - delete Kafka, VictoriaMetrics, VictoriaLogs PVCs during cleanup
+#   false - preserve sink PVCs (source PVCs are always deleted)
+# Default: false
+delete_sinks_volume: false
+
+# cleanup_credentials:
+#   true  - remove telemetry_credentials.yml and its vault key
+#   false - preserve credential artifacts
+# Default: true
+cleanup_credentials: true
+
+# cleanup_logs:
+#   true  - remove the telemetry log directory
+#   false - preserve the log directory
+# Default: true
+cleanup_logs: true
+
+# =============================================================================
+# SELECTIVE SINK CONFIGURATION
+# =============================================================================
+# Controls which specific sinks are included in deploy_sinks and cleanup_sinks
+# operations. This allows testing individual sink deployment or cleanup without
+# affecting other sinks.
+#
+# Valid values: kafka, victoria_metrics, victoria_logs
+# Empty list or "all" means operate on all enabled sinks (default behavior).
+#
+# Examples:
+#   deploy_sinks_enabled: ["kafka"]                        # Deploy only Kafka
+#   deploy_sinks_enabled: ["kafka", "victoria_metrics"]    # Deploy Kafka + VM
+#   deploy_sinks_enabled: []                               # Deploy all sinks
+#   cleanup_sinks_enabled: ["victoria_metrics"]            # Cleanup only VM
+#   cleanup_sinks_enabled: []                              # Cleanup all sinks
+
+# Which sinks to include when running deploy_sinks tag.
+# Default: [] (all sinks)
+deploy_sinks_enabled: []
+
+# Which sinks to include when running cleanup_sinks tag.
+# Default: [] (all sinks)
+cleanup_sinks_enabled: []
+
+# =============================================================================
 # EXTERNAL APPLIANCE SETTINGS
 # =============================================================================
 # OME (OpenManage Enterprise) appliance IP for Kafka forwarder connectivity

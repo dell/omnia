@@ -19,7 +19,7 @@
 #   ansible-playbook cleanup_image_build_manager.yml                              # Full cleanup (includes credentials)
 #   ansible-playbook cleanup_image_build_manager.yml --tags minio                 # MinIO only
 #   ansible-playbook cleanup_image_build_manager.yml --tags registry              # Registry only
-#   ansible-playbook cleanup_image_build_manager.yml --skip-tags credentials      # Skip credential removal
+#   ansible-playbook cleanup_image_build_manager.yml --skip-tags cleanup_credentials  # Skip credential removal
 #   ansible-playbook cleanup_image_build_manager.yml --tags data                  # Domain data dirs only
 #   ansible-playbook cleanup_image_build_manager.yml --skip-tags minio            # Skip MinIO cleanup
 #
@@ -43,6 +43,7 @@
           - registry
           - output
           - s3cmd
+          - cleanup_credentials
           - data
           - logs
       when: not (image_build_setup_done | default(false) | bool)

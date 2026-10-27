@@ -21,7 +21,7 @@ Functions for syncing project code and input datasets to the target host.
 import os
 import shutil
 import tempfile
-from typing import Any, Dict
+from typing import Any
 
 from omnia_auto import (
     connection_params,
@@ -30,6 +30,7 @@ from omnia_auto import (
     resolve_domain_data_path,
     sync_files,
 )
+
 from ..vars.common_vars import (
     DATASET_NAME_PATTERN,
     DATASETS_DIR,
@@ -37,7 +38,6 @@ from ..vars.common_vars import (
     SRC_INPUT_DIR,
     SRC_REPO_OUTPUT_DIR,
 )
-
 from .project_func import (
     resolve_target_input_project_path,
     resolve_target_project_name,
@@ -67,14 +67,12 @@ def _resolve_dataset_subdir(config, subdirectory, fallback):
     subdir_path = os.path.join(resolved_dataset, subdirectory)
     if os.path.islink(subdir_path):
         raise ValueError(
-            f"Dataset subdirectory symlinks are not allowed: "
-            f"{dataset}/{subdirectory}"
+            f"Dataset subdirectory symlinks are not allowed: {dataset}/{subdirectory}"
         )
     resolved_subdir = os.path.realpath(subdir_path)
     if os.path.commonpath((resolved_dataset, resolved_subdir)) != resolved_dataset:
         raise ValueError(
-            f"Dataset subdirectory escapes its dataset: "
-            f"{dataset}/{subdirectory}"
+            f"Dataset subdirectory escapes its dataset: {dataset}/{subdirectory}"
         )
     return resolved_subdir
 
@@ -88,7 +86,7 @@ def _reject_symlinks(directory):
                 raise OSError(f"Refusing to synchronize dataset symlink: {path}")
 
 
-def sync_project_to_remote(_host) -> Dict[str, Any]:
+def sync_project_to_remote(_host) -> dict[str, Any]:
     """Sync the local omnia project tree to clone_path on target.
 
     Copies the complete project from the local monorepo to the remote
@@ -125,7 +123,7 @@ def sync_project_to_remote(_host) -> Dict[str, Any]:
         }
 
 
-def sync_orchestrator_input(_host, config=None) -> Dict[str, Any]:
+def sync_orchestrator_input(_host, config=None) -> dict[str, Any]:
     """Sync orchestrator input files (dataset) to target.
 
     Args:
@@ -143,9 +141,7 @@ def sync_orchestrator_input(_host, config=None) -> Dict[str, Any]:
 
     try:
         _reject_symlinks(local_input)
-        with tempfile.TemporaryDirectory(
-            prefix="omnia_orchestrator_input_"
-        ) as root:
+        with tempfile.TemporaryDirectory(prefix="omnia_orchestrator_input_") as root:
             staged_input = os.path.join(root, "input")
             shutil.copytree(SRC_INPUT_DIR, staged_input)
             if os.path.realpath(local_input) != os.path.realpath(SRC_INPUT_DIR):
@@ -168,7 +164,7 @@ def sync_orchestrator_input(_host, config=None) -> Dict[str, Any]:
         }
 
 
-def sync_repo_manager_output(_host, config=None) -> Dict[str, Any]:
+def sync_repo_manager_output(_host, config=None) -> dict[str, Any]:
     """Sync repo_manager output (repo_status.yml) to target.
 
     Args:
@@ -189,9 +185,7 @@ def sync_repo_manager_output(_host, config=None) -> Dict[str, Any]:
         "OMNIA_DATA_PATH",
         domain_data_path_var="REPO_MANAGER_DATA_PATH",
     )
-    remote_dir = os.path.join(
-        repo_root, "output", resolve_target_project_name(_host)
-    )
+    remote_dir = os.path.join(repo_root, "output", resolve_target_project_name(_host))
 
     try:
         _reject_symlinks(local_output)
@@ -214,7 +208,7 @@ def sync_repo_manager_output(_host, config=None) -> Dict[str, Any]:
         }
 
 
-def sync_image_build_manager_output(_host, config=None) -> Dict[str, Any]:
+def sync_image_build_manager_output(_host, config=None) -> dict[str, Any]:
     """Sync the image-builder ``build_status.yml`` handoff to the target."""
     config = config or load_test_config()
     conn = connection_params()
@@ -230,9 +224,7 @@ def sync_image_build_manager_output(_host, config=None) -> Dict[str, Any]:
         "OMNIA_DATA_PATH",
         domain_data_path_var="IMAGE_BUILD_MANAGER_DATA_PATH",
     )
-    remote_dir = os.path.join(
-        image_root, "output", resolve_target_project_name(_host)
-    )
+    remote_dir = os.path.join(image_root, "output", resolve_target_project_name(_host))
 
     try:
         _reject_symlinks(local_output)

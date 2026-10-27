@@ -16,7 +16,7 @@
 
 from typing import Optional
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header
 from sqlalchemy.orm import Session
 
 from api.dependencies import (
@@ -24,11 +24,9 @@ from api.dependencies import (
     _create_sql_job_repo,
     _create_sql_stage_repo,
     _create_sql_audit_repo,
-    _get_container,
     _ENV,
-    verify_token,
 )
-from core.jobs.value_objects import ClientId, CorrelationId
+from core.jobs.value_objects import CorrelationId
 from orchestrator.local_repo.use_cases import CreateLocalRepoUseCase
 
 

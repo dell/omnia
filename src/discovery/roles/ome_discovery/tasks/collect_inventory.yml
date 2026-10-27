@@ -21,6 +21,7 @@
     device_type: "{{ ome_server_device_type }}"
     page_size: "{{ ome_page_size }}"
   register: ome_inventory_result
+  no_log: true
 
 - name: Display OME pagination summary
   ansible.builtin.debug:

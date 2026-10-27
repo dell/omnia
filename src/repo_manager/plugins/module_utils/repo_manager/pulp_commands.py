@@ -118,6 +118,108 @@ def build_pulp_task_list_command(*, cid=None, reserved_resource=None,
     return command
 
 
+def _validated_page_value(value, name, *, minimum):
+    """Return one bounded pagination value for a Pulp list command."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(
+            f"{name} must be an integer greater than or equal to {minimum}"
+        )
+    return value
+
+
+def build_rpm_publication_list_command(repository, *, limit=1000, offset=0):
+    """Build one paginated RPM-publication query."""
+    page_limit = _validated_page_value(limit, "limit", minimum=1)
+    page_offset = _validated_page_value(offset, "offset", minimum=0)
+    return [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "publication", "list",
+        "--repository", str(repository),
+        "--limit", str(page_limit),
+        "--offset", str(page_offset),
+    ]
+
+
+def build_rpm_repository_version_list_command(
+        repository, *, limit=1000, offset=0):
+    """Build one paginated RPM repository-version query."""
+    page_limit = _validated_page_value(limit, "limit", minimum=1)
+    page_offset = _validated_page_value(offset, "offset", minimum=0)
+    return [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "repository", "version", "list",
+        "--repository", str(repository),
+        "--limit", str(page_limit),
+        "--offset", str(page_offset),
+    ]
+
+
+def build_rpm_repository_content_list_command(
+        repository, version, *, limit=1000, offset=0):
+    """Build one paginated all-types RPM repository-content query."""
+    page_limit = _validated_page_value(limit, "limit", minimum=1)
+    page_offset = _validated_page_value(offset, "offset", minimum=0)
+    if isinstance(version, bool) or not isinstance(version, int) or version < 0:
+        raise ValueError("version must be a non-negative integer")
+    return [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "repository", "content", "list",
+        "--repository", str(repository),
+        "--version", str(version),
+        "--all-types",
+        "--limit", str(page_limit),
+        "--offset", str(page_offset),
+    ]
+
+
+def build_rpm_repository_content_modify_command(
+        repository, base_version, *, add_content_file=None,
+        remove_content_file=None):
+    """Build an RPM repository-version mutation from exact content files."""
+    if (isinstance(base_version, bool) or not isinstance(base_version, int)
+            or base_version < 0):
+        raise ValueError("base_version must be a non-negative integer")
+    if not add_content_file and not remove_content_file:
+        raise ValueError("At least one content change file is required")
+    command = [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "repository", "content", "modify",
+        "--repository", str(repository),
+        "--base-repository", str(repository),
+        "--base-version", str(base_version),
+    ]
+    if add_content_file:
+        command.extend(["--add-content", f"@{add_content_file}"])
+    if remove_content_file:
+        command.extend(["--remove-content", f"@{remove_content_file}"])
+    return command
+
+
+def build_rpm_remote_command(action, *, name, url, policy, ca_cert=None,
+                             client_cert=None, client_key=None):
+    """Build an RPM remote mutation with optional TLS material."""
+    if action not in {"create", "update"}:
+        raise ValueError(f"Unsupported RPM remote action: {action}")
+    if bool(client_cert) != bool(client_key):
+        raise ValueError(
+            "RPM remote client certificate and key must be configured together"
+        )
+
+    command = [
+        PULP_CLI_EXECUTABLE,
+        "rpm", "remote", action,
+        "--name", str(name),
+        "--url", str(url),
+        "--policy", str(policy),
+    ]
+    if ca_cert:
+        command.extend(["--ca-cert", str(ca_cert)])
+    if client_cert:
+        command.extend(["--client-cert", str(client_cert)])
+        command.extend(["--client-key", str(client_key)])
+    return command
+
+
 def build_container_tags_href(repository_version, tag=None):
     """Return the Pulp API href used to query container tag content."""
     href = (
@@ -196,6 +298,19 @@ pulp_file_commands = {
         "file", "content", "upload", "--repository", "%s",
         "--file", "%s", "--relative-path", "%s",
     ),
+    "content_add": _template(
+        "file", "repository", "content", "modify", "--repository", "%s",
+        "--add-content", "%s",
+    ),
+    "list_content_exact": _template(
+        "file", "content", "list", "--sha256", "%s",
+        "--relative-path", "%s", "--limit", "2",
+    ),
+    "list_repository_content_exact": _template(
+        "file", "content", "list", "--sha256", "%s",
+        "--relative-path", "%s", "--repository-version", "%s",
+        "--limit", "2",
+    ),
     "publication_create": _template(
         "file", "publication", "create", "--repository", "%s",
     ),
@@ -245,6 +360,17 @@ pulp_python_commands = {
     "content_upload": _template(
         "python", "content", "upload", "--repository", "%s",
         "--file", "%s", "--relative-path", "%s",
+    ),
+    "content_add": _template(
+        "python", "repository", "content", "modify",
+        "--repository", "%s", "--add-content", "%s",
+    ),
+    "list_content_sha256": _template(
+        "python", "content", "list", "--sha256", "%s", "--limit", "2",
+    ),
+    "list_repository_content_sha256": _template(
+        "python", "content", "list", "--sha256", "%s",
+        "--repository-version", "%s", "--limit", "2",
     ),
     "distribution_create": _template(
         "python", "distribution", "create", "--name", "%s",
@@ -358,6 +484,10 @@ pulp_container_commands = {
         "container", "repository", "content", "-t", "tag", "list",
         "--repository", "%s", "--limit", "%s", "--offset", "%s",
     ),
+    "list_manifest_digest": _template(
+        "container", "content", "--type", "manifest", "list",
+        "--digest", "%s", "--repository-version", "%s", "--limit", "2",
+    ),
     "untag_repository": _template(
         "container", "repository", "untag", "--name", "%s", "--tag", "%s",
     ),
@@ -392,6 +522,10 @@ pulp_rpm_commands = {
     "sync_repository": _template(
         "rpm", "repository", "sync", "--name", "%s", "--remote", "%s",
     ),
+    "sync_repository_exact_mirror": _template(
+        "rpm", "repository", "sync", "--name", "%s", "--remote", "%s",
+        "--sync-policy", "mirror_content_only",
+    ),
     "publish_repository": _template(
         "rpm", "publication", "create", "--repository", "%s",
     ),
@@ -422,11 +556,14 @@ pulp_rpm_commands = {
     "list_publications": _template(
         "rpm", "publication", "list", "--repository", "%s", "--limit", "1000",
     ),
-    "list_all_publications": _template("rpm", "publication", "list", "--limit", "1000"),
     "delete_publication": _template("rpm", "publication", "destroy", "--href", "%s"),
     "get_repo_version": _template("rpm", "repository", "show", "--name", "%s"),
     "repository_version_destroy": _template(
         "rpm", "repository", "version", "destroy", "--repository", "%s", "--version", "%s",
+    ),
+    "show_repository_version": _template(
+        "rpm", "repository", "version", "show", "--repository", "%s",
+        "--version", "%s",
     ),
     "list_repositories": _template("rpm", "repository", "list", "--limit", "1000"),
     "list_remotes": _template("rpm", "remote", "list", "--limit", "1000"),

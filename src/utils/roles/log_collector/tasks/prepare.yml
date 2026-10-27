@@ -32,19 +32,30 @@
     file: "{{ collect_pxe_file }}"
     name: collect_pxe_data
 
-- name: Set node lists from YAML (functional groups with architecture)
+- name: Set node lists from YAML (functional groups with architecture, OS/version-agnostic)
+  vars:
+    _grouped: "{{ collect_pxe_data | default({}) | dict2items }}"
   ansible.builtin.set_fact:
-    k8s_masters: "{{ collect_pxe_data.get('service_kube_control_plane_x86_64', []) | default([], true) }}"
-    k8s_workers: "{{ collect_pxe_data.get('service_kube_node_x86_64', []) | default([], true) }}"
-    slurm_controllers: "{{ collect_pxe_data.get('slurm_control_node_x86_64', []) | default([], true) }}"
-    slurm_nodes_x86: "{{ collect_pxe_data.get('slurm_node_x86_64', []) | default([], true) }}"
-    slurm_nodes_arm: "{{ collect_pxe_data.get('slurm_node_aarch64', []) | default([], true) }}"
-    login_nodes: "{{ collect_pxe_data.get('login_node_x86_64', []) | default([], true) }}"
-    login_compiler_nodes: "{{ collect_pxe_data.get('login_compiler_node_aarch64', []) | default([], true) }}"
+    k8s_masters: "{{ _grouped | selectattr('key', 'match', k8s_masters_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
+    k8s_workers: "{{ _grouped | selectattr('key', 'match', k8s_workers_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
+    slurm_controllers: "{{ _grouped | selectattr('key', 'match', slurm_controllers_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
+    slurm_nodes_x86: "{{ _grouped | selectattr('key', 'match', slurm_nodes_x86_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
+    slurm_nodes_arm: "{{ _grouped | selectattr('key', 'match', slurm_nodes_arm_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
+    login_nodes: "{{ _grouped | selectattr('key', 'match', login_nodes_pattern) | map(attribute='value') | map('default', [], true) | flatten }}"
+    login_compiler_nodes_x86: >-
+      {{ _grouped | selectattr('key', 'match', login_compiler_nodes_x86_pattern)
+      | map(attribute='value') | map('default', [], true) | flatten }}
+    login_compiler_nodes_arm: >-
+      {{ _grouped | selectattr('key', 'match', login_compiler_nodes_arm_pattern)
+      | map(attribute='value') | map('default', [], true) | flatten }}
 
 - name: Combine slurm nodes from both architectures
   ansible.builtin.set_fact:
     slurm_nodes: "{{ (slurm_nodes_x86 | default([], true)) + (slurm_nodes_arm | default([], true)) }}"
+
+- name: Combine login compiler nodes from both architectures
+  ansible.builtin.set_fact:
+    login_compiler_nodes: "{{ (login_compiler_nodes_x86 | default([], true)) + (login_compiler_nodes_arm | default([], true)) }}"
 
 - name: Add dynamic hosts for k8s masters
   ansible.builtin.add_host:

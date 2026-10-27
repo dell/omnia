@@ -58,10 +58,11 @@ class TestCreateJobSuccess:
         assert response.json()["job_state"] == "CREATED"
 
     def test_create_job_creates_all_seven_stages(self, client, auth_headers):
-        """Omnia 2.3+: 6 active stages (domain-segregated architecture).
-        
-        Deprecated stages (parse-catalog, generate-input-files, build-image-x86_64,
-        build-image-aarch64) are no longer created for new jobs.
+        """Omnia 2.3+: 7 active stages (domain-segregated architecture).
+
+        parse-catalog is reintroduced in minimal form (image_group_id
+        uniqueness check only). The retired stages (generate-input-files,
+        build-image-x86_64, build-image-aarch64) are no longer created.
         """
         payload = {"client_id": "client-123", "client_name": "test-client"}
 
@@ -69,9 +70,10 @@ class TestCreateJobSuccess:
 
         assert response.status_code == 201
         stages = response.json()["stages"]
-        assert len(stages) == 6
+        assert len(stages) == 7
 
         expected_stages = [
+            "parse-catalog",
             "create-local-repository",
             "build-image",
             "validate",

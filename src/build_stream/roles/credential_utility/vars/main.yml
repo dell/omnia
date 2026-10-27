@@ -57,3 +57,8 @@ bs_password_hash_fail_msg: "Failed to generate Argon2 password hash for build st
 
 # Vault search key
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
+
+# Input validation messages
+gitlab_host_invalid_format_msg: >-
+  gitlab_host in build_stream_config.yml contains invalid characters or template syntax.
+  Value must be a valid hostname containing only alphanumeric characters, dots, and hyphens.

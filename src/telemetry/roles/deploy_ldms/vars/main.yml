@@ -61,13 +61,14 @@ kafka:
       consumer_group: "ldms-consumer-group"
 
 # Vector-LDMS configuration
-# Note: When a private registry host is set, strip the 'docker.io/' prefix from image names
-# since private registries store images without the docker.io prefix.
+# Note: When a private registry host is set, strip the original registry prefix
+# (docker.io/, quay.io/, ghcr.io/, etc.) since private registries store images
+# without the upstream registry prefix.
 vector:
   image: |-
     {%- if telemetry_registry.host | default('') -%}
     {{ telemetry_registry.host }}/{{ (telemetry_images['timberio/vector'] |
-    default('docker.io/timberio/vector:0.54.0-debian')) | regex_replace('^docker\\.io/', '') }}
+    default('docker.io/timberio/vector:0.54.0-debian')) | regex_replace('^[^/]*\\.[^/]*/', '') }}
     {%- else -%}
     {{ telemetry_images['timberio/vector'] | default('docker.io/timberio/vector:0.54.0-debian') }}
     {%- endif -%}
@@ -96,7 +97,7 @@ vector:
     image: |-
       {%- if telemetry_registry.host | default('') -%}
       {{ telemetry_registry.host }}/{{ (telemetry_registry.images.victoria.vmagent |
-      default('victoriametrics/vmagent:v1.149.0')) | regex_replace('^docker\\.io/', '') }}
+      default('victoriametrics/vmagent:v1.149.0')) | regex_replace('^[^/]*\\.[^/]*/', '') }}
       {%- else -%}
       {{ telemetry_registry.images.victoria.vmagent | default('victoriametrics/vmagent:v1.149.0') }}
       {%- endif -%}

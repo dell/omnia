@@ -34,6 +34,7 @@ workflow:
     - if: '$PIPELINE_TYPE'                                    # API/trigger with explicit type
     - changes:                                                # Auto-trigger on file changes
         - catalog_rhel.json
+        - cadence_catalog_rhel.json
         - input/orchestrator/pxe_mapping_file.csv
     - if: '$CI_PIPELINE_SOURCE == "web"'                      # Manual button click (no variable)
 
@@ -55,13 +56,14 @@ build_pipeline:
     # Block when another type is explicitly requested
     - if: '$PIPELINE_TYPE'
       when: never
-    # Auto-trigger on catalog change
+    # Auto-trigger on catalog change (not cadence catalog)
     - changes:
         - catalog_rhel.json
       when: on_success
-    # Block auto-trigger meant for deploy
+    # Block auto-trigger meant for deploy or cadence
     - changes:
         - input/orchestrator/pxe_mapping_file.csv
+        - cadence_catalog_rhel.json
       when: never
     # Manual button fallback (web source, no PIPELINE_TYPE)
     - if: '$CI_PIPELINE_SOURCE == "web"'
@@ -87,9 +89,39 @@ deploy_pipeline:
     - changes:
         - input/orchestrator/pxe_mapping_file.csv
       when: on_success
-    # Block auto-trigger meant for build
+    # Block auto-trigger meant for build or cadence
     - changes:
         - catalog_rhel.json
+        - cadence_catalog_rhel.json
+      when: never
+    # Manual button fallback (web source, no PIPELINE_TYPE)
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+      allow_failure: true
+
+# ---------------------------------------------------------------------------
+# Cadence Pipeline (AC-015: unified build + deploy)
+# ---------------------------------------------------------------------------
+cadence_pipeline:
+  stage: pipeline_selection
+  trigger:
+    include: .gitlab-ci-cadence.yml
+    strategy: depend
+  rules:
+    # Explicit selection via PIPELINE_TYPE
+    - if: '$PIPELINE_TYPE == "cadence"'
+      when: on_success
+    # Block when another type is explicitly requested
+    - if: '$PIPELINE_TYPE'
+      when: never
+    # Auto-trigger on cadence catalog change
+    - changes:
+        - cadence_catalog_rhel.json
+      when: on_success
+    # Block auto-trigger meant for build or deploy
+    - changes:
+        - catalog_rhel.json
+        - input/orchestrator/pxe_mapping_file.csv
       when: never
     # Manual button fallback (web source, no PIPELINE_TYPE)
     - if: '$CI_PIPELINE_SOURCE == "web"'
@@ -114,6 +146,7 @@ cleanup_pipeline:
     # Block file-change auto-triggers (cleanup is never automatic)
     - changes:
         - catalog_rhel.json
+        - cadence_catalog_rhel.json
         - input/orchestrator/pxe_mapping_file.csv
       when: never
     # Manual button fallback (web source, no PIPELINE_TYPE)

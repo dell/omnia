@@ -61,9 +61,7 @@
 
     - name: Fail if build_status.yml is missing
       ansible.builtin.fail:
-        msg: >-
-          build_status.yml not found at '{{ _build_status_path }}'.
-          Run image_build_manager before orchestrator to generate build_status.yml.
+        msg: "{{ build_status_missing_fail_msg }}"
       when: not _bs_stat.stat.exists
 
     - name: Read build_status.yml
@@ -82,10 +80,7 @@
       - >-
         _build_status_data.s3_configurations.endpoint_url
         | default('') | length > 0
-    fail_msg: >-
-      build_status.yml does not contain a successful, supported image build
-      and a valid S3 endpoint. Run image_build_manager successfully before
-      running Orchestrator.
+    fail_msg: "{{ build_status_invalid_fail_msg }}"
     quiet: true
 
 - name: Set boot image endpoint from build status
@@ -217,13 +212,7 @@
 
 - name: Fail if boot artifacts are inaccessible
   ansible.builtin.fail:
-    msg: |-
-      Boot artifacts for '{{ functional_group_name }}' are not accessible from the OIM:
-      {% for failure in _orchestrator_validations_boot_artifact_failures %}
-      - {{ failure.name }}: {{ failure.url }}
-        HTTP status: {{ failure.status }}; error: {{ failure.message }}
-      {% endfor %}
-      Rebuild the functional group or restore the missing S3 objects, then rerun precheck.
+    msg: "{{ boot_artifacts_fail_msg }}"
   when: >-
     _orchestrator_validations_boot_artifact_failures
     | default([]) | length > 0

@@ -85,6 +85,25 @@ encrypted test credential store. `pfx_secret` is optional.
 When `configure_sfm` is true, both endpoint addresses and all four SFM fields
 in `test_creds.yml` are required. SSH host keys must already be trusted.
 
+### Cleanup configuration
+
+| Field | Required | Description | Template value |
+|-------|----------|-------------|----------------|
+| `delete_sinks_volume` | No | Deletes Kafka/VictoriaMetrics/VictoriaLogs PVCs during cleanup. Overrides `cleanup_credentials` and `cleanup_logs` when `true`. | `false` |
+| `cleanup_credentials` | No | Removes telemetry credential artifacts during cleanup. | `false` |
+| `cleanup_logs` | No | Removes the telemetry log directory during cleanup. | `false` |
+
+### Selective sink configuration
+
+| Field | Required | Description | Template value |
+|-------|----------|-------------|----------------|
+| `deploy_sinks_enabled` | No | List of sinks to deploy with `deploy_sinks` tag. Empty list deploys all sinks. Valid values: `kafka`, `victoria_metrics`, `victoria_logs`. | `[]` |
+| `cleanup_sinks_enabled` | No | List of sinks to cleanup with `cleanup_sinks` tag. Empty list cleans all sinks. Valid values: `kafka`, `victoria_metrics`, `victoria_logs`. | `[]` |
+
+When selective sinks are configured, the playbook receives extra-vars to operate
+only on the specified sinks.  Verify tests for non-selected sinks are
+automatically skipped.
+
 ### Reports
 
 | Field | Required | Description | Template value |

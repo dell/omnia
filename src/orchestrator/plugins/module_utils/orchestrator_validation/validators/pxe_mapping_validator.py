@@ -294,6 +294,18 @@ def _validate_names(
                 functional_group, row_number
             ),
         )
+    elif functional_group and functional_group.lower().startswith(
+        CATALOG_MANAGED_PREFIXES
+    ):
+        identity = _functional_group_identity(functional_group)
+        if identity is not None and identity[1] is None:
+            record_error(
+                errors,
+                logger,
+                msg.pxe_mapping_missing_os_version_msg(
+                    functional_group, row_number
+                ),
+            )
 
 
 def _validate_ib_pair(
@@ -493,10 +505,7 @@ def _catalog_matches(
             or mapping_architecture != catalog_architecture
         ):
             continue
-        if (
-            mapping_os_version is None
-            or mapping_os_version == catalog_os_version
-        ):
+        if mapping_os_version == catalog_os_version:
             return True
     return False
 

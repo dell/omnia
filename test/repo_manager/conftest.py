@@ -253,6 +253,7 @@ def pytest_configure(config):
         "deploy": "Playbook deployment tests",
         "x86_64": "x86_64 architecture tests",
         "aarch64": "aarch64 architecture tests",
+        "repo_resync": "Catalog-scoped RPM exact-mirror reconciliation",
     }
     for name, desc in markers.items():
         config.addinivalue_line("markers", f"{name}: {desc}")
@@ -393,6 +394,20 @@ def pytest_runtest_makereport(item, call):
         if detail_fields:
             report_payload["detail_fields"] = detail_fields
         report.add_result(report_payload)
+
+
+# =============================================================================
+# SUPPRESS PYTEST DOT OUTPUT (TestLogger already provides detail)
+# =============================================================================
+def pytest_report_teststatus(report, config):
+    """Replace pytest's default . s F characters with empty strings."""
+    if report.when == "call":
+        if report.passed:
+            return "passed", "", ""
+        elif report.failed:
+            return "failed", "", ""
+    if report.skipped:
+        return "skipped", "", ""
 
 
 @pytest.fixture(scope="session")

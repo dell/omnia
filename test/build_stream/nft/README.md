@@ -20,6 +20,8 @@ part of `nft_build_stream`; the runner selects only the registered NFT cases.
 | `BSM_NFT_SECURITY_003` | `test_upload_path_and_filename_protection` | `nft,security` | Reject path traversal without creating a file or changing stage state |
 | `BSM_NFT_SECURITY_004` | `test_oversized_upload_rejected_without_partial_state` | `nft,security` | Reject a file over 5 MiB without a partial artifact or stage mutation |
 | `BSM_NFT_SECURITY_005` | `test_secret_redaction_in_logs_and_responses` | `nft,security` | Keep an invalid client-secret canary out of responses and container logs |
+| `BSM_NFT_SECURITY_006` | `test_postgres_quadlet_permissions` | `nft,security` | `/etc/containers/systemd/omnia_postgres.container` is `0600 root:root` |
+| `BSM_NFT_SECURITY_007` | `test_build_stream_quadlet_permissions` | `nft,security` | `/etc/containers/systemd/omnia_build_stream.container` is `0600 root:root` |
 
 ## Safety controls
 

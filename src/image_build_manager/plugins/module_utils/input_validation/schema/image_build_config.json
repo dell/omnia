@@ -38,9 +38,8 @@
         },
         "repo_manager_output_path": {
             "type": "string",
-            "minLength": 1,
-            "pattern": "^\\S+$",
-            "description": "Full path to repo_status.yml produced by repo_manager. Supports multiple projects."
+            "pattern": "^\\S*$",
+            "description": "Optional path to repo_status.yml produced by repo_manager. An empty value uses the current Repo Manager project output."
         },
         "image_build_type": {
             "type": "string",

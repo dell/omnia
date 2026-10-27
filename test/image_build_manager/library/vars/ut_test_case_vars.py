@@ -229,7 +229,7 @@ UT_TEST_CASE_IDS = {
             100: "test_supported_rhel_catalog_samples_pass_schema",
             101: "test_repo_status_ignores_unneeded_producer_fields",
             102: "test_repo_status_ignores_registry_metadata",
-            103: "test_repo_status_allows_repository_entry_without_url",
+            103: "test_repo_status_rejects_repository_entry_without_url",
             104: "test_repo_status_allows_aarch64_only_repository_output",
             105: "test_repo_status_ignores_context_version_mismatch",
             106: "test_repo_status_ignores_context_architecture_mismatch",
@@ -251,6 +251,88 @@ UT_TEST_CASE_IDS = {
         "test_driver_group_skip.py",
         {
             114: "test_rhel_10_2_catalog_resolves_for_supported_architectures",
+        },
+    ),
+    **_module_cases(
+        "test_image_group_dictionary.py",
+        {
+            115: "test_dictionary_missing_file_returns_empty_document",
+            116: "test_dictionary_upsert_persists_complete_entry",
+            117: "test_dictionary_lookup_returns_hit_and_touches_last_used",
+            118: "test_dictionary_key_isolates_group_and_architecture",
+            119: "test_dictionary_rejects_incomplete_entries",
+            120: "test_dictionary_rejects_incomplete_s3_paths",
+            121: "test_dictionary_update_retains_valid_backup",
+            122: "test_dictionary_recovers_from_valid_backup",
+            123: "test_dictionary_invalid_primary_and_backup_return_empty",
+            124: "test_dictionary_migrates_legacy_hash_key_on_lookup",
+            125: "test_dictionary_prune_removes_only_requested_image_group",
+            126: "test_dictionary_empty_upsert_is_noop",
+        },
+    ),
+    **_module_cases(
+        "test_catalog_rebuild_contract.py",
+        {
+            127: "test_compute_hash_includes_repository_and_engine",
+            128: "test_dictionary_lookup_is_catalog_only_and_force_aware",
+            129: "test_previous_hash_cache_is_config_mode_only",
+            130: "test_s3_previous_backup_is_config_mode_only",
+            131: "test_catalog_status_uses_composite_identity_directory",
+            132: "test_successful_catalog_build_upserts_dictionary",
+            133: "test_dictionary_hits_require_complete_s3_artifacts",
+            134: "test_force_rebuild_is_the_only_rebuild_control",
+            135: "test_latest_project_status_is_written_for_every_mode",
+            136: "test_catalog_status_copy_is_catalog_mode_only",
+        },
+    ),
+    **_module_cases(
+        "test_s3_artifact_layout.py",
+        {
+            137: "test_thrillhouse_accepts_legacy_and_versioned_boot_pairs",
+            138: "test_thrillhouse_rejects_unmatched_boot_pairs",
+            139: "test_thrillhouse_rejects_malformed_boot_filenames",
+        },
+    ),
+    **_module_cases(
+        "test_catalog_reuse_state.py",
+        {
+            140: "test_restore_reinstates_original_build_status",
+            141: "test_restore_removes_build_status_created_by_scenarios",
+            142: "test_restore_failure_preserves_recovery_artifacts",
+            143: "test_stale_absence_marker_recovers_absent_baseline",
+            144: "test_stale_backup_recovers_baseline_before_snapshot",
+            152: "test_selective_mutation_skips_layers_without_unique_groups",
+            155: "test_recovery_directory_is_private_to_domain_data_root",
+            156: "test_restore_prunes_empty_recovery_directories",
+        },
+    ),
+    **_module_cases(
+        "test_runner_lifecycle_safety.py",
+        {
+            145: "test_default_nft_skips_destructive_cleanup",
+            146: "test_destructive_nft_marker_explicitly_enables_cleanup",
+            147: "test_default_fvt_verification_excludes_cleanup_flows",
+            148: "test_catalog_reuse_e2e_owns_execution_and_restores_state",
+        },
+    ),
+    **_module_cases(
+        "test_catalog_validation.py",
+        {
+            149: "test_all_catalogs_match_thrillhouse_runtime_version",
+            153: "test_all_bundled_catalogs_pass_schema_and_reference_checks",
+        },
+    ),
+    **_module_cases(
+        "test_driver_group_skip.py",
+        {
+            154: "test_all_bundled_catalogs_resolve_nonempty_build_inputs",
+        },
+    ),
+    **_module_cases(
+        "test_registry_version_contract.py",
+        {
+            150: "test_registry_image_pin_is_aligned_across_lifecycle",
+            151: "test_registry_deploy_reconciles_pin_changes_for_active_service",
         },
     ),
 }

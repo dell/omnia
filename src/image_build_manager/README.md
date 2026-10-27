@@ -59,7 +59,6 @@ For direct playbook execution, source `/etc/profile.d/omnia-env.sh`, activate
 | `build` / `execute` | Build x86_64 + aarch64 OS images | Yes |
 | `cleanup` | Remove services, artifacts, credentials | No |
 | `cleanup_images` | Delete built images from S3 + registry (by pattern or all) | No |
-| `upgrade` / `rollback` | Reserved placeholders; no lifecycle action is implemented | Yes (current flow) |
 
 Run exactly one supported tag at a time. Although internal imported plays carry
 `x86_64` and `aarch64` tags, the top-level tag validator does not accept them as
@@ -77,13 +76,13 @@ cd src/main
 sudo ./omnia.sh --run image_build_manager --tags cleanup
 ```
 
-The standalone cleanup playbook supports `--skip-tags credentials` only when
-credentials must intentionally be retained. `domain-init.sh --cleanup` is a
-non-interactive initializer helper that removes only staged input and domain log
-paths; it does not remove services or build outputs. After every domain cleanup
-tag has completed, `sudo ./omnia.sh --cleanup --all` performs the guarded global
-reset. Both global cleanup modes prompt for `yes`; trusted automation can add
-`--skip-approval`.
+The standalone cleanup playbook supports `--skip-tags cleanup_credentials`
+only when credentials must intentionally be retained. `domain-init.sh --cleanup`
+is a non-interactive initializer helper that removes only staged input and
+domain log paths; it does not remove services or build outputs. After every
+domain cleanup tag has completed, `sudo ./omnia.sh --cleanup --all` performs the
+guarded global reset. Both global cleanup modes prompt for `yes`; trusted
+automation can add `--skip-approval`.
 
 ### Image Cleanup (`cleanup_images`)
 
@@ -109,12 +108,14 @@ ansible-playbook image_build_manager.yml --tags cleanup_images \
 
 | Extra Variable | Default | Description |
 |---------------|---------|-------------|
-| `cleanup_image_pattern` | `*` | Glob pattern for images to delete |
+| `cleanup_image_pattern` | `*` | Text/glob matched as "contains" against the S3 path and registry repo (`*` = any characters, `?` = one character; other characters, including `.`, are literal). Example: `*slurm_node_*`. If nothing matches, a warning lists the available images. |
 | `skip_approval` | `false` | Skip interactive approval prompt (for automation) |
 
 S3 deletion requires `s3cmd` plus `/root/.s3cfg`; registry deletion requires
 `regctl` plus an active service or managed registry storage. Missing tooling is
-reported and that side of cleanup is skipped.
+reported and that side of cleanup is skipped. Package hash cache files of the
+cleaned images (`<IMAGE_BUILD_MANAGER_DATA_PATH>/log/<project>/.*_pkg_hash_*`)
+are removed too, so the next build rebuilds them instead of skipping.
 
 ---
 
@@ -134,7 +135,7 @@ reported and that side of cleanup is skipped.
 
 | File | Location | Description |
 |------|----------|-------------|
-| `build_status.yml` | `output/<project>/` | Producing image engine and per-group S3 artifact paths for provisioning |
+| `build_status.yml` | Catalog: `output/<project>/<catalog-id>-v<version>/`; config: `output/<project>/` | Producing image engine and per-group S3 artifact paths for provisioning. Catalog mode also writes a project-level latest compatibility copy during migration. |
 
 See `samples/` for example input and output files.
 
@@ -147,7 +148,7 @@ See `samples/` for example input and output files.
 | Section | Key Fields |
 |---------|-----------|
 | **S3 storage** | `s3_configurations.provider` (minio / powerscale), `endpoint_url` |
-| **Upstream** | `repo_manager_output_path` (path to `repo_status.yml`) |
+| **Upstream** | `repo_manager_output_path` (optional override; empty uses the current Repo Manager project output) |
 | **Builder** | `image_build_type` (image-builder / image-thrillhouse) |
 | **Groups** | `functional_groups_source` (`config` / `catalog`) |
 | **Build controls** | `build_image.max_parallel`, `build_image.build_timeout`, `build_image.force_rebuild`, `build_image.backup_s3_images`, `build_image.repo_ssl_verify` |
@@ -211,9 +212,12 @@ See `samples/` for example input and output files.
 **Current Implementation**:
 - x86_64 builds: Run directly on OIM host
 - aarch64 builds: Orchestrate via SSH to dedicated aarch64 node
-- `image-thrillhouse` uses `ghcr.io/openchami/image-thrillhouse:v0.0.24` on both
+- `image-thrillhouse` uses `ghcr.io/openchami/image-thrillhouse:v0.0.26` on both
   architectures. `image-builder` uses the architecture-specific Omnia images
   `image-build-el10:1.3` and `image-build-aarch64:1.3` from Docker Hub.
+- The default, cadence, RHEL 10.0, RHEL 10.2, and hybrid catalogs under
+  `src/main/samples/` pin the same Image Thrillhouse `v0.0.26` tag. Unit tests
+  recursively enforce this catalog/runtime alignment.
 - Separate hosts are required for each architecture
 
 ### Configuration
@@ -275,6 +279,23 @@ Example groups from a typical catalog:
 | `service_kube_control_plane_rhel_10_0_x86_64` | |
 | `service_kube_node_rhel_10_0_x86_64` | |
 
+### Image Reuse and S3 Backup Behavior
+
+| Package source | `backup_s3_images` | Reuse behavior | `_prev` backup |
+|----------------|--------------------|----------------|----------------|
+| `catalog` | `false` | Global dictionary lookup | No |
+| `catalog` | `true` | Global dictionary lookup | No |
+| `config` | `false` | Per-group last-hash cache | No |
+| `config` | `true` | Per-group last-hash cache | Rebuilt groups only |
+
+Catalog-mode lookups are shared across BuildStream and direct catalog-driven
+builds. A hit is reused only when its recorded kernel, initrd, and rootfs S3
+objects still exist. Missing artifacts turn the hit into a rebuild. A successful
+catalog build atomically updates `image_group_dictionary.json`; `force_rebuild`
+bypasses lookup and replaces the matching dictionary entries after validation.
+`build_image.force_rebuild` in `image_build_config.yml` is the single rebuild
+control for both direct and BuildStream-triggered catalog builds.
+
 ---
 
 ## Runtime Paths
@@ -286,7 +307,10 @@ The domain path defaults to `$OMNIA_DATA_PATH/image_build_manager`:
 ```
 /opt/omnia/image_build_manager/
 +-- input/<project>/          Staged input files
-+-- output/<project>/         build_status.yml
++-- output/<project>/         latest build_status.yml compatibility copy,
+|                            image_group_dictionary.json
+|   +-- <catalog-id>-v<version>/
+|       +-- build_status.yml catalog-version contract
 +-- log/<project>/            Domain runtime logs (validation, build)
 +-- s3/                       MinIO data
 +-- registry/                 OCI registry storage
@@ -306,8 +330,6 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 +-- credentials.log           Credentials sub-playbook log
 +-- precheck.log              Precheck sub-playbook log
 +-- prepare.log               Prepare sub-playbook log
-+-- rollback.log              Rollback placeholder log
-+-- upgrade.log               Upgrade placeholder log
 +-- validate.log              Validate sub-playbook log
 ```
 

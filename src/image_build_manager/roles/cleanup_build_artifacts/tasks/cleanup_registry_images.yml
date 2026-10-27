@@ -1,0 +1,98 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Registry cleanup is digest-based. Repository metadata is intentionally
+# preserved so Docker Distribution can reclaim it during garbage collection.
+- name: Cleanup registry images
+  when:
+    - _cleanup_approved | bool
+    - _regctl_available.stat.exists | default(false)
+    - _repos_to_delete | default([]) | length > 0
+  block:
+    - name: Display registry cleanup plan
+      ansible.builtin.debug:
+        msg: >-
+          Cleaning {{ _registry_tag_count }} tag(s) across
+          {{ _repos_to_delete | length }} repo(s) matching
+          '{{ cleanup_image_pattern }}'
+
+    - name: Resolve digest and delete manifest for each tag
+      ansible.builtin.shell: |
+        set -o pipefail
+        REGISTRY="{{ _cleanup_registry_host }}:5000"
+        REPO="{{ item.0.item }}"
+        TAG="{{ item.1 }}"
+        DIGEST=$(/usr/local/bin/regctl image digest "${REGISTRY}/${REPO}:${TAG}" 2>/dev/null)
+        if [ -z "${DIGEST}" ]; then
+          echo "SKIP ${REPO}:${TAG} (no digest)"
+          exit 0
+        fi
+        if /usr/local/bin/regctl image delete "${REGISTRY}/${REPO}@${DIGEST}" 2>&1; then
+          echo "DELETED ${REPO}:${TAG} (${DIGEST})"
+        else
+          echo "FAILED ${REPO}:${TAG} (${DIGEST})"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      loop: >-
+        {{ _repo_tags.results | default([])
+           | subelements('stdout_lines', skip_missing=True) }}
+      loop_control:
+        label: "{{ item.0.item }}:{{ item.1 }}"
+      register: _delete_results
+      changed_when: "'DELETED' in _delete_results.stdout"
+      failed_when: "'FAILED' in _delete_results.stdout"
+
+    - name: Verify tags removed from each repo
+      ansible.builtin.shell: |
+        set -o pipefail
+        REGISTRY="{{ _cleanup_registry_host }}:5000"
+        REMAINING=$(/usr/local/bin/regctl tag ls "${REGISTRY}/{{ item }}" 2>/dev/null | wc -l)
+        if [ "${REMAINING}" -eq 0 ]; then
+          echo "VERIFIED {{ item }}: no tags remaining"
+        else
+          echo "WARNING {{ item }}: ${REMAINING} tag(s) still present"
+        fi
+      loop: "{{ _repos_to_delete }}"
+      loop_control:
+        label: "{{ item }}"
+      register: _verify_results
+      changed_when: false
+      failed_when: false
+
+    - name: Display registry verification results
+      ansible.builtin.debug:
+        msg: "{{ item.stdout }}"
+      loop: "{{ _verify_results.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: _verify_results.results is defined
+
+    - name: Display registry image cleanup result
+      ansible.builtin.debug:
+        msg: "{{ cleanup_images_registry_done_msg }}"
+
+- name: Skip registry image cleanup (regctl not available)
+  ansible.builtin.debug:
+    msg: "{{ cleanup_images_registry_skip_msg }}"
+  when: not (_regctl_available.stat.exists | default(false))
+
+- name: Skip registry image cleanup (managed state not initialized)
+  ansible.builtin.debug:
+    msg: "{{ cleanup_images_registry_not_initialized_msg }}"
+  when:
+    - _regctl_available.stat.exists | default(false)
+    - not (_registry_storage.stat.exists | default(false))
+    - _registry_service.rc != 0 or _registry_service.stdout != 'active'

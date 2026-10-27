@@ -25,6 +25,15 @@
     - scripts
     - container_images
     - nvidia_sdk
+    - platforms
+
+- name: Deploy node platform resolver to NFS share
+  ansible.builtin.template:
+    src: "omnia_platform.sh.j2"
+    dest: "{{ slurm_config_omnia_platform_script_path }}"
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "0755"
 
 - name: Deploy download_container_image.sh to NFS share
   ansible.builtin.template:

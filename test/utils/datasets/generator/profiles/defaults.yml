@@ -37,6 +37,8 @@ slurm_node_aarch64: []
 
 login_node_x86_64: []
 
+login_compiler_node_x86_64: []
+
 login_compiler_node_aarch64: []
 
 # --- Install OS Configuration ---

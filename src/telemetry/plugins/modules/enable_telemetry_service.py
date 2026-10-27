@@ -356,7 +356,7 @@ def run_parallel(
 
     return success_results, failed_results
 
-def main():
+def main() -> None:
     """Main function for Ansible module."""
     module_args = {
         "idrac_ips": {"type": "list", "required": True, "elements": "str"},
