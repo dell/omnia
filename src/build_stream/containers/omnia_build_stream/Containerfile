@@ -16,7 +16,7 @@
 # NOTE: Application code is NOT copied into the image. It is bind-mounted
 # at runtime via Quadlet Volume directives (see build_stream.j2).
 
-FROM cgr.dev/chainguard/wolfi-base
+FROM cgr.dev/chainguard/wolfi-base@sha256:bc76fa39ddd1482dd56a761b3331e03ba8f0e093ebb525618a56d014b480da88
 
 # Metadata - OCI Standard Labels
 LABEL org.opencontainers.image.title="Omnia Build Stream API Server"
@@ -36,7 +36,7 @@ LABEL omnia.type="api_service"
 #   CVE-2026-97689/97688 (py3.13-pip-base >=26.2.1-r2)
 RUN apk update && apk upgrade --no-cache && apk add --no-cache \
     python3 \
-    py3-pip \
+    'py3.13-pip>=26.2.2-r0' \
     curl \
     ca-certificates-bundle \
     openssh \
@@ -46,48 +46,36 @@ RUN apk update && apk upgrade --no-cache && apk add --no-cache \
 RUN apk add --no-cache --virtual .build-deps build-base python3-dev
 
 # -------------------------------------------------------
-# FIX: Upgraded uv from 0.11.15 to 0.12.2 to fix:
-#   GHSA-2mjx-qc3c-rqvc (rustls >=0.23.45)
-#   GHSA-c8m5-c952-6cm4 (rustls >=0.23.46)
-#   GHSA-3g6h-r5qx-f6hq / GHSA-4w2j-m93h-cj5j (quinn-proto >=0.11.15)
-#   RUSTSEC-2026-0195 / RUSTSEC-2026-0194 (quick-xml >=0.41.0)
-#   CVE-2026-25800 (quinn-proto >=0.11.15)
-#   + GHSA-3cv2-h65g-fgmm, GHSA-4gg8-gxpx-9rph (from prior 0.11.15)
-#
-# NOTE: CVE-2023-49092 (rsa crate) has no upstream fix.
+# uv is used only while building the Python environment and is removed before
+# the runtime layer is complete so its embedded Rust dependencies are not
+# shipped in the production image.
 # -------------------------------------------------------
-COPY --from=ghcr.io/astral-sh/uv:0.12.2 /uv /uvx /usr/local/bin/
-
-RUN pip3 install --no-cache-dir s3cmd==2.4.0
-
-# -------------------------------------------------------
-# KNOWN: CVE-2025-47273 (High 7.7) & CVE-2026-59890 (Medium 6.1)
-#   The wolfi py3-pip apk package vendors setuptools 70.3.0 internally.
-#   setuptools>=84.0.0 is installed as a top-level package (via pyproject.toml),
-#   which takes precedence at runtime. The vendored 70.3.0 copy inside pip is
-#   not used. This will be fully resolved once the wolfi upstream releases an
-#   updated py3-pip package with a patched vendored setuptools.
-# -------------------------------------------------------
+COPY --from=ghcr.io/astral-sh/uv:0.13.4@sha256:9f130421e930bfbdc563c00740466603f8723158e90297d07957c2294640262b /uv /uvx /usr/local/bin/
 
 # =======================================================
 ENV UV_PYTHON_DOWNLOADS=never
 ENV UV_SYSTEM_PYTHON=1
+ENV UV_NO_CACHE=1
 
 # =======================================================
 # DEPENDENCIES: Install from committed lock file (uv.lock ensures reproducible builds)
 COPY pyproject.toml uv.lock ./
-RUN uv export --locked --no-hashes -o requirements.txt && \
-    uv pip install --system -r requirements.txt
+# Every package (including s3cmd) is installed from uv.lock with its hash verified.
+RUN uv export --locked --no-emit-project -o requirements.txt && \
+    uv pip install --system --require-hashes -r requirements.txt
 
 # Optionally install dev dependencies
 ARG BUILD_ENV=production
 RUN if [ "$BUILD_ENV" = "development" ]; then \
-      uv export --locked --no-hashes --extra dev -o requirements-dev.txt && \
-      uv pip install --system -r requirements-dev.txt; \
+      uv export --locked --no-emit-project --extra dev -o requirements-dev.txt && \
+      uv pip install --system --require-hashes -r requirements-dev.txt; \
     fi
 
 # Remove build-time dependencies to reduce image size and attack surface
-RUN apk del .build-deps
+RUN apk del .build-deps py3.13-pip && \
+    rm -f /usr/local/bin/uv /usr/local/bin/uvx \
+      requirements.txt requirements-dev.txt && \
+    rm -rf /root/.cache/uv
 
 # ── S3 Configuration Setup ──────────────────────────────────
 COPY init_s3cfg.sh /usr/local/bin/init_s3cfg.sh

@@ -536,8 +536,21 @@ class SqlImageGroupRepository(ImageGroupRepository):
             model.updated_at = datetime.now(timezone.utc)
             self.session.flush()
 
+    @staticmethod
+    def _scope_to_client(stmt, client_id: Optional[str]):
+        """Restrict an ImageGroup query to groups whose job the client owns."""
+        if client_id is None:
+            return stmt
+        return stmt.join(JobModel, ImageGroupModel.job_id == JobModel.job_id).where(
+            JobModel.client_id == client_id
+        )
+
     def list_by_status(
-        self, status: ImageGroupStatus, limit: int, offset: int
+        self,
+        status: ImageGroupStatus,
+        limit: int,
+        offset: int,
+        client_id: Optional[str] = None,
     ) -> Tuple[List[ImageGroup], int]:
         """List ImageGroups by status with pagination.
 
@@ -545,22 +558,26 @@ class SqlImageGroupRepository(ImageGroupRepository):
             status: Filter by this status.
             limit: Maximum number of results.
             offset: Number of results to skip.
+            client_id: If set, only groups whose job belongs to this client.
 
         Returns:
             Tuple of (image_groups_with_images, total_count).
         """
         # Count query
-        count_stmt = (
+        count_stmt = self._scope_to_client(
             select(func.count())
             .select_from(ImageGroupModel)
-            .where(ImageGroupModel.status == status.value)
+            .where(ImageGroupModel.status == status.value),
+            client_id,
         )
         total_count = self.session.execute(count_stmt).scalar()
 
         # Data query with eager-loaded images
         data_stmt = (
-            select(ImageGroupModel)
-            .where(ImageGroupModel.status == status.value)
+            self._scope_to_client(
+                select(ImageGroupModel).where(ImageGroupModel.status == status.value),
+                client_id,
+            )
             .options(selectinload(ImageGroupModel.images))
             .order_by(ImageGroupModel.created_at.desc())
             .limit(limit)
@@ -572,7 +589,7 @@ class SqlImageGroupRepository(ImageGroupRepository):
         return [ImageGroupMapper.to_domain(m) for m in models], total_count
 
     def list_post_built(
-        self, limit: int, offset: int
+        self, limit: int, offset: int, client_id: Optional[str] = None
     ) -> Tuple[List[ImageGroup], int]:
         """List ImageGroups in all post-BUILT states with pagination.
 
@@ -582,6 +599,7 @@ class SqlImageGroupRepository(ImageGroupRepository):
         Args:
             limit: Maximum number of results.
             offset: Number of results to skip.
+            client_id: If set, only groups whose job belongs to this client.
 
         Returns:
             Tuple of (image_groups_with_images, total_count).
@@ -599,17 +617,21 @@ class SqlImageGroupRepository(ImageGroupRepository):
         ]
 
         # Count query
-        count_stmt = (
+        count_stmt = self._scope_to_client(
             select(func.count())
             .select_from(ImageGroupModel)
-            .where(ImageGroupModel.status.in_(post_built_states))
+            .where(ImageGroupModel.status.in_(post_built_states)),
+            client_id,
         )
         total_count = self.session.execute(count_stmt).scalar()
 
         # Data query with eager-loaded images
         data_stmt = (
-            select(ImageGroupModel)
-            .where(ImageGroupModel.status.in_(post_built_states))
+            self._scope_to_client(
+                select(ImageGroupModel)
+                .where(ImageGroupModel.status.in_(post_built_states)),
+                client_id,
+            )
             .options(selectinload(ImageGroupModel.images))
             .order_by(ImageGroupModel.created_at.desc())
             .limit(limit)

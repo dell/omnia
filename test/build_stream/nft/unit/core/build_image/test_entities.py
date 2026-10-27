@@ -125,62 +125,25 @@ class TestBuildImageRequest:
         # Should include timestamp
         assert len(filename) > len("job-123_build-image_.json")
 
-    def test_get_playbook_command_x86_64(self, sample_request):
-        """Test playbook command generation for x86_64."""
-        command = sample_request.get_playbook_command()
+    def test_no_shell_command_builder(self, sample_request):
+        """The shell-string builder is gone; the watcher builds argv itself (F24)."""
+        assert not hasattr(sample_request, "get_playbook_command")
 
-        assert "ansible-playbook" in command
-        assert "build_image_x86_64.yml" in command
-        assert '-e job_id="job-123"' in command
-        assert '-e image_key="test-image"' in command
-        assert "functional_groups=" in command
-        assert "-i " not in command  # No inventory for x86_64
-
-    @pytest.mark.parametrize(
-        (
-            "job_id_value",
-            "image_key_value",
-            "functional_groups_value",
-            "inventory_host_value",
-        ),
-        [("job-123", "test-image", ["group1"], "10.3.1.100")],
-    )
-    def test_get_playbook_command_aarch64(
-        self,
-        job_id_value,
-        image_key_value,
-        functional_groups_value,
-        inventory_host_value,
-    ):
-        """Test playbook command generation for aarch64."""
-        request = BuildImageRequest(
-            job_id=job_id_value,
-            stage_name="build-image",
-            playbook_path=PlaybookPath("build_image_aarch64.yml"),
-            extra_vars=ExtraVars(
-                {
-                    "job_id": job_id_value,
-                    "image_key": ImageKey(image_key_value).value,
-                    "functional_groups": list(functional_groups_value),
-                    "inventory_host": inventory_host_value,
-                }
-            ),
-            correlation_id="corr-456",
-            timeout=ExecutionTimeout(60),
-            submitted_at="2026-02-12T18:30:00.000Z",
-            request_id="req-789",
-            inventory_file_path=f"/path/to/inventory/{inventory_host_value}",
-        )
-
-        command = request.get_playbook_command()
-
-        assert "ansible-playbook" in command
-        assert "build_image_aarch64.yml" in command
-        assert "-i" in command and inventory_host_value in command  # inventory_file_path based
-        assert f'-e job_id="{job_id_value}"' in command
-        assert f'-e image_key="{image_key_value}"' in command
-        expected_groups = str(list(functional_groups_value))
-        assert f"-e functional_groups='{expected_groups}'" in command
+    def test_queue_request_cannot_carry_inventory(self, sample_request):
+        """No inventory path is serialised or accepted (F27)."""
+        assert "inventory_file_path" not in sample_request.to_dict()
+        with pytest.raises(TypeError):
+            BuildImageRequest(
+                job_id="job-123",
+                stage_name="build-image",
+                playbook_path=PlaybookPath("build_image_x86_64.yml"),
+                extra_vars=sample_request.extra_vars,
+                correlation_id="corr-456",
+                timeout=ExecutionTimeout(60),
+                submitted_at="2026-02-12T18:30:00.000Z",
+                request_id="req-789",
+                inventory_file_path="/etc/passwd",
+            )
 
     def test_immutable(self, sample_request):
         """Test that BuildImageRequest is immutable."""

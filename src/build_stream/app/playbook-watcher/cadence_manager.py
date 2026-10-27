@@ -97,10 +97,26 @@ RELOAD_LOGGED_SECRET_KEYS = (
 CADENCE_SYNC_COMPLETED = "CADENCE_SYNC_COMPLETED"
 
 
+def _validate_project_name(project_name):
+    """Validate OMNIA_PROJECT_NAME is a single safe path segment."""
+    if (
+        not project_name
+        or project_name in ('.', '..')
+        or os.path.basename(project_name) != project_name
+        or not re.match(r'^[A-Za-z0-9][A-Za-z0-9._-]*$', project_name)
+    ):
+        raise ValueError(
+            f"Invalid OMNIA_PROJECT_NAME: '{project_name}'"
+        )
+    return project_name
+
+
 def _default_build_stream_config_path() -> Path:
     """Return the project-scoped BuildStream configuration path."""
     omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
-    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    project_name = _validate_project_name(
+        os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    )
     return (
         omnia_data_path
         / "build_stream"
@@ -119,7 +135,9 @@ def _cadence_log_dir(job_id: str) -> Path:
 def _repo_resync_status_path() -> Path:
     """Return the project-scoped Repo Manager resync result path."""
     omnia_data_path = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
-    project_name = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    project_name = _validate_project_name(
+        os.getenv("OMNIA_PROJECT_NAME", "project_default")
+    )
     return (
         omnia_data_path
         / "repo_manager"
@@ -855,7 +873,8 @@ def submit_repo_sync_request(
     request_path = requests_dir / request_filename
 
     try:
-        with open(request_path, "w", encoding="utf-8") as fh:
+        fd = os.open(request_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(request_data, fh, indent=2)
 
         log_secure_info(

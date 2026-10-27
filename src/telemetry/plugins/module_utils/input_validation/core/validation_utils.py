@@ -157,6 +157,29 @@ def run_subprocess(cmd, timeout=30) -> SubprocessResult:
     except (OSError, subprocess.SubprocessError) as exc:
         return SubprocessResult(127, "", str(exc))
 
+def _safe_vault_password_path(omnia_base_dir, project_name, vault_password_file):
+    """Build and validate the vault password path under omnia_base_dir.
+
+    Uses os.path.join + os.path.realpath and checks containment to
+    prevent path-traversal via a crafted project_name.
+
+    Returns:
+        str: Canonicalised vault password path.
+
+    Raises:
+        ValueError: If the resolved path escapes *omnia_base_dir*.
+    """
+    password_full_path = os.path.realpath(
+        os.path.join(omnia_base_dir, project_name, vault_password_file)
+    )
+    real_base = os.path.realpath(omnia_base_dir)
+    if not password_full_path.startswith(real_base + os.sep):
+        raise ValueError(
+            f"Vault password path escapes base directory: {password_full_path}"
+        )
+    return password_full_path
+
+
 def read_vault_text(omnia_base_dir, project_name, vault_file, vault_password_file) -> str:
     """
     Reads an Ansible Vault encrypted file in memory using 'ansible-vault view'.
@@ -174,7 +197,9 @@ def read_vault_text(omnia_base_dir, project_name, vault_file, vault_password_fil
     Raises:
         VaultError: If the file cannot be viewed.
     """
-    password_full_path = omnia_base_dir + project_name + "/" + vault_password_file
+    password_full_path = _safe_vault_password_path(
+        omnia_base_dir, project_name, vault_password_file
+    )
     cmd = [
         "ansible-vault",
         "view",

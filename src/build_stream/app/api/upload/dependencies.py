@@ -35,6 +35,11 @@ from orchestrator.upload.use_cases.upload_files import UploadFilesUseCase
 # ------------------------------------------------------------------
 # Upload-specific dependency providers
 # ------------------------------------------------------------------
+def get_max_upload_file_size() -> int:
+    """Return the per-file upload limit (bytes) from the BuildStream config."""
+    return _get_container().config().artifact_store.max_file_size_bytes
+
+
 def get_upload_files_use_case(
     db_session: Session = Depends(get_db_session),
 ) -> UploadFilesUseCase:
