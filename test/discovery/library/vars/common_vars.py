@@ -297,7 +297,12 @@ def build_cmd(name: str, **values: object) -> str:
 
     Returns:
         The command string, safe against shell metacharacters in values.
+
+    Raises:
+        ValueError: If name is not a key in CMDS.
     """
+    if name not in CMDS:
+        raise ValueError(f"Unknown command template: {name}")
     return CMDS[name].format(
         **{key: shlex.quote(str(val)) for key, val in values.items()}
     )

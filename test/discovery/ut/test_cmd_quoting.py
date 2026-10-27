@@ -15,6 +15,7 @@
 """Tests that shell command templates quote substituted values (CWE-78)."""
 
 import importlib.util
+import json
 import pathlib
 import shlex
 import subprocess
@@ -76,3 +77,37 @@ def test_yaml_parse_quotes_path(tmp_path):
     subprocess.run(build_cmd("yaml_parse", path=evil), shell=True,
                    check=False, capture_output=True)
     assert not marker.exists()
+
+
+def test_unknown_template_name_raises_value_error():
+    """A mistyped template name must give a clear error, not a bare KeyError."""
+    with pytest.raises(ValueError, match="Unknown command template: file_exist"):
+        build_cmd("file_exist", path="/x")
+
+
+@pytest.mark.parametrize("extra_vars", [
+    {"key": "value"},
+    {"key": "value", "n": [1, 2], "nested": {"a": True}},
+    {"msg": "it's \"quoted\" ; $(id) `id`"},
+])
+def test_ansible_playbook_extra_vars_json_round_trips(extra_vars):
+    """JSON extra_vars must reach ansible-playbook -e as one unchanged argument."""
+    payload = json.dumps(extra_vars)
+    cmd = build_cmd(
+        "ansible_playbook",
+        workdir="/opt/omnia", playbook="site.yml", extra_vars=payload,
+    )
+    argv = shlex.split(cmd.split(" && ", 1)[1].split(" 2>&1")[0])
+    assert argv[0] == "ansible-playbook"
+    assert argv[argv.index("-e") + 1] == payload
+    assert json.loads(argv[argv.index("-e") + 1]) == extra_vars
+
+
+def test_ansible_playbook_extra_vars_survive_a_real_shell():
+    """Run the quoted value through sh to prove the shell hands back the JSON."""
+    payload = json.dumps({"msg": "it's \"quoted\""})
+    quoted = build_cmd("file_exists", path=payload).split("test -f ")[1].split(
+        " && echo exists")[0]
+    out = subprocess.run(["sh", "-c", f"printf %s {quoted}"],
+                         capture_output=True, text=True, check=True).stdout
+    assert out == payload
