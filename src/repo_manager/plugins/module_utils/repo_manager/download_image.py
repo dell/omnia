@@ -296,7 +296,7 @@ def create_container_remote(remote_name, remote_url, package, policy_type, tag, 
         logger.error(f"Failed to update remote '{remote_name}'.")
         return False
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.error("Failed to create or update the container remote")
         return False
 
@@ -346,7 +346,7 @@ def create_container_remote_digest(remote_name, remote_url, package, policy_type
         if result:
             logger.info(f"Remote updated successfully: {remote_name}")
         return result
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.error("Failed to create the container remote")
         return False
 
@@ -766,7 +766,7 @@ def process_image(package, status_file_path, version_variables,
                 if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
                     raise RuntimeError(f"Failed to sync repository: {repository_name}")
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         status = "Failed"
         logger.error("Failed to process the container image")
 

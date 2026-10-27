@@ -157,7 +157,7 @@ def schema(config):
         error_bucket.append(message)
     except (OSError, yaml.YAMLError) as exc:
         input_path = config.get("input_file_path", "<unknown>")
-        message = f"Unable to read or parse {input_path}: {exc}"
+        message = f"Unable to read or parse {input_path}: {type(exc).__name__}"
         _log_error(config, message)
         error_bucket.append(message)
     except ValueError as valueerror:
@@ -167,7 +167,10 @@ def schema(config):
         error_bucket.append(message)
     except Exception as exception:  # pylint: disable=broad-exception-caught
         input_path = config.get("input_file_path", "<unknown>")
-        message = f"An unexpected error occurred at {input_path}: {exception}"
+        message = (
+            f"An unexpected error occurred at {input_path}: "
+            f"{type(exception).__name__}"
+        )
         _log_error(config, message)
         error_bucket.append(message)
 
@@ -272,7 +275,7 @@ def logic(config):
         return error_bucket
     except (OSError, yaml.YAMLError) as exc:
         input_path = config.get("input_file_path", "<unknown>")
-        message = f"Unable to read or parse {input_path}: {exc}"
+        message = f"Unable to read or parse {input_path}: {type(exc).__name__}"
         _log_error(config, message)
         error_bucket.append(message)
         return error_bucket
@@ -284,7 +287,10 @@ def logic(config):
         return error_bucket
     except Exception as exception:  # pylint: disable=broad-exception-caught
         input_path = config.get("input_file_path", "<unknown>")
-        message = f"An unexpected error occurred at {input_path}: {exception}"
+        message = (
+            f"An unexpected error occurred at {input_path}: "
+            f"{type(exception).__name__}"
+        )
         _log_error(config, message)
         error_bucket.append(message)
         return error_bucket
