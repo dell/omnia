@@ -29,7 +29,7 @@ MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
 )))
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(MODULE_ROOT)))
 
-# Global pytest order bands (@pytest.mark.order): one per e2e scenario.
+# Global pytest order bands (@pytest.mark.order): one per SVT scenario.
 # auto_cleanup needs the installed BuildStream, so it runs before cleanup.
 # Inside a band: +1 precheck (exec), +2 entry point (exec), +100 per verify
 # suite (verify phase).
@@ -204,6 +204,11 @@ SELECT_JOBS_TIMEOUT = 600
 JOB_DB_TIMEOUT = 600
 COMMIT_MESSAGE_BUILD = "system: bump {file} to v{version}"
 COMMIT_MESSAGE_DEPLOY = "system: swap pxe mapping rows {first} and {second}"
+# [skip ci] stops GitLab from creating a pipeline for the upload commit; the
+# cadence cycle's own bump commit is what triggers the cadence pipeline.
+COMMIT_MESSAGE_CADENCE_UPLOAD = "system: upload {file} v{version} for cadence [skip ci]"
+# Seconds to wait after the [skip ci] upload before checking no pipeline exists.
+CADENCE_UPLOAD_PIPELINE_CHECK = 15
 
 # =============================================================================
 # PIPELINE STAGES (BuildStream job_stages.stage_name)
@@ -228,10 +233,15 @@ IMAGE_GROUP_AFTER_BUILD = ("BUILT", "DEPLOYING", "DEPLOYED", "RESTARTING",
 # =============================================================================
 CADENCE_TRIGGER_SCRIPT = "build_stream/playbook-watcher/trigger_cadence.sh"
 CADENCE_LOG_ROOT = "build_stream/log"
+CADENCE_SYNC_STAGE = "cadence-repo-sync"
+# A disabled cycle is skipped right after the config reload; wait this long
+# for "Cadence polling is disabled" before reporting the toggle as not live.
+CADENCE_DISABLED_TIMEOUT = 300
 CADENCE_JOURNAL_EVENTS = (
     # (event key, journal substring, terminal outcome or None)
     ("triggered", "Cadence manual trigger requested via SIGUSR1", None),
     ("cycle_started", "Cadence polling cycle started", None),
+    ("config_reloaded", "Cadence config reloaded: enabled", None),
     ("disabled", "Cadence polling is disabled", "failed"),
     ("suppressed", "Cadence sync suppressed", "failed"),
     ("catalog_fetched", "Cadence catalog fetched from GitLab", None),
@@ -248,8 +258,31 @@ CADENCE_JOURNAL_EVENTS = (
 )
 CADENCE_ERROR_MARKERS = (" - ERROR - ", " - CRITICAL - ")
 CADENCE_LOGGER_NAME = "cadence_manager"
+# journalctl -o short-iso prefix ("<iso time> <host> <ident>[<pid>]: ").
+JOURNAL_PREFIX_RE = re.compile(r"^\S+ \S+ [^\s:]+\[\d+\]: ")
+# playbook-watcher application record ("<time> - <logger> - <LEVEL> - <msg>").
+JOURNAL_RECORD_RE = re.compile(r" - [\w.]+ - (DEBUG|INFO|WARNING|ERROR|CRITICAL) - ")
 CADENCE_VERSION_RE = re.compile(r"bumped to v(\S+)")
 CADENCE_HEARTBEAT_POLLS = 4
+
+# =============================================================================
+# STAGE PLAYBOOK LOGS (playbook_watcher_service.build_stage_log_path)
+# =============================================================================
+# Ansible writes each stage attempt live to
+#   /var/log/omnia/<domain>/<stage>_<playbook>_<YYYYmmdd_HHMMSS UTC>_attempt<N>.log
+# and the watcher copies it to <OMNIA_DATA_PATH>/build_stream/log/<job_id>/
+# only when the attempt finishes.
+PLAYBOOK_LOG_BASE_DIR = "/var/log/omnia"
+BSM_JOB_LOG_ROOT = "build_stream/log"
+STAGE_LOG_RE = re.compile(r"_(?P<ts>\d{8}_\d{6})_attempt(?P<attempt>\d+)\.log$")
+# Logs older than (stage monitoring start - slack) belong to earlier jobs.
+STAGE_LOG_WINDOW_SLACK = 900
+# debug_mode streams logs live with a background tail -F (no read interval).
+# On stage end the stream stops once the log is quiet for LOG_FOLLOW_SETTLE
+# seconds (at most LOG_FOLLOW_SETTLE_MAX).
+LOG_FOLLOW_SETTLE = 2
+LOG_FOLLOW_SETTLE_MAX = 15
+LOG_FOLLOW_STOP_TIMEOUT = 10
 
 # =============================================================================
 # AUTOMATED CLEANUP (cleanup_cron.py, run by AutoCleanupScheduler in the
@@ -537,6 +570,25 @@ CMDS = {
     "container_python": "podman exec {container} python3 -c {code}",
     "newest_cadence_log_dir": "ls -1td {root}/cadence-* 2>/dev/null | head -n 1",
     "last_ansible_task": "grep -h 'TASK \\[' {directory}/*.log 2>/dev/null | tail -n 1",
+    # Placeholders are quoted; the glob suffix stays outside the quotes.
+    "stage_log_candidates": (
+        "ls -1 {base}/*/{stage}_*_attempt*.log {job_dir}/{stage}_*_attempt*.log 2>/dev/null"
+    ),
+    "read_from_line": "tail -n +{start} {path} 2>/dev/null",
+    # Live stream; the tail is killed when the caller closes stdin (EOF).
+    "follow_file": (
+        "tail -n +1 -F {path} 2>/dev/null & pid=$!; cat >/dev/null; "
+        "kill $pid 2>/dev/null; wait $pid 2>/dev/null; exit 0"
+    ),
+    # Flip enabled: inside the top-level cadence: block (comments preserved).
+    "cadence_enable": (
+        "sed -i '/^cadence:/,/^[^[:space:]#]/ "
+        "s/^\\([[:space:]]*enabled:[[:space:]]*\\).*/\\1true/' {path}"
+    ),
+    "cadence_disable": (
+        "sed -i '/^cadence:/,/^[^[:space:]#]/ "
+        "s/^\\([[:space:]]*enabled:[[:space:]]*\\).*/\\1false/' {path}"
+    ),
     # --- System ---
     "epoch_now": "date +%s",
     "run_script": "bash {path}",
@@ -585,6 +637,10 @@ SQL = {
     "image_group_by_job": (
         "SELECT id, job_id, status, deploy_count, coalesce(last_deployed_at::text,''), "
         "coalesce(catalog_version,'') FROM image_groups WHERE job_id='{job_id}';"
+    ),
+    "catalog_versions": (
+        "SELECT DISTINCT catalog_version FROM image_groups "
+        "WHERE catalog_identifier='{identifier}' AND catalog_version IS NOT NULL;"
     ),
     "image_group_by_id": (
         "SELECT id, job_id, status, deploy_count, coalesce(last_deployed_at::text,''), "

@@ -22,7 +22,17 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "precheck_failed": "{scenario} precheck failed: {count} check(s)",
     "precheck_gate": (
         "Skipped: the {scenario} precheck did not pass, so its entry point "
-        "and verification do not run"
+        "and verification do not run (dependent test)"
+    ),
+    "exec_gate": (
+        "Skipped: the {scenario} entry point ({tc_id}) failed, so there is "
+        "nothing for this verification to check (dependent test; skipped even "
+        "with continue_on_failure: true)"
+    ),
+    "stop_on_failure": (
+        "Skipped: {test} failed and continue_on_failure is false in "
+        "test_config.yml, so the run stops here. Set continue_on_failure: true "
+        "to keep running the independent tests"
     ),
     # --- exec -> verify hand-off ---
     "state_missing": (
@@ -44,6 +54,17 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "services_failed": "BuildStream services: {count} check(s) failed",
     "repository_ok": "GitLab project holds the CI files, omnia.env and synced inputs",
     "repository_failed": "GitLab repository: {count} check(s) failed",
+    "pipeline_skip_build_failed": (
+        "Skipped: the build pipeline test ({build_id}) failed in this run. The "
+        "{pipeline} pipeline deploys the image group that build creates, so it "
+        "cannot run (dependent test; skipped even with continue_on_failure: true)"
+    ),
+    "cadence_disabled_skip": (
+        "Skipped: cadence.enabled is false in build_stream_config.yml, so a "
+        "trigger only logs 'Cadence polling is disabled'. Set cadence.enabled: "
+        "true to run the cadence pipeline test ({disable_id}/{reenable_id} "
+        "cover the disabled behaviour)"
+    ),
     "pipeline_mode_trigger": "Triggering the {pipeline} pipeline",
     "pipeline_mode_verify": (
         "Job ID used: {job_id} (pipeline.{pipeline}_job_id). Nothing is "
@@ -217,6 +238,12 @@ PROGRESS_MSGS: Dict[str, str] = {
     "stage_changed": "[{clock}] stage '{stage}' -> {state}",
     "stage_still": "[{clock}] stage '{stage}' still {state}",
     "stage_skipped": "stage '{stage}' was SKIPPED by BuildStream",
+    "stage_log_follow": "stage '{stage}' playbook log: tail -f {path}",
+    "stage_log_streaming": "streaming stage '{stage}' playbook log (debug_mode): {path}",
+    "stage_log_end": "end of stage '{stage}' playbook log ({lines} line(s))",
+    "stage_verifying": "stage '{stage}' finished {state}; verifying job_stages and API",
+    "stage_check": "  {label}: {value}",
+    "stage_settle": "BuildStream job failed; re-reading stage '{stage}' for its final state",
     "pipeline_finishing": "GitLab pipeline #{pipeline_id} {status}; waiting for it to finish",
     "gitlab_job_waiting": "GitLab job #{job_id}: {status}",
     "image_selection_pipeline": "image selection pipeline #{pipeline_id}",
@@ -229,6 +256,21 @@ PROGRESS_MSGS: Dict[str, str] = {
     "cadence_event": "[{event}] {message}",
     "cadence_heartbeat": "[{elapsed}s] cadence cycle running{progress}",
     "cadence_sync_progress": "; repo sync at {progress}",
+    "cadence_log_follow": "cadence repo sync log: tail -f {path}",
+    "cadence_log_streaming": "streaming cadence repo sync log (debug_mode): {path}",
+    "cadence_set": "set cadence.enabled: {enabled} in {path} (no service restart)",
+    "cadence_catalog_uploading": (
+        "uploading {source} to GitLab {file} as v{version} with [skip ci] "
+        "(no pipeline; the cadence cycle bumps it to v{expected})"
+    ),
+    "cadence_catalog_current": "GitLab {file} already holds {source} v{version}; nothing to upload",
+    "cadence_upload_no_pipeline": "upload commit {commit}: no pipeline created (as expected)",
+    "cadence_trigger_command": "triggering cadence: {command}",
+    "cadence_journal_header": "playbook-watcher journal (cadence lines) since the trigger:",
+    "cadence_journal_line": "[journal] {line}",
+    "cadence_wait_disabled": (
+        "waiting up to {timeout}s for playbook-watcher to report the cycle disabled"
+    ),
     # --- auto_cleanup_func ---
     "cleanup_statuses": "Cleanup status: {statuses}",
 }

@@ -33,8 +33,10 @@ from .cadence_func import (
     host_epoch,
     monitor_cadence_cycle,
     run_trigger_script,
+    upload_cadence_catalog,
 )
 from .command_func import run_ansible_playbook
+from .log_func import mark
 from .probe_func import (
     Probe,
     container_running,
@@ -222,17 +224,22 @@ def verify_gitlab_repository(host: Any) -> Dict[str, Any]:
 
 def _trigger_build(host: Any, context: Dict[str, Any], settings: Dict[str, Any],
                    result: Dict[str, Any], emit: Emit) -> Dict[str, Any]:
-    """Commit a version-bumped catalog_rhel.json; return pipeline/job IDs."""
-    target = catalog_func.catalog_target(host)
-    if not target["success"]:
-        return {"error": target["error"]}
-    active = catalog_func.read_catalog(host, target["path"])
-    if not active["success"]:
-        return {"error": active["error"]}
-    version = catalog_func.next_catalog_version(host, active["identifier"], active["version"])
-    group_id = f"{active['identifier']}-v{version}"
-    result["fields"].extend([("Catalog", target["path"]),
-                             ("Catalog version", f"{active['version']} -> {version}"),
+    """Commit the selected catalog as catalog_rhel.json with the next unused version.
+
+    The catalog comes from installation.catalog (bundled number or full
+    path), never from whatever is active at CATALOG_FILE_PATH.
+    """
+    selected = catalog_func.selected_catalog(host, settings["catalog"])
+    if not selected["success"]:
+        return {"error": selected["error"]}
+    bump = catalog_func.plan_catalog_version(host, context, selected)
+    version = bump["version"]
+    group_id = f"{selected['identifier']}-v{version}"
+    result["fields"].extend([("Catalog selection", settings["catalog"]),
+                             ("Catalog source", selected["path"]),
+                             ("Catalog identifier", selected["identifier"]),
+                             ("Catalog version", f"{bump['base']} -> {version}"),
+                             ("Versions in use", bump["seen"]),
                              ("Expected image group", group_id)])
     busy = pipeline_func.ensure_no_busy_pipelines(
         context, settings["allow_pipeline_cancel"], emit)
@@ -243,7 +250,7 @@ def _trigger_build(host: Any, context: Dict[str, Any], settings: Dict[str, Any],
     emit(PROGRESS["catalog_committing"].format(file=GITLAB_CATALOG_FILE, version=version))
     commit = gitlab_func.commit_file(
         context, GITLAB_CATALOG_FILE,
-        catalog_func.render_catalog(active["catalog"], version),
+        catalog_func.render_catalog(selected["catalog"], version),
         COMMIT_MESSAGE_BUILD.format(file=GITLAB_CATALOG_FILE, version=version))
     if not commit["success"]:
         return {"error": f"commit failed: {commit['error']}"}
@@ -278,22 +285,24 @@ def _monitor_and_verify(host: Any, context: Dict[str, Any], settings: Dict[str, 
                         emit: Emit, group_statuses: Sequence[str],
                         baseline: Optional[Dict[str, Dict[str, str]]] = None,
                         min_deploy_count: int = 0) -> Dict[str, Any]:
-    """Monitor ``stages``, then verify GitLab final status and DB/API records."""
+    """Monitor and verify ``stages`` one by one, then the GitLab and job-level records."""
     watched = [pid for pid in (ids.get("pipeline_id"), ids.get("child_id")) if pid]
     monitor = pipeline_func.monitor_stages(
         host, context, ids["job_id"], stages, watched,
-        settings["poll_interval"], emit, baseline)
-    result["fields"].extend(pipeline_func.stage_fields(monitor["results"]))
+        settings["poll_interval"], emit, baseline, settings.get("debug_mode", False))
+    result["fields"].extend(monitor["fields"])
     if not monitor["success"]:
         _fail(result, monitor["error"])
+    result["failures"].extend(monitor["failures"])
     if watched and monitor["success"]:
         final = pipeline_func.wait_pipeline_finished(
             context, watched[-1], _FINISH_TIMEOUT, settings["poll_interval"], emit)
-        result["fields"].append((f"GitLab pipeline #{watched[-1]}", final["status"]))
+        result["fields"].append((mark(final["success"], f"GitLab pipeline #{watched[-1]}"),
+                                 final["status"]))
         if not final["success"]:
             _fail(result, final["error"])
     records = pipeline_func.verify_job_records(
-        host, context, ids["job_id"], stages, group_statuses,
+        host, context, ids["job_id"], group_statuses,
         ids.get("group_id", ""), min_deploy_count)
     result["fields"].extend(records["fields"])
     result["failures"].extend(records["failures"])
@@ -305,6 +314,9 @@ def run_build_pipeline(host: Any, settings: Dict[str, Any], emit: Emit) -> Dict[
     block = settings["build"]
     verify_only = bool(block["job_id"])
     result = _result("verify-only" if verify_only else "trigger")
+    # Recorded up front so an early failure still gates the dependent deploy test.
+    pipeline_func.PIPELINE_STATE["build"] = {"job_id": "", "image_group_id": "",
+                                             "success": False}
     context = _context(host, result)
     if context is None:
         return result
@@ -424,21 +436,36 @@ def run_deploy_pipeline(host: Any, settings: Dict[str, Any], emit: Emit) -> Dict
 
 def _trigger_cadence(host: Any, context: Dict[str, Any], settings: Dict[str, Any],
                      result: Dict[str, Any], emit: Emit) -> Dict[str, Any]:
-    """Run trigger_cadence.sh, follow the cycle and locate its commit/pipeline."""
+    """Stage the selected catalog for cadence, trigger a cycle and follow it.
+
+    The selected catalog is uploaded to cadence_catalog_rhel.json with
+    [skip ci] (no pipeline). trigger_cadence.sh then starts a cycle that
+    fetches it, syncs repositories, bumps the version and commits; that
+    commit starts the cadence pipeline.
+    """
     checks = cadence_prechecks(host, context)
     result["fields"].extend(checks["fields"])
     if not checks["success"]:
         return {"error": "; ".join(checks["failures"])}
+    busy = pipeline_func.ensure_no_busy_pipelines(
+        context, settings["allow_pipeline_cancel"], emit)
+    if not busy["success"]:
+        return {"error": busy["error"] + " (cancel them or set allow_pipeline_cancel: true)"}
+    upload = upload_cadence_catalog(host, context, settings["catalog"], emit)
+    result["fields"].extend(upload["fields"])
+    if not upload["success"]:
+        return {"error": "; ".join(upload["failures"])}
     before = gitlab_func.latest_commit(context, GITLAB_CADENCE_CATALOG_FILE)
     db_epoch, journal_epoch = db_func.db_now_epoch(host), host_epoch(host)
 
-    trigger = run_trigger_script(host, checks["script"])
+    trigger = run_trigger_script(host, checks["script"], emit)
     emit(trigger["output"] or PROGRESS["trigger_script_rc"].format(rc=trigger["rc"]))
     if not trigger["success"]:
         return {"error": f"trigger_cadence.sh failed (rc={trigger['rc']}): {trigger['output']}"}
-    cycle = monitor_cadence_cycle(host, journal_epoch, settings["poll_interval"], emit)
+    cycle = monitor_cadence_cycle(host, journal_epoch, settings["poll_interval"], emit,
+                                  debug_mode=settings.get("debug_mode", False))
     result["fields"].extend(cadence_event_fields(cycle["events"]))
-    result["fields"].append(("Repo sync log", cycle["sync_log"] or "-"))
+    result["fields"].append(("Repo sync log", cycle.get("sync_log") or "-"))
     if not cycle["success"]:
         return {"error": f"cadence cycle failed: {cycle['error']}"}
 
@@ -457,6 +484,9 @@ def _trigger_cadence(host: Any, context: Dict[str, Any], settings: Dict[str, Any
     if len({cycle["new_version"], gitlab_version["version"], local_version}) != 1:
         return {"error": "cadence catalog versions disagree between journal, GitLab "
                          "and CATALOG_FILE_PATH"}
+    if cycle["new_version"] != upload["expected"]:
+        return {"error": f"cadence bumped to v{cycle['new_version']}, expected "
+                         f"v{upload['expected']} (the selected catalog's next version)"}
 
     pipeline = gitlab_func.wait_for_pipeline(context, after["commit_id"], emit)
     if not pipeline["success"]:

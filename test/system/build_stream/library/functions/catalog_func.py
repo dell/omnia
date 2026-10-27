@@ -23,12 +23,12 @@ assigns to CATALOG_FILE_PATH.
 import json
 import posixpath
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from omnia_auto import read_remote_env
 
+from . import db_func, gitlab_func
 from .command_func import repository_path
-from .db_func import image_group
 from .probe_func import run_cmd
 from ..vars.common_vars import (
     CATALOG_BACKUP_SUFFIX,
@@ -41,6 +41,8 @@ from ..vars.common_vars import (
     CATALOG_VERSION_KEY,
     CATALOG_VERSION_RE,
     ENV_CATALOG_FILE_PATH,
+    GITLAB_CADENCE_CATALOG_FILE,
+    GITLAB_CATALOG_FILE,
     OMNIA_ENV_FILE,
 )
 
@@ -123,6 +125,23 @@ def parse_catalog(content: str, label: str) -> Dict[str, Any]:
                 "error": f"{label} is not a valid catalog: {exc}"}
 
 
+def selected_catalog(host: Any, selection: str) -> Dict[str, Any]:
+    """Read the catalog chosen by installation.catalog (number or full path).
+
+    This is the catalog the build and cadence tests commit to GitLab, so a
+    run never commits whatever catalog happens to be active on the OIM.
+
+    Returns:
+        Dict with keys: success, path, catalog, identifier, version, error.
+    """
+    source = resolve_catalog_source(host, selection)
+    if not source["success"]:
+        return {"success": False, "path": "", "catalog": {}, "identifier": "",
+                "version": "", "error": f"installation.catalog {selection}: {source['error']}"}
+    parsed = read_catalog(host, source["path"])
+    return {**parsed, "path": source["path"]}
+
+
 def _sha256(host: Any, path: str) -> str:
     """Return the SHA-256 of a file on the OIM (empty when unreadable)."""
     result = run_cmd(host, "sha256_file", path=path)
@@ -182,18 +201,75 @@ def bump_minor(version: str) -> str:
     return f"{match.group(1)}.{int(match.group(2)) + 1}"
 
 
-def next_catalog_version(host: Any, identifier: str, current: str) -> str:
-    """Return the next minor version not yet used by an image group.
+def previous_minor(version: str) -> str:
+    """Return the minor version before ``version`` (``1.5`` -> ``1.4``)."""
+    major, minor = _version_key(version) or (1, 1)
+    return f"{major}.{max(minor - 1, 0)}"
 
-    A version is unused when no image group ``<identifier>-v<version>``
-    exists; BuildStream rejects duplicate image groups.
+
+def _version_key(version: str) -> Optional[Tuple[int, int]]:
+    """Return ``(major, minor)`` for a ``X.Y`` version (None otherwise)."""
+    match = CATALOG_VERSION_RE.fullmatch((version or "").strip())
+    return (int(match.group(1)), int(match.group(2))) if match else None
+
+
+def highest_version(*versions: str) -> str:
+    """Return the highest ``X.Y`` version among ``versions`` (first one if none parse)."""
+    valid = [v.strip() for v in versions if _version_key(v)]
+    return max(valid, key=_version_key) if valid else (versions[0] if versions else "")
+
+
+def next_catalog_version(host: Any, identifier: str, *known: str) -> Dict[str, str]:
+    """Return the next minor version above every version already in use.
+
+    The base is the highest of ``known`` (local catalog, GitLab
+    catalog_rhel.json) and every catalog version recorded in image_groups
+    for ``identifier``, so a version that was already committed (even by a
+    failed build) is never reused. Candidates whose image group
+    ``<identifier>-v<version>`` exists are skipped; BuildStream rejects
+    duplicate image groups.
+
+    Returns:
+        Dict with keys: base, version, db_highest.
     """
-    candidate = bump_minor(current)
+    recorded = db_func.catalog_versions(host, identifier)
+    db_highest = highest_version(*recorded) if recorded else ""
+    base = highest_version(*known, *recorded)
+    candidate = bump_minor(base)
     for _ in range(CATALOG_MAX_VERSION_ATTEMPTS):
-        if image_group(host, f"{identifier}-v{candidate}") is None:
-            return candidate
+        if db_func.image_group(host, f"{identifier}-v{candidate}") is None:
+            return {"base": base, "version": candidate, "db_highest": db_highest}
         candidate = bump_minor(candidate)
-    raise RuntimeError(f"no unused catalog version found after {current}")
+    raise RuntimeError(f"no unused catalog version found after {base}")
+
+
+def plan_catalog_version(host: Any, context: Dict[str, Any],
+                         selected: Dict[str, Any]) -> Dict[str, Any]:
+    """Pick the next unused version for the selected catalog.
+
+    Versions already in use for the same catalog identifier are collected
+    from the selected file, both GitLab catalogs (catalog_rhel.json and
+    cadence_catalog_rhel.json), the active catalog at CATALOG_FILE_PATH and
+    image_groups. Versions of other identifiers are ignored.
+
+    Returns:
+        Dict with keys: base, version, db_highest, seen (readable summary).
+    """
+    identifier = selected["identifier"]
+    seen = {"selected": selected["version"]}
+    for label, name in (("GitLab", GITLAB_CATALOG_FILE),
+                        ("GitLab cadence", GITLAB_CADENCE_CATALOG_FILE)):
+        remote = gitlab_func.get_file(context, name)
+        parsed = parse_catalog(remote["content"], name) if remote["success"] else {}
+        if parsed.get("identifier") == identifier:
+            seen[label] = parsed["version"]
+    target = catalog_target(host)
+    active = read_catalog(host, target["path"]) if target["success"] else {}
+    if active.get("identifier") == identifier:
+        seen["active"] = active["version"]
+    bump = next_catalog_version(host, identifier, *seen.values())
+    seen["image_groups"] = bump["db_highest"]
+    return {**bump, "seen": ", ".join(f"{k} {v or '-'}" for k, v in seen.items())}
 
 
 def render_catalog(catalog: Dict[str, Any], version: str) -> str:

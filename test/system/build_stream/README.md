@@ -1,111 +1,114 @@
-# BuildStream System Test — Test Automation
+# BuildStream System Verification Test (SVT)
 
-End-to-end integration suite for BuildStream on one Omnia OIM. It drives the
-real product entry points in lifecycle order and verifies each result against
-the live system: containers and services, `build_stream_db`, GitLab, S3 and
-the domain data paths.
+System verification suite for BuildStream on one Omnia OIM. It runs the real
+product entry points in lifecycle order and checks each result on the live
+system: containers and services, `build_stream_db`, GitLab, S3 and the
+domain data paths.
 
 ```text
-prepare_base -> installation (build -> deploy -> cadence) -> auto_cleanup -> cleanup
+prepare_base -> installation -> auto_cleanup -> cleanup
+                (install -> build -> deploy -> cadence -> cadence disable/re-enable)
 ```
 
 Every test carries the `br_86010` marker: the suite is the automated
-evidence for the SysQA system test plan TEST-BR-86010 (NERSC Backend
-Buildstream). The registry maps each case to its plan case.
+evidence for the system test plan TEST-BR-86010 (NERSC Backend Buildstream).
+The shared `omnia_auto` package provides the OIM connection, streamed command
+execution, structured logging and the JSON/HTML reports.
 
-The suite uses the shared `omnia_auto` package for the OIM connection,
-streamed command execution, structured logging and JSON/HTML reports.
-
-## Safety model
-
-Each scenario follows the module FVT shape: a precheck, the entry point,
-then verification suites. The runner separates execution from verification:
-
-| Command | Behavior |
-|---|---|
-| `exec` | The scenario's `deploy`-marked tests: its precheck, then its entry point (omnia.sh, a playbook or a cleanup pass) |
-| `verify` | The scenario's verification suites against the live system; no entry point runs |
-| `test` | `exec`, then `verify` only if execution succeeded |
-
-The precheck changes nothing. When it does not pass, the rest of the
-scenario is skipped, so a long entry point never starts on a host that
-cannot finish it. The installation pipeline suites are verification of the
-installed BuildStream: with an empty `pipeline.<name>_job_id` they commit to
-GitLab and trigger the pipeline (deploy reboots nodes); set the job ID to
-verify an existing run only.
-
-An untagged run covers `prepare_base` and `installation`. `auto_cleanup`
-(deletes eligible image groups) and `cleanup` (removes every domain) run only
-when selected by name. Without the runner, `deploy` tests are skipped unless
-`OMNIA_COMMAND_TYPE=exec` is set or `--marker` selects them.
-
-Playbooks, `omnia.sh` and pipeline stages run without a timeout.
-
-## Prerequisites
+## Before you start
 
 | Requirement | Expectation |
 |---|---|
-| Python | 3.12 or later (`python3 -m venv` available) |
-| Target | An Omnia OIM with `/etc/omnia/omnia.env` configured |
+| Python | 3.12 or later, with `python3 -m venv` |
+| Target | An Omnia OIM with `/etc/omnia/omnia.env` set up (`./omnia.sh --setup-venv`) |
 | Remote mode | SSH access to the OIM (`oim_server_ip` in `test_config.yml`) |
-| Credentials | The four domain stores (see [docs/test_creds.md](docs/test_creds.md)) |
+| Credentials | The four domain credential stores ([docs/test_creds.md](docs/test_creds.md)) |
+| Repository URLs | The repo_manager inputs list a URL for every repository the selected catalog uses |
 
-Runtime locations are read from `omnia.env` on the target: `OMNIA_DATA_PATH`,
-`OMNIA_PROJECT_NAME`, `CATALOG_FILE_PATH` and the optional
-`<DOMAIN>_DATA_PATH` overrides.
-
-## Quick start
+## 1. Set up
 
 ```bash
 cd test/system/build_stream
-
-# Environment and credentials
-./setup_env.sh --venv
+./setup_env.sh --venv                 # create .venv and install the dependencies
 source .venv/bin/activate
-./setup_env.sh --set-domain-creds          # repo_manager, image_build_manager,
-                                           # orchestrator, build_stream
-./setup_env.sh --set-creds                 # only for remote mode (oim_server_ip)
-./setup_env.sh                             # credential status
-
-# Review test_config.yml (catalog, job IDs, cleanup flags), then:
-./run_validation.sh e2e_build_stream list
-./run_validation.sh e2e_build_stream test                       # prepare_base + installation
-./run_validation.sh e2e_build_stream installation test --suite cadence
-./run_validation.sh e2e_build_stream installation verify --suite build
-./run_validation.sh e2e_build_stream auto_cleanup test
-./run_validation.sh e2e_build_stream cleanup test               # destructive
-./run_validation.sh --config                                    # test_run_config.yml batch
+./setup_env.sh --set-domain-creds     # repo_manager, image_build_manager, orchestrator, build_stream
+./setup_env.sh --set-creds            # only for remote mode (oim_server_ip set)
+./setup_env.sh                        # show the credential status
 ```
 
-`--marker` filters tests (`+` AND, `,` OR), for example `--marker sanity`,
-`--marker br_86010` or `--marker pipeline+cadence`.
+## 2. Configure
+
+Edit `test_config.yml`. The most important settings are:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `installation.catalog` | `29` | Catalog to install and commit: a number from `./omnia.sh --list-catalogs` or the full path of your own catalog |
+| `pipeline.<name>_job_id` | `""` | Empty triggers the pipeline; a job UUID only verifies that job |
+| `cleanup.*.enabled` | `true` | Which domains the cleanup scenario removes |
+| `continue_on_failure` | `false` | `false` stops at the first failure; `true` keeps running independent tests |
+| `debug_mode` | `false` | `true` streams every pipeline stage and cadence log live |
+
+All settings are described in [docs/test_config.md](docs/test_config.md).
+
+## 3. Run
+
+```bash
+./run_validation.sh --help                                         # commands and options
+./run_validation.sh svt_build_stream list                          # scenarios and test case IDs
+./run_validation.sh svt_build_stream test                          # full flow, every test
+./run_validation.sh svt_build_stream installation test             # one scenario
+./run_validation.sh svt_build_stream installation verify --marker cadence   # cadence tests only
+./run_validation.sh svt_build_stream installation verify --suite build      # one suite
+./run_validation.sh --config                                       # batch from test_run_config.yml
+```
+
+| Command | What runs |
+|---|---|
+| `exec` | The scenario's precheck (`E001`) and entry point (`E002`): `omnia.sh`, a playbook or a cleanup pass |
+| `verify` | The scenario's verification cases (`V…`) against the live system |
+| `test` | `exec`, then `verify` |
+
+The full flow ends with `cleanup`, which **removes every domain enabled under
+`cleanup` in `test_config.yml`**. Run single scenarios when you want to keep
+the deployment.
+
+Batch runs are described in [docs/test_run_config.md](docs/test_run_config.md).
+
+## Failure handling
+
+| Case | Behaviour |
+|---|---|
+| A scenario precheck (`E001`) fails | The rest of that scenario is skipped; the long entry point never starts |
+| A scenario entry point (`E002`) fails | That scenario's verification is skipped (it depends on the execution) |
+| The build pipeline test fails | The deploy pipeline test is skipped (it deploys the image group the build makes) |
+| `continue_on_failure: false` | Every remaining test is skipped after the first failure |
+| `continue_on_failure: true` | Independent tests keep running (other scenarios, the cadence tests); dependent ones above are still skipped |
+
+Every skip prints its full reason.
+
+## Test cases
+
+IDs are `BSM_SVT_<SCENARIO>_<E|V><NUMBER>`: `E` runs a product entry point,
+`V` verifies the result. The full table, with pass criteria and the BR-86010
+plan cases, is in [svt/README.md](svt/README.md).
+
+## Reports
+
+Each run writes `<report_path>/<report_name>.json` and `.html` (default
+`/opt/omnia/reports/system_build_stream_report.*`) and prints a summary table
+with the test case IDs. Runner logs go to `reports/logs/`.
 
 ## Layout
 
 | Path | Contents |
 |---|---|
-| `e2e/` | Scenarios and test cases — see [e2e/README.md](e2e/README.md) |
-| `library/functions/` | Reusable behavior (prechecks, execution, monitoring, verification) |
-| `library/vars/` | Constants, command and SQL templates, test-case registry, runner config |
-| `library/messages/` | Log and assertion messages |
+| `svt/` | Scenarios and test cases — [svt/README.md](svt/README.md) |
+| `library/` | Functions, constants, test case registry and messages — [library/README.md](library/README.md) |
+| `docs/` | [test_config.md](docs/test_config.md), [test_run_config.md](docs/test_run_config.md), [test_creds.md](docs/test_creds.md) |
+| `utility/svt_runner.py` | The SVT validation runner (help, list, full flow, batch) |
 | `utility/domain_credentials.py` | Domain credential store helper used by `setup_env.sh` |
-| `conftest.py` | omnia_auto setup, `--marker`, deploy gating, global order, reports |
-| `test_config.yml` | Non-secret settings — [docs/test_config.md](docs/test_config.md) |
-| `test_run_config.yml` | Batch runs — [docs/test_run_config.md](docs/test_run_config.md) |
-| `setup_env.sh` | Dependencies and credentials — [docs/test_creds.md](docs/test_creds.md) |
-| `run_validation.sh`, `_run.py` | Validation runner (`e2e_build_stream` category) |
-| `reports/state/` | Exec facts read by the auto_cleanup and cleanup verification (git-ignored) |
-
-## Ordering
-
-Tests are sorted by `@pytest.mark.order(n)` across the whole suite, one band
-per scenario: `prepare_base` 1000, `installation` 2000, `auto_cleanup` 3000,
-`cleanup` 4000. Inside a band: +1 precheck, +2 entry point, +100 per
-verification suite (installation: health 2101, repository 2201, build 2301,
-deploy 2401, cadence 2501).
-
-## Reports
-
-Each run writes `<report_path>/<report_name>.json` and `.html` (default
-`/opt/omnia/reports/system_build_stream_report.*`) and prints a summary
-table with the test-case IDs. Runner logs go to `reports/logs/`.
+| `conftest.py` | omnia_auto setup, `--marker`, dependency gates, `continue_on_failure`, ordering, reports |
+| `setup_env.sh` | Dependencies and credentials |
+| `run_validation.sh`, `_run.py` | Runner entry points (category `svt_build_stream`) |
+| `test_config.yml`, `test_run_config.yml` | Settings and batch selection |
+| `reports/` | Reports, runner logs and exec state (git-ignored) |

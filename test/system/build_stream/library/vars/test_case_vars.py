@@ -12,103 +12,142 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""BuildStream system test — test case registry.
+"""Canonical registry for BuildStream system (SVT) test cases.
 
-Keys match the test function names without the ``test_`` prefix. IDs are
-``TC_<SCENARIO>_<SEQ>`` (PB prepare_base, IN installation, AC auto_cleanup,
-CL cleanup), numbered in execution order: 001 is the scenario precheck,
-002 its entry point, then the verification cases.
+IDs use ``BSM_SVT_<SCENARIO>_<TYPE><NUMBER>``:
+
+- ``E`` is an execution case: it runs a product entry point (a precheck
+  playbook, ``./omnia.sh``, a domain playbook or a cleanup pass).
+- ``V`` is a verification case: it checks what an execution produced (or
+  triggers and verifies a pipeline).
+
+Keys match the pytest function names without the ``test_`` prefix; test
+files read them as ``TC["<key>"]``. IDs are never reused: a retired ID stays
+retired even when its test is removed.
 """
 
-from typing import Dict
-
-TEST_CASES: Dict[str, Dict[str, str]] = {
-    # --- prepare_base ---
+PREPARE_BASE_TEST_CASES: dict[str, dict[str, str]] = {
     "precheck_prepare_base": {
-        "id": "TC_PB_001",
-        "title": "Precheck: omnia.env, venv, omnia.sh, credentials and catalog placement",
+        "id": "BSM_SVT_PREPARE_BASE_E001",
+        "title": "Precheck: validate omnia.env, venv, omnia.sh, credentials and catalog placement",
     },
-    "prepare_base": {
-        "id": "TC_PB_002",
-        "title": "Run ./omnia.sh --prepare-base on the OIM",
+    "run_prepare_base": {
+        "id": "BSM_SVT_PREPARE_BASE_E002",
+        "title": "Execute ./omnia.sh --prepare-base and wait for all domains to initialize",
     },
-    "repo_manager_ready": {
-        "id": "TC_PB_003",
-        "title": "Verify repo_manager prepare: Pulp quadlet, service and container",
+    "verify_repo_manager_readiness": {
+        "id": "BSM_SVT_PREPARE_BASE_V001",
+        "title": "Verify repo_manager is ready: Pulp quadlet active, service running, container healthy",
+        "component": "repo_manager",
     },
-    "image_build_manager_ready": {
-        "id": "TC_PB_004",
-        "title": "Verify image_build_manager prepare: MinIO and registry serving",
+    "verify_image_build_manager_readiness": {
+        "id": "BSM_SVT_PREPARE_BASE_V002",
+        "title": "Verify image_build_manager is ready: MinIO and registry containers serving",
+        "component": "image_build_manager",
     },
-    "orchestrator_ready": {
-        "id": "TC_PB_005",
-        "title": "Verify orchestrator prepare: OpenCHAMI units, containers, volumes and OpenLDAP",
+    "verify_orchestrator_readiness": {
+        "id": "BSM_SVT_PREPARE_BASE_V003",
+        "title": "Verify orchestrator is ready: OpenCHAMI units, containers, volumes and OpenLDAP",
+        "component": "orchestrator",
     },
-    # --- installation ---
+}
+
+INSTALLATION_TEST_CASES: dict[str, dict[str, str]] = {
     "precheck_installation": {
-        "id": "TC_IN_001",
-        "title": "Precheck: catalog, BuildStream inputs and build_stream.yml --tags precheck",
+        "id": "BSM_SVT_INSTALLATION_E001",
+        "title": "Precheck: validate catalog, BuildStream inputs and run build_stream.yml --tags precheck",
     },
-    "build_stream_installation": {
-        "id": "TC_IN_002",
-        "title": "Place the selected catalog and run build_stream.yml",
+    "run_build_stream_installation": {
+        "id": "BSM_SVT_INSTALLATION_E002",
+        "title": "Place the selected catalog at CATALOG_FILE_PATH and run build_stream.yml to deploy BuildStream",
     },
-    "build_stream_services": {
-        "id": "TC_IN_003",
-        "title": "Verify BuildStream containers, watcher, database tables and API health",
+    "verify_build_stream_services": {
+        "id": "BSM_SVT_INSTALLATION_V001",
+        "title": "Verify BuildStream runtime: containers running, watcher active, DB tables present, API healthy",
+        "component": "BuildStream services",
     },
-    "gitlab_repository": {
-        "id": "TC_IN_004",
-        "title": "Verify the GitLab project holds the CI files, omnia.env and synced inputs",
+    "verify_gitlab_repository_sync": {
+        "id": "BSM_SVT_INSTALLATION_V002",
+        "title": "Verify the GitLab project holds all CI files, omnia.env and domain input files match the OIM",
+        "component": "GitLab repository",
     },
-    "build_pipeline": {
-        "id": "TC_IN_005",
-        "title": "Catalog version change auto-triggers the build pipeline; verify stages and DB",
+    "build_pipeline_trigger_and_verify": {
+        "id": "BSM_SVT_INSTALLATION_V003",
+        "title": "Commit the selected catalog with the next version to trigger the build pipeline; verify stages and DB",
+        "component": "Build pipeline",
     },
-    "deploy_pipeline": {
-        "id": "TC_IN_006",
-        "title": "PXE mapping change auto-triggers the deploy pipeline; verify stages and DB",
+    "deploy_pipeline_trigger_and_verify": {
+        "id": "BSM_SVT_INSTALLATION_V004",
+        "title": "Swap PXE mapping rows to trigger the deploy pipeline; verify stages, image group PASSED and DB",
+        "component": "Deploy pipeline",
     },
-    "cadence_pipeline": {
-        "id": "TC_IN_007",
-        "title": "Cadence trigger syncs repos, commits the catalog and runs the cadence pipeline",
+    "cadence_pipeline_trigger_and_verify": {
+        "id": "BSM_SVT_INSTALLATION_V005",
+        "title": "Upload the selected catalog for cadence ([skip ci]), trigger cadence; verify repo sync, bump and pipeline",
+        "component": "Cadence pipeline",
     },
-    # --- auto_cleanup ---
+    "cadence_disable_takes_effect_live": {
+        "id": "BSM_SVT_INSTALLATION_V006",
+        "title": "Disable cadence in build_stream_config.yml (no restart); verify the next triggered cycle is skipped",
+        "component": "Cadence enable/disable",
+    },
+    "cadence_reenable_resumes_cycle": {
+        "id": "BSM_SVT_INSTALLATION_V007",
+        "title": "Re-enable cadence in build_stream_config.yml (no restart); verify a triggered cycle runs to completion",
+        "component": "Cadence enable/disable",
+    },
+}
+
+AUTO_CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
     "precheck_auto_cleanup": {
-        "id": "TC_AC_001",
-        "title": "Precheck: retention settings, BuildStream container and playbook-watcher",
+        "id": "BSM_SVT_AUTO_CLEANUP_E001",
+        "title": "Precheck: validate retention settings, BuildStream container and playbook-watcher",
     },
-    "auto_cleanup": {
-        "id": "TC_AC_002",
-        "title": "Run one automated (retention) cleanup pass and wait for finalization",
+    "run_auto_cleanup_pass": {
+        "id": "BSM_SVT_AUTO_CLEANUP_E002",
+        "title": "Execute one automated retention cleanup pass inside omnia_build_stream and wait for finalization",
     },
-    "auto_cleanup_result": {
-        "id": "TC_AC_003",
-        "title": "Verify the pass cleaned exactly the eligible image groups",
+    "verify_auto_cleanup_eligible_groups": {
+        "id": "BSM_SVT_AUTO_CLEANUP_V001",
+        "title": "Verify the cleanup pass removed exactly the eligible FAILED and retention-expired image groups",
+        "component": "Automated cleanup",
     },
-    # --- cleanup ---
+}
+
+CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
     "precheck_cleanup": {
-        "id": "TC_CL_001",
-        "title": "Precheck: enabled cleanup domains and their playbooks",
+        "id": "BSM_SVT_CLEANUP_E001",
+        "title": "Precheck: validate enabled cleanup domains and their playbooks exist in the checkout",
     },
-    "full_cleanup": {
-        "id": "TC_CL_002",
-        "title": "Run every enabled domain cleanup playbook in order",
+    "run_full_domain_cleanup": {
+        "id": "BSM_SVT_CLEANUP_E002",
+        "title": "Execute every enabled domain cleanup playbook in order: build_stream, orchestrator, IBM, repo_manager",
     },
     "postcondition_build_stream_cleanup": {
-        "id": "TC_CL_003",
-        "title": "Postcondition: build_stream cleanup artifacts removed",
+        "id": "BSM_SVT_CLEANUP_V001",
+        "title": "Postcondition: verify build_stream containers stopped, DB removed, credentials handled per flags",
+        "component": "build_stream",
     },
     "postcondition_orchestrator_cleanup": {
-        "id": "TC_CL_004",
-        "title": "Postcondition: orchestrator cleanup artifacts removed",
+        "id": "BSM_SVT_CLEANUP_V002",
+        "title": "Postcondition: verify orchestrator OpenCHAMI and OpenLDAP containers removed, credentials handled",
+        "component": "orchestrator",
     },
     "postcondition_image_build_manager_cleanup": {
-        "id": "TC_CL_005",
-        "title": "Postcondition: image_build_manager cleanup artifacts removed",
+        "id": "BSM_SVT_CLEANUP_V003",
+        "title": "Postcondition: verify image_build_manager MinIO and registry stopped, ports closed, credentials handled",
+        "component": "image_build_manager",
     },
     "postcondition_repo_manager_cleanup": {
-        "id": "TC_CL_006",
-        "title": "Postcondition: repo_manager cleanup artifacts removed",
+        "id": "BSM_SVT_CLEANUP_V004",
+        "title": "Postcondition: verify repo_manager Pulp container and quadlet removed, data cleaned per flags",
+        "component": "repo_manager",
     },
+}
+
+TEST_CASES: dict[str, dict[str, str]] = {
+    **PREPARE_BASE_TEST_CASES,
+    **INSTALLATION_TEST_CASES,
+    **AUTO_CLEANUP_TEST_CASES,
+    **CLEANUP_TEST_CASES,
 }

@@ -113,6 +113,13 @@ def image_group_for_job(host: Any, job_id: str) -> Optional[Dict[str, str]]:
         job_id=_require(UUID_RE, job_id, "job_id")))
 
 
+def catalog_versions(host: Any, identifier: str) -> List[str]:
+    """Return every catalog version recorded in image_groups for ``identifier``."""
+    result = query(host, SQL["catalog_versions"].format(
+        identifier=_require(IMAGE_GROUP_ID_RE, identifier, "catalog identifier")))
+    return [row[0].strip() for row in result["rows"] if row and row[0].strip()]
+
+
 def image_group(host: Any, image_group_id: str) -> Optional[Dict[str, str]]:
     """Return the image group ``image_group_id`` (or None)."""
     return _group(host, SQL["image_group_by_id"].format(

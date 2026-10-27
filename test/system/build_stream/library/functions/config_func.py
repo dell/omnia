@@ -144,6 +144,9 @@ def validate_test_config(config: Dict[str, Any]) -> None:
             "clone_path must be the absolute path of the omnia checkout on the "
             f"OIM when oim_server_ip is set (got {clone_path!r})"
         )
+    for flag in ("debug_mode", "continue_on_failure"):
+        if flag in config and not isinstance(config[flag], bool):
+            raise ConfigValidationError(f"{flag} must be true or false (without quotes)")
     _validate_installation(config.get("installation"))
     _validate_pipeline(config.get("pipeline"))
     _validate_cleanup(config.get("cleanup"))
@@ -163,10 +166,16 @@ def installation_settings(config: Dict[str, Any]) -> Dict[str, Any]:
         "catalog": catalog_selection(installation.get("catalog")),
         "allow_pipeline_cancel": pipeline.get("allow_pipeline_cancel", False),
         "poll_interval": pipeline.get("poll_interval", DEFAULT_POLL_INTERVAL),
+        "debug_mode": config.get("debug_mode", False),
     }
     for name in PIPELINES:
         settings[name] = {"job_id": _text(pipeline.get(f"{name}_job_id"))}
     return settings
+
+
+def continue_on_failure(config: Dict[str, Any]) -> bool:
+    """Return whether independent tests keep running after a failure (default false)."""
+    return config.get("continue_on_failure", False) is True
 
 
 def cleanup_fail_fast(config: Dict[str, Any]) -> bool:

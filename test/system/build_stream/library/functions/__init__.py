@@ -29,6 +29,12 @@ from .config_func import (
     installation_settings,
     validate_test_config,
 )
+from .cadence_func import (
+    is_cadence_enabled,
+    verify_cadence_disable_live,
+    verify_cadence_reenable_live,
+)
+from .log_func import failure_fields, mark, skip_test
 from .installation_func import (
     failure_summary,
     run_build_pipeline,
@@ -57,11 +63,14 @@ __all__ = [
     "TestLogger",
     "cleanup_plan",
     "clear_run_state",
+    "failure_fields",
     "failure_summary",
     "installation_settings",
+    "is_cadence_enabled",
     "load_run_state",
     "load_test_config",
     "log",
+    "mark",
     "precheck_auto_cleanup",
     "precheck_cleanup",
     "precheck_installation",
@@ -75,9 +84,12 @@ __all__ = [
     "run_full_cleanup",
     "run_omnia_sh",
     "save_run_state",
+    "skip_test",
     "validate_test_config",
     "verify_auto_cleanup",
     "verify_build_stream_services",
+    "verify_cadence_disable_live",
+    "verify_cadence_reenable_live",
     "verify_domain_cleanup",
     "verify_gitlab_repository",
     "verify_image_build_manager_ready",

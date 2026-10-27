@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # =============================================================================
-# BuildStream System Test — Batch Run Configuration
+# BuildStream System Verification Test (SVT) — Batch Run Configuration
 # =============================================================================
 # Run with: ./run_validation.sh --config
 # Scenarios run top to bottom; set run: true on each one to include.
@@ -26,34 +26,36 @@
 #             auto_cleanup: verification; cleanup: postconditions); empty
 #             runs the whole scenario.
 #   marker:   --marker expression ('+' AND, ',' OR); empty runs everything.
-# Every other setting (catalog, job IDs, cleanup flags) is in test_config.yml.
+#             Example: marker: "cadence" with suite: "cadence" runs only the
+#             cadence tests of installation.
+# Whether the batch stops at the first failed scenario is set by
+# continue_on_failure in test_config.yml (false = stop). Every other setting
+# (catalog, job IDs, cleanup flags) is in test_config.yml as well.
+# Reference: docs/test_run_config.md
 # =============================================================================
 ---
-# true stops the batch at the first scenario that fails.
-skip_on_failure: true
-
-e2e_build_stream:
+svt_build_stream:
   # ./omnia.sh --prepare-base
   prepare_base:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
+    marker: ""
   # build_stream.yml, then the build, deploy and cadence pipelines.
   installation:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
+    marker: ""
   # One automated (retention) cleanup pass. Deletes eligible image groups.
   auto_cleanup:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
+    marker: ""
   # Destructive: removes every enabled domain (see cleanup in test_config.yml).
   cleanup:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
+    marker: ""

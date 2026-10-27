@@ -12,21 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""BuildStream system test — validation-runner configuration."""
+"""BuildStream system verification test (SVT) — validation-runner configuration."""
 
 # =====================================================================
-# Domain identity (runner category: e2e_build_stream)
+# Domain identity (runner category: svt_build_stream)
 # =====================================================================
 
 DOMAIN_NAME: str = "build_stream"
-CATEGORY: str = "e2e_build_stream"
-TAG_ROOT: str = "e2e"
+CATEGORY: str = "svt_build_stream"
+TAG_ROOT: str = "svt"
 
 # =====================================================================
-# E2E tags — each maps to a subdirectory under e2e/, in run order
+# SVT scenarios — each maps to a subdirectory under svt/, in run order
 # =====================================================================
 
-E2E_TAGS: list[str] = [
+SVT_TAGS: list[str] = [
     "prepare_base",
     "installation",
     "auto_cleanup",
@@ -42,7 +42,7 @@ MARKERS: list[str] = [
     "deploy",
     "precheck",
     "destructive",
-    "e2e",
+    "svt",
     "br_86010",
     "prepare_base",
     "installation",
@@ -63,12 +63,12 @@ SUITES: dict[str, list[str]] = {
     "cleanup": ["postconditions"],
 }
 
-# An untagged run covers base preparation and installation. auto_cleanup
-# deletes image groups and cleanup removes every domain, so both run only
-# when selected explicitly.
-ALL_EXEC_TAGS: list[str] = ["prepare_base", "installation"]
-ALL_EXEC_MARKER: str = "sanity"
-ALL_VERIFY_EXCLUDE_MARKERS: list[str] = ["destructive"]
+# The full flow (no scenario given) runs every scenario in order and every
+# test (no marker filter). It ends with cleanup, which removes the domains
+# enabled under "cleanup" in test_config.yml.
+ALL_EXEC_TAGS: list[str] = list(SVT_TAGS)
+ALL_EXEC_MARKER: str = ""
+ALL_VERIFY_EXCLUDE_MARKERS: list[str] = []
 
 VERIFY_ONLY_TAGS: list[str] = []
 REQUIRED_SUITE_TAGS: list[str] = []
@@ -76,7 +76,7 @@ VERIFY_ONLY_SUITES: dict[str, list[str]] = {}
 SUITE_EXEC_OWNERS: dict[str, list[str]] = {}
 
 # =====================================================================
-# Tags excluded from "all" verify (run only when explicit)
+# Scenarios excluded from an untagged verify (none: the full flow runs all)
 # =====================================================================
 
-EXCLUDE_TAGS: list[str] = ["auto_cleanup", "cleanup"]
+EXCLUDE_TAGS: list[str] = []

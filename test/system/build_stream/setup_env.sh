@@ -14,9 +14,10 @@
 # limitations under the License.
 
 # =============================================================================
-# BuildStream System Test — Environment Setup
+# BuildStream System Verification Test (SVT) — Environment Setup
 # =============================================================================
-# Installs test automation dependencies and configures credentials.
+# Installs the test dependencies (pytest, testinfra, omnia_auto, ...) and
+# saves the credentials the suite needs to run unattended.
 #
 # Credential stores (all Ansible Vault encrypted, 0600):
 #   1. test_creds.yml (this directory) — OIM SSH password for remote mode.
@@ -190,12 +191,12 @@ fi
 # ─────────────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${CYAN}=================================================================${NC}"
-echo -e "${CYAN}  BuildStream System Test — Environment Setup${NC}"
+echo -e "${CYAN}  BuildStream System Verification Test (SVT) — Environment Setup${NC}"
 echo -e "${CYAN}=================================================================${NC}"
 
-command -v python3 >/dev/null 2>&1 || fail "python3 is required"
+command -v python3 >/dev/null 2>&1 || fail "python3 is required (install it, or run ./omnia.sh --setup-venv on the OIM)"
 if [ "$USE_VENV" = true ]; then
-    [ -d "$VENV_DIR" ] || { info "Creating virtual environment: $VENV_DIR"; python3 -m venv "$VENV_DIR"; }
+    [ -d "$VENV_DIR" ] || { info "Creating the test virtual environment: $VENV_DIR"; python3 -m venv "$VENV_DIR"; }
     PYTHON_CMD="$VENV_DIR/bin/python"
     INSTALL_MODE="venv"
 elif [ -n "${VIRTUAL_ENV:-}" ] && [ -x "${VIRTUAL_ENV}/bin/python" ]; then
@@ -205,7 +206,7 @@ elif [ -x "$VENV_DIR/bin/python" ]; then
     PYTHON_CMD="$VENV_DIR/bin/python"
     INSTALL_MODE="venv"
 else
-    fail "No virtual environment. Run: ./setup_env.sh --venv"
+    fail "No Python virtual environment is active and ${VENV_DIR} does not exist. Create one with: ./setup_env.sh --venv"
 fi
 # The credential CLI calls ansible-vault from the same environment.
 export PATH="$(dirname "$PYTHON_CMD"):${PATH}"
@@ -213,10 +214,11 @@ export PATH="$(dirname "$PYTHON_CMD"):${PATH}"
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 3: Dependencies
 # ─────────────────────────────────────────────────────────────────────────────
-info "Installing dependencies from requirements.txt"
+info "Python: ${PYTHON_CMD} (${INSTALL_MODE})"
+info "Installing the test dependencies from requirements.txt (this can take a minute)"
 "$PYTHON_CMD" -m pip install --quiet --upgrade pip
 "$PYTHON_CMD" -m pip install --quiet -r "$REQUIREMENTS"
-ok "All dependencies installed"
+ok "Test dependencies installed"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 4: Credential helpers (delegate to the omnia_auto credential CLI)
@@ -424,11 +426,11 @@ fi
 # Step 7: Credential status (always shown)
 # ─────────────────────────────────────────────────────────────────────────────
 echo ""
-info "Credential status"
+info "Credential status (needed for unattended runs)"
 if _test_credentials_are_set; then
     ok "Test credentials: test_creds.yml (encrypted)"
 else
-    warn "No test credentials (test_creds.yml) — needed only when oim_server_ip is set"
+    warn "No test credentials (test_creds.yml): only needed when oim_server_ip is set (remote mode)"
     warn "  Set with: ./setup_env.sh --set-creds"
 fi
 if ! _domain_paths_known; then
@@ -450,11 +452,13 @@ chmod +x "${SCRIPT_DIR}/run_validation.sh" "${SCRIPT_DIR}/_run.py" 2>/dev/null |
 
 echo ""
 echo -e "${GREEN}=================================================================${NC}"
-echo -e "${GREEN}  Environment Ready  (${INSTALL_MODE})${NC}"
+echo -e "${GREEN}  Environment ready (${INSTALL_MODE}): you can run the SVT suite${NC}"
 echo -e "${GREEN}=================================================================${NC}"
 echo ""
 echo "  Next steps:"
 [ "$INSTALL_MODE" = venv ] && echo "    source .venv/bin/activate"
-echo "    ./run_validation.sh --help"
-echo "    ./run_validation.sh e2e_build_stream list"
+echo "    ./run_validation.sh --help                               all commands and options"
+echo "    ./run_validation.sh svt_build_stream list                scenarios and test case IDs"
+echo "    ./run_validation.sh svt_build_stream test                full flow"
+echo "  Settings: test_config.yml (see docs/test_config.md)"
 echo ""

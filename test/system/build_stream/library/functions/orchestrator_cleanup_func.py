@@ -20,7 +20,7 @@
   services that existed before cleanup must still exist.
 - ``skip_approval``, ``cleanup_slurm``, ``cleanup_k8s``: reported; the
   shared-data outcome depends on storage_config.yml and is covered by the
-  orchestrator FVT cleanup suite.
+  orchestrator domain cleanup suite.
 """
 
 from typing import Any, Dict, List

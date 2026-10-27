@@ -25,8 +25,12 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from . import db_func, gitlab_func
 from .api_func import get_api_job
+from .cadence_func import host_epoch
+from .log_func import LogFollower, find_stage_log, mark, sleep_streaming
+from .probe_func import data_path
 from ..messages.system_msgs import PROGRESS_MSGS as PROGRESS
 from ..vars.common_vars import (
+    BSM_JOB_LOG_ROOT,
     GITLAB_BRIDGE_DEPLOY_CHILD,
     GITLAB_DEPLOY_JOB,
     GITLAB_FAILED_STATUSES,
@@ -44,6 +48,9 @@ from ..vars.common_vars import (
 )
 
 Emit = Callable[[str], None]
+# The job row turns FAILED a moment before the stage row; re-read it this often.
+_SETTLE_READS = 6
+_SETTLE_INTERVAL = 5
 
 # Results shared between installation tests (build -> deploy).
 PIPELINE_STATE: Dict[str, Dict[str, Any]] = {"build": {}, "deploy": {}, "cadence": {}}
@@ -140,40 +147,115 @@ def _gitlab_status(context: Dict[str, Any], pipeline_ids: Sequence[int],
     return failed
 
 
-def monitor_stages(host: Any, context: Dict[str, Any], job_id: str, stages: Sequence[str],
-                   pipeline_ids: Sequence[int], poll: int, emit: Emit,
-                   baseline: Optional[Dict[str, Dict[str, str]]] = None) -> Dict[str, Any]:
-    """Wait for each stage in order to reach COMPLETED (no timeout).
+def _row_state(row: Optional[Dict[str, str]],
+               baseline: Optional[Dict[str, Dict[str, str]]]) -> str:
+    """Stage state from a job_stages row, ignoring a terminal pre-trigger row."""
+    state = row["stage_state"] if row else "NOT CREATED"
+    if row and state in STAGE_TERMINAL and not _stage_changed(row, baseline):
+        return "WAITING FOR RE-RUN"
+    return state
 
-    A stage is finished when its job_stages row is COMPLETED, FAILED or
-    SKIPPED (and, when ``baseline`` is given, was re-run after it). The wait
-    ends when a stage finishes or fails, the BuildStream job fails, or a
-    watched GitLab pipeline fails or is cancelled.
+
+def _settle_row(host: Any, job_id: str, stage: str,
+                baseline: Optional[Dict[str, Dict[str, str]]], emit: Emit) -> tuple:
+    """After a job failure, re-read the stage until its row is terminal."""
+    emit(PROGRESS["stage_settle"].format(stage=stage))
+    row, state = None, ""
+    for _ in range(_SETTLE_READS):
+        row = db_func.get_stages(host, job_id).get(stage)
+        state = _row_state(row, baseline)
+        if state in STAGE_TERMINAL:
+            break
+        time.sleep(_SETTLE_INTERVAL)
+    return row, state
+
+
+def verify_stage_record(host: Any, context: Dict[str, Any], job_id: str,
+                        item: Dict[str, Any]) -> Dict[str, Any]:
+    """Check one finished stage in job_stages and the BuildStream API.
 
     Returns:
-        Dict with keys: success, results (one dict per stage with stage,
-        state, elapsed, attempt, error_code, error_summary, log_file_path),
+        Dict with keys: fields (marked label/value pairs), failures.
+    """
+    stage, state = item["stage"], item["state"]
+    text = f"{state} ({item['elapsed']})"
+    if item.get("error_code") or item.get("error_summary"):
+        text += f" {item.get('error_code') or ''} {item.get('error_summary') or ''}".rstrip()
+    if item.get("log_path"):
+        text += f" log={item['log_path']}"
+    ok_states = (STAGE_COMPLETED, STAGE_SKIPPED)
+    row = db_func.get_stages(host, job_id).get(stage) or {}
+    db_state = row.get("stage_state") or "NOT CREATED"
+    fields = [(mark(state in ok_states, f"Stage {stage}"), text),
+              (mark(db_state in ok_states, f"DB stage {stage}"),
+               f"{db_state} (attempt {row.get('attempt') or '-'})")]
+    failures = []
+    api = get_api_job(context, job_id)
+    if api["success"]:
+        api_state = api["stages"].get(stage) or "MISSING"
+        fields.append((mark(api_state == db_state, f"API stage {stage}"),
+                       api_state if api_state == db_state else f"{api_state} (DB {db_state})"))
+        if api_state != db_state:
+            failures.append(f"API stage {stage} is {api_state}, DB is {db_state}")
+    else:
+        fields.append((mark(False, f"API stage {stage}"), f"unavailable: {api['error']}"))
+        failures.append(f"BuildStream API job lookup failed: {api['error']}")
+    return {"fields": fields, "failures": failures}
+
+
+def monitor_stages(host: Any, context: Dict[str, Any], job_id: str, stages: Sequence[str],
+                   pipeline_ids: Sequence[int], poll: int, emit: Emit,
+                   baseline: Optional[Dict[str, Dict[str, str]]] = None,
+                   debug_mode: bool = False) -> Dict[str, Any]:
+    """Monitor each stage in order and verify it as soon as it finishes (no timeout).
+
+    A stage is finished when its job_stages row is COMPLETED, FAILED or
+    SKIPPED (and, when ``baseline`` is given, was re-run after it). Its DB
+    row and API state are then checked before the next stage is monitored.
+    The wait ends when a stage fails, the BuildStream job fails, or a
+    watched GitLab pipeline fails or is cancelled.
+
+    The current attempt's playbook log is located while the stage runs.
+    With ``debug_mode`` it is streamed live (pipe-prefixed lines);
+    otherwise the progress lines carry ``tail -f <log>``.
+
+    Returns:
+        Dict with keys: success, results (one dict per stage), fields
+        (marked, stage by stage), failures (verification failures),
         failed_stage, error.
     """
     results: List[Dict[str, Any]] = []
+    fields: List[tuple] = []
+    failures: List[str] = []
     seen: Dict[str, str] = {}
     failure = ""
+    job_dir = f"{data_path(host)}/{BSM_JOB_LOG_ROOT}/{job_id}"
     for index, stage in enumerate(stages):
-        start = time.time()
-        last_state, polls = "", 0
+        start, since = time.time(), host_epoch(host)
+        last_state, polls, log_path = "", 0, ""
+        follower = LogFollower(host) if debug_mode else None
         emit(PROGRESS["stage_monitoring"].format(stage=stage, poll=poll))
         while True:
             row = db_func.get_stages(host, job_id).get(stage)
-            state = row["stage_state"] if row else "NOT CREATED"
-            if row and state in STAGE_TERMINAL and not _stage_changed(row, baseline):
-                state = "WAITING FOR RE-RUN"
+            state = _row_state(row, baseline)
+            if state not in ("NOT CREATED", "WAITING FOR RE-RUN"):
+                found = find_stage_log(host, stage, since, job_dir, (row or {}).get("attempt"))
+                if found and found != log_path:
+                    log_path = found
+                    if follower is not None:
+                        if follower.follow(found):
+                            emit(PROGRESS["stage_log_streaming"].format(stage=stage, path=found))
+                    else:
+                        emit(PROGRESS["stage_log_follow"].format(stage=stage, path=found))
+            clock = _clock(time.time() - start)
             if state != last_state:
-                emit(PROGRESS["stage_changed"].format(
-                    clock=_clock(time.time() - start), stage=stage, state=state))
+                emit(PROGRESS["stage_changed"].format(clock=clock, stage=stage, state=state))
                 last_state = state
             elif polls % 4 == 3:
-                emit(PROGRESS["stage_still"].format(
-                    clock=_clock(time.time() - start), stage=stage, state=state))
+                still = PROGRESS["stage_still"].format(clock=clock, stage=stage, state=state)
+                if log_path and follower is None:
+                    still += f" | tail -f {log_path}"
+                emit(still)
             if state in STAGE_TERMINAL:
                 break
             pipeline_failure = _gitlab_status(context, pipeline_ids, seen, emit)
@@ -184,30 +266,53 @@ def monitor_stages(host: Any, context: Dict[str, Any], job_id: str, stages: Sequ
             elif pipeline_failure:
                 failure = f"{pipeline_failure} while waiting for stage '{stage}'"
             if failure:
+                row, state = _settle_row(host, job_id, stage, baseline, emit)
+                if state != last_state:
+                    emit(PROGRESS["stage_changed"].format(
+                        clock=_clock(time.time() - start), stage=stage, state=state))
                 break
             polls += 1
-            time.sleep(poll)
+            sleep_streaming(poll, follower)
 
         row = row or {}
-        results.append({
+        final_log = find_stage_log(host, stage, since, job_dir, row.get("attempt"),
+                                   row.get("log_file_path") or "") or log_path
+        if follower is not None and final_log:
+            if follower.follow(final_log):
+                emit(PROGRESS["stage_log_streaming"].format(stage=stage, path=final_log))
+            follower.drain(final=True)
+            emit(PROGRESS["stage_log_end"].format(stage=stage, lines=follower.lines))
+        item = {
             "stage": stage, "state": state, "elapsed": _clock(time.time() - start),
             "attempt": row.get("attempt", ""), "error_code": row.get("error_code", ""),
             "error_summary": row.get("error_summary", ""),
-            "log_file_path": row.get("log_file_path", ""),
-        })
+            "log_path": final_log if state != STAGE_COMPLETED else "",
+        }
+        results.append(item)
+        emit(PROGRESS["stage_verifying"].format(stage=stage, state=state))
+        check = verify_stage_record(host, context, job_id, item)
+        for label, value in check["fields"]:
+            emit(PROGRESS["stage_check"].format(label=label, value=value))
+        fields.extend(check["fields"])
+        failures.extend(check["failures"])
         if state == STAGE_FAILED and not failure:
             failure = (f"stage '{stage}' FAILED: {row.get('error_code') or ''} "
                        f"{row.get('error_summary') or ''}").strip()
         if failure:
-            results.extend({"stage": name, "state": "NOT RUN", "elapsed": "-",
-                            "attempt": "", "error_code": "", "error_summary": "",
-                            "log_file_path": ""} for name in stages[index + 1:])
-            return {"success": False, "results": results, "failed_stage": stage,
-                    "error": failure}
+            states = db_func.get_stages(host, job_id)
+            for name in stages[index + 1:]:
+                db_state = (states.get(name) or {}).get("stage_state") or "NOT CREATED"
+                results.append({"stage": name, "state": "NOT RUN", "elapsed": "-",
+                                "attempt": "", "error_code": "", "error_summary": "",
+                                "log_path": ""})
+                fields.append((mark(False, f"Stage {name}"), f"NOT RUN (DB {db_state})"))
+            return {"success": False, "results": results, "fields": fields,
+                    "failures": failures, "failed_stage": stage, "error": failure}
         if state == STAGE_SKIPPED:
             emit(PROGRESS["stage_skipped"].format(stage=stage))
     _gitlab_status(context, pipeline_ids, seen, emit)
-    return {"success": True, "results": results, "failed_stage": "", "error": ""}
+    return {"success": True, "results": results, "fields": fields, "failures": failures,
+            "failed_stage": "", "error": ""}
 
 
 def wait_pipeline_finished(context: Dict[str, Any], pipeline_id: int, timeout: int,
@@ -343,77 +448,61 @@ def swap_pxe_rows(content: str) -> Dict[str, Any]:
 # DATABASE AND API VERIFICATION
 # =============================================================================
 
-def verify_job_records(host: Any, context: Dict[str, Any], job_id: str, stages: Sequence[str],
+def verify_job_records(host: Any, context: Dict[str, Any], job_id: str,
                        expected_group_statuses: Sequence[str],
                        expected_group_id: str = "",
                        min_deploy_count: int = 0) -> Dict[str, Any]:
-    """Verify jobs, job_stages, image_groups and images rows plus the API view.
+    """Verify the job-level rows (jobs, image_groups, images) and the API job.
+
+    Stage rows are verified stage by stage in ``monitor_stages``.
 
     Returns:
-        Dict with keys: success, fields (label/value pairs), failures,
+        Dict with keys: success, fields (marked label/value pairs), failures,
         image_group (dict or None).
     """
     fields: List[tuple] = []
     failures: List[str] = []
     job = db_func.get_job(host, job_id)
-    fields.append(("DB jobs.job_state", job["job_state"] if job else "MISSING"))
+    job_state = job["job_state"] if job else "MISSING"
+    fields.append((mark(bool(job) and job_state not in JOB_TERMINAL_FAILED,
+                        "DB jobs.job_state"), job_state))
     if not job:
         failures.append(f"job {job_id} not found in jobs")
-
-    for row in db_func.stage_rows(host, job_id, stages):
-        state = row["stage_state"]
-        fields.append((f"DB stage {row['stage_name']}",
-                       f"{state} (attempt {row['attempt'] or '-'})"))
-        if state not in (STAGE_COMPLETED, STAGE_SKIPPED):
-            failures.append(f"stage {row['stage_name']} is {state}")
 
     group = db_func.image_group_for_job(host, job_id)
     if group:
         images = db_func.image_count(host, group["id"])
+        status_ok = group["status"] in expected_group_statuses
+        id_ok = not expected_group_id or group["id"] == expected_group_id
+        count_ok = int(group["deploy_count"] or 0) >= min_deploy_count
         fields.extend([
-            ("DB image_group", group["id"]),
-            ("DB image_group.status", group["status"]),
-            ("DB image_group.deploy_count", group["deploy_count"]),
-            ("DB images", images),
+            (mark(id_ok, "DB image_group"), group["id"]),
+            (mark(status_ok, "DB image_group.status"), group["status"]),
+            (mark(count_ok, "DB image_group.deploy_count"), group["deploy_count"]),
+            (mark(images > 0, "DB images"), images),
         ])
-        if group["status"] not in expected_group_statuses:
+        if not status_ok:
             failures.append(f"image group status {group['status']} not in "
                             f"{', '.join(expected_group_statuses)}")
-        if expected_group_id and group["id"] != expected_group_id:
+        if not id_ok:
             failures.append(f"image group {group['id']} != expected {expected_group_id}")
         if images <= 0:
             failures.append(f"no images recorded for {group['id']}")
-        if int(group["deploy_count"] or 0) < min_deploy_count:
+        if not count_ok:
             failures.append(f"deploy_count {group['deploy_count']} < {min_deploy_count}")
     else:
-        fields.append(("DB image_group", "MISSING"))
+        fields.append((mark(False, "DB image_group"), "MISSING"))
         failures.append(f"no image group recorded for job {job_id}")
 
     api = get_api_job(context, job_id)
     if api["success"]:
-        mismatched = [name for name in stages
-                      if api["stages"].get(name) != db_func.get_stages(host, job_id)
-                      .get(name, {}).get("stage_state")]
-        fields.append(("API job_state", api["job_state"]))
-        fields.append(("API stages match DB", "yes" if not mismatched
-                       else f"NO ({', '.join(mismatched)})"))
-        if mismatched:
-            failures.append(f"API stage states differ from DB: {', '.join(mismatched)}")
+        api_ok = api["job_state"] == job_state
+        fields.append((mark(api_ok, "API job_state"),
+                       api["job_state"] if api_ok else f"{api['job_state']} (DB {job_state})"))
+        if not api_ok:
+            failures.append(f"API job_state {api['job_state']} differs from DB {job_state}")
     else:
-        fields.append(("API job", f"unavailable: {api['error']}"))
+        fields.append((mark(False, "API job"), f"unavailable: {api['error']}"))
         failures.append(f"BuildStream API job lookup failed: {api['error']}")
     return {"success": not failures, "fields": fields, "failures": failures,
             "image_group": group}
-
-
-def stage_fields(results: Sequence[Dict[str, Any]]) -> List[tuple]:
-    """Render monitor results as report fields (one line per stage)."""
-    fields = []
-    for item in results:
-        text = f"{item['state']} ({item['elapsed']})"
-        if item.get("error_code") or item.get("error_summary"):
-            text += f" {item.get('error_code', '')} {item.get('error_summary', '')}".rstrip()
-        if item.get("log_file_path") and item["state"] != STAGE_COMPLETED:
-            text += f" log={item['log_file_path']}"
-        fields.append((f"Stage {item['stage']}", text))
-    return fields

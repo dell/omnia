@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Pytest configuration for the BuildStream system (e2e) test suite.
+Pytest configuration for the BuildStream system verification test (SVT) suite.
 
 Provides:
 - omnia_auto configuration bound to this suite's test_config.yml
@@ -21,9 +21,16 @@ Provides:
 - Global ordering by @pytest.mark.order(n), one band per scenario:
   prepare_base 1000, installation 2000, auto_cleanup 3000, cleanup 4000
 - deploy tests run only in the runner exec phase (OMNIA_COMMAND_TYPE=exec)
-- precheck gate: once a scenario's precheck test does not pass, the rest of
-  that scenario is skipped in the same session
-- --marker expressions: '+' for AND, ',' for OR (e.g., --marker sanity)
+- dependency gates (always applied, whatever continue_on_failure says):
+    precheck gate  a scenario precheck (E001) that does not pass skips the
+                   rest of that scenario
+    exec gate      a failed scenario entry point (E002) skips that
+                   scenario's verification cases
+    deploy test    skips itself when the build pipeline test failed
+- continue_on_failure (test_config.yml, default false): false skips every
+  remaining test after the first failure; true keeps running the
+  independent tests (other scenarios, cadence, auto_cleanup)
+- --marker expressions: '+' for AND, ',' for OR (e.g., --marker cadence)
 - JSON/HTML report and summary table
 """
 
@@ -81,6 +88,7 @@ omnia_auto.configure(
 )
 
 from omnia_auto import (  # noqa: E402 - configure omnia_auto before consumers
+    TestLogger,
     TestReport,
     add_session_result,
     build_report_name,
@@ -97,16 +105,23 @@ from omnia_auto import (  # noqa: E402 - configure omnia_auto before consumers
 
 from library.functions.config_func import (  # noqa: E402 - configured import
     ConfigValidationError,
+    continue_on_failure,
     validate_test_config,
 )
+from library.functions.log_func import skip_test  # noqa: E402 - configured import
 from library.messages import TEST_LOG_MSGS  # noqa: E402 - configured import
 from library.vars import TEST_CASES  # noqa: E402 - configured import
 from library.vars.common_vars import DOMAIN_NAME, ORDER_UNSET  # noqa: E402
 from library.vars.domain_vars import TAG_ROOT  # noqa: E402
 
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
+_TC_BY_NAME = {f"test_{key}": tc for key, tc in TEST_CASES.items()}
 _SCENARIO_ROOT = os.path.join(_TEST_DIR, TAG_ROOT)
 _FAILED_PRECHECKS = set()
+# scenario -> ID of its failed entry point (E002)
+_FAILED_EXECS: dict = {}
+# First failed test when continue_on_failure is false: (tc_id, test name)
+_STOPPED_BY: list = []
 
 
 def pytest_addoption(parser):
@@ -137,12 +152,12 @@ def pytest_configure(config):
         "deploy": "Exec phase: scenario precheck or entry point (omnia.sh, playbook, pass)",
         "precheck": "Scenario precheck; a failure skips the rest of the scenario",
         "destructive": "Removes deployed state (cleanup)",
-        "e2e": "End-to-end system test",
+        "svt": "BuildStream system verification test",
         "br_86010": "Traceability: TEST-BR-86010 (NERSC Backend Buildstream) system test plan",
         "prepare_base": "Base domain preparation (BuildStream prerequisites)",
         "installation": "BuildStream installation and pipeline flow",
         "pipeline": "Triggers or verifies a GitLab/BuildStream pipeline",
-        "cadence": "Cadence trigger and pipeline",
+        "cadence": "Cadence only: pipeline trigger plus live disable/re-enable",
         "cleanup": "Domain cleanup verification",
         "auto_cleanup": "Automated (retention) image cleanup pass",
     }
@@ -167,16 +182,31 @@ def _item_has_marker(item, marker_name):
 
 
 def _scenario(item) -> str:
-    """Return the e2e scenario directory that owns ``item``."""
+    """Return the SVT scenario directory that owns ``item``."""
     relative = os.path.relpath(str(item.path), _SCENARIO_ROOT)
     return "" if relative.startswith(os.pardir) else relative.split(os.sep)[0]
 
 
-def pytest_runtest_setup(item):
-    """Skip a scenario's remaining tests once its precheck did not pass."""
+def _gate_reason(item) -> str:
+    """Return why ``item`` must not run (empty when it may run)."""
     scenario = _scenario(item)
     if scenario in _FAILED_PRECHECKS and not _item_has_marker(item, "precheck"):
-        pytest.skip(TEST_LOG_MSGS["precheck_gate"].format(scenario=scenario))
+        return TEST_LOG_MSGS["precheck_gate"].format(scenario=scenario)
+    if scenario in _FAILED_EXECS and not _item_has_marker(item, "deploy"):
+        return TEST_LOG_MSGS["exec_gate"].format(scenario=scenario,
+                                                 tc_id=_FAILED_EXECS[scenario])
+    if _STOPPED_BY:
+        tc_id, name = _STOPPED_BY[0]
+        return TEST_LOG_MSGS["stop_on_failure"].format(test=f"{tc_id} {name}".strip())
+    return ""
+
+
+def pytest_runtest_setup(item):
+    """Apply the dependency gates and continue_on_failure before a test runs."""
+    reason = _gate_reason(item)
+    if reason:
+        tc = _TC_BY_NAME.get(item.name, {"title": item.name, "id": ""})
+        pytest.skip(skip_test(TestLogger(tc["title"], tc["id"]), reason))
 
 
 def pytest_collection_modifyitems(config, items):
@@ -266,10 +296,15 @@ def pytest_runtest_makereport(item):
     result = outcome.get_result()
     # A precheck that ran and did not pass (or errored in setup) closes its
     # scenario. A precheck merely skipped by the deploy gate does not.
+    ran_and_failed = result.failed and result.when in {"call", "setup"}
     if _item_has_marker(item, "precheck") and (
             (result.when == "call" and not result.passed)
             or (result.when == "setup" and result.failed)):
         _FAILED_PRECHECKS.add(_scenario(item))
+    elif ran_and_failed and _item_has_marker(item, "deploy"):
+        _FAILED_EXECS[_scenario(item)] = _TC_ID_MAP.get(item.name, item.name)
+    if ran_and_failed and not _STOPPED_BY and not continue_on_failure(load_test_config()):
+        _STOPPED_BY.append((_TC_ID_MAP.get(item.name, ""), item.name))
     if result.when not in {"call", "setup"} or (
         result.when == "setup" and not result.skipped
     ):

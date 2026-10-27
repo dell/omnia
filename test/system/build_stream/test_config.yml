@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =============================================================================
-# BuildStream System Test — Test Configuration
+# BuildStream System Verification Test (SVT) — Test Configuration
 # =============================================================================
-# Isolated end-to-end integration suite. Scenarios always run in this order:
+# Every setting of the SVT suite. Field-by-field reference:
+# docs/test_config.md. Scenarios always run in this order:
 #   1. prepare_base   ./omnia.sh --prepare-base
 #   2. installation   place catalog -> build_stream.yml -> build pipeline
 #                     -> deploy pipeline -> cadence pipeline
+#                     -> cadence disable / re-enable (live, no restart)
 #   3. auto_cleanup   one automated (retention) cleanup pass (deletes the
 #                     eligible image groups)
 #   4. cleanup        build_stream -> orchestrator -> image_build_manager
@@ -42,7 +44,7 @@ oim_ssh_port: 22
 clone_path: "/omnia"
 
 # =============================================================================
-# 1. PREPARE BASE  (e2e/prepare_base)
+# 1. PREPARE BASE  (svt/prepare_base)
 # =============================================================================
 # Runs ./omnia.sh --prepare-base from src/main. It validates, collects
 # credentials for and prepares repo_manager -> image_build_manager ->
@@ -51,7 +53,7 @@ clone_path: "/omnia"
 # =============================================================================
 
 # =============================================================================
-# 2. INSTALLATION  (e2e/installation/test_playbook.py)
+# 2. INSTALLATION  (svt/installation/test_playbook.py)
 # =============================================================================
 # Precheck: the catalog below, the BuildStream inputs and
 # build_stream.yml --tags precheck. Then installs the selected catalog at
@@ -66,6 +68,8 @@ installation:
   #     ./omnia.sh --list-catalogs; files under src/main/samples), or
   #   - the full path of your own catalog on the OIM, for example
   #     /opt/omnia/catalog/my_catalog_rhel.json
+  # The same catalog is installed by build_stream.yml and committed to GitLab
+  # by the build and cadence tests.
   # Bundled catalogs:
   #    1) default (samples/catalog_rhel.json)
   #    2) hybrid/slurm_hybrid_10_2_10_0_aarch64.json
@@ -102,20 +106,26 @@ installation:
   #   33) rhel/10.2/slurm_x86_64_no_vast.json
   # The number is resolved on the OIM at run time, so it always matches the
   # current ./omnia.sh --list-catalogs output.
-  catalog: 1
+  catalog: 29
 
 # =============================================================================
-# PIPELINES  (e2e/installation/build, deploy, cadence)
+# PIPELINES  (svt/installation/build, deploy, cadence)
 # =============================================================================
 # Each pipeline test runs in one of two modes:
 #   job ID empty -> trigger mode: the test commits/triggers and then verifies.
-#     build:   bumps the catalog version, commits catalog_rhel.json to GitLab
-#              and follows the auto-triggered build pipeline.
+#     build:   commits the installation.catalog catalog as catalog_rhel.json
+#              with the next unused version and follows the auto-triggered
+#              build pipeline.
 #     deploy:  swaps two rows of input/orchestrator/pxe_mapping_file.csv in
 #              GitLab, selects the image group (the one built by the build
 #              test, else the newest BUILT) and plays the deploy job.
-#     cadence: runs trigger_cadence.sh, follows playbook-watcher through repo
+#     cadence: uploads the installation.catalog catalog as
+#              cadence_catalog_rhel.json with [skip ci] (no pipeline), runs
+#              trigger_cadence.sh, follows playbook-watcher through repo
 #              sync, catalog bump and GitLab commit, then the cadence pipeline.
+# "Next unused version" = one minor above the highest version of the same
+# catalog identifier in the selected file, both GitLab catalogs, the active
+# catalog and image_groups, so a version already used is never re-committed.
 #   job ID set -> verify-only mode: nothing is committed or triggered; the
 #     test prints the job ID it uses and verifies that job's stages and DB.
 # Job IDs are BuildStream job UUIDs from build_stream_db (table jobs). List
@@ -142,7 +152,7 @@ pipeline:
   # Omnia's own playbooks.
 
 # =============================================================================
-# 3. AUTOMATED CLEANUP  (e2e/auto_cleanup)
+# 3. AUTOMATED CLEANUP  (svt/auto_cleanup)
 # =============================================================================
 # Runs one cleanup_cron.main() pass in omnia_build_stream (the pass the
 # AutoCleanupScheduler runs every retention.evaluation_interval_hours) and
@@ -155,7 +165,7 @@ pipeline:
 # =============================================================================
 
 # =============================================================================
-# 4. CLEANUP  (e2e/cleanup)
+# 4. CLEANUP  (svt/cleanup)
 # =============================================================================
 # One test case cleans every enabled domain in this fixed order and verifies
 # each domain right after its cleanup:
@@ -205,6 +215,31 @@ cleanup:
     cleanup_logs: true
     # true deletes the repo_manager (Pulp) credentials; false keeps them.
     cleanup_credentials: true
+
+# =============================================================================
+# RUN CONTROL
+# =============================================================================
+# What happens after a test fails.
+#   false: the run stops at the first failure; every remaining test is
+#          skipped with "continue_on_failure is false".
+#   true:  independent tests keep running (the other scenarios, the cadence
+#          tests, auto_cleanup). Dependent tests are still skipped with the
+#          reason, because they cannot pass:
+#            - a scenario's verification after its precheck (E001) or entry
+#              point (E002) failed
+#            - the deploy pipeline test after the build pipeline test failed
+continue_on_failure: false
+
+# true:  every pipeline stage playbook log (create-local-repository,
+#        build-image, deploy, ...) and the cadence repo sync log is streamed
+#        live into the test output ("│" lines, like a playbook run): each
+#        line is printed as soon as it is written (tail -F, no polling) and
+#        long lines wrap at line_width. The log of the current attempt is
+#        picked from /var/log/omnia/<domain>/.
+# false: only progress lines are printed; while a stage or the cadence sync
+#        runs they show "tail -f <log>" so it can be followed by hand.
+# The playbook-watcher journal records of a cadence cycle are always shown.
+debug_mode: false
 
 # =============================================================================
 # REPORT

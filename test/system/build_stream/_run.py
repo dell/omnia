@@ -14,22 +14,23 @@
 # limitations under the License.
 
 """
-Validation runner entry point for the BuildStream system (e2e) suite.
+Validation runner entry point for the BuildStream system verification test
+(SVT) suite.
 
-Thin wrapper that loads ``library/vars/domain_vars`` and delegates to the
-shared ``ValidationRunner`` with ``e2e/`` as the tag root (the shared runner
-defaults to ``fvt/``).
+Loads ``library/vars/domain_vars`` and runs ``utility/svt_runner.SvtRunner``
+(the shared ``ValidationRunner`` adapted to the single ``svt_build_stream``
+category and the ``svt/`` scenario root).
 
 Usage (via run_validation.sh)::
 
-    python3 _run.py e2e_build_stream list
-    python3 _run.py e2e_build_stream test                       # prepare_base + installation
-    python3 _run.py e2e_build_stream prepare_base exec
-    python3 _run.py e2e_build_stream installation test
-    python3 _run.py e2e_build_stream installation test --suite cadence
-    python3 _run.py e2e_build_stream installation verify --suite build
-    python3 _run.py e2e_build_stream auto_cleanup exec
-    python3 _run.py e2e_build_stream cleanup exec                # destructive
+    python3 _run.py svt_build_stream list
+    python3 _run.py svt_build_stream test                       # full flow
+    python3 _run.py svt_build_stream prepare_base exec
+    python3 _run.py svt_build_stream installation test
+    python3 _run.py svt_build_stream installation verify --marker cadence
+    python3 _run.py svt_build_stream installation verify --suite build
+    python3 _run.py svt_build_stream auto_cleanup test
+    python3 _run.py svt_build_stream cleanup test               # destructive
     python3 _run.py --config
 """
 
@@ -38,35 +39,34 @@ import sys
 
 
 def main():
-    """Load the suite configuration and run ValidationRunner on e2e/."""
+    """Load the suite configuration and run the SVT runner on svt/."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, script_dir)
 
-    from library.vars.domain_vars import (  # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel
+    from library.vars.domain_vars import (
         ALL_EXEC_MARKER,
         ALL_EXEC_TAGS,
         ALL_VERIFY_EXCLUDE_MARKERS,
         CATEGORY,
         DOMAIN_NAME,
-        E2E_TAGS,
         EXCLUDE_TAGS,
         MARKERS,
         REQUIRED_SUITE_TAGS,
         SUITE_EXEC_OWNERS,
         SUITES,
+        SVT_TAGS,
         TAG_ROOT,
         VERIFY_ONLY_SUITES,
         VERIFY_ONLY_TAGS,
     )
-    from omnia_auto.functions.validation_runner import (  # pylint: disable=import-outside-toplevel
-        ValidationRunner,
-    )
+    from utility.svt_runner import SvtRunner
 
-    runner = ValidationRunner(
+    runner = SvtRunner(
         domain=DOMAIN_NAME,
         script_dir=script_dir,
         domain_config={
-            "tags": E2E_TAGS,
+            "tags": SVT_TAGS,
             "markers": MARKERS,
             "suites": SUITES,
             "exclude_tags": EXCLUDE_TAGS,
@@ -79,12 +79,9 @@ def main():
             "suite_exec_owners": SUITE_EXEC_OWNERS,
             "enable_ut": False,
         },
+        category=CATEGORY,
+        tag_root=TAG_ROOT,
     )
-    # The shared runner reads tags from fvt/ under the fvt_<domain> category;
-    # this suite keeps its scenarios in e2e/ under e2e_build_stream.
-    runner.fvt_dir = os.path.join(script_dir, TAG_ROOT)
-    runner.cat_fvt = CATEGORY
-    runner.categories = (CATEGORY,)
     return runner.main(sys.argv[1:])
 
 
