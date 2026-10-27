@@ -36,7 +36,7 @@ LABEL omnia.type="api_service"
 #   CVE-2026-97689/97688 (py3.13-pip-base >=26.2.1-r2)
 RUN apk update && apk upgrade --no-cache && apk add --no-cache \
     python3 \
-    py3-pip \
+    'py3.13-pip>=26.2.2-r0' \
     curl \
     ca-certificates-bundle \
     openssh \
@@ -46,32 +46,18 @@ RUN apk update && apk upgrade --no-cache && apk add --no-cache \
 RUN apk add --no-cache --virtual .build-deps build-base python3-dev
 
 # -------------------------------------------------------
-# FIX: Upgraded uv from 0.11.15 to 0.12.2 to fix:
-#   GHSA-2mjx-qc3c-rqvc (rustls >=0.23.45)
-#   GHSA-c8m5-c952-6cm4 (rustls >=0.23.46)
-#   GHSA-3g6h-r5qx-f6hq / GHSA-4w2j-m93h-cj5j (quinn-proto >=0.11.15)
-#   RUSTSEC-2026-0195 / RUSTSEC-2026-0194 (quick-xml >=0.41.0)
-#   CVE-2026-25800 (quinn-proto >=0.11.15)
-#   + GHSA-3cv2-h65g-fgmm, GHSA-4gg8-gxpx-9rph (from prior 0.11.15)
-#
-# NOTE: CVE-2023-49092 (rsa crate) has no upstream fix.
+# uv is used only while building the Python environment and is removed before
+# the runtime layer is complete so its embedded Rust dependencies are not
+# shipped in the production image.
 # -------------------------------------------------------
-COPY --from=ghcr.io/astral-sh/uv:0.12.2 /uv /uvx /usr/local/bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.4 /uv /uvx /usr/local/bin/
 
 RUN pip3 install --no-cache-dir s3cmd==2.4.0
-
-# -------------------------------------------------------
-# KNOWN: CVE-2025-47273 (High 7.7) & CVE-2026-59890 (Medium 6.1)
-#   The wolfi py3-pip apk package vendors setuptools 70.3.0 internally.
-#   setuptools>=84.0.0 is installed as a top-level package (via pyproject.toml),
-#   which takes precedence at runtime. The vendored 70.3.0 copy inside pip is
-#   not used. This will be fully resolved once the wolfi upstream releases an
-#   updated py3-pip package with a patched vendored setuptools.
-# -------------------------------------------------------
 
 # =======================================================
 ENV UV_PYTHON_DOWNLOADS=never
 ENV UV_SYSTEM_PYTHON=1
+ENV UV_NO_CACHE=1
 
 # =======================================================
 # DEPENDENCIES: Install from committed lock file (uv.lock ensures reproducible builds)
@@ -87,7 +73,10 @@ RUN if [ "$BUILD_ENV" = "development" ]; then \
     fi
 
 # Remove build-time dependencies to reduce image size and attack surface
-RUN apk del .build-deps
+RUN apk del .build-deps py3.13-pip && \
+    rm -f /usr/local/bin/uv /usr/local/bin/uvx \
+      requirements.txt requirements-dev.txt && \
+    rm -rf /root/.cache/uv
 
 # ── S3 Configuration Setup ──────────────────────────────────
 COPY init_s3cfg.sh /usr/local/bin/init_s3cfg.sh
