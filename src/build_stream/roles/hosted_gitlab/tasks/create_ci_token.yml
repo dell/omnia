@@ -83,8 +83,10 @@
           scopes: "{{ gitlab_ci_token_scopes }}"
           access_level: "{{ gitlab_ci_token_access_level }}"
           expires_at: >-
-            {{ '%Y-%m-%d' | strftime((now(utc=true).timestamp() | int)
-               + (gitlab_ci_token_expiry_days | int) * 86400) }}
+            {{ '%Y-%m-%d' | strftime(
+                 second=(now(utc=true).timestamp() | int)
+                 + (gitlab_ci_token_expiry_days | int) * 86400,
+                 utc=true) }}
         validate_certs: false
         status_code: [201]
       register: _gitlab_new_ci_token
