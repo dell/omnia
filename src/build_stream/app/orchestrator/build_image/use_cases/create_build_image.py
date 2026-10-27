@@ -380,7 +380,6 @@ class CreateBuildImageUseCase:
             stage_name=StageType.BUILD_IMAGE.value,
             playbook_path=playbook_path,
             extra_vars=extra_vars,
-            inventory_file_path=None,  # Not needed, playbook handles inventory
             correlation_id=str(command.correlation_id),
             timeout=ExecutionTimeout(60),
             submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),

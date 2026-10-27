@@ -32,6 +32,7 @@ from api.auth.jwt_handler import (
     JWTInvalidSignatureError,
     JWTValidationError,
 )
+from api.auth.scopes import CATALOG_READ, CATALOG_WRITE, JOB_READ, JOB_WRITE
 from api.logging_utils import log_secure_info
 from core.image_group.repositories import ImageGroupRepository, ImageRepository
 from core.jobs.repositories import (
@@ -180,17 +181,16 @@ def require_scope(required_scope: str) -> Callable[[dict], dict]:
 
 
 # Common scope dependencies
-require_catalog_read = require_scope("catalog:read")
-require_catalog_write = require_scope("catalog:write")
-require_job_write = require_scope("job:write")
-require_admin = require_scope("admin")
+require_catalog_read = require_scope(CATALOG_READ)
+require_catalog_write = require_scope(CATALOG_WRITE)
+require_job_write = require_scope(JOB_WRITE)
 
 
 def require_any_scope(*required_scopes: str) -> Callable[[dict], dict]:
     """Create a dependency that requires at least one of the specified scopes.
 
     Args:
-        required_scopes: Accepted scopes (e.g., "job:write", "admin").
+        required_scopes: Accepted scopes (e.g., "job:read", "job:write").
 
     Returns:
         Dependency function that validates at least one scope is present.
@@ -222,9 +222,8 @@ def require_any_scope(*required_scopes: str) -> Callable[[dict], dict]:
     return scope_dependency
 
 
-# Admin-or-write combined scope checks
-require_admin_or_job_write = require_any_scope("admin", "job:write")
-require_admin_or_catalog_write = require_any_scope("admin", "catalog:write")
+# Read access to a job is implied by write access.
+require_job_read = require_any_scope(JOB_READ, JOB_WRITE)
 
 
 # ------------------------------------------------------------------

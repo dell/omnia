@@ -19,7 +19,7 @@ gitlab_ctl_command: "gitlab-ctl"
 gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
 
 # Omnibus package
-gitlab_package_name: "gitlab-ce-19.5.0-ce.0"
+gitlab_package_name: "gitlab-ce-19.5.1"
 gitlab_package_state: "present"
 gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh"
 
@@ -49,6 +49,20 @@ gitlab_runner_token_failure_msg: 'Failed to create GitLab runner authentication 
 gitlab_project_timeout_failure_msg: 'Failed to update CI/CD job timeout for project {{ gitlab_project_name }} via GitLab API.'
 gitlab_root_token_name: "omnia-automation"
 gitlab_root_token_expiry_days: 365
+
+# CI/CD token: a project access token limited to this project, instead of the
+# instance-wide root token. Maintainer (40) with the api scope is the minimum
+# the pipelines need (repository files, project CI/CD variables, pipeline
+# metadata). It is rotated on every run; earlier tokens are revoked.
+gitlab_ci_token_name: "omnia-ci"
+gitlab_ci_token_scopes:
+  - api
+gitlab_ci_token_access_level: 40
+gitlab_ci_token_expiry_days: 360
+gitlab_ci_token_failure_msg: 'Failed to create the GitLab project access token {{ gitlab_ci_token_name }} for project {{ gitlab_project_name }}.'
+gitlab_protect_branch_failure_msg: >-
+  Failed to protect branch {{ gitlab_default_branch }} of project
+  {{ gitlab_project_name }}; protected CI/CD variables require it.
 
 # Host prerequisites
 gitlab_hosted_prereq_packages:
@@ -197,27 +211,38 @@ gitlab_input_files:
 gitlab_pipeline_var_check_status_codes: [200, 404]
 gitlab_pipeline_var_create_status_codes: [200, 201]
 gitlab_pipeline_var_update_status_codes: [200, 201]
+# Secrets are protected: only pipelines on protected branches receive them.
 gitlab_pipeline_bs_variables:
   - key: "GITLAB_API_TOKEN"
-    value: "{{ gitlab_root_token }}"
+    value: "{{ gitlab_ci_token }}"
     variable_type: "env_var"
     masked: true
+    protected: true
   - key: "BSM_API_URL"
     value: "{{ _gitlab_bsm_api_url | default('') }}"
     variable_type: "env_var"
     masked: false
+    protected: false
   - key: "BSM_API_USERNAME"
     value: "{{ _gitlab_bs_auth_username | default('') }}"
     variable_type: "env_var"
     masked: false
+    protected: true
   - key: "BSM_API_PASSWORD"
     value: "{{ _gitlab_bs_auth_password | default('') }}"
     variable_type: "env_var"
     masked: true
+    protected: true
   - key: "BSM_API_CERT"
     value: "{{ _gitlab_bs_api_cert | default('') }}"
     variable_type: "env_var"
     masked: false
+    protected: false
+# Variables the pipelines create themselves on first BSM client registration.
+# Existing unprotected copies are switched to protected.
+gitlab_pipeline_runtime_secret_variables:
+  - BSM_CLIENT_ID
+  - BSM_CLIENT_SECRET
 
 gitlab_sshpass_install_fail_msg: >
   Failed to install sshpass. Ensure AppStream and BaseOS repositories

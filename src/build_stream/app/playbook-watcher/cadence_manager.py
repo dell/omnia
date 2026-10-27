@@ -873,7 +873,8 @@ def submit_repo_sync_request(
     request_path = requests_dir / request_filename
 
     try:
-        with open(request_path, "w", encoding="utf-8") as fh:
+        fd = os.open(request_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(request_data, fh, indent=2)
 
         log_secure_info(

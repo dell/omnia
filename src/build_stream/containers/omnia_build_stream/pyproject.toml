@@ -41,5 +41,10 @@ dev = [
     "pylint>=3.0.0",
     "black>=26.10.1",
     "isort>=5.12.0",
-    "pygments>=2.20.0"
+    "pygments>=2.20.0",
+    "s3cmd==2.4.0",
 ]
+
+[tool.uv]
+# Hold back packages published too recently to have been vetted.
+exclude-newer-package = { python-dateutil = "2026-10-15T00:00:00Z" }
