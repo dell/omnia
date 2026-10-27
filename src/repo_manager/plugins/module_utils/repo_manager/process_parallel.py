@@ -305,7 +305,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
             "output": result,
             "error": ""
         }
-    except Exception as error:
+    except Exception as error:  # pylint: disable=broad-exception-caught
         # Preserve the result contract without exposing exception-controlled data.
         error_type = type(error).__name__
         safe_error = f"Task execution failed ({error_type})."

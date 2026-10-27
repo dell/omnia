@@ -542,7 +542,7 @@ def execute_command(command, log, type_json=None, seconds=None, repo_name=None):
     except subprocess.SubprocessError:
         log.error("Pulp subprocess failed")
         return False
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Unexpected failure while executing Pulp command")
         return False
 
@@ -588,7 +588,7 @@ def check_repository_synced(repo_name, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         log.error("Subprocess error checking repository")
         return None
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Error checking repository")
         return None
 
@@ -641,7 +641,7 @@ def create_rpm_repository(repo, log):
             repo.get('package', 'unknown')
         )
         return False, repo.get("package", "unknown")
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error(
             "Unexpected error while creating repository '%s'",
             repo.get('package', 'unknown')
@@ -676,7 +676,10 @@ def show_rpm_repository(repo_name, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         log.error("Subprocess error while checking repository '%s'", repo_name)
         return None
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
+        log.error("Unexpected error while checking repository '%s'", repo_name)
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Unexpected error while checking repository '%s'", repo_name)
         return None
 
@@ -766,7 +769,7 @@ def create_rpm_remote(repo, log):
         repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
         log.error("Subprocess error while creating remote '%s'", repo_name_for_error)
         return False, repo_name_for_error, False
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         repo_name_for_error = repo.get("package") or repo.get("name", "unknown")
         log.error("Unexpected error while creating remote '%s'", repo_name_for_error)
         return False, repo_name_for_error, False
@@ -826,7 +829,10 @@ def show_rpm_remote(remote_name, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         log.error("Subprocess error while checking remote '%s'", remote_name)
         return None
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
+        log.error("Unexpected error while checking remote '%s'", remote_name)
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Unexpected error while checking remote '%s'", remote_name)
         return None
     finally:
@@ -858,7 +864,10 @@ def _get_repository_href(repo_name, log):
         repo_data = json.loads(result.stdout)
         href = repo_data.get("pulp_href", "")
         return validate_pulp_href(href) if href else None
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
+        _log(log, "warning", repo_name, "Error getting repository HREF")
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "warning", repo_name, "Error getting repository HREF")
         return None
 
@@ -949,7 +958,10 @@ def _find_pulp_task_by_cid(task_cid, repository_href, log, repo_name):
     except (json.JSONDecodeError, ValueError):
         _log(log, "warning", repo_name, "Unable to identify sync task")
         return None
-    except Exception:
+    except (AttributeError, TypeError):
+        _log(log, "warning", repo_name, "Error identifying sync task")
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "warning", repo_name, "Error identifying sync task")
         return None
 
@@ -1011,7 +1023,7 @@ def _list_active_repository_tasks(repository_href, log, repo_name):
             "Invalid unfinished-task response",
         )
         return None
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(
             log, "error", repo_name,
             "Error checking unfinished Pulp tasks",
@@ -1104,7 +1116,7 @@ def _get_pulp_task_progress(task_href, log, repo_name):
     except (json.JSONDecodeError, ValueError):
         _log(log, "warning", repo_name, "Unable to read sync task")
         return -1, None, "query-error", "Invalid Pulp task response"
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "warning", repo_name, "Error reading sync task")
         return -1, None, "query-error", "Unable to read Pulp task"
 
@@ -1139,7 +1151,7 @@ def _cancel_pulp_task(task_href, log, repo_name):
                 f"{_command_output(result) or 'no CLI response'}",
             )
             return False
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "error", repo_name, "Error cancelling Pulp task")
         return False
 
@@ -1358,7 +1370,7 @@ def _cleanup_partial_repo(repo_name, previous_version, log):
                 return False
         _log(log, "info", repo_name, "Incomplete versions removed; repository retained")
         return True
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "error", repo_name, "Error during safe version rollback")
         return False
 
@@ -1533,7 +1545,7 @@ def sync_rpm_repository_with_monitoring(
         _log(log, "info", repo_name, f"=== END REPO — SUCCESS ({elapsed}s) ===")
         return True, repo_name, True, version_changed
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         elapsed = int(time.time() - start)
         _log(log, "error", repo_name, "Repository synchronization failed")
         _log(log, "info", repo_name, f"=== END REPO — FAILED ({elapsed}s) ===")
@@ -1585,7 +1597,10 @@ def get_repo_version(repo_name, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         log.error("Subprocess error getting version for '%s'", repo_name)
         return None
-    except Exception:
+    except (AttributeError, TypeError):
+        log.error("Error getting version for '%s'", repo_name)
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Error getting version for '%s'", repo_name)
         return None
 
@@ -1737,7 +1752,10 @@ def get_latest_publication_href(repo_name, log, repository_version_href=None):
             repo_name, publication_href,
         )
         return publication_href
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
+        log.error("Error getting latest publication for '%s'", repo_name)
+        return None
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Error getting latest publication for '%s'", repo_name)
         return None
 
@@ -1829,7 +1847,7 @@ def create_publication(repo, log):
     except (subprocess.TimeoutExpired, subprocess.SubprocessError):
         _log(log, "error", repo.get("package", "unknown"), "Pulp subprocess failed")
         return False, repo.get("package", "unknown")
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         _log(log, "error", repo.get("package", "unknown"), "Publication failed")
         return False, repo.get("package", "unknown")
 
@@ -1997,7 +2015,7 @@ def create_distribution(repo, log, cluster_os_type, cluster_os_version):
             repo.get("package", "unknown"),
         )
         return False, repo.get("package", "unknown")
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error(
             "Unexpected error during distribution update for repository '%s'",
             repo.get("package", "unknown"),
@@ -2959,7 +2977,7 @@ def create_aggregated_publication(repo_name, log):
         log.info("Publication created with href: %s", publication_href)
         return True, publication_href
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         log.error("Exception during publication creation")
         return False, None
 
