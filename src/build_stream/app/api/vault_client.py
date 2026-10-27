@@ -16,6 +16,7 @@
 
 from api.logging_utils import log_secure_info
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -60,11 +61,19 @@ class VaultClient:  # pylint: disable=too-few-public-methods
         self.vault_password_file = vault_password_file or os.getenv(
             "ANSIBLE_VAULT_PASSWORD_FILE", "/etc/omnia/.vault_pass"
         )
+        _project = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+        if (
+            not _project
+            or _project in ('.', '..')
+            or os.path.basename(_project) != _project
+            or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _project)
+        ):
+            _project = "project_default"
         default_credentials_path = str(
             Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"))
             / "build_stream"
             / "input"
-            / os.getenv("OMNIA_PROJECT_NAME", "project_default")
+            / _project
             / "build_stream_credentials.yml"
         )
         self.oauth_clients_vault_path = oauth_clients_vault_path or os.getenv(

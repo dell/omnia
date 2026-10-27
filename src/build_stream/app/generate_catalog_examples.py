@@ -16,6 +16,7 @@
 
 import argparse
 import os
+import re
 from pathlib import Path
 
 
@@ -103,13 +104,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description='List available catalog files from src/main/samples/ directory.'
     )
+    _project = os.getenv('OMNIA_PROJECT_NAME', 'project_default')
+    if (
+        not _project
+        or _project in ('.', '..')
+        or os.path.basename(_project) != _project
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _project)
+    ):
+        _project = 'project_default'
     parser.add_argument(
         '--base-dir',
         default=os.path.join(
             os.getenv('OMNIA_DATA_PATH', '/opt/omnia'),
             'build_stream',
             'input',
-            os.getenv('OMNIA_PROJECT_NAME', 'project_default'),
+            _project,
         ),
         help='Project base directory containing input/ and build_stream/ folders, or the input/ directory itself.'
     )

@@ -31,6 +31,7 @@ Usage:
 
 import logging
 import os
+import re
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
@@ -259,9 +260,10 @@ def main():
         not project_name
         or project_name in (".", "..")
         or os.path.basename(project_name) != project_name
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', project_name)
     ):
         module.fail_json(
-            msg=f"Invalid project_name: must be a single directory name, got '{project_name}'"
+            msg="project_name is not a valid single-segment name"
         )
 
     # Set runtime environment before importing path-dependent module utilities.

@@ -16,6 +16,7 @@
 
 import hashlib
 import os
+import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,7 +47,15 @@ from orchestrator.upload.exceptions import InvalidFilenameError, FileSizeExceede
 # Base data path and project name — read from environment (sourced from omnia.env).
 # Every derived path below uses these instead of hardcoding /opt/omnia.
 _OMNIA_DATA_PATH = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
-_OMNIA_PROJECT_NAME = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+_raw_project = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+if (
+    not _raw_project
+    or _raw_project in ('.', '..')
+    or os.path.basename(_raw_project) != _raw_project
+    or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _raw_project)
+):
+    _raw_project = "project_default"
+_OMNIA_PROJECT_NAME = _raw_project
 
 # Shared input directory path for playbook consumption (legacy flat path).
 # Used by provision and other non-domain-segregated playbooks.

@@ -772,13 +772,21 @@ def create_infra_package_entry(pkg_data) -> dict[str, Any]:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate catalog_rhel.json from input/config')
+    _project = os.getenv('OMNIA_PROJECT_NAME', 'project_default')
+    if (
+        not _project
+        or _project in ('.', '..')
+        or os.path.basename(_project) != _project
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _project)
+    ):
+        _project = 'project_default'
     parser.add_argument(
         '--base-dir',
         default=os.path.join(
             os.getenv('OMNIA_DATA_PATH', '/opt/omnia'),
             'build_stream',
             'input',
-            os.getenv('OMNIA_PROJECT_NAME', 'project_default'),
+            _project,
         ),
         help='Project base directory containing input/ and build_stream/ folders',
     )
