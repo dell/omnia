@@ -1687,6 +1687,81 @@ NFT_TEST_CASES: dict[str, dict[str, str]] = {
     },
 }
 
+ST_TEST_CASES: dict[str, dict[str, str]] = {
+    "fresh_deploy_rhel102": {
+        "id": "TC-008",
+        "title": "Fresh Deployment on RHEL 10.2 EUS",
+    },
+    "fg_upgrade_selected": {
+        "id": "TC-009",
+        "title": "Functional-Group Upgrade to RHEL 10.2 EUS",
+    },
+    "fg_unselected_unchanged": {
+        "id": "TC-010",
+        "title": "Unselected Functional Groups Remain Unchanged",
+    },
+    "mixed_os_health_overall": {
+        "id": "TC-011",
+        "title": "Mixed-OS Cluster Health — Overall",
+    },
+    "slurm_health_mixed_os": {
+        "id": "TC-012",
+        "title": "Slurm Health on Mixed-OS Cluster",
+    },
+    "k8s_health_mixed_os": {
+        "id": "TC-013",
+        "title": "Kubernetes Health on Mixed-OS Cluster",
+    },
+    "content_unavailable_fail": {
+        "id": "TC-014",
+        "title": "RHEL 10.2 Content Unavailable Fails Safely",
+    },
+    "version_gate_accept": {
+        "id": "TC-015",
+        "title": "Omnia 2.3 Version Gate — Accept",
+    },
+    "gpu_guard_block": {
+        "id": "TC-016",
+        "title": "GPU Guard — Block Without Override",
+    },
+    "gpu_guard_override_workload": {
+        "id": "TC-017",
+        "title": "GPU Guard — Override with Workload Validation",
+    },
+    "shared_storage_preserved": {
+        "id": "TC-018",
+        "title": "Shared Storage Preserved During Upgrade",
+    },
+    "oim_reboot_cluster_reform": {
+        "id": "TC-019",
+        "title": "OIM Reboot with Cluster Reform",
+    },
+    "slurm_node_add_delete": {
+        "id": "TC-020",
+        "title": "Slurm Node Addition and Deletion",
+    },
+    "k8s_master_node_add": {
+        "id": "TC-021",
+        "title": "Kubernetes Master Node Addition",
+    },
+    "nvidia_gpu_cuda_selection": {
+        "id": "TC-022",
+        "title": "NVIDIA GPU CUDA Version Selection",
+    },
+    "user_slurm_config": {
+        "id": "TC-023",
+        "title": "User-Provided Slurm Configuration Validation",
+    },
+    "eus_resync_rebuild": {
+        "id": "TC-024",
+        "title": "EUS Repository Resync and Image Rebuild",
+    },
+    "boot_service_mac_isolation": {
+        "id": "TC-025",
+        "title": "Boot Service MAC Isolation During Node Recovery",
+    },
+}
+
 TEST_CASES: dict[str, dict[str, str]] = {
     **PRECHECK_TEST_CASES,
     **PREPARE_TEST_CASES,
@@ -1694,6 +1769,7 @@ TEST_CASES: dict[str, dict[str, str]] = {
     **PXEBOOT_TEST_CASES,
     **CLEANUP_TEST_CASES,
     **NFT_TEST_CASES,
+    **ST_TEST_CASES,
 }
 
 
@@ -1759,6 +1835,9 @@ TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
         "kubernetes_recovery": 42200,
         "slurm_recovery": 42300,
         "slurm_lifecycle": 42400,
+    },
+    "st": {
+        "root": 70000,
     },
     "cleanup": {
         "root": 50000,
