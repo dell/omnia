@@ -198,6 +198,31 @@ readonly ANSIBLE_LOG_DEFAULT="${OMNIA_ANSIBLE_LOG_PATH:-/var/log/omnia}"
 # Environment Loading
 # ─────────────────────────────────────────────────────────────────────────────
 load_env() {
+    # Source the installed environment when available so omnia-cli works
+    # correctly in non-login shells (cron, systemd, SSH commands).
+    # Caller-supplied environment variables take precedence over the
+    # installed env file (standard Unix convention).
+    local system_env="/etc/omnia/omnia.env"
+    if [ -f "$system_env" ] && [ ! -L "$system_env" ] && [ -r "$system_env" ]; then
+        local _pre_data_path="${OMNIA_DATA_PATH:-}"
+        local _pre_project="${OMNIA_PROJECT_NAME:-}"
+        local _pre_venv="${OMNIA_VENV_PATH:-}"
+        local _pre_hostname="${SYSTEM_HOSTNAME:-}"
+        local _pre_domain="${SYSTEM_DOMAIN_NAME:-}"
+        local _pre_admin_ip="${SYSTEM_ADMIN_NIC_IPV4:-}"
+        set -a
+        # shellcheck disable=SC1090
+        . "$system_env"
+        set +a
+        # Restore caller overrides
+        [ -n "$_pre_data_path" ] && OMNIA_DATA_PATH="$_pre_data_path"
+        [ -n "$_pre_project" ] && OMNIA_PROJECT_NAME="$_pre_project"
+        [ -n "$_pre_venv" ] && OMNIA_VENV_PATH="$_pre_venv"
+        [ -n "$_pre_hostname" ] && SYSTEM_HOSTNAME="$_pre_hostname"
+        [ -n "$_pre_domain" ] && SYSTEM_DOMAIN_NAME="$_pre_domain"
+        [ -n "$_pre_admin_ip" ] && SYSTEM_ADMIN_NIC_IPV4="$_pre_admin_ip"
+    fi
+
     # Apply defaults for optional variables
     OMNIA_DATA_PATH="${OMNIA_DATA_PATH:-/opt/omnia}"
     OMNIA_PROJECT_NAME="${OMNIA_PROJECT_NAME:-project_default}"
@@ -760,6 +785,9 @@ cmd_status() {
     echo -e "${DIM}$(printf '%.0s─' {1..60})${NC}"
     echo -e "  ${BOLD}${completed}/${total}${NC} domains completed for project ${CYAN}${project}${NC}"
     echo ""
+
+    # Return the count of incomplete domains so automation can detect issues.
+    return $(( total - completed ))
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1882,7 +1910,7 @@ main() {
     # Dispatch: edit/output/logs use the first positional argument as a domain.
     case "$command" in
         status)
-            cmd_status "$project" || true
+            cmd_status "$project"
             ;;
         check)
             cmd_check "$project"

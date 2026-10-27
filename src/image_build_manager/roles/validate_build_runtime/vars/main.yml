@@ -16,7 +16,7 @@
 
 # Fixed S3 bucket names — NOT user-modifiable
 s3_boot_images_bucket: "boot-images"
-s3_efi_images_bucket: "efi-images"
+s3_efi_bucket: "efi"
 
 # Validation error messages
 
@@ -28,7 +28,7 @@ validate_s3_provider_fail_msg: >
 
 validate_s3_bucket_fail_msg: >
   S3 bucket name is invalid. NOTE: bucket names are FIXED constants
-  (boot-images and efi-images) and cannot be changed by the user.
+  (boot-images and efi) and cannot be changed by the user.
 
 validate_fg_config_fail_msg: >
   No functional groups found for the target architecture.

@@ -23,16 +23,16 @@ import json
 import yaml
 
 
-def load_json_file(path, module):
+def load_json_file(path: str, module) -> dict | None:
     """
     Load a JSON file safely.
 
     Args:
-        path (str): Path to the JSON file.
-        module (AnsibleModule): The Ansible module instance.
+        path: Path to the JSON file.
+        module: The Ansible module instance.
 
     Returns:
-        dict or None: Parsed JSON content if successful, otherwise None.
+        Parsed JSON content if successful, otherwise None.
     """
     if not os.path.isfile(path):
         module.log(f"File not found: {path}")
@@ -40,30 +40,32 @@ def load_json_file(path, module):
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:
+    except (json.JSONDecodeError, OSError) as e:
         module.log(f"Failed to read JSON file {path}: {e}")
         return None
 
 
-def load_yaml_file(path, module):
+def load_yaml_file(path: str, module) -> dict:
     """
     Load a YAML file safely.
 
     Args:
-        path (str): Path to the YAML file.
-        module (AnsibleModule): The Ansible module instance, used for error reporting.
+        path: Path to the YAML file.
+        module: The Ansible module instance, used for error reporting.
 
     Returns:
-        dict: Parsed YAML content.
+        Parsed YAML content.
 
     Raises:
         Fails the module if the file cannot be read or parsed.
     """
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
-    except Exception as e:
+            data = yaml.safe_load(f)
+            return data if data is not None else {}
+    except (yaml.YAMLError, OSError) as e:
         module.fail_json(msg=f"Failed to read YAML file {path}: {e}")
+        return {}  # unreachable, satisfies consistent-return-statements
 
 
 def is_additional_packages_enabled(software_config):
