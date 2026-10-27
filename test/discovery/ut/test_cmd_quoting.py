@@ -65,7 +65,7 @@ def test_shell_metacharacters_do_not_execute(tmp_path, name, key):
     marker = tmp_path / "pwned"
     values = {"path": str(tmp_path), "pattern": "*.csv"}
     values[key] = PAYLOAD.format(marker=marker)
-    subprocess.run(build_cmd(name, **values), shell=True, check=False,
+    subprocess.run(["sh", "-c", build_cmd(name, **values)], check=False,
                    capture_output=True)
     assert not marker.exists()
 
@@ -74,7 +74,7 @@ def test_yaml_parse_quotes_path(tmp_path):
     """The yaml_parse template must keep the path out of the python source."""
     marker = tmp_path / "pwned"
     evil = f"a'); open('{marker}','w'); ('"
-    subprocess.run(build_cmd("yaml_parse", path=evil), shell=True,
+    subprocess.run(["sh", "-c", build_cmd("yaml_parse", path=evil)],
                    check=False, capture_output=True)
     assert not marker.exists()
 
