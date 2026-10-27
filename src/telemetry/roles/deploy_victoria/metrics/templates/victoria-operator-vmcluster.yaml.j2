@@ -23,6 +23,7 @@ metadata:
 spec:
   # Retention period from telemetry_config.yml
   retentionPeriod: "{{ telemetry_config.telemetry_sinks.victoria_metrics.retention_period }}h"
+  # Number of copies of each series across distinct vmstorage nodes (VMClusterSpec top-level field)
   replicationFactor: {{ victoria_cluster.vmstorage.replication_factor | default(1) }}
   
   # VMStorage configuration

@@ -45,7 +45,12 @@ from orchestrator.jobs.commands import CreateJobCommand
 from orchestrator.jobs.use_cases import CreateJobUseCase
 
 from api.cleanup.dependencies import get_cleanup_job_use_case
-from api.dependencies import verify_token
+from api.dependencies import (
+    get_db_session,
+    require_job_read,
+    require_job_write,
+    verify_token,
+)
 from api.logging_utils import create_job_log_file, log_secure_info, remove_job_logger
 from api.jobs.dependencies import (
     get_audit_repo,
@@ -109,6 +114,7 @@ async def create_job(
     request: CreateJobRequest,
     response: Response,
     token_data: Annotated[dict, Depends(verify_token)],
+    _: None = Depends(require_job_write),
     correlation_id: CorrelationId = Depends(get_correlation_id),
     idempotency_key: str = Depends(get_idempotency_key),
     use_case: CreateJobUseCase = Depends(get_create_job_use_case),
@@ -234,6 +240,7 @@ async def create_job(
 async def get_job(
     job_id: str,
     token_data: Annotated[dict, Depends(verify_token)],
+    _: None = Depends(require_job_read),
     correlation_id: CorrelationId = Depends(get_correlation_id),
     job_repo = Depends(get_job_repo),
     stage_repo = Depends(get_stage_repo),
@@ -392,6 +399,7 @@ async def get_job(
 async def delete_job(  # pylint: disable=too-many-arguments
     job_id: str,
     token_data: Annotated[dict, Depends(verify_token)],
+    _: None = Depends(require_job_write),
     correlation_id: CorrelationId = Depends(get_correlation_id),
     cleanup_use_case: CleanupJobUseCase = Depends(get_cleanup_job_use_case),
 ) -> Response:
@@ -619,17 +627,19 @@ async def get_artifact(
     job_id: str,
     label: str,
     token_data: Annotated[dict, Depends(verify_token)],
+    _: None = Depends(require_job_read),
     correlation_id: CorrelationId = Depends(get_correlation_id),
     job_repo=Depends(get_job_repo),
+    db_session=Depends(get_db_session),
 ) -> Response:
     """Download an artifact by job_id and label.
 
     The caller must own the job (client_id check). Only whitelisted
     labels are downloadable.
     """
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
     # Lazy-load artifact dependencies to avoid import-time errors
     import os  # pylint: disable=import-outside-toplevel
-    from api.dependencies import get_db_session  # pylint: disable=import-outside-toplevel
     from container import get_container_class  # pylint: disable=import-outside-toplevel
     from core.artifacts.value_objects import ArtifactKind  # pylint: disable=import-outside-toplevel
 
@@ -652,7 +662,6 @@ async def get_artifact(
         return _get_container().artifact_metadata_repository()
 
     # Get artifact dependencies
-    db_session = get_db_session()
     artifact_store = get_artifact_store()
     artifact_metadata_repo = get_artifact_metadata_repo(db_session)
 

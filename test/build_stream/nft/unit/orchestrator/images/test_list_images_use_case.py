@@ -38,7 +38,8 @@ class FakeImageGroupRepository:
     def add(self, group: ImageGroup):
         self._groups.append(group)
 
-    def list_by_status(self, status, limit, offset):
+    def list_by_status(self, status, limit, offset, client_id=None):
+        self.last_client_id = client_id
         filtered = [g for g in self._groups if g.status == status]
         total = len(filtered)
         page = filtered[offset:offset + limit]
@@ -112,6 +113,13 @@ class TestListImagesUseCase:
         assert result.image_groups == []
         assert result.pagination.total_count == 0
         assert result.pagination.has_more is False
+
+    def test_forwards_client_id_to_repository(self, use_case, repo):
+        """The caller's client id reaches the repository query (F73)."""
+        use_case.execute(
+            status=ImageGroupStatus.BUILT, limit=100, offset=0, client_id="client-a"
+        )
+        assert repo.last_client_id == "client-a"
 
     def test_returns_built_groups(self, use_case, repo):
         """Returns groups matching the status filter."""

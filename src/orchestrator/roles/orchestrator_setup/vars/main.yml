@@ -159,7 +159,7 @@ catalog_missing_fail_msg: >-
   catalog_file_path in orchestrator_config.yml.
 catalog_invalid_fail_msg: >-
   Invalid catalog at '{{ catalog_file_path }}'. The catalog must contain
-  catalog.groups, catalog.functionallayer, catalog.packages, and a base_os
+  catalog.groups, catalog.functionallayer, catalog.packages, and a baseos
   group with non-empty os and os_version values.
 # Centralized failure messages
 unsupported_tag_fail_msg: >-
@@ -181,5 +181,5 @@ catalog_kubernetes_version_fail_msg: >-
   kubeadm package. Add a kubeadm package such as kubeadm_1_35_1.
 service_k8s_catalog_context_fail_msg: >-
   The catalog's service Kubernetes functional layers must reference exactly
-  one complete base_os group and the supported x86_64 architecture. Correct
+  one complete baseos group and the supported x86_64 architecture. Correct
   the service_kube_* layers before rerunning Orchestrator.

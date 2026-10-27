@@ -14,8 +14,9 @@
 
 """API router that aggregates all API modules."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from api.dependencies import require_job_write
 from api.auth.routes import router as auth_router
 from api.jobs.routes import router as jobs_router
 from api.parse_catalog.routes import router as parse_catalog_router
@@ -38,4 +39,4 @@ api_router.include_router(restart_router)
 api_router.include_router(validate_router)
 api_router.include_router(images_router)
 api_router.include_router(deploy_router)
-api_router.include_router(upload_router)
+api_router.include_router(upload_router, dependencies=[Depends(require_job_write)])

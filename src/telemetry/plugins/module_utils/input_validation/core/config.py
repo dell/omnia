@@ -18,6 +18,7 @@ Standalone config.py scoped to the three telemetry input files only.
 """
 
 import os
+import re
 
 INPUT_VALIDATOR_LOG_PATH = os.path.join(
     os.environ.get("OMNIA_DATA_PATH") or "/opt/omnia",
@@ -49,6 +50,44 @@ extensions = {
     "json": ".json",
     "yml": ".yml",
 }
+
+
+_PROJECT_NAME_PATTERN = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
+
+
+def validate_project_name(project_name):
+    """Validate project_name is a single safe path segment.
+
+    Accepts only names matching ``^[A-Za-z0-9][A-Za-z0-9._-]*$``, rejects
+    ``.`` and ``..``, and requires ``basename(x) == x``.  Modelled after
+    Repo Manager's ``get_project_name`` validation.
+
+    Args:
+        project_name (str): The project name to validate.
+
+    Returns:
+        str: The validated project name (unchanged).
+
+    Raises:
+        ValueError: If *project_name* is empty, contains path separators,
+            matches ``.`` / ``..``, or does not match the allowed pattern.
+    """
+    if not project_name:
+        raise ValueError("project_name cannot be empty")
+    if project_name in ('.', '..'):
+        raise ValueError(
+            f"Invalid project_name '{project_name}': traversal component"
+        )
+    if os.path.basename(project_name) != project_name:
+        raise ValueError(
+            f"Invalid project_name '{project_name}': contains path separators"
+        )
+    if not _PROJECT_NAME_PATTERN.match(project_name):
+        raise ValueError(
+            f"Invalid project_name '{project_name}': "
+            "must match ^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        )
+    return project_name
 
 
 def get_vault_password(file_name) -> str:

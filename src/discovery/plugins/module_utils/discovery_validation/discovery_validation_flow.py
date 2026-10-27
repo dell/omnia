@@ -27,7 +27,8 @@ def validate_ome_ip_reachability(config_data, errors, logger=None):
     Validate OME IP address logic.
 
     Rules:
-    - ome_ip must be a valid, non-loopback IPv4 address.
+    - ome_ip must be a valid IPv4 address.
+    - Must not be loopback, link-local, reserved, multicast, or unspecified.
     """
     ome_ip = config_data.get("ome_ip", "")
     if not isinstance(ome_ip, str) or not ome_ip:
@@ -46,6 +47,30 @@ def validate_ome_ip_reachability(config_data, errors, logger=None):
                 logger.error(msg)
         elif addr.is_loopback:
             msg = (f"discovery_config: ome_ip '{ome_ip}' is a loopback address. "
+                   "Provide the actual OME appliance IP.")
+            errors.append(msg)
+            if logger:
+                logger.error(msg)
+        elif addr.is_link_local:
+            msg = (f"discovery_config: ome_ip '{ome_ip}' is a link-local address. "
+                   "Provide the actual OME appliance IP.")
+            errors.append(msg)
+            if logger:
+                logger.error(msg)
+        elif addr.is_reserved:
+            msg = (f"discovery_config: ome_ip '{ome_ip}' is a reserved address. "
+                   "Provide the actual OME appliance IP.")
+            errors.append(msg)
+            if logger:
+                logger.error(msg)
+        elif addr.is_multicast:
+            msg = (f"discovery_config: ome_ip '{ome_ip}' is a multicast address. "
+                   "Provide the actual OME appliance IP.")
+            errors.append(msg)
+            if logger:
+                logger.error(msg)
+        elif addr.is_unspecified:
+            msg = (f"discovery_config: ome_ip '{ome_ip}' is an unspecified address. "
                    "Provide the actual OME appliance IP.")
             errors.append(msg)
             if logger:

@@ -22,6 +22,20 @@ import re
 
 from ansible.module_utils.basic import AnsibleModule
 
+
+def _sanitize_csv_value(value: str) -> str:
+    """Prefix CSV values that could trigger formula injection in Excel.
+    
+    Excel interprets cells starting with =, +, -, @, tab, or carriage return
+    as formulas. Prefixing with a single quote forces Excel to treat the cell
+    as text, preventing formula injection.
+    """
+    if not value:
+        return value
+    if value[0] in ('=', '+', '-', '@', '\t', '\r'):
+        return "'" + value
+    return value
+
 DOCUMENTATION = r'''
 ---
 module: generate_pxe_mapping
@@ -343,17 +357,17 @@ def main() -> None:
             resolved_group_name = su_name if su_name else group_name
 
             row = {
-                "FUNCTIONAL_GROUP_NAME": resolved_functional_group,
-                "GROUP_NAME": resolved_group_name,
-                "SERVICE_TAG": server.get('service_tag', ''),
+                "FUNCTIONAL_GROUP_NAME": _sanitize_csv_value(resolved_functional_group),
+                "GROUP_NAME": _sanitize_csv_value(resolved_group_name),
+                "SERVICE_TAG": _sanitize_csv_value(server.get('service_tag', '')),
                 "PARENT_SERVICE_TAG": "",
-                "HOSTNAME": hostname,
-                "ADMIN_MAC": server.get('first_nic_mac', ''),
-                "ADMIN_IP": admin_ip,
-                "BMC_MAC": server.get('idrac_mac', ''),
-                "BMC_IP": bmc_ip,
-                "IB_NIC_NAME": ib_nic_name,
-                "IB_IP": ib_ip
+                "HOSTNAME": _sanitize_csv_value(hostname),
+                "ADMIN_MAC": _sanitize_csv_value(server.get('first_nic_mac', '')),
+                "ADMIN_IP": _sanitize_csv_value(admin_ip),
+                "BMC_MAC": _sanitize_csv_value(server.get('idrac_mac', '')),
+                "BMC_IP": _sanitize_csv_value(bmc_ip),
+                "IB_NIC_NAME": _sanitize_csv_value(ib_nic_name),
+                "IB_IP": _sanitize_csv_value(ib_ip)
             }
             rows.append(row)
 
