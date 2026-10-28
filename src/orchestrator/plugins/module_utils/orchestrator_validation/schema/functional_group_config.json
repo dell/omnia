@@ -63,6 +63,9 @@
     "scope": {
       "type": "object",
       "properties": {
+        "boot_kernel_params": {
+          "$ref": "#/definitions/bootKernelParams"
+        },
         "cloud_init": {
           "$ref": "#/definitions/cloudInit"
         }
@@ -72,6 +75,9 @@
     "groupScope": {
       "type": "object",
       "properties": {
+        "boot_kernel_params": {
+          "$ref": "#/definitions/bootKernelParams"
+        },
         "cloud_init": {
           "$ref": "#/definitions/cloudInit"
         },

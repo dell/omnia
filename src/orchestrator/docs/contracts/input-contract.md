@@ -407,11 +407,13 @@ data, so values are never evaluated as Jinja on the OIM.
 
 ```yaml
 common:
+  boot_kernel_params: "audit=1"
   cloud_init:
     config_file: "$ORCHESTRATOR_DATA_PATH/input/<project>/common-x86_64.yml"
 
 groups:
   fg_research_rhel_10_0_x86_64:
+    boot_kernel_params: "numa=off"
     cloud_init:
       config_file: "$ORCHESTRATOR_DATA_PATH/input/<project>/fg-research-cloud-init-x86_64.yml"
     image_override:

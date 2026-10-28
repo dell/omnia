@@ -24,6 +24,26 @@
 # provisioning path and the configuration-only path cannot diverge. Precedence
 # is groups.<fg_name> -> common -> Omnia default; an empty value inherits
 # rather than clearing.
+- name: Resolve boot kernel parameters for {{ fg_name }}
+  ansible.builtin.set_fact:
+    boot_kernel_params: >-
+      {{ hostvars['localhost']['functional_group_config'] | default({})
+         | functional_group_setting(
+             fg_name,
+             'boot_kernel_params'
+           ) }}
+    boot_kernel_params_source: >-
+      {{ (hostvars['localhost']['functional_group_config'] | default({})
+          | functional_group_provenance(
+              fg_name
+            )).boot_kernel_params }}
+
+- name: Report resolved boot kernel parameter provenance - {{ fg_name }}
+  ansible.builtin.debug:
+    msg: >-
+      {{ fg_name }}: boot_kernel_params resolved from
+      '{{ boot_kernel_params_source }}'
+
 - name: Report cloud-init configuration for {{ fg_name }}
   ansible.builtin.debug:
     msg: >-

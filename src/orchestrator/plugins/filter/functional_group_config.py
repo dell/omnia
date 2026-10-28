@@ -66,7 +66,8 @@ def functional_group_setting(
         config_data: Parsed ``functional_group_config.yml``, or an empty
             mapping when the optional file is absent.
         functional_group: Exact PXE functional-group name.
-        setting: One of ``cloud_init_config_file`` or ``image_override``.
+        setting: One of ``boot_kernel_params``, ``cloud_init_config_file``,
+            or ``image_override``.
 
     Returns:
         The resolved value for that setting.

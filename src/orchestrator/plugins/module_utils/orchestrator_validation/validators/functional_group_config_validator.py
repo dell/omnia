@@ -38,6 +38,7 @@ from .functional_group_rules import (
     record_error,
     validate_architecture_reference,
     validate_image_override,
+    validate_kernel_params,
     warn_unsupported_os,
 )
 from .pxe_mapping_validator import resolve_mapping_path
@@ -71,7 +72,7 @@ def _sets_cloud_init(scope: dict[str, Any]) -> bool:
 
 
 def _sets_kernel_params(scope: dict[str, Any]) -> bool:
-    return False
+    return _non_empty(scope.get("boot_kernel_params"))
 
 
 def _validate_legacy_inputs(
@@ -89,6 +90,8 @@ def _validate_legacy_inputs(
     legacy_cloud_init = legacy.get("additional_cloud_init_config_file", "")
     if _non_empty(legacy_cloud_init) and _any_scope(config_data, _sets_cloud_init):
         record_error(errors, logger, msg.functional_group_legacy_conflict_msg())
+        if _any_scope(config_data, _sets_kernel_params):
+            record_error(errors, logger, msg.functional_group_legacy_kernel_conflict_msg())
 
 
 def _validate_scope(
@@ -108,6 +111,7 @@ def _validate_scope(
             msg.functional_group_type_msg(referenced_by, type(scope).__name__, "a mapping"),
         )
         return {}
+    validate_kernel_params(scope.get("boot_kernel_params"), referenced_by, errors, logger)
     validate_cloud_init_reference(scope, referenced_by, input_project_dir, errors, logger)
     return scope
 
