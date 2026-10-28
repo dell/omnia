@@ -14,13 +14,14 @@
 
 """Consolidated NFS-based implementation for input directory and configuration management."""
 
-from api.logging_utils import log_secure_info
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
 import yaml
 
+from api.logging_utils import log_secure_info
 from core.build_image.repositories import BuildStreamConfigRepository
 from core.build_image.value_objects import InventoryHost
 
@@ -47,7 +48,6 @@ def _get_omnia_project_name() -> str:
         ValueError: If the project name contains path separators or
             traversal components.
     """
-    import re  # local import to avoid module-level side effects
     project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
     if (
         not project_name
@@ -123,30 +123,42 @@ class NfsInputRepository(BuildStreamConfigRepository):
         config_path = self._config_file_path
 
         if not config_path.exists():
-            log_secure_info('warning', f"build_stream_config.yml not found at {job_id} (job {config_path})")
+            log_secure_info(
+                'warning',
+                f"build_stream_config.yml not found at {config_path} (job {job_id})",
+            )
             return None
 
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
-                
+
             if not config:
                 log_secure_info('warning', f"Empty build_stream_config.yml for job {job_id}")
                 return None
-                
+
             inventory_host = config.get("aarch64_inventory_host_ip")
             if inventory_host:
-                log_secure_info('info', f"Retrieved inventory_host for job {job_id}: {inventory_host}")
+                log_secure_info(
+                    'info', f"Retrieved inventory_host for job {job_id}: {inventory_host}"
+                )
                 return InventoryHost(str(inventory_host))
-            
-            log_secure_info('info', f"No aarch64_inventory_host_ip configured for job {job_id}")
+
+            log_secure_info(
+                'info', f"No aarch64_inventory_host_ip configured for job {job_id}"
+            )
             return None
-            
-        except yaml.YAMLError as exc:
-            log_secure_info('error', f"Failed to parse build_stream_config.yml for job {job_id}")
+
+        except yaml.YAMLError:
+            log_secure_info(
+                'error', f"Failed to parse build_stream_config.yml for job {job_id}"
+            )
             return None
-        except Exception as exc:
-            log_secure_info('error', f"Unexpected error reading build_stream_config.yml for job {job_id}")
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_secure_info(
+                'error',
+                f"Unexpected error reading build_stream_config.yml for job {job_id}",
+            )
             return None
 
     # === Input Directory Management Methods ===

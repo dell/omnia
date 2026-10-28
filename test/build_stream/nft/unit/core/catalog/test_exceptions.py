@@ -14,7 +14,7 @@
 
 """Unit tests for Catalog domain exceptions."""
 
-import pytest
+# pylint: disable=missing-function-docstring
 
 from core.catalog.exceptions import (
     CatalogParseError,
@@ -73,4 +73,3 @@ class TestInvalidJSONError:
         correlation_id = "018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10"
         error = InvalidJSONError("JSON error", correlation_id)
         assert error.correlation_id == correlation_id
-

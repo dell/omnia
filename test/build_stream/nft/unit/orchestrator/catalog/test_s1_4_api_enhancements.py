@@ -18,6 +18,9 @@ Part A: Parse-catalog enhancement — image_group_id extraction, uniqueness chec
 Part B: Build-image completion — ImageGroup/Image record creation.
 """
 
+# pylint: disable=protected-access,import-outside-toplevel,too-many-arguments
+# pylint: disable=too-many-positional-arguments,too-many-locals,too-few-public-methods
+
 import json
 import uuid
 from unittest.mock import MagicMock, patch
