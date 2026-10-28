@@ -85,7 +85,9 @@ class NfsPlaybookQueueResultRepository:
         """
         try:
             with open(result_path, "r", encoding="utf-8") as result_file:
-                data = json.load(result_file)
+                data = json.JSONDecoder().decode(result_file.read())
+            if not isinstance(data, dict):
+                raise ValueError(f"Result file {result_path} is not a JSON object")
 
             required_fields = {"job_id", "stage_name", "status"}
             missing = required_fields - set(data.keys())

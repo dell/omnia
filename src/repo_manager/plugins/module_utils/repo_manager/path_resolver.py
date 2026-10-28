@@ -15,6 +15,7 @@
 """Resolve Repo Manager runtime paths from the Omnia environment contract."""
 
 import os
+import re
 
 
 DEFAULT_OMNIA_DATA_PATH = "/opt/omnia"
@@ -59,8 +60,9 @@ def get_project_name(environ=None):
         not project_name
         or project_name in (".", "..")
         or os.path.basename(project_name) != project_name
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', project_name)
     ):
-        raise ValueError("OMNIA_PROJECT_NAME must be a single non-empty path segment")
+        raise ValueError("OMNIA_PROJECT_NAME is not a valid single-segment name")
     return project_name
 
 

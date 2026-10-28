@@ -33,8 +33,7 @@ class BuildImageRequest:
         job_id: Parent job identifier.
         stage_name: Stage identifier (build-image).
         playbook_path: Validated path to the playbook.
-        extra_vars: Ansible extra variables (includes architecture, image_key, functional_groups).
-        inventory_file_path: Optional path to inventory file for aarch64 builds.
+        extra_vars: Ansible extra variables (job_id, attempt).
         correlation_id: Request tracing identifier.
         timeout: Execution timeout configuration.
         submitted_at: Request submission timestamp.
@@ -49,7 +48,6 @@ class BuildImageRequest:
     timeout: ExecutionTimeout
     submitted_at: str
     request_id: str
-    inventory_file_path: Optional[str] = None
     tags: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
@@ -64,10 +62,6 @@ class BuildImageRequest:
             "submitted_at": self.submitted_at,
             "request_id": self.request_id,
         }
-        
-        # Add inventory file path if present
-        if self.inventory_file_path:
-            request_dict["inventory_file_path"] = self.inventory_file_path
 
         # Add tags if present (for selective playbook execution)
         if self.tags:
@@ -83,24 +77,3 @@ class BuildImageRequest:
         """
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         return f"{self.job_id}_{self.stage_name}_{timestamp}.json"
-
-    def get_playbook_command(self) -> str:
-        """Generate the ansible-playbook command based on request parameters.
-
-        Returns:
-            Complete ansible-playbook command string.
-        """
-        # Base command
-        cmd = f'ansible-playbook {self.playbook_path}'
-        
-        # Add inventory file for aarch64
-        if self.inventory_file_path:
-            cmd += f' -i {self.inventory_file_path}'
-        
-        # Add extra vars
-        extra_vars = self.extra_vars.to_dict()
-        cmd += f' -e job_id="{extra_vars["job_id"]}"'
-        cmd += f' -e image_key="{extra_vars["image_key"]}"'
-        cmd += f' -e functional_groups=\'{extra_vars["functional_groups"]}\''
-        
-        return cmd

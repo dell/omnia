@@ -94,7 +94,7 @@ default:
           return 1
         fi
         export ACCESS_TOKEN
-        echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
+        (umask 077; echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token)
         return 0
       }
 

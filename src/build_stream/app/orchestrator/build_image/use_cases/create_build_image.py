@@ -14,10 +14,8 @@
 
 """CreateBuildImage use case implementation."""
 
-import json
 import os
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
 
 from api.logging_utils import log_secure_info
@@ -196,50 +194,6 @@ class CreateBuildImageUseCase:
                 limit=self._retention_limit,
             )
 
-    def _persist_build_image_metadata(
-        self,
-        job_id: str,
-        image_key: str,
-        architecture: str,
-        functional_groups: list,
-    ) -> None:
-        """Persist build-image metadata to NFS for the result poller.
-
-        The metadata is written to ``<artifact_base>/artifacts/<job_id>/build_image_meta.json``
-        so the result poller can reconstruct complete S3 image paths
-        once the build completes.
-        """
-        try:
-            base = os.environ.get(
-                "NFS_ARTIFACT_BASE",
-                os.path.join(os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root")
-            )
-            job_dir = Path(base) / "artifacts" / job_id
-            job_dir.mkdir(parents=True, exist_ok=True)
-            meta_path = job_dir / "build_image_meta.json"
-            payload = {
-                "image_key": image_key,
-                "architecture": architecture,
-                "functional_groups": functional_groups,
-                "written_at": datetime.now(timezone.utc)
-                .isoformat()
-                .replace("+00:00", "Z"),
-            }
-            meta_path.write_text(json.dumps(payload), encoding="utf-8")
-            log_secure_info(
-                "info",
-                f"Persisted build_image_meta to {meta_path}",
-                job_id=job_id,
-            )
-        except OSError as exc:
-            # Non-fatal: result poller will fall back to legacy naming.
-            log_secure_info(
-                "warning",
-                f"Could not persist build_image_meta for job={job_id}: "
-                f"{exc}",
-                job_id=job_id,
-            )
-
     def _validate_job(self, command: CreateBuildImageCommand):
         """Validate job exists and belongs to the requesting client."""
         job = self._job_repo.find_by_id(command.job_id)
@@ -380,7 +334,6 @@ class CreateBuildImageUseCase:
             stage_name=StageType.BUILD_IMAGE.value,
             playbook_path=playbook_path,
             extra_vars=extra_vars,
-            inventory_file_path=None,  # Not needed, playbook handles inventory
             correlation_id=str(command.correlation_id),
             timeout=ExecutionTimeout(60),
             submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
