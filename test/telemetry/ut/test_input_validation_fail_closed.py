@@ -26,6 +26,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 TELEMETRY_ROOT = Path(__file__).resolve().parents[3] / "src" / "telemetry"
 MODULE_UTILS = TELEMETRY_ROOT / "plugins" / "module_utils"
@@ -90,3 +91,20 @@ def test_valid_tag_reaches_file_validation(input_base):
     failed, result = _run_validate_input(input_base, ["telemetry"])
     assert failed
     assert "telemetry_storage_config file not found" in result["msg"]
+
+
+def test_supported_tags_cover_public_and_play_tags():
+    """omnia.sh public tags and telemetry.yml play tags all pass the tag guard."""
+    vars_file = TELEMETRY_ROOT / "roles" / "telemetry_setup" / "vars" / "main.yml"
+    supported = set(yaml.safe_load(vars_file.read_text(encoding="utf-8"))["supported_tags"])
+    omnia_sh = (TELEMETRY_ROOT.parent / "main" / "omnia.sh").read_text(encoding="utf-8")
+    block = omnia_sh.split("Public tags by domain", 1)[1]
+    public = set(re.search(r"^\s+telemetry:\s+(.+)$", block, re.M).group(1).split())
+    playbook = yaml.safe_load(
+        (TELEMETRY_ROOT / "playbooks" / "telemetry.yml").read_text(encoding="utf-8")
+    )
+    play_tags = set()
+    for play in playbook:
+        tags = play.get("tags") or []
+        play_tags.update([tags] if isinstance(tags, str) else tags)
+    assert (public | play_tags) - {"always", "never"} - supported == set()

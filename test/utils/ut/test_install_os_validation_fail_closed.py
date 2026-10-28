@@ -20,10 +20,12 @@ empty; selected modes therefore stop at the missing-config check.
 """
 
 import os
+import re
 import shutil
 import subprocess
 
 import pytest
+import yaml
 
 pytestmark = pytest.mark.skipif(
     shutil.which("ansible-playbook") is None, reason="ansible-playbook not installed"
@@ -78,3 +80,17 @@ def test_single_mode_tag_passes_mode_gate(src_dir, tmp_path, tag):
     assert returncode != 0
     assert "No install_os validation mode matches" not in output
     assert "install_os_config.yml not found" in output
+
+
+def test_supported_tags_cover_public_and_play_tags(src_dir):
+    """utils_setup guards utils.yml and install_os.yml; their tags all pass."""
+    vars_file = src_dir / "roles" / "utils_setup" / "vars" / "main.yml"
+    supported = set(yaml.safe_load(vars_file.read_text(encoding="utf-8"))["supported_tags"])
+    omnia_sh = (src_dir.parent / "main" / "omnia.sh").read_text(encoding="utf-8")
+    block = omnia_sh.split("Public tags by domain", 1)[1]
+    expected = set(re.search(r"^\s+utils:\s+(.+)$", block, re.M).group(1).split())
+    for name in ("utils.yml", "install_os.yml"):
+        for play in yaml.safe_load((src_dir / "playbooks" / name).read_text(encoding="utf-8")):
+            tags = play.get("tags") or []
+            expected.update([tags] if isinstance(tags, str) else tags)
+    assert expected - {"always", "never"} - supported == set()

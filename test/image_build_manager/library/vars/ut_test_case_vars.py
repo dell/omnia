@@ -340,6 +340,7 @@ UT_TEST_CASE_IDS = {
         {
             157: "test_encrypted_credentials_are_validated_with_masked_errors",
             158: "test_encrypted_credentials_without_key_are_unvalidated",
+            159: "test_standalone_x86_64_build_accepts_its_play_tags",
         },
     ),
 }

@@ -12,15 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# =============================================================================
-# TAG VALIDATION
-# =============================================================================
+# utils_setup is shared by utils.yml and install_os.yml, so this lists every
+# tag selectable in either playbook (see omnia.sh --help).
 supported_tags:
+  - precheck
+  - setup
+  - collect
   - install_os
   - build_iso
-  - deploy
   - generate_ks
+  - deploy
   - credentials
+  - bundle
+  - prepare
+  - validate
+  - k8s
+  - slurm
+  - backup_oim_logs
+  - slurm_config_backup
+  - slurm_config_cleanup
+  - slurm_config_rollback
+  - cleanup
+  - cleanup_logs
+  - cleanup_install_os
+  - cleanup_backup_oim_logs
+  - cleanup_slurm_config_backups
+  - upgrade
+  - rollback
 
 tag_validation_fail_msg: |
   Invalid tag usage detected.

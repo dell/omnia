@@ -134,6 +134,7 @@ UT_TEST_CASE_IDS = {
             63: "test_known_tag_with_unknown_tag_is_rejected",
             64: "test_empty_tag_list_is_rejected",
             65: "test_valid_tag_reaches_file_validation",
+            66: "test_supported_tags_cover_public_and_play_tags",
         },
     ),
 }

@@ -223,5 +223,34 @@ class CredentialFileValidationContractTests(unittest.TestCase):
         self.assertTrue(self._errors(document))
 
 
+
+class SupportedTagsContractTests(unittest.TestCase):
+    """The playbook tag guard must accept every tag a caller can select."""
+
+    @staticmethod
+    def _supported_tags():
+        vars_file = REPO_MANAGER_ROOT / "roles" / "repo_manager_setup" / "vars" / "main.yml"
+        return set(yaml.safe_load(vars_file.read_text(encoding="utf-8"))["supported_tags"])
+
+    def test_supported_tags_cover_public_and_play_tags(self):
+        """omnia.sh public tags and repo_manager.yml play tags all pass the guard."""
+        omnia_sh = (REPO_MANAGER_ROOT.parent / "main" / "omnia.sh").read_text(encoding="utf-8")
+        block = omnia_sh.split("Public tags by domain", 1)[1]
+        public = set(re.search(r"^\s+repo_manager:\s+(.+)$", block, re.M).group(1).split())
+        playbook = yaml.safe_load(
+            (REPO_MANAGER_ROOT / "playbooks" / "repo_manager.yml").read_text(encoding="utf-8")
+        )
+        play_tags = set()
+        for play in playbook:
+            tags = play.get("tags") or []
+            play_tags.update([tags] if isinstance(tags, str) else tags)
+        expected = (public | play_tags) - {"always", "never"}
+        self.assertEqual(expected - self._supported_tags(), set())
+
+    def test_internal_pulp_tag_is_rejected(self):
+        """'pulp' selects the never-tagged cleanup play, so it is not public."""
+        self.assertNotIn("pulp", self._supported_tags())
+
+
 if __name__ == "__main__":
     unittest.main()

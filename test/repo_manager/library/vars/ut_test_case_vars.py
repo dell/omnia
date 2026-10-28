@@ -601,6 +601,14 @@ UT_TEST_CASE_IDS = {
             301: "test_schema_rejects_incomplete_registry_credential",
         },
     ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "SupportedTagsContractTests",
+        {
+            302: "test_supported_tags_cover_public_and_play_tags",
+            303: "test_internal_pulp_tag_is_rejected",
+        },
+    ),
 }
 
 

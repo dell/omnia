@@ -74,13 +74,16 @@ kubernetes_install_failure_msg: >-
   3. Re-run the playbook
   {% endif %}
 
-# -----------------------------------------------------------------------------
-# TAG VALIDATION
-# -----------------------------------------------------------------------------
+# Every tag selectable in telemetry.yml (see omnia.sh --help).
 supported_tags:
   - precheck
   - validate
+  - validation
+  - prepare
+  - credentials
+  - execute
   - deploy
+  - deploy_sinks
   - cleanup
   - cleanup_idrac
   - cleanup_ldms
@@ -90,6 +93,7 @@ supported_tags:
   - cleanup_vast
   - cleanup_sinks
   - external_kafka
+  - external_victoria
 
 tag_validation_fail_msg: |
   Invalid tag usage detected.

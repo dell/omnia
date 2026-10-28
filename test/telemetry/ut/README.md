@@ -187,7 +187,7 @@ unchanged.
 | TEL_UT_CLEANUP_V061 | Marker variable null default | ut |
 | TEL_UT_CLEANUP_V062 | Short-form detection logic | ut |
 
-### Input Validation Fail-Closed (TEL_UT_062–TEL_UT_065)
+### Input Validation Fail-Closed (TEL_UT_062–TEL_UT_066)
 
 | TC ID | Test | Marker |
 |-------|------|--------|
@@ -195,6 +195,7 @@ unchanged.
 | TEL_UT_063 | Known tag with unknown tag is rejected | ut |
 | TEL_UT_064 | Empty tag list is rejected | ut |
 | TEL_UT_065 | Valid tag reaches file validation | ut |
+| TEL_UT_066 | Supported tags cover public and play tags | ut |
 
 ## Execution
 
@@ -236,7 +237,7 @@ Sink Enablement (TEL_UT_037–TEL_UT_039): 3/3 PASS
 OME Lifecycle (TEL_UT_040–TEL_UT_046): 7/7 PASS
 Kafka Topic Lifecycle (TEL_UT_047–TEL_UT_049): 3/3 PASS
 Disabled-State FVT Helpers (TEL_UT_050–TEL_UT_056): 7/7 PASS
-Input Validation Fail-Closed (TEL_UT_062–TEL_UT_065): 4/4 PASS
+Input Validation Fail-Closed (TEL_UT_062–TEL_UT_066): 5/5 PASS
 Cleanup Sinks Dependency Checking (TEL_UT_CLEANUP_V019–TEL_UT_CLEANUP_V035): 1/17 PASS (16 skipped - no dependencies running)
 Cleanup Sinks Short-Form Parameters (TEL_UT_CLEANUP_V036–TEL_UT_CLEANUP_V045): 0/9 PASS (9 skipped - no dependencies running)
 Cleanup Sinks Parameter Normalization (TEL_UT_CLEANUP_V046–TEL_UT_CLEANUP_V062): 17/17 PASS

@@ -49,13 +49,15 @@ repo_manager_setup_invalid_oim_metadata_msg: >-
   oim_metadata.yml is invalid or contains prohibited Jinja template syntax.
   Runtime metadata must contain literal YAML values.
 
-# =============================================================================
-# TAG VALIDATION
-# =============================================================================
+# Public repo_manager tags (see omnia.sh --help). Internal tags such as
+# 'pulp', 'local_repo' and 'repo_manager' are intentionally excluded: 'pulp'
+# selects both the deploy and the never-tagged Pulp cleanup plays.
 supported_tags:
   - credentials
   - prepare
+  - deploy
   - precheck
+  - execute
   - download
   - status
   - cleanup

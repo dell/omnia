@@ -22,6 +22,11 @@
     - name: Run image_build_setup role (standalone only)
       ansible.builtin.include_role:
         name: image_build_setup
+      vars:
+        additional_supported_tags:
+          - base_image
+          - compute_image
+          - s3_acl
       when: not (image_build_setup_done | default(false) | bool)
 
     - name: Run collect_build_credentials role (standalone only)
