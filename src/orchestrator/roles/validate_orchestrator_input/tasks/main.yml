@@ -48,6 +48,38 @@
     log_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/log/core/playbooks"
   register: validate_orchestrator_input_result
 
+# Validate hardware defaults for Slurm configuration
+- name: Validate hardware defaults
+  ansible.builtin.fail:
+    msg: >-
+      Hardware default validation failed:
+      {% if default_real_memory is defined and (default_real_memory | int) < 8192 %}
+      - default_real_memory {{ default_real_memory }} is below minimum 8192 MB (8GB)
+      {% elif default_real_memory is defined and (default_real_memory | int) > 8000000000 %}
+      - default_real_memory {{ default_real_memory }} exceeds maximum 8000000000 MB (8TB)
+      {% endif %}
+      {% if default_corespersocket is defined and (default_corespersocket | int) < 1 %}
+      - default_corespersocket {{ default_corespersocket }} is below minimum 1
+      {% elif default_corespersocket is defined and (default_corespersocket | int) > 160 %}
+      - default_corespersocket {{ default_corespersocket }} exceeds maximum 160
+      {% endif %}
+      {% if default_threadspercore is defined and (default_threadspercore | int) < 1 %}
+      - default_threadspercore {{ default_threadspercore }} is below minimum 1
+      {% elif default_threadspercore is defined and (default_threadspercore | int) > 2 %}
+      - default_threadspercore {{ default_threadspercore }} exceeds maximum 2
+      {% endif %}
+      {% if default_sockets is defined and (default_sockets | int) < 1 %}
+      - default_sockets {{ default_sockets }} is below minimum 1
+      {% elif default_sockets is defined and (default_sockets | int) > 16 %}
+      - default_sockets {{ default_sockets }} exceeds maximum 16
+      {% endif %}
+  when:
+    - default_real_memory is defined or default_corespersocket is defined or default_threadspercore is defined or default_sockets is defined
+    - (default_real_memory is defined and ((default_real_memory | int) < 8192 or (default_real_memory | int) > 8000000000)) or
+      (default_corespersocket is defined and ((default_corespersocket | int) < 1 or (default_corespersocket | int) > 160)) or
+      (default_threadspercore is defined and ((default_threadspercore | int) < 1 or (default_threadspercore | int) > 2)) or
+      (default_sockets is defined and ((default_sockets | int) < 1 or (default_sockets | int) > 16))
+
 # Report results
 - name: Display validation log path
   ansible.builtin.debug:

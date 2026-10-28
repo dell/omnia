@@ -129,29 +129,6 @@
     - discovery_mode == 'homogeneous'
     - sample_idrac_groups | default({}) | length > 0
 
-- name: Display validation failures (homogeneous mode)
-  ansible.builtin.debug:
-    msg: >-
-      Input validation failed for {{ bulk_discovery.validation_failures | length }}
-      attribute(s):
-      {% for failure in bulk_discovery.validation_failures %}
-      - {{ failure }}
-      {% endfor %}
-  when:
-    - discovery_mode == 'homogeneous'
-    - bulk_discovery is defined
-    - bulk_discovery is not skipped
-    - bulk_discovery.validation_failed | default(false)
-
-- name: Pause if validation failed (homogeneous mode)
-  ansible.builtin.pause:
-    seconds: 20
-  when:
-    - discovery_mode == 'homogeneous'
-    - bulk_discovery is defined
-    - bulk_discovery is not skipped
-    - bulk_discovery.validation_failed | default(false)
-
 - name: Set node_params from bulk group discovery
   ansible.builtin.set_fact:
     node_params: "{{ node_params + bulk_discovery.node_params }}"
