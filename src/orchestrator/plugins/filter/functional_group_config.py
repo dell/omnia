@@ -52,7 +52,6 @@ except ImportError:  # pragma: no cover - exercised by the repo-layout run
     _RESOLVER = importlib.util.module_from_spec(_SPEC)
     _SPEC.loader.exec_module(_RESOLVER)
     resolve_group = _RESOLVER.resolve_group
-    merge_cloud_init_sections = _RESOLVER.merge_cloud_init_sections
     canonical_group_name = _RESOLVER.canonical_group_name
 
 
@@ -67,8 +66,7 @@ def functional_group_setting(
         config_data: Parsed ``functional_group_config.yml``, or an empty
             mapping when the optional file is absent.
         functional_group: Exact PXE functional-group name.
-        setting: One of ``boot_kernel_params``, ``cloud_init_config_file``,
-            or ``image_override``.
+        setting: One of ``cloud_init_config_file`` or ``image_override``.
 
     Returns:
         The resolved value for that setting.

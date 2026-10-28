@@ -38,7 +38,6 @@ LEVEL_DEFAULT = "default"
 
 #: Built-in defaults, equivalent to standard Slurm-node behavior.
 OMNIA_DEFAULTS: dict[str, Any] = {
-    "boot_kernel_params": "",
     "cloud_init_config_file": "",
     "image_override": {},
 }
@@ -51,8 +50,6 @@ IMAGE_OVERRIDE_KEYS = ("kernel", "initrd", "rootfs")
 #: marker is removed before the group lookup.
 _FIRST_CONTROL_PLANE = re.compile(r"^service_kube_control_plane_first_")
 
-#: Keys resolved from a scope mapping, with the scope path each one reads.
-_SCALAR_KEYS = ("boot_kernel_params",)
 #: ``image_override`` is group-only: ``common`` cannot set it, because an image
 #: applies to one group's hardware and architecture rather than to a cluster.
 _GROUP_ONLY_KEYS = ("image_override",)
@@ -69,14 +66,12 @@ class ResolvedGroupConfig(NamedTuple):
     """Fully resolved configuration for a single functional group."""
 
     functional_group: str
-    boot_kernel_params: ResolvedValue
     cloud_init_config_file: ResolvedValue
     image_override: ResolvedValue
 
     def provenance(self) -> dict[str, str]:
         """Return a ``{setting: level}`` map for current-run evidence."""
         return {
-            "boot_kernel_params": self.boot_kernel_params.source,
             "cloud_init_config_file": self.cloud_init_config_file.source,
             "image_override": self.image_override.source,
         }
@@ -84,7 +79,6 @@ class ResolvedGroupConfig(NamedTuple):
     def values(self) -> dict[str, Any]:
         """Return a ``{setting: value}`` map for template consumption."""
         return {
-            "boot_kernel_params": self.boot_kernel_params.value,
             "cloud_init_config_file": self.cloud_init_config_file.value,
             "image_override": self.image_override.value,
         }
@@ -164,16 +158,6 @@ def resolve_group(
 
     resolved: dict[str, ResolvedValue] = {}
 
-    for key in _SCALAR_KEYS:
-        candidates = [
-            (LEVEL_GROUP, group.get(key)),
-            (LEVEL_COMMON, common.get(key)),
-        ]
-        resolved[key] = _resolve(
-            candidates,
-            OMNIA_DEFAULTS[key],
-        )
-
     resolved["cloud_init_config_file"] = _resolve(
         [
             (LEVEL_GROUP, _cloud_init_file(group)),
@@ -189,7 +173,6 @@ def resolve_group(
 
     return ResolvedGroupConfig(
         functional_group=functional_group,
-        boot_kernel_params=resolved["boot_kernel_params"],
         cloud_init_config_file=resolved["cloud_init_config_file"],
         image_override=resolved["image_override"],
     )

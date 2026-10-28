@@ -17,11 +17,9 @@ and external-pool relationships are checked before provisioning.
 
 An all-empty or all-commented `functional_group_config.yml` is inactive.
 Legacy `additional_cloud_init_config_file` conflicts only with new cloud-init
-values, and deprecated `boot_kernel_params` only with new kernel values. Group
-names, project-local cloud-init paths and structure, protected and unsafe
-kernel parameters, the all-or-none `image_override` tuple, architecture
-references, and plaintext-secret patterns are validated before any
-provisioning mutation.
+values. Group names, project-local cloud-init paths and structure, the
+all-or-none `image_override` tuple, architecture references, and
+plaintext-secret patterns are validated before any provisioning mutation.
 
 System availability checks such as NFS reachability, S3 image access, and OIM
 connectivity belong to `orchestrator_validations`, not this role.

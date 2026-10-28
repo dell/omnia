@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Kernel-parameter, image-override, and naming rules for functional groups."""
+"""Image-override and naming rules for functional groups."""
 
 from __future__ import annotations
 
@@ -20,37 +20,6 @@ from logging import Logger
 from typing import Any
 
 from ..messages import orchestrator_messages as msg
-
-#: Platform-managed boot, network, console, data-source, and security kernel
-#: parameters (ER-ORCH-009 FR-2.2). A functional group cannot set them: the
-#: kernel honors the last occurrence, so an appended value would override the
-#: platform value in the boot-service template.
-PROTECTED_KERNEL_PARAMS = frozenset(
-    {
-        "root",
-        "ip",
-        "ip6",
-        "rd.live.image",
-        "rd.live.ram",
-        "rd.neednet",
-        "console",
-        "ds",
-        "selinux",
-        "apparmor",
-        "netroot",
-        "bootdev",
-        "initrd",
-        "BOOT_IMAGE",
-        "inst.repo",
-        "inst.stage2",
-    }
-)
-
-#: One kernel parameter: ``key`` or ``key=value`` with a conservative value
-#: alphabet. Quotes, backslashes, and control characters would break the
-#: double-quoted boot-service ``params`` scalar.
-KERNEL_PARAM_PATTERN = re.compile(r"^[A-Za-z0-9_.\-]+(?:=[A-Za-z0-9_.,:;/@+%=\-]*)?$")
-_UNSAFE_KERNEL_CHARS = re.compile(r"[\x00-\x08\x0a-\x1f\x7f\"'\\]")
 
 #: Image-storage object key: relative, no scheme, no parent traversal.
 IMAGE_ARTIFACT_PATTERN = re.compile(r"^(?!/)(?!.*\.\.)[A-Za-z0-9._/-]{1,512}$")
@@ -108,45 +77,6 @@ def validate_architecture_reference(
                 group, group_arch, reference_kind, referenced[0]
             ),
         )
-
-
-def validate_kernel_params(
-    raw: Any, referenced_by: str, errors: list[str], logger: Logger | None
-) -> None:
-    """Validate one ``boot_kernel_params`` string."""
-    if raw is None:
-        return
-    if not isinstance(raw, str):
-        record_error(
-            errors,
-            logger,
-            msg.functional_group_type_msg(
-                f"{referenced_by}.boot_kernel_params", type(raw).__name__, "a string"
-            ),
-        )
-        return
-    if _UNSAFE_KERNEL_CHARS.search(raw):
-        record_error(
-            errors,
-            logger,
-            msg.functional_group_kernel_param_format_msg(referenced_by, raw.strip()),
-        )
-        return
-    for token in raw.split():
-        if not KERNEL_PARAM_PATTERN.match(token):
-            record_error(
-                errors,
-                logger,
-                msg.functional_group_kernel_param_format_msg(referenced_by, token),
-            )
-            continue
-        key = token.split("=", 1)[0]
-        if key in PROTECTED_KERNEL_PARAMS:
-            record_error(
-                errors,
-                logger,
-                msg.functional_group_protected_param_msg(referenced_by, key),
-            )
 
 
 def validate_image_override(

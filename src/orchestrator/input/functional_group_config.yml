@@ -53,12 +53,6 @@
 
 # Defaults applied to every functional group unless a group overrides them.
 common:
-  # Kernel parameters appended to the boot configuration. Platform-managed
-  # parameters (root, ip, ip6, rd.live.image, rd.live.ram, rd.neednet, console,
-  # ds, selinux, apparmor, ...) and quotes/backslashes/control characters are
-  # rejected. Example: "crashkernel=auto audit=1"
-  boot_kernel_params: ""
-
   cloud_init:
     # Absolute path to a file in this project's input directory
     # ($ORCHESTRATOR_DATA_PATH/input/<project>/) containing a YAML mapping with
@@ -77,7 +71,6 @@ common:
 #
 # groups:
 #   fg_research_rhel_10_2_x86_64:
-#     boot_kernel_params: "numa=off"
 #     cloud_init:
 #       config_file: "<ORCHESTRATOR_DATA_PATH>/input/<project>/fg-research-cloud-init-x86_64.yml"
 #     image_override:
@@ -86,7 +79,6 @@ common:
 #       rootfs: "boot-images/fg-research/rootfs-x86_64.squashfs"
 #
 #   fg_mpi_worker_rhel_10_0_aarch64:
-#     boot_kernel_params: ""          # inherits common
 #     cloud_init:
 #       config_file: ""               # inherits common, then Omnia default
 #     image_override: {}

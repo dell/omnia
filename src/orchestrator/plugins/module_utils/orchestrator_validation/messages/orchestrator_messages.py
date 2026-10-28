@@ -1000,16 +1000,6 @@ def functional_group_legacy_conflict_msg() -> str:
     )
 
 
-def functional_group_legacy_kernel_conflict_msg() -> str:
-    """Return the legacy/new kernel-parameter conflict error message."""
-    return (
-        "functional_group_config: boot_kernel_params is set while deprecated "
-        "orchestrator_config 'boot_kernel_params' is also set. Move the value "
-        "to functional_group_config.yml common or group scope and remove it "
-        "from orchestrator_config.yml."
-    )
-
-
 def functional_group_image_override_incomplete_msg(
     group: str, missing: list[str], unknown: list[str]
 ) -> str:
@@ -1114,27 +1104,6 @@ def functional_group_yaml_parse_failed_msg(path: str, detail: str) -> str:
     return (
         "functional_group_config: Failed to parse cloud-init YAML file "
         f"'{path}' ({detail})."
-    )
-
-
-def functional_group_protected_param_msg(
-    referenced_by: str, parameter: str
-) -> str:
-    """Return the protected kernel parameter error message."""
-    return (
-        f"functional_group_config: {referenced_by} sets protected kernel "
-        f"parameter '{parameter}'. Provisioning identity parameters cannot be "
-        "overridden per functional group."
-    )
-
-
-def functional_group_kernel_param_format_msg(
-    referenced_by: str, token: str
-) -> str:
-    """Return the malformed kernel parameter error message."""
-    return (
-        f"functional_group_config: {referenced_by} boot_kernel_params token "
-        f"'{token}' is not a valid kernel parameter."
     )
 
 

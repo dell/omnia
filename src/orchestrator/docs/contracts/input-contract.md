@@ -25,7 +25,6 @@ When `ORCHESTRATOR_DATA_PATH` is unset, it resolves to
 | `default_lease_time` | string or int | Yes | `86400` | Positive DHCP lease time in seconds |
 | `dns_enabled` | bool | No | `false` | Enable CoreDNS configuration |
 | `additional_cloud_init_config_file` | string | No | `""` | Extra cloud-init config path |
-| `boot_kernel_params` | string | No | `""` | Deprecated one-release fallback below functional-group `common` and group values |
 | `catalog_file_path` | string | No | `$CATALOG_FILE_PATH`, then `$OMNIA_DATA_PATH/catalog/catalog_rhel.json` | Catalog JSON path override |
 | `enable_pxe_boot` | bool | No | `true` | Enable iDRAC-based PXE boot for physical servers |
 | `repo_manager_output_path` | string | No | `$REPO_MANAGER_DATA_PATH/output/$OMNIA_PROJECT_NAME/repo_status.yml` | Path to `repo_status.yml` from Repository Manager |
@@ -408,13 +407,11 @@ data, so values are never evaluated as Jinja on the OIM.
 
 ```yaml
 common:
-  boot_kernel_params: "audit=1"
   cloud_init:
     config_file: "$ORCHESTRATOR_DATA_PATH/input/<project>/common-x86_64.yml"
 
 groups:
   fg_research_rhel_10_0_x86_64:
-    boot_kernel_params: "numa=off"
     cloud_init:
       config_file: "$ORCHESTRATOR_DATA_PATH/input/<project>/fg-research-cloud-init-x86_64.yml"
     image_override:
@@ -445,10 +442,7 @@ backslashes, control characters, and plaintext secrets are rejected.
 
 Legacy inputs are honored only where the new values are empty. Validation
 fails when `additional_cloud_init_config_file` is combined with a
-`cloud_init.config_file` value, or when the deprecated
-`orchestrator_config.yml:boot_kernel_params` is combined with a
-`boot_kernel_params` value. The deprecated value is otherwise a one-release
-fallback between `common` and the default, and passes the same kernel checks.
+`cloud_init.config_file` value.
 
 A non-empty `image_override` must contain exactly `kernel`, `initrd`, and
 `rootfs` as object keys relative to the image-storage endpoint (no scheme,
