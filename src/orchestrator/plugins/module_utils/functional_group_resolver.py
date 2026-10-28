@@ -40,9 +40,7 @@ LEVEL_DEFAULT = "default"
 OMNIA_DEFAULTS: dict[str, Any] = {
     "boot_kernel_params": "",
     "cloud_init_config_file": "",
-    "post_config": [],
     "image_override": {},
-    "custom_log_paths": {},
 }
 
 #: Artifact references an ``image_override`` must supply together.
@@ -55,11 +53,6 @@ _FIRST_CONTROL_PLANE = re.compile(r"^service_kube_control_plane_first_")
 
 #: Keys resolved from a scope mapping, with the scope path each one reads.
 _SCALAR_KEYS = ("boot_kernel_params",)
-_LIST_KEYS = ("post_config",)
-#: Mapping-valued keys resolved group -> common -> default. ``custom_log_paths``
-#: is consumed by Utils log collection for flexible (fg_) groups; an empty
-#: mapping inherits from the next level.
-_MAPPING_KEYS = ("custom_log_paths",)
 #: ``image_override`` is group-only: ``common`` cannot set it, because an image
 #: applies to one group's hardware and architecture rather than to a cluster.
 _GROUP_ONLY_KEYS = ("image_override",)
@@ -78,18 +71,14 @@ class ResolvedGroupConfig(NamedTuple):
     functional_group: str
     boot_kernel_params: ResolvedValue
     cloud_init_config_file: ResolvedValue
-    post_config: ResolvedValue
     image_override: ResolvedValue
-    custom_log_paths: ResolvedValue
 
     def provenance(self) -> dict[str, str]:
         """Return a ``{setting: level}`` map for current-run evidence."""
         return {
             "boot_kernel_params": self.boot_kernel_params.source,
             "cloud_init_config_file": self.cloud_init_config_file.source,
-            "post_config": self.post_config.source,
             "image_override": self.image_override.source,
-            "custom_log_paths": self.custom_log_paths.source,
         }
 
     def values(self) -> dict[str, Any]:
@@ -97,9 +86,7 @@ class ResolvedGroupConfig(NamedTuple):
         return {
             "boot_kernel_params": self.boot_kernel_params.value,
             "cloud_init_config_file": self.cloud_init_config_file.value,
-            "post_config": self.post_config.value,
             "image_override": self.image_override.value,
-            "custom_log_paths": self.custom_log_paths.value,
         }
 
 
@@ -161,7 +148,6 @@ def _resolve(
 def resolve_group(
     config_data: Any,
     functional_group: str,
-    legacy_boot_kernel_params: Any = None,
 ) -> ResolvedGroupConfig:
     """Resolve the effective configuration for one functional group.
 
@@ -169,9 +155,6 @@ def resolve_group(
         config_data: Parsed ``functional_group_config.yml``, or ``None`` when
             the optional file is absent.
         functional_group: Exact PXE functional-group name.
-        legacy_boot_kernel_params: Deprecated global value from
-            ``orchestrator_config.yml``. It is a one-release compatibility
-            fallback below ``common`` and above the built-in default.
 
     Returns:
         The resolved configuration with per-setting provenance.
@@ -181,13 +164,11 @@ def resolve_group(
 
     resolved: dict[str, ResolvedValue] = {}
 
-    for key in _SCALAR_KEYS + _LIST_KEYS:
+    for key in _SCALAR_KEYS:
         candidates = [
             (LEVEL_GROUP, group.get(key)),
             (LEVEL_COMMON, common.get(key)),
         ]
-        if key == "boot_kernel_params":
-            candidates.append((LEVEL_LEGACY, legacy_boot_kernel_params))
         resolved[key] = _resolve(
             candidates,
             OMNIA_DEFAULTS[key],
@@ -201,15 +182,6 @@ def resolve_group(
         OMNIA_DEFAULTS["cloud_init_config_file"],
     )
 
-    for key in _MAPPING_KEYS:
-        resolved[key] = _resolve(
-            [
-                (LEVEL_GROUP, group.get(key)),
-                (LEVEL_COMMON, common.get(key)),
-            ],
-            OMNIA_DEFAULTS[key],
-        )
-
     for key in _GROUP_ONLY_KEYS:
         resolved[key] = _resolve(
             [(LEVEL_GROUP, group.get(key))], OMNIA_DEFAULTS[key]
@@ -219,29 +191,25 @@ def resolve_group(
         functional_group=functional_group,
         boot_kernel_params=resolved["boot_kernel_params"],
         cloud_init_config_file=resolved["cloud_init_config_file"],
-        post_config=resolved["post_config"],
         image_override=resolved["image_override"],
-        custom_log_paths=resolved["custom_log_paths"],
     )
 
 
 def resolve_all(
     config_data: Any,
     functional_groups: list[str],
-    legacy_boot_kernel_params: Any = None,
 ) -> dict[str, ResolvedGroupConfig]:
     """Resolve every named functional group.
 
     Args:
         config_data: Parsed ``functional_group_config.yml``, or ``None``.
         functional_groups: Exact PXE functional-group names to resolve.
-        legacy_boot_kernel_params: Deprecated global boot-parameter fallback.
 
     Returns:
         Mapping of functional-group name to its resolved configuration.
     """
     return {
-        name: resolve_group(config_data, name, legacy_boot_kernel_params)
+        name: resolve_group(config_data, name)
         for name in functional_groups
     }
 

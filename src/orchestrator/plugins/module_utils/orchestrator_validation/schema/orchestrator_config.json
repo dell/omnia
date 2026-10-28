@@ -26,11 +26,6 @@
       "description": "Path to additional cloud-init configuration file for stateless node provisioning. Leave empty to disable.",
       "default": ""
     },
-    "boot_kernel_params": {
-      "type": "string",
-      "description": "Deprecated one-release compatibility fallback for global boot parameters. New configuration belongs in functional_group_config.yml.",
-      "default": ""
-    },
     "catalog_file_path": {
       "type": "string",
       "description": "Optional catalog JSON path. An empty value uses CATALOG_FILE_PATH or the standard catalog path.",

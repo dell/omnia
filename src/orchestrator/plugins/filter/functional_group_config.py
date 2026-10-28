@@ -60,7 +60,6 @@ def functional_group_setting(
     config_data: Any,
     functional_group: str,
     setting: str,
-    legacy_boot_kernel_params: Any = None,
 ) -> Any:
     """Return one resolved setting for a functional group.
 
@@ -69,14 +68,12 @@ def functional_group_setting(
             mapping when the optional file is absent.
         functional_group: Exact PXE functional-group name.
         setting: One of ``boot_kernel_params``, ``cloud_init_config_file``,
-            ``post_config``, ``image_override``, or ``custom_log_paths``.
+            or ``image_override``.
 
     Returns:
         The resolved value for that setting.
     """
-    resolved = resolve_group(
-        config_data, functional_group, legacy_boot_kernel_params
-    ).values()
+    resolved = resolve_group(config_data, functional_group).values()
     if setting not in resolved:
         raise AnsibleFilterError(
             f"functional_group_setting: unknown setting '{setting}'; "
@@ -88,30 +85,17 @@ def functional_group_setting(
 def functional_group_settings(
     config_data: Any,
     functional_group: str,
-    legacy_boot_kernel_params: Any = None,
 ) -> dict[str, Any]:
     """Return every resolved setting for a functional group."""
-    return resolve_group(
-        config_data, functional_group, legacy_boot_kernel_params
-    ).values()
+    return resolve_group(config_data, functional_group).values()
 
 
 def functional_group_provenance(
     config_data: Any,
     functional_group: str,
-    legacy_boot_kernel_params: Any = None,
 ) -> dict[str, str]:
     """Return the level that supplied each resolved setting."""
-    return resolve_group(
-        config_data, functional_group, legacy_boot_kernel_params
-    ).provenance()
-
-
-def functional_group_cloud_init(
-    base_section: Any, post_config: Any
-) -> dict[str, list[Any]]:
-    """Merge a resolved cloud-init section with ordered post-configuration."""
-    return merge_cloud_init_sections(base_section, post_config)
+    return resolve_group(config_data, functional_group).provenance()
 
 
 def functional_group_canonical_name(functional_group: str) -> str:
@@ -128,6 +112,5 @@ class FilterModule:  # pylint: disable=too-few-public-methods
             "functional_group_setting": functional_group_setting,
             "functional_group_settings": functional_group_settings,
             "functional_group_provenance": functional_group_provenance,
-            "functional_group_cloud_init": functional_group_cloud_init,
             "functional_group_canonical_name": functional_group_canonical_name,
         }

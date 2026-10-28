@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Referenced cloud-init file and ``post_config`` rules for functional groups."""
+"""Referenced cloud-init file rules for functional groups."""
 
 from __future__ import annotations
 
@@ -146,85 +146,3 @@ def validate_cloud_init_reference(
     _validate_section(data, file_ref, errors, logger)
     if _SECRET_KEY_PATTERN.search(content):
         record_error(errors, logger, msg.functional_group_plaintext_secret_msg(file_ref))
-
-
-def validate_custom_log_paths(
-    scope: dict[str, Any],
-    referenced_by: str,
-    errors: list[str],
-    logger: Logger | None,
-) -> None:
-    """Validate ``custom_log_paths`` for Utils flexible-group log collection.
-
-    The optional mapping may declare ``directories`` and ``files`` lists of
-    absolute node-local paths (without ``..`` segments) that Utils log collection
-    gathers for ``fg_`` groups. Empty or absent values inherit, so only
-    populated values are checked.
-    """
-    custom_log_paths = scope.get("custom_log_paths")
-    if custom_log_paths is None:
-        return
-    if not isinstance(custom_log_paths, dict):
-        record_error(
-            errors,
-            logger,
-            msg.functional_group_log_paths_type_msg(
-                f"{referenced_by}.custom_log_paths",
-                type(custom_log_paths).__name__,
-                "a mapping",
-            ),
-        )
-        return
-    for field in ("directories", "files"):
-        entries = custom_log_paths.get(field)
-        if entries is None:
-            continue
-        field_ref = f"{referenced_by}.custom_log_paths.{field}"
-        if not isinstance(entries, list):
-            record_error(
-                errors,
-                logger,
-                msg.functional_group_log_paths_type_msg(
-                    field_ref, type(entries).__name__, "a list"
-                ),
-            )
-            continue
-        for entry in entries:
-            if (
-                not isinstance(entry, str)
-                or not entry.startswith("/")
-                or ".." in entry.split("/")
-            ):
-                record_error(
-                    errors,
-                    logger,
-                    msg.functional_group_log_path_not_absolute_msg(
-                        field_ref, entry
-                    ),
-                )
-
-
-def validate_post_config(
-    scope: dict[str, Any],
-    referenced_by: str,
-    errors: list[str],
-    logger: Logger | None,
-) -> None:
-    """Validate ``post_config`` entries with the additional cloud-init rules."""
-    entries = scope.get("post_config")
-    if entries is None:
-        return
-    if not isinstance(entries, list):
-        record_error(
-            errors,
-            logger,
-            msg.functional_group_type_msg(
-                f"{referenced_by}.post_config", type(entries).__name__, "a list"
-            ),
-        )
-        return
-    for index, entry in enumerate(entries):
-        entry_path = f"{referenced_by}.post_config[{index}]"
-        _validate_section(entry, entry_path, errors, logger)
-        if _SECRET_KEY_PATTERN.search(yaml.safe_dump(entry, default_flow_style=False)):
-            record_error(errors, logger, msg.functional_group_plaintext_secret_msg(entry_path))

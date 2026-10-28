@@ -31,8 +31,6 @@ from ...functional_group_resolver import resolve_group
 from .additional_cloud_init_validator import _read_functional_group_names
 from .functional_group_cloud_init_rules import (
     validate_cloud_init_reference,
-    validate_custom_log_paths,
-    validate_post_config,
 )
 from .functional_group_rules import (
     SUPPORTED_ARCHITECTURES,
@@ -70,7 +68,7 @@ def _any_scope(config_data: dict[str, Any], predicate: Callable[[dict], bool]) -
 def _sets_cloud_init(scope: dict[str, Any]) -> bool:
     cloud_init = scope.get("cloud_init")
     config_file = cloud_init.get("config_file") if isinstance(cloud_init, dict) else None
-    return _non_empty(config_file) or _non_empty(scope.get("post_config"))
+    return _non_empty(config_file)
 
 
 def _sets_kernel_params(scope: dict[str, Any]) -> bool:

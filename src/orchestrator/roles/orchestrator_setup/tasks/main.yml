@@ -223,20 +223,7 @@
          | default({}, true)
          if (_functional_group_config_stat.stat.exists | default(false))
          else {} }}
-    legacy_boot_kernel_params: >-
-      {{ _orch_config.boot_kernel_params | default('') }}
   no_log: true
-
-# boot_kernel_params moved to functional_group_config.yml. Keep the old value
-# as a one-release fallback below group/common values and report its provenance.
-- name: Warn that orchestrator_config boot_kernel_params is deprecated
-  ansible.builtin.debug:
-    msg: >-
-      orchestrator_config.yml sets 'boot_kernel_params', which has moved to
-      functional_group_config.yml. It is honored as a one-release fallback;
-      move the value to the 'common' scope or a specific 'groups' entry and
-      remove it from orchestrator_config.yml.
-  when: (_orch_config.boot_kernel_params | default('') | trim) | length > 0
 
 - name: Check whether Omnia configuration exists
   ansible.builtin.stat:

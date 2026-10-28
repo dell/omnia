@@ -41,9 +41,7 @@
 # LEGACY INPUTS
 # -------------
 # orchestrator_config.yml `additional_cloud_init_config_file` cannot be combined
-# with cloud_init.config_file or post_config values here, and the deprecated
-# orchestrator_config.yml `boot_kernel_params` cannot be combined with
-# boot_kernel_params values here. A legacy value is used only while the
+# with cloud_init.config_file values here. A legacy value is used only while the
 # corresponding values in this file are empty. The shipped all-empty template
 # is inactive and does not create a conflict.
 #
@@ -64,21 +62,11 @@ common:
   cloud_init:
     # Absolute path to a file in this project's input directory
     # ($ORCHESTRATOR_DATA_PATH/input/<project>/) containing a YAML mapping with
-    # only write_files and/or runcmd. It is published as literal content (no
-    # Jinja evaluation on the OIM) in addition to the Omnia-generated
-    # cloud-init. Empty string adds nothing.
+    # write_files and/or runcmd. Ordered customization is expressed as runcmd
+    # inside this single file (ER-ORCH-009 finalized spec). It is published
+    # as literal content (no Jinja evaluation on the OIM) in addition to the
+    # Omnia-generated cloud-init. Empty string adds nothing.
     config_file: ""
-
-  # Ordered write_files/runcmd mappings appended after cloud_init.config_file.
-  # Same mapping shape as additional_cloud_init.yml common/group sections.
-  post_config: []
-
-  # Node-local log sources Utils log collection gathers for flexible (fg_)
-  # groups. directories and files are lists of absolute node-local paths. Leave
-  # empty ({} or omit) to inherit; the shipped template collects nothing extra.
-  custom_log_paths:
-    directories: []
-    files: []
 
 # Per-functional-group overrides, keyed by exact flexible (fg_) PXE
 # functional-group name. image_override is group-only: leave it {} to use Image
@@ -88,26 +76,18 @@ common:
 # Example:
 #
 # groups:
-#   fg_webserver_rhel_10_2_x86_64:
-#     boot_kernel_params: "crashkernel=auto audit=1 numa=off"
+#   fg_research_rhel_10_2_x86_64:
+#     boot_kernel_params: "numa=off"
 #     cloud_init:
-#       config_file: "<ORCHESTRATOR_DATA_PATH>/input/<project>/fg-webserver-cloud-init-x86_64.yml"
-#     post_config: []
-#     custom_log_paths:
-#       directories:
-#         - "/var/log/myapp"
-#       files:
-#         - "/opt/myapp/logs/service.log"
+#       config_file: "<ORCHESTRATOR_DATA_PATH>/input/<project>/fg-research-cloud-init-x86_64.yml"
 #     image_override:
-#       kernel: "boot-images/fg-webserver/vmlinuz-x86_64"
-#       initrd: "boot-images/fg-webserver/initramfs-x86_64.img"
-#       rootfs: "boot-images/fg-webserver/rootfs-x86_64.squashfs"
+#       kernel: "boot-images/fg-research/vmlinuz-x86_64"
+#       initrd: "boot-images/fg-research/initramfs-x86_64.img"
+#       rootfs: "boot-images/fg-research/rootfs-x86_64.squashfs"
 #
 #   fg_mpi_worker_rhel_10_0_aarch64:
 #     boot_kernel_params: ""          # inherits common
 #     cloud_init:
 #       config_file: ""               # inherits common, then Omnia default
-#     post_config: []
-#     custom_log_paths: {}            # inherits common
 #     image_override: {}
 groups: {}

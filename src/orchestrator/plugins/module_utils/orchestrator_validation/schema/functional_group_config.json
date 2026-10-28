@@ -60,44 +60,6 @@
       "pattern": "^/[^\\u0000]*$",
       "description": "Absolute node-local path (must begin with '/')."
     },
-    "customLogPaths": {
-      "type": "object",
-      "description": "Node-local log sources Utils log collection gathers for this flexible (fg_) group.",
-      "properties": {
-        "directories": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/nodeLocalAbsolutePath"
-          }
-        },
-        "files": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/nodeLocalAbsolutePath"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "postConfigEntry": {
-      "type": "object",
-      "properties": {
-        "write_files": {
-          "type": "array",
-          "items": {
-            "type": "object"
-          }
-        },
-        "runcmd": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "additionalProperties": false,
-      "minProperties": 1
-    },
     "scope": {
       "type": "object",
       "properties": {
@@ -106,15 +68,6 @@
         },
         "cloud_init": {
           "$ref": "#/definitions/cloudInit"
-        },
-        "post_config": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/postConfigEntry"
-          }
-        },
-        "custom_log_paths": {
-          "$ref": "#/definitions/customLogPaths"
         }
       },
       "additionalProperties": false
@@ -127,15 +80,6 @@
         },
         "cloud_init": {
           "$ref": "#/definitions/cloudInit"
-        },
-        "post_config": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/postConfigEntry"
-          }
-        },
-        "custom_log_paths": {
-          "$ref": "#/definitions/customLogPaths"
         },
         "image_override": {
           "$ref": "#/definitions/imageOverride"
