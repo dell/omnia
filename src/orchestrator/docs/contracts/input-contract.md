@@ -155,8 +155,8 @@ s3_configurations:
 functional_group_images:
   - x86_64:
     - functional_group: "slurm_control_node_rhel_10_0_x86_64"
-      kernel: "boot-images/efi-images/slurm_control_node_rhel_10_0_x86_64/example-imgth/vmlinuz-<kernel-version>"
-      initrd: "boot-images/efi-images/slurm_control_node_rhel_10_0_x86_64/example-imgth/initramfs-<kernel-version>.img"
+      kernel: "boot-images/slurm_control_node_rhel_10_0_x86_64/example-imgth/vmlinuz-<kernel-version>"
+      initrd: "boot-images/slurm_control_node_rhel_10_0_x86_64/example-imgth/initramfs-<kernel-version>.img"
       image: "boot-images/slurm_control_node_rhel_10_0_x86_64/example-imgth/<rootfs-filename>"
 ```
 

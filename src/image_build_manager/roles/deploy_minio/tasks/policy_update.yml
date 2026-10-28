@@ -13,13 +13,17 @@
 # limitations under the License.
 ---
 
+# The public-read bucket policies are applied only when anonymous S3 access is
+# enabled (CWE-732/CWE-284); otherwise the buckets keep their default policy.
 - name: Load boot policy file
+  when: s3_enable_anonymous_access | bool
   ansible.builtin.template:
     src: s3/s3-public-read-boot.json.j2
     dest: "{{ s3_work_dir }}/s3-public-read-boot.json"
     mode: "{{ file_perm_rw }}"
 
 - name: Load efi policy file
+  when: s3_enable_anonymous_access | bool
   ansible.builtin.template:
     src: s3/s3-public-read-efi.json.j2
     dest: "{{ s3_work_dir }}/s3-public-read-efi.json"
@@ -31,7 +35,9 @@
     --host={{ cluster_boot_ip }}:9000
     --host-bucket={{ cluster_boot_ip }}:9000
   changed_when: true
-  when: storage_backend == 'minio'
+  when:
+    - storage_backend == 'minio'
+    - s3_enable_anonymous_access | bool
 
 - name: Update the efi policy (NFS/MinIO)
   ansible.builtin.command: >
@@ -39,4 +45,6 @@
     --host={{ cluster_boot_ip }}:9000
     --host-bucket={{ cluster_boot_ip }}:9000
   changed_when: true
-  when: storage_backend == 'minio'
+  when:
+    - storage_backend == 'minio'
+    - s3_enable_anonymous_access | bool

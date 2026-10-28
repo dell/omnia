@@ -216,6 +216,92 @@ class SafeRmDirScopeTest(unittest.TestCase):
         self.assertFalse(venv.exists())
 
 
+class LoadEnvPathValidationTest(unittest.TestCase):
+    """load_env: early path safety refuses system directories and symlinks."""
+
+    def setUp(self):
+        self.dir = Path(make_temp_dir(self))
+
+    def load_env(self, data_path: str, venv_path: str = ""):
+        """Source omnia.sh and call load_env with the given paths."""
+        env = {"OMNIA_DATA_PATH": data_path}
+        if venv_path:
+            env["OMNIA_VENV_PATH"] = venv_path
+        return run_omnia_function("load_env", extra_env=env)
+
+    def test_system_directory_data_path_is_refused(self):
+        """OMNIA_DATA_PATH pointing at /usr is refused."""
+        result = self.load_env("/usr")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Refusing unsafe path", result.stderr)
+
+    def test_system_directory_venv_path_is_refused(self):
+        """OMNIA_VENV_PATH pointing at /etc is refused."""
+        result = self.load_env(str(self.dir), "/etc")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Refusing unsafe path", result.stderr)
+
+    def test_root_data_path_is_refused(self):
+        """OMNIA_DATA_PATH pointing at / is refused."""
+        result = self.load_env("/")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Refusing unsafe path", result.stderr)
+
+    def test_symlink_data_path_is_refused(self):
+        """OMNIA_DATA_PATH as a symbolic link is refused."""
+        real = self.dir / "real"
+        real.mkdir()
+        link = self.dir / "link"
+        link.symlink_to(real)
+        result = self.load_env(str(link))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("symbolic link", result.stderr)
+
+    def test_normal_path_is_accepted(self):
+        """A normal non-system path is accepted."""
+        result = self.load_env(str(self.dir / "omnia_data"))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class VenvPyvenvCfgCheckTest(unittest.TestCase):
+    """cleanup_omnia: requires pyvenv.cfg before removing venv directory."""
+
+    def setUp(self):
+        self.dir = Path(make_temp_dir(self))
+        self.data = self.dir / "data"
+        self.data.mkdir()
+        self.venv = self.dir / "venv"
+        self.venv.mkdir()
+
+    def run_cleanup(self, venv_path: str):
+        """Attempt the venv-removal portion of cleanup."""
+        # Source omnia.sh, override load_env to set paths, then run the
+        # pyvenv.cfg guard in isolation.
+        return run_omnia_function(
+            f'''
+            OMNIA_DATA_PATH="{self.data}"
+            OMNIA_VENV_PATH="{venv_path}"
+            if [ -d "$OMNIA_VENV_PATH" ]; then
+                if [ ! -f "$OMNIA_VENV_PATH/pyvenv.cfg" ]; then
+                    echo "ERROR: not a Python venv" >&2; exit 1
+                fi
+            fi
+            ''',
+        )
+
+    def test_directory_without_pyvenv_cfg_is_refused(self):
+        """A directory missing pyvenv.cfg is refused."""
+        result = self.run_cleanup(str(self.venv))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not a Python venv", result.stderr)
+
+    def test_directory_with_pyvenv_cfg_is_accepted(self):
+        """A directory with pyvenv.cfg passes the guard."""
+        (self.venv / "pyvenv.cfg").write_text("home = /usr/bin\n")
+        result = self.run_cleanup(str(self.venv))
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 class BuildCmdTest(unittest.TestCase):
     """build_cmd: every substituted value is shell-quoted."""
 

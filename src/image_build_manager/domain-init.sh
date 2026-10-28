@@ -315,7 +315,8 @@ install_dependencies() {
                 if pip install -r "$req_txt" --quiet; then
                     echo "$pip_hash" > "$pip_cache_file"
                 else
-                    echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: pip install failed — continuing${NC}"
+                    echo -e "  ${RED}[${DOMAIN_NAME}] ERROR: pip install failed${NC}" >&2
+                    return 1
                 fi
             fi
         else
@@ -337,7 +338,8 @@ install_dependencies() {
                 if ansible-galaxy collection install -r "$req_yml" --force 2>&1 | tail -1; then
                     echo "$galaxy_hash" > "$galaxy_cache_file"
                 else
-                    echo -e "  ${YELLOW}[${DOMAIN_NAME}] WARNING: Galaxy install failed — continuing${NC}"
+                    echo -e "  ${RED}[${DOMAIN_NAME}] ERROR: Galaxy collection install failed${NC}" >&2
+                    return 1
                 fi
             fi
         else

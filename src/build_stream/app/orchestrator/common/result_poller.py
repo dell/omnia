@@ -124,8 +124,7 @@ def _discover_s3_image_paths(
 
     Returns:
         Dict mapping role_name -> list of S3 directory paths
-        Example: {"slurm_node": ["s3://boot-images/efi-images/slurm_node/...", 
-                                  "s3://boot-images/slurm_node/..."]}
+        Example: {"slurm_node": ["s3://boot-images/slurm_node/..."]}
     """
     import subprocess  # nosec B404 - subprocess used safely with list args
 
