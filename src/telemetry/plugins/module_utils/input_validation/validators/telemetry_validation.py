@@ -73,12 +73,12 @@ def _validated_project_name(value):
     - Path separators (/, \)
     - Parent directory references (..)
     - Null bytes or control characters
-    - Names must be 1-80 characters
+    - Names must be 1-255 characters
     - Must start with alphanumeric
     """
     if not isinstance(value, str) or not value:
         return ""
-    if len(value) > 80:
+    if len(value) > 255:
         return ""
     # Must start with alphanumeric
     if not value[0].isalnum():
@@ -265,7 +265,11 @@ def validate_telemetry_config(
         # Apply default path when cluster_inventory is empty
         # Default: $OMNIA_DATA_PATH/orchestrator/output/$OMNIA_PROJECT_NAME/orchestrator_inventory.yml
         omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")
-        omnia_project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+        _raw_project = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+        omnia_project_name = _validated_project_name(_raw_project)
+        if not omnia_project_name:
+            logger.warning("Invalid OMNIA_PROJECT_NAME; using project_default")
+            omnia_project_name = "project_default"
         cluster_inv_full_path = os.path.join(
             omnia_data_path, "orchestrator", "output", omnia_project_name, "orchestrator_inventory.yml"
         )
@@ -386,7 +390,11 @@ def validate_telemetry_config(
         if not isinstance(bmc_group_data_path, str) or not bmc_group_data_path.strip():
             # Use default path from orchestrator output
             omnia_data_path = os.environ.get("OMNIA_DATA_PATH", "/opt/omnia").rstrip("/")
-            project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+            _raw_project = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
+            project_name = _validated_project_name(_raw_project)
+            if not project_name:
+                logger.warning("Invalid OMNIA_PROJECT_NAME; using project_default")
+                project_name = "project_default"
             configured_bmc_path = f"{omnia_data_path}/orchestrator/output/{project_name}/bmc_group_data.csv"
             logger.info(
                 "bmc_group_data_path is empty, using default: %s", configured_bmc_path

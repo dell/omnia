@@ -52,7 +52,7 @@ extensions = {
 }
 
 
-_PROJECT_NAME_PATTERN = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
+_PROJECT_NAME_PATTERN = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}')
 
 
 def validate_project_name(project_name):
@@ -76,16 +76,15 @@ def validate_project_name(project_name):
         raise ValueError("project_name cannot be empty")
     if project_name in ('.', '..'):
         raise ValueError(
-            f"Invalid project_name '{project_name}': traversal component"
+            "project_name is not a valid single-segment name"
         )
     if os.path.basename(project_name) != project_name:
         raise ValueError(
-            f"Invalid project_name '{project_name}': contains path separators"
+            "project_name is not a valid single-segment name"
         )
-    if not _PROJECT_NAME_PATTERN.match(project_name):
+    if not _PROJECT_NAME_PATTERN.fullmatch(project_name):
         raise ValueError(
-            f"Invalid project_name '{project_name}': "
-            "must match ^[A-Za-z0-9][A-Za-z0-9._-]*$"
+            "project_name is not a valid single-segment name"
         )
     return project_name
 
