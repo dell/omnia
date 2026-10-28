@@ -39,9 +39,6 @@ dns_enabled: false
 # Additional cloud-init config file
 additional_cloud_init_config_file: ""
 
-# Boot kernel parameters
-boot_kernel_params: ""
-
 # Catalog file path
 catalog_file_path: ""
 

@@ -20,6 +20,38 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ fg_name }}"
 
+# Resolve this group's configuration through the shared resolver so the
+# provisioning path and the configuration-only path cannot diverge. Precedence
+# is groups.<fg_name> -> common -> Omnia default; an empty value inherits
+# rather than clearing.
+- name: Resolve boot kernel parameters for {{ fg_name }}
+  ansible.builtin.set_fact:
+    boot_kernel_params: >-
+      {{ hostvars['localhost']['functional_group_config'] | default({})
+         | functional_group_setting(
+             fg_name,
+             'boot_kernel_params'
+           ) }}
+    boot_kernel_params_source: >-
+      {{ (hostvars['localhost']['functional_group_config'] | default({})
+          | functional_group_provenance(
+              fg_name
+            )).boot_kernel_params }}
+
+- name: Report resolved boot kernel parameter provenance - {{ fg_name }}
+  ansible.builtin.debug:
+    msg: >-
+      {{ fg_name }}: boot_kernel_params resolved from
+      '{{ boot_kernel_params_source }}'
+
+- name: Report cloud-init configuration for {{ fg_name }}
+  ansible.builtin.debug:
+    msg: >-
+      {{ fg_name }}: cloud_init_config_file resolved from
+      '{{ (hostvars['localhost']['functional_group_config'] | default({})
+          | functional_group_provenance(fg_name)).cloud_init_config_file }}'.
+    verbosity: 1
+
 # Validate s3_configurations FIRST - boot service templates require S3 endpoint URL
 # This check must happen before loading nodes files to provide clear error messaging
 - name: Validate s3_configurations is available for boot service template

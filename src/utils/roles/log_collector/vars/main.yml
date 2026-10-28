@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# OMNIA_DATA_PATH with fallback
-omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | default('/opt/omnia', true) }}"
+# OMNIA_DATA_PATH - required environment variable
+omnia_data_path: "{{ lookup('env', 'OMNIA_DATA_PATH') | mandatory }}"
 
 # Project name with fallback
 project_name: "{{ lookup('env', 'OMNIA_PROJECT_NAME') | default('project_default', true) }}"
@@ -49,6 +49,12 @@ slurm_nodes_arm_pattern: "^slurm_node{{ _os_version_segment }}_aarch64$"
 login_nodes_pattern: "^login_node{{ _os_version_segment }}_x86_64$"
 login_compiler_nodes_x86_pattern: "^login_compiler_node{{ _os_version_segment }}_x86_64$"
 login_compiler_nodes_arm_pattern: "^login_compiler_node{{ _os_version_segment }}_aarch64$"
+
+# Flexible functional groups (ER-ORCH-009): any fg_<label>[_<os>_<version>]_<arch>
+# group. All flexible nodes route to a single stage; log sources are the
+# Utils-domain defaults below (ER-ORCH-009 finalized spec routes log collection
+# by role prefix, not Orchestrator input).
+flexible_nodes_pattern: "^fg_[a-z0-9]+(_[a-z0-9]+)*{{ _os_version_segment }}_(x86_64|aarch64)$"
 
 # K8s master log paths
 k8s_master_log_dirs:
@@ -128,6 +134,15 @@ login_compiler_log_files:
   - /var/log/cloud-init-output.log
   - /var/log/secure
   - /var/log/messages
+
+# Flexible functional-group default log sources. Collected for every flexible
+# (fg_) node. Kept minimal because the authoritative sources for a flexible
+# group are user-declared via cloud-init.
+flexible_log_dirs: []
+
+flexible_log_files:
+  - /var/log/cloud-init.log
+  - /var/log/cloud-init-output.log
 
 # Curated support mode: exclusion patterns to remove from workspace before bundling
 # These patterns are applied recursively in log_root when collection_mode == 'curated_support'

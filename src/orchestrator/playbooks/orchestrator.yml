@@ -131,6 +131,8 @@
     - prepare
     - provision
     - execute
+    - manage-functional-group
+    - configure-functional-groups
 
 # =========================================================================
 # FLOW: precheck — Generate functional groups, then validate prerequisites
@@ -161,6 +163,8 @@
       when: not _orchestrator_input_validated | default(false) | bool
   tags:
     - validate
+    - manage-functional-group
+    - configure-functional-groups
 
 # =========================================================================
 # FLOW: credentials — Standalone credential collection (idempotent)
@@ -271,6 +275,41 @@
   tags:
     - never
     - verify_node_registration
+
+# =========================================================================
+# FLOW: manage-functional-group / configure-functional-groups
+# Dedicated flexible functional-group (fg_) paths (ER-ORCH-009). Opt-in only
+# (tagged 'never'), so a default full run does not republish fg_ groups. These
+# never invoke category provisioning playbooks (provision_kubernetes/slurm/os/custom)
+# or category bolt-on roles, do not consume omnia_config.yml/storage_config.yml,
+# and do not require repo_status.yml.
+# =========================================================================
+
+# Shared SSH + OpenCHAMI auth preamble for the flexible-group operations.
+# Imported again under the flexible tags so these standalone flows obtain the
+# same prerequisites the execute/provision chain relies on.
+- name: Provision preamble for flexible functional-group operations
+  ansible.builtin.import_playbook: provision/provision_preamble.yml
+  tags:
+    - never
+    - manage-functional-group
+    - configure-functional-groups
+
+# Add or remove one flexible (fg_) functional group's OpenCHAMI/BSS/metadata
+# state (upsert replace-node model); no scheduler, bolt-on, PXE, or reboot.
+- name: Manage targeted functional group
+  ansible.builtin.import_playbook: functional_groups/manage_functional_group.yml
+  tags:
+    - never
+    - manage-functional-group
+
+# Publish boot, cloud-init, or both for existing flexible groups without
+# group creation, node registration, bolt-on roles, or PXE boot.
+- name: Configure functional groups
+  ansible.builtin.import_playbook: functional_groups/configure_functional_groups.yml
+  tags:
+    - never
+    - configure-functional-groups
 
 # =========================================================================
 # FLOW: cleanup — Remove all orchestrator components (opt-in only)

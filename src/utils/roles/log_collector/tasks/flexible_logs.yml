@@ -1,0 +1,107 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+# Flexible functional-group (fg_) log collection (ER-ORCH-009).
+# Log sources are the Utils-domain defaults (flexible_log_dirs /
+# flexible_log_files), passed as host vars at add_host time.
+
+- name: Collect flexible functional-group logs
+  when: stage == 'flexible'
+  block:
+    - name: Stat flexible custom log directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: flexible_dir_stat
+      with_items: "{{ host_custom_log_dirs | default(flexible_log_dirs, true) }}"
+
+    - name: Record missing flexible log directories
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: flexible
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log directory '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ flexible_dir_stat.results }}"
+      when: not (item.stat.isdir | default(false))
+
+    - name: Find files under existing flexible log directories
+      ansible.builtin.find:
+        paths: "{{ item.item }}"
+        file_type: file
+        recurse: true
+      register: flexible_found_files
+      when: item.stat.isdir | default(false)
+      with_items: "{{ flexible_dir_stat.results }}"
+
+    - name: Fetch files from flexible log directories
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/flexible/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+        validate_checksum: false
+      loop: "{{ flexible_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
+      when: flexible_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
+
+    - name: Stat flexible custom log files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: flexible_files
+      with_items: "{{ host_custom_log_files | default(flexible_log_files, true) }}"
+
+    - name: Record missing flexible log files
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: flexible
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log file '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ flexible_files.results }}"
+      when: not (item.stat.isreg | default(false))
+
+    - name: Fetch flexible log files
+      ansible.builtin.fetch:
+        src: "{{ item.item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/flexible/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+        validate_checksum: false
+      when: item.stat.isreg | default(false)
+      with_items: "{{ flexible_files.results }}"
