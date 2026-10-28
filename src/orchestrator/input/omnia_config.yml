@@ -194,6 +194,14 @@ slurm_cluster:
 # Acceptable formats: "10G", "15G", "50G" (Only positive values in Gigabytes are allowed)
 # Default value is "20G"
 
+# - k8s_bootstrap_token_ttl: Duration for which kubeadm bootstrap tokens remain valid.
+# Bootstrap tokens are used by worker and control-plane nodes to authenticate when
+# joining the cluster. After this duration, tokens are automatically deleted and
+# operators must regenerate them using the refresh script on the first control-plane node.
+# Acceptable formats: "1h", "2h", "4h", "24h" (Go duration strings accepted by kubeadm)
+# Setting to "0" disables expiry (not recommended for security reasons).
+# Default value is "2h"
+
 
 service_k8s_cluster:
   - cluster_name: service_cluster
@@ -205,6 +213,7 @@ service_k8s_cluster:
     k8s_pod_network_cidr: "10.233.64.0/18"
     nfs_storage_name: "nfs_k8s"
     k8s_crio_storage_size: "20G"
+    k8s_bootstrap_token_ttl: "2h"
     enable_powerscale_csi: false
     csi_powerscale_driver_secret_file_path: ""
     csi_powerscale_driver_values_file_path: ""
