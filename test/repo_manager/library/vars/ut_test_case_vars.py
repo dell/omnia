@@ -538,6 +538,7 @@ UT_TEST_CASE_IDS = {
     f"{_REDACTION}::test_csv_decode_error_reports_type_only": "RM_UT_275",
     f"{_REDACTION}::test_csv_read_failures_do_not_echo_exception_text": "RM_UT_276",
     f"{_REDACTION}::test_input_data_unexpected_error_logs_type_only": "RM_UT_277",
+    f"{_REDACTION}::test_vault_write_yaml_error_includes_line_column": "RM_UT_288",
     f"{_REDACTION}::"
     "test_write_status_to_file_keeps_running_when_mirror_index_update_fails": "RM_UT_278",
     "test_vault_in_memory_read.py::"

@@ -96,7 +96,7 @@ def _run_vault_write(tmp_path, monkeypatch, error):
 
 
 @pytest.mark.parametrize("error, expected", [
-    (yaml.scanner.ScannerError(problem=f"bad {SECRET}"), "ScannerError"),
+    (yaml.scanner.ScannerError(problem=f"bad {SECRET}"), "ScannerError"),  # problem_mark is None in this case
     (subprocess.CalledProcessError(1, ["ansible-vault", SECRET]), "CalledProcessError"),
     (PermissionError(f"denied {SECRET}"), "PermissionError"),
     (UnicodeDecodeError("utf-8", SECRET.encode(), 0, 1, "bad"), "UnicodeDecodeError"),
@@ -104,7 +104,29 @@ def _run_vault_write(tmp_path, monkeypatch, error):
 def test_vault_write_read_failure_reports_type_only(tmp_path, monkeypatch, error, expected):
     """Known read failures keep fail_json and report only the exception type."""
     message = _run_vault_write(tmp_path, monkeypatch, error)
-    assert message == f"Failed to read existing credential file: {expected}"
+    # For YAML errors, the message now includes line/column info
+    if isinstance(error, yaml.YAMLError):
+        assert message.startswith(f"Failed to read existing credential file: {expected}")
+        # Line/column info is only added if problem_mark is not None
+        # The test case uses a ScannerError without problem_mark, so it won't have line info
+    else:
+        assert message == f"Failed to read existing credential file: {expected}"
+    assert SECRET not in message
+
+
+
+def test_vault_write_yaml_error_includes_line_column(tmp_path, monkeypatch):
+    """YAML errors with problem_mark include line and column in the message."""
+    from types import SimpleNamespace
+    
+    # Create a ScannerError with a mock problem_mark
+    error = yaml.scanner.ScannerError(problem="bad indentation")
+    error.problem_mark = SimpleNamespace(line=4, column=12)
+    
+    message = _run_vault_write(tmp_path, monkeypatch, error)
+    assert message.startswith("Failed to read existing credential file: ScannerError")
+    assert "at line 5" in message  # line is 0-indexed, so 4+1=5
+    assert "column" in message
     assert SECRET not in message
 
 

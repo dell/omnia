@@ -29,10 +29,6 @@ class TestCreateLocalRepoSuccess:
 
         with patch(
             "infra.repositories.nfs_input_repository"
-            ".NfsInputRepository.get_source_input_repository_path",
-            return_value=input_dir / created_job / "input",
-        ), patch(
-            "infra.repositories.nfs_input_repository"
             ".NfsInputRepository.get_destination_input_repository_path",
             return_value=nfs_queue_dir / "dest_input",
         ), patch(
@@ -74,10 +70,6 @@ class TestCreateLocalRepoSuccess:
         }
 
         with patch(
-            "infra.repositories.nfs_input_repository"
-            ".NfsInputRepository.get_source_input_repository_path",
-            return_value=input_dir / created_job / "input",
-        ), patch(
             "infra.repositories.nfs_input_repository"
             ".NfsInputRepository.get_destination_input_repository_path",
             return_value=nfs_queue_dir / "dest_input",

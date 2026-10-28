@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 import pytest
 
 from core.build_image.entities import BuildImageRequest
-from core.build_image.value_objects import FunctionalGroups, ImageKey
+from core.build_image.value_objects import ImageKey
 from core.localrepo.value_objects import ExecutionTimeout, ExtraVars, PlaybookPath
 
 
@@ -38,7 +38,7 @@ class TestBuildImageRequest:
                 {
                     "job_id": "job-123",
                     "image_key": ImageKey("test-image").value,
-                    "functional_groups": FunctionalGroups(["service_kube_control_plane_x86_64_first", "service_kube_control_plane_x86_64", "service_kube_node_x86_64"]).to_list(),
+                    "functional_groups": ["service_kube_control_plane_x86_64_first", "service_kube_control_plane_x86_64", "service_kube_node_x86_64"],
                 }
             ),
             correlation_id="corr-456",
@@ -104,7 +104,7 @@ class TestBuildImageRequest:
                 {
                     "job_id": "job-123",
                     "image_key": ImageKey(image_key_value).value,
-                    "functional_groups": FunctionalGroups(["group1"]).to_list(),
+                    "functional_groups": ["group1"],
                     "inventory_host": inventory_host_value,
                 }
             ),

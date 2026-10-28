@@ -16,6 +16,7 @@
 #!/usr/bin/python
 
 import os
+import yaml
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.build_image.config import ROLE_SPECIFIC_KEYS
 from ansible.module_utils.build_image.common_functions import (

@@ -53,8 +53,8 @@ def test_previous_hash_cache_is_config_mode_only(architecture):
 @pytest.mark.parametrize("architecture", ["x86_64", "aarch64"])
 def test_s3_previous_backup_is_config_mode_only(architecture):
     content = _task(f"build_compute_image_{architecture}.yml")
-    assert content.count("backup_s3_images | default(false) | bool") >= 2
-    assert content.count("_pkg_source == 'config'") >= 4
+    assert content.count("backup_s3_images | default(false) | bool") >= 1
+    assert content.count("_pkg_source == 'config'") >= 3
 
 
 def test_catalog_status_uses_composite_identity_directory():

@@ -132,9 +132,9 @@ boot-images/
             +-- rootfs.squashfs
 ```
 
-`efi-images` above is an object-key prefix inside the `boot-images` bucket, not
-a separate bucket. Local MinIO preparation also creates a bucket named `efi`,
-but the current artifact layouts and manifest paths do not use it.
+Local MinIO preparation also creates a bucket named `efi`, but the current
+artifact layouts store all boot artifacts (kernel, initrd, rootfs) together
+under `boot-images/<functional_group>/`.
 
 ---
 
