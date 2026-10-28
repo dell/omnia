@@ -417,6 +417,7 @@ def _discover_single_node(hostname, bmc_ip, username, password,
         username, password, timeout,
     )
 
+    proc_ok = ok
     if ok:
         members = proc_data.get("Members", [])
         cpus = [m for m in members if m.get("ProcessorType") == "CPU"]
@@ -436,6 +437,7 @@ def _discover_single_node(hostname, bmc_ip, username, password,
         username, password, timeout,
     )
 
+    sys_ok = ok
     if ok:
         total_gib = (sys_data
                      .get("MemorySummary", {})
@@ -445,6 +447,18 @@ def _discover_single_node(hostname, bmc_ip, username, password,
         real_memory = int(total_mb * 0.90)
     else:
         real_memory = default_memory
+
+    # If both processor and system calls failed, iDRAC is unreachable - use defaults and return error for tracking
+    if not proc_ok and not sys_ok:
+        # Build node_params with defaults
+        node_params = {
+            "NodeName": hostname,
+            "Sockets": default_sockets,
+            "CoresPerSocket": default_cores,
+            "ThreadsPerCore": default_threads,
+            "RealMemory": default_memory,
+        }
+        return (hostname, node_params, [], f"iDRAC unreachable at {bmc_ip}")
 
     # ── Step 4: Build node_params ──
     sockets = max(len(cpus), 1)
@@ -531,11 +545,14 @@ def _discover_group(group_name, group_nodes, bmc_ip_map, username,
     sample_hostname = None
     sample_params = None
     sample_gpus = []
+    attempted_any = False
+    all_failed = True
 
     for hostname in group_nodes:
         bmc_ip = bmc_ip_map.get(hostname)
         if not bmc_ip:
             continue
+        attempted_any = True
         _, params, gpus, error = _discover_single_node(
             hostname, bmc_ip, username, password, timeout, defaults,
             validation_failures,
@@ -544,6 +561,7 @@ def _discover_group(group_name, group_nodes, bmc_ip_map, username,
             sample_hostname = hostname
             sample_params = params
             sample_gpus = gpus
+            all_failed = False
             break
 
     # Replicate discovered (or default) specs to all nodes in group
@@ -598,7 +616,7 @@ def _discover_group(group_name, group_nodes, bmc_ip_map, username,
             })
 
     return (group_name, node_params_list, gpu_dict, sample_hostname,
-            sample_params is None)
+            all_failed)
 
 
 # ─── Main module ────────────────────────────────────────────────────────────
@@ -704,8 +722,10 @@ def _run_node_discovery(module, nodes, bmc_ip_map, bmc_username,
                 _, node_params, gpus, error = future.result()
                 if error:
                     result["failed_nodes"].append(hostname)
+                    result["node_params"].append(node_params)
                     module.warn(
-                        f"iDRAC discovery failed for {hostname}: {error}"
+                        f"iDRAC discovery failed for {hostname}: {error} "
+                        f"— falling back to default values"
                     )
                 else:
                     result["node_params"].append(node_params)

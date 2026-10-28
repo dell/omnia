@@ -103,19 +103,23 @@
           "properties": {
             "sockets": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "maximum": 16
             },
             "cores_per_socket": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "maximum": 160
             },
             "threads_per_core": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "maximum": 2
             },
             "real_memory": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "maximum": 8589934592
             },
             "gres": {
               "type": "string",

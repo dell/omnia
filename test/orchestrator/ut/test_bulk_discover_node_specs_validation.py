@@ -25,6 +25,7 @@ sys.path.insert(0, str(module_path))
 from bulk_discover_node_specs import (
     _validate_int_value,
     _validate_hostname,
+    _discover_single_node,
     VALIDATION_BOUNDS,
 )
 
@@ -260,6 +261,52 @@ class TestValidateHostname:
         assert _validate_hostname("node01@#%^&*") is False
 
 
+class TestDiscoverSingleNodeUnreachable:
+    """Unit tests for _discover_single_node when iDRAC is unreachable."""
+
+    def test_unreachable_node_returns_defaults_and_error(self):
+        """Test that unreachable iDRAC returns default node_params and an error."""
+        defaults = {
+            "real_memory": 864,
+            "corespersocket": 72,
+            "threadspercore": 1,
+            "sockets": 2,
+        }
+        failures = []
+        hostname, node_params, gpus, error = _discover_single_node(
+            "testnode", "99.99.99.99", "user", "pass", 5, defaults, failures
+        )
+        assert hostname == "testnode"
+        assert error is not None
+        assert "unreachable" in error.lower()
+        assert node_params["NodeName"] == "testnode"
+        assert node_params["Sockets"] == 2
+        assert node_params["CoresPerSocket"] == 72
+        assert node_params["ThreadsPerCore"] == 1
+        assert node_params["RealMemory"] == 864
+        assert gpus == []
+
+    def test_unreachable_node_params_not_empty(self):
+        """Test that unreachable node still returns a usable node_params dict."""
+        defaults = {
+            "real_memory": 512000,
+            "corespersocket": 32,
+            "threadspercore": 2,
+            "sockets": 4,
+        }
+        failures = []
+        hostname, node_params, gpus, error = _discover_single_node(
+            "badnode", "99.99.99.99", "user", "pass", 5, defaults, failures
+        )
+        assert error is not None
+        assert isinstance(node_params, dict)
+        assert len(node_params) >= 5
+        assert node_params["Sockets"] == 4
+        assert node_params["CoresPerSocket"] == 32
+        assert node_params["ThreadsPerCore"] == 2
+        assert node_params["RealMemory"] == 512000
+
+
 class TestValidationBounds:
     """Unit tests for VALIDATION_BOUNDS constant."""
 
@@ -293,7 +340,7 @@ if __name__ == "__main__":
     # Simple test runner
     import traceback
     
-    test_classes = [TestValidateIntValue, TestValidateHostname, TestValidationBounds]
+    test_classes = [TestValidateIntValue, TestValidateHostname, TestDiscoverSingleNodeUnreachable, TestValidationBounds]
     failed = 0
     passed = 0
     

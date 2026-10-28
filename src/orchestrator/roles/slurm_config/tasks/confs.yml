@@ -138,11 +138,21 @@
     - bulk_discovery is defined
     - bulk_discovery is not skipped
 
-- name: Warn about failed group discoveries
+- name: Warn about unreachable nodes (homogeneous mode)
   ansible.builtin.debug:
     msg: >-
-      iDRAC group discovery failed for {{ bulk_discovery.failed_groups | length }}
-      group(s): {{ bulk_discovery.failed_groups | join(', ') }} — using defaults
+      WARNING: iDRAC discovery failed for group(s): {{ bulk_discovery.failed_groups | default([]) | join(', ') }}.
+      Nodes in these groups are unreachable. Falling back to default values for node_params.
+      Default values will be used and playbook will continue.
+  when:
+    - discovery_mode == 'homogeneous'
+    - bulk_discovery is defined
+    - bulk_discovery is not skipped
+    - bulk_discovery.failed_groups | default([]) | length > 0
+
+- name: Pause for user acknowledgement (homogeneous mode - unreachable nodes)
+  ansible.builtin.pause:
+    seconds: 20
   when:
     - discovery_mode == 'homogeneous'
     - bulk_discovery is defined
@@ -195,9 +205,21 @@
     - discovery_mode == 'heterogeneous'
     - bulk_discovery is not skipped
 
-- name: Warn about failed iDRAC discoveries
+- name: Warn about unreachable nodes (heterogeneous mode)
   ansible.builtin.debug:
-    msg: "iDRAC discovery failed for {{ bulk_discovery.failed_nodes | length }} node(s): {{ bulk_discovery.failed_nodes | join(', ') }}"
+    msg: >-
+      WARNING: iDRAC discovery failed for {{ bulk_discovery.failed_nodes | length }}
+      node(s): {{ bulk_discovery.failed_nodes | join(', ') }}.
+      These nodes are unreachable. Falling back to default values for node_params.
+      Default values will be used and playbook will continue.
+  when:
+    - discovery_mode == 'heterogeneous'
+    - bulk_discovery is not skipped
+    - bulk_discovery.failed_nodes | default([]) | length > 0
+
+- name: Pause for user acknowledgement (heterogeneous mode - unreachable nodes)
+  ansible.builtin.pause:
+    seconds: 20
   when:
     - discovery_mode == 'heterogeneous'
     - bulk_discovery is not skipped

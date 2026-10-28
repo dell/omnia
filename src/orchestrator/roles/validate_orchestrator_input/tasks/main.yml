@@ -49,10 +49,10 @@
   register: validate_orchestrator_input_result
 
 # Validate hardware defaults for Slurm configuration
-- name: Validate hardware defaults
+- name: Validate hardware defaults (global defaults)
   ansible.builtin.fail:
     msg: >-
-      Hardware default validation failed:
+      Hardware default validation failed (global defaults):
       {% if default_real_memory is defined and (default_real_memory | int) < 8192 %}
       - default_real_memory {{ default_real_memory }} is below minimum 8192 MB (8GB)
       {% elif default_real_memory is defined and (default_real_memory | int) > 8000000000 %}
