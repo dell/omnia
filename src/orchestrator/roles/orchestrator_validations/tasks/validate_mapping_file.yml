@@ -29,6 +29,8 @@
     that:
       - pxe_mapping_file_path is match(pxe_mapping_path_safe_regex)
       - temp_pxe_file_path is match(pxe_mapping_path_safe_regex)
+      - pxe_mapping_file_path is not search(pxe_mapping_path_traversal_regex)
+      - temp_pxe_file_path is not search(pxe_mapping_path_traversal_regex)
     quiet: true
     fail_msg: "{{ pxe_mapping_path_unsafe_fail_msg }}"
 

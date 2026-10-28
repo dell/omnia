@@ -107,10 +107,15 @@
         - name: Create private temp file for decrypted credentials
           ansible.builtin.tempfile:
             state: file
-            path: "{{ credential_files[0].file_path | dirname }}"
+            path: "{{ credential_tmp_dir }}"
             prefix: ".cred_tmp_"
             suffix: ".yml"
           register: _cred_tmp
+
+        - name: Restrict temp file permissions
+          ansible.builtin.file:
+            path: "{{ _cred_tmp.path }}"
+            mode: "0600"
 
         - name: Decrypt credential file to temp file
           ansible.builtin.command: >-
@@ -118,15 +123,16 @@
             --output "{{ _cred_tmp.path }}"
             --vault-password-file "{{ credential_files[0].vault_path }}"
           changed_when: false
-          failed_when: false
-          register: _cred_decrypt_result
 
         - name: Load credentials into namespaced variable
           ansible.builtin.include_vars:
             file: "{{ _cred_tmp.path }}"
             name: orchestrator_loaded_creds
           no_log: true
-          when: _cred_decrypt_result.rc | default(1) == 0
+      rescue:
+        - name: Fail with decryption error
+          ansible.builtin.fail:
+            msg: "{{ credential_decrypt_fail_msg }}"
       always:
         - name: Remove temp file with decrypted credentials
           ansible.builtin.file:
@@ -223,10 +229,15 @@
             - name: Create private temp file for final credential load
               ansible.builtin.tempfile:
                 state: file
-                path: "{{ credential_files[0].file_path | dirname }}"
+                path: "{{ credential_tmp_dir }}"
                 prefix: ".cred_tmp_"
                 suffix: ".yml"
               register: _final_cred_tmp
+
+            - name: Restrict final temp file permissions
+              ansible.builtin.file:
+                path: "{{ _final_cred_tmp.path }}"
+                mode: "0600"
 
             - name: Decrypt for final load to temp file
               ansible.builtin.command: >-
@@ -239,6 +250,10 @@
               ansible.builtin.include_vars:
                 file: "{{ _final_cred_tmp.path }}"
               no_log: true
+          rescue:
+            - name: Fail with final decryption error
+              ansible.builtin.fail:
+                msg: "{{ credential_decrypt_fail_msg }}"
           always:
             - name: Remove temp file with final decrypted credentials
               ansible.builtin.file:
