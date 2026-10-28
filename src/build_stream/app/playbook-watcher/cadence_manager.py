@@ -103,10 +103,10 @@ def _validate_project_name(project_name):
         not project_name
         or project_name in ('.', '..')
         or os.path.basename(project_name) != project_name
-        or not re.match(r'^[A-Za-z0-9][A-Za-z0-9._-]*$', project_name)
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', project_name)
     ):
         raise ValueError(
-            f"Invalid OMNIA_PROJECT_NAME: '{project_name}'"
+            "OMNIA_PROJECT_NAME is not a valid single-segment name"
         )
     return project_name
 

@@ -458,4 +458,5 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
     except Exception as exc:  # pylint: disable=broad-exception-caught
         # Don't fail the main operation if mirror index update fails
         logger.warning(
-            f"Failed to update mirror index for package '{package_name}': {exc}")
+            f"Failed to update mirror index for package '{package_name}': "
+            f"{type(exc).__name__}")
