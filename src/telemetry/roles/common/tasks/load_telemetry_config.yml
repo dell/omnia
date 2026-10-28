@@ -306,7 +306,7 @@
           {% set mode = _pkg_raw.install_mode | default('offline') -%}
           {% set reg = (_pkg_raw.container_registry | default('')) or '' -%}
           {% if reg | length > 0 -%}
-          {{ reg | trim | regex_replace('/$', '') }}{%- elif mode == 'offline' -%}
+          {{ reg | trim | regex_replace('/+$', '') }}{%- elif mode == 'offline' -%}
           {{ _resolved_repo_url | trim | regex_replace('^https?://', '') | regex_replace('/.*$', '') }}{%- endif -%}
       when: _pkg_raw is defined
 
