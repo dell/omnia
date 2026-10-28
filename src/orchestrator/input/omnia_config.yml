@@ -199,7 +199,7 @@ slurm_cluster:
 # joining the cluster. After this duration, tokens are automatically deleted and
 # operators must regenerate them by running the refresh script on the first control-plane node:
 #   <nfs_k8s_mount_point>/generate-control-plane-join.sh
-# (e.g. /mnt/nfs_k8s/generate-control-plane-join.sh — path matches the 'nfs_k8s' storage mount point)
+# (e.g. /opt/omnia/k8s_mount/generate-control-plane-join.sh — path matches the 'nfs_k8s' storage mount point)
 # Acceptable formats: "1h", "2h", "4h", "24h" (Go duration strings accepted by kubeadm)
 # Setting to "0" disables expiry (not recommended for security reasons).
 # Default value is "2h"
