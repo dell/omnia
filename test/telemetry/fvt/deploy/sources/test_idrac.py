@@ -79,6 +79,7 @@ from library.functions.idrac_func import (
     verify_mysql_data_in_pods,
     verify_receiver_collecting,
 )
+from library.functions.ldms_func import list_kafka_bridge_topics
 
 
 def _skip_if_idrac_disabled(host):
@@ -656,9 +657,23 @@ def test_idrac_disabled_state(host):
     shared = verify_enabled_shared_sinks(host)
 
     quiet_started = time.time()
-    kafka_quiet = probe_fresh_idrac_kafka_records(
-        host, timeout_seconds=20,
+    # Only probe the Kafka topic if it already exists. Subscribing to a
+    # non-existent topic via the Kafka Bridge would auto-create it (broker has
+    # auto.create.topics.enable=true), leaving an orphaned topic behind for a
+    # source that is explicitly disabled. The read-only GET /topics listing
+    # never creates topics. An absent topic is itself proof that no iDRAC data
+    # is flowing.
+    bridge_topics = list_kafka_bridge_topics(host)
+    idrac_topic_present = (
+        bridge_topics["available"]
+        and IDRAC_KAFKA_TOPIC in bridge_topics["topics"]
     )
+    if idrac_topic_present:
+        kafka_quiet = probe_fresh_idrac_kafka_records(
+            host, timeout_seconds=20,
+        )
+    else:
+        kafka_quiet = {"success": False, "records": [], "error": ""}
     quiet_ended = time.time()
     vm_quiet = query_idrac_vm_samples(host, quiet_started, quiet_ended)
     kafka_error = kafka_quiet.get("error", "")
@@ -683,6 +698,8 @@ def test_idrac_disabled_state(host):
         ),
         (
             f"Kafka quiet window ({quiet_ended - quiet_started:.1f}s): "
+            f"topic '{IDRAC_KAFKA_TOPIC}' "
+            f"{'present' if idrac_topic_present else 'absent (not created)'}, "
             f"new_records={len(kafka_quiet.get('records', []))}"
         ),
         (

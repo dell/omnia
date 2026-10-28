@@ -592,6 +592,57 @@ def get_kafka_bridge_port(host) -> str:
     return KAFKA_BRIDGE_DEFAULT_PORT
 
 
+def list_kafka_bridge_topics(host, bridge_ip="", bridge_port=""):
+    """Return the set of topics known to the Kafka Bridge, without creating any.
+
+    Uses the Kafka Bridge read-only ``GET /topics`` endpoint, which lists
+    existing topics but never auto-creates one (unlike subscribe/produce).
+    Disabled-state tests use this to avoid leaving orphaned topics behind for
+    sources that are turned off.
+
+    Returns a dict:
+      - ``available`` (bool): whether the topic list could be read.
+      - ``topics`` (set): topic names (empty when unavailable).
+      - ``error`` (str): reason the list could not be read.
+    """
+    bridge_ip = bridge_ip or get_kafka_bridge_ip(host)
+    bridge_port = bridge_port or (
+        get_kafka_bridge_port(host) if bridge_ip else ""
+    )
+    if not bridge_ip or not bridge_port:
+        return {
+            "available": False,
+            "topics": set(),
+            "error": "Kafka Bridge endpoint not found",
+        }
+    cmd = (
+        f"curl -kfsS --max-time 15 "
+        f"https://{bridge_ip}:{bridge_port}/topics"
+    )
+    result = run_on_kube_vip(host, cmd)
+    if result.rc != 0:
+        return {
+            "available": False,
+            "topics": set(),
+            "error": result.stderr.strip() or "failed to list Kafka topics",
+        }
+    try:
+        topics = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError as exc:
+        return {
+            "available": False,
+            "topics": set(),
+            "error": f"invalid Kafka Bridge topic list: {exc}",
+        }
+    if not isinstance(topics, list):
+        return {
+            "available": False,
+            "topics": set(),
+            "error": "unexpected Kafka Bridge topic list payload",
+        }
+    return {"available": True, "topics": set(topics), "error": ""}
+
+
 # =========================================================================
 # Kafka Consumer Lifecycle Helpers
 # =========================================================================
