@@ -32,8 +32,8 @@ from api.auth.jwt_handler import (
     JWTInvalidSignatureError,
     JWTValidationError,
 )
+from api.auth.scopes import CATALOG_READ, CATALOG_WRITE, JOB_READ, JOB_WRITE
 from api.logging_utils import log_secure_info
-from core.image_group.repositories import ImageGroupRepository, ImageRepository
 from core.jobs.repositories import (
     AuditEventRepository,
     JobRepository,
@@ -180,17 +180,16 @@ def require_scope(required_scope: str) -> Callable[[dict], dict]:
 
 
 # Common scope dependencies
-require_catalog_read = require_scope("catalog:read")
-require_catalog_write = require_scope("catalog:write")
-require_job_write = require_scope("job:write")
-require_admin = require_scope("admin")
+require_catalog_read = require_scope(CATALOG_READ)
+require_catalog_write = require_scope(CATALOG_WRITE)
+require_job_write = require_scope(JOB_WRITE)
 
 
 def require_any_scope(*required_scopes: str) -> Callable[[dict], dict]:
     """Create a dependency that requires at least one of the specified scopes.
 
     Args:
-        required_scopes: Accepted scopes (e.g., "job:write", "admin").
+        required_scopes: Accepted scopes (e.g., "job:read", "job:write").
 
     Returns:
         Dependency function that validates at least one scope is present.
@@ -222,9 +221,8 @@ def require_any_scope(*required_scopes: str) -> Callable[[dict], dict]:
     return scope_dependency
 
 
-# Admin-or-write combined scope checks
-require_admin_or_job_write = require_any_scope("admin", "job:write")
-require_admin_or_catalog_write = require_any_scope("admin", "catalog:write")
+# Read access to a job is implied by write access.
+require_job_read = require_any_scope(JOB_READ, JOB_WRITE)
 
 
 # ------------------------------------------------------------------
@@ -293,98 +291,6 @@ def _create_sql_image_repo(session: Session):
 
 
 # ------------------------------------------------------------------
-# Stage Failure Helper
-# ------------------------------------------------------------------
-def mark_stage_as_failed(
-    job_id: str, stage_name: str, error_code: str, error_summary: str, db_session: Session = None
-) -> None:
-    """Mark a stage as failed when validation fails at API layer.
-    
-    Also marks the job as FAILED to maintain consistency with orchestrator behavior.
-    
-    Args:
-        job_id: The job identifier
-        stage_name: The stage name (e.g., 'parse-catalog')
-        error_code: Error classification code
-        error_summary: Human-readable error description
-        db_session: Database session (if None, creates new session)
-    """
-    from core.jobs.value_objects import JobId, StageName  # pylint: disable=import-outside-toplevel
-    from core.jobs.services import JobStateHelper  # pylint: disable=import-outside-toplevel
-
-    try:
-        # Get or create session
-        if db_session is None and _ENV == "prod":
-            from infra.db.session import SessionLocal  # pylint: disable=import-outside-toplevel
-            db_session = SessionLocal()
-            should_close = True
-        else:
-            should_close = False
-
-        stage_repo = (
-            _create_sql_stage_repo(db_session)
-            if _ENV == "prod"
-            else _get_container().stage_repository()
-        )
-
-        # Find the stage
-        stage = stage_repo.find_by_job_and_name(JobId(job_id), StageName(stage_name))
-
-        if stage and stage.stage_state.value == "PENDING":
-            # Start the stage first if it's still PENDING
-            stage.start()
-            stage_repo.save(stage)
-
-            # Then mark it as failed
-            stage.fail(error_code=error_code, error_summary=error_summary)
-            stage_repo.save(stage)
-
-            # Commit after failing the stage
-            if _ENV == "prod" and db_session.is_active:
-                db_session.commit()
-
-            # Also mark the job as FAILED (same as orchestrator)
-            if _ENV == "prod":
-                from infra.id_generator import UUIDv4Generator  # pylint: disable=import-outside-toplevel
-                
-                job_repo = _create_sql_job_repo(db_session)
-                audit_repo = _create_sql_audit_repo(db_session)
-                uuid_generator = UUIDv4Generator()
-                
-                # Transition job to IN_PROGRESS first if it's CREATED
-                job = job_repo.find_by_id(JobId(job_id))
-                if job and job.job_state.value == "CREATED":
-                    job.start()
-                    job_repo.save(job)
-                    if db_session.is_active:
-                        db_session.commit()
-                
-                JobStateHelper.handle_stage_failure(
-                    job_repo=job_repo,
-                    audit_repo=audit_repo,
-                    uuid_generator=uuid_generator,
-                    job_id=JobId(job_id),
-                    stage_name=stage_name,
-                    error_code=error_code,
-                    error_summary=error_summary,
-                    correlation_id=str(uuid_generator.generate()),
-                    client_id="unknown",
-                )
-                
-                # Ensure the session is committed after JobStateHelper completes
-                if db_session.is_active:
-                    db_session.commit()
-
-        if should_close and db_session:
-            db_session.close()
-
-    except Exception as e:
-        log_secure_info("warning", "Failed to mark stage as failed: %s", str(e), job_id=job_id)
-        if db_session:
-            db_session.rollback()
-
-
-# ------------------------------------------------------------------
 # Repository Providers
 # ------------------------------------------------------------------
 def get_job_repo(db_session: Session = Depends(get_db_session)) -> JobRepository:
@@ -407,48 +313,11 @@ def get_audit_repo(db_session: Session = Depends(get_db_session)) -> AuditEventR
     return _get_container().audit_repository()
 
 
-def get_image_group_repo(
-    db_session: Session = Depends(get_db_session),
-) -> ImageGroupRepository:
-    """Provide image group repository with shared session in prod."""
-    if _ENV == "prod":
-        return _create_sql_image_group_repo(db_session)
-    return _get_container().image_group_repository()
-
-
-def get_image_repo(db_session: Session = Depends(get_db_session)) -> ImageRepository:
-    """Provide image repository with shared session in prod."""
-    if _ENV == "prod":
-        return _create_sql_image_repo(db_session)
-    return _get_container().image_repository()
-
-
 # ------------------------------------------------------------------
 # Job-Specific Dependencies
 # ------------------------------------------------------------------
-from core.jobs.value_objects import ClientId, CorrelationId
-from infra.id_generator import JobUUIDGenerator
+from core.jobs.value_objects import CorrelationId
 from orchestrator.jobs.use_cases import CreateJobUseCase
-
-
-def get_id_generator() -> JobUUIDGenerator:
-    """Provide job ID generator."""
-    return _get_container().job_id_generator()
-
-
-def get_client_id(token_data: dict) -> ClientId:
-    """Extract ClientId from verified token data.
-    
-    Note: token_data comes from verify_token dependency injected in the route.
-    This function is called after verify_token has already validated the JWT.
-    
-    Args:
-        token_data: Token data dict from verify_token dependency.
-        
-    Returns:
-        ClientId extracted from token.
-    """
-    return ClientId(token_data["client_id"])
 
 
 def get_correlation_id(

@@ -1,0 +1,102 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# Create the token the CI/CD pipelines use. It is a project access token
+# scoped to this project, so a leaked pipeline secret no longer exposes the
+# instance-wide root token. The root token stays with Ansible and the OIM.
+
+- name: Check whether the default branch is protected
+  ansible.builtin.uri:
+    url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/protected_branches/{{ gitlab_default_branch | urlencode }}
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: [200, 404]
+  register: _gitlab_branch_protection
+  no_log: true
+
+- name: Protect the default branch so it receives protected CI/CD variables
+  when: _gitlab_branch_protection.status == 404
+  block:
+    - name: Create default branch protection
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/protected_branches"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          name: "{{ gitlab_default_branch }}"
+          push_access_level: 40
+          merge_access_level: 40
+        validate_certs: false
+        status_code: [201]
+      no_log: true
+  rescue:
+    - name: Fail when the default branch cannot be protected
+      ansible.builtin.fail:
+        msg: "{{ gitlab_protect_branch_failure_msg }}"
+
+- name: List existing CI/CD project access tokens
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/access_tokens?state=active&per_page=100"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: [200]
+  register: _gitlab_existing_ci_tokens
+  no_log: true
+
+- name: Record CI/CD tokens to revoke after the new token is in place
+  ansible.builtin.set_fact:
+    gitlab_previous_ci_token_ids: >-
+      {{ _gitlab_existing_ci_tokens.json
+         | selectattr('name', 'equalto', gitlab_ci_token_name)
+         | map(attribute='id') | list }}
+
+- name: Create the CI/CD project access token
+  block:
+    - name: Create project access token via GitLab API
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/access_tokens"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          name: "{{ gitlab_ci_token_name }}"
+          scopes: "{{ gitlab_ci_token_scopes }}"
+          access_level: "{{ gitlab_ci_token_access_level }}"
+          expires_at: >-
+            {{ '%Y-%m-%d' | strftime(
+                 second=(now(utc=true).timestamp() | int)
+                 + (gitlab_ci_token_expiry_days | int) * 86400,
+                 utc=true) }}
+        validate_certs: false
+        status_code: [201]
+      register: _gitlab_new_ci_token
+      no_log: true
+  rescue:
+    - name: Fail when the CI/CD project access token cannot be created
+      ansible.builtin.fail:
+        msg: "{{ gitlab_ci_token_failure_msg }}"
+
+- name: Set CI/CD token fact
+  ansible.builtin.set_fact:
+    gitlab_ci_token: "{{ _gitlab_new_ci_token.json.token }}"
+  no_log: true

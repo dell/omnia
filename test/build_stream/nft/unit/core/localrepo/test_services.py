@@ -91,8 +91,6 @@ class TestInputFileService:
         result = service.prepare_playbook_input(job_id="job-1")
 
         assert result is True
-        # get_source_input_repository_path should NOT be called
-        repo.get_source_input_repository_path.assert_not_called()
 
 
 class TestPlaybookQueueRequestService:

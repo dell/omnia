@@ -83,6 +83,49 @@
          | map(attribute='item') | map(attribute='domain') | list }}
 
 # =========================================================================
+# Step 2b: Check that remote root cannot write the Omnia data path
+# =========================================================================
+# The root playbook watcher executes requests from the queue under
+# OMNIA_DATA_PATH. An NFS export of that path (or a parent or child) with
+# no_root_squash lets root on any NFS client drive privileged execution.
+- name: Read active NFS exports on the OIM
+  ansible.builtin.command: exportfs -s
+  register: _nfs_exports
+  changed_when: false
+  failed_when: false
+
+- name: Resolve the Omnia data path
+  ansible.builtin.set_fact:
+    _data_path_real: "{{ omnia_data_path | realpath }}"
+    _unsafe_data_exports: []
+
+- name: Identify exports that let remote root write the Omnia data path
+  ansible.builtin.set_fact:
+    _unsafe_data_exports: "{{ _unsafe_data_exports + [_export_path] }}"
+  vars:
+    _export_path: "{{ item.split()[0] }}"
+    _export_prefix: "{{ _export_path | regex_replace('/$', '') ~ '/' }}"
+  loop: "{{ _nfs_exports.stdout_lines | default([]) }}"
+  when:
+    - item.split() | length > 1
+    - "'no_root_squash' in item"
+    - >-
+      _data_path_real == _export_path
+      or _data_path_real.startswith(_export_prefix)
+      or _export_path.startswith(_data_path_real ~ '/')
+
+- name: Detect the filesystem type of the Omnia data path
+  ansible.builtin.command: findmnt -n -o FSTYPE -T "{{ omnia_data_path }}"
+  register: _data_path_fstype
+  changed_when: false
+  failed_when: false
+
+- name: Warn when the Omnia data path is an NFS mount
+  ansible.builtin.debug:
+    msg: "{{ data_path_nfs_mount_warning_msg }}"
+  when: (_data_path_fstype.stdout | default('') | trim) is match('^nfs')
+
+# =========================================================================
 # Step 3: Summary
 # =========================================================================
 - name: Determine overall result
@@ -90,7 +133,8 @@
     _precheck_pass: >-
       {{ (_sys_validation.valid | default(false) | bool)
          and (_missing | length == 0)
-         and (_creds_missing | length == 0) }}
+         and (_creds_missing | length == 0)
+         and (_unsafe_data_exports | length == 0) }}
     _sys_check_lines: >-
       {{ _sys_validation.checks | default([])
          | map(attribute='message') | list }}
@@ -113,6 +157,9 @@
       - "  repo_manager:     {{ ('repo_manager' not in _creds_missing) | ternary('present', 'MISSING') }}"
       - "  image_build_mgr:  {{ ('image_build_manager' not in _creds_missing) | ternary('present', 'MISSING') }}"
       - ""
+      - "  --- data path exports ---"
+      - "  no_root_squash:   {{ (_unsafe_data_exports | length == 0) | ternary('none', 'UNSAFE: ' ~ (_unsafe_data_exports | join(', '))) }}"
+      - ""
       - "  RESULT: {{ _precheck_pass | bool | ternary('PASS', 'FAIL — run omnia.sh --prepare-base first') }}"
       - "============================================"
 
@@ -123,5 +170,7 @@
       System environment: {{ _sys_validation.msg | default('not validated') }}.
       Missing containers: {{ _missing | default([]) | join(', ') }}.
       Missing credentials: {{ _creds_missing | default([]) | join(', ') }}.
-      Run 'omnia.sh --prepare-base' to fix.
+      Unsafe data path exports: {{ _unsafe_data_exports | default([]) | join(', ') }}.
+      Run 'omnia.sh --prepare-base' to fix missing services or credentials;
+      {{ data_path_unsafe_export_msg }}
   when: not (_precheck_pass | bool)
