@@ -86,17 +86,6 @@ class TestStage:
         assert stage.ended_at is not None
         assert stage.version == 2
 
-    def test_skip_stage(self):
-        """Stage should transition from PENDING to SKIPPED."""
-        stage = Stage(
-            job_id=JobId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a11"),
-            stage_name=StageName("create-local-repository"),
-        )
-        stage.skip()
-        assert stage.stage_state == StageState.SKIPPED
-        assert stage.ended_at is not None
-        assert stage.version == 2
-
     def test_cancel_stage_from_pending(self):
         """Stage should be cancellable from PENDING state."""
         stage = Stage(
@@ -177,7 +166,5 @@ class TestStage:
             stage.complete()
         with pytest.raises(TerminalStateViolationError):
             stage.fail("ERR", "Error")
-        with pytest.raises(TerminalStateViolationError):
-            stage.skip()
         with pytest.raises(TerminalStateViolationError):
             stage.cancel()

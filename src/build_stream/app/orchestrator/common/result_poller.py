@@ -29,7 +29,7 @@ import stat
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 from sqlalchemy.exc import IntegrityError
 
@@ -248,25 +248,6 @@ def _apply_catalog_metadata(image_group: ImageGroup, metadata: dict) -> None:
     for field_name, value in catalog_fields.items():
         if hasattr(image_group, field_name):
             setattr(image_group, field_name, value)
-
-
-def _load_build_image_meta(job_id: str) -> Dict[str, str]:
-    """Read ``build_image_meta.json`` persisted by the build-image stage.
-
-    Returns an empty dict if the file does not exist or cannot be read.
-    """
-    meta_path = _job_artifact_file(job_id, "build_image_meta.json")
-    try:
-        if meta_path is None:
-            return {}
-        raw = meta_path.read_text(encoding="utf-8")
-        decoder = json.JSONDecoder()
-        data, _ = decoder.raw_decode(raw)
-        if isinstance(data, dict):
-            return data
-        return {}
-    except (OSError, ValueError):
-        return {}
 
 
 class ResultPoller:
@@ -566,32 +547,6 @@ class ResultPoller:
     def _is_build_image_stage(stage_name: str) -> bool:
         """Check if the stage is the build-image stage."""
         return stage_name == StageType.BUILD_IMAGE.value
-
-    def _emit_dictionary_hit_events(self, result: PlaybookResult) -> None:
-        """Persist one audit event for each catalog image reused by hash."""
-        for hit in result.dictionary_hits or []:
-            functional_group = hit.get("functional_group", "")
-            image_group_id = hit.get("image_group_id", "")
-            if not functional_group or not image_group_id:
-                continue
-            event = AuditEvent(
-                event_id=str(self._uuid_generator.generate()),
-                job_id=result.job_id,
-                event_type="DICTIONARY_HIT",
-                correlation_id=(
-                    str(result.correlation_id)
-                    if result.correlation_id
-                    else str(self._uuid_generator.generate())
-                ),
-                client_id=result.job_id,
-                timestamp=datetime.now(timezone.utc),
-                details={
-                    "stage_name": result.stage_name,
-                    "functional_group": functional_group,
-                    "image_group_id": image_group_id,
-                },
-            )
-            self._audit_repo.save(event)
 
     def _emit_dictionary_hit_events(self, result: PlaybookResult) -> None:
         """Persist one audit event for each catalog image reused by hash."""
