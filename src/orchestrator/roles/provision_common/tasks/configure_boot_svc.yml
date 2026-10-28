@@ -30,14 +30,12 @@
       {{ hostvars['localhost']['functional_group_config'] | default({})
          | functional_group_setting(
              fg_name,
-             'boot_kernel_params',
-             hostvars['localhost']['legacy_boot_kernel_params'] | default('')
+             'boot_kernel_params'
            ) }}
     boot_kernel_params_source: >-
       {{ (hostvars['localhost']['functional_group_config'] | default({})
           | functional_group_provenance(
-              fg_name,
-              hostvars['localhost']['legacy_boot_kernel_params'] | default('')
+              fg_name
             )).boot_kernel_params }}
 
 - name: Report resolved boot kernel parameter provenance - {{ fg_name }}

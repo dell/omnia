@@ -37,14 +37,12 @@
       {{ hostvars['localhost']['functional_group_config'] | default({})
          | functional_group_setting(
              functional_group_name,
-             'image_override',
-             hostvars['localhost']['legacy_boot_kernel_params'] | default('')
+             'image_override'
            ) }}
     _fg_image_override_source: >-
       {{ (hostvars['localhost']['functional_group_config'] | default({})
           | functional_group_provenance(
-              functional_group_name,
-              hostvars['localhost']['legacy_boot_kernel_params'] | default('')
+              functional_group_name
             )).image_override }}
 
 - name: Compute base image prefix for a primary control-plane FG
