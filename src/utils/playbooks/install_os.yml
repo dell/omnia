@@ -39,6 +39,21 @@
 # ─────────────────────────────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────────────────────────────
+# Play 0: Setup and tag validation
+# ─────────────────────────────────────────────────────────────────────────
+- name: Setup and tag validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  roles:
+    - role: utils_setup
+      vars:
+        validate_prerequisites: false
+        validate_config_files: false
+        validate_disk_space: false
+
+# ─────────────────────────────────────────────────────────────────────────
 # Play 1: Validate configuration
 # ─────────────────────────────────────────────────────────────────────────
 - name: Validate install_os configuration

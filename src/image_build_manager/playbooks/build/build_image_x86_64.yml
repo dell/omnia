@@ -17,6 +17,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: always
   tasks:
     - name: Run image_build_setup role (standalone only)
       ansible.builtin.include_role:

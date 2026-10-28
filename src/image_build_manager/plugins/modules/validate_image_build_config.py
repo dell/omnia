@@ -38,9 +38,13 @@ from ansible.module_utils.input_validation.core.config import (
     VALIDATION_FILES,
 )
 from ansible.module_utils.input_validation.core.file_utils import (
+    RedactingLogger,
+    collect_secret_strings,
     is_vault_encrypted,
     load_json,
+    load_vault_yaml,
     load_yaml,
+    redact,
 )
 from ansible.module_utils.input_validation.core.utils import create_logger
 from ansible.module_utils.input_validation.core.validation_engine import (
@@ -62,7 +66,9 @@ description:
   - Performs L1 (JSON schema) validation on image_build_config.yml and
     image_build_credentials.yml, package_groups.yml, and catalog JSON.
   - Performs L2 (cross-field logic) validation on config values.
-  - Skips Ansible Vault encrypted files automatically.
+  - Decrypts Ansible Vault encrypted files in memory using the sibling
+    C(.<file stem>_key) vault key. Encrypted files without a key are reported
+    in C(unvalidated_files) and never counted as valid.
   - Returns structured validation results with error details and log path.
 options:
   input_project_dir:
@@ -112,6 +118,11 @@ valid_files:
   elements: str
 invalid_files:
   description: List of files that failed validation.
+  returned: always
+  type: list
+  elements: str
+unvalidated_files:
+  description: Vault-encrypted files that could not be decrypted for validation.
   returned: always
   type: list
   elements: str
@@ -255,6 +266,9 @@ def run_module():
     all_errors = []
     valid_files = []
     invalid_files = []
+    unvalidated_files = []
+    loaded_data = {}
+    secrets_by_file = {}
 
     # --- L1: Schema validation for each config file ---
     config_data = None
@@ -272,14 +286,24 @@ def run_module():
                 logger.info(f"Optional file not found (skipped): {config_path}")
             continue
 
-        # Skip Ansible Vault encrypted files — they cannot be validated
-        # without the vault password (handled by Ansible at runtime)
+        # Vault-encrypted files are decrypted in memory and validated like any
+        # other file. Without a vault key they are reported as not validated.
         if is_vault_encrypted(config_path):
-            logger.info(f"Vault-encrypted file (skipped schema check): {config_path}")
-            valid_files.append(config_path)
-            continue
-
-        data = load_yaml(config_path)
+            data, vault_error, key_available = load_vault_yaml(config_path)
+            if not key_available:
+                logger.warning(
+                    f"Vault-encrypted file NOT validated (vault key not found): {config_path}"
+                )
+                unvalidated_files.append(config_path)
+                continue
+            if vault_error:
+                all_errors.append(vault_error)
+                invalid_files.append(config_path)
+                logger.error(vault_error)
+                continue
+            secrets_by_file[vf["config_file"]] = collect_secret_strings(data)
+        else:
+            data = load_yaml(config_path)
         if data is None:
             err = msg.yaml_parse_failed_msg(config_path)
             all_errors.append(err)
@@ -287,11 +311,15 @@ def run_module():
             logger.error(err)
             continue
 
+        loaded_data[vf["config_file"]] = data
+        secrets = secrets_by_file.get(vf["config_file"], [])
         file_label = os.path.basename(config_path)
         file_errors = []
         is_valid = _validate_document(
-            data, schema_path, file_label, file_errors, logger
+            data, schema_path, file_label, file_errors,
+            RedactingLogger(logger, secrets) if secrets else logger,
         )
+        file_errors = [redact(err, secrets) for err in file_errors]
         all_errors.extend(file_errors)
         _mark_file(config_path, is_valid, valid_files, invalid_files)
 
@@ -331,20 +359,18 @@ def run_module():
             logger,
         )
 
-        # Cross-validate credentials against config if both exist and decrypted
-        cred_path = os.path.join(input_project_dir, "image_build_credentials.yml")
-        if os.path.isfile(cred_path) and not is_vault_encrypted(cred_path):
-            cred_data = load_yaml(cred_path)
-            if cred_data and isinstance(cred_data, dict):
-                cred_errors = validate_credentials_logic_new(
-                    cred_data, config_data, logger
-                )
-                if cred_errors:
-                    all_errors.extend(cred_errors)
-            elif cred_data and not isinstance(cred_data, dict):
-                logger.warning(
-                    f"Credential file is not a dict (possibly vault-encrypted): {cred_path}"
-                )
+        # Cross-validate credentials (plaintext or decrypted vault) against config
+        cred_data = loaded_data.get("image_build_credentials.yml")
+        if cred_data and isinstance(cred_data, dict):
+            secrets = secrets_by_file.get("image_build_credentials.yml", [])
+            cred_errors = validate_credentials_logic_new(
+                cred_data, config_data,
+                RedactingLogger(logger, secrets) if secrets else logger,
+            )
+            if cred_errors:
+                all_errors.extend(redact(err, secrets) for err in cred_errors)
+        elif cred_data:
+            logger.warning("Credential file is not a mapping: image_build_credentials.yml")
 
     logger.info(msg.VALIDATION_END_MSG)
 
@@ -353,7 +379,8 @@ def run_module():
 
     message = [
         f"Image build configuration validation {status}.",
-        f"Valid files: {len(valid_files)}, Invalid files: {len(invalid_files)}.",
+        f"Valid files: {len(valid_files)}, Invalid files: {len(invalid_files)}, "
+        f"Not validated (encrypted, no vault key): {len(unvalidated_files)}.",
         f"Log file: {log_file}",
     ]
 
@@ -365,6 +392,7 @@ def run_module():
         errors=all_errors,
         valid_files=valid_files,
         invalid_files=invalid_files,
+        unvalidated_files=unvalidated_files,
     )
 
 

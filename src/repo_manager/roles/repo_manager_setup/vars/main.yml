@@ -48,3 +48,26 @@ repo_manager_setup_invalid_repo_manager_config_msg: >-
 repo_manager_setup_invalid_oim_metadata_msg: >-
   oim_metadata.yml is invalid or contains prohibited Jinja template syntax.
   Runtime metadata must contain literal YAML values.
+
+# =============================================================================
+# TAG VALIDATION
+# =============================================================================
+supported_tags:
+  - credentials
+  - prepare
+  - precheck
+  - download
+  - status
+  - cleanup
+  - cleanup_pulp
+  - cleanup_repos
+  - catalog_add
+  - catalog_delete
+  - catalog_generate
+  - catalog_validate
+
+tag_validation_fail_msg: |
+  Invalid tag usage detected.
+  Supported tags: {{ supported_tags | join(', ') }}
+  Invalid tags provided: {{ invalid_tags | join(', ') }}
+  Please use only supported tags.

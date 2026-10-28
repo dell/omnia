@@ -33,6 +33,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 from typing import Any, Optional, Tuple
 
 import yaml
@@ -81,6 +82,12 @@ validation_errors:
   description: List of validation errors found, if any.
   type: list
   returned: failure
+unvalidated_files:
+  description: >-
+    Vault-encrypted files that could not be decrypted (no sibling
+    .<file stem>_key) and therefore were not validated.
+  type: list
+  returned: always
 '''
 
 VALIDATION_LOG_PATH = os.path.join(
@@ -134,6 +141,72 @@ def is_vault_encrypted(path: str) -> bool:
     return first_line.startswith(VAULT_HEADER)
 
 
+def load_vault_yaml(path: str) -> Tuple[Any, Optional[str], bool]:
+    """Decrypt a vault file in memory with its sibling ``.<stem>_key`` file.
+
+    Returns:
+        (data, error, key_available). key_available is False when no vault key
+        exists, in which case the file cannot be validated.
+    """
+    stem = os.path.splitext(os.path.basename(path))[0]
+    key_path = os.path.join(os.path.dirname(path), f".{stem}_key")
+    if not os.path.isfile(key_path):
+        return None, None, False
+    try:
+        result = subprocess.run(
+            ["ansible-vault", "view", path, "--vault-password-file", key_path],
+            capture_output=True, text=True, check=False, timeout=120,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return None, f"Unable to decrypt vault file {path}: {exc}", True
+    if result.returncode != 0:
+        return None, f"Unable to decrypt vault file {path}: {result.stderr.strip()}", True
+    try:
+        return yaml.safe_load(result.stdout), None, True
+    except yaml.YAMLError:
+        return None, f"Failed to parse decrypted YAML: {path}", True
+
+
+REDACTED = "********"
+
+
+def collect_secret_strings(data: Any) -> list[str]:
+    """Return every scalar value (not key) in decrypted data, longest first."""
+    found, stack = set(), [data]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, dict):
+            stack.extend(item.values())
+        elif isinstance(item, list):
+            stack.extend(item)
+        elif isinstance(item, str) and item:
+            found.add(item)
+        elif isinstance(item, (int, float)) and not isinstance(item, bool):
+            found.add(str(item))
+    return sorted(found, key=len, reverse=True)
+
+
+def redact(text: Any, secrets: list[str]) -> str:
+    """Mask decrypted secret values (quoted always, bare when 3+ chars)."""
+    text = str(text)
+    for secret in secrets:
+        text = text.replace(repr(secret), REDACTED)
+        if len(secret) >= 3:
+            text = text.replace(secret, REDACTED)
+    return text
+
+
+class RedactingLogger(logging.LoggerAdapter):
+    """Logger adapter that masks decrypted secret values in log messages."""
+
+    def __init__(self, logger: logging.Logger, secrets: list[str]):
+        super().__init__(logger, {})
+        self.secrets = secrets
+
+    def process(self, msg, kwargs):
+        return redact(msg, self.secrets), kwargs
+
+
 def load_yaml(path: str) -> Optional[dict[str, Any]]:
     """Load a YAML file, returning None on failure."""
     if not os.path.isfile(path):
@@ -160,9 +233,13 @@ def validate_against_schema(
     """
     Validate data against a JSON schema (L1).
     Enforces required, type, enum, and string constraints without a jsonschema
-    dependency.
+    dependency. Fails closed on an empty schema and matches string patterns
+    against the whole value.
     """
     if not schema:
+        msg = f"{file_label}: Schema is empty; refusing to treat input as valid"
+        errors.append(msg)
+        logger.error(msg)
         return
 
     schema_type = schema.get("type")
@@ -222,7 +299,7 @@ def validate_against_schema(
             )
             invalid_pattern = (
                 "pattern" in prop_schema
-                and re.search(prop_schema["pattern"], value) is None
+                and re.fullmatch(prop_schema["pattern"], value) is None
             )
             if invalid_length or invalid_pattern:
                 msg = prop_schema.get(
@@ -268,12 +345,14 @@ def run_module() -> None:
     all_errors = []
     valid_files = []
     invalid_files = []
+    unvalidated_files = []
 
     # --- L1: Schema validation for each config file ---
     config_data = None
     for vf in VALIDATION_FILES:
         config_path = os.path.join(input_project_dir, vf["config_file"])
         schema_path = os.path.join(schema_dir, vf["schema_file"])
+        secrets: list[str] = []
 
         if not os.path.isfile(config_path):
             if vf["required"]:
@@ -286,11 +365,21 @@ def run_module() -> None:
             continue
 
         if is_vault_encrypted(config_path):
-            logger.info(f"Vault-encrypted file (skipped schema check): {config_path}")
-            valid_files.append(config_path)
-            continue
-
-        data = load_yaml(config_path)
+            data, vault_error, key_available = load_vault_yaml(config_path)
+            if not key_available:
+                logger.warning(
+                    f"Vault-encrypted file NOT validated (vault key not found): {config_path}"
+                )
+                unvalidated_files.append(config_path)
+                continue
+            if vault_error:
+                all_errors.append(vault_error)
+                invalid_files.append(config_path)
+                logger.error(vault_error)
+                continue
+            secrets = collect_secret_strings(data)
+        else:
+            data = load_yaml(config_path)
         if data is None:
             msg = f"Failed to parse YAML: {config_path}"
             all_errors.append(msg)
@@ -302,12 +391,15 @@ def run_module() -> None:
         if schema is None:
             msg = f"Schema file not found: {schema_path}"
             all_errors.append(msg)
+            invalid_files.append(config_path)
             logger.error(msg)
             continue
 
         file_errors = []
         file_label = os.path.basename(config_path)
-        validate_against_schema(data, schema, file_label, file_errors, logger)
+        file_logger = RedactingLogger(logger, secrets) if secrets else logger
+        validate_against_schema(data, schema, file_label, file_errors, file_logger)
+        file_errors = [redact(err, secrets) for err in file_errors]
 
         if file_errors:
             all_errors.extend(file_errors)
@@ -332,7 +424,8 @@ def run_module() -> None:
 
     message = [
         f"Discovery configuration validation {status}.",
-        f"Valid files: {len(valid_files)}, Invalid files: {len(invalid_files)}.",
+        f"Valid files: {len(valid_files)}, Invalid files: {len(invalid_files)}, "
+        f"Not validated (encrypted, no vault key): {len(unvalidated_files)}.",
         f"Log file: {log_file}",
     ]
 
@@ -344,6 +437,7 @@ def run_module() -> None:
         errors=all_errors,
         valid_files=valid_files,
         invalid_files=invalid_files,
+        unvalidated_files=unvalidated_files,
     )
 
 

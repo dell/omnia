@@ -33,6 +33,7 @@ and unchanged.
 | `IMGBM_UT_154` | `test_driver_group_skip.py` | Non-empty build-input resolution for every bundled catalog/architecture pair |
 | `IMGBM_UT_155` | `test_catalog_reuse_state.py` | Catalog-reuse recovery metadata stays project-scoped below the domain data root |
 | `IMGBM_UT_156` | `test_catalog_reuse_state.py` | Successful restoration prunes empty catalog-reuse recovery directories |
+| `IMGBM_UT_157`–`158` | `test_input_validation_fail_closed.py` | Vault-encrypted credentials are decrypted and validated with masked errors, or reported unvalidated when no key exists |
 
 The runner resolves each ID from the test file, class, and method portion of
 the pytest node ID and displays it in the summary and generated reports.
