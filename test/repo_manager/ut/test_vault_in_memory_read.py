@@ -112,6 +112,34 @@ def test_process_encrypted_file_malformed_yaml_fails_and_file_untouched(tmp_path
     assert before.startswith(b"$ANSIBLE_VAULT")
 
 
+def test_process_encrypted_file_yaml_error_does_not_echo_content(tmp_path, caplog):
+    """A YAML error in decrypted vault content reports position only, never content."""
+    base, project, vault_file = _make_vault(tmp_path, 'db_value: "S3cr3tValue\n')
+    with caplog.at_level(logging.ERROR, logger="t"), pytest.raises(Failed) as failure:
+        file_utils.process_encrypted_file(
+            vault_file, base, project, logging.getLogger("t"), FakeModule()
+        )
+    assert str(failure.value) == (
+        f"Error loading YAML in {vault_file}: ScannerError at line 2, column 1"
+    )
+    assert "S3cr3tValue" not in caplog.text
+
+
+def test_process_encrypted_file_vault_error_does_not_echo_stderr(tmp_path, caplog):
+    """A vault failure reports file and return code, never ansible-vault's stderr."""
+    base, project, vault_file = _make_vault(tmp_path, "a: 1\n")
+    key_path = Path(vault_file).parent / KEY_NAME
+    key_path.unlink()
+    with caplog.at_level(logging.ERROR, logger="t"), pytest.raises(Failed) as failure:
+        file_utils.process_encrypted_file(
+            vault_file, base, project, logging.getLogger("t"), FakeModule()
+        )
+    message = str(failure.value)
+    assert message.startswith(f"Unable to read vault file {vault_file} (rc=")
+    assert str(key_path) not in message
+    assert str(key_path) not in caplog.text
+
+
 def test_yml_line_number_on_vaulted_file(tmp_path):
     """Line lookup works on a vaulted file without modifying it."""
     base, project, vault_file = _make_vault(tmp_path, "first: 1\nsecond: 2\n")
@@ -190,7 +218,7 @@ def test_schema_oserror_is_reported_and_logged_with_traceback(tmp_path, monkeypa
 
 
 def test_schema_unexpected_error_names_file_and_logs_traceback(tmp_path, monkeypatch, caplog):
-    """The fallback handler names the file and logs a stack trace."""
+    """The fallback handler names the file and exception type, not its text."""
     config = _schema_config(tmp_path, "a: 1\n")
 
     def boom(*_args, **_kwargs):
@@ -198,7 +226,8 @@ def test_schema_unexpected_error_names_file_and_logs_traceback(tmp_path, monkeyp
     monkeypatch.setattr(validation_engine.file_utils, "input_data", boom)
     with caplog.at_level(logging.ERROR, logger="t"):
         errors = validation_engine.schema(config)
-    assert any(config["input_file_path"] in e and "boom" in e for e in errors)
+    assert any(config["input_file_path"] in e and "RuntimeError" in e for e in errors)
+    assert not any("boom" in e for e in errors)
     assert any(r.exc_info for r in caplog.records)
 
 
@@ -212,7 +241,8 @@ def test_logic_logs_traceback_for_unexpected_error(tmp_path, monkeypatch, caplog
     monkeypatch.setattr(validation_engine, "validate_input_logic", boom)
     with caplog.at_level(logging.ERROR, logger="t"):
         errors = validation_engine.logic(config)
-    assert any("boom" in e for e in errors)
+    assert any("RuntimeError" in e for e in errors)
+    assert not any("boom" in e for e in errors)
     assert any(r.exc_info for r in caplog.records)
 
 

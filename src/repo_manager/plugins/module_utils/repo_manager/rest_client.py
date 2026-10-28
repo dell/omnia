@@ -140,7 +140,9 @@ class RestClient:
                 return {}
             parsed_response = json.loads(response_body)
             return parsed_response if isinstance(parsed_response, dict) else None
-        except Exception:
+        except (OSError, http.client.HTTPException, ValueError):
+            return None
+        except Exception:  # pylint: disable=broad-exception-caught
             return None
         finally:
             if conn is not None:
@@ -161,7 +163,11 @@ class RestClient:
             conn = self.get_connection()
             conn.request("GET", uri, headers=self.headers)
             return conn.getresponse()
-        except Exception:
+        except (OSError, http.client.HTTPException, ValueError):
+            if conn is not None:
+                conn.close()
+            return None
+        except Exception:  # pylint: disable=broad-exception-caught
             if conn is not None:
                 conn.close()
             return None

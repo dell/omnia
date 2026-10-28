@@ -225,8 +225,10 @@ def input_data(input_file_path, omnia_base_dir, project_name, logger, module):
         except (IOError, OSError, PermissionError) as exc:
             logger.error(f"Error reading {input_file_path}: {exc}")
             return None, extension
-        except Exception as exc:
-            logger.error(f"Unexpected error reading {input_file_path}: {exc}")
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            logger.error(
+                f"Unexpected error reading {input_file_path}: {type(exc).__name__}"
+            )
             return None, extension
 
     if "yml" in extension or "yaml" in extension:
@@ -357,8 +359,8 @@ def read_vault_text(omnia_base_dir, project_name, vault_file, vault_password_fil
     result = run_subprocess(cmd)
     if result.returncode != 0:
         raise VaultError(
-            f"Unable to read vault file {vault_file} (rc={result.returncode}): "
-            f"{result.stderr.strip()}. Please check vault file for {vault_file}"
+            f"Unable to read vault file {vault_file} (rc={result.returncode}). "
+            f"Please check vault file for {vault_file}"
         )
     return result.stdout
 
@@ -386,7 +388,10 @@ def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, modu
         logger.error(str(exc))
         module.fail_json(msg=str(exc))
     except yaml.YAMLError as exc:
-        message = f"Error loading YAML in {yaml_file}: {exc}"
+        message = f"Error loading YAML in {yaml_file}: {type(exc).__name__}"
+        mark = getattr(exc, "problem_mark", None)
+        if mark is not None:
+            message += f" at line {mark.line + 1}, column {mark.column + 1}"
         logger.error(message)
         module.fail_json(msg=message)
 

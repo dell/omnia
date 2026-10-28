@@ -14,6 +14,8 @@
 
 """Source-contract tests for the unified cadence GitLab pipeline."""
 
+import re
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -91,3 +93,50 @@ def test_cadence_pipeline_uploads_canonical_catalog_and_uses_dotenv():
     assert "dotenv: parse_catalog.env" in source
     assert "- /tmp/cadence_job_id" not in source
     assert "- /tmp/cadence_image_group_id" not in source
+
+
+def _initialization_script():
+    """Return the initialization job script as one string."""
+    pipeline = yaml.safe_load(_pipeline_text())
+    return "\n".join(pipeline["initialization"]["script"])
+
+
+def test_cadence_pipeline_forces_rebuild_in_staged_image_build_config():
+    """Cadence uploads a staged image_build_config.yml with force_rebuild true."""
+    script = _initialization_script()
+    assert "force_rebuild:" in script
+    assert 'files=@${IBC_STAGED}' in script
+    assert 'files=@${IBC_SRC}' not in script
+    assert "for FNAME in image_build_config.yml" not in script
+
+
+def test_cadence_pipeline_fails_when_force_rebuild_cannot_be_set():
+    """The job aborts if the repo config is missing or the override fails."""
+    script = _initialization_script()
+    assert '[ ! -f "${IBC_SRC}" ]' in script
+    assert "grep -Eq" in script
+    assert "Unable to set build_image.force_rebuild=true" in script
+
+
+def test_cadence_force_rebuild_sed_rewrites_only_the_key(tmp_path):
+    """The sed expression flips force_rebuild and leaves other keys intact."""
+    script = _initialization_script()
+    match = re.search(r"sed '([^']*force_rebuild[^']*)'", script)
+    assert match, "force_rebuild sed expression not found"
+    source = tmp_path / "image_build_config.yml"
+    source.write_text(
+        "# force_rebuild — comment must stay\n"
+        "build_image:\n"
+        "  max_parallel: 0\n"
+        "  force_rebuild: false\n"
+        "  backup_s3_images: false\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["sed", match.group(1), str(source)],
+        check=True, capture_output=True, text=True,
+    )
+    assert "  force_rebuild: true\n" in result.stdout
+    assert "# force_rebuild — comment must stay\n" in result.stdout
+    assert "force_rebuild: false" not in result.stdout
+    assert "  backup_s3_images: false\n" in result.stdout

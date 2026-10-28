@@ -90,12 +90,18 @@
     msg: "{{ gitlab_bs_host_ip_fail_msg }}"
   when: (build_stream_host_ip | default('', true) | trim | length) == 0
 
+- name: Pin the GitLab host key before the first SSH connection
+  ansible.builtin.include_role:
+    name: gitlab_passwordless_ssh
+    tasks_from: pin_host_key.yml
+
 - name: Register GitLab SSH credentials
   ansible.builtin.add_host:
     name: "{{ gitlab_host }}"
     groups: gitlab_server
     ansible_host: "{{ gitlab_host }}"
     ansible_user: "{{ gitlab_ansible_user | default('root') }}"
-    ansible_password: "{{ hostvars['localhost']['gitlab_ssh_password'] }}"
-    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+    ansible_ssh_private_key_file: "/root/.ssh/omnia_gitlab"
+    ansible_host_key_checking: true
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=yes -o IdentitiesOnly=yes"
   no_log: true

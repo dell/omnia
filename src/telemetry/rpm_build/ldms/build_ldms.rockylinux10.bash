@@ -2,10 +2,19 @@
 
 pkg_file="ovis-ldms.tar.gz"
 ARCH=$(uname -m)
+PIP_VERSION="26.2.0"
+SETUPTOOLS_VERSION="83.0.0"
 
+# fpm and its pinned dotenv are fetched from an explicit source and verified
+# against the SHA-256 published by rubygems.org before installation.
+GEM_SOURCE="https://rubygems.org"
+GEM_CHECKSUMS="c5944793349ae03c432e1780a2ca929d60b88c7d14d52d630db0508c3a8a17d8  dotenv-2.8.1.gem
+1ffbf342a89ca97fb5c02e66946c97e2bd5413810f7f440ddf32f00a16052dbf  fpm-1.15.1.gem"
+
+# epel-release comes from the distribution repository (GPG-verified by dnf);
+# no unverified download by URL.
 echo "Install epel-release"
 dnf install -y epel-release
-dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-10.noarch.rpm
 
 # Doxygen
 #dnf config-manager -y --set-enabled powertools
@@ -71,6 +80,29 @@ dnf install -y \
 dnf install -y \
     slurm \
     slurm-devel
+
+# Upgrade pip to fix CVE-2026-13346, CVE-2026-8643 and setuptools to fix CVE-2026-59890
+echo "Upgrade pip to ${PIP_VERSION} and setuptools to ${SETUPTOOLS_VERSION}"
+python3 -m pip install --upgrade --ignore-installed \
+    "pip==${PIP_VERSION}" \
+    "setuptools==${SETUPTOOLS_VERSION}"
+python3 - "$PIP_VERSION" "$SETUPTOOLS_VERSION" <<'EOF' || exit 1
+import sys
+from importlib.metadata import version
+for pkg, expected in (("pip", sys.argv[1]), ("setuptools", sys.argv[2])):
+    found = version(pkg)
+    print(f"{pkg}=={found}")
+    # Normalize versions for comparison (e.g., 26.2 == 26.2.0)
+    f_parts = found.split('.')
+    e_parts = expected.split('.')
+    # Pad shorter version with zeros
+    while len(f_parts) < len(e_parts):
+        f_parts.append('0')
+    while len(e_parts) < len(f_parts):
+        e_parts.append('0')
+    if tuple(map(int, f_parts)) < tuple(map(int, e_parts)):
+        sys.exit(f"ERROR: {pkg} {found} < {expected}")
+EOF
 #--------------------------------
 # CLEAN
 #--------------------------------
@@ -78,9 +110,7 @@ echo "[>>] Clean previous install"
 if [ -f "$pkg_file" ]; then
   rm -rf "$pkg_file"
 fi
-if [ -f "*.rpm" ]; then
-  rm -rf "*.rpm"
-fi
+rm -f -- ./*.rpm
 find ./ -name "*.deb" -delete
 for i in \
   /app \
@@ -90,7 +120,7 @@ for i in \
   /app/etc/systemd/system/ldmsd.aggregator.service \
   /app/etc/systemd/system/ldmsd.sampler.service \
   lib/etc/ld.so.conf.d/ovis-ld-so.conf \
-  $pkg_file \
+  "$pkg_file" \
 ; do
   if [ -e "$i" ]; then
     echo "[>>]  Delete $i"
@@ -109,7 +139,11 @@ make distclean
 make clean
 make maintainer-clean
 echo "[>>] Clean isn't clean. Remove any file with an .in file"
-find ./ -name "*.in" |(while read FOO; do base="$(echo $FOO |sed 's/\.in$//g')"; echo "Remove $base"; rm -rf  "$base"; done; )
+find . -name '*.in' -print0 | while IFS= read -r -d '' f; do
+  base="${f%.in}"
+  printf 'Remove %s\n' "$base"
+  rm -rf -- "$base"
+done
 rm -rf autom4te.cache config.cache
 
 #--------------------------------
@@ -119,7 +153,12 @@ echo "[>>] Get in source dir"
 #popd
 #rpm -i datacenter-gpu-manager-2.2.3-1-x86_64.rpm 
 set -xe
-echo "#define DCGM_PUBLIC_API" >> "/usr/include/dcgm_api_export.h"
+# Only patch a real DCGM header, and only once. OVIS builds the DCGM sampler
+# only when libdcgm is present, so the header is otherwise not used.
+dcgm_header="/usr/include/dcgm_api_export.h"
+if [ -f "$dcgm_header" ] && ! grep -q 'DCGM_PUBLIC_API' "$dcgm_header"; then
+  echo "#define DCGM_PUBLIC_API" >> "$dcgm_header"
+fi
 echo "[--] Build ldms"
 echo "[>>] autogen (runs autoreconf internally)"
 ./autogen.sh
@@ -169,18 +208,23 @@ ls -tlr /app
 tar -C /app -czvpf "$pkg_file" .
 
 echo "[>>] Build Product"
-du -sh $pkg_file
+du -sh "$pkg_file"
 
 echo "[>>] install fpm"
 
 # Workaround due pleaserun hard dependency on ruby-3.0
 # REF: https://github.com/jordansissel/fpm/issues/2048
-cat > gems.rb <<'EOF'
-gem 'dotenv', '= 2.8.1'
-gem 'fpm', '= 1.15.1'
-EOF
-
-gem install --no-document --file gems.rb 
+# dotenv is installed first so fpm's dependency on it is already satisfied.
+gem_dir="$(mktemp -d)"
+(
+  cd "$gem_dir"
+  gem fetch dotenv -v 2.8.1 --clear-sources --source "$GEM_SOURCE"
+  gem fetch fpm -v 1.15.1 --clear-sources --source "$GEM_SOURCE"
+  printf '%s\n' "$GEM_CHECKSUMS" | sha256sum -c -
+  gem install --no-document --conservative --clear-sources --source "$GEM_SOURCE" ./dotenv-2.8.1.gem
+  gem install --no-document --conservative --clear-sources --source "$GEM_SOURCE" ./fpm-1.15.1.gem
+)
+rm -rf -- "$gem_dir"
 
 fpm --version
 echo "[>>] Build RPM with fpm"
@@ -200,7 +244,7 @@ fpm \
 --description "This package provides the LDMS commands and libraries.\n* ldmsd: the LDMS daemon, which can run as sampler or aggregator (or both).\n* ldms_ls: the tool to list metric information of an ldmsd.\n* ldmsctl: the tool to control an ldmsd." \
 --rpm-summary "LDMS - Lighweight Distributed Metric Service" \
 --package ovis-ldms-$(cat .version).${ARCH}.rpm \
-$pkg_file
+"$pkg_file"
 
 echo "[>>] List rpm created"
 ls -tlr *tar.gz *.rpm

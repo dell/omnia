@@ -83,6 +83,7 @@ def list_images(
             status=parsed_status,
             limit=limit,
             offset=offset,
+            client_id=token_data["client_id"],
         )
         return result
     except Exception as exc:

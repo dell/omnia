@@ -117,6 +117,16 @@ UT_TEST_CASE_IDS = {
             56: "test_powerscale_log_query_matches_only_marker",
         },
     ),
+    **_module_cases(
+        "test_project_name_validation.py",
+        {
+            57: "test_validate_project_name_accepts_valid_names",
+            58: "test_validate_project_name_rejects_invalid_names",
+            59: "test_vault_path_rejects_traversal",
+            60: "test_vault_path_accepts_valid_project",
+            61: "test_log_path_symlink_containment",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

@@ -37,6 +37,7 @@ class ListImagesUseCase:
         status: Optional[ImageGroupStatus],
         limit: int,
         offset: int,
+        client_id: Optional[str] = None,
     ) -> ListImagesResponse:
         """Query image_groups + images, assemble paginated response.
         
@@ -44,6 +45,7 @@ class ListImagesUseCase:
             status: Filter by specific status, or None for all post-BUILT states.
             limit: Maximum number of results.
             offset: Number of results to skip.
+            client_id: Caller's client id; only its image groups are listed.
             
         Returns:
             Paginated list of image groups.
@@ -51,12 +53,12 @@ class ListImagesUseCase:
         if status is None:
             # Query all post-BUILT states (cumulative)
             image_groups, total_count = self._repo.list_post_built(
-                limit=limit, offset=offset
+                limit=limit, offset=offset, client_id=client_id
             )
         else:
             # Query specific status
             image_groups, total_count = self._repo.list_by_status(
-                status=status, limit=limit, offset=offset
+                status=status, limit=limit, offset=offset, client_id=client_id
             )
 
         group_responses = []

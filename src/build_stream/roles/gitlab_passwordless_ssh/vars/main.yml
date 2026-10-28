@@ -15,6 +15,12 @@
 # Script path
 check_gitlab_port_script: "/tmp/check_gitlab_port.sh"
 
+# Usage: pin_host_key.yml
+gitlab_known_hosts_file: "{{ lookup('env', 'HOME') }}/.ssh/known_hosts"
+gitlab_host_key_mismatch_msg: >
+  The SSH host key of {{ gitlab_host }} does not match gitlab_host_key_fingerprint.
+  Do not continue: verify the GitLab host identity out of band.
+
 # Port validation error message
 gitlab_https_port_in_use_msg: >
   GitLab HTTPS port {{ gitlab_https_port }} is already in use by another service.
