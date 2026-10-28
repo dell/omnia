@@ -123,10 +123,17 @@ def main():
             current_encrypted = is_encrypted(file_path)
             try:
                 current_data = load_vault_yaml(file_path, vault_key)
-            except (OSError, ValueError, subprocess.SubprocessError,
-                    yaml.YAMLError) as exc:
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
                 module.fail_json(
                     msg=f"Failed to read existing credential file: {type(exc).__name__}"
+                )
+            except yaml.YAMLError as exc:
+                mark = getattr(exc, 'problem_mark', None)
+                detail = f"{type(exc).__name__}"
+                if mark:
+                    detail += f" at line {mark.line + 1}, column {mark.column + 1}"
+                module.fail_json(
+                    msg=f"Failed to read existing credential file: {detail}"
                 )
             except Exception:  # pylint: disable=broad-exception-caught
                 module.fail_json(
