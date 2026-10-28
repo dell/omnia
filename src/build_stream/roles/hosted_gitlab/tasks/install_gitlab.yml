@@ -13,15 +13,24 @@
 # limitations under the License.
 
 ---
-- name: Download repository script
-  ansible.builtin.get_url:
-    url: "{{ gitlab_repo_script_url }}"
-    dest: "/tmp/gitlab_repo_install.sh"
-    mode: '0755'
-
+# Declare the GitLab CE repository directly instead of running the vendor
+# bootstrap script as root. Packages and repository metadata are GPG-verified.
 - name: Install GitLab repository
-  ansible.builtin.command: /bin/bash /tmp/gitlab_repo_install.sh
-  changed_when: true
+  ansible.builtin.yum_repository:
+    name: gitlab_gitlab-ce
+    description: gitlab_gitlab-ce
+    file: gitlab_gitlab-ce
+    baseurl: "https://packages.gitlab.com/gitlab/gitlab-ce/el/{{ ansible_facts['distribution_major_version'] }}/$basearch"
+    gpgcheck: true
+    repo_gpgcheck: true
+    gpgkey:
+      - https://packages.gitlab.com/gpgkey/gpg.key
+      - https://packages.gitlab.com/gpgkey/gitlab/3D645A26AB9FBD22.pub.gpg
+      - https://packages.gitlab.com/gpgkey/gitlab/CB947AD886C8E8FD.pub.gpg
+    sslverify: true
+    sslcacert: /etc/pki/tls/certs/ca-bundle.crt
+    metadata_expire: "300"
+    enabled: true
 
 - name: Install GitLab CE package
   ansible.builtin.package:

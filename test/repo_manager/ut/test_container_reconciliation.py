@@ -577,5 +577,28 @@ class ContainerReconciliationTests(unittest.TestCase):
         self.assertEqual(build.call_args.args[0], "create")
 
 
+    def test_remote_tag_attribute_error_is_normalized(self):
+        """Malformed tag records stay wrapped as unknown remote state."""
+        with patch.object(
+            container_repo_utils, "query_pulp_object", return_value=(True, [None])
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "Container remote tag state is unknown"
+            ):
+                container_repo_utils.extract_existing_tags("remote", self.logger)
+        self.logger.error.assert_called_with("Failed to extract container remote tags")
+
+    def test_remote_tag_type_error_is_normalized(self):
+        """Type errors in tag queries keep the same wrapped ValueError."""
+        with patch.object(
+            container_repo_utils, "query_pulp_object", side_effect=TypeError("boom")
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "Container remote tag state is unknown"
+            ):
+                container_repo_utils.extract_existing_tags("remote", self.logger)
+        self.logger.error.assert_called_with("Failed to extract container remote tags")
+
+
 if __name__ == "__main__":
     unittest.main()

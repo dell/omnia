@@ -81,26 +81,57 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     log_secure_info('info', "Application shutdown complete")
 
 
+# Interactive API docs are served outside production only, unless enabled
+# explicitly with BUILD_STREAM_ENABLE_DOCS=true.
+DOCS_ENABLED = os.getenv(
+    "BUILD_STREAM_ENABLE_DOCS",
+    "false" if os.getenv("ENV", "prod").lower() == "prod" else "true",
+).lower() == "true"
+
+
+def _cors_origins() -> list:
+    """Return the explicit CORS origin list from CORS_ORIGINS.
+
+    The only API client is the CI pipeline, so CORS is off unless origins are
+    configured. A wildcard origin is never accepted.
+    """
+    origins = [
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    if "*" in origins:
+        log_secure_info(
+            'warning', "CORS_ORIGINS wildcard '*' ignored; list origins explicitly"
+        )
+        origins = [origin for origin in origins if origin != "*"]
+    return origins
+
+
 app = FastAPI(
     title="Build Stream API",
     description="RESTful API for the Omnia Build Stream application",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    docs_url="/docs" if DOCS_ENABLED else None,
+    redoc_url="/redoc" if DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if DOCS_ENABLED else None,
     lifespan=lifespan,
 )
 
 # Attach container to app so dependency_injector Provide dependencies resolve
 app.container = container
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+CORS_ORIGINS = _cors_origins()
+if CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=CORS_ORIGINS,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=[
+            "Authorization", "Content-Type", "X-Correlation-Id", "Idempotency-Key",
+        ],
+    )
 
 app.include_router(api_router)
 
@@ -114,7 +145,7 @@ async def root() -> dict:
     """Root endpoint returning welcome message."""
     return {
         "message": "Welcome to Build Stream API",
-        "docs": "/docs",
+        "docs": "/docs" if DOCS_ENABLED else None,
         "version": "1.0.0",
     }
 

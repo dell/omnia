@@ -14,28 +14,17 @@
 
 """Consolidated NFS-based implementation for input directory and configuration management."""
 
-from api.logging_utils import log_secure_info
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
 import yaml
 
-from common.config import load_config
-from core.build_image.repositories import (
-    BuildStreamConfigRepository,
-    BuildImageInventoryRepository,
-)
+from api.logging_utils import log_secure_info
+from core.build_image.repositories import BuildStreamConfigRepository
 from core.build_image.value_objects import InventoryHost
 
-
-# Load configuration to get base path
-try:
-    local_config = load_config()
-    DEFAULT_BUILD_STREAM_BASE = Path(local_config.file_store.base_path)
-except (FileNotFoundError, AttributeError):
-    # Fallback to default path if config is not available
-    DEFAULT_BUILD_STREAM_BASE = Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "build_stream_root"
 
 def _get_omnia_data_path() -> str:
     """Read OMNIA_DATA_PATH from environment (sourced from omnia.env).
@@ -59,15 +48,14 @@ def _get_omnia_project_name() -> str:
         ValueError: If the project name contains path separators or
             traversal components.
     """
-    import re  # local import to avoid module-level side effects
     project_name = os.environ.get("OMNIA_PROJECT_NAME", "project_default")
     if (
         not project_name
         or project_name in ('.', '..')
         or os.path.basename(project_name) != project_name
-        or not re.match(r'^[A-Za-z0-9][A-Za-z0-9._-]*$', project_name)
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', project_name)
     ):
-        raise ValueError(f"Invalid OMNIA_PROJECT_NAME: '{project_name}'")
+        raise ValueError("OMNIA_PROJECT_NAME is not a valid single-segment name")
     return project_name
 
 
@@ -82,13 +70,12 @@ def _build_repo_manager_input_dir() -> str:
 DEFAULT_PLAYBOOK_INPUT_DIR = _build_repo_manager_input_dir()
 
 
-class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryRepository):
+class NfsInputRepository(BuildStreamConfigRepository):
     """Consolidated NFS repository for input directory and configuration management.
 
     This repository combines functionality for:
     - Input directory path management
     - Configuration file reading
-    - Inventory file creation
 
     With domain segregation (Omnia 2.3+), input paths are constructed from
     OMNIA_DATA_PATH and OMNIA_PROJECT_NAME environment variables (sourced
@@ -99,8 +86,6 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
         self,
         config_file_path: Optional[str] = None,
         playbook_input_dir: str = DEFAULT_PLAYBOOK_INPUT_DIR,
-        build_stream_base: str = DEFAULT_BUILD_STREAM_BASE,
-        inventory_base_dir: str = None,
     ):
         """Initialize repository with consolidated paths.
 
@@ -108,8 +93,6 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
             config_file_path: Full path to build_stream_config.yml.  If None,
                              constructed from OMNIA_DATA_PATH / OMNIA_PROJECT_NAME.
             playbook_input_dir: Destination path for image_build_manager domain input.
-            build_stream_base: Base path for build stream job data.
-            inventory_base_dir: Base directory for inventory files.
         """
         # Initialize configuration paths
         if config_file_path is None:
@@ -122,12 +105,6 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
 
         # Initialize input directory paths
         self._playbook_input_dir = Path(playbook_input_dir)
-        self._build_stream_base = Path(build_stream_base)
-
-        # Initialize inventory directory paths
-        if inventory_base_dir is None:
-            inventory_base_dir = os.path.join(_get_omnia_data_path(), "build_stream_inv")
-        self._inventory_base_dir = Path(inventory_base_dir)
 
     # === Configuration Methods ===
 
@@ -146,82 +123,45 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
         config_path = self._config_file_path
 
         if not config_path.exists():
-            log_secure_info('warning', f"build_stream_config.yml not found at {job_id} (job {config_path})")
+            log_secure_info(
+                'warning',
+                f"build_stream_config.yml not found at {config_path} (job {job_id})",
+            )
             return None
 
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
-                
+
             if not config:
                 log_secure_info('warning', f"Empty build_stream_config.yml for job {job_id}")
                 return None
-                
+
             inventory_host = config.get("aarch64_inventory_host_ip")
             if inventory_host:
-                log_secure_info('info', f"Retrieved inventory_host for job {job_id}: {inventory_host}")
+                log_secure_info(
+                    'info', f"Retrieved inventory_host for job {job_id}: {inventory_host}"
+                )
                 return InventoryHost(str(inventory_host))
-            
-            log_secure_info('info', f"No aarch64_inventory_host_ip configured for job {job_id}")
-            return None
-            
-        except yaml.YAMLError as exc:
-            log_secure_info('error', f"Failed to parse build_stream_config.yml for job {job_id}")
-            return None
-        except Exception as exc:
-            log_secure_info('error', f"Unexpected error reading build_stream_config.yml for job {job_id}")
+
+            log_secure_info(
+                'info', f"No aarch64_inventory_host_ip configured for job {job_id}"
+            )
             return None
 
-    # === Inventory File Methods ===
-
-    def create_inventory_file(self, inventory_host: InventoryHost, job_id: str) -> Path:
-        """Create an inventory file for aarch64 builds.
-
-        Args:
-            inventory_host: The inventory host IP address.
-            job_id: Job identifier for tracking.
-
-        Returns:
-            Path to the created inventory file.
-
-        Raises:
-            IOError: If inventory file cannot be created.
-        """
-        try:
-            # Create inventory directory if it doesn't exist
-            inventory_dir = self._inventory_base_dir / job_id
-            inventory_dir.mkdir(parents=True, exist_ok=True)
-
-            # Create inventory file path
-            inventory_file = inventory_dir / "inv"
-
-            # Create inventory content
-            inventory_content = f"[admin_aarch64]\n{inventory_host.value}\n"
-
-            # Write inventory file
-            with open(inventory_file, "w", encoding="utf-8") as f:
-                f.write(inventory_content)
-
-            log_secure_info('info', f"Created inventory file for job {job_id} at {inventory_file} with host {inventory_host.value}")
-
-            return inventory_file
-
-        except (OSError, IOError) as exc:
-            log_secure_info('error', f"Failed to create inventory file for job {job_id}")
-            raise IOError("Cannot create inventory file") from None
+        except yaml.YAMLError:
+            log_secure_info(
+                'error', f"Failed to parse build_stream_config.yml for job {job_id}"
+            )
+            return None
+        except Exception:  # pylint: disable=broad-exception-caught
+            log_secure_info(
+                'error',
+                f"Unexpected error reading build_stream_config.yml for job {job_id}",
+            )
+            return None
 
     # === Input Directory Management Methods ===
-
-    def get_source_input_repository_path(self, job_id: str) -> Path:
-        """Get source input directory path for a job.
-
-        Args:
-            job_id: Job identifier.
-
-        Returns:
-            Path like <omnia/build_stream_root>/artifacts/{job_id}/input/
-        """
-        return self._build_stream_base / job_id / "input"
 
     def get_destination_input_repository_path(self) -> Path:
         """Get destination input directory path expected by playbook.

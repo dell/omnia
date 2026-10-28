@@ -184,7 +184,7 @@ class TestSampleCatalogStructure:
         groups = catalog.get("groups", {})
         baseos = [
             name for name, data in groups.items()
-            if data.get("type") == "baseos"
+            if data.get("type") in ("baseos", "base_os")
         ]
         assert len(baseos) > 0, "No baseos groups found in sample catalog"
 

@@ -79,19 +79,6 @@ __all__ = [
 ]
 
 
-def _load_retention_config() -> dict:
-    """Load retention parameters from build_stream_config.yml.
-
-    Returns a dict with keys: retention_age_days, min_keep_count.
-    Falls back to defaults if the config file is missing or malformed.
-    """
-    config = load_retention_config()
-    return {
-        "retention_age_days": config.retention_age_days,
-        "min_keep_count": config.min_keep_count,
-    }
-
-
 def _build_use_case(session) -> CleanupJobUseCase:
     """Wire the cleanup use case against SQL repositories for cron usage."""
     from infra.db.repositories import (  # pylint: disable=import-outside-toplevel

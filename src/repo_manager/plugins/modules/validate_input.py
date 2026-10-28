@@ -31,6 +31,7 @@ Usage:
 
 import logging
 import os
+import re
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
@@ -179,8 +180,17 @@ def validate_csv_structure(csv_file_path, logger=None, allowed_dir=None):
         print(success_msg)
         return True
 
-    except Exception as e:
-        error_msg = f"CSV validation error: {str(e)}"
+    except (ValueError, OSError, csv.Error) as e:
+        if isinstance(e, ValueError) and not isinstance(e, UnicodeError):
+            detail = str(e)
+        else:
+            detail = type(e).__name__
+        error_msg = f"CSV validation error: {detail}"
+        if logger:
+            logger.error(error_msg)
+        raise ValueError(error_msg) from e
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        error_msg = "CSV validation error: unexpected error"
         if logger:
             logger.error(error_msg)
         raise ValueError(error_msg) from e
@@ -259,9 +269,10 @@ def main():
         not project_name
         or project_name in (".", "..")
         or os.path.basename(project_name) != project_name
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', project_name)
     ):
         module.fail_json(
-            msg=f"Invalid project_name: must be a single directory name, got '{project_name}'"
+            msg="project_name is not a valid single-segment name"
         )
 
     # Set runtime environment before importing path-dependent module utilities.
@@ -333,7 +344,7 @@ def main():
                 if not enable_build_stream:
                     skip_gitlab_validation = True
                     logger.info("build_stream is disabled, skipping gitlab_config.yml validation")
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to check build_stream status from build_stream_config.yml")
 
     for tag_name in tag_names:

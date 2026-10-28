@@ -35,10 +35,11 @@
 #   build_tool=<tool>                podman | docker (default: podman)
 #   build_action=<action>            load | push (default: load)
 #   registry=<url>                   Registry URL (default: docker.io/dellhpcomniaaisolution)
-#   kafkapump_tag=<tag>              kafkapump tag (default: 1.3)
-#   victoriapump_tag=<tag>           victoriapump tag (default: 1.3)
-#   telemetry_receiver_tag=<tag>     telemetry_receiver tag (default: 1.3)
-#   ldms_tag=<tag>                   ldms tag (default: 1.1)
+#   kafkapump_tag=<tag>              kafkapump tag (default: 1.4)
+#   victoriapump_tag=<tag>           victoriapump tag (default: 1.4)
+#   telemetry_receiver_tag=<tag>     telemetry_receiver tag (default: 1.4)
+#   ldms_tag=<tag>                   ldms tag (default: 1.2)
+#   idrac_telemetry_commit=<sha>     iDRAC-Telemetry-Reference-Tools commit (default: IDRAC_TELEMETRY_COMMIT)
 # =============================================================================
 
 set -euo pipefail
@@ -76,10 +77,11 @@ show_help() {
     echo "  build_tool=<tool>       podman | docker (default: podman)"
     echo "  build_action=<action>   load | push (default: load)"
     echo "  registry=<url>          Registry URL (default: docker.io/dellhpcomniaaisolution)"
-    echo "  kafkapump_tag=<tag>     kafkapump tag (default: 1.3)"
-    echo "  victoriapump_tag=<tag>  victoriapump tag (default: 1.3)"
-    echo "  telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.3)"
-    echo "  ldms_tag=<tag>          ldms tag (default: 1.1)"
+    echo "  kafkapump_tag=<tag>     kafkapump tag (default: 1.4)"
+    echo "  victoriapump_tag=<tag>  victoriapump tag (default: 1.4)"
+    echo "  telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.4)"
+    echo "  ldms_tag=<tag>          ldms tag (default: 1.2)"
+    echo "  idrac_telemetry_commit=<sha>  iDRAC-Telemetry-Reference-Tools commit (default: fixed commit below)"
     echo ""
     echo -e "${BLUE}EXAMPLES:${NC}"
     echo "  ./build_images.sh"
@@ -100,7 +102,7 @@ SUCCESSFUL_BUILDS=()
 FAILED_BUILDS=()
 
 # ── iDRAC Telemetry repo settings ──
-IDRAC_TELEMETRY_COMMIT="cfa9102a900a76afe9de578d080e98f685625814"
+IDRAC_TELEMETRY_COMMIT="d9890c54a333cdb5dae05ed45a7f1a0f2bac781f"
 IDRAC_TELEMETRY_CLONE_DIR="${SCRIPT_DIR}/.idrac-telemetry-tools"
 
 # =============================================================================
@@ -110,10 +112,10 @@ BUILD_TOOL="podman"
 BUILD_ACTION="load"
 OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
 
-KAFKAPUMP_TAG="1.3"
-VICTORIAPUMP_TAG="1.3"
-TELEMETRY_RECEIVER_TAG="1.3"
-LDMS_TAG="1.1"
+KAFKAPUMP_TAG="1.4"
+VICTORIAPUMP_TAG="1.4"
+TELEMETRY_RECEIVER_TAG="1.4"
+LDMS_TAG="1.2"
 
 # =============================================================================
 # Parse command-line parameters (key=value format)
@@ -130,12 +132,13 @@ for arg in "$@"; do
         victoriapump_tag=*)        VICTORIAPUMP_TAG="${arg#*=}" ;;
         telemetry_receiver_tag=*)  TELEMETRY_RECEIVER_TAG="${arg#*=}" ;;
         ldms_tag=*)                LDMS_TAG="${arg#*=}" ;;
+        idrac_telemetry_commit=*)  IDRAC_TELEMETRY_COMMIT="${arg#*=}" ;;
         -h|--help)
             show_help
             ;;
         *)
             echo -e "${RED}Error: Unknown parameter '$arg'${NC}"
-            echo -e "${YELLOW}Valid: build_tool, build_action, registry, kafkapump_tag, victoriapump_tag, telemetry_receiver_tag, ldms_tag${NC}"
+            echo -e "${YELLOW}Valid: build_tool, build_action, registry, kafkapump_tag, victoriapump_tag, telemetry_receiver_tag, ldms_tag, idrac_telemetry_commit${NC}"
             exit 1
             ;;
     esac
@@ -279,7 +282,7 @@ build_telemetry_receiver() {
 
 build_ldms() {
     echo -e "${BLUE}Building ldms (tag: ${LDMS_TAG})...${NC}"
-    container_build "ldms" "${LDMS_TAG}" \
+    container_build "ubuntu-ldms" "${LDMS_TAG}" \
         "${SCRIPT_DIR}/ldms" "Containerfile.bld_n_run.ubuntu26.04"
 }
 
