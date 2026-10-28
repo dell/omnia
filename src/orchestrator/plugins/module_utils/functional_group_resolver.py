@@ -236,13 +236,6 @@ def has_effective_configuration(config_data: Any) -> bool:
             if key == "cloud_init" and isinstance(value, dict):
                 if not _is_inherit(value.get("config_file")):
                     return True
-            elif key == "custom_log_paths" and isinstance(value, dict):
-                # An all-empty custom_log_paths (the shipped template shape)
-                # inherits; only populated directories/files are active.
-                if not _is_inherit(value.get("directories")) or not _is_inherit(
-                    value.get("files")
-                ):
-                    return True
             elif not _is_inherit(value):
                 return True
         return False
@@ -255,29 +248,4 @@ def has_effective_configuration(config_data: Any) -> bool:
     )
 
 
-def merge_cloud_init_sections(
-    base_section: Any, post_config: Any
-) -> dict[str, list[Any]]:
-    """Append resolved post-configuration to a cloud-init section.
-
-    Both inputs use the constrained ``write_files``/``runcmd`` section shape
-    enforced by the semantic validator. A new mapping is returned so callers
-    never mutate parsed customer input.
-    """
-    base = base_section if isinstance(base_section, dict) else {}
-    posts = post_config if isinstance(post_config, list) else []
-    merged: dict[str, list[Any]] = {}
-    for key in ("write_files", "runcmd"):
-        values: list[Any] = []
-        base_values = base.get(key)
-        if isinstance(base_values, list):
-            values.extend(base_values)
-        for section in posts:
-            if not isinstance(section, dict):
-                continue
-            section_values = section.get(key)
-            if isinstance(section_values, list):
-                values.extend(section_values)
-        if values:
-            merged[key] = values
-    return merged
+def configured_group_names(config_data: Any) -> list[str]:

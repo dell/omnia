@@ -145,8 +145,7 @@
 # Flexible functional groups (ER-ORCH-009): fg_<label>[_<os>_<version>]_<arch>.
 # Every flexible node routes to the single "flexible" stage. Log sources are
 # the Utils-domain defaults (flexible_log_dirs / flexible_log_files); log
-# collection is routed by role prefix, not Orchestrator input (ER-ORCH-009
-# finalized spec removed custom_log_paths from the contract).
+# collection is routed by role prefix.
 # =============================================================================
 
 - name: Select flexible (fg_) groups from inventory

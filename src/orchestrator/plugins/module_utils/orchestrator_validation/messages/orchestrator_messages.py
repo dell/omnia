@@ -993,10 +993,10 @@ def validation_log_msg(path: str) -> str:
 def functional_group_legacy_conflict_msg() -> str:
     """Return the legacy/new cloud-init conflict error message."""
     return (
-        "functional_group_config: cloud_init.config_file or post_config is set "
+        "functional_group_config: cloud_init.config_file is set "
         "while orchestrator_config 'additional_cloud_init_config_file' is also "
         "set. Move the cloud-init content into functional_group_config.yml and "
-        "clear 'additional_cloud_init_config_file', or clear the new values."
+        "clear 'additional_cloud_init_config_file', or clear the new value."
     )
 
 

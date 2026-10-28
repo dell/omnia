@@ -431,8 +431,7 @@ Omnia default. Empty strings, lists, and mappings inherit rather than clear a
 lower level. The runtime `service_kube_control_plane_first_*` group uses the
 `service_kube_control_plane_*` entry. `image_override` is group-only.
 Ordered customization is expressed as ordered `runcmd` inside
-`cloud_init.config_file`; the removed `post_config` and `custom_log_paths`
-fields are rejected as unknown fields.
+`cloud_init.config_file`.
 
 Group names must carry the mandatory `fg_` prefix and exactly match
 `FUNCTIONAL_GROUP_NAME` values in the PXE mapping, ending in `x86_64` or

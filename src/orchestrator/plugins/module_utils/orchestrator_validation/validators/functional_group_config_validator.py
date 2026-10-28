@@ -119,8 +119,6 @@ def _validate_scope(
         return {}
     validate_kernel_params(scope.get("boot_kernel_params"), referenced_by, errors, logger)
     validate_cloud_init_reference(scope, referenced_by, input_project_dir, errors, logger)
-    validate_post_config(scope, referenced_by, errors, logger)
-    validate_custom_log_paths(scope, referenced_by, errors, logger)
     return scope
 
 
