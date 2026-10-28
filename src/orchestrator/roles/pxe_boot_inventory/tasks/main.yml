@@ -82,6 +82,19 @@
       loop_control:
         label: "{{ item.HOSTNAME | default('unknown host') }}"
 
+    - name: Validate IB_NIC_NAME format in PXE inventory
+      ansible.builtin.assert:
+        that:
+          - >-
+            (item.IB_NIC_NAME | default('') | trim | length == 0)
+            or (item.IB_NIC_NAME | trim is regex(pxe_boot_inventory_ib_nic_name_pattern))
+        fail_msg: "{{ pxe_boot_inventory_invalid_ib_nic_name_msg }}"
+        quiet: true
+      loop: "{{ _pxeboot_csv.list }}"
+      loop_control:
+        label: "{{ item.HOSTNAME | default('unknown host') }}"
+      when: "'IB_NIC_NAME' in (_pxeboot_csv.list[0].keys() | list)"
+
     - name: Validate PXE inventory addresses are unique
       ansible.builtin.assert:
         that:
