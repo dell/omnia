@@ -1182,11 +1182,11 @@ class CadenceTimerThread(Thread):
         self.gitlab_project_id = ""
         omnia_data_path = os.getenv("OMNIA_DATA_PATH")
         state_root = (
-            Path(omnia_data_path) / "build_stream"
+            Path(omnia_data_path) / "build_stream_root"
             if omnia_data_path
             else requests_dir.parent
         )
-        self.state_path = state_root / "state" / CADENCE_STATE_FILENAME
+        self.state_path = state_root / "cadence" / CADENCE_STATE_FILENAME
         self.schedule: Dict[str, Any] = {}
         self._apply_config(config)
 
