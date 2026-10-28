@@ -82,20 +82,3 @@ class InMemoryArtifactMetadataRepository:
     def list_by_job_id(self, job_id: JobId) -> List[ArtifactRecord]:
         """Alias for find_by_job — matches SqlArtifactMetadataRepository."""
         return self.find_by_job(job_id)
-
-    def delete_by_job(self, job_id: JobId) -> int:
-        """Delete all artifact records for a job.
-
-        Args:
-            job_id: Parent job identifier.
-
-        Returns:
-            Number of records deleted.
-        """
-        job_str = str(job_id)
-        keys_to_delete = [
-            key for key in self._records if key[0] == job_str
-        ]
-        for key in keys_to_delete:
-            del self._records[key]
-        return len(keys_to_delete)

@@ -542,38 +542,6 @@ def is_pipeline_busy(processing_dir: Path) -> bool:
         return True  # Assume busy on error (safe default)
 
 
-def bump_catalog_version(catalog_path: Path) -> Optional[str]:
-    """Bump the version field in the cadence catalog file.
-
-    Increments the minor version (e.g., "1.0" -> "1.1", "1.5" -> "1.6").
-
-    Args:
-        catalog_path: Path to the cadence_catalog_rhel.json file.
-
-    Returns:
-        The new version string, or None on failure.
-    """
-    try:
-        original_content = catalog_path.read_text(encoding="utf-8")
-        new_version, catalog_content = _render_bumped_catalog(original_content)
-        if not _write_text_atomically(catalog_path, catalog_content):
-            return None
-
-        log_secure_info(
-            "info",
-            f"Cadence catalog version bumped to {new_version}"
-        )
-        return new_version
-
-    except (OSError, json.JSONDecodeError, TypeError, ValueError):
-        log_secure_info(
-            "error",
-            "Failed to bump cadence catalog version",
-            exc_info=True,
-        )
-        return None
-
-
 def _render_bumped_catalog(catalog_content: str) -> tuple[str, str]:
     """Return the next catalog version and serialized content without writing."""
     catalog_data = json.loads(catalog_content)
@@ -787,57 +755,6 @@ def update_catalog_via_gitlab_api(
             "error",
             "GitLab API request failed",
             exc_info=True
-        )
-        return False
-
-
-def copy_cadence_catalog_to_default_path(
-    cadence_catalog_path: Path,
-    catalog_path: Path,
-) -> bool:
-    """Copy the cadence catalog to the configured CATALOG_FILE_PATH.
-
-    The repo_sync.yml playbook uses CATALOG_FILE_PATH to determine which
-    packages to sync. This function ensures the cadence catalog is available
-    at that path before triggering the sync.
-
-    Args:
-        cadence_catalog_path: Path to the cadence_catalog_rhel.json file.
-        catalog_path: Path selected by the CATALOG_FILE_PATH environment variable.
-
-    Returns:
-        True if copy succeeded, False otherwise.
-    """
-    try:
-        if not cadence_catalog_path.exists():
-            log_secure_info(
-                "error",
-                f"Cadence catalog not found: {cadence_catalog_path}"
-            )
-            return False
-
-        # Ensure target directory exists
-        catalog_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Copy cadence catalog to the configured path
-        with open(cadence_catalog_path, "r", encoding="utf-8") as src:
-            catalog_data = json.load(src)
-
-        with open(catalog_path, "w", encoding="utf-8") as dst:
-            json.dump(catalog_data, dst, indent=2)
-            dst.write("\n")
-
-        log_secure_info(
-            "info",
-            "Cadence catalog copied to CATALOG_FILE_PATH"
-        )
-        return True
-
-    except (OSError, json.JSONDecodeError):
-        log_secure_info(
-            "error",
-            "Failed to copy cadence catalog to CATALOG_FILE_PATH",
-            exc_info=True,
         )
         return False
 

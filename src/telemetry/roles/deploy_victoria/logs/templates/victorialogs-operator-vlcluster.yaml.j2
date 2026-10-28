@@ -49,7 +49,7 @@ spec:
     # Init container to remove stale lock files after node reboot
     initContainers:
       - name: remove-stale-locks
-        image: "{% set _bb_img = _support_images.busybox | default('docker.io/library/busybox:1.36') %}{% set _bb_parts = _bb_img | regex_replace(':[^:]+$', '') | split('/') %}{% set _bb_repo = '/'.join(_bb_parts[1:]) if (_bb_parts | length) > 2 or '.' in _bb_parts[0] else '/'.join(_bb_parts) %}{% set _bb_tag = _bb_img.split(':')[-1] %}{% if telemetry_registry.host | default('') %}{{ telemetry_registry.host }}/{{ _bb_repo }}:{{ _bb_tag }}{% else %}{{ _bb_img }}{% endif %}"
+        image: "{% set _bb_img = _support_images.busybox | default('docker.io/library/busybox:1.38') %}{% set _bb_parts = _bb_img | regex_replace(':[^:]+$', '') | split('/') %}{% set _bb_repo = '/'.join(_bb_parts[1:]) if (_bb_parts | length) > 2 or '.' in _bb_parts[0] else '/'.join(_bb_parts) %}{% set _bb_tag = _bb_img.split(':')[-1] %}{% if telemetry_registry.host | default('') %}{{ telemetry_registry.host }}/{{ _bb_repo }}:{{ _bb_tag }}{% else %}{{ _bb_img }}{% endif %}"
         command: ["sh", "-c", "rm -f /vlstorage-data/flock.lock || true"]
         volumeMounts:
           - name: vlstorage-db

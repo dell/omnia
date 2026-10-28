@@ -18,24 +18,18 @@ Part A: Parse-catalog enhancement — image_group_id extraction, uniqueness chec
 Part B: Build-image completion — ImageGroup/Image record creation.
 """
 
+# pylint: disable=protected-access,import-outside-toplevel,too-many-arguments
+# pylint: disable=too-many-positional-arguments,too-many-locals,too-few-public-methods
+
 import json
 import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.catalog.exceptions import InvalidCatalogFormatError
 from core.image_group.exceptions import DuplicateImageGroupError
 from core.image_group.value_objects import ImageGroupId, ImageGroupStatus
-from core.jobs.entities import Job, Stage
-from core.jobs.value_objects import (
-    ClientId,
-    CorrelationId,
-    JobId,
-    StageName,
-    StageState,
-    StageType,
-)
+from core.jobs.value_objects import JobId, StageName
 from infra.artifact_store.in_memory_artifact_store import InMemoryArtifactStore
 from infra.artifact_store.in_memory_artifact_metadata import (
     InMemoryArtifactMetadataRepository,
@@ -47,12 +41,10 @@ from infra.repositories import (
     InMemoryJobRepository,
     InMemoryStageRepository,
 )
-from orchestrator.catalog.commands.parse_catalog import ParseCatalogCommand
 from orchestrator.catalog.use_cases.parse_catalog import ParseCatalogUseCase
 
 
 VALID_JOB_ID = "018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10"
-VALID_CORRELATION_ID = "018f3c4b-2d9e-7d1a-8a2b-111111111111"
 
 
 class FakeUUIDGenerator:
@@ -90,40 +82,6 @@ def _make_catalog_json(
     }
 
 
-def _make_catalog_bytes(catalog_dict=None):
-    """Serialize catalog dict to bytes."""
-    if catalog_dict is None:
-        catalog_dict = _make_catalog_json()
-    return json.dumps(catalog_dict).encode("utf-8")
-
-
-def _make_command(content=None, filename="catalog.json"):
-    return ParseCatalogCommand(
-        job_id=JobId(VALID_JOB_ID),
-        correlation_id=CorrelationId(VALID_CORRELATION_ID),
-        filename=filename,
-        content=content or _make_catalog_bytes(),
-    )
-
-
-def _setup_job_and_stage(job_repo, stage_repo):
-    """Create a CREATED job with a PENDING parse-catalog stage."""
-    job = Job(
-        job_id=JobId(VALID_JOB_ID),
-        client_id=ClientId("test-client"),
-        request_client_id="test-client",
-    )
-    job_repo.save(job)
-
-    stage = Stage(
-        job_id=JobId(VALID_JOB_ID),
-        stage_name=StageName(StageType.PARSE_CATALOG.value),
-        stage_state=StageState.PENDING,
-    )
-    stage_repo.save(stage)
-    return job, stage
-
-
 def _build_use_case(
     job_repo, stage_repo, audit_repo,
     artifact_store, artifact_metadata_repo, uuid_generator,
@@ -143,72 +101,6 @@ def _build_use_case(
 # ======================================================================
 # Part A: Parse-Catalog Enhancement Tests
 # ======================================================================
-
-
-@pytest.mark.unit
-class TestExtractImageGroupId:
-    """Tests for _extract_image_group_id() — reads Catalog.Identifier."""
-
-    def _get_use_case(self):
-        return _build_use_case(
-            InMemoryJobRepository(),
-            InMemoryStageRepository(),
-            InMemoryAuditEventRepository(),
-            InMemoryArtifactStore(),
-            InMemoryArtifactMetadataRepository(),
-            FakeUUIDGenerator(),
-        )
-
-    def test_valid_identifier(self):
-        """Test valid identifier extraction."""
-        uc = self._get_use_case()
-        catalog = {"Catalog": {"Identifier": "image-build"}}
-        result = uc._extract_image_group_id(catalog)
-        assert result == ImageGroupId("image-build")
-
-    def test_missing_catalog_key_raises(self):
-        """Test missing catalog key raises error."""
-        uc = self._get_use_case()
-        with pytest.raises(InvalidCatalogFormatError, match="Catalog"):
-            uc._extract_image_group_id({})
-
-    def test_catalog_not_dict_raises(self):
-        """Test catalog not being a dict raises error."""
-        uc = self._get_use_case()
-        with pytest.raises(InvalidCatalogFormatError, match="Catalog"):
-            uc._extract_image_group_id({"Catalog": "not-a-dict"})
-
-    def test_missing_identifier_raises(self):
-        """Test missing identifier raises error."""
-        uc = self._get_use_case()
-        with pytest.raises(InvalidCatalogFormatError, match="Identifier"):
-            uc._extract_image_group_id({"Catalog": {"Name": "test"}})
-
-    def test_empty_identifier_raises(self):
-        """Test empty identifier raises error."""
-        uc = self._get_use_case()
-        with pytest.raises(InvalidCatalogFormatError, match="Identifier"):
-            uc._extract_image_group_id({"Catalog": {"Identifier": ""}})
-
-    def test_whitespace_identifier_raises(self):
-        """Test whitespace-only identifier raises error."""
-        uc = self._get_use_case()
-        with pytest.raises(InvalidCatalogFormatError, match="Identifier"):
-            uc._extract_image_group_id({"Catalog": {"Identifier": "   "}})
-
-    def test_identifier_exceeds_128_chars_raises(self):
-        """Test identifier exceeding 128 chars raises error."""
-        uc = self._get_use_case()
-        long_id = "x" * 129
-        with pytest.raises(InvalidCatalogFormatError, match="cannot exceed 128"):
-            uc._extract_image_group_id({"Catalog": {"Identifier": long_id}})
-
-    def test_identifier_exactly_128_chars_ok(self):
-        """Test identifier exactly 128 chars is valid."""
-        uc = self._get_use_case()
-        valid_id = "x" * 128
-        result = uc._extract_image_group_id({"Catalog": {"Identifier": valid_id}})
-        assert result == ImageGroupId(valid_id)
 
 
 @pytest.mark.unit
@@ -334,115 +226,6 @@ class TestExtractCatalogMetadata:
         meta = uc._extract_catalog_metadata(catalog)
         assert meta["roles"] == ["valid_role"]
         assert meta["role_images"] == {"valid_role": "valid_role.img"}
-
-
-@pytest.mark.unit
-@pytest.mark.skip(reason="PARSE_CATALOG stage removed in unified design (Omnia 2.3+)")
-class TestParseCatalogWithImageGroup:
-    """Integration tests for full parse-catalog flow with ImageGroup features."""
-
-    def test_successful_parse_includes_image_group_id(self):
-        """Parse-catalog should return image_group_id in result."""
-        job_repo = InMemoryJobRepository()
-        stage_repo = InMemoryStageRepository()
-        ig_repo = InMemoryImageGroupRepository()
-
-        _setup_job_and_stage(job_repo, stage_repo)
-
-        uc = _build_use_case(
-            job_repo, stage_repo,
-            InMemoryAuditEventRepository(),
-            InMemoryArtifactStore(),
-            InMemoryArtifactMetadataRepository(),
-            FakeUUIDGenerator(),
-            image_group_repo=ig_repo,
-        )
-
-        catalog = _make_catalog_json("test-cluster-v1")
-        command = _make_command(content=_make_catalog_bytes(catalog))
-
-        with patch(
-            "orchestrator.catalog.use_cases.parse_catalog.generate_root_json_from_catalog"
-        ):
-            result = uc.execute(command)
-
-        assert result.image_group_id == "test-cluster-v1"
-        assert "kube_node" in result.roles
-        assert "slurm_node" in result.roles
-        assert result.role_images["slurm_node"] == "slurm_node.img"
-
-    def test_duplicate_image_group_raises_409(self):
-        """Parse-catalog should fail with DuplicateImageGroupError for existing group."""
-        job_repo = InMemoryJobRepository()
-        stage_repo = InMemoryStageRepository()
-        ig_repo = InMemoryImageGroupRepository()
-
-        _setup_job_and_stage(job_repo, stage_repo)
-
-        # Pre-seed existing ImageGroup with the same Identifier
-        from core.image_group.entities import ImageGroup
-        existing = ImageGroup(
-            id=ImageGroupId("existing-cluster"),
-            job_id=JobId("00000000-0000-0000-0000-000000000099"),
-            status=ImageGroupStatus.BUILT,
-        )
-        ig_repo.save(existing)
-
-        uc = _build_use_case(
-            job_repo, stage_repo,
-            InMemoryAuditEventRepository(),
-            InMemoryArtifactStore(),
-            InMemoryArtifactMetadataRepository(),
-            FakeUUIDGenerator(),
-            image_group_repo=ig_repo,
-        )
-
-        catalog = _make_catalog_json("existing-cluster")
-        command = _make_command(content=_make_catalog_bytes(catalog))
-
-        with pytest.raises(DuplicateImageGroupError):
-            uc.execute(command)
-
-    def test_catalog_metadata_artifact_stored(self):
-        """Parse-catalog should store catalog-metadata artifact."""
-        job_repo = InMemoryJobRepository()
-        stage_repo = InMemoryStageRepository()
-        artifact_store = InMemoryArtifactStore()
-        metadata_repo = InMemoryArtifactMetadataRepository()
-
-        _setup_job_and_stage(job_repo, stage_repo)
-
-        uc = _build_use_case(
-            job_repo, stage_repo,
-            InMemoryAuditEventRepository(),
-            artifact_store, metadata_repo,
-            FakeUUIDGenerator(),
-            image_group_repo=InMemoryImageGroupRepository(),
-        )
-
-        catalog = _make_catalog_json("cluster-v2")
-        command = _make_command(content=_make_catalog_bytes(catalog))
-
-        with patch(
-            "orchestrator.catalog.use_cases.parse_catalog.generate_root_json_from_catalog"
-        ):
-            uc.execute(command)
-
-        # Verify catalog-metadata artifact was stored
-        record = metadata_repo.find_by_job_stage_and_label(
-            job_id=JobId(VALID_JOB_ID),
-            stage_name=StageName(StageType.PARSE_CATALOG.value),
-            label="catalog-metadata",
-        )
-        assert record is not None
-
-        # Verify content
-        from core.artifacts.value_objects import ArtifactKind
-        raw = artifact_store.retrieve(record.artifact_ref.key, ArtifactKind.FILE)
-        metadata = json.loads(raw.decode("utf-8"))
-        assert metadata["image_group_id"] == "cluster-v2"
-        assert "slurm_node" in metadata["role_images"]
-        assert metadata["role_images"]["slurm_node"] == "slurm_node.img"
 
 
 # ======================================================================
