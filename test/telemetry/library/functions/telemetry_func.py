@@ -229,7 +229,7 @@ def run_on_kube_vip(host, cmd):
     import base64
     b64_cmd = base64.b64encode(cmd.encode("utf-8")).decode("ascii")
     ssh_cmd = (
-        f"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "
+        f"ssh -o StrictHostKeyChecking=no -o LogLevel=ERROR "
         f"root@{kube_vip_ip} "
         f"\"echo {b64_cmd} | base64 -d | bash\""
     )
