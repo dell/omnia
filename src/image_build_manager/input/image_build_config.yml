@@ -31,7 +31,7 @@
 #
 # S3 bucket names are FIXED constants (do NOT change):
 #   boot-images  — OS boot images (kernel, initramfs, rootfs)
-#   efi-images   — EFI boot artifacts
+#   efi          — EFI bucket (reserved)
 # =============================================================================
 
 

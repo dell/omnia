@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Parse functional group definitions from YAML configuration files."""
+
 from ansible.module_utils.basic import AnsibleModule
 import yaml
 
@@ -67,7 +69,7 @@ def normalize_functional_groups(data):
     if isinstance(data, str):
         try:
             data = yaml.safe_load(data)
-        except Exception:
+        except (yaml.YAMLError, ValueError):
             return []
 
     if isinstance(data, dict):
@@ -87,17 +89,19 @@ def normalize_functional_groups(data):
     return names
 
 
-def get_functional_groups(config_path):
+def get_functional_groups(config_path: str) -> list[str]:
+    """Read a YAML config and return the list of functional group names."""
     with open(config_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return normalize_functional_groups(data)
 
 
-def main():
+def main() -> None:
+    """Ansible module entry point."""
     module = AnsibleModule(
-        argument_spec=dict(
-            functional_groups_file=dict(type="str", required=True)
-        ),
+        argument_spec={
+            "functional_groups_file": {"type": "str", "required": True},
+        },
         supports_check_mode=True,
     )
 
@@ -106,7 +110,7 @@ def main():
     try:
         fg_list = get_functional_groups(config_path)
         module.exit_json(changed=False, functional_groups=fg_list)
-    except Exception as e:
+    except (OSError, yaml.YAMLError) as e:
         module.fail_json(msg=str(e))
 
 
