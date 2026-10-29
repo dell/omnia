@@ -24,7 +24,7 @@ PING_RETRY_DELAY_SECONDS = 5
 SSH_RETRIES = 3
 SSH_RETRY_DELAY_SECONDS = 10
 
-KUBERNETES_TEST_IMAGE_DEFAULT = "docker.io/library/busybox:1.36"
+KUBERNETES_TEST_IMAGE_DEFAULT = "docker.io/library/busybox:1.38"
 KUBERNETES_WAIT_TIMEOUT_SECONDS = 300
 RECOVERY_WAIT_TIMEOUT_SECONDS = 900
 RECOVERY_POLL_SECONDS = 15
@@ -795,6 +795,8 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "grep -v -E '\\.(pyc|pem|pub|crt|key)$' | head -20"
     ),
     "minimal_os_ldms_service_state": "systemctl is-active ldmsd",
+    # ── Additional cloud-init: compatibility / idempotency ─────────────
+    "aci_os_release": "grep -E '^(ID=|VERSION_ID=)' /etc/os-release",
     # ── DCGM / CUDA verification ──────────────────────────────────────
     "dcgm_nvidia_smi": "nvidia-smi --query-gpu=driver_version --format=csv,noheader",
     "dcgm_cuda_version": (

@@ -139,6 +139,22 @@ load_env() {
     SYSTEM_HOSTNAME="${SYSTEM_HOSTNAME:-oim}"
     SYSTEM_DOMAIN_NAME="${SYSTEM_DOMAIN_NAME:-omnia.cluster}"
 
+    # Early path safety: refuse values that resolve to protected system
+    # directories.  This catches mis-set env files before any operation
+    # attempts to read, write, or delete under these paths (CWE-22/CWE-78).
+    local _path _resolved
+    for _path in "$OMNIA_DATA_PATH" "$OMNIA_VENV_PATH"; do
+        _resolved="$(/usr/bin/realpath -m -- "$_path" 2>/dev/null)" || _resolved="$_path"
+        if [[ "$_resolved" =~ ^(/|/boot|/dev|/etc|/home|/media|/mnt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)$ ]]; then
+            echo -e "${RED}ERROR: Refusing unsafe path '${_path}' (resolves to '${_resolved}'). Check omnia.env.${NC}" >&2
+            exit 1
+        fi
+        if [ -L "$_path" ]; then
+            echo -e "${RED}ERROR: Path '${_path}' is a symbolic link. Omnia paths must not be symlinks.${NC}" >&2
+            exit 1
+        fi
+    done
+
     export OMNIA_DATA_PATH OMNIA_PROJECT_NAME OMNIA_VENV_PATH
     export SYSTEM_HOSTNAME SYSTEM_DOMAIN_NAME
 }
@@ -243,6 +259,34 @@ readonly SYSTEM_ENV_DIR="/etc/omnia"
 readonly SYSTEM_ENV_FILE="${SYSTEM_ENV_DIR}/omnia.env"
 readonly PROFILE_DROP_IN="/etc/profile.d/omnia-env.sh"
 
+# Refuse to source an environment file that an untrusted user could have
+# tampered with. Sourcing executes the file's contents, so a symbolic link or a
+# group-/world-writable file is a privilege-escalation vector (CWE-59,
+# CWE-427, CWE-732). We reject symlinks and any file writable by group or
+# others, and require the owner to be root or the invoking user (setup is
+# commonly run as the admin who owns the checkout, e.g. via sudo).
+validate_env_file_trust() {
+    local env_file="$1"
+
+    if [ -L "$env_file" ] || [ ! -f "$env_file" ]; then
+        echo -e "${RED}ERROR: Environment file must be a regular file (no symbolic links): ${env_file}${NC}"
+        return 1
+    fi
+
+    local env_owner
+    env_owner="$(/usr/bin/stat -c '%u' -- "$env_file" 2>/dev/null)"
+    if [ "$env_owner" != "0" ] && [ "$env_owner" != "$(/usr/bin/id -u)" ]; then
+        echo -e "${RED}ERROR: Environment file must be owned by root or the invoking user: ${env_file}${NC}"
+        return 1
+    fi
+
+    if [ -n "$(/usr/bin/find -P "$env_file" -maxdepth 0 -perm /022 2>/dev/null)" ]; then
+        echo -e "${RED}ERROR: Environment file must not be group- or world-writable: ${env_file}${NC}"
+        echo -e "${YELLOW}  Fix with: chmod go-w ${env_file}${NC}"
+        return 1
+    fi
+}
+
 validate_env_source() {
     local env_file="$1"
     local errors=0
@@ -252,15 +296,23 @@ validate_env_source() {
         return 1
     fi
 
-    if ! bash -n "$env_file"; then
+    if ! validate_env_file_trust "$env_file"; then
+        return 1
+    fi
+
+    if ! /usr/bin/bash -n "$env_file"; then
         echo -e "${RED}ERROR: Environment file has invalid Bash syntax: ${env_file}${NC}"
         return 1
     fi
 
     # Read from a clean environment so inherited variables cannot hide a
-    # missing value in the file being validated.
+    # missing value in the file being validated. Resolve the helper binaries
+    # from a fixed, trusted PATH (and invoke them by absolute path) so a
+    # writable directory in the caller's PATH cannot inject a trojan env/bash
+    # that would run with the privileges of this setup, often root (CWE-426).
     local ip_value
-    ip_value="$(env -i PATH="$PATH" bash --noprofile --norc -c \
+    ip_value="$(/usr/bin/env -i PATH="/usr/sbin:/usr/bin:/sbin:/bin" \
+        /usr/bin/bash --noprofile --norc -c \
         '. "$1"; printf "%s" "${SYSTEM_ADMIN_NIC_IPV4:-}"' bash "$env_file")"
 
     if [ -z "$ip_value" ]; then
@@ -650,6 +702,8 @@ init_domains() {
     fi
 
     local initialized=0
+    local failed=0
+    local failed_domains=()
     for domain in "${target_domains[@]}"; do
         local init_script="$SRC_DIR/$domain/domain-init.sh"
         if [ -f "$init_script" ]; then
@@ -657,15 +711,24 @@ init_domains() {
             if bash "$init_script" "${domain_init_args[@]}"; then
                 initialized=$((initialized + 1))
             else
-                echo -e "${YELLOW}WARNING: domain-init.sh failed for $domain — continuing${NC}"
+                failed=$((failed + 1))
+                failed_domains+=("$domain")
+                echo -e "${RED}ERROR: domain-init.sh failed for $domain${NC}"
             fi
         fi
     done
 
-    if [ "$initialized" -eq 0 ]; then
+    if [ "$initialized" -eq 0 ] && [ "$failed" -eq 0 ]; then
         echo -e "${YELLOW}No domain-init.sh scripts found in any domain${NC}"
     else
-        echo -e "${GREEN}Domain init completed for ${initialized} domain(s)${NC}"
+        echo -e "${GREEN}Domain init: ${initialized} succeeded, ${failed} failed${NC}"
+    fi
+
+    if [ "$failed" -gt 0 ]; then
+        echo -e "${RED}Failed domains: ${failed_domains[*]}${NC}"
+        echo -e "${YELLOW}Fix the errors above and re-run: ./omnia.sh --init ${failed_domains[*]}${NC}"
+        deactivate 2>/dev/null || true
+        return 1
     fi
 
     # Show installed summary
@@ -687,6 +750,21 @@ init_domains() {
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage-Order Warning (non-blocking)
 # ─────────────────────────────────────────────────────────────────────────────
+_check_status_file() {
+    # Check that a status file exists and reports overall_status: success.
+    # Returns 0 (ok), 1 (missing), or 2 (present but not successful).
+    local status_file="$1"
+    if [ ! -f "$status_file" ]; then
+        return 1
+    fi
+    local status_value
+    status_value="$(grep -m1 '^overall_status:' "$status_file" 2>/dev/null | sed 's/^overall_status:[[:space:]]*//' | tr -d '"'"'" || true)"
+    if [ "$status_value" != "success" ]; then
+        return 2
+    fi
+    return 0
+}
+
 warn_stage_order() {
     local domain="$1"
     local project="${OMNIA_PROJECT_NAME:-project_default}"
@@ -698,20 +776,32 @@ warn_stage_order() {
         image_build_manager)
             # image_build_manager reads repo_status.yml from repo_manager
             local repo_status="${repo_manager_root}/output/${project}/repo_status.yml"
-            if [ ! -f "$repo_status" ]; then
+            local rc=0
+            _check_status_file "$repo_status" || rc=$?
+            if [ "$rc" -eq 1 ]; then
                 echo -e "${YELLOW}WARNING: repo_manager has not been run yet (no repo_status.yml found).${NC}"
                 echo -e "${YELLOW}  Recommended order: repo_manager -> image_build_manager -> orchestrator${NC}"
                 echo -e "${YELLOW}  Run: ./omnia.sh --run repo_manager${NC}"
+                echo ""
+            elif [ "$rc" -eq 2 ]; then
+                echo -e "${YELLOW}WARNING: repo_status.yml exists but overall_status is not 'success'.${NC}"
+                echo -e "${YELLOW}  Re-run repo_manager to completion: ./omnia.sh --run repo_manager${NC}"
                 echo ""
             fi
             ;;
         orchestrator)
             # orchestrator reads build_status.yml from image_build_manager
             local build_status="${image_build_manager_root}/output/${project}/build_status.yml"
-            if [ ! -f "$build_status" ]; then
+            local rc=0
+            _check_status_file "$build_status" || rc=$?
+            if [ "$rc" -eq 1 ]; then
                 echo -e "${YELLOW}WARNING: image_build_manager has not been run yet (no build_status.yml found).${NC}"
                 echo -e "${YELLOW}  Recommended order: repo_manager -> image_build_manager -> orchestrator${NC}"
                 echo -e "${YELLOW}  Run: ./omnia.sh --run image_build_manager${NC}"
+                echo ""
+            elif [ "$rc" -eq 2 ]; then
+                echo -e "${YELLOW}WARNING: build_status.yml exists but overall_status is not 'success'.${NC}"
+                echo -e "${YELLOW}  Re-run image_build_manager: ./omnia.sh --run image_build_manager${NC}"
                 echo ""
             fi
             ;;
@@ -817,8 +907,6 @@ run_domain() {
         esac
     done
 
-    # Normalize extra args (convert -e kafka to -e kafka=true)
-    normalize_extra_args extra_args
     # The telemetry deploy_sinks and cleanup_sinks flows accept sink names as a concise -e value:
     #   -e kafka
     #   -e kafka,victoria_metrics
@@ -884,6 +972,11 @@ run_domain() {
         fi
         extra_args=("${normalized_args[@]}")
     fi
+
+    # Normalize any remaining sink shorthand (runs after the deploy_sinks/
+    # cleanup_sinks conversion above so it cannot turn -e kafka into kafka=true
+    # before that conversion produces the "sinks" list the playbooks consume).
+    normalize_extra_args extra_args
 
     # Validate domain exists
     local domain_found=false
@@ -1245,6 +1338,47 @@ cleanup_domain_initializer_artifacts() {
     done
 }
 
+# Safely remove a directory tree during cleanup. Guards every recursive delete
+# against symlink/TOCTOU and unvalidated-path mistakes (CWE-59, CWE-367,
+# CWE-73): it refuses an empty path, refuses a path whose final component is a
+# symbolic link, resolves the path, refuses the same deny-list of system
+# directories as validate_full_cleanup_state(), and passes --one-file-system so
+# a swapped-in mount/symlink parent cannot carry the delete into another tree.
+safe_rm_dir() {
+    local target="$1"
+    local resolved
+
+    if [ -z "$target" ]; then
+        echo -e "${RED}ERROR: Refusing to remove an empty path.${NC}" >&2
+        return 1
+    fi
+    if [ -L "$target" ]; then
+        echo -e "${RED}ERROR: Refusing to remove a symbolic link: ${target}${NC}" >&2
+        return 1
+    fi
+    if ! resolved="$(/usr/bin/realpath -m -- "$target")"; then
+        echo -e "${RED}ERROR: Cannot resolve path for removal: ${target}${NC}" >&2
+        return 1
+    fi
+    if [[ "$resolved" != /* ]] || [[ "$resolved" =~ ^(/|/boot|/dev|/etc|/home|/media|/mnt|/opt|/proc|/root|/run|/srv|/sys|/tmp|/usr|/var)$ ]]; then
+        echo -e "${RED}ERROR: Refusing to remove unsafe system path: ${resolved} (from ${target})${NC}" >&2
+        return 1
+    fi
+
+    # Only paths inside the configured data path, or the configured venv itself,
+    # may be removed (CWE-73). Both anchors are resolved the same way.
+    local data_root venv_root
+    data_root="$(/usr/bin/realpath -m -- "${OMNIA_DATA_PATH:-/nonexistent}")"
+    venv_root="$(/usr/bin/realpath -m -- "${OMNIA_VENV_PATH:-/nonexistent}")"
+    if [ "$resolved" != "$data_root" ] && [[ "$resolved" != "$data_root"/* ]] \
+        && [ "$resolved" != "$venv_root" ]; then
+        echo -e "${RED}ERROR: Refusing to remove a path outside the Omnia data/venv paths: ${resolved}${NC}" >&2
+        return 1
+    fi
+
+    /usr/bin/rm -rf --one-file-system -- "$resolved"
+}
+
 cleanup_omnia() {
     local cleanup_all="${1:-false}"
     local skip_approval="${2:-false}"
@@ -1313,10 +1447,15 @@ cleanup_omnia() {
         validate_full_cleanup_state || return 1
     fi
 
-    # Remove venv
+    # Remove venv — require pyvenv.cfg to confirm this is actually a Python
+    # virtual environment and not a mis-configured path (CWE-73).
     if [ -d "$OMNIA_VENV_PATH" ]; then
+        if [ ! -f "$OMNIA_VENV_PATH/pyvenv.cfg" ]; then
+            echo -e "${RED}ERROR: ${OMNIA_VENV_PATH} exists but does not contain pyvenv.cfg — refusing to remove (not a Python venv).${NC}" >&2
+            return 1
+        fi
         echo -e "${BLUE}Removing venv: ${OMNIA_VENV_PATH}${NC}"
-        rm -rf "$OMNIA_VENV_PATH"
+        safe_rm_dir "$OMNIA_VENV_PATH" || return 1
         echo -e "  ${GREEN}Removed.${NC}"
     else
         echo -e "  ${YELLOW}Venv not found at ${OMNIA_VENV_PATH} — skipping.${NC}"
@@ -1365,7 +1504,7 @@ cleanup_omnia() {
     local deps_cache_dir="${OMNIA_DATA_PATH}/.data/deps-cache"
     if [ -d "$deps_cache_dir" ]; then
         echo -e "${BLUE}Removing dependency cache: ${deps_cache_dir}${NC}"
-        rm -rf "$deps_cache_dir"
+        safe_rm_dir "$deps_cache_dir" || return 1
         echo -e "  ${GREEN}Removed.${NC}"
     fi
 
@@ -1374,7 +1513,7 @@ cleanup_omnia() {
     if [ "$cleanup_all" = true ]; then
         if [ -d "$OMNIA_DATA_PATH" ]; then
             echo -e "${BLUE}Removing all data: ${OMNIA_DATA_PATH}${NC}"
-            rm -rf "$OMNIA_DATA_PATH"
+            safe_rm_dir "$OMNIA_DATA_PATH" || return 1
             echo -e "  ${GREEN}Removed.${NC}"
         fi
     fi
@@ -2004,7 +2143,7 @@ DOMAINS:
 
 DEPENDENCY CACHING:
   On first run, each domain's requirements.txt and requirements.yml are hashed
-  (MD5).  On subsequent runs, if the file hasn't changed the install step is
+  (SHA-256).  On subsequent runs, if the file hasn't changed the install step is
   skipped entirely — saving 10-30 seconds per domain.  Use --force-deps to
   bypass the cache.  Cache files are stored at \$OMNIA_DATA_PATH/.data/deps-cache/.
 

@@ -117,6 +117,9 @@ def extract_existing_tags(remote_name, logger):
 
     except ValueError:
         raise
+    except (AttributeError, TypeError) as error:
+        logger.error("Failed to extract container remote tags")
+        raise ValueError("Container remote tag state is unknown") from error
     except Exception as error:
         logger.error("Failed to extract container remote tags")
         raise ValueError("Container remote tag state is unknown") from error

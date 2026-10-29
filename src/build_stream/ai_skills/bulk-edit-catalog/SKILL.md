@@ -54,7 +54,7 @@ Search the catalog set recursively (`src/main/samples/catalogs/**/*.json` —
 do not assume every catalog lives exactly one directory level below
 `catalogs/`; a versioned (`rhel/<os_version>/`) or `hybrid/` subtree is
 still in scope) for the condition the operator named (e.g. every catalog
-with a `base_os` group whose `os_version` is `10.0`). List every match
+with a `baseos` group whose `os_version` is `10.0`). List every match
 before proceeding — do not apply to a partial set silently.
 
 ### Step 2 — Run the Pre-Edit Gate per catalog

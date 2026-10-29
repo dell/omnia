@@ -23,7 +23,6 @@ and repository operations used across the repo manager system.
 import os
 import subprocess
 import json
-import shlex
 import tempfile
 from multiprocessing import Lock
 from ansible.module_utils.repo_manager.config import (
@@ -75,10 +74,9 @@ def execute_command(command, logger, type_json=False, enhanced_error_info=False)
     Executes a command and captures the output (both stdout and stderr).
 
     Always uses shell=False with list arguments to avoid shell injection risks.
-    Commands are parsed using shlex.split() to handle proper argument separation.
 
     Args:
-        command (str or list): The command to execute.
+        command (list or tuple): The command to execute as an argument vector.
         logger (logging.Logger): Logger instance for logging the process and errors.
         type_json (bool): If True, attempts to parse stdout as JSON.
         enhanced_error_info (bool): If True, return dict on failure instead of False.
@@ -87,7 +85,16 @@ def execute_command(command, logger, type_json=False, enhanced_error_info=False)
         Success: dict with returncode, stdout, stderr
         Failure (enhanced_error_info=False): False
         Failure (enhanced_error_info=True): dict with returncode, stdout, stderr, success=False
+
+    Raises:
+        TypeError: If command is not a list or tuple.
     """
+    if not isinstance(command, (list, tuple)):
+        raise TypeError(
+            "execute_command requires a list or tuple, "
+            f"got {type(command).__name__}. "
+            "Build commands as argument lists to prevent injection."
+        )
     logger.info(f"--- {execute_command.__name__} START ---")
     status = {}
     safe_cmd_string = "<command omitted>"
@@ -98,11 +105,7 @@ def execute_command(command, logger, type_json=False, enhanced_error_info=False)
         logger.info(f"Executing command: {safe_cmd_string}")
 
         # Always use shell=False with list arguments to avoid shell injection.
-        cmd_args = (
-            [str(value) for value in command]
-            if isinstance(command, (list, tuple))
-            else shlex.split(command)
-        )
+        cmd_args = [str(value) for value in command]
         if cmd_args and cmd_args[0] == "pulp":
             cmd_args[0] = PULP_CLI_EXECUTABLE
 
@@ -455,4 +458,5 @@ def _update_mirror_index_for_package(status_file_path, package_name, package_typ
     except Exception as exc:  # pylint: disable=broad-exception-caught
         # Don't fail the main operation if mirror index update fails
         logger.warning(
-            f"Failed to update mirror index for package '{package_name}': {exc}")
+            f"Failed to update mirror index for package '{package_name}': "
+            f"{type(exc).__name__}")

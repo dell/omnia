@@ -52,6 +52,9 @@ export LDMS_REPO="$(readlink -f "$LDMS_REPO")"
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+# Rocky Linux 10.2 build environment (security fix: CVE-2026-59890, CVE-2026-13346, CVE-2026-8643)
+ROCKY_BASE_IMAGE="rockylinux:10.2"
+
 # Detect or allow manual architecture selection
 ARCH=$(uname -m)
 
@@ -71,6 +74,7 @@ case "$ARCH" in
 esac
 
 echo "Detected/Selected architecture: $ARCH_NAME"
+echo "Build base image: $ROCKY_BASE_IMAGE"
 echo
 echo "Start build container. From there: pushd /builds/ovis/ && /builds/scripts/build_ldms.rockylinux10.bash"
 
@@ -80,7 +84,7 @@ if [[ -z "$REPO_URL" && -z "$REPO_NAME" ]]; then
     --arch "$ARCH_NAME" \
     --mount type=bind,source="$LDMS_REPO",target=/builds/ovis,z \
     --mount type=bind,source="$SCRIPT_DIR",target=/builds/scripts,z \
-    rockylinux:10.0 \
+    "$ROCKY_BASE_IMAGE" \
     bash -c '
         echo "Running LDMS build..."
         pushd /builds/ovis/ && /builds/scripts/build_ldms.rockylinux10.bash
@@ -92,7 +96,7 @@ else
     --mount type=bind,source="$SCRIPT_DIR",target=/builds/scripts,z \
     -e REPO_URL="$REPO_URL" \
     -e REPO_NAME="$REPO_NAME" \
-    rockylinux:10.0 \
+    "$ROCKY_BASE_IMAGE" \
     bash -c '
         echo "Configuring repo inside container..."
         cat > /etc/yum.repos.d/"${REPO_NAME}".repo <<EOF

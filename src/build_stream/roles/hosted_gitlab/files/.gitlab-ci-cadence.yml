@@ -22,7 +22,7 @@
 #   - GitLab runner with curl and jq installed (alpine/ubuntu image works)
 #   - Network access from the runner to the OIM server
 #   - cadence_catalog_rhel.json in the repository root
-#   - GITLAB_API_TOKEN stored as a masked CI/CD variable (PAT with api scope)
+#   - GITLAB_API_TOKEN stored as a masked, protected CI/CD variable (project access token, api scope)
 #   - BSM_API_USERNAME / BSM_API_PASSWORD for first-time registration
 #   - BSM_API_CERT stored as a CI/CD variable (PEM-encoded CA certificate)
 #
@@ -137,7 +137,7 @@ default:
           return 1
         fi
         export ACCESS_TOKEN
-        echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
+        (umask 077; echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token)
         return 0
       }
 
@@ -319,7 +319,7 @@ initialization:
               --form "key=${VAR_NAME}" \
               --form "value=${VAR_VALUE}" \
               --form "masked=true" \
-              --form "protected=false" \
+              --form "protected=true" \
               --cacert "${CI_SERVER_TLS_CA_FILE}")
 
             if [ "$HTTP_CODE" = "201" ]; then
@@ -347,7 +347,7 @@ initialization:
       fi
       ACCESS_TOKEN=$(jq -r '.access_token' token_response.json)
       export ACCESS_TOKEN
-      echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
+      (umask 077; echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token)
       echo "  [OK] Authenticated successfully"
       echo ""
       echo "  Step 3/4: Job Creation/Resume"
@@ -415,17 +415,34 @@ initialization:
       fi
       cp "${CI_PROJECT_DIR}/${CATALOG_FILE}" /tmp/catalog_rhel.json
 
+      # Cadence builds must always rebuild images. Stage image_build_config.yml
+      # with build_image.force_rebuild=true for this request only; the GitLab
+      # repository copy (shared with the regular build pipeline) is untouched.
+      IBC_SRC="${CI_PROJECT_DIR}/input/image_build_manager/image_build_config.yml"
+      IBC_STAGED_DIR="/tmp/cadence_image_build_manager"
+      IBC_STAGED="${IBC_STAGED_DIR}/image_build_config.yml"
+      if [ ! -f "${IBC_SRC}" ]; then
+        echo "  ERROR: image_build_config.yml not found in repository: input/image_build_manager/"
+        exit 1
+      fi
+      mkdir -p "${IBC_STAGED_DIR}"
+      sed 's/^\([[:space:]]*force_rebuild:\).*$/\1 true/' "${IBC_SRC}" > "${IBC_STAGED}"
+      if ! grep -Eq '^[[:space:]]*force_rebuild:[[:space:]]*true[[:space:]]*$' "${IBC_STAGED}"; then
+        echo "  ERROR: Unable to set build_image.force_rebuild=true in image_build_config.yml"
+        exit 1
+      fi
+      echo "  [OK] Cadence run: build_image.force_rebuild forced to true"
+
       UPLOAD_ARGS="-F files=@/tmp/catalog_rhel.json"
       for FNAME in repo_manager_config.yml repo_manager_endpoint_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/repo_manager/${FNAME}"
         [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
       done
-      for FNAME in image_build_config.yml package_groups.yml; do
-        FPATH="${CI_PROJECT_DIR}/input/image_build_manager/${FNAME}"
-        [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
-      done
+      UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${IBC_STAGED}"
+      FPATH="${CI_PROJECT_DIR}/input/image_build_manager/package_groups.yml"
+      [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
       for FNAME in omnia_config.yml orchestrator_config.yml network_spec.yml \
-             security_config.yml storage_config.yml high_availability_config.yml \
+             security_config.yml storage_config.yml \
              additional_cloud_init.yml pxe_mapping_file.csv set_pxe_boot_config.yml; do
         FPATH="${CI_PROJECT_DIR}/input/orchestrator/${FNAME}"
         [ ! -f "${FPATH}" ] || UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
@@ -775,7 +792,7 @@ deploy:
       fi
 
 # ============================= STAGE 5B ===================================
-# Restart — Invoke orchestrator.yml --tags pxeboot on provisioned nodes
+# Restart - Run BuildStream pre-PXE, Orchestrator PXE, and post-PXE
 # ==========================================================================
 restart:
   stage: restart
@@ -784,7 +801,7 @@ restart:
     - |
       echo "============================================================"
       echo "  CADENCE PIPELINE — STAGE 5B: Restart"
-      echo "  (Invokes orchestrator.yml --tags pxeboot)"
+      echo "  (Invokes the BuildStream pre-PXE → Orchestrator PXE → post-PXE sequence)"
       echo "============================================================"
       echo ""
 
@@ -820,7 +837,7 @@ restart:
 
       jq "." restart_response.json 2>/dev/null || cat restart_response.json
       echo ""
-      echo "  [OK] Restart request accepted (orchestrator.yml --tags pxeboot)"
+      echo "  [OK] Restart request accepted (the BuildStream pre-PXE → Orchestrator PXE → post-PXE sequence)"
       echo ""
 
       # Poll for restart completion

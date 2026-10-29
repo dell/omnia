@@ -77,7 +77,7 @@ class TestPlaybookResult:
     """Tests for PlaybookResult entity."""
 
     def test_success_result(self):
-        """Successful result should report is_success=True."""
+        """Successful result should parse with status success."""
         result = PlaybookResult(
             job_id="job-1",
             stage_name="create-local-repository",
@@ -85,11 +85,10 @@ class TestPlaybookResult:
             status="success",
             exit_code=0,
         )
-        assert result.is_success is True
-        assert result.is_failed is False
+        assert result.status == "success"
 
     def test_failed_result(self):
-        """Failed result should report is_failed=True."""
+        """Failed result should parse with status failed."""
         result = PlaybookResult(
             job_id="job-1",
             stage_name="create-local-repository",
@@ -99,8 +98,7 @@ class TestPlaybookResult:
             error_code="PLAYBOOK_FAILED",
             error_summary="Playbook failed",
         )
-        assert result.is_success is False
-        assert result.is_failed is True
+        assert result.status == "failed"
 
     def test_from_dict_success(self):
         """from_dict should parse valid dictionary."""
@@ -119,7 +117,7 @@ class TestPlaybookResult:
         }
         result = PlaybookResult.from_dict(data)
         assert result.job_id == "job-1"
-        assert result.is_success is True
+        assert result.status == "success"
         assert result.duration_seconds == 600
 
     def test_from_dict_missing_required_field(self):

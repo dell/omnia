@@ -10,7 +10,6 @@
         "name": "os_rhel_10_2_x86_64",
         "components": [
           "baseos_group_10.2",
-          "image_builder_x86_64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -75,7 +74,6 @@
         "name": "os_rhel_10_0_x86_64",
         "components": [
           "baseos_group_10.0",
-          "image_builder_x86_64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -84,7 +82,6 @@
         "name": "os_rhel_10_0_aarch64",
         "components": [
           "baseos_group_10.0",
-          "image_builder_aarch64_group",
           "imagethrillhouse",
           "ldms_group"
         ]
@@ -341,10 +338,9 @@
           "quay.io/jetstack/cert-manager-webhook",
           "quay.io/jetstack/cert-manager-acmesolver",
           "cert_manager_v1_10_2",
-          "strimzi_kafka_operator_helm_3_chart_1_1_0",
+          "strimzi_kafka_operator_helm_3_chart",
           "quay.io/strimzi/kafka-bridge",
           "docker.io/victoriametrics/operator",
-          "victoria_metrics_operator_0_59_3",
           "docker.io/timberio/vector",
           "apptainer",
           "iscsi_initiator_utils",
@@ -389,8 +385,7 @@
           "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
           "docker.io/nginxinc/nginx-unprivileged",
           "docker.io/timberio/vector",
-          "docker.io/victoriametrics/operator_1",
-          "victoria_metrics_operator",
+          "docker.io/victoriametrics/operator",
           "quay.io/strimzi/operator",
           "quay.io/strimzi/kafka",
           "quay.io/strimzi/kafka-bridge",
@@ -398,7 +393,8 @@
           "pymysql",
           "python3",
           "python3_pymysql",
-          "papi_rpm"
+          "papi_rpm",
+          "docker.io/alpine/kubectl"
         ]
       },
       "service_kube_control_plane_group": {
@@ -434,9 +430,9 @@
         "type": "group",
         "description": "Dell PowerScale CSI driver and related storage components",
         "components": [
-          "csi_powerscale_v2_17_0",
-          "external_snapshotter_v8_5_0",
-          "helm_charts_2_17_0",
+          "csi_powerscale_v2_18_0",
+          "external_snapshotter_v8_6_0",
+          "helm_charts_2_18_0",
           "registry_k8s_io/sig_storage/csi_attacher",
           "registry_k8s_io/sig_storage/csi_provisioner",
           "registry_k8s_io/sig_storage/csi_snapshotter",
@@ -470,24 +466,6 @@
           "cuda_toolkit",
           "datacenter_gpu_manager",
           "nvhpc"
-        ]
-      },
-      "image_builder_x86_64_group": {
-        "name": "image_builder_x86_64_group",
-        "type": "group",
-        "os": "rhel",
-        "description": "Image builder for x86_64",
-        "components": [
-          "docker_io/dellhpcomniaaisolution/image_build_el10"
-        ]
-      },
-      "image_builder_aarch64_group": {
-        "name": "image_builder_aarch64_group",
-        "type": "group",
-        "os": "rhel",
-        "description": "Image builder for AArch64",
-        "components": [
-          "docker_io/dellhpcomniaaisolution/image_build_aarch64"
         ]
       },
       "imagethrillhouse": {
@@ -646,21 +624,13 @@
               "10.2"
             ],
             "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz"
           }
         ]
       },
       "registry_k8s_io/sig_storage/csi_resizer": {
         "name": "registry.k8s.io/sig-storage/csi-resizer",
         "packagetype": "image",
-        "tag": "v2.1.0",
+        "tag": "v2.2.1",
         "sources": [
           {
             "architecture": "x86_64",
@@ -709,7 +679,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0-cluster"
+        "tag": "v1.153.0-cluster"
       },
       "authselect": {
         "name": "authselect",
@@ -762,14 +732,15 @@
       "registry_k8s_io/sig_storage/csi_provisioner": {
         "name": "registry.k8s.io/sig-storage/csi-provisioner",
         "packagetype": "image",
-        "tag": "v6.2.0",
+        "tag": "v6.3.0",
         "sources": [
           {
             "architecture": "x86_64",
             "registry": "registry.k8s.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -887,14 +858,6 @@
             "version": [
               "10.2"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "reponame": "kubernetes-v1-35",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
           }
         ]
       },
@@ -909,11 +872,18 @@
             "version": [
               "10.2"
             ]
-          },
+          }
+        ]
+      },
+      "csi_powerscale_v2_18_0": {
+        "name": "csi-powerscale-v2.18.0",
+        "packagetype": "git",
+        "version": "v2.18.0",
+        "sources": [
           {
-            "architecture": "aarch64",
-            "reponame": "kubernetes-v1-35",
+            "architecture": "x86_64",
             "name": "rhel",
+            "url": "https://github.com/dell/csi-powerscale.git",
             "version": [
               "10.2"
             ]
@@ -958,7 +928,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "0.54.0-debian"
+        "tag": "0.59.0-debian"
       },
       "gdb": {
         "name": "gdb",
@@ -1027,7 +997,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0-cluster"
+        "tag": "v1.153.0-cluster"
       },
       "quay.io/dell/container-storage-modules/csm-metrics-powerscale": {
         "name": "quay.io/dell/container-storage-modules/csm-metrics-powerscale",
@@ -1042,7 +1012,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "v1.12.0"
+        "tag": "v1.13.0"
       },
       "pymysql": {
         "name": "PyMySQL==1.1.2",
@@ -1050,14 +1020,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "reponame": "pypi"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.2"
@@ -1150,14 +1112,6 @@
               "10.2"
             ],
             "url": "https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/manifests/metallb-native.yaml"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://raw.githubusercontent.com/metallb/metallb/v0.16.1/config/manifests/metallb-native.yaml"
           }
         ]
       },
@@ -1188,7 +1142,7 @@
       "quay_io/dell/container_storage_modules/csm_authorization_sidecar": {
         "name": "quay.io/dell/container-storage-modules/csm-authorization-sidecar",
         "packagetype": "image",
-        "tag": "v2.5.0",
+        "tag": "v2.6.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -1293,7 +1247,7 @@
             "url": "https://github.com/dell/karavi-observability.git"
           }
         ],
-        "version": "v1.15.0"
+        "version": "v1.16.0"
       },
       "quay.io/jetstack/cert-manager-controller": {
         "name": "quay.io/jetstack/cert-manager-controller",
@@ -1439,12 +1393,13 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "registry": "docker.io"
           }
         ],
-        "tag": "v0.68.3"
+        "tag": "v0.75.0"
       },
       "docker.io/library/mysql": {
         "name": "docker.io/library/mysql",
@@ -1621,17 +1576,18 @@
           }
         ]
       },
-      "registry_k8s_io/sig_storage/snapshot_controller": {
-        "name": "registry.k8s.io/sig-storage/snapshot-controller",
+      "registry_k8s_io/sig_storage/csi_snapshotter": {
+        "name": "registry.k8s.io/sig-storage/csi-snapshotter",
         "packagetype": "image",
-        "tag": "v8.5.0",
+        "tag": "v8.6.0",
         "sources": [
           {
             "architecture": "x86_64",
             "registry": "registry.k8s.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -1659,43 +1615,6 @@
             ]
           }
         ]
-      },
-      "victoria_metrics_operator_0_59_3": {
-        "name": "victoria-metrics-operator-0.59.3",
-        "packagetype": "tarball",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
-      "docker.io/victoriametrics/operator_1": {
-        "name": "docker.io/victoriametrics/operator",
-        "packagetype": "image",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "registry": "docker.io"
-          }
-        ],
-        "tag": "config-reloader-v0.68.3"
       },
       "openssl_libs": {
         "name": "openssl-libs",
@@ -1727,14 +1646,6 @@
         "sources": [
           {
             "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://charts.jetstack.io/charts/cert-manager-v1.10.0.tgz"
-          },
-          {
-            "architecture": "aarch64",
             "name": "rhel",
             "version": [
               "10.2"
@@ -1826,14 +1737,6 @@
             "version": [
               "10.2"
             ]
-          },
-          {
-            "architecture": "aarch64",
-            "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
           }
         ]
       },
@@ -1858,7 +1761,7 @@
             "url": "https://github.com/dell/helm-charts.git"
           }
         ],
-        "version": "container-storage-modules-1.10.0"
+        "version": "container-storage-modules-1.11.0"
       },
       "python3_firewall": {
         "name": "python3-firewall",
@@ -1897,7 +1800,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0"
+        "tag": "v1.153.0"
       },
       "msr_safe": {
         "name": "msr-safe",
@@ -1920,6 +1823,21 @@
               "10.0"
             ],
             "url": "https://github.com/llnl/msr-safe/archive/refs/tags/v1.7.0.tar.gz"
+          }
+        ]
+      },
+      "strimzi_kafka_operator_helm_3_chart": {
+        "name": "strimzi-kafka-operator-helm-3-chart-1.2.0",
+        "packagetype": "tarball",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "version": [
+              "10.2",
+              "10.0"
+            ],
+            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.2.0/strimzi-kafka-operator-helm-3-chart-1.2.0.tgz"
           }
         ]
       },
@@ -1977,29 +1895,6 @@
         ],
         "tag": "v1.10.0"
       },
-      "csi_powerscale_v2_17_0": {
-        "name": "csi-powerscale-v2.17.0",
-        "packagetype": "git",
-        "version": "v2.17.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "url": "https://github.com/dell/csi-powerscale.git",
-            "version": [
-              "10.2"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "url": "https://github.com/dell/csi-powerscale.git",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
       "networkmanager": {
         "name": "NetworkManager",
         "packagetype": "rpm",
@@ -2038,6 +1933,21 @@
           }
         ],
         "tag": "3.12-slim"
+      },
+      "external_snapshotter_v8_6_0": {
+        "name": "external-snapshotter-v8.6.0",
+        "packagetype": "git",
+        "version": "v8.6.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "rhel",
+            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
+            "version": [
+              "10.2"
+            ]
+          }
+        ]
       },
       "traceroute": {
         "name": "traceroute",
@@ -2090,14 +2000,15 @@
       "quay_io/dell/container_storage_modules/podmon": {
         "name": "quay.io/dell/container-storage-modules/podmon",
         "packagetype": "image",
-        "tag": "v1.16.0",
+        "tag": "v1.17.0",
         "sources": [
           {
             "architecture": "x86_64",
             "registry": "quay.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -2243,7 +2154,7 @@
       "registry_k8s_io/sig_storage/csi_external_health_monitor_controller": {
         "name": "registry.k8s.io/sig-storage/csi-external-health-monitor-controller",
         "packagetype": "image",
-        "tag": "v0.17.0",
+        "tag": "v0.18.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -2673,7 +2584,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.50.0"
+        "tag": "v1.53.0"
       },
       "kernel_devel": {
         "name": "kernel-devel",
@@ -2695,29 +2606,6 @@
             "version": [
               "10.2",
               "10.0"
-            ]
-          }
-        ]
-      },
-      "external_snapshotter_v8_5_0": {
-        "name": "external-snapshotter-v8.5.0",
-        "packagetype": "git",
-        "version": "v8.5.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
-            "version": [
-              "10.2"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
-            "version": [
-              "10.2"
             ]
           }
         ]
@@ -2867,7 +2755,7 @@
       "quay_io/dell/container_storage_modules/csi_isilon": {
         "name": "quay.io/dell/container-storage-modules/csi-isilon",
         "packagetype": "image",
-        "tag": "v2.17.0",
+        "tag": "v2.18.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -2892,7 +2780,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0"
+        "tag": "v1.153.0"
       },
       "datacenter_gpu_manager": {
         "name": "datacenter-gpu-manager-4-cuda13",
@@ -2995,7 +2883,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "1.1.0-kafka-4.3.0"
+        "tag": "1.2.0-kafka-4.3.1"
       },
       "quay.io/strimzi/kafka-bridge": {
         "name": "quay.io/strimzi/kafka-bridge",
@@ -3010,7 +2898,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "1.0.0"
+        "tag": "1.2.0"
       },
       "tar": {
         "name": "tar",
@@ -3039,7 +2927,7 @@
       "quay_io/dell/container_storage_modules/csi_metadata_retriever": {
         "name": "quay.io/dell/container-storage-modules/csi-metadata-retriever",
         "packagetype": "image",
-        "tag": "v1.14.0",
+        "tag": "v1.15.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -3047,6 +2935,22 @@
             "name": "rhel",
             "version": [
               "10.2"
+            ]
+          }
+        ]
+      },
+      "registry_k8s_io/sig_storage/snapshot_controller": {
+        "name": "registry.k8s.io/sig-storage/snapshot-controller",
+        "packagetype": "image",
+        "tag": "v8.5.0",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "registry": "registry.k8s.io",
+            "name": "rhel",
+            "version": [
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3067,38 +2971,6 @@
           {
             "architecture": "aarch64",
             "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/image_build_aarch64": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-aarch64",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "aarch64",
-            "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "docker_io/dellhpcomniaaisolution/image_build_el10": {
-        "name": "docker.io/dellhpcomniaaisolution/image-build-el10",
-        "packagetype": "image",
-        "tag": "1.3",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "docker.io",
             "name": "rhel",
             "version": [
               "10.2",
@@ -3144,7 +3016,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "prettytable==3_14_0": {
         "name": "prettytable==3.14.0",
@@ -3195,14 +3067,15 @@
       "quay_io/dell/container_storage_modules/dell_csi_replicator": {
         "name": "quay.io/dell/container-storage-modules/dell-csi-replicator",
         "packagetype": "image",
-        "tag": "v1.15.0",
+        "tag": "v1.16.0",
         "sources": [
           {
             "architecture": "x86_64",
             "registry": "quay.io",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3358,17 +3231,18 @@
           }
         ]
       },
-      "helm_charts_2_17_0": {
-        "name": "helm-charts-2.17.0",
+      "helm_charts_2_18_0": {
+        "name": "helm-charts-2.18.0",
         "packagetype": "git",
-        "version": "csi-isilon-2.17.0",
+        "version": "csi-isilon-2.18.0",
         "sources": [
           {
             "architecture": "x86_64",
             "name": "rhel",
             "url": "https://github.com/dell/helm-charts.git",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           },
           {
@@ -3376,7 +3250,8 @@
             "name": "rhel",
             "url": "https://github.com/dell/helm-charts.git",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ]
           }
         ]
@@ -3453,28 +3328,6 @@
           }
         ]
       },
-      "victoria_metrics_operator": {
-        "name": "victoria-metrics-operator-0.59.3",
-        "packagetype": "tarball",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz"
-          }
-        ]
-      },
       "docker.io/apache/activemq": {
         "name": "docker.io/apache/activemq",
         "packagetype": "image",
@@ -3488,12 +3341,12 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "6.3.0"
+        "tag": "6.3.2"
       },
       "registry_k8s_io/sig_storage/csi_node_driver_registrar": {
         "name": "registry.k8s.io/sig-storage/csi-node-driver-registrar",
         "packagetype": "image",
-        "tag": "v2.16.0",
+        "tag": "v2.18.0",
         "sources": [
           {
             "architecture": "x86_64",
@@ -3542,22 +3395,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.1"
-      },
-      "registry_k8s_io/sig_storage/csi_snapshotter": {
-        "name": "registry.k8s.io/sig-storage/csi-snapshotter",
-        "packagetype": "image",
-        "tag": "v8.5.0",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
+        "tag": "1.2"
       },
       "git": {
         "name": "git",
@@ -3599,33 +3437,11 @@
       "registry_k8s_io/sig_storage/csi_attacher": {
         "name": "registry.k8s.io/sig-storage/csi-attacher",
         "packagetype": "image",
-        "tag": "v4.11.0",
+        "tag": "v4.13.0",
         "sources": [
           {
             "architecture": "x86_64",
             "registry": "registry.k8s.io",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          }
-        ]
-      },
-      "strimzi_kafka_operator_helm_3_chart_1_1_0": {
-        "name": "strimzi-kafka-operator-helm-3-chart-1.1.0",
-        "packagetype": "tarball",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz",
             "name": "rhel",
             "version": [
               "10.2"
@@ -3766,28 +3582,6 @@
             "architecture": "aarch64",
             "reponame": "baseos",
             "name": "rhel",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "cryptography==45_0_7": {
-        "name": "cryptography==45.0.7",
-        "packagetype": "pip_module",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "pypi",
-            "version": [
-              "10.2",
-              "10.0"
-            ]
-          },
-          {
-            "architecture": "aarch64",
-            "name": "pypi",
             "version": [
               "10.2",
               "10.0"
@@ -3957,6 +3751,28 @@
           }
         ]
       },
+      "cryptography==45_0_7": {
+        "name": "cryptography==45.0.7",
+        "packagetype": "pip_module",
+        "sources": [
+          {
+            "architecture": "x86_64",
+            "name": "pypi",
+            "version": [
+              "10.2",
+              "10.0"
+            ]
+          },
+          {
+            "architecture": "aarch64",
+            "name": "pypi",
+            "version": [
+              "10.2",
+              "10.0"
+            ]
+          }
+        ]
+      },
       "ghcr.io/kube-vip/kube-vip": {
         "name": "ghcr.io/kube-vip/kube-vip",
         "packagetype": "image",
@@ -4019,7 +3835,8 @@
             "architecture": "x86_64",
             "name": "rhel",
             "version": [
-              "10.2"
+              "10.2",
+              "10.0"
             ],
             "registry": "quay.io"
           }
@@ -4242,28 +4059,6 @@
           }
         ]
       },
-      "strimzi_kafka_operator_helm_3_chart": {
-        "name": "strimzi-kafka-operator-helm-3-chart-1.1.0",
-        "packagetype": "tarball",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz"
-          },
-          {
-            "architecture": "aarch64",
-            "name": "rhel",
-            "version": [
-              "10.2"
-            ],
-            "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/1.1.0/strimzi-kafka-operator-helm-3-chart-1.1.0.tgz"
-          }
-        ]
-      },
       "cmake": {
         "name": "cmake",
         "packagetype": "rpm",
@@ -4398,7 +4193,7 @@
             "registry": "quay.io"
           }
         ],
-        "tag": "1.1.0"
+        "tag": "1.2.0"
       },
       "util_linux": {
         "name": "util-linux",
@@ -4474,7 +4269,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.50.0"
+        "tag": "v1.53.0"
       },
       "nfs4_acl_tools": {
         "name": "nfs4-acl-tools",
@@ -4673,7 +4468,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "v1.149.0-cluster"
+        "tag": "v1.153.0-cluster"
       },
       "kubectl_1_35_1": {
         "name": "kubectl-1.35.1",
@@ -4930,7 +4725,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "lshw": {
         "name": "lshw",
@@ -5137,7 +4932,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.36"
+        "tag": "1.38"
       },
       "docker.io/dellhpcomniaaisolution/victoriapump": {
         "name": "docker.io/dellhpcomniaaisolution/victoriapump",
@@ -5152,7 +4947,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "lsscsi": {
         "name": "lsscsi",
@@ -5229,7 +5024,7 @@
       "docker.io/curlimages/curl": {
         "name": "docker.io/curlimages/curl",
         "packagetype": "image",
-        "tag": "8.17.0",
+        "tag": "8.22.0",
         "sources": [
           {
             "architecture": "x86_64",

@@ -121,6 +121,20 @@ if [[ "$BUILD_ACTION" == "push" && "$BUILD_TOOL" != "docker" ]]; then
     exit 1
 fi
 
+# ── Validate tag and registry values ──
+TAG_PATTERN='^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$'
+REGISTRY_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9._/:-]*$'
+
+if [[ ! "$AUTH_TAG" =~ $TAG_PATTERN ]]; then
+    echo -e "${RED}Error: Invalid auth_tag format '${AUTH_TAG}'. Must match ${TAG_PATTERN}${NC}"
+    exit 1
+fi
+
+if [[ ! "$OMNIA_DOCKER_REGISTERY" =~ $REGISTRY_PATTERN ]]; then
+    echo -e "${RED}Error: Invalid registry format '${OMNIA_DOCKER_REGISTERY}'. Must match ${REGISTRY_PATTERN}${NC}"
+    exit 1
+fi
+
 # =============================================================================
 # Build omnia_auth container
 # =============================================================================

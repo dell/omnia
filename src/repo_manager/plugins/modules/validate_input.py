@@ -31,9 +31,11 @@ Usage:
 
 import logging
 import os
+import re
 import csv
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.repo_manager.path_resolver import is_path_within
 from ansible.module_utils.repo_manager.standard_logger import (
     SecureFileHandler,
     secure_log_file,
@@ -106,13 +108,15 @@ warnings:
 
 
 
-def validate_csv_structure(csv_file_path, logger=None):
+def validate_csv_structure(csv_file_path, logger=None, allowed_dir=None):
     """
     Validate CSV structure for PXE mapping files.
 
     Args:
         csv_file_path (str): Path to the CSV file to validate
         logger: Logger instance for logging
+        allowed_dir (str, optional): If provided, the CSV file must reside
+            within this directory (realpath containment check).
 
     Returns:
         bool: True if validation passes
@@ -127,7 +131,24 @@ def validate_csv_structure(csv_file_path, logger=None):
                 logger.error(error_msg)
             raise ValueError(error_msg)
 
-        with open(csv_file_path, 'r', encoding='utf-8') as f:
+        real_csv = os.path.realpath(csv_file_path)
+        if os.path.islink(csv_file_path):
+            error_msg = f"CSV ERROR: Symbolic links are not allowed - {csv_file_path}"
+            if logger:
+                logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        if allowed_dir:
+            real_allowed = os.path.realpath(allowed_dir)
+            if not is_path_within(real_csv, real_allowed):
+                error_msg = (
+                    f"CSV ERROR: Path escapes the allowed directory - {csv_file_path}"
+                )
+                if logger:
+                    logger.error(error_msg)
+                raise ValueError(error_msg)
+
+        with open(real_csv, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
             try:
                 header = next(reader)
@@ -159,8 +180,17 @@ def validate_csv_structure(csv_file_path, logger=None):
         print(success_msg)
         return True
 
-    except Exception as e:
-        error_msg = f"CSV validation error: {str(e)}"
+    except (ValueError, OSError, csv.Error) as e:
+        if isinstance(e, ValueError) and not isinstance(e, UnicodeError):
+            detail = str(e)
+        else:
+            detail = type(e).__name__
+        error_msg = f"CSV validation error: {detail}"
+        if logger:
+            logger.error(error_msg)
+        raise ValueError(error_msg) from e
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        error_msg = "CSV validation error: unexpected error"
         if logger:
             logger.error(error_msg)
         raise ValueError(error_msg) from e
@@ -233,6 +263,18 @@ def main():
     tag_names = module.params["tag_names"]
     csv_file_path = module.params.get("csv_file_path", "")
 
+    # Validate project_name is a single safe path segment to prevent
+    # path traversal via crafted values like "../../etc".
+    if (
+        not project_name
+        or project_name in (".", "..")
+        or os.path.basename(project_name) != project_name
+        or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', project_name)
+    ):
+        module.fail_json(
+            msg="project_name is not a valid single-segment name"
+        )
+
     # Set runtime environment before importing path-dependent module utilities.
     # REPO_MANAGER_BASE_DIR is the source checkout and must not be derived from
     # the runtime data directory.
@@ -302,11 +344,33 @@ def main():
                 if not enable_build_stream:
                     skip_gitlab_validation = True
                     logger.info("build_stream is disabled, skipping gitlab_config.yml validation")
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to check build_stream status from build_stream_config.yml")
 
-    for tag_name in tag_names:
-        for name in input_file_inventory.get(tag_name, []):
+    operation_tags = config.operation_tags
+    optional_files = config.optional_files
+    unknown_tags = sorted(
+        set(tag_names) - set(input_file_inventory) - operation_tags
+    )
+    if unknown_tags:
+        error_message = (
+            f"Unknown tag(s) provided: {unknown_tags}. "
+            f"Valid tags are: {sorted(set(input_file_inventory) | operation_tags)}."
+        )
+        logger.error(error_message)
+        module.fail_json(msg=error_message)
+
+    known_tags = [tag for tag in tag_names if tag in input_file_inventory]
+    if not known_tags and not csv_file_path:
+        error_message = (
+            f"No input validation contract for tag(s): {tag_names}. "
+            f"Validation tags are: {sorted(input_file_inventory)}."
+        )
+        logger.error(error_message)
+        module.fail_json(msg=error_message)
+
+    for tag_name in known_tags:
+        for name in input_file_inventory[tag_name]:
             fname, _ = os.path.splitext(name)
 
             schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
@@ -355,6 +419,9 @@ def main():
 
                 input_file_path = catalog_file_path
                 logger.info("Using catalog from CATALOG_FILE_PATH: %s", input_file_path)
+            elif input_file_path is None and name in optional_files:
+                logger.info("Optional file %s not present; skipping validation", name)
+                continue
             elif input_file_path is None:
                 error_message = (
                     f"{fname} file not found in directory: {omnia_base_dir}/{project_name}"
@@ -408,7 +475,7 @@ def main():
     # Optional CSV validation
     if csv_file_path:
         try:
-            validate_csv_structure(csv_file_path, logger)
+            validate_csv_structure(csv_file_path, logger, allowed_dir=input_dir_path)
             validation_status["tag"].append("csv_structure")
             vstatus.append(True)
         except ValueError as csv_error:
@@ -416,11 +483,13 @@ def main():
             validation_status["Failed"].append(csv_file_path)
             vstatus.append(False)
 
-    if not validation_status:
+    if not vstatus:
         message = (
             "No validation has been performed. "
-            "Please provide tags or include individual file names."
+            f"Tag(s) provided: {tag_names}. "
+            "Please provide valid tags or include individual file names."
         )
+        logger.error(message)
         module.fail_json(msg=message)
 
     logger.error(msg.get_footer())
@@ -430,7 +499,7 @@ def main():
         f"validation_omnia_{project_name}.log"
     )
 
-    status_bool = all(vstatus)
+    status_bool = bool(vstatus) and all(vstatus)
     status_str = "completed" if status_bool else "failed"
 
     message = [

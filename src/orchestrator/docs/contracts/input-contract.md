@@ -1,6 +1,6 @@
 # Orchestrator -- Input Contract
 
-**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: September 24, 2026
+**Domain**: `orchestrator` | **Collection**: `omnia.orchestrator` | **Last updated**: October 5, 2026
 
 This document defines all input files consumed by the `orchestrator` domain.
 
@@ -146,7 +146,7 @@ Orchestrator provision flow.
 
 ```yaml
 overall_status: "success"
-image_build_type: "image-builder"
+image_build_type: "image-thrillhouse"
 
 s3_configurations:
   endpoint_url: "http://10.20.0.1:9000"
@@ -155,9 +155,9 @@ s3_configurations:
 functional_group_images:
   - x86_64:
     - functional_group: "slurm_control_node_rhel_10_0_x86_64"
-      kernel: "boot-images/efi-images/slurm_control_node_rhel_10_0_x86_64/example-imgbld/vmlinuz-<kernel-version>"
-      initrd: "boot-images/efi-images/slurm_control_node_rhel_10_0_x86_64/example-imgbld/initramfs-<kernel-version>.img"
-      image: "boot-images/slurm_control_node_rhel_10_0_x86_64/example-imgbld/<rootfs-filename>"
+      kernel: "boot-images/slurm_control_node_rhel_10_0_x86_64/example-imgth/vmlinuz-<kernel-version>"
+      initrd: "boot-images/slurm_control_node_rhel_10_0_x86_64/example-imgth/initramfs-<kernel-version>.img"
+      image: "boot-images/slurm_control_node_rhel_10_0_x86_64/example-imgth/<rootfs-filename>"
 ```
 
 ### Validation Rules
@@ -166,7 +166,7 @@ functional_group_images:
 |------|---------------|
 | File must exist | Fail with "image_build_manager output not found" |
 | `overall_status` must be `"success"` | Fail with "Fix image builds before running orchestrator" |
-| `image_build_type` identifies the producing engine | Interpret artifact paths using `image-builder` or `image-thrillhouse` provenance |
+| `image_build_type` identifies the producing engine | Interpret artifact paths using `image-thrillhouse` or `image-thrillhouse` provenance |
 | `s3_configurations.endpoint_url` must be defined | Fail with assertion error |
 | Every functional group must define kernel, initrd, and image paths | Fail before provisioning |
 | Every rendered artifact URL must answer HTTP `HEAD` with status 200 | Report URL, status, and request error |
@@ -183,7 +183,7 @@ During OpenCHAMI precheck and provisioning, Orchestrator validates every
 functional group's `kernel`, `initrd`, and `image` entry. It sends an HTTP
 `HEAD` request from the OIM to the same endpoint-relative URL rendered into
 Boot Service configuration. This behavior is identical for manifests produced
-by `image-builder` and `image-thrillhouse`; inaccessible or missing artifacts
+by `image-thrillhouse` and `image-thrillhouse`; inaccessible or missing artifacts
 fail before provisioning begins.
 
 ---
@@ -283,7 +283,7 @@ file. Cleanup, credential-only, input-validation, and deployment-health flows al
 
 Repo Manager does not publish the removed flat `offline_*_path` or
 `*_base_url` aliases. For Kubernetes, Orchestrator derives the OS type, exact
-minor version, and architecture from the `base_os` group referenced by the
+minor version, and architecture from the `baseos` group referenced by the
 catalog's `service_kube_*` functional layers. It selects that exact
 version/architecture from `base_urls` and does not fall back to another
 version.
@@ -329,7 +329,6 @@ These files are read from the same Orchestrator project input directory:
 | `storage_config.yml` | Storage mount configuration |
 | `security_config.yml` | Security settings |
 | `network_spec.yml` | Administrative and InfiniBand network definitions |
-| `high_availability_config.yml` | Kubernetes control-plane VIP settings when HA is configured |
 | `set_pxe_boot_config.yml` | PXE boot retry and post-boot verification settings |
 
 `storage_config.yml` is conditionally required. When `omnia_config.yml`
@@ -371,6 +370,27 @@ CSI credentials are mandatory. Orchestrator resolves the versioned
 `csi-powerscale`, `helm-charts`, and `external-snapshotter` artifacts from
 `repo_status.yml` rather than using a catalog group as the runtime feature
 switch.
+
+### Kubernetes HA selection
+
+Kubernetes HA fields live on the one `service_k8s_cluster` entry whose
+`deployment` value is `true`:
+
+```yaml
+service_k8s_cluster:
+  - cluster_name: service_cluster
+    deployment: true
+    enable_k8s_ha: true
+    virtual_ip_address: "172.16.107.1"
+```
+
+When the PXE mapping selects a Kubernetes functional group, the deployed entry
+must set a boolean `enable_k8s_ha` and a valid IPv4 `virtual_ip_address`. The
+VIP is validated (control-plane subnet, no collision with mapped nodes, DHCP
+ranges, OIM addresses, or `pod_external_ip_range`) even when HA is disabled,
+because kube-vip and the node metadata always use it. Projects that select no
+Kubernetes group do not need these keys. Runtime consumers select by
+`deployment: true`, not list position.
 
 ---
 

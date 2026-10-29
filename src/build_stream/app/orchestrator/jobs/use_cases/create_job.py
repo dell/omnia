@@ -159,6 +159,15 @@ class CreateJobUseCase:
         if existing_record is None:
             return None
 
+        # A key recorded by another client never returns or names that
+        # client's job.
+        if existing_record.client_id != command.client_id:
+            raise IdempotencyConflictError(
+                idempotency_key=str(command.idempotency_key),
+                existing_job_id="<withheld>",
+                correlation_id=str(command.correlation_id),
+            )
+
         if not existing_record.matches_fingerprint(fingerprint):
             raise IdempotencyConflictError(
                 idempotency_key=str(command.idempotency_key),

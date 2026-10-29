@@ -392,7 +392,7 @@ invent layers for unused combinations.
 
 ### Base groups and hybrid package identity
 
-- Every layer references **exactly one** `type: base_os` group whose `os` and
+- Every layer references **exactly one** `type: baseos` group whose `os` and
   `os_version` match that layer's confirmed tuple. Treat those fields as metadata,
   not something to guess from the group key or catalog name.
 - Single-OS references use `baseos_group`. The RHEL hybrid examples instead use
@@ -439,7 +439,7 @@ the group's name; for base groups also match `type`, `os`, and `os_version`:
    For mixed/multi-architecture generation inspect the combined catalogs. Merge
    compatible source entries by package key; do not overwrite one architecture
    with another. Conflicting versions or definitions require resolution, not a
-   guessed union. Keep architecture-specific image-builder artifacts for their
+   guessed union. Keep architecture-specific image-thrillhouse artifacts for their
    selected build architectures; do not invent cross-architecture sources.
 3. If no exact instance exists, establish compatible composition from available
    definitions and disclose its provenance; a "closest" catalog alone is not
@@ -475,7 +475,7 @@ not the RPM version. Images use their schema-required `tag`.
 
 Every node package must have a matching source for each consuming layer's
 architecture, OS family and version (or an applicable `noarch` source). `noarch`
-relaxes architecture only, not OS-family/version compatibility. Shared image-builder
+relaxes architecture only, not OS-family/version compatibility. Shared image-thrillhouse
 artifacts are checked against their evidenced build-platform support instead.
 Do not add `deb` or another unsupported package type to get a new OS through the
 current schema, or mislabel such a package as `rpm`. Unsupported providers remain
@@ -530,11 +530,10 @@ does **not** enforce all of the following; this is a separate model-performed re
    empty placeholder. Plain NFS/PowerVault do not invent new storage groups.
 4. Every node package has an applicable source for its consuming layer's OS family,
    version and architecture, or an applicable `noarch` source. Check the OS selector separately
-   from package version. Shared base groups may contain the architecture-specific
-   build artifacts `docker_io/dellhpcomniaaisolution/image_build_el10` and
-   `docker_io/dellhpcomniaaisolution/image_build_aarch64`: check each against its
-   selected build platform instead of requiring both on every node. They are not
-   evidence for a new OS family. Do not extend this exception without evidence.
+   from package version. Shared base groups may contain the multi-architecture
+   Image Thrillhouse artifact `ghcr_io/openchami/image_thrillhouse`; validate its
+   source against each selected build platform. It is not evidence for a new OS
+   family. Do not extend this exception without evidence.
 5. GPU=None and InfiniBand=No have not been undone by driver packages placed in
    another group. PowerScale NFS has not pulled in PowerScale CSI artifacts. Trace
    surviving dependencies before removing packages: generic utilities such as Helm

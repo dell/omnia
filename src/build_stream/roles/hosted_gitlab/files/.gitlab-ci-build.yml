@@ -20,7 +20,7 @@
 #   - GitLab runner with curl and jq installed (alpine/ubuntu image works)
 #   - Network access from the runner to the OIM server
 #   - catalog_rhel.json in the same directory as this file
-#   - GITLAB_API_TOKEN stored as a masked CI/CD variable (PAT with api scope)
+#   - GITLAB_API_TOKEN stored as a masked, protected CI/CD variable (project access token, api scope)
 #   - BSM_API_USERNAME / BSM_API_PASSWORD for first-time registration
 #   - BSM_API_CERT stored as a CI/CD variable (PEM-encoded CA certificate)
 #
@@ -157,7 +157,7 @@ default:
         echo "  [TOKEN REFRESH] New token obtained successfully" >&2
         export ACCESS_TOKEN
         # Persist to temp file so parent shell can read it back (subshell export doesn't propagate)
-        echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
+        (umask 077; echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token)
         return 0
       }
 
@@ -521,7 +521,7 @@ initialization:
               --form "key=${VAR_NAME}" \
               --form "value=${VAR_VALUE}" \
               --form "masked=true" \
-              --form "protected=false" \
+              --form "protected=true" \
               --cacert "${CI_SERVER_TLS_CA_FILE}")
 
             if [ "$HTTP_CODE" = "201" ]; then

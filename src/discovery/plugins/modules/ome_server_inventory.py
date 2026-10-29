@@ -18,19 +18,36 @@
 import json
 import logging
 import math
+import re
 import time
 import urllib3
+from urllib.parse import urlparse, urljoin
 from ansible.module_utils.basic import AnsibleModule
 
 logger = logging.getLogger("ome_server_inventory")
 
+# Security: IB_NIC_NAME allowlist — reject malformed OME PortId values at source.
+# Keep in sync with pxe_mapping_validator.py, configure-ib-network.sh.j2,
+# and pxe_boot_inventory/vars/main.yml.
+_IB_NIC_NAME_RE = re.compile(
+    r"^(?:(?:InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|"
+    r"NIC\.InfiniBand\.)[0-9A-Fa-f]+-[0-9]+|"
+    r"InfiniBand\.Single-[0-9]+)$"
+)
+
 try:
     import requests
+    from requests.exceptions import (
+        ConnectionError,
+        HTTPError,
+        RequestException,
+        SSLError,
+        Timeout,
+        TooManyRedirects,
+    )
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
-
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 DOCUMENTATION = r'''
 ---
@@ -118,7 +135,7 @@ class OMEClient:
     # Initial backoff delay in seconds; doubles on each retry
     BACKOFF_BASE = 2
 
-    def __init__(self, ip, username, password, verify_ssl=False, page_size=200):
+    def __init__(self, ip, username, password, verify_ssl=False, page_size=200, module=None):
         self.base_url = f"https://{ip}"
         self.username = username
         self.password = password
@@ -128,6 +145,13 @@ class OMEClient:
         self.session = requests.Session()
         self.session.verify = verify_ssl
         self.auth_token = None
+        self.module = module
+        if not verify_ssl:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            if module:
+                module.warn("SSL verification disabled — connections are not secure")
+            else:
+                logger.warning("SSL verification disabled — connections are not secure")
 
     def authenticate(self):
         """Authenticate with OME and obtain session token."""
@@ -139,9 +163,12 @@ class OMEClient:
         }
         headers = {"Content-Type": "application/json"}
 
-        response = self.session.post(auth_url, json=auth_payload, headers=headers)
-        # Clear password from memory after authentication attempt
-        self.password = None
+        try:
+            response = self.session.post(auth_url, json=auth_payload, headers=headers)
+        finally:
+            # Clear password from memory after authentication attempt
+            self.password = None
+            del auth_payload
         if response.status_code in [200, 201]:
             self.auth_token = response.headers.get("X-Auth-Token")
             self.session.headers.update({"X-Auth-Token": self.auth_token})
@@ -156,13 +183,14 @@ class OMEClient:
                 self.session.delete(logout_url)
             except Exception:
                 pass
+            self.session.cookies.clear()
 
     def _request_with_retry(self, method, url, **kwargs):
         """Execute an HTTP request with retry on transient failures (5xx / timeout)."""
         last_exc = None
         for attempt in range(1, self.MAX_RETRIES + 1):
             try:
-                response = self.session.request(method, url, **kwargs)
+                response = self.session.request(method, url, allow_redirects=False, **kwargs)
                 if response.status_code < 500:
                     return response
                 logger.warning("OME returned %s for %s (attempt %d/%d)",
@@ -343,12 +371,25 @@ class OMEClient:
             if not group_id or not group_name:
                 continue
 
-            # Use the navigation link from the group object (Dell official approach)
+            # Use the navigation link from the group object (Dell official approach).
+            # Resolve relative to base_url and validate same-origin to prevent
+            # SSRF / X-Auth-Token leak if OME returns a foreign absolute URL.
             nav_link = group.get("Devices@odata.navigationLink", "")
+            fallback_url = f"{self.base_url}/api/GroupService/Groups({group_id})/Devices"
             if nav_link:
-                devices_url = f"{self.base_url}{nav_link}" if nav_link.startswith("/") else nav_link
+                resolved_url = urljoin(self.base_url + "/", nav_link)
+                parsed = urlparse(resolved_url)
+                parsed_base = urlparse(self.base_url)
+                if parsed.hostname == parsed_base.hostname and parsed.scheme == "https":
+                    devices_url = resolved_url
+                else:
+                    logger.warning(
+                        "Ignoring foreign navigation link '%s' for group %s, using fallback",
+                        nav_link, group_name
+                    )
+                    devices_url = fallback_url
             else:
-                devices_url = f"{self.base_url}/api/GroupService/Groups({group_id})/Devices"
+                devices_url = fallback_url
 
             group_devices, _ = self.get_paginated(devices_url)
             for gd in group_devices:
@@ -497,6 +538,13 @@ def extract_server_info(client, device, device_group_map=None):
         for port in nic.get("Ports", []):
             port_id = port.get("PortId", "")
             candidate = port_id if port_id else nic_id
+            # Security: validate IB NIC name against allowlist before use
+            if candidate and not _IB_NIC_NAME_RE.fullmatch(candidate):
+                logger.warning(
+                    "Rejected malformed IB PortId '%s' for device %s",
+                    candidate, device_id,
+                )
+                continue
             link_status = (port.get("LinkStatus") or "Unknown").strip().upper()
             if link_status == "UP":
                 info["ib_nic_name"] = candidate
@@ -552,7 +600,8 @@ def main():
         module.params['ome_username'],
         module.params['ome_password'],
         verify_ssl,
-        page_size
+        page_size,
+        module
     )
 
     try:
@@ -608,8 +657,20 @@ def main():
             pagination=pagination_stats
         )
 
-    except Exception as e:
-        module.fail_json(msg=f"Error collecting OME inventory: {str(e)}")
+    except ConnectionError:
+        module.fail_json(msg="Error collecting OME inventory: Failed to connect to OME. Check network connectivity and OME server status.")
+    except Timeout:
+        module.fail_json(msg="Error collecting OME inventory: Connection to OME timed out. Check network latency and OME server responsiveness.")
+    except SSLError:
+        module.fail_json(msg="Error collecting OME inventory: SSL certificate validation failed. Check OME certificate configuration.")
+    except HTTPError as e:
+        module.fail_json(msg=f"Error collecting OME inventory: OME returned HTTP error {e.response.status_code}. Check OME server logs.")
+    except TooManyRedirects:
+        module.fail_json(msg="Error collecting OME inventory: Too many redirects. Check OME URL configuration.")
+    except RequestException:
+        module.fail_json(msg="Error collecting OME inventory: Failed to communicate with OME. Check OME server and network configuration.")
+    except Exception:
+        module.fail_json(msg="Error collecting OME inventory: An unexpected error occurred. Check OME server logs and module configuration.")
     finally:
         client.logout()
 

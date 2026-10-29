@@ -127,6 +127,24 @@ UT_TEST_CASE_IDS = {
             48: "test_network_spec_has_admin_network",
         },
     ),
+    # ── CSV formula injection sanitizer (test_input_validation_schema.py) ─
+    **_class_cases(
+        "test_input_validation_schema.py",
+        "TestCSVSanitizer",
+        {
+            49: "test_csv_formula_injection_characters_are_sanitized",
+        },
+    ),
+    # ── Fail-closed validation (test_input_validation_fail_closed.py) ────
+    **_module_cases(
+        "test_input_validation_fail_closed.py",
+        {
+            50: "test_empty_schema_fails_closed",
+            51: "test_unanchored_pattern_must_match_whole_value",
+            52: "test_encrypted_input_is_decrypted_and_validated",
+            53: "test_encrypted_input_without_key_is_unvalidated",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

@@ -51,15 +51,17 @@
 #   AND:      "sanity+functional"       -- tests with BOTH markers
 #
 # Available markers:
-#   Quality:       sanity, functional, positive, negative
+#   Quality:       sanity, functional, positive
 #   Execution:     deploy, destructive
 #   Architecture:  x86_64, aarch64
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
 # -----------------------------------------------------------------------------
-#   catalog:       add, delete, generate, negative, validate
-#   negative:      error_scenarios
+#   catalog_generate:  generate
+#   catalog_add:       add
+#   catalog_delete:    delete
+#   catalog_validate:  validate
 #
 #   precheck, prepare, execute, status, cleanup, cleanup_repos, policy,
 #   user_registry, and repo_sync keep their tests directly under the tag directory;
@@ -122,25 +124,32 @@ fvt_repo_manager:
     marker: "destructive"
     dataset: ""
     sync_input: false
-  policy:
-    run: false
-    command: "verify"
-    suite: ""
-    marker: "sanity"
-    dataset: ""
-    sync_input: false
-  catalog:
+  catalog_generate:
     run: false
     command: "test"
-    suite: "validate"
+    suite: "generate"
     marker: "sanity"
     dataset: ""
     sync_input: false
-  negative:
+  catalog_add:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  catalog_delete:
+    run: false
+    command: "test"
+    suite: ""
+    marker: "sanity"
+    dataset: ""
+    sync_input: false
+  catalog_validate:
     run: false
     command: "verify"
     suite: ""
-    marker: "negative"
+    marker: "sanity"
     dataset: ""
     sync_input: false
   user_registry:

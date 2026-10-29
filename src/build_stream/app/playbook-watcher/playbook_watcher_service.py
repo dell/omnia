@@ -39,6 +39,34 @@ from threading import Thread, Semaphore
 from typing import Dict, Optional, Any, List, NoReturn
 
 
+# Keys that decide the binaries, paths and playbook mapping the root watcher
+# uses. omnia.env must never set them, whether or not the systemd unit does,
+# otherwise it could redirect what the watcher executes. Prefixed keys (loader
+# and interpreter controls) are never taken from omnia.env either.
+_PROTECTED_ENV_KEYS = frozenset({
+    "PATH",
+    "OMNIA_VENV_PATH",
+    "OMNIA_SRC_PATH",
+    "OMNIA_DATA_PATH",
+    "PLAYBOOK_QUEUE_BASE",
+    "PLAYBOOK_PATHS_CONFIG",
+    "NFS_SHARE_PATH",
+    "NFS_ARTIFACT_BASE",
+    "POLL_INTERVAL_SECONDS",
+    "MAX_CONCURRENT_JOBS",
+    "DEFAULT_TIMEOUT_MINUTES",
+    "LOG_LEVEL",
+})
+_PROTECTED_ENV_PREFIXES = ("LD_", "PYTHON")
+
+
+def _is_protected_env_key(key: str) -> bool:
+    """Return True if omnia.env must not set *key* for the watcher."""
+    if key.startswith(_PROTECTED_ENV_PREFIXES):
+        return True
+    return key in _PROTECTED_ENV_KEYS
+
+
 def _resolve_omnia_env():
     """Read /etc/omnia/omnia.env and resolve variable references.
     systemd ``EnvironmentFile`` does not expand ``${VAR}`` references,
@@ -64,6 +92,12 @@ def _resolve_omnia_env():
                 key, value = line.split("=", 1)
                 key = key.strip()
                 value = value.strip().strip('"').strip("'")
+                if _is_protected_env_key(key):
+                    print(
+                        f"WARNING: [omnia.env] ignoring protected key {key}",
+                        file=sys.stderr,
+                    )
+                    continue
                 raw_vars[key] = value
     except OSError:
         return
@@ -120,6 +154,8 @@ REQUESTS_DIR = QUEUE_BASE / "requests"
 RESULTS_DIR = QUEUE_BASE / "results"
 PROCESSING_DIR = QUEUE_BASE / "processing"
 ARCHIVE_DIR = QUEUE_BASE / "archive"
+QUEUE_DIR_MODE = 0o700
+QUEUE_FILE_MODE = 0o600
 
 # Environment configuration (sourced from omnia.env)
 OMNIA_DATA_PATH = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
@@ -276,19 +312,28 @@ def _sigusr1_handler(signum, _):
 
 
 def ensure_directories() -> None:
-    """Ensure all required directories exist with proper permissions."""
-    directories = [
+    """Ensure all required directories exist with proper permissions.
+
+    Queue directories are restricted to the owner (root) because their
+    contents drive privileged playbook execution.
+    """
+    queue_directories = [QUEUE_BASE] if QUEUE_BASE.is_absolute() else []
+    queue_directories += [
         REQUESTS_DIR,
         RESULTS_DIR,
         PROCESSING_DIR,
         ARCHIVE_DIR,
         ARCHIVE_DIR / "requests",
         ARCHIVE_DIR / "results",
+    ]
+    directories = queue_directories + [
         HOST_LOG_BASE_DIR,  # NFS log directory
     ]
     for directory in directories:
         try:
             directory.mkdir(parents=True, exist_ok=True)
+            if directory in queue_directories:
+                os.chmod(directory, QUEUE_DIR_MODE)
             log_secure_info(
                 "debug",
                 "Ensured directory exists"
@@ -356,9 +401,11 @@ def validate_job_id(job_id: str) -> bool:
         True if valid, False otherwise
     """
     # Allow UUID format or alphanumeric with hyphens/underscores
-    uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    alnum_pattern = r'^[a-zA-Z0-9_-]+$'
-    return bool(re.match(uuid_pattern, job_id) or re.match(alnum_pattern, job_id))
+    uuid_pattern = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    alnum_pattern = r'[a-zA-Z0-9_-]{1,64}'
+    return bool(
+        re.fullmatch(uuid_pattern, job_id) or re.fullmatch(alnum_pattern, job_id)
+    )
 
 
 def validate_stage_name(stage_name: str) -> bool:
@@ -369,8 +416,8 @@ def validate_stage_name(stage_name: str) -> bool:
         True if valid, False otherwise
     """
     # Only allow alphanumeric, spaces, hyphens, and underscores
-    pattern = r'^[a-zA-Z0-9 _-]+$'
-    return bool(re.match(pattern, stage_name))
+    pattern = r'[a-zA-Z0-9 _-]{1,64}'
+    return bool(re.fullmatch(pattern, stage_name))
 
 
 # Checkmarx: Constant alphabet used to re-derive identifiers taken from request
@@ -588,6 +635,106 @@ def sanitize_extra_vars(extra_vars: Any, job_id: str) -> dict:
     return sanitized
 
 
+_IMAGE_GROUP_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,255}")
+
+
+def _is_attempt(value: Any) -> bool:
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and 1 <= value <= MAX_STAGE_ATTEMPT
+    )
+
+
+def _is_image_group_id(value: Any) -> bool:
+    return isinstance(value, str) and bool(_IMAGE_GROUP_ID_PATTERN.fullmatch(value))
+
+
+def _is_image_group_id_or_empty(value: Any) -> bool:
+    return value == "" or _is_image_group_id(value)
+
+
+_EXTRA_VAR_VALIDATORS = {
+    "job_id": lambda value: isinstance(value, str) and validate_job_id(value),
+    "attempt": _is_attempt,
+    "image_key": _is_image_group_id,
+    "image_group_id": _is_image_group_id_or_empty,
+    "composite_image_group_id": _is_image_group_id,
+    "cleanup_image_pattern": _is_image_group_id,
+    "cadence_sync": lambda value: isinstance(value, bool),
+    "enable_build_stream": lambda value: isinstance(value, bool),
+    "skip_approval": lambda value: value == "true",
+}
+
+# Every request a BuildStream producer writes to the queue, keyed by
+# (playbook name, stage name) -> (required tags or None, allowed extra_vars).
+REQUEST_CONTRACT = {
+    ("repo_manager.yml", "create-local-repository"): (
+        "execute", frozenset({"job_id", "attempt"})),
+    ("repo_sync.yml", "cadence-repo-sync"): (
+        None, frozenset({"job_id", "cadence_sync"})),
+    ("image_build_manager.yml", "build-image"): (
+        "execute", frozenset({"job_id", "attempt"})),
+    ("image_build_manager.yml", "cleanup"): (
+        "cleanup_images", frozenset({
+            "job_id", "cleanup_image_pattern", "composite_image_group_id",
+            "attempt", "skip_approval",
+        })),
+    ("orchestrator.yml", "deploy"): (
+        "provision", frozenset({
+            "job_id", "image_key", "image_group_id",
+            "composite_image_group_id", "attempt",
+        })),
+    ("restart.yml", "restart"): (
+        None, frozenset({
+            "job_id", "image_group_id", "attempt", "enable_build_stream",
+        })),
+}
+
+_FORBIDDEN_REQUEST_FIELDS = ("inventory_file_path", "extra_args")
+
+
+def validate_request_contract(request_data: Dict[str, Any]) -> None:
+    """Reject an ansible-playbook request that no BuildStream producer sends.
+
+    The queue file carries no authenticity, so the watcher accepts only the
+    exact shapes listed in :data:`REQUEST_CONTRACT`: a known playbook and
+    stage pair, its fixed tags, and a fixed set of extra-var keys whose values
+    pass a typed check. Inventory overrides and free-form variables are never
+    accepted, so a forged request cannot do more than the API can.
+
+    Args:
+        request_data: Parsed request dictionary.
+
+    Raises:
+        ValueError: If the request does not match the contract.
+    """
+    for field in _FORBIDDEN_REQUEST_FIELDS:
+        if field in request_data:
+            raise ValueError(f"Request field not allowed: {field}")
+
+    playbook_name = str(
+        request_data.get("playbook_name", request_data.get("playbook_path", ""))
+    )
+    stage_name = str(request_data.get("stage_name", ""))
+    contract = REQUEST_CONTRACT.get((playbook_name, stage_name))
+    if contract is None:
+        raise ValueError("Playbook and stage combination is not allowed")
+    allowed_tags, allowed_keys = contract
+
+    if (request_data.get("tags") or None) != allowed_tags:
+        raise ValueError("Tags are not allowed for this stage")
+
+    extra_vars = request_data.get("extra_vars", {})
+    if not isinstance(extra_vars, dict):
+        raise ValueError("extra_vars must be a dictionary")
+    if not set(extra_vars).issubset(allowed_keys):
+        raise ValueError("extra_vars contains keys not allowed for this stage")
+    for key, value in extra_vars.items():
+        if not _EXTRA_VAR_VALIDATORS[key](value):
+            raise ValueError(f"Invalid value for extra_vars key: {key}")
+
+
 # ── END NEW sanitization functions ──
 
 
@@ -617,7 +764,6 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     ALLOWED_EXTRA_ARGS = [
         "-v",
         "--extra-vars",
-        "--inventory",
         "--tags",
     ]
 
@@ -674,7 +820,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
         i = min_required_length
         while i < len(cmd):
             arg = cmd[i]
-            if arg in ["--inventory", "--extra-vars", "--tags"] and i + 1 < len(cmd):
+            if arg in ["--extra-vars", "--tags"] and i + 1 < len(cmd):
                 i += 2
             elif arg == "-v" or arg.startswith("-v"):
                 i += 1
@@ -697,7 +843,7 @@ def validate_command(cmd: list, playbook_path: str) -> bool:
     SKIP_POSITIONS = [1]  # Position of playbook_path
     i = min_required_length
     while i < len(cmd):
-        if cmd[i] in ("--extra-vars", "--inventory", "--tags") and i + 1 < len(cmd):
+        if cmd[i] in ("--extra-vars", "--tags") and i + 1 < len(cmd):
             SKIP_POSITIONS.append(i + 1)
             i += 2
         else:
@@ -876,22 +1022,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         # Set defaults
         request_data.setdefault("correlation_id", job_id)
 
-        # Check for inventory_file_path
-        if "inventory_file_path" in request_data:
-            inventory_file_path = str(request_data["inventory_file_path"])
-            if not inventory_file_path.startswith("/") or ".." in inventory_file_path:
-                log_secure_info(
-                    "error",
-                    "Invalid inventory file path: possible directory traversal",
-                    job_id[:8]
-                )
-                return None
-            log_secure_info(
-                "info",
-                "Found inventory file path in request",
-                job_id[:8]
-            )
-
         # Check for extra_vars field
         if "extra_vars" in request_data:
             if not isinstance(request_data["extra_vars"], dict):
@@ -904,15 +1034,6 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                 "Found extra_vars in request",
                 job_id[:8]
             )
-
-        # We're no longer using extra_args, so remove it if present
-        if "extra_args" in request_data:
-            log_secure_info(
-                "info",
-                "Found extra_args in request but ignoring it",
-                job_id[:8]
-            )
-            del request_data["extra_args"]
 
         log_secure_info(
             "info",
@@ -1104,6 +1225,8 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     # or env construction.  Each value is re-derived from a constant
     # alphabet so no taint edge survives to the subprocess.run() call.
 
+    validate_request_contract(request_data)
+
     if not validate_job_id(str(request_data["job_id"])):
         raise ValueError("Invalid job_id format")
     job_id = sanitize_identifier(request_data["job_id"])
@@ -1135,14 +1258,6 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         )
     except ValueError:
         request_id_safe = job_id
-
-    # Sanitize inventory_file_path if present
-    inventory_file_path = None
-    if "inventory_file_path" in request_data:
-        inventory_file_path = sanitize_path(
-            str(request_data["inventory_file_path"]),
-            "/"  # Allow any absolute path but rebuild from safe alphabet
-        )
 
     # Sanitize extra_vars
     raw_extra_vars = request_data.get("extra_vars", {})
@@ -1200,14 +1315,6 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         ansible_playbook_bin,
         playbook_path,  # Validated against strict whitelist
     ]
-
-    # Add inventory file path if present (already sanitized above)
-    if inventory_file_path is not None:
-        cmd.extend(["--inventory", inventory_file_path])
-        log_secure_info(
-            "info", "Using inventory file for playbook",
-            inventory_file_path[:8]
-        )
 
     # Add extra_vars (already sanitized above)
     extra_vars_json = json.dumps(extra_vars)
@@ -2168,8 +2275,12 @@ def write_result_file(
         result_filename = original_filename
         result_path = RESULTS_DIR / result_filename
 
-        with open(result_path, 'w', encoding='utf-8') as f:
+        fd = os.open(
+            result_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, QUEUE_FILE_MODE
+        )
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
             json.dump(result_data, f, indent=2)
+        os.chmod(result_path, QUEUE_FILE_MODE)
 
         log_secure_info(
             "info",

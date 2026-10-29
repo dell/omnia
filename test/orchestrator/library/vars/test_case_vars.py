@@ -1337,12 +1337,12 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "component": "VAST login node mounts",
     },
     "additional_cloud_init_smd_groups": {
-        "id": "ORCH_FVT_PXEBOOT_V095",
+        "id": "ORCH_FVT_PXEBOOT_V600",
         "title": "Verify additional cloud-init SMD groups",
         "component": "Additional cloud-init SMD groups",
     },
     "additional_cloud_init_metadata_groups": {
-        "id": "ORCH_FVT_PXEBOOT_V096",
+        "id": "ORCH_FVT_PXEBOOT_V601",
         "title": "Verify additional cloud-init metadata-service groups",
         "component": "Additional cloud-init metadata-service groups",
     },
@@ -1356,16 +1356,7 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify live node OS version matches functional group",
         "component": "Node OS version",
     },
-    "additional_cloud_init_write_files": {
-        "id": "ORCH_FVT_PXEBOOT_V099",
-        "title": "Verify additional cloud-init write_files on nodes",
-        "component": "Additional cloud-init write_files",
-    },
-    "additional_cloud_init_runcmd": {
-        "id": "ORCH_FVT_PXEBOOT_V100",
-        "title": "Verify additional cloud-init runcmd on nodes",
-        "component": "Additional cloud-init runcmd",
-    },
+
     # mount_config NFS test cases (order 500+)
     "mount_config_mount_point": {
         "id": "ORCH_FVT_PXEBOOT_V101",
@@ -1503,6 +1494,106 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "id": "ORCH_FVT_PXEBOOT_V128",
         "title": "Verify no plaintext secrets in image on OS-only nodes",
         "component": "Minimal OS no embedded credentials",
+    },
+    # ── Additional cloud-init (V600 series) ──────────────────────────────
+    "additional_cloud_init_write_files": {
+        "id": "ORCH_FVT_PXEBOOT_V602",
+        "title": "Verify additional cloud-init write_files on nodes",
+        "component": "Additional cloud-init write_files",
+    },
+    "additional_cloud_init_runcmd": {
+        "id": "ORCH_FVT_PXEBOOT_V603",
+        "title": "Verify additional cloud-init runcmd on nodes",
+        "component": "Additional cloud-init runcmd",
+    },
+    # ── Additional cloud-init: template / BSS tests ────────────────────
+    "additional_cloud_init_common_template": {
+        "id": "ORCH_FVT_PXEBOOT_V604",
+        "title": "Verify common cloud-init template rendering with merge_how",
+        "component": "Additional cloud-init common template",
+    },
+    "additional_cloud_init_per_fg_template": {
+        "id": "ORCH_FVT_PXEBOOT_V605",
+        "title": "Verify per-FG cloud-init template rendering",
+        "component": "Additional cloud-init per-FG template",
+    },
+    "additional_cloud_init_conditional_rendering": {
+        "id": "ORCH_FVT_PXEBOOT_V606",
+        "title": "Verify empty sections omitted from rendered cloud-init",
+        "component": "Additional cloud-init conditional rendering",
+    },
+    "additional_cloud_init_bss_common": {
+        "id": "ORCH_FVT_PXEBOOT_V607",
+        "title": "Verify BSS registration for common cloud-init group",
+        "component": "Additional cloud-init BSS common",
+    },
+    "additional_cloud_init_bss_per_fg": {
+        "id": "ORCH_FVT_PXEBOOT_V608",
+        "title": "Verify BSS registration for per-FG cloud-init groups",
+        "component": "Additional cloud-init BSS per-FG",
+    },
+    "additional_cloud_init_merge_behavior": {
+        "id": "ORCH_FVT_PXEBOOT_V609",
+        "title": "Verify merge_how strategy preserves platform defaults",
+        "component": "Additional cloud-init merge behavior",
+    },
+    # ── Additional cloud-init: compatibility tests ─────────────────────
+    "additional_cloud_init_rhel_compat": {
+        "id": "ORCH_FVT_PXEBOOT_V610",
+        "title": "Verify additional cloud-init on RHEL 10.x nodes",
+        "component": "Additional cloud-init RHEL compatibility",
+    },
+    "additional_cloud_init_multi_fg_compat": {
+        "id": "ORCH_FVT_PXEBOOT_V611",
+        "title": "Verify additional cloud-init with multiple functional groups",
+        "component": "Additional cloud-init multi-FG compatibility",
+    },
+    # ── Additional cloud-init: state stability tests ─────────────────────
+    "additional_cloud_init_smd_stability": {
+        "id": "ORCH_FVT_PXEBOOT_V613",
+        "title": "Verify SMD group state stability",
+        "component": "Additional cloud-init SMD state stability",
+    },
+    "additional_cloud_init_bss_stability": {
+        "id": "ORCH_FVT_PXEBOOT_V614",
+        "title": "Verify BSS registration state stability",
+        "component": "Additional cloud-init BSS state stability",
+    },
+    "additional_cloud_init_pipeline_stability": {
+        "id": "ORCH_FVT_PXEBOOT_V615",
+        "title": "Verify full additional cloud-init pipeline state stability",
+        "component": "Additional cloud-init pipeline state stability",
+    },
+    # ── Additional cloud-init: end-to-end node verification ────────────
+    "additional_cloud_init_e2e_common_only": {
+        "id": "ORCH_FVT_PXEBOOT_V616",
+        "title": "Verify end-to-end cloud-init with common section only",
+        "component": "Additional cloud-init e2e common only",
+    },
+    "additional_cloud_init_e2e_per_fg_only": {
+        "id": "ORCH_FVT_PXEBOOT_V617",
+        "title": "Verify end-to-end cloud-init with per-FG section only",
+        "component": "Additional cloud-init e2e per-FG only",
+    },
+    "additional_cloud_init_e2e_combined": {
+        "id": "ORCH_FVT_PXEBOOT_V618",
+        "title": "Verify end-to-end cloud-init with common + per-FG combined",
+        "component": "Additional cloud-init e2e combined",
+    },
+    "additional_cloud_init_e2e_multiple_fgs": {
+        "id": "ORCH_FVT_PXEBOOT_V619",
+        "title": "Verify end-to-end cloud-init with multiple functional groups",
+        "component": "Additional cloud-init e2e multiple FGs",
+    },
+    "additional_cloud_init_e2e_mixed_directives": {
+        "id": "ORCH_FVT_PXEBOOT_V620",
+        "title": "Verify end-to-end cloud-init with mixed write_files and runcmd",
+        "component": "Additional cloud-init e2e mixed directives",
+    },
+    "additional_cloud_init_e2e_packages": {
+        "id": "ORCH_FVT_PXEBOOT_V621",
+        "title": "Verify additional cloud-init integration with additional packages",
+        "component": "Additional cloud-init packages integration",
     },
 }
 

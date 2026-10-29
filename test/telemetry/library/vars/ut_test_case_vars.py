@@ -117,6 +117,26 @@ UT_TEST_CASE_IDS = {
             56: "test_powerscale_log_query_matches_only_marker",
         },
     ),
+    **_module_cases(
+        "test_project_name_validation.py",
+        {
+            57: "test_validate_project_name_accepts_valid_names",
+            58: "test_validate_project_name_rejects_invalid_names",
+            59: "test_vault_path_rejects_traversal",
+            60: "test_vault_path_accepts_valid_project",
+            61: "test_log_path_symlink_containment",
+        },
+    ),
+    **_module_cases(
+        "test_input_validation_fail_closed.py",
+        {
+            62: "test_unknown_tag_alone_is_rejected",
+            63: "test_known_tag_with_unknown_tag_is_rejected",
+            64: "test_empty_tag_list_is_rejected",
+            65: "test_valid_tag_reaches_file_validation",
+            66: "test_supported_tags_cover_public_and_play_tags",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

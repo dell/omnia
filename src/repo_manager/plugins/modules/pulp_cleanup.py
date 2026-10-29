@@ -1055,7 +1055,7 @@ def cleanup_repository(name: str, base_path: str, repo_store_path: str,
         result["status"] = "Success"
         result["message"] = "; ".join(messages)
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Repository cleanup operation failed"
 
     return result
@@ -1181,7 +1181,7 @@ def cleanup_container(user_input: str, base_path: str, logger,
         result["message"] = "; ".join(messages)
         result["pulp_repo_name"] = pulp_name
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Container cleanup operation failed"
 
     return result
@@ -1282,7 +1282,7 @@ def cleanup_pip_module(name: str, base_path: str, repo_store_path: str, logger,
         else:
             result["message"] = f"pip_module '{name}' not found in Pulp or filesystem"
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Python package cleanup operation failed"
 
     return result
@@ -1393,7 +1393,7 @@ def cleanup_file_repository(name: str, file_type: str, base_path: str,
         else:
             result["message"] = f"{file_type} '{name}' not found in Pulp, status files, or filesystem"
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "File repository cleanup operation failed"
 
     return result
@@ -1787,7 +1787,7 @@ def cleanup_content_directory(content_name: str, content_type: str,
                                  f"'{content_name}' under {types_to_search}")
             logger.info(result["message"])
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Filesystem cleanup error: cleanup operation failed"
         logger.error("Failed to clean up repository content")
 
@@ -1878,7 +1878,7 @@ def cleanup_all_file_content_directories(repo_store_path: str, logger,
             result["message"] = "Requested filesystem content already absent"
             logger.info(result["message"])
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["message"] = "Bulk filesystem cleanup error: cleanup operation failed"
         logger.error("Failed bulk filesystem cleanup")
 
@@ -2607,7 +2607,7 @@ def remove_repos_from_pulp_repo_file(cleaned_repos: List[str], pulp_repo_file: s
             f"Permission denied while updating {pulp_repo_file}. Run with elevated privileges."
         )
         return False, False
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.error("Failed to update the Pulp repository file after cleanup")
         return False, False
 
@@ -2778,7 +2778,7 @@ def run_module():
                     repo, base_path, cluster_os_type, cluster_os_version, logger)
                 state_changed = state_changed or removed > 0
                 logger.info(f"Removed {removed} entries from pulp_mirror_index.json for repo '{repo}'")
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 all_results.append({
                     "name": repo,
                     "type": "local_state",
@@ -2822,7 +2822,7 @@ def run_module():
             state_changed = (
                 state_changed or rpm_fs_result.get("changed", False)
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             all_results.append({
                 "name": "all_rpm_state",
                 "type": "local_state",
@@ -2852,7 +2852,7 @@ def run_module():
                         container, 'image', base_path, cluster_os_type,
                         cluster_os_version, logger)
                 state_changed = state_changed or removed > 0
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 all_results.append({
                     "name": container,
                     "type": "local_state",
@@ -2875,7 +2875,7 @@ def run_module():
             removed = remove_all_type_from_mirror_index(
                 'image', base_path, cluster_os_type, cluster_os_version, logger)
             state_changed = state_changed or removed > 0
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             all_results.append({
                 "name": "all_container_state",
                 "type": "local_state",
@@ -2901,7 +2901,7 @@ def run_module():
                     cluster_os_version, logger, arch=result.get('arch'),
                     os_version=result.get('os_version'))
                 state_changed = state_changed or removed > 0
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 all_results.append({
                     "name": result['name'],
                     "type": "local_state",
@@ -2953,7 +2953,7 @@ def run_module():
             state_changed = (
                 state_changed or file_fs_result.get("changed", False)
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             all_results.append({
                 "name": "all_file_state",
                 "type": "local_state",

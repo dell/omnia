@@ -49,23 +49,9 @@ functional_group_images:
       image: "boot-images/slurm_node_x86_64/rhel-slurm_node_x86_64_omnia_2.3-imgth/10.0/rootfs.squashfs"
 ```
 
-`image_build_type` records the engine that produced this manifest. It is build
-provenance, so consumers must use this value when interpreting artifact paths
-rather than reading the potentially newer value from `image_build_config.yml`.
-The object layout depends on this recorded value:
-
-- `image-builder` publishes versioned kernel and initrd objects beneath the
-  `efi-images/` prefix inside `boot-images`, and a versioned rootfs object under
-  the functional-group prefix:
-
-  ```text
-  boot-images/efi-images/<functional_group>/<image_name>-imgbld/vmlinuz-<kernel-version>
-  boot-images/efi-images/<functional_group>/<image_name>-imgbld/initramfs-<kernel-version>.img
-  boot-images/<functional_group>/<image_name>-imgbld/<rootfs-filename>
-  ```
-
-- `image-thrillhouse` publishes a matched, versioned kernel/initrd pair with
-  the fixed rootfs filename beneath the release directory:
+`image_build_type` is fixed build provenance and always records
+`image-thrillhouse`. Image Thrillhouse publishes a matched, versioned
+kernel/initrd pair with the fixed rootfs filename beneath the release directory:
 
   ```text
   boot-images/<functional_group>/<image_name>-imgth/<release>/vmlinuz-<kernel-version>
@@ -85,7 +71,7 @@ bucket or S3 scheme.
 | Field | Type | Description |
 |-------|------|-------------|
 | `overall_status` | string | Currently always `"success"`; a failed build does not produce a failed-status manifest |
-| `image_build_type` | string | Producing engine: `"image-builder"` or `"image-thrillhouse"` |
+| `image_build_type` | string | Fixed producing engine: `"image-thrillhouse"` |
 | `s3_configurations.endpoint_url` | string | S3 HTTP(S) endpoint URL, without the artifact path |
 | `s3_configurations.bucket` | string | Artifact bucket; currently `"boot-images"` |
 | `functional_group_images[].<architecture>[].functional_group` | string | Group name with architecture suffix |
@@ -93,19 +79,11 @@ bucket or S3 scheme.
 | `functional_group_images[].<architecture>[].initrd` | string | Exact endpoint-relative initrd object path (`initramfs*`) |
 | `functional_group_images[].<architecture>[].image` | string | Exact endpoint-relative rootfs object path (`rhel*` or `rootfs.squashfs`) |
 
-### Compatibility and engine changes
+### Compatibility
 
-Current manifests always include `image_build_type`. Validation of a legacy
-manifest that does not contain the field may infer the engine only when all
-artifact directories consistently contain one recognized suffix: `-imgbld`
-or `-imgth`. Ambiguous or suffix-free legacy manifests must be regenerated.
-
-Changing `image_build_config.yml` does not alter an existing manifest. Tests
-use the manifest engine for path-layout checks and the current input for the
-expected functional-group set. When those engine values differ, test output
-reports the difference while validating the artifacts produced by the recorded
-build. A new build overwrites the latest manifest with the newly selected
-engine.
+Current manifests always include `image_build_type: image-thrillhouse`.
+Validation of a legacy Thrillhouse manifest without the field may infer the
+engine from the `-imgth` artifact suffix. Other manifests must be regenerated.
 
 ### S3 Endpoint
 
@@ -142,21 +120,7 @@ services. The deployment roles do not add them to `omnia.target`.
 
 ## 3. S3 Artifacts
 
-### image-builder
-
-```text
-boot-images/
-+-- efi-images/
-|   +-- <functional_group>/
-|       +-- <image_name>-imgbld/
-|           +-- vmlinuz-<kernel-version>
-|           +-- initramfs-<kernel-version>.img
-+-- <functional_group>/
-    +-- <image_name>-imgbld/
-        +-- <rootfs-filename>
-```
-
-### image-thrillhouse
+### Image Thrillhouse
 
 ```text
 boot-images/
@@ -168,9 +132,9 @@ boot-images/
             +-- rootfs.squashfs
 ```
 
-`efi-images` above is an object-key prefix inside the `boot-images` bucket, not
-a separate bucket. Local MinIO preparation also creates a bucket named `efi`,
-but the current artifact layouts and manifest paths do not use it.
+Local MinIO preparation also creates a bucket named `efi`, but the current
+artifact layouts store all boot artifacts (kernel, initrd, rootfs) together
+under `boot-images/<functional_group>/`.
 
 ---
 

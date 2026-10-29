@@ -248,7 +248,7 @@ def check_kubernetes_system_pods(host):
     """Verify core, selected CNI, MetalLB, NFS, and optional CSI pods."""
     summary = "Kubernetes system workloads"
     try:
-        context, rows, control, config = _context(host)
+        _workload, rows, control, config = _context(host)
         if not rows:
             return _skip(summary, "No Kubernetes nodes are mapped")
         payload = remote_json(host, control, PXEBOOT_COMMANDS["kubernetes_pods"])
@@ -257,16 +257,7 @@ def check_kubernetes_system_pods(host):
         control_count = sum(
             "control_plane" in row["EXPECTED_FUNCTIONAL_GROUP"] for row in rows
         )
-        cluster_name = str(config.get("cluster_name") or "")
-        ha_enabled = any(
-            isinstance(entry, dict)
-            and entry.get("cluster_name") == cluster_name
-            and bool(entry.get("enable_k8s_ha", False))
-            for entry in context["high_availability_config"].get(
-                "service_k8s_cluster_ha",
-                [],
-            )
-        )
+        ha_enabled = bool(config.get("enable_k8s_ha", False))
         checks: list[tuple[str, str, int | None]] = [
             ("kube-system", "etcd-", control_count),
             ("kube-system", "kube-apiserver-", control_count),
@@ -376,22 +367,14 @@ def check_kubernetes_virtual_ip(host):
     """Verify the configured Kubernetes VIP is present on exactly one control plane."""
     summary = "Kubernetes virtual IP ownership"
     try:
-        context, rows, _control, config = _context(host)
+        _workload, rows, _control, config = _context(host)
         if not rows:
             return _skip(summary, "No Kubernetes nodes are mapped")
-        cluster_name = str(config.get("cluster_name", ""))
-        entries = context["high_availability_config"].get("service_k8s_cluster_ha", [])
-        matches = [
-            entry
-            for entry in entries
-            if isinstance(entry, dict) and entry.get("cluster_name") == cluster_name
-        ]
-        if len(matches) != 1:
-            raise ValueError("Kubernetes HA configuration is missing or ambiguous")
-        ha = matches[0]
-        if not bool(ha.get("enable_k8s_ha", False)):
+        if not bool(config.get("enable_k8s_ha", False)):
             return _skip(summary, "Kubernetes HA is disabled")
-        vip = str(ipaddress.ip_address(str(ha.get("virtual_ip_address", ""))))
+        vip = str(
+            ipaddress.ip_address(str(config.get("virtual_ip_address", "")))
+        )
         owners = []
         fields = [("Virtual IP", vip)]
         for row in rows:

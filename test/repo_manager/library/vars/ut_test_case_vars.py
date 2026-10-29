@@ -5,6 +5,8 @@
 
 """Stable test-case IDs for Repo Manager unit tests."""
 
+_REDACTION = "test_error_message_redaction.py"
+
 
 def _class_cases(file_name, class_name, cases):
     """Build explicit pytest-node-to-test-case-ID mappings for one class."""
@@ -150,12 +152,12 @@ UT_TEST_CASE_IDS = {
             70: "test_selected_suite_is_forwarded_to_execution",
             71: "test_shell_entrypoint_prefers_the_local_virtual_environment",
             72: "test_suite_execution_keeps_deploy_scope_exact",
-            73: "test_suite_execution_preserves_image_builder_root_trigger",
+            73: "test_suite_execution_preserves_image_build_manager_root_trigger",
             74: "test_unit_category_is_registered_in_batch_config",
             75: "test_unit_startup_does_not_connect_or_sync",
             76: "test_untagged_execution_uses_ordered_lifecycle_paths",
             77: "test_untagged_lifecycle_is_ordered_and_non_destructive",
-            78: "test_untagged_verification_excludes_negative_markers",
+            78: "test_untagged_verification_excludes_destructive_markers",
             79: "test_verify_only_targets_are_not_configured_for_execution",
             126: "test_report_names_follow_standard_convention",
         },
@@ -196,7 +198,7 @@ UT_TEST_CASE_IDS = {
         {
             95: "test_cleanup_tokens_are_allowlisted",
             96: "test_compatibility_exports_remain_valid",
-            97: "test_container_password_cannot_add_arguments",
+            97: "test_container_remote_command_does_not_accept_credentials",
             98: "test_every_static_template_is_structured",
             99: "test_executable_override_changes_only_argv_zero",
             100: "test_file_path_with_spaces_remains_one_argument",
@@ -420,6 +422,281 @@ UT_TEST_CASE_IDS = {
             221: "test_pruning_occurs_after_replacement_validation",
             222: "test_pruning_preserves_empty_and_current_versions",
             223: "test_repository_failure_blocks_orphan_cleanup_and_later_repos",
+        },
+    ),
+
+    **_class_cases(
+        "test_exact_mirror_reconciliation.py",
+        "ExactMirrorCommandTests",
+        {
+            224: "test_repomd_validation_rejects_non_https_origin",
+            225: "test_repomd_validation_rejects_xml_entities",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_compatibility_warnings.py",
+        "Con004ImageTagTests",
+        {
+            226: "test_agreeing_image_tags_and_rpm_versions_produce_no_warning",
+            227: "test_image_tag_downgrade_relative_to_sibling_rpm_is_flagged",
+            228: "test_untouched_disagreement_is_not_reported",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_compatibility_warnings.py",
+        "Con004RepositoryIdentifierTests",
+        {
+            229: "test_reponame_and_rpm_name_in_agreement_produce_no_warning",
+            230: "test_reponame_downgrade_independent_of_rpm_name_is_flagged",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_component_diff.py",
+        "ComponentDiffTests",
+        {
+            231: "test_exhaustive_small_sequences",
+            232: "test_htop_append_contains_only_added_component",
+            233: "test_invalid_component_operations_fail_without_mutation",
+            234: "test_large_list_small_edit_stays_compact",
+            235: "test_late_failure_leaves_source_unchanged",
+            236: "test_legacy_set_and_whole_owner_add_remove",
+            237: "test_metadata_changes_use_legacy_replacement",
+            238: "test_multiple_edits_count_as_one_changed_owner",
+            239: "test_no_change_is_empty",
+            240: "test_ordered_edits_and_duplicates_round_trip",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_diff_cli.py",
+        "DiffOutputCollisionTests",
+        {
+            241: "test_distinct_output_paths_succeed",
+            242: "test_forward_and_reverse_outputs_cannot_collide",
+            243: "test_output_cannot_equal_an_input",
+            244: "test_symlinked_output_alias_of_an_input_is_rejected",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_diff_cli.py",
+        "DiffSchemaRequiredTests",
+        {
+            245: "test_allow_schemaless_succeeds_with_disclosed_degraded_warning",
+            246: "test_component_append_emits_compact_patch_and_changed_group_report",
+            247: "test_missing_schema_and_no_override_is_rejected",
+            248: "test_schema_supplied_succeeds_without_degraded_warning",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_schema_prerequisites.py",
+        "SchemaPrerequisiteTests",
+        {
+            249: "test_commands_fail_without_touching_catalogs_or_outputs",
+            250: "test_invalid_catalog_is_rejected_when_schema_runs",
+            251: "test_missing_library_rejects_valid_and_invalid_catalogs",
+            252: "test_missing_schema_is_an_error",
+            253: "test_no_schema_keeps_explicit_business_rule_only_behavior",
+            254: "test_unreadable_schema_is_an_error",
+            255: "test_valid_catalog_passes_with_schema_library_available",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_write_boundary.py",
+        "FindPathCollisionsTests",
+        {
+            256: "test_differently_spelled_same_path_collides",
+            257: "test_falsy_paths_are_ignored",
+            258: "test_identical_path_strings_collide",
+            259: "test_no_collision_among_distinct_paths",
+            260: "test_symlink_alias_collides_with_its_target",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_write_boundary.py",
+        "ResolveAndValidateCatalogPathTests",
+        {
+            261: "test_absolute_path_elsewhere_is_rejected",
+            262: "test_dotdot_escape_is_rejected",
+            263: "test_path_inside_root_is_accepted",
+            264: "test_root_itself_is_accepted",
+            265: "test_symlinked_leaf_escape_is_rejected",
+            266: "test_symlinked_parent_directory_escape_is_rejected",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_write_boundary.py",
+        "WriteCatalogBoundaryTests",
+        {
+            267: "test_no_temp_file_left_behind_on_success",
+            268: "test_without_allowed_root_behavior_is_unchanged",
+            269: "test_write_inside_root_succeeds",
+            270: "test_write_outside_root_raises_and_writes_nothing",
+        },
+    ),
+    # ── Error message redaction (top-level functions) ─────────────────────
+    f"{_REDACTION}::test_schema_yaml_error_does_not_return_file_content": "RM_UT_271",
+    f"{_REDACTION}::test_vault_write_read_failure_reports_type_only": "RM_UT_272",
+    f"{_REDACTION}::test_vault_write_unexpected_failure_still_fails_cleanly": "RM_UT_273",
+    f"{_REDACTION}::test_csv_own_messages_are_unchanged": "RM_UT_274",
+    f"{_REDACTION}::test_csv_decode_error_reports_type_only": "RM_UT_275",
+    f"{_REDACTION}::test_csv_read_failures_do_not_echo_exception_text": "RM_UT_276",
+    f"{_REDACTION}::test_input_data_unexpected_error_logs_type_only": "RM_UT_277",
+    f"{_REDACTION}::test_vault_write_yaml_error_includes_line_column": "RM_UT_288",
+    f"{_REDACTION}::"
+    "test_write_status_to_file_keeps_running_when_mirror_index_update_fails": "RM_UT_278",
+    "test_vault_in_memory_read.py::"
+    "test_process_encrypted_file_yaml_error_does_not_echo_content": "RM_UT_279",
+    **_class_cases(
+        "test_pulp_container_remote_api.py",
+        "RestClientCompatibilityTests",
+        {
+            280: "test_request_json_returns_none_for_explicit_and_fallback_errors",
+            281: "test_raw_get_returns_none_for_explicit_and_fallback_errors",
+        },
+    ),
+    **_class_cases(
+        "test_container_reconciliation.py",
+        "ContainerReconciliationTests",
+        {
+            282: "test_remote_tag_attribute_error_is_normalized",
+            283: "test_remote_tag_type_error_is_normalized",
+        },
+    ),
+    **_class_cases(
+        "test_pulp_repo_name_migration_contract.py",
+        "PulpRepoNameMigrationContractTests",
+        {
+            284: "test_load_config_invalid_cli_section_keeps_session_invalid",
+            285: "test_read_toml_config_returns_none_on_parser_type_error",
+            286: "test_http_methods_return_standard_failure_dict_on_type_error",
+        },
+    ),
+    "test_vault_in_memory_read.py::"
+    "test_process_encrypted_file_vault_error_does_not_echo_stderr": "RM_UT_287",
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "ValidateInputTagFailClosedTests",
+        {
+            289: "test_unknown_tag_alone_is_rejected",
+            290: "test_known_tag_with_unknown_tag_is_rejected",
+            291: "test_empty_tag_list_is_rejected",
+            292: "test_operation_only_tag_is_rejected",
+            293: "test_operation_tag_with_validation_tag_validates_files",
+            294: "test_valid_tag_with_missing_required_file_fails",
+            295: "test_missing_schema_for_mapped_file_fails",
+        },
+    ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "ValidationTagScopeTests",
+        {
+            296: "test_deploy_pulp_endpoint_contract_is_scoped_to_its_include",
+        },
+    ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "CredentialFileValidationContractTests",
+        {
+            297: "test_credential_file_is_mapped_for_every_repo_config_tag",
+            298: "test_schema_accepts_document_written_by_credential_collection",
+            299: "test_schema_rejects_missing_pulp_password",
+            300: "test_schema_rejects_unknown_top_level_key",
+            301: "test_schema_rejects_incomplete_registry_credential",
+        },
+    ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "SupportedTagsContractTests",
+        {
+            302: "test_supported_tags_cover_public_and_play_tags",
+            303: "test_internal_pulp_tag_is_rejected",
+            304: "test_run_tag_modifiers_are_supported",
+            305: "test_guard_tags_are_accepted_by_validate_input",
+        },
+    ),
+    # ── Vault in-memory read (top-level functions) ────────────────────────
+    (
+        "test_vault_in_memory_read.py"
+        "::test_process_encrypted_file_reads_without_touching_file"
+    ): "RM_UT_306",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_process_encrypted_file_wrong_key_fails_and_file_untouched"
+    ): "RM_UT_307",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_process_encrypted_file_malformed_yaml_fails_and_file_untouched"
+    ): "RM_UT_308",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_yml_line_number_on_vaulted_file"
+    ): "RM_UT_309",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_yml_line_number_vault_failure_raises_and_file_untouched"
+    ): "RM_UT_310",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_no_in_place_decrypt_helpers_remain"
+    ): "RM_UT_311",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_schema_reports_all_errors_when_line_lookup_fails"
+    ): "RM_UT_312",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_logic_handles_error_dicts_missing_fields"
+    ): "RM_UT_313",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_schema_oserror_is_reported_and_logged_with_traceback"
+    ): "RM_UT_314",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_schema_unexpected_error_names_file_and_logs_traceback"
+    ): "RM_UT_315",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_logic_logs_traceback_for_unexpected_error"
+    ): "RM_UT_316",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_schema_missing_config_key_does_not_crash_without_logger"
+    ): "RM_UT_317",
+    "test_vault_in_memory_read.py::test_run_subprocess_timeout_returns_distinct_code": "RM_UT_318",
+    "test_vault_in_memory_read.py::test_run_subprocess_missing_command_returns_127": "RM_UT_319",
+    # ── Catalog add/merge ─────────────────────────────────────────────────
+    **_class_cases(
+        "test_catalog_add_merge.py",
+        "MergePackageEntryTests",
+        {
+            320: "test_other_architecture_is_kept",
+            321: "test_other_os_version_is_kept_when_source_changes",
+            322: "test_new_os_version_is_added_to_matching_source",
+            323: "test_image_update_keeps_other_architecture_and_os_fields",
+            324: "test_package_type_change_replaces_entry",
+            325: "test_inputs_are_not_modified",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_add_merge.py",
+        "DeleteSideEffectTests",
+        {
+            326: "test_empty_group_removed_from_layers_with_warning",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_add_merge.py",
+        "AddCliMergeTests",
+        {
+            327: "test_update_keeps_aarch64_and_10_0_sources",
+            328: "test_new_package_for_both_arches_and_os_versions",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_add_merge.py",
+        "LegacyCatalogMessageTests",
+        {
+            329: "test_validate_points_to_transform",
         },
     ),
 }

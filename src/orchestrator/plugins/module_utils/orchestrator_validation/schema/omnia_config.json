@@ -103,19 +103,23 @@
           "properties": {
             "sockets": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "maximum": 16
             },
             "cores_per_socket": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "maximum": 160
             },
             "threads_per_core": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "maximum": 2
             },
             "real_memory": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "maximum": 8589934592
             },
             "gres": {
               "type": "string",
@@ -256,6 +260,12 @@
           "type": "string",
           "pattern": "^[1-9][0-9]*G$"
         },
+        "k8s_bootstrap_token_ttl": {
+          "type": "string",
+          "description": "Duration for kubeadm bootstrap token validity (e.g. 1h, 2h, 24h). Set to 0 to disable expiry (not recommended).",
+          "pattern": "^(0|([0-9]+h([0-9]+m)?([0-9]+s)?|[0-9]+m([0-9]+s)?|[0-9]+s))$",
+          "default": "2h"
+        },
         "enable_powerscale_csi": {
           "type": "boolean",
           "default": false
@@ -265,6 +275,21 @@
         },
         "csi_powerscale_driver_values_file_path": {
           "$ref": "#/definitions/optionalAbsolutePath"
+        },
+        "enable_k8s_ha": {
+          "type": "boolean"
+        },
+        "virtual_ip_address": {
+          "type": "string",
+          "description": "Kubernetes HA virtual IP. Required, non-empty, when the PXE mapping selects Kubernetes (enforced by L2 validation).",
+          "anyOf": [
+            {
+              "maxLength": 0
+            },
+            {
+              "format": "ipv4"
+            }
+          ]
         }
       },
       "allOf": [

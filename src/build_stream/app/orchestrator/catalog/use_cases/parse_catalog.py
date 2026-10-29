@@ -272,50 +272,6 @@ class ParseCatalogUseCase:
                 f"Uploaded catalog for job {job_id} is not valid JSON: {exc}"
             ) from exc
 
-    def _extract_image_group_id(self, catalog_data: dict) -> ImageGroupId:
-        """Extract raw Identifier from catalog for validation purposes.
-
-        NOTE: This returns the *raw* identifier, not the composite ID.
-        For uniqueness checks, use the composite ID from
-        ``_extract_catalog_metadata`` instead, since ``image_groups.id``
-        stores ``identifier-vVersion``.
-
-        Supports both PascalCase (``Catalog``/``Identifier``) and lowercase
-        (``catalog``/``identifier``) keys for consistency with how
-        ``ResultPoller`` reads the same catalog elsewhere in the pipeline.
-
-        Raises:
-            InvalidCatalogFormatError: If the ``Catalog`` key is missing or
-                ``Identifier`` is absent/invalid.
-        """
-        catalog_obj = catalog_data.get("Catalog", catalog_data.get("catalog"))
-        if not catalog_obj or not isinstance(catalog_obj, dict):
-            raise InvalidCatalogFormatError(
-                "Catalog JSON missing required 'Catalog' top-level key"
-            )
-
-        raw_identifier = catalog_obj.get(
-            "Identifier", catalog_obj.get("identifier", "")
-        )
-        if not raw_identifier or not raw_identifier.strip():
-            raise InvalidCatalogFormatError(
-                "Catalog 'Identifier' is missing or empty"
-            )
-
-        identifier = raw_identifier.strip()
-        if len(identifier) > 128:
-            raise InvalidCatalogFormatError(
-                f"Catalog 'Identifier' cannot exceed 128 characters "
-                f"(got {len(identifier)})"
-            )
-
-        try:
-            return ImageGroupId(identifier)
-        except ValueError as exc:
-            raise InvalidCatalogFormatError(
-                f"Catalog 'Identifier' is invalid: {exc}"
-            ) from exc
-
     def _check_image_group_uniqueness(self, image_group_id: ImageGroupId) -> None:
         """Check that no ImageGroup with this ID already exists.
 
@@ -377,6 +333,13 @@ class ParseCatalogUseCase:
             )
 
         composite_id = f"{raw_identifier}-v{catalog_version}"
+        try:
+            ImageGroupId.parse(raw_identifier)
+            ImageGroupId.parse(composite_id)
+        except ValueError as exc:
+            raise InvalidCatalogFormatError(
+                f"Catalog 'Identifier' or 'Version' is not valid: {exc}"
+            ) from exc
 
         layers = cat.get("FunctionalLayer", cat.get("functionallayer", []))
 

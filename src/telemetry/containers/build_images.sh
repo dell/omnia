@@ -35,10 +35,11 @@
 #   build_tool=<tool>                podman | docker (default: podman)
 #   build_action=<action>            load | push (default: load)
 #   registry=<url>                   Registry URL (default: docker.io/dellhpcomniaaisolution)
-#   kafkapump_tag=<tag>              kafkapump tag (default: 1.3)
-#   victoriapump_tag=<tag>           victoriapump tag (default: 1.3)
-#   telemetry_receiver_tag=<tag>     telemetry_receiver tag (default: 1.3)
-#   ldms_tag=<tag>                   ldms tag (default: 1.1)
+#   kafkapump_tag=<tag>              kafkapump tag (default: 1.4)
+#   victoriapump_tag=<tag>           victoriapump tag (default: 1.4)
+#   telemetry_receiver_tag=<tag>     telemetry_receiver tag (default: 1.4)
+#   ldms_tag=<tag>                   ldms tag (default: 1.2)
+#   idrac_telemetry_commit=<sha>     iDRAC-Telemetry-Reference-Tools commit (default: IDRAC_TELEMETRY_COMMIT)
 # =============================================================================
 
 set -euo pipefail
@@ -76,10 +77,11 @@ show_help() {
     echo "  build_tool=<tool>       podman | docker (default: podman)"
     echo "  build_action=<action>   load | push (default: load)"
     echo "  registry=<url>          Registry URL (default: docker.io/dellhpcomniaaisolution)"
-    echo "  kafkapump_tag=<tag>     kafkapump tag (default: 1.3)"
-    echo "  victoriapump_tag=<tag>  victoriapump tag (default: 1.3)"
-    echo "  telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.3)"
-    echo "  ldms_tag=<tag>          ldms tag (default: 1.1)"
+    echo "  kafkapump_tag=<tag>     kafkapump tag (default: 1.4)"
+    echo "  victoriapump_tag=<tag>  victoriapump tag (default: 1.4)"
+    echo "  telemetry_receiver_tag=<tag>  telemetry_receiver tag (default: 1.4)"
+    echo "  ldms_tag=<tag>          ldms tag (default: 1.2)"
+    echo "  idrac_telemetry_commit=<sha>  iDRAC-Telemetry-Reference-Tools commit (default: fixed commit below)"
     echo ""
     echo -e "${BLUE}EXAMPLES:${NC}"
     echo "  ./build_images.sh"
@@ -100,7 +102,7 @@ SUCCESSFUL_BUILDS=()
 FAILED_BUILDS=()
 
 # ── iDRAC Telemetry repo settings ──
-IDRAC_TELEMETRY_COMMIT="cfa9102a900a76afe9de578d080e98f685625814"
+IDRAC_TELEMETRY_COMMIT="d9890c54a333cdb5dae05ed45a7f1a0f2bac781f"
 IDRAC_TELEMETRY_CLONE_DIR="${SCRIPT_DIR}/.idrac-telemetry-tools"
 
 # =============================================================================
@@ -110,10 +112,10 @@ BUILD_TOOL="podman"
 BUILD_ACTION="load"
 OMNIA_DOCKER_REGISTERY="docker.io/dellhpcomniaaisolution"
 
-KAFKAPUMP_TAG="1.3"
-VICTORIAPUMP_TAG="1.3"
-TELEMETRY_RECEIVER_TAG="1.3"
-LDMS_TAG="1.1"
+KAFKAPUMP_TAG="1.4"
+VICTORIAPUMP_TAG="1.4"
+TELEMETRY_RECEIVER_TAG="1.4"
+LDMS_TAG="1.2"
 
 # =============================================================================
 # Parse command-line parameters (key=value format)
@@ -130,12 +132,13 @@ for arg in "$@"; do
         victoriapump_tag=*)        VICTORIAPUMP_TAG="${arg#*=}" ;;
         telemetry_receiver_tag=*)  TELEMETRY_RECEIVER_TAG="${arg#*=}" ;;
         ldms_tag=*)                LDMS_TAG="${arg#*=}" ;;
+        idrac_telemetry_commit=*)  IDRAC_TELEMETRY_COMMIT="${arg#*=}" ;;
         -h|--help)
             show_help
             ;;
         *)
             echo -e "${RED}Error: Unknown parameter '$arg'${NC}"
-            echo -e "${YELLOW}Valid: build_tool, build_action, registry, kafkapump_tag, victoriapump_tag, telemetry_receiver_tag, ldms_tag${NC}"
+            echo -e "${YELLOW}Valid: build_tool, build_action, registry, kafkapump_tag, victoriapump_tag, telemetry_receiver_tag, ldms_tag, idrac_telemetry_commit${NC}"
             exit 1
             ;;
     esac
@@ -159,13 +162,42 @@ if [[ "$BUILD_ACTION" == "push" && "$BUILD_TOOL" != "docker" ]]; then
     exit 1
 fi
 
+# ── Validate tag and registry values ──
+TAG_PATTERN='^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$'
+REGISTRY_PATTERN='^[a-zA-Z0-9][a-zA-Z0-9._/:-]*$'
+
+for _tag_pair in \
+    "kafkapump_tag:${KAFKAPUMP_TAG}" \
+    "victoriapump_tag:${VICTORIAPUMP_TAG}" \
+    "telemetry_receiver_tag:${TELEMETRY_RECEIVER_TAG}" \
+    "ldms_tag:${LDMS_TAG}"; do
+    _tag_name="${_tag_pair%%:*}"
+    _tag_value="${_tag_pair#*:}"
+    if [[ ! "$_tag_value" =~ $TAG_PATTERN ]]; then
+        echo -e "${RED}Error: Invalid ${_tag_name} format '${_tag_value}'. Must match ${TAG_PATTERN}${NC}"
+        exit 1
+    fi
+done
+
+if [[ ! "$OMNIA_DOCKER_REGISTERY" =~ $REGISTRY_PATTERN ]]; then
+    echo -e "${RED}Error: Invalid registry format '${OMNIA_DOCKER_REGISTERY}'. Must match ${REGISTRY_PATTERN}${NC}"
+    exit 1
+fi
+
 # =============================================================================
 # Clone iDRAC Telemetry repo (shared by kafkapump, victoriapump, telemetry_receiver)
 # =============================================================================
 clone_idrac_telemetry_repo() {
     if [ -d "$IDRAC_TELEMETRY_CLONE_DIR" ]; then
-        echo -e "${YELLOW}iDRAC-Telemetry-Reference-Tools already cloned.${NC}"
-        return
+        # Verify the existing clone is pinned to the expected commit (CWE-494 mitigation)
+        local current_commit
+        current_commit=$(git -C "$IDRAC_TELEMETRY_CLONE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+        if [ "$current_commit" = "$IDRAC_TELEMETRY_COMMIT" ]; then
+            echo -e "${YELLOW}iDRAC-Telemetry-Reference-Tools already cloned at pinned commit.${NC}"
+            return
+        fi
+        echo -e "${RED}WARNING: Clone directory exists but HEAD ($current_commit) does not match pinned commit ($IDRAC_TELEMETRY_COMMIT). Re-cloning...${NC}"
+        rm -rf "$IDRAC_TELEMETRY_CLONE_DIR"
     fi
     echo -e "${YELLOW}Cloning iDRAC-Telemetry-Reference-Tools at commit ${IDRAC_TELEMETRY_COMMIT}...${NC}"
     git clone "https://github.com/dell/iDRAC-Telemetry-Reference-Tools.git" "$IDRAC_TELEMETRY_CLONE_DIR"
@@ -250,7 +282,7 @@ build_telemetry_receiver() {
 
 build_ldms() {
     echo -e "${BLUE}Building ldms (tag: ${LDMS_TAG})...${NC}"
-    container_build "ldms" "${LDMS_TAG}" \
+    container_build "ubuntu-ldms" "${LDMS_TAG}" \
         "${SCRIPT_DIR}/ldms" "Containerfile.bld_n_run.ubuntu26.04"
 }
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import subprocess
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
@@ -26,16 +27,10 @@ from typing import Any
 import yaml
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
-    high_availability_applicable,
-)
-from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic as validate_orchestrator_config_l2,
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_additional_cloud_init as validate_additional_cloud_init,
-)
-from ansible.module_utils.orchestrator_validation.core.validation_engine import (
-    logic_high_availability as validate_high_availability,
 )
 from ansible.module_utils.orchestrator_validation.core.validation_engine import (
     logic_network as validate_network_spec,
@@ -68,7 +63,7 @@ description:
   - Performs complete JSON Schema and cross-field validation.
   - Validates orchestrator_config.yml, omnia_config.yml, network_spec.yml,
     security_config.yml, and storage_config.yml.
-  - Validates high_availability_config.yml when Kubernetes is selected.
+  - Validates Kubernetes HA settings on the deployed service_k8s_cluster entry.
   - Validates PXE mapping and additional cloud-init cross-file contracts.
   - Validates storage_config.yml when present and requires it when referenced.
 options:
@@ -120,6 +115,13 @@ invalid_files:
   returned: always
   type: list
   elements: str
+unvalidated_files:
+  description: >-
+    Vault-encrypted files that could not be decrypted (no sibling
+    .<file stem>_key) and therefore were not validated.
+  returned: always
+  type: list
+  elements: str
 log_file:
   description: Absolute path to the validation log.
   returned: always
@@ -159,11 +161,6 @@ VALIDATION_FILES = (
         "required": True,
     },
 )
-HA_VALIDATION_FILE = {
-    "config_file": "high_availability_config.yml",
-    "schema_file": "high_availability_config.json",
-    "required": True,
-}
 VAULT_HEADER = "$ANSIBLE_VAULT"
 
 
@@ -174,7 +171,9 @@ class _ValidationState:
     errors: list[str] = field(default_factory=list)
     valid_files: list[str] = field(default_factory=list)
     invalid_files: list[str] = field(default_factory=list)
+    unvalidated_files: list[str] = field(default_factory=list)
     loaded_data: dict[str, Any] = field(default_factory=dict)
+    secrets: list[str] = field(default_factory=list)
 
     def mark_file(self, path: str, is_valid: bool) -> None:
         """Record file status while preserving any earlier failure."""
@@ -222,6 +221,72 @@ def is_vault_encrypted(path: str) -> bool:
             return input_file.readline().strip().startswith(VAULT_HEADER)
     except (OSError, UnicodeError):
         return False
+
+
+def load_vault_yaml(path: str) -> tuple[Any, str | None, bool]:
+    """Decrypt a vault file in memory with its sibling ``.<stem>_key`` file.
+
+    Returns:
+        (data, error, key_available). key_available is False when no vault key
+        exists, in which case the file cannot be validated.
+    """
+    stem = os.path.splitext(os.path.basename(path))[0]
+    key_path = os.path.join(os.path.dirname(path), f".{stem}_key")
+    if not os.path.isfile(key_path):
+        return None, None, False
+    try:
+        result = subprocess.run(
+            ["ansible-vault", "view", path, "--vault-password-file", key_path],
+            capture_output=True, text=True, check=False, timeout=120,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return None, f"Unable to decrypt vault file {path}: {exc}", True
+    if result.returncode != 0:
+        return None, f"Unable to decrypt vault file {path}: {result.stderr.strip()}", True
+    try:
+        return yaml.safe_load(result.stdout), None, True
+    except yaml.YAMLError:
+        return None, msg.yaml_parse_failed_msg(path), True
+
+
+REDACTED = "********"
+
+
+def collect_secret_strings(data: Any) -> list[str]:
+    """Return every scalar value (not key) in decrypted data, longest first."""
+    found, stack = set(), [data]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, dict):
+            stack.extend(item.values())
+        elif isinstance(item, list):
+            stack.extend(item)
+        elif isinstance(item, str) and item:
+            found.add(item)
+        elif isinstance(item, (int, float)) and not isinstance(item, bool):
+            found.add(str(item))
+    return sorted(found, key=len, reverse=True)
+
+
+def redact(text: Any, secrets: list[str]) -> str:
+    """Mask decrypted secret values (quoted always, bare when 3+ chars)."""
+    text = str(text)
+    for secret in secrets:
+        text = text.replace(repr(secret), REDACTED)
+        if len(secret) >= 3:
+            text = text.replace(secret, REDACTED)
+    return text
+
+
+class RedactingLogger(logging.LoggerAdapter):
+    """Logger adapter that masks decrypted secret values in log messages."""
+
+    def __init__(self, logger: logging.Logger, secrets: list[str]):
+        super().__init__(logger, {})
+        self.secrets = secrets
+
+    def process(self, msg, kwargs):
+        return redact(msg, self.secrets), kwargs
 
 
 def load_yaml(path: str) -> Any:
@@ -272,11 +337,26 @@ def _validate_file(
         return
 
     if is_vault_encrypted(config_path):
-        logger.info(msg.vault_file_skipped_msg(config_path))
-        state.mark_file(config_path, True)
-        return
-
-    data = load_yaml(config_path)
+        data, vault_error, key_available = load_vault_yaml(config_path)
+        if not key_available:
+            logger.warning(
+                "Vault-encrypted file NOT validated (vault key not found): %s",
+                config_path,
+            )
+            state.unvalidated_files.append(config_path)
+            return
+        if vault_error:
+            state.errors.append(vault_error)
+            state.mark_file(config_path, False)
+            logger.error(vault_error)
+            return
+        state.secrets = sorted(
+            set(state.secrets) | set(collect_secret_strings(data)),
+            key=len, reverse=True,
+        )
+        logger = RedactingLogger(logger, state.secrets)
+    else:
+        data = load_yaml(config_path)
     if data is None:
         error = msg.yaml_parse_failed_msg(config_path)
         state.errors.append(error)
@@ -292,9 +372,12 @@ def _validate_file(
         logger.error(error)
         return
 
-    file_errors = validate_against_schema(
-        data, schema_definition, os.path.basename(config_path), logger
-    )
+    file_errors = [
+        redact(error, state.secrets)
+        for error in validate_against_schema(
+            data, schema_definition, os.path.basename(config_path), logger
+        )
+    ]
     state.errors.extend(file_errors)
     state.mark_file(config_path, not file_errors)
     if not file_errors:
@@ -442,24 +525,6 @@ def _run_l2_validation(
                 )
             )
 
-    ha_path = os.path.realpath(
-        os.path.join(input_project_dir, "high_availability_config.yml")
-    )
-    if isinstance(omnia_data, dict) and ha_path not in state.invalid_files:
-        errors = validate_high_availability(
-            state.loaded_data.get("high_availability_config.json"),
-            input_project_dir,
-            logger,
-        )
-        if errors:
-            state.errors.extend(errors)
-            state.mark_file(ha_path, False)
-            logger.error(
-                msg.l2_validation_errors_msg(
-                    "high_availability_config", errors
-                )
-            )
-
 
 def run_module() -> None:
     """Run the Ansible module and return structured validation results."""
@@ -486,24 +551,22 @@ def run_module() -> None:
         _validate_file(
             file_config, input_project_dir, schema_dir, state, logger
         )
-    if high_availability_applicable(input_project_dir):
-        _validate_file(
-            HA_VALIDATION_FILE,
-            input_project_dir,
-            schema_dir,
-            state,
-            logger,
-        )
-    _run_l2_validation(input_project_dir, state, logger)
+    _run_l2_validation(
+        input_project_dir,
+        state,
+        RedactingLogger(logger, state.secrets) if state.secrets else logger,
+    )
+    state.errors = [redact(error, state.secrets) for error in state.errors]
     logger.info(msg.VALIDATION_END_MSG)
 
-    validation_failed = bool(state.errors)
+    validation_failed = bool(state.errors) or bool(state.unvalidated_files)
     status = "failed" if validation_failed else "completed"
     summary = [
         msg.validation_status_msg(status),
         msg.validation_counts_msg(
             len(state.valid_files), len(state.invalid_files)
         ),
+        f"Not validated (encrypted, no vault key): {len(state.unvalidated_files)}.",
         msg.validation_log_msg(log_file),
     ]
     module.exit_json(
@@ -514,6 +577,7 @@ def run_module() -> None:
         errors=state.errors,
         valid_files=state.valid_files,
         invalid_files=state.invalid_files,
+        unvalidated_files=state.unvalidated_files,
     )
 
 

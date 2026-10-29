@@ -14,13 +14,14 @@
 
 """Authentication service for OAuth2 client management."""
 
-import os
+import hmac
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional
 
 from api.auth.jwt_handler import JWTHandler, JWTCreationError
 from api.auth.password_handler import generate_credentials, verify_password
+from api.auth.scopes import GRANTABLE_SCOPES
 from api.logging_utils import log_auth_info
 from api.vault_client import VaultClient, VaultDecryptError, VaultNotFoundError
 from core.exceptions import (
@@ -87,7 +88,6 @@ class AuthService:
         """
         self.vault_client = vault_client or VaultClient()
         self.jwt_handler = jwt_handler or JWTHandler()
-        self._registration_username = os.getenv("AUTH_REGISTRATION_USERNAME")
 
     def verify_registration_credentials(self, username: str, password: str) -> bool:
         """Verify the Basic Auth credentials for registration endpoint.
@@ -131,10 +131,13 @@ class AuthService:
                 "Registration is not configured"
             ) from None
 
-        if username != stored_username:
-            raise AuthenticationError("Invalid credentials")
-
-        if not verify_password(password, stored_password_hash):
+        username_ok = hmac.compare_digest(
+            str(username).encode("utf-8"), str(stored_username).encode("utf-8")
+        )
+        # Always run the Argon2 check, so a wrong username takes as long as a
+        # wrong password and response timing does not reveal the username.
+        password_ok = verify_password(password, stored_password_hash)
+        if not (username_ok and password_ok):
             raise AuthenticationError("Invalid credentials")
 
         return True
@@ -219,11 +222,15 @@ class AuthService:
             # Ensure no exception details are exposed
             raise InvalidClientError("Client authentication failed") from None
 
-        # Checkmarx: Truncate client_id to first 8 chars before logging (prevents sensitive data exposure)
+        # Checkmarx: Truncate client_id to first 8 chars before logging
+        # (prevents sensitive data exposure)
         safe_client_id = client_id[:8] + "..." if len(client_id) > 8 else client_id
-        
+
         if client_id not in oauth_clients:
-            log_auth_info("warning", f"Unknown client_id attempted authentication: {safe_client_id}")
+            log_auth_info(
+                "warning",
+                f"Unknown client_id attempted authentication: {safe_client_id}"
+            )
             raise InvalidClientError("Client authentication failed")
 
         client_data = oauth_clients[client_id]
@@ -264,10 +271,20 @@ class AuthService:
         """
         # Checkmarx: Truncate client_id for all logging in this method
         safe_client_id = client_id[:8] + "..." if len(client_id) > 8 else client_id
-        
+
         client_data = self.verify_client_credentials(client_id, client_secret)
 
-        allowed_scopes = client_data.get("allowed_scopes", DEFAULT_SCOPES)
+        # Scopes stored for older clients (for example admin:*) that no route
+        # enforces are never placed in a token.
+        stored_scopes = client_data.get("allowed_scopes", DEFAULT_SCOPES)
+        allowed_scopes = [scope for scope in stored_scopes if scope in GRANTABLE_SCOPES]
+        if len(allowed_scopes) != len(stored_scopes):
+            log_auth_info(
+                "warning",
+                f"Ignored non-grantable stored scopes, client_id={safe_client_id}",
+            )
+        if not allowed_scopes:
+            raise InvalidScopeError("Client has no grantable scopes")
         client_name = client_data.get("client_name", "")
 
         if requested_scope:
