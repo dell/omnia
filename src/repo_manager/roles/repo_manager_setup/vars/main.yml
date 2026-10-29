@@ -67,6 +67,9 @@ supported_tags:
   - catalog_delete
   - catalog_generate
   - catalog_validate
+  # Modifiers read by roles/catalog alongside a catalog_* tag.
+  - catalog_transform
+  - catalog_optimize
 
 tag_validation_fail_msg: |
   Invalid tag usage detected.

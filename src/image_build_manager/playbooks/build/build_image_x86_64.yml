@@ -27,6 +27,7 @@
           - base_image
           - compute_image
           - s3_acl
+          - x86_64
       when: not (image_build_setup_done | default(false) | bool)
 
     - name: Run collect_build_credentials role (standalone only)

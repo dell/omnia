@@ -18,6 +18,7 @@ The validate_input module runs through the ansible CLI from the collection
 root so the module and its module_utils resolve exactly as in production.
 """
 
+import ast
 import json
 import os
 import re
@@ -250,6 +251,26 @@ class SupportedTagsContractTests(unittest.TestCase):
     def test_internal_pulp_tag_is_rejected(self):
         """'pulp' selects the never-tagged cleanup play, so it is not public."""
         self.assertNotIn("pulp", self._supported_tags())
+
+    def test_run_tag_modifiers_are_supported(self):
+        """Tags the roles read from ansible_run_tags must pass the tag guard."""
+        pattern = re.compile(r"['\"]([a-z][a-z0-9_]+)['\"]\s+in\s+\(?\s*ansible_run_tags")
+        referenced = set()
+        for path in REPO_MANAGER_ROOT.rglob("*.yml"):
+            referenced.update(pattern.findall(path.read_text(encoding="utf-8")))
+        self.assertEqual(referenced - {"all"} - self._supported_tags(), set())
+
+    def test_guard_tags_are_accepted_by_validate_input(self):
+        """A tag the guard accepts must not be rejected by validate_input."""
+        tree = ast.parse((MODULE_UTILS / "input_validation" / "core" / "config.py").read_text(
+            encoding="utf-8"))
+        values = {
+            node.targets[0].id: node.value for node in tree.body
+            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
+        }
+        accepted = {element.value for element in values["operation_tags"].elts}
+        accepted |= {key.value for key in values["input_file_inventory"].keys}
+        self.assertEqual(self._supported_tags() - accepted, set())
 
 
 if __name__ == "__main__":

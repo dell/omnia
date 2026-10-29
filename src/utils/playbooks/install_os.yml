@@ -52,6 +52,11 @@
         validate_prerequisites: false
         validate_config_files: false
         validate_disk_space: false
+        additional_supported_tags:
+          - credentials
+          - build_iso
+          - deploy
+          - generate_ks
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 1: Validate configuration

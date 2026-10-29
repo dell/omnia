@@ -390,7 +390,7 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_206 | `test_deployed_repository_contexts_fail_closed` | A malformed selected context cannot be hidden by a valid one. |
 | RM_UT_207 | `test_content_access_uses_literal_curl_status_token` | HTTPS metadata validation preserves curl's literal HTTP-status token. |
 
-### Input validation fail-closed (`test_input_validation_fail_closed.py`) -- 15 tests
+### Input validation fail-closed (`test_input_validation_fail_closed.py`) -- 17 tests
 
 #### ValidateInputTagFailClosedTests
 
@@ -426,6 +426,8 @@ explicitly excluded from aggregate FVT execution.
 |-------|------|-------------|
 | RM_UT_302 | `test_supported_tags_cover_public_and_play_tags` | Every omnia.sh public tag and repo_manager.yml play tag passes the tag guard. |
 | RM_UT_303 | `test_internal_pulp_tag_is_rejected` | The internal `pulp` tag, which also selects the Pulp cleanup play, stays rejected. |
+| RM_UT_304 | `test_run_tag_modifiers_are_supported` | Modifier tags read from `ansible_run_tags` (e.g. `catalog_optimize`) pass the tag guard. |
+| RM_UT_305 | `test_guard_tags_are_accepted_by_validate_input` | Every tag the guard accepts is also accepted by `validate_input`. |
 
 ## Registry summary
 
@@ -440,7 +442,7 @@ explicitly excluded from aggregate FVT execution.
 | `test_dataset_contract.py` | 17 | Consumer, generator, publication, and sync contracts |
 | `test_dnf_retry.py` | 7 | Transient-only bounded retries and integrity failures |
 | `test_framework_contract.py` | 30 | Commands, public tags, suites, entrypoint imports, filtering and dispatch |
-| `test_input_validation_fail_closed.py` | 15 | Unknown/empty tags fail closed; credential file mapped to a schema; tag guard covers public tags |
+| `test_input_validation_fail_closed.py` | 17 | Unknown/empty tags fail closed; credential file mapped to a schema; tag guard covers public tags |
 | `test_fvt_policy_helpers.py` | 9 | Policy config keys, Pulp JSON parsing, selected contexts and HTTPS verification |
 | `test_mirror_state.py` | 16 | Rerun/resync selection, checkpoints, ambiguity, corruption and atomic replacement |
 | `test_pulp_command_contract.py` | 13 | Central structured argv and allowlisted grammar |
@@ -449,4 +451,4 @@ explicitly excluded from aggregate FVT execution.
 | `test_repo_settings.py` | 7 | Configuration precedence and typed environment values |
 | `test_shared_artifact_state.py` | 16 | Integrity-verified reuse, ownership, atomic persistence and Git resolution |
 | `test_status_contract.py` | 11 | Multi-version aggregation, version-first endpoints and fail-closed publication |
-| **Total** | **220** | |
+| **Total** | **222** | |

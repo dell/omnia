@@ -419,7 +419,7 @@ def run_module() -> None:
 
     logger.info("=== Discovery Validation End ===")
 
-    validation_failed = len(all_errors) > 0
+    validation_failed = len(all_errors) > 0 or len(unvalidated_files) > 0
     status = "failed" if validation_failed else "completed"
 
     message = [

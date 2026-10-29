@@ -12,22 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# utils_setup is shared by utils.yml and install_os.yml, so this lists every
-# tag selectable in either playbook (see omnia.sh --help).
+# utils_setup is shared by utils.yml and install_os.yml. This lists the public
+# tags documented in omnia.sh --help for the utils.yml entry playbook.
+# Playbook-specific internal tags (bundle, k8s, slurm, curated_support, prepare,
+# validate, credentials, deploy, build_iso, generate_ks) are passed via
+# additional_supported_tags in each playbook.
 supported_tags:
   - precheck
   - setup
   - collect
   - install_os
-  - build_iso
-  - generate_ks
-  - deploy
-  - credentials
-  - bundle
-  - prepare
-  - validate
-  - k8s
-  - slurm
   - backup_oim_logs
   - slurm_config_backup
   - slurm_config_cleanup

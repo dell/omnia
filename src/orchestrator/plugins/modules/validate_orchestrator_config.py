@@ -559,7 +559,7 @@ def run_module() -> None:
     state.errors = [redact(error, state.secrets) for error in state.errors]
     logger.info(msg.VALIDATION_END_MSG)
 
-    validation_failed = bool(state.errors)
+    validation_failed = bool(state.errors) or bool(state.unvalidated_files)
     status = "failed" if validation_failed else "completed"
     summary = [
         msg.validation_status_msg(status),

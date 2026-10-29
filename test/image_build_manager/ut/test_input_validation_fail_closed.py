@@ -86,7 +86,7 @@ def test_encrypted_credentials_are_validated_with_masked_errors(tmp_path):
 
 
 def test_encrypted_credentials_without_key_are_unvalidated(tmp_path):
-    """Without a vault key the credentials file is never counted as valid."""
+    """Without a vault key the credentials file is never counted as valid and validation fails."""
     project = tmp_path / "project"
     project.mkdir()
     (tmp_path / "other_key").write_text("k2", encoding="utf-8")
@@ -94,7 +94,21 @@ def test_encrypted_credentials_without_key_are_unvalidated(tmp_path):
     result, _ = _validate(project, tmp_path / "logs")
     assert _names(result["unvalidated_files"]) == [CREDENTIALS]
     assert CREDENTIALS not in _names(result["valid_files"])
+    assert result["validation_failed"] is True
 
+
+
+def test_uncollected_template_values_are_not_errors(tmp_path):
+    """The credential template's empty values are placeholders, not errors."""
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / KEY).write_text("k2", encoding="utf-8")
+    _encrypt(project / CREDENTIALS,
+             's3_access_id: ""\ns3_secret_key: ""\naarch64_ssh_password: ""\n',
+             project / KEY)
+    result, _ = _validate(project, tmp_path / "logs")
+    assert CREDENTIALS in _names(result["valid_files"])
+    assert not any(CREDENTIALS in error for error in result["errors"])
 
 def test_standalone_x86_64_build_accepts_its_play_tags():
     """build_image_x86_64.yml runs the tag guard standalone; its play tags pass."""
@@ -102,6 +116,37 @@ def test_standalone_x86_64_build_accepts_its_play_tags():
     supported = set(yaml.safe_load(vars_file.read_text(encoding="utf-8"))["supported_tags"])
     playbook = yaml.safe_load(
         (IMAGE_BUILD_ROOT / "playbooks" / "build" / "build_image_x86_64.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    play_tags, extra, roles = set(), set(), set()
+
+    def _add(tags):
+        play_tags.update([tags] if isinstance(tags, str) else (tags or []))
+
+    for play in playbook:
+        _add(play.get("tags"))
+        for entry in play.get("roles", []):
+            roles.add(entry["role"] if isinstance(entry, dict) else entry)
+        for task in play.get("tasks", []):
+            _add(task.get("tags"))
+            role = task.get("ansible.builtin.include_role") or {}
+            roles.add(role.get("name"))
+            if role.get("name") == "image_build_setup":
+                extra.update((task.get("vars") or {}).get("additional_supported_tags", []))
+    for role in filter(None, roles):
+        for tasks_file in (IMAGE_BUILD_ROOT / "roles" / role / "tasks").glob("*.yml"):
+            for task in yaml.safe_load(tasks_file.read_text(encoding="utf-8")) or []:
+                _add(task.get("tags"))
+    assert play_tags - {"always", "never"} - supported - extra == set()
+
+
+def test_standalone_aarch64_build_accepts_its_play_tags():
+    """build_image_aarch64.yml runs the tag guard standalone; its play tags pass."""
+    vars_file = IMAGE_BUILD_ROOT / "roles" / "image_build_setup" / "vars" / "main.yml"
+    supported = set(yaml.safe_load(vars_file.read_text(encoding="utf-8"))["supported_tags"])
+    playbook = yaml.safe_load(
+        (IMAGE_BUILD_ROOT / "playbooks" / "build" / "build_image_aarch64.yml").read_text(
             encoding="utf-8"
         )
     )

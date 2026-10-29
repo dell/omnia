@@ -607,6 +607,8 @@ UT_TEST_CASE_IDS = {
         {
             302: "test_supported_tags_cover_public_and_play_tags",
             303: "test_internal_pulp_tag_is_rejected",
+            304: "test_run_tag_modifiers_are_supported",
+            305: "test_guard_tags_are_accepted_by_validate_input",
         },
     ),
 }

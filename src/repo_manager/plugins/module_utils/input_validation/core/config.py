@@ -148,6 +148,8 @@ operation_tags = {
     "catalog_add",
     "catalog_delete",
     "catalog_validate",
+    "catalog_transform",
+    "catalog_optimize",
 }
 
 # =============================================================================

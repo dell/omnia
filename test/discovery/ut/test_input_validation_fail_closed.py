@@ -125,10 +125,11 @@ def test_encrypted_input_is_decrypted_and_validated(dirs):
 
 
 def test_encrypted_input_without_key_is_unvalidated(dirs, tmp_path):
-    """Without a vault key the file is reported unvalidated, never valid."""
+    """Without a vault key the file is reported unvalidated and validation fails."""
     project, _, logs = dirs
     (tmp_path / "other_key").write_text("k3", encoding="utf-8")
     _encrypt(project / "network_spec.yml", "Networks: []\n", tmp_path / "other_key")
     result, _ = _validate(project, SCHEMA_DIR, logs)
     assert _names(result["unvalidated_files"]) == ["network_spec.yml"]
     assert "network_spec.yml" not in _names(result["valid_files"])
+    assert result["validation_failed"] is True

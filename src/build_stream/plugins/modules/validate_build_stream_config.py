@@ -44,6 +44,7 @@ from ansible.module_utils.input_validation.core.file_utils import (
     load_vault_yaml,
     load_yaml,
     redact,
+    split_placeholders,
 )
 from ansible.module_utils.input_validation.core.utils import create_logger
 from ansible.module_utils.input_validation.core.validation_engine import (
@@ -160,6 +161,7 @@ def run_module() -> None:
     unvalidated_files = []
     loaded_data = {}
     secrets_by_file = {}
+    placeholders_by_file = {}
 
     # --- L1: Schema validation for each config file ---
     config_data = None
@@ -193,6 +195,13 @@ def run_module() -> None:
                 logger.error(vault_error)
                 continue
             secrets_by_file[vf["config_file"]] = collect_secret_strings(data)
+            data, placeholders = split_placeholders(data)
+            if placeholders:
+                placeholders_by_file[vf["config_file"]] = placeholders
+                logger.info(
+                    f"Not yet collected (validated after the credential prompt): "
+                    f"{sorted(placeholders)} in {config_path}"
+                )
         else:
             data = load_yaml(config_path)
         if data is None:
@@ -208,6 +217,11 @@ def run_module() -> None:
             all_errors.append(err)
             logger.error(err)
             continue
+        placeholders = placeholders_by_file.get(vf["config_file"], set())
+        if placeholders:
+            schema_def = dict(schema_def, required=[
+                key for key in schema_def.get("required", []) if key not in placeholders
+            ])
 
         loaded_data[vf["config_file"]] = data
         secrets = secrets_by_file.get(vf["config_file"], [])
@@ -238,7 +252,9 @@ def run_module() -> None:
 
         # Cross-validate credentials (plaintext or decrypted vault) against config
         cred_data = loaded_data.get("build_stream_credentials.yml")
-        if cred_data and isinstance(cred_data, dict):
+        if "build_stream_credentials.yml" in placeholders_by_file:
+            logger.info("Credential logic check deferred: credentials not yet collected.")
+        elif cred_data and isinstance(cred_data, dict):
             secrets = secrets_by_file.get("build_stream_credentials.yml", [])
             cred_errors = validate_credentials_logic_new(
                 cred_data, config_data,
@@ -251,7 +267,7 @@ def run_module() -> None:
 
     logger.info(msg.VALIDATION_END_MSG)
 
-    validation_failed = len(all_errors) > 0
+    validation_failed = len(all_errors) > 0 or len(unvalidated_files) > 0
     status = "failed" if validation_failed else "completed"
 
     message = [

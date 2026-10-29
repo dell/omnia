@@ -61,6 +61,20 @@ def load_vault_yaml(path):
         return None, f"Failed to parse decrypted YAML: {path}", True
 
 
+def split_placeholders(data):
+    """Separate empty-string credential values from a decrypted document.
+
+    Credential collection writes its template with empty values, encrypts it
+    and prompts for them only after input validation has run. An empty value
+    in a decrypted credential file therefore means "not collected yet" rather
+    than "invalid". Returns (data_without_placeholders, placeholder_keys).
+    """
+    if not isinstance(data, dict):
+        return data, set()
+    placeholders = {key for key, value in data.items() if value == ""}
+    return {k: v for k, v in data.items() if k not in placeholders}, placeholders
+
+
 REDACTED = "********"
 
 

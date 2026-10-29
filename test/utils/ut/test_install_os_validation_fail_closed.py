@@ -86,6 +86,15 @@ def test_supported_tags_cover_public_and_play_tags(src_dir):
     """utils_setup guards utils.yml and install_os.yml; their tags all pass."""
     vars_file = src_dir / "roles" / "utils_setup" / "vars" / "main.yml"
     supported = set(yaml.safe_load(vars_file.read_text(encoding="utf-8"))["supported_tags"])
+    # Also collect additional_supported_tags from each playbook
+    for name in ("utils.yml", "install_os.yml"):
+        playbook = yaml.safe_load((src_dir / "playbooks" / name).read_text(encoding="utf-8"))
+        for play in playbook:
+            if isinstance(play, dict) and "roles" in play:
+                for role in play["roles"]:
+                    if isinstance(role, dict) and "role" in role and role["role"] == "utils_setup":
+                        if "vars" in role and "additional_supported_tags" in role["vars"]:
+                            supported.update(role["vars"]["additional_supported_tags"])
     omnia_sh = (src_dir.parent / "main" / "omnia.sh").read_text(encoding="utf-8")
     block = omnia_sh.split("Public tags by domain", 1)[1]
     expected = set(re.search(r"^\s+utils:\s+(.+)$", block, re.M).group(1).split())
@@ -93,4 +102,8 @@ def test_supported_tags_cover_public_and_play_tags(src_dir):
         for play in yaml.safe_load((src_dir / "playbooks" / name).read_text(encoding="utf-8")):
             tags = play.get("tags") or []
             expected.update([tags] if isinstance(tags, str) else tags)
-    assert expected - {"always", "never"} - supported == set()
+    referenced = set()
+    pattern = re.compile(r"['\"]([a-z][a-z0-9_]+)['\"]\s+in\s+\(?\s*ansible_run_tags")
+    for path in src_dir.rglob("*.yml"):
+        referenced.update(pattern.findall(path.read_text(encoding="utf-8")))
+    assert (expected | referenced) - {"always", "never", "all"} - supported == set()

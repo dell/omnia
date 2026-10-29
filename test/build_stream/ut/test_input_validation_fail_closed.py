@@ -81,7 +81,7 @@ def test_encrypted_credentials_are_schema_validated(project, tmp_path):
     """Decrypted vault content is validated rather than assumed valid."""
     (project / KEY).write_text("k1", encoding="utf-8")
     _encrypt(project / CREDENTIALS,
-             'gitlab_root_password: "dummy_secret"\ngitlab_ssh_password: ""\n',
+             'gitlab_root_password: "dummy_secret"\ngitlab_ssh_password: 12345\n',
              project / KEY)
     result, _ = _validate(project, tmp_path / "logs")
     assert CREDENTIALS in _names(result["invalid_files"])
@@ -90,13 +90,14 @@ def test_encrypted_credentials_are_schema_validated(project, tmp_path):
 
 
 def test_encrypted_file_without_key_is_reported_unvalidated(project, tmp_path):
-    """Without a vault key the file is listed as unvalidated, never valid."""
+    """Without a vault key the file is listed as unvalidated and validation fails."""
     (tmp_path / "other_key").write_text("k1", encoding="utf-8")
     _encrypt(project / CREDENTIALS, 'gitlab_root_password: "dummy_secret"\n',
              tmp_path / "other_key")
     result, _ = _validate(project, tmp_path / "logs")
     assert _names(result["unvalidated_files"]) == [CREDENTIALS]
     assert CREDENTIALS not in _names(result["valid_files"])
+    assert result["validation_failed"] is True
 
 
 def test_encrypted_file_with_wrong_key_fails(project, tmp_path):
@@ -123,3 +124,15 @@ def test_decrypted_secret_values_are_masked(project, tmp_path):
     for secret in ("dummy_secret", "98765"):
         assert secret not in stdout
         assert secret not in logs
+
+
+def test_uncollected_template_values_are_not_errors(project, tmp_path):
+    """Empty template values are prompted for after validation, so they pass."""
+    (project / KEY).write_text("k1", encoding="utf-8")
+    _encrypt(project / CREDENTIALS,
+             'gitlab_root_password: ""\ngitlab_ssh_password: ""\n'
+             'postgres_user: ""\npostgres_password: ""\n',
+             project / KEY)
+    result, _ = _validate(project, tmp_path / "logs")
+    assert CREDENTIALS in _names(result["valid_files"])
+    assert not any(CREDENTIALS in error for error in result["errors"])

@@ -70,7 +70,7 @@ def _names(paths):
 
 
 def test_encrypted_input_without_key_is_unvalidated(tmp_path):
-    """ORCH_UT_102: An undecryptable vault input is never reported valid."""
+    """ORCH_UT_102: An undecryptable vault input is never reported valid and validation fails."""
     project = tmp_path / "project"
     project.mkdir()
     (tmp_path / "other_key").write_text("k4", encoding="utf-8")
@@ -78,6 +78,7 @@ def test_encrypted_input_without_key_is_unvalidated(tmp_path):
     result, _ = _validate(project, tmp_path / "logs")
     assert _names(result["unvalidated_files"]) == ["omnia_config.yml"]
     assert "omnia_config.yml" not in _names(result["valid_files"])
+    assert result["validation_failed"] is True
 
 
 def test_encrypted_input_is_decrypted_and_validated(tmp_path):
