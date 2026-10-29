@@ -22,7 +22,7 @@ permissions are applied, and the OIM-side mount is active.
 """
 
 import os
-from typing import Any
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
     OMNIA_CONFIG,
@@ -205,7 +205,7 @@ def _non_target_rows(
 # ---------------------------------------------------------------------------
 
 
-def check_mount_config_mount_point(host):
+def check_mount_config_mount_point(host) -> Dict[str, Any]:
     """Verify NFS mount point directories exist on all target nodes."""
     summary = "NFS mount point directory"
     try:
@@ -247,7 +247,7 @@ def check_mount_config_mount_point(host):
         return runtime_exception(summary, exc)
 
 
-def check_mount_config_volume_mounted(host):
+def check_mount_config_volume_mounted(host) -> Dict[str, Any]:
     """Verify NFS volumes are actively mounted with correct source on nodes.
 
     Checks three properties for each configured mount on each target node:
@@ -380,7 +380,7 @@ def check_mount_config_volume_mounted(host):
         return runtime_exception(summary, exc)
 
 
-def check_mount_config_mount_options(host):
+def check_mount_config_mount_options(host) -> Dict[str, Any]:
     """Verify NFS mount options match storage_config.yml profile on nodes.
 
     Kernel-visible options are validated against ``/proc/mounts``.
@@ -490,7 +490,7 @@ def check_mount_config_mount_options(host):
         return runtime_exception(summary, exc)
 
 
-def check_mount_config_fstab(host):
+def check_mount_config_fstab(host) -> Dict[str, Any]:
     """Verify NFS fstab entries are persistent on all target nodes.
 
     Parses ``/etc/fstab`` fields and compares the exact normalised source
@@ -577,7 +577,7 @@ def _expected_bind_source(
     return f"{mount_point}/{node_value}{target}"
 
 
-def check_mount_config_bind_mounts(host):
+def check_mount_config_bind_mounts(host) -> Dict[str, Any]:
     """Verify NFS bind mount targets are active with correct source.
 
     For each bind target on each node:
@@ -675,7 +675,7 @@ def check_mount_config_bind_mounts(host):
         return runtime_exception(summary, exc)
 
 
-def check_mount_config_bind_fstab(host):
+def check_mount_config_bind_fstab(host) -> Dict[str, Any]:
     """Verify NFS bind mount fstab entries are persistent on target nodes.
 
     Parses ``/etc/fstab`` fields and compares the exact per-node source
@@ -775,7 +775,7 @@ def check_mount_config_bind_fstab(host):
         return runtime_exception(summary, exc)
 
 
-def check_mount_config_node_subdirectory(host):
+def check_mount_config_node_subdirectory(host) -> Dict[str, Any]:
     """Verify per-node subdirectory exists under NFS mount point."""
     summary = "NFS per-node subdirectory"
     try:
@@ -836,7 +836,7 @@ def check_mount_config_node_subdirectory(host):
         return runtime_exception(summary, exc)
 
 
-def check_mount_config_permissions(host):
+def check_mount_config_permissions(host) -> Dict[str, Any]:
     """Verify NFS mount permissions match storage_config.yml on nodes."""
     summary = "NFS mount permissions"
     try:
@@ -905,7 +905,7 @@ def check_mount_config_permissions(host):
         return runtime_exception(summary, exc)
 
 
-def check_mount_config_fg_targeting(host):
+def check_mount_config_fg_targeting(host) -> Dict[str, Any]:
     """Verify NFS mounts are present on target FGs and absent on others.
 
     Fails actionably when a configured mount resolves to zero target rows
@@ -992,7 +992,7 @@ def check_mount_config_fg_targeting(host):
         return runtime_exception(summary, exc)
 
 
-def check_mount_config_no_duplicate_fstab(host):
+def check_mount_config_no_duplicate_fstab(host) -> Dict[str, Any]:
     """Verify no duplicate fstab entries for configured NFS mounts."""
     summary = "NFS fstab uniqueness"
     try:
@@ -1044,7 +1044,7 @@ def check_mount_config_no_duplicate_fstab(host):
         return runtime_exception(summary, exc)
 
 
-def check_mount_config_writable(host):
+def check_mount_config_writable(host) -> Dict[str, Any]:
     """Verify all configured NFS mounts are writable on target nodes."""
     summary = "NFS mount writability"
     try:
@@ -1099,7 +1099,7 @@ def _normalize_nfs_source(source: str) -> str:
     return source.rstrip("/")
 
 
-def check_mount_config_oim_mount(host):
+def check_mount_config_oim_mount(host) -> Dict[str, Any]:
     """Verify NFS storage is mounted on the OIM when mount_on_oim is true.
 
     Checks:

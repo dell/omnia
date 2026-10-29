@@ -20,6 +20,7 @@ import secrets
 import shlex
 import time
 from pathlib import Path
+from typing import Any, Dict
 
 from omnia_auto import log
 
@@ -306,7 +307,7 @@ def _check_slurm_role_jobs(host, role_prefix, summary, missing_role):
         return runtime_exception(summary, exc)
 
 
-def check_slurm_control_node_jobs(host):
+def check_slurm_control_node_jobs(host) -> Dict[str, Any]:
     """Run one targeted job per compute from every Slurm control node."""
     return _check_slurm_role_jobs(
         host,
@@ -316,7 +317,7 @@ def check_slurm_control_node_jobs(host):
     )
 
 
-def check_slurm_login_node_jobs(host):
+def check_slurm_login_node_jobs(host) -> Dict[str, Any]:
     """Run one targeted job per compute from every login node."""
     return _check_slurm_role_jobs(
         host,
@@ -326,7 +327,7 @@ def check_slurm_login_node_jobs(host):
     )
 
 
-def check_slurm_compiler_node_jobs(host):
+def check_slurm_compiler_node_jobs(host) -> Dict[str, Any]:
     """Run one targeted job per compute from every login compiler node."""
     return _check_slurm_role_jobs(
         host,
@@ -336,7 +337,7 @@ def check_slurm_compiler_node_jobs(host):
     )
 
 
-def check_slurm_concurrent_jobs(host):
+def check_slurm_concurrent_jobs(host) -> Dict[str, Any]:
     """Run one concurrent targeted job per initially idle compute node."""
     summary = "Slurm concurrent batch jobs"
     submitted_jobs = []
@@ -590,7 +591,7 @@ def check_slurm_concurrent_jobs(host):
                     pass
 
 
-def check_slurm_insufficient_resources(host):
+def check_slurm_insufficient_resources(host) -> Dict[str, Any]:
     """Verify an impossible immediate allocation is rejected."""
     summary = "Slurm insufficient-resource handling"
     try:
@@ -707,7 +708,7 @@ def _queue_job_artifacts(host, row, job_id: str):
     )
 
 
-def check_slurm_job_queueing(host):
+def check_slurm_job_queueing(host) -> Dict[str, Any]:
     """Saturate all idle computes, then verify one extra job queues and runs."""
     summary = "Slurm job queueing behavior"
     jobs: list[str] = []
@@ -1110,7 +1111,7 @@ def check_slurm_job_queueing(host):
                         pass
 
 
-def check_slurm_drain_queue_recovery(host):
+def check_slurm_drain_queue_recovery(host) -> Dict[str, Any]:
     """Drain one compute node, verify the drain, queue a job, then restore.
 
     Verification phases:
@@ -1288,7 +1289,7 @@ def check_slurm_drain_queue_recovery(host):
                 pass
 
 
-def check_slurm_openmpi_job(host):
+def check_slurm_openmpi_job(host) -> Dict[str, Any]:
     """Compile and run an MPI program through Slurm's PMIx launcher."""
     summary = "Slurm OpenMPI job"
     workspace = ""
@@ -1507,7 +1508,7 @@ def check_slurm_openmpi_job(host):
                 )
 
 
-def check_slurm_gpu_job(host):
+def check_slurm_gpu_job(host) -> Dict[str, Any]:
     """Allocate one GPU through Slurm and query it inside the allocation."""
     summary = "Slurm GPU allocation"
     try:
@@ -1556,7 +1557,7 @@ def check_slurm_gpu_job(host):
         return runtime_exception(summary, exc)
 
 
-def check_slurm_gpu_memory_stress(host):
+def check_slurm_gpu_memory_stress(host) -> Dict[str, Any]:
     """Compile and run a bounded CUDA memory-allocation probe through Slurm."""
     summary = "Slurm GPU memory stress"
     try:
