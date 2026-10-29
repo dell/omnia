@@ -41,8 +41,8 @@ build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream/build_stream_root"
   - "{{ omnia_nfs_share }}/build_stream/postgres"
   - "{{ omnia_nfs_share }}/log/build_stream"
-  - "{{ omnia_nfs_share }}/build_stream_inv"
-  - "{{ omnia_nfs_share }}/build_stream_enabled"
+  - "{{ omnia_nfs_share }}/build_stream/build_stream_inv"
+  - "{{ omnia_nfs_share }}/build_stream/build_stream_enabled"
 
 # Remove the cleanup playbook's own host log only after every cleanup task has
 # succeeded, so failures remain diagnosable.
