@@ -60,6 +60,9 @@ Environment=NFS_ARTIFACT_BASE={{ build_stream_container_omnia_path }}/build_stre
 Volume={{ omnia_path }}/build_stream:{{ build_stream_container_omnia_path }}/build_stream{{ selinux_option }}
 Volume={{ omnia_path }}/build_stream_root:{{ build_stream_container_omnia_path }}/build_stream_root{{ selinux_option }}
 Volume={{ omnia_path }}/playbook_queue:{{ build_stream_container_omnia_path }}/playbook_queue{{ selinux_option }}
+{% for upload_dir in build_stream_upload_dirs %}
+Volume={{ omnia_path }}/{{ upload_dir }}:{{ build_stream_container_omnia_path }}/{{ upload_dir }}{{ selinux_option }}
+{% endfor %}
 Volume={{ build_stream_ssl_dir }}:/etc/ssl/omnia:ro{{ selinux_option | regex_replace('^:', ',') }}
 
 [Service]
