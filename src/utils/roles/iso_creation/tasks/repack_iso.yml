@@ -57,7 +57,7 @@
       repacked_iso_size: "{{ repacked_iso_stat.stat.size }}"
       kickstart_template: "{{ kickstart_template | default('user-provided') }}"
       kickstart_file: "{{ kickstart_file | default('') }}"
-      timestamp: "{{ ansible_date_time.iso8601 | default(lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ')) }}"
+      timestamp: "{{ ansible_date_time.iso8601 | default(now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ')) }}"
     dest: "{{ manifest_path }}"
     mode: "0644"
 
