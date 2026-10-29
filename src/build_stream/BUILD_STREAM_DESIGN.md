@@ -441,7 +441,7 @@ This prevents path injection attacks and provides a centralized mapping that can
 │           playbook_watcher_service.py                    │
 │   (Long-running systemd service on OIM host)            │
 ├─────────────────────────────────────────────────────────┤
-│  1. Watch /nfs/omnia/playbook_queue/ for JSON files     │
+│  1. Watch /nfs/omnia/build_stream/playbook_queue/ for JSON files │
 │  2. Validate playbook name against whitelist            │
 │  3. Map playbook name to full path via registry         │
 │  4. Execute ansible-playbook with extra vars            │

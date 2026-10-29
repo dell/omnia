@@ -37,10 +37,10 @@ build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream/logs"
   - "{{ omnia_nfs_share }}/build_stream/output"
   - "{{ omnia_nfs_share }}/build_stream/playbook_queue"
-  - "{{ omnia_nfs_share }}/playbook_queue"
+  - "{{ omnia_nfs_share }}/build_stream/ssl"
+  - "{{ omnia_nfs_share }}/build_stream/build_stream_root"
+  - "{{ omnia_nfs_share }}/build_stream/postgres"
   - "{{ omnia_nfs_share }}/log/build_stream"
-  - "{{ omnia_nfs_share }}/build_stream_ssl"
-  - "{{ omnia_nfs_share }}/build_stream_root"
   - "{{ omnia_nfs_share }}/build_stream_inv"
   - "{{ omnia_nfs_share }}/build_stream_enabled"
 
@@ -60,7 +60,7 @@ build_stream_python_cache_files:
 
 # ── Postgres cleanup ───────────────────────────────────────────────
 postgres_cleanup_directory:
-  - "{{ omnia_nfs_share }}/postgres"
+  - "{{ omnia_nfs_share }}/build_stream/postgres"
 
 # ── Automation framework cleanup ───────────────────────────────────
 automation_base_dir: "{{ omnia_nfs_share }}/automation"
