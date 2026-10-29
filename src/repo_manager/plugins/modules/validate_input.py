@@ -347,8 +347,30 @@ def main():
         except Exception:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to check build_stream status from build_stream_config.yml")
 
-    for tag_name in tag_names:
-        for name in input_file_inventory.get(tag_name, []):
+    operation_tags = config.operation_tags
+    optional_files = config.optional_files
+    unknown_tags = sorted(
+        set(tag_names) - set(input_file_inventory) - operation_tags
+    )
+    if unknown_tags:
+        error_message = (
+            f"Unknown tag(s) provided: {unknown_tags}. "
+            f"Valid tags are: {sorted(set(input_file_inventory) | operation_tags)}."
+        )
+        logger.error(error_message)
+        module.fail_json(msg=error_message)
+
+    known_tags = [tag for tag in tag_names if tag in input_file_inventory]
+    if not known_tags and not csv_file_path:
+        error_message = (
+            f"No input validation contract for tag(s): {tag_names}. "
+            f"Validation tags are: {sorted(input_file_inventory)}."
+        )
+        logger.error(error_message)
+        module.fail_json(msg=error_message)
+
+    for tag_name in known_tags:
+        for name in input_file_inventory[tag_name]:
             fname, _ = os.path.splitext(name)
 
             schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
@@ -397,6 +419,9 @@ def main():
 
                 input_file_path = catalog_file_path
                 logger.info("Using catalog from CATALOG_FILE_PATH: %s", input_file_path)
+            elif input_file_path is None and name in optional_files:
+                logger.info("Optional file %s not present; skipping validation", name)
+                continue
             elif input_file_path is None:
                 error_message = (
                     f"{fname} file not found in directory: {omnia_base_dir}/{project_name}"
@@ -461,8 +486,10 @@ def main():
     if not vstatus:
         message = (
             "No validation has been performed. "
-            "Please provide tags or include individual file names."
+            f"Tag(s) provided: {tag_names}. "
+            "Please provide valid tags or include individual file names."
         )
+        logger.error(message)
         module.fail_json(msg=message)
 
     logger.error(msg.get_footer())

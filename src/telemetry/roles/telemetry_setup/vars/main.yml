@@ -73,3 +73,30 @@ kubernetes_install_failure_msg: >-
   2. Download packages: pip3 download kubernetes -d {{ offline_python_packages_dir | default('/opt/omnia/telemetry/packages/python') }}/
   3. Re-run the playbook
   {% endif %}
+
+# Every tag selectable in telemetry.yml (see omnia.sh --help).
+supported_tags:
+  - precheck
+  - validate
+  - validation
+  - prepare
+  - credentials
+  - execute
+  - deploy
+  - deploy_sinks
+  - cleanup
+  - cleanup_idrac
+  - cleanup_ldms
+  - cleanup_ome
+  - cleanup_powerscale
+  - cleanup_ufm
+  - cleanup_vast
+  - cleanup_sinks
+  - external_kafka
+  - external_victoria
+
+tag_validation_fail_msg: |
+  Invalid tag usage detected.
+  Supported tags: {{ supported_tags | join(', ') }}
+  Invalid tags provided: {{ invalid_tags | join(', ') }}
+  Please use only supported tags.

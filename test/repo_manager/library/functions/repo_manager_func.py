@@ -120,7 +120,7 @@ def check_credentials_present(host) -> Dict[str, Any]:
     }
 
 
-def check_repo_configured(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_repo_configured(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check if a specific repository is configured in repo_manager_config.yml."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -167,7 +167,7 @@ def check_repo_configured(host, repo_name: str, arch: str = "x86_64", os_version
     }
 
 
-def get_configured_repos(host, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def get_configured_repos(host, arch: str, os_version: str) -> Dict[str, Any]:
     """Get list of all configured repositories from repo_manager_config.yml."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -215,7 +215,7 @@ def get_configured_repos(host, arch: str = "x86_64", os_version: str = "10.0") -
     }
 
 
-def get_deployed_repos(host, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def get_deployed_repos(host, arch: str, os_version: str) -> Dict[str, Any]:
     """Get repositories selected by the catalog and emitted to repo_status.yml."""
     repo_status = _read_repo_status(host)
     if not repo_status["success"]:
@@ -296,8 +296,7 @@ def get_deployed_repo_contexts(host) -> Dict[str, Any]:
 
 
 def check_repo_source_type(
-        host, repo_name: str, arch: str = "x86_64",
-        os_version: str = "10.0") -> Dict[str, Any]:
+        host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Classify a configured repository as subscription-backed or URL-backed."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -571,7 +570,7 @@ def check_repo_status_success(host) -> Dict[str, Any]:
     }
 
 
-def check_repo_status_has_repo(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_repo_status_has_repo(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Verify a specific RPM repository is present in repo_status.yml."""
     result = _read_repo_status(host)
     if not result["success"]:
@@ -597,8 +596,8 @@ def check_repo_status_has_repo(host, repo_name: str, arch: str = "x86_64", os_ve
 def check_repo_status_has_file_repo(
     host,
     repo_name: str,
-    arch: str = "x86_64",
-    os_version: str = "",
+    arch: str,
+    os_version: str,
 ) -> Dict[str, Any]:
     """Verify a specific file repository (tarball) is present in repo_status.yml."""
     result = _read_repo_status(host)
@@ -606,14 +605,13 @@ def check_repo_status_has_file_repo(
         return result
     data = result["details"]
     file_repos = data.get("file_repos") or {}
-    selected_version = os_version or next(iter(file_repos), "")
     try:
-        url = file_repos[selected_version][arch]["tarball"][repo_name]
+        url = file_repos[os_version][arch]["tarball"][repo_name]
         if url:
             return {
                 "success": True,
                 "details": (
-                    f"File repo '{repo_name}' ({selected_version}/{arch}) URL: {url}"
+                    f"File repo '{repo_name}' ({os_version}/{arch}) URL: {url}"
                 ),
                 "error": "",
             }
@@ -622,7 +620,7 @@ def check_repo_status_has_file_repo(
     return {
         "success": False,
         "details": (
-            f"Searched file_repos.{selected_version}.{arch}.tarball.{repo_name}"
+            f"Searched file_repos.{os_version}.{arch}.tarball.{repo_name}"
         ),
         "error": f"File repo '{repo_name}' not found in repo_status.yml",
     }
@@ -1224,7 +1222,7 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
     }
 
 
-def check_repo_policy(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_repo_policy(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check the effective policy for a specific repository."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -1285,7 +1283,7 @@ def check_repo_policy(host, repo_name: str, arch: str = "x86_64", os_version: st
     }
 
 
-def check_repo_caching(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_repo_caching(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check the effective caching setting for a specific repository."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -1474,7 +1472,7 @@ def check_global_caching_policy(host) -> Dict[str, Any]:
     }
 
 
-def check_pulp_remote_policy(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_pulp_remote_policy(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check the actual Pulp remote policy via Pulp CLI (integration test)."""
     # Construct the full remote name (actual naming convention includes "rhel")
     full_remote_name = f"{arch}_rhel_{os_version}_{repo_name}"
@@ -1511,7 +1509,7 @@ def check_pulp_remote_policy(host, repo_name: str, arch: str = "x86_64", os_vers
         }
 
 
-def check_pulp_repository_exists(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_pulp_repository_exists(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check if a Pulp repository exists via Pulp CLI (integration test)."""
     # Construct the full repository name (actual naming convention includes "rhel")
     full_repo_name = f"{arch}_rhel_{os_version}_{repo_name}"
@@ -1548,7 +1546,7 @@ def check_pulp_repository_exists(host, repo_name: str, arch: str = "x86_64", os_
         }
 
 
-def verify_policy_resolution(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def verify_policy_resolution(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Verify that the resolved policy from config matches actual Pulp remote policy."""
     # Get policy from configuration
     config_policy = check_repo_policy(host, repo_name, arch, os_version)
