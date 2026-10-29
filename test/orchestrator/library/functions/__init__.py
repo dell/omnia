@@ -198,6 +198,13 @@ from .external_ldap_pxeboot_func import (
     check_external_ldap_proxy,
     reconcile_external_ldap_proxy,
 )
+from .kubernetes_bootstrap_token_pxeboot_func import (
+    check_kubernetes_bootstrap_token_ttl,
+    check_kubernetes_cp_join_file_format,
+    check_kubernetes_cp_join_file_permissions,
+    check_kubernetes_worker_join_file_format,
+    check_kubernetes_worker_join_file_permissions,
+)
 from .kubernetes_etcd_pxeboot_func import (
     check_kubernetes_etcd_health,
     check_kubernetes_etcd_topology,
@@ -566,8 +573,13 @@ __all__ = [
     "check_kubernetes_control_plane_recovery",
     "check_kubernetes_csi_dynamic_provisioning",
     "check_kubernetes_default_storage_class",
+    "check_kubernetes_bootstrap_token_ttl",
+    "check_kubernetes_cp_join_file_format",
+    "check_kubernetes_cp_join_file_permissions",
     "check_kubernetes_etcd_health",
     "check_kubernetes_etcd_topology",
+    "check_kubernetes_worker_join_file_format",
+    "check_kubernetes_worker_join_file_permissions",
     "check_kubernetes_local_etcd",
     "check_kubernetes_local_etcd_integrity",
     "check_kubernetes_local_etcd_media",
