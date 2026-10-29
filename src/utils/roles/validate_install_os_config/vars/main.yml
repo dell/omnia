@@ -14,6 +14,9 @@
 ---
 
 # Error messages
+no_validation_mode_msg: >-
+  No install_os validation mode matches the provided tag(s) {{ ansible_run_tags }}.
+  Use one of: install_os, build_iso, deploy, generate_ks, credentials.
 config_file_missing_msg: >-
   install_os_config.yml not found at '{{ _install_os_config_path }}'.
   Please create the configuration file in the input directory.
