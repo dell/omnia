@@ -40,11 +40,7 @@
 
 - name: Fail if PXE mapping file is missing
   ansible.builtin.fail:
-    msg: >-
-      [IB-IPv6] PXE mapping file not found: {{ ib_ipv6_pxe_mapping_file }}.
-      The PXE mapping file is the sole ingestion interface for IPoIB
-      allocations. Ensure the file exists with IB columns
-      (IB_NIC_NAME, IB_IPV4/IB_IPV6).
+    msg: "{{ ib_ipv6_pxe_missing_msg }} Path: {{ ib_ipv6_pxe_mapping_file }}"
   when: not _ib_ipv6_pxe_stat.stat.exists
 
 - name: Validate IPoIB IPv6 allocations from PXE mapping
@@ -136,10 +132,7 @@
 
 - name: Gate BSS on SMD success (FR-4 RECOVERY_REQUIRED)
   ansible.builtin.debug:
-    msg: >-
-      [IB-IPv6] RECOVERY_REQUIRED — SMD publication failed; skipping BSS
-      publication. failure_stage=SMD_PUBLICATION, retryable=true,
-      recommended_action=rerun provisioning for affected nodes.
+    msg: "{{ ib_ipv6_smd_recovery_msg }}"
   when:
     - _ib_ipv6_render.nodes_needing_update | length > 0
     - not (_ib_ipv6_smd_success | default(true) | bool)
@@ -161,9 +154,9 @@
 - name: Report RECOVERY_REQUIRED publication state
   ansible.builtin.debug:
     msg: >-
-      [IB-IPv6] Publication state: {{ _ib_ipv6_publication_state }}.
+      {{ ib_ipv6_publication_state_msg }} {{ _ib_ipv6_publication_state }}.
       {% if _ib_ipv6_publication_state == 'RECOVERY_REQUIRED' %}
-      Idempotent rerun will complete remaining publications.
+      {{ ib_ipv6_publication_rerun_msg }}
       {% endif %}
   when: _ib_ipv6_publication_state == 'RECOVERY_REQUIRED'
 

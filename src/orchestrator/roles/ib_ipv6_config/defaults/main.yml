@@ -34,10 +34,12 @@ ib_ipv6_hashes_file: "{{ ib_ipv6_output_dir }}/config_hashes.json"
 ib_ipv6_peer_addresses: {}
 
 # Log directory
-ib_ipv6_log_dir: "{{ hostvars['localhost']['omnia_data_path'] | default('/opt/omnia') }}/log/core/playbooks"
+ib_ipv6_log_dir: "{{ hostvars['localhost']['omnia_data_path'] }}/log/core/playbooks"
 
 # OpenSM non-regression check (set to true to capture before/after snapshots)
 ib_ipv6_opensm_check: false
 
-# Verification after configuration
-ib_ipv6_verify: true
+# Verification after configuration (disabled by default — nodes must PXE boot
+# and have IPv6 addresses assigned via cloud-init before verification is meaningful).
+# Enable in a post-pxeboot playbook or set to true only when nodes are reachable.
+ib_ipv6_verify: false

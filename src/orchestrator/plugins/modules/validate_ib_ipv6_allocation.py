@@ -33,15 +33,11 @@ from __future__ import annotations
 
 import csv
 import ipaddress
-import json
 import logging
 import os
 from typing import Any
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.orchestrator_validation.validators import (
-    ib_ipv6_allocation_validator as validator,
-)
 
 DOCUMENTATION = r'''
 ---
@@ -63,13 +59,6 @@ options:
       This is the sole ingestion interface for IPoIB allocations per
       ER-ORCH-005 / BR-34869 v6.1. Mandatory IB columns: SERVICE_TAG or
       HOSTNAME, IB_NIC_NAME, IB_IPV4/IB_IPV6 (or legacy IB_IP).
-    required: false
-    type: str
-    default: ""
-  allocation_file:
-    description: >
-      (Legacy) Absolute path to the IPoIB IPv6 allocation export JSON file.
-      Deprecated — use pxe_mapping_file instead.
     required: false
     type: str
     default: ""
@@ -450,9 +439,6 @@ def run_module() -> None:
             "pxe_mapping_file": {
                 "type": "str", "required": False, "default": "",
             },
-            "allocation_file": {
-                "type": "str", "required": False, "default": "",
-            },
             "approved_prefixes": {
                 "type": "list",
                 "elements": "str",
@@ -465,10 +451,9 @@ def run_module() -> None:
         supports_check_mode=True,
     )
     pxe_mapping_file = module.params["pxe_mapping_file"]
-    allocation_file = module.params["allocation_file"]
     approved_prefixes = module.params["approved_prefixes"]
     configured_log_dir = module.params["log_dir"] or os.path.join(
-        os.getenv("OMNIA_DATA_PATH", "/opt/omnia"),
+        os.environ["OMNIA_DATA_PATH"],
         "log", "core", "playbooks",
     )
     log_dir = os.path.realpath(configured_log_dir)
@@ -567,126 +552,13 @@ def run_module() -> None:
         )
         return
 
-    # --- Legacy JSON allocation file path ---
-    if not allocation_file:
-        module.fail_json(
-            msg="Either pxe_mapping_file or allocation_file must be provided",
-            validation_failed=True,
-            errors=["No input file specified"],
-            log_file=log_file,
-            total_allocations=0,
-        )
-        return
-
-    allocation_file = os.path.realpath(allocation_file)
-    schema_file = module.params["schema_file"]
-
-    if not os.path.isfile(allocation_file):
-        module.fail_json(
-            msg=f"Allocation file not found: {allocation_file}",
-            validation_failed=True,
-            errors=[f"File not found: {allocation_file}"],
-            log_file=log_file,
-            total_allocations=0,
-        )
-        return
-
-    try:
-        with open(allocation_file, "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-    except (OSError, json.JSONDecodeError) as exc:
-        module.fail_json(
-            msg=f"Failed to parse allocation file: {exc}",
-            validation_failed=True,
-            errors=[f"Parse error: {exc}"],
-            log_file=log_file,
-            total_allocations=0,
-        )
-        return
-
-    total_allocations = len(data.get("allocations", []))
-    logger.info(
-        "[IB-IPv6] Loaded %d allocation records from %s (legacy JSON)",
-        total_allocations, allocation_file,
-    )
-
-    schema_errors = validator.validate_schema(data, logger, schema_file)
-    if schema_errors:
-        module.exit_json(
-            changed=False,
-            validation_failed=True,
-            errors=schema_errors,
-            normalized_nodes={},
-            ib_mode="unknown",
-            legacy_ib_ip={},
-            snapshot_id=data.get("snapshot_id", ""),
-            total_allocations=total_allocations,
-            active_allocations=0,
-            log_file=log_file,
-        )
-        return
-
-    semantic_errors = validator.validate_semantic(data, logger)
-    if semantic_errors:
-        module.exit_json(
-            changed=False,
-            validation_failed=True,
-            errors=semantic_errors,
-            normalized_nodes={},
-            ib_mode="unknown",
-            legacy_ib_ip={},
-            snapshot_id=data.get("snapshot_id", ""),
-            total_allocations=total_allocations,
-            active_allocations=0,
-            log_file=log_file,
-        )
-        return
-
-    normalized_nodes, rejected_nodes = validator.preflight_validate(
-        data, logger
-    )
-    active_count = sum(
-        len(records)
-        for ifaces in normalized_nodes.values()
-        for records in ifaces.values()
-    )
-
-    if normalized_nodes:
-        first_node_ifaces = next(iter(normalized_nodes.values()))
-        ib_mode = validator.detect_ib_mode(first_node_ifaces)
-    else:
-        ib_mode = "unknown"
-
-    legacy_ib_ip = {}
-    for node_id, node_ifaces in normalized_nodes.items():
-        projection = validator.legacy_ib_ip_projection(node_ifaces)
-        if projection is not None:
-            legacy_ib_ip[node_id] = projection
-
-    rejection_errors = []
-    for node_id, reasons in rejected_nodes.items():
-        for reason in reasons:
-            rejection_errors.append(
-                f"[IB-IPv6] Node {node_id} rejected: {reason}"
-            )
-
-    logger.info(
-        "[IB-IPv6] Validation complete: %d active allocations across %d nodes, "
-        "mode=%s, %d rejections",
-        active_count, len(normalized_nodes), ib_mode, len(rejection_errors),
-    )
-
-    module.exit_json(
-        changed=False,
-        validation_failed=False,
-        errors=rejection_errors,
-        normalized_nodes=normalized_nodes,
-        ib_mode=ib_mode,
-        legacy_ib_ip=legacy_ib_ip,
-        snapshot_id=data.get("snapshot_id", ""),
-        total_allocations=total_allocations,
-        active_allocations=active_count,
+    # No PXE mapping file provided
+    module.fail_json(
+        msg="pxe_mapping_file must be provided",
+        validation_failed=True,
+        errors=["No input file specified"],
         log_file=log_file,
+        total_allocations=0,
     )
 
 

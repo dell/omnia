@@ -23,7 +23,17 @@ ib_ipv6_publish_start_msg: "[IB-IPv6] Publishing configuration to SMD and BSS"
 ib_ipv6_verify_start_msg: "[IB-IPv6] Starting post-configuration verification"
 ib_ipv6_verify_pass_msg: "[IB-IPv6] All interfaces HEALTHY"
 ib_ipv6_verify_degraded_msg: "[IB-IPv6] One or more interfaces DEGRADED — see errors"
-ib_ipv6_allocation_missing_msg: >-
-  IPoIB IPv6 allocation file not found.
-  Ensure ib_ipv6_allocation_file is configured in network_spec.yml
-  and the allocation export has been generated.
+ib_ipv6_pxe_missing_msg: >-
+  [IB-IPv6] PXE mapping file not found.
+  The PXE mapping file is the sole ingestion interface for IPoIB
+  allocations. Ensure the file exists with IB columns
+  (IB_NIC_NAME, IB_IPV4/IB_IPV6).
+ib_ipv6_smd_recovery_msg: >-
+  [IB-IPv6] RECOVERY_REQUIRED — SMD publication failed; skipping BSS
+  publication. failure_stage=SMD_PUBLICATION, retryable=true,
+  recommended_action=rerun provisioning for affected nodes.
+ib_ipv6_publication_state_msg: "[IB-IPv6] Publication state:"
+ib_ipv6_publication_rerun_msg: "Idempotent rerun will complete remaining publications."
+ib_ipv6_unreachable_nodes_msg: >-
+  [IB-IPv6] DEGRADED — node(s) unreachable via SSH during verification.
+  Nodes may not have booted yet. Rerun provisioning to verify.

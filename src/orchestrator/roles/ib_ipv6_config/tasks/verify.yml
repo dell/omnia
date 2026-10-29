@@ -82,10 +82,9 @@
 - name: Warn about unreachable nodes
   ansible.builtin.debug:
     msg: >-
-      [IB-IPv6] DEGRADED — {{ _ib_ipv6_unreachable_nodes | length }} node(s)
-      unreachable via SSH during verification:
-      {{ _ib_ipv6_unreachable_nodes | join(', ') }}.
-      Nodes may not have booted yet. Rerun provisioning to verify.
+      {{ ib_ipv6_unreachable_nodes_msg }}
+      Count: {{ _ib_ipv6_unreachable_nodes | length }},
+      nodes: {{ _ib_ipv6_unreachable_nodes | join(', ') }}
   when: (_ib_ipv6_unreachable_nodes | default([])) | length > 0
 
 - name: Report verification results
