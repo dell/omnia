@@ -612,19 +612,19 @@ CMDS = {
     # --- PowerScale syslog config via SSH ---
     "powerscale_syslog_view": (
         "sshpass -p '{password}'"
-        " ssh -o StrictHostKeyChecking=accept-new -o PubkeyAuthentication=no"
+        " ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no"
         " {user}@{host}"
         " 'isi audit settings global view'"
     ),
     "powerscale_syslog_configure": (
         "sshpass -p '{password}'"
-        " ssh -o StrictHostKeyChecking=accept-new -o PubkeyAuthentication=no"
+        " ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no"
         " {user}@{host}"
         " '{isi_cmd}'"
     ),
     "powerscale_get_privileges": "isi auth privileges",
     "powerscale_get_privileges_password": (
-        "sshpass -p %s ssh -o StrictHostKeyChecking=accept-new"
+        "sshpass -p %s ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
         " -o PubkeyAuthentication=no -o ConnectTimeout=10 -- %s %s"
     ),
 
