@@ -27,6 +27,8 @@ if [ -z "$MINIO_SECRET_KEY" ]; then
     exit 0
 fi
 
+# Create the file owner-only from the start; it holds the S3 secret key.
+umask 077
 cat > "$S3CFG_FILE" <<EOF
 [default]
 access_key = ${MINIO_ACCESS_KEY}

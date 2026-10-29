@@ -3016,7 +3016,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "prettytable==3_14_0": {
         "name": "prettytable==3.14.0",
@@ -3395,7 +3395,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.1"
+        "tag": "1.2"
       },
       "git": {
         "name": "git",
@@ -4725,7 +4725,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "lshw": {
         "name": "lshw",
@@ -4932,7 +4932,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.36"
+        "tag": "1.38"
       },
       "docker.io/dellhpcomniaaisolution/victoriapump": {
         "name": "docker.io/dellhpcomniaaisolution/victoriapump",
@@ -4947,7 +4947,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "lsscsi": {
         "name": "lsscsi",

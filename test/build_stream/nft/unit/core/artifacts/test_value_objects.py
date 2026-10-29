@@ -42,10 +42,6 @@ class TestSafePath:
         sp = SafePath(value=Path("/opt/artifacts/store"))
         assert sp.value == Path("/opt/artifacts/store")
 
-    def test_from_string(self) -> None:
-        sp = SafePath.from_string("/opt/artifacts/store")
-        assert sp.value == Path("/opt/artifacts/store")
-
     def test_empty_path_raises(self) -> None:
         with pytest.raises(ValueError, match="cannot be empty"):
             SafePath(value=Path(""))
@@ -57,23 +53,23 @@ class TestSafePath:
     def test_path_too_long_raises(self) -> None:
         long_path = "a" * (SafePath.MAX_LENGTH + 1)
         with pytest.raises(ValueError, match="cannot exceed"):
-            SafePath.from_string(long_path)
+            SafePath(value=Path(long_path))
 
     def test_traversal_dot_dot_raises(self) -> None:
         with pytest.raises(ValueError, match="traversal"):
-            SafePath.from_string("/opt/../etc/passwd")
+            SafePath(value=Path("/opt/../etc/passwd"))
 
     def test_relative_path_with_dots_in_name_allowed(self) -> None:
-        sp = SafePath.from_string("/opt/my..file.tar.gz")
+        sp = SafePath(value=Path("/opt/my..file.tar.gz"))
         assert "my..file.tar.gz" in str(sp)
 
     def test_traversal_encoded_raises(self) -> None:
         with pytest.raises(ValueError, match="traversal"):
-            SafePath.from_string("/opt/%2e%2e/etc")
+            SafePath(value=Path("/opt/%2e%2e/etc"))
 
     def test_null_byte_raises(self) -> None:
         with pytest.raises(ValueError, match="null bytes"):
-            SafePath.from_string("/opt/file\x00.json")
+            SafePath(value=Path("/opt/file\x00.json"))
 
     def test_immutable(self) -> None:
         sp = SafePath(value=Path("/opt/store"))
@@ -81,7 +77,7 @@ class TestSafePath:
             sp.value = Path("/other")  # type: ignore[misc]
 
     def test_str_representation(self) -> None:
-        sp = SafePath.from_string("/opt/store")
+        sp = SafePath(value=Path("/opt/store"))
         assert str(sp) == str(Path("/opt/store"))
 
 

@@ -179,14 +179,6 @@ class Job:
         """Check if job is in COMPLETED state."""
         return self.job_state == JobState.COMPLETED
 
-    def is_failed(self) -> bool:
-        """Check if job is in FAILED state."""
-        return self.job_state == JobState.FAILED
-
     def is_cancelled(self) -> bool:
         """Check if job is in CANCELLED state."""
         return self.job_state == JobState.CANCELLED
-
-    def is_in_progress(self) -> bool:
-        """Check if job is in IN_PROGRESS state."""
-        return self.job_state == JobState.IN_PROGRESS

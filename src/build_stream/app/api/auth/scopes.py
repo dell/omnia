@@ -12,4 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Infrastructure adapters for S3 cleanup operations."""
+"""OAuth scope vocabulary shared by registration, token issue and route guards.
+
+Only scopes that at least one route enforces are grantable, so a client can
+never hold a scope whose meaning is undefined.
+"""
+
+CATALOG_READ = "catalog:read"
+CATALOG_WRITE = "catalog:write"
+JOB_READ = "job:read"
+JOB_WRITE = "job:write"
+
+GRANTABLE_SCOPES = frozenset({CATALOG_READ, CATALOG_WRITE, JOB_READ, JOB_WRITE})

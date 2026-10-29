@@ -23,11 +23,29 @@
     msg: "{{ build_stream_nfs_path_error_msg }}"
   when: not build_stream_stat.stat.exists
 
+- name: Ensure the watcher source tree is outside the API container mount
+  ansible.builtin.assert:
+    that:
+      - not ((omnia_src_path | realpath) ~ '/').startswith((omnia_path | realpath) ~ '/')
+    fail_msg: "{{ build_stream_src_in_data_path_msg }}"
+    quiet: true
+
 - name: Create playbook_queue directory
   ansible.builtin.file:
-    path: "{{ oim_shared_path }}/build_stream/playbook_queue"
+    path: "{{ build_stream_watcher_playbook_queue_base }}"
     state: directory
-    mode: "{{ build_stream_dir_mode }}"
+    owner: root
+    group: root
+    mode: "{{ build_stream_queue_dir_mode }}"
+
+- name: Create playbook_queue subdirectories
+  ansible.builtin.file:
+    path: "{{ build_stream_watcher_playbook_queue_base }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ build_stream_queue_dir_mode }}"
+  loop: "{{ build_stream_queue_subdirs }}"
 
 - name: Deploy playbook watcher systemd unit
   ansible.builtin.template:
