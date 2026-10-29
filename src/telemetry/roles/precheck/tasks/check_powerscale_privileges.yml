@@ -67,8 +67,6 @@
       - -o
       - StrictHostKeyChecking=no
       - -o
-      - UserKnownHostsFile=/dev/null
-      - -o
       - PubkeyAuthentication=no
       - -o
       - ConnectTimeout=10
