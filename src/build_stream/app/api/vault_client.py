@@ -14,7 +14,6 @@
 
 """Ansible Vault client for secure credential storage and retrieval."""
 
-from api.logging_utils import log_secure_info
 import os
 import re
 import subprocess
@@ -23,6 +22,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import yaml
+
+from api.logging_utils import log_secure_info
 
 
 
@@ -85,6 +86,8 @@ class VaultClient:  # pylint: disable=too-few-public-methods
             "AUTH_CONFIG_VAULT_PATH",
             default_credentials_path,
         )
+        self._clients_cache: Dict[str, Any] = {}
+        self._clients_cache_key: Optional[tuple] = None
 
     _ALLOWED_VAULT_COMMANDS = frozenset({"view", "encrypt", "decrypt"})
 
@@ -258,6 +261,30 @@ class VaultClient:  # pylint: disable=too-few-public-methods
             return data.get("oauth_clients", {})
         except VaultNotFoundError:
             return {}
+
+    def get_oauth_clients_cached(self) -> Dict[str, Any]:
+        """Get OAuth clients, decrypting the vault again only when the file changes.
+
+        Token validation calls this on every request. The cache is keyed on
+        the file's inode, modification time and size, so deleting or
+        disabling a client takes effect on the next request without running
+        ``ansible-vault`` each time.
+
+        Returns:
+            Dictionary of registered OAuth clients (empty if the file is absent).
+
+        Raises:
+            VaultDecryptError: If decryption fails.
+        """
+        try:
+            stat = os.stat(self.oauth_clients_vault_path)
+        except FileNotFoundError:
+            return {}
+        cache_key = (stat.st_ino, stat.st_mtime_ns, stat.st_size)
+        if cache_key != self._clients_cache_key:
+            self._clients_cache = self.get_oauth_clients()
+            self._clients_cache_key = cache_key
+        return self._clients_cache
 
     def save_oauth_client(
         self,

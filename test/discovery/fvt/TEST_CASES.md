@@ -59,7 +59,7 @@
 | TC ID | Test Function | Description | Marker |
 |-------|---------------|-------------|--------|
 | DISCOVERY_FVT_EXECUTE_V007 | `test_functional_groups_supported` | Verify all functional groups are Omnia-supported | functional |
-| DISCOVERY_FVT_EXECUTE_V008 | `test_ip_correlation` | Verify ADMIN_IP/IB_IP correlation with BMC_IP | functional |
+| DISCOVERY_FVT_EXECUTE_V008 | `test_ip_correlation` | Verify ADMIN_IP/IB_IPV4 correlation with BMC_IP | functional |
 | DISCOVERY_FVT_EXECUTE_V009 | `test_parent_service_tag` | Verify PARENT_SERVICE_TAG rules for slurm_node groups | functional |
 | DISCOVERY_FVT_EXECUTE_V014 | `test_pxe_mapping_orchestrator_contract` | Verify PXE mapping CSV format for Orchestrator | functional, contract |
 

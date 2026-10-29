@@ -809,11 +809,11 @@ def check_functional_groups_supported(host) -> Dict[str, Any]:
 
 
 def check_ip_correlation(host) -> Dict[str, Any]:
-    """Verify ADMIN_IP and IB_IP correlation with BMC_IP based on network_spec.yml.
+    """Verify ADMIN_IP and IB_IPV4 correlation with BMC_IP based on network_spec.yml.
 
     IP correlation logic from discovery:
     - ADMIN_IP = admin_subnet[0:2] + bmc_ip[2:4]
-    - IB_IP = ib_subnet[0:2] + bmc_ip[2:4]
+    - IB_IPV4 = ib_subnet[0:2] + bmc_ip[2:4]
 
     Args:
         host: Testinfra host connection.
@@ -852,7 +852,9 @@ def check_ip_correlation(host) -> Dict[str, Any]:
         admin_ip_idx = headers.index("ADMIN_IP")
         bmc_ip_idx = headers.index("BMC_IP")
         hostname_idx = headers.index("HOSTNAME")
-        ib_ip_idx = headers.index("IB_IP") if "IB_IP" in headers else -1
+        ib_ip_idx = headers.index("IB_IPV4") if "IB_IPV4" in headers else (
+            headers.index("IB_IP") if "IB_IP" in headers else -1
+        )
     except ValueError as e:
         result["error"] = f"Required column not found: {e}"
         return result
@@ -900,7 +902,7 @@ def check_ip_correlation(host) -> Dict[str, Any]:
             })
             continue
 
-        # Check IB_IP if present and ib_subnet configured
+        # Check IB_IPV4 if present and ib_subnet configured
         if ib_ip and ib_octets and len(ib_octets) == 4:
             ib_parts = ib_ip.split(".")
             expected_ib = (
@@ -913,7 +915,7 @@ def check_ip_correlation(host) -> Dict[str, Any]:
                     "ib_ip": ib_ip,
                     "bmc_ip": bmc_ip,
                     "expected_ib_ip": expected_ib,
-                    "reason": f"IB_IP mismatch: expected {expected_ib}",
+                    "reason": f"IB_IPV4 mismatch: expected {expected_ib}",
                 })
                 continue
 
