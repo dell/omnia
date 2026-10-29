@@ -2,10 +2,8 @@
 
 `generate_dataset.py` creates a repeatable snapshot from the current
 `src/orchestrator/input/` tree and the current Orchestrator sample handoffs.
-Profiles select which source files and sample directories are copied.
-
-The generator does not render Jinja templates and has no `--from-src` mode;
-copying the source tree is its only generation mode.
+The generator renders source YAML files through Jinja2 templates. Profile-based
+filtering determines which files to include in the dataset.
 
 ## Quick start
 
@@ -42,7 +40,7 @@ generate_dataset.py --list-profiles
 | `--force` | Replace an existing dataset after staging generation succeeds |
 | `--var KEY=VALUE` | Override an in-memory profile value; repeatable |
 
-`--var` does not edit the copied YAML or CSV files. Of the current variables,
+`--var` does not edit the rendered YAML files. Of the current variables,
 only `dcgm_enabled` is emitted in the generated README. To change product
 input, create the dataset, review the generated files, and maintain an
 intentional custom dataset or custom source/profile workflow. Do not assume a
@@ -59,7 +57,7 @@ variable override changed the runtime configuration.
 
 The shipped workload profiles currently select the same files and include both
 dependency handoffs. Their names and `dcgm_enabled` metadata do not rewrite
-`omnia_config.yml` or `pxe_mapping_file.csv`. Therefore, the copied source
+`omnia_config.yml` or `pxe_mapping_file.csv`. Therefore, the rendered source
 content determines the actual Kubernetes/Slurm topology. Inspect it before
 synchronization.
 
@@ -97,17 +95,18 @@ datasets/<dataset_name>/
 │   └── repo_status.yml
 ├── image_build_manager_output/
 │   └── build_status.yml
+├── dataset_manifest.yml
 └── README.md
 ```
 
-The generated README records the profile, `dcgm_enabled`, copied files, and
+The generated README records the profile, `dcgm_enabled`, rendered files, and
 the command needed to regenerate the dataset.
 
 ## Publication behavior
 
 Generation occurs in a temporary staging directory below `datasets/`.
 
-- A new dataset is copied into its final directory only after source copying
+- A new dataset is copied into its final directory only after rendering
   and README generation succeed.
 - An existing dataset is not replaced unless `--force` is supplied.
 - `--check` compares file names, sizes, and bytes with a newly staged result.

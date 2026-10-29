@@ -20,7 +20,7 @@ import re
 import secrets
 import shlex
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
     KUBERNETES_CSI_SNAPSHOT_POD_PREFIXES,
@@ -74,7 +74,7 @@ def _kubernetes_nfs_storage(context, config) -> dict[str, str]:
     }
 
 
-def check_kubernetes_default_storage_class(host):
+def check_kubernetes_default_storage_class(host) -> Dict[str, Any]:
     """Verify exactly one product-selected default StorageClass."""
     summary = "Kubernetes default StorageClass"
     try:
@@ -125,7 +125,7 @@ def check_kubernetes_default_storage_class(host):
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_snapshot_controller(host):
+def check_kubernetes_snapshot_controller(host) -> Dict[str, Any]:
     """Verify snapshot-controller and PowerScale CSI pods when CSI is enabled."""
     summary = "Kubernetes PowerScale snapshot components"
     try:
@@ -162,7 +162,7 @@ def check_kubernetes_snapshot_controller(host):
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_nfs_provisioner_contract(host):
+def check_kubernetes_nfs_provisioner_contract(host) -> Dict[str, Any]:
     """Verify the NFS provisioner and selected backend configuration."""
     summary = "Kubernetes NFS provisioner and backend contract"
     try:
@@ -535,7 +535,7 @@ def _functional_check(
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_workload_scheduling(host):
+def check_kubernetes_workload_scheduling(host) -> Dict[str, Any]:
     """Create, verify, and remove one isolated schedulable workload."""
     return _functional_check(
         host,
@@ -543,7 +543,7 @@ def check_kubernetes_workload_scheduling(host):
     )
 
 
-def check_kubernetes_nfs_dynamic_provisioning(host):
+def check_kubernetes_nfs_dynamic_provisioning(host) -> Dict[str, Any]:
     """Create, bind, use, and remove one NFS-backed claim."""
     return _functional_check(
         host,
@@ -552,7 +552,7 @@ def check_kubernetes_nfs_dynamic_provisioning(host):
     )
 
 
-def check_kubernetes_csi_dynamic_provisioning(host):
+def check_kubernetes_csi_dynamic_provisioning(host) -> Dict[str, Any]:
     """Create, bind, use, and remove one PowerScale-backed claim."""
     return _functional_check(
         host,
