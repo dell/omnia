@@ -28,7 +28,7 @@
 
 - name: Set timestamp for PXE mapping file
   ansible.builtin.set_fact:
-    pxe_mapping_timestamp: "{{ ansible_date_time.iso8601_basic_short | default(lookup('pipe', 'date +%Y%m%dT%H%M%S')) }}"
+    pxe_mapping_timestamp: "{{ ansible_date_time.iso8601_basic_short | default(now(fmt='%Y%m%dT%H%M%S')) }}"
 
 - name: Set timestamped PXE mapping output file path
   ansible.builtin.set_fact:
