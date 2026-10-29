@@ -74,9 +74,12 @@ OMNIA_REDHAT_REPO = os.path.join(
 files = {
     "repo_manager_config": "repo_manager_config.yml",
     "repo_manager_endpoint_config": "repo_manager_endpoint_config.yml",
+    "repo_manager_config_credentials": "repo_manager_config_credentials.yml",
     # Internal schema selector only. The user catalog input path is resolved
     # from CATALOG_FILE_PATH and is not required to have this basename.
     "catalog_config": "catalog_rhel.json",
+    # Intentionally not in input_file_inventory: Repo Manager does not consume
+    # these files. They are validated by the domains that own them.
     "omnia_config": "omnia_config.yml",
     "provision_config": "provision_config.yml",
     "storage_config": "storage_config.yml"
@@ -98,23 +101,55 @@ input_file_inventory = {
     "precheck": [
         files["repo_manager_config"],
         files["repo_manager_endpoint_config"],
+        files["repo_manager_config_credentials"],
         files["catalog_config"]
     ],
     "local_repo": [
         files["repo_manager_config"],
         files["repo_manager_endpoint_config"],
+        files["repo_manager_config_credentials"],
         files["catalog_config"]
     ],
     "repo_manager": [
         files["repo_manager_config"],
         files["repo_manager_endpoint_config"],
+        files["repo_manager_config_credentials"],
         files["catalog_config"]
     ],
     "all": [
         files["repo_manager_config"],
         files["repo_manager_endpoint_config"],
+        files["repo_manager_config_credentials"],
         files["catalog_config"]
     ],
+}
+
+# Inventory files that are validated when present but may not exist yet.
+# The credential file is created by the credentials/prepare flow.
+optional_files = {
+    files["repo_manager_config_credentials"],
+}
+
+# Run tags that select Repo Manager operations but carry no input-file
+# validation contract. Any tag that is neither here nor in
+# input_file_inventory is rejected so a typo cannot pass validation.
+operation_tags = {
+    "always",
+    "never",
+    "pulp",
+    "credentials",
+    "execute",
+    "download",
+    "status",
+    "cleanup",
+    "cleanup_pulp",
+    "cleanup_repos",
+    "catalog_generate",
+    "catalog_add",
+    "catalog_delete",
+    "catalog_validate",
+    "catalog_transform",
+    "catalog_optimize",
 }
 
 # =============================================================================
@@ -154,7 +189,9 @@ passwords_set = {
     "postgres_password",
     "bmc_password",
     "switch_snmp3_password",
-    "docker_password"
+    "docker_password",
+    "pulp_password",
+    "password"
 }
 
 # =============================================================================

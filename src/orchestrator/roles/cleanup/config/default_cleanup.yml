@@ -54,15 +54,10 @@ cleanup_components:
     preserve:
       - "slurm_backups"
     cleanup_paths:
-      - "slurm"
-      - "ctld_track"
-      - "openldap"
-      - "apps"
-      - "scratch"
-      - "projects"
+      - "storage mount and fstab entry (NFS data cleanup is manual - see README.md)"
     nfs_cleanup: true
     unmount_mounts: true
-    description: "Slurm services, configuration, and NFS directories"
+    description: "Slurm services, configuration, storage unmount, and fstab cleanup (NFS data cleanup is manual)"
 
   k8s:
     enabled: true
@@ -72,11 +67,11 @@ cleanup_components:
     confirmation_token: "CLEANUP_K8S"
     preserve: []
     cleanup_paths:
-      - "all entries under the configured Kubernetes NFS mount"
+      - "storage mount and fstab entry (NFS data cleanup is manual - see README.md)"
     cleanup_node_ips: false
     nfs_cleanup: true
     unmount_mounts: true
-    description: "All Kubernetes shared data, storage mount, and fstab entry"
+    description: "Kubernetes storage unmount and fstab cleanup (NFS data cleanup is manual)"
 
   storage_mounts:
     enabled: true

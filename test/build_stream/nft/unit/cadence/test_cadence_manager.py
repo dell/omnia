@@ -30,9 +30,7 @@ from cadence_manager import (
     _default_build_stream_config_path,
     _repo_resync_status_path,
     is_pipeline_busy,
-    copy_cadence_catalog_to_default_path,
     fetch_cadence_catalog_from_gitlab,
-    bump_catalog_version,
     submit_repo_sync_request,
     wait_for_sync_result,
     emit_audit_event,
@@ -83,65 +81,6 @@ class TestPipelineIdleCheck:
 
         # Restore permissions for cleanup
         os.chmod(processing_dir, 0o755)  # nosec B103
-
-
-class TestCatalogCopy:
-    """UT-004: Catalog copy tests."""
-
-    def test_copy_catalog_success(self, temp_dir, sample_catalog_json):
-        """TC-UT-004-001: Copy cadence catalog to CATALOG_FILE_PATH."""
-        source_dir = temp_dir / "gitlab_repo"
-        source_dir.mkdir()
-        source_file = source_dir / "cadence_catalog_rhel.json"
-        source_file.write_text(json.dumps(sample_catalog_json))
-
-        target_dir = temp_dir / "catalog"
-        target_dir.mkdir()
-        target_file = target_dir / "catalog_rhel.json"
-
-        result = copy_cadence_catalog_to_default_path(source_file, target_file)
-
-        assert result is True
-        assert target_file.exists()
-        assert json.loads(target_file.read_text()) == sample_catalog_json
-
-    def test_create_target_directory(self, temp_dir, sample_catalog_json):
-        """TC-UT-004-002: Create target directory if missing."""
-        source_dir = temp_dir / "gitlab_repo"
-        source_dir.mkdir()
-        source_file = source_dir / "cadence_catalog_rhel.json"
-        source_file.write_text(json.dumps(sample_catalog_json))
-
-        target_file = temp_dir / "catalog" / "catalog_rhel.json"
-
-        result = copy_cadence_catalog_to_default_path(source_file, target_file)
-
-        assert result is True
-        assert target_file.exists()
-
-    def test_handle_missing_source(self, temp_dir):
-        """TC-UT-004-003: Handle missing source catalog."""
-        source_file = temp_dir / "nonexistent.json"
-        target_file = temp_dir / "catalog" / "catalog_rhel.json"
-
-        with patch("cadence_manager.log_secure_info") as mock_log:
-            result = copy_cadence_catalog_to_default_path(source_file, target_file)
-            assert result is False
-            mock_log.assert_called()
-
-    def test_handle_json_parse_error(self, temp_dir):
-        """TC-UT-004-004: Handle JSON parse errors."""
-        source_dir = temp_dir / "gitlab_repo"
-        source_dir.mkdir()
-        source_file = source_dir / "cadence_catalog_rhel.json"
-        source_file.write_text("invalid json {{{")
-
-        target_file = temp_dir / "catalog" / "catalog_rhel.json"
-
-        with patch("cadence_manager.log_secure_info") as mock_log:
-            result = copy_cadence_catalog_to_default_path(source_file, target_file)
-            assert result is False
-            mock_log.assert_called()
 
 
 @pytest.mark.unit
@@ -219,51 +158,6 @@ class TestGitLabCatalogFetch:
 
         assert result is False
         assert target_file.read_text() == original
-
-class TestVersionBumping:
-    """UT-005: Version bumping tests."""
-
-    def test_bump_patch_version_1_0_to_1_1(self, temp_dir, sample_catalog_json):
-        """TC-UT-005-001: Bump patch version (1.0 -> 1.1)."""
-        catalog_file = temp_dir / "catalog.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        new_version = bump_catalog_version(catalog_file)
-
-        assert new_version == "1.1"
-        updated_catalog = json.loads(catalog_file.read_text())
-        assert updated_catalog["catalog"]["version"] == "1.1"
-
-    def test_bump_patch_version_1_5_to_1_6(self, temp_dir, sample_catalog_json):
-        """TC-UT-005-002: Bump patch version (1.5 -> 1.6)."""
-        sample_catalog_json["catalog"]["version"] = "1.5"
-        catalog_file = temp_dir / "catalog.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        new_version = bump_catalog_version(catalog_file)
-
-        assert new_version == "1.6"
-
-    def test_handle_missing_version_field(self, temp_dir, sample_catalog_json):
-        """TC-UT-005-003: Handle missing version field."""
-        del sample_catalog_json["catalog"]["version"]
-        catalog_file = temp_dir / "catalog.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        new_version = bump_catalog_version(catalog_file)
-
-        assert new_version == "1.1"
-
-    def test_handle_invalid_version_format(self, temp_dir, sample_catalog_json):
-        """TC-UT-005-004: Handle invalid version format."""
-        sample_catalog_json["catalog"]["version"] = "invalid"
-        catalog_file = temp_dir / "catalog.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        new_version = bump_catalog_version(catalog_file)
-
-        assert new_version == "invalid.1"
-
 
 class TestPlaybookRequest:
     """UT-007: Playbook request submission tests."""
@@ -615,9 +509,6 @@ class TestCadenceExactMirrorFlow:
         thread = self._thread(config, temp_dir)
         status = TestRepoResyncContract._status(2, 1)
         with patch(
-            "cadence_manager.copy_cadence_catalog_to_default_path",
-            return_value=True,
-        ), patch(
             "cadence_manager.submit_repo_sync_request", return_value=True
         ) as submit, patch(
             "cadence_manager.wait_for_sync_result",

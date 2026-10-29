@@ -14,6 +14,8 @@ def _class_cases(file_name, class_name, cases):
     }
 
 
+_REDACTION = "test_error_message_redaction.py"
+
 # Every sequence is explicit so formatting or test collection order cannot
 # renumber a published case. Add new cases with the next available sequence.
 UT_TEST_CASE_IDS = {
@@ -527,6 +529,86 @@ UT_TEST_CASE_IDS = {
             268: "test_without_allowed_root_behavior_is_unchanged",
             269: "test_write_inside_root_succeeds",
             270: "test_write_outside_root_raises_and_writes_nothing",
+        },
+    ),
+    f"{_REDACTION}::test_schema_yaml_error_does_not_return_file_content": "RM_UT_271",
+    f"{_REDACTION}::test_vault_write_read_failure_reports_type_only": "RM_UT_272",
+    f"{_REDACTION}::test_vault_write_unexpected_failure_still_fails_cleanly": "RM_UT_273",
+    f"{_REDACTION}::test_csv_own_messages_are_unchanged": "RM_UT_274",
+    f"{_REDACTION}::test_csv_decode_error_reports_type_only": "RM_UT_275",
+    f"{_REDACTION}::test_csv_read_failures_do_not_echo_exception_text": "RM_UT_276",
+    f"{_REDACTION}::test_input_data_unexpected_error_logs_type_only": "RM_UT_277",
+    f"{_REDACTION}::test_vault_write_yaml_error_includes_line_column": "RM_UT_288",
+    f"{_REDACTION}::"
+    "test_write_status_to_file_keeps_running_when_mirror_index_update_fails": "RM_UT_278",
+    "test_vault_in_memory_read.py::"
+    "test_process_encrypted_file_yaml_error_does_not_echo_content": "RM_UT_279",
+    **_class_cases(
+        "test_pulp_container_remote_api.py",
+        "RestClientCompatibilityTests",
+        {
+            280: "test_request_json_returns_none_for_explicit_and_fallback_errors",
+            281: "test_raw_get_returns_none_for_explicit_and_fallback_errors",
+        },
+    ),
+    **_class_cases(
+        "test_container_reconciliation.py",
+        "ContainerReconciliationTests",
+        {
+            282: "test_remote_tag_attribute_error_is_normalized",
+            283: "test_remote_tag_type_error_is_normalized",
+        },
+    ),
+    **_class_cases(
+        "test_pulp_repo_name_migration_contract.py",
+        "PulpRepoNameMigrationContractTests",
+        {
+            284: "test_load_config_invalid_cli_section_keeps_session_invalid",
+            285: "test_read_toml_config_returns_none_on_parser_type_error",
+            286: "test_http_methods_return_standard_failure_dict_on_type_error",
+        },
+    ),
+    "test_vault_in_memory_read.py::"
+    "test_process_encrypted_file_vault_error_does_not_echo_stderr": "RM_UT_287",
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "ValidateInputTagFailClosedTests",
+        {
+            289: "test_unknown_tag_alone_is_rejected",
+            290: "test_known_tag_with_unknown_tag_is_rejected",
+            291: "test_empty_tag_list_is_rejected",
+            292: "test_operation_only_tag_is_rejected",
+            293: "test_operation_tag_with_validation_tag_validates_files",
+            294: "test_valid_tag_with_missing_required_file_fails",
+            295: "test_missing_schema_for_mapped_file_fails",
+        },
+    ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "ValidationTagScopeTests",
+        {
+            296: "test_deploy_pulp_endpoint_contract_is_scoped_to_its_include",
+        },
+    ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "CredentialFileValidationContractTests",
+        {
+            297: "test_credential_file_is_mapped_for_every_repo_config_tag",
+            298: "test_schema_accepts_document_written_by_credential_collection",
+            299: "test_schema_rejects_missing_pulp_password",
+            300: "test_schema_rejects_unknown_top_level_key",
+            301: "test_schema_rejects_incomplete_registry_credential",
+        },
+    ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "SupportedTagsContractTests",
+        {
+            302: "test_supported_tags_cover_public_and_play_tags",
+            303: "test_internal_pulp_tag_is_rejected",
+            304: "test_run_tag_modifiers_are_supported",
+            305: "test_guard_tags_are_accepted_by_validate_input",
         },
     ),
 }

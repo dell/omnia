@@ -16,6 +16,7 @@
 
 import hashlib
 import os
+import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,7 +47,16 @@ from orchestrator.upload.exceptions import InvalidFilenameError, FileSizeExceede
 # Base data path and project name — read from environment (sourced from omnia.env).
 # Every derived path below uses these instead of hardcoding /opt/omnia.
 _OMNIA_DATA_PATH = os.getenv("OMNIA_DATA_PATH", "/opt/omnia")
-_OMNIA_PROJECT_NAME = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+_raw_project = os.getenv("OMNIA_PROJECT_NAME", "project_default")
+if (
+    not _raw_project
+    or _raw_project in ('.', '..')
+    or os.path.basename(_raw_project) != _raw_project
+    or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,254}', _raw_project)
+):
+    log_secure_info("warning", "Invalid OMNIA_PROJECT_NAME; using project_default")
+    _raw_project = "project_default"
+_OMNIA_PROJECT_NAME = _raw_project
 
 # Shared input directory path for playbook consumption (legacy flat path).
 # Used by provision and other non-domain-segregated playbooks.
@@ -188,8 +198,8 @@ class UploadFilesUseCase:
         """
         log_secure_info('info', f"Executing upload files for job_id={command.job_id}")
 
-        # Validate job exists and is in valid state
-        self._current_job = self._validate_job(command.job_id)
+        # Validate job exists, belongs to the caller and is in valid state
+        self._current_job = self._validate_job(command.job_id, command.client_id)
 
         # Retrieve and validate upload stage
         stage = self._get_upload_stage(command.job_id)
@@ -257,21 +267,25 @@ class UploadFilesUseCase:
 
         return result
 
-    def _validate_job(self, job_id):
-        """Validate job exists and is not in terminal state.
+    def _validate_job(self, job_id, client_id):
+        """Validate job exists, is owned by the caller and is not terminal.
+
+        A job owned by another client is reported as not found, as in the
+        other stage use cases, so the response does not reveal that it exists.
 
         Args:
             job_id: Job identifier.
+            client_id: Client identifier from the access token.
 
         Returns:
             Job entity.
 
         Raises:
-            JobNotFoundError: If job does not exist.
+            JobNotFoundError: If job does not exist or belongs to another client.
             TerminalStateViolationError: If job is in terminal state.
         """
         job = self._job_repo.find_by_id(job_id)
-        if job is None:
+        if job is None or job.client_id != client_id:
             raise JobNotFoundError(f"Job not found: {job_id}")
 
         if job.is_completed() or job.is_cancelled():

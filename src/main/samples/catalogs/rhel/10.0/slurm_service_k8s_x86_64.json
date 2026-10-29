@@ -1030,7 +1030,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.1"
+        "tag": "1.2"
       },
       "slurm": {
         "name": "slurm",
@@ -1217,7 +1217,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "quay.io/strimzi/operator": {
         "name": "quay.io/strimzi/operator",
@@ -1504,7 +1504,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "cryptsetup": {
         "name": "cryptsetup",
@@ -2104,7 +2104,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.36"
+        "tag": "1.38"
       },
       "openssh": {
         "name": "openssh",
@@ -3111,7 +3111,7 @@
             "registry": "docker.io"
           }
         ],
-        "tag": "1.3"
+        "tag": "1.4"
       },
       "ovis_ldms": {
         "name": "ovis-ldms",

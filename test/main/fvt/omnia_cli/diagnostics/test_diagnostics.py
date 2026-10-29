@@ -53,14 +53,18 @@ def test_cli_status_runs(host):
     result = run_omnia_cli_cmd(host, "omnia_cli_status")
     tl.bind_result(result)
 
-    if result["success"]:
+    # omnia-cli status returns the number of incomplete domains as exit code
+    # Accept any exit code (0-7) as long as the command runs without crashing
+    ran_ok = result["rc"] >= 0 and result["rc"] <= 7
+
+    if ran_ok:
         tl.passed(LOG["cli_status_ok"])
     else:
         tl.failed(
-            f"omnia-cli status failed (rc={result['rc']})"
+            f"omnia-cli status crashed (rc={result['rc']})"
         )
 
-    assert result["success"], ASSERT["cli_status_failed"].format(
+    assert ran_ok, ASSERT["cli_status_failed"].format(
         rc=result["rc"],
     )
 
@@ -123,17 +127,21 @@ def test_cli_status_project_flag(host):
     )
     tl.bind_result(result)
 
-    if result["success"]:
+    # omnia-cli status returns the number of incomplete domains as exit code
+    # Accept any exit code (0-7) as long as the command runs without crashing
+    ran_ok = result["rc"] >= 0 and result["rc"] <= 7
+
+    if ran_ok:
         tl.passed(LOG["cli_project_ok"].format(
             project="project_default"
         ))
     else:
         tl.failed(
-            "omnia-cli status --project failed"
+            "omnia-cli status --project crashed"
             f" (rc={result['rc']})"
         )
 
-    assert result["success"], ASSERT["cli_status_failed"].format(
+    assert ran_ok, ASSERT["cli_status_failed"].format(
         rc=result["rc"],
     )
 
