@@ -25,6 +25,8 @@ from library.vars import TEST_CASES as TC
 from fvt.result import verify_pxeboot
 
 
+@pytest.mark.buildstream
+@pytest.mark.sanity
 @pytest.mark.non_disruptive
 @pytest.mark.functional
 @pytest.mark.slurm

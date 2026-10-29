@@ -469,8 +469,8 @@ def check_hpc_benchmarks_concurrent_staging(host):
         )
 
         # Wait for both
-        rc_a = wait_for_pid(host, node_a, pid_a)
-        rc_b = wait_for_pid(host, node_b, pid_b)
+        rc_a = wait_for_pid(host, node_a, pid_a, log_a)
+        rc_b = wait_for_pid(host, node_b, pid_b, log_b)
 
         # Fingerprint from both nodes
         fp_a = snapshot_tool_fingerprints(host, node_a, platform_a)
