@@ -197,10 +197,10 @@ def get_ldms_hostnames_from_inventory(host) -> Dict[str, Any]:
     """Get LDMS node hostnames from orchestrator inventory.
 
     LDMS runs on the following functional groups (with architecture suffixes):
-      - slurm_control_node_x86_64
-      - slurm_node_x86_64, slurm_node_aarch64
-      - login_node_x86_64, login_node_aarch64
-      - login_compiler_node_x86_64, login_compiler_node_aarch64
+      - slurm_control_node_rhel_10_0_x86_64, slurm_control_node_rhel_10_2_x86_64
+      - slurm_node_rhel_10_{0,2}_x86_64, slurm_node_rhel_10_{0,2}_aarch64
+      - login_node_rhel_10_{0,2}_x86_64, login_node_rhel_10_{0,2}_aarch64
+      - login_compiler_node_rhel_10_{0,2}_x86_64, login_compiler_node_rhel_10_{0,2}_aarch64
 
     Uses the omnia_auto.get_inventory_hosts() function to parse the
     Ansible inventory file.

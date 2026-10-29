@@ -98,6 +98,7 @@ def _skip_if_idrac_disabled(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(40)
+@pytest.mark.idrac
 def test_idrac_pod_count(host):
     """TEL_FVT_DEPLOY_V010: Verify iDRAC pod count matches bmc_group_data.csv."""
     _skip_if_idrac_disabled(host)
@@ -151,6 +152,7 @@ def test_idrac_pod_count(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(41)
+@pytest.mark.idrac
 def test_idrac_sts_ready(host):
     """TEL_FVT_DEPLOY_V011: Verify iDRAC StatefulSet pods ready."""
     _skip_if_idrac_disabled(host)
@@ -193,6 +195,7 @@ def test_idrac_sts_ready(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(42)
+@pytest.mark.idrac
 def test_idrac_containers(host):
     """TEL_FVT_DEPLOY_V012: Verify all iDRAC containers running."""
     _skip_if_idrac_disabled(host)
@@ -262,6 +265,7 @@ def test_idrac_containers(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(43)
+@pytest.mark.idrac
 def test_idrac_mysql_data(host):
     """TEL_FVT_DEPLOY_V013: Verify MySQL data in iDRAC telemetry pods."""
     _skip_if_idrac_disabled(host)
@@ -332,6 +336,7 @@ def test_idrac_mysql_data(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(44)
+@pytest.mark.idrac
 def test_idrac_receiver_collecting(host):
     """TEL_FVT_DEPLOY_V014: Verify iDRAC receiver is collecting metrics."""
     _skip_if_idrac_disabled(host)
@@ -393,8 +398,9 @@ def test_idrac_receiver_collecting(host):
 # =========================================================================
 
 @pytest.mark.source
-@pytest.mark.sanity
+@pytest.mark.functional
 @pytest.mark.order(45)
+@pytest.mark.idrac
 def test_idrac_kafka_topic(host):
     """TEL_FVT_DEPLOY_V015: Verify fresh iDRAC metrics flow to Kafka."""
     _skip_if_idrac_disabled(host)
@@ -450,6 +456,7 @@ def test_idrac_kafka_topic(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(46)
+@pytest.mark.idrac
 def test_idrac_victoria_pump(host):
     """TEL_FVT_DEPLOY_V016: Verify iDRAC VictoriaPump container is running."""
     _skip_if_idrac_disabled(host)
@@ -514,6 +521,7 @@ def test_idrac_victoria_pump(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(47)
+@pytest.mark.idrac
 def test_idrac_service(host):
     """TEL_FVT_DEPLOY_V017: Verify iDRAC telemetry service exists."""
     _skip_if_idrac_disabled(host)
@@ -570,6 +578,7 @@ def _build_service_tag_lines(tag_result):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(48)
+@pytest.mark.idrac
 def test_idrac_vm_data(host):
     """TEL_FVT_DEPLOY_V018: Verify iDRAC telemetry data in VictoriaMetrics."""
     _skip_if_idrac_disabled(host)
@@ -640,6 +649,7 @@ def test_idrac_vm_data(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(49)
+@pytest.mark.idrac
 def test_idrac_disabled_state(host):
     """Verify disabled iDRAC owns no active pods and leaves shared sinks healthy."""
     if is_source_enabled(host, "idrac"):

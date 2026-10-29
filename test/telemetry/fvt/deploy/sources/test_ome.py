@@ -238,6 +238,7 @@ def _ldms_uses_vector_vmagent(config):
 @pytest.mark.sanity
 @pytest.mark.ome
 @pytest.mark.order(80)
+@pytest.mark.functional
 def test_ome_vector_bridge(host):
     """Verify Vector-OME bridge deployment ready."""
     tc = TC["ome_vector_bridge"]
@@ -857,6 +858,7 @@ def test_ome_cert_verify(host):
 @pytest.mark.functional
 @pytest.mark.ome
 @pytest.mark.order(87)
+@pytest.mark.sanity
 def test_ome_kafka_topics(host):
     """Verify OME Kafka topics exist.
 
