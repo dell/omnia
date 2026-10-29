@@ -63,6 +63,14 @@ build_stream_queue_subdirs:
   - archive/requests
   - archive/results
 build_stream_queue_dir_mode: "0700"
+# Upload destinations written by the API (PUT /jobs/{id}/upload). Relative to
+# omnia_path; mounted at the same relative path inside the API container.
+build_stream_upload_dirs:
+  - catalog
+  - "repo_manager/input/{{ project_name }}"
+  - "image_build_manager/input/{{ project_name }}"
+  - "orchestrator/input/{{ project_name }}"
+  - "input/{{ project_name }}"
 watcher_poll_interval_seconds: 2
 watcher_max_concurrent_jobs: 1
 watcher_default_timeout_minutes: 150

@@ -91,6 +91,10 @@ build_stream_cleanup_failure_msg:
   - "   - {{ build_stream_cleanup_directory | join(', ') }}"
   - "After manual cleanup, you can safely retry the cleanup playbook."
 
+cleanup_credentials_invalid_msg: >-
+  cleanup_credentials accepts only true or false. Use
+  -e cleanup_credentials=false to preserve Build Stream credentials during cleanup.
+
 postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
  if postgres_backup | default(true) | bool else 'DELETE data (postgres_backup=false)' }}"
 
@@ -120,7 +124,7 @@ cleanup_summary_msg: |
     - build_stream output, queues, runtime logs, and Python caches
     - host Ansible logs under /var/log/omnia/build_stream
     - build_stream NFS runtime directories
-    - build_stream credential files
+  Credentials: {{ 'REMOVED' if cleanup_credentials | default(true) | bool else 'PRESERVED (cleanup_credentials=false)' }}
   Postgres data: {{ 'PRESERVED (use -e postgres_backup=false to delete)' if postgres_backup | default(true) | bool else 'DELETED' }}
   Before redeploying, reinitialize the BuildStream domain to recreate its
   runtime and log directories, then run the deployment:
