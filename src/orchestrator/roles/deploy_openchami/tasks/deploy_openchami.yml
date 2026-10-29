@@ -106,20 +106,20 @@
         admin_gateway: "{{ network_data.admin_network.subnet | ansible.utils.ipmath(1) }}"
 
     - name: Check existing routes on admin NIC
-      ansible.builtin.command: nmcli -g ipv4.routes connection show {{ admin_nic }}
+      ansible.builtin.command: nmcli -g ipv4.routes connection show {{ admin_nic | quote }}
       register: existing_routes
       changed_when: false
 
     - name: Add persistent routes for additional subnets via NetworkManager
       ansible.builtin.command: >-
-        nmcli connection modify {{ admin_nic }}
+        nmcli connection modify {{ admin_nic | quote }}
         +ipv4.routes "{{ item.subnet }}/{{ item.netmask_bits }} {{ admin_gateway }}"
       loop: "{{ network_data.admin_network.additional_subnets }}"
       when: (item.subnet + '/' + item.netmask_bits) not in existing_routes.stdout
       changed_when: true
 
     - name: Apply route changes to admin NIC
-      ansible.builtin.command: nmcli device reapply {{ admin_nic }}
+      ansible.builtin.command: nmcli device reapply {{ admin_nic | quote }}
       changed_when: true
 
 - name: Override DNS forwarders from network_spec if configured
@@ -139,6 +139,6 @@
 - name: Set openchami SELinux context
   ansible.builtin.command: >-
     chcon -R system_u:object_r:container_file_t:s0
-    {{ hostvars['localhost']['omnia_data_path'] }}/openchami
+    {{ hostvars['localhost']['omnia_data_path'] | quote }}/openchami
   changed_when: true
   failed_when: false

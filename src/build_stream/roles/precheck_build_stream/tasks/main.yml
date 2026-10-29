@@ -45,7 +45,7 @@
 # Step 1: Check required containers are running
 # =========================================================================
 - name: Check required containers are running
-  ansible.builtin.command: "podman ps --filter name={{ item.name }} --format '{{ '{{' }}.Names{{ '}}' }}'"
+  ansible.builtin.command: "podman ps --filter name={{ item.name | quote }} --format '{{ '{{' }}.Names{{ '}}' }}'"
   register: _container_checks
   changed_when: false
   failed_when: false
@@ -115,7 +115,7 @@
       or _export_path.startswith(_data_path_real ~ '/')
 
 - name: Detect the filesystem type of the Omnia data path
-  ansible.builtin.command: findmnt -n -o FSTYPE -T "{{ omnia_data_path }}"
+  ansible.builtin.command: findmnt -n -o FSTYPE -T {{ omnia_data_path | quote }}
   register: _data_path_fstype
   changed_when: false
   failed_when: false

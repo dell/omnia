@@ -14,7 +14,7 @@
     success_msg: "Python version check passed: {{ ansible_python_version }}"
 
 - name: Verify required Python modules
-  ansible.builtin.command: python3 -c "import {{ item }}"
+  ansible.builtin.command: python3 -c "import {{ item | quote }}"
   loop:
     - yaml
     - json

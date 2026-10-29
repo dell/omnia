@@ -106,7 +106,7 @@
   ansible.builtin.shell: |
     set -o pipefail
     # Check if certificate is valid and not expired
-    openssl x509 -checkend 86400 -noout -in {{ build_stream_ssl_cert }}
+    openssl x509 -checkend 86400 -noout -in {{ build_stream_ssl_cert | quote }}
   register: cert_validity
   changed_when: false
   failed_when: false
@@ -116,8 +116,8 @@
 - name: Verify key-certificate pairing
   ansible.builtin.shell: |
     set -o pipefail
-    cert_modulus=$(openssl x509 -noout -modulus -in {{ build_stream_ssl_cert }} | openssl md5)
-    key_modulus=$(openssl rsa -noout -modulus -in {{ build_stream_ssl_key }} | openssl md5)
+    cert_modulus=$(openssl x509 -noout -modulus -in {{ build_stream_ssl_cert | quote }} | openssl md5)
+    key_modulus=$(openssl rsa -noout -modulus -in {{ build_stream_ssl_key | quote }} | openssl md5)
     [ "$cert_modulus" = "$key_modulus" ]
   register: cert_key_match
   changed_when: false
@@ -127,7 +127,7 @@
 
 - name: Check certificate SAN entries
   ansible.builtin.command: |
-    openssl x509 -noout -ext subjectAltName -in {{ build_stream_ssl_cert }}
+    openssl x509 -noout -ext subjectAltName -in {{ build_stream_ssl_cert | quote }}
   register: cert_san
   changed_when: false
   failed_when: false
@@ -172,9 +172,9 @@
 
 - name: Generate self-signed SSL certificate (only if needed)
   ansible.builtin.command: |
-    openssl req -x509 -newkey rsa:4096 -nodes -days {{ build_stream_ssl_days }}
-    -keyout {{ build_stream_ssl_key }}
-    -out {{ build_stream_ssl_cert }}
+    openssl req -x509 -newkey rsa:4096 -nodes -days {{ build_stream_ssl_days | quote }}
+    -keyout {{ build_stream_ssl_key | quote }}
+    -out {{ build_stream_ssl_cert | quote }}
     -subj "/C=US/ST=State/L=City/O=Omnia/CN={{ ansible_hostname }}"
     -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:localhost,IP:{{ ansible_default_ipv4.address }},IP:127.0.0.1,IP:{{ build_stream_host_ip }}"
   changed_when: true
@@ -217,12 +217,12 @@
   ansible.builtin.shell: |
     set -o pipefail
     # Check if private key is valid
-    openssl rsa -in "{{ build_stream_jwt_keys_dir }}/jwt_private.pem" -check -noout
+    openssl rsa -in {{ build_stream_jwt_keys_dir | quote }}/jwt_private.pem -check -noout
     # Check if public key is valid
-    openssl rsa -pubin -in "{{ build_stream_jwt_keys_dir }}/jwt_public.pem" -check -noout
+    openssl rsa -pubin -in {{ build_stream_jwt_keys_dir | quote }}/jwt_public.pem -check -noout
     # Check if keys match (modulus comparison)
-    priv_mod=$(openssl rsa -in "{{ build_stream_jwt_keys_dir }}/jwt_private.pem" -noout -modulus | openssl md5)
-    pub_mod=$(openssl rsa -pubin -in "{{ build_stream_jwt_keys_dir }}/jwt_public.pem" -noout -modulus | openssl md5)
+    priv_mod=$(openssl rsa -in {{ build_stream_jwt_keys_dir | quote }}/jwt_private.pem -noout -modulus | openssl md5)
+    pub_mod=$(openssl rsa -pubin -in {{ build_stream_jwt_keys_dir | quote }}/jwt_public.pem -noout -modulus | openssl md5)
     [ "$priv_mod" = "$pub_mod" ]
   register: jwt_keys_validation
   changed_when: false
@@ -260,7 +260,10 @@
   no_log: true
 
 - name: Generate JWT keys (only if needed)
-  ansible.builtin.command: "{{ build_stream_jwt_keys_script }} {{ build_stream_jwt_keys_dir }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ build_stream_jwt_keys_script }}"
+      - "{{ build_stream_jwt_keys_dir }}"
   register: jwt_gen_result
   when: jwt_regeneration_needed | bool
   changed_when: jwt_gen_result.rc == 0

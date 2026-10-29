@@ -22,19 +22,19 @@
 - name: Repack ISO with xorrisofs
   ansible.builtin.command: >-
     xorrisofs
-    -o {{ repacked_iso_path }}
+    -o {{ repacked_iso_path | quote }}
     -R -J -joliet-long
     -V "{{ iso_volume_id }}"
     -e images/efiboot.img
     -no-emul-boot
     -isohybrid-gpt-basdat
-    {{ iso_extract_dir }}
+    {{ iso_extract_dir | quote }}
   changed_when: true
   register: iso_repack_result
   failed_when: iso_repack_result.rc != 0
 
 - name: Implant MD5 checksum into repacked ISO
-  ansible.builtin.command: "implantisomd5 {{ repacked_iso_path }}"
+  ansible.builtin.command: "implantisomd5 {{ repacked_iso_path | quote }}"
   changed_when: true
   failed_when: false
 
