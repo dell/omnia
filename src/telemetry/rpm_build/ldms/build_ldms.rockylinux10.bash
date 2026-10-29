@@ -151,14 +151,8 @@ rm -rf autom4te.cache config.cache
 #--------------------------------
 echo "[>>] Get in source dir"
 #popd
-#rpm -i datacenter-gpu-manager-2.2.3-1-x86_64.rpm 
+#rpm -i datacenter-gpu-manager-2.2.3-1-x86_64.rpm
 set -xe
-# Only patch a real DCGM header, and only once. OVIS builds the DCGM sampler
-# only when libdcgm is present, so the header is otherwise not used.
-dcgm_header="/usr/include/dcgm_api_export.h"
-if [ -f "$dcgm_header" ] && ! grep -q 'DCGM_PUBLIC_API' "$dcgm_header"; then
-  echo "#define DCGM_PUBLIC_API" >> "$dcgm_header"
-fi
 echo "[--] Build ldms"
 echo "[>>] autogen (runs autoreconf internally)"
 ./autogen.sh
