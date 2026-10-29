@@ -5,6 +5,8 @@
 
 """Stable test-case IDs for Repo Manager unit tests."""
 
+_REDACTION = "test_error_message_redaction.py"
+
 
 def _class_cases(file_name, class_name, cases):
     """Build explicit pytest-node-to-test-case-ID mappings for one class."""
@@ -13,8 +15,6 @@ def _class_cases(file_name, class_name, cases):
         for sequence, method_name in cases.items()
     }
 
-
-_REDACTION = "test_error_message_redaction.py"
 
 # Every sequence is explicit so formatting or test collection order cannot
 # renumber a published case. Add new cases with the next available sequence.
@@ -157,7 +157,7 @@ UT_TEST_CASE_IDS = {
             75: "test_unit_startup_does_not_connect_or_sync",
             76: "test_untagged_execution_uses_ordered_lifecycle_paths",
             77: "test_untagged_lifecycle_is_ordered_and_non_destructive",
-            78: "test_untagged_verification_excludes_negative_markers",
+            78: "test_untagged_verification_excludes_destructive_markers",
             79: "test_verify_only_targets_are_not_configured_for_execution",
             126: "test_report_names_follow_standard_convention",
         },
@@ -424,6 +424,7 @@ UT_TEST_CASE_IDS = {
             223: "test_repository_failure_blocks_orphan_cleanup_and_later_repos",
         },
     ),
+
     **_class_cases(
         "test_exact_mirror_reconciliation.py",
         "ExactMirrorCommandTests",
@@ -531,6 +532,7 @@ UT_TEST_CASE_IDS = {
             270: "test_write_outside_root_raises_and_writes_nothing",
         },
     ),
+    # ── Error message redaction (top-level functions) ─────────────────────
     f"{_REDACTION}::test_schema_yaml_error_does_not_return_file_content": "RM_UT_271",
     f"{_REDACTION}::test_vault_write_read_failure_reports_type_only": "RM_UT_272",
     f"{_REDACTION}::test_vault_write_unexpected_failure_still_fails_cleanly": "RM_UT_273",
@@ -609,6 +611,56 @@ UT_TEST_CASE_IDS = {
             303: "test_internal_pulp_tag_is_rejected",
             304: "test_run_tag_modifiers_are_supported",
             305: "test_guard_tags_are_accepted_by_validate_input",
+        },
+    ),
+    # ── Vault in-memory read (top-level functions) ────────────────────────
+    "test_vault_in_memory_read.py::test_process_encrypted_file_reads_without_touching_file": "RM_UT_306",
+    "test_vault_in_memory_read.py::test_process_encrypted_file_wrong_key_fails_and_file_untouched": "RM_UT_307",
+    "test_vault_in_memory_read.py::test_process_encrypted_file_malformed_yaml_fails_and_file_untouched": "RM_UT_308",
+    "test_vault_in_memory_read.py::test_yml_line_number_on_vaulted_file": "RM_UT_309",
+    "test_vault_in_memory_read.py::test_yml_line_number_vault_failure_raises_and_file_untouched": "RM_UT_310",
+    "test_vault_in_memory_read.py::test_no_in_place_decrypt_helpers_remain": "RM_UT_311",
+    "test_vault_in_memory_read.py::test_schema_reports_all_errors_when_line_lookup_fails": "RM_UT_312",
+    "test_vault_in_memory_read.py::test_logic_handles_error_dicts_missing_fields": "RM_UT_313",
+    "test_vault_in_memory_read.py::test_schema_oserror_is_reported_and_logged_with_traceback": "RM_UT_314",
+    "test_vault_in_memory_read.py::test_schema_unexpected_error_names_file_and_logs_traceback": "RM_UT_315",
+    "test_vault_in_memory_read.py::test_logic_logs_traceback_for_unexpected_error": "RM_UT_316",
+    "test_vault_in_memory_read.py::test_schema_missing_config_key_does_not_crash_without_logger": "RM_UT_317",
+    "test_vault_in_memory_read.py::test_run_subprocess_timeout_returns_distinct_code": "RM_UT_318",
+    "test_vault_in_memory_read.py::test_run_subprocess_missing_command_returns_127": "RM_UT_319",
+    # ── Catalog add/merge ─────────────────────────────────────────────────
+    **_class_cases(
+        "test_catalog_add_merge.py",
+        "MergePackageEntryTests",
+        {
+            320: "test_other_architecture_is_kept",
+            321: "test_other_os_version_is_kept_when_source_changes",
+            322: "test_new_os_version_is_added_to_matching_source",
+            323: "test_image_update_keeps_other_architecture_and_os_fields",
+            324: "test_package_type_change_replaces_entry",
+            325: "test_inputs_are_not_modified",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_add_merge.py",
+        "DeleteSideEffectTests",
+        {
+            326: "test_empty_group_removed_from_layers_with_warning",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_add_merge.py",
+        "AddCliMergeTests",
+        {
+            327: "test_update_keeps_aarch64_and_10_0_sources",
+            328: "test_new_package_for_both_arches_and_os_versions",
+        },
+    ),
+    **_class_cases(
+        "test_catalog_add_merge.py",
+        "LegacyCatalogMessageTests",
+        {
+            329: "test_validate_points_to_transform",
         },
     ),
 }
