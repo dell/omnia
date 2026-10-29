@@ -143,7 +143,7 @@ def _check_repo_exists_in_pulp(repo_name, logger):
         if not exists:
             logger.warning(f"Repository '{repo_name}' does not exist in Pulp")
         return exists
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.error("Unable to check whether the RPM repository exists")
         _repo_exists_cache[repo_name] = False
         return False
@@ -511,7 +511,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
         else:
             status = "Failed"
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.error("RPM package processing failed")
         status = "Failed"
         repo_mapping = package.get("repo_mapping", {})

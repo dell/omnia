@@ -29,13 +29,20 @@ build_stream_image_tag: "1.2"
 # Ports & Logs — passed as host vars from prepare_build_stream.yml
 build_stream_log_dir: "{{ omnia_path }}/build_stream/log"
 build_stream_nfs_path_error_msg: "Directory {{ omnia_path }}/build_stream is missing; ensure oim_shared_path is mounted and populated correctly."
+build_stream_src_in_data_path_msg: >-
+  OMNIA_SRC_PATH ({{ omnia_src_path | realpath }}) is inside the Omnia data path
+  ({{ omnia_path | realpath }}), which is mounted read-write into the BuildStream
+  API container. The root playbook watcher runs from OMNIA_SRC_PATH, so keep the
+  Omnia source tree outside the data path.
 omnia_default_dir: "/omnia"
 
 # Build Stream watcher service
 watcher_service_name: "playbook-watcher.service"
 watcher_service_src_path: "templates/playbook_watcher.service.j2"
 watcher_systemd_path: "/etc/systemd/system"
-build_stream_watcher_exec: "/usr/bin/python3 {{ omnia_path }}/build_stream/playbook-watcher/playbook_watcher_service.py"
+# The root watcher runs from the source tree, which is not mounted into the
+# API container, so a compromised container cannot replace the code it runs.
+build_stream_watcher_exec: "/usr/bin/python3 {{ (omnia_src_path ~ '/build_stream/app/playbook-watcher/playbook_watcher_service.py') | realpath }}"
 omnia_src_path: "{{ lookup('env', 'OMNIA_SRC_PATH') | default(playbook_dir ~ '/../../../', true) }}"
 venv_path: "{{ lookup('env', 'OMNIA_VENV_PATH') | default('/opt/omnia/venv', true) }}"
 system_admin_nic_ipv4: "{{ lookup('env', 'SYSTEM_ADMIN_NIC_IPV4') | default('', true) }}"
@@ -48,6 +55,14 @@ watcher_limit_nofile: 4096
 watcher_memory_max: "512M"
 watcher_cpu_quota: "50%"
 build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/playbook_queue"
+build_stream_queue_subdirs:
+  - requests
+  - results
+  - processing
+  - archive
+  - archive/requests
+  - archive/results
+build_stream_queue_dir_mode: "0700"
 watcher_poll_interval_seconds: 2
 watcher_max_concurrent_jobs: 1
 watcher_default_timeout_minutes: 150

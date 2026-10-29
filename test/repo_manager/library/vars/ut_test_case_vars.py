@@ -14,6 +14,8 @@ def _class_cases(file_name, class_name, cases):
     }
 
 
+_REDACTION = "test_error_message_redaction.py"
+
 # Every sequence is explicit so formatting or test collection order cannot
 # renumber a published case. Add new cases with the next available sequence.
 UT_TEST_CASE_IDS = {
@@ -529,6 +531,45 @@ UT_TEST_CASE_IDS = {
             270: "test_write_outside_root_raises_and_writes_nothing",
         },
     ),
+    f"{_REDACTION}::test_schema_yaml_error_does_not_return_file_content": "RM_UT_271",
+    f"{_REDACTION}::test_vault_write_read_failure_reports_type_only": "RM_UT_272",
+    f"{_REDACTION}::test_vault_write_unexpected_failure_still_fails_cleanly": "RM_UT_273",
+    f"{_REDACTION}::test_csv_own_messages_are_unchanged": "RM_UT_274",
+    f"{_REDACTION}::test_csv_decode_error_reports_type_only": "RM_UT_275",
+    f"{_REDACTION}::test_csv_read_failures_do_not_echo_exception_text": "RM_UT_276",
+    f"{_REDACTION}::test_input_data_unexpected_error_logs_type_only": "RM_UT_277",
+    f"{_REDACTION}::test_vault_write_yaml_error_includes_line_column": "RM_UT_288",
+    f"{_REDACTION}::"
+    "test_write_status_to_file_keeps_running_when_mirror_index_update_fails": "RM_UT_278",
+    "test_vault_in_memory_read.py::"
+    "test_process_encrypted_file_yaml_error_does_not_echo_content": "RM_UT_279",
+    **_class_cases(
+        "test_pulp_container_remote_api.py",
+        "RestClientCompatibilityTests",
+        {
+            280: "test_request_json_returns_none_for_explicit_and_fallback_errors",
+            281: "test_raw_get_returns_none_for_explicit_and_fallback_errors",
+        },
+    ),
+    **_class_cases(
+        "test_container_reconciliation.py",
+        "ContainerReconciliationTests",
+        {
+            282: "test_remote_tag_attribute_error_is_normalized",
+            283: "test_remote_tag_type_error_is_normalized",
+        },
+    ),
+    **_class_cases(
+        "test_pulp_repo_name_migration_contract.py",
+        "PulpRepoNameMigrationContractTests",
+        {
+            284: "test_load_config_invalid_cli_section_keeps_session_invalid",
+            285: "test_read_toml_config_returns_none_on_parser_type_error",
+            286: "test_http_methods_return_standard_failure_dict_on_type_error",
+        },
+    ),
+    "test_vault_in_memory_read.py::"
+    "test_process_encrypted_file_vault_error_does_not_echo_stderr": "RM_UT_287",
 }
 
 

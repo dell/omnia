@@ -28,10 +28,8 @@ RestartSec={{ watcher_restart_sec }}
 StandardOutput=journal
 StandardError=journal
 
-# Load Omnia environment (CATALOG_FILE_PATH, OMNIA_DATA_PATH, etc.)
-# This file is updated by the BSM API when the GitLab pipeline uploads omnia.env.
-EnvironmentFile=-/etc/omnia/omnia.env
-
+# The watcher reads /etc/omnia/omnia.env itself and ignores keys set below,
+# so omnia.env cannot override the paths and binaries of this root service.
 # Environment variables (override omnia.env defaults for watcher-specific settings)
 Environment="PLAYBOOK_QUEUE_BASE={{ build_stream_watcher_playbook_queue_base }}"
 Environment="NFS_SHARE_PATH={{ oim_shared_path }}"

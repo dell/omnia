@@ -78,18 +78,6 @@ class SafePath:
         if "\x00" in str_value:
             raise ValueError("SafePath must not contain null bytes")
 
-    @classmethod
-    def from_string(cls, path_str: str) -> "SafePath":
-        """Create SafePath from a string.
-
-        Args:
-            path_str: String representation of the path.
-
-        Returns:
-            Validated SafePath instance.
-        """
-        return cls(value=Path(path_str))
-
     def __str__(self) -> str:
         """Return string representation."""
         return str(self.value)

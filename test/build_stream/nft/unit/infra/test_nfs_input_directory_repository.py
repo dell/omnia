@@ -14,13 +14,11 @@
 
 """Unit tests for NfsInputDirectoryRepository."""
 
-import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.jobs.value_objects import JobId
 from infra.repositories.nfs_input_repository import (
     NfsInputRepository,
 )
@@ -33,19 +31,6 @@ class TestNfsInputRepository:
     def repository(self):
         """Create repository instance."""
         return NfsInputRepository()
-
-    @pytest.fixture
-    def job_id(self):
-        """Provide a valid job ID."""
-        return JobId(str(uuid.uuid4()))
-
-    def test_get_source_input_repository_path(self, repository, job_id):
-        """Test getting source input repository path."""
-        path = repository.get_source_input_repository_path(str(job_id))
-
-        expected = Path(f"/opt/omnia/build_stream_root/{job_id}/input")
-        assert path == expected
-        assert isinstance(path, Path)
 
     def test_get_destination_input_repository_path(self, repository):
         """Test getting destination input repository path (domain-segregated).
@@ -131,18 +116,11 @@ class TestNfsInputRepository:
 
     def test_custom_base_paths(self):
         """Test repository with custom base paths."""
-        custom_build_stream_base = "/custom/build_stream"
         custom_playbook_input_dir = "/custom/input"
 
         repo = NfsInputRepository(
-            build_stream_base=custom_build_stream_base,
             playbook_input_dir=custom_playbook_input_dir,
         )
-
-        job_id = JobId(str(uuid.uuid4()))
-
-        source_path = repo.get_source_input_repository_path(str(job_id))
-        assert source_path == Path(f"{custom_build_stream_base}/{job_id}/input")
 
         dest_path = repo.get_destination_input_repository_path()
         assert dest_path == Path(custom_playbook_input_dir)

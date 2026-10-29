@@ -25,10 +25,11 @@ and Image records from catalog metadata persisted during create-local-repository
 import json
 import asyncio
 import os
+import stat
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict
+from typing import Optional
 
 from sqlalchemy.exc import IntegrityError
 
@@ -61,6 +62,49 @@ DEFAULT_S3_BUCKET_URI = "s3://boot-images"
 DEFAULT_NFS_ARTIFACT_BASE = os.path.join(
     os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root"
 )
+
+# Per-job files the playbooks write under <NFS_ARTIFACT_BASE>/artifacts/<job_id>/.
+JOB_ARTIFACT_NAMES = frozenset({
+    "node_results.json",
+    "failed_nodes.json",
+    "build_image_meta.json",
+})
+MAX_JOB_ARTIFACT_BYTES = 5 * 1024 * 1024
+
+
+def _job_artifact_file(job_id: str, name: str) -> Optional[Path]:
+    """Return a job's artifact file, or None if it is absent or not acceptable.
+
+    The path is always derived from the validated job id and a fixed file
+    name. Paths reported inside result files are never opened, because the
+    result directory is a shared queue. Symlinks, non-regular files, files
+    that resolve outside the artifacts directory and oversized files are
+    rejected.
+
+    Args:
+        job_id: Job identifier (UUID).
+        name: One of :data:`JOB_ARTIFACT_NAMES`.
+
+    Returns:
+        Path to the file, or None.
+    """
+    if name not in JOB_ARTIFACT_NAMES:
+        return None
+    try:
+        safe_job_id = JobId(str(job_id)).value
+    except ValueError:
+        return None
+    base = Path(os.environ.get("NFS_ARTIFACT_BASE", DEFAULT_NFS_ARTIFACT_BASE)) / "artifacts"
+    path = base / safe_job_id / name
+    try:
+        info = path.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_JOB_ARTIFACT_BYTES:
+            return None
+        if not path.resolve().is_relative_to(base.resolve()):
+            return None
+    except OSError:
+        return None
+    return path
 
 
 def _discover_s3_image_paths(
@@ -203,26 +247,6 @@ def _apply_catalog_metadata(image_group: ImageGroup, metadata: dict) -> None:
     for field_name, value in catalog_fields.items():
         if hasattr(image_group, field_name):
             setattr(image_group, field_name, value)
-
-
-def _load_build_image_meta(job_id: str) -> Dict[str, str]:
-    """Read ``build_image_meta.json`` persisted by the build-image stage.
-
-    Returns an empty dict if the file does not exist or cannot be read.
-    """
-    base = os.environ.get("NFS_ARTIFACT_BASE", DEFAULT_NFS_ARTIFACT_BASE)
-    meta_path = Path(base) / "artifacts" / str(job_id) / "build_image_meta.json"
-    try:
-        if not meta_path.exists():
-            return {}
-        raw = meta_path.read_text(encoding="utf-8")
-        decoder = json.JSONDecoder()
-        data, _ = decoder.raw_decode(raw)
-        if isinstance(data, dict):
-            return data
-        return {}
-    except (OSError, ValueError):
-        return {}
 
 
 class ResultPoller:
@@ -522,32 +546,6 @@ class ResultPoller:
     def _is_build_image_stage(stage_name: str) -> bool:
         """Check if the stage is the build-image stage."""
         return stage_name == StageType.BUILD_IMAGE.value
-
-    def _emit_dictionary_hit_events(self, result: PlaybookResult) -> None:
-        """Persist one audit event for each catalog image reused by hash."""
-        for hit in result.dictionary_hits or []:
-            functional_group = hit.get("functional_group", "")
-            image_group_id = hit.get("image_group_id", "")
-            if not functional_group or not image_group_id:
-                continue
-            event = AuditEvent(
-                event_id=str(self._uuid_generator.generate()),
-                job_id=result.job_id,
-                event_type="DICTIONARY_HIT",
-                correlation_id=(
-                    str(result.correlation_id)
-                    if result.correlation_id
-                    else str(self._uuid_generator.generate())
-                ),
-                client_id=result.job_id,
-                timestamp=datetime.now(timezone.utc),
-                details={
-                    "stage_name": result.stage_name,
-                    "functional_group": functional_group,
-                    "image_group_id": image_group_id,
-                },
-            )
-            self._audit_repo.save(event)
 
     def _emit_dictionary_hit_events(self, result: PlaybookResult) -> None:
         """Persist one audit event for each catalog image reused by hash."""
@@ -1026,8 +1024,9 @@ class ResultPoller:
             )
             return
 
-        node_results_path = result.node_results_file_path
-        if not node_results_path:
+        # The result file only signals that node results exist; the path it
+        # reports is not trusted and is never opened.
+        if not result.node_results_file_path:
             log_secure_info(
                 "info",
                 f"No node_results_file_path in restart result for "
@@ -1037,12 +1036,12 @@ class ResultPoller:
             return
 
         try:
-            path = Path(node_results_path)
-            if not path.exists():
+            path = _job_artifact_file(str(result.job_id), "node_results.json")
+            if path is None:
                 log_secure_info(
                     "warning",
-                    f"node_results file not found at {node_results_path} "
-                    f"for job={result.job_id}",
+                    f"node_results.json missing or not acceptable in the "
+                    f"artifacts directory for job={result.job_id}",
                     job_id=str(result.job_id),
                 )
                 return
@@ -1050,7 +1049,7 @@ class ResultPoller:
             raw = path.read_bytes()
 
             # Validate JSON
-            json.loads(raw)
+            json.JSONDecoder().decode(raw.decode("utf-8"))
 
             # Store node_results.json in artifact store
             hint = StoreHint(
@@ -1084,12 +1083,14 @@ class ResultPoller:
             )
 
             # Store failed_nodes.json (written by the playbook alongside node_results.json)
-            failed_nodes_file = path.parent / "failed_nodes.json"
-            if failed_nodes_file.exists():
+            failed_nodes_file = _job_artifact_file(
+                str(result.job_id), "failed_nodes.json"
+            )
+            if failed_nodes_file is not None:
                 failed_raw = failed_nodes_file.read_bytes()
 
                 # Validate JSON
-                json.loads(failed_raw)
+                failed_data = json.JSONDecoder().decode(failed_raw.decode("utf-8"))
 
                 failed_hint = StoreHint(
                     namespace=str(result.job_id),
@@ -1117,7 +1118,6 @@ class ResultPoller:
                 if hasattr(self._artifact_metadata_repo, 'session'):
                     self._artifact_metadata_repo.session.commit()
 
-                failed_data = json.loads(failed_raw)
                 log_secure_info(
                     "info",
                     f"Stored failed_nodes.json as artifact for job={result.job_id} "

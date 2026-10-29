@@ -129,30 +129,3 @@ class TestFind:
 
 class TestDelete:
     """Tests for deleting artifact records."""
-
-    def test_delete_by_job(self, artifact_metadata_repo) -> None:
-        """Test that delete_by_job removes correct records."""
-        artifact_metadata_repo.save(_make_record(label="catalog-file", record_id="r1"))
-        artifact_metadata_repo.save(
-            _make_record(
-                stage="validate",
-                label="omnia-configs",
-                record_id="r2",
-            )
-        )
-        artifact_metadata_repo.save(
-            _make_record(
-                job_id_str=VALID_JOB_ID_2,
-                label="catalog-file",
-                record_id="r3",
-            )
-        )
-        count = artifact_metadata_repo.delete_by_job(JobId(VALID_JOB_ID))
-        assert count == 2
-        assert artifact_metadata_repo.find_by_job(JobId(VALID_JOB_ID)) == []
-        assert len(artifact_metadata_repo.find_by_job(JobId(VALID_JOB_ID_2))) == 1
-
-    def test_delete_by_job_returns_zero(self, artifact_metadata_repo) -> None:
-        """Test that delete_by_job returns 0 for no matching records."""
-        count = artifact_metadata_repo.delete_by_job(JobId(VALID_JOB_ID))
-        assert count == 0

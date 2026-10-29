@@ -63,10 +63,12 @@
     --output=name --ignore-not-found=true
   register: _idrac_pod_wait
   changed_when: false
-  until: _idrac_pod_wait.stdout | trim | length == 0
+  until: >-
+    (_idrac_pod_wait.rc | default(1)) == 0
+    and _idrac_pod_wait.stdout is defined
+    and (_idrac_pod_wait.stdout | trim | length == 0)
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  failed_when: false
 
 - name: IDRAC | Wait for label-selected PVCs to terminate
   ansible.builtin.command: >
@@ -74,10 +76,12 @@
     --output=name --ignore-not-found=true
   register: _idrac_pvc_label_wait
   changed_when: false
-  until: _idrac_pvc_label_wait.stdout | trim | length == 0
+  until: >-
+    (_idrac_pvc_label_wait.rc | default(1)) == 0
+    and _idrac_pvc_label_wait.stdout is defined
+    and (_idrac_pvc_label_wait.stdout | trim | length == 0)
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  failed_when: false
 
 - name: IDRAC | Wait for named PVCs to terminate
   ansible.builtin.command: >
@@ -86,10 +90,12 @@
   loop: "{{ idrac_pvc_resources }}"
   register: _idrac_pvc_name_wait
   changed_when: false
-  until: _idrac_pvc_name_wait.stdout | trim | length == 0
+  until: >-
+    (_idrac_pvc_name_wait.rc | default(1)) == 0
+    and _idrac_pvc_name_wait.stdout is defined
+    and (_idrac_pvc_name_wait.stdout | trim | length == 0)
   retries: "{{ cleanup_custom_resource_retries }}"
   delay: "{{ cleanup_custom_resource_delay }}"
-  failed_when: false
 
 - name: IDRAC | Cleanup complete
   ansible.builtin.debug:

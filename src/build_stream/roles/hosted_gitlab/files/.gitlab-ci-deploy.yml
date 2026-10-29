@@ -28,7 +28,7 @@
 #   - At least one BUILT image group must exist (from a prior Build Pipeline run)
 #   - BSM_API_URL, BSM_API_CERT, BSM_CLIENT_ID, BSM_CLIENT_SECRET set as
 #     CI/CD project variables
-#   - GITLAB_API_TOKEN stored as a masked CI/CD variable (PAT with api scope)
+#   - GITLAB_API_TOKEN stored as a masked, protected CI/CD variable (project access token, api scope)
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------

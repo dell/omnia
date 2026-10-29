@@ -360,7 +360,7 @@ def generate_pretty_table(
         slogger.info("Task results table generated successfully")
         return table.get_string()
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         slogger.error("Error occurred while generating the package-status table")
         return "Error: unable to generate the package-status table"
 
@@ -404,7 +404,7 @@ def generate_software_status_table(status_dict, slogger):
         slogger.info("Software status table generation completed successfully")
         return "\n\n".join(tables)
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         slogger.error("Error occurred while generating the software-status table")
         return "Error: unable to generate the software-status table"
 
@@ -580,7 +580,7 @@ def main():
                         if isinstance(group_def, dict) and group_def.get("version"):
                             sw_entry["version"] = group_def["version"]
                         user_data["softwares"].append(sw_entry)
-            except Exception:
+            except Exception:  # pylint: disable=broad-exception-caught
                 slogger.warning("Could not load catalog for version variables.")
 
         _, software_names = get_subgroup_dict(user_data, slogger)
@@ -648,7 +648,7 @@ def main():
         slogger.error("Repo Manager task execution failed.")
         module.fail_json(msg="Error during task execution.", **result)
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         result["table_output"] = (
             table_output if "table_output" in locals() else "No table generated."
         )
