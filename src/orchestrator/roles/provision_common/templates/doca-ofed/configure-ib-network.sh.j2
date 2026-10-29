@@ -20,18 +20,23 @@ NETMASK_BITS="{{ hostvars['localhost']['ib_network_netmask_bits'] | default('') 
 ADMIN_NIC_IP="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
 
 # Create IB mapping from all nodes (IB_NIC_NAME only)
+# Security: IB_NIC_NAME allowlist prevents command injection via bash declare -A.
+# Keep regex in sync with pxe_mapping_validator.py, ome_server_inventory.py,
+# and pxe_boot_inventory/vars/main.yml.
+{%- set ib_nic_name_re = '^(?:(?:InfiniBand\\.PCIe\\.Slot\\.|InfiniBand\\.Slot\\.|NIC\\.InfiniBand\\.)[0-9A-Fa-f]+-[0-9]+|InfiniBand\\.Single-[0-9]+)$' %}
+{%- set ipv4_re = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' %}
 declare -A ADMIN_IB_NIC_NAME_MAP=(
 {% for mac, node in hostvars['localhost']['read_mapping_file']['dict'].items() -%}
-{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and node.IB_NIC_NAME is defined and node.IB_NIC_NAME | trim | length > 0 %}
-  ["{{ node.ADMIN_IP }}"]="{{ node.IB_NIC_NAME }}"
+{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and node.ADMIN_IP | trim is regex(ipv4_re) and node.IB_NIC_NAME is defined and node.IB_NIC_NAME | trim | length > 0 and node.IB_NIC_NAME | trim is regex(ib_nic_name_re) %}
+  ["{{ node.ADMIN_IP | trim }}"]="{{ node.IB_NIC_NAME | trim }}"
 {%- endif %}
 {%- endfor %}
 )
 
 declare -A ADMIN_IB_IP_MAP=(
 {% for mac, node in hostvars['localhost']['read_mapping_file']['dict'].items() -%}
-{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and node.IB_IP is defined and node.IB_IP | trim | length > 0 %}
-  ["{{ node.ADMIN_IP }}"]="{{ node.IB_IP }}"
+{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and node.ADMIN_IP | trim is regex(ipv4_re) and node.IB_IP is defined and node.IB_IP | trim | length > 0 and node.IB_IP | trim is regex(ipv4_re) and node.IB_NIC_NAME is defined and node.IB_NIC_NAME | trim is regex(ib_nic_name_re) %}
+  ["{{ node.ADMIN_IP | trim }}"]="{{ node.IB_IP | trim }}"
 {%- endif %}
 {%- endfor %}
 )
