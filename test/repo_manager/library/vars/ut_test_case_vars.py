@@ -570,6 +570,47 @@ UT_TEST_CASE_IDS = {
     ),
     "test_vault_in_memory_read.py::"
     "test_process_encrypted_file_vault_error_does_not_echo_stderr": "RM_UT_287",
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "ValidateInputTagFailClosedTests",
+        {
+            289: "test_unknown_tag_alone_is_rejected",
+            290: "test_known_tag_with_unknown_tag_is_rejected",
+            291: "test_empty_tag_list_is_rejected",
+            292: "test_operation_only_tag_is_rejected",
+            293: "test_operation_tag_with_validation_tag_validates_files",
+            294: "test_valid_tag_with_missing_required_file_fails",
+            295: "test_missing_schema_for_mapped_file_fails",
+        },
+    ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "ValidationTagScopeTests",
+        {
+            296: "test_deploy_pulp_endpoint_contract_is_scoped_to_its_include",
+        },
+    ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "CredentialFileValidationContractTests",
+        {
+            297: "test_credential_file_is_mapped_for_every_repo_config_tag",
+            298: "test_schema_accepts_document_written_by_credential_collection",
+            299: "test_schema_rejects_missing_pulp_password",
+            300: "test_schema_rejects_unknown_top_level_key",
+            301: "test_schema_rejects_incomplete_registry_credential",
+        },
+    ),
+    **_class_cases(
+        "test_input_validation_fail_closed.py",
+        "SupportedTagsContractTests",
+        {
+            302: "test_supported_tags_cover_public_and_play_tags",
+            303: "test_internal_pulp_tag_is_rejected",
+            304: "test_run_tag_modifiers_are_supported",
+            305: "test_guard_tags_are_accepted_by_validate_input",
+        },
+    ),
 }
 
 

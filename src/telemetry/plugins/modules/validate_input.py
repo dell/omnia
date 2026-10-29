@@ -321,9 +321,18 @@ def main() -> None:
                     logger.info("build_stream is disabled, skipping gitlab_config.yml validation")
         except Exception:
             logger.warning("Failed to check build_stream status from build_stream_config.yml")
-    
+
+    unknown_tags = sorted(set(tag_names) - set(input_file_inventory))
+    if unknown_tags or (not tag_names and not csv_file_path):
+        error_message = (
+            f"Unknown or missing tag(s): {unknown_tags or tag_names}. "
+            f"Valid tags are: {sorted(input_file_inventory)}."
+        )
+        logger.error(error_message)
+        module.fail_json(msg=error_message)
+
     for tag_name in tag_names:
-        for name in input_file_inventory.get(tag_name, []):
+        for name in input_file_inventory[tag_name]:
             fname, _ = os.path.splitext(name)
 
             schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
@@ -403,9 +412,13 @@ def main() -> None:
             validation_status["Failed"].append(csv_file_path)
             vstatus.append(False)
 
-    if not validation_status:
-        message = "No validation has been performed. \
-            Please provide tags or include individual file names."
+    if not vstatus:
+        message = (
+            "No validation has been performed. "
+            f"Tag(s) provided: {tag_names}. "
+            "Please provide valid tags or include individual file names."
+        )
+        logger.error(message)
         module.fail_json(msg=message)
 
     logger.error(en_us_validation_msg.get_footer())
@@ -416,7 +429,7 @@ def main() -> None:
         "validate_telemetry_input.log"
     )
 
-    status_bool = all(vstatus)
+    status_bool = bool(vstatus) and all(vstatus)
     status_str = "completed" if status_bool else "failed"
 
     message = [f"Input validation {status_str} for: {project_name} input configuration(s).",
