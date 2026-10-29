@@ -20,7 +20,10 @@ import re
 
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS, SLURM_COMPUTE_PREFIX
 from ._pxeboot_helpers import (
+    ib_ip_for_row,
+    ib_rows_for_family,
     remote_command,
+    resolve_ib_addr_family,
     runtime_exception,
     runtime_result,
 )
@@ -28,14 +31,6 @@ from ._workload_helpers import ensure_source_mpi as _ensure_source_mpi
 from ._workload_helpers import optional_skip as _skip
 from ._workload_helpers import slurm_context as _context
 from ._workload_helpers import slurm_gpu_rows as _gpu_rows
-
-
-def _ib_rows(rows):
-    return [
-        row
-        for row in rows
-        if str(row.get("IB_NIC_NAME", "")).strip() and str(row.get("IB_IP", "")).strip()
-    ]
 
 
 def _interface_for_ip(payload, expected_ip: str) -> tuple[str, int, str, int]:
@@ -319,13 +314,15 @@ def check_slurm_infiniband_configuration(host):
     """Verify the FQDD-to-RDMA identity chain and operational IB state."""
     summary = "Slurm InfiniBand configuration"
     try:
-        _context_data, rows, _control, _config = _context(host)
-        ib_rows = _ib_rows(rows)
+        context_data, rows, _control, _config = _context(host)
+        ib_af = resolve_ib_addr_family(context_data)
+        ib_rows = ib_rows_for_family(rows, ib_af)
         if not ib_rows:
-            return _skip(summary, "No mapped Slurm node has IB_NIC_NAME and IB_IP")
+            return _skip(summary, f"No mapped Slurm node has IB_NIC_NAME and IB address ({ib_af})")
         node_results = []
         for row in ib_rows:
-            expected_ip = str(ipaddress.ip_address(row["IB_IP"].split("/", 1)[0]))
+            raw_ib = ib_ip_for_row(row, ib_af)
+            expected_ip = str(ipaddress.ip_address(raw_ib.split("/", 1)[0]))
             expected_fqdd = str(row["IB_NIC_NAME"]).strip()
             addresses = remote_command(host, row, PXEBOOT_COMMANDS["ip_addresses"])
             try:
@@ -334,7 +331,7 @@ def check_slurm_infiniband_configuration(host):
                 payload = []
             interface, mtu, state, prefix = _interface_for_ip(payload, expected_ip)
             expected_prefix = (
-                int(row["IB_IP"].split("/", 1)[1]) if "/" in row["IB_IP"] else None
+                int(raw_ib.split("/", 1)[1]) if "/" in raw_ib else None
             )
             ofed = remote_command(host, row, PXEBOOT_COMMANDS["infiniband_ofed"])
             resolution = _runtime_ib_resolution(host, row)
@@ -463,8 +460,9 @@ def check_slurm_infiniband_connectivity(host):
     """
     summary = "Slurm InfiniBand peer connectivity"
     try:
-        _runtime, rows, _control, _config = _context(host)
-        ib_rows = _ib_rows(rows)
+        context_data, rows, _control, _config = _context(host)
+        ib_af = resolve_ib_addr_family(context_data)
+        ib_rows = ib_rows_for_family(rows, ib_af)
         if len(ib_rows) < 2:
             return _skip(summary, "At least two mapped IB endpoints are required")
 
@@ -474,7 +472,7 @@ def check_slurm_infiniband_connectivity(host):
         active_rows = []
         excluded = []
         for row in ib_rows:
-            ib_ip = str(ipaddress.ip_address(row["IB_IP"].split("/", 1)[0]))
+            ib_ip = str(ipaddress.ip_address(ib_ip_for_row(row, ib_af).split("/", 1)[0]))
             probe = remote_command(
                 host, row, PXEBOOT_COMMANDS["infiniband_ping"] % ib_ip,
             )
@@ -496,7 +494,7 @@ def check_slurm_infiniband_connectivity(host):
             for target in active_rows:
                 if source["HOSTNAME"] == target["HOSTNAME"]:
                     continue
-                target_ip = str(ipaddress.ip_address(target["IB_IP"].split("/", 1)[0]))
+                target_ip = str(ipaddress.ip_address(ib_ip_for_row(target, ib_af).split("/", 1)[0]))
                 result = remote_command(
                     host,
                     source,
@@ -536,7 +534,7 @@ def check_slurm_infiniband_connectivity(host):
                 ("Functional group", f"[{group_name}] ({valid}/{len(group_sources)})")
             )
             for source, source_ok, target_results in group_sources:
-                source_ip = str(ipaddress.ip_address(source["IB_IP"].split("/", 1)[0]))
+                source_ip = str(ipaddress.ip_address(ib_ip_for_row(source, ib_af).split("/", 1)[0]))
                 fields.append(
                     (
                         f"  From {source['HOSTNAME']}",
@@ -613,16 +611,17 @@ def check_slurm_ucx_transport(host):
         context, rows, _control, _config = _context(host)
         if not rows or not context["features"].get("ucx", False):
             return _skip(summary, "UCX is not selected in the active catalog")
+        ib_af = resolve_ib_addr_family(context)
         compute_rows = [
             row
             for row in rows
             if row["EXPECTED_FUNCTIONAL_GROUP"].startswith(SLURM_COMPUTE_PREFIX)
         ]
-        ucx_rows = _ib_rows(compute_rows)
+        ucx_rows = ib_rows_for_family(compute_rows, ib_af)
         if not ucx_rows:
             return _skip(
                 summary,
-                "No mapped Slurm compute node has IB_NIC_NAME and IB_IP",
+                f"No mapped Slurm compute node has IB_NIC_NAME and IB address ({ib_af})",
             )
 
         # First pass: probe UCX on every IB-mapped compute node.

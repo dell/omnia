@@ -14,7 +14,8 @@ modprobe ib_ipoib || true
 modprobe ib_umad || true
 modprobe ib_uverbs || true
 
-NETMASK_BITS="{{ hostvars['localhost']['ib_network_netmask_bits'] | default('') }}"
+NETMASK_BITS="{{ hostvars['localhost']['ib_network_ipv4_netmask_bits'] | default('') }}"
+IPV6_NETMASK_BITS="{{ hostvars['localhost']['ib_network_ipv6_netmask_bits'] | default('') }}"
 
 # Get current node's IP from cloud-init metadata
 ADMIN_NIC_IP="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
@@ -30,15 +31,26 @@ declare -A ADMIN_IB_NIC_NAME_MAP=(
 
 declare -A ADMIN_IB_IP_MAP=(
 {% for mac, node in hostvars['localhost']['read_mapping_file']['dict'].items() -%}
-{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and node.IB_IP is defined and node.IB_IP | trim | length > 0 %}
-  ["{{ node.ADMIN_IP }}"]="{{ node.IB_IP }}"
+{% set ib_ipv4_val = node.IB_IPV4 | default(node.IB_IP | default('')) %}
+{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and ib_ipv4_val | trim | length > 0 %}
+  ["{{ node.ADMIN_IP }}"]="{{ ib_ipv4_val }}"
+{%- endif %}
+{%- endfor %}
+)
+
+declare -A ADMIN_IB_IPV6_MAP=(
+{% for mac, node in hostvars['localhost']['read_mapping_file']['dict'].items() -%}
+{% set ib_ipv6_val = node.IB_IPV6 | default('') %}
+{% if node.ADMIN_IP is defined and node.ADMIN_IP | trim | length > 0 and ib_ipv6_val | trim | length > 0 %}
+  ["{{ node.ADMIN_IP }}"]="{{ ib_ipv6_val }}"
 {%- endif %}
 {%- endfor %}
 )
 
 # Get IB configuration for this node
 IB_NIC_NAME="${ADMIN_IB_NIC_NAME_MAP[$ADMIN_NIC_IP]:-}"
-IB_IP="${ADMIN_IB_IP_MAP[$ADMIN_NIC_IP]:-}"
+IB_IPV4="${ADMIN_IB_IP_MAP[$ADMIN_NIC_IP]:-}"
+IB_IPV6="${ADMIN_IB_IPV6_MAP[$ADMIN_NIC_IP]:-}"
 
 # Skip if IB_NIC_NAME is empty
 if [ -z "$IB_NIC_NAME" ]; then
@@ -52,7 +64,8 @@ if [ -z "$NETMASK_BITS" ]; then
 fi
 
 echo "Target IB NIC name: $IB_NIC_NAME"
-echo "Target IB IP: $IB_IP"
+echo "Target IB IPv4: $IB_IPV4"
+echo "Target IB IPv6: $IB_IPV6"
 
 
 
@@ -102,7 +115,7 @@ MLX5_DEVICE_COUNT=$(ls /sys/class/infiniband/ | grep mlx5 | wc -l)
 echo "=== IB NETWORK CONFIGURATION LOGGING STARTED ==="
 echo "INFO: Found $MLX5_DEVICE_COUNT mlx5 device(s) on this system"
 echo "INFO: Target IB NIC name from PXE mapping: $IB_NIC_NAME"
-echo "INFO: Target IB IP from PXE mapping: $IB_IP"
+echo "INFO: Target IB IPv4 from PXE mapping: $IB_IPV4"
 
 # List all available mlx5 devices for debugging
 echo "DEBUG: Available mlx5 devices on this system:"
@@ -176,7 +189,7 @@ fi
 echo "============================================="
 echo "SLOT-BASED IB DEVICE SELECTION"
 echo "============================================="
-echo "INFO: Target Slot=$SLOT_NUMBER Port=$PORT_NUMBER IP=$IB_IP/$NETMASK_BITS"
+echo "INFO: Target Slot=$SLOT_NUMBER Port=$PORT_NUMBER IPv4=$IB_IPV4/$NETMASK_BITS"
 echo
 
 # ==============================
@@ -193,7 +206,10 @@ fi
 # STEP 1: Resolve SLOT → Full PCI Address
 # ==============================
 echo "---- STEP 1: Resolve Slot → PCI ----"
-PCI_ADDR=$(dmidecode -t slot | awk -v slot="Slot $SLOT_NUMBER" '
+# Capture dmidecode output first to avoid SIGPIPE when awk exits early
+# (set -euo pipefail treats SIGPIPE as fatal, causing silent script abort)
+_dmi_slots=$(dmidecode -t slot)
+PCI_ADDR=$(echo "$_dmi_slots" | awk -v slot="Slot $SLOT_NUMBER" '
   /Designation:/ { found = ($0 ~ slot) }
   found && /Bus Address:/ { print $NF; exit }
 ')
@@ -201,7 +217,7 @@ PCI_ADDR=$(dmidecode -t slot | awk -v slot="Slot $SLOT_NUMBER" '
 if [ -z "$PCI_ADDR" ]; then
     echo "ERROR: Could not resolve PCI address for slot $SLOT_NUMBER"
     echo "Available slots:"
-    dmidecode -t slot | grep -E "Designation|Bus Address"
+    echo "$_dmi_slots" | grep -E "Designation|Bus Address"
     exit 1
 fi
 echo "INFO: Slot $SLOT_NUMBER → PCI $PCI_ADDR"
@@ -317,7 +333,7 @@ echo
 
 if command -v nmcli >/dev/null 2>&1; then
   echo "INFO: IP CONFIGURATION: Using NetworkManager to configure IB interface"
-  echo "DEBUG: IP CONFIGURATION: Target IP $IB_IP/$NETMASK_BITS on interface $IB_INTERFACE"
+  echo "DEBUG: IP CONFIGURATION: Target IPv4 $IB_IPV4/$NETMASK_BITS on interface $IB_INTERFACE"
 
   echo "DEBUG: IP CONFIGURATION: Removing existing NetworkManager connection for $IB_INTERFACE"
   nmcli con delete "$IB_INTERFACE" &>/dev/null || true
@@ -325,37 +341,64 @@ if command -v nmcli >/dev/null 2>&1; then
   echo "DEBUG: IP CONFIGURATION: Creating new NetworkManager connection for $IB_INTERFACE"
   nmcli con add type infiniband ifname "$IB_INTERFACE" con-name "$IB_INTERFACE"
 
-  echo "DEBUG: IP CONFIGURATION: Setting IP address $IB_IP/$NETMASK_BITS on $IB_INTERFACE"
-  nmcli con modify "$IB_INTERFACE" ipv4.method manual ipv4.addresses "$IB_IP/$NETMASK_BITS"
+  echo "DEBUG: IP CONFIGURATION: Setting IPv4 address $IB_IPV4/$NETMASK_BITS on $IB_INTERFACE"
+  nmcli con modify "$IB_INTERFACE" ipv4.method manual ipv4.addresses "$IB_IPV4/$NETMASK_BITS"
+
+  # IPv6 dual-stack configuration (ER-ORCH-005)
+  if [ -n "$IB_IPV6" ] && [ -n "$IPV6_NETMASK_BITS" ]; then
+    echo "INFO: IP CONFIGURATION: Configuring dual-stack IPv6 on $IB_INTERFACE"
+    echo "DEBUG: IP CONFIGURATION: Target IPv6 $IB_IPV6/$IPV6_NETMASK_BITS on $IB_INTERFACE"
+    nmcli con modify "$IB_INTERFACE" ipv6.method manual ipv6.addresses "$IB_IPV6/$IPV6_NETMASK_BITS"
+    # Disable IPv6 privacy extensions for deterministic IPoIB addressing
+    nmcli con modify "$IB_INTERFACE" ipv6.ip6-privacy 0
+    echo "SUCCESS: IP CONFIGURATION: IPv6 address $IB_IPV6/$IPV6_NETMASK_BITS configured on $IB_INTERFACE"
+  else
+    echo "INFO: IP CONFIGURATION: No IPv6 address configured for this node (IPv4-only mode)"
+  fi
 
   echo "DEBUG: IP CONFIGURATION: Bringing up NetworkManager connection for $IB_INTERFACE"
   nmcli con up "$IB_INTERFACE"
 
-  echo "SUCCESS: IP CONFIGURATION: NetworkManager successfully configured $IB_INTERFACE with IP $IB_IP/$NETMASK_BITS"
+  echo "SUCCESS: IP CONFIGURATION: NetworkManager successfully configured $IB_INTERFACE with IPv4 $IB_IPV4/$NETMASK_BITS"
 else
   echo "INFO: IP CONFIGURATION: Using iproute2 to configure IB interface (NetworkManager not available)"
-  echo "DEBUG: IP CONFIGURATION: Target IP $IB_IP/$NETMASK_BITS on interface $IB_INTERFACE"
+  echo "DEBUG: IP CONFIGURATION: Target IPv4 $IB_IPV4/$NETMASK_BITS on interface $IB_INTERFACE"
 
   echo "DEBUG: IP CONFIGURATION: Flushing existing IP addresses from $IB_INTERFACE"
   ip addr flush dev "$IB_INTERFACE"
 
-  echo "DEBUG: IP CONFIGURATION: Adding IP address $IB_IP/$NETMASK_BITS to $IB_INTERFACE"
-  ip addr add "$IB_IP/$NETMASK_BITS" dev "$IB_INTERFACE"
+  echo "DEBUG: IP CONFIGURATION: Adding IPv4 address $IB_IPV4/$NETMASK_BITS to $IB_INTERFACE"
+  ip addr add "$IB_IPV4/$NETMASK_BITS" dev "$IB_INTERFACE"
+
+  # IPv6 dual-stack configuration (ER-ORCH-005)
+  if [ -n "$IB_IPV6" ] && [ -n "$IPV6_NETMASK_BITS" ]; then
+    echo "INFO: IP CONFIGURATION: Configuring dual-stack IPv6 on $IB_INTERFACE"
+    echo "DEBUG: IP CONFIGURATION: Adding IPv6 address $IB_IPV6/$IPV6_NETMASK_BITS to $IB_INTERFACE"
+    ip addr add "$IB_IPV6/$IPV6_NETMASK_BITS" dev "$IB_INTERFACE"
+    # Disable IPv6 privacy extensions for deterministic IPoIB addressing
+    sysctl -w "net.ipv6.conf.$IB_INTERFACE.use_tempaddr=0" 2>/dev/null || true
+    echo "SUCCESS: IP CONFIGURATION: IPv6 address $IB_IPV6/$IPV6_NETMASK_BITS configured on $IB_INTERFACE"
+  else
+    echo "INFO: IP CONFIGURATION: No IPv6 address configured for this node (IPv4-only mode)"
+  fi
 
   echo "DEBUG: IP CONFIGURATION: Bringing up interface $IB_INTERFACE"
   ip link set "$IB_INTERFACE" up
 
-  echo "SUCCESS: IP CONFIGURATION: iproute2 successfully configured $IB_INTERFACE with IP $IB_IP/$NETMASK_BITS"
+  echo "SUCCESS: IP CONFIGURATION: iproute2 successfully configured $IB_INTERFACE with IPv4 $IB_IPV4/$NETMASK_BITS"
 fi
 
-echo "SUCCESS: FINAL IP ASSIGNMENT: Successfully assigned $IB_IP/$NETMASK_BITS to IB interface $IB_INTERFACE"
+echo "SUCCESS: FINAL IP ASSIGNMENT: Successfully assigned $IB_IPV4/$NETMASK_BITS (IPv4) to IB interface $IB_INTERFACE"
+if [ -n "$IB_IPV6" ]; then
+  echo "SUCCESS: FINAL IP ASSIGNMENT: Successfully assigned $IB_IPV6/$IPV6_NETMASK_BITS (IPv6) to IB interface $IB_INTERFACE"
+fi
 
 # Configure DNS for InfiniBand network. The functional-group cloud-init
 # templates protect resolv.conf with the immutable bit, so update the resolved
 # target atomically and restore that protection on both success and failure.
 {% set ib_dns_servers = hostvars['localhost']['ib_network_dns'] | default([], true) %}
 {% if ib_dns_servers | length > 0 %}
-if [ -n "$IB_IP" ]; then
+if [ -n "$IB_IPV4" ]; then
     echo "INFO: DNS CONFIGURATION: Configuring DNS for InfiniBand interface"
 
     resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)
@@ -412,6 +455,9 @@ echo "INFO: DNS CONFIGURATION: No InfiniBand DNS servers are configured"
 {% endif %}
 
 echo "=== IB NETWORK CONFIGURATION COMPLETED SUCCESSFULLY ==="
-echo "SUMMARY: IB interface $IB_INTERFACE configured with IP $IB_IP/$NETMASK_BITS"
+echo "SUMMARY: IB interface $IB_INTERFACE configured with IPv4 $IB_IPV4/$NETMASK_BITS"
+if [ -n "$IB_IPV6" ]; then
+  echo "SUMMARY: IB interface $IB_INTERFACE also configured with IPv6 $IB_IPV6/$IPV6_NETMASK_BITS"
+fi
 echo "SUMMARY: Device used: $MLX5_DEVICE, Port: $PORT_NUMBER"
 echo "SUMMARY: Configuration method: $([ "$MLX5_DEVICE_COUNT" -eq 1 ] && echo "Single-device mode (no slot mapping needed)" || echo "Multi-device mode (port-based mapping)")"

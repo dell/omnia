@@ -17,3 +17,13 @@
           lock_passwd: false
           hashed_passwd: "{{ hashed_password_output.stdout }}"
       disable_root: false
+
+      write_files:
+        - path: /usr/local/bin/configure-ib-network.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/doca-ofed/configure-ib-network.sh.j2') | indent(12) }}
+
+      runcmd:
+        - bash /usr/local/bin/configure-ib-network.sh || echo "IB network configuration failed (non-critical)"

@@ -24,7 +24,13 @@ from ._apptainer_helpers import (
     primary_image,
     quoted_image,
 )
-from ._pxeboot_helpers import remote_command, runtime_exception, runtime_result
+from ._pxeboot_helpers import (
+    ib_ip_for_row,
+    remote_command,
+    resolve_ib_addr_family,
+    runtime_exception,
+    runtime_result,
+)
 from ._workload_helpers import optional_skip, require_functional, slurm_gpu_rows
 
 
@@ -256,12 +262,17 @@ def check_apptainer_infiniband(host):
         gated = require_functional(summary)
         if gated:
             return gated
-        _context, _rows, _control, computes, _config = apptainer_context(host)
-        ib_rows = [row for row in computes if str(row.get("IB_IP") or "").strip()]
+        context_data, _rows, _control, computes, _config = apptainer_context(host)
+        ib_af = resolve_ib_addr_family(context_data)
+        ib_rows = [
+            row for row in computes
+            if ib_ip_for_row(row, ib_af)
+        ]
         if not ib_rows:
-            return optional_skip(summary, "No Slurm compute node has a mapped IB_IP")
+            return optional_skip(summary, f"No Slurm compute node has a mapped IB address ({ib_af})")
         outcomes = {}
         for row in ib_rows:
+            ib_ip = ib_ip_for_row(row, ib_af)
             image = primary_image(host, row)
             result = remote_command(
                 host,
@@ -270,7 +281,7 @@ def check_apptainer_infiniband(host):
             )
             outcomes[row["HOSTNAME"]] = (
                 result.rc == 0,
-                f"IB_IP={row['IB_IP']} | /dev/infiniband={'visible' if result.rc == 0 else 'missing'}",
+                f"IB_{ib_af.upper()}={ib_ip} | /dev/infiniband={'visible' if result.rc == 0 else 'missing'}",
             )
         failures = [name for name, outcome in outcomes.items() if not outcome[0]]
         return runtime_result(
