@@ -43,7 +43,7 @@ Usage in playbook (heterogeneous):
     max_parallel: 20
     connect_timeout: 60
     defaults:
-      real_memory: 864
+      real_memory: 884736
       corespersocket: 72
       threadspercore: 1
   register: bulk_discovery
@@ -57,7 +57,7 @@ Usage in playbook (homogeneous group):
     max_parallel: 20
     connect_timeout: 60
     defaults:
-      real_memory: 864
+      real_memory: 884736
       corespersocket: 72
       threadspercore: 1
       sockets: 2
@@ -122,6 +122,7 @@ options:
     description:
       - Hardware values used when a Redfish property is unavailable.
       - Supported keys are C(real_memory), C(corespersocket), C(threadspercore), and C(sockets).
+      - C(real_memory) must be specified in megabytes (MB) for Slurm compatibility.
     type: dict
     default: {}
 author:
@@ -138,7 +139,7 @@ EXAMPLES = r'''
     max_parallel: 20
     connect_timeout: 60
     defaults:
-      real_memory: 864
+      real_memory: 884736
       corespersocket: 72
       threadspercore: 1
   register: node_discovery
@@ -150,7 +151,7 @@ EXAMPLES = r'''
     bmc_username: "{{ bmc_username }}"
     bmc_password: "{{ bmc_password }}"
     defaults:
-      real_memory: 864
+      real_memory: 884736
       corespersocket: 72
       threadspercore: 1
       sockets: 2
@@ -313,7 +314,7 @@ def _discover_single_node(hostname, bmc_ip, username, password,
 
     Returns (hostname, node_params_dict, gpu_list, error_string_or_None).
     """
-    default_memory = defaults.get("real_memory", 864)
+    default_memory = defaults.get("real_memory", 884736)
     default_cores = defaults.get("corespersocket", 72)
     default_threads = defaults.get("threadspercore", 1)
 
@@ -389,7 +390,7 @@ def _discover_group(group_name, group_nodes, bmc_ip_map, username,
     Returns (group_name, node_params_list, gpu_dict, sample_node_or_None,
              failed_bool).
     """
-    default_memory = defaults.get("real_memory", 864)
+    default_memory = defaults.get("real_memory", 884736)
     default_cores = defaults.get("corespersocket", 72)
     default_threads = defaults.get("threadspercore", 1)
     default_sockets = defaults.get("sockets", 2)
