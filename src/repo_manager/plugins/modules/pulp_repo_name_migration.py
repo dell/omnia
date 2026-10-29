@@ -351,7 +351,9 @@ class _PulpApiSession:
             # consumed directly by _build_auth_header and discarded.
             self._auth_header = self._build_auth_header(cli_section)
 
-        except Exception:
+        except (AttributeError, TypeError, ValueError):
+            self._logger.error("Failed to process Pulp CLI configuration.")
+        except Exception:  # pylint: disable=broad-exception-caught
             self._logger.error("Failed to process Pulp CLI configuration.")
 
     @staticmethod
@@ -385,7 +387,9 @@ class _PulpApiSession:
                 # tomllib requires binary mode
                 with open(config_path, "rb") as fb:
                     return toml_mod.load(fb)
-        except Exception:
+        except (OSError, TypeError, UnicodeError, ValueError):
+            return None
+        except Exception:  # pylint: disable=broad-exception-caught
             return None
 
     @staticmethod
@@ -463,7 +467,14 @@ class _PulpApiSession:
                                    uri, resp.status,
                                    redact_sensitive_output(body_raw[:500], []))
             return {"ok": ok, "status": resp.status, "body": body}
-        except Exception:
+        except (OSError, TypeError, ValueError, http.client.HTTPException):
+            self._logger.error("Pulp API POST %s failed.", uri)
+            return {
+                "ok": False,
+                "status": 0,
+                "body": {"error": "Pulp API request failed"},
+            }
+        except Exception:  # pylint: disable=broad-exception-caught
             self._logger.error("Pulp API POST %s failed.", uri)
             return {
                 "ok": False,
@@ -496,7 +507,14 @@ class _PulpApiSession:
                                    uri, resp.status,
                                    redact_sensitive_output(body_raw[:500], []))
             return {"ok": ok, "status": resp.status, "body": body}
-        except Exception:
+        except (OSError, TypeError, ValueError, http.client.HTTPException):
+            self._logger.error("Pulp API GET %s failed.", uri)
+            return {
+                "ok": False,
+                "status": 0,
+                "body": {"error": "Pulp API request failed"},
+            }
+        except Exception:  # pylint: disable=broad-exception-caught
             self._logger.error("Pulp API GET %s failed.", uri)
             return {
                 "ok": False,
@@ -530,7 +548,14 @@ class _PulpApiSession:
                                    uri, resp.status,
                                    redact_sensitive_output(body_raw[:500], []))
             return {"ok": ok, "status": resp.status, "body": body}
-        except Exception:
+        except (OSError, TypeError, ValueError, http.client.HTTPException):
+            self._logger.error("Pulp API PATCH %s failed.", uri)
+            return {
+                "ok": False,
+                "status": 0,
+                "body": {"error": "Pulp API request failed"},
+            }
+        except Exception:  # pylint: disable=broad-exception-caught
             self._logger.error("Pulp API PATCH %s failed.", uri)
             return {
                 "ok": False,
@@ -1408,7 +1433,7 @@ def migrate_status_csv_files(os_type: str, os_version: str,
                                 "status": "DryRun",
                                 "message": "Would add new-format entries alongside old"})
 
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
             logger.error(
                 "Error processing status file %s",
                 os.path.basename(status_file),
@@ -1880,7 +1905,7 @@ def run_module():
                 summary_table=table,
             )
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         logger.error("Unexpected error during repository migration.")
         module.fail_json(msg="Repository migration failed.", changed=False)
 

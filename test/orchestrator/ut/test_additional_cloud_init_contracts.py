@@ -51,13 +51,13 @@ def _write_mapping(tmp_path: Path, groups: list[str]) -> str:
     """Write a minimal PXE mapping CSV and return its absolute path."""
     lines = [
         "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,"
-        "HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP"
+        "HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IPV4,IB_IPV6"
     ]
     for idx, group in enumerate(groups, start=1):
         lines.append(
             f"{group},grp{idx},TAG{idx:04d},,node{idx},"
             f"aa:bb:cc:dd:ee:{idx:02x},10.0.0.{idx},"
-            f"ff:ee:dd:cc:bb:{idx:02x},10.1.0.{idx},,"
+            f"ff:ee:dd:cc:bb:{idx:02x},10.1.0.{idx},,,"
         )
     mapping = tmp_path / "pxe_mapping_file.csv"
     mapping.write_text("\n".join(lines) + "\n", encoding="utf-8")

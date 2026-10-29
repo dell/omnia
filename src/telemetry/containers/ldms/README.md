@@ -23,6 +23,12 @@ VictoriaMetrics.
   - **Runner stage**: Slim Ubuntu 26.04 image with compiled binaries copied over
 - Uses configure.aggregator.sh during build to enable all LDMS features
 - Final image contains only runtime dependencies
+- Pinned Python tooling: pip 26.2.0, setuptools 83.0.0, wheel 0.46.2, Cython 3.0.12
+  (resolves CVE-2026-13346, CVE-2026-8643, CVE-2026-59890, CVE-2026-24049)
+- pip is uninstalled from the final runtime image once runtime dependencies are
+  installed. pip >= 26.2 ships `pip/_vendor/bom.cdx.json`, which exposes its
+  vendored certifi/urllib3/msgpack/setuptools to CVE scanners; pip is not needed
+  at runtime
 
 ### configure.aggregator.sh
 - Configure script for OVIS LDMS compilation
@@ -50,5 +56,5 @@ The LDMS container is built via the main orchestrator script in the parent direc
 ./build_images.sh ldms ldms_tag=1.2
 ```
 
-**Image**: `dellhpcomniaaisolution/ldms`
-**Default tag**: `1.1`
+**Image**: `dellhpcomniaaisolution/ubuntu-ldms`
+**Default tag**: `1.2`

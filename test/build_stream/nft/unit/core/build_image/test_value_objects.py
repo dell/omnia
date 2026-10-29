@@ -32,13 +32,11 @@ class TestArchitecture:
         arch = Architecture("x86_64")
         assert str(arch) == "x86_64"
         assert arch.is_x86_64
-        assert not arch.is_aarch64
 
     def test_valid_aarch64(self):
         """Test creating valid aarch64 architecture."""
         arch = Architecture("aarch64")
         assert str(arch) == "aarch64"
-        assert arch.is_aarch64
         assert not arch.is_x86_64
 
     def test_invalid_empty(self):
@@ -107,17 +105,17 @@ class TestFunctionalGroups:
     def test_valid_single_group(self):
         """Test creating valid single functional group."""
         groups = FunctionalGroups(["slurm_control_node"])
-        assert groups.to_list() == ["slurm_control_node"]
+        assert groups.groups == ["slurm_control_node"]
 
     def test_valid_multiple_groups(self):
         """Test creating valid multiple functional groups."""
         groups = FunctionalGroups(["slurm_control_node", "slurm_node", "login_node"])
-        assert groups.to_list() == ["slurm_control_node", "slurm_node", "login_node"]
+        assert groups.groups == ["slurm_control_node", "slurm_node", "login_node"]
 
     def test_valid_max_groups(self):
         """Test creating maximum allowed functional groups."""
         groups = FunctionalGroups([f"group_{i}" for i in range(50)])
-        assert len(groups.to_list()) == 50
+        assert len(groups.groups) == 50
 
     def test_invalid_empty(self):
         """Test that empty functional groups raises ValueError."""
@@ -138,14 +136,6 @@ class TestFunctionalGroups:
         """Test that invalid group characters raise ValueError."""
         with pytest.raises(ValueError, match="Invalid functional group name"):
             FunctionalGroups(["valid_group", "invalid@group"])
-
-    def test_immutable_list(self):
-        """Test that returned list is a copy."""
-        groups = FunctionalGroups(["group1", "group2"])
-        list_copy = groups.to_list()
-        list_copy.append("group3")
-        assert len(groups.to_list()) == 2
-
 
 class TestInventoryHost:
     """Test cases for InventoryHost value object."""

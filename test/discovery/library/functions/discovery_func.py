@@ -27,7 +27,7 @@ from omnia_auto import (
     run_on_host,
 )
 from ..vars.common_vars import (
-    CMDS,
+    build_cmd,
     DISCOVERY_CONFIG_FILE,
     NETWORK_SPEC_FILE,
     CREDENTIALS_FILE_NAME,
@@ -102,7 +102,7 @@ def check_input_config_exists(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     path = f"{input_path}/{DISCOVERY_CONFIG_FILE}"
-    cmd = CMDS["file_exists"].format(path=path)
+    cmd = build_cmd("file_exists", path=path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -128,7 +128,7 @@ def check_network_spec_exists(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     path = f"{input_path}/{NETWORK_SPEC_FILE}"
-    cmd = CMDS["file_exists"].format(path=path)
+    cmd = build_cmd("file_exists", path=path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -154,7 +154,7 @@ def check_credentials_present(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
-    cmd = CMDS["file_exists"].format(path=cred_path)
+    cmd = build_cmd("file_exists", path=cred_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -179,7 +179,7 @@ def check_output_dir_exists(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["dir_exists"].format(path=output_path)
+    cmd = build_cmd("dir_exists", path=output_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -204,8 +204,8 @@ def check_pxe_mapping_created(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern=PXE_MAPPING_PATTERN
+    cmd = build_cmd(
+        "find_csv", path=output_path, pattern=PXE_MAPPING_PATTERN
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -233,7 +233,7 @@ def check_pxe_mapping_columns(host) -> Dict[str, Any]:
     """
     output_path = _get_output_path(host)
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
-    cmd = CMDS["csv_header"].format(path=symlink_path)
+    cmd = build_cmd("csv_header", path=symlink_path)
     result = run_on_host(host, cmd)
     if result.rc != 0 or not result.stdout.strip():
         return {
@@ -272,7 +272,7 @@ def check_pxe_mapping_has_rows(host) -> Dict[str, Any]:
     """
     output_path = _get_output_path(host)
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
-    cmd = CMDS["csv_line_count"].format(path=symlink_path)
+    cmd = build_cmd("csv_line_count", path=symlink_path)
     result = run_on_host(host, cmd)
     if result.rc != 0:
         return {
@@ -306,8 +306,8 @@ def check_discovery_report_created(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern=DISCOVERY_REPORT_PATTERN
+    cmd = build_cmd(
+        "find_csv", path=output_path, pattern=DISCOVERY_REPORT_PATTERN
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -335,7 +335,7 @@ def check_pxe_mapping_symlink(host) -> Dict[str, Any]:
     """
     output_path = _get_output_path(host)
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
-    cmd = CMDS["readlink"].format(path=symlink_path)
+    cmd = build_cmd("readlink", path=symlink_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and result.stdout.strip():
         target = result.stdout.strip()
@@ -362,7 +362,7 @@ def check_clone_status(host) -> Dict[str, Any]:
     """
     config = load_test_config()
     clone_path = config.get("clone_path", "/root/omnia")
-    cmd = CMDS["dir_exists"].format(path=clone_path)
+    cmd = build_cmd("dir_exists", path=clone_path)
     result = run_on_host(host, cmd)
     if result.rc == 0 and "exists" in result.stdout:
         return {
@@ -387,7 +387,7 @@ def check_output_dir_removed(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["dir_exists"].format(path=output_path)
+    cmd = build_cmd("dir_exists", path=output_path)
     result = run_on_host(host, cmd)
     
     # Directory should not exist or should be empty
@@ -399,7 +399,7 @@ def check_output_dir_removed(host) -> Dict[str, Any]:
         }
     
     # If directory exists, check if it's empty
-    cmd = CMDS["ls_files"].format(path=output_path)
+    cmd = build_cmd("ls_files", path=output_path)
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
     
@@ -428,7 +428,7 @@ def check_credentials_removed(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
-    cmd = CMDS["file_exists"].format(path=cred_path)
+    cmd = build_cmd("file_exists", path=cred_path)
     result = run_on_host(host, cmd)
     
     # Credentials file should not exist after cleanup
@@ -456,8 +456,8 @@ def check_pxe_mapping_files_removed(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern=PXE_MAPPING_PATTERN
+    cmd = build_cmd(
+        "find_csv", path=output_path, pattern=PXE_MAPPING_PATTERN
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -486,8 +486,8 @@ def check_discovery_report_files_removed(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern=DISCOVERY_REPORT_PATTERN
+    cmd = build_cmd(
+        "find_csv", path=output_path, pattern=DISCOVERY_REPORT_PATTERN
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -516,8 +516,7 @@ def check_status_files_removed(host) -> Dict[str, Any]:
         Dict with keys: success (bool), details (str), error (str).
     """
     output_path = _get_output_path(host)
-    cmd = CMDS["find_csv"].format(
-        path=output_path, pattern="discovery_status.yml"
+    cmd = build_cmd("find_csv", path=output_path, pattern="discovery_status.yml"
     )
     result = run_on_host(host, cmd)
     files = [f for f in result.stdout.strip().split("\n") if f.strip()]
@@ -547,7 +546,7 @@ def check_credentials_preserved(host) -> Dict[str, Any]:
     """
     input_path = _get_input_path(host)
     cred_path = f"{input_path}/{CREDENTIALS_FILE_NAME}"
-    cmd = CMDS["file_exists"].format(path=cred_path)
+    cmd = build_cmd("file_exists", path=cred_path)
     result = run_on_host(host, cmd)
     
     # Credentials file should exist when preserved
@@ -651,7 +650,7 @@ def _read_pxe_mapping_raw(host) -> Dict[str, Any]:
     symlink_path = f"{output_path}/{PXE_MAPPING_SYMLINK}"
 
     # Read entire CSV file
-    cmd = CMDS["cat_file"].format(path=symlink_path)
+    cmd = build_cmd("cat_file", path=symlink_path)
     cmd_result = run_on_host(host, cmd)
 
     if cmd_result.rc != 0 or not cmd_result.stdout.strip():
@@ -693,7 +692,7 @@ def _get_network_spec_subnets(host) -> Dict[str, Any]:
     path = f"{input_path}/{NETWORK_SPEC_FILE}"
 
     # Read and parse network_spec.yml
-    cmd = CMDS["cat_file"].format(path=path)
+    cmd = build_cmd("cat_file", path=path)
     cmd_result = run_on_host(host, cmd)
 
     if cmd_result.rc != 0 or not cmd_result.stdout.strip():
@@ -810,11 +809,11 @@ def check_functional_groups_supported(host) -> Dict[str, Any]:
 
 
 def check_ip_correlation(host) -> Dict[str, Any]:
-    """Verify ADMIN_IP and IB_IP correlation with BMC_IP based on network_spec.yml.
+    """Verify ADMIN_IP and IB_IPV4 correlation with BMC_IP based on network_spec.yml.
 
     IP correlation logic from discovery:
     - ADMIN_IP = admin_subnet[0:2] + bmc_ip[2:4]
-    - IB_IP = ib_subnet[0:2] + bmc_ip[2:4]
+    - IB_IPV4 = ib_subnet[0:2] + bmc_ip[2:4]
 
     Args:
         host: Testinfra host connection.
@@ -853,7 +852,9 @@ def check_ip_correlation(host) -> Dict[str, Any]:
         admin_ip_idx = headers.index("ADMIN_IP")
         bmc_ip_idx = headers.index("BMC_IP")
         hostname_idx = headers.index("HOSTNAME")
-        ib_ip_idx = headers.index("IB_IP") if "IB_IP" in headers else -1
+        ib_ip_idx = headers.index("IB_IPV4") if "IB_IPV4" in headers else (
+            headers.index("IB_IP") if "IB_IP" in headers else -1
+        )
     except ValueError as e:
         result["error"] = f"Required column not found: {e}"
         return result
@@ -901,7 +902,7 @@ def check_ip_correlation(host) -> Dict[str, Any]:
             })
             continue
 
-        # Check IB_IP if present and ib_subnet configured
+        # Check IB_IPV4 if present and ib_subnet configured
         if ib_ip and ib_octets and len(ib_octets) == 4:
             ib_parts = ib_ip.split(".")
             expected_ib = (
@@ -914,7 +915,7 @@ def check_ip_correlation(host) -> Dict[str, Any]:
                     "ib_ip": ib_ip,
                     "bmc_ip": bmc_ip,
                     "expected_ib_ip": expected_ib,
-                    "reason": f"IB_IP mismatch: expected {expected_ib}",
+                    "reason": f"IB_IPV4 mismatch: expected {expected_ib}",
                 })
                 continue
 

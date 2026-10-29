@@ -74,8 +74,51 @@ def _expected_match(
     return not mismatches, mismatches
 
 
-def check_slurm_hardware_discovery(host) -> Dict[str, Any]:
-    """Verify homogeneous and heterogeneous hardware results by mapping group."""
+def _check_minimal_discovery(
+    host, rows, control, compute_rows,
+):
+    """Verify minimal-mode nodes: slurmd auto-reported hardware."""
+    summary = "Slurm hardware discovery contract"
+    result = remote_command(host, control, PXEBOOT_COMMANDS["slurm_hardware"])
+    if result.rc != 0:
+        raise RuntimeError("scontrol could not read discovered node hardware")
+    actual_nodes = _parse_nodes(result.stdout)
+    outcomes: dict[str, tuple[bool, str]] = {}
+    for row in compute_rows:
+        node_hw = actual_nodes.get(row["HOSTNAME"], {})
+        actual = _actual_hardware(node_hw)
+        has_basics = all(
+            actual.get(name)
+            for name in ("sockets", "cores_per_socket", "threads_per_core", "real_memory")
+        )
+        if not node_hw:
+            outcomes[row["HOSTNAME"]] = (False, "not registered in Slurm")
+        elif has_basics:
+            outcomes[row["HOSTNAME"]] = (True, "slurmd auto-reported")
+        else:
+            outcomes[row["HOSTNAME"]] = (False, "slurmd has not reported hardware")
+    failures = [name for name, outcome in outcomes.items() if not outcome[0]]
+    mapped_groups = {row["GROUP_NAME"] for row in compute_rows}
+    return runtime_result(
+        not failures,
+        summary,
+        [
+            ("Discovery mode", "minimal"),
+            ("Effective strategy", "slurmd auto-detection"),
+            ("Mapped hardware groups", ", ".join(sorted(mapped_groups))),
+            ("Groups with user defaults", "none"),
+            ("Groups discovered at runtime", "none"),
+            ("Unknown defaults groups", "none"),
+            *group_fields(compute_rows, outcomes),
+        ],
+        "Nodes missing auto-reported hardware: " + ", ".join(failures)
+        if failures
+        else "",
+    )
+
+
+def check_slurm_hardware_discovery(host):
+    """Verify homogeneous, heterogeneous, and minimal hardware results."""
     summary = "Slurm hardware discovery contract"
     try:
         _runtime, rows, control, config = _context(host)
@@ -90,8 +133,12 @@ def check_slurm_hardware_discovery(host) -> Dict[str, Any]:
             return _skip(summary, "No Slurm compute nodes are mapped")
 
         mode = str(config.get("node_discovery_mode", "heterogeneous")).lower()
-        if mode not in {"homogeneous", "heterogeneous"}:
+        if mode not in {"homogeneous", "heterogeneous", "minimal"}:
             raise ValueError(f"Unsupported node_discovery_mode: {mode}")
+
+        if mode == "minimal":
+            return _check_minimal_discovery(host, rows, control, compute_rows)
+
         defaults = config.get("node_hardware_defaults") or {}
         if not isinstance(defaults, dict):
             raise TypeError("node_hardware_defaults must be a mapping")

@@ -165,13 +165,3 @@ class ArtifactMetadataRepository(Protocol):
         Returns:
             List of ArtifactRecord (may be empty).
         """
-
-    def delete_by_job(self, job_id: JobId) -> int:
-        """Delete all artifact records for a job.
-
-        Args:
-            job_id: Parent job identifier.
-
-        Returns:
-            Number of records deleted.
-        """

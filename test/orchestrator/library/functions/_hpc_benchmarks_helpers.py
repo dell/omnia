@@ -557,13 +557,19 @@ def snapshot_tool_fingerprints(host, row, base: str) -> dict[str, tuple[str, int
     return fingerprints
 
 
-def run_pull_script_background(host, row, timeout_seconds: int, log_path: str) -> str:
-    """Start pull_benchmarks.sh in the background and return the PID."""
+def run_pull_script_background(host, row, timeout_seconds: int, log_path: str):
+    """Start pull_benchmarks.sh in the background and return the PID.
+
+    The wrapper saves the exit code to ``log_path.exitcode`` so that
+    :func:`wait_for_pid` can retrieve it from a separate SSH session
+    (``wait`` only works for child processes of the current shell).
+    """
     result = remote_command(
         host,
         row,
         PXEBOOT_COMMANDS["hpc_benchmarks_run_pull_script_bg"]
-        % (timeout_seconds, HPC_BENCHMARKS_PULL_SCRIPT, HPC_TOOLS_BASE, log_path),
+        % (timeout_seconds, HPC_BENCHMARKS_PULL_SCRIPT, HPC_TOOLS_BASE,
+           log_path, log_path),
     )
     pid = result.stdout.strip()
     if result.rc != 0 or not pid.isdigit():
@@ -571,12 +577,20 @@ def run_pull_script_background(host, row, timeout_seconds: int, log_path: str) -
     return pid
 
 
-def wait_for_pid(host, row, pid: str, timeout_seconds: int = 700) -> int:
-    """Wait for a background PID and return its exit code."""
+def wait_for_pid(host, row, pid: str, timeout_seconds: int = 700,
+                 log_path: str = ""):
+    """Wait for a background PID and return its exit code.
+
+    Reads the exit code from the sidecar file written by
+    :func:`run_pull_script_background` instead of using ``wait``
+    (which cannot retrieve exit codes across SSH sessions).
+    """
+    exitcode_file = f"{log_path}.exitcode" if log_path else ""
     result = remote_command(
         host,
         row,
-        f"timeout {timeout_seconds} bash -c '{PXEBOOT_COMMANDS['hpc_benchmarks_wait_pid'] % (pid, pid)}'",
+        f"timeout {timeout_seconds} bash -c '"
+        f"{PXEBOOT_COMMANDS['hpc_benchmarks_wait_pid'] % (pid, exitcode_file)}'",
     )
     text = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
     try:

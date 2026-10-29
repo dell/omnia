@@ -19,7 +19,7 @@ Unit tests for cadence manager (UT-003 through UT-010).
 import json
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import Event
 from unittest.mock import MagicMock, Mock, patch
@@ -30,14 +30,13 @@ from cadence_manager import (
     _default_build_stream_config_path,
     _repo_resync_status_path,
     is_pipeline_busy,
-    copy_cadence_catalog_to_default_path,
     fetch_cadence_catalog_from_gitlab,
-    bump_catalog_version,
     submit_repo_sync_request,
     wait_for_sync_result,
     emit_audit_event,
     load_repo_resync_status,
     repo_resync_has_package_updates,
+    load_cadence_schedule,
     CadenceTimerThread,
 )
 
@@ -83,65 +82,6 @@ class TestPipelineIdleCheck:
 
         # Restore permissions for cleanup
         os.chmod(processing_dir, 0o755)  # nosec B103
-
-
-class TestCatalogCopy:
-    """UT-004: Catalog copy tests."""
-
-    def test_copy_catalog_success(self, temp_dir, sample_catalog_json):
-        """TC-UT-004-001: Copy cadence catalog to CATALOG_FILE_PATH."""
-        source_dir = temp_dir / "gitlab_repo"
-        source_dir.mkdir()
-        source_file = source_dir / "cadence_catalog_rhel.json"
-        source_file.write_text(json.dumps(sample_catalog_json))
-
-        target_dir = temp_dir / "catalog"
-        target_dir.mkdir()
-        target_file = target_dir / "catalog_rhel.json"
-
-        result = copy_cadence_catalog_to_default_path(source_file, target_file)
-
-        assert result is True
-        assert target_file.exists()
-        assert json.loads(target_file.read_text()) == sample_catalog_json
-
-    def test_create_target_directory(self, temp_dir, sample_catalog_json):
-        """TC-UT-004-002: Create target directory if missing."""
-        source_dir = temp_dir / "gitlab_repo"
-        source_dir.mkdir()
-        source_file = source_dir / "cadence_catalog_rhel.json"
-        source_file.write_text(json.dumps(sample_catalog_json))
-
-        target_file = temp_dir / "catalog" / "catalog_rhel.json"
-
-        result = copy_cadence_catalog_to_default_path(source_file, target_file)
-
-        assert result is True
-        assert target_file.exists()
-
-    def test_handle_missing_source(self, temp_dir):
-        """TC-UT-004-003: Handle missing source catalog."""
-        source_file = temp_dir / "nonexistent.json"
-        target_file = temp_dir / "catalog" / "catalog_rhel.json"
-
-        with patch("cadence_manager.log_secure_info") as mock_log:
-            result = copy_cadence_catalog_to_default_path(source_file, target_file)
-            assert result is False
-            mock_log.assert_called()
-
-    def test_handle_json_parse_error(self, temp_dir):
-        """TC-UT-004-004: Handle JSON parse errors."""
-        source_dir = temp_dir / "gitlab_repo"
-        source_dir.mkdir()
-        source_file = source_dir / "cadence_catalog_rhel.json"
-        source_file.write_text("invalid json {{{")
-
-        target_file = temp_dir / "catalog" / "catalog_rhel.json"
-
-        with patch("cadence_manager.log_secure_info") as mock_log:
-            result = copy_cadence_catalog_to_default_path(source_file, target_file)
-            assert result is False
-            mock_log.assert_called()
 
 
 @pytest.mark.unit
@@ -219,51 +159,6 @@ class TestGitLabCatalogFetch:
 
         assert result is False
         assert target_file.read_text() == original
-
-class TestVersionBumping:
-    """UT-005: Version bumping tests."""
-
-    def test_bump_patch_version_1_0_to_1_1(self, temp_dir, sample_catalog_json):
-        """TC-UT-005-001: Bump patch version (1.0 -> 1.1)."""
-        catalog_file = temp_dir / "catalog.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        new_version = bump_catalog_version(catalog_file)
-
-        assert new_version == "1.1"
-        updated_catalog = json.loads(catalog_file.read_text())
-        assert updated_catalog["catalog"]["version"] == "1.1"
-
-    def test_bump_patch_version_1_5_to_1_6(self, temp_dir, sample_catalog_json):
-        """TC-UT-005-002: Bump patch version (1.5 -> 1.6)."""
-        sample_catalog_json["catalog"]["version"] = "1.5"
-        catalog_file = temp_dir / "catalog.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        new_version = bump_catalog_version(catalog_file)
-
-        assert new_version == "1.6"
-
-    def test_handle_missing_version_field(self, temp_dir, sample_catalog_json):
-        """TC-UT-005-003: Handle missing version field."""
-        del sample_catalog_json["catalog"]["version"]
-        catalog_file = temp_dir / "catalog.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        new_version = bump_catalog_version(catalog_file)
-
-        assert new_version == "1.1"
-
-    def test_handle_invalid_version_format(self, temp_dir, sample_catalog_json):
-        """TC-UT-005-004: Handle invalid version format."""
-        sample_catalog_json["catalog"]["version"] = "invalid"
-        catalog_file = temp_dir / "catalog.json"
-        catalog_file.write_text(json.dumps(sample_catalog_json))
-
-        new_version = bump_catalog_version(catalog_file)
-
-        assert new_version == "invalid.1"
-
 
 class TestPlaybookRequest:
     """UT-007: Playbook request submission tests."""
@@ -615,9 +510,6 @@ class TestCadenceExactMirrorFlow:
         thread = self._thread(config, temp_dir)
         status = TestRepoResyncContract._status(2, 1)
         with patch(
-            "cadence_manager.copy_cadence_catalog_to_default_path",
-            return_value=True,
-        ), patch(
             "cadence_manager.submit_repo_sync_request", return_value=True
         ) as submit, patch(
             "cadence_manager.wait_for_sync_result",
@@ -770,6 +662,111 @@ class TestCadencePushTransaction:
         audit.assert_called_once()
 
 
+@pytest.mark.unit
+class TestCadenceSchedulePersistence:
+    """UT-013: Persistent cadence schedule tests."""
+
+    @staticmethod
+    def _thread(sample_cadence_config, temp_dir):
+        return CadenceTimerThread(
+            sample_cadence_config,
+            temp_dir / "queue" / "requests",
+            temp_dir / "queue" / "results",
+            temp_dir / "queue" / "processing",
+        )
+
+    def test_missing_state_creates_utc_schedule(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-013-001: First startup persists the initial UTC deadline."""
+        now = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
+        thread = self._thread(sample_cadence_config, temp_dir)
+
+        with patch("cadence_manager._utc_now", return_value=now):
+            thread._load_or_initialize_schedule()  # pylint: disable=protected-access
+
+        persisted = load_cadence_schedule(thread.state_path)
+        assert persisted["next_run_at"] == now + timedelta(days=1)
+        assert persisted["last_attempt_at"] is None
+        assert persisted["last_successful_at"] is None
+
+    def test_restart_resumes_existing_deadline(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-013-002: Restart does not reset the persisted deadline."""
+        started = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
+        first = self._thread(sample_cadence_config, temp_dir)
+        with patch("cadence_manager._utc_now", return_value=started):
+            first._load_or_initialize_schedule()  # pylint: disable=protected-access
+
+        restarted = self._thread(sample_cadence_config, temp_dir)
+        with patch(
+            "cadence_manager._utc_now",
+            return_value=started + timedelta(hours=10),
+        ):
+            restarted._load_or_initialize_schedule()  # pylint: disable=protected-access
+
+        assert restarted.schedule["next_run_at"] == started + timedelta(days=1)
+
+    def test_overdue_schedule_executes_without_full_interval_wait(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-013-003: An overdue restart runs the missed cycle immediately."""
+        now = datetime(2026, 10, 22, 12, 0, tzinfo=timezone.utc)
+        thread = self._thread(sample_cadence_config, temp_dir)
+        thread.state_path.parent.mkdir(parents=True)
+        thread.state_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "last_attempt_at": None,
+                    "last_successful_at": None,
+                    "next_run_at": "2026-10-22T10:00:00Z",
+                    "last_outcome": None,
+                }
+            ),
+            encoding="utf-8",
+        )
+        observed_timeouts = []
+
+        def overdue_wait(timeout):
+            observed_timeouts.append(timeout)
+            return False
+
+        def execute_once():
+            thread.stop_event.set()
+            return True
+
+        with patch("cadence_manager._utc_now", return_value=now), patch.object(
+            thread.trigger_event, "wait", side_effect=overdue_wait
+        ), patch.object(
+            thread, "_execute_cadence_cycle", side_effect=execute_once
+        ) as cycle:
+            thread.run()
+
+        assert observed_timeouts == [0.0]
+        cycle.assert_called_once_with()
+        persisted = load_cadence_schedule(thread.state_path)
+        assert persisted["last_attempt_at"] == now
+        assert persisted["last_successful_at"] == now
+        assert persisted["next_run_at"] == now + timedelta(days=1)
+
+    def test_invalid_state_is_replaced_with_new_schedule(
+        self, sample_cadence_config, temp_dir
+    ):
+        """TC-UT-013-004: Invalid state cannot terminate cadence startup."""
+        now = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
+        thread = self._thread(sample_cadence_config, temp_dir)
+        thread.state_path.parent.mkdir(parents=True)
+        thread.state_path.write_text("{invalid", encoding="utf-8")
+
+        with patch("cadence_manager._utc_now", return_value=now):
+            thread._load_or_initialize_schedule()  # pylint: disable=protected-access
+
+        persisted = load_cadence_schedule(thread.state_path)
+        assert persisted["next_run_at"] == now + timedelta(days=1)
+
+
 class TestCadenceTimerThread:
     """UT-010: CadenceTimerThread tests."""
 
@@ -862,7 +859,7 @@ class TestCadenceTimerThread:
         ), patch.object(thread, "_execute_cadence_cycle") as cycle:
             thread.run()
 
-        assert observed_timeouts[0] == 86400
+        assert observed_timeouts[0] == pytest.approx(86400, abs=1)
         cycle.assert_called_once_with()
 
     def test_manual_trigger_executes_immediately(

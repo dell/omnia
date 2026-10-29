@@ -1,0 +1,128 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Inject NodeAddr from IPoIB allocation into Slurm node_params.
+#
+# Source: PXE mapping file (IB_IPV6 / IB_IPV4 columns)
+#   Prefers IB_IPV6 column; falls back to IB_IPV4 if IPv6 is empty.
+#
+# For dual-stack and ipv6-only, CommunicationParameters gets EnableIPv6.
+#
+# Prerequisites:
+#   - node_params must be populated (runs after hardware discovery)
+#   - PXE mapping file must exist with IB columns
+
+- name: Check if PXE mapping file exists
+  ansible.builtin.stat:
+    path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
+  register: _pxe_mapping_stat
+  delegate_to: localhost
+
+- name: Load PXE mapping and inject NodeAddr from IB_IPV6/IB_IPV4 columns
+  when: _pxe_mapping_stat.stat.exists
+  block:
+    - name: Parse PXE mapping CSV and build hostname-to-IB-address map
+      ansible.builtin.shell: |
+        python3 -c "
+        import csv, json, sys
+        result = {}
+        has_ipv6 = False
+        with open('{{ hostvars['localhost']['pxe_mapping_file_path'] }}') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                hostname = row.get('HOSTNAME', '').strip()
+                if not hostname:
+                    continue
+                ib_ipv6 = row.get('IB_IPV6', '').strip()
+                ib_ipv4 = row.get('IB_IPV4', '').strip()
+                if ib_ipv6:
+                    result[hostname] = ib_ipv6
+                    has_ipv6 = True
+                elif ib_ipv4:
+                    result[hostname] = ib_ipv4
+        print(json.dumps({'map': result, 'has_ipv6': has_ipv6}))
+        "
+      register: _pxe_ib_parsed
+      delegate_to: localhost
+      changed_when: false
+
+    - name: Set PXE-derived IB NodeAddr map
+      ansible.builtin.set_fact:
+        _pxe_ib_nodeaddr_map: "{{ (_pxe_ib_parsed.stdout | from_json).map }}"
+        _pxe_ib_has_ipv6: "{{ (_pxe_ib_parsed.stdout | from_json).has_ipv6 }}"
+
+    - name: Display PXE-derived IB NodeAddr mapping
+      ansible.builtin.debug:
+        msg: "[IB-Slurm] PXE mapping NodeAddr map: {{ _pxe_ib_nodeaddr_map | default({}) }}"
+      when: _pxe_ib_nodeaddr_map | default({}) | length > 0
+
+    - name: Initialize updated node_params from PXE mapping
+      ansible.builtin.set_fact:
+        _updated_node_params: []
+      when:
+        - _pxe_ib_nodeaddr_map | default({}) | length > 0
+        - node_params | length > 0
+
+    - name: Add NodeAddr from PXE mapping to each node_params entry
+      ansible.builtin.set_fact:
+        _updated_node_params: "{{ _updated_node_params + [_entry] }}"
+      vars:
+        _entry: >-
+          {{ item | combine({'NodeAddr': _pxe_ib_nodeaddr_map[item.NodeName]})
+             if item.NodeName in _pxe_ib_nodeaddr_map
+             else item }}
+      loop: "{{ node_params }}"
+      loop_control:
+        label: "{{ item.NodeName }}"
+      when:
+        - _pxe_ib_nodeaddr_map | default({}) | length > 0
+        - node_params | length > 0
+
+    - name: Apply updated node_params with PXE-derived NodeAddr
+      ansible.builtin.set_fact:
+        node_params: "{{ _updated_node_params }}"
+      when:
+        - _updated_node_params | default([]) | length > 0
+
+    - name: Display updated node_params with PXE-derived NodeAddr
+      ansible.builtin.debug:
+        msg: "[IB-Slurm] Updated node_params (PXE): {{ node_params }}"
+      when: _pxe_ib_nodeaddr_map | default({}) | length > 0
+
+    - name: Add EnableIPv6 to CommunicationParameters
+      ansible.builtin.set_fact:
+        apply_config: >-
+          {{ apply_config | combine({
+               'slurm': apply_config.slurm | combine({
+                 'CommunicationParameters': ((apply_config.slurm.CommunicationParameters | default('')) ~ ',EnableIPv6')
+                   | regex_replace('^,', '')
+               })
+             }) }}
+      when:
+        - _pxe_ib_has_ipv6 | default(false) | bool
+        - _pxe_ib_nodeaddr_map | default({}) | length > 0
+
+    - name: Display CommunicationParameters update
+      ansible.builtin.debug:
+        msg: "[IB-Slurm] CommunicationParameters={{ apply_config.slurm.CommunicationParameters | default('not set') }}"
+      when:
+        - _pxe_ib_has_ipv6 | default(false) | bool
+        - _pxe_ib_nodeaddr_map | default({}) | length > 0
+
+- name: Skip IB NodeAddr injection (no PXE mapping file)
+  ansible.builtin.debug:
+    msg: >-
+      [IB-Slurm] No PXE mapping at {{ hostvars['localhost']['pxe_mapping_file_path'] }}
+      — skipping NodeAddr injection
+  when: not _pxe_mapping_stat.stat.exists

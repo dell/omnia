@@ -157,37 +157,91 @@
             "properties": {
               "ib_network": {
                 "type": "object",
-                "required": [
-                  "subnet",
-                  "netmask_bits"
-                ],
-                "properties": {
-                  "subnet": {
-                    "type": "string",
-                    "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
-                  },
-                  "netmask_bits": {
-                    "type": "string",
-                    "pattern": "^(1[0-9]|2[0-9]|[1-9])$|^3[0-2]$"
-                  },
-                  "dns": {
-                    "oneOf": [
-                      {
-                        "type": "array",
-                        "maxItems": 0
+                "oneOf": [
+                  {
+                    "required": ["ipv4_subnet", "ipv4_netmask_bits"],
+                    "properties": {
+                      "ipv4_subnet": {
+                        "type": "string",
+                        "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
                       },
-                      {
-                        "type": "array",
-                        "minItems": 1,
-                        "items": {
-                          "type": "string",
-                          "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
-                        }
+                      "ipv4_netmask_bits": {
+                        "type": "string",
+                        "pattern": "^(1[0-9]|2[0-9]|[1-9])$|^3[0-2]$"
+                      },
+                      "dns": {
+                        "oneOf": [
+                          { "type": "array", "maxItems": 0 },
+                          {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                              "type": "string",
+                              "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
+                            }
+                          }
+                        ]
+                      },
+                      "ipv6_subnet": {
+                        "type": "string",
+                        "description": "IPv6 subnet for IPoIB network (e.g. 'fd00:1b::'). Leave empty for IPv4-only."
+                      },
+                      "ipv6_netmask_bits": {
+                        "type": "string",
+                        "pattern": "^$|^([1-9]|[1-9][0-9]|1[01][0-9]|12[0-8])$",
+                        "description": "IPv6 CIDR prefix length (e.g. '64'). Required when ipv6_subnet is set."
+                      },
+                      "ib_addr_mode": {
+                        "type": "string",
+                        "enum": ["dual-stack", "ipv6-only", "ipv4-only"],
+                        "description": "IPoIB addressing mode. dual-stack: IPv4+IPv6, ipv6-only: IPv6 only, ipv4-only: IPv4 only (default, IPv6 pipeline skipped)."
+                      },
+                      "slurm_preferred_addr_family": {
+                        "type": "string",
+                        "enum": ["ipv4", "ipv6"],
+                        "description": "Which address family Slurm uses for NodeAddr in dual-stack mode. Required when ib_addr_mode is dual-stack. Ignored for ipv4-only/ipv6-only."
                       }
-                    ]
+                    },
+                    "additionalProperties": false
+                  },
+                  {
+                    "required": ["subnet", "netmask_bits"],
+                    "properties": {
+                      "subnet": {
+                        "type": "string",
+                        "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
+                      },
+                      "netmask_bits": {
+                        "type": "string",
+                        "pattern": "^(1[0-9]|2[0-9]|[1-9])$|^3[0-2]$"
+                      },
+                      "dns": {
+                        "oneOf": [
+                          { "type": "array", "maxItems": 0 },
+                          {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                              "type": "string",
+                              "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
+                            }
+                          }
+                        ]
+                      },
+                      "ib_addr_mode": {
+                        "type": "string",
+                        "enum": ["dual-stack", "ipv6-only", "ipv4-only"],
+                        "description": "IPoIB addressing mode. dual-stack: IPv4+IPv6, ipv6-only: IPv6 only, ipv4-only: IPv4 only (default, IPv6 pipeline skipped)."
+                      },
+                      "slurm_preferred_addr_family": {
+                        "type": "string",
+                        "enum": ["ipv4", "ipv6"],
+                        "description": "Which address family Slurm uses for NodeAddr in dual-stack mode. Required when ib_addr_mode is dual-stack. Ignored for ipv4-only/ipv6-only."
+                      }
+                    },
+                    "additionalProperties": false
                   }
-                },
-                "additionalProperties": false
+                ]
               }
             },
             "additionalProperties": false

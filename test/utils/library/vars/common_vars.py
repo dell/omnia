@@ -49,9 +49,6 @@ SRC_INPUT_DIR = os.path.join(
 # DOMAIN IDENTITY
 #============================================================================
 
-# Domain name used for remote path resolution
-DOMAIN_NAME = "utils"
-
 # Environment variable names on the target host
 ENV_OMNIA_DATA_PATH = "OMNIA_DATA_PATH"
 ENV_OMNIA_PROJECT_NAME = "OMNIA_PROJECT_NAME"
