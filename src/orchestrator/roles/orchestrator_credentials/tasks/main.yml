@@ -112,6 +112,13 @@
             suffix: ".yml"
           register: _cred_tmp
 
+        - name: Verify temp file was created successfully
+          ansible.builtin.assert:
+            that:
+              - _cred_tmp.path is defined
+              - _cred_tmp.path | length > 0
+            fail_msg: "Failed to create temp file for credential decryption"
+
         - name: Restrict temp file permissions
           ansible.builtin.file:
             path: "{{ _cred_tmp.path }}"
@@ -233,6 +240,13 @@
                 prefix: ".cred_tmp_"
                 suffix: ".yml"
               register: _final_cred_tmp
+
+            - name: Verify final temp file was created successfully
+              ansible.builtin.assert:
+                that:
+                  - _final_cred_tmp.path is defined
+                  - _final_cred_tmp.path | length > 0
+                fail_msg: "Failed to create temp file for final credential decryption"
 
             - name: Restrict final temp file permissions
               ansible.builtin.file:
