@@ -27,7 +27,7 @@ from ansible.module_utils.input_validation.validators import powerscale_telemetr
 
 
 _SSH_OPTIONS = (
-    "-o", "StrictHostKeyChecking=accept-new",
+    "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
     "-o", "ConnectTimeout=10",
     "-o", "BatchMode=yes",
 )

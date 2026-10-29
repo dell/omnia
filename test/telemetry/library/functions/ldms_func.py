@@ -284,7 +284,7 @@ def run_on_slurm_node(host, admin_ip: str, cmd: str):
     """
     escaped_cmd = cmd.replace('"', '\\"')
     ssh_cmd = (
-        f'ssh -o StrictHostKeyChecking=accept-new '
+        f'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null '
         f'-o ConnectTimeout=10 root@{admin_ip} "{escaped_cmd}" 2>/dev/null'
     )
     return run_on_host(host, ssh_cmd)
