@@ -81,6 +81,11 @@ from .repo_manager_func import (
     check_user_registry_tls_pair_consistent,
     check_user_registry_auth_type,
     check_user_registry_credentials,
+    check_user_registry_wrong_credentials,
+    check_user_registry_duplicate_hosts,
+    check_user_registry_https_cert_no_cn,
+    check_user_registry_distributions,
+    check_user_registry_remotes_in_pulp,
 )
 # Host sync functions
 from .host_func import (
