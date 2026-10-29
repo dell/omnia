@@ -41,3 +41,10 @@ install_os_mandatory_warning_msg: "WARNING: Credentials are required for OS inst
 install_os_password_fail_msg: "Failed. Password is required."
 install_os_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
 install_os_credential_encrypt_fail_msg: "Failed to encrypt OS install credential file."
+install_os_credential_decrypt_fail_msg: >-
+  Failed to decrypt or load {{ install_os_credential_file.file_path }}. Verify that
+  {{ install_os_credential_file.vault_path }} is the correct vault key and that the
+  credential file is not corrupted, then re-run the playbook.
+
+# Decrypted credentials are written only to memory-backed storage (tmpfs), never to persistent disk
+credential_tmp_dir: "/dev/shm"
