@@ -14,6 +14,8 @@
 
 """Public helper surface used by Orchestrator verification modules."""
 
+from typing import Any, Dict
+
 from omnia_auto import TestLogger
 from omnia_auto import run_playbook as _run_playbook
 
@@ -403,7 +405,7 @@ from .vast_storage_pxeboot_func import (
 )
 
 
-def run_playbook(tag: str | None = None, **kwargs):
+def run_playbook(tag: str | None = None, **kwargs) -> Dict[str, Any]:
     """Run the canonical Orchestrator playbook for the requested lifecycle tag."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
