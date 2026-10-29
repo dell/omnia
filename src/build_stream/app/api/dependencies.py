@@ -20,6 +20,7 @@ authorization, database sessions, repositories, and domain-specific use cases.
 
 # pylint: disable=import-error,too-many-locals,broad-exception-caught,wrong-import-position,line-too-long,trailing-whitespace
 import os
+from functools import lru_cache
 from typing import Annotated, Callable, Generator
 
 from fastapi import Depends, Header, HTTPException, status
@@ -34,6 +35,7 @@ from api.auth.jwt_handler import (
 )
 from api.auth.scopes import CATALOG_READ, CATALOG_WRITE, JOB_READ, JOB_WRITE
 from api.logging_utils import log_secure_info
+from api.vault_client import VaultClient, VaultError
 from core.jobs.repositories import (
     AuditEventRepository,
     JobRepository,
@@ -67,15 +69,42 @@ def get_jwt_handler() -> JWTHandler:
     return _jwt_handler
 
 
+@lru_cache(maxsize=1)
+def get_vault_client() -> VaultClient:
+    """Get the shared Vault client used to look up registered OAuth clients."""
+    return VaultClient()
+
+
+def _is_client_active(vault_client: VaultClient, client_id: str) -> bool:
+    """Return True only if the client is still registered and active.
+
+    Deleting or disabling the client in the credentials vault therefore
+    invalidates its outstanding tokens on the next request, instead of
+    leaving them usable until they expire. Fails closed if the registry
+    cannot be read.
+    """
+    try:
+        client = vault_client.get_oauth_clients_cached().get(client_id)
+    except VaultError:
+        log_secure_info('error', "Token rejected - OAuth client registry unavailable")
+        return False
+    return bool(client) and bool(client.get("is_active", False))
+
+
 def verify_token(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     jwt_handler: Annotated[JWTHandler, Depends(get_jwt_handler)],
+    vault_client: Annotated[VaultClient, Depends(get_vault_client)],
 ) -> dict:
     """Verify JWT token from Authorization header.
+
+    The token must have a valid signature and claims, and its client must
+    still be registered and active.
 
     Args:
         credentials: HTTP Authorization credentials from request.
         jwt_handler: JWT handler instance.
+        vault_client: Vault client used to look up the token's client.
 
     Returns:
         Token data dictionary with client information.
@@ -96,15 +125,6 @@ def verify_token(
 
     try:
         token_data = jwt_handler.validate_token(credentials.credentials)
-        log_secure_info("info", "Token validated successfully", token_data.client_id)
-
-        return {
-            "client_id": token_data.client_id,
-            "client_name": token_data.client_name,
-            "scopes": token_data.scopes,
-            "token_id": token_data.token_id,
-        }
-
     except JWTExpiredError:
         log_secure_info('warning', "Token validation failed - token expired")
         raise HTTPException(
@@ -137,6 +157,29 @@ def verify_token(
             },
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
+
+    if not _is_client_active(vault_client, token_data.client_id):
+        log_secure_info(
+            'warning',
+            "Token rejected - client is no longer registered or active",
+            token_data.client_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error": "invalid_token",
+                "error_description": "Invalid access token",
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    log_secure_info("info", "Token validated successfully", token_data.client_id)
+    return {
+        "client_id": token_data.client_id,
+        "client_name": token_data.client_name,
+        "scopes": token_data.scopes,
+        "token_id": token_data.token_id,
+    }
 
 
 def require_scope(required_scope: str) -> Callable[[dict], dict]:
