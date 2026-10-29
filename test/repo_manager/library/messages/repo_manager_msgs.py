@@ -103,7 +103,9 @@ TEST_NAMES = {
     "user_registry_no_duplicate_hosts": "Verify no duplicate registry host entries",
     "user_registry_https_cert_cn_valid": "Verify HTTPS certificates have valid CN/SAN",
     "user_registry_distributions": "Verify Pulp container distributions exist for user registries",
-    "user_registry_remotes_in_pulp": "Verify Pulp container remotes are created for user registries",
+    "user_registry_remotes_in_pulp": (
+        "Verify Pulp container remotes are created for user registries"
+    ),
 }
 
 TEST_LOG_MSGS = {
@@ -244,14 +246,22 @@ TEST_LOG_MSGS = {
     "user_registry_auth_type_invalid": "Auth type is unsupported",
     "user_registry_credentials_ok": "Registry credentials are present",
     "user_registry_credentials_missing": "Registry credentials are missing",
-    "user_registry_auth_credentials_ok": "Registry authenticated successfully with vault credentials",
-    "user_registry_auth_credentials_fail": "Registry authentication failed with vault credentials",
+    "user_registry_auth_credentials_ok": (
+        "Registry authenticated successfully with vault credentials"
+    ),
+    "user_registry_auth_credentials_fail": (
+        "Registry authentication failed with vault credentials"
+    ),
     "user_registry_no_duplicate_hosts_ok": "No duplicate registry host entries found",
     "user_registry_duplicate_hosts_found": "Duplicate registry host entries found",
     "user_registry_cert_cn_ok": "All HTTPS certificates have valid CN/SAN",
     "user_registry_cert_cn_invalid": "HTTPS certificates missing CN/SAN",
-    "user_registry_distributions_ok": "Pulp container distributions exist for user registries",
-    "user_registry_distributions_missing": "Pulp container distributions missing for user registries",
+    "user_registry_distributions_ok": (
+        "Pulp container distributions exist for user registries"
+    ),
+    "user_registry_distributions_missing": (
+        "Pulp container distributions missing for user registries"
+    ),
     "user_registry_remotes_ok": "Pulp container remotes exist for user registries",
     "user_registry_remotes_missing": "Pulp container remotes missing for user registries",
 }

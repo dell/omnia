@@ -614,18 +614,54 @@ UT_TEST_CASE_IDS = {
         },
     ),
     # ── Vault in-memory read (top-level functions) ────────────────────────
-    "test_vault_in_memory_read.py::test_process_encrypted_file_reads_without_touching_file": "RM_UT_306",
-    "test_vault_in_memory_read.py::test_process_encrypted_file_wrong_key_fails_and_file_untouched": "RM_UT_307",
-    "test_vault_in_memory_read.py::test_process_encrypted_file_malformed_yaml_fails_and_file_untouched": "RM_UT_308",
-    "test_vault_in_memory_read.py::test_yml_line_number_on_vaulted_file": "RM_UT_309",
-    "test_vault_in_memory_read.py::test_yml_line_number_vault_failure_raises_and_file_untouched": "RM_UT_310",
-    "test_vault_in_memory_read.py::test_no_in_place_decrypt_helpers_remain": "RM_UT_311",
-    "test_vault_in_memory_read.py::test_schema_reports_all_errors_when_line_lookup_fails": "RM_UT_312",
-    "test_vault_in_memory_read.py::test_logic_handles_error_dicts_missing_fields": "RM_UT_313",
-    "test_vault_in_memory_read.py::test_schema_oserror_is_reported_and_logged_with_traceback": "RM_UT_314",
-    "test_vault_in_memory_read.py::test_schema_unexpected_error_names_file_and_logs_traceback": "RM_UT_315",
-    "test_vault_in_memory_read.py::test_logic_logs_traceback_for_unexpected_error": "RM_UT_316",
-    "test_vault_in_memory_read.py::test_schema_missing_config_key_does_not_crash_without_logger": "RM_UT_317",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_process_encrypted_file_reads_without_touching_file"
+    ): "RM_UT_306",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_process_encrypted_file_wrong_key_fails_and_file_untouched"
+    ): "RM_UT_307",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_process_encrypted_file_malformed_yaml_fails_and_file_untouched"
+    ): "RM_UT_308",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_yml_line_number_on_vaulted_file"
+    ): "RM_UT_309",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_yml_line_number_vault_failure_raises_and_file_untouched"
+    ): "RM_UT_310",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_no_in_place_decrypt_helpers_remain"
+    ): "RM_UT_311",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_schema_reports_all_errors_when_line_lookup_fails"
+    ): "RM_UT_312",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_logic_handles_error_dicts_missing_fields"
+    ): "RM_UT_313",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_schema_oserror_is_reported_and_logged_with_traceback"
+    ): "RM_UT_314",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_schema_unexpected_error_names_file_and_logs_traceback"
+    ): "RM_UT_315",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_logic_logs_traceback_for_unexpected_error"
+    ): "RM_UT_316",
+    (
+        "test_vault_in_memory_read.py"
+        "::test_schema_missing_config_key_does_not_crash_without_logger"
+    ): "RM_UT_317",
     "test_vault_in_memory_read.py::test_run_subprocess_timeout_returns_distinct_code": "RM_UT_318",
     "test_vault_in_memory_read.py::test_run_subprocess_missing_command_returns_127": "RM_UT_319",
     # ── Catalog add/merge ─────────────────────────────────────────────────
