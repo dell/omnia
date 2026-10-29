@@ -19,7 +19,7 @@ required services, monitoring agents, and do NOT contain workload-specific
 software (Slurm, Kubernetes, container runtimes, GPU drivers, MPI stacks).
 """
 
-from typing import Any
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS
 from ._pxeboot_helpers import (
@@ -96,7 +96,7 @@ def _os_rows(context: dict[str, Any]) -> list[dict[str, str]]:
 # ---------------------------------------------------------------------------
 
 
-def check_minimal_os_base_packages(host):
+def check_minimal_os_base_packages(host) -> Dict[str, Any]:
     """Verify base OS packages are installed on all OS-only nodes."""
     summary = "Minimal OS base packages"
     try:
@@ -139,7 +139,7 @@ def check_minimal_os_base_packages(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_ldms_packages(host):
+def check_minimal_os_ldms_packages(host) -> Dict[str, Any]:
     """Verify LDMS monitoring packages and binary on OS-only nodes."""
     summary = "Minimal OS LDMS packages"
     try:
@@ -186,7 +186,7 @@ def check_minimal_os_ldms_packages(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_required_services(host):
+def check_minimal_os_required_services(host) -> Dict[str, Any]:
     """Verify required services are active on all OS-only nodes."""
     summary = "Minimal OS required services"
     try:
@@ -232,7 +232,7 @@ def check_minimal_os_required_services(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_ldms_service_state(host):
+def check_minimal_os_ldms_service_state(host) -> Dict[str, Any]:
     """Verify LDMS service is installed but NOT running at handoff."""
     summary = "Minimal OS LDMS service state"
     try:
@@ -283,7 +283,7 @@ def check_minimal_os_ldms_service_state(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_excluded_packages(host):
+def check_minimal_os_excluded_packages(host) -> Dict[str, Any]:
     """Verify workload-specific packages are NOT installed on OS-only nodes."""
     summary = "Minimal OS excluded packages"
     try:
@@ -338,7 +338,7 @@ def check_minimal_os_excluded_packages(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_excluded_services(host):
+def check_minimal_os_excluded_services(host) -> Dict[str, Any]:
     """Verify workload-specific services are NOT active on OS-only nodes."""
     summary = "Minimal OS excluded services"
     try:
@@ -393,7 +393,7 @@ def check_minimal_os_excluded_services(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_package_manager(host):
+def check_minimal_os_package_manager(host) -> Dict[str, Any]:
     """Verify package manager (dnf/yum) is functional on OS-only nodes."""
     summary = "Minimal OS package manager"
     try:
@@ -431,7 +431,7 @@ def check_minimal_os_package_manager(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_kernel_version(host):
+def check_minimal_os_kernel_version(host) -> Dict[str, Any]:
     """Verify kernel version is consistent across OS-only nodes per FG."""
     summary = "Minimal OS kernel version"
     try:
@@ -482,7 +482,7 @@ def check_minimal_os_kernel_version(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_functional_group_schema(host):
+def check_minimal_os_functional_group_schema(host) -> Dict[str, Any]:
     """Verify functional-group definitions are valid on OS-only nodes.
 
     Queries cloud-init metadata on each node to confirm the assigned
@@ -541,7 +541,7 @@ def check_minimal_os_functional_group_schema(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_additional_packages(host):
+def check_minimal_os_additional_packages(host) -> Dict[str, Any]:
     """Verify configured additional packages are installed on OS-only nodes.
 
     Reads the ``omnia_config.yml`` for any ``additional_packages`` list
@@ -616,7 +616,7 @@ def check_minimal_os_additional_packages(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_additional_packages_fallback(host):
+def check_minimal_os_additional_packages_fallback(host) -> Dict[str, Any]:
     """Verify absent additional_packages config is handled gracefully.
 
     When no ``additional_packages`` key exists in ``omnia_config.yml``,
@@ -691,7 +691,7 @@ def check_minimal_os_additional_packages_fallback(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_ssh_key_access(host):
+def check_minimal_os_ssh_key_access(host) -> Dict[str, Any]:
     """Verify SSH key authentication is proven on OS-only nodes.
 
     Checks that PubkeyAuthentication is enabled and that
@@ -764,7 +764,7 @@ def check_minimal_os_ssh_key_access(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_network_isolation(host):
+def check_minimal_os_network_isolation(host) -> Dict[str, Any]:
     """Verify default route is on the management network on OS-only nodes.
 
     Checks that each OS-only node has a default route and that the
@@ -826,7 +826,7 @@ def check_minimal_os_network_isolation(host):
         return runtime_exception(summary, exc)
 
 
-def check_minimal_os_no_embedded_credentials(host):
+def check_minimal_os_no_embedded_credentials(host) -> Dict[str, Any]:
     """Verify no plaintext secrets are present in the OS image.
 
     Scans ``/etc/cloud`` and ``/root`` for files containing patterns
@@ -901,7 +901,7 @@ def _parse_ip_addresses(ip_output: str) -> set[str]:
     return addresses
 
 
-def check_minimal_os_network_identity(host):
+def check_minimal_os_network_identity(host) -> Dict[str, Any]:
     """Verify admin IP is configured on all OS-only nodes.
 
     Parses ``ip -o addr show`` output and compares exact normalised

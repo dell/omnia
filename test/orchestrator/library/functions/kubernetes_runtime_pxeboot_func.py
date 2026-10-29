@@ -18,7 +18,7 @@ import json
 import os
 import re
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Dict
 
 from omnia_auto import load_test_config
 
@@ -93,7 +93,7 @@ def _within_minor_skew(
     return -older <= delta <= newer
 
 
-def check_kubernetes_version_compatibility(host):
+def check_kubernetes_version_compatibility(host) -> Dict[str, Any]:
     """Verify kubectl, server, kubeadm, kubelet, and CRI-O version alignment."""
     summary = "Kubernetes component version compatibility"
     try:
@@ -210,7 +210,7 @@ def check_kubernetes_version_compatibility(host):
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_configured_versions(host):
+def check_kubernetes_configured_versions(host) -> Dict[str, Any]:
     """Verify deployed Kubernetes components match the catalog version."""
     summary = "Kubernetes configured component versions"
     try:
@@ -525,7 +525,7 @@ def _control_plane_check(host, summary: str, node_state, failure: str):
     )
 
 
-def check_kubernetes_local_etcd_integrity(host):
+def check_kubernetes_local_etcd_integrity(host) -> Dict[str, Any]:
     """Verify local-etcd disk selection, filesystem, mount, and boot persistence."""
     summary = "Kubernetes local-etcd storage integrity"
     try:
@@ -582,7 +582,7 @@ def _local_etcd_provisioning_state(host, row) -> tuple[bool, str]:
     return ok, detail
 
 
-def check_kubernetes_local_etcd_provisioning(host):
+def check_kubernetes_local_etcd_provisioning(host) -> Dict[str, Any]:
     """Verify GPT selection and local-etcd provisioning artifacts."""
     summary = "Kubernetes local-etcd provisioning contract"
     try:
@@ -596,7 +596,7 @@ def check_kubernetes_local_etcd_provisioning(host):
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_local_etcd_media(host):
+def check_kubernetes_local_etcd_media(host) -> Dict[str, Any]:
     """Verify every control plane places etcd on the configured disk media."""
     summary = "Kubernetes local-etcd disk media"
     try:

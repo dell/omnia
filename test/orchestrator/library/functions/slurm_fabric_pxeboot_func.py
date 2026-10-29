@@ -17,6 +17,7 @@
 import ipaddress
 import json
 import re
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS, SLURM_COMPUTE_PREFIX
 from ._pxeboot_helpers import (
@@ -224,7 +225,7 @@ def _command_failure(result) -> str:
     return re.sub(r"\s+", " ", detail)[:300]
 
 
-def check_slurm_gpu_inventory(host):
+def check_slurm_gpu_inventory(host) -> Dict[str, Any]:
     """Verify GPUs only on mapped nodes where Slurm declares GPU GRES."""
     summary = "Slurm NVIDIA GPU inventory"
     try:
@@ -310,7 +311,7 @@ def check_slurm_gpu_inventory(host):
         return runtime_exception(summary, exc)
 
 
-def check_slurm_infiniband_configuration(host):
+def check_slurm_infiniband_configuration(host) -> Dict[str, Any]:
     """Verify the FQDD-to-RDMA identity chain and operational IB state."""
     summary = "Slurm InfiniBand configuration"
     try:
@@ -450,7 +451,7 @@ def check_slurm_infiniband_configuration(host):
         return runtime_exception(summary, exc)
 
 
-def check_slurm_infiniband_connectivity(host):
+def check_slurm_infiniband_connectivity(host) -> Dict[str, Any]:
     """Verify every mapped Slurm IB endpoint can reach every peer.
 
     Nodes whose IB interface is not operational (RDMA device missing or
@@ -604,7 +605,7 @@ def _probe_ucx_node(host, row):
     return resolution, inventory, matched_devices, success, diagnostic
 
 
-def check_slurm_ucx_transport(host):
+def check_slurm_ucx_transport(host) -> Dict[str, Any]:
     """Verify UCX exposes the mapped RDMA device on every compute node."""
     summary = "Slurm UCX InfiniBand transport"
     try:
