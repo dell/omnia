@@ -236,6 +236,7 @@ def test_python_packages_installed(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(102)
+@pytest.mark.idrac
 def test_idrac_deployment(host):
     """TEL_FVT_DEPLOY_V112: Verify iDRAC deployment succeeded in the current mode."""
     _skip_if_idrac_disabled(host)
@@ -281,6 +282,8 @@ def test_idrac_deployment(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(103)
+@pytest.mark.idrac
+@pytest.mark.sanity
 def test_idrac_pods(host):
     """TEL_FVT_DEPLOY_V113: Verify iDRAC pods running in the current mode."""
     _skip_if_idrac_disabled(host)
@@ -329,6 +332,7 @@ def test_idrac_pods(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(104)
+@pytest.mark.powerscale
 def test_powerscale_dependencies(host):
     """TEL_FVT_DEPLOY_V114: Verify PowerScale dependencies for the current mode."""
     _skip_if_powerscale_disabled(host)
@@ -423,6 +427,7 @@ def test_powerscale_dependencies(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(105)
+@pytest.mark.powerscale
 def test_powerscale_deployment(host):
     """TEL_FVT_DEPLOY_V115: Verify PowerScale deployment succeeded in the current mode."""
     _skip_if_powerscale_disabled(host)

@@ -268,8 +268,11 @@
       }}
     _ldms_deploy_reachable_hosts: >-
       {{
-        _ldms_deploy_reachable_hosts
-        | difference(_ldms_deploy_control_unreachable_hosts) | sort
+        (
+          _ldms_deploy_reachable_hosts
+          | difference(_ldms_deploy_control_unreachable_hosts)
+          | union(_ldms_deploy_reachable_control_hosts)
+        ) | unique | sort
       }}
     _ldms_deploy_reachable_control_hosts: >-
       {{
@@ -335,7 +338,11 @@
     fail_msg: >-
       Node {{ item }} is not in healthy state according to Slurm sinfo.
       Current sinfo status: {{ _ldms_sinfo_output.stdout }}
-  loop: "{{ _ldms_deploy_reachable_hosts | default([]) }}"
+  loop: >-
+    {{
+      (_ldms_deploy_reachable_hosts | default([]))
+      | difference(_ldms_deploy_reachable_control_hosts | default([]))
+    }}
   loop_control:
     label: "{{ item }}"
 

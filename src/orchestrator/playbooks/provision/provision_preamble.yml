@@ -72,11 +72,13 @@
         path: /tmp/omnia_provision_mapping.csv
         key: ADMIN_MAC
       register: _preamble_csv_result
+      no_log: true
       when: read_mapping_file is not defined
 
     - name: Promote CSV result to read_mapping_file fact
       ansible.builtin.set_fact:
         read_mapping_file: "{{ _preamble_csv_result }}"
+      no_log: true
       when: read_mapping_file is not defined and _preamble_csv_result is not skipped
 
     - name: Clean up temp mapping file

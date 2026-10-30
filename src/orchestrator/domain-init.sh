@@ -228,7 +228,7 @@ copy_input_files() {
         return 0
     fi
 
-    mkdir -p "$dest_dir"
+    mkdir -p -m 0750 "$dest_dir"
 
     # Use rsync if available (preserves permissions, only copies changed files)
     if command -v rsync >/dev/null 2>&1; then
@@ -236,6 +236,12 @@ copy_input_files() {
     else
         cp -a "$src_dir"/. "$dest_dir/"
     fi
+
+    # Directories 0750; files lose group-write and all "other" access, so
+    # 0644 becomes 0640 while stricter modes such as 0600 are preserved.
+    chmod 0750 "$dest_dir"
+    find "$dest_dir" -mindepth 1 -type d -exec chmod 0750 {} +
+    find "$dest_dir" -type f -exec chmod g-w,o-rwx {} +
 
     local count
     count=$(find "$dest_dir" -type f | wc -l)
@@ -256,6 +262,9 @@ create_runtime_directories() {
             echo -e "  ${GREEN}[${DOMAIN_NAME}] Created directory: ${dir}${NC}"
         fi
     done
+
+    # Logs and outputs may contain node identities; keep them owner/group only.
+    chmod 0750 "$output_dir" "$runtime_log_dir" "$ansible_log_dir"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
