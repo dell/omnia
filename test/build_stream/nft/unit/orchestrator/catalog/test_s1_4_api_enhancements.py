@@ -227,6 +227,39 @@ class TestExtractCatalogMetadata:
         assert meta["roles"] == ["valid_role"]
         assert meta["role_images"] == {"valid_role": "valid_role.img"}
 
+    @pytest.mark.parametrize(
+        "identifier",
+        [
+            "../../../../etc/passwd",
+            "a;id",
+            "a$(id)",
+            "a b",
+            " lead",
+            ".hidden",
+            "a" * 129,
+            123,
+            ["x"],
+        ],
+    )
+    def test_rejects_unsafe_identifier(self, identifier):
+        """An Identifier outside the safe set is rejected with a 400-class error."""
+        from core.catalog.exceptions import InvalidCatalogFormatError
+
+        uc = self._get_use_case()
+        catalog = {"Catalog": {"Identifier": identifier, "Version": "1.0"}}
+        with pytest.raises(InvalidCatalogFormatError):
+            uc._extract_catalog_metadata(catalog)
+
+    @pytest.mark.parametrize("version", ["1 0", "1;id", "../x", {"a": 1}])
+    def test_rejects_unsafe_version(self, version):
+        """A Version that makes the composite ID unsafe is rejected."""
+        from core.catalog.exceptions import InvalidCatalogFormatError
+
+        uc = self._get_use_case()
+        catalog = {"Catalog": {"Identifier": "my-group", "Version": version}}
+        with pytest.raises(InvalidCatalogFormatError):
+            uc._extract_catalog_metadata(catalog)
+
 
 # ======================================================================
 # Part B: Result Poller Build-Image Completion Tests

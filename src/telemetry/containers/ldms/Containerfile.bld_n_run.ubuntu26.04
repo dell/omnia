@@ -7,7 +7,7 @@
 # ── Stage 1: Builder ───────────────────────────────────────────────────────
 FROM ubuntu:26.04 AS ldms_builder
 
-ARG OVIS_TAG="v4.5.2"
+ARG OVIS_TAG="v4.5.3"
 ENV TAG=${OVIS_TAG}
 ARG OVIS_REPO="https://github.com/ovis-hpc/ovis.git"
 ENV REPO=${OVIS_REPO}

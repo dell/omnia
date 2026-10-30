@@ -116,7 +116,7 @@ def create_deploy(
         ) from exc
 
     try:
-        validated_image_group_id = ImageGroupId(request_body.image_group_id)
+        validated_image_group_id = ImageGroupId.parse(request_body.image_group_id)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

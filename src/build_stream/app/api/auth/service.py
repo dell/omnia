@@ -15,7 +15,6 @@
 """Authentication service for OAuth2 client management."""
 
 import hmac
-import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -89,7 +88,6 @@ class AuthService:
         """
         self.vault_client = vault_client or VaultClient()
         self.jwt_handler = jwt_handler or JWTHandler()
-        self._registration_username = os.getenv("AUTH_REGISTRATION_USERNAME")
 
     def verify_registration_credentials(self, username: str, password: str) -> bool:
         """Verify the Basic Auth credentials for registration endpoint.
@@ -133,12 +131,13 @@ class AuthService:
                 "Registration is not configured"
             ) from None
 
-        if not hmac.compare_digest(
+        username_ok = hmac.compare_digest(
             str(username).encode("utf-8"), str(stored_username).encode("utf-8")
-        ):
-            raise AuthenticationError("Invalid credentials")
-
-        if not verify_password(password, stored_password_hash):
+        )
+        # Always run the Argon2 check, so a wrong username takes as long as a
+        # wrong password and response timing does not reveal the username.
+        password_ok = verify_password(password, stored_password_hash)
+        if not (username_ok and password_ok):
             raise AuthenticationError("Invalid credentials")
 
         return True
@@ -223,11 +222,15 @@ class AuthService:
             # Ensure no exception details are exposed
             raise InvalidClientError("Client authentication failed") from None
 
-        # Checkmarx: Truncate client_id to first 8 chars before logging (prevents sensitive data exposure)
+        # Checkmarx: Truncate client_id to first 8 chars before logging
+        # (prevents sensitive data exposure)
         safe_client_id = client_id[:8] + "..." if len(client_id) > 8 else client_id
-        
+
         if client_id not in oauth_clients:
-            log_auth_info("warning", f"Unknown client_id attempted authentication: {safe_client_id}")
+            log_auth_info(
+                "warning",
+                f"Unknown client_id attempted authentication: {safe_client_id}"
+            )
             raise InvalidClientError("Client authentication failed")
 
         client_data = oauth_clients[client_id]
@@ -268,7 +271,7 @@ class AuthService:
         """
         # Checkmarx: Truncate client_id for all logging in this method
         safe_client_id = client_id[:8] + "..." if len(client_id) > 8 else client_id
-        
+
         client_data = self.verify_client_credentials(client_id, client_secret)
 
         # Scopes stored for older clients (for example admin:*) that no route
