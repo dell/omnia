@@ -38,7 +38,6 @@ FVT_TAGS: List[str] = [
     "precheck",
     "prepare",
     "execute",
-    "repo_sync",
     "status",
     "cleanup",
     "cleanup_repos",
@@ -57,6 +56,7 @@ MARKERS: List[str] = [
     "sanity",
     "functional",
     "positive",
+    "negative",
     "destructive",
     "deploy",
     "x86_64",
@@ -72,24 +72,24 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "precheck": ["config"],
-    "prepare": ["pulp"],
-    "execute": ["repos", "artifacts", "policy"],
-    "status": ["status"],
-    "cleanup": ["cleanup"],
+    "precheck": ["config", "negative"],
+    "prepare": ["pulp", "negative"],
+    "execute": ["repos", "artifacts", "policy", "negative"],
+    "status": ["status", "negative"],
+    "cleanup": ["cleanup", "negative"],
     "cleanup_repos": ["selective"],
-    "catalog_generate": ["generate"],
-    "catalog_add": ["add"],
-    "catalog_delete": ["delete"],
+    "catalog_generate": ["generate", "negative"],
+    "catalog_add": ["add", "negative"],
+    "catalog_delete": ["delete", "negative"],
     "catalog_validate": ["validate"],
-    "user_registry": ["validation"],
+    "user_registry": ["validation", "negative"],
 }
 
 # Ordered, non-destructive lifecycle used by an untagged ``exec`` or ``test``.
 # Cleanup remains explicit-only and catalog mutation requires an exact suite.
-ALL_EXEC_TAGS: List[str] = ["precheck", "prepare", "execute", "status", "user_registry"]
+ALL_EXEC_TAGS: List[str] = ["precheck", "prepare", "execute", "status"]
 ALL_EXEC_MARKER: str = ""
-ALL_VERIFY_EXCLUDE_MARKERS: List[str] = ["destructive"]
+ALL_VERIFY_EXCLUDE_MARKERS: List[str] = ["negative", "destructive"]
 
 # These scenarios validate existing state and own no deployment trigger.
 VERIFY_ONLY_TAGS: List[str] = ["user_registry"]
@@ -102,7 +102,15 @@ SUITE_EXEC_OWNERS: Dict[str, List[str]] = {}
 
 # Suites that only verify (no playbook deploy step of their own).
 VERIFY_ONLY_SUITES: Dict[str, List[str]] = {
-    "execute": ["policy"],
+    "precheck": ["negative"],
+    "prepare": ["negative"],
+    "execute": ["policy", "negative"],
+    "status": ["negative"],
+    "cleanup": ["negative"],
+    "catalog_generate": ["negative"],
+    "catalog_add": ["negative"],
+    "catalog_delete": ["negative"],
+    "user_registry": ["negative"],
 }
 
 # =====================================================================

@@ -68,6 +68,7 @@ ansible-doc omnia.orchestrator.validate_credentials
 ansible-doc omnia.orchestrator.fetch_credential_rule
 ansible-doc omnia.orchestrator.generate_functional_groups
 ansible-doc omnia.orchestrator.openchami_reconcile
+ansible-doc omnia.orchestrator.generate_argon2_password
 ansible-doc omnia.orchestrator.slurm_conf
 ansible-doc omnia.orchestrator.fetch_telemetry_status
 ```

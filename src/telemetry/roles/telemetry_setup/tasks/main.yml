@@ -18,15 +18,11 @@
 # Self-contained setup for telemetry — matches image_build_setup pattern.
 #
 # Task files:
-#   validate_tags.yml     — Step 0: Validate tags
 #   load_config.yml       — Step 1: Read omnia.env vars, derive paths, auto-copy inputs
 #   create_directories.yml — Step 2: Create runtime directories
 #   display_usage.yml     — Step 3: Display usage information
 #   main.yml (this file)  — Step 4: Set guard fact
 # =============================================================================
-
-- name: Validate tags
-  ansible.builtin.include_tasks: validate_tags.yml
 
 - name: Load configuration from environment (omnia.env)
   ansible.builtin.include_tasks: load_config.yml

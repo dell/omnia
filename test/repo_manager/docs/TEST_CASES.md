@@ -22,11 +22,13 @@
 | Cleanup | `RM_FVT_CLEANUP_` | Cleanup verification tests |
 | Selective cleanup | `RM_FVT_CLEANUP_REPOS_` | Exact repository cleanup tests |
 | Policy | `RM_FVT_POLICY_` | Repository policy tests |
+| Negative | `RM_FVT_NEG_` | Error scenario tests |
 | User registry | `RM_FVT_USER_REGISTRY_` | User registry tests |
 | Catalog generate | `RM_FVT_CATALOG_GENERATE_` | Catalog generation tests |
 | Catalog add | `RM_FVT_CATALOG_ADD_` | Catalog add tests |
 | Catalog delete | `RM_FVT_CATALOG_DELETE_` | Catalog delete tests |
 | Catalog validate | `RM_FVT_CATALOG_VALIDATE_` | Catalog validate tests |
+| Catalog negative | `RM_FVT_CATALOG_NEG_` | Catalog negative tests |
 
 ---
 
@@ -181,6 +183,23 @@
 
 ---
 
+## Negative Tests (`fvt/negative/error_scenarios/`)
+
+| TC ID | Test Function | Description | Marker |
+|-------|---------------|-------------|--------|
+| RM_FVT_NEG_001 | `test_deploy_fails_missing_credentials` | Test deploy fails without credentials | negative |
+| RM_FVT_NEG_002 | `test_deploy_fails_invalid_endpoint_config` | Test deploy fails with invalid endpoint | negative |
+| RM_FVT_NEG_003 | `test_download_fails_invalid_repo_url` | Test download fails with invalid URL | negative |
+| RM_FVT_NEG_004 | `test_status_fails_missing_repo_status` | Test status fails without repo_status | negative |
+| RM_FVT_NEG_005 | `test_cleanup_fails_pulp_not_running` | Test cleanup fails when Pulp not running | negative |
+| RM_FVT_NEG_006 | `test_pulp_cli_fails_invalid_auth` | Test Pulp CLI fails with invalid auth | negative |
+| RM_FVT_NEG_007 | `test_repo_sync_fails_network_issues` | Test repo sync fails with network issues | negative |
+| RM_FVT_NEG_008 | `test_catalog_generation_fails_invalid_config` | Test catalog generation fails with invalid config | negative |
+| RM_FVT_NEG_009 | `test_validate_fails_missing_config` | Test validate fails without config | negative |
+| RM_FVT_NEG_010 | `test_pulp_api_unreachable_port_closed` | Test Pulp API unreachable when port closed | negative |
+
+---
+
 ## User Registry Tests (`fvt/user_registry/`)
 
 ### Validation Tests (`test_user_registry_validation.py`)
@@ -196,11 +215,17 @@
 | RM_FVT_USER_REGISTRY_V006 | `test_user_registry_tls_pair_consistent` | Verify client cert and key configured together | sanity, positive |
 | RM_FVT_USER_REGISTRY_V007 | `test_user_registry_auth_type_valid` | Verify auth type is none or basic | sanity, positive |
 | RM_FVT_USER_REGISTRY_V008 | `test_user_registry_credentials_present` | Verify credentials for basic auth registries | functional, positive |
-| RM_FVT_USER_REGISTRY_V009 | `test_user_registry_distributions` | Verify Pulp container distributions exist for user registries | functional, positive |
-| RM_FVT_USER_REGISTRY_V010 | `test_user_registry_remotes_in_pulp` | Verify Pulp container remotes are created for user registries | functional, positive |
-| RM_FVT_USER_REGISTRY_V011 | `test_user_registry_auth_credentials_valid` | Verify registry authenticates with vault credentials | functional, positive |
-| RM_FVT_USER_REGISTRY_V012 | `test_user_registry_no_duplicate_hosts` | Verify no duplicate registry host entries | sanity, positive |
-| RM_FVT_USER_REGISTRY_V013 | `test_user_registry_https_cert_cn_valid` | Verify HTTPS certificates have valid CN/SAN | functional, positive |
+
+### Negative Tests (`test_user_registry_negative.py`)
+
+| TC ID | Test Function | Description | Marker |
+|-------|---------------|-------------|--------|
+| RM_FVT_USER_REGISTRY_NEG_001 | `test_registry_validation_fails_missing_config` | Validation fails with missing config | negative |
+| RM_FVT_USER_REGISTRY_NEG_002 | `test_registry_validation_detects_invalid_base_url` | Detects invalid base_url | negative |
+| RM_FVT_USER_REGISTRY_NEG_003 | `test_registry_validation_detects_incomplete_tls_pair` | Detects incomplete TLS cert/key pair | negative |
+| RM_FVT_USER_REGISTRY_NEG_004 | `test_registry_validation_detects_unsupported_auth_type` | Detects unsupported auth type | negative |
+| RM_FVT_USER_REGISTRY_NEG_005 | `test_registry_validation_detects_missing_cert_paths` | Detects missing cert paths on disk | negative |
+| RM_FVT_USER_REGISTRY_NEG_006 | `test_registry_validation_detects_missing_vault_path` | Detects missing vault_path for basic auth | negative |
 
 ---
 
@@ -249,6 +274,20 @@
 | RM_FVT_CATALOG_VALIDATE_V002 | `test_catalog_validation_log_exists` | Verify validation log file exists | deploy, functional, positive |
 | RM_FVT_CATALOG_VALIDATE_V003 | `test_catalog_still_valid_after_validation` | Verify catalog still valid after validation | functional, positive |
 
+### Catalog Negative (`fvt/catalog/negative/`)
+
+| TC ID | Test Function | Description | Marker |
+|-------|---------------|-------------|--------|
+| RM_FVT_CATALOG_NEG_001 | `test_catalog_generate_missing_input_file` | Verify catalog_generate fails with missing input | negative |
+| RM_FVT_CATALOG_NEG_002 | `test_catalog_add_missing_input_file` | Verify catalog_add fails with missing input | negative |
+| RM_FVT_CATALOG_NEG_003 | `test_catalog_delete_missing_input_file` | Verify catalog_delete fails with missing input | negative |
+| RM_FVT_CATALOG_NEG_004 | `test_catalog_input_directory_validation` | Verify catalog input directory validation | negative |
+| RM_FVT_CATALOG_NEG_005 | `test_catalog_structure_validation` | Verify catalog structure validation | negative |
+| RM_FVT_CATALOG_NEG_006 | `test_catalog_file_existence_validation` | Verify catalog file existence validation | negative |
+| RM_FVT_CATALOG_NEG_007 | `test_catalog_log_file_validation` | Verify catalog log file validation | negative |
+
+---
+
 ## Non-Functional Tests (`nft/`)
 
 | TC ID | Test Function | Description | Marker |
@@ -290,19 +329,20 @@ See [ut/README.md](../ut/README.md) for the full UT test-case registry with indi
 
 ## Test Summary
 
-**Total Test Cases: 317**
+**Total Test Cases: 327**
 
 | Category | Count |
 |----------|-------|
 | Precheck Tests | 5 |
 | Prepare Tests | 10 |
-| Execute Tests | 36 |
-| Repo Sync Tests | 8 |
+| Execute Tests | 15 |
 | Status Tests | 3 |
 | Cleanup Tests | 4 |
 | Selective Cleanup Tests | 4 |
-| User Registry Tests | 14 |
-| Catalog Tests | 23 |
+| Policy Tests | 21 |
+| User Registry Tests | 15 |
+| Negative Tests | 10 |
+| Catalog Tests | 30 |
 | Non-Functional Tests | 5 |
 | Unit/Contract Tests | 205 |
-| **Total** | **317** |
+| **Total** | **327** |

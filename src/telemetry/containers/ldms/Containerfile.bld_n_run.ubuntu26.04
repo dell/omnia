@@ -5,9 +5,9 @@
 # ============================================================================
 
 # ── Stage 1: Builder ───────────────────────────────────────────────────────
-FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c AS ldms_builder
+FROM ubuntu:26.04 AS ldms_builder
 
-ARG OVIS_TAG="v4.5.3"
+ARG OVIS_TAG="v4.5.2"
 ENV TAG=${OVIS_TAG}
 ARG OVIS_REPO="https://github.com/ovis-hpc/ovis.git"
 ENV REPO=${OVIS_REPO}
@@ -81,7 +81,7 @@ RUN cd /build/ovis \
 # ── Stage 2: Runner preparation ──────────────────────────────────────────
 # Build the full runtime in an intermediate stage, then copy to a FROM scratch
 # final image so no base-image layer carries the vulnerable pebble Go binary.
-FROM ubuntu:26.04@sha256:6a06111c3b0a8600feadb270aec771dc239bf407b25625f93f44ab00e11f4d3c AS runner_prep
+FROM ubuntu:26.04 AS runner_prep
 
 ENV DEBIAN_FRONTEND=noninteractive
 

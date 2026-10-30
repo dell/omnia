@@ -25,7 +25,6 @@
 #   ansible-playbook build_stream.yml --tags execute         # Deploy GitLab + CI/CD only
 #   ansible-playbook build_stream.yml --tags build           # prepare + execute
 #   ansible-playbook build_stream.yml --tags cleanup         # Full cleanup, including credentials
-#   ansible-playbook build_stream.yml --tags cleanup -e cleanup_credentials=false  # Cleanup, preserve credentials
 #
 # Tags (mutually exclusive — pick ONE):
 #   (none)       — Default flow: setup + validate + credentials + prepare + execute

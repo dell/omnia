@@ -26,7 +26,7 @@ from core.localrepo.entities import PlaybookResult
 
 
 DEFAULT_QUEUE_BASE = str(
-    Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "build_stream" / "playbook_queue"
+    Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "playbook_queue"
 )
 RESULTS_DIR_NAME = "results"
 ARCHIVE_DIR_NAME = "archive/results"

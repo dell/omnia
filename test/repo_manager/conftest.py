@@ -17,7 +17,7 @@ Pytest configuration for Repo Manager FVT and deterministic unit tests.
 
 Provides:
 - host fixture (testinfra connection to target)
-- Custom markers: sanity, functional, deploy, positive, destructive
+- Custom markers: sanity, functional, deploy, positive, negative, destructive
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
 - Credential auto-encryption
@@ -228,7 +228,7 @@ def pytest_addoption(parser):
             "Marker filter expression. "
             "Use '+' for AND (all required): sanity+positive. "
             "Use ',' for OR (any match): sanity,positive. "
-            "Example: sanity+positive or sanity,functional"
+            "Example: sanity+positive+negative or sanity,positive"
         ),
     )
 
@@ -248,6 +248,7 @@ def pytest_configure(config):
         "sanity": "Baseline verification (must-pass)",
         "functional": "Functional verification",
         "positive": "Positive test cases",
+        "negative": "Negative test cases",
         "destructive": "Explicit opt-in cleanup tests",
         "deploy": "Playbook deployment tests",
         "x86_64": "x86_64 architecture tests",

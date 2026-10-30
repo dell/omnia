@@ -159,7 +159,6 @@ def _format_metric_lines(metric_details):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(60)
-@pytest.mark.powerscale
 def test_powerscale_csm_deploy(host):
     """Verify CSM Metrics PowerScale deployment ready."""
     _skip_if_powerscale_disabled(host)
@@ -208,7 +207,6 @@ def test_powerscale_csm_deploy(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(61)
-@pytest.mark.powerscale
 def test_powerscale_otel_deploy(host):
     """Verify OTEL Collector deployment ready."""
     _skip_if_powerscale_disabled(host)
@@ -257,7 +255,6 @@ def test_powerscale_otel_deploy(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(62)
-@pytest.mark.powerscale
 def test_powerscale_secret_valid(host):
     """Verify isilon-creds secret exists and has valid structure."""
     _skip_if_powerscale_disabled(host)
@@ -321,7 +318,6 @@ def test_powerscale_secret_valid(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(63)
-@pytest.mark.powerscale
 def test_powerscale_metrics_in_vm(host):
     """Verify PowerScale metrics in VictoriaMetrics."""
     _skip_if_powerscale_disabled(host)
@@ -386,7 +382,6 @@ def test_powerscale_metrics_in_vm(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(64)
-@pytest.mark.powerscale
 def test_powerscale_syslog_config(host):
     """Verify PowerScale syslog forwarding configured.
 
@@ -514,7 +509,6 @@ def test_powerscale_syslog_config(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(65)
-@pytest.mark.powerscale
 def test_powerscale_logs_in_vl(host):
     """Verify PowerScale logs in VictoriaLogs."""
     _skip_if_powerscale_disabled(host)
@@ -567,7 +561,6 @@ def test_powerscale_logs_in_vl(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(66)
-@pytest.mark.powerscale
 def test_powerscale_comprehensive_deployment(host):
     """Verify comprehensive PowerScale deployment."""
     _skip_if_powerscale_disabled(host)
@@ -600,7 +593,6 @@ def test_powerscale_comprehensive_deployment(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(67)
-@pytest.mark.powerscale
 def test_powerscale_feature_flags(host):
     """Verify PowerScale feature flags."""
     _skip_if_powerscale_disabled(host)
@@ -627,7 +619,6 @@ def test_powerscale_feature_flags(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(68)
-@pytest.mark.powerscale
 def test_powerscale_health_metrics(host):
     """Verify PowerScale health metrics."""
     _skip_if_powerscale_disabled(host)
@@ -671,7 +662,6 @@ def test_powerscale_health_metrics(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(69)
-@pytest.mark.powerscale
 def test_powerscale_tls_enforcement(host):
     """Verify PowerScale TLS enforcement."""
     _skip_if_powerscale_disabled(host)
@@ -704,7 +694,6 @@ def test_powerscale_tls_enforcement(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(70)
-@pytest.mark.powerscale
 def test_powerscale_label_compliance(host):
     """Verify PowerScale pod label compliance."""
     _skip_if_powerscale_disabled(host)
@@ -737,7 +726,6 @@ def test_powerscale_label_compliance(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(71)
-@pytest.mark.powerscale
 def test_powerscale_scrape_interval(host):
     """Verify PowerScale scrape interval."""
     _skip_if_powerscale_disabled(host)
@@ -770,7 +758,6 @@ def test_powerscale_scrape_interval(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(72)
-@pytest.mark.powerscale
 def test_powerscale_csi_auth_mode(host):
     """Verify PowerScale CSI authorization mode."""
     _skip_if_powerscale_disabled(host)
@@ -803,7 +790,6 @@ def test_powerscale_csi_auth_mode(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(73)
-@pytest.mark.powerscale
 def test_powerscale_deployment_mode(host):
     """Verify PowerScale deployment mode."""
     _skip_if_powerscale_disabled(host)
@@ -829,8 +815,6 @@ def test_powerscale_deployment_mode(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(74)
-@pytest.mark.powerscale
-@pytest.mark.sanity
 def test_csi_volume_exporter_deploy(host):
     """Verify CSI Volume Exporter deployment."""
     _skip_if_powerscale_disabled(host)
@@ -870,7 +854,6 @@ def test_csi_volume_exporter_deploy(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(75)
-@pytest.mark.powerscale
 def test_csi_volume_exporter_endpoint(host):
     """Verify CSI Volume Exporter metrics endpoint is accessible."""
     _skip_if_powerscale_disabled(host)
@@ -909,7 +892,6 @@ def test_csi_volume_exporter_endpoint(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(76)
-@pytest.mark.powerscale
 def test_csi_volume_exporter_metrics(host):
     """Verify CSI Volume Exporter metrics in VictoriaMetrics."""
     _skip_if_powerscale_disabled(host)
@@ -948,8 +930,6 @@ def test_csi_volume_exporter_metrics(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(77)
-@pytest.mark.powerscale
-@pytest.mark.sanity
 def test_csi_driver_powerscale_deploy(host):
     """Verify CSI Driver for PowerScale (isilon-controller) deployment."""
     _skip_if_powerscale_disabled(host)
@@ -990,8 +970,6 @@ def test_csi_driver_powerscale_deploy(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(78)
-@pytest.mark.powerscale
-@pytest.mark.sanity
 def test_external_health_monitor_container(host):
     """Verify external-health-monitor-controller container is running in isilon-controller pod."""
     _skip_if_powerscale_disabled(host)
@@ -1032,7 +1010,6 @@ def test_external_health_monitor_container(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(79)
-@pytest.mark.powerscale
 def test_csi_exporter_skipped_without_health_monitor(host):
     """Verify CSI volume exporter deployment is skipped when health monitor is not available."""
     _skip_if_powerscale_disabled(host)
@@ -1074,7 +1051,6 @@ def test_csi_exporter_skipped_without_health_monitor(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(80)
-@pytest.mark.powerscale
 def test_health_monitor_warning_message(host):
     """Verify appropriate warning message is displayed when health monitor is missing."""
     _skip_if_powerscale_disabled(host)
@@ -1100,7 +1076,6 @@ def test_health_monitor_warning_message(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(81)
-@pytest.mark.powerscale
 def test_csm_otel_data_flow(host):
     """Verify CSM Metrics to OTEL Collector data flow."""
     _skip_if_powerscale_disabled(host)
@@ -1133,7 +1108,6 @@ def test_csm_otel_data_flow(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(82)
-@pytest.mark.powerscale
 def test_otel_vm_export(host):
     """Verify OTEL Collector to VictoriaMetrics export."""
     _skip_if_powerscale_disabled(host)
@@ -1166,7 +1140,6 @@ def test_otel_vm_export(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(83)
-@pytest.mark.powerscale
 def test_cert_manager_tls_certs(host):
     """Verify cert-manager TLS certificate generation."""
     _skip_if_powerscale_disabled(host)
@@ -1199,7 +1172,6 @@ def test_cert_manager_tls_certs(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(84)
-@pytest.mark.powerscale
 def test_powerscale_disabled_state(host):
     """Verify disabled PowerScale metrics workloads and shared sink health."""
     if is_source_enabled(host, "powerscale"):

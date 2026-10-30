@@ -283,7 +283,7 @@ def hostname_ssh_probe(host, row: Mapping[str, str]) -> tuple[bool, str]:
     )
 
 
-def remote_command(host, row: Mapping[str, str], command: str) -> Any:
+def remote_command(host, row: Mapping[str, str], command: str):
     """Execute a fixed command on a desired node from the execution OIM."""
     return run_ssh_command(host, row["ADMIN_IP"], command)
 
@@ -450,7 +450,7 @@ def run_remote_with_progress(
     label: str,
     timeout_seconds: int,
     poll_seconds: int,
-) -> Any:
+):
     """Run one bounded remote command while reporting progress periodically."""
     started = time.monotonic()
     executor = ThreadPoolExecutor(max_workers=1)

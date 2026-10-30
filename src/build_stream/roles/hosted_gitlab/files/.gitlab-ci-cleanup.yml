@@ -114,28 +114,22 @@ list_images:
       # --- Step 2: Query Images API for cleanable image groups ---
       echo "  Step 2/3: Query Images API"
       echo "  ------------------------------------------------------------"
-      echo "  Endpoint: GET ${BSM_API_URL}/api/v1/images (post-BUILT + CLEANUP_FAILED)"
+      echo "  Endpoint: GET ${BSM_API_URL}/api/v1/images?include_all=true"
       echo ""
 
-      # The unfiltered Images API lists only post-BUILT states; failed
-      # cleanups must be queried by status so they can be retried.
-      for QUERY in "limit=1000" "status=CLEANUP_FAILED&limit=1000"; do
-        HTTP_CODE=$(curl -s -o images_part.json -w "%{http_code}" \
-          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
-          -X GET "${BSM_API_URL}/api/v1/images?${QUERY}" \
-          -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+      HTTP_CODE=$(curl -s -o images_response.json -w "%{http_code}" \
+        --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+        -X GET "${BSM_API_URL}/api/v1/images?include_all=true" \
+        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 
-        echo "  API Response Code (${QUERY}): ${HTTP_CODE}"
+      echo "  API Response Code: ${HTTP_CODE}"
 
-        if [ "$HTTP_CODE" != "200" ]; then
-          echo "  ERROR: Images API query failed (HTTP ${HTTP_CODE})"
-          jq '.' images_part.json 2>/dev/null || cat images_part.json
-          exit 1
-        fi
-        jq -c '.image_groups // []' images_part.json >> images_parts.jsonl
-      done
-      jq -s '{image_groups: add}' images_parts.jsonl > images_response.json
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo "  ERROR: Images API query failed (HTTP ${HTTP_CODE})"
+        jq '.' images_response.json 2>/dev/null || cat images_response.json
+        exit 1
+      fi
 
       CLEANABLE_COUNT=$(jq '[.image_groups[] | select(.status != "CLEANED")] | length' images_response.json 2>/dev/null || echo "0")
       echo "  Found ${CLEANABLE_COUNT} cleanable image group(s)"

@@ -15,7 +15,6 @@ an OIM, calling OpenCHAMI, or executing an Orchestrator playbook.
 | `test_additional_cloud_init_contracts.py` | Additional cloud-init input validation: disabled paths, allowed sections, prohibited keys, list types, and functional-group names |
 | `test_hpc_platform_scripts.py` | Per-node RHEL HPC storage and Pulp paths, OS-dependent Slurm scripts, and offline benchmark downloads |
 | `test_orchestrator_status_reconcile.py` | Lifecycle status reconciliation for external and platform-managed PXE boot results |
-| `test_input_validation_fail_closed.py` | Vault-encrypted inputs are decrypted and validated with masked values, or reported unvalidated when no key exists (`ORCH_UT_102`–`104`) |
 | `test_kubernetes_etcd_contracts.py` | Local-etcd boot-script DONE detection, disk-media classification, root-disk exclusion, post-reboot setup-rerun detection, media expectation, and the external-LDAP identity gate |
 
 Parameterized cases count as separate pytest results. Function names and

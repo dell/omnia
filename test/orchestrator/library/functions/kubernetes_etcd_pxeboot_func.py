@@ -16,7 +16,7 @@
 
 import json
 from collections.abc import Mapping
-from typing import Any, Dict
+from typing import Any
 
 from ..vars.pxeboot_vars import ETCD_RAFT_INDEX_DELTA_MAX, PXEBOOT_COMMANDS
 from ._kubernetes_helpers import pod_ready
@@ -55,7 +55,7 @@ def _json_command(host, row, command: str) -> Any:
         raise ValueError("Kubernetes command returned invalid JSON") from exc
 
 
-def check_kubernetes_etcd_health(host) -> Dict[str, Any]:
+def check_kubernetes_etcd_health(host):
     """Verify every discovered etcd endpoint reports healthy."""
     summary = "Kubernetes etcd endpoint health"
     try:
@@ -114,7 +114,7 @@ def _status_value(item: Mapping[str, Any], *keys: str) -> Any:
     return value
 
 
-def check_kubernetes_etcd_topology(host) -> Dict[str, Any]:
+def check_kubernetes_etcd_topology(host):
     """Verify member count, one elected leader, and bounded raft divergence."""
     summary = "Kubernetes etcd membership and consistency"
     try:

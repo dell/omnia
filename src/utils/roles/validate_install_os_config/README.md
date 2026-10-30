@@ -11,8 +11,7 @@ playbook mode, and publishes facts consumed by ISO creation and delivery.
 | `build_iso` | `source_iso_path`, `custom_iso_path`, SSH public key |
 | `deploy` | `custom_iso_path`, `target_bmc_ip`, `target_admin_ip` |
 | `generate_ks` | `source_iso_path`, SSH public key |
-| No direct tag, `all`, or `install_os` | Build and deploy requirements |
-| Any other tag | Fails: no validation mode selected |
+| No direct tag | Build and deploy requirements |
 
 `custom_iso_path` must contain NFS URI syntax (`server:/path/file.iso`).
 `kickstart_delivery_method` must be `embedded` or `nfs`, and

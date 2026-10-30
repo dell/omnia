@@ -91,59 +91,39 @@
         - not telemetry_vault_key_stat.stat.exists
       no_log: true
 
-    # Step 4: Decrypt to a private temp file on tmpfs, load, always remove temp file.
-    # The encrypted credential file is never decrypted in place.
+    # Step 4: Decrypt and load existing credentials
     - name: Load existing credentials
       when: telemetry_cred_file_stat.stat.exists
       block:
-        - name: Create private temp file for decrypted credentials
-          ansible.builtin.tempfile:
-            state: file
-            path: "{{ credential_tmp_dir }}"
-            prefix: ".cred_tmp_"
-            suffix: ".yml"
-          register: _cred_tmp
-
-        - name: Verify temp file was created successfully
-          ansible.builtin.assert:
-            that:
-              - _cred_tmp.path is defined
-              - _cred_tmp.path | length > 0
-            fail_msg: "Failed to create temp file for credential decryption"
-
-        - name: Restrict temp file permissions
-          ansible.builtin.file:
-            path: "{{ _cred_tmp.path }}"
-            mode: "0600"
-
-        - name: Decrypt credential file to temp file
+        - name: Decrypt credential file
           ansible.builtin.command:
             argv:
               - ansible-vault
               - decrypt
               - "{{ telemetry_credential_file.file_path }}"
-              - --output
-              - "{{ _cred_tmp.path }}"
               - --vault-password-file
               - "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
+          failed_when: false
           no_log: true
 
         - name: Load credentials into namespaced variable
           ansible.builtin.include_vars:
-            file: "{{ _cred_tmp.path }}"
+            file: "{{ telemetry_credential_file.file_path }}"
             name: telemetry_loaded_creds
           no_log: true
-      rescue:
-        - name: Fail with decryption error
-          ansible.builtin.fail:
-            msg: "{{ telemetry_credential_decrypt_fail_msg }}"
-      always:
-        - name: Remove temp file with decrypted credentials
-          ansible.builtin.file:
-            path: "{{ _cred_tmp.path }}"
-            state: absent
-          when: _cred_tmp.path is defined
+
+        - name: Re-encrypt credential file
+          ansible.builtin.command:
+            argv:
+              - ansible-vault
+              - encrypt
+              - "{{ telemetry_credential_file.file_path }}"
+              - --vault-password-file
+              - "{{ telemetry_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+          no_log: true
 
     - name: Default telemetry_loaded_creds if not loaded
       ansible.builtin.set_fact:
@@ -158,58 +138,38 @@
         loop_var: cred_field
       when: cred_field.condition | default(false) | bool
 
-    # Step 6: Expose credentials as facts for downstream roles.
-    # Decrypt to a private temp file on tmpfs, load, always remove temp file.
+    # Step 6: Expose credentials as facts for downstream roles
     - name: Reload final credentials
       block:
-        - name: Create private temp file for final credential load
-          ansible.builtin.tempfile:
-            state: file
-            path: "{{ credential_tmp_dir }}"
-            prefix: ".cred_tmp_"
-            suffix: ".yml"
-          register: _final_cred_tmp
-
-        - name: Verify final temp file was created successfully
-          ansible.builtin.assert:
-            that:
-              - _final_cred_tmp.path is defined
-              - _final_cred_tmp.path | length > 0
-            fail_msg: "Failed to create temp file for final credential decryption"
-
-        - name: Restrict final temp file permissions
-          ansible.builtin.file:
-            path: "{{ _final_cred_tmp.path }}"
-            mode: "0600"
-
-        - name: Decrypt for final load to temp file
+        - name: Decrypt for final load
           ansible.builtin.command:
             argv:
               - ansible-vault
               - decrypt
               - "{{ telemetry_credential_file.file_path }}"
-              - --output
-              - "{{ _final_cred_tmp.path }}"
               - --vault-password-file
               - "{{ telemetry_credential_file.vault_path }}"
           changed_when: false
+          failed_when: false
           no_log: true
 
         - name: Load final credentials
           ansible.builtin.include_vars:
-            file: "{{ _final_cred_tmp.path }}"
+            file: "{{ telemetry_credential_file.file_path }}"
             name: telemetry_credentials
           no_log: true
-      rescue:
-        - name: Fail with final decryption error
-          ansible.builtin.fail:
-            msg: "{{ telemetry_credential_decrypt_fail_msg }}"
-      always:
-        - name: Remove temp file with final decrypted credentials
-          ansible.builtin.file:
-            path: "{{ _final_cred_tmp.path }}"
-            state: absent
-          when: _final_cred_tmp.path is defined
+
+        - name: Re-encrypt after final load
+          ansible.builtin.command:
+            argv:
+              - ansible-vault
+              - encrypt
+              - "{{ telemetry_credential_file.file_path }}"
+              - --vault-password-file
+              - "{{ telemetry_credential_file.vault_path }}"
+          changed_when: false
+          failed_when: false
+          no_log: true
 
     # Step 8: Mark credentials as loaded to prevent re-prompting
     - name: Set credentials loaded guard

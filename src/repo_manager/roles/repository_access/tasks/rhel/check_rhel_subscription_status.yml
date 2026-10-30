@@ -26,6 +26,8 @@
     set -o pipefail
     awk -F= '/^baseurl/ {print $2}' {{ redhat_repo_file | quote }} |
     grep -E 'codeready-builder|baseos|appstream' || true
+  args:
+    warn: false
   register: repo_urls
   changed_when: false
   failed_when: false

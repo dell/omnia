@@ -34,7 +34,6 @@ from library.functions import (
     check_repo_status_has_repo,
     check_repo_status_has_file_repo,
     check_repo_configured,
-    get_repo_status_contexts,
 )
 from library.vars import TEST_CASES as TC
 from library.messages import (
@@ -84,44 +83,27 @@ def test_slurm_custom_repo_present(host):
     """Verify slurm_custom repo present (if configured)."""
     tc = TC["slurm_custom_repo_present"]
     tl = TestLogger(tc["title"], tc["id"])
-    # Get execution contexts to determine OS version
-    contexts_result = get_repo_status_contexts(host)
-    if not contexts_result["success"]:
-        tl.failed("Cannot read execution contexts", contexts_result["details"])
-        pytest.fail("Cannot verify without execution contexts")
+    config_result = check_repo_configured(host, "slurm_custom", arch="x86_64")
 
-    # Check if slurm_custom is configured in any context
-    configured = False
-    for os_type, os_version, arch in contexts_result["contexts"]:
-        config_result = check_repo_configured(host, "slurm_custom", arch, os_version)
-        if config_result["success"]:
-            configured = True
-            break
-
-    if not configured:
+    if not config_result["success"]:
         tl.skipped_fields(
             "Optional repository not configured",
             {
                 "Repository": "slurm_custom",
+                "Architecture": "x86_64",
                 "Configuration file": "repo_manager_config.yml",
             }
         )
         pytest.skip("slurm_custom not configured in repo_manager_config.yml")
 
-    # Check if slurm_custom exists in repo_status.yml for all contexts
-    all_passed = True
-    for os_type, os_version, arch in contexts_result["contexts"]:
-        result = check_repo_status_has_repo(host, "slurm_custom", arch, os_version)
+    result = check_repo_status_has_repo(host, "slurm_custom", arch="x86_64")
 
-        if result["success"]:
-            tl.passed(LOG["repo_present"].format(repo="slurm_custom"), 
-                     f"{os_version}/{arch}: {result['details']}")
-        else:
-            tl.failed(LOG["repo_missing"].format(repo="slurm_custom"), 
-                     f"{os_version}/{arch}: {result['details']}")
-            all_passed = False
+    if result["success"]:
+        tl.passed(LOG["repo_present"].format(repo="slurm_custom"), result["details"])
+    else:
+        tl.failed(LOG["repo_missing"].format(repo="slurm_custom"), result["details"])
 
-    assert all_passed, ASSERT["repo_not_found"]
+    assert result["success"], ASSERT["repo_not_found"]
 
 
 @pytest.mark.sanity
@@ -131,45 +113,27 @@ def test_epel_repo_present(host):
     """Verify epel repo present (if configured)."""
     tc = TC["epel_repo_present"]
     tl = TestLogger(tc["title"], tc["id"])
-    
-    # Get execution contexts to determine OS version
-    contexts_result = get_repo_status_contexts(host)
-    if not contexts_result["success"]:
-        tl.failed("Cannot read execution contexts", contexts_result["details"])
-        pytest.fail("Cannot verify without execution contexts")
+    config_result = check_repo_configured(host, "epel", arch="x86_64")
 
-    # Check if epel is configured in any context
-    configured = False
-    for os_type, os_version, arch in contexts_result["contexts"]:
-        config_result = check_repo_configured(host, "epel", arch, os_version)
-        if config_result["success"]:
-            configured = True
-            break
-
-    if not configured:
+    if not config_result["success"]:
         tl.skipped_fields(
             "Optional repository not configured",
             {
                 "Repository": "epel",
+                "Architecture": "x86_64",
                 "Configuration file": "repo_manager_config.yml",
             }
         )
         pytest.skip("epel not configured in repo_manager_config.yml")
 
-    # Check if epel exists in repo_status.yml for all contexts
-    all_passed = True
-    for os_type, os_version, arch in contexts_result["contexts"]:
-        result = check_repo_status_has_repo(host, "epel", arch, os_version)
+    result = check_repo_status_has_repo(host, "epel", arch="x86_64")
 
-        if result["success"]:
-            tl.passed(LOG["repo_present"].format(repo="epel"), 
-                     f"{os_version}/{arch}: {result['details']}")
-        else:
-            tl.failed(LOG["repo_missing"].format(repo="epel"), 
-                     f"{os_version}/{arch}: {result['details']}")
-            all_passed = False
+    if result["success"]:
+        tl.passed(LOG["repo_present"].format(repo="epel"), result["details"])
+    else:
+        tl.failed(LOG["repo_missing"].format(repo="epel"), result["details"])
 
-    assert all_passed, ASSERT["repo_not_found"]
+    assert result["success"], ASSERT["repo_not_found"]
 
 
 @pytest.mark.sanity
@@ -180,22 +144,12 @@ def test_x86_64_repos_present(host):
     tc = TC["x86_64_repos_present"]
     tl = TestLogger(tc["title"], tc["id"])
     base_repos = ["baseos", "appstream", "codeready-builder"]
-    
-    # Get execution contexts to determine OS version
-    contexts_result = get_repo_status_contexts(host)
-    if not contexts_result["success"]:
-        tl.failed("Cannot read execution contexts", contexts_result["details"])
-        pytest.fail("Cannot verify without execution contexts")
-
-    # Check which base repos are configured in any context
     configured_repos = []
-    for os_type, os_version, arch in contexts_result["contexts"]:
-        if arch != "x86_64":
-            continue
-        for repo in base_repos:
-            config_result = check_repo_configured(host, repo, arch, os_version)
-            if config_result["success"] and repo not in configured_repos:
-                configured_repos.append(repo)
+
+    for repo in base_repos:
+        config_result = check_repo_configured(host, repo, arch="x86_64")
+        if config_result["success"]:
+            configured_repos.append(repo)
 
     if not configured_repos:
         tl.skipped_fields(
@@ -211,22 +165,13 @@ def test_x86_64_repos_present(host):
             "configured in repo_manager_config.yml"
         )
 
-    # Check if configured repos exist in repo_status.yml for all x86_64 contexts
-    all_passed = True
-    for os_type, os_version, arch in contexts_result["contexts"]:
-        if arch != "x86_64":
-            continue
-        for repo in configured_repos:
-            result = check_repo_status_has_repo(host, repo, arch, os_version)
-            if not result["success"]:
-                tl.failed(LOG["repo_missing"].format(repo=repo), 
-                         f"{os_version}/{arch}: {result['details']}")
-                all_passed = False
+    for repo in configured_repos:
+        result = check_repo_status_has_repo(host, repo, arch="x86_64")
+        if not result["success"]:
+            tl.failed(LOG["repo_missing"].format(repo=repo), result["details"])
+            assert False, result["error"]
 
-    if all_passed:
-        tl.passed(f"x86_64 base repos present: {', '.join(configured_repos)}", "")
-
-    assert all_passed, "One or more x86_64 base repos not found in repo_status.yml"
+    tl.passed(f"x86_64 base repos present: {', '.join(configured_repos)}", "")
 
 
 @pytest.mark.functional
@@ -236,42 +181,24 @@ def test_file_repos_present(host):
     """Verify file repos (tarball) present (if configured)."""
     tc = TC["file_repos_present"]
     tl = TestLogger(tc["title"], tc["id"])
-    
-    # Get execution contexts to determine OS version
-    contexts_result = get_repo_status_contexts(host)
-    if not contexts_result["success"]:
-        tl.failed("Cannot read execution contexts", contexts_result["details"])
-        pytest.fail("Cannot verify without execution contexts")
+    config_result = check_repo_configured(host, "imb", arch="x86_64")
 
-    # Check if imb is configured in any context
-    configured = False
-    for os_type, os_version, arch in contexts_result["contexts"]:
-        config_result = check_repo_configured(host, "imb", arch, os_version)
-        if config_result["success"]:
-            configured = True
-            break
-
-    if not configured:
+    if not config_result["success"]:
         tl.skipped_fields(
             "Optional repository not configured",
             {
                 "Repository": "imb (file repo)",
+                "Architecture": "x86_64",
                 "Configuration file": "repo_manager_config.yml",
             }
         )
         pytest.skip("imb file repo not configured in repo_manager_config.yml")
 
-    # Check if imb exists in repo_status.yml for all contexts
-    all_passed = True
-    for os_type, os_version, arch in contexts_result["contexts"]:
-        result = check_repo_status_has_file_repo(host, "imb", arch, os_version)
+    result = check_repo_status_has_file_repo(host, "imb", arch="x86_64")
 
-        if result["success"]:
-            tl.passed(LOG["file_repo_present"].format(repo="imb"), 
-                     f"{os_version}/{arch}: {result['details']}")
-        else:
-            tl.failed(LOG["file_repo_missing"].format(repo="imb"), 
-                     f"{os_version}/{arch}: {result['details']}")
-            all_passed = False
+    if result["success"]:
+        tl.passed(LOG["file_repo_present"].format(repo="imb"), result["details"])
+    else:
+        tl.failed(LOG["file_repo_missing"].format(repo="imb"), result["details"])
 
-    assert all_passed, ASSERT["repo_not_found"]
+    assert result["success"], ASSERT["repo_not_found"]

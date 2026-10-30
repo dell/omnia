@@ -335,16 +335,6 @@ UT_TEST_CASE_IDS = {
             151: "test_registry_deploy_reconciles_pin_changes_for_active_service",
         },
     ),
-    **_module_cases(
-        "test_input_validation_fail_closed.py",
-        {
-            157: "test_encrypted_credentials_are_validated_with_masked_errors",
-            158: "test_encrypted_credentials_without_key_are_unvalidated",
-            159: "test_standalone_x86_64_build_accepts_its_play_tags",
-            160: "test_standalone_aarch64_build_accepts_its_play_tags",
-            161: "test_uncollected_template_values_are_not_errors",
-        },
-    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):

@@ -55,13 +55,6 @@ bs_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
 bs_credential_encrypt_fail_msg: "Failed to encrypt build stream credential file."
 bs_password_hash_fail_msg: "Failed to generate Argon2 password hash for build stream registrar."
 
-# Decrypted credentials are written only to memory-backed storage (tmpfs), never to persistent disk
-credential_tmp_dir: "/dev/shm"
-bs_credential_decrypt_fail_msg: >-
-  Failed to decrypt or load {{ bs_credential_file_path }}. Verify that
-  {{ bs_credential_vault_path }} is the correct vault key and that the
-  credential file is not corrupted, then re-run the playbook.
-
 # Vault search key
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
 

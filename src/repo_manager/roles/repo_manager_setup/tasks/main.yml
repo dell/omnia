@@ -16,14 +16,10 @@
 # REPO MANAGER SETUP ROLE - MAIN ENTRY POINT
 # =============================================================================
 # This role handles initial setup tasks for repo_manager:
-# - Validate tags
 # - Load configuration from environment variables
 # - Create log directories
 # - Set guard fact
 # =============================================================================
-
-- name: Validate tags
-  ansible.builtin.include_tasks: validate_tags.yml
 
 - name: Load configuration from environment
   ansible.builtin.include_tasks: load_config.yml

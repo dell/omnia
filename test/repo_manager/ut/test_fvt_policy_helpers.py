@@ -48,7 +48,7 @@ class FvtPolicyHelperTests(unittest.TestCase):
             _result(stdout="true\n"),
         ]
 
-        result = repo_manager_func.check_repo_caching(object(), "baseos", "x86_64", "10.2")
+        result = repo_manager_func.check_repo_caching(object(), "baseos")
 
         self.assertTrue(result["success"])
         self.assertTrue(result["caching"])
@@ -205,7 +205,7 @@ class FvtPolicyHelperTests(unittest.TestCase):
             "success": True,
             "details": {
                 "repositories": {
-                    "10.2": {
+                    "10.0": {
                         "x86_64": {
                             "baseos": {"url": "https://pulp/baseos/"},
                             "appstream": {"url": "https://pulp/appstream/"},
@@ -216,7 +216,7 @@ class FvtPolicyHelperTests(unittest.TestCase):
             "error": "",
         }
 
-        result = repo_manager_func.get_deployed_repos(object(), "x86_64", "10.2")
+        result = repo_manager_func.get_deployed_repos(object())
 
         self.assertTrue(result["success"])
         self.assertEqual(result["repos"], ["baseos", "appstream"])
@@ -232,7 +232,7 @@ class FvtPolicyHelperTests(unittest.TestCase):
         file_exists.return_value = _result(stdout="exists\n")
         run_on_host.return_value = _result(stdout="url\n")
 
-        result = repo_manager_func.check_repo_source_type(object(), "epel", "x86_64", "10.2")
+        result = repo_manager_func.check_repo_source_type(object(), "epel")
 
         self.assertTrue(result["success"])
         self.assertEqual(result["source_type"], "url")

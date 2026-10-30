@@ -15,7 +15,6 @@
 """Explicitly authorized Apptainer compute-node reboot verification."""
 
 import time
-from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
@@ -204,7 +203,7 @@ def _base_fields(state):
     ]
 
 
-def check_apptainer_reboot_storage(host) -> Dict[str, Any]:
+def check_apptainer_reboot_storage(host):
     """Verify /hpc_tools and the selected SIF survive a real compute reboot."""
     summary = "Apptainer storage after compute reboot"
     try:
@@ -277,7 +276,7 @@ def check_apptainer_reboot_storage(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_reboot_job(host) -> Dict[str, Any]:
+def check_apptainer_reboot_job(host):
     """Run an exact-node Apptainer Slurm job after the compute reboot."""
     summary = "Apptainer job after compute reboot"
     try:
@@ -310,7 +309,7 @@ def check_apptainer_reboot_job(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_reboot_artifacts(host) -> Dict[str, Any]:
+def check_apptainer_reboot_artifacts(host):
     """Verify the downloader remains executable and Pulp-only after reboot."""
     summary = "Apptainer download artifacts after compute reboot"
     try:

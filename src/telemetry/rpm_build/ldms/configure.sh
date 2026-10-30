@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 echo "[>>] configure"
-CFLAGS="-ggdb3 -O0 -std=gnu17 -DDCGM_PUBLIC_API" \
+CFLAGS="-ggdb3 -O0 -std=gnu17" \
 ./configure \
  --prefix="/opt/ovis-ldms" \
  --with-slurm="/usr/include/slurm" \

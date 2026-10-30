@@ -178,7 +178,7 @@ VALIDATE_LOG_DOMAIN = "orchestrator"
 MAX_STAGE_ATTEMPT = 1000
 
 # Build Stream artifacts directory
-BUILD_STREAM_ROOT = Path(OMNIA_DATA_PATH) / "build_stream" / "build_stream_root"
+BUILD_STREAM_ROOT = Path(OMNIA_DATA_PATH) / "build_stream_root"
 ARTIFACTS_DIR = BUILD_STREAM_ROOT / "artifacts"
 
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))

@@ -168,24 +168,11 @@ cleanup:
           ATTEMPT=1
 
           while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
-            # The unfiltered Images API lists only post-BUILT states, so
-            # query each cleanup state explicitly via the status filter.
-            CLEANUP_IG_STATE=""
-            POLL_HTTP_CODE="200"
-            for POLL_STATUS in CLEANED CLEANUP_FAILED CLEANING; do
-              POLL_HTTP_CODE=$(curl -s -o images_poll_response.json -w "%{http_code}" \
-                --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
-                -X GET "${BSM_API_URL}/api/v1/images?status=${POLL_STATUS}&limit=1000" \
-                -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-                --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
-              [ "$POLL_HTTP_CODE" = "200" ] || break
-              if jq -e --arg jid "${CLEANUP_JOB_ID}" \
-                   '.image_groups[]? | select(.job_id == $jid)' \
-                   images_poll_response.json >/dev/null 2>&1; then
-                CLEANUP_IG_STATE="${POLL_STATUS}"
-                break
-              fi
-            done
+            POLL_HTTP_CODE=$(curl -s -o images_poll_response.json -w "%{http_code}" \
+              --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+              -X GET "${BSM_API_URL}/api/v1/images?include_all=true&limit=1000" \
+              -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+              --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 
             if [ "$POLL_HTTP_CODE" != "200" ]; then
               echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${POLL_HTTP_CODE} - retrying..."
@@ -194,6 +181,9 @@ cleanup:
               continue
             fi
 
+            CLEANUP_IG_STATE=$(jq -r --arg jid "${CLEANUP_JOB_ID}" \
+              '.image_groups[]? | select(.job_id == $jid) | .status // empty' \
+              images_poll_response.json 2>/dev/null || true)
             CLEANUP_IG_STATE=${CLEANUP_IG_STATE:-UNKNOWN}
 
             echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Cleanup: ${CLEANUP_IG_STATE}"

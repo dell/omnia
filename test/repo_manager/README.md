@@ -78,6 +78,7 @@ REPO_MANAGER_TEST_CLEANUP_REPO=x86_64_rhel_10.0_test_repo \
 | `cleanup_repos` | Explicitly selected exact repository cleanup and state invalidation |
 | `policy` | Test repository policy configurations |
 | `user_registry` | Test user registry configuration and validation |
+| `negative` | Test error scenarios |
 | `catalog` | Run one explicitly selected catalog operation suite |
 
 The FVT commands have fixed meanings:
@@ -87,19 +88,19 @@ The FVT commands have fixed meanings:
 - `test`: run `exec` and then `verify`; verification is skipped when execution fails.
 
 An untagged `test` runs `precheck`, `prepare`, `execute`, and `status` in
-order, then verifies the non-destructive scenarios. Cleanup and catalog
-operations require explicit selection, and aggregate verification filters
-co-located `destructive` tests. Policy scenarios are verification-only.
-Catalog lifecycle commands require an exact suite, for example
-`catalog test --suite validate`.
+order, then verifies the non-destructive scenarios. Cleanup, negative, and
+catalog operations require explicit selection, and aggregate verification
+filters co-located `negative` or `destructive` tests. Policy and negative
+scenarios are verification-only. Catalog lifecycle commands require an exact
+suite, for example `catalog test --suite validate`.
 
 ## Test Cases
 
 See the authoritative test-case registries:
 
-- [fvt/README.md](fvt/README.md) -- FVT test-case registry (107 tests)
+- [fvt/README.md](fvt/README.md) -- FVT test-case registry (117 tests)
 - [nft/README.md](nft/README.md) -- NFT test-case registry (5 tests)
-- [ut/README.md](ut/README.md) -- UT test-case registry (331 tests)
+- [ut/README.md](ut/README.md) -- UT test-case registry (205 tests)
 - [docs/TEST_CASES.md](docs/TEST_CASES.md) -- Consolidated summary
 
 ## Directory Structure
@@ -159,13 +160,11 @@ test/repo_manager/
     │   └── test_status.py
     ├── cleanup_repos/           # Exact selective cleanup scenario
     │   └── test_status.py
-    ├── catalog_generate/         # Catalog generate operation
-    │   └── generate/
-    ├── catalog_add/              # Catalog add operation
-    │   └── add/
-    ├── catalog_delete/           # Catalog delete operation
-    │   └── delete/
-    ├── catalog_validate/         # Catalog validate operation
+    ├── catalog/                  # Explicit catalog operation suites
+    │   ├── add/
+    │   ├── delete/
+    │   ├── generate/
+    │   ├── negative/
     │   └── validate/
     ├── policy/                  # Policy tests
     │   ├── test_integration_pulp_policies.py
@@ -174,8 +173,12 @@ test/repo_manager/
     │   ├── test_priority_order.py
     │   ├── test_pulp_mode.py
     │   └── test_repo_types.py
-    └── user_registry/           # User Registry tests
-        └── validation/
+    ├── user_registry/           # User Registry tests
+    │   ├── test_user_registry_validation.py
+    │   └── test_user_registry_negative.py
+    └── negative/                # Negative test scenarios
+        └── error_scenarios/
+            └── test_error_scenarios.py
 ```
 
 ## Test Categories
@@ -186,16 +189,17 @@ The test framework is organized into several categories:
 |----------|-------------|------------|
 | **Precheck Tests** | Verify input files and configurations | 5 |
 | **Prepare Tests** | Deploy Pulp server and verify | 10 |
-| **Execute Tests** | Download and sync repositories, policy verification | 36 |
-| **Repo Sync Tests** | Standalone catalog RPM exact-mirror reconciliation | 8 |
+| **Execute Tests** | Download and sync repositories | 15 |
 | **Status Tests** | Generate and verify repo_status.yml | 3 |
 | **Cleanup Tests** | Cleanup Pulp server | 4 |
 | **Selective Cleanup Tests** | Exact repository cleanup and state verification | 4 |
-| **User Registry Tests** | Test user registry configuration and validation | 14 |
-| **Catalog Tests** | Catalog generate, add, delete, and validate | 23 |
-| **Unit/Contract Tests** | Source state machines, cleanup, status and command safety | 331 |
+| **Policy Tests** | Test repository policies | 21 |
+| **User Registry Tests** | Test user registry configuration and validation | 15 |
+| **Negative Tests** | Test error scenarios | 10 |
+| **Catalog Tests** | Catalog generate, add, delete, validate, and negative | 30 |
+| **Unit/Contract Tests** | Source state machines, cleanup, status and command safety | 205 |
 | **Non-Functional Tests** | Idempotency, performance, and security | 5 |
-| | **Total** | **443** |
+| | **Total** | **327** |
 
 ## Test Markers
 
@@ -204,6 +208,7 @@ Tests can be filtered using pytest markers:
 - `sanity`: Quick sanity tests
 - `functional`: Functional verification
 - `positive`: Positive test cases
+- `negative`: Negative test cases
 - `destructive`: Explicit opt-in cleanup tests
 - `deploy`: Playbook deployment tests
 - `x86_64`: x86_64 architecture tests

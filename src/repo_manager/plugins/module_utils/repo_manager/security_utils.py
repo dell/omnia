@@ -357,13 +357,13 @@ def normalize_managed_python_distribution_url(
 
 def validate_repository_id(repository_id):
     """Return a repository identifier safe for an INI section header."""
-    match = (
-        _SAFE_REPOSITORY_ID_PATTERN.fullmatch(repository_id)
-        if isinstance(repository_id, str) else None
-    )
-    if not match:
+    if (
+            not isinstance(repository_id, str)
+            or not repository_id
+            or not _SAFE_REPOSITORY_ID_PATTERN.fullmatch(repository_id)
+    ):
         raise ValueError("Repository identifier contains unsupported characters")
-    return shlex.quote(match.group(0))
+    return repository_id
 
 
 def validate_python_package_name(package_name):

@@ -14,11 +14,11 @@
 # limitations under the License.
 
 """
-Dataset Generator — Renders Orchestrator dataset files from Jinja2 templates.
+Dataset Generator — Copies dataset files from src/orchestrator directory.
 
-This generator loads source YAML files from src/orchestrator/input and renders
-them through Jinja2 templates. Profile-based filtering determines which files
-to include in the dataset.
+Instead of using Jinja2 templates, this generator directly copies the actual
+input files from /src/orchestrator/input and sample directories. Profile-based
+filtering determines which files to include in the dataset.
 
 Usage:
     python generate_dataset.py <dataset_name> <profile>
@@ -32,21 +32,12 @@ Examples:
 """
 
 import argparse
-import hashlib
 import shutil
 import sys
 import tempfile
 from pathlib import Path
 
 import yaml
-from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError as RuamelYAMLError
-
-from dataset_rendering import (
-    DatasetRenderingError,
-    document_guidance,
-    render_documents,
-)
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -100,31 +91,6 @@ def _load_yaml(path):
     """Load a YAML file and return as dict."""
     with open(path, encoding="utf-8") as fh:
         return yaml.safe_load(fh) or {}
-
-
-def _load_source_yaml(path):
-    """Round-trip load product YAML so its operator guidance comments are retained."""
-    loader = YAML(typ="rt")
-    loader.preserve_quotes = True
-    loader.allow_duplicate_keys = False
-    try:
-        with open(path, encoding="utf-8") as fh:
-            data = loader.load(fh)
-    except (OSError, UnicodeError, RuamelYAMLError) as exc:
-        _fail(f"Cannot load {path}: {exc}")
-    if data is None:
-        return {}
-    if not isinstance(data, dict):
-        _fail(f"{path} must contain a YAML mapping")
-    return data
-
-
-def _file_hash(path):
-    """Return SHA-256 hash of a file."""
-    sha256 = hashlib.sha256()
-    with open(path, "rb") as fh:
-        sha256.update(fh.read())
-    return sha256.hexdigest()
 
 
 def _directory_changes(staging_path: Path, output_dir: Path) -> list[str]:
@@ -226,74 +192,54 @@ def _resolve_variables(profile_name, cli_vars):
 
 
 # ---------------------------------------------------------------------------
-# Load source documents
+# Copy from src
 # ---------------------------------------------------------------------------
-def _load_source_documents():
-    """Load all source YAML files from src/orchestrator/input."""
+def _copy_from_src(output_dir, profile_data=None):
+    """Copy dataset files directly from src/orchestrator/ directory."""
     if not SRC_INPUT_DIR.exists():
         _fail(f"src/ input directory not found: {SRC_INPUT_DIR}")
 
-    documents = {}
-    provenance = {}
-
-    for src_file in sorted(SRC_INPUT_DIR.glob("*.yml")):
-        doc_name = src_file.stem
-        documents[doc_name] = _load_source_yaml(src_file)
-        provenance[doc_name] = {
-            "path": str(src_file.relative_to(REPO_ROOT)),
-            "hash": _file_hash(src_file),
-        }
-
-    # Load CSV as text (not YAML)
-    for src_file in sorted(SRC_INPUT_DIR.glob("*.csv")):
-        doc_name = src_file.stem
-        documents[doc_name] = {"_csv_content": src_file.read_text(encoding="utf-8")}
-        provenance[doc_name] = {
-            "path": str(src_file.relative_to(REPO_ROOT)),
-            "hash": _file_hash(src_file),
-        }
-
-    return documents, provenance
-
-
-# ---------------------------------------------------------------------------
-# Apply profile filtering
-# ---------------------------------------------------------------------------
-def _apply_profile_filter(documents, profile_data):
-    """Filter documents based on profile include_files configuration."""
-    if not profile_data or "include_files" not in profile_data:
-        return documents
-
-    include_input_files = profile_data["include_files"].get("input", [])
-
-    filtered = {}
-    for doc_name in documents:
-        # Check if this document is in the include list
-        # Profile uses full filenames (e.g., "additional_cloud_init.yml")
-        # Documents use stems (e.g., "additional_cloud_init")
-        for filename in include_input_files:
-            stem = filename.rsplit(".", 1)[0] if "." in filename else filename
-            if doc_name == stem:
-                filtered[doc_name] = documents[doc_name]
-                break
-
-    return filtered
-
-
-# ---------------------------------------------------------------------------
-# Copy sample directories
-# ---------------------------------------------------------------------------
-def _copy_sample_directories(output_dir, profile_data):
-    """Copy sample directories based on profile configuration."""
+    # Determine file filter from profile
+    include_input_files = None
     include_samples = None
 
     if profile_data and "include_files" in profile_data:
         include_config = profile_data["include_files"]
+        include_input_files = include_config.get("input", [])
         include_samples = include_config.get("samples", [])
-        _info(f"Copying {len(include_samples)} sample directories")
+        _info(
+            f"Using profile file filter: {len(include_input_files)} input files, {len(include_samples)} sample dirs"
+        )
     else:
-        _info("Copying all sample directories")
+        _info("No profile filter - copying all files")
 
+    # Copy input files (both .yml and .csv)
+    input_dir = output_dir / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+
+    if include_input_files:
+        # Filter based on profile
+        for filename in include_input_files:
+            src_file = SRC_INPUT_DIR / filename
+            if src_file.exists():
+                dest = input_dir / filename
+                shutil.copy2(src_file, dest)
+                _ok(f"Copied: input/{filename}")
+            else:
+                _warn(f"File not found: {filename}")
+    else:
+        # Copy all files
+        for src_file in SRC_INPUT_DIR.glob("*.yml"):
+            dest = input_dir / src_file.name
+            shutil.copy2(src_file, dest)
+            _ok(f"Copied: input/{src_file.name}")
+
+        for src_file in SRC_INPUT_DIR.glob("*.csv"):
+            dest = input_dir / src_file.name
+            shutil.copy2(src_file, dest)
+            _ok(f"Copied: input/{src_file.name}")
+
+    # Copy sample directories based on profile
     if include_samples:
         for sample_dir in include_samples:
             src_sample = SRC_DOMAIN_DIR / "samples" / sample_dir
@@ -325,51 +271,14 @@ def _copy_sample_directories(output_dir, profile_data):
         else:
             _warn(f"image_build_manager_output not found: {SRC_IMAGE_BUILD_OUTPUT_DIR}")
 
-
-# ---------------------------------------------------------------------------
-# Handle CSV files (copy directly, not rendered)
-# ---------------------------------------------------------------------------
-def _copy_csv_files(documents, output_dir):
-    """Copy CSV files directly and return the remaining YAML documents to render."""
-    input_dir = output_dir / "input"
-    input_dir.mkdir(parents=True, exist_ok=True)
-
-    yaml_documents = {}
-    for doc_name, content in documents.items():
-        if "_csv_content" not in content:
-            yaml_documents[doc_name] = content
-            continue
-        dest = input_dir / f"{doc_name}.csv"
-        dest.write_text(content["_csv_content"], encoding="utf-8")
-        _ok(f"Copied: input/{doc_name}.csv")
-    return yaml_documents
+    copied = [
+        str(p.relative_to(output_dir))
+        for p in sorted(output_dir.rglob("*"))
+        if p.is_file()
+    ]
+    return copied
 
 
-# ---------------------------------------------------------------------------
-# Generate manifest
-# ---------------------------------------------------------------------------
-def _generate_manifest(dataset_name, profile_name, variables, provenance, output_dir):
-    """Generate dataset_manifest.yml with generation metadata."""
-    manifest = {
-        "dataset_name": dataset_name,
-        "profile": profile_name,
-        "generator": "orchestrator/datasets/generator/generate_dataset.py",
-        "variables": variables,
-        "source_documents": provenance,
-        "generated_files": sorted(
-            [str(p.relative_to(output_dir)) for p in output_dir.rglob("*") if p.is_file()]
-        ),
-    }
-
-    manifest_path = output_dir / "dataset_manifest.yml"
-    with open(manifest_path, "w", encoding="utf-8") as fh:
-        yaml.dump(manifest, fh, default_flow_style=False, sort_keys=True)
-    _ok("Generated: dataset_manifest.yml")
-
-
-# ---------------------------------------------------------------------------
-# Generate README
-# ---------------------------------------------------------------------------
 def _generate_readme(dataset_name, profile_name, variables, rendered, output_dir):
     """Write a README.md summarizing the generated dataset."""
     lines = [
@@ -416,13 +325,10 @@ def _generate_readme(dataset_name, profile_name, variables, rendered, output_dir
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def _build_parser():
-    """Build the command-line parser."""
+def main():
+    """Entry point for the dataset generator CLI."""
     parser = argparse.ArgumentParser(
-        description=(
-            "Generate test dataset by rendering Jinja2 templates "
-            "from src/orchestrator directory."
-        ),
+        description="Generate test dataset by copying files from src/orchestrator directory.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -443,10 +349,7 @@ Examples:
     parser.add_argument(
         "profile",
         nargs="?",
-        help=(
-            "Profile name: defaults, k8s_only, slurm_only, k8s_and_slurm, "
-            "or a custom profile"
-        ),
+        help="Profile name: defaults, k8s_only, slurm_only, k8s_and_slurm, or a custom profile",
     )
     parser.add_argument(
         "--var",
@@ -475,48 +378,7 @@ Examples:
         action="store_true",
         help="Generate staging output without publishing to datasets/",
     )
-    return parser
 
-
-def _build_staging(staging_path, dataset_name, profile_name, cli_vars):
-    """Render the complete dataset into the staging directory; return rendered files."""
-    if profile_name and profile_name != "defaults":
-        profile_data = _load_yaml(PROFILES_DIR / f"{profile_name}.yml")
-        _info(f"Using profile filter: {profile_name}")
-    else:
-        profile_data = None
-        _info("No profile filter - including all files")
-
-    variables = _resolve_variables(profile_name, cli_vars)
-    _ok(f"Profile: {profile_name}")
-
-    documents, provenance = _load_source_documents()
-    _ok(f"Loaded {len(documents)} source documents")
-
-    documents = _apply_profile_filter(documents, profile_data)
-    _ok(f"Filtered to {len(documents)} documents")
-
-    yaml_documents = _copy_csv_files(documents, staging_path)
-    _ok("Copied CSV files")
-
-    guidance = document_guidance(yaml_documents, profile_name)
-    try:
-        rendered = render_documents(yaml_documents, provenance, guidance, staging_path)
-        _ok(f"Rendered {len(rendered)} YAML documents")
-    except DatasetRenderingError as exc:
-        _fail(str(exc))
-
-    _copy_sample_directories(staging_path, profile_data)
-
-    yaml_provenance = {k: v for k, v in provenance.items() if k in yaml_documents}
-    _generate_manifest(dataset_name, profile_name, variables, yaml_provenance, staging_path)
-    _generate_readme(dataset_name, profile_name, variables, rendered, staging_path)
-    return rendered
-
-
-def main():
-    """Entry point for the dataset generator CLI."""
-    parser = _build_parser()
     args = parser.parse_args()
 
     if args.list_profiles:
@@ -552,7 +414,20 @@ def main():
     )
     try:
         staging_path.chmod(0o755)
-        rendered = _build_staging(staging_path, dataset_name, profile_name, args.var)
+
+        # Load profile for filtering
+        if profile_name and profile_name != "defaults":
+            profile_data = _load_yaml(PROFILES_DIR / f"{profile_name}.yml")
+            _info(f"Using profile filter: {profile_name}")
+        else:
+            profile_data = None
+            _info("No profile filter - copying all files")
+
+        variables = _resolve_variables(profile_name, args.var)
+        _ok(f"Profile: {profile_name}")
+        rendered = _copy_from_src(staging_path, profile_data)
+
+        _generate_readme(dataset_name, profile_name, variables, rendered, staging_path)
 
         # Handle --check mode
         if args.check:

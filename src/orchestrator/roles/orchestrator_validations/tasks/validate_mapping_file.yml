@@ -24,20 +24,10 @@
     path: "{{ temp_pxe_file_path }}"
     state: absent
 
-- name: Validate mapping file path contains only safe characters
-  ansible.builtin.assert:
-    that:
-      - pxe_mapping_file_path is match(pxe_mapping_path_safe_regex)
-      - temp_pxe_file_path is match(pxe_mapping_path_safe_regex)
-      - pxe_mapping_file_path is not search(pxe_mapping_path_traversal_regex)
-      - temp_pxe_file_path is not search(pxe_mapping_path_traversal_regex)
-    quiet: true
-    fail_msg: "{{ pxe_mapping_path_unsafe_fail_msg }}"
-
 - name: Remove leading/trailing spaces and tabs from the mapping file (but preserve column structure)
   ansible.builtin.shell: |
     set -o pipefail && \
-    sed 's/^[[:space:]]*//g' {{ pxe_mapping_file_path | quote }} | sed 's/[[:space:]]*$//g' > {{ temp_pxe_file_path | quote }}
+    sed 's/^[[:space:]]*//g' "{{ pxe_mapping_file_path }}" | sed 's/[[:space:]]*$//g' > "{{ temp_pxe_file_path }}"
   changed_when: false
 
 - name: Find and Replace

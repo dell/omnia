@@ -57,14 +57,6 @@ telemetry_conditional_warning_msg: "WARNING: Conditional telemetry credentials w
 telemetry_password_fail_msg: "Failed. Password is required for mandatory telemetry credential."
 telemetry_password_match_fail_msg: "Failed. Passwords do not match. Please try again."
 telemetry_credential_encrypt_fail_msg: "Failed to encrypt telemetry credential file."
-telemetry_credential_decrypt_fail_msg: >-
-  Failed to decrypt or load {{ telemetry_credential_file.file_path }}. Verify that
-  {{ telemetry_credential_file.vault_path }} is the correct vault key and that the
-  credential file is not corrupted, then re-run the playbook.
-
-# Decrypted credentials are written only to memory-backed storage (tmpfs), never to persistent disk
-credential_tmp_dir: "/dev/shm"
-
 telemetry_cred_file_missing_msg: |
   Telemetry credential file not found at {{ telemetry_credential_file.file_path }}.
   It will be created from template.

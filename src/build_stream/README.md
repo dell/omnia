@@ -198,9 +198,8 @@ All runtime output goes to `<OMNIA_DATA_PATH>/build_stream/` (default: `/opt/omn
 | `<data_path>/build_stream/input/<project>/` | Staged input files |
 | `<data_path>/build_stream/output/<project>/` | Build status output |
 | `<data_path>/build_stream/playbook_queue/` | Watcher job queue |
-| `<data_path>/build_stream/build_stream_root/` | API runtime data (JWT keys, artifacts) |
-| `<data_path>/build_stream/ssl/` | TLS certificates for the API |
-| `<data_path>/build_stream/postgres/` | PostgreSQL data directory |
+| `<data_path>/build_stream_root/` | API runtime data (JWT keys, artifacts) |
+| `<data_path>/build_stream_ssl/` | TLS certificates for the API |
 
 ## Domain Structure
 
@@ -253,13 +252,6 @@ build_stream/                              # Omnia Build Stream domain
 ├── output/project_default/          # Build status output
 ├── log/playbooks/                   # Ansible playbook logs
 ├── playbook_queue/                  # Watcher job queue directory
-├── build_stream_root/               # API runtime data
-│   ├── api/.auth/keys/              # JWT keys
-│   ├── artifacts/                   # Job artifacts
-│   └── restart_state/               # Restart state per job
-├── ssl/                             # TLS certificates
-├── postgres/                        # PostgreSQL data
-│   └── data/
 ├── infra/db/                        # Alembic migrations
 └── scripts/                         # JWT key generation, etc.
 ```

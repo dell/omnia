@@ -560,7 +560,6 @@ def check_repository_synced(repo_name, log):
             repository state could not be queried.
     """
     try:
-        repo_name = validate_repository_id(repo_name)
         result = _run_pulp_cli(
             pulp_rpm_commands["show_repository"] % repo_name,
             log,
@@ -845,16 +844,15 @@ def show_rpm_remote(remote_name, log):
 def _get_repository_href(repo_name, log):
     """
     Return the Pulp href for a repository.
-
+    
     Args:
         repo_name (str): Repository name
         log (logging.Logger): Logger instance
-
+    
     Returns:
         str: Validated repository href or None if not found.
     """
     try:
-        repo_name = validate_repository_id(repo_name)
         result = _run_pulp_cli(
             pulp_rpm_commands["show_repository"] % repo_name,
             log,
@@ -1126,12 +1124,12 @@ def _get_pulp_task_progress(task_href, log, repo_name):
 def _cancel_pulp_task(task_href, log, repo_name):
     """
     Cancel a Pulp task by href.
-
+    
     Args:
         task_href (str): Pulp task href to cancel
         log (logging.Logger): Logger instance
         repo_name (str): Repository name for logging
-
+    
     Returns:
         bool: True if cancellation succeeded, False otherwise
     """
@@ -1382,21 +1380,21 @@ def sync_rpm_repository_with_monitoring(
         sync_policy=None):
     """
     Sync RPM repository with progress-based stuck detection.
-
+    
     Drop-in replacement for sync_rpm_repository().
     Same args, same return format.
-
+    
     Dispatches the CLI command in background mode and monitors its exact Pulp
     task. If no progress is reported for RPM_SYNC_STUCK_TIMEOUT seconds while
     the API remains healthy, the exact task is canceled.
-
+    
     Args:
         repo (dict): Repository configuration
         log (logging.Logger): Logger instance
         resync_repos (str/list): Controls sync behavior
         force_sync_repos (iterable): Remotes whose URL or policy changed.
         sync_policy (str): Optional operation-level Pulp sync policy.
-
+    
     Returns:
         tuple: (success, repo_name, actually_synced, version_changed)
     """
@@ -1569,7 +1567,6 @@ def get_repo_version(repo_name, log):
             when Pulp state cannot be queried.
     """
     try:
-        repo_name = validate_repository_id(repo_name)
         command = pulp_rpm_commands["get_repo_version"] % repo_name
         result = _run_pulp_cli(command, log, repo_name=repo_name)
 
@@ -1610,20 +1607,19 @@ def get_repo_version(repo_name, log):
 
 def get_repository_latest_version_href(repo_name, log):
     """Return the exact latest repository-version HREF, or None on failure."""
-    try:
-        repo_name = validate_repository_id(repo_name)
-        result = _run_pulp_cli(
-            pulp_rpm_commands["show_repository"] % repo_name,
-            log,
-            repo_name=repo_name,
+    result = _run_pulp_cli(
+        pulp_rpm_commands["show_repository"] % repo_name,
+        log,
+        repo_name=repo_name,
+    )
+    if result is None or result.returncode != 0:
+        _log(
+            log, "error", repo_name,
+            "Unable to read latest repository version: "
+            f"{_command_output(result) or 'no CLI response'}",
         )
-        if result is None or result.returncode != 0:
-            _log(
-                log, "error", repo_name,
-                "Unable to read latest repository version: "
-                f"{_command_output(result) or 'no CLI response'}",
-            )
-            return None
+        return None
+    try:
         href = json.loads(result.stdout).get("latest_version_href")
         return validate_repository_version_href(href) if href else None
     except (json.JSONDecodeError, ValueError, AttributeError):
@@ -3243,7 +3239,7 @@ def _list_all_publications(repo_name, log):
         publications.extend(page)
         if len(page) < _PULP_LIST_PAGE_SIZE:
             break
-        offset += _PULP_LIST_PAGE_SIZE
+        offset += len(page)
     return publications
 
 
@@ -3272,7 +3268,7 @@ def _list_repository_versions(repo_name, log):
         versions.extend(page_identity)
         if len(page) < _PULP_LIST_PAGE_SIZE:
             break
-        offset += _PULP_LIST_PAGE_SIZE
+        offset += len(page)
     return sorted(set(versions))
 
 
@@ -3324,7 +3320,10 @@ def _validate_served_repomd(repo_name, pulp_base_url, log):
         )
         metadata_url = f"{base_url.rstrip('/')}/repodata/repomd.xml"
         parsed_url = urlsplit(metadata_url)
-        credentials_present = "@" in parsed_url.netloc
+        credentials_present = (
+            parsed_url.username is not None
+            or parsed_url.password is not None
+        )
         if parsed_url.scheme != "https" or not parsed_url.hostname:
             return False, "Published metadata URL is not a secure HTTPS origin"
         if credentials_present or parsed_url.query or parsed_url.fragment:
@@ -3515,7 +3514,7 @@ def _list_repository_content_hrefs(repo_name, version_href, log):
         content_hrefs.update(page_hrefs)
         if len(page) < _PULP_LIST_PAGE_SIZE:
             break
-        offset += _PULP_LIST_PAGE_SIZE
+        offset += len(page)
     return content_hrefs
 
 
@@ -3614,10 +3613,10 @@ def _list_owned_source_objects(aggregate_name, resource, log):
         for item in page:
             name = item.get("name") if isinstance(item, dict) else None
             if name and str(name).startswith(prefix):
-                objects.append(shlex.quote(validate_repository_id(name)))
+                objects.append(validate_repository_id(name))
         if len(page) < _PULP_LIST_PAGE_SIZE:
             break
-        offset += _PULP_LIST_PAGE_SIZE
+        offset += len(page)
     return sorted(set(objects))
 
 

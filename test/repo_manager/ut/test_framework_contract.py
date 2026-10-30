@@ -349,15 +349,16 @@ class FrameworkContractTests(unittest.TestCase):  # pylint: disable=too-many-pub
     def test_untagged_execution_uses_ordered_lifecycle_paths(self):
         """The real runner receives each safe lifecycle directory in order."""
         runner = _validation_runner()
-        lifecycle_tags = ["precheck", "prepare", "execute", "status", "user_registry"]
+        lifecycle_tags = ["precheck", "prepare", "execute", "status"]
         self.assertEqual(runner._all_exec_tags, lifecycle_tags)
         self.assertTrue(
             set(lifecycle_tags).isdisjoint(_literal_assignment("EXCLUDE_TAGS"))
         )
 
-    def test_untagged_verification_excludes_destructive_markers(self):
-        """Aggregate verification cannot collect co-located destructive cases."""
+    def test_untagged_verification_excludes_negative_markers(self):
+        """Aggregate verification cannot collect co-located negative cases."""
         excluded = _literal_assignment("ALL_VERIFY_EXCLUDE_MARKERS")
+        self.assertIn("negative", excluded)
         self.assertIn("destructive", excluded)
 
     def test_unit_category_is_registered_in_batch_config(self):

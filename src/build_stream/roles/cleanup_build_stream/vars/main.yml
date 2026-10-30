@@ -37,12 +37,12 @@ build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream/logs"
   - "{{ omnia_nfs_share }}/build_stream/output"
   - "{{ omnia_nfs_share }}/build_stream/playbook_queue"
-  - "{{ omnia_nfs_share }}/build_stream/ssl"
-  - "{{ omnia_nfs_share }}/build_stream/build_stream_root"
-  - "{{ omnia_nfs_share }}/build_stream/postgres"
+  - "{{ omnia_nfs_share }}/playbook_queue"
   - "{{ omnia_nfs_share }}/log/build_stream"
-  - "{{ omnia_nfs_share }}/build_stream/build_stream_inv"
-  - "{{ omnia_nfs_share }}/build_stream/build_stream_enabled"
+  - "{{ omnia_nfs_share }}/build_stream_ssl"
+  - "{{ omnia_nfs_share }}/build_stream_root"
+  - "{{ omnia_nfs_share }}/build_stream_inv"
+  - "{{ omnia_nfs_share }}/build_stream_enabled"
 
 # Remove the cleanup playbook's own host log only after every cleanup task has
 # succeeded, so failures remain diagnosable.
@@ -60,7 +60,7 @@ build_stream_python_cache_files:
 
 # ── Postgres cleanup ───────────────────────────────────────────────
 postgres_cleanup_directory:
-  - "{{ omnia_nfs_share }}/build_stream/postgres"
+  - "{{ omnia_nfs_share }}/postgres"
 
 # ── Automation framework cleanup ───────────────────────────────────
 automation_base_dir: "{{ omnia_nfs_share }}/automation"
@@ -91,10 +91,6 @@ build_stream_cleanup_failure_msg:
   - "   - {{ build_stream_cleanup_directory | join(', ') }}"
   - "After manual cleanup, you can safely retry the cleanup playbook."
 
-cleanup_credentials_invalid_msg: >-
-  cleanup_credentials accepts only true or false. Use
-  -e cleanup_credentials=false to preserve Build Stream credentials during cleanup.
-
 postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
  if postgres_backup | default(true) | bool else 'DELETE data (postgres_backup=false)' }}"
 
@@ -124,7 +120,7 @@ cleanup_summary_msg: |
     - build_stream output, queues, runtime logs, and Python caches
     - host Ansible logs under /var/log/omnia/build_stream
     - build_stream NFS runtime directories
-  Credentials: {{ 'REMOVED' if cleanup_credentials | default(true) | bool else 'PRESERVED (cleanup_credentials=false)' }}
+    - build_stream credential files
   Postgres data: {{ 'PRESERVED (use -e postgres_backup=false to delete)' if postgres_backup | default(true) | bool else 'DELETED' }}
   Before redeploying, reinitialize the BuildStream domain to recreate its
   runtime and log directories, then run the deployment:

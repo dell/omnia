@@ -7,9 +7,7 @@ The role removes project output, validation/watcher/API/playbook logs, active
 and archived queues, TLS/runtime data, and Python bytecode caches. It preserves
 initializer-owned application source and non-credential input files so the
 domain can be redeployed. PostgreSQL data is preserved unless
-`postgres_backup=false` is supplied. Build Stream credential files are removed
-by default; supply `-e cleanup_credentials=false` to preserve the credential
-files and vault keys.
+`postgres_backup=false` is supplied.
 
 Successful cleanup also removes host Ansible logs under
 `/var/log/omnia/build_stream`. Before redeploying, run the supported domain

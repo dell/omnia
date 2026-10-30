@@ -31,7 +31,7 @@ Source-of-truth alignment with omnia/src/orchestrator/roles/slurm_config:
 
 import re
 import shlex
-from typing import Any, Tuple
+from typing import Any
 
 from ..vars.pxeboot_vars import (
     HPC_BENCHMARKS_MSR_SAFE_PACKAGE,
@@ -60,17 +60,17 @@ _SUPPORTED_ARCHITECTURES: frozenset[str] = frozenset({"x86_64", "aarch64"})
 # from the source-only executable scan prevents legitimate CUDA / NVHPC /
 # container-image binaries from producing false positives.
 _STAGING_EXCLUDED_SUBDIRS: frozenset[str] = frozenset(
-    {"cuda", "nvidia_sdk", "container_images", "scripts", "compile", "benchmarks"}
+    {"cuda", "nvidia_sdk", "container_images", "scripts"}
 )
 
 
-def hpc_benchmarks_context(host) -> Tuple[Any, Any, Any, Any, Any]:
+def hpc_benchmarks_context(host):
     """Return workload context, Slurm rows, controller, and compute rows."""
     context, rows, control, config = slurm_context(host)
     return context, rows, control, slurm_compute_rows(rows), config
 
 
-def computes_or_skip(host, summary) -> Tuple[Any, Any, Any, Any]:
+def computes_or_skip(host, summary):
     """Return context+computes, or the canonical skip result when unmapped."""
     context, _rows, control, computes, _config = hpc_benchmarks_context(host)
     if not computes:
@@ -388,7 +388,7 @@ def pulp_directory_has_files(host, row, url: str) -> tuple[bool, int]:
     return bool(entries), len(entries)
 
 
-def run_pull_script(host, row, timeout_seconds: int) -> Any:
+def run_pull_script(host, row, timeout_seconds: int):
     """Run the deployed pull script and return the raw command result."""
     return remote_command(
         host,
@@ -568,7 +568,8 @@ def run_pull_script_background(host, row, timeout_seconds: int, log_path: str):
         host,
         row,
         PXEBOOT_COMMANDS["hpc_benchmarks_run_pull_script_bg"]
-        % (timeout_seconds, HPC_BENCHMARKS_PULL_SCRIPT, HPC_TOOLS_BASE, log_path, log_path),
+        % (timeout_seconds, HPC_BENCHMARKS_PULL_SCRIPT, HPC_TOOLS_BASE,
+           log_path, log_path),
     )
     pid = result.stdout.strip()
     if result.rc != 0 or not pid.isdigit():
@@ -576,12 +577,20 @@ def run_pull_script_background(host, row, timeout_seconds: int, log_path: str):
     return pid
 
 
-def wait_for_pid(host, row, pid: str, log_path: str, timeout_seconds: int = 700):
-    """Wait for a background PID and return its exit code."""
+def wait_for_pid(host, row, pid: str, timeout_seconds: int = 700,
+                 log_path: str = ""):
+    """Wait for a background PID and return its exit code.
+
+    Reads the exit code from the sidecar file written by
+    :func:`run_pull_script_background` instead of using ``wait``
+    (which cannot retrieve exit codes across SSH sessions).
+    """
+    exitcode_file = f"{log_path}.exitcode" if log_path else ""
     result = remote_command(
         host,
         row,
-        f"timeout {timeout_seconds} bash -c '{PXEBOOT_COMMANDS['hpc_benchmarks_wait_pid'] % (pid, log_path)}'",
+        f"timeout {timeout_seconds} bash -c '"
+        f"{PXEBOOT_COMMANDS['hpc_benchmarks_wait_pid'] % (pid, exitcode_file)}'",
     )
     text = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
     try:

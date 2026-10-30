@@ -29,7 +29,7 @@ from core.localrepo.exceptions import QueueUnavailableError
 
 
 DEFAULT_QUEUE_BASE = str(
-    Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "build_stream" / "playbook_queue"
+    Path(os.getenv("OMNIA_DATA_PATH", "/opt/omnia")) / "playbook_queue"
 )
 REQUEST_DIR_NAME = "requests"
 FILE_PERMISSIONS = stat.S_IRUSR | stat.S_IWUSR  # 600

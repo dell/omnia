@@ -16,7 +16,7 @@ IDs use `RM_FVT_<PHASE>_<TYPE><SEQ>`:
 |---------|---------|-------------------|
 | `RM` | Repo Manager domain | Fixed domain code |
 | `FVT` | Functional Verification Test level | Fixed test-level code |
-| `PHASE` | Lifecycle phase | `PRECHECK`, `PREPARE`, `EXECUTE`, `REPO_SYNC`, `STATUS`, `CLEANUP`, `CLEANUP_REPOS`, `POLICY`, `USER_REGISTRY`, `CATALOG_GENERATE`, `CATALOG_ADD`, `CATALOG_DELETE`, or `CATALOG_VALIDATE` |
+| `PHASE` | Lifecycle phase | `PRECHECK`, `PREPARE`, `EXECUTE`, `STATUS`, `CLEANUP`, `CLEANUP_REPOS`, `POLICY`, `NEG`, `USER_REGISTRY`, `CATALOG_GENERATE`, `CATALOG_ADD`, `CATALOG_DELETE`, `CATALOG_VALIDATE`, or `CATALOG_NEG` |
 | `TYPE` | Whether the case changes or inspects state | `E` runs a playbook; `V` verifies postconditions |
 | `SEQ` | Stable sequence appended to the type | Three digits, starting at `001` |
 
@@ -32,21 +32,22 @@ An untagged `test` runs `precheck`, `prepare`, `execute`, and `status` in
 order, then verifies the non-destructive scenarios. Cleanup and catalog
 operations require explicit selection. User registry is verification-only.
 
-Policy tests live inside `execute/policy/`.
+Negative tests live inside each tag's `negative/` suite. Policy tests live
+inside `execute/policy/`.
 
 | Phase | Playbook | Suite directories |
 |-------|----------|-------------------|
-| precheck | `test_playbook.py` | `config/` |
-| prepare | `test_playbook.py` | `pulp/` |
-| execute | `test_playbook.py` | `repos/`, `artifacts/`, `policy/` |
-| status | `test_playbook.py` | `status/` |
-| cleanup | `test_playbook.py` | `cleanup/` |
+| precheck | `test_playbook.py` | `config/`, `negative/` |
+| prepare | `test_playbook.py` | `pulp/`, `negative/` |
+| execute | `test_playbook.py` | `repos/`, `artifacts/`, `policy/`, `negative/` |
+| status | `test_playbook.py` | `status/`, `negative/` |
+| cleanup | `test_playbook.py` | `cleanup/`, `negative/` |
 | cleanup_repos | `test_playbook.py` | `selective/` |
-| catalog_generate | `test_playbook.py` | `generate/` |
-| catalog_add | `test_playbook.py` | `add/` |
-| catalog_delete | `test_playbook.py` | `delete/` |
+| catalog_generate | `test_playbook.py` | `generate/`, `negative/` |
+| catalog_add | `test_playbook.py` | `add/`, `negative/` |
+| catalog_delete | `test_playbook.py` | `delete/`, `negative/` |
 | catalog_validate | `test_playbook.py` | `validate/` |
-| user_registry | `test_playbook.py` | `validation/` |
+| user_registry | `test_playbook.py` | `validation/`, `negative/` |
 
 ## Precheck test cases
 
@@ -208,11 +209,34 @@ verification-only suite within the `execute/` tag directory.
 | 6 | RM_FVT_USER_REGISTRY_V006 | `validation/test_validation.py::test_user_registry_tls_pair_consistent` | sanity, positive | Verify client cert and key configured together. | Client cert and key are paired correctly. |
 | 7 | RM_FVT_USER_REGISTRY_V007 | `validation/test_validation.py::test_user_registry_auth_type_valid` | sanity, positive | Verify auth type is `none` or `basic`. | Auth type is a valid value. |
 | 8 | RM_FVT_USER_REGISTRY_V008 | `validation/test_validation.py::test_user_registry_credentials_present` | functional, positive | Verify credentials for basic auth registries. | Credentials exist for basic-auth registries. |
-| 9 | RM_FVT_USER_REGISTRY_V009 | `validation/test_validation.py::test_user_registry_distributions` | functional, positive | Verify Pulp container distributions exist for user registries. | Pulp distributions exist for configured registries. |
-| 10 | RM_FVT_USER_REGISTRY_V010 | `validation/test_validation.py::test_user_registry_remotes_in_pulp` | functional, positive | Verify Pulp container remotes are created for user registries. | Pulp remotes exist for configured registries. |
-| 11 | RM_FVT_USER_REGISTRY_V011 | `validation/test_validation.py::test_user_registry_auth_credentials_valid` | functional, positive | Verify registry authenticates with vault credentials. | Registry authentication succeeds. |
-| 12 | RM_FVT_USER_REGISTRY_V012 | `validation/test_validation.py::test_user_registry_no_duplicate_hosts` | sanity, positive | Verify no duplicate registry host entries. | No duplicate hosts in configuration. |
-| 13 | RM_FVT_USER_REGISTRY_V013 | `validation/test_validation.py::test_user_registry_https_cert_cn_valid` | functional, positive | Verify HTTPS certificates have valid CN/SAN. | Certificate CN/SAN matches registry host. |
+
+### Negative tests (`test_user_registry_negative.py`)
+
+| Sequence | TC ID | Test | Markers | Validation | Pass criteria |
+|----------|-------|------|---------|------------|---------------|
+| 1 | RM_FVT_USER_REGISTRY_NEG_001 | `test_registry_validation_fails_missing_config` | negative | Validation fails with missing config file. | Validation fails cleanly with missing config. |
+| 2 | RM_FVT_USER_REGISTRY_NEG_002 | `test_registry_validation_detects_invalid_base_url` | negative | Detects invalid `base_url`. | Invalid `base_url` is detected. |
+| 3 | RM_FVT_USER_REGISTRY_NEG_003 | `test_registry_validation_detects_incomplete_tls_pair` | negative | Detects incomplete TLS cert/key pair. | Incomplete TLS pair is detected. |
+| 4 | RM_FVT_USER_REGISTRY_NEG_004 | `test_registry_validation_detects_unsupported_auth_type` | negative | Detects unsupported auth type. | Unsupported auth type is detected. |
+| 5 | RM_FVT_USER_REGISTRY_NEG_005 | `test_registry_validation_detects_missing_cert_paths` | negative | Detects missing cert paths on disk. | Missing cert paths are detected. |
+| 6 | RM_FVT_USER_REGISTRY_NEG_006 | `test_registry_validation_detects_missing_vault_path` | negative | Detects missing `vault_path` for basic auth. | Missing `vault_path` is detected. |
+
+## Negative test cases (distributed across tag directories)
+
+Negative tests live inside each tag's `negative/` suite:
+
+| TC ID | Location | Test | Pass criteria |
+|-------|----------|------|---------------|
+| RM_FVT_NEG_001 | `precheck/negative/` | `test_deploy_fails_missing_credentials` | Deployment fails cleanly. |
+| RM_FVT_NEG_002 | `precheck/negative/` | `test_deploy_fails_invalid_endpoint_config` | Deployment fails cleanly. |
+| RM_FVT_NEG_009 | `precheck/negative/` | `test_validate_fails_missing_config` | Validation fails cleanly. |
+| RM_FVT_NEG_006 | `prepare/negative/` | `test_pulp_cli_fails_invalid_auth` | CLI fails cleanly. |
+| RM_FVT_NEG_010 | `prepare/negative/` | `test_pulp_api_unreachable_port_closed` | Unreachable state detected. |
+| RM_FVT_NEG_003 | `execute/negative/` | `test_download_fails_invalid_repo_url` | Download fails cleanly. |
+| RM_FVT_NEG_007 | `execute/negative/` | `test_repo_sync_fails_network_issues` | Sync fails cleanly. |
+| RM_FVT_NEG_008 | `execute/negative/` | `test_catalog_generation_fails_invalid_config` | Generation fails cleanly. |
+| RM_FVT_NEG_004 | `status/negative/` | `test_status_fails_missing_repo_status` | Status check fails cleanly. |
+| RM_FVT_NEG_005 | `cleanup/negative/` | `test_cleanup_fails_pulp_not_running` | Cleanup fails cleanly. |
 
 ## Catalog test cases
 
@@ -261,23 +285,34 @@ Each catalog operation is its own tag directory with `test_playbook.py`.
 | 2 | RM_FVT_CATALOG_VALIDATE_V002 | `validate/test_validate.py::test_catalog_validation_log_exists` | deploy, functional, positive | Verify catalog validation log file exists. | Log file exists. |
 | 3 | RM_FVT_CATALOG_VALIDATE_V003 | `validate/test_validate.py::test_catalog_still_valid_after_validation` | functional, positive | Verify catalog file still valid after validation. | Catalog remains valid. |
 
+### Catalog negative tests (distributed across catalog tag directories)
+
+| TC ID | Location | Test | Pass criteria |
+|-------|----------|------|---------------|
+| RM_FVT_CATALOG_NEG_001 | `catalog_generate/negative/` | `test_catalog_generate_missing_input_file` | Fails cleanly. |
+| RM_FVT_CATALOG_NEG_004 | `catalog_generate/negative/` | `test_catalog_input_directory_validation` | Invalid input directory detected. |
+| RM_FVT_CATALOG_NEG_005 | `catalog_generate/negative/` | `test_catalog_structure_validation` | Invalid structure detected. |
+| RM_FVT_CATALOG_NEG_006 | `catalog_generate/negative/` | `test_catalog_file_existence_validation` | Missing catalog detected. |
+| RM_FVT_CATALOG_NEG_007 | `catalog_generate/negative/` | `test_catalog_log_file_validation` | Missing log file detected. |
+| RM_FVT_CATALOG_NEG_002 | `catalog_add/negative/` | `test_catalog_add_missing_input_file` | Fails cleanly. |
+| RM_FVT_CATALOG_NEG_003 | `catalog_delete/negative/` | `test_catalog_delete_missing_input_file` | Fails cleanly. |
+
 ## Registry summary
 
 | Phase | Execution IDs | Verification IDs | Total | Notes |
 |-------|---------------|------------------|-------|-------|
-| Precheck | `RM_FVT_PRECHECK_E001` | `RM_FVT_PRECHECK_V001`--`V004` | 5 | Input/credential validation. |
-| Prepare | `RM_FVT_PREPARE_E001`--`E003` | `RM_FVT_PREPARE_V001`--`V007` | 10 | Pulp infrastructure. |
-| Execute | `RM_FVT_EXECUTE_E001` | `RM_FVT_EXECUTE_V001`--`V014` + `POLICY_V001`--`V021` | 36 | Repos, artifacts, policy. |
-| Repo sync | `RM_FVT_REPO_SYNC_E001` | `RM_FVT_REPO_SYNC_V001`--`V007` | 8 | Catalog exact-mirror reconciliation. |
-| Status | `RM_FVT_STATUS_E001` | `RM_FVT_STATUS_V001`--`V002` | 3 | Status generation. |
-| Cleanup | `RM_FVT_CLEANUP_E001` | `RM_FVT_CLEANUP_V001`--`V003` | 4 | Full Pulp cleanup. |
+| Precheck | `RM_FVT_PRECHECK_E001` | `RM_FVT_PRECHECK_V001`--`V004` + `NEG_001`,`NEG_002`,`NEG_009` | 8 | Input/credential validation + negative. |
+| Prepare | `RM_FVT_PREPARE_E001`--`E003` | `RM_FVT_PREPARE_V001`--`V007` + `NEG_006`,`NEG_010` | 12 | Pulp infrastructure + negative. |
+| Execute | `RM_FVT_EXECUTE_E001` | `RM_FVT_EXECUTE_V001`--`V014` + `POLICY_V001`--`V021` + `NEG_003`,`NEG_007`,`NEG_008` | 39 | Repos, artifacts, policy, negative. |
+| Status | `RM_FVT_STATUS_E001` | `RM_FVT_STATUS_V001`--`V002` + `NEG_004` | 4 | Status generation + negative. |
+| Cleanup | `RM_FVT_CLEANUP_E001` | `RM_FVT_CLEANUP_V001`--`V003` + `NEG_005` | 5 | Full Pulp cleanup + negative. |
 | Selective cleanup | `RM_FVT_CLEANUP_REPOS_E001` | `RM_FVT_CLEANUP_REPOS_V001`--`V003` | 4 | Exact repository cleanup. |
-| Catalog generate | `RM_FVT_CATALOG_GENERATE_E001` | `RM_FVT_CATALOG_GENERATE_V001`--`V007` | 8 | Catalog generation. |
-| Catalog add | `RM_FVT_CATALOG_ADD_E001` | `RM_FVT_CATALOG_ADD_V001`--`V005` | 6 | Catalog add. |
-| Catalog delete | `RM_FVT_CATALOG_DELETE_E001` | `RM_FVT_CATALOG_DELETE_V001`--`V004` | 5 | Catalog delete. |
+| Catalog generate | `RM_FVT_CATALOG_GENERATE_E001` | `RM_FVT_CATALOG_GENERATE_V001`--`V007` + `CATALOG_NEG_001`,`004`--`007` | 13 | Catalog generation + negative. |
+| Catalog add | `RM_FVT_CATALOG_ADD_E001` | `RM_FVT_CATALOG_ADD_V001`--`V005` + `CATALOG_NEG_002` | 7 | Catalog add + negative. |
+| Catalog delete | `RM_FVT_CATALOG_DELETE_E001` | `RM_FVT_CATALOG_DELETE_V001`--`V004` + `CATALOG_NEG_003` | 6 | Catalog delete + negative. |
 | Catalog validate | `RM_FVT_CATALOG_VALIDATE_E001` | `RM_FVT_CATALOG_VALIDATE_V001`--`V003` | 4 | Catalog validate operation. |
-| User registry | `RM_FVT_USER_REGISTRY_E001` | `RM_FVT_USER_REGISTRY_V001`--`V013` | 14 | User registry validation. |
-| **Total FVT** | | | **107** | |
+| User registry | `RM_FVT_USER_REGISTRY_E001` | `RM_FVT_USER_REGISTRY_V001`--`V008`, `NEG_001`--`NEG_006` | 15 | User registry validation. |
+| **Total FVT** | | | **117** | |
 
 ## Execution commands
 

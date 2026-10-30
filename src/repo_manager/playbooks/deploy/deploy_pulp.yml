@@ -22,13 +22,13 @@
           - "Project: {{ project_name | default(project_default) }}"
           - "==========================================="
 
-    # Scope the endpoint contract to this include. A set_fact would persist and
-    # make later plays (validate_config) validate only the endpoint file.
+    - name: Select endpoint validation contract
+      ansible.builtin.set_fact:
+        omnia_run_tags: [endpoint]
+
     - name: Validate Pulp endpoint input
       ansible.builtin.include_role:
         name: ../../roles/validate_input
-      vars:
-        omnia_run_tags: [endpoint]
 
     - name: Read Pulp endpoint configuration
       ansible.builtin.include_role:

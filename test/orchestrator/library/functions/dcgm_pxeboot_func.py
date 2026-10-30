@@ -20,7 +20,6 @@ consumed by ``verify_pxeboot`` in ``fvt/result.py``.
 
 import re
 import time
-from typing import Any, Dict
 
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS, SLURM_COMPILER_PREFIX
 from ._pxeboot_helpers import (
@@ -62,7 +61,7 @@ def _dcgm_context(host):
 # Functional checks (14 tests)
 # ===================================================================
 
-def check_dcgm_cuda_validation(host) -> Dict[str, Any]:
+def check_dcgm_cuda_validation(host):
     """Verify NVIDIA driver and CUDA toolkit are installed on GPU nodes."""
     summary = "CUDA driver and toolkit validation"
     try:
@@ -96,7 +95,7 @@ def check_dcgm_cuda_validation(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_cuda_atomic_lock(host) -> Dict[str, Any]:
+def check_dcgm_cuda_atomic_lock(host):
     """Verify CUDA toolkit is installed via atomic lock."""
     summary = "CUDA atomic lock installation"
     try:
@@ -134,7 +133,7 @@ def check_dcgm_cuda_atomic_lock(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_package_installed(host) -> Dict[str, Any]:
+def check_dcgm_package_installed(host):
     """Verify datacenter-gpu-manager RPM is installed and binaries present."""
     summary = "DCGM package installation"
     try:
@@ -167,7 +166,7 @@ def check_dcgm_package_installed(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_daemon_running(host) -> Dict[str, Any]:
+def check_dcgm_daemon_running(host):
     """Verify nvidia-dcgm.service is active and enabled on GPU nodes."""
     summary = "DCGM daemon status"
     try:
@@ -203,7 +202,7 @@ def check_dcgm_daemon_running(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_gpu_discovery(host) -> Dict[str, Any]:
+def check_dcgm_gpu_discovery(host):
     """Verify dcgmi discovery -l enumerates GPUs with unique UUIDs."""
     summary = "DCGM GPU discovery"
     try:
@@ -243,7 +242,7 @@ def check_dcgm_gpu_discovery(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_gpu_metrics(host) -> Dict[str, Any]:
+def check_dcgm_gpu_metrics(host):
     """Verify dcgmi dmon returns metric samples for each GPU node."""
     summary = "DCGM GPU metrics monitoring"
     try:
@@ -277,7 +276,7 @@ def check_dcgm_gpu_metrics(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_cuda_login_compiler(host) -> Dict[str, Any]:
+def check_dcgm_cuda_login_compiler(host):
     """Verify CUDA toolkit is accessible on login_compiler nodes."""
     summary = "CUDA login_compiler installation"
     try:
@@ -313,7 +312,7 @@ def check_dcgm_cuda_login_compiler(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_cuda_compute_node(host) -> Dict[str, Any]:
+def check_dcgm_cuda_compute_node(host):
     """Verify both CUDA toolkit and CUDA driver are present on compute nodes."""
     summary = "CUDA compute node installation"
     try:
@@ -348,7 +347,7 @@ def check_dcgm_cuda_compute_node(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_multi_gpu_discovery(host) -> Dict[str, Any]:
+def check_dcgm_multi_gpu_discovery(host):
     """Verify dcgmi discovery enumerates all GPUs on multi-GPU nodes."""
     summary = "DCGM multi-GPU discovery"
     try:
@@ -396,7 +395,7 @@ def check_dcgm_multi_gpu_discovery(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_multi_gpu_no_login_compiler(host) -> Dict[str, Any]:
+def check_dcgm_multi_gpu_no_login_compiler(host):
     """Verify GPU nodes work when no login_compiler node exists."""
     summary = "Multi-GPU without login_compiler"
     try:
@@ -432,7 +431,7 @@ def check_dcgm_multi_gpu_no_login_compiler(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_multi_login_compiler_lock(host) -> Dict[str, Any]:
+def check_dcgm_multi_login_compiler_lock(host):
     """Verify CUDA toolkit install uses atomic lock with multiple login_compilers."""
     summary = "Multi login_compiler atomic lock"
     try:
@@ -479,7 +478,7 @@ def check_dcgm_multi_login_compiler_lock(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_toolkit_nfs_storage(host) -> Dict[str, Any]:
+def check_dcgm_toolkit_nfs_storage(host):
     """Verify /hpc_tools is NFS-mounted and CUDA toolkit accessible."""
     summary = "CUDA NFS shared storage"
     try:
@@ -510,7 +509,7 @@ def check_dcgm_toolkit_nfs_storage(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_rhel_compatibility(host) -> Dict[str, Any]:
+def check_dcgm_rhel_compatibility(host):
     """Verify GPU node OS is a supported RHEL version."""
     summary = "GPU RHEL compatibility"
     try:
@@ -547,7 +546,7 @@ def check_dcgm_rhel_compatibility(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_cuda_version_compatibility(host) -> Dict[str, Any]:
+def check_dcgm_cuda_version_compatibility(host):
     """Verify CUDA toolkit and DCGM daemon version compatibility."""
     summary = "CUDA version compatibility"
     try:
@@ -586,7 +585,7 @@ def check_dcgm_cuda_version_compatibility(host) -> Dict[str, Any]:
 # Negative / error-handling checks (4 tests)
 # ===================================================================
 
-def check_dcgm_neg_cuda_prerequisite(host) -> Dict[str, Any]:
+def check_dcgm_neg_cuda_prerequisite(host):
     """Verify DCGM deployment requires CUDA driver as a prerequisite."""
     summary = "CUDA prerequisite enforcement"
     try:
@@ -624,7 +623,7 @@ def check_dcgm_neg_cuda_prerequisite(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_neg_daemon_recovery(host) -> Dict[str, Any]:
+def check_dcgm_neg_daemon_recovery(host):
     """Simulate DCGM daemon crash via SIGKILL and verify systemd restarts it."""
     summary = "DCGM daemon crash recovery"
     try:
@@ -685,7 +684,7 @@ def check_dcgm_neg_daemon_recovery(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_neg_socket_inaccessible(host) -> Dict[str, Any]:
+def check_dcgm_neg_socket_inaccessible(host):
     """Remove DCGM Unix socket and verify dcgmi returns a clear error."""
     summary = "DCGM socket inaccessible"
     try:
@@ -752,7 +751,7 @@ def check_dcgm_neg_socket_inaccessible(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_dcgm_neg_package_install_failure(host) -> Dict[str, Any]:
+def check_dcgm_neg_package_install_failure(host):
     """Verify error handling when datacenter-gpu-manager package is unavailable."""
     summary = "DCGM package install failure"
     try:

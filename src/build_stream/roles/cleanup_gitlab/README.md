@@ -2,9 +2,7 @@
 
 ## Description
 
-Removes GitLab CE, runner, TLS certificates, CI/CD configuration, and credentials.
-Supply `-e cleanup_credentials=false` to keep the GitLab root password and OAuth
-clients in `build_stream_credentials.yml`.
+Removes GitLab CE, runner, TLS certificates, CI/CD configuration, and credentials
 
 ## Requirements
 

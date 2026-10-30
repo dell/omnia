@@ -1,7 +1,4 @@
 ---
-- name: Validate tags
-  ansible.builtin.include_tasks: validate_tags.yml
-
 - name: Validate utils domain prerequisites
   ansible.builtin.include_tasks: validate_prerequisites.yml
   when: validate_prerequisites | bool

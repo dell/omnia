@@ -68,7 +68,13 @@
     state: directory
     mode: "{{ build_stream_dir_mode }}"
 
-- name: Ensure build_stream ssl directory exists
+- name: Ensure build_stream ssl parent directory exists
+  ansible.builtin.file:
+    path: "{{ omnia_path }}/build_stream_ssl"
+    state: directory
+    mode: "{{ build_stream_dir_mode }}"
+
+- name: Ensure build_stream ssl subdirectory exists
   ansible.builtin.file:
     path: "{{ build_stream_ssl_dir }}"
     state: directory

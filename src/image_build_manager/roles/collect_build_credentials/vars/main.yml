@@ -45,14 +45,6 @@ image_build_username_fail_msg: >-
 image_build_credential_decrypt_fail_msg: >-
   Failed to decrypt image build credential file before updating it.
   Decrypt returned rc={{ _update_decrypt_result.rc | default('N/A') }}
-image_build_credential_decrypt_load_fail_msg: >-
-  Failed to decrypt or load {{ image_build_credential_file.file_path }}. Verify that
-  {{ image_build_credential_file.vault_path }} is the correct vault key and that the
-  credential file is not corrupted, then re-run the playbook.
-
-# Decrypted credentials are written only to memory-backed storage (tmpfs), never to persistent disk
-credential_tmp_dir: "/dev/shm"
-
 image_build_cred_file_missing_msg: |
   Image build credential file not found at {{ image_build_credential_file.file_path }}.
   It will be created from template.

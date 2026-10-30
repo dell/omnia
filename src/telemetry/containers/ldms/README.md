@@ -19,7 +19,7 @@ VictoriaMetrics.
 
 ### Containerfile.bld_n_run.ubuntu26.04
 - Multi-stage build:
-  - **Builder stage**: Compiles libserdes and OVIS LDMS from source (v4.5.3)
+  - **Builder stage**: Compiles libserdes and OVIS LDMS from source (v4.5.2)
   - **Runner stage**: Slim Ubuntu 26.04 image with compiled binaries copied over
 - Uses configure.aggregator.sh during build to enable all LDMS features
 - Final image contains only runtime dependencies

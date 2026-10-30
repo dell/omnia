@@ -38,7 +38,6 @@ from library.functions.k8s_func import verify_pods_by_prefix
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(10)
-@pytest.mark.powerscale
 def test_cleanup_powerscale(host):
     """TEL_FVT_CLEANUP_POWERSCALE_V001: Verify PowerScale resources removed."""
     tc = TC["cleanup_powerscale"]

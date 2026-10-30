@@ -49,17 +49,18 @@ An untagged `fvt_repo_manager test` executes these deploy stages in order:
 4. `status`
 
 It then verifies the non-destructive scenarios. `cleanup`, `cleanup_repos`,
-and `catalog` are excluded from aggregate discovery; co-located tests marked
-`destructive` are filtered out as well.
+`negative`, and `catalog` are excluded from aggregate discovery; co-located
+tests marked `negative` or `destructive` are filtered out as well.
 
-`policy` is verification-only. Catalog lifecycle execution requires exactly
-one suite.
+`policy` and `negative` are verification-only. Catalog lifecycle execution
+requires exactly one suite. Catalog `negative` is also verification-only.
 
 ```bash
 ./run_validation.sh fvt_repo_manager test
 ./run_validation.sh fvt_repo_manager prepare test --marker sanity
 ./run_validation.sh fvt_repo_manager policy verify
 ./run_validation.sh fvt_repo_manager catalog test --suite validate
+./run_validation.sh fvt_repo_manager catalog verify --suite negative
 ./run_validation.sh ut_repo_manager test
 ```
 

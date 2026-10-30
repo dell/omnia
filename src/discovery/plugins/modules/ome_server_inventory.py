@@ -18,22 +18,12 @@
 import json
 import logging
 import math
-import re
 import time
 import urllib3
 from urllib.parse import urlparse, urljoin
 from ansible.module_utils.basic import AnsibleModule
 
 logger = logging.getLogger("ome_server_inventory")
-
-# Security: IB_NIC_NAME allowlist — reject malformed OME PortId values at source.
-# Keep in sync with pxe_mapping_validator.py, configure-ib-network.sh.j2,
-# and pxe_boot_inventory/vars/main.yml.
-_IB_NIC_NAME_RE = re.compile(
-    r"^(?:(?:InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|"
-    r"NIC\.InfiniBand\.)[0-9A-Fa-f]+-[0-9]+|"
-    r"InfiniBand\.Single-[0-9]+)$"
-)
 
 try:
     import requests
@@ -538,13 +528,6 @@ def extract_server_info(client, device, device_group_map=None):
         for port in nic.get("Ports", []):
             port_id = port.get("PortId", "")
             candidate = port_id if port_id else nic_id
-            # Security: validate IB NIC name against allowlist before use
-            if candidate and not _IB_NIC_NAME_RE.fullmatch(candidate):
-                logger.warning(
-                    "Rejected malformed IB PortId '%s' for device %s",
-                    candidate, device_id,
-                )
-                continue
             link_status = (port.get("LinkStatus") or "Unknown").strip().upper()
             if link_status == "UP":
                 info["ib_nic_name"] = candidate

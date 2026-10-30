@@ -49,10 +49,10 @@
         tasks_from: load_config.yml
       when: not (repo_manager_config_loaded | default(false) | bool)
 
-    - name: Enable subscription check unless a caller explicitly disabled it
+    - name: Enable subscription check when validate_config.yml is run directly
       ansible.builtin.set_fact:
         run_subscription_check: true
-      when: run_subscription_check is not defined
+      when: run_subscription_check is not defined and omnia_run_tags is not defined
 
     - name: Load validated metadata vars
       ansible.builtin.include_role:

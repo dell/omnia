@@ -38,7 +38,6 @@ from library.functions.cleanup_func import verify_idrac_cleaned
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(10)
-@pytest.mark.idrac
 def test_cleanup_idrac(host):
     """TEL_FVT_CLEANUP_V006: Verify iDRAC telemetry resources removed."""
     tc = TC["cleanup_idrac"]

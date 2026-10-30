@@ -56,8 +56,6 @@ from library.functions.cleanup_func import (
 
 @pytest.mark.functional
 @pytest.mark.order(56)
-@pytest.mark.source
-@pytest.mark.idrac
 def test_cleanup_idrac(host):
     """TEL_FVT_CLEANUP_V006: Verify iDRAC telemetry resources removed after cleanup."""
     tc = TC["cleanup_idrac"]
@@ -75,8 +73,6 @@ def test_cleanup_idrac(host):
 
 @pytest.mark.functional
 @pytest.mark.order(57)
-@pytest.mark.source
-@pytest.mark.ldms
 def test_cleanup_ldms(host):
     """TEL_FVT_CLEANUP_V007: Verify LDMS + Vector-LDMS resources removed after cleanup."""
     tc = TC["cleanup_ldms"]
@@ -94,8 +90,6 @@ def test_cleanup_ldms(host):
 
 @pytest.mark.functional
 @pytest.mark.order(58)
-@pytest.mark.source
-@pytest.mark.ome
 def test_cleanup_ome(host):
     """TEL_FVT_CLEANUP_V008: Verify OME + Vector-OME resources removed after cleanup."""
     tc = TC["cleanup_ome"]
@@ -113,8 +107,6 @@ def test_cleanup_ome(host):
 
 @pytest.mark.functional
 @pytest.mark.order(59)
-@pytest.mark.source
-@pytest.mark.ufm
 def test_cleanup_ufm(host):
     """TEL_FVT_CLEANUP_V009: Verify UFM telemetry resources removed after cleanup."""
     tc = TC["cleanup_ufm"]
@@ -132,8 +124,6 @@ def test_cleanup_ufm(host):
 
 @pytest.mark.functional
 @pytest.mark.order(60)
-@pytest.mark.source
-@pytest.mark.vast
 def test_cleanup_vast(host):
     """TEL_FVT_CLEANUP_V010: Verify VAST telemetry resources removed after cleanup."""
     tc = TC["cleanup_vast"]
@@ -151,8 +141,6 @@ def test_cleanup_vast(host):
 
 @pytest.mark.functional
 @pytest.mark.order(61)
-@pytest.mark.source
-@pytest.mark.sfm
 def test_cleanup_sfm(host):
     """TEL_FVT_CLEANUP_V011: Verify SFM telemetry resources removed after cleanup."""
     tc = TC["cleanup_sfm"]

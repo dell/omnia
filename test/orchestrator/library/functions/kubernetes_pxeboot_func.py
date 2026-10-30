@@ -15,7 +15,6 @@
 """Kubernetes post-boot verification derived from supported product behavior."""
 
 import ipaddress
-from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
     KUBERNETES_CNI_POD_PREFIXES,
@@ -43,7 +42,7 @@ def _condition_true(conditions, condition_type: str) -> bool:
     )
 
 
-def check_kubernetes_nodes(host) -> Dict[str, Any]:
+def check_kubernetes_nodes(host):
     """Verify desired membership, readiness, CRI-O, and version consistency."""
     summary = "Kubernetes membership and node readiness"
     try:
@@ -152,7 +151,7 @@ def check_kubernetes_nodes(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_node_services(host) -> Dict[str, Any]:
+def check_kubernetes_node_services(host):
     """Verify kubelet, CRI-O, and chronyd on every Kubernetes node."""
     summary = "Kubernetes node services"
     try:
@@ -206,7 +205,7 @@ def check_kubernetes_node_services(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_control_plane(host) -> Dict[str, Any]:
+def check_kubernetes_control_plane(host):
     """Verify API readiness, etcd membership, and control-plane static pods."""
     summary = "Kubernetes control plane and etcd"
     try:
@@ -245,7 +244,7 @@ def check_kubernetes_control_plane(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_system_pods(host) -> Dict[str, Any]:
+def check_kubernetes_system_pods(host):
     """Verify core, selected CNI, MetalLB, NFS, and optional CSI pods."""
     summary = "Kubernetes system workloads"
     try:
@@ -364,7 +363,7 @@ def check_kubernetes_system_pods(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_virtual_ip(host) -> Dict[str, Any]:
+def check_kubernetes_virtual_ip(host):
     """Verify the configured Kubernetes VIP is present on exactly one control plane."""
     summary = "Kubernetes virtual IP ownership"
     try:
@@ -409,7 +408,7 @@ def check_kubernetes_virtual_ip(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_storage(host) -> Dict[str, Any]:
+def check_kubernetes_storage(host):
     """Verify NFS storage and optional PowerScale CSI runtime objects."""
     summary = "Kubernetes storage"
     try:
@@ -482,7 +481,7 @@ def check_kubernetes_storage(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_local_etcd(host) -> Dict[str, Any]:
+def check_kubernetes_local_etcd(host):
     """Verify local-disk etcd mounts only when the feature is enabled."""
     summary = "Kubernetes local-disk etcd"
     try:

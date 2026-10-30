@@ -154,13 +154,7 @@
   register: munge_present
 
 - name: Ensure munge key is generated
-  ansible.builtin.command:
-    argv:
-      - dd
-      - if=/dev/urandom
-      - "of={{ slurm_config_path }}/munge.key"
-      - bs=1
-      - count=1024
+  ansible.builtin.shell: "{{ munge_key_cmd }} > {{ slurm_config_path }}/munge.key"
   when: not munge_present.stat.exists
   register: munge_gen
   changed_when: munge_gen.rc == 0

@@ -19,8 +19,6 @@ Common utilities come from the omnia_auto package.
 Module-specific functions remain here.
 """
 
-from typing import Any, Dict
-
 # --- Common (from omnia_auto package) ---
 from omnia_auto import (
     Colors,
@@ -89,7 +87,7 @@ from .validation_func import (
 )
 
 
-def run_playbook(extra_vars=None, **kwargs) -> Dict[str, Any]:
+def run_playbook(extra_vars=None, **kwargs):
     """Wrapper that injects module-specific playbook and workdir."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),

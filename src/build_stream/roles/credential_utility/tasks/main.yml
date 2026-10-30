@@ -122,56 +122,34 @@
         - bs_cred_file_stat.stat.exists or bs_file_created is defined
         - bs_vault_key_stat.stat.exists or bs_file_created is defined
 
-    # --- Step 4a: File is vault-encrypted — decrypt to a private temp file on tmpfs, load, always remove temp file.
-    # The encrypted credential file is never decrypted in place.
+    # --- Step 4a: File is vault-encrypted — decrypt, load, re-encrypt ---
     - name: Load vault-encrypted credentials
       when:
         - (bs_cred_file_stat.stat.exists or bs_file_created is defined)
         - _bs_is_vault_encrypted.rc | default(1) == 0
       block:
-        - name: Create private temp file for decrypted credentials
-          ansible.builtin.tempfile:
-            state: file
-            path: "{{ credential_tmp_dir }}"
-            prefix: ".cred_tmp_"
-            suffix: ".yml"
-          register: _cred_tmp
-
-        - name: Verify temp file was created successfully
-          ansible.builtin.assert:
-            that:
-              - _cred_tmp.path is defined
-              - _cred_tmp.path | length > 0
-            fail_msg: "Failed to create temp file for credential decryption"
-
-        - name: Restrict temp file permissions
-          ansible.builtin.file:
-            path: "{{ _cred_tmp.path }}"
-            mode: "0600"
-
-        - name: Decrypt credential file to temp file
+        - name: Decrypt credential file
           ansible.builtin.command: >-
             ansible-vault decrypt "{{ bs_credential_file_path }}"
-            --output "{{ _cred_tmp.path }}"
             --vault-password-file "{{ bs_credential_vault_path }}"
           changed_when: false
-          no_log: true
+          failed_when: false
+          register: _bs_cred_decrypt_result
 
         - name: Load credentials into namespaced variable
           ansible.builtin.include_vars:
-            file: "{{ _cred_tmp.path }}"
+            file: "{{ bs_credential_file_path }}"
             name: build_stream_loaded_creds
           no_log: true
-      rescue:
-        - name: Fail with decryption error
-          ansible.builtin.fail:
-            msg: "{{ bs_credential_decrypt_fail_msg }}"
-      always:
-        - name: Remove temp file with decrypted credentials
-          ansible.builtin.file:
-            path: "{{ _cred_tmp.path }}"
-            state: absent
-          when: _cred_tmp.path is defined
+          when: _bs_cred_decrypt_result.rc | default(1) == 0
+
+        - name: Re-encrypt credential file
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ bs_credential_file_path }}"
+            --vault-password-file "{{ bs_credential_vault_path }}"
+          changed_when: false
+          failed_when: false
+          when: _bs_cred_decrypt_result.rc | default(1) == 0
 
     # --- Step 4b: File is plaintext (left unencrypted from a prior failed run) — load and encrypt ---
     - name: Load plaintext credentials (recovery)
@@ -216,8 +194,7 @@
         loop_var: cred_field
       when: cred_field.condition | default(false) | bool
 
-    # --- Step 7: Expose credentials as facts for downstream roles.
-    # Decrypt to a private temp file on tmpfs, load, always remove temp file.
+    # --- Step 7: Expose credentials as facts for downstream roles ---
     - name: Reload final credentials
       when: bs_credential_file_path is file
       block:
@@ -229,57 +206,27 @@
           changed_when: false
           failed_when: false
 
-        - name: Load final credentials from private temp file when vault-encrypted
+        - name: Decrypt for final load
+          ansible.builtin.command: >-
+            ansible-vault decrypt "{{ bs_credential_file_path }}"
+            --vault-password-file "{{ bs_credential_vault_path }}"
+          changed_when: false
+          failed_when: false
+          register: _bs_final_decrypt_result
           when: _bs_final_is_vault.rc | default(1) == 0
-          block:
-            - name: Create private temp file for final credential load
-              ansible.builtin.tempfile:
-                state: file
-                path: "{{ credential_tmp_dir }}"
-                prefix: ".cred_tmp_"
-                suffix: ".yml"
-              register: _bs_final_cred_tmp
-
-            - name: Verify final temp file was created successfully
-              ansible.builtin.assert:
-                that:
-                  - _bs_final_cred_tmp.path is defined
-                  - _bs_final_cred_tmp.path | length > 0
-                fail_msg: "Failed to create temp file for final credential decryption"
-
-            - name: Restrict final temp file permissions
-              ansible.builtin.file:
-                path: "{{ _bs_final_cred_tmp.path }}"
-                mode: "0600"
-
-            - name: Decrypt for final load to temp file
-              ansible.builtin.command: >-
-                ansible-vault decrypt "{{ bs_credential_file_path }}"
-                --output "{{ _bs_final_cred_tmp.path }}"
-                --vault-password-file "{{ bs_credential_vault_path }}"
-              changed_when: false
-              no_log: true
-
-            - name: Load final credentials from temp file
-              ansible.builtin.include_vars:
-                file: "{{ _bs_final_cred_tmp.path }}"
-              no_log: true
-          rescue:
-            - name: Fail with final decryption error
-              ansible.builtin.fail:
-                msg: "{{ bs_credential_decrypt_fail_msg }}"
-          always:
-            - name: Remove temp file with final decrypted credentials
-              ansible.builtin.file:
-                path: "{{ _bs_final_cred_tmp.path }}"
-                state: absent
-              when: _bs_final_cred_tmp.path is defined
 
         - name: Load final credentials
           ansible.builtin.include_vars:
             file: "{{ bs_credential_file_path }}"
           no_log: true
-          when: _bs_final_is_vault.rc | default(1) != 0
+          when: _bs_final_decrypt_result.rc | default(0) == 0
+
+        - name: Re-encrypt after final load
+          ansible.builtin.command: >-
+            ansible-vault encrypt "{{ bs_credential_file_path }}"
+            --vault-password-file "{{ bs_credential_vault_path }}"
+          changed_when: false
+          failed_when: false
 
     # --- Step 8: Mark credentials as loaded to prevent re-prompting ---
     - name: Set credentials loaded guard

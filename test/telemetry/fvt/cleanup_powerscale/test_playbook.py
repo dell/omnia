@@ -36,7 +36,6 @@ from library.messages.telemetry_msgs import (
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(0)
-@pytest.mark.powerscale
 def test_deploy_cleanup_powerscale(host):
     """TEL_FVT_CLEANUP_POWERSCALE_E001: Run ``telemetry.yml --tags cleanup_powerscale``."""
     tc = TC["deploy_cleanup_powerscale"]

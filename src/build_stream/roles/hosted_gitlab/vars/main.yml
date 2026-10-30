@@ -378,7 +378,7 @@ gitlab_ca_export_msg: |
 
 # OIM API Server Configuration
 oim_api_verify_ssl: true
-gitlab_bs_cert_path: "{{ hostvars['localhost']['oim_shared_path'] }}/build_stream/ssl/bs_cert.pem"
+gitlab_bs_cert_path: "{{ hostvars['localhost']['oim_shared_path'] }}/build_stream_ssl/ssl/bs_cert.pem"
 
 gitlab_deployment_complete_msg:
   - "============================================"

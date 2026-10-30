@@ -17,9 +17,7 @@ File I/O utilities for image_build_manager input validation.
 Provides YAML/JSON loading and Ansible Vault detection.
 """
 import json
-import logging
 import os
-import subprocess
 
 import yaml
 
@@ -33,90 +31,6 @@ def is_vault_encrypted(path):
     with open(path, "r", encoding="utf-8") as f:
         first_line = f.readline().strip()
     return first_line.startswith(VAULT_HEADER)
-
-
-def load_vault_yaml(path):
-    """Decrypt a vault file in memory with its sibling ``.<stem>_key`` file.
-
-    Returns:
-        (data, error, key_available). key_available is False when no vault key
-        exists, in which case the file cannot be validated.
-    """
-    stem = os.path.splitext(os.path.basename(path))[0]
-    key_path = os.path.join(os.path.dirname(path), f".{stem}_key")
-    if not os.path.isfile(key_path):
-        return None, None, False
-    try:
-        result = subprocess.run(
-            ["ansible-vault", "view", path, "--vault-password-file", key_path],
-            capture_output=True, text=True, check=False, timeout=120,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return None, f"Unable to decrypt vault file {path}: {exc}", True
-    if result.returncode != 0:
-        return None, f"Unable to decrypt vault file {path}: {result.stderr.strip()}", True
-    try:
-        return yaml.safe_load(result.stdout), None, True
-    except yaml.YAMLError:
-        return None, f"Failed to parse decrypted YAML: {path}", True
-
-
-def split_placeholders(data):
-    """Separate empty-string credential values from a decrypted document.
-
-    Credential collection writes its template with empty values, encrypts it
-    and prompts for them only after input validation has run. An empty value
-    in a decrypted credential file therefore means "not collected yet" rather
-    than "invalid". Returns (data_without_placeholders, placeholder_keys).
-    """
-    if not isinstance(data, dict):
-        return data, set()
-    placeholders = {key for key, value in data.items() if value == ""}
-    return {k: v for k, v in data.items() if k not in placeholders}, placeholders
-
-
-REDACTED = "********"
-
-
-def collect_secret_strings(data):
-    """Return every scalar value (not key) in decrypted data, longest first."""
-    found, stack = set(), [data]
-    while stack:
-        item = stack.pop()
-        if isinstance(item, dict):
-            stack.extend(item.values())
-        elif isinstance(item, list):
-            stack.extend(item)
-        elif isinstance(item, str) and item:
-            found.add(item)
-        elif isinstance(item, (int, float)) and not isinstance(item, bool):
-            found.add(str(item))
-    return sorted(found, key=len, reverse=True)
-
-
-def redact(text, secrets):
-    """Mask any decrypted secret value that appears in a message.
-
-    Quoted (repr) forms are always masked; bare substrings only for values of
-    3+ characters so short values do not mangle unrelated message text.
-    """
-    text = str(text)
-    for secret in secrets:
-        text = text.replace(repr(secret), REDACTED)
-        if len(secret) >= 3:
-            text = text.replace(secret, REDACTED)
-    return text
-
-
-class RedactingLogger(logging.LoggerAdapter):
-    """Logger adapter that masks decrypted secret values in log messages."""
-
-    def __init__(self, logger, secrets):
-        super().__init__(logger, {})
-        self.secrets = secrets
-
-    def process(self, msg, kwargs):
-        return redact(msg, self.secrets), kwargs
 
 
 def load_yaml(path):

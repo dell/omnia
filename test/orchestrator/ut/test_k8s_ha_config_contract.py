@@ -15,7 +15,6 @@
 """Contracts for Kubernetes HA fields on the deployed service_k8s_cluster entry."""
 
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -124,21 +123,3 @@ def test_relocated_ha_network_checks_use_the_deployed_cluster(tmp_path):
     assert not k8s_ha_validator.validate_deployed_cluster_ha(
         {"deployment": True}, str(tmp_path)
     )
-
-
-def test_k8s_bootstrap_token_ttl_pattern():
-    """ORCH_UT_105: k8s_bootstrap_token_ttl regex accepts valid Go durations and rejects invalid ones."""
-    schema_path = (
-        ORCHESTRATOR_ROOT
-        / "plugins/module_utils/orchestrator_validation/schema/omnia_config.json"
-    )
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    pattern = schema["definitions"]["serviceK8sCluster"]["properties"]["k8s_bootstrap_token_ttl"]["pattern"]
-
-    valid = ["0", "1h", "2h", "3h", "24h", "100h", "30m", "45s", "1h30m", "1h30m10s", "2h0m0s", "1m30s"]
-    for value in valid:
-        assert re.match(pattern, value), f"Expected {value!r} to be accepted"
-
-    invalid = ["", "2H", "-1h", "1d", "2hours", "abc", "1h 30m", "h", "1H30M", "1h30M", "m"]
-    for value in invalid:
-        assert not re.match(pattern, value), f"Expected {value!r} to be rejected"

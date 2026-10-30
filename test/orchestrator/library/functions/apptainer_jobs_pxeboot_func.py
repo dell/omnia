@@ -17,7 +17,6 @@
 import os
 import re
 import shlex
-from typing import Any, Dict
 
 from omnia_auto import log
 
@@ -122,12 +121,12 @@ def _targeted_job_check(host, summary, username=""):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_single_node_job(host) -> Dict[str, Any]:
+def check_apptainer_single_node_job(host):
     """Run one synchronous Apptainer job on every mapped compute node."""
     return _targeted_job_check(host, "Apptainer targeted single-node jobs")
 
 
-def check_apptainer_multi_node_job(host) -> Dict[str, Any]:
+def check_apptainer_multi_node_job(host):
     """Run one Apptainer allocation spanning multiple compute nodes."""
     summary = "Apptainer multi-node Slurm job"
     try:
@@ -177,7 +176,7 @@ def check_apptainer_multi_node_job(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_ldap_job(host) -> Dict[str, Any]:
+def check_apptainer_ldap_job(host):
     """Run one targeted Apptainer job per compute as the LDAP test identity."""
     summary = "Apptainer LDAP-user Slurm jobs"
     try:
@@ -194,7 +193,7 @@ def check_apptainer_ldap_job(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_concurrent_jobs(host) -> Dict[str, Any]:
+def check_apptainer_concurrent_jobs(host):
     """Run concurrent targeted Apptainer jobs and verify every output."""
     summary = "Apptainer concurrent Slurm jobs"
     try:
@@ -271,7 +270,7 @@ def check_apptainer_concurrent_jobs(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_invalid_sif(host) -> Dict[str, Any]:
+def check_apptainer_invalid_sif(host):
     """Verify Slurm reports failure for a nonexistent SIF path."""
     summary = "Apptainer invalid-SIF rejection"
     try:
@@ -305,7 +304,7 @@ def check_apptainer_invalid_sif(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_restricted_sif(host) -> Dict[str, Any]:
+def check_apptainer_restricted_sif(host):
     """Verify an unprivileged user cannot execute a mode-0600 SIF copy."""
     summary = "Apptainer restricted-SIF rejection"
     restricted = ""
@@ -366,7 +365,7 @@ def check_apptainer_restricted_sif(host) -> Dict[str, Any]:
                 )
 
 
-def check_apptainer_nfs_visibility(host) -> Dict[str, Any]:
+def check_apptainer_nfs_visibility(host):
     """Verify every targeted container can read its SIF through /hpc_tools."""
     summary = "Apptainer shared-storage visibility"
     try:
@@ -406,7 +405,7 @@ def check_apptainer_nfs_visibility(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_slurm_environment(host) -> Dict[str, Any]:
+def check_apptainer_slurm_environment(host):
     """Verify Slurm allocation variables are preserved inside Apptainer."""
     summary = "Apptainer Slurm environment propagation"
     try:
@@ -453,7 +452,7 @@ def check_apptainer_slurm_environment(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_job_array(host) -> Dict[str, Any]:
+def check_apptainer_job_array(host):
     """Submit an Apptainer Slurm array and wait for every task to complete."""
     summary = "Apptainer Slurm job array"
     try:
@@ -510,7 +509,7 @@ def check_apptainer_job_array(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_failure_cleanup(host) -> Dict[str, Any]:
+def check_apptainer_failure_cleanup(host):
     """Verify a failed invalid-image job leaves no matching runtime process."""
     summary = "Apptainer failed-job cleanup"
     try:

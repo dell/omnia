@@ -22,26 +22,6 @@ tag.
 | cleanup_ufm | Cleanup UFM source | cleanup_ufm |
 | cleanup_vast | Cleanup VAST source | cleanup_vast |
 
-## Markers
-
-Each test carries markers in its decorators. The run command filters by them.
-Syntax and run examples are in the root [Markers](../README.md#markers) section.
-
-| Marker | Kind | Meaning |
-|--------|------|---------|
-| `sanity` | Level | Must-pass readiness check |
-| `functional` | Level | Data flow or feature behavior check |
-| `source` | Scope | Appliance source test, including its cleanup test |
-| `sink` | Scope | Sink test (Kafka, VictoriaMetrics, VictoriaLogs) |
-| `idrac`, `ldms`, `ome`, `powerscale`, `ufm`, `vast`, `sfm` | Appliance | Test belongs to one appliance |
-| `precheck` | Phase | Precheck test |
-| `deploy` | Phase | Runs a playbook. Skipped in `verify`-only runs |
-| `order(n)` | Order | Execution order within a suite |
-
-A test with both `sanity` and `functional` runs in either level. The registry
-below lists each TC's level markers. Appliance and `source` markers are listed
-in each section's header, or in the Marker column where they differ.
-
 ## Test Case Registry
 
 ### Precheck
@@ -52,7 +32,7 @@ in each section's header, or in the Marker column where they differ.
 | TEL_FVT_PRECHECK_V001 | Verify `omnia.env` variables present | sanity |
 | TEL_FVT_PRECHECK_V002 | Verify Kubernetes nodes are Ready | sanity |
 | TEL_FVT_PRECHECK_V003 | Verify `kube_vip` is reachable | sanity |
-| TEL_FVT_PRECHECK_V004 | Verify PowerScale user privileges | sanity + source + powerscale |
+| TEL_FVT_PRECHECK_V004 | Verify PowerScale user privileges | sanity |
 
 ### Validate
 
@@ -104,8 +84,6 @@ and verify tests for non-selected sinks are automatically skipped.
 
 ### Sources: iDRAC
 
-All tests in this section carry `source` and `idrac`.
-
 | TC ID | Test | Marker |
 |-------|------|--------|
 | TEL_FVT_DEPLOY_V010 | Verify iDRAC pod count matches bmc_group_data.csv | sanity |
@@ -113,7 +91,7 @@ All tests in this section carry `source` and `idrac`.
 | TEL_FVT_DEPLOY_V012 | Verify all iDRAC containers running | sanity |
 | TEL_FVT_DEPLOY_V013 | Verify MySQL data in iDRAC telemetry pods | functional |
 | TEL_FVT_DEPLOY_V014 | Verify iDRAC receiver is collecting metrics | functional |
-| TEL_FVT_DEPLOY_V015 | Verify topic readiness and fresh iDRAC metrics in Kafka | functional |
+| TEL_FVT_DEPLOY_V015 | Verify topic readiness and fresh iDRAC metrics in Kafka | sanity |
 | TEL_FVT_DEPLOY_V016 | Verify iDRAC VictoriaPump metrics endpoint | sanity |
 | TEL_FVT_DEPLOY_V017 | Verify iDRAC telemetry service exists | sanity |
 | TEL_FVT_DEPLOY_V018 | Verify iDRAC telemetry data in VictoriaMetrics | functional |
@@ -121,23 +99,19 @@ All tests in this section carry `source` and `idrac`.
 
 ### Sources: LDMS
 
-All tests in this section carry `source` and `ldms`.
-
 | TC ID | Test | Marker |
 |-------|------|--------|
 | TEL_FVT_DEPLOY_V020 | Verify LDMS aggregator pod running | sanity |
 | TEL_FVT_DEPLOY_V021 | Verify LDMS store pod running | sanity |
-| TEL_FVT_DEPLOY_V022 | Verify Vector-LDMS bridge deployment ready | sanity + functional |
-| TEL_FVT_DEPLOY_V023 | Verify LDMS package installed on Slurm nodes | functional |
-| TEL_FVT_DEPLOY_V024 | Verify LDMS sampler service running on Slurm nodes | functional |
-| TEL_FVT_DEPLOY_V025 | Verify LDMS sampler plugins configured | functional |
-| TEL_FVT_DEPLOY_V026 | Verify LDMS Kafka topic exists | sanity + functional |
+| TEL_FVT_DEPLOY_V022 | Verify Vector-LDMS bridge deployment ready | sanity |
+| TEL_FVT_DEPLOY_V023 | Verify LDMS package installed on Slurm nodes | sanity |
+| TEL_FVT_DEPLOY_V024 | Verify LDMS sampler service running on Slurm nodes | sanity |
+| TEL_FVT_DEPLOY_V025 | Verify LDMS sampler plugins configured | sanity |
+| TEL_FVT_DEPLOY_V026 | Verify LDMS Kafka topic exists | sanity |
 | TEL_FVT_DEPLOY_V027 | Verify earliest LDMS data in Kafka | functional |
 | TEL_FVT_DEPLOY_V028 | Verify latest LDMS data in Kafka | functional |
 
 ### Sources: PowerScale
-
-All tests in this section carry `source` and `powerscale`.
 
 | TC ID | Test | Marker |
 |-------|------|--------|
@@ -156,11 +130,11 @@ All tests in this section carry `source` and `powerscale`.
 | TEL_FVT_DEPLOY_V042 | Verify PowerScale scrape interval | functional |
 | TEL_FVT_DEPLOY_V043 | Verify CSI authorization mode | functional |
 | TEL_FVT_DEPLOY_V044 | Verify PowerScale deployment mode | functional |
-| TEL_FVT_DEPLOY_V045 | Verify CSI Volume Exporter deployment | sanity + functional |
+| TEL_FVT_DEPLOY_V045 | Verify CSI Volume Exporter deployment | functional |
 | TEL_FVT_DEPLOY_V046 | Verify CSI Volume Exporter metrics endpoint | functional |
 | TEL_FVT_DEPLOY_V047 | Verify CSI Volume Exporter metrics in VictoriaMetrics | functional |
-| TEL_FVT_DEPLOY_V048 | Verify CSI Driver for PowerScale deployment | sanity + functional |
-| TEL_FVT_DEPLOY_V049 | Verify external health monitor container | sanity + functional |
+| TEL_FVT_DEPLOY_V048 | Verify CSI Driver for PowerScale deployment | functional |
+| TEL_FVT_DEPLOY_V049 | Verify external health monitor container | functional |
 | TEL_FVT_DEPLOY_V050 | Verify CSI exporter is skipped without health monitor | functional |
 | TEL_FVT_DEPLOY_V051 | Verify missing-health-monitor warning | functional |
 | TEL_FVT_DEPLOY_V052 | Verify CSM Metrics to OTEL Collector data flow | functional |
@@ -218,18 +192,16 @@ the `vast` marker deliberately does not select the general deployment case.
 
 ### Sources: OME
 
-All tests in this section carry `source` and `ome`.
-
 | TC ID | Test | Marker | Condition |
 |-------|------|--------|-----------|
-| TEL_FVT_DEPLOY_V070 | Verify Vector-OME bridge deployment ready | sanity + functional | metrics or logs bridge enabled |
+| TEL_FVT_DEPLOY_V070 | Verify Vector-OME bridge deployment ready | sanity | metrics or logs bridge enabled |
 | TEL_FVT_DEPLOY_V071 | Verify OME KafkaUser CR exists | sanity | metrics or logs bridge enabled |
 | TEL_FVT_DEPLOY_V072 | Verify external Kafka connection artifacts | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V073 | Verify user.pfx certificate created for OME mTLS | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V074 | Verify TLS certificates uploaded to OME | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V075 | Verify OME Kafka forwarder connectivity status | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V076 | Verify uploaded certificate matches generated certificate | functional | configure_ome=true, metrics or logs source enabled |
-| TEL_FVT_DEPLOY_V077 | Verify enabled OME Kafka topics exist | sanity + functional | configure_ome=true, metrics or logs source enabled |
+| TEL_FVT_DEPLOY_V077 | Verify enabled OME Kafka topics exist | functional | configure_ome=true, metrics or logs source enabled |
 | TEL_FVT_DEPLOY_V078 | Verify OME telemetry data in Kafka | functional | configure_ome=true, metrics source enabled |
 | TEL_FVT_DEPLOY_V079 | Verify OME inventory data in Kafka | functional | configure_ome=true, metrics source enabled |
 | TEL_FVT_DEPLOY_V080 | Verify OME alerts data in Kafka | functional | configure_ome=true, logs source enabled |
@@ -260,8 +232,6 @@ optional `ome.logs` route is not required because it is not one of the OME
 Kafka topics created by the supported forwarding workflow.
 
 ### Sources: SFM
-
-All tests in this section carry `source` and `sfm`.
 
 | TC ID | Test | Marker | Condition |
 |-------|------|--------|-----------|
@@ -301,11 +271,11 @@ current pod. Previous certificate imports are retained as rollback material.
 | TC ID | Test | Marker |
 |-------|------|--------|
 | TEL_FVT_DEPLOY_V110 | Verify `telemetry_packages.yml` install mode | sanity |
-| TEL_FVT_DEPLOY_V111 | Verify Python packages for the active mode | functional |
-| TEL_FVT_DEPLOY_V112 | Verify iDRAC deployment for the active mode | sanity + idrac |
-| TEL_FVT_DEPLOY_V113 | Verify iDRAC pods for the active mode | sanity + functional + idrac |
-| TEL_FVT_DEPLOY_V114 | Verify PowerScale dependencies for the active mode | functional + powerscale |
-| TEL_FVT_DEPLOY_V115 | Verify PowerScale deployment for the active mode | sanity + powerscale |
+| TEL_FVT_DEPLOY_V111 | Verify Python packages for the active mode | sanity |
+| TEL_FVT_DEPLOY_V112 | Verify iDRAC deployment for the active mode | sanity |
+| TEL_FVT_DEPLOY_V113 | Verify iDRAC pods for the active mode | sanity |
+| TEL_FVT_DEPLOY_V114 | Verify PowerScale dependencies for the active mode | sanity |
+| TEL_FVT_DEPLOY_V115 | Verify PowerScale deployment for the active mode | sanity |
 
 ### Cleanup Sinks (cleanup_sinks tag)
 
@@ -335,17 +305,17 @@ individual sinks while preserving others.
 | Tag | TC ID | Test | Marker |
 |-----|-------|------|--------|
 | cleanup_idrac | TEL_FVT_CLEANUP_IDRAC_E001 | Cleanup iDRAC (--tags cleanup_idrac) | deploy |
-| cleanup_idrac | TEL_FVT_CLEANUP_V006 | Verify iDRAC pods removed | source, sanity, idrac |
+| cleanup_idrac | TEL_FVT_CLEANUP_V006 | Verify iDRAC pods removed | source, sanity |
 | cleanup_ldms | TEL_FVT_CLEANUP_LDMS_E001 | Cleanup LDMS (--tags cleanup_ldms) | deploy |
-| cleanup_ldms | TEL_FVT_CLEANUP_V007 | Verify LDMS pods removed | source, sanity, ldms |
+| cleanup_ldms | TEL_FVT_CLEANUP_V007 | Verify LDMS pods removed | source, sanity |
 | cleanup_ome | TEL_FVT_CLEANUP_OME_E001 | Cleanup OME (--tags cleanup_ome) | deploy |
-| cleanup_ome | TEL_FVT_CLEANUP_V008 | Verify OME pods removed | source, sanity, ome |
+| cleanup_ome | TEL_FVT_CLEANUP_V008 | Verify OME pods removed | source, sanity |
 | cleanup_powerscale | TEL_FVT_CLEANUP_POWERSCALE_E001 | Cleanup PowerScale (--tags cleanup_powerscale) | deploy |
-| cleanup_powerscale | TEL_FVT_CLEANUP_POWERSCALE_V001 | Verify PowerScale resources removed | source, sanity, functional, powerscale |
+| cleanup_powerscale | TEL_FVT_CLEANUP_POWERSCALE_V001 | Verify PowerScale resources removed | source, sanity |
 | cleanup_ufm | TEL_FVT_CLEANUP_UFM_E001 | Cleanup UFM (--tags cleanup_ufm) | deploy |
-| cleanup_ufm | TEL_FVT_CLEANUP_V009 | Verify UFM resources removed | source, sanity, ufm |
+| cleanup_ufm | TEL_FVT_CLEANUP_V009 | Verify UFM resources removed | source, sanity |
 | cleanup_vast | TEL_FVT_CLEANUP_VAST_E001 | Cleanup VAST (--tags cleanup_vast) | deploy |
-| cleanup_vast | TEL_FVT_CLEANUP_V010 | Verify VAST resources removed | source, sanity, vast |
+| cleanup_vast | TEL_FVT_CLEANUP_V010 | Verify VAST resources removed | source, sanity |
 
 Each per-source cleanup tag independently cleans up that source's resources.
 Run individual source cleanup:
@@ -369,13 +339,13 @@ Run individual source cleanup:
 | TEL_FVT_CLEANUP_V008 | Verify OME pods removed | sanity | source enabled |
 | TEL_FVT_CLEANUP_V009 | Verify UFM resources removed | sanity | source enabled |
 | TEL_FVT_CLEANUP_V010 | Verify VAST resources removed | sanity | source enabled |
-| TEL_FVT_CLEANUP_V011 | Verify SFM pods removed | functional | source enabled |
+| TEL_FVT_CLEANUP_V011 | Verify SFM pods removed | sanity | source enabled |
 | TEL_FVT_CLEANUP_V012 | Verify no pods remain after full cleanup | sanity | always |
 | TEL_FVT_CLEANUP_V013 | Verify no PVCs remain after full cleanup | sanity | `delete_sinks_volume=true` |
 | TEL_FVT_CLEANUP_V014 | Verify PVCs preserved after cleanup | sanity | `delete_sinks_volume=false` (default) |
-| TEL_FVT_CLEANUP_V015 | Verify credentials preserved | functional | `cleanup_credentials=false` |
+| TEL_FVT_CLEANUP_V015 | Verify credentials preserved | sanity | `cleanup_credentials=false` |
 | TEL_FVT_CLEANUP_V016 | Verify credentials deleted | sanity | `cleanup_credentials=true` or `delete_sinks_volume=true` |
-| TEL_FVT_CLEANUP_V017 | Verify logs preserved | functional | `cleanup_logs=false` |
+| TEL_FVT_CLEANUP_V017 | Verify logs preserved | sanity | `cleanup_logs=false` |
 | TEL_FVT_CLEANUP_V018 | Verify logs deleted | sanity | `cleanup_logs=true` or `delete_sinks_volume=true` |
 
 **Cleanup Configuration** (in `test_config.yml`):

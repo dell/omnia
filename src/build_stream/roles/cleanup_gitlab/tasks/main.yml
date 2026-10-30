@@ -17,13 +17,6 @@
 # GitLab Comprehensive Cleanup Tasks
 # This role cleans up ALL configurations created by GitLab playbook
 
-- name: Validate credential cleanup selection
-  ansible.builtin.assert:
-    that:
-      - cleanup_credentials is not defined or (cleanup_credentials | string | trim | lower) in ['true', 'false']
-    fail_msg: "{{ cleanup_credentials_invalid_msg }}"
-    quiet: true
-
 - name: Display comprehensive cleanup mode message
   ansible.builtin.debug:
     msg: "{{ gitlab_comprehensive_cleanup_msg }}"
@@ -70,7 +63,6 @@
 
 - name: Cleanup build stream OAuth credentials on OIM
   ansible.builtin.include_tasks: cleanup_build_stream_oauth.yml
-  when: cleanup_credentials | default(true) | bool
 
 - name: Display cleanup summary and checklist
   ansible.builtin.include_tasks: cleanup_summary.yml

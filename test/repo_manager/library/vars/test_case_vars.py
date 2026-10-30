@@ -347,28 +347,56 @@ TEST_CASES = {
         "id": "RM_FVT_USER_REGISTRY_V008",
         "title": "Verify registry credentials are configured",
     },
-    "user_registry_auth_credentials_valid": {
-        "id": "RM_FVT_USER_REGISTRY_V011",
-        "title": "Verify registry authenticates with vault credentials",
+    # ── User Registry negative ────────────────────────────────────────────
+    "user_registry_neg_missing_config": {
+        "id": "RM_FVT_USER_REGISTRY_NEG_001",
+        "title": "Validation fails with missing config file",
     },
-    "user_registry_no_duplicate_hosts": {
-        "id": "RM_FVT_USER_REGISTRY_V012",
-        "title": "Verify no duplicate registry host entries",
+    "user_registry_neg_invalid_base_url": {
+        "id": "RM_FVT_USER_REGISTRY_NEG_002",
+        "title": "Detects invalid base_url",
     },
-    "user_registry_https_cert_cn_valid": {
-        "id": "RM_FVT_USER_REGISTRY_V013",
-        "title": "Verify HTTPS certificates have valid CN/SAN",
+    "user_registry_neg_incomplete_tls_pair": {
+        "id": "RM_FVT_USER_REGISTRY_NEG_003",
+        "title": "Detects incomplete TLS cert/key pair",
     },
-    # ── User Registry Pulp verification ───────────────────────────────────
-    "user_registry_distributions": {
-        "id": "RM_FVT_USER_REGISTRY_V009",
-        "title": "Verify Pulp container distributions exist for user registries",
+    "user_registry_neg_unsupported_auth_type": {
+        "id": "RM_FVT_USER_REGISTRY_NEG_004",
+        "title": "Detects unsupported auth type",
     },
-    "user_registry_remotes_in_pulp": {
-        "id": "RM_FVT_USER_REGISTRY_V010",
-        "title": "Verify Pulp container remotes are created for user registries",
+    "user_registry_neg_missing_cert_paths": {
+        "id": "RM_FVT_USER_REGISTRY_NEG_005",
+        "title": "Detects missing cert paths on disk",
     },
-
+    "user_registry_neg_missing_vault_path": {
+        "id": "RM_FVT_USER_REGISTRY_NEG_006",
+        "title": "Detects missing vault_path for basic auth",
+    },
+    # ── Negative error scenarios ──────────────────────────────────────────
+    "neg_missing_credentials": {
+        "id": "RM_FVT_NEG_001",
+        "title": "Deploy fails with missing credentials",
+    },
+    "neg_invalid_endpoint_config": {
+        "id": "RM_FVT_NEG_002",
+        "title": "Deploy fails with invalid endpoint config",
+    },
+    "neg_invalid_repo_url": {
+        "id": "RM_FVT_NEG_003",
+        "title": "Download fails with invalid repository URL",
+    },
+    "neg_missing_repo_status": {
+        "id": "RM_FVT_NEG_004",
+        "title": "Status check fails with missing repo_status.yml",
+    },
+    "neg_pulp_not_running": {
+        "id": "RM_FVT_NEG_005",
+        "title": "Cleanup fails when Pulp container not running",
+    },
+    "neg_invalid_auth": {
+        "id": "RM_FVT_NEG_006",
+        "title": "Pulp CLI fails with invalid authentication",
+    },
     # ── Catalog verification ──────────────────────────────────────────────
     "catalog_input_dir_exists": {
         "id": "RM_FVT_CATALOG_GENERATE_V001",
@@ -413,5 +441,34 @@ TEST_CASES = {
     "catalog_validate_log_exists": {
         "id": "RM_FVT_CATALOG_VALIDATE_V002",
         "title": "Verify catalog validation log file exists",
+    },
+    # ── Catalog negative ──────────────────────────────────────────────────
+    "catalog_neg_generate_missing_input": {
+        "id": "RM_FVT_CATALOG_NEG_001",
+        "title": "Verify catalog_generate fails with missing input file",
+    },
+    "catalog_neg_add_missing_input": {
+        "id": "RM_FVT_CATALOG_NEG_002",
+        "title": "Verify catalog_add fails with missing input file",
+    },
+    "catalog_neg_delete_missing_input": {
+        "id": "RM_FVT_CATALOG_NEG_003",
+        "title": "Verify catalog_delete fails with missing input file",
+    },
+    "catalog_neg_input_dir_validation": {
+        "id": "RM_FVT_CATALOG_NEG_004",
+        "title": "Verify catalog input directory validation",
+    },
+    "catalog_neg_structure_validation": {
+        "id": "RM_FVT_CATALOG_NEG_005",
+        "title": "Verify catalog structure validation",
+    },
+    "catalog_neg_file_existence": {
+        "id": "RM_FVT_CATALOG_NEG_006",
+        "title": "Verify catalog file existence validation",
+    },
+    "catalog_neg_log_validation": {
+        "id": "RM_FVT_CATALOG_NEG_007",
+        "title": "Verify catalog log file validation",
     },
 }

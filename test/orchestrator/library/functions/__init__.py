@@ -14,8 +14,6 @@
 
 """Public helper surface used by Orchestrator verification modules."""
 
-from typing import Any, Dict
-
 from omnia_auto import TestLogger
 from omnia_auto import run_playbook as _run_playbook
 
@@ -199,13 +197,6 @@ from .external_ldap_pxeboot_func import (
     check_external_ldap_backend,
     check_external_ldap_proxy,
     reconcile_external_ldap_proxy,
-)
-from .kubernetes_bootstrap_token_pxeboot_func import (
-    check_kubernetes_bootstrap_token_ttl,
-    check_kubernetes_cp_join_file_format,
-    check_kubernetes_cp_join_file_permissions,
-    check_kubernetes_worker_join_file_format,
-    check_kubernetes_worker_join_file_permissions,
 )
 from .kubernetes_etcd_pxeboot_func import (
     check_kubernetes_etcd_health,
@@ -405,7 +396,7 @@ from .vast_storage_pxeboot_func import (
 )
 
 
-def run_playbook(tag: str | None = None, **kwargs) -> Dict[str, Any]:
+def run_playbook(tag: str | None = None, **kwargs):
     """Run the canonical Orchestrator playbook for the requested lifecycle tag."""
     return _run_playbook(
         playbook=kwargs.pop("playbook", PLAYBOOK_ENTRY_POINT),
@@ -575,13 +566,8 @@ __all__ = [
     "check_kubernetes_control_plane_recovery",
     "check_kubernetes_csi_dynamic_provisioning",
     "check_kubernetes_default_storage_class",
-    "check_kubernetes_bootstrap_token_ttl",
-    "check_kubernetes_cp_join_file_format",
-    "check_kubernetes_cp_join_file_permissions",
     "check_kubernetes_etcd_health",
     "check_kubernetes_etcd_topology",
-    "check_kubernetes_worker_join_file_format",
-    "check_kubernetes_worker_join_file_permissions",
     "check_kubernetes_local_etcd",
     "check_kubernetes_local_etcd_integrity",
     "check_kubernetes_local_etcd_media",

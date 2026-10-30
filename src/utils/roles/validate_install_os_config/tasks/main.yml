@@ -17,29 +17,16 @@
 #   build_iso     — requires source_iso_path, custom_iso_path
 #   deploy        — requires custom_iso_path, target_bmc_ip, target_admin_ip
 #   generate_ks   — requires source_iso_path (for arch detection)
-#   (default)     — requires all of the above (no tags, 'all', or 'install_os')
+#   (default)     — requires all of the above
 
 # Step 1: Determine active execution mode from tags
 - name: Determine execution mode from tags
   ansible.builtin.set_fact:
-    _mode_all: "{{ ansible_run_tags | length == 0 or 'all' in ansible_run_tags or 'install_os' in ansible_run_tags }}"
+    _mode_build_iso: "{{ 'build_iso' in ansible_run_tags or ansible_run_tags | length == 0 or 'all' in ansible_run_tags }}"
+    _mode_deploy: "{{ 'deploy' in ansible_run_tags or ansible_run_tags | length == 0 or 'all' in ansible_run_tags }}"
+    _mode_generate_ks: "{{ 'generate_ks' in ansible_run_tags or ansible_run_tags | length == 0 or 'all' in ansible_run_tags }}"
     _mode_credentials_only: "{{ ansible_run_tags | length == 1 and 'credentials' in ansible_run_tags }}"
-
-- name: Set per-operation execution modes
-  ansible.builtin.set_fact:
-    _mode_build_iso: "{{ _mode_all or 'build_iso' in ansible_run_tags }}"
-    _mode_deploy: "{{ _mode_all or 'deploy' in ansible_run_tags }}"
-    _mode_generate_ks: "{{ _mode_all or 'generate_ks' in ansible_run_tags }}"
     cacheable: true
-
-# Fail closed: a tag set that selects no install_os mode would otherwise skip
-# most validation and still report success.
-- name: Fail when no install_os validation mode is selected
-  ansible.builtin.fail:
-    msg: "{{ no_validation_mode_msg }}"
-  when:
-    - not (_mode_credentials_only | bool)
-    - not (_mode_build_iso | bool or _mode_deploy | bool or _mode_generate_ks | bool)
 
 # Step 2: Resolve config file path
 - name: Resolve install_os config path

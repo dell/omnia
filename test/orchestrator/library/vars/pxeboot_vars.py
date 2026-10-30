@@ -327,11 +327,6 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "KUBECONFIG=/etc/kubernetes/admin.conf kubectl version -o json"
     ),
     "kubeadm_version": "kubeadm version -o short",
-    "kubeadm_token_list": "kubeadm token list",
-    "join_file_stat": "stat -c '%%a %%U %%G' %s",
-    "join_file_line_count": "wc -l < %s",
-    "join_file_content": "cat %s",
-    "join_refresh_script": "bash %s",
     "kubelet_version": "kubelet --version",
     "crio_version": "crio --version",
     "kubernetes_namespace_create": (
@@ -671,10 +666,10 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "find %s -type f -exec sha256sum {} + 2>/dev/null | sort"
     ),
     "hpc_benchmarks_run_pull_script_bg": (
-        "nohup bash -c 'timeout %s %s %s >%s 2>&1; echo $? >%s.exitcode' &>/dev/null & echo $!"
+        "nohup bash -c 'timeout %s %s %s >%s 2>&1; echo $? >%s.exitcode' & echo $!"
     ),
     "hpc_benchmarks_wait_pid": (
-        "tail --pid=%s -f /dev/null 2>/dev/null; cat %s.exitcode 2>/dev/null || echo 1"
+        "tail --pid=%s -f /dev/null 2>/dev/null; cat %s 2>/dev/null"
     ),
     "coresmd_container_ps": (
         "podman ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | "

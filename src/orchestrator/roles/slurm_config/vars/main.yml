@@ -99,6 +99,7 @@ mysql: mysql
 root_user: root
 root_group: root
 plugin_slurm_dir: "/usr/lib64/slurm"
+munge_key_cmd: "dd if=/dev/urandom bs=1 count=1024"
 slurm_ctld_parameters: ['enable_configless']
 partitions: {}
 _clean_before_install: false

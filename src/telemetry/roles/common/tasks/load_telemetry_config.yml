@@ -290,39 +290,6 @@
         - (_resolved_repo_url | default('')) | length == 0
 
     # -----------------------------------------------------------------------
-    # Resolve container_registry default for offline mode from repo_url
-    # -----------------------------------------------------------------------
-    # When install_mode is offline and container_registry is empty, derive the
-    # OCI registry authority (host:port) from the already-resolved repo_url.
-    # The Pulp server doubles as an OCI registry on the same host:port as
-    # repo_url (e.g. https://<ip>:2225/pulp/content/... -> <ip>:2225), so image
-    # references resolve to <ip>:2225/<repository>:<tag>.
-    # If container_registry is set explicitly, it is used as-is (trailing slash
-    # stripped). In online mode it stays empty so the upstream registry baked
-    # into each image URL is used.
-    - name: Resolve container_registry default for offline mode
-      ansible.builtin.set_fact:
-        _resolved_container_registry: >-
-          {% set mode = _pkg_raw.install_mode | default('offline') -%}
-          {% set reg = (_pkg_raw.container_registry | default('')) or '' -%}
-          {% if reg | length > 0 -%}
-          {{ reg | trim | regex_replace('/+$', '') }}{%- elif mode == 'offline' -%}
-          {{ _resolved_repo_url | trim | regex_replace('^https?://', '') | regex_replace('/.*$', '') }}{%- endif -%}
-      when: _pkg_raw is defined
-
-    - name: Notify - container_registry using default path
-      when:
-        - _pkg_raw is defined
-        - (_pkg_raw.install_mode | default('offline')) == 'offline'
-        - ((_pkg_raw.container_registry | default('')) or '') | length == 0
-        - (_resolved_container_registry | default('')) | trim | length > 0
-      ansible.builtin.debug:
-        msg: >-
-          container_registry is empty in telemetry_packages.yml; deriving
-          offline OCI registry host from repo_url:
-          {{ _resolved_container_registry | trim }}
-
-    # -----------------------------------------------------------------------
     # Resolve telemetry_packages URLs from repo_url + package catalog
     # -----------------------------------------------------------------------
     # The new telemetry_packages.yml provides repo_url (Pulp base) and a
@@ -341,7 +308,7 @@
           k8s_cluster_mount: "{{ _pkg_raw.k8s_cluster_mount | default('/opt/omnia/k8s_mount') }}"
           slurm_cluster_mount: "{{ _pkg_raw.slurm_cluster_mount | default('/share_omnia') }}"
           images: "{{ _pkg_raw.images | default({}) }}"
-          container_registry: "{{ _resolved_container_registry | default('') | trim }}"
+          container_registry: "{{ _pkg_raw.container_registry | default('') }}"
           helm_charts: "{{ _hc }}"
           git_repos: "{{ _gr }}"
           pip_modules: "{{ _pkg_raw.pip_modules | default({}) }}"
@@ -390,7 +357,7 @@
     - name: Build telemetry_registry from package manifest
       vars:
         _images: "{{ _pkg_raw.images | default({}) }}"
-        _reg: "{{ _resolved_container_registry | default('') | trim }}"
+        _reg: "{{ _pkg_raw.container_registry | default('') }}"
         # Merge VM + VL images into one dict (downstream expects all under .victoria)
         _all_victoria: "{{ (_images.victoria_metrics | default({})) | combine(_images.victoria_logs | default({})) }}"
       ansible.builtin.set_fact:

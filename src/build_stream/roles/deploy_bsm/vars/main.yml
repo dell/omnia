@@ -54,7 +54,7 @@ watcher_private_tmp: true
 watcher_limit_nofile: 4096
 watcher_memory_max: "512M"
 watcher_cpu_quota: "50%"
-build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/build_stream/playbook_queue"
+build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/playbook_queue"
 build_stream_queue_subdirs:
   - requests
   - results
@@ -63,14 +63,6 @@ build_stream_queue_subdirs:
   - archive/requests
   - archive/results
 build_stream_queue_dir_mode: "0700"
-# Upload destinations written by the API (PUT /jobs/{id}/upload). Relative to
-# omnia_path; mounted at the same relative path inside the API container.
-build_stream_upload_dirs:
-  - catalog
-  - "repo_manager/input/{{ project_name }}"
-  - "image_build_manager/input/{{ project_name }}"
-  - "orchestrator/input/{{ project_name }}"
-  - "input/{{ project_name }}"
 watcher_poll_interval_seconds: 2
 watcher_max_concurrent_jobs: 1
 watcher_default_timeout_minutes: 150
@@ -82,7 +74,7 @@ build_stream_dir_mode: "0755"
 build_stream_jwt_script_mode: "0755"
 
 # SSL certificate configuration for build_stream
-build_stream_ssl_dir: "{{ omnia_path }}/build_stream/ssl"
+build_stream_ssl_dir: "{{ omnia_path }}/build_stream_ssl/ssl"
 build_stream_ssl_cert: "{{ build_stream_ssl_dir }}/bs_cert.pem"
 build_stream_ssl_key: "{{ build_stream_ssl_dir }}/bs_key.pem"
 build_stream_ssl_days: 365
@@ -90,10 +82,10 @@ build_stream_ssl_file_mode: "0600"
 
 # JWT key configuration
 build_stream_jwt_keys_script: "{{ omnia_path }}/build_stream/scripts/generate_jwt_keys.sh"
-build_stream_jwt_keys_dir: "{{ omnia_path }}/build_stream/build_stream_root/api/.auth/keys"
+build_stream_jwt_keys_dir: "{{ omnia_path }}/build_stream_root/api/.auth/keys"
 
 # Project configuration
-build_stream_root_dir: "{{ omnia_path }}/build_stream/build_stream_root"
+build_stream_root_dir: "{{ omnia_path }}/build_stream_root"
 
 # Quadlet
 quadlet_dir: "/etc/containers/systemd"

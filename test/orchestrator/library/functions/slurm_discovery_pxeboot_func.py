@@ -17,7 +17,7 @@
 import re
 from collections import defaultdict
 from collections.abc import Mapping
-from typing import Any, Dict
+from typing import Any
 
 from ..vars.pxeboot_vars import PXEBOOT_COMMANDS, SLURM_COMPUTE_PREFIX
 from ._pxeboot_helpers import (

@@ -79,7 +79,6 @@ from library.functions.idrac_func import (
     verify_mysql_data_in_pods,
     verify_receiver_collecting,
 )
-from library.functions.ldms_func import list_kafka_bridge_topics
 
 
 def _skip_if_idrac_disabled(host):
@@ -98,7 +97,6 @@ def _skip_if_idrac_disabled(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(40)
-@pytest.mark.idrac
 def test_idrac_pod_count(host):
     """TEL_FVT_DEPLOY_V010: Verify iDRAC pod count matches bmc_group_data.csv."""
     _skip_if_idrac_disabled(host)
@@ -152,7 +150,6 @@ def test_idrac_pod_count(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(41)
-@pytest.mark.idrac
 def test_idrac_sts_ready(host):
     """TEL_FVT_DEPLOY_V011: Verify iDRAC StatefulSet pods ready."""
     _skip_if_idrac_disabled(host)
@@ -195,7 +192,6 @@ def test_idrac_sts_ready(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(42)
-@pytest.mark.idrac
 def test_idrac_containers(host):
     """TEL_FVT_DEPLOY_V012: Verify all iDRAC containers running."""
     _skip_if_idrac_disabled(host)
@@ -265,7 +261,6 @@ def test_idrac_containers(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(43)
-@pytest.mark.idrac
 def test_idrac_mysql_data(host):
     """TEL_FVT_DEPLOY_V013: Verify MySQL data in iDRAC telemetry pods."""
     _skip_if_idrac_disabled(host)
@@ -336,7 +331,6 @@ def test_idrac_mysql_data(host):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(44)
-@pytest.mark.idrac
 def test_idrac_receiver_collecting(host):
     """TEL_FVT_DEPLOY_V014: Verify iDRAC receiver is collecting metrics."""
     _skip_if_idrac_disabled(host)
@@ -398,9 +392,8 @@ def test_idrac_receiver_collecting(host):
 # =========================================================================
 
 @pytest.mark.source
-@pytest.mark.functional
+@pytest.mark.sanity
 @pytest.mark.order(45)
-@pytest.mark.idrac
 def test_idrac_kafka_topic(host):
     """TEL_FVT_DEPLOY_V015: Verify fresh iDRAC metrics flow to Kafka."""
     _skip_if_idrac_disabled(host)
@@ -456,7 +449,6 @@ def test_idrac_kafka_topic(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(46)
-@pytest.mark.idrac
 def test_idrac_victoria_pump(host):
     """TEL_FVT_DEPLOY_V016: Verify iDRAC VictoriaPump container is running."""
     _skip_if_idrac_disabled(host)
@@ -521,7 +513,6 @@ def test_idrac_victoria_pump(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(47)
-@pytest.mark.idrac
 def test_idrac_service(host):
     """TEL_FVT_DEPLOY_V017: Verify iDRAC telemetry service exists."""
     _skip_if_idrac_disabled(host)
@@ -578,7 +569,6 @@ def _build_service_tag_lines(tag_result):
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(48)
-@pytest.mark.idrac
 def test_idrac_vm_data(host):
     """TEL_FVT_DEPLOY_V018: Verify iDRAC telemetry data in VictoriaMetrics."""
     _skip_if_idrac_disabled(host)
@@ -649,7 +639,6 @@ def test_idrac_vm_data(host):
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(49)
-@pytest.mark.idrac
 def test_idrac_disabled_state(host):
     """Verify disabled iDRAC owns no active pods and leaves shared sinks healthy."""
     if is_source_enabled(host, "idrac"):
@@ -667,23 +656,9 @@ def test_idrac_disabled_state(host):
     shared = verify_enabled_shared_sinks(host)
 
     quiet_started = time.time()
-    # Only probe the Kafka topic if it already exists. Subscribing to a
-    # non-existent topic via the Kafka Bridge would auto-create it (broker has
-    # auto.create.topics.enable=true), leaving an orphaned topic behind for a
-    # source that is explicitly disabled. The read-only GET /topics listing
-    # never creates topics. An absent topic is itself proof that no iDRAC data
-    # is flowing.
-    bridge_topics = list_kafka_bridge_topics(host)
-    idrac_topic_present = (
-        bridge_topics["available"]
-        and IDRAC_KAFKA_TOPIC in bridge_topics["topics"]
+    kafka_quiet = probe_fresh_idrac_kafka_records(
+        host, timeout_seconds=20,
     )
-    if idrac_topic_present:
-        kafka_quiet = probe_fresh_idrac_kafka_records(
-            host, timeout_seconds=20,
-        )
-    else:
-        kafka_quiet = {"success": False, "records": [], "error": ""}
     quiet_ended = time.time()
     vm_quiet = query_idrac_vm_samples(host, quiet_started, quiet_ended)
     kafka_error = kafka_quiet.get("error", "")
@@ -708,8 +683,6 @@ def test_idrac_disabled_state(host):
         ),
         (
             f"Kafka quiet window ({quiet_ended - quiet_started:.1f}s): "
-            f"topic '{IDRAC_KAFKA_TOPIC}' "
-            f"{'present' if idrac_topic_present else 'absent (not created)'}, "
             f"new_records={len(kafka_quiet.get('records', []))}"
         ),
         (

@@ -16,7 +16,6 @@
 
 import ipaddress
 import re
-from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
@@ -44,7 +43,7 @@ def _parse_slurm_nodes(output: str) -> dict[str, dict[str, str]]:
     return nodes
 
 
-def check_slurm_membership(host) -> Dict[str, Any]:
+def check_slurm_membership(host):
     """Verify scheduler membership, node state, and compute hardware."""
     summary = "Slurm membership and hardware"
     try:
@@ -189,7 +188,7 @@ def _services_for_role(functional_group: str) -> tuple[str, ...]:
     )
 
 
-def check_slurm_services(host) -> Dict[str, Any]:
+def check_slurm_services(host):
     """Verify the exact system services required by every Slurm role."""
     summary = "Slurm role services"
     try:
@@ -267,7 +266,7 @@ def check_slurm_services(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_slurm_cross_node_ssh(host) -> Dict[str, Any]:
+def check_slurm_cross_node_ssh(host):
     """Verify passwordless root SSH for every cross-node role pairing."""
     summary = "Slurm cross-node passwordless SSH"
     try:
@@ -340,7 +339,7 @@ def check_slurm_cross_node_ssh(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_slurm_scheduler(host) -> Dict[str, Any]:
+def check_slurm_scheduler(host):
     """Verify every mapped compute is healthy and in an available partition."""
     summary = "Slurm compute partition readiness"
     try:
@@ -462,7 +461,7 @@ def check_slurm_scheduler(host) -> Dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
-def check_slurm_pam_policy(host) -> Dict[str, Any]:
+def check_slurm_pam_policy(host):
     """Verify the complete pam_slurm_adopt integration on compute nodes."""
     summary = "Slurm pam_slurm_adopt integration"
     try:
@@ -599,7 +598,7 @@ def _discover_openmpi(host, row):
     return success, executable or "missing", compiler or "missing", version, diagnostic
 
 
-def check_slurm_openmpi_installation(host) -> Dict[str, Any]:
+def check_slurm_openmpi_installation(host):
     """Verify the selected OpenMPI runtime on every mapped compute node."""
     summary = "Slurm OpenMPI installation"
     try:

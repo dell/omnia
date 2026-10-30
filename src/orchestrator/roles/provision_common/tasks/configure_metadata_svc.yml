@@ -188,7 +188,6 @@
     k8s_service_addresses: "{{ metadata_service_k8s_cluster.k8s_service_addresses }}"
     pod_external_ip_range: "{{ metadata_service_k8s_cluster.pod_external_ip_range }}"
     k8s_crio_storage_size: "{{ metadata_service_k8s_cluster.k8s_crio_storage_size }}"
-    k8s_bootstrap_token_ttl: "{{ metadata_service_k8s_cluster.k8s_bootstrap_token_ttl | default('2h') }}"
     etcd_on_local_disk: "{{ metadata_service_k8s_cluster.etcd_on_local_disk | default(false) }}"
     admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
     pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['localhost']['pulp_port'] | default(2225) }}"

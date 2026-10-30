@@ -60,7 +60,7 @@ from core.localrepo.services import PlaybookQueueResultService
 # and passes it directly to ``s3cmd del --recursive --force``.
 DEFAULT_S3_BUCKET_URI = "s3://boot-images"
 DEFAULT_NFS_ARTIFACT_BASE = os.path.join(
-    os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream", "build_stream_root"
+    os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root"
 )
 
 # Per-job files the playbooks write under <NFS_ARTIFACT_BASE>/artifacts/<job_id>/.
