@@ -103,7 +103,7 @@
   when: strimzi_wait.rc != 0
 
 - name: Wait for Strimzi CRDs
-  ansible.builtin.command: kubectl get crd {{ item }}
+  ansible.builtin.command: kubectl get crd {{ item | quote }}
   loop:
     - kafkas.kafka.strimzi.io
     - kafkatopics.kafka.strimzi.io
@@ -255,7 +255,7 @@
 
 - name: Apply Kafka bridge manifests
   ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir | quote }}/{{ item }}
+    kubectl apply -f {{ telemetry_deployments_dir | quote }}/{{ item | quote }}
   loop:
     - kafka.kafka_bridge.yaml
     - kafka.kafka_bridge_lb.yaml

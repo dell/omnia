@@ -29,7 +29,7 @@
     msg: "{{ gitlab_comprehensive_cleanup_msg }}"
 
 - name: Check if GitLab is installed
-  ansible.builtin.command: "{{ gitlab_ctl_command }} status"
+  ansible.builtin.command: "{{ gitlab_ctl_command | quote }} status"
   register: gitlab_status_check
   failed_when: false
   changed_when: false

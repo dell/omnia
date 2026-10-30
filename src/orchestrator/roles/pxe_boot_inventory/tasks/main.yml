@@ -51,6 +51,7 @@
       community.general.read_csv:
         path: "{{ pxeboot_inventory_source }}"
       register: _pxeboot_csv
+      no_log: true
 
     - name: Validate inventory contains node records
       ansible.builtin.assert:

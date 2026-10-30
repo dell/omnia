@@ -160,7 +160,8 @@
   # Note: sinfo must be available on the control node's PATH.
   # If Slurm binaries are only available via login shell profile scripts,
   # ensure they are added to the system PATH or use a login shell wrapper.
-  ansible.builtin.command: "{{ ldms_sinfo_command }}"
+  ansible.builtin.command:
+    argv: "{{ ldms_sinfo_command }}"
   delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
   register: _ldms_sinfo_output
   changed_when: false

@@ -95,10 +95,20 @@
 # Phase 2: Add aarch64 host to known_hosts
 # =========================================================================
 
+- name: Scan aarch64 host SSH keys
+  ansible.builtin.command:
+    argv:
+      - ssh-keyscan
+      - -H
+      - "{{ aarch64_inventory_host_ip }}"
+  register: _aarch64_ssh_keyscan
+  changed_when: false
+  check_mode: false
+
 - name: Add aarch64 host to known_hosts
   ansible.builtin.known_hosts:
     name: "{{ aarch64_inventory_host_ip }}"
-    key: "{{ lookup('pipe', 'ssh-keyscan -H ' + aarch64_inventory_host_ip) }}"
+    key: "{{ _aarch64_ssh_keyscan.stdout }}"
 
 # =========================================================================
 # Phase 3: Check if passwordless SSH already works

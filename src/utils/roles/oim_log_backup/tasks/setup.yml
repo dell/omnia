@@ -85,7 +85,7 @@
 
 - name: Set backup timestamp (IST, same convention as log_collector)
   ansible.builtin.set_fact:
-    backup_ts: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y%m%d-%H%M%S') }}"
+    backup_ts: "{{ '%Y%m%d-%H%M%S' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
 
 - name: Ensure backup workspace directory exists
   ansible.builtin.file:

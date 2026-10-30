@@ -133,6 +133,7 @@
   community.general.read_csv:
     path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
   register: pxe_data_for_cidr
+  no_log: true
   delegate_to: localhost
   connection: local
   run_once: true

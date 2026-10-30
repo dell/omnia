@@ -140,7 +140,7 @@
   when: vm_operator_wait.rc != 0
 
 - name: Wait for VictoriaMetrics CRDs
-  ansible.builtin.command: kubectl get crd {{ item }}
+  ansible.builtin.command: kubectl get crd {{ item | quote }}
   loop:
     - vmclusters.operator.victoriametrics.com
     - vmagents.operator.victoriametrics.com

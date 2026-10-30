@@ -102,7 +102,7 @@
     - name: Install VictoriaMetrics operator via Helm
       ansible.builtin.command: >
         helm -n {{ telemetry_namespace | quote }} install victoria-metrics-operator
-        {{ victoria_operator_pkg }}
+        {{ victoria_operator_pkg | quote }}
         {{ _helm_image_args }}
       changed_when: true
 
@@ -144,7 +144,7 @@
     - vl_operator_wait.rc != 0
 
 - name: Wait for VictoriaLogs CRDs
-  ansible.builtin.command: kubectl get crd {{ item }}
+  ansible.builtin.command: kubectl get crd {{ item | quote }}
   loop:
     - vlclusters.operator.victoriametrics.com
     - vlagents.operator.victoriametrics.com
