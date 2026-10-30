@@ -48,7 +48,7 @@
     - name: Create temp mapping file from source
       ansible.builtin.shell: |
         set -o pipefail
-        sed 's/^[[:space:]]*//g' "{{ pxe_mapping_file_path }}" | sed 's/[[:space:]]*$//g' > /tmp/omnia_provision_mapping.csv
+        sed 's/^[[:space:]]*//g' {{ pxe_mapping_file_path | quote }} | sed 's/[[:space:]]*$//g' > /tmp/omnia_provision_mapping.csv
       changed_when: false
       when: read_mapping_file is not defined
 

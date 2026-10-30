@@ -22,6 +22,7 @@ import shlex
 import socket
 import time
 from pathlib import Path
+from typing import Any, Dict
 
 import paramiko
 from omnia_auto import (
@@ -693,7 +694,7 @@ def _check_slurm_role_ldap_authentication(
         return runtime_exception(summary, exc)
 
 
-def check_slurm_control_ldap_authentication(host):
+def check_slurm_control_ldap_authentication(host) -> Dict[str, Any]:
     """Verify a valid LDAP password on the Slurm control node."""
     return _check_slurm_role_ldap_authentication(
         host,
@@ -703,7 +704,7 @@ def check_slurm_control_ldap_authentication(host):
     )
 
 
-def check_slurm_control_ldap_invalid_password(host):
+def check_slurm_control_ldap_invalid_password(host) -> Dict[str, Any]:
     """Verify an invalid LDAP password is rejected on the control node."""
     return _check_slurm_role_ldap_authentication(
         host,
@@ -714,7 +715,7 @@ def check_slurm_control_ldap_invalid_password(host):
     )
 
 
-def check_slurm_login_ldap_authentication(host):
+def check_slurm_login_ldap_authentication(host) -> Dict[str, Any]:
     """Verify a valid LDAP password on every login node."""
     return _check_slurm_role_ldap_authentication(
         host,
@@ -724,7 +725,7 @@ def check_slurm_login_ldap_authentication(host):
     )
 
 
-def check_slurm_login_ldap_invalid_password(host):
+def check_slurm_login_ldap_invalid_password(host) -> Dict[str, Any]:
     """Verify an invalid LDAP password is rejected on every login node."""
     return _check_slurm_role_ldap_authentication(
         host,
@@ -735,7 +736,7 @@ def check_slurm_login_ldap_invalid_password(host):
     )
 
 
-def check_slurm_compiler_ldap_authentication(host):
+def check_slurm_compiler_ldap_authentication(host) -> Dict[str, Any]:
     """Verify a valid LDAP password on every login-compiler node."""
     return _check_slurm_role_ldap_authentication(
         host,
@@ -745,7 +746,7 @@ def check_slurm_compiler_ldap_authentication(host):
     )
 
 
-def check_slurm_compiler_ldap_invalid_password(host):
+def check_slurm_compiler_ldap_invalid_password(host) -> Dict[str, Any]:
     """Verify invalid LDAP passwords are rejected on login-compiler nodes."""
     return _check_slurm_role_ldap_authentication(
         host,
@@ -756,7 +757,7 @@ def check_slurm_compiler_ldap_invalid_password(host):
     )
 
 
-def check_slurm_pam_no_job_access(host):
+def check_slurm_pam_no_job_access(host) -> Dict[str, Any]:
     """Verify LDAP compute login is denied when the user has no running job."""
     summary = "Slurm PAM no-job access policy"
     try:
@@ -1148,7 +1149,7 @@ def _check_slurm_role_pam_job_access(
                 )
 
 
-def check_slurm_control_pam_job_access(host):
+def check_slurm_control_pam_job_access(host) -> Dict[str, Any]:
     """Verify the PAM active-job lifecycle for control-node submission."""
     return _check_slurm_role_pam_job_access(
         host,
@@ -1159,7 +1160,7 @@ def check_slurm_control_pam_job_access(host):
     )
 
 
-def check_slurm_login_pam_job_access(host):
+def check_slurm_login_pam_job_access(host) -> Dict[str, Any]:
     """Verify the PAM active-job lifecycle for every login node."""
     return _check_slurm_role_pam_job_access(
         host,
@@ -1170,7 +1171,7 @@ def check_slurm_login_pam_job_access(host):
     )
 
 
-def check_slurm_compiler_pam_job_access(host):
+def check_slurm_compiler_pam_job_access(host) -> Dict[str, Any]:
     """Verify the PAM active-job lifecycle for every login-compiler node."""
     return _check_slurm_role_pam_job_access(
         host,
@@ -1181,7 +1182,7 @@ def check_slurm_compiler_pam_job_access(host):
     )
 
 
-def check_slurm_invalid_ldap_identity(host):
+def check_slurm_invalid_ldap_identity(host) -> Dict[str, Any]:
     """Verify a generated non-existent identity is rejected on login roles."""
     summary = "Slurm invalid LDAP identity rejection"
     try:
@@ -1452,7 +1453,7 @@ def _check_slurm_role_ldap_jobs(
                 )
 
 
-def check_slurm_control_ldap_jobs(host):
+def check_slurm_control_ldap_jobs(host) -> Dict[str, Any]:
     """Submit an LDAP-owned job from the Slurm control node."""
     return _check_slurm_role_ldap_jobs(
         host,
@@ -1463,7 +1464,7 @@ def check_slurm_control_ldap_jobs(host):
     )
 
 
-def check_slurm_login_ldap_jobs(host):
+def check_slurm_login_ldap_jobs(host) -> Dict[str, Any]:
     """Submit an LDAP-owned job from every login node."""
     return _check_slurm_role_ldap_jobs(
         host,
@@ -1474,7 +1475,7 @@ def check_slurm_login_ldap_jobs(host):
     )
 
 
-def check_slurm_compiler_ldap_jobs(host):
+def check_slurm_compiler_ldap_jobs(host) -> Dict[str, Any]:
     """Submit an LDAP-owned job from every login-compiler node."""
     return _check_slurm_role_ldap_jobs(
         host,

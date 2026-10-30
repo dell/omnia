@@ -52,6 +52,13 @@ mandatory_warning_msg: "WARNING: The following are mandatory credentials and can
 password_fail_msg: "Failed. Password is required for mandatory credential or any username input."
 password_match_fail_msg: "Failed. Passwords do not match. Please try again."
 credential_encrypt_fail_msg: "Failed to encrypt credential file."
+credential_decrypt_fail_msg: >-
+  Failed to decrypt or load {{ credential_files[0].file_path }}. Verify that
+  {{ credential_files[0].vault_path }} is the correct vault key and that the
+  credential file is not corrupted, then re-run the playbook.
+
+# Decrypted credentials are written only to memory-backed storage (tmpfs), never to persistent disk
+credential_tmp_dir: "/dev/shm"
 
 # Credential collection messages
 orchestrator_credential_collection_pass_msg: "Orchestrator credential collection completed."

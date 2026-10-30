@@ -153,7 +153,7 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_075 | `test_unit_startup_does_not_connect_or_sync` | Deterministic unit execution bypasses FVT host setup and reporting. |
 | RM_UT_076 | `test_untagged_execution_uses_ordered_lifecycle_paths` | The real runner receives each safe lifecycle directory in order. |
 | RM_UT_077 | `test_untagged_lifecycle_is_ordered_and_non_destructive` | An untagged exec/test has an explicit safe lifecycle. |
-| RM_UT_078 | `test_untagged_verification_excludes_negative_markers` | Aggregate verification cannot collect co-located negative cases. |
+| RM_UT_078 | `test_untagged_verification_excludes_destructive_markers` | Aggregate verification cannot collect co-located destructive cases. |
 | RM_UT_079 | `test_verify_only_targets_are_not_configured_for_execution` | Targets without deploy triggers fail closed at configuration time. |
 | RM_UT_126 | `test_report_names_are_isolated_by_category` | FVT, NFT, and UT runs cannot overwrite one another's reports. |
 
@@ -390,11 +390,109 @@ explicitly excluded from aggregate FVT execution.
 | RM_UT_206 | `test_deployed_repository_contexts_fail_closed` | A malformed selected context cannot be hidden by a valid one. |
 | RM_UT_207 | `test_content_access_uses_literal_curl_status_token` | HTTPS metadata validation preserves curl's literal HTTP-status token. |
 
+### Input validation fail-closed (`test_input_validation_fail_closed.py`) -- 17 tests
+
+#### ValidateInputTagFailClosedTests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_289 | `test_unknown_tag_alone_is_rejected` | A typo tag fails instead of validating zero files. |
+| RM_UT_290 | `test_known_tag_with_unknown_tag_is_rejected` | A typo mixed with a valid tag still fails. |
+| RM_UT_291 | `test_empty_tag_list_is_rejected` | An empty tag list cannot report success. |
+| RM_UT_292 | `test_operation_only_tag_is_rejected` | An operation tag alone validates nothing and fails. |
+| RM_UT_293 | `test_operation_tag_with_validation_tag_validates_files` | Operation tags are tolerated alongside a validation tag. |
+| RM_UT_294 | `test_valid_tag_with_missing_required_file_fails` | A mapped required file that is absent fails validation. |
+| RM_UT_295 | `test_missing_schema_for_mapped_file_fails` | A mapped file without a schema can never be reported valid. |
+
+#### ValidationTagScopeTests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_296 | `test_deploy_pulp_endpoint_contract_is_scoped_to_its_include` | The endpoint-only contract cannot leak into later validation plays. |
+
+#### CredentialFileValidationContractTests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_297 | `test_credential_file_is_mapped_for_every_repo_config_tag` | The credential file is validated wherever repo_manager_config is. |
+| RM_UT_298 | `test_schema_accepts_document_written_by_credential_collection` | The persisted credential shape is valid. |
+| RM_UT_299 | `test_schema_rejects_missing_pulp_password` | The mandatory Pulp password cannot be absent. |
+| RM_UT_300 | `test_schema_rejects_unknown_top_level_key` | Unexpected plaintext keys are rejected. |
+| RM_UT_301 | `test_schema_rejects_incomplete_registry_credential` | Registry credential records require username and password. |
+
+#### SupportedTagsContractTests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_302 | `test_supported_tags_cover_public_and_play_tags` | Every omnia.sh public tag and repo_manager.yml play tag passes the tag guard. |
+| RM_UT_303 | `test_internal_pulp_tag_is_rejected` | The internal `pulp` tag, which also selects the Pulp cleanup play, stays rejected. |
+| RM_UT_304 | `test_run_tag_modifiers_are_supported` | Modifier tags read from `ansible_run_tags` (e.g. `catalog_optimize`) pass the tag guard. |
+| RM_UT_305 | `test_guard_tags_are_accepted_by_validate_input` | Every tag the guard accepts is also accepted by `validate_input`. |
+
+### Vault in-memory read (`test_vault_in_memory_read.py`) -- 16 tests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_306 | `test_process_encrypted_file_reads_without_touching_file` | Encrypted file is decrypted in memory without touching the file on disk. |
+| RM_UT_307 | `test_process_encrypted_file_wrong_key_fails_and_file_untouched` | Wrong vault key fails cleanly without touching the file. |
+| RM_UT_308 | `test_process_encrypted_file_malformed_yaml_fails_and_file_untouched` | Malformed YAML fails without touching the file. |
+| RM_UT_309 | `test_yml_line_number_on_vaulted_file` | Line number is reported correctly for vaulted files. |
+| RM_UT_310 | `test_yml_line_number_vault_failure_raises_and_file_untouched` | Vault failure raises and leaves file untouched. |
+| RM_UT_311 | `test_no_in_place_decrypt_helpers_remain` | No in-place decrypt helpers remain in the codebase. |
+| RM_UT_312 | `test_schema_reports_all_errors_when_line_lookup_fails` | Schema reports all errors when line lookup fails. |
+| RM_UT_313 | `test_logic_handles_error_dicts_missing_fields` | Logic handles error dicts with missing fields. |
+| RM_UT_314 | `test_schema_oserror_is_reported_and_logged_with_traceback` | OSError is reported and logged with traceback. |
+| RM_UT_315 | `test_schema_unexpected_error_names_file_and_logs_traceback` | Unexpected error names the file and logs traceback. |
+| RM_UT_316 | `test_logic_logs_traceback_for_unexpected_error` | Logic logs traceback for unexpected error. |
+| RM_UT_317 | `test_schema_missing_config_key_does_not_crash_without_logger` | Missing config key does not crash when no logger is present. |
+| RM_UT_318 | `test_run_subprocess_timeout_returns_distinct_code` | Subprocess timeout returns a distinct exit code. |
+| RM_UT_319 | `test_run_subprocess_missing_command_returns_127` | Missing command returns exit code 127. |
+| RM_UT_279 | `test_process_encrypted_file_yaml_error_does_not_echo_content` | YAML error does not echo file content to logs. |
+| RM_UT_287 | `test_process_encrypted_file_vault_error_does_not_echo_stderr` | Vault error does not echo stderr to logs. |
+
+### Catalog add/merge (`test_catalog_add_merge.py`) -- 10 tests
+
+#### MergePackageEntryTests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_320 | `test_other_architecture_is_kept` | Other architectures are preserved when merging. |
+| RM_UT_321 | `test_other_os_version_is_kept_when_source_changes` | Other OS versions are preserved when source changes. |
+| RM_UT_322 | `test_new_os_version_is_added_to_matching_source` | New OS version is added to matching source. |
+| RM_UT_323 | `test_image_update_keeps_other_architecture_and_os_fields` | Image update preserves other architecture and OS fields. |
+| RM_UT_324 | `test_package_type_change_replaces_entry` | Package type change replaces the entry. |
+| RM_UT_325 | `test_inputs_are_not_modified` | Input catalogs are not modified during merge. |
+
+#### DeleteSideEffectTests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_326 | `test_empty_group_removed_from_layers_with_warning` | Empty group is removed from layers with a warning. |
+
+#### AddCliMergeTests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_327 | `test_update_keeps_aarch64_and_10_0_sources` | Update preserves aarch64 and 10.0 sources. |
+| RM_UT_328 | `test_new_package_for_both_arches_and_os_versions` | New package is added for both architectures and OS versions. |
+
+#### LegacyCatalogMessageTests
+
+| TC ID | Test | Description |
+|-------|------|-------------|
+| RM_UT_329 | `test_validate_points_to_transform` | Validate command points to transform for legacy catalogs. |
+
 ## Registry summary
 
 | Suite | Count | Coverage |
 |-------|------:|----------|
 | `test_artifact_reuse.py` | 6 | Verified immutable reuse and standalone RPM processing |
+| `test_catalog_add_merge.py` | 10 | Catalog merge, delete side effects, add CLI and legacy message contracts |
+| `test_catalog_compatibility_warnings.py` | 5 | Image tag and repository identifier compatibility warnings |
+| `test_catalog_component_diff.py` | 10 | Component diff sequences, edits, duplicates and legacy replacement |
+| `test_catalog_diff_cli.py` | 8 | Diff schema requirements and output collision detection |
+| `test_catalog_schema_prerequisites.py` | 7 | Schema prerequisites, missing library and unreadable schema handling |
+| `test_catalog_write_boundary.py` | 12 | Path collision detection, write boundary enforcement and atomic writes |
 | `test_cleanup_contract.py` | 27 | Cases 1-6 scope, exact identities, fail-closed state, idempotency and ordering |
 | `test_common_vars.py` | 3 | Environment-derived path resolution and fallback |
 | `test_container_reconciliation.py` | 20 | Ready/incomplete/unknown state, platform validation, reuse and tag union |
@@ -402,13 +500,19 @@ explicitly excluded from aggregate FVT execution.
 | `test_dataset_generator.py` | 6 | Contained output, explicit inputs, and secret-free overrides |
 | `test_dataset_contract.py` | 17 | Consumer, generator, publication, and sync contracts |
 | `test_dnf_retry.py` | 7 | Transient-only bounded retries and integrity failures |
+| `test_error_message_redaction.py` | 9 | Schema/vault/CSV error messages do not echo sensitive content |
+| `test_exact_mirror_reconciliation.py` | 13 | Exact mirror sync, safety checks, repomd validation |
 | `test_framework_contract.py` | 30 | Commands, public tags, suites, entrypoint imports, filtering and dispatch |
 | `test_fvt_policy_helpers.py` | 9 | Policy config keys, Pulp JSON parsing, selected contexts and HTTPS verification |
+| `test_input_validation_fail_closed.py` | 17 | Unknown/empty tags fail closed; credential file mapped to a schema; tag guard covers public tags |
 | `test_mirror_state.py` | 16 | Rerun/resync selection, checkpoints, ambiguity, corruption and atomic replacement |
 | `test_pulp_command_contract.py` | 13 | Central structured argv and allowlisted grammar |
+| `test_pulp_container_remote_api.py` | 6 | Authenticated container remote API compatibility |
 | `test_pulp_object_state.py` | 9 | Tri-state Pulp queries, digest reuse and distribution bindings |
+| `test_pulp_repo_name_migration_contract.py` | 3 | Pulp repo name migration config and HTTP method contracts |
 | `test_repo_file_state.py` | 3 | Atomic, read-only and symlink-safe DNF repo files |
 | `test_repo_settings.py` | 7 | Configuration precedence and typed environment values |
 | `test_shared_artifact_state.py` | 16 | Integrity-verified reuse, ownership, atomic persistence and Git resolution |
 | `test_status_contract.py` | 11 | Multi-version aggregation, version-first endpoints and fail-closed publication |
-| **Total** | **205** | |
+| `test_vault_in_memory_read.py` | 16 | In-memory vault decryption, error redaction and subprocess safety |
+| **Total** | **331** | |

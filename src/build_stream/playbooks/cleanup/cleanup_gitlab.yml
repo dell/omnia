@@ -16,6 +16,10 @@
 # cleanup_gitlab.yml — Remove all GitLab configurations
 # Originated from: src/playbooks/gitlab/cleanup_gitlab.yml
 # Usage: ansible-playbook playbooks/cleanup_gitlab.yml  (from src/build_stream/)
+#
+# To preserve build_stream credentials (GitLab root password and OAuth clients
+# stay in build_stream_credentials.yml; default: cleared):
+#   ansible-playbook playbooks/cleanup/cleanup_gitlab.yml -e cleanup_credentials=false
 
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost

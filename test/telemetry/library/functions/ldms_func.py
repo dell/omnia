@@ -60,7 +60,7 @@ from ..vars.common_vars import (
 from ..vars.ome_vars import KAFKA_BRIDGE_SERVICE
 from ..vars.ldms_vars import (
     LDMS_KAFKA_TOPIC,
-    LDMS_FUNCTIONAL_GROUPS,
+    LDMS_FUNCTIONAL_GROUP_PATTERN,
     LDMS_SAMPLER_SERVICE,
     LDMS_SAMPLER_CONF_PATH,
     LDMS_BINARY_PATH,
@@ -193,14 +193,21 @@ def get_cluster_inventory_path(host) -> str:
     return f"{omnia_data_path}/orchestrator/output/{project}/orchestrator_inventory.yml"
 
 
+def _get_ldms_inventory_groups(host, inventory_path: str) -> List[str]:
+    """Return inventory group names matching LDMS_FUNCTIONAL_GROUP_PATTERN."""
+    inv_data = read_remote_yaml(host, inventory_path)
+    all_children = read_yaml_key(inv_data, "all.children", default={}) if inv_data else {}
+    return [g for g in all_children if LDMS_FUNCTIONAL_GROUP_PATTERN.match(g)]
+
+
 def get_ldms_hostnames_from_inventory(host) -> Dict[str, Any]:
     """Get LDMS node hostnames from orchestrator inventory.
 
     LDMS runs on the following functional groups (with architecture suffixes):
-      - slurm_control_node_x86_64
-      - slurm_node_x86_64, slurm_node_aarch64
-      - login_node_x86_64, login_node_aarch64
-      - login_compiler_node_x86_64, login_compiler_node_aarch64
+      - slurm_control_node_rhel_10_0_x86_64, slurm_control_node_rhel_10_2_x86_64
+      - slurm_node_rhel_10_{0,2}_x86_64, slurm_node_rhel_10_0_aarch64
+      - login_node_rhel_10_{0,2}_x86_64, login_node_rhel_10_0_aarch64
+      - login_compiler_node_rhel_10_{0,2}_x86_64, login_compiler_node_rhel_10_0_aarch64
 
     Uses the omnia_auto.get_inventory_hosts() function to parse the
     Ansible inventory file.
@@ -220,10 +227,9 @@ def get_ldms_hostnames_from_inventory(host) -> Dict[str, Any]:
             "error": "cluster_inventory path not found in telemetry_config.yml",
         }
 
-    # Use omnia_auto.get_inventory_hosts() with exact matching
-    # since LDMS_FUNCTIONAL_GROUPS already has full architecture suffixes
     return get_inventory_hosts(
-        host, inventory_path, LDMS_FUNCTIONAL_GROUPS, prefix_match=False
+        host, inventory_path, _get_ldms_inventory_groups(host, inventory_path),
+        prefix_match=False,
     )
 
 
@@ -244,7 +250,9 @@ def get_ldms_nodes_with_ips(host) -> Dict[str, Any]:
         }
 
     # Get hostnames by group
-    inv_result = get_inventory_hosts(host, inventory_path, LDMS_FUNCTIONAL_GROUPS)
+    inv_result = get_inventory_hosts(
+        host, inventory_path, _get_ldms_inventory_groups(host, inventory_path),
+    )
     if not inv_result.get("success"):
         return {
             "success": False,
@@ -590,6 +598,57 @@ def get_kafka_bridge_port(host) -> str:
     if result.rc == 0 and result.stdout.strip():
         return result.stdout.strip()
     return KAFKA_BRIDGE_DEFAULT_PORT
+
+
+def list_kafka_bridge_topics(host, bridge_ip="", bridge_port=""):
+    """Return the set of topics known to the Kafka Bridge, without creating any.
+
+    Uses the Kafka Bridge read-only ``GET /topics`` endpoint, which lists
+    existing topics but never auto-creates one (unlike subscribe/produce).
+    Disabled-state tests use this to avoid leaving orphaned topics behind for
+    sources that are turned off.
+
+    Returns a dict:
+      - ``available`` (bool): whether the topic list could be read.
+      - ``topics`` (set): topic names (empty when unavailable).
+      - ``error`` (str): reason the list could not be read.
+    """
+    bridge_ip = bridge_ip or get_kafka_bridge_ip(host)
+    bridge_port = bridge_port or (
+        get_kafka_bridge_port(host) if bridge_ip else ""
+    )
+    if not bridge_ip or not bridge_port:
+        return {
+            "available": False,
+            "topics": set(),
+            "error": "Kafka Bridge endpoint not found",
+        }
+    cmd = (
+        f"curl -kfsS --max-time 15 "
+        f"https://{bridge_ip}:{bridge_port}/topics"
+    )
+    result = run_on_kube_vip(host, cmd)
+    if result.rc != 0:
+        return {
+            "available": False,
+            "topics": set(),
+            "error": result.stderr.strip() or "failed to list Kafka topics",
+        }
+    try:
+        topics = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError as exc:
+        return {
+            "available": False,
+            "topics": set(),
+            "error": f"invalid Kafka Bridge topic list: {exc}",
+        }
+    if not isinstance(topics, list):
+        return {
+            "available": False,
+            "topics": set(),
+            "error": "unexpected Kafka Bridge topic list payload",
+        }
+    return {"available": True, "topics": set(topics), "error": ""}
 
 
 # =========================================================================

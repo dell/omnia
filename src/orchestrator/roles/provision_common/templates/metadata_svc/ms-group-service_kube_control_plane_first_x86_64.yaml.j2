@@ -312,22 +312,30 @@
           content: |
             #!/bin/bash
             set -e
-            # Shared mount path where the control-plane join command will be saved
+            # Shared mount path where the join commands will be saved
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
             mkdir -p "$K8S_CLIENT_MOUNT_PATH"
-            echo "Generating Kubernetes control-plane join command..."
+            echo "Generating Kubernetes join commands..."
+
             # Generate certificate key and control plane join command
             CERT_KEY=$(kubeadm init phase upload-certs --upload-certs | tail -1 | tr -d '\r\n ')
             if [ -n "$CERT_KEY" ]; then
-                CONTROL_PLANE_JOIN_CMD=$(kubeadm token create --ttl 0 --print-join-command --certificate-key "$CERT_KEY")
+                CONTROL_PLANE_JOIN_CMD=$(kubeadm token create --ttl {{ k8s_bootstrap_token_ttl }} --print-join-command --certificate-key "$CERT_KEY")
                 echo "$CONTROL_PLANE_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
-                chmod 644 "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
-                echo "Saved control-plane join command to: ${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
+                chmod 600 "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
+                echo "Saved control-plane join command."
             else
                 echo "ERROR: Certificate key is empty! Cannot generate control-plane join command."
                 exit 1
             fi
-            echo "Control-plane join script is ready. You can rerun this script anytime to refresh the command."
+
+            # Worker join command — always refresh alongside control-plane
+            WORKER_JOIN_CMD=$(kubeadm token create --ttl {{ k8s_bootstrap_token_ttl }} --print-join-command | sed 's/[[:space:]]*$//')
+            echo "$WORKER_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
+            chmod 600 "${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
+            echo "Saved worker join command."
+
+            echo "All join commands refreshed. Nodes may now join the cluster."
 
         - path: /usr/local/bin/install-helm.sh
           permissions: '0755'
@@ -835,18 +843,20 @@
             # Get the certificate key
             CERT_KEY=$(kubeadm init phase upload-certs --upload-certs | tail -1 | tr -d '\r\n ')
             if [ -n "$CERT_KEY" ]; then
-              CONTROL_PLANE_JOIN_CMD=$(kubeadm token create --ttl 0 --print-join-command --certificate-key "$CERT_KEY")
+              CONTROL_PLANE_JOIN_CMD=$(kubeadm token create --ttl {{ k8s_bootstrap_token_ttl }} --print-join-command --certificate-key "$CERT_KEY")
               echo "$CONTROL_PLANE_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
-              echo "Saved control-plane join command to: ${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
+              chmod 600 "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
+              echo "Saved control-plane join command."
             else
               echo "ERROR: Certificate key is empty! Cannot generate control-plane join command."
               exit 1
             fi
 
             # For joining worker nodes (regular join command)
-            WORKER_JOIN_CMD=$(kubeadm token create --ttl 0 --print-join-command)
+            WORKER_JOIN_CMD=$(kubeadm token create --ttl {{ k8s_bootstrap_token_ttl }} --print-join-command | sed 's/[[:space:]]*$//')
             echo "$WORKER_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
-            echo "Saved worker join command to:       ${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
+            chmod 600 "${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
+            echo "Saved worker join command."
 
             
             export KUBECONFIG=/etc/kubernetes/admin.conf

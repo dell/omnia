@@ -19,7 +19,7 @@ from library.functions import (
     verify_policy_resolution,
     check_repo_policy,
     check_repo_caching,
-    get_deployed_repos,
+    get_deployed_repo_contexts,
 )
 from library.vars import TEST_CASES as TC
 from library.messages.repo_manager_msgs import (
@@ -34,9 +34,9 @@ from library.messages.repo_manager_msgs import (
 LOCAL_ONLY_REPOSITORIES = {"repo_manager-additional"}
 
 
-def _remote_backed_repos(repo_names):
-    """Return deployed repositories that are expected to own a Pulp remote."""
-    return [name for name in repo_names if name not in LOCAL_ONLY_REPOSITORIES]
+def _remote_backed_repos(repositories):
+    """Return deployed repository contexts that are expected to own a Pulp remote."""
+    return [repo for repo in repositories if repo["name"] not in LOCAL_ONLY_REPOSITORIES]
 
 
 @pytest.mark.sanity
@@ -49,21 +49,20 @@ def test_pulp_remote_policy_matches_config(host: Host):
 
     # Catalog mode intentionally deploys only repositories referenced by the
     # selected catalog. repo_status.yml is the deployment source of truth.
-    repos_result = get_deployed_repos(host, arch="x86_64")
+    repos_result = get_deployed_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = _remote_backed_repos(repos_result["repos"])
+    configured_repos = _remote_backed_repos(repos_result["repositories"])
 
     # Test with first configured repo
     if not configured_repos:
         pytest.fail("No repositories were deployed")
 
-    repo_name = configured_repos[0]
-    arch = "x86_64"
-    os_version = "10.0"
+    repo = configured_repos[0]
+    repo_name, arch, os_version = repo["name"], repo["architecture"], repo["os_version"]
 
     # Verify policy resolution matches actual Pulp remote policy
     resolution_result = verify_policy_resolution(host, repo_name, arch, os_version)
@@ -88,19 +87,24 @@ def test_pulp_remote_policy_immediate_mode(host: Host):
     tc = TC["pulp_remote_policy_immediate_mode"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    repos_result = get_deployed_repos(host, arch="x86_64")
+    repos_result = get_deployed_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = _remote_backed_repos(repos_result["repos"])
+    configured_repos = _remote_backed_repos(repos_result["repositories"])
 
     # Find a repo with always+false configuration
     found_repo = None
-    for repo_name in configured_repos:
-        config_policy = check_repo_policy(host, repo_name, "x86_64", "10.0")
-        config_caching = check_repo_caching(host, repo_name, "x86_64", "10.0")
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        config_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        config_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if not config_policy["success"] or not config_caching["success"]:
             continue
@@ -111,6 +115,7 @@ def test_pulp_remote_policy_immediate_mode(host: Host):
         # Verify this repo should have immediate policy
         if policy == "always" and not caching:
             found_repo = repo_name
+            arch, os_version = repo["architecture"], repo["os_version"]
             break
 
     if not found_repo:
@@ -125,7 +130,7 @@ def test_pulp_remote_policy_immediate_mode(host: Host):
         pytest.skip("No repo has always+false configuration")
 
     # Get actual Pulp remote policy
-    actual_policy_result = check_pulp_remote_policy(host, found_repo, "x86_64", "10.0")
+    actual_policy_result = check_pulp_remote_policy(host, found_repo, arch, os_version)
 
     if not actual_policy_result["success"]:
         tl.failed(LOG["pulp_remote_check_failed"], actual_policy_result["details"])
@@ -152,19 +157,24 @@ def test_pulp_remote_policy_on_demand_mode(host: Host):
     tc = TC["pulp_remote_policy_on_demand_mode"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    repos_result = get_deployed_repos(host, arch="x86_64")
+    repos_result = get_deployed_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = _remote_backed_repos(repos_result["repos"])
+    configured_repos = _remote_backed_repos(repos_result["repositories"])
 
     # Find a repo with partial+true configuration
     found_repo = None
-    for repo_name in configured_repos:
-        config_policy = check_repo_policy(host, repo_name, "x86_64", "10.0")
-        config_caching = check_repo_caching(host, repo_name, "x86_64", "10.0")
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        config_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        config_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if not config_policy["success"] or not config_caching["success"]:
             continue
@@ -175,6 +185,7 @@ def test_pulp_remote_policy_on_demand_mode(host: Host):
         # Verify this repo should have on_demand policy
         if policy == "partial" and caching:
             found_repo = repo_name
+            arch, os_version = repo["architecture"], repo["os_version"]
             break
 
     if not found_repo:
@@ -189,7 +200,7 @@ def test_pulp_remote_policy_on_demand_mode(host: Host):
         pytest.skip("No repo has partial+true configuration")
 
     # Get actual Pulp remote policy
-    actual_policy_result = check_pulp_remote_policy(host, found_repo, "x86_64", "10.0")
+    actual_policy_result = check_pulp_remote_policy(host, found_repo, arch, os_version)
 
     if not actual_policy_result["success"]:
         tl.failed(LOG["pulp_remote_check_failed"], actual_policy_result["details"])
@@ -217,22 +228,27 @@ def test_multiple_repos_policy_resolution(host: Host):
     tc = TC["multiple_repos_policy_resolution"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    repos_result = get_deployed_repos(host, arch="x86_64")
+    repos_result = get_deployed_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = _remote_backed_repos(repos_result["repos"])
+    configured_repos = _remote_backed_repos(repos_result["repositories"])
 
     # Test multiple repos with different policy configurations
     results = []
     failures = []
 
-    for repo_name in configured_repos:
+    for repo in configured_repos:
+        repo_name = repo["name"]
         # Get actual configuration
-        config_policy = check_repo_policy(host, repo_name)
-        config_caching = check_repo_caching(host, repo_name)
+        config_policy = check_repo_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
+        config_caching = check_repo_caching(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if not config_policy["success"] or not config_caching["success"]:
             failure = f"{repo_name}: cannot determine effective configuration"
@@ -256,7 +272,9 @@ def test_multiple_repos_policy_resolution(host: Host):
             expected_pulp_mode = "unknown"
 
         # Get actual Pulp remote policy
-        actual_policy_result = check_pulp_remote_policy(host, repo_name, "x86_64", "10.0")
+        actual_policy_result = check_pulp_remote_policy(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if actual_policy_result["success"]:
             actual_pulp_policy = actual_policy_result.get("policy")
@@ -298,24 +316,24 @@ def test_pulp_repository_exists(host: Host):
     tc = TC["pulp_repository_exists"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    repos_result = get_deployed_repos(host, arch="x86_64")
+    repos_result = get_deployed_repo_contexts(host)
 
     if not repos_result["success"]:
         tl.failed(LOG["global_config_failed"], "Cannot read configured repos")
         pytest.fail("Cannot verify without deployed repositories")
 
-    configured_repos = repos_result["repos"]
+    configured_repos = repos_result["repositories"]
 
     # Test that Pulp repositories exist for configured repos
-    arch = "x86_64"
-    os_version = "10.0"
-
     exist_count = 0
     missing_count = 0
     results = []
 
-    for repo_name in configured_repos:
-        repo_result = check_pulp_repository_exists(host, repo_name, arch, os_version)
+    for repo in configured_repos:
+        repo_name = repo["name"]
+        repo_result = check_pulp_repository_exists(
+            host, repo_name, repo["architecture"], repo["os_version"]
+        )
 
         if repo_result["success"]:
             exist_count += 1
