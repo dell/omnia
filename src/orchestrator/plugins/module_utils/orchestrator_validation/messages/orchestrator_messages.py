@@ -187,6 +187,14 @@ def pxe_mapping_not_found_msg(path: str) -> str:
     return f"orchestrator_config: pxe_mapping_file_path '{path}' does not exist."
 
 
+def pxe_mapping_not_csv_msg(path: str) -> str:
+    """Return the non-CSV PXE mapping file error message."""
+    return (
+        f"orchestrator_config: pxe_mapping_file_path '{path}' must resolve "
+        "to a .csv file."
+    )
+
+
 def pxe_mapping_read_failed_msg(path: str, detail: str) -> str:
     """Return the PXE mapping read error message."""
     return f"orchestrator_config: Failed to read mapping file '{path}': {detail}"

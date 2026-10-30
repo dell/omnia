@@ -622,6 +622,10 @@ def validate(
         record_error(errors, logger, msg.pxe_mapping_not_found_msg(path))
         return errors
 
+    if not path.lower().endswith(".csv"):
+        record_error(errors, logger, msg.pxe_mapping_not_csv_msg(path))
+        return errors
+
     try:
         raw_header, header, raw_rows = read_mapping(path)
     except (csv.Error, OSError, UnicodeError) as exc:
