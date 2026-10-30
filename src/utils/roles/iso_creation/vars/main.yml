@@ -16,8 +16,10 @@
 # Kickstart filename used inside ISO and on NFS
 nfs_kickstart_filename: "kickstart.ks"
 
-# Temporary files for ISO modification
-temp_grub_cfg: "/tmp/grub_{{ ansible_date_time.epoch }}.cfg"
+# Temporary grub config path is now generated securely at runtime via
+# ansible.builtin.tempfile in build_nfs_iso.yml / build_embedded_iso.yml.
+# The registered variable _secure_grub_cfg.path replaces the old static
+# temp_grub_cfg variable (CWE-377 remediation).
 
 # Kickstart configuration
 kickstart_file: ""

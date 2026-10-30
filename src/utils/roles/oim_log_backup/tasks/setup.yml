@@ -66,11 +66,35 @@
         backup_nfs_server: "{{ backup_path_resolved.split(':', 1)[0] }}"
         backup_nfs_remote_path: "{{ backup_path_resolved.split(':', 1)[1] }}"
 
+    - name: Ensure secure NFS mount parent directory exists
+      ansible.builtin.file:
+        path: /run/omnia/mnt
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Check if NFS mount point is a symlink
+      ansible.builtin.stat:
+        path: "{{ backup_nfs_mountpoint }}"
+      register: _backup_resolve_nfs_stat
+
+    - name: Fail if NFS mount point is a symlink or not root-owned
+      ansible.builtin.fail:
+        msg: >-
+          Security violation: {{ backup_nfs_mountpoint }} exists but is a symlink
+          or not owned by root. This may indicate a symlink attack (CWE-59).
+      when:
+        - _backup_resolve_nfs_stat.stat.exists
+        - _backup_resolve_nfs_stat.stat.islnk or _backup_resolve_nfs_stat.stat.uid != 0
+
     - name: Ensure local NFS mountpoint exists
       ansible.builtin.file:
         path: "{{ backup_nfs_mountpoint }}"
         state: directory
-        mode: "0755"
+        owner: root
+        group: root
+        mode: "0700"
 
     - name: Mount backup NFS export
       ansible.builtin.mount:

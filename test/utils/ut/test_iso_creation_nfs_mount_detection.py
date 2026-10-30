@@ -78,15 +78,15 @@ def test_unrelated_child_export_is_not_treated_as_already_mounted(
 
 
 def test_exact_export_match_is_recognized_as_mounted(render_matching_mounts):
-    mounts = ["server1:/mnt/nfsuser/rohit /tmp/install_os_nfs"]
+    mounts = ["server1:/mnt/nfsuser/rohit /run/omnia/mnt/install_os_nfs"]
     result = render_matching_mounts(mounts, "/mnt/nfsuser/rohit")
-    assert result == "server1:/mnt/nfsuser/rohit /tmp/install_os_nfs"
+    assert result == "server1:/mnt/nfsuser/rohit /run/omnia/mnt/install_os_nfs"
 
 
 def test_parent_export_covers_child_target_directory(render_matching_mounts):
-    mounts = ["server1:/mnt/nfsuser/rohit /tmp/install_os_nfs"]
+    mounts = ["server1:/mnt/nfsuser/rohit /run/omnia/mnt/install_os_nfs"]
     result = render_matching_mounts(mounts, "/mnt/nfsuser/rohit/iso/sub")
-    assert result == "server1:/mnt/nfsuser/rohit /tmp/install_os_nfs"
+    assert result == "server1:/mnt/nfsuser/rohit /run/omnia/mnt/install_os_nfs"
 
 
 def test_lookalike_sibling_export_is_not_a_false_prefix_match(

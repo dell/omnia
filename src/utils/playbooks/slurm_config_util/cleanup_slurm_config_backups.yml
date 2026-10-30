@@ -70,22 +70,46 @@
     - name: Mount NFS export before cleanup
       when: slurm_backup_is_nfs_export
       block:
+        - name: Ensure secure NFS mount parent directory exists
+          ansible.builtin.file:
+            path: /run/omnia/mnt
+            state: directory
+            owner: root
+            group: root
+            mode: "0700"
+
+        - name: Check if NFS mount point is a symlink
+          ansible.builtin.stat:
+            path: /run/omnia/mnt/omnia_slurm_config_util_nfs
+          register: _slurm_nfs_mountpoint_stat
+
+        - name: Fail if NFS mount point is a symlink or not root-owned
+          ansible.builtin.fail:
+            msg: >-
+              Security violation: /run/omnia/mnt/omnia_slurm_config_util_nfs exists but is a symlink
+              or not owned by root. This may indicate a symlink attack (CWE-59).
+          when:
+            - _slurm_nfs_mountpoint_stat.stat.exists
+            - _slurm_nfs_mountpoint_stat.stat.islnk or _slurm_nfs_mountpoint_stat.stat.uid != 0
+
         - name: Ensure local NFS mountpoint exists
           ansible.builtin.file:
-            path: /tmp/omnia_slurm_config_util_nfs
+            path: /run/omnia/mnt/omnia_slurm_config_util_nfs
             state: directory
-            mode: "0755"
+            owner: root
+            group: root
+            mode: "0700"
 
         - name: Mount backup NFS export
           ansible.builtin.mount:
             src: "{{ slurm_backup_path_resolved.split(':', 1)[0] }}:{{ slurm_backup_path_resolved.split(':', 1)[1] }}"
-            path: /tmp/omnia_slurm_config_util_nfs
+            path: /run/omnia/mnt/omnia_slurm_config_util_nfs
             fstype: nfs
             state: mounted
 
     - name: Set backup workspace (local path, or mounted NFS mountpoint)
       ansible.builtin.set_fact:
-        slurm_backup_workspace: "{{ '/tmp/omnia_slurm_config_util_nfs' if slurm_backup_is_nfs_export else slurm_backup_path_resolved }}"
+        slurm_backup_workspace: "{{ '/run/omnia/mnt/omnia_slurm_config_util_nfs' if slurm_backup_is_nfs_export else slurm_backup_path_resolved }}"
 
     - name: Check if backup workspace exists
       ansible.builtin.stat:

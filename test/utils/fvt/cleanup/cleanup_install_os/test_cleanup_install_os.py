@@ -18,7 +18,7 @@ Cleanup Install OS Scenario - Test Automation.
 Tests for utils.yml --tags cleanup_install_os functionality.
 Validates that the cleanup_install_os tag properly cleans OS installation artifacts:
 - Removes /tmp/install_os temporary directory
-- Unmounts and removes /tmp/install_os_nfs
+- Unmounts and removes /run/omnia/mnt/install_os_nfs
 - Optionally removes credential files (when cleanup_credentials=true)
 """
 
@@ -107,13 +107,13 @@ def test_cleanup_install_os_temp_iso_removed(host):
 @pytest.mark.cleanup_install_os
 @pytest.mark.order(2)
 def test_cleanup_install_os_nfs_unmounted(host):
-    """Verify /tmp/install_os_nfs is unmounted and removed."""
+    """Verify /run/omnia/mnt/install_os_nfs is unmounted and removed."""
     tc = TC["cleanup_install_os_nfs_unmounted"]
     tl = TestLogger(tc["title"], tc["id"])
 
     # Check if NFS mount point was ever created (skip if install_os was never run)
     # The NFS mount is only created during install_os deployment
-    nfs_path = "/tmp/install_os_nfs"
+    nfs_path = "/run/omnia/mnt/install_os_nfs"
     check_cmd = f"test -d {nfs_path} || mount | grep -q '{nfs_path}'"
     check_result = host.run(check_cmd)
 
