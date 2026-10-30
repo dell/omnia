@@ -142,7 +142,7 @@
 # Step 8a: Resolve local NFS mount path for deploy mode.
 # Unlike build_iso/generate_ks (which mount/unmount NFS within their own
 # role), a standalone `--tags deploy` run has no other role to mount the
-# share first. So this step auto-mounts it here (to /tmp/install_os_nfs,
+# share first. So this step auto-mounts it here (to /run/omnia/mnt/install_os_nfs,
 # the same mount point iso_creation uses) when no existing mount already
 # covers the requested directory. iso_delivery unmounts it again after
 # the deployment completes, guarded by the _deploy_nfs_auto_mounted flag set here.
@@ -188,16 +188,40 @@
     - custom_iso_path | default('') | length > 0
     - _deploy_nfs_matching_mounts | default('') | trim | length == 0
   block:
+    - name: Ensure secure NFS mount parent directory exists
+      ansible.builtin.file:
+        path: /run/omnia/mnt
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Check if NFS mount point is a symlink
+      ansible.builtin.stat:
+        path: /run/omnia/mnt/install_os_nfs
+      register: _deploy_nfs_mountpoint_stat
+
+    - name: Fail if NFS mount point is a symlink or not root-owned
+      ansible.builtin.fail:
+        msg: >-
+          Security violation: /run/omnia/mnt/install_os_nfs exists but is a symlink
+          or not owned by root. This may indicate a symlink attack (CWE-59).
+      when:
+        - _deploy_nfs_mountpoint_stat.stat.exists
+        - _deploy_nfs_mountpoint_stat.stat.islnk or _deploy_nfs_mountpoint_stat.stat.uid != 0
+
     - name: Create temporary NFS mount point for deploy mode
       ansible.builtin.file:
-        path: /tmp/install_os_nfs
+        path: /run/omnia/mnt/install_os_nfs
         state: directory
-        mode: "0755"
+        owner: root
+        group: root
+        mode: "0700"
 
     - name: Mount NFS share for deploy mode
       ansible.builtin.mount:
         src: "{{ _nfs_server }}:{{ _nfs_dir | dirname }}"
-        path: /tmp/install_os_nfs
+        path: /run/omnia/mnt/install_os_nfs
         fstype: nfs
         state: mounted
 

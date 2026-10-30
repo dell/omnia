@@ -45,47 +45,59 @@
   gather_facts: false
   tasks:
     # --- PXE mapping file ---
-    - name: Create temp mapping file from source
-      ansible.builtin.shell: |
-        set -o pipefail
-        sed 's/^[[:space:]]*//g' {{ pxe_mapping_file_path | quote }} | sed 's/[[:space:]]*$//g' > /tmp/omnia_provision_mapping.csv
-      changed_when: false
+    - name: Create secure temporary mapping file
+      ansible.builtin.tempfile:
+        state: file
+        suffix: _provision_mapping.csv
+      register: _secure_provision_mapping
       when: read_mapping_file is not defined
 
-    - name: Remove comment lines from temp mapping file
-      ansible.builtin.lineinfile:
-        path: /tmp/omnia_provision_mapping.csv
-        regexp: '\s*#'
-        state: absent
-      when: read_mapping_file is not defined
+    - name: Process PXE mapping and clean up securely
+      when:
+        - read_mapping_file is not defined
+        - _secure_provision_mapping is defined
+        - _secure_provision_mapping is not skipped
+      block:
+        - name: Populate temp mapping file from source
+          ansible.builtin.shell: |
+            set -o pipefail
+            sed 's/^[[:space:]]*//g' {{ pxe_mapping_file_path | quote }} | sed 's/[[:space:]]*$//g' > "{{ _secure_provision_mapping.path }}"
+          changed_when: false
 
-    - name: Normalize Kubernetes primary control-plane membership
-      ansible.builtin.include_role:
-        name: orchestrator_common
-        tasks_from: normalize_pxe_functional_groups.yml
-      vars:
-        normalized_pxe_mapping_path: /tmp/omnia_provision_mapping.csv
-      when: read_mapping_file is not defined
+        - name: Restrict temp mapping file permissions
+          ansible.builtin.file:
+            path: "{{ _secure_provision_mapping.path }}"
+            mode: "0600"
 
-    - name: Read PXE mapping CSV into temp var
-      community.general.read_csv:
-        path: /tmp/omnia_provision_mapping.csv
-        key: ADMIN_MAC
-      register: _preamble_csv_result
-      no_log: true
-      when: read_mapping_file is not defined
+        - name: Remove comment lines from temp mapping file
+          ansible.builtin.lineinfile:
+            path: "{{ _secure_provision_mapping.path }}"
+            regexp: '\s*#'
+            state: absent
 
-    - name: Promote CSV result to read_mapping_file fact
-      ansible.builtin.set_fact:
-        read_mapping_file: "{{ _preamble_csv_result }}"
-      no_log: true
-      when: read_mapping_file is not defined and _preamble_csv_result is not skipped
+        - name: Normalize Kubernetes primary control-plane membership
+          ansible.builtin.include_role:
+            name: orchestrator_common
+            tasks_from: normalize_pxe_functional_groups.yml
+          vars:
+            normalized_pxe_mapping_path: "{{ _secure_provision_mapping.path }}"
 
-    - name: Clean up temp mapping file
-      ansible.builtin.file:
-        path: /tmp/omnia_provision_mapping.csv
-        state: absent
-      when: _preamble_csv_result is not skipped
+        - name: Read PXE mapping CSV into temp var
+          community.general.read_csv:
+            path: "{{ _secure_provision_mapping.path }}"
+            key: ADMIN_MAC
+          register: _preamble_csv_result
+
+        - name: Promote CSV result to read_mapping_file fact
+          ansible.builtin.set_fact:
+            read_mapping_file: "{{ _preamble_csv_result }}"
+          when: _preamble_csv_result is defined and _preamble_csv_result is not skipped
+      always:
+        - name: Clean up temp mapping file
+          ansible.builtin.file:
+            path: "{{ _secure_provision_mapping.path }}"
+            state: absent
+          when: _secure_provision_mapping.path is defined
 
     # --- Network facts ---
     - name: Load network_spec.yml

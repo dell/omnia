@@ -26,7 +26,7 @@ backup_config_file: "{{ omnia_data_path }}/{{ domain_name }}/input/{{ project_na
 backup_default_dir: "{{ omnia_data_path }}/{{ domain_name }}/output/{{ project_name }}/backup_oim_logs"
 
 # Fixed local mountpoint used when a backup path resolves to an NFS export
-backup_nfs_mountpoint: "/tmp/omnia_backup_oim_logs_nfs"  # nosec: B108 - fixed local mount, not a secret path
+backup_nfs_mountpoint: "/run/omnia/mnt/omnia_backup_oim_logs_nfs"
 
 # All domains that ship a log/ directory under OMNIA_DATA_PATH
 backup_all_domains:

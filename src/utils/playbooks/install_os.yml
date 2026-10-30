@@ -132,16 +132,40 @@
     - name: Auto-mount NFS if not already mounted
       when: _ks_nfs_mounts.stdout | default('') | trim | length == 0
       block:
+        - name: Ensure secure NFS mount parent directory exists
+          ansible.builtin.file:
+            path: /run/omnia/mnt
+            state: directory
+            owner: root
+            group: root
+            mode: "0700"
+
+        - name: Check if NFS mount point is a symlink
+          ansible.builtin.stat:
+            path: /run/omnia/mnt/install_os_nfs
+          register: _ks_nfs_mountpoint_stat
+
+        - name: Fail if NFS mount point is a symlink or not root-owned
+          ansible.builtin.fail:
+            msg: >-
+              Security violation: /run/omnia/mnt/install_os_nfs exists but is a symlink
+              or not owned by root. This may indicate a symlink attack (CWE-59).
+          when:
+            - _ks_nfs_mountpoint_stat.stat.exists
+            - _ks_nfs_mountpoint_stat.stat.islnk or _ks_nfs_mountpoint_stat.stat.uid != 0
+
         - name: Create temporary NFS mount point
           ansible.builtin.file:
-            path: /tmp/install_os_nfs
+            path: /run/omnia/mnt/install_os_nfs
             state: directory
-            mode: "0755"
+            owner: root
+            group: root
+            mode: "0700"
 
         - name: Mount NFS share
           ansible.builtin.mount:
             src: "{{ _nfs_server }}:{{ _nfs_dir | dirname }}"
-            path: /tmp/install_os_nfs
+            path: /run/omnia/mnt/install_os_nfs
             fstype: nfs
             state: mounted
 
@@ -197,7 +221,7 @@
 
     - name: Unmount auto-mounted NFS
       ansible.builtin.command:
-        cmd: umount /tmp/install_os_nfs
+        cmd: umount /run/omnia/mnt/install_os_nfs
       when: _nfs_auto_mounted | default(false) | bool
       changed_when: true
       failed_when: false

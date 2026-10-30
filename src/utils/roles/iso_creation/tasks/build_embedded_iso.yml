@@ -51,42 +51,50 @@
     custom_iso_path: "{{ custom_iso_path }}"
     cacheable: false
 
+- name: Create secure temporary file for GRUB config
+  ansible.builtin.tempfile:
+    state: file
+    suffix: _grub.cfg
+  register: _secure_grub_cfg
+
 - name: Render GRUB2 configuration with embedded kickstart reference
   ansible.builtin.template:
     src: grub_embedded.cfg.j2
-    dest: "{{ temp_grub_cfg }}"
-    mode: "0644"
+    dest: "{{ _secure_grub_cfg.path }}"
+    mode: "0600"
 
-- name: Remove existing custom ISO if rebuilding
-  ansible.builtin.file:
-    path: "{{ _local_iso_path }}"
-    state: absent
-  when: rebuild_iso | bool
+- name: Build ISO and clean up temporary grub config
+  block:
+    - name: Remove existing custom ISO if rebuilding
+      ansible.builtin.file:
+        path: "{{ _local_iso_path }}"
+        state: absent
+      when: rebuild_iso | bool
 
-- name: Build custom ISO using xorriso (embed grub.cfg and kickstart)
-  ansible.builtin.command:
-    argv:
-      - xorriso
-      - -indev
-      - "{{ source_iso_path }}"
-      - -outdev
-      - "{{ _local_iso_path }}"
-      - -map
-      - "{{ temp_grub_cfg }}"
-      - /EFI/BOOT/grub.cfg
-      - -map
-      - "{{ _local_ks_path }}"
-      - "/{{ nfs_kickstart_filename }}"
-      - -boot_image
-      - any
-      - replay
-  changed_when: true
-  register: _iso_build_result
-
-- name: Remove temporary grub.cfg
-  ansible.builtin.file:
-    path: "{{ temp_grub_cfg }}"
-    state: absent
+    - name: Build custom ISO using xorriso (embed grub.cfg and kickstart)
+      ansible.builtin.command:
+        argv:
+          - xorriso
+          - -indev
+          - "{{ source_iso_path }}"
+          - -outdev
+          - "{{ _local_iso_path }}"
+          - -map
+          - "{{ _secure_grub_cfg.path }}"
+          - /EFI/BOOT/grub.cfg
+          - -map
+          - "{{ _local_ks_path }}"
+          - "/{{ nfs_kickstart_filename }}"
+          - -boot_image
+          - any
+          - replay
+      changed_when: true
+      register: _iso_build_result
+  always:
+    - name: Remove temporary grub.cfg
+      ansible.builtin.file:
+        path: "{{ _secure_grub_cfg.path }}"
+        state: absent
 
 - name: Implant MD5 checksum into custom ISO
   ansible.builtin.command:

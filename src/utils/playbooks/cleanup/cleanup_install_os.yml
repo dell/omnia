@@ -43,20 +43,20 @@
         state: absent
 
     - name: Check if temporary NFS mount exists
-      ansible.builtin.command: mountpoint -q /tmp/install_os_nfs
+      ansible.builtin.command: mountpoint -q /run/omnia/mnt/install_os_nfs
       register: nfs_mount_check
       changed_when: false
       failed_when: false
 
     - name: Unmount temporary NFS mount
-      ansible.builtin.command: umount /tmp/install_os_nfs
+      ansible.builtin.command: umount /run/omnia/mnt/install_os_nfs
       when: nfs_mount_check.rc == 0
       changed_when: true
       failed_when: false
 
     - name: Remove temporary NFS mount point
       ansible.builtin.file:
-        path: /tmp/install_os_nfs
+        path: /run/omnia/mnt/install_os_nfs
         state: absent
 
     - name: Check if install_os credentials file exists
@@ -104,7 +104,7 @@
           - "OS Installation Cleanup Complete"
           - "=========================================="
           - "Temporary ISO directory removed: /tmp/install_os"
-          - "Temporary NFS mount removed: /tmp/install_os_nfs"
+          - "Temporary NFS mount removed: /run/omnia/mnt/install_os_nfs"
           - >-
             Credentials: {{ 'Preserved by cleanup_credentials=false'
             if not (cleanup_credentials | bool)
