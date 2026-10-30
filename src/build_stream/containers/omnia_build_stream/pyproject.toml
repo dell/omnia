@@ -28,7 +28,8 @@ dependencies = [
     "mako>=1.4.2",
     "psycopg2-binary>=2.9.0",
     "python-dotenv>=1.0.0",
-    "msgpack>=1.2.1"
+    "msgpack>=1.2.1",
+    "s3cmd==2.4.0",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +43,6 @@ dev = [
     "black>=26.10.1",
     "isort>=5.12.0",
     "pygments>=2.20.0",
-    "s3cmd==2.4.0",
 ]
 
 [tool.uv]

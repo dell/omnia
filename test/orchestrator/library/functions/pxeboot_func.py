@@ -14,6 +14,8 @@
 
 """Node connectivity, cloud-init, architecture, and OS version checks."""
 
+from typing import Any, Dict
+
 from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
     PING_RETRIES,
@@ -42,7 +44,7 @@ from .boot_image_identity_provision_func import (
 from ._prepare_helpers import read_yaml_mapping
 
 
-def check_node_ping(host):
+def check_node_ping(host) -> Dict[str, Any]:
     """Verify ICMP reachability for every mapped administrative address."""
     try:
         context = load_runtime_context(host)
@@ -64,7 +66,7 @@ def check_node_ping(host):
         return runtime_exception("PXE node ICMP reachability", exc)
 
 
-def check_node_ssh(host):
+def check_node_ssh(host) -> Dict[str, Any]:
     """Verify passwordless root SSH from the execution OIM to every node."""
     try:
         context = load_runtime_context(host)
@@ -86,7 +88,7 @@ def check_node_ssh(host):
         return runtime_exception("OIM-to-node passwordless SSH", exc)
 
 
-def check_node_hostname_ssh(host):
+def check_node_hostname_ssh(host) -> Dict[str, Any]:
     """Verify OIM name resolution and passwordless SSH by mapped hostname."""
     summary = "OIM-to-node hostname resolution and SSH"
     try:
@@ -143,7 +145,7 @@ def _cloud_init_state(host, row, report_node) -> tuple[bool, str]:
     return direct_cloud_init_probe(host, row)
 
 
-def check_node_cloud_init(host):
+def check_node_cloud_init(host) -> Dict[str, Any]:
     """Verify direct cloud-init state and correlate available PXE evidence.
 
     When ``orchestrator_status.yml`` is not available, every node is probed
@@ -218,7 +220,7 @@ def check_node_cloud_init(host):
         return runtime_exception("Fresh PXE boot and cloud-init", exc)
 
 
-def check_node_architecture(host):
+def check_node_architecture(host) -> Dict[str, Any]:
     """Verify each node's live architecture matches its functional group."""
     summary = "Node architecture identity"
     try:
@@ -309,7 +311,7 @@ def _resolve_expected_os(
     return None, None, None
 
 
-def check_node_os_version(host):
+def check_node_os_version(host) -> Dict[str, Any]:
     """Verify each node's live OS identity matches the expected image.
 
     The expected OS is resolved from ``build_status.yml`` — the PXE
