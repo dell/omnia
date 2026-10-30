@@ -237,6 +237,9 @@ _TC_ID_MAP.update(
         "test_operator_pod_recovery": TEST_CASES["nft_operator_recovery"][
             "id"
         ],
+        "test_idrac_bmc_delete_and_readd": TEST_CASES[
+            "nft_idrac_bmc_inventory"
+        ]["id"],
     }
 )
 

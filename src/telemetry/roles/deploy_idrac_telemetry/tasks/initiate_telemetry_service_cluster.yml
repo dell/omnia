@@ -39,8 +39,6 @@
     deleted_idrac_ips: []
     failed_delete_count: 0
     failed_delete_ips: []
-    disabled_telemetry_count: 0
-    disabled_telemetry_ips: []
 
 - name: Fetch iDRAC BMC IPs for each pod
   fetch_idrac_ips:
@@ -71,6 +69,7 @@
         db_retries: "{{ db_retries }}"
         db_delay: "{{ db_delay }}"
       register: existing_mysqldb_idracips
+      no_log: true
   rescue:
     - name: Failed to connect to MySQL database
       ansible.builtin.fail:
@@ -195,6 +194,7 @@
         verify_bmc: true
       register: bmc_result
       ignore_errors: true
+      no_log: true
 
     - name: Show verified BMC entries
       when: bmc_result.verified_bmc | length > 0
@@ -227,6 +227,7 @@
         - bmc_result.verified_bmc is defined
         - bmc_result.verified_bmc | length > 0
       ignore_errors: true
+      no_log: true
 
     - name: Update the telemetry variables with filtered iDRACs
       ansible.builtin.set_fact:
@@ -247,6 +248,7 @@
         - telemetry_idrac is defined
         - telemetry_idrac | length > 0
       ignore_errors: true
+      no_log: true
 
 # If there are unreachable BMCs and a second worker node is available,
 # retry those BMCs from the second worker node.
@@ -286,6 +288,7 @@
         db_retries: "{{ db_retries }}"
         db_delay: "{{ db_delay }}"
       register: add_idrac_to_db
+      no_log: true
   rescue:
     - name: Failed to insert iDRAC IPs into MySQL database
       ansible.builtin.fail:

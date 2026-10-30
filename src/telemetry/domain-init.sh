@@ -44,7 +44,7 @@
 #
 # Manual alternative (if not using this script):
 #   sudo mkdir -p /var/log/omnia/telemetry
-#   chmod 755 /var/log/omnia/telemetry
+#   chmod 750 /var/log/omnia/telemetry
 #   mkdir -p /opt/omnia/telemetry/input/project_default
 #   cp -a input/*.yml /opt/omnia/telemetry/input/project_default/
 # =============================================================================
@@ -257,6 +257,10 @@ create_runtime_directories() {
             echo -e "  ${GREEN}[${DOMAIN_NAME}] Created directory: ${dir}${NC}"
         fi
     done
+
+    # Ansible playbook logs may contain sensitive task output (CWE-532)
+    chmod 0750 "$ansible_log_dir"
+    find "$ansible_log_dir" -maxdepth 1 -type f -name '*.log*' -exec chmod 0640 {} +
 }
 
 # -----------------------------------------------------------------------------

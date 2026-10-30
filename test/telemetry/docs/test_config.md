@@ -59,6 +59,12 @@ excludes credentials, Vault keys, backups, and lock files. Dataset input sync
 copies the selected `input/` directory as provided, so never place secret or
 Vault artifacts in a dataset.
 
+### iDRAC verification
+
+| Field | Required | Description | Template value |
+|-------|----------|-------------|----------------|
+| `idrac_nft_bmc_ip` | No | BMC IP that `TEL_NFT_026` deletes from and re-adds to `bmc_group_data.csv` to test the delete-node and add-node flows. It must already be in the CSV, registered in MySQL, and be a MGMT BMC (no PARENT) or share its PARENT with another BMC. Empty skips `TEL_NFT_026` with a warning. | `""` |
+
 ### OME integration
 
 | Field | Required | Description | Template value |
