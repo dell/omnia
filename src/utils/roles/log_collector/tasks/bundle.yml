@@ -26,7 +26,7 @@
 
 - name: Set ISO-8601 warning timestamp for this run
   ansible.builtin.set_fact:
-    warning_ts: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+    warning_ts: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
 
 - name: Validate output root path is writable
   ansible.builtin.file:
@@ -258,7 +258,7 @@
 
 - name: Set bundle timestamp
   ansible.builtin.set_fact:
-    bundle_ts: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y%m%d-%H%M%S', utc=true) }}"
+    bundle_ts: "{{ '%Y%m%d-%H%M%S' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
 
 - name: Set bundle name and metadata context variables
   ansible.builtin.set_fact:
@@ -285,7 +285,7 @@
     bundle_name: "{{ bundle_name }}"
     tar_sha256: ""
     bundle_generated_at_utc: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
-    bundle_generated_at_local: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+    bundle_generated_at_local: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
     trigger_user: "{{ meta_user }}"
     oim_host_os: "{{ meta_os }}"
     identifier: "{{ log_identifier }}"
@@ -341,7 +341,7 @@
     bundle_name: "{{ bundle_name }}"
     tar_sha256: "{{ bundle_sha256.stat.checksum }}"
     bundle_generated_at_utc: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
-    bundle_generated_at_local: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+    bundle_generated_at_local: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
     trigger_user: "{{ meta_user }}"
     oim_host_os: "{{ meta_os }}"
     identifier: "{{ log_identifier }}"

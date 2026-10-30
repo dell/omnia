@@ -42,7 +42,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ slurm_ctl_dir_stat.results }}"
       when: not (item.stat.isdir | default(false))
 
@@ -89,7 +89,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ slurm_ctl_files.results }}"
       when: not (item.stat.isreg | default(false))
 
@@ -130,7 +130,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ slurm_node_dir_stat.results }}"
       when: not (item.stat.isdir | default(false))
 
@@ -177,7 +177,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ slurm_node_files.results }}"
       when: not (item.stat.isreg | default(false))
 
@@ -218,7 +218,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ login_node_dir_stat.results }}"
       when: not (item.stat.isdir | default(false))
 
@@ -265,7 +265,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ login_node_files.results }}"
       when: not (item.stat.isreg | default(false))
 
@@ -306,7 +306,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ login_compiler_dir_stat.results }}"
       when: not (item.stat.isdir | default(false))
 
@@ -353,7 +353,7 @@
               + (ansible_host | default('unknown'))
               + '); continuing collection.'
             }}
-          timestamp: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
       loop: "{{ login_compiler_files.results }}"
       when: not (item.stat.isreg | default(false))
 

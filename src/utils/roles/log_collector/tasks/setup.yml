@@ -38,7 +38,7 @@
 - name: Set timestamp (IST)
   run_once: true
   ansible.builtin.set_fact:
-    log_ts: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y%m%dT%H%M%S', utc=true) }}"
+    log_ts: "{{ '%Y%m%dT%H%M%S' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
     missing_source_warnings: []
     k8s_master_log_dirs: "{{ k8s_master_log_dirs }}"
     k8s_master_log_files: "{{ k8s_master_log_files }}"

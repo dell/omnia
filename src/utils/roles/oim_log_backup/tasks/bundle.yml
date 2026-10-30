@@ -101,7 +101,7 @@
   vars:
     backup_name: "{{ backup_bundle_name }}"
     backup_generated_at_utc: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
-    backup_generated_at_local: "{{ ((now().timestamp() | int) + 19800) | strftime('%Y-%m-%dT%H:%M:%S+05:30', utc=true) }}"
+    backup_generated_at_local: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
     trigger_user: "{{ backup_meta_user }}"
     oim_host_os: "{{ backup_meta_os }}"
     domains_included: "{{ backup_domains_present }}"
