@@ -56,7 +56,7 @@
 - name: Create dedicated podman firewalld zone
   ansible.builtin.command: firewall-cmd --permanent --new-zone=podman
   register: podman_zone_create
-  changed_when: "'ALREADY_ENABLED' not in podman_zone_create.stderr"
+  changed_when: podman_zone_create.rc == 0
   failed_when:
     - podman_zone_create.rc != 0
     - "'NAME_CONFLICT' not in podman_zone_create.stderr"
