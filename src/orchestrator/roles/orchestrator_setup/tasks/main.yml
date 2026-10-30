@@ -50,6 +50,13 @@
     domain_name: "{{ lookup('env', 'SYSTEM_DOMAIN_NAME') | default('omnia.cluster', true) }}"
     cacheable: true
 
+- name: Validate SYSTEM_DOMAIN_NAME format
+  ansible.builtin.assert:
+    that:
+      - domain_name is match(domain_name_regex)
+    fail_msg: "{{ domain_name_invalid_fail_msg }}"
+    quiet: true
+
 - name: Resolve component data paths
   ansible.builtin.set_fact:
     orchestrator_data_path: >-
