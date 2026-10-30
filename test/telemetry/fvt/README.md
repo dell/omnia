@@ -89,7 +89,7 @@ and verify tests for non-selected sinks are automatically skipped.
 | TEL_FVT_DEPLOY_V010 | Verify iDRAC pod count matches bmc_group_data.csv | sanity |
 | TEL_FVT_DEPLOY_V011 | Verify iDRAC StatefulSet pods ready | sanity |
 | TEL_FVT_DEPLOY_V012 | Verify all iDRAC containers running | sanity |
-| TEL_FVT_DEPLOY_V013 | Verify MySQL data in iDRAC telemetry pods | functional |
+| TEL_FVT_DEPLOY_V013 | Verify MySQL in each iDRAC pod matches bmc_group_data.csv | functional |
 | TEL_FVT_DEPLOY_V014 | Verify iDRAC receiver is collecting metrics | functional |
 | TEL_FVT_DEPLOY_V015 | Verify topic readiness and fresh iDRAC metrics in Kafka | sanity |
 | TEL_FVT_DEPLOY_V016 | Verify iDRAC VictoriaPump metrics endpoint | sanity |

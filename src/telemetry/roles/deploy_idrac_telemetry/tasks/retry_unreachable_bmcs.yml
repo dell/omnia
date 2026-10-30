@@ -29,6 +29,7 @@
     verify_bmc: true
   register: retry_bmc_result
   delegate_to: "{{ retry_worker_node }}"
+  no_log: true
 
 - name: Log retry results
   ansible.builtin.debug:
@@ -48,6 +49,7 @@
         min_firmware_version_reqd: "{{ min_firmware_version_reqd }}"
       register: retry_filter_output
       delegate_to: "{{ retry_worker_node }}"
+      no_log: true
 
     - name: Enable telemetry on newly verified iDRACs
       enable_telemetry_service:
@@ -56,6 +58,7 @@
         password: "{{ telemetry_credentials.bmc_password }}"
       delegate_to: "{{ retry_worker_node }}"
       when: retry_filter_output.telemetry_idrac | default([]) | length > 0
+      no_log: true
 
     - name: Merge newly verified BMCs into telemetry_idrac
       ansible.builtin.set_fact:

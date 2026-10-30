@@ -360,7 +360,7 @@ def main() -> None:
     """Main function for Ansible module."""
     module_args = {
         "idrac_ips": {"type": "list", "required": True, "elements": "str"},
-        "username": {"type": "str", "required": True},
+        "username": {"type": "str", "required": True, "no_log": True},
         "password": {"type": "str", "required": True, "no_log": True},
         "parallel_jobs": {"type": "int", "default": 64},
         "timeout": {"type": "int", "default": 30},

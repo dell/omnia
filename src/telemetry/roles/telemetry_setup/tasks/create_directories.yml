@@ -36,7 +36,54 @@
     - "{{ input_project_dir }}"
     - "{{ output_project_dir }}"
     - "{{ log_dir }}"
-    - "{{ telemetry_log_dir }}"
+  become: true
+
+- name: Ensure Ansible log directory exists with restricted permissions
+  ansible.builtin.file:
+    path: "{{ telemetry_log_dir }}"
+    state: directory
+    mode: "{{ telemetry_log_dir_mode }}"
+  become: true
+
+- name: Find existing Ansible log files
+  ansible.builtin.find:
+    paths: "{{ telemetry_log_dir }}"
+    patterns: "*.log*"
+    file_type: file
+  register: _telemetry_log_files
+  become: true
+
+- name: Restrict permissions on existing Ansible log files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "{{ telemetry_log_file_mode }}"
+  loop: "{{ _telemetry_log_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  become: true
+
+- name: Check whether logrotate configuration directory exists
+  ansible.builtin.stat:
+    path: "{{ telemetry_logrotate_dir }}"
+  register: _telemetry_logrotate_dir
+
+- name: Configure log rotation for Ansible log files
+  ansible.builtin.copy:
+    dest: "{{ telemetry_logrotate_dir }}/omnia-telemetry"
+    content: |
+      {{ telemetry_log_dir }}/*.log {
+          weekly
+          rotate {{ telemetry_logrotate_count }}
+          compress
+          delaycompress
+          missingok
+          notifempty
+          create {{ telemetry_log_file_mode }}
+      }
+    owner: root
+    group: root
+    mode: '0644'
+  when: _telemetry_logrotate_dir.stat.isdir | default(false)
   become: true
 
 - name: Validate runtime directories were created
