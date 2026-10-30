@@ -365,7 +365,7 @@ def validate_repository_version_href(href):
     match = pattern.match(str(href))
     if not match:
         raise ValueError(f"Invalid Pulp repository version href: {href}")
-    return shlex.quote("".join(match.groups())).strip("'")
+    return "".join(match.groups())
 
 
 def _command_output(result):
@@ -3146,11 +3146,11 @@ def _repository_version_number(version):
     """Return the numeric identifier from one Pulp repository version."""
     number = version.get("number")
     if number is not None:
-        return int(shlex.quote(str(number)))
+        return int(number)
     href = str(version.get("pulp_href") or "").rstrip("/")
     if not href:
         raise ValueError("Repository version response has no number or HREF")
-    return int(shlex.quote(href.rsplit("/", maxsplit=1)[-1]))
+    return int(href.rsplit("/", maxsplit=1)[-1])
 
 
 def _repository_version_number_from_href(version_href):
