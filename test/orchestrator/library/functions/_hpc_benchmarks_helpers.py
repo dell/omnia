@@ -60,7 +60,7 @@ _SUPPORTED_ARCHITECTURES: frozenset[str] = frozenset({"x86_64", "aarch64"})
 # from the source-only executable scan prevents legitimate CUDA / NVHPC /
 # container-image binaries from producing false positives.
 _STAGING_EXCLUDED_SUBDIRS: frozenset[str] = frozenset(
-    {"cuda", "nvidia_sdk", "container_images", "scripts"}
+    {"cuda", "nvidia_sdk", "container_images", "scripts", "compile", "benchmarks"}
 )
 
 
@@ -563,7 +563,7 @@ def run_pull_script_background(host, row, timeout_seconds: int, log_path: str):
         host,
         row,
         PXEBOOT_COMMANDS["hpc_benchmarks_run_pull_script_bg"]
-        % (timeout_seconds, HPC_BENCHMARKS_PULL_SCRIPT, HPC_TOOLS_BASE, log_path),
+        % (timeout_seconds, HPC_BENCHMARKS_PULL_SCRIPT, HPC_TOOLS_BASE, log_path, log_path),
     )
     pid = result.stdout.strip()
     if result.rc != 0 or not pid.isdigit():
@@ -571,12 +571,12 @@ def run_pull_script_background(host, row, timeout_seconds: int, log_path: str):
     return pid
 
 
-def wait_for_pid(host, row, pid: str, timeout_seconds: int = 700):
+def wait_for_pid(host, row, pid: str, log_path: str, timeout_seconds: int = 700):
     """Wait for a background PID and return its exit code."""
     result = remote_command(
         host,
         row,
-        f"timeout {timeout_seconds} bash -c '{PXEBOOT_COMMANDS['hpc_benchmarks_wait_pid'] % (pid, pid)}'",
+        f"timeout {timeout_seconds} bash -c '{PXEBOOT_COMMANDS['hpc_benchmarks_wait_pid'] % (pid, log_path)}'",
     )
     text = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
     try:
