@@ -43,7 +43,7 @@ Usage in playbook (heterogeneous):
     max_parallel: 20
     connect_timeout: 60
     defaults:
-      real_memory: 864
+      real_memory: 884736
       corespersocket: 72
       threadspercore: 1
   register: bulk_discovery
@@ -57,7 +57,7 @@ Usage in playbook (homogeneous group):
     max_parallel: 20
     connect_timeout: 60
     defaults:
-      real_memory: 864
+      real_memory: 884736
       corespersocket: 72
       threadspercore: 1
       sockets: 2
@@ -122,6 +122,7 @@ options:
     description:
       - Hardware values used when a Redfish property is unavailable.
       - Supported keys are C(real_memory), C(corespersocket), C(threadspercore), and C(sockets).
+      - C(real_memory) must be specified in megabytes (MB) for Slurm compatibility.
     type: dict
     default: {}
 author:
@@ -138,7 +139,7 @@ EXAMPLES = r'''
     max_parallel: 20
     connect_timeout: 60
     defaults:
-      real_memory: 864
+      real_memory: 884736
       corespersocket: 72
       threadspercore: 1
   register: node_discovery
@@ -150,7 +151,7 @@ EXAMPLES = r'''
     bmc_username: "{{ bmc_username }}"
     bmc_password: "{{ bmc_password }}"
     defaults:
-      real_memory: 864
+      real_memory: 884736
       corespersocket: 72
       threadspercore: 1
       sockets: 2
@@ -381,8 +382,8 @@ def _discover_single_node(hostname, bmc_ip, username, password,
 
     Returns (hostname, node_params_dict, gpu_list, error_string_or_None).
     """
-    # Get user-provided defaults with hardcoded fallbacks
-    user_default_memory = defaults.get("real_memory", 864)
+    # Get user-provided defaults with hardcoded fallbacks (values in MB)
+    user_default_memory = defaults.get("real_memory", 884736)
     user_default_cores = defaults.get("corespersocket", 72)
     user_default_threads = defaults.get("threadspercore", 1)
     user_default_sockets = defaults.get("sockets", 2)
@@ -392,7 +393,7 @@ def _discover_single_node(hostname, bmc_ip, username, password,
     default_memory = _validate_int_value(
         user_default_memory, "User default RealMemory",
         bounds["real_memory_mb"]["min"], bounds["real_memory_mb"]["max"],
-        864, hostname, validation_failures
+        884736, hostname, validation_failures
     )
     default_cores = _validate_int_value(
         user_default_cores, "User default CoresPerSocket",
@@ -442,8 +443,8 @@ def _discover_single_node(hostname, bmc_ip, username, password,
         total_gib = (sys_data
                      .get("MemorySummary", {})
                      .get("TotalSystemMemoryGiB", default_memory))
-        # Convert GiB to MB for Slurm compatibility (1 GiB = 1024 * 1.024 MB)
-        total_mb = int(total_gib * 1024 * 1.024)
+        # Convert GiB to MB for Slurm compatibility (1 GiB = 1024 MB)
+        total_mb = int(total_gib * 1024)
         real_memory = int(total_mb * 0.90)
     else:
         real_memory = default_memory
@@ -536,7 +537,7 @@ def _discover_group(group_name, group_nodes, bmc_ip_map, username,
     Returns (group_name, node_params_list, gpu_dict, sample_node_or_None,
              failed_bool).
     """
-    default_memory = defaults.get("real_memory", 864)
+    default_memory = defaults.get("real_memory", 884736)
     default_cores = defaults.get("corespersocket", 72)
     default_threads = defaults.get("threadspercore", 1)
     default_sockets = defaults.get("sockets", 2)

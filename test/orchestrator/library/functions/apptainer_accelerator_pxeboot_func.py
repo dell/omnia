@@ -15,6 +15,7 @@
 """Opt-in GPU and InfiniBand visibility checks inside Apptainer."""
 
 import time
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import APPTAINER_GPU_MEMORY_SETTLE_SECONDS, PXEBOOT_COMMANDS
 from ._apptainer_helpers import (
@@ -69,7 +70,7 @@ def _gpu_counts(host, row, image_path):
     return host_result, container_result, host_count, container_count
 
 
-def check_apptainer_gpu_access(host):
+def check_apptainer_gpu_access(host) -> Dict[str, Any]:
     """Verify every scheduler-declared GPU node exposes a GPU in Apptainer."""
     summary = "Apptainer GPU visibility"
     try:
@@ -107,7 +108,7 @@ def check_apptainer_gpu_access(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_gpu_count(host):
+def check_apptainer_gpu_count(host) -> Dict[str, Any]:
     """Verify container GPU count exactly matches each GPU host."""
     summary = "Apptainer GPU count"
     try:
@@ -150,7 +151,7 @@ def check_apptainer_gpu_count(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_cuda_workload(host):
+def check_apptainer_cuda_workload(host) -> Dict[str, Any]:
     """Execute a bounded NVIDIA runtime command inside each GPU container."""
     summary = "Apptainer NVIDIA workload"
     try:
@@ -200,7 +201,7 @@ def _memory_total(output):
     return sum(values) if values else -1
 
 
-def check_apptainer_gpu_memory(host):
+def check_apptainer_gpu_memory(host) -> Dict[str, Any]:
     """Verify a container GPU probe does not leave material memory allocated."""
     summary = "Apptainer GPU memory release"
     try:
@@ -249,7 +250,7 @@ def check_apptainer_gpu_memory(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_infiniband(host):
+def check_apptainer_infiniband(host) -> Dict[str, Any]:
     """Verify mapped InfiniBand devices are visible inside Apptainer."""
     summary = "Apptainer InfiniBand device visibility"
     try:

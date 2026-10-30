@@ -333,6 +333,13 @@ class ParseCatalogUseCase:
             )
 
         composite_id = f"{raw_identifier}-v{catalog_version}"
+        try:
+            ImageGroupId.parse(raw_identifier)
+            ImageGroupId.parse(composite_id)
+        except ValueError as exc:
+            raise InvalidCatalogFormatError(
+                f"Catalog 'Identifier' or 'Version' is not valid: {exc}"
+            ) from exc
 
         layers = cat.get("FunctionalLayer", cat.get("functionallayer", []))
 

@@ -57,7 +57,7 @@ def _expand_env(value: str) -> str:
     """Expand ``${VAR}`` and ``$VAR`` references in *value* using ``os.environ``.
 
     This lets ``build_stream.ini`` use placeholders such as
-    ``${OMNIA_DATA_PATH}/build_stream_root`` so paths are not hardcoded.
+    ``${OMNIA_DATA_PATH}/build_stream/build_stream_root`` so paths are not hardcoded.
 
     If ``OMNIA_DATA_PATH`` is not already in the environment it is
     temporarily injected with the standard default so that expansion
@@ -76,7 +76,7 @@ _DEFAULT_INI_PATH = os.path.join(
 
 # Default base path derived from environment (used as fallback)
 _DEFAULT_BUILD_STREAM_ROOT = os.path.join(
-    os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream_root"
+    os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "build_stream", "build_stream_root"
 )
 
 
