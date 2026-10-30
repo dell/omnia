@@ -23,11 +23,11 @@
 
     # Merge cluster domain into existing search line (preserve existing domains)
     existing_search=$(grep '^search' /etc/resolv.conf 2>/dev/null | head -n1 | sed 's/^search //')
-    if echo " ${existing_search} " | grep -qwF -- "$OMNIA_DNS_DOMAIN"; then
-      echo "search ${existing_search}" > "$tmpfile"
-    else
-      echo "search ${OMNIA_DNS_DOMAIN} ${existing_search}" > "$tmpfile"
-    fi
+    search_words=$(printf ' %s ' "${existing_search}" | tr '\t' ' ')
+    case "${search_words}" in
+      *" ${OMNIA_DNS_DOMAIN} "*) echo "search ${existing_search}" > "$tmpfile" ;;
+      *) echo "search ${OMNIA_DNS_DOMAIN} ${existing_search}" > "$tmpfile" ;;
+    esac
 
     # Prepend CoreDNS as primary nameserver
     echo "nameserver ${OMNIA_DNS_NAMESERVER}" >> "$tmpfile"
@@ -58,11 +58,11 @@
 
     # Merge cluster domain into existing search line (preserve existing domains)
     existing_search=$(grep '^search' /etc/resolv.conf 2>/dev/null | head -n1 | sed 's/^search //')
-    if echo " ${existing_search} " | grep -qwF -- "$OMNIA_DNS_DOMAIN"; then
-      echo "search ${existing_search}" > "$tmpfile"
-    else
-      echo "search ${OMNIA_DNS_DOMAIN} ${existing_search}" > "$tmpfile"
-    fi
+    search_words=$(printf ' %s ' "${existing_search}" | tr '\t' ' ')
+    case "${search_words}" in
+      *" ${OMNIA_DNS_DOMAIN} "*) echo "search ${existing_search}" > "$tmpfile" ;;
+      *) echo "search ${OMNIA_DNS_DOMAIN} ${existing_search}" > "$tmpfile" ;;
+    esac
 
     # Prepend coresmd as primary nameserver
     echo "nameserver ${OMNIA_DNS_NAMESERVER}" >> "$tmpfile"
