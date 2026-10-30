@@ -60,7 +60,7 @@ from ..vars.common_vars import (
 from ..vars.ome_vars import KAFKA_BRIDGE_SERVICE
 from ..vars.ldms_vars import (
     LDMS_KAFKA_TOPIC,
-    LDMS_FUNCTIONAL_GROUPS,
+    LDMS_FUNCTIONAL_GROUP_PATTERN,
     LDMS_SAMPLER_SERVICE,
     LDMS_SAMPLER_CONF_PATH,
     LDMS_BINARY_PATH,
@@ -193,6 +193,13 @@ def get_cluster_inventory_path(host) -> str:
     return f"{omnia_data_path}/orchestrator/output/{project}/orchestrator_inventory.yml"
 
 
+def _get_ldms_inventory_groups(host, inventory_path: str) -> List[str]:
+    """Return inventory group names matching LDMS_FUNCTIONAL_GROUP_PATTERN."""
+    inv_data = read_remote_yaml(host, inventory_path)
+    all_children = read_yaml_key(inv_data, "all.children", default={}) if inv_data else {}
+    return [g for g in all_children if LDMS_FUNCTIONAL_GROUP_PATTERN.match(g)]
+
+
 def get_ldms_hostnames_from_inventory(host) -> Dict[str, Any]:
     """Get LDMS node hostnames from orchestrator inventory.
 
@@ -220,10 +227,9 @@ def get_ldms_hostnames_from_inventory(host) -> Dict[str, Any]:
             "error": "cluster_inventory path not found in telemetry_config.yml",
         }
 
-    # Use omnia_auto.get_inventory_hosts() with exact matching
-    # since LDMS_FUNCTIONAL_GROUPS already has full architecture suffixes
     return get_inventory_hosts(
-        host, inventory_path, LDMS_FUNCTIONAL_GROUPS, prefix_match=False
+        host, inventory_path, _get_ldms_inventory_groups(host, inventory_path),
+        prefix_match=False,
     )
 
 
@@ -244,7 +250,9 @@ def get_ldms_nodes_with_ips(host) -> Dict[str, Any]:
         }
 
     # Get hostnames by group
-    inv_result = get_inventory_hosts(host, inventory_path, LDMS_FUNCTIONAL_GROUPS)
+    inv_result = get_inventory_hosts(
+        host, inventory_path, _get_ldms_inventory_groups(host, inventory_path),
+    )
     if not inv_result.get("success"):
         return {
             "success": False,

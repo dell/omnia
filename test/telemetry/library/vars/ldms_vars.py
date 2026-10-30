@@ -18,6 +18,8 @@ LDMS Telemetry — Variables and Constants.
 Component names, service names, and configuration paths for LDMS telemetry.
 """
 
+import re
+
 # =============================================================================
 # LDMS K8S COMPONENT NAMES
 # =============================================================================
@@ -39,21 +41,11 @@ LDMS_KAFKA_TOPIC = "ldms"
 # =============================================================================
 
 # Functional groups in orchestrator inventory that run LDMS samplers
-# These are the exact group names with architecture suffixes
-LDMS_FUNCTIONAL_GROUPS = [
-    "slurm_control_node_rhel_10_0_x86_64",
-    "slurm_control_node_rhel_10_2_x86_64",
-    "slurm_node_rhel_10_0_x86_64",
-    "slurm_node_rhel_10_2_x86_64",
-    "slurm_node_rhel_10_0_aarch64",
-    "login_node_rhel_10_0_x86_64",
-    "login_node_rhel_10_2_x86_64",
-    "login_node_rhel_10_0_aarch64",
-    "login_node_rhel_10_2_aarch64",
-    "login_compiler_node_rhel_10_0_x86_64",
-    "login_compiler_node_rhel_10_2_x86_64",
-    "login_compiler_node_rhel_10_0_aarch64"
-]
+# Matches "<role>_rhel_10_<0|2>_<arch>" group names
+LDMS_FUNCTIONAL_GROUP_PATTERN = re.compile(
+    r"^(?:slurm_control_node|slurm_node|login_node|login_compiler_node)"
+    r"_rhel_10_(?:0|2)_(?:x86_64|aarch64)$"
+)
 
 # =============================================================================
 # LDMS SAMPLER SERVICE AND PATHS (on Slurm nodes)
