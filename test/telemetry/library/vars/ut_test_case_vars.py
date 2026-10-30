@@ -151,6 +151,16 @@ UT_TEST_CASE_IDS = {
             75: "test_nft_bmc_ip_config",
         },
     ),
+    **_module_cases(
+        "test_input_validation_fail_closed.py",
+        {
+            76: "test_unknown_tag_alone_is_rejected",
+            77: "test_known_tag_with_unknown_tag_is_rejected",
+            78: "test_empty_tag_list_is_rejected",
+            79: "test_valid_tag_reaches_file_validation",
+            80: "test_supported_tags_cover_public_and_play_tags",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):
