@@ -25,7 +25,7 @@
 
 - name: Apply cert-manager CRDs
   ansible.builtin.command: >
-    kubectl apply --validate=false -f {{ karavi_helm_chart_path }}/crds/cert-manager.crds.yaml
+    kubectl apply --validate=false -f {{ karavi_helm_chart_path | quote }}/crds/cert-manager.crds.yaml
   when: _cert_manager_crds.stat.exists | default(false)
   changed_when: false
   failed_when: false
@@ -148,10 +148,10 @@
 
 - name: Upgrade existing karavi-observability release
   ansible.builtin.command: >
-    helm upgrade karavi-observability {{ karavi_helm_chart_path }}
-    -n {{ csm_observability_namespace }}
-    -f {{ _helm_values_nfs }}
-    -f {{ _cert_manager_resources_override }}
+    helm upgrade karavi-observability {{ karavi_helm_chart_path | quote }}
+    -n {{ csm_observability_namespace | quote }}
+    -f {{ _helm_values_nfs | quote }}
+    -f {{ _cert_manager_resources_override | quote }}
     --timeout 10m
   when: _karavi_helm_check.rc == 0
   register: _helm_upgrade
@@ -159,10 +159,10 @@
 
 - name: Install karavi-observability Helm chart
   ansible.builtin.command: >
-    helm install karavi-observability {{ karavi_helm_chart_path }}
-    -n {{ csm_observability_namespace }}
-    -f {{ _helm_values_nfs }}
-    -f {{ _cert_manager_resources_override }}
+    helm install karavi-observability {{ karavi_helm_chart_path | quote }}
+    -n {{ csm_observability_namespace | quote }}
+    -f {{ _helm_values_nfs | quote }}
+    -f {{ _cert_manager_resources_override | quote }}
     --timeout 10m
   when: _karavi_helm_check.rc != 0
   register: _helm_install
@@ -175,7 +175,7 @@
 
 - name: Patch otel-collector deployment with resource limits
   ansible.builtin.command: >
-    kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
+    kubectl patch deployment otel-collector -n {{ csm_observability_namespace | quote }}
     --type=json
     -p='[
       {
@@ -212,7 +212,7 @@
 
 - name: Patch karavi-metrics-powerscale deployment with resource limits
   ansible.builtin.command: >
-    kubectl patch deployment karavi-metrics-powerscale -n {{ csm_observability_namespace }}
+    kubectl patch deployment karavi-metrics-powerscale -n {{ csm_observability_namespace | quote }}
     --type=json
     -p='[
       {
@@ -237,14 +237,14 @@
 
 - name: Patch OTEL Collector service for Prometheus metrics port
   ansible.builtin.command: >
-    kubectl patch svc otel-collector -n {{ csm_observability_namespace }}
+    kubectl patch svc otel-collector -n {{ csm_observability_namespace | quote }}
     --patch '{"spec":{"ports":[{"name":"prometheus","port":8889,"targetPort":8889,"protocol":"TCP"}]}}'
   changed_when: false
   failed_when: false
 
 - name: Add labels to OTEL Collector service for vmagent discovery
   ansible.builtin.command: >
-    kubectl label svc otel-collector -n {{ csm_observability_namespace }}
+    kubectl label svc otel-collector -n {{ csm_observability_namespace | quote }}
     app.kubernetes.io/name=otel-collector app.kubernetes.io/component=collector --overwrite
   changed_when: false
   failed_when: false
@@ -253,7 +253,7 @@
 
 - name: Check if OTEL Collector PVC exists
   ansible.builtin.command: >
-    kubectl get pvc otel-collector-data -n {{ csm_observability_namespace }} -o name
+    kubectl get pvc otel-collector-data -n {{ csm_observability_namespace | quote }} -o name
   register: _otel_pvc_check
   changed_when: false
   failed_when: false
@@ -265,7 +265,7 @@
     kind: PersistentVolumeClaim
     metadata:
       name: otel-collector-data
-      namespace: {{ csm_observability_namespace }}
+      namespace: {{ csm_observability_namespace | quote }}
       labels:
         app.kubernetes.io/name: otel-collector
         app.kubernetes.io/instance: karavi-observability
@@ -281,7 +281,7 @@
 
 - name: Patch OTEL Collector deployment with persistent volume
   ansible.builtin.command: >
-    kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
+    kubectl patch deployment otel-collector -n {{ csm_observability_namespace | quote }}
     --type=json
     -p='[
       {
@@ -312,7 +312,7 @@
     deployment/karavi-observability-cert-manager
     deployment/karavi-observability-cert-manager-cainjector
     deployment/karavi-observability-cert-manager-webhook
-    -n {{ csm_observability_namespace }} --timeout=300s
+    -n {{ csm_observability_namespace | quote }} --timeout=300s
   changed_when: false
   failed_when: false
 
@@ -337,7 +337,7 @@
 
 - name: Wait for OTEL Collector rollout
   ansible.builtin.command: >
-    kubectl rollout status deployment/otel-collector -n {{ csm_observability_namespace }} --timeout=120s
+    kubectl rollout status deployment/otel-collector -n {{ csm_observability_namespace | quote }} --timeout=120s
   changed_when: false
   failed_when: false
 

@@ -19,7 +19,7 @@
 
 - name: Ensure telemetry namespace exists
   ansible.builtin.command: >
-    kubectl create namespace {{ telemetry_namespace }} --dry-run=client -o yaml
+    kubectl create namespace {{ telemetry_namespace | quote }} --dry-run=client -o yaml
   register: ns_yaml
   changed_when: false
 
@@ -32,7 +32,7 @@
 
 - name: Check if Strimzi operator is installed
   ansible.builtin.command: >
-    helm status strimzi-cluster-operator -n {{ telemetry_namespace }}
+    helm status strimzi-cluster-operator -n {{ telemetry_namespace | quote }}
   register: strimzi_status
   changed_when: false
   failed_when: false
@@ -51,9 +51,9 @@
       {% set _bridge_img = telemetry_registry.images.strimzi.kafka_bridge | default('quay.io/strimzi/kafka-bridge:1.2.0') %}
       {% set _br_tag = _bridge_img.split(':')[-1] %}
       {% if telemetry_registry.host | default('') %}
-      --set defaultImageRegistry={{ telemetry_registry.host }}
-      --set image.tag={{ _op_tag }}
-      --set kafkaBridge.image.tag={{ _br_tag }}
+      --set defaultImageRegistry={{ telemetry_registry.host | quote }}
+      --set image.tag={{ _op_tag | quote }}
+      --set kafkaBridge.image.tag={{ _br_tag | quote }}
       {% endif %}
 
 - name: Install or upgrade Strimzi Kafka operator
@@ -91,8 +91,8 @@
 
 - name: Wait for Strimzi operator deployment
   ansible.builtin.command: >
-    kubectl wait --for=condition=available --timeout={{ kafka_operator_wait_timeout }}
-    deployment/strimzi-cluster-operator -n {{ telemetry_namespace }}
+    kubectl wait --for=condition=available --timeout={{ kafka_operator_wait_timeout | quote }}
+    deployment/strimzi-cluster-operator -n {{ telemetry_namespace | quote }}
   changed_when: false
   register: strimzi_wait
   failed_when: false
@@ -117,7 +117,7 @@
 
 - name: Apply Kafka cluster manifest
   ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/kafka.kafka.yaml
+    kubectl apply -f {{ telemetry_deployments_dir | quote }}/kafka.kafka.yaml
   register: kafka_apply
   changed_when: "'created' in kafka_apply.stdout or 'configured' in kafka_apply.stdout"
 
@@ -161,14 +161,14 @@
 
 - name: Read Kafka reconciliation pause annotation
   ansible.builtin.command: >
-    kubectl get kafka kafka -n {{ telemetry_namespace }}
+    kubectl get kafka kafka -n {{ telemetry_namespace | quote }}
     --output=jsonpath='{.metadata.annotations.strimzi\.io/pause-reconciliation}'
   register: kafka_reconciliation_pause
   changed_when: false
 
 - name: Resume Kafka reconciliation
   ansible.builtin.command: >
-    kubectl annotate kafka kafka -n {{ telemetry_namespace }}
+    kubectl annotate kafka kafka -n {{ telemetry_namespace | quote }}
     strimzi.io/pause-reconciliation-
   register: kafka_reconciliation_resume
   changed_when: "'annotated' in kafka_reconciliation_resume.stdout"
@@ -180,15 +180,15 @@
 
 - name: Wait for Kafka cluster to be ready
   ansible.builtin.command: >
-    kubectl wait kafka/kafka -n {{ telemetry_namespace }}
-    --for=condition=Ready --timeout={{ kafka_deploy_timeout }}
+    kubectl wait kafka/kafka -n {{ telemetry_namespace | quote }}
+    --for=condition=Ready --timeout={{ kafka_deploy_timeout | quote }}
   changed_when: false
   register: kafka_wait
   failed_when: false
 
 - name: Collect Kafka pod status on failure
   ansible.builtin.command: >
-    kubectl -n {{ telemetry_namespace }} get pods -l strimzi.io/cluster=kafka
+    kubectl -n {{ telemetry_namespace | quote }} get pods -l strimzi.io/cluster=kafka
     -o wide --no-headers
   register: kafka_pod_status
   changed_when: false
@@ -202,7 +202,7 @@
 
 - name: Read active Kafka cluster ID
   ansible.builtin.command: >
-    kubectl get kafkanodepool controller -n {{ telemetry_namespace }}
+    kubectl get kafkanodepool controller -n {{ telemetry_namespace | quote }}
     --output=jsonpath='{.status.clusterId}'
   register: kafka_active_cluster_id
   changed_when: false
@@ -240,13 +240,13 @@
 
 - name: Apply Kafka user manifest
   ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/kafka.kafkapump_user.yaml
+    kubectl apply -f {{ telemetry_deployments_dir | quote }}/kafka.kafkapump_user.yaml
   register: user_apply
   changed_when: "'created' in user_apply.stdout or 'configured' in user_apply.stdout"
 
 - name: Wait for kafkapump secret to be created
   ansible.builtin.command: >
-    kubectl get secret kafkapump -n {{ telemetry_namespace }}
+    kubectl get secret kafkapump -n {{ telemetry_namespace | quote }}
   register: kafkapump_secret
   retries: "{{ kafka_secret_wait_retries }}"
   delay: "{{ kafka_secret_wait_delay }}"
@@ -255,7 +255,7 @@
 
 - name: Apply Kafka bridge manifests
   ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir }}/{{ item }}
+    kubectl apply -f {{ telemetry_deployments_dir | quote }}/{{ item }}
   loop:
     - kafka.kafka_bridge.yaml
     - kafka.kafka_bridge_lb.yaml
