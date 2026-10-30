@@ -138,6 +138,19 @@ deploy_sinks_enabled: []
 cleanup_sinks_enabled: []
 
 # =============================================================================
+# iDRAC TELEMETRY VERIFICATION
+# =============================================================================
+# BMC IP used by TEL_NFT_026 (iDRAC node delete/add). The IP must already be a
+# row in bmc_group_data.csv and registered in MySQL. The test deletes that row,
+# deploys and checks MySQL (delete-node scenario), then re-adds the same row,
+# deploys and checks MySQL (add-node scenario). The CSV is always restored.
+# Pick a BMC with no PARENT (MGMT) or whose PARENT has at least one other BMC,
+# so the iDRAC pod layout does not change.
+# Example: idrac_nft_bmc_ip: "100.10.0.61"
+# Default: "" (TEL_NFT_026 is skipped with a warning)
+idrac_nft_bmc_ip: ""
+
+# =============================================================================
 # EXTERNAL APPLIANCE SETTINGS
 # =============================================================================
 # OME (OpenManage Enterprise) appliance IP for Kafka forwarder connectivity
