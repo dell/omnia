@@ -52,6 +52,8 @@
       no_log: true
       when: is_encrypted.rc != 0
 
+    # Decrypt to a private temp file on tmpfs, load, always remove temp file.
+    # The encrypted credential file is never decrypted in place.
     - name: Process encrypted file
       when: is_encrypted.rc == 0
       block:
@@ -65,38 +67,44 @@
             msg: "{{ vault_key_missing_error }}"
           when: not vault_key_stat.stat.exists
 
-        - name: Decrypt credential file
+        - name: Create private temp file for decrypted credentials
+          ansible.builtin.tempfile:
+            state: file
+            path: "{{ credential_tmp_dir }}"
+            prefix: ".cred_tmp_"
+            suffix: ".yml"
+          register: _cred_tmp
+
+        - name: Verify temp file was created successfully
+          ansible.builtin.assert:
+            that:
+              - _cred_tmp.path is defined
+              - _cred_tmp.path | length > 0
+            fail_msg: "Failed to create temp file for credential decryption"
+
+        - name: Restrict temp file permissions
+          ansible.builtin.file:
+            path: "{{ _cred_tmp.path }}"
+            mode: "0600"
+
+        - name: Decrypt credential file to temp file
           ansible.builtin.command: >-
             ansible-vault decrypt "{{ credential_file_path }}"
+            --output "{{ _cred_tmp.path }}"
             --vault-password-file "{{ vault_password_file }}"
-          register: decrypt_result
           changed_when: false
+          no_log: true
 
         - name: Include decrypted variables
-          ansible.builtin.include_vars: "{{ credential_file_path }}"
+          ansible.builtin.include_vars: "{{ _cred_tmp.path }}"
           no_log: true
-          when: decrypt_result is succeeded
-
-        - name: Re-encrypt credential file
-          ansible.builtin.command: >-
-            ansible-vault encrypt "{{ credential_file_path }}"
-            --vault-password-file "{{ vault_password_file }}"
-          changed_when: false
-          when: decrypt_result is succeeded
-
-  rescue:
-    - name: Cleanup on decryption failure
-      block:
-        - name: Re-encrypt file if partially decrypted
-          ansible.builtin.command: >-
-            ansible-vault encrypt "{{ credential_file_path }}"
-            --vault-password-file "{{ vault_password_file }}"
-          changed_when: false
-          failed_when: false
-          when:
-            - decrypt_result is defined
-            - decrypt_result is succeeded
-
-        - name: Fail with error message
+      rescue:
+        - name: Fail with decryption error
           ansible.builtin.fail:
-            msg: "{{ file_processing_error }}"
+            msg: "{{ credential_decrypt_fail_msg }}"
+      always:
+        - name: Remove temp file with decrypted credentials
+          ansible.builtin.file:
+            path: "{{ _cred_tmp.path }}"
+            state: absent
+          when: _cred_tmp.path is defined
