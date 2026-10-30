@@ -43,4 +43,3 @@
 - name: Add to Nodeparam dict
   ansible.builtin.set_fact:
     node_params: "{{ node_params + [proc_params] }}"
-    gpu_params: "{{ gpu_params | default({}) | combine({item: []} if group_specs.gres is defined else {}) }}"
