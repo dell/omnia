@@ -17,8 +17,9 @@
 # Remove Deleted Nodes from Telemetry
 # =============================================================================
 # Identifies iDRAC IPs present in MySQL database but not in bmc_group_data.csv
-# (deleted nodes), disables telemetry service on those iDRACs, and removes them
-# from the database.
+# (deleted nodes) and removes them from the database so Omnia stops collecting
+# from them. The iDRAC's own telemetry settings are left untouched, matching
+# the iDRAC disable flow (disable.yml), which never changes BMC configuration.
 # =============================================================================
 
 - name: Identify iDRAC IPs to remove (present in DB but not in bmc_group_data.csv)
@@ -35,32 +36,6 @@
     msg: "{{ no_idracips_to_remove_msg }}"
   when: ips_to_remove | length == 0
 
-- name: Disable telemetry on iDRAC nodes before removal
-  when: ips_to_remove | length > 0
-  block:
-    - name: Disable telemetry service on iDRAC nodes
-      disable_idrac_telemetry:
-        idrac_ips: "{{ ips_to_remove }}"
-        username: "{{ telemetry_credentials.bmc_username }}"
-        password: "{{ telemetry_credentials.bmc_password }}"
-        timeout: "{{ redfish_timeout }}"
-      register: disable_telemetry_result
-      ignore_errors: true
-
-    - name: Show successfully disabled telemetry IPs
-      ansible.builtin.debug:
-        msg: "Successfully disabled telemetry on: {{ disable_telemetry_result.disabled_ips | default([]) }}"
-      when:
-        - disable_telemetry_result.disabled_ips is defined
-        - disable_telemetry_result.disabled_ips | length > 0
-
-    - name: Show failed to disable telemetry IPs
-      ansible.builtin.debug:
-        msg: "Failed to disable telemetry on: {{ disable_telemetry_result.failed_ips | default([]) }}"
-      when:
-        - disable_telemetry_result.failed_ips is defined
-        - disable_telemetry_result.failed_ips | length > 0
-
 - name: Remove iDRAC IPs from MySQL database
   when: ips_to_remove | length > 0
   block:
@@ -75,6 +50,7 @@
         ips_to_delete: "{{ ips_to_remove }}"
         pod_to_db_idrac_ips: "{{ existing_pod_to_db_idrac_ips }}"
       register: delete_idrac_result
+      no_log: true
   rescue:
     - name: Failed to delete iDRAC IPs from MySQL database
       ansible.builtin.fail:
@@ -102,6 +78,4 @@
     deleted_idrac_ips: "{{ delete_idrac_result.deleted_ips | default([]) }}"
     failed_delete_count: "{{ delete_idrac_result.failed_ips | default([]) | length }}"
     failed_delete_ips: "{{ delete_idrac_result.failed_ips | default([]) }}"
-    disabled_telemetry_count: "{{ disable_telemetry_result.disabled_ips | default([]) | length }}"
-    disabled_telemetry_ips: "{{ disable_telemetry_result.disabled_ips | default([]) }}"
   when: ips_to_remove | length > 0

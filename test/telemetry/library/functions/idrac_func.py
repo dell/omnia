@@ -25,12 +25,13 @@ import shlex
 import time
 from uuid import uuid4
 
-from omnia_auto import run_on_host
+from omnia_auto import load_test_config, run_on_host
 
 from .ldms_func import get_kafka_bridge_ip, get_kafka_bridge_port
 
 from ..vars.common_vars import (
     IDRAC_KAFKA_TOPIC,
+    IDRAC_NFT_BMC_IP_KEY,
     IDRAC_POD_PREFIX,
     IDRAC_STS_NAME,
     TELEMETRY_NAMESPACE,
@@ -455,19 +456,29 @@ def get_bmc_group_data(host, csv_path=None):
     result = run_on_host(host, "cat -- %s", path)
     if result.rc != 0 or not result.stdout.strip():
         return []
+    return parse_bmc_group_data(result.stdout)
 
+
+def parse_bmc_group_data(csv_text):
+    """Parse bmc_group_data.csv text exactly like prepare_bmc_inventory.yml.
+
+    Blank lines, ``#`` comments, the ``BMC_IP`` header, and rows with fewer
+    than three columns are ignored, matching the deploy-time parser so the
+    test and the playbook always agree on the inventory.
+    """
     entries = []
-    for line in result.stdout.strip().split("\n"):
-        if line.startswith(("BMC_IP", "#")):
+    for line in csv_text.splitlines()[1:]:
+        if not line.strip() or line.lstrip().startswith("#"):
             continue
         parts = line.split(",")
-        if parts:
-            entries.append({
-                "bmc_ip": parts[0].strip() if len(parts) > 0 else "",
-                "group_name": parts[1].strip() if len(parts) > 1 else "",
-                "parent": parts[2].strip() if len(parts) > 2 else "",
-            })
-
+        bmc_ip = parts[0].strip()
+        if len(parts) < 3 or not bmc_ip or bmc_ip == "BMC_IP":
+            continue
+        entries.append({
+            "bmc_ip": bmc_ip,
+            "group_name": parts[1].strip(),
+            "parent": parts[2].strip(),
+        })
     return entries
 
 
@@ -519,18 +530,19 @@ def _parse_report_ip_section(report, heading):
 
 
 def get_idrac_report_ips(host):
-    """Read activated and unsupported BMC IPs from the project report."""
+    """Read activated, unsupported and removed BMC IPs from the project report."""
+    empty = {"activated": [], "unsupported": [], "removed": []}
     report_path = f"{get_output_path(host)}/idrac_telemetry_report.yml"
     quoted_path = shlex.quote(report_path)
     stat_result = run_on_host(
         host, f"stat -c %Y {quoted_path} 2>/dev/null",
     )
     if stat_result.rc != 0 or not stat_result.stdout.strip():
-        return {"activated": [], "unsupported": []}
+        return empty
 
     result = run_on_host(host, f"cat {quoted_path} 2>/dev/null")
     if result.rc != 0 or not result.stdout.strip():
-        return {"activated": [], "unsupported": []}
+        return empty
 
     return {
         "activated": _parse_report_ip_section(
@@ -539,19 +551,167 @@ def get_idrac_report_ips(host):
         "unsupported": _parse_report_ip_section(
             result.stdout, "Telemetry not supported IPs List:",
         ),
+        "removed": _parse_report_ip_section(
+            result.stdout, "Removed IPs List:",
+        ),
     }
+
+
+def get_nft_bmc_ip(config=None):
+    """Return the ``idrac_nft_bmc_ip`` value from test_config.yml ('' if unset)."""
+    source = config if config is not None else load_test_config()
+    return str(source.get(IDRAC_NFT_BMC_IP_KEY) or "").strip()
+
+
+def check_bmc_lifecycle_candidate(pod_inventory, pod_mysql_ips, bmc_ip):
+    """Check that the user-provided BMC can be deleted and re-added safely.
+
+    StatefulSet ordinals are derived from the sorted PARENT values, so removing
+    a parent's last BMC would shift other parents to different pods. A BMC is
+    safe to remove when it is in the MGMT pod (ordinal 0 always exists) or its
+    pod has at least one other assigned BMC. It must also be registered in
+    MySQL, otherwise the delete and add scenarios cannot be observed.
+
+    Args:
+        pod_inventory: ``{pod: [bmc_ip, ...]}`` from bmc_group_data.csv.
+        pod_mysql_ips: ``{pod: [bmc_ip, ...]}`` currently in MySQL.
+        bmc_ip: BMC IP from ``idrac_nft_bmc_ip``.
+
+    Returns:
+        ``(pod_name, "")`` when usable, otherwise ``(pod_name_or_None, reason)``.
+    """
+    pod_name = next(
+        (pod for pod, ips in pod_inventory.items() if bmc_ip in ips), None,
+    )
+    if pod_name is None:
+        return None, f"{bmc_ip} is not present in bmc_group_data.csv"
+    if pod_name != f"{IDRAC_POD_PREFIX}-0" and len(pod_inventory[pod_name]) < 2:
+        return pod_name, (
+            f"{bmc_ip} is the only BMC of its PARENT ({pod_name}); deleting it "
+            "would change the iDRAC pod layout. Use a MGMT BMC (no PARENT) or "
+            "a BMC whose PARENT has at least one other BMC"
+        )
+    if bmc_ip not in pod_mysql_ips.get(pod_name, []):
+        return pod_name, (
+            f"{bmc_ip} is not registered in MySQL of {pod_name} (check "
+            "'Telemetry not supported IPs List' in idrac_telemetry_report.yml)"
+        )
+    return pod_name, ""
+
+
+def remove_bmc_from_group_data(host, csv_path, bmc_ip):
+    """Remove the row for ``bmc_ip`` from bmc_group_data.csv in place.
+
+    The header and every other row are kept byte-for-byte; the file is
+    rewritten through ``cat`` so its owner and mode are preserved.
+    """
+    program = (
+        '{f=$1; gsub(/^[ \\t]+|[ \\t\\r]+$/, "", f)} NR==1 || f != ip'
+    )
+    tmp_path = f"{csv_path}.lifecycle-{uuid4().hex}.tmp"
+    result = run_on_host(  # pylint: disable=too-many-function-args
+        host,
+        "awk -F, -v ip=%s %s %s > %s && cat -- %s > %s; rc=$?; rm -f -- %s; exit $rc",
+        bmc_ip, program, csv_path, tmp_path, tmp_path, csv_path, tmp_path,
+    )
+    return {"success": result.rc == 0, "error": result.stderr.strip()}
 
 
 def _expected_idle_pods(host):
-    """Return intentionally idle pods and their assigned inventory."""
+    """Return pods whose every assigned BMC is reported as not supported."""
     inventory = get_idrac_pod_inventory(host)
-    unsupported = set(get_idrac_report_ips(host)["unsupported"])
+    reported = set(get_idrac_report_ips(host)["unsupported"])
     expected = {
         pod_name
         for pod_name, assigned_ips in inventory.items()
-        if assigned_ips and set(assigned_ips).issubset(unsupported)
+        if assigned_ips and set(assigned_ips).issubset(reported)
     }
     return expected, inventory
+
+
+def evaluate_idrac_mysql_parity(  # pylint: disable=too-many-locals
+        pod_inventory, pod_mysql, reported_unsupported=()):
+    """Compare each pod's MySQL ``services`` rows with the BMC inventory.
+
+    Args:
+        pod_inventory: ``{pod: [bmc_ip, ...]}`` derived from bmc_group_data.csv.
+        pod_mysql: ``{pod: {"success": bool, "mysql_ips": [...], "error": str}}``
+            for every running iDRAC pod.
+        reported_unsupported: "Telemetry not supported IPs List" from
+            idrac_telemetry_report.yml. Missing BMCs in this list are warnings;
+            any other missing BMC is an error.
+
+    Returns:
+        dict with ``success``, ``pod_results``, ``errors`` and ``warnings``.
+    """
+    reported = set(reported_unsupported)
+    pod_results = []
+    errors = []
+    warnings = []
+    total_active = 0
+
+    for pod_name in sorted(set(pod_inventory) | set(pod_mysql)):
+        assigned = set(pod_inventory.get(pod_name, []))
+        query = pod_mysql.get(pod_name)
+        if query is None:
+            query = {"success": False, "mysql_ips": [], "error": "pod is not running"}
+        rows = query["mysql_ips"]
+        actual = set(rows)
+        missing = sorted(assigned - actual)
+        unexpected = sorted(actual - assigned)
+        duplicates = sorted({ip for ip in rows if rows.count(ip) > 1})
+        missing_reported = set(missing) & reported
+        missing_not_reported = set(missing) - reported
+        ok = query["success"] and not (missing_not_reported or unexpected or duplicates)
+        total_active += len(actual & assigned)
+
+        if not query["success"]:
+            errors.append(f"{pod_name}: MySQL query failed: {query['error']}")
+        if missing_not_reported:
+            errors.append(
+                f"{pod_name}: BMC(s) in bmc_group_data.csv but not in MySQL: {sorted(missing_not_reported)}"
+            )
+        if missing_reported:
+            warnings.append(
+                f"{pod_name}: {sorted(missing_reported)} reported as not supported "
+                "(unreachable, invalid credentials, Redfish disabled, license or firmware)"
+            )
+        if unexpected:
+            errors.append(
+                f"{pod_name}: MySQL has BMC(s) not assigned to this pod "
+                f"(stale/deleted node or wrong pod): {unexpected}"
+            )
+        if duplicates:
+            errors.append(f"{pod_name}: duplicate MySQL rows for {duplicates}")
+
+        pod_results.append({
+            "pod_name": pod_name,
+            "mysql_ips": sorted(actual),
+            "ip_count": len(actual),
+            "has_data": bool(actual),
+            "expected_idle": bool(assigned) and assigned <= reported and query["success"],
+            "assigned_ips": sorted(assigned),
+            "reported_unsupported_ips": sorted(assigned & reported),
+            "missing_ips": missing,
+            "unexpected_ips": unexpected,
+            "duplicate_ips": duplicates,
+            "query_success": query["success"],
+            "error": query.get("error", ""),
+            "ok": ok,
+        })
+
+    if total_active == 0:
+        errors.append(
+            "No BMC from bmc_group_data.csv is registered in MySQL in any iDRAC pod; "
+            "iDRAC telemetry is not collecting from any node"
+        )
+
+    return {
+        "success": not errors,
+        "pod_results": pod_results,
+        "errors": errors,
+        "warnings": warnings,
+    }
 
 
 def get_idrac_expected_pod_count(host):
@@ -683,76 +843,69 @@ def get_mysql_ips_from_pod(host, pod_name):
     }
 
 
-def verify_mysql_data_in_pods(host):
-    """Verify MySQL data in all iDRAC telemetry pods.
-
-    For each pod, retrieves IPs from the MySQL services table
-    and reports them. Useful for verifying that BMC IPs from
-    bmc_group_data.csv have been registered.
-
-    Args:
-        host: Testinfra host (OIM).
-
-    Returns:
-        dict with success, pod_results list, each containing
-        pod_name, mysql_ips, ip_count.
-    """
-    # Get all iDRAC pods
+def list_idrac_pods(host):
+    """Return the names of running iDRAC telemetry pods."""
     cmd = (
         f"kubectl get pods -n {TELEMETRY_NAMESPACE}"
         f" --no-headers -o custom-columns='NAME:.metadata.name'"
         f" | grep '^{IDRAC_POD_PREFIX}'"
     )
     result = run_on_kube_vip(host, cmd)
-    if result.rc != 0 or not result.stdout.strip():
+    if result.rc != 0:
+        return []
+    return [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
+
+
+def get_mysql_ips_by_pod(host, pods=None):
+    """Return ``{pod: get_mysql_ips_from_pod(...)}`` for every iDRAC pod."""
+    pods = list_idrac_pods(host) if pods is None else pods
+    return {pod: get_mysql_ips_from_pod(host, pod) for pod in sorted(pods)}
+
+
+def verify_mysql_data_in_pods(host):
+    """Verify every pod's MySQL rows exactly match bmc_group_data.csv.
+
+    Fails when a CSV BMC is missing from its pod's MySQL and is not in the
+    report's "Telemetry not supported IPs List" (those only warn), when MySQL
+    holds a BMC that is not in the CSV or sits in the wrong pod, when rows are
+    duplicated, or when no BMC is registered at all.
+
+    Args:
+        host: Testinfra host (OIM).
+
+    Returns:
+        dict with success, pod_results, errors, total_pods.
+    """
+    pods = list_idrac_pods(host)
+    if not pods:
         return {
             "success": False,
             "pod_results": [],
+            "errors": ["No iDRAC telemetry pods found"],
             "error": "No iDRAC telemetry pods found",
         }
 
-    pods = [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
-    expected_idle_pods, pod_inventory = _expected_idle_pods(host)
-    pod_results = []
-    all_have_data = True
-
-    # Check if any BMC IPs are configured at all
-    total_assigned_ips = sum(len(ips) for ips in pod_inventory.values())
-    if total_assigned_ips == 0:
+    pod_inventory = get_idrac_pod_inventory(host)
+    if not any(pod_inventory.values()):
+        error = (
+            "No BMC IPs configured in bmc_group_data.csv - "
+            "iDRAC telemetry requires at least one BMC IP"
+        )
         return {
             "success": False,
             "pod_results": [],
             "total_pods": len(pods),
-            "error": "No BMC IPs configured in bmc_group_data.csv - iDRAC telemetry requires at least one BMC IP",
+            "errors": [error],
+            "error": error,
         }
 
-    for pod_name in sorted(pods):
-        query_result = get_mysql_ips_from_pod(host, pod_name)
-        mysql_ips = query_result["mysql_ips"]
-        has_data = query_result["success"] and len(mysql_ips) > 0
-        expected_idle = (
-            query_result["success"]
-            and not has_data
-            and pod_name in expected_idle_pods
-        )
-        if not (has_data or expected_idle):
-            all_have_data = False
-        pod_results.append({
-            "pod_name": pod_name,
-            "mysql_ips": mysql_ips,
-            "ip_count": len(mysql_ips),
-            "has_data": has_data,
-            "expected_idle": expected_idle,
-            "assigned_ips": pod_inventory.get(pod_name, []),
-            "query_success": query_result["success"],
-            "error": query_result["error"],
-        })
-
-    return {
-        "success": all_have_data,
-        "pod_results": pod_results,
-        "total_pods": len(pods),
-    }
+    result = evaluate_idrac_mysql_parity(
+        pod_inventory,
+        get_mysql_ips_by_pod(host, pods),
+        get_idrac_report_ips(host)["unsupported"],
+    )
+    result["total_pods"] = len(pods)
+    return result
 
 
 # -------------------------------------------------------------------------

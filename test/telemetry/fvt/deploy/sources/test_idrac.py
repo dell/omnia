@@ -28,7 +28,7 @@ Test cases:
     TEL_FVT_DEPLOY_V010: Verify iDRAC pod count matches bmc_group_data.csv
     TEL_FVT_DEPLOY_V011: Verify iDRAC StatefulSet pods ready
     TEL_FVT_DEPLOY_V012: Verify all iDRAC containers running
-    TEL_FVT_DEPLOY_V013: Verify MySQL data in iDRAC telemetry pods
+    TEL_FVT_DEPLOY_V013: Verify MySQL in each iDRAC pod matches bmc_group_data.csv
     TEL_FVT_DEPLOY_V014: Verify iDRAC receiver is collecting metrics
     TEL_FVT_DEPLOY_V015: Verify fresh iDRAC metrics flow to Kafka
     TEL_FVT_DEPLOY_V016: Verify iDRAC VictoriaPump metrics endpoint
@@ -255,73 +255,77 @@ def test_idrac_containers(host):
 
 
 # =========================================================================
-# TEL_FVT_DEPLOY_V013: Verify MySQL data in iDRAC telemetry pods
+# TEL_FVT_DEPLOY_V013: Verify MySQL in each iDRAC pod matches bmc_group_data.csv
 # =========================================================================
 
 @pytest.mark.source
 @pytest.mark.functional
 @pytest.mark.order(43)
 def test_idrac_mysql_data(host):
-    """TEL_FVT_DEPLOY_V013: Verify MySQL data in iDRAC telemetry pods."""
+    """TEL_FVT_DEPLOY_V013: Verify MySQL in each iDRAC pod matches bmc_group_data.csv."""
     _skip_if_idrac_disabled(host)
     tc = TC["idrac_mysql_data"]
     tl = TestLogger(tc["title"], tc["id"])
 
-    tl.check("Querying MySQL services table in each iDRAC pod")
+    tl.check("Comparing MySQL services table with bmc_group_data.csv per iDRAC pod")
     result = verify_mysql_data_in_pods(host)
 
-    if result.get("error") and not result.get("pod_results"):
-        tl.failed(result["error"], "")
-        pytest.fail(result["error"])
+    if not result.get("pod_results"):
+        error = "; ".join(result.get("errors", [])) or result.get("error", "")
+        tl.failed(error, "")
+        pytest.fail(error)
 
     details_lines = []
-    pods_missing = 0
-    for pr in result.get("pod_results", []):
-        pod_ok = pr["has_data"] or pr.get("expected_idle", False)
-        icon = "\u2713" if pod_ok else "\u2717"
-        if pr.get("error"):
-            details_lines.append(
-                f"  {icon} {pr['pod_name']}: MySQL query failed: "
-                f"{pr['error']}"
-            )
-        elif pr.get("expected_idle"):
-            details_lines.append(
-                f"  {icon} {pr['pod_name']}: expected idle; all "
-                f"{len(pr.get('assigned_ips', []))} assigned BMC(s) "
-                "are unsupported"
-            )
-        else:
-            details_lines.append(
-                f"  {icon} {pr['pod_name']}: "
-                f"{pr['ip_count']} IP(s) in MySQL"
-            )
-        if pr["mysql_ips"]:
-            for ip in pr["mysql_ips"][:5]:
-                details_lines.append(f"      - {ip}")
-            if len(pr["mysql_ips"]) > 5:
-                details_lines.append(
-                    f"      ... and {len(pr['mysql_ips']) - 5} more"
-                )
-        if not pod_ok:
-            pods_missing += 1
+    for pr in result["pod_results"]:
+        icon = "\u2713" if pr["ok"] else "\u2717"
+        details_lines.append(
+            f"  {icon} {pr['pod_name']}: assigned={pr['assigned_ips']} "
+            f"mysql={pr['mysql_ips']}"
+        )
+        for label, key in (
+            ("reported unsupported", "reported_unsupported_ips"),
+            ("MISSING from MySQL", "missing_ips"),
+            ("UNEXPECTED in MySQL", "unexpected_ips"),
+            ("DUPLICATE rows", "duplicate_ips"),
+        ):
+            if pr.get(key):
+                details_lines.append(f"      {label}: {pr[key]}")
+        if not pr["query_success"]:
+            details_lines.append(f"      MySQL query failed: {pr['error']}")
+    if result["errors"]:
+        details_lines.append("")
+        details_lines.extend(f"  - {err}" for err in result["errors"])
+    if result.get("warnings"):
+        details_lines.append("")
+        details_lines.append("  Warnings:")
+        details_lines.extend(f"  - {w}" for w in result["warnings"])
     details = "\n".join(details_lines)
+    pods_failed = sum(1 for pr in result["pod_results"] if not pr["ok"])
 
     if result["success"]:
-        tl.passed(
-            LOG_MSGS["idrac_mysql_verified"].format(
-                count=result.get("total_pods", 0),
-            ),
-            details,
-        )
+        if result.get("warnings"):
+            tl.passed(
+                LOG_MSGS["idrac_mysql_verified"].format(
+                    count=result.get("total_pods", 0),
+                ) + " (with warnings)",
+                details,
+            )
+        else:
+            tl.passed(
+                LOG_MSGS["idrac_mysql_verified"].format(
+                    count=result.get("total_pods", 0),
+                ),
+                details,
+            )
     else:
         tl.failed(
-            LOG_MSGS["idrac_mysql_missing"].format(count=pods_missing),
+            LOG_MSGS["idrac_mysql_missing"].format(count=pods_failed),
             details,
         )
 
     assert result["success"], ASSERT_MSGS["idrac_mysql_missing"].format(
-        count=pods_missing,
-    )
+        count=pods_failed,
+    ) + "\n".join(result["errors"])
 
 
 # =========================================================================
@@ -348,8 +352,8 @@ def test_idrac_receiver_collecting(host):
         if pr.get("expected_idle"):
             details_lines.append(
                 f"  {icon} {pr['pod_name']}: expected idle; all "
-                f"{len(pr.get('assigned_ips', []))} assigned BMC(s) "
-                "are unsupported"
+                f"{len(pr.get('assigned_ips', []))} assigned BMC(s) are "
+                "reported as not supported in idrac_telemetry_report.yml"
             )
         else:
             details_lines.append(
