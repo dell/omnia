@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=too-many-lines
 """User-facing messages for Orchestrator input validation."""
 
 from typing import Any
@@ -192,6 +193,23 @@ def pxe_mapping_not_csv_msg(path: str) -> str:
     return (
         f"orchestrator_config: pxe_mapping_file_path '{path}' must resolve "
         "to a .csv file."
+    )
+
+
+def pxe_mapping_insecure_permissions_msg(path: str, mode: int) -> str:
+    """Return the insecure PXE mapping file permissions error message."""
+    return (
+        f"orchestrator_config: PXE mapping file '{path}' has insecure mode "
+        f"{mode:04o}. It must not be group-writable or accessible by "
+        f"others; run 'chmod 640 {path}'."
+    )
+
+
+def pxe_mapping_untrusted_owner_msg(path: str, uid: int) -> str:
+    """Return the untrusted PXE mapping file owner error message."""
+    return (
+        f"orchestrator_config: PXE mapping file '{path}' is owned by uid "
+        f"{uid}; it must be owned by root or the invoking user."
     )
 
 
