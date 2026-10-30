@@ -84,12 +84,12 @@
 - name: Build Helm image override arguments
   ansible.builtin.set_fact:
     _helm_image_args: >-
-      --set image.registry={{ _operator_registry }}
-      --set image.repository={{ _operator_repository }}
-      --set image.tag={{ _operator_image_tag }}
-      --set configReloader.image.registry={{ _config_reloader_registry }}
-      --set configReloader.image.repository={{ _config_reloader_repository }}
-      --set configReloader.image.tag={{ _config_reloader_image_tag }}
+      --set image.registry={{ _operator_registry | quote }}
+      --set image.repository={{ _operator_repository | quote }}
+      --set image.tag={{ _operator_image_tag | quote }}
+      --set configReloader.image.registry={{ _config_reloader_registry | quote }}
+      --set configReloader.image.repository={{ _config_reloader_repository | quote }}
+      --set configReloader.image.tag={{ _config_reloader_image_tag | quote }}
   when: victoria_operator_pkg is defined
 
 - name: Install VictoriaMetrics operator
@@ -173,6 +173,7 @@
   changed_when: "'created' in tls_apply.stdout or 'configured' in tls_apply.stdout"
   when: _vm_manifests['victoria-tls-secret.yaml'] | default(false)
   failed_when: false
+  no_log: true
 
 - name: Apply VictoriaMetrics RBAC
   ansible.builtin.command: >
