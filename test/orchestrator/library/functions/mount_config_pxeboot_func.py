@@ -908,9 +908,12 @@ def check_mount_config_permissions(host) -> Dict[str, Any]:
 def check_mount_config_fg_targeting(host) -> Dict[str, Any]:
     """Verify NFS mounts are present on target FGs and absent on others.
 
-    Fails actionably when a configured mount resolves to zero target rows
-    (instead of silently passing).  Checks every mapped non-target node,
-    not just a subset.
+    Skips individual mount entries whose targeting (functional_group_prefix
+    or groups) resolves to zero mapped nodes — this is expected when the
+    PXE mapping file contains only unrelated functional groups (e.g. only
+    service_k8s nodes).  When every targeted mount is skipped the whole
+    check is skipped.  Checks every mapped non-target node, not just a
+    subset.
     """
     summary = "NFS functional-group targeting"
     try:
@@ -932,6 +935,7 @@ def check_mount_config_fg_targeting(host) -> Dict[str, Any]:
             )
 
         outcomes = {}
+        skipped_mounts = []
         for mount_item in targeted_mounts:
             mount_point = mount_item.get("mount_point", "")
             mount_name = mount_item.get("name", mount_point)
@@ -940,13 +944,12 @@ def check_mount_config_fg_targeting(host) -> Dict[str, Any]:
 
             target_rows = _target_rows(context, mount_item)
 
-            # Fail when targeting resolves to zero nodes
+            # Skip mounts whose targeting does not match any mapped node;
+            # this is expected when the PXE mapping file contains only
+            # functional groups unrelated to this mount (e.g. only
+            # service_k8s nodes when the mount targets slurm prefixes).
             if not target_rows:
-                outcomes[f"{mount_name}:{mount_point}:no-targets"] = (
-                    False,
-                    "targeting resolved to zero nodes "
-                    "(check functional_group_prefix / groups)",
-                )
+                skipped_mounts.append(f"{mount_name}:{mount_point}")
                 continue
 
             for row in target_rows:
@@ -977,8 +980,22 @@ def check_mount_config_fg_targeting(host) -> Dict[str, Any]:
                 else:
                     outcomes[key] = (True, "correctly absent")
 
+        # When every targeted mount was skipped (no mapped nodes match
+        # any targeting prefix/group), skip the entire check.
+        if not outcomes and skipped_mounts:
+            return _skip(
+                summary,
+                "No mapped nodes match the targeted functional groups "
+                f"({', '.join(skipped_mounts)})",
+            )
+
         failed = [k for k, v in outcomes.items() if not v[0]]
         fields = [("Targeting checks", len(outcomes))]
+        if skipped_mounts:
+            fields.append((
+                "Skipped (no targets)",
+                ", ".join(skipped_mounts),
+            ))
         for key, (ok, detail) in outcomes.items():
             fields.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
 
@@ -1102,6 +1119,10 @@ def _normalize_nfs_source(source: str) -> str:
 def check_mount_config_oim_mount(host) -> Dict[str, Any]:
     """Verify NFS storage is mounted on the OIM when mount_on_oim is true.
 
+    Skips individual mount entries whose node targeting resolves to zero
+    mapped nodes — the Orchestrator will not apply an OIM mount when no
+    target nodes exist (e.g. a K8s-only mount in a Slurm-only deployment).
+
     Checks:
     1. Mount point is active (mountpoint -q).
     2. The mounted source matches the configured source (full
@@ -1112,6 +1133,7 @@ def check_mount_config_oim_mount(host) -> Dict[str, Any]:
     """
     summary = "OIM NFS mount"
     try:
+        context = load_runtime_context(host)
         storage_config = _load_storage_config(host)
         mounts = _effective_mounts(host, storage_config)
         if not mounts:
@@ -1127,11 +1149,28 @@ def check_mount_config_oim_mount(host) -> Dict[str, Any]:
         from omnia_auto import run_on_host
 
         outcomes = {}
+        skipped_mounts = []
         for mount_item in oim_mounts:
             mount_point = mount_item.get("mount_point", "")
             source = mount_item.get("source", "")
+            mount_name = mount_item.get("name", mount_point)
             if not mount_point:
                 continue
+
+            # Skip OIM mounts whose node targeting resolves to zero
+            # mapped rows; the Orchestrator does not apply the OIM
+            # mount when no target nodes exist for this entry.
+            target_rows = _target_rows(context, mount_item)
+            has_targeting = (
+                (isinstance(mount_item.get("functional_group_prefix"), list)
+                 and mount_item["functional_group_prefix"])
+                or (isinstance(mount_item.get("groups"), list)
+                    and mount_item["groups"])
+            )
+            if has_targeting and not target_rows:
+                skipped_mounts.append(f"{mount_name}:{mount_point}")
+                continue
+
             key = f"OIM:{mount_point}"
             problems = []
 
@@ -1187,8 +1226,22 @@ def check_mount_config_oim_mount(host) -> Dict[str, Any]:
             else:
                 outcomes[key] = (True, f"mounted from {actual_source}")
 
+        # When every OIM mount was skipped (no mapped nodes match any
+        # targeting prefix/group), skip the entire check.
+        if not outcomes and skipped_mounts:
+            return _skip(
+                summary,
+                "No mapped nodes match the targeted functional groups "
+                f"({', '.join(skipped_mounts)})",
+            )
+
         failed = [k for k, v in outcomes.items() if not v[0]]
         fields = [("OIM mount checks", len(outcomes))]
+        if skipped_mounts:
+            fields.append((
+                "Skipped (no targets)",
+                ", ".join(skipped_mounts),
+            ))
         for key, (ok, detail) in outcomes.items():
             fields.append((f"  {key}", f"{'✓' if ok else '✗'} {detail}"))
 
