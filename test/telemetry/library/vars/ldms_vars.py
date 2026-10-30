@@ -46,15 +46,13 @@ LDMS_FUNCTIONAL_GROUPS = [
     "slurm_node_rhel_10_0_x86_64",
     "slurm_node_rhel_10_2_x86_64",
     "slurm_node_rhel_10_0_aarch64",
-    "slurm_node_rhel_10_2_aarch64",
     "login_node_rhel_10_0_x86_64",
     "login_node_rhel_10_2_x86_64",
     "login_node_rhel_10_0_aarch64",
     "login_node_rhel_10_2_aarch64",
     "login_compiler_node_rhel_10_0_x86_64",
     "login_compiler_node_rhel_10_2_x86_64",
-    "login_compiler_node_rhel_10_0_aarch64",
-    "login_compiler_node_rhel_10_2_aarch64",
+    "login_compiler_node_rhel_10_0_aarch64"
 ]
 
 # =============================================================================
