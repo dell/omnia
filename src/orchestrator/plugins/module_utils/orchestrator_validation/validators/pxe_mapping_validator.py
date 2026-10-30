@@ -20,6 +20,7 @@ import ipaddress
 import json
 import os
 import re
+import stat
 from collections import Counter
 from logging import Logger
 from typing import Any
@@ -49,6 +50,8 @@ REQUIRED_VALUE_FIELDS = (
     "ADMIN_MAC",
     "ADMIN_IP",
 )
+
+INSECURE_MODE_BITS = stat.S_IWGRP | stat.S_IRWXO
 
 MAC_PATTERN = re.compile(
     r"^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
@@ -610,6 +613,25 @@ def _validate_admin_subnet_membership(
             )
 
 
+def _mapping_file_error(path: str) -> str | None:
+    """Return an error if the file is missing, not a CSV, or not safely owned/moded."""
+    if not os.path.isfile(path):
+        return msg.pxe_mapping_not_found_msg(path)
+    if not path.lower().endswith(".csv"):
+        return msg.pxe_mapping_not_csv_msg(path)
+    try:
+        file_stat = os.stat(path)
+    except OSError as exc:
+        return msg.pxe_mapping_read_failed_msg(path, str(exc))
+    if file_stat.st_uid not in (0, os.geteuid()):
+        return msg.pxe_mapping_untrusted_owner_msg(path, file_stat.st_uid)
+    if file_stat.st_mode & INSECURE_MODE_BITS:
+        return msg.pxe_mapping_insecure_permissions_msg(
+            path, stat.S_IMODE(file_stat.st_mode)
+        )
+    return None
+
+
 def validate(
     config_data: dict[str, Any],
     input_project_dir: str,
@@ -618,8 +640,9 @@ def validate(
     """Validate the resolved PXE mapping file and its cross-file contracts."""
     errors: list[str] = []
     path = resolve_mapping_path(config_data, input_project_dir)
-    if not os.path.isfile(path):
-        record_error(errors, logger, msg.pxe_mapping_not_found_msg(path))
+    path_error = _mapping_file_error(path)
+    if path_error:
+        record_error(errors, logger, path_error)
         return errors
 
     try:

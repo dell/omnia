@@ -130,7 +130,7 @@
       kickstart_template: "{{ kickstart_template | default('user-provided') }}"
       build_method: "xorriso_streaming_embedded_kickstart"
       architecture: "{{ os_arch }}"
-      timestamp: "{{ ansible_date_time.iso8601 | default(lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ')) }}"
+      timestamp: "{{ ansible_date_time.iso8601 | default(now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ')) }}"
       build_id: "{{ build_id }}"
       build_timestamp: "{{ build_timestamp }}"
       iso_checksum: "{{ iso_checksum }}"
