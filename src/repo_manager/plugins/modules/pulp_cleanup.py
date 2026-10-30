@@ -1894,8 +1894,10 @@ def _get_mirror_index_path(base_path: str, cluster_os_type: str, cluster_os_vers
 
     Path: {base_path}/{os_type}/{os_version}/mirror_status/pulp_mirror_index.json
     """
-    return os.path.join(base_path, cluster_os_type, cluster_os_version,
-                        MIRROR_STATUS_DIR, MIRROR_INDEX_FILENAME)
+    return validate_cleanup_child(
+        base_path, cluster_os_type, cluster_os_version,
+        MIRROR_STATUS_DIR, MIRROR_INDEX_FILENAME
+    )
 
 
 def remove_from_mirror_index(base_path: str, cluster_os_type: str, cluster_os_version: str,
@@ -1917,7 +1919,8 @@ def remove_from_mirror_index(base_path: str, cluster_os_type: str, cluster_os_ve
     """
     if all_versions:
         mirror_index_paths = sorted(glob.glob(os.path.join(
-            base_path, cluster_os_type, "*", MIRROR_STATUS_DIR,
+            glob.escape(validate_cleanup_child(base_path, cluster_os_type)),
+            "*", MIRROR_STATUS_DIR,
             MIRROR_INDEX_FILENAME
         )))
         return sum(
