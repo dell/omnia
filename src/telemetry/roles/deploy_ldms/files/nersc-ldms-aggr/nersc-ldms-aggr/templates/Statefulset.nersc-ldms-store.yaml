@@ -46,9 +46,6 @@ spec:
                   fieldPath: spec.nodeName
           securityContext:
             allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
           volumeMounts:
             - name: ldms-conf
               mountPath: /ldms_conf
