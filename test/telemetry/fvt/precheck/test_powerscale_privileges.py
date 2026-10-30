@@ -45,6 +45,8 @@ def _skip_if_powerscale_disabled(host):
 @pytest.mark.precheck
 @pytest.mark.sanity
 @pytest.mark.order(5)
+@pytest.mark.powerscale
+@pytest.mark.source
 def test_powerscale_privileges(host):
     """TEL_FVT_PRECHECK_V004: Verify PowerScale user has required privileges."""
     _skip_if_powerscale_disabled(host)

@@ -120,7 +120,7 @@ def check_credentials_present(host) -> Dict[str, Any]:
     }
 
 
-def check_repo_configured(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_repo_configured(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check if a specific repository is configured in repo_manager_config.yml."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -167,7 +167,7 @@ def check_repo_configured(host, repo_name: str, arch: str = "x86_64", os_version
     }
 
 
-def get_configured_repos(host, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def get_configured_repos(host, arch: str, os_version: str) -> Dict[str, Any]:
     """Get list of all configured repositories from repo_manager_config.yml."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -215,7 +215,7 @@ def get_configured_repos(host, arch: str = "x86_64", os_version: str = "10.0") -
     }
 
 
-def get_deployed_repos(host, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def get_deployed_repos(host, arch: str, os_version: str) -> Dict[str, Any]:
     """Get repositories selected by the catalog and emitted to repo_status.yml."""
     repo_status = _read_repo_status(host)
     if not repo_status["success"]:
@@ -296,8 +296,7 @@ def get_deployed_repo_contexts(host) -> Dict[str, Any]:
 
 
 def check_repo_source_type(
-        host, repo_name: str, arch: str = "x86_64",
-        os_version: str = "10.0") -> Dict[str, Any]:
+        host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Classify a configured repository as subscription-backed or URL-backed."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -571,7 +570,7 @@ def check_repo_status_success(host) -> Dict[str, Any]:
     }
 
 
-def check_repo_status_has_repo(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_repo_status_has_repo(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Verify a specific RPM repository is present in repo_status.yml."""
     result = _read_repo_status(host)
     if not result["success"]:
@@ -597,8 +596,8 @@ def check_repo_status_has_repo(host, repo_name: str, arch: str = "x86_64", os_ve
 def check_repo_status_has_file_repo(
     host,
     repo_name: str,
-    arch: str = "x86_64",
-    os_version: str = "",
+    arch: str,
+    os_version: str,
 ) -> Dict[str, Any]:
     """Verify a specific file repository (tarball) is present in repo_status.yml."""
     result = _read_repo_status(host)
@@ -606,14 +605,13 @@ def check_repo_status_has_file_repo(
         return result
     data = result["details"]
     file_repos = data.get("file_repos") or {}
-    selected_version = os_version or next(iter(file_repos), "")
     try:
-        url = file_repos[selected_version][arch]["tarball"][repo_name]
+        url = file_repos[os_version][arch]["tarball"][repo_name]
         if url:
             return {
                 "success": True,
                 "details": (
-                    f"File repo '{repo_name}' ({selected_version}/{arch}) URL: {url}"
+                    f"File repo '{repo_name}' ({os_version}/{arch}) URL: {url}"
                 ),
                 "error": "",
             }
@@ -622,7 +620,7 @@ def check_repo_status_has_file_repo(
     return {
         "success": False,
         "details": (
-            f"Searched file_repos.{selected_version}.{arch}.tarball.{repo_name}"
+            f"Searched file_repos.{os_version}.{arch}.tarball.{repo_name}"
         ),
         "error": f"File repo '{repo_name}' not found in repo_status.yml",
     }
@@ -1224,7 +1222,7 @@ def check_software_packages_in_pulp(host) -> Dict[str, Any]:
     }
 
 
-def check_repo_policy(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_repo_policy(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check the effective policy for a specific repository."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -1285,7 +1283,7 @@ def check_repo_policy(host, repo_name: str, arch: str = "x86_64", os_version: st
     }
 
 
-def check_repo_caching(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_repo_caching(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check the effective caching setting for a specific repository."""
     input_path = _get_input_path()
     config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
@@ -1474,7 +1472,7 @@ def check_global_caching_policy(host) -> Dict[str, Any]:
     }
 
 
-def check_pulp_remote_policy(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_pulp_remote_policy(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check the actual Pulp remote policy via Pulp CLI (integration test)."""
     # Construct the full remote name (actual naming convention includes "rhel")
     full_remote_name = f"{arch}_rhel_{os_version}_{repo_name}"
@@ -1511,7 +1509,7 @@ def check_pulp_remote_policy(host, repo_name: str, arch: str = "x86_64", os_vers
         }
 
 
-def check_pulp_repository_exists(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def check_pulp_repository_exists(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Check if a Pulp repository exists via Pulp CLI (integration test)."""
     # Construct the full repository name (actual naming convention includes "rhel")
     full_repo_name = f"{arch}_rhel_{os_version}_{repo_name}"
@@ -1548,7 +1546,7 @@ def check_pulp_repository_exists(host, repo_name: str, arch: str = "x86_64", os_
         }
 
 
-def verify_policy_resolution(host, repo_name: str, arch: str = "x86_64", os_version: str = "10.0") -> Dict[str, Any]:
+def verify_policy_resolution(host, repo_name: str, arch: str, os_version: str) -> Dict[str, Any]:
     """Verify that the resolved policy from config matches actual Pulp remote policy."""
     # Get policy from configuration
     config_policy = check_repo_policy(host, repo_name, arch, os_version)
@@ -2273,5 +2271,521 @@ def check_user_registry_credentials(host) -> Dict[str, Any]:
     return {
         "success": True,
         "details": f"All {len(basic_auth_registries)} basic auth registries have vault_path configured",
+        "error": "",
+    }
+
+
+def check_user_registry_wrong_credentials(host) -> Dict[str, Any]:
+    """Verify registry authentication using credentials from the vault.
+
+    For each registry configured with auth type 'basic', decrypt the vault
+    credentials file and read the username and password stored there.  Then
+    attempt a Docker v2 API request using those credentials.
+
+    * If the registry returns 200 the credentials are correct (test passes).
+    * If the registry returns 401/403 the stored credentials are wrong
+      (test fails).
+
+    To test the negative scenario (wrong credentials), update the vault file
+    with an incorrect password before running the test.
+    """
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; credential test not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    basic_auth_registries = []
+    for name, config in registries.items():
+        if not isinstance(config, dict):
+            continue
+        auth = config.get("auth") or {}
+        if isinstance(auth, dict) and auth.get("type") == "basic":
+            basic_auth_registries.append((name, config))
+
+    if not basic_auth_registries:
+        return {
+            "success": True,
+            "details": "No basic auth registries configured; credential test not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    # Decrypt the credentials vault to get username and password
+    credentials_path = _get_credentials_path()
+    cred_file = f"{credentials_path}/{INPUT_FILES['repo_manager_credentials']}"
+    vault_key = f"{credentials_path}/.repo_manager_config_credentials_key"
+    cmd_decrypt = (
+        f"ansible-vault view {shlex.quote(cred_file)} "
+        f"--vault-password-file {shlex.quote(vault_key)}"
+    )
+    decrypt_result = run_on_host(host, cmd_decrypt)
+    if decrypt_result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Vault decryption failed: {decrypt_result.stderr}",
+            "error": "Could not decrypt credentials vault",
+        }
+
+    try:
+        cred_data = yaml.safe_load(decrypt_result.stdout)
+    except Exception:
+        return {
+            "success": False,
+            "details": "Could not parse decrypted credentials YAML",
+            "error": "Credentials vault parse error",
+        }
+
+    registry_credentials = (cred_data or {}).get("registry_credentials") or {}
+
+    failed = []
+    for name, config in basic_auth_registries:
+        auth = config.get("auth") or {}
+        credentials = (auth.get("credentials") or {})
+        vault_path = credentials.get("vault_path", "")
+        cred_entry = registry_credentials.get(vault_path) or {}
+        username = cred_entry.get("username", "")
+        password = cred_entry.get("password", "")
+
+        if not username or not password:
+            failed.append(
+                f"{name}: credentials not found in vault at path '{vault_path}'"
+            )
+            continue
+
+        base_url = config.get("base_url", "").rstrip("/")
+        tls = config.get("tls") or {}
+        is_https = base_url.startswith("https://")
+        tls_insecure = tls.get("insecure", False)
+        curl_tls_flag = "-k " if (is_https and tls_insecure) else ""
+        ca_path = tls.get("ca_path", "") if is_https else ""
+        curl_ca_flag = f"--cacert {shlex.quote(ca_path)} " if ca_path else ""
+
+        # Authenticate with the credentials read from the vault file
+        cmd = (
+            f"curl {curl_tls_flag}{curl_ca_flag}"
+            f"-s -o /dev/null -w '%{{http_code}}' "
+            f"-u {shlex.quote(username + ':' + password)} "
+            f"{shlex.quote(base_url + '/v2/')} "
+            f"--max-time 10 || echo '000'"
+        )
+        result = run_on_host(host, cmd)
+        status_code = result.stdout.strip()
+
+        if status_code in ("401", "403"):
+            failed.append(
+                f"{name}: registry rejected credentials (HTTP {status_code})"
+            )
+        elif status_code == "000":
+            failed.append(
+                f"{name}: could not connect to registry"
+            )
+
+    if failed:
+        return {
+            "success": False,
+            "details": "; ".join(failed),
+            "error": "Registry authentication failed with vault credentials",
+        }
+    return {
+        "success": True,
+        "details": (
+            f"All {len(basic_auth_registries)} basic auth registries "
+            "authenticated successfully with vault credentials"
+        ),
+        "error": "",
+    }
+
+
+def check_user_registry_duplicate_hosts(host) -> Dict[str, Any]:
+    """Verify that duplicate registry host entries are detected in config.
+
+    Two registry entries that resolve to the same host:port authority are
+    considered duplicates and should be flagged as a misconfiguration.
+    """
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; duplicate host check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    input_path = _get_input_path()
+    config_path = f"{input_path}/{INPUT_FILES['repo_manager_config']}"
+    # Derive the effective port per registry, respecting scheme:
+    #   - Explicit port in the URL takes precedence
+    #   - Otherwise use the 'port' field from the config
+    #   - Otherwise default to 443 for https, 80 for http
+    script = (
+        "import sys,yaml,json; "
+        "from urllib.parse import urlsplit; "
+        "config = yaml.safe_load(open(sys.argv[1])); "
+        "registries = config.get('registries') or {}; "
+        "seen = {}; duplicates = []; "
+        "_key = lambda c: ((lambda p: "
+        "(p.hostname or '').lower() + ':' + "
+        "str(p.port or c.get('port', 443 if p.scheme == 'https' else 80))"
+        ")(urlsplit(c.get('base_url','')))); "
+        "[("
+        "duplicates.append(n + ' duplicates ' + seen[_key(c)]) "
+        "if _key(c) in seen "
+        "else seen.setdefault(_key(c), n)"
+        ") for n, c in registries.items() if isinstance(c, dict)]; "
+        "print(json.dumps(duplicates))"
+    )
+    cmd = "python3 -c {} {}".format(
+        shlex.quote(script),
+        shlex.quote(config_path),
+    )
+    result = run_on_host(host, cmd)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": result.stderr,
+            "error": "Duplicate host detection command failed",
+        }
+
+    try:
+        duplicates = json.loads(result.stdout.strip())
+    except json.JSONDecodeError:
+        return {
+            "success": False,
+            "details": result.stdout[:200],
+            "error": "Could not parse duplicate detection output",
+        }
+
+    if duplicates:
+        return {
+            "success": False,
+            "details": "; ".join(duplicates),
+            "error": "Duplicate registry host entries detected",
+        }
+    return {
+        "success": True,
+        "details": f"No duplicate host entries among {len(registries)} registries",
+        "error": "",
+    }
+
+
+def check_user_registry_https_cert_no_cn(host) -> Dict[str, Any]:
+    """Verify HTTPS certificate without CN/SAN is detected for user registries.
+
+    For each registry with an HTTPS base_url, attempt to validate the TLS
+    certificate presented by the server. If the certificate lacks a valid
+    Common Name (CN) or Subject Alternative Name (SAN), the validation
+    should detect this as a security risk.
+    """
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; cert CN/SAN check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    https_registries = []
+    for name, config in registries.items():
+        if not isinstance(config, dict):
+            continue
+        base_url = config.get("base_url", "")
+        if base_url.startswith("https://"):
+            https_registries.append((name, config))
+
+    if not https_registries:
+        return {
+            "success": True,
+            "details": "No HTTPS registries configured; cert CN/SAN check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    from urllib.parse import urlsplit
+
+    invalid_certs = []
+    for name, config in https_registries:
+        base_url = config.get("base_url", "").rstrip("/")
+        parsed = urlsplit(base_url)
+        hostname = parsed.hostname
+        port = parsed.port or config.get("port", 443)
+
+        # Use openssl to fetch the certificate and check for CN/SAN
+        tls = config.get("tls") or {}
+        ca_path = tls.get("ca_path", "")
+        ca_flag = f"-CAfile {shlex.quote(ca_path)} " if ca_path else ""
+        cmd = (
+            f"echo | openssl s_client -connect {shlex.quote(hostname)}:{port} "
+            f"-servername {shlex.quote(hostname)} {ca_flag}2>/dev/null | "
+            f"openssl x509 -noout -text 2>/dev/null | "
+            f"grep -E '(Subject:.*CN|Subject Alternative Name)' | head -5"
+        )
+        result = run_on_host(host, cmd)
+        output = result.stdout.strip()
+        if not output:
+            invalid_certs.append(
+                f"{name}: certificate at {hostname}:{port} has no CN or SAN"
+            )
+
+    if invalid_certs:
+        return {
+            "success": False,
+            "details": "; ".join(invalid_certs),
+            "error": "Some registry certificates lack CN/SAN",
+        }
+    return {
+        "success": True,
+        "details": (
+            f"All {len(https_registries)} HTTPS registry certificates have valid CN/SAN"
+        ),
+        "error": "",
+    }
+
+
+def _get_catalog_referenced_registries(host, configured_registries) -> Dict[str, Any]:
+    """Return the subset of configured registries actually referenced by catalog images.
+
+    Reads the catalog JSON and collects every ``source_registry`` value from
+    image-type packages.  Only registries that appear both in the catalog and
+    in ``configured_registries`` are returned.
+    """
+    from library.vars.common_vars import _get_catalog_path
+    catalog_path = _get_catalog_path()
+    cmd = (
+        "python3 -c \""
+        "import json; "
+        "data = json.load(open('" + catalog_path + "')); "
+        "pkgs = data.get('catalog', {}).get('packages', {}); "
+        "regs = set(); "
+        "[regs.add(s.get('registry','')) "
+        " for p in (pkgs.values() if isinstance(pkgs, dict) else pkgs) "
+        " if isinstance(p, dict) "
+        " for s in p.get('sources', []) "
+        " if isinstance(s, dict) and s.get('registry')]; "
+        "print(json.dumps(sorted(regs)))"
+        "\""
+    )
+    result = run_on_host(host, cmd)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Catalog read failed: {result.stderr}",
+            "error": "Could not read catalog to find referenced registries",
+        }
+    try:
+        catalog_registries = set(json.loads(result.stdout.strip()))
+    except json.JSONDecodeError:
+        return {
+            "success": False,
+            "details": f"Could not parse catalog output: {result.stdout[:200]}",
+            "error": "Catalog registry list parse error",
+        }
+
+    referenced = {
+        name: config
+        for name, config in configured_registries.items()
+        if isinstance(config, dict) and name in catalog_registries
+    }
+    return {"success": True, "details": referenced, "error": ""}
+
+
+def check_user_registry_distributions(host) -> Dict[str, Any]:
+    """Verify Pulp container distributions exist for catalog-referenced user registries.
+
+    Only registries that are both configured in repo_manager_config.yml AND
+    referenced by at least one catalog image are checked.  A configured
+    registry with no catalog images is silently ignored because repo_manager
+    never creates Pulp objects for unreferenced registries.
+    """
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; distribution check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    # Only check registries actually referenced by catalog images
+    ref_result = _get_catalog_referenced_registries(host, registries)
+    if not ref_result["success"]:
+        return ref_result
+
+    referenced = ref_result["details"]
+    if not referenced:
+        return {
+            "success": True,
+            "details": (
+                "No catalog images reference configured user registries; "
+                "distribution check not applicable"
+            ),
+            "error": "",
+            "skipped": True,
+        }
+
+    from library.vars.common_vars import _get_pulp_certs_dir
+    pulp_cert_path = f"{_get_pulp_certs_dir()}/pulp_webserver.crt"
+    cmd = (
+        f"PULP_CA_BUNDLE={pulp_cert_path} "
+        "pulp container distribution list"
+    )
+    result = run_on_host(host, cmd)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Pulp distribution list failed: {result.stderr}",
+            "error": "Could not list Pulp container distributions",
+        }
+
+    try:
+        distributions = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return {
+            "success": False,
+            "details": f"Could not parse distribution output: {result.stdout[:200]}",
+            "error": "Pulp container distribution list parse error",
+        }
+
+    distribution_names = {d.get("name", "") for d in distributions}
+    missing = []
+    for registry_name in referenced:
+        found = any(
+            registry_name in dist_name for dist_name in distribution_names
+        )
+        if not found:
+            missing.append(registry_name)
+
+    if missing:
+        return {
+            "success": False,
+            "details": (
+                f"Missing distributions for catalog-referenced registries: "
+                f"{', '.join(missing)}. "
+                f"Found distributions: {', '.join(sorted(distribution_names))}"
+            ),
+            "error": "Pulp container distributions missing for some user registries",
+        }
+    return {
+        "success": True,
+        "details": (
+            f"All {len(referenced)} catalog-referenced user registries "
+            "have Pulp container distributions"
+        ),
+        "error": "",
+    }
+
+
+def check_user_registry_remotes_in_pulp(host) -> Dict[str, Any]:
+    """Verify Pulp container remotes are created for catalog-referenced user registries.
+
+    Only registries that are both configured in repo_manager_config.yml AND
+    referenced by at least one catalog image are checked.  A configured
+    registry with no catalog images is silently ignored because repo_manager
+    never creates Pulp objects for unreferenced registries.
+    """
+    read_result = _read_registries_section(host)
+    if not read_result["success"]:
+        return read_result
+
+    registries = read_result["details"]
+    if not registries:
+        return {
+            "success": True,
+            "details": "No registries configured; remote check not applicable",
+            "error": "",
+            "skipped": True,
+        }
+
+    # Only check registries actually referenced by catalog images
+    ref_result = _get_catalog_referenced_registries(host, registries)
+    if not ref_result["success"]:
+        return ref_result
+
+    referenced = ref_result["details"]
+    if not referenced:
+        return {
+            "success": True,
+            "details": (
+                "No catalog images reference configured user registries; "
+                "remote check not applicable"
+            ),
+            "error": "",
+            "skipped": True,
+        }
+
+    from library.vars.common_vars import _get_pulp_certs_dir
+    pulp_cert_path = f"{_get_pulp_certs_dir()}/pulp_webserver.crt"
+    cmd = (
+        f"PULP_CA_BUNDLE={pulp_cert_path} "
+        "pulp container remote list"
+    )
+    result = run_on_host(host, cmd)
+    if result.rc != 0:
+        return {
+            "success": False,
+            "details": f"Pulp remote list failed: {result.stderr}",
+            "error": "Could not list Pulp container remotes",
+        }
+
+    try:
+        remotes = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return {
+            "success": False,
+            "details": f"Could not parse remote output: {result.stdout[:200]}",
+            "error": "Pulp container remote list parse error",
+        }
+
+    remote_names = {r.get("name", "") for r in remotes}
+    remote_urls = {r.get("url", "") for r in remotes}
+    missing = []
+    for registry_name, config in referenced.items():
+        if not isinstance(config, dict):
+            continue
+        base_url = config.get("base_url", "")
+        found = any(
+            registry_name in rname for rname in remote_names
+        ) or any(
+            base_url.rstrip("/") in rurl for rurl in remote_urls if rurl
+        )
+        if not found:
+            missing.append(registry_name)
+
+    if missing:
+        return {
+            "success": False,
+            "details": (
+                f"Missing remotes for catalog-referenced registries: "
+                f"{', '.join(missing)}. "
+                f"Found remotes: {', '.join(sorted(remote_names))}"
+            ),
+            "error": "Pulp container remotes missing for some user registries",
+        }
+    return {
+        "success": True,
+        "details": (
+            f"All {len(referenced)} catalog-referenced user registries "
+            "have Pulp container remotes"
+        ),
         "error": "",
     }
