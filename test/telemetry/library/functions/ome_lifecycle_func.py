@@ -25,7 +25,11 @@ from ..vars.ome_vars import (
     OME_LOG_TOPIC_SUFFIXES,
     OME_METRIC_TOPIC_SUFFIXES,
 )
-from .ldms_func import get_kafka_bridge_ip, get_kafka_bridge_port
+from .ldms_func import (
+    get_kafka_bridge_ip,
+    get_kafka_bridge_port,
+    list_kafka_bridge_topics,
+)
 from .ome_func import get_ome_pipeline_context
 from .ome_victoria_func import _parse_log_timestamp, _query_log_entries
 from .telemetry_func import (
@@ -288,8 +292,16 @@ def _record_payloads(identifier, marker):
     }
 
 
-def publish_ome_lifecycle_records(host, marker):  # pylint: disable=too-many-locals
-    """Publish one uniquely marked record to every OME Kafka topic."""
+def publish_ome_lifecycle_records(host, marker, only_existing=False):  # pylint: disable=too-many-locals
+    """Publish one uniquely marked record to every OME Kafka topic.
+
+    When ``only_existing`` is True, markers are published only to OME topics
+    that already exist (looked up via the read-only Kafka Bridge GET /topics
+    listing). Topics that do not exist are skipped instead of being produced
+    to, so a disabled OME source never auto-creates orphaned ome.* topics via
+    the broker's auto.create.topics.enable=true setting. Any skipped topics are
+    reported under the ``skipped`` key.
+    """
     context = get_ome_pipeline_context(host)
     identifier = context["identifier"]
     bridge_ip = get_kafka_bridge_ip(host)
@@ -298,11 +310,31 @@ def publish_ome_lifecycle_records(host, marker):  # pylint: disable=too-many-loc
         return {
             "success": False,
             "topics": {},
+            "skipped": [],
             "error": "Kafka Bridge endpoint not found",
         }
 
+    existing_topics = set()
+    if only_existing:
+        listing = list_kafka_bridge_topics(host, bridge_ip, bridge_port)
+        if not listing["available"]:
+            return {
+                "success": False,
+                "topics": {},
+                "skipped": [],
+                "error": (
+                    listing["error"]
+                    or "unable to list existing Kafka topics"
+                ),
+            }
+        existing_topics = listing["topics"]
+
     topic_results = {}
+    skipped = []
     for topic, value in _record_payloads(identifier, marker).items():
+        if only_existing and topic not in existing_topics:
+            skipped.append(topic)
+            continue
         payload = json.dumps(
             {"records": [{"value": value}]},
             separators=(",", ":"),
@@ -350,6 +382,7 @@ def publish_ome_lifecycle_records(host, marker):  # pylint: disable=too-many-loc
     return {
         "success": not failed,
         "topics": topic_results,
+        "skipped": skipped,
         "error": "; ".join(
             f"{topic}: {error}" for topic, error in failed.items()
         ),

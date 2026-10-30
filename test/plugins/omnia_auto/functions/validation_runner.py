@@ -385,10 +385,11 @@ class ValidationRunner:
         if args[0] in tags:
             tag = args[0]
             rest = args[1:]
-            command = rest[0] if rest else "verify"
+            has_command = bool(rest) and rest[0] in COMMANDS
+            command = rest[0] if has_command else "verify"
             try:
                 opts = self._parse_options(
-                    rest[1:] if rest else [],
+                    rest[1:] if has_command else rest,
                 )
             except ValueError as exc:
                 _err(str(exc))
