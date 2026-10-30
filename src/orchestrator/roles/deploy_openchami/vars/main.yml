@@ -127,12 +127,6 @@ ochami_pip_packages:
 # Internal container services (postgres 5432, smd 27779) are reached
 # via Podman DNS names on internal networks and do NOT need host
 # firewall exposure.
-# Ports that older releases exposed on the host but are now internal-only.
-# The firewall playbook removes these from the default zone on upgrades.
-deprecated_host_tcp_ports:
-  - 5432    # PostgreSQL — container-internal only
-  - 27778   # Legacy SMD port — no longer used
-  - 27779   # SMD — container-internal only
 tcp_ports:
   - 8443    # HAProxy HTTPS gateway (OpenCHAMI API)
   - 8081    # HAProxy HTTP / boot-service iPXE scripts

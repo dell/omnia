@@ -20,20 +20,6 @@
     enabled: true
 
 # -------------------------------------------------------------------
-# Remove internal-only ports from host-facing zone (upgrade cleanup)
-#
-# Earlier releases opened container-internal ports (5432, 27778, 27779)
-# on the default zone.  These are now confined to the podman zone and
-# must be removed from the host-facing firewall on upgrades.
-# -------------------------------------------------------------------
-- name: Remove internal-only TCP ports from host-facing zone
-  ansible.posix.firewalld:
-    port: "{{ item }}/tcp"
-    permanent: true
-    state: disabled
-  loop: "{{ deprecated_host_tcp_ports }}"
-
-# -------------------------------------------------------------------
 # Host-facing ports — only services that external clients need
 # -------------------------------------------------------------------
 - name: Open TCP ports for external access
