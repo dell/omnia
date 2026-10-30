@@ -19,21 +19,38 @@
     state: started
     enabled: true
 
-- name: Open TCP ports
+# -------------------------------------------------------------------
+# Remove internal-only ports from host-facing zone (upgrade cleanup)
+#
+# Earlier releases opened container-internal ports (5432, 27778, 27779)
+# on the default zone.  These are now confined to the podman zone and
+# must be removed from the host-facing firewall on upgrades.
+# -------------------------------------------------------------------
+- name: Remove internal-only TCP ports from host-facing zone
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    state: disabled
+  loop: "{{ deprecated_host_tcp_ports }}"
+
+# -------------------------------------------------------------------
+# Host-facing ports — only services that external clients need
+# -------------------------------------------------------------------
+- name: Open TCP ports for external access
   ansible.posix.firewalld:
     port: "{{ item }}/tcp"
     permanent: true
     state: enabled
   loop: "{{ tcp_ports }}"
 
-- name: Open UDP ports
+- name: Open UDP ports for PXE/DHCP/TFTP
   ansible.posix.firewalld:
     port: "{{ item }}/udp"
     permanent: true
     state: enabled
   loop: "{{ udp_ports }}"
 
-- name: Open DNS port for CoreDNS
+- name: Open DNS ports for CoreDNS
   ansible.posix.firewalld:
     port: "{{ item }}"
     permanent: true
@@ -42,21 +59,60 @@
     - 53/tcp
     - 53/udp
 
-- name: Disable masquerading on trusted zone
-  ansible.posix.firewalld:
-    zone: trusted
-    masquerade: true
-    permanent: true
-    immediate: true
-    state: disabled
+# -------------------------------------------------------------------
+# Podman container bridge isolation (CWE-284 / CWE-923 remediation)
+#
+# Previously, podman interfaces were added to the firewalld "trusted"
+# zone which bypasses ALL filtering.  We now create a dedicated
+# "podman" zone that only permits the specific flows containers need
+# for outbound connectivity and inter-container communication.
+# -------------------------------------------------------------------
+- name: Create dedicated podman firewalld zone
+  ansible.builtin.command: firewall-cmd --permanent --new-zone=podman
+  register: podman_zone_create
+  changed_when: "'ALREADY_ENABLED' not in podman_zone_create.stderr"
+  failed_when:
+    - podman_zone_create.rc != 0
+    - "'NAME_CONFLICT' not in podman_zone_create.stderr"
 
-- name: Add Podman interfaces to trusted zone
+- name: Remove podman interfaces from trusted zone (remediate CWE-284)
   ansible.posix.firewalld:
     interface: "{{ item }}"
     zone: trusted
     permanent: true
+    state: disabled
+  loop: "{{ podman_interfaces }}"
+
+- name: Assign podman interfaces to dedicated podman zone
+  ansible.posix.firewalld:
+    interface: "{{ item }}"
+    zone: podman
+    permanent: true
     state: enabled
   loop: "{{ podman_interfaces }}"
+
+- name: Allow required TCP ports in podman zone
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    zone: podman
+    permanent: true
+    state: enabled
+  loop: "{{ podman_zone_tcp_ports }}"
+
+- name: Allow required UDP ports in podman zone
+  ansible.posix.firewalld:
+    port: "{{ item }}/udp"
+    zone: podman
+    permanent: true
+    state: enabled
+  loop: "{{ podman_zone_udp_ports }}"
+
+- name: Enable masquerading in podman zone for container outbound traffic
+  ansible.posix.firewalld:
+    zone: podman
+    masquerade: true
+    permanent: true
+    state: enabled
 
 - name: Reload firewalld to apply changes
   ansible.builtin.command: firewall-cmd --reload

@@ -120,23 +120,50 @@ ochami_pip_packages:
   - jwt
   - jmespath
 
-# Firewall ports
+# -------------------------------------------------------------------
+# Firewall configuration
+# -------------------------------------------------------------------
+# Host-facing ports — only services that external/PXE clients need.
+# Internal container services (postgres 5432, smd 27779) are reached
+# via Podman DNS names on internal networks and do NOT need host
+# firewall exposure.
+# Ports that older releases exposed on the host but are now internal-only.
+# The firewall playbook removes these from the default zone on upgrades.
+deprecated_host_tcp_ports:
+  - 5432    # PostgreSQL — container-internal only
+  - 27778   # Legacy SMD port — no longer used
+  - 27779   # SMD — container-internal only
 tcp_ports:
-  - 5432
-  - 27778
-  - 27779
-  - 8081
-  - 8443
+  - 8443    # HAProxy HTTPS gateway (OpenCHAMI API)
+  - 8081    # HAProxy HTTP / boot-service iPXE scripts
 udp_ports:
-  - 69
-  - 67
-  - 68
+  - 67      # CoreDHCP server
+  - 68      # CoreDHCP client replies
+  - 69      # TFTP for PXE boot
+
+# Podman bridge interfaces assigned to the dedicated "podman" zone.
+# These interfaces MUST NOT be placed in the "trusted" zone, which
+# would bypass all firewall filtering (CWE-284 / CWE-923).
 podman_interfaces:
   - podman0
   - podman1
   - podman2
   - podman3
   - podman4
+
+# Ports permitted inside the dedicated podman zone — only the flows
+# that containers on the default bridge actually require.
+podman_zone_tcp_ports:
+  - 53      # DNS resolution (CoreDNS)
+  - 8443    # HAProxy HTTPS (containers reaching the API gateway)
+  - 8081    # Boot-service HTTP (CoreDHCP fetches iPXE scripts)
+  - 5432    # PostgreSQL (container-to-container via bridge)
+  - 27779   # SMD (container-to-container via bridge)
+podman_zone_udp_ports:
+  - 53      # DNS resolution
+  - 67      # DHCP server
+  - 68      # DHCP client
+  - 69      # TFTP
 
 # Retry / timeout settings
 wait_time: 30
