@@ -26,7 +26,7 @@
 - name: Delete ci group configuration - {{ fg_name }}
   ansible.builtin.command: >
     /usr/bin/ochami cloud-init group delete --no-confirm -f yaml
-    -d @{{ cloud_init_dir }}/ci-group-{{ fg_name }}.yaml
+    -d @{{ (cloud_init_dir ~ '/ci-group-' ~ fg_name ~ '.yaml') | quote }}
   changed_when: true
   failed_when: false
 
@@ -46,11 +46,11 @@
 - name: Set ci group configuration - {{ fg_name }}
   ansible.builtin.command: >
     /usr/bin/ochami cloud-init group set -f yaml
-    -d @{{ cloud_init_dir }}/ci-group-{{ fg_name }}.yaml
+    -d @{{ (cloud_init_dir ~ '/ci-group-' ~ fg_name ~ '.yaml') | quote }}
   changed_when: true
 
 - name: Verify ci group configuration - {{ fg_name }}
-  ansible.builtin.command: /usr/bin/ochami cloud-init group get config {{ fg_name }}
+  ansible.builtin.command: /usr/bin/ochami cloud-init group get config {{ fg_name | quote }}
   changed_when: false
   register: ci_group_output
   no_log: true
