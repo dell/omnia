@@ -247,11 +247,14 @@ def pxe_mapping_noncanonical_headers_msg(
 def pxe_mapping_header_contract_msg(
     path: str, actual: list[str], expected: list[str]
 ) -> str:
-    """Return an exact PXE mapping header-contract error message."""
+    """Return a PXE mapping header-contract error without echoing file content."""
+    missing = [column for column in expected if column not in actual]
     return (
-        f"orchestrator_config: Mapping file '{path}' has header {actual}; "
-        f"expected exactly {expected}. Preserve all columns in this order, "
-        "including IB_NIC_NAME and IB_IP."
+        f"orchestrator_config: Mapping file '{path}' has {len(actual)} "
+        f"column(s) and does not match the required header; missing "
+        f"columns: {missing or 'none (check order or extra columns)'}. "
+        f"Expected exactly {expected}, in this order, including "
+        "IB_NIC_NAME and IB_IP."
     )
 
 

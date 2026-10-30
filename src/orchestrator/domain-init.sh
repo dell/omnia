@@ -262,6 +262,9 @@ create_runtime_directories() {
             echo -e "  ${GREEN}[${DOMAIN_NAME}] Created directory: ${dir}${NC}"
         fi
     done
+
+    # Logs and outputs may contain node identities; keep them owner/group only.
+    chmod 0750 "$output_dir" "$runtime_log_dir" "$ansible_log_dir"
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
