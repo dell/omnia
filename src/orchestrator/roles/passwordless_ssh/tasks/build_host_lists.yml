@@ -24,6 +24,7 @@
     path: "{{ pxe_mapping_file_path }}"
     key: ADMIN_MAC
   register: pxe_mapping_dict
+  no_log: true
 
 - name: Initialize per-stack hostname lists and IP wildcard patterns
   ansible.builtin.set_fact:

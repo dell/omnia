@@ -52,7 +52,7 @@
   changed_when: false
 
 - name: Reconfigure GitLab
-  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+  ansible.builtin.command: "{{ gitlab_ctl_command | quote }} reconfigure"
   async: "{{ gitlab_reconfigure_async }}"
   poll: "{{ gitlab_reconfigure_poll }}"
   register: gitlab_reconfigure
@@ -67,7 +67,7 @@
     timeout: "{{ (gitlab_startup_wait_minutes | int) * 60 }}"
 
 - name: Health check
-  ansible.builtin.command: "{{ gitlab_ctl_command }} status"
+  ansible.builtin.command: "{{ gitlab_ctl_command | quote }} status"
   register: gitlab_status
   retries: "{{ gitlab_health_check_retries }}"
   delay: "{{ gitlab_health_check_delay }}"

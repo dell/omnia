@@ -86,7 +86,7 @@
                 + '. Continuing bundle generation.'
               )
             }}
-          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
 
 - name: Collect slurm node logs
   when: stage in ['slurm_ctl', 'slurm_node', 'login_node', 'login_compiler_node']
@@ -147,7 +147,7 @@
                 + '. Continuing bundle generation.'
               )
             }}
-          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+          timestamp: "{{ '%Y-%m-%dT%H:%M:%S+05:30' | strftime((now().timestamp() | int) + 19800, utc=true) }}"
 
 - name: Bundle logs and publish summary
   ansible.builtin.include_tasks: bundle.yml

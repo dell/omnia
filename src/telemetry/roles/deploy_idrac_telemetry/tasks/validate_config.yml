@@ -47,13 +47,13 @@
   failed_when: kubectl_check.rc != 0
 
 - name: Verify telemetry namespace exists
-  ansible.builtin.command: kubectl get namespace {{ telemetry_namespace }}
+  ansible.builtin.command: kubectl get namespace {{ telemetry_namespace | quote }}
   register: ns_check
   changed_when: false
   failed_when: false
 
 - name: Verify Kafka is deployed
-  ansible.builtin.command: kubectl get kafka -n {{ telemetry_namespace }}
+  ansible.builtin.command: kubectl get kafka -n {{ telemetry_namespace | quote }}
   register: kafka_check
   changed_when: false
   failed_when: false
@@ -64,7 +64,7 @@
   when: kafka_check.rc != 0
 
 - name: Verify VictoriaMetrics is deployed
-  ansible.builtin.command: kubectl get vmcluster -n {{ telemetry_namespace }}
+  ansible.builtin.command: kubectl get vmcluster -n {{ telemetry_namespace | quote }}
   register: victoria_check
   changed_when: false
   failed_when: false

@@ -58,6 +58,8 @@
   ansible.builtin.set_fact:
     ip_name_map: "{{ ip_name_map | default({}) | combine({item.key: item.value[0]['ip_addrs'][0]['ip_addr']}) }}"
   loop: "{{ tmp_ip_name_map | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
 
 - name: Get bmc_ip
   ansible.builtin.set_fact:

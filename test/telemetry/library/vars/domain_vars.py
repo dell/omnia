@@ -62,6 +62,8 @@ MARKERS: List[str] = [
     "deploy",
     "ome",
     "ldms",
+    "idrac",
+    "powerscale",
     "vast",
     "sfm",
     "ufm",
