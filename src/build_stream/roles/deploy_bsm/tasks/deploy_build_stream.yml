@@ -217,12 +217,12 @@
   ansible.builtin.shell: |
     set -o pipefail
     # Check if private key is valid
-    openssl rsa -in {{ build_stream_jwt_keys_dir | quote }}/jwt_private.pem -check -noout
+    openssl rsa -in {{ (build_stream_jwt_keys_dir ~ '/jwt_private.pem') | quote }} -check -noout
     # Check if public key is valid
-    openssl rsa -pubin -in {{ build_stream_jwt_keys_dir | quote }}/jwt_public.pem -check -noout
+    openssl rsa -pubin -in {{ (build_stream_jwt_keys_dir ~ '/jwt_public.pem') | quote }} -check -noout
     # Check if keys match (modulus comparison)
-    priv_mod=$(openssl rsa -in {{ build_stream_jwt_keys_dir | quote }}/jwt_private.pem -noout -modulus | openssl md5)
-    pub_mod=$(openssl rsa -pubin -in {{ build_stream_jwt_keys_dir | quote }}/jwt_public.pem -noout -modulus | openssl md5)
+    priv_mod=$(openssl rsa -in {{ (build_stream_jwt_keys_dir ~ '/jwt_private.pem') | quote }} -noout -modulus | openssl md5)
+    pub_mod=$(openssl rsa -pubin -in {{ (build_stream_jwt_keys_dir ~ '/jwt_public.pem') | quote }} -noout -modulus | openssl md5)
     [ "$priv_mod" = "$pub_mod" ]
   register: jwt_keys_validation
   changed_when: false
