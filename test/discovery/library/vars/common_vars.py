@@ -31,8 +31,13 @@ MODULE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)
 )))
 
-# From vars/ -> library/ -> test/ -> repo root
-REPO_ROOT = os.path.dirname(MODULE_ROOT)
+
+# Parent of module root: test/
+TEST_ROOT = os.path.dirname(MODULE_ROOT)
+
+# Omnia monorepo root: omnia/
+MONOREPO_ROOT = os.path.dirname(TEST_ROOT)
+
 
 # Domain name used for remote path resolution
 DOMAIN_NAME = "discovery"
@@ -65,7 +70,7 @@ PLAYBOOK_TAGS: List[str] = [
 # =============================================================================
 # src/ paths — used when dataset is empty (default: use src/ directly)
 SRC_INPUT_DIR = os.path.join(
-    REPO_ROOT, "src", "discovery", "input",
+    MONOREPO_ROOT, "src", "discovery", "input",
 )
 
 # Shared path — derived from DISCOVERY_DATA_PATH env var when available;
