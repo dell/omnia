@@ -1,0 +1,61 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# =============================================================================
+# BuildStream System Verification Test (SVT) — Batch Run Configuration
+# =============================================================================
+# Run with: ./run_validation.sh --config
+# Scenarios run top to bottom; set run: true on each one to include.
+#
+# Per scenario:
+#   run:      true includes the scenario in the batch.
+#   command:  exec (entry point only), verify (checks only) or test (both).
+#   suite:    one suite of the scenario (prepare_base: readiness;
+#             installation: health | repository | build | deploy | cadence;
+#             auto_cleanup: verification; cleanup: postconditions); empty
+#             runs the whole scenario.
+#   marker:   --marker expression ('+' AND, ',' OR); empty runs everything.
+#             Example: marker: "cadence" with suite: "cadence" runs only the
+#             cadence tests of installation.
+# Whether the batch stops at the first failed scenario is set by
+# continue_on_failure in test_config.yml (false = stop). Every other setting
+# (catalog, job IDs, cleanup flags) is in test_config.yml as well.
+# Reference: docs/test_run_config.md
+# =============================================================================
+---
+svt_build_stream:
+  # ./omnia.sh --prepare-base
+  prepare_base:
+    run: false
+    command: "test"
+    suite: ""
+    marker: ""
+  # build_stream.yml, then the build, deploy and cadence pipelines.
+  installation:
+    run: false
+    command: "test"
+    suite: ""
+    marker: ""
+  # One automated (retention) cleanup pass. Deletes eligible image groups.
+  auto_cleanup:
+    run: false
+    command: "test"
+    suite: ""
+    marker: ""
+  # Destructive: removes every enabled domain (see cleanup in test_config.yml).
+  cleanup:
+    run: false
+    command: "test"
+    suite: ""
+    marker: ""

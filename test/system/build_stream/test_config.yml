@@ -1,0 +1,256 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# =============================================================================
+# BuildStream System Verification Test (SVT) — Test Configuration
+# =============================================================================
+# Every setting of the SVT suite. Field-by-field reference:
+# docs/test_config.md. Scenarios always run in this order:
+#   1. prepare_base   ./omnia.sh --prepare-base
+#   2. installation   place catalog -> build_stream.yml -> build pipeline
+#                     -> deploy pipeline -> cadence pipeline
+#                     -> cadence disable / re-enable (live, no restart)
+#   3. auto_cleanup   one automated (retention) cleanup pass (deletes the
+#                     eligible image groups)
+#   4. cleanup        build_stream -> orchestrator -> image_build_manager
+#                     -> repo_manager (destructive)
+# Playbooks, omnia.sh and pipeline stages run without a timeout; each one
+# runs until it finishes or fails.
+# =============================================================================
+---
+# =============================================================================
+# TARGET SERVER CONNECTION
+# =============================================================================
+# OIM IP address. Leave empty to run directly on the OIM; set it to run every
+# command over SSH. The SSH password (optional) goes in test_creds.yml as
+# oim_password.
+oim_server_ip: ""
+# SSH user and port used when oim_server_ip is set.
+oim_ssh_user: root
+oim_ssh_port: 22
+# Path of the omnia checkout on the remote OIM (absolute; required when
+# oim_server_ip is set). Ignored in local mode, where the checkout
+# containing this suite is used.
+clone_path: "/omnia"
+
+# =============================================================================
+# 1. PREPARE BASE  (svt/prepare_base)
+# =============================================================================
+# Runs ./omnia.sh --prepare-base from src/main. It validates, collects
+# credentials for and prepares repo_manager -> image_build_manager ->
+# orchestrator (fail-fast). It has no settings. Its precheck fails when a
+# base domain credential store is missing (omnia.sh would prompt).
+# =============================================================================
+
+# =============================================================================
+# 2. INSTALLATION  (svt/installation/test_playbook.py)
+# =============================================================================
+# Precheck: the catalog below, the BuildStream inputs and
+# build_stream.yml --tags precheck. Then installs the selected catalog at
+# CATALOG_FILE_PATH (read from /etc/omnia/omnia.env), backs up a different
+# active catalog as <file>.backup.<timestamp> and runs build_stream.yml.
+# Verification: containers, playbook-watcher, API health, build_stream_db
+# tables and the GitLab project files.
+# =============================================================================
+installation:
+  # Catalog to install. Give either:
+  #   - a number from the list below (same numbering as
+  #     ./omnia.sh --list-catalogs; files under src/main/samples), or
+  #   - the full path of your own catalog on the OIM, for example
+  #     /opt/omnia/catalog/my_catalog_rhel.json
+  # The same catalog is installed by build_stream.yml and committed to GitLab
+  # by the build and cadence tests.
+  # Bundled catalogs:
+  #    1) default (samples/catalog_rhel.json)
+  #    2) hybrid/slurm_hybrid_10_2_10_0_aarch64.json
+  #    3) hybrid/slurm_hybrid_10_2_10_0_aarch64_no_vast.json
+  #    4) hybrid/slurm_hybrid_10_2_10_0_x86_64_aarch64.json
+  #    5) hybrid/slurm_hybrid_10_2_10_0_x86_64_aarch64_no_vast.json
+  #    6) hybrid/slurm_hybrid_10_2_10_0_x86_64.json
+  #    7) hybrid/slurm_hybrid_10_2_10_0_x86_64_no_vast.json
+  #    8) hybrid/slurm_service_k8s_hybrid_10_2_10_0_combined.json
+  #    9) hybrid/slurm_service_k8s_hybrid_10_2_10_0_combined_no_vast.json
+  #   10) hybrid/slurm_service_k8s_hybrid_10_2_10_0_x86_64.json
+  #   11) hybrid/slurm_service_k8s_hybrid_10_2_10_0_x86_64_no_vast.json
+  #   12) rhel/10.0/service_k8s_x86_64.json
+  #   13) rhel/10.0/slurm_aarch64.json
+  #   14) rhel/10.0/slurm_aarch64_no_vast.json
+  #   15) rhel/10.0/slurm_service_k8s_combined.json
+  #   16) rhel/10.0/slurm_service_k8s_combined_no_vast.json
+  #   17) rhel/10.0/slurm_service_k8s_x86_64.json
+  #   18) rhel/10.0/slurm_service_k8s_x86_64_no_vast.json
+  #   19) rhel/10.0/slurm_x86_64_aarch64.json
+  #   20) rhel/10.0/slurm_x86_64_aarch64_no_vast.json
+  #   21) rhel/10.0/slurm_x86_64.json
+  #   22) rhel/10.0/slurm_x86_64_no_vast.json
+  #   23) rhel/10.2/service_k8s_x86_64.json
+  #   24) rhel/10.2/slurm_aarch64.json
+  #   25) rhel/10.2/slurm_aarch64_no_vast.json
+  #   26) rhel/10.2/slurm_service_k8s_combined.json
+  #   27) rhel/10.2/slurm_service_k8s_combined_no_vast.json
+  #   28) rhel/10.2/slurm_service_k8s_x86_64.json
+  #   29) rhel/10.2/slurm_service_k8s_x86_64_no_vast.json
+  #   30) rhel/10.2/slurm_x86_64_aarch64.json
+  #   31) rhel/10.2/slurm_x86_64_aarch64_no_vast.json
+  #   32) rhel/10.2/slurm_x86_64.json
+  #   33) rhel/10.2/slurm_x86_64_no_vast.json
+  # The number is resolved on the OIM at run time, so it always matches the
+  # current ./omnia.sh --list-catalogs output.
+  catalog: 29
+
+# =============================================================================
+# PIPELINES  (svt/installation/build, deploy, cadence)
+# =============================================================================
+# Each pipeline test runs in one of two modes:
+#   job ID empty -> trigger mode: the test commits/triggers and then verifies.
+#     build:   commits the installation.catalog catalog as catalog_rhel.json
+#              with the next unused version and follows the auto-triggered
+#              build pipeline.
+#     deploy:  swaps two rows of input/orchestrator/pxe_mapping_file.csv in
+#              GitLab, selects the image group (the one built by the build
+#              test, else the newest BUILT) and plays the deploy job.
+#     cadence: uploads the installation.catalog catalog as
+#              cadence_catalog_rhel.json with [skip ci] (no pipeline), runs
+#              trigger_cadence.sh, follows playbook-watcher through repo
+#              sync, catalog bump and GitLab commit, then the cadence pipeline.
+# "Next unused version" = one minor above the highest version of the same
+# catalog identifier in the selected file, both GitLab catalogs, the active
+# catalog and image_groups, so a version already used is never re-committed.
+#   job ID set -> verify-only mode: nothing is committed or triggered; the
+#     test prints the job ID it uses and verifies that job's stages and DB.
+# Job IDs are BuildStream job UUIDs from build_stream_db (table jobs). List
+# them on the OIM with:
+#   podman exec omnia_postgres sh -c 'psql -U "$POSTGRES_USER" -d build_stream_db -c "select job_id, job_state, created_at from jobs order by created_at desc"'
+# Deploy stages are recorded on the build job of the deployed image group, so
+# deploy_job_id is that build job (image_groups.job_id).
+# =============================================================================
+pipeline:
+  # true cancels running/pending GitLab pipelines before a new trigger;
+  # false fails the test and lists the pipelines to cancel instead.
+  allow_pipeline_cancel: false
+  # Verify-only job ID for the build pipeline (empty = trigger mode).
+  build_job_id: ""
+  # Verify-only job ID for the deploy pipeline (empty = trigger mode).
+  deploy_job_id: ""
+  # Verify-only job ID for the cadence pipeline (empty = trigger mode).
+  cadence_job_id: ""
+  # Seconds between pipeline and DB status polls.
+  poll_interval: 30
+  # TLS needs no setting: the BuildStream API is verified against the
+  # certificate build_stream.yml generates (<OMNIA_DATA_PATH>/build_stream_ssl/
+  # ssl/bs_cert.pem, as the pipelines do); GitLab is not verified, like
+  # Omnia's own playbooks.
+
+# =============================================================================
+# 3. AUTOMATED CLEANUP  (svt/auto_cleanup)
+# =============================================================================
+# Runs one cleanup_cron.main() pass in omnia_build_stream (the pass the
+# AutoCleanupScheduler runs every retention.evaluation_interval_hours) and
+# verifies that exactly the eligible image groups were cleaned. It has no
+# settings here: the rules come from the retention group of the project
+# build_stream_config.yml (auto_cleanup_enabled, retention_age_days,
+# min_keep_count); the test is skipped when auto_cleanup_enabled is false.
+# pipeline.poll_interval sets how often it polls while the cleanup playbook
+# finalizes the submitted groups.
+# =============================================================================
+
+# =============================================================================
+# 4. CLEANUP  (svt/cleanup)
+# =============================================================================
+# One test case cleans every enabled domain in this fixed order and verifies
+# each domain right after its cleanup:
+#   cleanup_build_stream -> cleanup_orchestrator
+#   -> cleanup_image_build_manager -> cleanup_repo_manager
+# Every block has:
+#   enabled: true cleans the domain; false skips its cleanup and verification.
+#   flags:   passed to that domain's cleanup playbook (cleanup_credentials:
+#            false becomes --skip-tags on build_stream and
+#            image_build_manager); verification checks that the data was
+#            deleted or kept accordingly.
+# =============================================================================
+cleanup:
+  # true stops at the first domain whose cleanup playbook fails (the rest
+  # are not run); false continues with the remaining domains. Every cleaned
+  # domain is verified in the verify phase.
+  fail_fast: true
+  # build_stream.yml --tags cleanup: GitLab, BuildStream API, Postgres and
+  # playbook-watcher.
+  cleanup_build_stream:
+    enabled: true
+    # false deletes the Postgres data directory and volumes; true keeps them.
+    postgres_backup: false
+    # true deletes the BuildStream credentials; false keeps them.
+    cleanup_credentials: true
+  # orchestrator.yml --tags cleanup: OpenCHAMI, OpenLDAP, Slurm and K8s.
+  # Runs unattended (skip_approval=true is always passed).
+  cleanup_orchestrator:
+    enabled: true
+    # true deletes the orchestrator credentials; false keeps them.
+    cleanup_credentials: true
+    # true deletes the Slurm data on the shared path; false keeps it.
+    cleanup_slurm: true
+    # true deletes the Kubernetes data on the shared path; false keeps it.
+    cleanup_k8s: true
+  # image_build_manager.yml --tags cleanup: MinIO, registry, build output and
+  # logs.
+  cleanup_image_build_manager:
+    enabled: true
+    # true deletes the image_build_manager credentials; false keeps them.
+    cleanup_credentials: true
+  # repo_manager.yml --tags cleanup_pulp: Pulp container, repositories and
+  # data.
+  cleanup_repo_manager:
+    enabled: true
+    # true deletes the repo_manager log directory; false keeps it.
+    cleanup_logs: true
+    # true deletes the repo_manager (Pulp) credentials; false keeps them.
+    cleanup_credentials: true
+
+# =============================================================================
+# RUN CONTROL
+# =============================================================================
+# What happens after a test fails.
+#   false: the run stops at the first failure; every remaining test is
+#          skipped with "continue_on_failure is false".
+#   true:  independent tests keep running (the other scenarios, the cadence
+#          tests, auto_cleanup). Dependent tests are still skipped with the
+#          reason, because they cannot pass:
+#            - a scenario's verification after its precheck (E001) or entry
+#              point (E002) failed
+#            - the deploy pipeline test after the build pipeline test failed
+continue_on_failure: false
+
+# true:  every pipeline stage playbook log (create-local-repository,
+#        build-image, deploy, ...) and the cadence repo sync log is streamed
+#        live into the test output ("│" lines, like a playbook run): each
+#        line is printed as soon as it is written (tail -F, no polling) and
+#        long lines wrap at line_width. The log of the current attempt is
+#        picked from /var/log/omnia/<domain>/.
+# false: only progress lines are printed; while a stage or the cadence sync
+#        runs they show "tail -f <log>" so it can be followed by hand.
+# The playbook-watcher journal records of a cadence cycle are always shown.
+debug_mode: false
+
+# =============================================================================
+# REPORT
+# =============================================================================
+# After the run, a JSON and an HTML report are written to
+# <report_path>/<report_name>.json and .html (in GitLab CI the name is
+# prefixed with the CI pipeline ID).
+# Directory on this host where the reports are written.
+report_path: /opt/omnia/reports
+# Report file name without extension.
+report_name: system_build_stream_report
+# ID shown in the report to group this run. Empty = current timestamp
+# (YYYYMMDD_HHMMSS).
+run_id: ""
