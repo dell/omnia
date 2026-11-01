@@ -70,6 +70,16 @@ options:
     required: false
     type: str
     default: ""
+  ib_addr_mode:
+    description: >
+      IPoIB address mode from network_spec.yml. Overrides the mode
+      inferred from the PXE mapping file. Valid values: "dual-stack",
+      "ipv6-only", "ipv4-only". If not provided, the mode is inferred
+      from the PXE mapping file (dual-stack if both IB_IPV4 and IB_IPV6
+      are present, ipv4-only if only IB_IPV4, ipv6-only if only IB_IPV6).
+    required: false
+    type: str
+    default: ""
 author:
   - Dell Omnia Team
 '''
@@ -154,17 +164,22 @@ def run_module() -> None:
                 "default": {},
             },
             "log_dir": {"type": "str", "required": False, "default": ""},
+            "ib_addr_mode": {"type": "str", "required": False, "default": ""},
         },
         supports_check_mode=True,
     )
     normalized_nodes = module.params["normalized_nodes"]
     output_dir = os.path.realpath(module.params["output_dir"])
     previous_hashes = module.params["previous_hashes"]
+    ib_addr_mode = module.params["ib_addr_mode"]
     configured_log_dir = module.params["log_dir"] or os.path.join(
         os.getenv("OMNIA_DATA_PATH", "/opt/omnia"),
         "log", "core", "playbooks",
     )
     logger, log_file = _create_logger(os.path.realpath(configured_log_dir))
+
+    if ib_addr_mode:
+        logger.info(f"Using ib_addr_mode from network_spec: {ib_addr_mode}")
 
     os.makedirs(output_dir, mode=0o755, exist_ok=True)
     scripts_dir = os.path.join(output_dir, "scripts")
@@ -182,7 +197,7 @@ def run_module() -> None:
 
     for node_id in sorted(normalized_nodes.keys()):
         interfaces = normalized_nodes[node_id]
-        result = nm_renderer.render_node_full(node_id, interfaces, logger)
+        result = nm_renderer.render_node_full(node_id, interfaces, logger, ib_addr_mode)
         node_results[node_id] = result
 
         if result["errors"]:

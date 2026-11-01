@@ -70,6 +70,12 @@
       {{ _ib_ipv6_validation.active_allocations }} active,
       mode={{ _ib_ipv6_validation.ib_mode }}
 
+- name: Extract ib_addr_mode from network_spec
+  ansible.builtin.set_fact:
+    _ib_addr_mode: >-
+      {{ (_ib_ipv6_network_data | default({'ib_network': {}})).ib_network.ib_addr_mode
+         | default(_ib_ipv6_validation.ib_mode) }}
+
 # -----------------------------------------------------------------------
 # Phase 2: Render NM/SMD artifacts (Story 2)
 # -----------------------------------------------------------------------
@@ -106,6 +112,7 @@
     output_dir: "{{ ib_ipv6_output_dir }}"
     previous_hashes: "{{ _ib_ipv6_previous_hashes }}"
     log_dir: "{{ ib_ipv6_log_dir }}"
+    ib_addr_mode: "{{ _ib_addr_mode }}"
   register: _ib_ipv6_render
   delegate_to: localhost
 
@@ -171,6 +178,6 @@
 - name: Record IPoIB IPv6 configuration complete
   ansible.builtin.set_fact:
     _ib_ipv6_configured: true
-    _ib_addr_mode: "{{ _ib_ipv6_validation.ib_mode }}"
+    _ib_addr_mode: "{{ _ib_addr_mode }}"
     _ib_ipv6_config_hashes: "{{ _ib_ipv6_render.config_hashes }}"
     _ib_ipv6_publication_state: "{{ _ib_ipv6_publication_state | default('PUBLISHED') }}"

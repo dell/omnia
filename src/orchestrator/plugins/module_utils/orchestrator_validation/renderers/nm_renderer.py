@@ -94,6 +94,7 @@ def render_nmcli_commands(
     interface_id: str,
     records: list[dict[str, Any]],
     logger: Logger | None = None,
+    ib_addr_mode: str = "",
 ) -> dict[str, Any]:
     """Render nmcli commands for a single interface on a single node.
 
@@ -107,6 +108,8 @@ def render_nmcli_commands(
         interface_id: Interface identifier (e.g., ``ib0``).
         records: Allocation records for this node+interface (active only).
         logger: Optional validation logger.
+        ib_addr_mode: Optional address mode from network_spec. If provided,
+                     overrides the mode inferred from records.
 
     Returns:
         Dict with keys: ``profile_name``, ``mode``, ``commands``,
@@ -115,7 +118,15 @@ def render_nmcli_commands(
     ipv4_records = [r for r in records if r.get("address_family") == "ipv4"]
     ipv6_records = [r for r in records if r.get("address_family") == "ipv6"]
 
-    if ipv4_records and ipv6_records:
+    # Use ib_addr_mode from network_spec if provided, otherwise infer from records
+    if ib_addr_mode:
+        mode = ib_addr_mode
+        if logger:
+            logger.info(
+                "[IB-IPv6] NM renderer: %s/%s using ib_addr_mode from network_spec: %s",
+                node_id, interface_id, mode,
+            )
+    elif ipv4_records and ipv6_records:
         mode = "dual-stack"
     elif ipv6_records:
         mode = "ipv6-only"
@@ -206,6 +217,7 @@ def render_node_nmcli(
     node_id: str,
     interfaces: dict[str, list[dict[str, Any]]],
     logger: Logger | None = None,
+    ib_addr_mode: str = "",
 ) -> list[dict[str, Any]]:
     """Render nmcli commands for all interfaces on a node.
 
@@ -213,6 +225,8 @@ def render_node_nmcli(
         node_id: Node identifier.
         interfaces: Per-interface allocation records (from normalize_per_node).
         logger: Optional validation logger.
+        ib_addr_mode: Optional address mode from network_spec. If provided,
+                     overrides the mode inferred from records.
 
     Returns:
         List of per-interface render results.
@@ -234,7 +248,7 @@ def render_node_nmcli(
             })
             continue
         results.append(
-            render_nmcli_commands(node_id, interface_id, records, logger)
+            render_nmcli_commands(node_id, interface_id, records, logger, ib_addr_mode)
         )
     return results
 
@@ -384,7 +398,7 @@ def render_smd_component(
 # Idempotent reapplication (Task 9, AC-006)
 # ---------------------------------------------------------------------------
 
-def compute_config_hash(nm_results: list[dict[str, Any]]) -> str:
+def compute_config_hash(nm_results: list[dict[str, Any]], ib_addr_mode: str = "") -> str:
     """Compute a deterministic hash of the NM configuration for a node.
 
     Used to detect whether the configuration has changed between runs.
@@ -392,6 +406,7 @@ def compute_config_hash(nm_results: list[dict[str, Any]]) -> str:
 
     Args:
         nm_results: Output of ``render_node_nmcli``.
+        ib_addr_mode: Address mode from network_spec (included in hash).
 
     Returns:
         Hex digest string.
@@ -404,6 +419,9 @@ def compute_config_hash(nm_results: list[dict[str, Any]]) -> str:
         parts.append(result["profile_name"])
         parts.append(result["mode"])
         parts.extend(result.get("commands", []))
+    # Include ib_addr_mode in hash so changes are detected
+    if ib_addr_mode:
+        parts.append(f"ib_addr_mode:{ib_addr_mode}")
     content = "\n".join(parts)
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
@@ -434,6 +452,7 @@ def render_node_full(
     node_id: str,
     interfaces: dict[str, list[dict[str, Any]]],
     logger: Logger | None = None,
+    ib_addr_mode: str = "",
 ) -> dict[str, Any]:
     """Orchestrate the full rendering pipeline for a single node.
 
@@ -444,6 +463,8 @@ def render_node_full(
         node_id: Node identifier.
         interfaces: Per-interface allocation records.
         logger: Optional validation logger.
+        ib_addr_mode: Optional address mode from network_spec. If provided,
+                     overrides the mode inferred from records.
 
     Returns:
         Dict with keys: ``node_id``, ``nm_results``, ``cloud_init``,
@@ -459,7 +480,7 @@ def render_node_full(
     if not hostname:
         hostname = node_id
 
-    nm_results = render_node_nmcli(node_id, interfaces, logger)
+    nm_results = render_node_nmcli(node_id, interfaces, logger, ib_addr_mode)
 
     errors = []
     for result in nm_results:
@@ -471,7 +492,7 @@ def render_node_full(
     smd_component = render_smd_component(
         node_id, hostname, interfaces, logger
     )
-    config_hash = compute_config_hash(nm_results)
+    config_hash = compute_config_hash(nm_results, ib_addr_mode)
 
     return {
         "node_id": node_id,
