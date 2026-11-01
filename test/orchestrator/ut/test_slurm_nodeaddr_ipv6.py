@@ -17,10 +17,8 @@ Story: ER-ORCH-005-nm-config-publication (FR-7, AC-009)
 ER test plan: TC-UT-009
 
 Covers:
-- Address family selection: ipv4-only, ipv6-only, dual-stack+ipv4, dual-stack+ipv6
+- Address family selection: ipv4-only, ipv6-only, dual-stack (FR-7: auto IPv6)
 - CommunicationParameters EnableIPv6 injection for dual-stack and ipv6-only
-- Dual-stack missing slurm_preferred_addr_family fails
-- Mismatch warning (ipv4-only with ipv6 preference ignored)
 - No allocation file skips injection
 - Empty node_params skips injection
 - Cloud-init /etc/hosts injection parsing
@@ -46,16 +44,16 @@ pytestmark = pytest.mark.unit
 
 def derive_nodeaddr_af(
     ib_addr_mode: str,
-    slurm_preferred_addr_family: str = "",
 ) -> str:
     """Derive the target address family for Slurm NodeAddr.
 
     Mirrors the Jinja2 logic in inject_ib_nodeaddr.yml task
     'Determine target address family for NodeAddr'.
 
+    Per FR-7, dual-stack mode automatically uses IPv6.
+
     Args:
         ib_addr_mode: One of 'ipv4-only', 'ipv6-only', 'dual-stack', or ''.
-        slurm_preferred_addr_family: 'ipv4' or 'ipv6' (required for dual-stack).
 
     Returns:
         'ipv4', 'ipv6', or 'none'.
@@ -66,56 +64,8 @@ def derive_nodeaddr_af(
     if mode == "ipv6-only":
         return "ipv6"
     if mode == "dual-stack":
-        return slurm_preferred_addr_family.strip()
+        return "ipv6"
     return "none"
-
-
-def validate_dual_stack_preference(
-    ib_addr_mode: str,
-    slurm_preferred_addr_family: str = "",
-) -> Optional[str]:
-    """Check if dual-stack requires slurm_preferred_addr_family.
-
-    Mirrors the 'Fail if dual-stack but slurm_preferred_addr_family not set'
-    task in inject_ib_nodeaddr.yml.
-
-    Returns:
-        Error message string if validation fails, None if OK.
-    """
-    if ib_addr_mode.strip() == "dual-stack" and not slurm_preferred_addr_family.strip():
-        return (
-            "ib_addr_mode is 'dual-stack' but slurm_preferred_addr_family is not set "
-            "in network_spec.yml (ib_network section). Slurm NodeAddr accepts only one "
-            "address per node — set slurm_preferred_addr_family to 'ipv4' or 'ipv6' to "
-            "choose which IB address Slurm uses for inter-daemon communication."
-        )
-    return None
-
-
-def detect_preference_mismatch(
-    ib_addr_mode: str,
-    slurm_preferred_addr_family: str = "",
-) -> Optional[str]:
-    """Detect mismatch between ib_addr_mode and slurm_preferred_addr_family.
-
-    Mirrors the 'Warn if slurm_preferred_addr_family mismatches ib_addr_mode'
-    task in inject_ib_nodeaddr.yml.
-
-    Returns:
-        Warning message string if mismatch detected, None otherwise.
-    """
-    pref = slurm_preferred_addr_family.strip()
-    mode = ib_addr_mode.strip()
-    if not pref:
-        return None
-    if (mode == "ipv4-only" and pref == "ipv6") or (mode == "ipv6-only" and pref == "ipv4"):
-        effective = "ipv4" if mode == "ipv4-only" else "ipv6"
-        return (
-            f"slurm_preferred_addr_family='{pref}' is set but ib_addr_mode='{mode}' "
-            f"— only {effective} addresses are available. Ignoring "
-            f"slurm_preferred_addr_family and using {effective}."
-        )
-    return None
 
 
 def build_nodeaddr_map(
@@ -252,13 +202,9 @@ class TestNodeAddrAddressFamily:
         """ipv6-only mode auto-derives ipv6 without preference."""
         assert derive_nodeaddr_af("ipv6-only") == "ipv6"
 
-    def test_dual_stack_with_ipv4_preference(self):
-        """dual-stack with ipv4 preference returns ipv4."""
-        assert derive_nodeaddr_af("dual-stack", "ipv4") == "ipv4"
-
-    def test_dual_stack_with_ipv6_preference(self):
-        """dual-stack with ipv6 preference returns ipv6."""
-        assert derive_nodeaddr_af("dual-stack", "ipv6") == "ipv6"
+    def test_dual_stack_derives_ipv6(self):
+        """dual-stack mode auto-derives ipv6 per FR-7."""
+        assert derive_nodeaddr_af("dual-stack") == "ipv6"
 
     def test_empty_mode_returns_none(self):
         """Empty ib_addr_mode returns 'none'."""
@@ -267,60 +213,6 @@ class TestNodeAddrAddressFamily:
     def test_unknown_mode_returns_none(self):
         """Unknown ib_addr_mode value returns 'none'."""
         assert derive_nodeaddr_af("multi-stack") == "none"
-
-
-# ===========================================================================
-# TC-UT-009: Dual-stack preference validation
-# ===========================================================================
-
-class TestDualStackPreferenceValidation:
-    """TC-UT-009: Verify dual-stack requires slurm_preferred_addr_family."""
-
-    def test_dual_stack_missing_preference_fails(self):
-        """dual-stack without slurm_preferred_addr_family returns error."""
-        err = validate_dual_stack_preference("dual-stack", "")
-        assert err is not None
-        assert "slurm_preferred_addr_family is not set" in err
-
-    def test_dual_stack_with_preference_passes(self):
-        """dual-stack with slurm_preferred_addr_family passes."""
-        assert validate_dual_stack_preference("dual-stack", "ipv4") is None
-
-    def test_ipv4_only_no_preference_passes(self):
-        """ipv4-only does not require slurm_preferred_addr_family."""
-        assert validate_dual_stack_preference("ipv4-only", "") is None
-
-    def test_ipv6_only_no_preference_passes(self):
-        """ipv6-only does not require slurm_preferred_addr_family."""
-        assert validate_dual_stack_preference("ipv6-only", "") is None
-
-
-# ===========================================================================
-# TC-UT-009: Preference mismatch warning
-# ===========================================================================
-
-class TestPreferenceMismatchWarning:
-    """TC-UT-009: Verify mismatch warning when preference contradicts mode."""
-
-    def test_ipv4_only_with_ipv6_pref_warns(self):
-        """ipv4-only with ipv6 preference produces warning."""
-        warning = detect_preference_mismatch("ipv4-only", "ipv6")
-        assert warning is not None
-        assert "only ipv4 addresses are available" in warning
-
-    def test_ipv6_only_with_ipv4_pref_warns(self):
-        """ipv6-only with ipv4 preference produces warning."""
-        warning = detect_preference_mismatch("ipv6-only", "ipv4")
-        assert warning is not None
-        assert "only ipv6 addresses are available" in warning
-
-    def test_dual_stack_with_ipv4_pref_no_warning(self):
-        """dual-stack with ipv4 preference is valid — no warning."""
-        assert detect_preference_mismatch("dual-stack", "ipv4") is None
-
-    def test_no_preference_no_warning(self):
-        """No preference set produces no warning."""
-        assert detect_preference_mismatch("ipv4-only", "") is None
 
 
 # ===========================================================================
