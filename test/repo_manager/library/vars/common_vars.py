@@ -106,6 +106,8 @@ INPUT_FILES = {
     "repo_manager_endpoint_config": "repo_manager_endpoint_config.yml",
     "repo_manager_credentials": "repo_manager_config_credentials.yml",
 }
+# Vault key of the credential store (removed with it by --tags cleanup_pulp).
+CREDENTIALS_KEY_FILE = ".repo_manager_config_credentials_key"
 
 OUTPUT_FILES = {
     "repo_status": "repo_status.yml",
