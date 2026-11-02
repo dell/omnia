@@ -183,6 +183,39 @@ The NFS case mirrors the production mount-selection contract. It evaluates
 |---:|---|---|---|---|---|---|
 | 10501 | `ORCH_FVT_PRECHECK_V005` | `test_precheck_inputs` | `inputs` | `sanity` | Require every source-selected Orchestrator input to be non-empty. | Every required item satisfies the stated condition. |
 
+### IPoIB inputs (`ipoib_inputs`)
+
+Each case clones the active project input (credentials excluded) into a
+scratch `omnia_fvt_ipoib_<random>` project, writes one changed input, runs
+`orchestrator.yml --tags validate` against the clone, and removes it. Errors
+from a baseline run of the unmodified clone are subtracted; a rejection case
+passes only when a new error contains every cataloged product message
+fragment. The active project input is never modified.
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 10601 | `ORCH_FVT_PRECHECK_V801` | `test_ipoib_input_ipv4_only_ignores_ipv6_subnet` | `ipoib_inputs` | `ipoib` | Accept ipv4-only IPoIB mode with ipv6_subnet configured. | TC-FVT-028: ipv4-only with ipv6_subnet set raises no IB error. |
+| 10602 | `ORCH_FVT_PRECHECK_V802` | `test_ipoib_input_mode_defaults_to_ipv4_only` | `ipoib_inputs` | `ipoib` | Accept omitted ib_addr_mode as ipv4-only. | TC-FVT-028/TC-FVT-003: omitted ib_addr_mode is accepted as ipv4-only. |
+| 10603 | `ORCH_FVT_PRECHECK_V803` | `test_ipoib_input_dual_stack_accepted` | `ipoib_inputs` | `ipoib` | Accept dual-stack with IPv4 and IPv6 allocations. | TC-FVT-001/028: dual-stack with IPv4 and IPv6 allocations is accepted. |
+| 10604 | `ORCH_FVT_PRECHECK_V804` | `test_ipoib_input_empty_ib_columns_skipped` | `ipoib_inputs` | `ipoib` | Accept a mapping row with empty IB columns. | TC-FVT-006: a node with all IB columns empty is skipped without error. |
+| 10605 | `ORCH_FVT_PRECHECK_V805` | `test_ipoib_input_ipv6_only_without_ipv4` | `ipoib_inputs` | `ipoib` | Accept ipv6-only mapping rows without IB_IPV4. | TC-FVT-022/TC-FVT-002: ipv6-only rows need no IPv4 allocation. |
+| 10606 | `ORCH_FVT_PRECHECK_V806` | `test_neg_ipoib_ipv6_subnet_malformed` | `ipoib_inputs` | `ipoib`, `negative` | Reject a malformed ib_network ipv6_subnet. | TC-FVT-004/028: malformed ipv6_subnet is rejected. |
+| 10607 | `ORCH_FVT_PRECHECK_V807` | `test_neg_ipoib_ipv6_prefix_length_invalid` | `ipoib_inputs` | `ipoib`, `negative` | Reject an out-of-range ipv6_netmask_bits. | TC-FVT-004/028: out-of-range ipv6_netmask_bits is rejected. |
+| 10608 | `ORCH_FVT_PRECHECK_V808` | `test_neg_ipoib_dual_stack_missing_ipv6_subnet` | `ipoib_inputs` | `ipoib`, `negative` | Reject dual-stack without an IPv6 prefix. | TC-FVT-001: dual-stack without an IPv6 prefix is rejected. |
+| 10609 | `ORCH_FVT_PRECHECK_V809` | `test_neg_ipoib_addr_mode_unsupported` | `ipoib_inputs` | `ipoib`, `negative` | Reject an unsupported ib_addr_mode. | FR-1: an unsupported ib_addr_mode is rejected. |
+| 10610 | `ORCH_FVT_PRECHECK_V810` | `test_neg_ipoib_gateway_input` | `ipoib_inputs` | `ipoib`, `negative` | Reject an IPoIB gateway input. | TC-FVT-010: an IPoIB gateway input is rejected. |
+| 10611 | `ORCH_FVT_PRECHECK_V811` | `test_neg_ipoib_static_route_input` | `ipoib_inputs` | `ipoib`, `negative` | Reject a static IPoIB route input. | TC-FVT-010: a static IPoIB route input is rejected. |
+| 10612 | `ORCH_FVT_PRECHECK_V812` | `test_neg_ipoib_default_route_input` | `ipoib_inputs` | `ipoib`, `negative` | Reject an IB default route input. | TC-FVT-010: an IB default route input is rejected. |
+| 10613 | `ORCH_FVT_PRECHECK_V813` | `test_neg_ipoib_pxe_ipv6_unparseable` | `ipoib_inputs` | `ipoib`, `negative` | Reject an unparseable IB_IPV6. | TC-FVT-029: an unparseable IB_IPV6 is rejected. |
+| 10614 | `ORCH_FVT_PRECHECK_V814` | `test_neg_ipoib_pxe_ipv4_unparseable` | `ipoib_inputs` | `ipoib`, `negative` | Reject an unparseable IB_IPV4. | TC-FVT-029: an unparseable IB_IPV4 is rejected. |
+| 10615 | `ORCH_FVT_PRECHECK_V815` | `test_neg_ipoib_pxe_ipv4_in_ipv6_column` | `ipoib_inputs` | `ipoib`, `negative` | Reject an IPv4 address in IB_IPV6. | TC-FVT-029: an IPv4 address in IB_IPV6 is rejected. |
+| 10616 | `ORCH_FVT_PRECHECK_V816` | `test_neg_ipoib_pxe_ipv6_duplicate` | `ipoib_inputs` | `ipoib`, `negative` | Reject a duplicate IB_IPV6. | TC-FVT-006: a duplicate IB_IPV6 is rejected. |
+| 10617 | `ORCH_FVT_PRECHECK_V817` | `test_neg_ipoib_pxe_ipv6_duplicate_expanded` | `ipoib_inputs` | `ipoib`, `negative` | Reject compressed and expanded IB_IPV6 duplicates. | TC-FVT-007/029: compressed and expanded duplicates are rejected. |
+| 10618 | `ORCH_FVT_PRECHECK_V818` | `test_neg_ipoib_pxe_ipv6_without_nic_name` | `ipoib_inputs` | `ipoib`, `negative` | Reject IB_IPV6 without IB_NIC_NAME. | TC-FVT-006: IB_IPV6 without IB_NIC_NAME is rejected. |
+| 10619 | `ORCH_FVT_PRECHECK_V819` | `test_neg_ipoib_pxe_ipv6_outside_prefix` | `ipoib_inputs` | `ipoib`, `negative` | Reject IB_IPV6 outside the approved prefix. | TC-FVT-006: IB_IPV6 outside the approved prefix is rejected. |
+| 10620 | `ORCH_FVT_PRECHECK_V820` | `test_neg_ipoib_pxe_dual_stack_missing_ipv6` | `ipoib_inputs` | `ipoib`, `negative` | Reject a dual-stack row without IB_IPV6. | TC-FVT-022: dual-stack row without IB_IPV6 is rejected. |
+| 10621 | `ORCH_FVT_PRECHECK_V821` | `test_neg_ipoib_pxe_dual_stack_missing_ipv4` | `ipoib_inputs` | `ipoib`, `negative` | Reject a dual-stack row without IB_IPV4. | TC-FVT-022: dual-stack row without IB_IPV4 is rejected. |
+
 ## Prepare test cases
 
 These cases verify the infrastructure created by the `prepare` lifecycle.
@@ -707,6 +740,44 @@ Node removal and re-addition use `slurm_lifecycle_remove_add_nodes` from
 Removal skips when the PXE mapping has fewer than two `slurm_node_*` entries,
 and re-addition then skips because no backup is left.
 
+### IPoIB IPv6 (`ipoib_ipv6`)
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 42501 | `ORCH_FVT_PXEBOOT_V819` | `test_ipoib_mode_address_assignment` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IB addresses assigned on each node match ib_addr_mode. | Each node carries exactly the IB addresses ib_addr_mode selects. |
+| 42502 | `ORCH_FVT_PXEBOOT_V800` | `test_ipoib_ipv6_address_state` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB IPv6 address state. | TC-FVT-015/017: approved IPv6 is static, DAD-clean, and alone. |
+| 42503 | `ORCH_FVT_PXEBOOT_V801` | `test_ipoib_ipv6_nm_profile` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB NetworkManager profile. | TC-FVT-002/009: NetworkManager profile matches the IPoIB mode. |
+| 42504 | `ORCH_FVT_PXEBOOT_V802` | `test_ipoib_ipv6_routes` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB IPv6 on-link routing. | TC-FVT-009/015: no IPoIB default route; peers route via IB. |
+| 42505 | `ORCH_FVT_PXEBOOT_V803` | `test_ipoib_ipv6_peer_mesh` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB peer reachability. | TC-FVT-023: every IB node reaches every IB peer. |
+| 42506 | `ORCH_FVT_PXEBOOT_V804` | `test_ipoib_ipv6_smd_records` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB addresses published in SMD. | TC-FVT-011: SMD holds every approved IPoIB address. |
+| 42507 | `ORCH_FVT_PXEBOOT_V805` | `test_ipoib_slurm_nodeaddr` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify Slurm NodeAddr follows the IPoIB allocation. | TC-FVT-019/031: Slurm NodeAddr follows the IB allocation. |
+| 42508 | `ORCH_FVT_PXEBOOT_V806` | `test_ipoib_custom_slurm_conf` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify custom slurm.conf nodes respond over IPoIB. | TC-FVT-027: custom slurm.conf nodes respond over IB. |
+| 42509 | `ORCH_FVT_PXEBOOT_V807` | `test_ipoib_powervault_coexistence` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify IPoIB and PowerVault iSCSI are both operational on the controller. | TC-FVT-024 S1: IB UP with approved address and PowerVault mounted together. |
+| 42510 | `ORCH_FVT_PXEBOOT_V808` | `test_ipoib_powervault_iscsi_path` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify PowerVault iSCSI traffic routes via Ethernet, not IPoIB. | TC-FVT-024 S2: iSCSI routes via Ethernet; no IB route captures the portals. |
+| 42511 | `ORCH_FVT_PXEBOOT_V809` | `test_ipoib_powervault_dns_resilience` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify IPoIB DNS injection does not break iSCSI target resolution. | TC-FVT-024 S4: IB DNS injection does not break iSCSI target discovery. |
+| 42512 | `ORCH_FVT_PXEBOOT_V810` | `test_ipoib_powervault_nfs_coexistence` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify controller NFS, PowerVault, and IPoIB coexist. | TC-FVT-024 S5: NFS (TCP, Ethernet), PowerVault, and IB coexist without conflict. |
+| 42513 | `ORCH_FVT_PXEBOOT_V811` | `test_ipoib_powervault_ib_reprovision` | `ipoib_ipv6` | `fault_injection`, `ipoib`, `slurm` | Verify PowerVault binds and Slurm state survive IPoIB re-provisioning. | TC-FVT-024 S3: PowerVault binds and Slurm state survive IB re-provisioning. |
+| 42514 | `ORCH_FVT_PXEBOOT_V818` | `test_ipoib_slurm_comm_path` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify Slurm job traffic uses IPoIB IPv6 not Ethernet IPv4. | TC-FVT-023 ext: Slurm job traffic uses IPoIB IPv6, not Ethernet IPv4. |
+
+`ipoib_ipv6` (42500) intentionally follows `slurm_lifecycle`, so its NodeAddr
+check also covers nodes re-added by that suite (TC-FVT-031).
+
+### IPoIB resilience (`ipoib_resilience`)
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 42601 | `ORCH_FVT_PXEBOOT_V812` | `test_ipoib_failure_dual_stack` | `ipoib_resilience` | `fault_injection`, `ipoib` | Verify dual-stack IPv6 failure reports DEGRADED_IPV6 with IPv4 preserved. | TC-FVT-016 S1: dual-stack IPv6 failure is DEGRADED_IPV6; IPv4 is preserved. |
+| 42611 | `ORCH_FVT_PXEBOOT_V814` | `test_ipoib_nodeaddr_reapply` | `ipoib_resilience` | `ipoib`, `reprovision`, `slurm` | Verify Slurm NodeAddr is unchanged after provision reapplication. | TC-FVT-020: NodeAddr values are unchanged and unique after provision reruns. |
+| 42621 | `ORCH_FVT_PXEBOOT_V815` | `test_ipoib_controller_reboot_recovery` | `ipoib_resilience` | `ipoib`, `reboot`, `slurm` | Verify Slurm controller reboot with IPoIB recovery. | TC-FVT-025: IB, services, PowerVault, IB mesh, and accounting recover. |
+| 42631 | `ORCH_FVT_PXEBOOT_V816` | `test_ipoib_compute_reboot_recovery` | `ipoib_resilience` | `ipoib`, `reboot`, `slurm` | Verify Slurm compute node reboot with IPoIB recovery. | TC-FVT-026 S1-S4,S6: one compute recovers IB; peers and jobs are undisturbed. |
+| 42632 | `ORCH_FVT_PXEBOOT_V817` | `test_ipoib_compute_multi_reboot_recovery` | `ipoib_resilience` | `ipoib`, `reboot`, `slurm` | Verify simultaneous compute reboot restores the IPoIB mesh and MPI. | TC-FVT-026 S5: simultaneous compute reboot restores the full mesh and MPI over IB. |
+
+Every mutation is opt-in and restores the node before the check returns:
+`fault_injection` cases remove and restore the approved IPv6 address on one
+compute node or re-run the node IB configuration script, the `reprovision`
+case re-runs `orchestrator.yml --tags provision`, and `reboot` cases reboot
+the controller or compute nodes.
+
 ## Cleanup test cases
 
 These cases execute the explicitly selected full cleanup and verify each component against the configured deletion or preservation policy.
@@ -771,10 +842,13 @@ input file, credential, or externally managed data path must always be deleted.
 | `non_disruptive` | Work that does not reboot or drain cluster nodes |
 | `reboot` | Node reboot cases; they run only when `--marker` selects `reboot` |
 | `node_lifecycle` | Node remove/add cases; they run only when `--marker` selects `node_lifecycle` |
+| `ipoib` | ER-ORCH-005 IPoIB IPv4/IPv6 input, post-boot, and NFT selector |
+| `fault_injection` | IPoIB fault-injection and IB re-provision cases; they run only when `--marker` selects `fault_injection` |
+| `reprovision` | Provision-rerun idempotency cases; they run only when `--marker` selects `reprovision` |
 | `scheduler_state` | Scheduler drain/resume case |
 | `destructive` | Destructive cleanup selector |
 
-With no marker every test runs except reboot and node_lifecycle cases, which are deselected. A comma is OR; a plus is AND. For example, `sanity,functional` selects either
+With no marker every test runs except reboot, node_lifecycle, fault_injection, and reprovision cases, which are deselected. A comma is OR; a plus is AND. For example, `sanity,functional` selects either
 class, while `slurm+non_disruptive` selects tests carrying both markers.
 
 ## Commands
@@ -798,6 +872,9 @@ class, while `slurm+non_disruptive` selects tests carrying both markers.
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite kubernetes_etcd
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite kubernetes_storage
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_cluster
+./run_validation.sh fvt_orchestrator precheck verify --suite ipoib_inputs
+./run_validation.sh fvt_orchestrator pxeboot verify --suite ipoib_ipv6
+./run_validation.sh fvt_orchestrator pxeboot verify --suite ipoib_resilience --marker fault_injection,reprovision,reboot
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_ldap
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_apptainer
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_dcgm

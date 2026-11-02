@@ -317,6 +317,24 @@ nft_performance_threshold_seconds:
   cleanup: 180
 
 # =============================================================================
+# IPOIB INPUT VALIDATION (ER-ORCH-005)
+# =============================================================================
+# The precheck ipoib_inputs suite clones the active project input (credential
+# files excluded) into a temporary project named omnia_fvt_ipoib_<random>,
+# writes one invalid input into the clone, runs
+# orchestrator.yml --tags validate -e project_name=<clone>, and removes the
+# clone. The active project input is never modified. Generated invalid files
+# are saved under <report_path>/ipoib_inputs/<case>/ as evidence.
+#
+# When the active PXE mapping has no IB data, the suite fills IB columns on the
+# Slurm compute rows of the clone with addresses from network_spec.yml
+# ib_network subnets and this InfiniBand NIC name. Supported formats:
+# InfiniBand.PCIe.Slot.X-Y, InfiniBand.Slot.X-Y, NIC.InfiniBand.X-Y,
+# InfiniBand.Single-Y.
+# Default: InfiniBand.Slot.1-1
+ipoib_validate_ib_nic_name: "InfiniBand.Slot.1-1"
+
+# =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================
 # Directory where test reports (JSON + HTML) are saved.

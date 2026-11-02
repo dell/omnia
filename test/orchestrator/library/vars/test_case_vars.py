@@ -169,6 +169,111 @@ PRECHECK_TEST_CASES: dict[str, dict[str, str]] = {
         "title": "Reject a mismatched OIM OS identity",
         "component": "OIM OS version",
     },
+    "ipoib_input_ipv4_only_ignores_ipv6_subnet": {
+        "id": "ORCH_FVT_PRECHECK_V801",
+        "title": "Accept ipv4-only IPoIB mode with ipv6_subnet configured",
+        "component": "IPoIB input validation",
+    },
+    "ipoib_input_mode_defaults_to_ipv4_only": {
+        "id": "ORCH_FVT_PRECHECK_V802",
+        "title": "Accept omitted ib_addr_mode as ipv4-only",
+        "component": "IPoIB input validation",
+    },
+    "ipoib_input_dual_stack_accepted": {
+        "id": "ORCH_FVT_PRECHECK_V803",
+        "title": "Accept dual-stack with IPv4 and IPv6 allocations",
+        "component": "IPoIB input validation",
+    },
+    "ipoib_input_empty_ib_columns_skipped": {
+        "id": "ORCH_FVT_PRECHECK_V804",
+        "title": "Accept a mapping row with empty IB columns",
+        "component": "IPoIB input validation",
+    },
+    "ipoib_input_ipv6_only_without_ipv4": {
+        "id": "ORCH_FVT_PRECHECK_V805",
+        "title": "Accept ipv6-only mapping rows without IB_IPV4",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_ipv6_subnet_malformed": {
+        "id": "ORCH_FVT_PRECHECK_V806",
+        "title": "Reject a malformed ib_network ipv6_subnet",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_ipv6_prefix_length_invalid": {
+        "id": "ORCH_FVT_PRECHECK_V807",
+        "title": "Reject an out-of-range ipv6_netmask_bits",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_dual_stack_missing_ipv6_subnet": {
+        "id": "ORCH_FVT_PRECHECK_V808",
+        "title": "Reject dual-stack without an IPv6 prefix",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_addr_mode_unsupported": {
+        "id": "ORCH_FVT_PRECHECK_V809",
+        "title": "Reject an unsupported ib_addr_mode",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_gateway_input": {
+        "id": "ORCH_FVT_PRECHECK_V810",
+        "title": "Reject an IPoIB gateway input",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_static_route_input": {
+        "id": "ORCH_FVT_PRECHECK_V811",
+        "title": "Reject a static IPoIB route input",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_default_route_input": {
+        "id": "ORCH_FVT_PRECHECK_V812",
+        "title": "Reject an IB default route input",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_pxe_ipv6_unparseable": {
+        "id": "ORCH_FVT_PRECHECK_V813",
+        "title": "Reject an unparseable IB_IPV6",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_pxe_ipv4_unparseable": {
+        "id": "ORCH_FVT_PRECHECK_V814",
+        "title": "Reject an unparseable IB_IPV4",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_pxe_ipv4_in_ipv6_column": {
+        "id": "ORCH_FVT_PRECHECK_V815",
+        "title": "Reject an IPv4 address in IB_IPV6",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_pxe_ipv6_duplicate": {
+        "id": "ORCH_FVT_PRECHECK_V816",
+        "title": "Reject a duplicate IB_IPV6",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_pxe_ipv6_duplicate_expanded": {
+        "id": "ORCH_FVT_PRECHECK_V817",
+        "title": "Reject compressed and expanded IB_IPV6 duplicates",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_pxe_ipv6_without_nic_name": {
+        "id": "ORCH_FVT_PRECHECK_V818",
+        "title": "Reject IB_IPV6 without IB_NIC_NAME",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_pxe_ipv6_outside_prefix": {
+        "id": "ORCH_FVT_PRECHECK_V819",
+        "title": "Reject IB_IPV6 outside the approved prefix",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_pxe_dual_stack_missing_ipv6": {
+        "id": "ORCH_FVT_PRECHECK_V820",
+        "title": "Reject a dual-stack row without IB_IPV6",
+        "component": "IPoIB input validation",
+    },
+    "neg_ipoib_pxe_dual_stack_missing_ipv4": {
+        "id": "ORCH_FVT_PRECHECK_V821",
+        "title": "Reject a dual-stack row without IB_IPV4",
+        "component": "IPoIB input validation",
+    },
 }
 
 PREPARE_TEST_CASES: dict[str, dict[str, str]] = {
@@ -1620,6 +1725,101 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify additional cloud-init integration with additional packages",
         "component": "Additional cloud-init packages integration",
     },
+    "ipoib_ipv6_address_state": {
+        "id": "ORCH_FVT_PXEBOOT_V800",
+        "title": "Verify IPoIB IPv6 address state",
+        "component": "IPoIB IPv6 address state",
+    },
+    "ipoib_ipv6_nm_profile": {
+        "id": "ORCH_FVT_PXEBOOT_V801",
+        "title": "Verify IPoIB NetworkManager profile",
+        "component": "IPoIB NetworkManager profile",
+    },
+    "ipoib_ipv6_routes": {
+        "id": "ORCH_FVT_PXEBOOT_V802",
+        "title": "Verify IPoIB IPv6 on-link routing",
+        "component": "IPoIB IPv6 routing",
+    },
+    "ipoib_ipv6_peer_mesh": {
+        "id": "ORCH_FVT_PXEBOOT_V803",
+        "title": "Verify IPoIB peer reachability",
+        "component": "IPoIB peer reachability",
+    },
+    "ipoib_ipv6_smd_records": {
+        "id": "ORCH_FVT_PXEBOOT_V804",
+        "title": "Verify IPoIB addresses published in SMD",
+        "component": "IPoIB SMD publication",
+    },
+    "ipoib_slurm_nodeaddr": {
+        "id": "ORCH_FVT_PXEBOOT_V805",
+        "title": "Verify Slurm NodeAddr follows the IPoIB allocation",
+        "component": "Slurm IPoIB NodeAddr",
+    },
+    "ipoib_custom_slurm_conf": {
+        "id": "ORCH_FVT_PXEBOOT_V806",
+        "title": "Verify custom slurm.conf nodes respond over IPoIB",
+        "component": "Custom slurm.conf with IPoIB",
+    },
+    "ipoib_powervault_coexistence": {
+        "id": "ORCH_FVT_PXEBOOT_V807",
+        "title": "Verify IPoIB and PowerVault iSCSI are both operational on the controller",
+        "component": "IPoIB and PowerVault coexistence",
+    },
+    "ipoib_powervault_iscsi_path": {
+        "id": "ORCH_FVT_PXEBOOT_V808",
+        "title": "Verify PowerVault iSCSI traffic routes via Ethernet, not IPoIB",
+        "component": "PowerVault iSCSI path isolation from IPoIB",
+    },
+    "ipoib_powervault_dns_resilience": {
+        "id": "ORCH_FVT_PXEBOOT_V809",
+        "title": "Verify IPoIB DNS injection does not break iSCSI target resolution",
+        "component": "PowerVault iSCSI with IPoIB DNS configuration",
+    },
+    "ipoib_powervault_nfs_coexistence": {
+        "id": "ORCH_FVT_PXEBOOT_V810",
+        "title": "Verify controller NFS, PowerVault, and IPoIB coexist",
+        "component": "Controller NFS, PowerVault, and IPoIB coexistence",
+    },
+    "ipoib_powervault_ib_reprovision": {
+        "id": "ORCH_FVT_PXEBOOT_V811",
+        "title": "Verify PowerVault binds and Slurm state survive IPoIB re-provisioning",
+        "component": "PowerVault persistence across IPoIB re-provisioning",
+    },
+    "ipoib_failure_dual_stack": {
+        "id": "ORCH_FVT_PXEBOOT_V812",
+        "title": "Verify dual-stack IPv6 failure reports DEGRADED_IPV6 with IPv4 preserved",
+        "component": "IPoIB dual-stack IPv6 failure mode",
+    },
+    "ipoib_nodeaddr_reapply": {
+        "id": "ORCH_FVT_PXEBOOT_V814",
+        "title": "Verify Slurm NodeAddr is unchanged after provision reapplication",
+        "component": "Slurm IPoIB NodeAddr idempotent reapplication",
+    },
+    "ipoib_controller_reboot_recovery": {
+        "id": "ORCH_FVT_PXEBOOT_V815",
+        "title": "Verify Slurm controller reboot with IPoIB recovery",
+        "component": "Slurm controller reboot with IPoIB recovery",
+    },
+    "ipoib_compute_reboot_recovery": {
+        "id": "ORCH_FVT_PXEBOOT_V816",
+        "title": "Verify Slurm compute node reboot with IPoIB recovery",
+        "component": "Slurm compute node reboot with IPoIB recovery",
+    },
+    "ipoib_compute_multi_reboot_recovery": {
+        "id": "ORCH_FVT_PXEBOOT_V817",
+        "title": "Verify simultaneous compute reboot restores the IPoIB mesh and MPI",
+        "component": "Simultaneous compute reboot with IPoIB mesh recovery",
+    },
+    "ipoib_slurm_comm_path": {
+        "id": "ORCH_FVT_PXEBOOT_V818",
+        "title": "Verify Slurm job traffic uses IPoIB IPv6 not Ethernet IPv4",
+        "component": "Slurm IPoIB communication path verification",
+    },
+    "ipoib_mode_address_assignment": {
+        "id": "ORCH_FVT_PXEBOOT_V819",
+        "title": "Verify IB addresses assigned on each node match ib_addr_mode",
+        "component": "IPoIB mode address assignment",
+    },
 }
 
 CLEANUP_TEST_CASES: dict[str, dict[str, str]] = {
@@ -1709,6 +1909,13 @@ NFT_TEST_CASES: dict[str, dict[str, str]] = {
     "lifecycle_provision_verify": {
         "id": "ORCH_NFT_014",
         "title": "Verify provision and node state after fresh-install lifecycle",
+    },    "ipoib_allocation_validation_latency": {
+        "id": "ORCH_NFT_015",
+        "title": "Measure IPoIB allocation validation latency at scale",
+    },
+    "ipoib_artifact_generation_throughput": {
+        "id": "ORCH_NFT_016",
+        "title": "Measure IPoIB artifact generation throughput at scale",
     },
 }
 
@@ -1747,6 +1954,7 @@ TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
         "storage": 10300,
         "dependencies": 10400,
         "inputs": 10500,
+        "ipoib_inputs": 10600,
     },
     "prepare": {
         "root": 20000,
@@ -1784,6 +1992,8 @@ TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
         "kubernetes_recovery": 42200,
         "slurm_recovery": 42300,
         "slurm_lifecycle": 42400,
+        "ipoib_ipv6": 42500,
+        "ipoib_resilience": 42600,
     },
     "cleanup": {
         "root": 50000,
@@ -1796,5 +2006,6 @@ TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
     },
     "nft": {
         "root": 60000,
+        "ipoib": 60100,
     },
 }

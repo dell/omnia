@@ -440,7 +440,7 @@ PXEBOOT_COMMANDS: dict[str, str] = {
     "node_boot_id": "cat /proc/sys/kernel/random/boot_id",
     "slurm_nodes": "scontrol show nodes --oneliner",
     "slurm_partitions": "sinfo --noheader --Node --format='%N|%P|%T|%a'",
-    "slurm_node_state": "sinfo --noheader --nodes=%s --format='%T'",
+    "slurm_node_state": "sinfo --noheader --nodes=%s --format='%%T'",
     "slurm_srun_node": (
         "timeout 60 srun --nodes=1 --ntasks=1 --nodelist=%s --immediate=30 "
         '/bin/sh -c \'printf "OMNIA_JOB_ID=%%s\\n" "$SLURM_JOB_ID"; '
