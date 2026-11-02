@@ -76,6 +76,8 @@ MARKERS: list[str] = [
     "security",
     "lifecycle",
     "ipoib",
+    "fault_injection",
+    "reprovision",
 ]
 
 # =====================================================================
@@ -127,6 +129,7 @@ SUITES: dict[str, list[str]] = {
         "slurm_recovery",
         "slurm_lifecycle",
         "ipoib_ipv6",
+        "ipoib_resilience",
     ],
     "cleanup": [
         "openchami",

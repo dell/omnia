@@ -1630,6 +1630,61 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify custom slurm.conf nodes respond over IPoIB",
         "component": "Custom slurm.conf with IPoIB",
     },
+    "ipoib_pv_coexistence": {
+        "id": "ORCH_FVT_PXEBOOT_V807",
+        "title": "Verify IPoIB and PowerVault iSCSI are both operational on the controller",
+        "component": "IPoIB and PowerVault coexistence",
+    },
+    "ipoib_pv_iscsi_path": {
+        "id": "ORCH_FVT_PXEBOOT_V808",
+        "title": "Verify PowerVault iSCSI traffic routes via Ethernet, not IPoIB",
+        "component": "PowerVault iSCSI path isolation from IPoIB",
+    },
+    "ipoib_pv_dns_resilience": {
+        "id": "ORCH_FVT_PXEBOOT_V809",
+        "title": "Verify IPoIB DNS injection does not break iSCSI target resolution",
+        "component": "PowerVault iSCSI with IPoIB DNS configuration",
+    },
+    "ipoib_pv_nfs_coexistence": {
+        "id": "ORCH_FVT_PXEBOOT_V810",
+        "title": "Verify controller NFS, PowerVault, and IPoIB coexist",
+        "component": "Controller NFS, PowerVault, and IPoIB coexistence",
+    },
+    "ipoib_pv_ib_reprovision": {
+        "id": "ORCH_FVT_PXEBOOT_V811",
+        "title": "Verify PowerVault binds and Slurm state survive IPoIB re-provisioning",
+        "component": "PowerVault persistence across IPoIB re-provisioning",
+    },
+    "ipoib_failure_dual_stack": {
+        "id": "ORCH_FVT_PXEBOOT_V812",
+        "title": "Verify dual-stack IPv6 failure reports DEGRADED_IPV6 with IPv4 preserved",
+        "component": "IPoIB dual-stack IPv6 failure mode",
+    },
+    "ipoib_failure_ipv6_only": {
+        "id": "ORCH_FVT_PXEBOOT_V813",
+        "title": "Verify IPv6-only failures report FAILED_IB_CONFIGURATION without IPv4 fallback",
+        "component": "IPoIB IPv6-only failure modes",
+    },
+    "ipoib_nodeaddr_reapply": {
+        "id": "ORCH_FVT_PXEBOOT_V814",
+        "title": "Verify Slurm NodeAddr is unchanged after provision reapplication",
+        "component": "Slurm IPoIB NodeAddr idempotent reapplication",
+    },
+    "ipoib_controller_reboot": {
+        "id": "ORCH_FVT_PXEBOOT_V815",
+        "title": "Verify Slurm controller reboot with IPoIB recovery",
+        "component": "Slurm controller reboot with IPoIB recovery",
+    },
+    "ipoib_compute_reboot": {
+        "id": "ORCH_FVT_PXEBOOT_V816",
+        "title": "Verify Slurm compute node reboot with IPoIB recovery",
+        "component": "Slurm compute node reboot with IPoIB recovery",
+    },
+    "ipoib_compute_multi_reboot": {
+        "id": "ORCH_FVT_PXEBOOT_V817",
+        "title": "Verify simultaneous compute reboot restores the IPoIB mesh and MPI",
+        "component": "Simultaneous compute reboot with IPoIB mesh recovery",
+    },
 }
 
 VALIDATE_TEST_CASES: dict[str, dict[str, str]] = {
@@ -1912,6 +1967,7 @@ TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
         "slurm_recovery": 42300,
         "slurm_lifecycle": 42400,
         "ipoib_ipv6": 42500,
+        "ipoib_resilience": 42600,
     },
     "cleanup": {
         "root": 50000,

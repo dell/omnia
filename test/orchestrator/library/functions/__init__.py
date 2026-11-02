@@ -110,6 +110,21 @@ from .ipoib_ipv6_pxeboot_func import (
     check_ipoib_slurm_nodeaddr,
     check_ipoib_custom_slurm_conf,
 )
+from .ipoib_powervault_pxeboot_func import (
+    check_ipoib_powervault_coexistence,
+    check_ipoib_powervault_dns_resilience,
+    check_ipoib_powervault_ib_reprovision,
+    check_ipoib_powervault_iscsi_path,
+    check_ipoib_powervault_nfs_coexistence,
+)
+from .ipoib_resilience_pxeboot_func import (
+    check_ipoib_compute_multi_reboot_recovery,
+    check_ipoib_compute_reboot_recovery,
+    check_ipoib_controller_reboot_recovery,
+    check_ipoib_failure_dual_stack,
+    check_ipoib_failure_ipv6_only,
+    check_ipoib_nodeaddr_reapply,
+)
 from .powervault_pxeboot_func import (
     check_powervault_all_mounts_writable,
     check_powervault_bind_fstab_entries,
@@ -426,6 +441,17 @@ __all__ = [
     "check_ipoib_ipv6_smd_records",
     "check_ipoib_slurm_nodeaddr",
     "check_ipoib_custom_slurm_conf",
+    "check_ipoib_powervault_coexistence",
+    "check_ipoib_powervault_dns_resilience",
+    "check_ipoib_powervault_ib_reprovision",
+    "check_ipoib_powervault_iscsi_path",
+    "check_ipoib_powervault_nfs_coexistence",
+    "check_ipoib_compute_multi_reboot_recovery",
+    "check_ipoib_compute_reboot_recovery",
+    "check_ipoib_controller_reboot_recovery",
+    "check_ipoib_failure_dual_stack",
+    "check_ipoib_failure_ipv6_only",
+    "check_ipoib_nodeaddr_reapply",
     "check_additional_cloud_init_bss_common",
     "check_additional_cloud_init_bss_stability",
     "check_additional_cloud_init_bss_per_fg",

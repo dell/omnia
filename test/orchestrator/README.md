@@ -257,8 +257,10 @@ Registered selectors include:
   `cloudinit`, `kubernetes`, `slurm`, `openldap`, and `apptainer`.
 - Controlled mutation: `image_download`, `negative`, and `non_disruptive`.
 - Maintenance-window operations: `reboot` (required to run reboot tests),
-  `node_lifecycle` (required to run node remove/add tests), and
-  `scheduler_state`.
+  `node_lifecycle` (required to run node remove/add tests),
+  `fault_injection` (required to inject and restore runtime IPoIB faults or
+  re-run the node IB configuration script), `reprovision` (required to re-run
+  provision for idempotency checks), and `scheduler_state`.
 - Cleanup authorization: `destructive`.
 - Non-functional contracts: `nft`, `performance`, `idempotency`, and
   `security`.
@@ -367,6 +369,15 @@ Run reboot and node remove/add checks only in an approved maintenance window:
   --suite slurm_lifecycle --marker node_lifecycle
 ./run_validation.sh fvt_orchestrator pxeboot verify \
   --suite slurm_jobs --marker scheduler_state
+# ER-ORCH-005 IPoIB resilience (TC-FVT-016/020/024/025/026).
+./run_validation.sh fvt_orchestrator pxeboot verify \
+  --suite ipoib_resilience --marker fault_injection
+./run_validation.sh fvt_orchestrator pxeboot verify \
+  --suite ipoib_ipv6 --marker fault_injection
+./run_validation.sh fvt_orchestrator pxeboot verify \
+  --suite ipoib_resilience --marker reprovision
+./run_validation.sh fvt_orchestrator pxeboot verify \
+  --suite ipoib_resilience --marker reboot
 ```
 
 The authorization checks are enforced even when pytest is invoked directly.
