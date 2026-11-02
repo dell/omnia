@@ -195,11 +195,6 @@
                         "type": "string",
                         "enum": ["dual-stack", "ipv6-only", "ipv4-only"],
                         "description": "IPoIB addressing mode. dual-stack: IPv4+IPv6, ipv6-only: IPv6 only, ipv4-only: IPv4 only (default, IPv6 pipeline skipped)."
-                      },
-                      "slurm_preferred_addr_family": {
-                        "type": "string",
-                        "enum": ["ipv4", "ipv6"],
-                        "description": "Which address family Slurm uses for NodeAddr in dual-stack mode. Required when ib_addr_mode is dual-stack. Ignored for ipv4-only/ipv6-only."
                       }
                     },
                     "additionalProperties": false
@@ -232,11 +227,6 @@
                         "type": "string",
                         "enum": ["dual-stack", "ipv6-only", "ipv4-only"],
                         "description": "IPoIB addressing mode. dual-stack: IPv4+IPv6, ipv6-only: IPv6 only, ipv4-only: IPv4 only (default, IPv6 pipeline skipped)."
-                      },
-                      "slurm_preferred_addr_family": {
-                        "type": "string",
-                        "enum": ["ipv4", "ipv6"],
-                        "description": "Which address family Slurm uses for NodeAddr in dual-stack mode. Required when ib_addr_mode is dual-stack. Ignored for ipv4-only/ipv6-only."
                       }
                     },
                     "additionalProperties": false

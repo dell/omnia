@@ -592,12 +592,12 @@ class TestEndToEndLegacyFlow:
 
 
 # ===========================================================================
-# TC-UT-001/002 extension: ib_addr_mode and slurm_preferred_addr_family
-# schema validation (ER-ORCH-005 post-implementation reconciliation)
+# TC-UT-001/002 extension: ib_addr_mode schema validation
+# (ER-ORCH-005 post-implementation reconciliation)
 # ===========================================================================
 
 class TestIbAddrModeSchemaValidation:
-    """Verify ib_addr_mode and slurm_preferred_addr_family in network_spec schema."""
+    """Verify ib_addr_mode in network_spec schema."""
 
     @pytest.fixture(autouse=True)
     def _load_schema(self):
@@ -645,21 +645,12 @@ class TestIbAddrModeSchemaValidation:
                 assert "dual-stack" in allowed
                 assert "ipv6-only" in allowed
 
-    def test_slurm_preferred_addr_family_present(self):
-        """slurm_preferred_addr_family field exists in schema."""
+    def test_slurm_preferred_addr_family_removed(self):
+        """slurm_preferred_addr_family must not exist in schema (FR-7 violation)."""
         ib_schemas = self._find_ib_network_schemas()
-        assert any("slurm_preferred_addr_family" in s for s in ib_schemas), (
-            "slurm_preferred_addr_family not found in any ib_network schema branch"
+        assert not any("slurm_preferred_addr_family" in s for s in ib_schemas), (
+            "slurm_preferred_addr_family should have been removed per FR-7"
         )
-
-    def test_slurm_preferred_addr_family_enum_values(self):
-        """slurm_preferred_addr_family accepts ipv4, ipv6."""
-        ib_schemas = self._find_ib_network_schemas()
-        for s in ib_schemas:
-            if "slurm_preferred_addr_family" in s:
-                allowed = s["slurm_preferred_addr_family"].get("enum", [])
-                assert "ipv4" in allowed
-                assert "ipv6" in allowed
 
     def test_ib_addr_mode_not_required(self):
         """ib_addr_mode is optional (backward compatibility)."""

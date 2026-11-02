@@ -65,13 +65,10 @@
 # - "ipv4-only": IPv4 only on IPoIB (legacy behavior; ipv6_subnet ignored)
 # Default: "ipv4-only" (if not set, IPv6 pipeline is skipped)
 #
-# slurm_preferred_addr_family (required when ib_addr_mode is "dual-stack"):
-# Slurm NodeAddr accepts only one address per node. In dual-stack mode both
-# IPv4 and IPv6 are available on the IB interface, so you must choose which
-# one Slurm uses for inter-daemon communication.
-# - "ipv4": Slurm communicates over the IB IPv4 address
-# - "ipv6": Slurm communicates over the IB IPv6 address
-# Ignored when ib_addr_mode is "ipv4-only" or "ipv6-only" (auto-derived).
+# Slurm NodeAddr behavior (FR-7):
+# - dual-stack: NodeAddr automatically uses the IPv6 IPoIB address
+# - ipv6-only:  NodeAddr uses the IPv6 IPoIB address
+# - ipv4-only:  NodeAddr uses the IPv4 IPoIB address (existing behavior)
 
 Networks:
   - admin_network:
@@ -93,4 +90,3 @@ Networks:
       ipv6_subnet: "fd00:1b::"
       ipv6_netmask_bits: "64"
       ib_addr_mode: "dual-stack"
-      slurm_preferred_addr_family: "ipv6"
