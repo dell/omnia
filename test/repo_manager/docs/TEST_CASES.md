@@ -114,6 +114,7 @@
 | RM_FVT_CLEANUP_V001 | `test_pulp_container_removed` | Verify Pulp container removed | sanity, positive |
 | RM_FVT_CLEANUP_V002 | `test_pulp_cli_preserved` | Verify managed Pulp CLI remains executable | sanity, positive |
 | RM_FVT_CLEANUP_V003 | `test_pulp_directories_removed` | Verify Pulp directories removed | functional, positive |
+| RM_FVT_CLEANUP_V004 | `test_credentials_per_flag` | Verify credential store removed (`cleanup_credentials: true`) or preserved (`false`) | sanity, positive |
 
 ## Selective Cleanup Scenario (`fvt/cleanup_repos/`)
 
