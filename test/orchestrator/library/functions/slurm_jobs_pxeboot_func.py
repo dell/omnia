@@ -1516,6 +1516,8 @@ def check_slurm_gpu_job(host) -> Dict[str, Any]:
         if gated:
             return gated
         _context_data, rows, control, _config = _context(host)
+        if not rows:
+            return _skip(summary, "No Slurm functional groups in the PXE mapping")
         gpu_rows = _gpu_rows(host, control, _compute_rows(rows))
         if not gpu_rows:
             return _skip(summary, "Slurm reports no GPU GRES on mapped compute nodes")
@@ -1565,6 +1567,8 @@ def check_slurm_gpu_memory_stress(host) -> Dict[str, Any]:
         if gated:
             return gated
         _context_data, rows, control, _config = _context(host)
+        if not rows:
+            return _skip(summary, "No Slurm functional groups in the PXE mapping")
         if not _gpu_rows(host, control, _compute_rows(rows)):
             return _skip(summary, "Slurm reports no GPU GRES on mapped compute nodes")
         compiler = first_row(rows, SLURM_COMPILER_PREFIX)
