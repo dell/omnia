@@ -101,9 +101,58 @@ Run from inside the `test/telemetry/` directory:
 | Option | Description |
 |--------|-------------|
 | `--suite <name>` | Filter by subfolder (`sinks`, `sources`, `cluster`, `input`) |
-| `--marker <expr>` | Filter by pytest marker expression |
+| `--marker <expr>` | Filter by marker expression (see [Markers](#markers)) |
 | `-v, --verbose` | Increase pytest verbosity |
 | `--debug` | Full debug output (pytest `-vvs`) |
+
+### Markers
+
+Markers decide which tests run. A test can carry several markers, and `--marker`
+selects the tests whose markers match the expression.
+
+| Syntax | Example | Selects |
+|--------|---------|---------|
+| Single | `--marker sanity` | Tests with `sanity` |
+| AND (`+`) | `--marker source+sanity` | Tests with both `source` and `sanity` |
+| OR (`,`) | `--marker sink,source` | Tests with either `sink` or `source` |
+
+Use one operator per expression. Mixing `+` and `,` in one expression is not supported.
+
+**Quality levels (FVT)**
+
+| Marker | Selects | Typical checks |
+|--------|---------|----------------|
+| `sanity` | Must-pass readiness | Pods and services running, CRs and secrets present, config valid, disabled state correct |
+| `functional` | Data and feature behavior | Data reaches Kafka, VictoriaMetrics, or VictoriaLogs; certificates verified end to end; feature flags work |
+
+A test can carry both markers. Such a test runs in either a `sanity` or a
+`functional` run. Use this for a readiness gate that also proves a data path is
+connected, for example `test_ldms_vector_bridge`.
+
+**Scope markers**
+
+| Marker | Selects |
+|--------|---------|
+| `source` | Every appliance source test (iDRAC, LDMS, OME, PowerScale, UFM, VAST, SFM) and their cleanup tests |
+| `sink` | Sink tests (Kafka, VictoriaMetrics, VictoriaLogs) |
+| `idrac`, `ldms`, `ome`, `powerscale`, `ufm`, `vast`, `sfm` | Tests for one appliance |
+
+**Execution markers**
+
+| Marker | Meaning |
+|--------|---------|
+| `precheck` | Environment precheck tests |
+| `deploy` | Runs a playbook. Skipped in `verify`-only runs |
+| `order(n)` | Execution order within a suite. Lower numbers run first |
+
+**NFT markers**
+
+| Marker | Selects |
+|--------|---------|
+| `nft` | All non-functional tests |
+| `performance`, `idempotency`, `resilience` | One NFT category (see [NFT Tags](#nft-tags)) |
+
+Test-level marker assignments for every FVT test case are listed in `fvt/README.md`.
 
 ### Cleanup Configuration (FVT Only)
 
@@ -210,51 +259,6 @@ cp -r <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME> /path/to/backup/
 
 See `nft/README.md` for detailed test case descriptions and recovery instructions.
 
-### NFT: Consolidated Test Execution
-
-**Recommended approach**: Run the full NFT suite with a single command:
-
-```bash
-# Comprehensive NFT execution (both DELETE_SINKS_VOLUME=false and DELETE_SINKS_VOLUME=true scenarios)
-./run_validation.sh nft_telemetry test
-```
-
-This consolidated execution automatically runs:
-1. **Phase 1**: All performance, idempotency, and resilience tests with `DELETE_SINKS_VOLUME=false` (PVCs preserved)
-2. **Phase 2**: Cleanup-with-volume deletion tests with `DELETE_SINKS_VOLUME=true` (all PVCs deleted)
-
-This eliminates the need to run the NFT suite twice with different flags.
-
-**⚠️ IMPORTANT - Data Loss Warning:**
-After NFT completion, the cluster is left in a **fully cleaned-up state** with:
-- All PVCs deleted (Kafka, VictoriaMetrics, VictoriaLogs)
-- Input files deleted (`telemetry_config.yml`, etc.)
-- Log files deleted
-- Credential files deleted
-
-**Before running NFT, back up any data you need to preserve:**
-```bash
-# Backup input files
-cp -r <OMNIA_DATA_PATH>/telemetry/input/<OMNIA_PROJECT_NAME> /path/to/backup/
-
-# Backup logs
-cp -r <OMNIA_DATA_PATH>/telemetry/log/<OMNIA_PROJECT_NAME> /path/to/backup/
-```
-
-See `nft/README.md` for detailed test case descriptions and recovery instructions.
-
-### Marker Expressions
-
-| Syntax | Example | Meaning |
-|--------|---------|---------|
-| Single | `--marker sanity` | Tests with `@pytest.mark.sanity` |
-| AND (`+`) | `--marker source+sanity` | Tests with BOTH markers |
-| OR (`,`) | `--marker sink,source` | Tests with EITHER marker |
-
-Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
-`ome`, `ldms`, `sfm`, `ufm`, `vast`, `nft`, `performance`, `idempotency`,
-`resilience`
-
 ### Examples
 
 ```bash
@@ -284,6 +288,14 @@ Available markers: `sanity`, `functional`, `sink`, `source`, `deploy`,
 # FVT - Cleanup with Override (delete all PVCs and artifacts)
 # Edit test_config.yml: delete_sinks_volume: true
 ./run_validation.sh fvt_telemetry cleanup test
+
+# FVT - Run by marker
+./run_validation.sh fvt_telemetry deploy verify --marker sanity                     # All sanity checks
+./run_validation.sh fvt_telemetry deploy verify --marker functional                 # All functional checks
+./run_validation.sh fvt_telemetry deploy verify --marker "source+sanity"            # Sanity checks for all sources
+./run_validation.sh fvt_telemetry deploy verify --marker "sink,source"              # Sinks and sources
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker powerscale # PowerScale source only
+./run_validation.sh fvt_telemetry deploy verify --suite sources --marker "functional+idrac"  # iDRAC functional checks
 
 # FVT - Optional Source Integration
 # SFM integration only (requires configure_sfm: true and SFM credentials)

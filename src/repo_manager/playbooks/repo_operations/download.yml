@@ -92,7 +92,7 @@
     # -------------------------------------------------------------------------
     - name: Set start time
       ansible.builtin.set_fact:
-        playbook_start_time: "{{ lookup('pipe', 'date +%s') }}"
+        playbook_start_time: "{{ now().timestamp() | int | string }}"
 
     - name: Ensure repo_manager log directory exists
       ansible.builtin.file:
