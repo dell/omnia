@@ -8,8 +8,9 @@ synchronization, logging, and HTML/JSON reporting.
 The Omnia setup (`./omnia.sh --setup-venv`, `--cleanup`) is tested in
 `test/main`, and each base domain's cleanup in its own suite (`test/repo_manager`,
 `test/image_build_manager`, `test/orchestrator`). The end-to-end system
-verification (SVT) chains those suites with these FVT tags; see
-[`../system_test/README.md`](../system_test/README.md).
+verification (SVT) chains those suites with these FVT tags, and its
+`./setup_env.sh` writes every domain credential store through this suite's
+`setup_env.sh`; see [`../system_test/README.md`](../system_test/README.md).
 
 ## Purpose and safety model
 
@@ -143,8 +144,8 @@ Test (transport) credentials and product (domain) credentials are separate:
 - **BuildStream:** the helper also generates the Argon2 registrar hash required
   by `/api/v1/auth/register`. Run `./omnia.sh -r build_stream` after changing
   BuildStream credentials.
-- **Automation:** `--domain-creds-stdin` reads one JSON object, as the SVT
-  pipeline does from OpenBao.
+- **Automation:** `--domain-creds-stdin` reads one JSON object, as
+  `test/system_test/setup_env.sh --yes` does when no terminal is attached.
 
 Fields and the standard-input format: [`docs/test_creds.md`](docs/test_creds.md).
 

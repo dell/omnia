@@ -1,5 +1,12 @@
 # Omnia SVT project
 
+> **Not maintained for the current SVT flow.** `test/system_test` now runs
+> locally: `./setup_env.sh` (configure, install, credentials) and
+> `./run_validation.sh svt_<theme>` (initialization, system_verification,
+> summary); see `test/system_test/README.md` in the Omnia repository. These GitLab files still call
+> the earlier stages (`cleanup`, `environment_setup`) and `--inputs`, and need
+> an update before use.
+
 This project runs the Omnia system verification on your clusters. Each folder
 under `clusters/` is one cluster (one OIM).
 

@@ -12,20 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""SVT stages: initialization, cleanup, environment_setup, system_verification, summary.
+"""SVT stages: initialization, system_verification, summary.
 
-The same functions serve a local run on the OIM
-(``./run_validation.sh svt_<theme> <stage>``) and the GitLab pipeline (one job
-per stage). Each stage returns
-``{"status": passed|skipped|failed, "error": str}``; the driver records it
-in the run manifest ``reports/<run_id>/run.json``.
+The OIM is prepared first with ./setup_env.sh (load, cleanup, install, creds;
+library/functions/setup_func.py). The same stage functions serve a local run on
+the OIM (``./run_validation.sh svt_<theme> <stage>``) and a pipeline (one job
+per stage). Each stage returns ``{"status": passed|skipped|failed, "error": str}``;
+the driver records it in the run manifest ``reports/<run_id>/run.json``.
 """
 
-import hashlib
 import json
 import os
 import shutil
-import sys
 import tempfile
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
@@ -33,23 +31,23 @@ from typing import Any, Callable, Dict, Optional
 import pytest
 import yaml
 
-from .fvt_func import describe_step, domain_dir, fvt_python, omnia_venv_path, run_fvt_step
-from .process_func import capture_command, stream_command
+from .config_func import ConfigError, load_svt_config
+from .fvt_func import domain_dir
+from .process_func import capture_command
+from .setup_func import load_setup_record, readiness_problems, sha256
 from ..messages.svt_msgs import STAGE_MSGS
 from ..vars.common_vars import (
-    BUILD_STREAM_QUADLET,
-    FVT_SETUP,
     FVT_TEST_CONFIG,
-    GENERATOR,
     INPUTS_FILE,
     MODULE_ROOT,
-    OMNIA_ENV_FILE,
     REPO_ROOT,
     REPORT_ROOT,
     RUN_ID_ENV,
     RUN_MANIFEST,
+    SETUP_REPORT_DIR,
+    SVT_TEST_CONFIG,
 )
-from ..vars.theme_vars import OWN_VENV_DOMAINS, STEP_REQUIRES_BUILD_STREAM, THEMES
+from ..vars.theme_vars import THEMES
 
 Emit = Callable[[str], None]
 LATEST_RUN_FILE = os.path.join(REPORT_ROOT, "latest")
@@ -113,7 +111,8 @@ def require_run(run_id: str, theme: str, resume: bool) -> None:
     if base.get("theme") != theme:
         raise ValueError(STAGE_MSGS["nothing_to_resume"].format(theme=theme))
     adopted = {key: base.get(key) for key in ("theme", "commit", "inputs_sha256",
-                                               "test_config_sha256")}
+                                               "svt_test_config_sha256",
+                                               "test_config_sha256", "setup", "cleanup")}
     adopted.update(run_id=run_id, resumed_from=previous, stages={},
                    started_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
     _write_json(os.path.join(run_dir(run_id), RUN_MANIFEST), adopted)
@@ -128,25 +127,12 @@ def latest_run_id() -> str:
         return ""
 
 
-def _sha256(path: str) -> str:
-    """Return the SHA-256 of a file ("" when it is absent)."""
-    try:
-        with open(path, "rb") as stream:
-            return hashlib.sha256(stream.read()).hexdigest()
-    except OSError:
-        return ""
-
-
 def _passed() -> Dict[str, Any]:
     return {"status": "passed", "error": ""}
 
 
 def _failed(error: str) -> Dict[str, Any]:
     return {"status": "failed", "error": error}
-
-
-def _skipped(reason: str) -> Dict[str, Any]:
-    return {"status": "skipped", "error": reason}
 
 
 def _place(source: Optional[str], target: str) -> str:
@@ -170,117 +156,59 @@ def _yaml_mapping_error(path: str) -> str:
     return "" if isinstance(data, dict) else f"{path} is not a YAML mapping"
 
 
-def initialization(run_id: str, theme: str, inputs: Optional[str],
-                   test_config: Optional[str], emit: Emit) -> Dict[str, Any]:
-    """Place the cluster files in the checkout, fill the src inputs and start the manifest."""
+def _copy_setup_reports(run_id: str) -> None:
+    """Copy reports/setup (the ./setup_env.sh logs and record) into the run report."""
+    if os.path.isdir(SETUP_REPORT_DIR):
+        shutil.copytree(SETUP_REPORT_DIR, os.path.join(run_dir(run_id), "setup"),
+                        dirs_exist_ok=True)
+
+
+def initialization(run_id: str, theme: str, test_config: Optional[str],
+                   emit: Emit) -> Dict[str, Any]:
+    """Check that ./setup_env.sh prepared this OIM, place the FVT test_config, start the manifest.
+
+    Ready means: test_config.yml selects ``theme``; user_inputs.yml was loaded
+    and installed unchanged since; omnia.sh -s completed; the Omnia venv is
+    active; every domain credential store of the theme exists.
+    """
     if not os.path.isfile(os.path.join(REPO_ROOT, "src", "main", "omnia.sh")):
         return _failed(STAGE_MSGS["repo_missing"].format(path=REPO_ROOT))
+    try:
+        config = load_svt_config()
+    except ConfigError as exc:
+        return _failed(str(exc))
+    if config["theme"] != theme:
+        return _failed(STAGE_MSGS["theme_mismatch"].format(
+            path=SVT_TEST_CONFIG, config_theme=config["theme"], theme=theme))
+    problems = readiness_problems(theme)
+    if problems:
+        return _failed(STAGE_MSGS["not_ready"].format(problems="\n  - " + "\n  - ".join(problems)))
+    emit(STAGE_MSGS["ready"])
+    setup = load_setup_record()
+    for path in (setup.get("install") or {}).get("stale_inputs") or []:
+        emit(STAGE_MSGS["stale_input"].format(path=path))
     config_target = os.path.join(domain_dir(THEMES[theme]["test_config_domain"]), FVT_TEST_CONFIG)
-    error = (_yaml_mapping_error(inputs or INPUTS_FILE)
-             or _yaml_mapping_error(test_config or config_target)
-             or _place(inputs, INPUTS_FILE) or _place(test_config, config_target))
+    error = _yaml_mapping_error(test_config or config_target) or _place(test_config, config_target)
     if error:
         return _failed(error)
-    emit(STAGE_MSGS["inputs_placed"].format(target=INPUTS_FILE))
     emit(STAGE_MSGS["test_config_placed"].format(target=config_target))
-    generated = stream_command([sys.executable, GENERATOR], cwd=os.path.dirname(GENERATOR))
     manifest = {
         "run_id": run_id, "theme": theme,
         "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "commit": capture_command(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT) or "unknown",
-        "inputs_sha256": _sha256(INPUTS_FILE),
-        "test_config_sha256": _sha256(config_target),
+        "inputs_sha256": sha256(INPUTS_FILE),
+        "svt_test_config_sha256": sha256(SVT_TEST_CONFIG),
+        "test_config_sha256": sha256(config_target),
+        "cleanup": config["cleanup"],
+        "setup": {action: {key: outcome.get(key) for key in ("status", "started_at", "duration")}
+                  for action, outcome in setup.items()},
         "stages": load_manifest(run_id).get("stages", {}),
     }
     _write_json(os.path.join(run_dir(run_id), RUN_MANIFEST), manifest)
+    _copy_setup_reports(run_id)
     with open(LATEST_RUN_FILE, "w", encoding="utf-8") as stream:
         stream.write(run_id)
-    if not generated["success"]:
-        return _failed(f"dataset generator failed (rc={generated['rc']})")
     emit(f"commit {manifest['commit']}")
-    return _passed()
-
-
-def _install_into_omnia_venv(domain: str, venv: str, emit: Emit) -> Dict[str, Any]:
-    """Install a domain's test requirements into the Omnia venv (setup_env.sh, active venv)."""
-    emit(STAGE_MSGS["step"].format(stage="setup", label=f"{domain} test requirements -> {venv}"))
-    env = {"VIRTUAL_ENV": venv, "PATH": f"{venv}/bin:{os.environ.get('PATH', '')}"}
-    return stream_command(["bash", FVT_SETUP], cwd=domain_dir(domain), env=env)
-
-
-def _bootstrap_venv(domain: str, emit: Emit) -> Dict[str, Any]:
-    """Create or reuse the suite's own .venv (setup_env.sh --venv)."""
-    emit(STAGE_MSGS["step"].format(stage="setup", label=f"{domain} {FVT_SETUP} --venv"))
-    return stream_command(["bash", FVT_SETUP, "--venv"], cwd=domain_dir(domain))
-
-
-def _run_steps(stage: str, steps, emit: Emit) -> Dict[str, Any]:
-    """Run FVT steps in order; stop at the first failure."""
-    for step in steps:
-        label = describe_step(step)
-        emit(STAGE_MSGS["step"].format(stage=stage, label=label))
-        result = run_fvt_step(step)
-        if not result["success"]:
-            return _failed(STAGE_MSGS["step_failed"].format(label=label, rc=result["rc"]))
-    return _passed()
-
-
-def _omnia_venv_ready() -> str:
-    """Return the Omnia venv path when its interpreter exists ("" otherwise)."""
-    venv = omnia_venv_path()
-    return venv if venv and os.access(os.path.join(venv, "bin", "python"), os.X_OK) else ""
-
-
-def cleanup(theme: str, emit: Emit) -> Dict[str, Any]:
-    """Remove the previous installation with each suite's own cleanup FVT.
-
-    BuildStream (when installed) and the base domains run from the Omnia venv;
-    the Omnia setup cleanup (test/main) runs last from its own .venv.
-    """
-    if not os.path.isfile(OMNIA_ENV_FILE):
-        return _skipped(STAGE_MSGS["no_previous_setup"].format(path=OMNIA_ENV_FILE))
-    theme_data = THEMES[theme]
-    venv = _omnia_venv_ready()
-    steps = []
-    for step in theme_data["cleanup_steps"]:
-        domain = step[0]
-        if step in STEP_REQUIRES_BUILD_STREAM and not os.path.exists(BUILD_STREAM_QUADLET):
-            emit(STAGE_MSGS["no_build_stream"].format(path=BUILD_STREAM_QUADLET,
-                                                      label=describe_step(step)))
-        elif domain not in OWN_VENV_DOMAINS and not venv:
-            emit(STAGE_MSGS["no_omnia_venv"].format(label=describe_step(step)))
-        else:
-            steps.append(step)
-    for domain in dict.fromkeys(step[0] for step in steps):
-        prepared = (_bootstrap_venv(domain, emit) if domain in OWN_VENV_DOMAINS
-                    else _install_into_omnia_venv(domain, venv, emit))
-        if not prepared["success"]:
-            return _failed(STAGE_MSGS["step_failed"].format(label=f"{domain} {FVT_SETUP}",
-                                                            rc=prepared["rc"]))
-    return _run_steps("cleanup", steps, emit)
-
-
-def environment_setup(theme: str, emit: Emit) -> Dict[str, Any]:
-    """omnia.sh setup and domain init (test/main), then test deps in the Omnia venv."""
-    theme_data = THEMES[theme]
-    for domain in dict.fromkeys(step[0] for step in theme_data["setup_steps"]):
-        bootstrap = _bootstrap_venv(domain, emit)
-        if not bootstrap["success"]:
-            return _failed(STAGE_MSGS["step_failed"].format(label=f"{domain} {FVT_SETUP} --venv",
-                                                            rc=bootstrap["rc"]))
-    outcome = _run_steps("environment_setup", theme_data["setup_steps"], emit)
-    if outcome["status"] == "failed":
-        return outcome
-    venv = _omnia_venv_ready()
-    if not venv:
-        return _failed(STAGE_MSGS["venv_missing"].format(path=omnia_venv_path() or OMNIA_ENV_FILE))
-    for domain in theme_data["fvt_domains"]:
-        result = _install_into_omnia_venv(domain, venv, emit)
-        if not result["success"]:
-            return _failed(STAGE_MSGS["step_failed"].format(
-                label=f"{domain} {FVT_SETUP}", rc=result["rc"]))
-    emit(f"FVT interpreter: {fvt_python(theme_data['test_config_domain'])}")
-    emit(STAGE_MSGS["creds_hint"])
     return _passed()
 
 
@@ -307,6 +235,9 @@ def summary(run_id: str, emit: Emit) -> Dict[str, Any]:
          + (f"  (resumed from {manifest['resumed_from']})" if manifest.get("resumed_from") else ""))
     emit(f"inputs sha256 {manifest.get('inputs_sha256')}  "
          f"test_config sha256 {manifest.get('test_config_sha256')}")
+    for action, outcome in (manifest.get("setup") or {}).items():
+        emit(f"  setup {action:<14} {outcome.get('status') or '?':<8} "
+             f"{outcome.get('duration') or '':<8} {outcome.get('started_at') or ''}")
     stages = manifest.get("stages", {})
     for name, outcome in stages.items():
         detail = f" - {outcome.get('error')}" if outcome.get("error") else ""

@@ -12,25 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""SVT runner: the integration stages of one theme on this OIM (local or from CI).
+"""SVT runner: the integration stages of one theme on this OIM.
 
-Usage::
+Prepare the OIM first with ./setup_env.sh (configure, install, credentials).
+Then::
 
     ./run_validation.sh --help
     ./run_validation.sh svt_<theme> list
-    ./run_validation.sh svt_<theme> all [--inputs <user_inputs.yml>] [--test-config <yml>]
+    ./run_validation.sh svt_<theme> all [--test-config <yml>]
     ./run_validation.sh svt_<theme> <stage> [--run-id <id>] [--resume] [--quiet]
 
-Stages: initialization, cleanup, environment_setup, system_verification
-(``--case <case>`` runs one SVT case), summary. Each stage writes, under
+Stages: initialization (checks the setup, starts the run), system_verification
+(``--case <case>`` runs one SVT case), summary. initialization and
+system_verification need the Omnia venv; run_validation.sh activates it when
+it is not active. Each stage writes, under
 ``reports/<run_id>/``:
 
 - ``<stage>.log``       the complete output (also printed unless --quiet)
 - ``<stage>.progress``  one line: the current step, refreshed as it changes
 - ``<stage>.status``    ``passed``, ``skipped`` or ``failed <rc>`` when it ends
 
-The GitLab pipeline starts a stage with --quiet and follows these files.
-Exit codes: 0 passed or skipped, 1 failed, 2 invalid arguments.
+Exit codes: 0 passed or skipped, 1 failed, 2 invalid arguments or the Omnia
+venv cannot be activated.
 """
 
 import argparse
@@ -38,10 +41,11 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, TextIO
+from typing import Any, Dict, List, Optional
 
 from library.functions import stage_func
-from library.functions.process_func import format_duration
+from library.functions.omnia_func import venv_problem
+from library.functions.process_func import Tee, format_duration
 from library.messages.svt_msgs import STAGE_MSGS
 from library.vars.common_vars import (
     MODULE_ROOT,
@@ -56,36 +60,9 @@ from library.vars.test_case_vars import TEST_CASES
 from library.vars.theme_vars import THEMES
 
 # Stages that change the OIM; they need an initialized run (or --resume).
-GUARDED_STAGES = ("cleanup", "environment_setup", "system_verification")
-
-
-class _Tee:
-    """Write to the stage log and, unless quiet, to the console."""
-
-    def __init__(self, log: TextIO, console: Optional[TextIO]):
-        self._log, self._console = log, console
-
-    def write(self, text: str) -> int:
-        """Write ``text`` to the log and the console."""
-        self._log.write(text)
-        if self._console:
-            self._console.write(text)
-        return len(text)
-
-    def flush(self) -> None:
-        """Flush the log and the console."""
-        self._log.flush()
-        if self._console:
-            self._console.flush()
-
-    def isatty(self) -> bool:
-        """Report a non-terminal stream (pytest asks)."""
-        return False
-
-    @property
-    def encoding(self) -> str:
-        """Text encoding of the stream (pytest's terminal writer reads it)."""
-        return "utf-8"
+GUARDED_STAGES = ("system_verification",)
+# Stages that run FVT code; they need the active Omnia venv.
+VENV_STAGES = ("initialization", "system_verification")
 
 
 def _usage() -> str:
@@ -113,8 +90,8 @@ def _parser(theme: str) -> argparse.ArgumentParser:
         prog=f"run_validation.sh svt_{theme}",
         description="Run the SVT integration stages on this OIM.")
     parser.add_argument("stage", choices=[*STAGES, "all"])
-    parser.add_argument("--inputs", help="cluster user_inputs.yml placed before the generator")
-    parser.add_argument("--test-config", help="FVT test_config.yml of the theme's suite")
+    parser.add_argument("--test-config", help="FVT test_config.yml of the theme's suite, "
+                                              "placed by initialization")
     parser.add_argument("--run-id", help="run identifier (default: new for initialization/all, "
                                          "else the latest run)")
     parser.add_argument("--start-stage", choices=STAGES[:-1], default=STAGES[0],
@@ -122,7 +99,7 @@ def _parser(theme: str) -> argparse.ArgumentParser:
     parser.add_argument("--case", choices=CASES[theme],
                         help="system_verification: run one SVT case only")
     parser.add_argument("--resume", action="store_true",
-                        help="cleanup/environment_setup/system_verification of a new run id: "
+                        help="system_verification of a new run id: "
                              "continue the last initialized run of this checkout")
     parser.add_argument("--quiet", action="store_true",
                         help="write the output to the stage log only (CI)")
@@ -137,9 +114,13 @@ def _resolve(args: argparse.Namespace, theme: str) -> str:
         run_id = datetime.now(timezone.utc).strftime("svt-%Y%m%dT%H%M%SZ")
     if not RUN_ID_RE.fullmatch(run_id):
         raise ValueError(f"invalid run id {run_id!r}")
-    acting = [stage for stage in (STAGES[STAGES.index(args.start_stage):-1]
-                                  if args.stage == "all" else [args.stage])
-              if stage in GUARDED_STAGES]
+    selected = (STAGES[STAGES.index(args.start_stage):-1] if args.stage == "all"
+                else [args.stage])
+    if any(stage in VENV_STAGES for stage in selected):
+        problem = venv_problem()
+        if problem:
+            raise ValueError(problem)
+    acting = [stage for stage in selected if stage in GUARDED_STAGES]
     if acting and not (args.stage == "all" and args.start_stage == STAGES[0]):
         stage_func.require_run(run_id, theme, args.resume)
     return run_id
@@ -160,11 +141,7 @@ def _progress(path: str):
 def _call(stage: str, args: argparse.Namespace, ctx: Dict[str, Any], emit) -> Dict[str, Any]:
     run_id, theme = ctx["run_id"], ctx["theme"]
     if stage == "initialization":
-        return stage_func.initialization(run_id, theme, args.inputs, args.test_config, emit)
-    if stage == "cleanup":
-        return stage_func.cleanup(theme, emit)
-    if stage == "environment_setup":
-        return stage_func.environment_setup(theme, emit)
+        return stage_func.initialization(run_id, theme, args.test_config, emit)
     if stage == "system_verification":
         return stage_func.system_verification(run_id, theme, args.case, emit)
     return stage_func.summary(run_id, emit)
@@ -188,7 +165,7 @@ def run_stage(stage: str, args: argparse.Namespace, ctx: Dict[str, Any]) -> bool
     console = None if args.quiet else sys.__stdout__
     with open(os.path.join(directory, STAGE_LOG.format(stage=label)), "a",
               encoding="utf-8") as log:
-        sys.stdout = _Tee(log, console)
+        sys.stdout = Tee(log, console)
         try:
             emit = _progress(os.path.join(directory, STAGE_PROGRESS.format(stage=label)))
             emit(STAGE_MSGS["start"].format(stage=label, run_id=ctx["run_id"],

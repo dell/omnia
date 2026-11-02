@@ -15,8 +15,14 @@
 # ==============================================================================
 # user_inputs.yml - the values of YOUR cluster, in one file
 # ==============================================================================
-# Fill this file, then run the generator. It writes every value into the Omnia
-# input file of the same name, at the same place (same keys, same indentation):
+# Fill this file, then (test/system_test):
+#
+#   ./setup_env.sh                      # configure, install, credentials
+#   ./setup_env.sh --configure          # only write these values (the generator,
+#                                       # theme of test_config.yml, see below)
+#
+# The generator writes every value into the Omnia input file of the same name,
+# at the same place (same keys, same indentation). It can also run alone:
 #
 #   cd test/system_test/dataset_generator
 #   ./generate_dataset.py               # update src/<domain>/input and

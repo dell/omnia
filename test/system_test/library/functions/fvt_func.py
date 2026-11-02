@@ -99,7 +99,9 @@ def fvt_report_path(domain: str) -> str:
             config = yaml.safe_load(stream) or {}
     except (OSError, ValueError, yaml.YAMLError):
         return ""
-    return os.path.expandvars(str(config.get("report_path") or "")) if isinstance(config, dict) else ""
+    if not isinstance(config, dict):
+        return ""
+    return os.path.expandvars(str(config.get("report_path") or ""))
 
 
 def run_fvt_step(step: FvtStep, python: Optional[str] = None) -> Dict[str, object]:

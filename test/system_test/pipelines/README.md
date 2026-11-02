@@ -1,5 +1,12 @@
 # SVT pipeline (GitLab)
 
+> **Not maintained for the current SVT flow.** `test/system_test` now runs
+> locally: `./setup_env.sh` (configure, install, credentials) and
+> `./run_validation.sh svt_<theme>` (initialization, system_verification,
+> summary); see [`../README.md`](../README.md). These GitLab files still call
+> the earlier stages (`cleanup`, `environment_setup`) and `--inputs`, and need
+> an update before use.
+
 This folder builds a separate GitLab project that runs the Omnia system
 verification (SVT) on one or more clusters. The project holds only cluster
 files and pipeline definitions; the Omnia code is cloned on each OIM at a

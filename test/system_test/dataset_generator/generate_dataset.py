@@ -15,7 +15,8 @@
 
 """Fill the Omnia inputs from user_inputs.yml.
 
-    ./generate_dataset.py               replace the values in src/<domain>/input and src/main/omnia.env
+    ./generate_dataset.py               replace the values in src/<domain>/input and
+                                        src/main/omnia.env (what ./setup_env.sh --configure runs)
     ./generate_dataset.py /abc          create /abc, copy the src inputs into it, replace there
     ./generate_dataset.py --dry-run     show what would change, write nothing
 
@@ -49,7 +50,7 @@ from .dataset_publish import (  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[2]
-DEFAULT_INPUTS = HERE.parent / "user_inputs" / "user_inputs.yml"
+DEFAULT_INPUTS = HERE.parent / "user_inputs.yml"
 PROFILES = HERE / "profiles"
 
 
@@ -107,7 +108,7 @@ def main(argv: List[str] = None) -> int:
                         help="create this directory with the src inputs and replace there "
                              "(default: replace in src)")
     parser.add_argument("--inputs", default=str(DEFAULT_INPUTS),
-                        help="user inputs file (default: ../user_inputs/user_inputs.yml)")
+                        help="user inputs file (default: ../user_inputs.yml)")
     parser.add_argument("--profile", default="build_stream")
     parser.add_argument("--repo-root", default=str(REPO_ROOT))
     parser.add_argument("--dry-run", action="store_true")

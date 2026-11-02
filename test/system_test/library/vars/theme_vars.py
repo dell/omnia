@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Themes: what each integration flavour cleans, sets up and verifies.
+"""Themes: what each integration flavour loads, cleans, installs and verifies.
 
 A theme is data only. Every FVT step is ``(domain, runner arguments)`` and
 runs ``test/<domain>/_run.py fvt_<domain> <arguments>``; the SVT never copies
@@ -39,7 +39,8 @@ BUILD_DEPLOY_STEPS: Tuple[FvtStep, ...] = (
 
 # Previous installation, removed in this order before the setup: BuildStream,
 # then the base domains in the reverse of --prepare-base, then the Omnia setup.
-# Each step is that suite's own cleanup FVT (its test_config.yml flags apply).
+# Each step is that suite's own cleanup FVT (its test_config.yml flags apply;
+# ./setup_env.sh writes them from the SVT test_config.yml "cleanup" block).
 CLEANUP_STEPS: Tuple[FvtStep, ...] = (
     ("build_stream", ("cleanup", "test")),
     ("orchestrator", ("cleanup", "test")),
@@ -47,22 +48,46 @@ CLEANUP_STEPS: Tuple[FvtStep, ...] = (
     ("repo_manager", ("cleanup", "test", "--marker", "destructive")),
     ("main", ("cleanup", "exec")),
 )
-# omnia.sh --setup-venv, then every domain-init.sh (test/main).
-SETUP_STEPS: Tuple[FvtStep, ...] = (
-    ("main", ("setup", "test")),
-    ("main", ("init", "test")),
-)
+# Cleanup flags the SVT test_config.yml may set, per suite:
+# (section of the suite's test_config.yml, "" = top level; allowed keys).
+# Every value is a boolean; "enabled" (SVT only) turns the suite's cleanup
+# step on or off and is never written into the suite.
+CLEANUP_FLAGS: Dict[str, Tuple[str, Tuple[str, ...]]] = {
+    "build_stream": ("cleanup", ("postgres_backup", "cleanup_credentials")),
+    "orchestrator": ("", ("cleanup_credentials", "cleanup_slurm", "cleanup_k8s",
+                          "cleanup_benchmark_tools")),
+    "image_build_manager": ("", ("cleanup_credentials",)),
+    "repo_manager": ("", ("cleanup_credentials",)),
+    "main": ("", ()),
+}
+CLEANUP_ENABLED_KEY = "enabled"
+
+# Domain credential stores, written by test/<CREDS_SUITE>/setup_env.sh
+# --set-domain-creds at <domain data>/input/<project>/<file> (vault encrypted).
+CREDS_SUITE = "build_stream"
+CREDENTIAL_FILES: Dict[str, str] = {
+    "repo_manager": "repo_manager_config_credentials.yml",
+    "image_build_manager": "image_build_credentials.yml",
+    "orchestrator": "orchestrator_credentials.yml",
+    "build_stream": "build_stream_credentials.yml",
+}
 
 THEMES: Dict[str, Dict] = {
     "build_stream": {
         "description": "BuildStream: base domains, BuildStream and GitLab, build and "
                        "deploy, cadence, automatic cleanup",
         "test_config_domain": "build_stream",
+        # dataset_generator/profiles/<profile>.yml: user_inputs.yml -> src inputs.
+        "profile": "build_stream",
         "cleanup_steps": CLEANUP_STEPS,
-        "setup_steps": SETUP_STEPS,
-        # Suites whose requirements go into the Omnia venv (cleanup and cases).
-        "fvt_domains": ("build_stream", "orchestrator", "image_build_manager",
-                        "repo_manager"),
+        # Suites whose requirements go into the Omnia venv, in --prepare-base
+        # order (./setup_env.sh --install), then BuildStream.
+        "fvt_domains": ("repo_manager", "image_build_manager", "orchestrator",
+                        "build_stream"),
+        # Domains whose input folder omnia.sh -s creates and whose credential
+        # store the cases need (./setup_env.sh --set-domain-creds).
+        "credential_domains": ("repo_manager", "image_build_manager", "orchestrator",
+                               "build_stream"),
         "cases": {
             "build_deploy": BUILD_DEPLOY_STEPS,
             "cadence": (("build_stream", ("execute", "verify", "--suite", "cadence")),),

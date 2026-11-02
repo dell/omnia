@@ -23,7 +23,7 @@ an argument, an environment value or printed. TLS is always verified.
 Pushed in one commit ([skip ci]):
   .gitlab-ci.yml, ci/ (themes, scripts)          always updated
   clusters/<cluster>/cluster.yml                 template, kept when present
-  clusters/<cluster>/user_inputs.yml             test/system_test/user_inputs
+  clusters/<cluster>/user_inputs.yml             test/system_test/user_inputs.yml
   clusters/<cluster>/test_config.yml             test/build_stream/test_config.yml
 Then it reports the GitLab version, raises the project CI timeout, makes sure
 the default branch is protected and checks the runners' maximum timeout.
@@ -47,7 +47,7 @@ TEMPLATE = os.path.join(HERE, "project_template")
 SVT_ROOT = os.path.dirname(HERE)
 CLUSTER_SOURCES = {
     "cluster.yml": os.path.join(TEMPLATE, "clusters", "cluster1", "cluster.yml"),
-    "user_inputs.yml": os.path.join(SVT_ROOT, "user_inputs", "user_inputs.yml"),
+    "user_inputs.yml": os.path.join(SVT_ROOT, "user_inputs.yml"),
     "test_config.yml": os.path.join(os.path.dirname(SVT_ROOT), "build_stream", "test_config.yml"),
 }
 PROJECT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}(/[A-Za-z0-9][A-Za-z0-9._-]{0,99}){1,3}")
