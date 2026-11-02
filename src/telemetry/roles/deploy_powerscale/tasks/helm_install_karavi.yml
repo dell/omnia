@@ -25,7 +25,7 @@
 
 - name: Apply cert-manager CRDs
   ansible.builtin.command: >
-    kubectl apply --validate=false -f {{ karavi_helm_chart_path }}/crds/cert-manager.crds.yaml
+    kubectl apply --validate=false -f {{ karavi_helm_chart_path | quote }}/crds/cert-manager.crds.yaml
   when: _cert_manager_crds.stat.exists | default(false)
   changed_when: false
   failed_when: false
@@ -33,38 +33,62 @@
 # --- Copy isilon-creds secret to telemetry namespace ---
 
 - name: Check if isilon-creds exists in isilon namespace
-  ansible.builtin.command: kubectl get secret isilon-creds -n isilon -o name
-  register: _isilon_creds_check
-  changed_when: false
-  failed_when: false
+  block:
+    - name: Check if isilon-creds exists in isilon namespace
+      ansible.builtin.command: kubectl get secret isilon-creds -n isilon -o name
+      register: _isilon_creds_check
+      changed_when: false
+      failed_when: false
+      no_log: true
+  rescue:
+    - name: Check if isilon-creds exists in isilon namespace | Report failure
+      ansible.builtin.fail:
+        msg: "{{ ps_isilon_creds_check_fail_msg }}"
+      no_log: true
 
 - name: Copy isilon-creds secret to telemetry namespace  # noqa: risky-shell-pipe
-  ansible.builtin.shell: |
-    kubectl delete secret isilon-creds -n {{ csm_observability_namespace | quote }} --ignore-not-found=true 2>/dev/null
-    kubectl get secret isilon-creds -n isilon -o json \
-      | jq 'del(.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.managedFields)' \
-      | jq --arg ns {{ csm_observability_namespace | quote }} '.metadata.namespace = $ns' \
-      | kubectl create -f -
-  when: _isilon_creds_check.rc == 0
-  changed_when: false
-  failed_when: false
+  block:
+    - name: Copy isilon-creds secret to telemetry namespace  # noqa: risky-shell-pipe
+      ansible.builtin.shell: |
+        kubectl delete secret isilon-creds -n {{ csm_observability_namespace | quote }} --ignore-not-found=true 2>/dev/null
+        kubectl get secret isilon-creds -n isilon -o json \
+          | jq 'del(.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.managedFields)' \
+          | jq --arg ns {{ csm_observability_namespace | quote }} '.metadata.namespace = $ns' \
+          | kubectl create -f -
+      when: _isilon_creds_check.rc == 0
+      changed_when: false
+      failed_when: false
+      no_log: true
+  rescue:
+    - name: Copy isilon-creds secret to telemetry namespace | Report failure
+      ansible.builtin.fail:
+        msg: "{{ ps_isilon_creds_copy_fail_msg }}"
+      no_log: true
 
 # --- Copy Karavi Authorization resources if enabled ---
 
 - name: Copy Karavi Authorization resources (Mode B)  # noqa: risky-shell-pipe
-  ansible.builtin.shell: |
-    _NS={{ csm_observability_namespace | quote }}
-    kubectl get configmap isilon-config-params -n isilon -o yaml \
-      | sed "s/namespace: isilon/namespace: ${_NS}/" \
-      | kubectl apply -f - 2>/dev/null || true
-    kubectl get secret proxy-server-root-certificate proxy-authz-tokens -n isilon -o yaml \
-      | sed "s/namespace: isilon/namespace: ${_NS}/" \
-      | sed 's/name: proxy-server-root-certificate/name: isilon-proxy-server-root-certificate/' \
-      | sed 's/name: proxy-authz-tokens/name: isilon-proxy-authz-tokens/' \
-      | kubectl apply -f - 2>/dev/null || true
-  when: karavi_enabled | bool
-  changed_when: false
-  failed_when: false
+  block:
+    - name: Copy Karavi Authorization resources (Mode B)  # noqa: risky-shell-pipe
+      ansible.builtin.shell: |
+        _NS={{ csm_observability_namespace | quote }}
+        kubectl get configmap isilon-config-params -n isilon -o yaml \
+          | sed "s/namespace: isilon/namespace: ${_NS}/" \
+          | kubectl apply -f - 2>/dev/null || true
+        kubectl get secret proxy-server-root-certificate proxy-authz-tokens -n isilon -o yaml \
+          | sed "s/namespace: isilon/namespace: ${_NS}/" \
+          | sed 's/name: proxy-server-root-certificate/name: isilon-proxy-server-root-certificate/' \
+          | sed 's/name: proxy-authz-tokens/name: isilon-proxy-authz-tokens/' \
+          | kubectl apply -f - 2>/dev/null || true
+      when: karavi_enabled | bool
+      changed_when: false
+      failed_when: false
+      no_log: true
+  rescue:
+    - name: Copy Karavi Authorization resources (Mode B) | Report failure
+      ansible.builtin.fail:
+        msg: "{{ ps_karavi_authz_copy_fail_msg }}"
+      no_log: true
 
 # --- Helm install/upgrade karavi-observability ---
 
@@ -145,10 +169,10 @@
 
 - name: Upgrade existing karavi-observability release
   ansible.builtin.command: >
-    helm upgrade karavi-observability {{ karavi_helm_chart_path }}
-    -n {{ csm_observability_namespace }}
-    -f {{ _helm_values_nfs }}
-    -f {{ _cert_manager_resources_override }}
+    helm upgrade karavi-observability {{ karavi_helm_chart_path | quote }}
+    -n {{ csm_observability_namespace | quote }}
+    -f {{ _helm_values_nfs | quote }}
+    -f {{ _cert_manager_resources_override | quote }}
     --timeout 10m
   when: _karavi_helm_check.rc == 0
   register: _helm_upgrade
@@ -156,10 +180,10 @@
 
 - name: Install karavi-observability Helm chart
   ansible.builtin.command: >
-    helm install karavi-observability {{ karavi_helm_chart_path }}
-    -n {{ csm_observability_namespace }}
-    -f {{ _helm_values_nfs }}
-    -f {{ _cert_manager_resources_override }}
+    helm install karavi-observability {{ karavi_helm_chart_path | quote }}
+    -n {{ csm_observability_namespace | quote }}
+    -f {{ _helm_values_nfs | quote }}
+    -f {{ _cert_manager_resources_override | quote }}
     --timeout 10m
   when: _karavi_helm_check.rc != 0
   register: _helm_install
@@ -172,7 +196,7 @@
 
 - name: Patch otel-collector deployment with resource limits
   ansible.builtin.command: >
-    kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
+    kubectl patch deployment otel-collector -n {{ csm_observability_namespace | quote }}
     --type=json
     -p='[
       {
@@ -209,7 +233,7 @@
 
 - name: Patch karavi-metrics-powerscale deployment with resource limits
   ansible.builtin.command: >
-    kubectl patch deployment karavi-metrics-powerscale -n {{ csm_observability_namespace }}
+    kubectl patch deployment karavi-metrics-powerscale -n {{ csm_observability_namespace | quote }}
     --type=json
     -p='[
       {
@@ -234,14 +258,14 @@
 
 - name: Patch OTEL Collector service for Prometheus metrics port
   ansible.builtin.command: >
-    kubectl patch svc otel-collector -n {{ csm_observability_namespace }}
+    kubectl patch svc otel-collector -n {{ csm_observability_namespace | quote }}
     --patch '{"spec":{"ports":[{"name":"prometheus","port":8889,"targetPort":8889,"protocol":"TCP"}]}}'
   changed_when: false
   failed_when: false
 
 - name: Add labels to OTEL Collector service for vmagent discovery
   ansible.builtin.command: >
-    kubectl label svc otel-collector -n {{ csm_observability_namespace }}
+    kubectl label svc otel-collector -n {{ csm_observability_namespace | quote }}
     app.kubernetes.io/name=otel-collector app.kubernetes.io/component=collector --overwrite
   changed_when: false
   failed_when: false
@@ -250,7 +274,7 @@
 
 - name: Check if OTEL Collector PVC exists
   ansible.builtin.command: >
-    kubectl get pvc otel-collector-data -n {{ csm_observability_namespace }} -o name
+    kubectl get pvc otel-collector-data -n {{ csm_observability_namespace | quote }} -o name
   register: _otel_pvc_check
   changed_when: false
   failed_when: false
@@ -262,7 +286,7 @@
     kind: PersistentVolumeClaim
     metadata:
       name: otel-collector-data
-      namespace: {{ csm_observability_namespace }}
+      namespace: {{ csm_observability_namespace | quote }}
       labels:
         app.kubernetes.io/name: otel-collector
         app.kubernetes.io/instance: karavi-observability
@@ -278,7 +302,7 @@
 
 - name: Patch OTEL Collector deployment with persistent volume
   ansible.builtin.command: >
-    kubectl patch deployment otel-collector -n {{ csm_observability_namespace }}
+    kubectl patch deployment otel-collector -n {{ csm_observability_namespace | quote }}
     --type=json
     -p='[
       {
@@ -309,7 +333,7 @@
     deployment/karavi-observability-cert-manager
     deployment/karavi-observability-cert-manager-cainjector
     deployment/karavi-observability-cert-manager-webhook
-    -n {{ csm_observability_namespace }} --timeout=300s
+    -n {{ csm_observability_namespace | quote }} --timeout=300s
   changed_when: false
   failed_when: false
 
@@ -334,7 +358,7 @@
 
 - name: Wait for OTEL Collector rollout
   ansible.builtin.command: >
-    kubectl rollout status deployment/otel-collector -n {{ csm_observability_namespace }} --timeout=120s
+    kubectl rollout status deployment/otel-collector -n {{ csm_observability_namespace | quote }} --timeout=120s
   changed_when: false
   failed_when: false
 
