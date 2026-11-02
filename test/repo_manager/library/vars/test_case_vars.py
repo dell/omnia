@@ -212,6 +212,11 @@ TEST_CASES = {
         "id": "RM_FVT_CLEANUP_V003",
         "title": "Verify Pulp directories removed",
     },
+    "credentials_per_flag": {
+        "id": "RM_FVT_CLEANUP_V004",
+        "title": "Verify credential store removed (cleanup_credentials: true) "
+                 "or preserved (false) after cleanup",
+    },
     # ── Selective cleanup verification ────────────────────────────────────
     "exact_repository_cleanup": {
         "id": "RM_FVT_CLEANUP_REPOS_E001",
