@@ -373,6 +373,164 @@ class OpenChamiReconciler:
         changed = any(value["deleted"] for value in results.values())
         return {"changed": changed, "planned": targets, "results": results}
 
+    def cleanup_orphan_smd_entries(
+        self,
+        current_service_tags: Iterable[str],
+        current_macs: Iterable[str],
+        check_mode=False,
+    ):
+        """Remove SMD entries for nodes no longer in the PXE mapping.
+
+        Compares the current PXE mapping service tags and MACs against SMD
+        Hardware Inventory, EthernetInterfaces, Components, and Groups.
+        Any XNAME whose service tag is not in the current mapping — and
+        whose MACs are not in the current mapping — is treated as an orphan
+        from a previous deployment and is fully cleaned up:
+
+          1. Remove the orphan XNAME from every SMD group
+          2. Delete its EthernetInterfaces (admin NIC + BMC)
+          3. Delete its Components (Node + NodeBMC)
+          4. Delete its Hardware Inventory record
+
+        This runs once before per-category provisioning so that
+        ``resolve_identities`` and ``prune_metadata_groups`` never encounter
+        stale entries from replaced physical servers.
+        """
+        from .identity import normalize_mac as _norm_mac, normalize_service_tag
+
+        active_tags = {
+            normalize_service_tag(tag) for tag in current_service_tags if tag
+        }
+        active_macs = {_norm_mac(mac) for mac in current_macs if mac}
+
+        # --- Identify orphan XNAMEs from Hardware Inventory ---
+        hardware = self.smd.hardware_inventory()
+        orphan_xnames = set()
+        for record in hardware:
+            if str(record.get("Type", "")).lower() != "node":
+                continue
+            xname = str(record.get("ID", "")).strip()
+            if not xname:
+                continue
+            tag_value = (
+                record.get("PopulatedFRU", {})
+                .get("NodeFRUInfo", {})
+                .get("SerialNumber", "")
+            )
+            if not tag_value:
+                continue
+            try:
+                tag = normalize_service_tag(tag_value)
+            except Exception:
+                continue
+            if tag not in active_tags:
+                orphan_xnames.add(xname)
+
+        # --- Also find component XNAMEs with interfaces whose MACs are not
+        #     in the current mapping AND have no hardware inventory (nodes
+        #     that were discovered but never got an inventory record) ---
+        interfaces = self.smd.interfaces()
+        hardware_xnames = {
+            str(r.get("ID", "")).strip()
+            for r in hardware
+            if str(r.get("Type", "")).lower() == "node" and r.get("ID")
+        }
+        for interface in interfaces:
+            component_id = str(interface.get("ComponentID", "")).strip()
+            if not component_id:
+                continue
+            mac_raw = interface.get("MACAddress") or interface.get("ID")
+            if not mac_raw:
+                continue
+            try:
+                mac = _norm_mac(mac_raw)
+            except Exception:
+                continue
+            # If MAC belongs to current mapping, this interface is live
+            if mac in active_macs:
+                continue
+            # Derive node xname from interface component
+            iface_type = str(interface.get("Type", "")).lower()
+            if iface_type == "node":
+                node_xname = component_id
+            elif iface_type == "nodebmc":
+                node_xname = component_id + "n0"
+            else:
+                continue
+            # Only add if this node has no hardware record (already covered)
+            # or is already in orphan_xnames
+            if node_xname not in hardware_xnames:
+                orphan_xnames.add(node_xname)
+
+        if not orphan_xnames:
+            return {
+                "changed": False,
+                "orphan_xnames": [],
+                "group_removals": [],
+                "deleted_interfaces": [],
+                "deleted_components": [],
+                "deleted_hardware": [],
+            }
+
+        if check_mode:
+            return {
+                "changed": True,
+                "orphan_xnames": sorted(orphan_xnames),
+                "group_removals": [],
+                "deleted_interfaces": [],
+                "deleted_components": [],
+                "deleted_hardware": [],
+            }
+
+        # 1. Remove orphan XNAMEs from ALL SMD groups
+        group_removals = []
+        for group in self.smd.groups():
+            label = str(group.get("label", "")).strip()
+            if not label:
+                continue
+            members = set((group.get("members") or {}).get("ids", []) or [])
+            orphans_in_group = orphan_xnames.intersection(members)
+            for xname in sorted(orphans_in_group):
+                self.smd.delete_group_member(label, xname)
+                group_removals.append({"label": label, "xname": xname})
+
+        # 2. Delete orphan interfaces (both node NIC and BMC NIC)
+        orphan_bmc_xnames = {
+            ox[:-2] for ox in orphan_xnames if ox.endswith("n0")
+        }
+        orphan_interface_ids = set()
+        for interface in interfaces:
+            component_id = str(interface.get("ComponentID", "")).strip()
+            if (
+                component_id in orphan_xnames
+                or component_id in orphan_bmc_xnames
+            ):
+                iface_id = interface.get("ID") or interface.get("MACAddress")
+                if iface_id:
+                    orphan_interface_ids.add(_norm_mac(iface_id))
+
+        iface_result = self.smd.delete_interfaces(sorted(orphan_interface_ids))
+
+        # 3. Delete orphan components (Node + NodeBMC)
+        orphan_components = sorted(orphan_xnames | orphan_bmc_xnames)
+        comp_result = self.smd.delete_components(orphan_components)
+
+        # Also delete component endpoints and redfish endpoints
+        self.smd.delete_component_endpoints(orphan_components)
+        self.smd.delete_redfish_endpoints(sorted(orphan_bmc_xnames))
+
+        # 4. Delete orphan hardware inventory
+        hw_result = self.smd.delete_hardware_inventory(sorted(orphan_xnames))
+
+        return {
+            "changed": True,
+            "orphan_xnames": sorted(orphan_xnames),
+            "group_removals": group_removals,
+            "deleted_interfaces": iface_result.get("deleted", []),
+            "deleted_components": comp_result.get("deleted", []),
+            "deleted_hardware": hw_result.get("deleted", []),
+        }
+
     def discover_static(
         self,
         nodes_file,
