@@ -60,6 +60,20 @@ For a confirmed false positive, add a narrowly scoped allowlist rule to
 `.github/workflows/.gitleaks.toml` with a comment explaining why it is safe.
 Never allowlist a real credential.
 
+## Credential No-Log Check
+
+A GitHub workflow (`.github/workflows/check_credential_no_log.yml`) validates
+that credential-bearing module arguments and Ansible tasks declare `no_log`
+to prevent credential leakage in logs (CWE-532). This check runs automatically
+on pull requests to `main`, `staging`, and release branches.
+
+The check validates:
+- Custom module argument specs (`plugins/modules/*.py`): every argument whose
+  name looks like a credential (password, username, token, secret) must declare
+  `no_log: True`
+- Role/playbook tasks (`*.yml`): every task that references a credential
+  variable (e.g., `telemetry_credentials.*`) must set task-level `no_log`
+
 ## Omnia Branches and Contribution Flow
 Omnia development targets the repository's current default branch (`main`). Use
 short-lived feature or fix branches and merge changes through reviewed pull
