@@ -213,7 +213,14 @@ def createlogger(project_name, log_dir, tag_name=None):
     else:
         log_filename = f"validation_omnia_{project_name}.log"
 
-    log_file_path = os.path.join(log_dir, log_filename)
+    log_file_path = os.path.join(log_dir, project_name, log_filename)
+    log_file_path = os.path.realpath(log_file_path)
+    real_log_base = os.path.realpath(log_dir)
+    if not log_file_path.startswith(real_log_base + os.sep):
+        raise ValueError(
+            f"Log path escapes the log directory: {log_file_path}"
+        )
+    os.makedirs(os.path.dirname(log_file_path), exist_ok=True)
     root_logger = logging.getLogger()
     if root_logger.handlers:
         secure_log_file(log_file_path)
@@ -496,6 +503,7 @@ def main():
 
     log_file_name = os.path.join(
         config.INPUT_VALIDATOR_LOG_PATH,
+        project_name,
         f"validation_omnia_{project_name}.log"
     )
 
