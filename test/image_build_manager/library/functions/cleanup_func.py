@@ -18,7 +18,7 @@ import json
 import os
 from typing import Dict, Any
 
-from omnia_auto import resolve_domain_input_path
+from omnia_auto import load_test_config, resolve_domain_input_path
 
 from ._config_helpers import (
     _get_project_name,
@@ -380,12 +380,24 @@ def check_s3cfg_removed(host) -> Dict[str, Any]:
     }
 
 
-def check_credentials_removed(host) -> Dict[str, Any]:
-    """Verify credentials files are removed after cleanup.
+def cleanup_credentials_enabled() -> bool:
+    """Return ``cleanup_credentials`` from test_config.yml (default true).
+
+    ``true`` lets ``--tags cleanup`` remove the credential file and vault key;
+    ``false`` is passed as ``-e cleanup_credentials=false`` to preserve them.
+    """
+    return load_test_config().get("cleanup_credentials", True) is not False
+
+
+def check_credentials_per_flag(host) -> Dict[str, Any]:
+    """Verify the credential file and vault key match ``cleanup_credentials``.
+
+    ``cleanup_credentials: true`` expects both removed, ``false`` both preserved.
 
     Returns:
-        Dict with 'success', 'results', 'details'.
+        Dict with 'success', 'remove' (expectation), 'results', 'details', 'error'.
     """
+    remove = cleanup_credentials_enabled()
     input_dir = resolve_domain_input_path(
         host,
         DOMAIN_NAME,
@@ -394,50 +406,40 @@ def check_credentials_removed(host) -> Dict[str, Any]:
         domain_data_path_var=ENV_IMAGE_BUILD_MANAGER_DATA_PATH,
     )
 
-    files_to_check = [
-        f"{input_dir}/{CREDENTIALS_FILE_NAME}",
-        f"{input_dir}/{CREDENTIALS_KEY_NAME}",
-    ]
-
     results = []
-    all_removed = True
     query_errors = []
-    for fpath in files_to_check:
+    for fpath in (f"{input_dir}/{CREDENTIALS_FILE_NAME}",
+                  f"{input_dir}/{CREDENTIALS_KEY_NAME}"):
         fname = os.path.basename(fpath)
         cmd = host.run(CMDS["file_exists"].format(path=fpath))
         query_error = None
         if cmd.rc not in (0, 1):
-            query_error = (
-                f"Unable to inspect credential file '{fname}' "
-                f"(rc={cmd.rc})"
-            )
+            query_error = f"Unable to inspect credential file '{fname}' (rc={cmd.rc})"
             query_errors.append(query_error)
         exists = cmd.rc == 0 and "exists" in cmd.stdout
         results.append({
             "file": fname,
             "path": fpath,
             "removed": not exists and query_error is None,
+            "expected": query_error is None and exists != remove,
             "query_error": query_error,
             "error": query_error,
         })
-        if exists or query_error:
-            all_removed = False
 
-    details_lines = []
-    for r in results:
-        status = "removed" if r["removed"] else "still exists"
-        details_lines.append(f"  {r['file']}: {status}")
-
+    unexpected = [r for r in results if not r["expected"]]
+    state = "removed" if remove else "preserved"
     return {
-        "success": all_removed,
+        "success": not unexpected,
+        "remove": remove,
         "results": results,
         "query_errors": query_errors,
-        "details": "\n".join(details_lines),
-        "error": None if all_removed else (
-            query_errors[0] if query_errors else (
-                f"{sum(not item['removed'] for item in results)} "
-                "credential files remain"
-            )
+        "details": "\n".join(
+            f"  {r['file']}: {'removed' if r['removed'] else 'present'}" for r in results
+        ),
+        "error": None if not unexpected else (
+            query_errors[0] if query_errors
+            else f"{len(unexpected)} credential file(s) not {state} "
+                 f"(cleanup_credentials: {str(remove).lower()})"
         ),
     }
 

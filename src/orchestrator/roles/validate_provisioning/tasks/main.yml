@@ -128,7 +128,11 @@
       - os_
       - additional_metadata_svc_
   register: metadata_group_prune_result
-  no_log: true
+  # access_token is masked by the module argument_spec (no_log), so the task
+  # output stays secret-safe without a task-level no_log. Keeping it visible
+  # surfaces the actionable "stale groups still have SMD members" message that
+  # a task-level no_log would otherwise censor, aiding diagnosis if global
+  # orphan cleanup ever leaves a group blocked.
   when:
     - omnia_metadata_desired_group_names is defined
 

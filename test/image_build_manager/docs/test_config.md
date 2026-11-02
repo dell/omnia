@@ -124,6 +124,12 @@ credential-dependent run.
 | `report_name` | No | Base name for report files (no extension) | `image_test_report` |
 | `report_id` | No | Custom report ID. Empty = auto-generated timestamp. | `""` |
 
+### Cleanup Settings
+
+| Field | Required | Description | Default |
+|-------|----------|-------------|---------|
+| `cleanup_credentials` | No | `true`: `--tags cleanup` removes `image_build_credentials.yml` and its vault key. `false`: the cleanup runs with `-e cleanup_credentials=false`, both are preserved, and `IMGBM_FVT_CLEANUP_V008` checks they still exist | `true` |
+
 ---
 
 ## Example — Remote Setup (empty dataset, target has input files)

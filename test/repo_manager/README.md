@@ -74,7 +74,7 @@ REPO_MANAGER_TEST_CLEANUP_REPO=x86_64_rhel_10.0_test_repo \
 | `prepare` | Deploy Pulp server and verify container/services |
 | `execute` | Download and sync repositories |
 | `status` | Generate and verify repo_status.yml |
-| `cleanup` | Cleanup Pulp server and verify removal |
+| `cleanup` | Cleanup Pulp server and verify removal; the credential store follows `cleanup_credentials` in `test_config.yml` (`false` keeps it) |
 | `cleanup_repos` | Explicitly selected exact repository cleanup and state invalidation |
 | `policy` | Test repository policy configurations |
 | `user_registry` | Test user registry configuration and validation |
@@ -189,7 +189,7 @@ The test framework is organized into several categories:
 | **Execute Tests** | Download and sync repositories, policy verification | 36 |
 | **Repo Sync Tests** | Standalone catalog RPM exact-mirror reconciliation | 8 |
 | **Status Tests** | Generate and verify repo_status.yml | 3 |
-| **Cleanup Tests** | Cleanup Pulp server | 4 |
+| **Cleanup Tests** | Cleanup Pulp server, credential store per `cleanup_credentials` | 5 |
 | **Selective Cleanup Tests** | Exact repository cleanup and state verification | 4 |
 | **User Registry Tests** | Test user registry configuration and validation | 14 |
 | **Catalog Tests** | Catalog generate, add, delete, and validate | 23 |

@@ -83,7 +83,8 @@ from .cleanup_func import (                          # noqa: F401
     check_services_removed,
     check_firewall_ports_removed,
     check_s3cfg_removed,
-    check_credentials_removed,
+    check_credentials_per_flag,
+    cleanup_credentials_enabled,
     check_build_output_removed,
     check_registry_cleaned,
 )
@@ -142,7 +143,8 @@ __all__ = [
     "check_services_removed",
     "check_firewall_ports_removed",
     "check_s3cfg_removed",
-    "check_credentials_removed",
+    "check_credentials_per_flag",
+    "cleanup_credentials_enabled",
     "check_build_output_removed",
     "check_registry_cleaned",
     # Precheck
