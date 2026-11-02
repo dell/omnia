@@ -142,6 +142,59 @@ def add_enable_ipv6(
     return apply_config
 
 
+def build_ctld_ib_list(
+    ctld_list: List[str],
+    nodeaddr_map: Dict[str, str],
+) -> List[str]:
+    """Build SlurmctldHost entries with IB address for controller nodes.
+
+    Mirrors the 'Build SlurmctldHost entries with IB address' task in
+    inject_ib_nodeaddr.yml. IPv6 addresses are bracketed.
+
+    Args:
+        ctld_list: List of controller hostnames.
+        nodeaddr_map: hostname-to-IB-address mapping.
+
+    Returns:
+        List of 'hostname(addr)' strings (or plain hostname if not in map).
+    """
+    result = []
+    for hostname in ctld_list:
+        if hostname in nodeaddr_map:
+            addr = nodeaddr_map[hostname]
+            bracketed = f"[{addr}]" if ":" in addr else addr
+            result.append(f"{hostname}({bracketed})")
+        else:
+            result.append(hostname)
+    return result
+
+
+def build_ctld_ib_addrs(
+    ctld_list: List[str],
+    nodeaddr_map: Dict[str, str],
+) -> List[str]:
+    """Build IB addresses for --conf-server (configless mode).
+
+    Mirrors the same task as build_ctld_ib_list but returns raw addresses
+    (with IPv6 bracketing) for use in --conf-server.
+
+    Args:
+        ctld_list: List of controller hostnames.
+        nodeaddr_map: hostname-to-IB-address mapping.
+
+    Returns:
+        List of IB addresses (or hostnames if not in map).
+    """
+    result = []
+    for hostname in ctld_list:
+        if hostname in nodeaddr_map:
+            addr = nodeaddr_map[hostname]
+            result.append(f"[{addr}]" if ":" in addr else addr)
+        else:
+            result.append(hostname)
+    return result
+
+
 def parse_hosts_block_for_cloudinit(raw: str) -> List[str]:
     """Parse hosts block content for cloud-init injection.
 
@@ -350,3 +403,88 @@ class TestCloudInitHostsInjection:
         )
         entries = parse_hosts_block_for_cloudinit(raw)
         assert len(entries) == 6
+
+
+# ===========================================================================
+# TC-UT-009: SlurmctldHost IB address injection
+# ===========================================================================
+
+class TestSlurmctldHostIBAddr:
+    """TC-UT-009: Verify SlurmctldHost IB address building logic."""
+
+    def test_ipv4_controller_gets_addr_in_parens(self):
+        """IPv4 controller address renders as hostname(addr)."""
+        ib_map = {"nid001": "192.168.1.31"}
+        result = build_ctld_ib_list(["nid001"], ib_map)
+        assert result == ["nid001(192.168.1.31)"]
+
+    def test_ipv6_controller_gets_bracketed_addr(self):
+        """IPv6 controller address renders as hostname([addr])."""
+        ib_map = {"nid001": "fd00:1b::31"}
+        result = build_ctld_ib_list(["nid001"], ib_map)
+        assert result == ["nid001([fd00:1b::31])"]
+
+    def test_controller_not_in_map_falls_back_to_hostname(self):
+        """Controller not in IB map falls back to plain hostname."""
+        ib_map = {"nid002": "192.168.1.32"}
+        result = build_ctld_ib_list(["nid001"], ib_map)
+        assert result == ["nid001"]
+
+    def test_empty_map_returns_hostnames(self):
+        """Empty IB map returns plain hostnames."""
+        result = build_ctld_ib_list(["nid001", "nid002"], {})
+        assert result == ["nid001", "nid002"]
+
+    def test_multi_controller_ha(self):
+        """Multiple controllers each get their IB address."""
+        ib_map = {"nid001": "192.168.1.31", "nid002": "192.168.1.32"}
+        result = build_ctld_ib_list(["nid001", "nid002"], ib_map)
+        assert result == ["nid001(192.168.1.31)", "nid002(192.168.1.32)"]
+
+    def test_mixed_controllers_partial_ib(self):
+        """Only controllers with IB get addr; others keep hostname."""
+        ib_map = {"nid001": "192.168.1.31"}
+        result = build_ctld_ib_list(["nid001", "nid002"], ib_map)
+        assert result == ["nid001(192.168.1.31)", "nid002"]
+
+
+class TestConfServerIBAddrs:
+    """TC-UT-009: Verify --conf-server IB address building logic."""
+
+    def test_ipv4_addr_no_brackets(self):
+        """IPv4 address returned without brackets."""
+        ib_map = {"nid001": "192.168.1.31"}
+        result = build_ctld_ib_addrs(["nid001"], ib_map)
+        assert result == ["192.168.1.31"]
+
+    def test_ipv6_addr_bracketed(self):
+        """IPv6 address returned with brackets for port concatenation."""
+        ib_map = {"nid001": "fd00:1b::31"}
+        result = build_ctld_ib_addrs(["nid001"], ib_map)
+        assert result == ["[fd00:1b::31]"]
+
+    def test_not_in_map_returns_hostname(self):
+        """Controller not in map returns hostname for DNS fallback."""
+        result = build_ctld_ib_addrs(["nid001"], {})
+        assert result == ["nid001"]
+
+    def test_conf_server_port_concat_ipv4(self):
+        """IPv4 conf-server string formats correctly with port."""
+        ib_map = {"nid001": "192.168.1.31"}
+        addrs = build_ctld_ib_addrs(["nid001"], ib_map)
+        conf_server = ",".join(f"{a}:6817" for a in addrs)
+        assert conf_server == "192.168.1.31:6817"
+
+    def test_conf_server_port_concat_ipv6(self):
+        """IPv6 conf-server string formats correctly with port."""
+        ib_map = {"nid001": "fd00:1b::31"}
+        addrs = build_ctld_ib_addrs(["nid001"], ib_map)
+        conf_server = ",".join(f"{a}:6817" for a in addrs)
+        assert conf_server == "[fd00:1b::31]:6817"
+
+    def test_multi_controller_conf_server(self):
+        """Multi-controller conf-server joins with comma."""
+        ib_map = {"nid001": "192.168.1.31", "nid002": "192.168.1.32"}
+        addrs = build_ctld_ib_addrs(["nid001", "nid002"], ib_map)
+        conf_server = ",".join(f"{a}:6817" for a in addrs)
+        assert conf_server == "192.168.1.31:6817,192.168.1.32:6817"

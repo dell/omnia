@@ -273,7 +273,7 @@
              'slurm': [{
                'ClusterName': slurm_cluster_name,
                'AccountingStorageHost': dbd_list[0],
-               'SlurmctldHost': ctld_list
+               'SlurmctldHost': _ctld_ib_list | default(ctld_list)
              }] + conf_merge_dict['slurm']
            }) }}
   when: "'slurm' in conf_merge_dict"
@@ -322,7 +322,10 @@
 
 - name: Generate slurmd opts for Configless # TODO: Move to $SLURMD_OPTIONS /etc/default/slurmd
   ansible.builtin.set_fact:
-    conf_server: "--conf-server {{ ctld_list | map('regex_replace', '$', ':' ~ (slurm_conf_dict.get('SlurmctldPort', '6817') | string)) | join(',') }}"
+    conf_server: >-
+      --conf-server {{ (_ctld_ib_addrs | default(ctld_list))
+      | map('regex_replace', '$', ':' ~ (slurm_conf_dict.get('SlurmctldPort', '6817') | string))
+      | join(',') }}
   when: slurm_conf_dict is defined
 
 - name: Backup Slurm configuration files before writing new config
