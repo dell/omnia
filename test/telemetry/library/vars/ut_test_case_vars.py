@@ -128,13 +128,37 @@ UT_TEST_CASE_IDS = {
         },
     ),
     **_module_cases(
+        "test_credential_no_log.py",
+        {
+            62: "test_telemetry_credential_module_args_declare_no_log",
+            63: "test_telemetry_credential_tasks_declare_no_log",
+            64: "test_module_failure_does_not_log_sentinel_credentials",
+            65: "test_telemetry_log_dir_and_files_are_restricted",
+        },
+    ),
+    **_module_cases(
+        "test_idrac_bmc_inventory.py",
+        {
+            66: "test_empty_pod_with_reported_unsupported_bmc_warns",
+            67: "test_missing_bmc_not_in_report_fails",
+            68: "test_deleted_bmc_left_in_mysql_fails",
+            69: "test_bmc_registered_in_wrong_pod_fails",
+            70: "test_nothing_registered_fails_even_when_all_reported_unsupported",
+            71: "test_duplicates_query_failures_and_missing_pods_fail",
+            72: "test_csv_parser_matches_deploy_parser",
+            73: "test_lifecycle_candidate_never_changes_pod_layout",
+            74: "test_node_deletion_only_removes_mysql_rows",
+            75: "test_nft_bmc_ip_config",
+        },
+    ),
+    **_module_cases(
         "test_input_validation_fail_closed.py",
         {
-            62: "test_unknown_tag_alone_is_rejected",
-            63: "test_known_tag_with_unknown_tag_is_rejected",
-            64: "test_empty_tag_list_is_rejected",
-            65: "test_valid_tag_reaches_file_validation",
-            66: "test_supported_tags_cover_public_and_play_tags",
+            76: "test_unknown_tag_alone_is_rejected",
+            77: "test_known_tag_with_unknown_tag_is_rejected",
+            78: "test_empty_tag_list_is_rejected",
+            79: "test_valid_tag_reaches_file_validation",
+            80: "test_supported_tags_cover_public_and_play_tags",
         },
     ),
 }

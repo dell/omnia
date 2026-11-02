@@ -232,7 +232,7 @@ def main() -> None:
     # Define the module arguments
     module_args = {
         "bmc_ip_list": {"type": "list", "required": True},
-        "bmc_username": {"type": "str", "required": True},
+        "bmc_username": {"type": "str", "required": True, "no_log": True},
         "bmc_password": {"type": "str", "required": True, "no_log": True},
         "min_firmware_version_reqd": {"type": "int", "required": True}
     }

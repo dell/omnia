@@ -158,7 +158,7 @@ TEST_CASES = {
     },
     "idrac_mysql_data": {
         "id": "TEL_FVT_DEPLOY_V013",
-        "title": "Verify MySQL data in iDRAC telemetry pods",
+        "title": "Verify MySQL in each iDRAC pod matches bmc_group_data.csv",
     },
     "idrac_receiver_collecting": {
         "id": "TEL_FVT_DEPLOY_V014",
@@ -674,6 +674,10 @@ TEST_CASES = {
     "nft_powerscale_channels": {
         "id": "TEL_NFT_025",
         "title": "Verify PowerScale metrics/logs channel transitions",
+    },
+    "nft_idrac_bmc_inventory": {
+        "id": "TEL_NFT_026",
+        "title": "iDRAC BMC delete/re-add in bmc_group_data.csv reflected in MySQL",
     },
     "nft_final_warning": {
         "id": "TEL_NFT_019",

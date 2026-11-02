@@ -89,6 +89,34 @@ PowerScale source flags, runs the execute playbook, and compares the channel sta
 `telemetry_status.yml` with the expected state. The steps are defined in `POWERSCALE_CHANNEL_STEPS`
 in `library/vars/common_vars.py`.
 
+### iDRAC BMC Inventory Tests
+
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TEL_NFT_026 | BMC delete/re-add in `bmc_group_data.csv` reflected in each iDRAC pod's MySQL `services` table | nft, resilience, source |
+
+Runs at order 123 (`nft/test_idrac_bmc_inventory.py`). The BMC under test is taken from
+`idrac_nft_bmc_ip` in `test_config.yml`. It must already be in `bmc_group_data.csv`, be
+registered in MySQL, and be a MGMT BMC (no PARENT) or share its PARENT with another BMC so the
+pod layout does not change. The baseline MySQL must also match the CSV (TEL_FVT_DEPLOY_V013).
+
+If `idrac_nft_bmc_ip` is empty, or the IP does not meet these conditions, the test is
+**skipped with a warning** (shown in the test log and in pytest's warnings summary) that states
+the reason, e.g. `TEL_NFT_026 skipped: input not given - set idrac_nft_bmc_ip in test_config.yml ...`.
+
+```
+TEL_NFT_026: iDRAC BMC inventory lifecycle
+   |-- Read idrac_nft_bmc_ip (skip with warning if empty/unusable)
+   |-- Back up bmc_group_data.csv
+   |-- Delete node: remove that BMC row and run the execute playbook
+   |-- Assert: BMC gone from MySQL in every pod, other rows unchanged,
+   |   pod count unchanged, BMC listed under "Removed IPs List"
+   |-- Add node: restore the CSV row and run the execute playbook
+   |-- Assert: BMC back in its assigned pod, listed as activated,
+   |   MySQL identical to baseline and matching the CSV
+   +-- finally: restore the CSV byte-for-byte and redeploy if needed
+```
+
 ## Execution
 
 ### Full NFT Test Suite (Recommended)
