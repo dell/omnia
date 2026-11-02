@@ -17,6 +17,7 @@ import pytest
 
 from library.functions import (
     TestLogger,
+    skip_test,
     build_child_pipeline_id,
     cancel_nft_pipeline,
     get_bsm_job_details,
@@ -39,8 +40,8 @@ def _case(name):
 
 def _enabled(config, key, logger):
     if not config.get(key, False):
-        logger.skipped(f"Set {key}: true to authorize this disruptive NFT")
-        pytest.skip(f"{key} is false")
+        pytest.skip(skip_test(
+            logger, f"{key} is false: set {key}: true to authorize this disruptive NFT"))
 
 
 def _job_id(config, nft_state):

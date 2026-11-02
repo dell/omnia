@@ -26,11 +26,18 @@ from typing import List, Tuple
 import pytest
 
 
+# test/build_stream/nft/others/<this file> -> repository root is parents[4].
+APP_DIR = Path(__file__).resolve().parents[4] / "src" / "build_stream" / "app"
+
+
 def get_python_files(directory: str, pattern: str = "*.py") -> List[Path]:
-    """Get all Python files in directory matching pattern."""
+    """Get all Python files in directory matching pattern.
+
+    A missing directory is an error, not an empty result: an empty result
+    would make every rule below pass without checking anything.
+    """
     path = Path(directory)
-    if not path.exists():
-        return []
+    assert path.is_dir(), f"Source directory not found: {path}"
     return list(path.rglob(pattern))
 
 
@@ -96,7 +103,7 @@ class TestDesignRules:
         Related: Issue #1874 - Generate Input files hangs
         """
         # Get all route files in api/
-        api_dir = Path(__file__).parent.parent.parent / "api"
+        api_dir = APP_DIR / "api"
         route_files = get_python_files(str(api_dir), "routes.py")
 
         assert len(route_files) > 0, "No route files found - check test setup"
@@ -122,7 +129,7 @@ class TestDesignRules:
         Even if container is imported for other reasons, routes should not
         call container.X() to instantiate services or use cases.
         """
-        api_dir = Path(__file__).parent.parent.parent / "api"
+        api_dir = APP_DIR / "api"
         route_files = get_python_files(str(api_dir), "routes.py")
 
         assert len(route_files) > 0, "No route files found - check test setup"
@@ -156,7 +163,7 @@ class TestDesignRules:
         Use cases should depend on repository interfaces, not concrete
         database implementations. This ensures proper layering.
         """
-        orchestrator_dir = Path(__file__).parent.parent.parent / "orchestrator"
+        orchestrator_dir = APP_DIR / "orchestrator"
         if not orchestrator_dir.exists():
             pytest.skip("Orchestrator directory not found")
 
@@ -183,7 +190,7 @@ class TestDesignRules:
         The core domain (entities, value objects, exceptions) should be
         pure business logic with no external dependencies.
         """
-        core_dir = Path(__file__).parent.parent.parent / "core"
+        core_dir = APP_DIR / "core"
         if not core_dir.exists():
             pytest.skip("Core directory not found")
 
@@ -211,7 +218,7 @@ class TestDesignRules:
 
         This ensures consistent dependency injection patterns across all APIs.
         """
-        api_dir = Path(__file__).parent.parent.parent / "api"
+        api_dir = APP_DIR / "api"
         route_files = get_python_files(str(api_dir), "routes.py")
 
         missing_dependencies = []
@@ -243,7 +250,7 @@ def test_routes_use_depends_for_use_cases():
 
     This is a positive test - we check that routes follow the correct pattern.
     """
-    api_dir = Path(__file__).parent.parent.parent / "api"
+    api_dir = APP_DIR / "api"
     route_files = get_python_files(str(api_dir), "routes.py")
 
     routes_with_di = []

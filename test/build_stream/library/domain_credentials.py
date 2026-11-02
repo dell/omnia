@@ -104,6 +104,18 @@ def _missing(spec: List[Dict[str, Any]], data: Dict[str, Any]) -> List[str]:
             if not item.get("optional") and not _is_set(data.get(item["field"]))]
 
 
+def _apply_fixed(spec: List[Dict[str, Any]], data: Dict[str, Any]) -> None:
+    """Write the fixed spec fields (entries with a ``value``) that are not set yet.
+
+    A fixed field is never prompted for. It mirrors a value the product itself
+    writes into the credential file (for example ``pulp_username: admin`` from
+    repo_manager collect_repo_credentials); a value already stored is kept.
+    """
+    for item in spec:
+        if "value" in item and not _is_set(data.get(item["field"])):
+            data[item["field"]] = str(item["value"])
+
+
 def _check(item: Dict[str, Any], value: str) -> str:
     """Return a validation error for ``value`` (empty when valid)."""
     minimum = int(item.get("min_length", 1 if not item.get("optional") else 0))
@@ -117,6 +129,8 @@ def _prompt(spec: List[Dict[str, Any]], data: Dict[str, Any]) -> None:
     group = None
     with open("/dev/tty", "r", encoding="utf-8") as tty:
         for item in spec:
+            if "value" in item:
+                continue
             if item.get("group") and item["group"] != group:
                 group = item["group"]
                 print(f"\n  {group}")
@@ -203,6 +217,7 @@ def main() -> int:
     else:
         _merge_stdin(spec, data)
 
+    _apply_fixed(spec, data)
     missing = _missing(spec, data)
     if missing:
         raise SystemExit(f"Required fields missing: {', '.join(missing)}")

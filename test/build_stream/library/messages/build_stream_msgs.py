@@ -65,8 +65,11 @@ TEST_LOG_MSGS: Dict[str, str] = {
         "prepare_base precheck passed: ./omnia.sh --prepare-base can run unattended"
     ),
     "prepare_base_precheck_failed": "prepare_base precheck failed: {count} check(s)",
-    "prepare_base_precheck_skip": (
-        "Skipped: the prepare_base precheck (BSM_FVT_PREPARE_BASE_E001) failed"
+    "entry_failed_skip": (
+        "{entry_id} ({entry_title}) failed earlier in this run, so this "
+        "{category} check cannot give a meaningful result. HOW TO FIX: fix the "
+        "{entry_id} failure above, then re-run ./run_validation.sh "
+        "fvt_build_stream {category}"
     ),
     "prepare_base_ok": "./omnia.sh --prepare-base completed in {duration:.1f}s",
     "prepare_base_failed": (

@@ -283,7 +283,10 @@ class TestValidateUseCaseSuccess:
         use_case.execute(command)
 
         submitted = queue_service.submitted[0]
-        expected_dir = f"/opt/omnia/build_stream_root/artifacts/{job_id}/validate/attempt_1"
+        expected_dir = (
+            "/opt/omnia/build_stream/build_stream_root/artifacts/"
+            f"{job_id}/validate/attempt_1"
+        )
         assert submitted.artifact_dir == expected_dir
 
     def test_execute_request_id_format(

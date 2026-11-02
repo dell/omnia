@@ -21,8 +21,9 @@ these domains in order (fail-fast)::
 
     repo_manager -> image_build_manager -> orchestrator
 
-A read-only precheck runs first; when it fails, the deployment is skipped
-(see the scenario conftest.py). The readiness suite verifies the result.
+A read-only precheck runs first. When an entry test fails (the precheck or
+the deployment), every later prepare_base test is skipped with the reason
+(test/build_stream/conftest.py). The readiness suite verifies the result.
 """
 
 import pytest

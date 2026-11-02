@@ -46,6 +46,7 @@ from omnia_auto import (
     log,
     add_session_result,
     print_summary_table,
+    TestLogger,
 )
 
 from library.functions.host_func import (
@@ -57,6 +58,7 @@ from library.functions.validation_func import (
     validate_all,
     ConfigValidationError,
 )
+from library.functions.log_func import skip_test
 from library.messages import TEST_LOG_MSGS as LOG
 from library.vars import TEST_CASES
 
@@ -98,13 +100,25 @@ _FVT_SUITE_ORDER = {
 
 # Build test-function-name → TC ID map for summary table fallback.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
+_TC_BY_NAME = {f"test_{key}": tc for key, tc in TEST_CASES.items()}
 
-# A long entry point is skipped when its read-only precheck failed in the same
-# session: precheck test -> (gated test, skip message key).
-_PRECHECK_GATES = {
-    "test_precheck_prepare_base": ("test_deploy_prepare_base", "prepare_base_precheck_skip"),
-}
-_PRECHECKS_FAILED = pytest.StashKey[set]()
+# Entry tests (IDs ending in _E<nnn>) deploy the playbook a category verifies.
+# When one fails, every later test of the same category (fvt/<category>/) is
+# skipped with the reason instead of failing against a half-deployed system.
+# Category -> (TC ID, title) of the first entry test that failed this session.
+_ENTRY_FAILED = pytest.StashKey[dict]()
+
+
+def _fvt_category(item) -> str:
+    """Return the fvt/<category> an item belongs to ("" outside fvt/)."""
+    parts = item.path.parts
+    return parts[parts.index("fvt") + 1] if "fvt" in parts[:-1] else ""
+
+
+def _is_entry_test(name: str) -> bool:
+    """Return whether the test is a category entry test (TC ID ..._E<nnn>)."""
+    tc_id = _TC_ID_MAP.get(name, "")
+    return "_E" in tc_id and tc_id.rsplit("_E", 1)[-1].isdigit()
 
 
 # =============================================================================
@@ -355,9 +369,13 @@ def pytest_runtest_makereport(item):
     outcome = yield
     result = outcome.get_result()
 
-    if item.name in _PRECHECK_GATES and result.when == "call" and result.failed:
-        failed_prechecks = item.session.stash.get(_PRECHECKS_FAILED, set())
-        item.session.stash[_PRECHECKS_FAILED] = failed_prechecks | {item.name}
+    if result.failed and result.when in {"setup", "call"} and _is_entry_test(item.name):
+        category = _fvt_category(item)
+        failed_entries = item.session.stash.get(_ENTRY_FAILED, {})
+        if category and category not in failed_entries:
+            entry = _TC_BY_NAME[item.name]
+            failed_entries[category] = (entry["id"], entry["title"])
+            item.session.stash[_ENTRY_FAILED] = failed_entries
 
     if result.when not in {"call", "setup"}:
         return
@@ -419,11 +437,20 @@ def pytest_runtest_makereport(item):
 
 
 def pytest_runtest_setup(item):
-    """Skip an entry point whose read-only precheck failed in this session."""
-    failed = item.session.stash.get(_PRECHECKS_FAILED, set())
-    for precheck, (gated, message) in _PRECHECK_GATES.items():
-        if item.name == gated and precheck in failed:
-            pytest.skip(LOG[message])
+    """Skip a test whose category entry test already failed in this session.
+
+    The skip is logged through the test's own TestLogger, so the console shows
+    the test with the reason and the summary and report carry it too.
+    """
+    category = _fvt_category(item)
+    failed = item.session.stash.get(_ENTRY_FAILED, {}).get(category)
+    if not failed:
+        return
+    entry_id, entry_title = failed
+    tc = _TC_BY_NAME.get(item.name, {"id": item.name, "title": item.name})
+    message = LOG["entry_failed_skip"].format(
+        entry_id=entry_id, entry_title=entry_title, category=category)
+    pytest.skip(skip_test(TestLogger(tc["title"], tc["id"]), message))
 
 
 # =============================================================================

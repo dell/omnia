@@ -90,8 +90,12 @@ declare -A DOMAIN_TITLE=(
     [build_stream]="BuildStream Credentials — GitLab, BuildStream Manager, Postgres"
 )
 # Field specs match each domain's playbook and its domain test suite.
+# An entry with "value" is fixed: written without a prompt when the file does not
+# hold it yet (pulp_username is hard-coded to admin by repo_manager, and its
+# credential schema requires it).
 declare -A DOMAIN_CRED_SPEC=(
     [repo_manager]='[
+  {"field":"pulp_username","label":"Pulp Username","value":"admin"},
   {"field":"pulp_password","label":"Pulp Password","group":"Pulp Credentials","secret":true,"confirm":true,"min_length":1},
   {"field":"docker_username","label":"Docker Hub Username","group":"Docker Hub (optional; set both or neither)","secret":false,"optional":true},
   {"field":"docker_password","label":"Docker Hub Password","secret":true,"confirm":true,"optional":true}

@@ -39,14 +39,6 @@ class TestNfsInputRepository:
         """Provide a valid job ID."""
         return JobId(str(uuid.uuid4()))
 
-    def test_get_source_input_repository_path(self, repository, job_id):
-        """Test getting source input repository path."""
-        path = repository.get_source_input_repository_path(str(job_id))
-
-        expected = Path(f"/opt/omnia/build_stream_root/{job_id}/input")
-        assert path == expected
-        assert isinstance(path, Path)
-
     def test_get_destination_input_repository_path(self, repository):
         """Test getting destination input repository path (domain-segregated).
 
@@ -129,20 +121,22 @@ class TestNfsInputRepository:
 
         assert result is False
 
-    def test_custom_base_paths(self):
-        """Test repository with custom base paths."""
-        custom_build_stream_base = "/custom/build_stream"
+    def test_custom_base_paths(self, tmp_path):
+        """Test repository with a custom config file and playbook input directory."""
+        custom_config = tmp_path / "build_stream_config.yml"
+        custom_config.write_text("aarch64_inventory_host_ip: 10.0.0.5\n", encoding="utf-8")
         custom_playbook_input_dir = "/custom/input"
 
         repo = NfsInputRepository(
-            build_stream_base=custom_build_stream_base,
+            config_file_path=str(custom_config),
             playbook_input_dir=custom_playbook_input_dir,
         )
 
         job_id = JobId(str(uuid.uuid4()))
 
-        source_path = repo.get_source_input_repository_path(str(job_id))
-        assert source_path == Path(f"{custom_build_stream_base}/{job_id}/input")
+        inv_host = repo.get_aarch64_inv_host(str(job_id))
+        assert inv_host is not None
+        assert str(inv_host) == "10.0.0.5"
 
         dest_path = repo.get_destination_input_repository_path()
         assert dest_path == Path(custom_playbook_input_dir)

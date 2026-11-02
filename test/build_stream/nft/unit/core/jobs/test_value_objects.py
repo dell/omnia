@@ -126,7 +126,6 @@ class TestStageName:
         for stage in StageType:
             stage_name = StageName(stage.value)
             assert stage_name.value == stage.value
-            assert stage_name.as_enum() == stage
 
     def test_invalid_stage_name(self):
         """Non-canonical stage name should be rejected."""

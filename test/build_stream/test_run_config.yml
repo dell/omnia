@@ -74,8 +74,9 @@
 #   prepare_base:  readiness (explicit; runs ./omnia.sh --prepare-base)
 #   precheck:      environment, containers, credentials (--tags precheck)
 #   prepare:       build_stream (--tags prepare)
-#   execute:       gitlab_server, gitlab_runner, gitlab_project (--tags execute),
-#                  build_automatic, build_manual, deploy_automatic,
+#   execute:       gitlab_server, gitlab_runner, gitlab_project
+#                  (--tags execute), build_automatic, build_manual,
+#                  deploy_automatic,
 #                  deploy_manual, cadence, pipeline_cleanup, auto_cleanup
 #   cleanup:       gitlab, build_stream (--tags cleanup; explicit, destructive)
 #

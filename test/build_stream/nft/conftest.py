@@ -64,6 +64,13 @@ if os.environ.get("OMNIA_COMMAND_TYPE") == "nft":
         if pipeline_id:
             cancel_nft_pipeline(host, pipeline_id)
 else:
+    # The retained source tests use the dev container (in-memory repositories
+    # and SQLite). api.dependencies reads ENV once at import time and defaults
+    # to "prod", so set it before any test imports the app. pytest.github.ini's
+    # "env" block cannot do this: it needs the pytest-env plugin, which is not
+    # installed.
+    os.environ.setdefault("ENV", "dev")
+
     # Compatibility shim for developers running the retained source tests
     # directly with their full development dependencies installed.
     import sqlalchemy.dialects.sqlite.base as sqlite_base

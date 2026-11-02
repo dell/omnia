@@ -18,7 +18,8 @@
 # targets    one entry per input file filled from user_inputs.yml
 #   section  <module>.<file block> in user_inputs.yml
 #   file     the shipped input file, relative to the repository root
-#   format   yaml (merged key by key) | env (KEY=value lines) | csv (rows replaced)
+#   format   yaml (merged key by key) | env (KEY=value lines)
+#            | csv (rows replaced)
 #   out      file name inside an output folder (./generate_dataset.py /abc)
 #   vast     mount | reference - the VAST switch (see dataset_merge.py)
 # input_dirs copied as a whole into an output folder (credential files excluded)

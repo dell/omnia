@@ -22,6 +22,12 @@ import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
+# Client credentials that fail token issuance (formerly helpers in the old
+# shared conftest): a well-formed but unknown secret, and malformed values.
+WRONG_CLIENT_SECRET = "bld_s_invalid_test_secret_12345"
+MALFORMED_CLIENT_ID = "invalid@client#id"
+MALFORMED_CLIENT_SECRET = "short"
+
 
 @pytest.fixture
 def registered_client(test_client: TestClient, valid_auth_header: Dict[str, str]) -> Dict:
@@ -170,14 +176,12 @@ class TestTokenEndpoint:
         registered_client: Dict,
     ):
         """Test token request with invalid client_secret."""
-        from nft.conftest import generate_test_client_secret
-        
         response = test_client.post(
             self.TOKEN_URL,
             data={
                 "grant_type": "client_credentials",
                 "client_id": registered_client["client_id"],
-                "client_secret": generate_test_client_secret(),
+                "client_secret": WRONG_CLIENT_SECRET,
             },
         )
 
@@ -284,13 +288,11 @@ class TestTokenEndpoint:
         registered_client: Dict,
     ):
         """Test token request with invalid client_id format."""
-        from nft.conftest import generate_invalid_client_id
-        
         response = test_client.post(
             self.TOKEN_URL,
             data={
                 "grant_type": "client_credentials",
-                "client_id": generate_invalid_client_id(),
+                "client_id": MALFORMED_CLIENT_ID,
                 "client_secret": registered_client["client_secret"],
             },
         )
@@ -303,14 +305,12 @@ class TestTokenEndpoint:
         registered_client: Dict,
     ):
         """Test token request with invalid client_secret format."""
-        from nft.conftest import generate_invalid_client_secret
-        
         response = test_client.post(
             self.TOKEN_URL,
             data={
                 "grant_type": "client_credentials",
                 "client_id": registered_client["client_id"],
-                "client_secret": generate_invalid_client_secret(),
+                "client_secret": MALFORMED_CLIENT_SECRET,
             },
         )
 

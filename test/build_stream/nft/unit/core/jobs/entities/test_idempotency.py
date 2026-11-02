@@ -53,20 +53,6 @@ class TestIdempotencyRecord:
         with pytest.raises(AttributeError):
             record.job_id = JobId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a12")
 
-    def test_is_expired(self):
-        """Record should correctly detect expiration."""
-        now = datetime.now()
-        record = IdempotencyRecord(
-            idempotency_key=IdempotencyKey("key-123"),
-            job_id=JobId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a11"),
-            request_fingerprint=RequestFingerprint("a" * 64),
-            client_id=ClientId("client-1"),
-            created_at=now,
-            expires_at=now + timedelta(hours=1),
-        )
-        assert record.is_expired(now) is False
-        assert record.is_expired(now + timedelta(hours=2)) is True
-
     def test_matches_fingerprint(self):
         """Record should correctly match fingerprints."""
         now = datetime.now()

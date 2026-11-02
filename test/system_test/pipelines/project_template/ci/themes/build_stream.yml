@@ -31,7 +31,8 @@ cases:
   - build_deploy
   - cadence
   - automatic_cleanup
-# OpenBao secrets <openbao_path>/<module> piped to setup_env.sh --domain-creds-stdin
+# OpenBao secrets <openbao_path>/<module>, piped to
+# setup_env.sh --domain-creds-stdin
 credential_modules:
   - repo_manager
   - image_build_manager
