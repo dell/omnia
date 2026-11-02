@@ -86,7 +86,13 @@
   rescue:
     - name: Generate VictoriaMetrics TLS secret manifest | Report failure
       ansible.builtin.fail:
-        msg: "Failed to generate the VictoriaMetrics TLS secret manifest. Likely causes: the server certificate, server key, or CA certificate could not be read from the victoria cert directory (gen_victoria_certs.sh may have failed or not run), a template variable is undefined, or the deployments directory is not writable. Check: that 'server.crt', 'server.key', and 'ca.crt' exist and are non-empty in the victoria cert directory, that gen_victoria_certs.sh completed successfully, and the write permissions on the telemetry deployments directory. Error details suppressed (no_log)."
+        msg: >-
+          Failed to generate the VictoriaMetrics TLS secret manifest.
+          Likely causes: the server certificate, server key, or CA certificate could not be read from the victoria cert directory
+          (gen_victoria_certs.sh may have failed or not run), a template variable is undefined, or the deployments directory is not writable.
+          Check: that 'server.crt', 'server.key', and 'ca.crt' exist and are non-empty in the victoria cert directory,
+          that gen_victoria_certs.sh completed successfully, and the write permissions on the telemetry deployments directory.
+          Error details suppressed (no_log).
       no_log: true
 
 - name: Generate VictoriaMetrics RBAC manifest

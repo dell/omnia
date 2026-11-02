@@ -179,7 +179,12 @@
   rescue:
     - name: Apply VictoriaMetrics TLS secret | Report failure
       ansible.builtin.fail:
-        msg: "Failed to apply the VictoriaMetrics TLS secret. Likely causes: the Kubernetes cluster is unreachable, the victoria-tls-secret.yaml manifest is missing or malformed (certificate generation may have failed), the target namespace does not exist, or the user lacks RBAC to create secrets. Check: 'kubectl cluster-info', 'kubectl auth can-i create secrets -n <namespace>', and that 'victoria-tls-secret.yaml' exists in the telemetry deployments directory and is non-empty. Error details suppressed (no_log)."
+        msg: >-
+          Failed to apply the VictoriaMetrics TLS secret.
+          Likely causes: the Kubernetes cluster is unreachable, the victoria-tls-secret.yaml manifest is missing or malformed
+          (certificate generation may have failed), the target namespace does not exist, or the user lacks RBAC to create secrets.
+          Check: 'kubectl cluster-info', 'kubectl auth can-i create secrets -n <namespace>', and that 'victoria-tls-secret.yaml'
+          exists in the telemetry deployments directory and is non-empty. Error details suppressed (no_log).
       no_log: true
 
 - name: Apply VictoriaMetrics RBAC
