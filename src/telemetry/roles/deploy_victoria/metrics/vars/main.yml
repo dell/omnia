@@ -58,6 +58,17 @@ victoria_cluster:
     replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmselect.replicas | default(2) }}"
     image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vmselect | default('victoriametrics/vmselect:v1.153.0-cluster') }}"
     max_query_duration: "30s"
+    max_concurrent_requests: "1000"
+    cache_data_path: true
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmselect.resources }}"
+  vminsert:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vminsert.replicas | default(2) }}"
+    image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vminsert | default('victoriametrics/vminsert:v1.153.0-cluster') }}"
+    external_access: true
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vminsert.resources }}"
+  vmagent:
+    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmagent.replicas | default(2) }}"
+    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmagent.resources }}"
 
 # Rescue failure messages for VictoriaMetrics TLS secret tasks (no_log tasks, details suppressed)
 victoria_tls_secret_apply_fail_msg: >-
@@ -74,17 +85,6 @@ victoria_tls_secret_manifest_fail_msg: >-
   Check: that 'server.crt', 'server.key', and 'ca.crt' exist and are non-empty in the victoria cert directory,
   that gen_victoria_certs.sh completed successfully, and the write permissions on the telemetry deployments directory.
   Error details suppressed (no_log).
-    max_concurrent_requests: "1000"
-    cache_data_path: true
-    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmselect.resources }}"
-  vminsert:
-    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vminsert.replicas | default(2) }}"
-    image: "{{ hostvars['localhost']['telemetry_registry'].images.victoria.vminsert | default('victoriametrics/vminsert:v1.153.0-cluster') }}"
-    external_access: true
-    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vminsert.resources }}"
-  vmagent:
-    replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmagent.replicas | default(2) }}"
-    resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmagent.resources }}"
 
 # VictoriaLogs Cluster configuration
 victoria_logs_cluster:
