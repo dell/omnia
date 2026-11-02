@@ -146,13 +146,30 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.input_validation.core import config
 from ansible.module_utils.input_validation.messages import en_us_validation_msg
 
-def validate_csv_structure(csv_file_path, logger=None) -> bool:
+
+def _is_path_within(path, parent):
+    """Return whether *path* is a strict descendant of *parent*."""
+    normalized_path = os.path.abspath(os.path.normpath(path))
+    normalized_parent = os.path.abspath(os.path.normpath(parent))
+    try:
+        return (
+            os.path.commonpath((normalized_path, normalized_parent))
+            == normalized_parent
+            and normalized_path != normalized_parent
+        )
+    except ValueError:
+        return False
+
+
+def validate_csv_structure(csv_file_path, logger=None, allowed_dir=None) -> bool:
     """
     Validate CSV structure for PXE mapping files.
     
     Args:
         csv_file_path (str): Path to the CSV file to validate
         logger (logging.Logger): Logger instance for logging
+        allowed_dir (str, optional): If provided, the CSV file must reside
+            within this directory (realpath containment check).
         
     Returns:
         bool: True if validation passes, False otherwise
@@ -166,16 +183,33 @@ def validate_csv_structure(csv_file_path, logger=None) -> bool:
             if logger:
                 logger.error(error_msg)
             raise ValueError(error_msg)
-        
-        with open(csv_file_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            try:
-                header = next(reader)
-            except StopIteration:
-                error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
+
+        real_csv = os.path.realpath(csv_file_path)
+        if os.path.islink(csv_file_path):
+            error_msg = f"CSV ERROR: Symbolic links are not allowed - {csv_file_path}"
+            if logger:
+                logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        if allowed_dir:
+            real_allowed = os.path.realpath(allowed_dir)
+            if not _is_path_within(real_csv, real_allowed):
+                error_msg = (
+                    f"CSV ERROR: Path escapes the allowed directory - {csv_file_path}"
+                )
                 if logger:
                     logger.error(error_msg)
                 raise ValueError(error_msg)
+
+        with open(real_csv, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            try:
+                header = next(reader)
+            except StopIteration as exc:
+                error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
+                if logger:
+                    logger.error(error_msg)
+                raise ValueError(error_msg) from exc
                 
             expected_columns = len(header)
             
@@ -404,7 +438,7 @@ def main() -> None:
     # Optional CSV validation
     if csv_file_path:
         try:
-            validate_csv_structure(csv_file_path, logger)
+            validate_csv_structure(csv_file_path, logger, allowed_dir=input_dir_path)
             validation_status["tag"].append("csv_structure")
             vstatus.append(True)
         except ValueError as csv_error:

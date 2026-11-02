@@ -211,7 +211,7 @@ retains those external resources.
 | 5 | IMGBM_FVT_CLEANUP_V005 | `test_s3cfg_removed` | sanity | Checks the local S3 client configuration. | `/root/.s3cfg` is absent; skips for PowerScale. |
 | 6 | IMGBM_FVT_CLEANUP_V006 | `test_build_output_removed` | sanity | Checks the active project's build-status path. | `build_status.yml` is absent. |
 | 7 | IMGBM_FVT_CLEANUP_V007 | `test_registry_cleaned` | sanity | Inspects remaining registry tags when the registry is reachable. | The registry is unavailable after cleanup, or every repository tag query succeeds and no tagged build images remain. |
-| 8 | IMGBM_FVT_CLEANUP_V008 | `test_credentials_removed` | sanity | Checks the domain credential file and vault-key paths without reading their contents. | Both credential artifacts are absent. |
+| 8 | IMGBM_FVT_CLEANUP_V008 | `test_credentials_removed` | sanity | Checks the domain credential file and vault-key paths without reading their contents, against `cleanup_credentials` in `test_config.yml` (`false` runs the cleanup with `-e cleanup_credentials=false`). | `true` (default): both artifacts are absent. `false`: both are still present. |
 
 ## Registry summary
 

@@ -276,7 +276,8 @@ TEST_CASES = {
     },
     "credentials_removed": {
         "id": "IMGBM_FVT_CLEANUP_V008",
-        "title": "Verify credential artifacts removed after cleanup",
+        "title": "Verify credential artifacts removed (cleanup_credentials: true) "
+                 "or preserved (false) after cleanup",
     },
     # ── Non-functional tests ────────────────────────────────────────────
     "prepare_performance": {

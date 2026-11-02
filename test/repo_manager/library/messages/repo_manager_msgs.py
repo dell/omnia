@@ -167,6 +167,8 @@ TEST_LOG_MSGS = {
     "pulp_cli_missing": "Managed Pulp CLI launcher missing or unusable",
     "pulp_dirs_removed": "Pulp directories removed",
     "pulp_dirs_still_exist": "Pulp directories still exist",
+    "credentials_per_flag_ok": "Credential store matches cleanup_credentials",
+    "credentials_per_flag_failed": "Credential store does not match cleanup_credentials",
     # Policy Override Tests
     "global_config_failed": "Cannot read global configuration",
     "global_caching_failed": "Cannot read global caching configuration",
@@ -296,6 +298,12 @@ TEST_ASSERT_MSGS = {
     "pulp_container_still_exists": "Pulp container must be removed after cleanup",
     "pulp_cli_missing": "Managed Pulp CLI must remain usable after cleanup",
     "pulp_dirs_still_exist": "Pulp directories must be removed after cleanup",
+    "credentials_per_flag_failed": (
+        "Credential store does not match cleanup_credentials: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. true: the cleanup must remove repo_manager_config_credentials.yml and its key\n"
+        "  2. false: the cleanup runs with -e cleanup_credentials=false and must keep both"
+    ),
     # Policy Override Tests
     "per_repo_policy_must_override": "Per-repo policy must override global repo_config",
     "per_repo_caching_must_override": "Per-repo caching must override global caching_policy",
