@@ -198,15 +198,16 @@ def run_cmd(cmd: Union[str, Sequence[str]], logger,
             timeout: int = PULP_COMMAND_TIMEOUT) -> Dict[str, Any]:
     """Execute a command without a shell and return its result.
 
-    Cleanup code should pass a list so user-derived values remain one argument.
-    String support is retained for existing internal command templates.
+    All callers must pass a list so that user-derived values remain one
+    argument and cannot inject additional CLI options via whitespace.
+    String commands are rejected to prevent argument/option injection
+    (CWE-88, Finding-50).
     """
+    if isinstance(cmd, str):
+        logger.error("Cleanup command rejected: string commands are not supported")
+        return {"rc": 1, "stdout": "", "stderr": "Unable to execute command"}
     try:
-        if isinstance(cmd, str):
-            import shlex  # Local compatibility import for legacy templates.
-            cmd_list = shlex.split(cmd)
-        else:
-            cmd_list = [str(value) for value in cmd]
+        cmd_list = [str(value) for value in cmd]
         result = subprocess.run(
             cmd_list,
             shell=False,

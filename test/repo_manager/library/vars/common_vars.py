@@ -9,6 +9,7 @@ Repo Manager — Test constants, paths and commands.
 
 import os
 import re
+import yaml
 from typing import List
 
 
@@ -78,6 +79,27 @@ def _get_catalog_path() -> str:
     return f"{data_path.rstrip('/')}/catalog/catalog_rhel.json"
 
 
+def _get_pulp_ip() -> str:
+    """Return the Pulp server IP from endpoint config or environment."""
+    # Try to read from endpoint config file
+    endpoint_config_path = f"{_get_input_path()}/{INPUT_FILES['repo_manager_endpoint_config']}"
+    try:
+        with open(endpoint_config_path, 'r') as f:
+            config = yaml.safe_load(f)
+            if config and config.get('pulp_server_ip'):
+                return config['pulp_server_ip']
+    except (FileNotFoundError, yaml.YAMLError, KeyError):
+        pass
+
+    pulp_ip = os.environ.get("SYSTEM_ADMIN_NIC_IPV4", "").strip()
+    if not pulp_ip:
+        raise RuntimeError(
+            "Pulp IP not set: define pulp_server_ip or SYSTEM_ADMIN_NIC_IPV4. "
+            "Source /etc/omnia/omnia.env."
+        )
+    return pulp_ip
+
+
 # --- Input/Output file names ---
 INPUT_FILES = {
     "repo_manager_config": "repo_manager_config.yml",
@@ -94,6 +116,7 @@ OUTPUT_FILES = {
 
 # --- Pulp configuration ---
 PULP_CONTAINER_NAME = "pulp"
+PULP_IP = _get_pulp_ip()
 PULP_PORT = "2225"
 PULP_CLI_SYMLINK = "/usr/local/bin/pulp"
 PULP_CERTS_DIR = None  # Set dynamically using shared_path

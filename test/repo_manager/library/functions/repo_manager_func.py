@@ -25,6 +25,7 @@ from ..vars.common_vars import (
     INPUT_FILES,
     OUTPUT_FILES,
     PULP_CONTAINER_NAME,
+    PULP_IP,
     PULP_PORT,
     PULP_CLI_SYMLINK,
     _get_input_path,
@@ -379,10 +380,10 @@ def check_pulp_status_healthy(host) -> Dict[str, Any]:
 
 def check_pulp_endpoint_reachable(host) -> Dict[str, Any]:
     """Verify Pulp endpoint responds with HTTP 200."""
-    # Use 127.0.0.1 for local Pulp endpoint health check
+    # Use PULP_IP from endpoint config or environment
     cmd = (
         f"curl -k -s -o /dev/null -w '%{{http_code}}' "
-        f"https://127.0.0.1:{PULP_PORT}/pulp/api/v3/status/ "
+        f"https://{PULP_IP}:{PULP_PORT}/pulp/api/v3/status/ "
         f"|| echo '000'"
     )
     result = run_on_host(host, cmd)
