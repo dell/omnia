@@ -43,11 +43,7 @@
   rescue:
     - name: Check if isilon-creds exists in isilon namespace | Report failure
       ansible.builtin.fail:
-        msg: >-
-          Failed to check for the isilon-creds secret in namespace 'isilon'.
-          Likely causes: kubeconfig missing or expired, cluster unreachable, or the user lacks RBAC to read secrets in 'isilon'.
-          Check: 'kubectl config current-context', 'kubectl cluster-info', and 'kubectl auth can-i get secrets -n isilon'.
-          Error details suppressed (no_log).
+        msg: "{{ ps_isilon_creds_check_fail_msg }}"
       no_log: true
 
 - name: Copy isilon-creds secret to telemetry namespace  # noqa: risky-shell-pipe
@@ -66,12 +62,7 @@
   rescue:
     - name: Copy isilon-creds secret to telemetry namespace | Report failure
       ansible.builtin.fail:
-        msg: >-
-          Failed to copy the isilon-creds secret to the telemetry namespace.
-          Likely causes: the source secret is missing in 'isilon' (see the previous check), the target namespace does not exist,
-          'jq' is not installed on the host, or the user lacks RBAC to delete/create secrets.
-          Check: 'kubectl get secret isilon-creds -n isilon', 'kubectl get ns', 'which jq', and
-          'kubectl auth can-i create secrets -n <csm_observability_namespace>'. Error details suppressed (no_log).
+        msg: "{{ ps_isilon_creds_copy_fail_msg }}"
       no_log: true
 
 # --- Copy Karavi Authorization resources if enabled ---
@@ -96,14 +87,7 @@
   rescue:
     - name: Copy Karavi Authorization resources (Mode B) | Report failure
       ansible.builtin.fail:
-        msg: >-
-          Failed to copy the Karavi Authorization resources (Mode B).
-          Likely causes: 'isilon-config-params', 'proxy-server-root-certificate', or 'proxy-authz-tokens' are missing in 'isilon'
-          (Karavi Authorization not deployed on PowerScale), 'sed' or 'kubectl' unavailable on the host,
-          or the user lacks RBAC to read or apply these resources.
-          Check: 'kubectl get configmap isilon-config-params -n isilon',
-          'kubectl get secret proxy-server-root-certificate proxy-authz-tokens -n isilon', and
-          'kubectl auth can-i apply secrets -n <csm_observability_namespace>'. Error details suppressed (no_log).
+        msg: "{{ ps_karavi_authz_copy_fail_msg }}"
       no_log: true
 
 # --- Helm install/upgrade karavi-observability ---
