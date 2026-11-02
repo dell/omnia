@@ -171,6 +171,10 @@ BSM_CLIENT_ID_PREFIX = "bld_"
 # =============================================================================
 # The upload stage writes the committed catalog to CATALOG_FILE_PATH on the host.
 BUILD_UPLOAD_STAGE = "upload"
+# The validate stage stores the run_validation counts in
+# job_stages.result_detail.test_summary (result_poller.py).
+VALIDATE_STAGE = "validate"
+TEST_SUMMARY_KEYS = ("total", "passed", "failed", "skipped", "errors")
 
 STAGE_COMPLETED = "COMPLETED"
 STAGE_FAILED = "FAILED"
@@ -298,6 +302,12 @@ AUDIT_RETENTION_DELETED = "RETENTION_DELETED"
 CLEANUP_LOG_STAGE = "cleanup"
 S3CMD_CONFIG = "/root/.s3cfg"
 NFS_ARTIFACTS_DIR = "build_stream/build_stream_root/artifacts"
+# pxe_buildstream_manager: per-job restart_state.json lists the nodes booted by
+# earlier restart attempts; a retry PXE-boots only the remaining nodes.
+RESTART_STATE_DIR = "build_stream/build_stream_root/restart_state"
+RESTART_STATE_FILE = "restart_state.json"
+# pxe_mapping_file.csv column that keys node_results.json (bmc_ip).
+PXE_BMC_IP_COLUMN = "BMC_IP"
 # cleanup_cron.py / cleanup_job.py log lines (emitted through log_secure_info).
 AUTO_CLEANUP_LOG_RE = {
     "failed_phase": re.compile(
@@ -420,6 +430,14 @@ SQL = {
         "coalesce(replace(replace(error_summary, E'\\n', ' '), '|', '/'),''), "
         "coalesce(log_file_path,''), coalesce(started_at::text,'') "
         "FROM job_stages WHERE job_id='{job_id}';"
+    ),
+    "stage_test_summary": (
+        "SELECT coalesce(result_detail->'test_summary'->>'total',''), "
+        "coalesce(result_detail->'test_summary'->>'passed',''), "
+        "coalesce(result_detail->'test_summary'->>'failed',''), "
+        "coalesce(result_detail->'test_summary'->>'skipped',''), "
+        "coalesce(result_detail->'test_summary'->>'errors','') "
+        "FROM job_stages WHERE job_id='{job_id}' AND stage_name='{stage}';"
     ),
     "image_group_by_job": (
         "SELECT id, job_id, status, deploy_count, coalesce(last_deployed_at::text,''), "

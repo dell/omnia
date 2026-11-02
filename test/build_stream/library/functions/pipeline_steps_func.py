@@ -51,6 +51,7 @@ from .pipeline_trigger_func import (
     trigger_pipeline,
 )
 from .log_func import mark
+from .node_coverage_func import check_node_coverage
 from .state_func import clear_run_state, load_run_state, save_run_state
 from ..messages.execute_msgs import PROGRESS_MSGS as PROGRESS
 from ..messages.execute_msgs import STEP_MSGS
@@ -74,6 +75,7 @@ from ..vars.execute_vars import (
     PIPELINE_DETECT_INTERVAL,
     SELECT_JOBS_TIMEOUT,
     STAGE_COMPLETED,
+    VALIDATE_STAGE,
 )
 
 Emit = Callable[[str], None]
@@ -156,7 +158,32 @@ def run_stage_step(host: Any, pipeline: str, stage: str, settings: Dict[str, Any
     item = (monitor["results"] or [{}])[0]
     if item.get("state") != STAGE_COMPLETED and not result["failures"]:
         result["failures"].append(f"stage '{stage}' finished as {item.get('state')}")
+    if stage == VALIDATE_STAGE and item.get("state") == STAGE_COMPLETED:
+        _check_test_summary(host, state["job_id"], result)
     return _finish(result, state, stage)
+
+
+def _check_test_summary(host: Any, job_id: str, result: Dict[str, Any]) -> None:
+    """Check the validate stage ran tests: some passed and none failed or errored.
+
+    The watcher already fails the stage on failures, errors or an all-zero
+    summary; a run where every test was skipped still completes, so this
+    also requires at least one passed test.
+    """
+    summary = db_func.stage_test_summary(host, job_id, VALIDATE_STAGE)
+    if summary is None:
+        result["fields"].append((mark(False, "Validate test summary"), "not recorded"))
+        result["failures"].append("validate stage has no result_detail.test_summary")
+        return
+    ok = (summary["total"] > 0 and summary["passed"] > 0
+          and summary["failed"] == 0 and summary["errors"] == 0)
+    result["fields"].append((mark(ok, "Validate test summary"),
+                             ", ".join(f"{key}={value}" for key, value in summary.items())))
+    if not ok:
+        result["failures"].append(
+            f"validate test summary is not a clean run: total={summary['total']}, "
+            f"passed={summary['passed']}, failed={summary['failed']}, "
+            f"errors={summary['errors']}, skipped={summary['skipped']}")
 
 
 def _records_step(host: Any, pipeline: str, step: str, settings: Dict[str, Any],
@@ -595,6 +622,10 @@ def verify_restart_node_results(host: Any, pipeline: str, settings: Dict[str, An
     for bmc_ip, node_status in status.items():
         result["fields"].append((mark(True, f"Node {bmc_ip}"), node_status))
     _check_failed_nodes(state, status, result)
+    if ok:
+        coverage = check_node_coverage(host, state["context"], state["job_id"], data)
+        result["fields"].extend(coverage["fields"])
+        result["failures"].extend(coverage["failures"])
     return _finish(result, state, "restart node results")
 
 
