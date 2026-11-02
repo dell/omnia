@@ -288,8 +288,7 @@ def run_cleanup_pass(host: Any, emit: Emit) -> Dict[str, Any]:
     Returns:
         Dict with keys: rc (0 ok, 1 some groups failed, 2 fatal), started_epoch,
         submitted, retention_deleted, errors, and the parsed summary tuples
-        failed_found, failed_phase, retention_started, retention_eligible,
-        retention_done (when logged).
+        failed_phase, retention_started, retention_eligible (when logged).
     """
     started = db_now_epoch(host)
     result = run_cmd(host, "container_python", container=BSM_CONTAINER,

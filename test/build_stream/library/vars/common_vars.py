@@ -500,12 +500,6 @@ CMDS: Dict[str, str] = {
     "path_exists": "test -e {path}",
     "file_exists": "test -f {path} && echo exists",
     "dir_exists": "test -d {path} && echo exists",
-    "dir_has_files": "test -n \"$(find {path} -maxdepth 1 -type f -print -quit 2>/dev/null)\"",
-    "list_input_files": "find {path} -maxdepth 1 -type f ! -name '.*' -printf '%f\\n' 2>/dev/null",
-    "app_source_drift": (
-        "cd {src} && find . -type f ! -path '*/__pycache__/*' -print0"
-        " | while IFS= read -r -d '' f; do cmp -s \"$f\" {dest}/\"$f\" || echo \"$f\"; done"
-    ),
     "cat_file": "cat {path} 2>/dev/null",
 
     # --- Podman ---

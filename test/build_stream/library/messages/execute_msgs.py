@@ -114,15 +114,6 @@ PROGRESS_MSGS: Dict[str, str] = {
     "cadence_wait_disabled": (
         "waiting up to {timeout}s for playbook-watcher to report the cycle disabled"
     ),
-    "watcher_busy_wait": (
-        "playbook-watcher is running {requests}; cadence suppresses its sync until it "
-        "finishes, waiting (up to {timeout}s)"
-    ),
-    "watcher_idle": "playbook-watcher queue is idle; {action}",
-    "pipeline_cancel_after_failure": (
-        "step '{step}' failed: cancelling GitLab pipeline #{pipeline_id} so it does not "
-        "continue: {outcome}"
-    ),
     # --- auto_cleanup_func / cleanup_step_func ---
     "cleanup_statuses": "Cleanup status: {statuses}",
     "cleanup_still_running": "[{elapsed}s] cleanup still running: {statuses}",

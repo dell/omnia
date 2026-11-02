@@ -300,14 +300,11 @@ S3CMD_CONFIG = "/root/.s3cfg"
 NFS_ARTIFACTS_DIR = "build_stream/build_stream_root/artifacts"
 # cleanup_cron.py / cleanup_job.py log lines (emitted through log_secure_info).
 AUTO_CLEANUP_LOG_RE = {
-    "failed_found": re.compile(r"found (\d+) FAILED ImageGroups"),
     "failed_phase": re.compile(
         r"FAILED phase\) complete: total=(\d+), cleaned=(\d+), errors=(\d+)"),
     "retention_started": re.compile(
         r"Retention evaluation started: retention_age_days=(\d+), min_keep_count=(\d+)"),
     "retention_eligible": re.compile(r"Retention evaluation: (\d+) ImageGroups eligible"),
-    "retention_done": re.compile(
-        r"Retention evaluation complete: eligible=(\d+), deleted=(\d+), errors=(\d+)"),
     "submitted": re.compile(r"Cleanup playbook submitted: image_group=([^,\s]+)"),
     "retention_deleted": re.compile(r"RETENTION_DELETED: image_group_id=([^,\s]+)"),
     "error": re.compile(r" - (?:ERROR|CRITICAL) - (.*)"),

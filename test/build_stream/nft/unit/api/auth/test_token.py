@@ -48,23 +48,6 @@ def registered_client(test_client: TestClient, valid_auth_header: Dict[str, str]
     }
 
 
-@pytest.fixture
-def valid_token_request(registered_client: Dict) -> Dict:
-    """Create a valid token request body.
-
-    Args:
-        registered_client: Registered client credentials.
-
-    Returns:
-        Dictionary with valid token request data.
-    """
-    return {
-        "grant_type": "client_credentials",
-        "client_id": registered_client["client_id"],
-        "client_secret": registered_client["client_secret"],
-    }
-
-
 @pytest.mark.integration
 class TestTokenEndpoint:
     """Test suite for POST /api/v1/auth/token endpoint."""
