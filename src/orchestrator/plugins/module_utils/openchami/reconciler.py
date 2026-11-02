@@ -405,6 +405,25 @@ class OpenChamiReconciler:
 
         # --- Identify orphan XNAMEs from Hardware Inventory ---
         hardware = self.smd.hardware_inventory()
+        interfaces = self.smd.interfaces()
+        active_interface_xnames = set()
+        for interface in interfaces:
+            mac_raw = interface.get("MACAddress") or interface.get("ID")
+            if not mac_raw:
+                continue
+            try:
+                mac = _norm_mac(mac_raw)
+            except Exception:
+                continue
+            if mac not in active_macs:
+                continue
+            component_id = str(interface.get("ComponentID", "")).strip()
+            iface_type = str(interface.get("Type", "")).lower()
+            if iface_type == "node" and component_id:
+                active_interface_xnames.add(component_id)
+            elif iface_type == "nodebmc" and component_id:
+                active_interface_xnames.add(component_id + "n0")
+
         orphan_xnames = set()
         for record in hardware:
             if str(record.get("Type", "")).lower() != "node":
@@ -423,13 +442,12 @@ class OpenChamiReconciler:
                 tag = normalize_service_tag(tag_value)
             except Exception:
                 continue
-            if tag not in active_tags:
+            if tag not in active_tags and xname not in active_interface_xnames:
                 orphan_xnames.add(xname)
 
         # --- Also find component XNAMEs with interfaces whose MACs are not
         #     in the current mapping AND have no hardware inventory (nodes
         #     that were discovered but never got an inventory record) ---
-        interfaces = self.smd.interfaces()
         hardware_xnames = {
             str(r.get("ID", "")).strip()
             for r in hardware

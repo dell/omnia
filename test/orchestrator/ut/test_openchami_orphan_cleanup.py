@@ -351,6 +351,31 @@ def test_live_node_with_replaced_nic_is_not_orphaned():
     assert smd.calls["delete_group_member"] == 0
 
 
+@pytest.mark.parametrize("active_interface_index", [0, 1])
+def test_live_node_with_stale_service_tag_and_active_mac_is_not_orphaned(
+    active_interface_index,
+):
+    live = Node(5, "slurm")
+    hardware, interfaces, groups = build_state([live])
+    hardware[0]["PopulatedFRU"]["NodeFRUInfo"]["SerialNumber"] = service_tag(999)
+    smd = StatefulFakeSMD(hardware, interfaces, groups)
+
+    result = _reconciler(smd).cleanup_orphan_smd_entries(
+        current_service_tags=[live.tag],
+        current_macs=[display_mac(interfaces[active_interface_index]["MACAddress"])],
+        check_mode=True,
+    )
+
+    assert result["changed"] is False
+    assert result["orphan_xnames"] == []
+    assert smd.calls == {
+        "delete_group_member": 0,
+        "delete_interfaces": 0,
+        "delete_components": 0,
+        "delete_hardware": 0,
+    }
+
+
 def test_check_mode_reports_orphans_without_deleting():
     """Check mode plans the orphan purge but performs no mutations."""
     old_nodes = [Node(0, "login")]
