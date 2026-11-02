@@ -15,7 +15,7 @@
 # Omnia System Verification (SVT) - parent pipeline
 # =============================================================================
 # Run pipeline (CI/CD > Pipelines > Run pipeline) shows three drop-downs:
-#   THEME        build_stream | standard
+#   THEME        build_stream (one file per theme under ci/themes/)
 #   CLUSTERS     all | one folder name under clusters/ (comma separated allowed)
 #   START_STAGE  re-run from a stage (initialization | cleanup |
 #                environment_setup | system_verification)
@@ -30,8 +30,8 @@
 variables:
   THEME:
     value: "build_stream"
-    options: ["build_stream", "standard"]
-    description: "Integration theme: build_stream (BuildStream flow) or standard (domain by domain)"
+    options: ["build_stream"]
+    description: "Integration theme: build_stream (BuildStream flow)"
   CLUSTERS:
     value: "all"
     description: "all, or cluster folder name(s) under clusters/ (comma separated)"

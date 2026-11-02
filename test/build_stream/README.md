@@ -1,16 +1,19 @@
 # Build Stream test automation
 
 Functional (FVT) and non-functional (NFT) automation for the Omnia
-`build_stream` domain, plus the setup and cleanup of the base domains it runs on.
+`build_stream` domain.
 It uses the shared `omnia_auto` package for runner dispatch, target access,
 synchronization, logging, and HTML/JSON reporting.
 
-The end-to-end system verification (SVT) and its GitLab pipeline reuse these
-FVT tags; see [`../system_test/README.md`](../system_test/README.md).
+The Omnia setup (`./omnia.sh --setup-venv`, `--cleanup`) is tested in
+`test/main`, and each base domain's cleanup in its own suite (`test/repo_manager`,
+`test/image_build_manager`, `test/orchestrator`). The end-to-end system
+verification (SVT) chains those suites with these FVT tags; see
+[`../system_test/README.md`](../system_test/README.md).
 
 ## Purpose and safety model
 
-Each FVT tag follows a `build_stream.yml` tag, or an `omnia.sh` command, and
+Each FVT tag follows a `build_stream.yml` tag (or `./omnia.sh --prepare-base`) and
 verifies what that step creates. The three actions:
 
 - `exec` runs the playbook or command;
@@ -19,13 +22,11 @@ verifies what that step creates. The three actions:
 
 | Tag | Effect | Selection |
 |---|---|---|
-| `domain_install` | Runs `./omnia.sh --setup-venv` (venv, dependencies, input staging for every domain); `--force-env` with `domain_install.force_env: true` | Explicit only |
 | `prepare_base` | Runs `./omnia.sh --prepare-base` (repo_manager, image_build_manager, orchestrator) | Explicit only |
 | `precheck` | Read-only `--tags precheck` | Default lifecycle |
 | `prepare` | Deploys BuildStream, Postgres and playbook-watcher | Default lifecycle |
 | `execute` | Deploys GitLab and runs real pipelines (detail below) | Default lifecycle |
 | `cleanup` | **Destructive**: removes GitLab and BuildStream. Postgres data and credentials follow `cleanup.postgres_backup` / `cleanup.cleanup_credentials` | Explicit only |
-| `domain_cleanup` | **Destructive**: cleans orchestrator, image_build_manager and repo_manager (flags under `domain_cleanup`). The `cleanup_main` block (`./omnia.sh --cleanup`, removes the setup) is disabled by default | Explicit only |
 
 `execute` runs real pipelines: it builds and deploys images, runs a cadence
 cycle, an image cleanup pipeline and an automated cleanup pass. It changes live
@@ -61,7 +62,8 @@ state:
 - **Development host:** Python 3.12, `bash`, and this repository.
 - **Execution OIM:**
   - an Omnia checkout;
-  - for every tag except `domain_install`, an Omnia setup (`/etc/omnia/omnia.env`);
+  - an Omnia setup (`/etc/omnia/omnia.env` and the Omnia venv; create it with
+    `./omnia.sh --setup-venv` or `test/main`: `./run_validation.sh fvt_main setup test`);
   - for `execute`, PXE nodes listed in `input/orchestrator/pxe_mapping_file.csv`.
 - **Product credentials** saved with `./setup_env.sh --set-domain-creds` on the
   execution OIM, so no playbook stops to prompt.
@@ -100,9 +102,8 @@ ${EDITOR:-vi} test_run_config.yml
 ### First run on a bare OIM (no Omnia venv yet)
 
 ```bash
-./setup_env.sh --venv && source .venv/bin/activate       # bootstrap venv
-./run_validation.sh fvt_build_stream domain_install test  # omnia.sh --setup-venv + checks
-deactivate
+(cd ../main && ./setup_env.sh --venv && .venv/bin/python _run.py fvt_main setup test \
+   && .venv/bin/python _run.py fvt_main init test)        # omnia.sh setup + domain init
 source "$(sed -n 's/^OMNIA_VENV_PATH=//p' /etc/omnia/omnia.env)/bin/activate"
 ./setup_env.sh                                            # test deps in the Omnia venv
 ./setup_env.sh --set-domain-creds
@@ -171,13 +172,11 @@ cd datasets/generator
 
 | Tag | Suites | Contract |
 |---|---|---|
-| `domain_install` | `initialization` | One test case each for the shared setup, repo_manager, image_build_manager, orchestrator and build_stream: every source input file staged, project directories, `/var/log/omnia/<domain>`, and (build_stream) the application copy matching `src/build_stream/app` |
 | `prepare_base` | `readiness` | Prerequisite domains ready for BuildStream |
 | `precheck` | `environment`, `containers`, `credentials` | Environment, prerequisite containers and credential stores |
 | `prepare` | `build_stream` | BuildStream service, API, database, venv, TLS, queue |
 | `execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup` | GitLab, then each pipeline as one test case per step |
 | `cleanup` | `gitlab`, `build_stream` | Removed and intentionally preserved resources |
-| `domain_cleanup` | `postconditions` | orchestrator, image_build_manager, repo_manager (and main) removed or preserved per flags |
 
 Every test case, with its order, ID, markers and check, is listed in
 [`fvt/README.md`](fvt/README.md).
@@ -192,7 +191,7 @@ Every test case, with its order, ID, markers and check, is listed in
   `auto_cleanup` uses it even when it runs in a later process, as the SVT does:
   it deletes that image, or skips with "nothing to clean" when the cadence build
   failed.
-- **Exec and verify:** `domain_cleanup` and `cleanup` hand their exec facts to
+- **Exec and verify:** `cleanup` hands its exec facts to
   the verify phase through the same `reports/state/` directory (0600, no
   secrets).
 
@@ -223,10 +222,6 @@ Combine markers with `+` (AND) and `,` (OR), for example
 ## Lifecycle examples
 
 ```bash
-# Setup of a bare or re-used OIM (explicit); set domain_install.force_env: true on a re-used OIM
-./run_validation.sh fvt_build_stream domain_install test
-./run_validation.sh fvt_build_stream domain_install verify     # read-only checks
-
 # Default lifecycle, every test
 ./run_validation.sh fvt_build_stream test
 # Baseline checks only
@@ -257,7 +252,6 @@ Combine markers with `+` (AND) and `,` (OR), for example
 
 # cleanup (destructive)
 ./run_validation.sh fvt_build_stream cleanup test
-./run_validation.sh fvt_build_stream domain_cleanup test
 ```
 
 `test_config.yml` keys per tag (all keys: [`docs/test_config.md`](docs/test_config.md)):
@@ -265,7 +259,6 @@ Combine markers with `+` (AND) and `,` (OR), for example
 | Tag | Keys |
 |---|---|
 | all | `oim_server_ip`, `oim_ssh_user`, `oim_ssh_port`, `clone_path`, `dataset`, `sync_build_stream_input`, `report_*`, `run_id` |
-| `domain_install` | `domain_install.force_env` (default `false`; `true` adds `--force-env` so `src/main/omnia.env` replaces `/etc/omnia/omnia.env`) |
 | `execute` (build) | `installation.catalog` (number from `./omnia.sh --list-catalogs` or full path), `pipeline.build_job_id` (verify-only mode) |
 | `execute` (deploy) | `pipeline.deploy_image_group_id` (deploy-only runs), `pipeline.deploy_job_id` (verify-only mode) |
 | `execute` (cadence) | `installation.cadence_catalog` (empty = `installation.catalog`), `pipeline.cadence_job_id` (verify-only mode) |
@@ -273,7 +266,6 @@ Combine markers with `+` (AND) and `,` (OR), for example
 | `execute` (`pipeline_cleanup`) | `pipeline.cleanup_image_group_id`. Empty = the newest BUILT/PASSED/FAILED group; when there is none the test fails with "No images to clean" |
 | `execute` (`auto_cleanup`) | `pipeline.auto_cleanup_image_group_id`. Empty = the image the cadence test built (this session or `reports/state/cadence_build.json`), else the first BUILT/PASSED/FAILED group. The group is set to FAILED in the database first |
 | `cleanup` | `cleanup.postgres_backup`, `cleanup.cleanup_credentials` |
-| `domain_cleanup` | `domain_cleanup.fail_fast`, and per block `enabled` and its flags: `cleanup_orchestrator` (`cleanup_credentials`, `cleanup_slurm`, `cleanup_k8s`), `cleanup_image_build_manager` (`cleanup_credentials`), `cleanup_repo_manager` (`cleanup_logs`, `cleanup_credentials`), `cleanup_main` (`full_reset`; disabled by default) |
 
 **Build:** the build suites commit `installation.catalog` with the next unused
 version.
@@ -325,8 +317,7 @@ the BuildStream auth credentials with hidden prompts, verifies TLS against
 test/build_stream/
 ├── README.md        this overview
 ├── conftest.py      the only FVT conftest: markers, --marker filter, order,
-│                    host fixture, reports, precheck gates (domain_install,
-│                    prepare_base, domain_cleanup)
+│                    host fixture, reports, prepare_base precheck gate
 ├── _run.py, run_validation.sh, setup_env.sh, requirements.txt, pytest.ini
 ├── test_config.yml, test_run_config.yml
 ├── docs/            test_config.md, test_run_config.md, test_creds.md
@@ -336,9 +327,8 @@ test/build_stream/
 │   ├── vars/        common_vars, execute_vars, domain_vars, test_case_vars
 │   ├── messages/    build_stream_msgs, execute_msgs
 │   ├── cleanup_inspection.py, domain_credentials.py
-├── fvt/             domain_install, prepare_base, precheck, prepare, execute,
-│                    cleanup, domain_cleanup (README.md: every test case,
-│                    what it checks, pass criteria)
+├── fvt/             prepare_base, precheck, prepare, execute, cleanup
+│                    (README.md: every test case, what it checks, pass criteria)
 ├── nft/             test_resilience.py, test_security.py (own conftest.py),
 │                    unit/ (BuildStream app unit tests), demo/
 ├── reports/         run state between processes (gitignored)

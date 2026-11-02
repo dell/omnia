@@ -24,7 +24,8 @@ TEST_ASSERT_MSGS = {
         "SVT case {case} failed at: {step} (rc={rc}).\n"
         "HOW TO FIX:\n"
         "  1. Read the FVT output above and its report in {report_path}\n"
-        "  2. Fix the cause and re-run: ./run_validation.sh svt_{theme} test --case {case}"
+        "  2. Fix the cause and re-run: "
+        "./run_validation.sh svt_{theme} system_verification --case {case} --resume"
     ),
 }
 
@@ -37,11 +38,12 @@ STAGE_MSGS = {
     "step_failed": "{label} failed (rc={rc})",
     "no_previous_setup": "no previous Omnia setup ({path} missing): nothing to clean",
     "no_build_stream": "BuildStream is not installed ({path} missing): {label} not needed",
+    "no_omnia_venv": "the Omnia venv is missing: {label} skipped (needs the Omnia venv)",
     "inputs_placed": "user inputs placed: {target}",
     "test_config_placed": "test_config placed: {target}",
     "venv_missing": (
         "the Omnia venv {path} is missing. HOW TO FIX: run the environment_setup "
-        "stage (./omnia.sh --setup-venv) first"
+        "stage (test/main: omnia.sh --setup-venv) first"
     ),
     "not_initialized": (
         "run {run_id} was not initialized on this checkout. HOW TO FIX: run the "
@@ -49,12 +51,12 @@ STAGE_MSGS = {
     ),
     "nothing_to_resume": (
         "--resume found no initialized {theme} run on this checkout. HOW TO FIX: run "
-        "the initialization stage (./run_svt.sh initialization --theme {theme} ...)"
+        "the initialization stage (./run_validation.sh svt_{theme} initialization ...)"
     ),
-    "repo_missing": "{path} not found: run run_svt.sh from an Omnia checkout",
+    "repo_missing": "{path} not found: run the SVT from an Omnia checkout",
     "unknown_run": (
         "no SVT run found. HOW TO FIX: start with the initialization stage "
-        "(./run_svt.sh initialization --theme <theme> ...) or pass --run-id"
+        "(./run_validation.sh svt_<theme> initialization ...) or pass --run-id"
     ),
     "creds_hint": (
         "Domain credentials are not part of this stage. Provide them before "

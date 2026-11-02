@@ -52,8 +52,8 @@ main:
   # +--------------------------------------------------------------------------+
   omnia_env:
     SYSTEM_ADMIN_NIC_IPV4: "172.16.107.254"
-    SYSTEM_HOSTNAME: "clashcp"
-    SYSTEM_DOMAIN_NAME: "kumaran.test"
+    SYSTEM_HOSTNAME: "oim"
+    SYSTEM_DOMAIN_NAME: "omnia.cluster"
     OMNIA_DATA_PATH: ""
     OMNIA_PROJECT_NAME: ""
     OMNIA_VENV_PATH: ""
@@ -118,9 +118,9 @@ repo_manager:
             url: ""
           user_repos:
             slurm_custom:
-              url: "http://100.96.54.66/omnia/rhel10.2/x86_64/slurm/25.05.2/with_gpu/"
+              url: ""
             ldms:
-              url: "http://100.96.54.66/omnia/rhel10.2/x86_64/ldms/4.5.2/"
+              url: ""
             vast:
               url: ""
         aarch64:
@@ -175,8 +175,8 @@ orchestrator:
   network_spec:
     Networks:
       - admin_network:
-          oim_nic_name: "eno33np0"
-          subnet: "172.16.107.0"
+          oim_nic_name: "eno1"
+          subnet: "172.16.0.0"
           netmask_bits: "24"
           primary_oim_admin_ip: "172.16.107.254"
           primary_oim_bmc_ip: ""
@@ -202,14 +202,14 @@ orchestrator:
   storage_config:
     mounts:
       - name: "nfs_slurm"
-        source: "172.16.107.254:/nfs_share/slurm"
+        source: "172.16.107.168:/mnt/share/omnia"
         mount_point: "/share_omnia"
       - name: "nfs_k8s"
-        source: "172.16.107.254:/nfs_share/k8s"
+        source: "172.16.107.121:/mnt/share/omnia_k8s"
         mount_point: "/opt/omnia/k8s_mount"
       - name: "vast_storage"
-        source: ""
-        mount_point: ""
+        source: "172.16.107.77:/share/vast"
+        mount_point: "/mnt/vast"
 
   # +--------------------------------------------------------------------------+
   # | omnia_config.yml - Kubernetes service cluster                            |
@@ -233,8 +233,8 @@ orchestrator:
         k8s_service_addresses: "10.233.0.0/18"
         k8s_pod_network_cidr: "10.233.64.0/18"
         virtual_ip_address: "172.16.107.1"
-        enable_k8s_ha: false
-        etcd_on_local_disk: false
+        enable_k8s_ha: true
+        etcd_on_local_disk: true
         k8s_bootstrap_token_ttl: "2h"
         enable_powerscale_csi: false
         csi_powerscale_driver_secret_file_path: ""
@@ -249,13 +249,19 @@ orchestrator:
   # |   Empty columns stay empty (",,").                                       |
   # +--------------------------------------------------------------------------+
   pxe_mapping_file:
-    row1: "service_kube_control_plane_rhel_10_2_x86_64,grp0,JS8MN34,,kcp,04:32:01:DD:9D:F0,172.16.107.91,6c:3c:8c:85:be:04,100.10.0.114,,"
-    row2: "service_kube_node_rhel_10_2_x86_64,grp1,1T8MN34,,knode1,04:32:01:DE:18:D0,172.16.107.92,6c:3c:8c:85:be:a6,100.10.0.116,,"
-    row3: "slurm_control_node_rhel_10_2_x86_64,grp2,H94M8F3,,scnode,BC:97:E1:F0:94:F0,172.16.107.96,b0:7b:25:d8:4a:f4,100.10.1.99,,"
-    row4: "slurm_node_rhel_10_2_x86_64,grp3,GS8MN34,1T8MN34,snode,04:32:01:DE:90:D0,172.16.107.94,6c:3c:8c:85:bd:e0,100.10.0.115,,"
-    row5: "login_node_rhel_10_2_x86_64,grp5,2LXT933,,lnode,BC:97:E1:24:A3:E0,172.16.107.97,f4:02:70:db:d1:20,100.10.1.100,,"
-    row6: "login_compiler_node_rhel_10_2_x86_64,grp6,HS8MN34,,lcnode,04:32:01:DD:A7:00,172.16.107.93,6c:3c:8c:85:be:1c,100.10.0.113,,"
-
+    row1: "slurm_control_node_rhel_10_2_x86_64,grp0,ABCD12,,slurm-control-node1,xx:yy:zz:aa:bb:cc,172.16.107.52,xx:yy:zz:aa:bb:dd,172.17.107.52,,"
+    row2: "slurm_node_rhel_10_0_aarch64,grp1,ABCD34,ABFL82,slurm-node1,aa:bb:cc:dd:ee:ff,172.16.107.43,aa:bb:cc:dd:ee:gg,172.17.107.43,,"
+    row3: "slurm_node_rhel_10_0_aarch64,grp2,ABFG34,ABKD88,slurm-node2,aa:bb:cc:dd:ee:ff,172.16.107.44,aa:bb:cc:dd:ff:gg,172.17.107.44,,"
+    row4: "login_compiler_node_rhel_10_0_aarch64,grp8,ABCD78,,login-compiler-node1,aa:bb:cc:dd:ee:gg,172.16.107.41,aa:bb:cc:dd:ee:bb,172.17.107.41,,"
+    row5: "login_node_rhel_10_2_x86_64,grp9,ABFG78,,login-node1,aa:bb:cc:dd:ee:gg,172.16.107.42,aa:bb:cc:dd:ee:bb,172.17.107.42,,"
+    row6: "service_kube_control_plane_rhel_10_2_x86_64,grp3,ABFG79,,service-kube-control-plane1,aa:bb:cc:dd:ee:ff,172.16.107.53,xx:yy:zz:aa:bb:ff,172.17.107.53,,"
+    row7: "service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFH78,,service-kube-control-plane2,aa:bb:cc:dd:ee:hh,172.16.107.54,xx:yy:zz:aa:bb:hh,172.17.107.54,,"
+    row8: "service_kube_control_plane_rhel_10_2_x86_64,grp4,ABFH80,,service-kube-control-plane3,aa:bb:cc:dd:ee:ii,172.16.107.55,xx:yy:zz:aa:bb:ii,172.17.107.55,,"
+    row9: "service_kube_node_rhel_10_2_x86_64,grp5,ABFL82,,service-kube-node1,aa:bb:cc:dd:ee:jj,172.16.107.56,xx:yy:zz:aa:bb:jj,172.17.107.56,,"
+    row10: "service_kube_node_rhel_10_2_x86_64,grp5,ABKD88,,service-kube-node2,aa:bb:cc:dd:ee:kk,172.16.107.57,xx:yy:zz:aa:bb:ff,172.17.107.57,,"
+    row11: "os_rhel_10_2_x86_64,grp6,ABEF56,,os-node1,xx:yy:zz:aa:bb:ff,172.16.107.60,xx:yy:zz:aa:bb:ee,172.17.107.60,,"
+    row12: "os_rhel_10_0_x86_64,grp7,ABEF78,,os-node2,xx:yy:zz:aa:bb:ab,172.16.107.61,xx:yy:zz:aa:bb:ac,172.17.107.61,,"
+    row13: "os_rhel_10_0_aarch64,grp8,ABGH90,,os-node3,xx:yy:zz:aa:bb:cd,172.16.107.62,xx:yy:zz:aa:bb:ce,172.17.107.62,,"
 
 # ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
@@ -270,5 +276,5 @@ build_stream:
   # |   gitlab_host           MANDATORY  IP of the GitLab host                 |
   # +--------------------------------------------------------------------------+
   build_stream_config:
-    build_stream_host_ip: "100.10.0.78"
-    gitlab_host: "100.10.0.86"
+    build_stream_host_ip: ""
+    gitlab_host: ""

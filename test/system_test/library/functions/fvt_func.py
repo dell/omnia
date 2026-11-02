@@ -36,7 +36,7 @@ from ..vars.common_vars import (
     OMNIA_VENV_KEY,
     TEST_ROOT,
 )
-from ..vars.theme_vars import THEMES, FvtStep
+from ..vars.theme_vars import OWN_VENV_DOMAINS, THEMES, FvtStep
 
 Emit = Callable[[str], None]
 
@@ -74,13 +74,14 @@ def fvt_python(domain: str, override: Optional[str] = None) -> str:
     """Return the interpreter for an FVT domain.
 
     Order: ``override``, ``SVT_FVT_PYTHON``, the Omnia venv (after the setup),
-    the domain's bootstrap ``.venv``, then the current interpreter.
+    the domain's bootstrap ``.venv``, then the current interpreter. Domains in
+    OWN_VENV_DOMAINS use their bootstrap ``.venv`` before the Omnia venv.
     """
-    candidates = [override or "", os.environ.get(FVT_PYTHON_ENV, "")]
+    bootstrap = os.path.join(domain_dir(domain), FVT_BOOTSTRAP_PYTHON)
     venv = omnia_venv_path()
-    if venv:
-        candidates.append(os.path.join(venv, "bin", "python"))
-    candidates.extend([os.path.join(domain_dir(domain), FVT_BOOTSTRAP_PYTHON), sys.executable])
+    omnia = os.path.join(venv, "bin", "python") if venv else ""
+    ordered = [bootstrap, omnia] if domain in OWN_VENV_DOMAINS else [omnia, bootstrap]
+    candidates = [override or "", os.environ.get(FVT_PYTHON_ENV, ""), *ordered, sys.executable]
     return next(path for path in candidates if path and os.access(path, os.X_OK))
 
 

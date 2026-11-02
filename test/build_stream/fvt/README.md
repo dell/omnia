@@ -8,17 +8,17 @@ suite: the scenario's entry test is `X0000`, and checks are `X` + suite
 
 | Order | Scenario | Entry point | Suites |
 |---:|---|---|---|
-| 5000 | `domain_install` | `./omnia.sh --setup-venv` | `initialization` |
 | 10000 | `prepare_base` | `./omnia.sh --prepare-base` | `readiness` |
 | 20000 | `precheck` | `build_stream.yml --tags precheck` | `environment`, `containers`, `credentials` |
 | 30000 | `prepare` | `build_stream.yml --tags prepare` | `build_stream` |
 | 40000 | `execute` | `build_stream.yml --tags execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup` |
 | 90000 | `cleanup` | `build_stream.yml --tags cleanup` | `gitlab`, `build_stream` |
-| 95000 | `domain_cleanup` | orchestrator, image_build_manager, repo_manager cleanups (and `./omnia.sh --cleanup`, off by default) | `postconditions` |
 
 A run without a tag follows the default lifecycle `precheck -> prepare ->
-execute`; `domain_install`, `prepare_base` and the destructive `cleanup` and
-`domain_cleanup` run only when named.
+execute`; `prepare_base` and the destructive `cleanup` run only when named.
+The Omnia setup and cleanup (`omnia.sh`) and the base domain cleanups are
+tested by their own suites (`test/main`, `test/repo_manager`,
+`test/image_build_manager`, `test/orchestrator`); the SVT chains them.
 Without `--marker` every collected test runs; `--marker sanity` narrows the run
 to the baseline checks (the manual pipeline suites carry `manual_execution`,
 not `sanity`).
@@ -330,65 +330,3 @@ their ID prefixes (`BSM_FVT_BUILDSTREAM_INSTALL_*`, `BSM_FVT_BUILD_PIPELINE_*`,
 `BSM_FVT_AUTOMATIC_CLEANUP_*`, `BSM_FVT_BUILDSTREAM_CLEANUP_*`,
 `BSM_FVT_CLEANUP_PIPELINE_*`, `BSM_FVT_RETENTION_*`); those prefixes are
 retired as well.
-
-## domain_install
-
-| Order | TC ID | Test | Suite |
-|---:|---|---|---|
-| 5000 | `BSM_FVT_DOMAIN_INSTALL_E001` | `test_precheck_domain_install` | root (exec) |
-| 5001 | `BSM_FVT_DOMAIN_INSTALL_E002` | `test_deploy_domain_install` | root (exec) |
-| 5101 | `BSM_FVT_DOMAIN_INSTALL_V001` | `test_main_setup_ready` | `initialization` (verify) |
-| 5102 | `BSM_FVT_DOMAIN_INSTALL_V002` | `test_repo_manager_initialized` | `initialization` (verify) |
-| 5103 | `BSM_FVT_DOMAIN_INSTALL_V003` | `test_image_build_manager_initialized` | `initialization` (verify) |
-| 5104 | `BSM_FVT_DOMAIN_INSTALL_V004` | `test_orchestrator_initialized` | `initialization` (verify) |
-| 5105 | `BSM_FVT_DOMAIN_INSTALL_V005` | `test_build_stream_initialized` | `initialization` (verify) |
-
-Runs `./omnia.sh --setup-venv` (no timeout): the shared venv, then every domain's
-`domain-init.sh` for build_stream, repo_manager, image_build_manager and
-orchestrator, which installs dependencies, creates log directories and copies the
-input files to `<OMNIA_DATA_PATH>/<domain>/input/<project>`. The precheck (omnia.sh
-and the four initializers exist) changes nothing and gates the setup. The
-`initialization` suite has one test case per item: the shared setup
-(`/etc/omnia/omnia.env` and its variables, the venv, `activate-omnia.sh`), then each
-domain: every file of `src/<domain>/input` staged in `<data>/input/<project>`, the
-`input`, `output` and `log` project directories and `/var/log/omnia/<domain>`; for
-build_stream also that the application copy in its data path matches
-`src/build_stream/app` (a stale copy keeps the API on old code). `domain_install.force_env:
-true` in `test_config.yml` adds `--force-env` so a re-used OIM gets the current
-`src/main/omnia.env`. No domain cleanup removes the setup.
-
-```bash
-./run_validation.sh fvt_build_stream domain_install test
-```
-
-## domain_cleanup
-
-| Order | TC ID | Test | Suite |
-|---:|---|---|---|
-| 95000 | `BSM_FVT_DOMAIN_CLEANUP_E001` | `test_precheck_domain_cleanup` | root (exec) |
-| 95001 | `BSM_FVT_DOMAIN_CLEANUP_E002` | `test_deploy_domain_cleanup` | root (exec) |
-| 95101 | `BSM_FVT_DOMAIN_CLEANUP_V001` | `test_orchestrator_cleanup` | `postconditions` (verify) |
-| 95102 | `BSM_FVT_DOMAIN_CLEANUP_V002` | `test_image_build_manager_cleanup` | `postconditions` (verify) |
-| 95103 | `BSM_FVT_DOMAIN_CLEANUP_V003` | `test_repo_manager_cleanup` | `postconditions` (verify) |
-| 95104 | `BSM_FVT_DOMAIN_CLEANUP_V004` | `test_main_cleanup` | `postconditions` (verify) |
-
-Destructive, explicit only. Run it after the build_stream `cleanup` tag. Cleans, in
-this fixed order (the reverse of `--prepare-base`), the blocks of `domain_cleanup` in
-`test_config.yml`:
-
-| Block | Command | Flags |
-|---|---|---|
-| `cleanup_orchestrator` | `orchestrator.yml --tags cleanup` (`skip_approval=true` always) | `cleanup_credentials`, `cleanup_slurm`, `cleanup_k8s` (approve the shared-data step; the product no longer deletes NFS data automatically) |
-| `cleanup_image_build_manager` | `image_build_manager.yml --tags cleanup` | `cleanup_credentials` (false becomes `--skip-tags cleanup_credentials`) |
-| `cleanup_repo_manager` | `repo_manager.yml --tags cleanup_pulp` | `cleanup_logs`, `cleanup_credentials` |
-| `cleanup_main` | `./omnia.sh --cleanup --skip-approval` (`--all` with `full_reset`) | `full_reset`; **disabled by default**: it removes the venv and system env files, i.e. the setup |
-
-Right before each block the paths that must survive are recorded, and the exec test
-saves each block's record (flags, baseline, result) in `reports/state/domain_cleanup.json`
-so the verify tests check against what actually ran. `domain_cleanup.fail_fast` stops at
-the first failed block; disabled and not-run blocks are skipped in verification.
-
-```bash
-./run_validation.sh fvt_build_stream domain_cleanup test
-./run_validation.sh fvt_build_stream domain_cleanup verify --suite postconditions
-```

@@ -18,7 +18,7 @@ pinned commit. It is independent of `test/pipeline` and changes nothing there.
         initialization -> cleanup -> environment_setup -> svt:<case>... -> summary
                     │  each job: ci/scripts/remote_stage.sh  (runner) ──SSH──> OIM
                     ▼
-        OIM: <clone_path>/test/system_test/run_svt.sh <stage> (systemd-run unit)
+        OIM: <clone_path>/test/system_test/run_validation.sh svt_<theme> <stage> (systemd-run unit)
 ```
 
 ## What each job does
@@ -28,11 +28,11 @@ pinned commit. It is independent of `test/pipeline` and changes nothing there.
 | `plan` | Checks PyYAML, validates the selected clusters and the theme, writes the child pipeline | project |
 | `validate_only` | Merge requests only: validates every cluster, runs nothing | project |
 | `run` | Starts the child pipeline and mirrors its result | none (trigger) |
-| `<c>:initialization` | Takes the cluster lock. Clones or fetches `clone_url` and checks out `clone_ref` (prints the resolved commit). Uploads `user_inputs.yml` and `test_config.yml`. Runs `run_svt.sh initialization` (generator, manifest) | 1h |
-| `<c>:cleanup` | `run_svt.sh cleanup`: previous installation cleanups per `test_config.yml` (skipped on a fresh OIM) | 4h |
-| `<c>:environment_setup` | `run_svt.sh environment_setup` (bootstrap venv, `omnia.sh --setup-venv` with checks, test dependencies in the Omnia venv). Then pipes each credential module from OpenBao to `setup_env.sh --domain-creds-stdin` | 4h |
-| `<c>:svt:<case>` | `run_svt.sh system_verification --case <case>`, one job per SVT case, streaming the full log | 12h |
-| `<c>:summary` | `run_svt.sh summary`, collects reports, releases the cluster lock; always runs | 30m |
+| `<c>:initialization` | Takes the cluster lock. Clones or fetches `clone_url` and checks out `clone_ref` (prints the resolved commit). Uploads `user_inputs.yml` and `test_config.yml`. Runs the `initialization` stage (generator, manifest) | 1h |
+| `<c>:cleanup` | `cleanup` stage: removes the previous installation with each suite's own cleanup FVT: `fvt_build_stream cleanup` (when BuildStream is installed), `fvt_orchestrator`, `fvt_image_build_manager`, `fvt_repo_manager cleanup`, then `fvt_main cleanup` (`omnia.sh --cleanup`). Skipped on a fresh OIM | 4h |
+| `<c>:environment_setup` | `environment_setup` stage: `fvt_main setup` and `fvt_main init` (`omnia.sh --setup-venv`, every `domain-init.sh`, with their checks), then the test dependencies in the Omnia venv. Then pipes each credential module from OpenBao to `setup_env.sh --domain-creds-stdin` | 4h |
+| `<c>:svt:<case>` | `system_verification --case <case>`, one job per SVT case, streaming the full log | 12h |
+| `<c>:summary` | `summary` stage, collects reports, releases the cluster lock; always runs | 30m |
 
 Every stage job also does the following:
 
@@ -145,8 +145,8 @@ It asks with hidden prompts for each value below and writes
 
 - **Field names** are those of the product credential files, so the pipeline
   pipes them unchanged to `setup_env.sh --domain-creds-stdin`.
-- **Credential modules:** the `build_stream` theme uses all four; the
-  `standard` theme uses the first three.
+- **Credential modules:** the `build_stream` theme uses all four
+  (`credential_modules` in `ci/themes/build_stream.yml`).
 - **Token:** asked with a hidden prompt, or read from a `--token-file` with
   mode 0600.
 - **Automation:** `--values-stdin` reads one JSON object,
@@ -170,13 +170,16 @@ It asks with hidden prompts for each value below and writes
 
 - **`user_inputs.yml`:** see `test/system_test/README.md`. MANDATORY values
   must be filled.
-- **`test_config.yml`:** the BuildStream FVT settings (cleanup flags, catalogs,
-  `domain_install.force_env`); see `test/build_stream/docs/test_config.md`.
+- **`test_config.yml`:** the BuildStream FVT settings (catalogs, pipelines,
+  BuildStream cleanup flags); see `test/build_stream/docs/test_config.md`. The
+  base domain cleanups use the `test_config.yml` of their own suite
+  (`cleanup_credentials` in repo_manager and image_build_manager; orchestrator
+  `cleanup_credentials`, `cleanup_slurm`, `cleanup_k8s`) as committed in
+  `clone_ref`.
 
 ## Run
 
-- **Run pipeline** (CI/CD > Pipelines): choose `THEME` (`build_stream` or
-  `standard`), `CLUSTERS` (`all` or names, comma separated) and `START_STAGE`.
+- **Run pipeline** (CI/CD > Pipelines): choose `THEME` (`build_stream`), `CLUSTERS` (`all` or names, comma separated) and `START_STAGE`.
 - **Push:** a push to the default branch that changes `clusters/<name>/` runs
   only the changed clusters with the default theme (`build_stream`).
 - **Merge request:** validates every cluster without touching any OIM.
@@ -224,7 +227,7 @@ pipelines/
 └── project_template/       pushed to the project
     ├── README.md           how to use the project (for its users)
     ├── .gitlab-ci.yml      parent: drop-downs, plan, validate_only, run
-    ├── ci/themes/          build_stream.yml, standard.yml (timeouts, cases, credential modules)
+    ├── ci/themes/          build_stream.yml (timeouts, cases, credential modules)
     ├── ci/scripts/         render_pipeline.py, remote_stage.sh, bao_fetch.py,
     │                       cluster_config.py, svt_ci.py
     └── clusters/cluster1/cluster.yml   cluster template

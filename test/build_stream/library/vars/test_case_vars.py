@@ -294,64 +294,6 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     },
 
     # =========================================================================
-    # Domain install (./omnia.sh --setup-venv)
-    # =========================================================================
-    "precheck_domain_install": {
-        "id": "BSM_FVT_DOMAIN_INSTALL_E001",
-        "title": "Precheck: omnia.sh and the domain initializers are present",
-    },
-    "deploy_domain_install": {
-        "id": "BSM_FVT_DOMAIN_INSTALL_E002",
-        "title": "Deploy ./omnia.sh --setup-venv (venv, dependencies, input staging)",
-    },
-    "main_setup_ready": {
-        "id": "BSM_FVT_DOMAIN_INSTALL_V001",
-        "title": "Verify the shared setup: omnia.env, the venv and activate-omnia.sh",
-    },
-    "repo_manager_initialized": {
-        "id": "BSM_FVT_DOMAIN_INSTALL_V002",
-        "title": "Verify repo_manager is initialized: input files and directories",
-    },
-    "image_build_manager_initialized": {
-        "id": "BSM_FVT_DOMAIN_INSTALL_V003",
-        "title": "Verify image_build_manager is initialized: input files and directories",
-    },
-    "orchestrator_initialized": {
-        "id": "BSM_FVT_DOMAIN_INSTALL_V004",
-        "title": "Verify orchestrator is initialized: input files and directories",
-    },
-    "build_stream_initialized": {
-        "id": "BSM_FVT_DOMAIN_INSTALL_V005",
-        "title": "Verify build_stream is initialized: input files, directories and app copy",
-    },
-    # =========================================================================
-    # Domain cleanup (orchestrator, image_build_manager, repo_manager, main)
-    # =========================================================================
-    "precheck_domain_cleanup": {
-        "id": "BSM_FVT_DOMAIN_CLEANUP_E001",
-        "title": "Precheck: enabled domain cleanups and their playbooks",
-    },
-    "deploy_domain_cleanup": {
-        "id": "BSM_FVT_DOMAIN_CLEANUP_E002",
-        "title": "Run every enabled domain cleanup in order",
-    },
-    "orchestrator_cleanup": {
-        "id": "BSM_FVT_DOMAIN_CLEANUP_V001",
-        "title": "Verify orchestrator cleanup postconditions",
-    },
-    "image_build_manager_cleanup": {
-        "id": "BSM_FVT_DOMAIN_CLEANUP_V002",
-        "title": "Verify image_build_manager cleanup postconditions",
-    },
-    "repo_manager_cleanup": {
-        "id": "BSM_FVT_DOMAIN_CLEANUP_V003",
-        "title": "Verify repo_manager cleanup postconditions",
-    },
-    "main_cleanup": {
-        "id": "BSM_FVT_DOMAIN_CLEANUP_V004",
-        "title": "Verify main (omnia.sh --cleanup) postconditions; disabled by default",
-    },
-    # =========================================================================
     # Prepare Base (./omnia.sh --prepare-base prerequisites)
     # =========================================================================
     "precheck_prepare_base": {

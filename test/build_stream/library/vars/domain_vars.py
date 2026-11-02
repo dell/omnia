@@ -36,13 +36,11 @@ ENABLE_UT: bool = False
 # =====================================================================
 
 FVT_TAGS: List[str] = [
-    "domain_install",
     "prepare_base",
     "precheck",
     "prepare",
     "execute",
     "cleanup",
-    "domain_cleanup",
 ]
 
 # A no-tag FVT command follows this lifecycle.  ``test`` performs
@@ -81,7 +79,6 @@ MARKERS: List[str] = [
 # =====================================================================
 
 SUITES: Dict[str, List[str]] = {
-    "domain_install": ["initialization"],
     "prepare_base": ["readiness"],
     "precheck": ["environment", "containers", "credentials"],
     "prepare": ["build_stream"],
@@ -98,7 +95,6 @@ SUITES: Dict[str, List[str]] = {
         "pipeline_cleanup",
     ],
     "cleanup": ["gitlab", "build_stream"],
-    "domain_cleanup": ["postconditions"],
 }
 
 # =====================================================================
@@ -106,8 +102,6 @@ SUITES: Dict[str, List[str]] = {
 # =====================================================================
 
 EXCLUDE_TAGS: List[str] = [
-    "domain_install",
     "prepare_base",
     "cleanup",
-    "domain_cleanup",
 ]

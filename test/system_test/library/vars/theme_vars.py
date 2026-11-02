@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Themes: what each integration flavour sets up, cleans and verifies.
+"""Themes: what each integration flavour cleans, sets up and verifies.
 
 A theme is data only. Every FVT step is ``(domain, runner arguments)`` and
 runs ``test/<domain>/_run.py fvt_<domain> <arguments>``; the SVT never copies
@@ -37,16 +37,32 @@ BUILD_DEPLOY_STEPS: Tuple[FvtStep, ...] = (
     ("build_stream", ("execute", "verify", "--marker", "automatic_execution")),
 )
 
+# Previous installation, removed in this order before the setup: BuildStream,
+# then the base domains in the reverse of --prepare-base, then the Omnia setup.
+# Each step is that suite's own cleanup FVT (its test_config.yml flags apply).
+CLEANUP_STEPS: Tuple[FvtStep, ...] = (
+    ("build_stream", ("cleanup", "test")),
+    ("orchestrator", ("cleanup", "test")),
+    ("image_build_manager", ("cleanup", "test")),
+    ("repo_manager", ("cleanup", "test", "--marker", "destructive")),
+    ("main", ("cleanup", "exec")),
+)
+# omnia.sh --setup-venv, then every domain-init.sh (test/main).
+SETUP_STEPS: Tuple[FvtStep, ...] = (
+    ("main", ("setup", "test")),
+    ("main", ("init", "test")),
+)
+
 THEMES: Dict[str, Dict] = {
     "build_stream": {
         "description": "BuildStream: base domains, BuildStream and GitLab, build and "
                        "deploy, cadence, automatic cleanup",
         "test_config_domain": "build_stream",
-        "setup_domains": ("build_stream",),
-        "cleanup_steps": (
-            ("build_stream", ("cleanup", "test")),
-            ("build_stream", ("domain_cleanup", "test")),
-        ),
+        "cleanup_steps": CLEANUP_STEPS,
+        "setup_steps": SETUP_STEPS,
+        # Suites whose requirements go into the Omnia venv (cleanup and cases).
+        "fvt_domains": ("build_stream", "orchestrator", "image_build_manager",
+                        "repo_manager"),
         "cases": {
             "build_deploy": BUILD_DEPLOY_STEPS,
             "cadence": (("build_stream", ("execute", "verify", "--suite", "cadence")),),
@@ -55,25 +71,9 @@ THEMES: Dict[str, Dict] = {
             ),
         },
     },
-    "standard": {
-        "description": "Standard: base domains with omnia.sh --prepare-base, then each "
-                       "domain's FVT lifecycle",
-        "test_config_domain": "build_stream",
-        "setup_domains": ("build_stream", "repo_manager", "image_build_manager",
-                          "orchestrator"),
-        "cleanup_steps": (("build_stream", ("domain_cleanup", "test")),),
-        "cases": {
-            "prepare_base": (("build_stream", ("prepare_base", "test")),),
-            "repo_manager": (("repo_manager", ("test",)),),
-            "image_build_manager": (
-                ("image_build_manager", ("precheck", "test")),
-                ("image_build_manager", ("validate", "test")),
-                ("image_build_manager", ("prepare", "test")),
-                ("image_build_manager", ("build", "test")),
-            ),
-            "orchestrator": (("orchestrator", ("test",)),),
-        },
-    },
 }
 # The build_stream cleanup tag needs a BuildStream installation to remove.
 STEP_REQUIRES_BUILD_STREAM = frozenset({("build_stream", ("cleanup", "test"))})
+# Suites that run from their own bootstrap .venv, never from the Omnia venv
+# (test/main: omnia.sh --cleanup removes the Omnia venv it would run from).
+OWN_VENV_DOMAINS = frozenset({"main"})

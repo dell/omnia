@@ -347,101 +347,12 @@ PREPARE_BASE_CREDENTIAL_FILES: Dict[str, List[str]] = {
     ],
 }
 
-# =============================================================================
-# DOMAIN INSTALL (./omnia.sh --setup-venv) AND DOMAIN CLEANUP
-# =============================================================================
-# --setup-venv creates/updates the shared venv, then runs every domain-init.sh
-# (dependencies, log dirs, input file staging) and installs the default catalog.
-OMNIA_SH_SETUP_ARGS = "--setup-venv"
-# Replaces /etc/omnia/omnia.env with src/main/omnia.env (domain_install.force_env).
-OMNIA_SH_FORCE_ENV_ARG = "--force-env"
-INIT_DOMAINS: List[str] = ["build_stream", "repo_manager", "image_build_manager", "orchestrator"]
-# domain-init.sh contract (src/<domain>/domain-init.sh): the files of
-# src/<domain>/input are copied to <data>/input/<project>; <data>/output/<project>,
-# <data>/log/<project> and /var/log/omnia/<domain> are created. build_stream also
-# copies src/build_stream/app to its data path (the code the container runs).
-DOMAIN_INIT_PROJECT_DIRS = ("input", "output", "log")
-DOMAIN_INIT_ANSIBLE_LOG_DIR = "/var/log/omnia/{domain}"
-DOMAIN_INIT_APP_SOURCE = {"build_stream": "src/build_stream/app"}
-MAIN_SETUP_FILES = ("/etc/omnia/omnia.env",)
-MAIN_ACTIVATE_SCRIPT = "activate-omnia.sh"
-# omnia.sh --cleanup removes the venv and the system env files (the setup);
-# --all adds a guarded full reset of the runtime data.
-OMNIA_SH_CLEANUP_ARGS = "--cleanup --skip-approval"
-OMNIA_SH_CLEANUP_ALL_ARG = "--all"
-OMNIA_SYSTEM_ENV_FILES: List[str] = ["/etc/omnia/omnia.env", "/etc/profile.d/omnia-env.sh"]
-
 # Per-exec -> verify hand-off (exec and verify are separate pytest processes).
 RUN_STATE_DIR = os.path.join(MODULE_ROOT, "reports", "state")
 RUN_STATE_FILE = "{scenario}.json"
 RUN_STATE_MODE = 0o600
-SCENARIO_DOMAIN_CLEANUP = "domain_cleanup"
 
-# Order: the reverse of --prepare-base (repo_manager -> image_build_manager ->
-# orchestrator), so a domain is cleaned before the ones it depends on.
-DOMAIN_CLEANUP_ORDER = (
-    "cleanup_orchestrator",
-    "cleanup_image_build_manager",
-    "cleanup_repo_manager",
-    "cleanup_main",
-)
-# supported_vars: every extra variable the playbook honours (None = prompt).
-# config_flags:   flags a block may set in test_config.yml, with defaults.
-# fixed_vars:     always passed so the playbook runs unattended.
-# skip_tag_vars:  variables applied as --skip-tags <tag> when false (the playbook
-#                 gates them by tag, not by variable).
-# default_enabled / kind: whether the block runs by default; "playbook" or "omnia_sh".
-DOMAIN_CLEANUP_DOMAINS = {
-    "cleanup_orchestrator": {
-        "domain": "orchestrator", "playbook": "orchestrator.yml",
-        "workdir": "src/orchestrator/playbooks", "tag": "cleanup",
-        "supported_vars": {"skip_approval": False, "dry_run": False,
-                           "cleanup_credentials": True, "cleanup_slurm": None,
-                           "cleanup_k8s": None},
-        "config_flags": {"cleanup_credentials": True, "cleanup_slurm": True,
-                         "cleanup_k8s": True},
-        "fixed_vars": {"skip_approval": True}, "skip_tag_vars": {},
-        "default_enabled": True, "kind": "playbook",
-    },
-    "cleanup_image_build_manager": {
-        "domain": "image_build_manager", "playbook": "image_build_manager.yml",
-        "workdir": "src/image_build_manager/playbooks", "tag": "cleanup",
-        "supported_vars": {"cleanup_credentials": True},
-        "config_flags": {"cleanup_credentials": True},
-        "fixed_vars": {}, "skip_tag_vars": {"cleanup_credentials": "cleanup_credentials"},
-        "default_enabled": True, "kind": "playbook",
-    },
-    "cleanup_repo_manager": {
-        "domain": "repo_manager", "playbook": "repo_manager.yml",
-        "workdir": "src/repo_manager/playbooks", "tag": "cleanup_pulp",
-        "supported_vars": {"cleanup_logs": True, "cleanup_credentials": True},
-        "config_flags": {"cleanup_logs": True, "cleanup_credentials": True},
-        "fixed_vars": {}, "skip_tag_vars": {},
-        "default_enabled": True, "kind": "playbook",
-    },
-    # omnia.sh --cleanup removes the setup, so it is off by default.
-    "cleanup_main": {
-        "domain": "main", "playbook": OMNIA_SH_FILE, "workdir": OMNIA_SH_WORKDIR,
-        "tag": "", "supported_vars": {"full_reset": False},
-        "config_flags": {"full_reset": False}, "fixed_vars": {}, "skip_tag_vars": {},
-        "default_enabled": False, "kind": "omnia_sh",
-    },
-}
-CLEANUP_STATUS_RAN = "ran"
-CLEANUP_STATUS_FAILED = "failed"
-CLEANUP_STATUS_DISABLED = "disabled"
-CLEANUP_STATUS_NOT_RUN = "not_run"
-
-# Data the product cleanup removes (cleanup_pulp / cleanup_build_artifacts roles).
-ORCH_CREDENTIAL_FILES = PREPARE_BASE_CREDENTIAL_FILES["orchestrator"]
-ORCH_OPENCHAMI_INIT_CONTAINER = "smd-init"
-IBM_CREDENTIAL_FILES = PREPARE_BASE_CREDENTIAL_FILES["image_build_manager"]
-IBM_DATA_DIRS: List[str] = ["s3", "registry", "oci", "workdir"]
-IBM_BUILD_STATUS = "output/{project}/build_status.yml"
-RM_CREDENTIAL_FILES = PREPARE_BASE_CREDENTIAL_FILES["repo_manager"]
-RM_PULP_DIRS: List[str] = ["pulp_config", "rhel_repo_certs", "offline_repo", ".data"]
-RM_LOG_DIRS: List[str] = ["log"]
-
+# Base domain state verified after --prepare-base.
 # repo_manager: Pulp
 RM_PULP_CONTAINER = "pulp"
 RM_PULP_SERVICE = "pulp.service"

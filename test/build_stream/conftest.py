@@ -20,8 +20,7 @@ Provides:
 - Custom markers: library.vars.domain_vars.MARKERS (registered below)
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
-- precheck gates: prepare_base, domain_install and domain_cleanup entry points are
-  skipped after their precheck fails
+- precheck gate: the prepare_base entry point is skipped after its precheck fails
 - Credential auto-encryption
 - Remote clone and dataset sync on session startup
 """
@@ -74,23 +73,18 @@ omnia_auto.configure(
 
 # Path parts that name the report module (scenario folders and NFT).
 _REPORT_SCENARIOS = frozenset(
-    {"domain_install", "prepare_base", "precheck", "prepare", "execute", "cleanup",
-     "domain_cleanup", "nft"}
+    {"prepare_base", "precheck", "prepare", "execute", "cleanup", "nft"}
 )
 
 _FVT_SCENARIO_ORDER = {
-    "domain_install": 0,
-    "prepare_base": 1,
-    "precheck": 2,
-    "prepare": 3,
-    "execute": 4,
-    "cleanup": 5,
-    "domain_cleanup": 6,
+    "prepare_base": 0,
+    "precheck": 1,
+    "prepare": 2,
+    "execute": 3,
+    "cleanup": 4,
 }
 
 _FVT_SUITE_ORDER = {
-    "domain_install": {"": 0, "initialization": 1},
-    "domain_cleanup": {"": 0, "postconditions": 1},
     "prepare_base": {"": 0, "readiness": 1},
     "precheck": {"": 0, "environment": 1, "containers": 2, "credentials": 3},
     "prepare": {"": 0, "build_stream": 1},
@@ -105,14 +99,10 @@ _FVT_SUITE_ORDER = {
 # Build test-function-name → TC ID map for summary table fallback.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
 
-# Long or destructive entry points are skipped when their read-only precheck
-# failed in the same session: precheck test -> (gated test, skip message key).
+# A long entry point is skipped when its read-only precheck failed in the same
+# session: precheck test -> (gated test, skip message key).
 _PRECHECK_GATES = {
     "test_precheck_prepare_base": ("test_deploy_prepare_base", "prepare_base_precheck_skip"),
-    "test_precheck_domain_install": ("test_deploy_domain_install",
-                                     "domain_install_precheck_skip"),
-    "test_precheck_domain_cleanup": ("test_deploy_domain_cleanup",
-                                     "domain_cleanup_precheck_skip"),
 }
 _PRECHECKS_FAILED = pytest.StashKey[set]()
 

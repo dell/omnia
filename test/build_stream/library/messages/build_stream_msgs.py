@@ -60,30 +60,6 @@ TEST_LOG_MSGS: Dict[str, str] = {
     "stage_skipped": "Stage '{stage}' skipped (not in catalog)",
 
 
-    # --- Domain install ---
-    "domain_install_precheck_ok": "domain_install precheck passed: omnia.sh --setup-venv can start",
-    "domain_install_precheck_failed": "domain_install precheck failed: {count} check(s)",
-    "domain_install_precheck_skip": (
-        "Skipped: the domain_install precheck (BSM_FVT_DOMAIN_INSTALL_E001) failed"
-    ),
-    "domain_install_ok": "./omnia.sh --setup-venv completed in {duration:.1f}s",
-    "domain_install_failed": "./omnia.sh --setup-venv failed (rc={rc}) after {duration:.1f}s",
-    "main_setup_ok": "The shared setup is in place: {count} check(s) passed",
-    "main_setup_failed": "The shared setup is incomplete: {count} check(s) failed",
-    "domain_initialized_ok": "{domain} is initialized: {count} check(s) passed",
-    "domain_initialized_failed": "{domain} is not fully initialized: {count} check(s) failed",
-    # --- Domain cleanup ---
-    "domain_cleanup_precheck_ok": "domain_cleanup precheck passed: the enabled cleanups can run",
-    "domain_cleanup_precheck_failed": "domain_cleanup precheck failed: {count} check(s)",
-    "domain_cleanup_precheck_skip": (
-        "Skipped: the domain_cleanup precheck (BSM_FVT_DOMAIN_CLEANUP_E001) failed"
-    ),
-    "domain_cleanup_ok": "Every enabled domain cleanup completed",
-    "domain_cleanup_failed": "{count} domain cleanup(s) failed",
-    "domain_cleanup_verify_ok": "{name} cleanup postconditions hold",
-    "domain_cleanup_verify_failed": "{name} cleanup postconditions failed: {count} check(s)",
-    "domain_cleanup_verify_skip": "Skipped: {name} was {status} in the cleanup run",
-    "domain_cleanup_state_missing": "Skipped: {error}; run the domain_cleanup exec test first",
     # --- Prepare base ---
     "prepare_base_precheck_ok": (
         "prepare_base precheck passed: ./omnia.sh --prepare-base can run unattended"
@@ -291,49 +267,6 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
     # --- GitLab Cleanup ---
     # --- BuildStream Domain Cleanup ---
     # --- Build Pipeline ---
-    # --- Domain install ---
-    "domain_install_precheck_failed": (
-        "domain_install precheck failed: {failures}\n"
-        "HOW TO FIX:\n"
-        "  1. Check clone_path in test_config.yml (remote mode) and that src/main/omnia.sh exists\n"
-        "  2. Edit src/main/omnia.env before the first setup (OMNIA_DATA_PATH, OMNIA_PROJECT_NAME)"
-    ),
-    "domain_install_failed": (
-        "./omnia.sh --setup-venv failed (rc={rc}, {duration:.1f}s). Error: {error}\n"
-        "HOW TO FIX:\n"
-        "  1. Review the streamed omnia.sh output above\n"
-        "  2. Re-run on the OIM: cd src/main && ./omnia.sh --setup-venv"
-    ),
-    "main_setup_failed": (
-        "The shared setup is incomplete: {failures}\n"
-        "HOW TO FIX:\n"
-        "  1. Re-run the setup: cd src/main && ./omnia.sh --setup-venv\n"
-        "  2. Check OMNIA_DATA_PATH / OMNIA_VENV_PATH in /etc/omnia/omnia.env"
-    ),
-    "domain_initialized_failed": (
-        "{domain} is not fully initialized: {failures}\n"
-        "HOW TO FIX:\n"
-        "  1. Re-run the initializer: cd src/main && ./omnia.sh --init {domain}\n"
-        "  2. Check OMNIA_DATA_PATH / OMNIA_PROJECT_NAME in /etc/omnia/omnia.env"
-    ),
-    # --- Domain cleanup ---
-    "domain_cleanup_precheck_failed": (
-        "domain_cleanup precheck failed: {failures}\n"
-        "HOW TO FIX:\n"
-        "  1. Enable at least one block under domain_cleanup in test_config.yml\n"
-        "  2. Check clone_path and that the domain playbooks exist in the checkout"
-    ),
-    "domain_cleanup_failed": (
-        "Domain cleanup failed for: {failures}\n"
-        "HOW TO FIX:\n"
-        "  1. Review the streamed playbook output above\n"
-        "  2. Re-run the failed command on the OIM, then run the verify phase"
-    ),
-    "domain_cleanup_verify_failed": (
-        "{name} cleanup postconditions failed: {failures}\n"
-        "HOW TO FIX:\n"
-        "  1. Re-run the {name} cleanup and check what remains (podman ps -a, systemctl)"
-    ),
     # --- Prepare base ---
     "prepare_base_precheck_failed": (
         "prepare_base precheck failed: {failures}\n"

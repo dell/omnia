@@ -23,12 +23,6 @@ field is also explained by the comments in the file itself.
 | `debug_mode` | no (default `true`) | `true` streams pipeline stage, cadence sync and cleanup playbook logs live; `false` prints `tail -f <log>` and status lines |
 | `cleanup.postgres_backup` | no (default `false`) | Passed to `--tags cleanup`; `false` deletes the Postgres data and volumes, `true` keeps them |
 | `cleanup.cleanup_credentials` | no (default `true`) | Passed to `--tags cleanup`; `true` deletes the BuildStream credentials, `false` keeps them |
-| `domain_install.force_env` | no (default `false`) | `true` adds `--force-env` to `./omnia.sh --setup-venv`, replacing `/etc/omnia/omnia.env` with `src/main/omnia.env` on an OIM that was set up before |
-| `domain_cleanup.fail_fast` | no (default `true`) | Stop the domain cleanups at the first failure |
-| `domain_cleanup.cleanup_orchestrator.*` | no | `enabled` (default `true`), `cleanup_credentials`, `cleanup_slurm`, `cleanup_k8s`: `orchestrator.yml --tags cleanup` and its flags |
-| `domain_cleanup.cleanup_image_build_manager.*` | no | `enabled` (default `true`), `cleanup_credentials`: `image_build_manager.yml --tags cleanup` |
-| `domain_cleanup.cleanup_repo_manager.*` | no | `enabled` (default `true`), `cleanup_logs`, `cleanup_credentials`: `repo_manager.yml --tags cleanup_pulp` |
-| `domain_cleanup.cleanup_main.*` | no | `enabled` (default `false`), `full_reset` (adds `--all`): `./omnia.sh --cleanup --skip-approval` |
 | `job_id` | NFT | Job the resilience NFTs inspect when they did not create one (the cancellation NFT commits `installation.catalog`) |
 | `nft_allow_*` | NFT | Explicit permission for each disruptive NFT operation (default `false`) |
 | `nft_recovery_timeout_seconds` | NFT | Recovery wait, integer >= 10 |

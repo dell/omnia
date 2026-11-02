@@ -18,7 +18,7 @@ under `clusters/` is one cluster (one OIM).
 
    | Field | Choices |
    |---|---|
-   | THEME | `build_stream` (BuildStream: build, deploy, cadence, automatic cleanup) or `standard` (domain by domain) |
+   | THEME | `build_stream` (BuildStream: build, deploy, cadence, automatic cleanup) |
    | CLUSTERS | `all`, or one or more folder names |
    | START_STAGE | where to start; a re-run keeps the commit and inputs of the last run |
 

@@ -14,8 +14,9 @@
 
 """SVT stages: initialization, cleanup, environment_setup, system_verification, summary.
 
-The same functions serve a local run on the OIM (``run_svt.sh``) and the
-GitLab pipeline (one job per stage). Each stage returns
+The same functions serve a local run on the OIM
+(``./run_validation.sh svt_<theme> <stage>``) and the GitLab pipeline (one job
+per stage). Each stage returns
 ``{"status": passed|skipped|failed, "error": str}``; the driver records it
 in the run manifest ``reports/<run_id>/run.json``.
 """
@@ -29,14 +30,14 @@ import tempfile
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
+import pytest
 import yaml
 
-from .fvt_func import domain_dir, fvt_python, omnia_venv_path, run_fvt_step
+from .fvt_func import describe_step, domain_dir, fvt_python, omnia_venv_path, run_fvt_step
 from .process_func import capture_command, stream_command
 from ..messages.svt_msgs import STAGE_MSGS
 from ..vars.common_vars import (
     BUILD_STREAM_QUADLET,
-    FVT_BOOTSTRAP_PYTHON,
     FVT_SETUP,
     FVT_TEST_CONFIG,
     GENERATOR,
@@ -48,7 +49,7 @@ from ..vars.common_vars import (
     RUN_ID_ENV,
     RUN_MANIFEST,
 )
-from ..vars.theme_vars import STEP_REQUIRES_BUILD_STREAM, THEMES
+from ..vars.theme_vars import OWN_VENV_DOMAINS, STEP_REQUIRES_BUILD_STREAM, THEMES
 
 Emit = Callable[[str], None]
 LATEST_RUN_FILE = os.path.join(REPORT_ROOT, "latest")
@@ -207,64 +208,93 @@ def _install_into_omnia_venv(domain: str, venv: str, emit: Emit) -> Dict[str, An
     return stream_command(["bash", FVT_SETUP], cwd=domain_dir(domain), env=env)
 
 
-def cleanup(theme: str, emit: Emit) -> Dict[str, Any]:
-    """Run the theme cleanups (test_config driven) when a previous setup exists."""
-    venv = omnia_venv_path()
-    if not os.path.isfile(OMNIA_ENV_FILE) or not venv or             not os.access(os.path.join(venv, "bin", "python"), os.X_OK):
-        return _skipped(STAGE_MSGS["no_previous_setup"].format(path=OMNIA_ENV_FILE))
-    theme_data = THEMES[theme]
-    installed = _install_into_omnia_venv(theme_data["test_config_domain"], venv, emit)
-    if not installed["success"]:
-        return _failed(STAGE_MSGS["step_failed"].format(label=FVT_SETUP, rc=installed["rc"]))
-    for step in theme_data["cleanup_steps"]:
-        label = " ".join([f"fvt_{step[0]}", *step[1]])
-        if step in STEP_REQUIRES_BUILD_STREAM and not os.path.exists(BUILD_STREAM_QUADLET):
-            emit(STAGE_MSGS["no_build_stream"].format(path=BUILD_STREAM_QUADLET, label=label))
-            continue
-        emit(STAGE_MSGS["step"].format(stage="cleanup", label=label))
-        result = run_fvt_step(step, os.path.join(venv, "bin", "python"))
+def _bootstrap_venv(domain: str, emit: Emit) -> Dict[str, Any]:
+    """Create or reuse the suite's own .venv (setup_env.sh --venv)."""
+    emit(STAGE_MSGS["step"].format(stage="setup", label=f"{domain} {FVT_SETUP} --venv"))
+    return stream_command(["bash", FVT_SETUP, "--venv"], cwd=domain_dir(domain))
+
+
+def _run_steps(stage: str, steps, emit: Emit) -> Dict[str, Any]:
+    """Run FVT steps in order; stop at the first failure."""
+    for step in steps:
+        label = describe_step(step)
+        emit(STAGE_MSGS["step"].format(stage=stage, label=label))
+        result = run_fvt_step(step)
         if not result["success"]:
             return _failed(STAGE_MSGS["step_failed"].format(label=label, rc=result["rc"]))
     return _passed()
 
 
-def environment_setup(theme: str, emit: Emit) -> Dict[str, Any]:
-    """Bootstrap venv -> domain_install (omnia.sh --setup-venv) -> test deps in the Omnia venv."""
-    theme_data = THEMES[theme]
-    domain = theme_data["test_config_domain"]
-    bootstrap = stream_command(["bash", FVT_SETUP, "--venv"], cwd=domain_dir(domain))
-    if not bootstrap["success"]:
-        return _failed(STAGE_MSGS["step_failed"].format(label=f"{FVT_SETUP} --venv",
-                                                        rc=bootstrap["rc"]))
-    step = (domain, ("domain_install", "test"))
-    emit(STAGE_MSGS["step"].format(stage="environment_setup", label="fvt_build_stream domain_install test"))
-    installed = run_fvt_step(step, os.path.join(domain_dir(domain), FVT_BOOTSTRAP_PYTHON))
-    if not installed["success"]:
-        return _failed(STAGE_MSGS["step_failed"].format(label=installed["step"],
-                                                        rc=installed["rc"]))
+def _omnia_venv_ready() -> str:
+    """Return the Omnia venv path when its interpreter exists ("" otherwise)."""
     venv = omnia_venv_path()
-    if not venv or not os.access(os.path.join(venv, "bin", "python"), os.X_OK):
-        return _failed(STAGE_MSGS["venv_missing"].format(path=venv or OMNIA_ENV_FILE))
-    for setup_domain in theme_data["setup_domains"]:
-        result = _install_into_omnia_venv(setup_domain, venv, emit)
+    return venv if venv and os.access(os.path.join(venv, "bin", "python"), os.X_OK) else ""
+
+
+def cleanup(theme: str, emit: Emit) -> Dict[str, Any]:
+    """Remove the previous installation with each suite's own cleanup FVT.
+
+    BuildStream (when installed) and the base domains run from the Omnia venv;
+    the Omnia setup cleanup (test/main) runs last from its own .venv.
+    """
+    if not os.path.isfile(OMNIA_ENV_FILE):
+        return _skipped(STAGE_MSGS["no_previous_setup"].format(path=OMNIA_ENV_FILE))
+    theme_data = THEMES[theme]
+    venv = _omnia_venv_ready()
+    steps = []
+    for step in theme_data["cleanup_steps"]:
+        domain = step[0]
+        if step in STEP_REQUIRES_BUILD_STREAM and not os.path.exists(BUILD_STREAM_QUADLET):
+            emit(STAGE_MSGS["no_build_stream"].format(path=BUILD_STREAM_QUADLET,
+                                                      label=describe_step(step)))
+        elif domain not in OWN_VENV_DOMAINS and not venv:
+            emit(STAGE_MSGS["no_omnia_venv"].format(label=describe_step(step)))
+        else:
+            steps.append(step)
+    for domain in dict.fromkeys(step[0] for step in steps):
+        prepared = (_bootstrap_venv(domain, emit) if domain in OWN_VENV_DOMAINS
+                    else _install_into_omnia_venv(domain, venv, emit))
+        if not prepared["success"]:
+            return _failed(STAGE_MSGS["step_failed"].format(label=f"{domain} {FVT_SETUP}",
+                                                            rc=prepared["rc"]))
+    return _run_steps("cleanup", steps, emit)
+
+
+def environment_setup(theme: str, emit: Emit) -> Dict[str, Any]:
+    """omnia.sh setup and domain init (test/main), then test deps in the Omnia venv."""
+    theme_data = THEMES[theme]
+    for domain in dict.fromkeys(step[0] for step in theme_data["setup_steps"]):
+        bootstrap = _bootstrap_venv(domain, emit)
+        if not bootstrap["success"]:
+            return _failed(STAGE_MSGS["step_failed"].format(label=f"{domain} {FVT_SETUP} --venv",
+                                                            rc=bootstrap["rc"]))
+    outcome = _run_steps("environment_setup", theme_data["setup_steps"], emit)
+    if outcome["status"] == "failed":
+        return outcome
+    venv = _omnia_venv_ready()
+    if not venv:
+        return _failed(STAGE_MSGS["venv_missing"].format(path=omnia_venv_path() or OMNIA_ENV_FILE))
+    for domain in theme_data["fvt_domains"]:
+        result = _install_into_omnia_venv(domain, venv, emit)
         if not result["success"]:
             return _failed(STAGE_MSGS["step_failed"].format(
-                label=f"{setup_domain} {FVT_SETUP}", rc=result["rc"]))
-    emit(f"FVT interpreter: {fvt_python(domain)}")
+                label=f"{domain} {FVT_SETUP}", rc=result["rc"]))
+    emit(f"FVT interpreter: {fvt_python(theme_data['test_config_domain'])}")
     emit(STAGE_MSGS["creds_hint"])
     return _passed()
 
 
 def system_verification(run_id: str, theme: str, case: Optional[str],
                         emit: Emit) -> Dict[str, Any]:
-    """Run the theme's SVT suite (one or all test cases)."""
-    command = [sys.executable, "_run.py", f"svt_{theme}", "test"]
-    if case:
-        command.extend(["--case", case])
-    emit(STAGE_MSGS["step"].format(stage="system_verification", label=" ".join(command[2:])))
-    result = stream_command(command, cwd=MODULE_ROOT, env={RUN_ID_ENV: run_id})
-    if not result["success"]:
-        return _failed(f"SVT suite failed (rc={result['rc']}); see {run_dir(run_id)}")
+    """Run the theme's SVT suite (one or all test cases) with pytest in this process."""
+    os.environ[RUN_ID_ENV] = run_id
+    marker = f"{theme} and {case}" if case else theme
+    junit = os.path.join(run_dir(run_id), f"junit_{theme}.xml")
+    emit(STAGE_MSGS["step"].format(stage="system_verification", label=f"svt/{theme} -m '{marker}'"))
+    rc = int(pytest.main([os.path.join(MODULE_ROOT, "svt", theme), "-m", marker,
+                          f"--junitxml={junit}"]))
+    if rc != 0:
+        return _failed(f"SVT suite failed (rc={rc}); see {run_dir(run_id)}")
     return _passed()
 
 

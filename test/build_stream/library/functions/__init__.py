@@ -116,17 +116,7 @@ from library.functions.cleanup_func import (
     check_postgres_data_per_backup,
 )
 
-# --- Domain install (omnia.sh --setup-venv) and domain cleanup ---
-from library.functions.domain_cleanup_func import (
-    precheck_domain_cleanup,
-    run_domain_cleanups,
-    verify_domain_cleanup,
-)
-from library.functions.domain_install_func import (
-    precheck_domain_install,
-    verify_domain_initialized,
-    verify_main_setup,
-)
+# --- exec -> verify run state ---
 from library.functions.state_func import clear_run_state, load_run_state, save_run_state
 
 # --- Streamed omnia.sh / playbook execution ---
@@ -348,12 +338,6 @@ __all__ = [
     "load_server_credentials",
     # Prepare base
     "check_prepare_base_prerequisites",
-    "precheck_domain_cleanup",
-    "run_domain_cleanups",
-    "verify_domain_cleanup",
-    "precheck_domain_install",
-    "verify_domain_initialized",
-    "verify_main_setup",
     "clear_run_state",
     "load_run_state",
     "save_run_state",

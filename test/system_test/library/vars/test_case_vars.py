@@ -15,7 +15,7 @@
 """SVT test case registry: stable IDs, titles and order.
 
 ID format ``SVT_<THEME>_<SEQ>`` (theme upper-case); IDs are never reused.
-Order: theme base + position (build_stream 1000, standard 2000).
+Order: theme base + position (build_stream 1000).
 """
 
 TEST_CASES = {
@@ -32,23 +32,5 @@ TEST_CASES = {
     "build_stream_automatic_cleanup": {
         "id": "SVT_BUILD_STREAM_003", "order": 1003,
         "title": "BuildStream automatic cleanup of the cadence image (S3, registry, NFS)",
-    },
-    # standard theme
-    "standard_prepare_base": {
-        "id": "SVT_STANDARD_001", "order": 2001,
-        "title": "Standard: omnia.sh --prepare-base for repo_manager, "
-                 "image_build_manager and orchestrator",
-    },
-    "standard_repo_manager": {
-        "id": "SVT_STANDARD_002", "order": 2002,
-        "title": "Standard: repo_manager FVT lifecycle",
-    },
-    "standard_image_build_manager": {
-        "id": "SVT_STANDARD_003", "order": 2003,
-        "title": "Standard: image_build_manager FVT lifecycle (precheck to build)",
-    },
-    "standard_orchestrator": {
-        "id": "SVT_STANDARD_004", "order": 2004,
-        "title": "Standard: orchestrator FVT lifecycle (precheck to pxeboot)",
     },
 }

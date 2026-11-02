@@ -21,7 +21,7 @@
 #   3. prepare        build_stream.yml --tags prepare
 #   4. execute        build_stream.yml --tags execute, GitLab checks, then the
 #                     explicit build / deploy / cadence pipeline suites
-#   9. cleanup        build_stream.yml --tags cleanup (destructive, explicit)
+#   5. cleanup        build_stream.yml --tags cleanup (destructive, explicit)
 # Playbooks, omnia.sh and pipeline stages run without a timeout unless noted.
 # Credentials never go here: test_creds.yml (OIM SSH password) and the domain
 # credential stores (./setup_env.sh --set-domain-creds).
@@ -51,16 +51,6 @@ dataset: ""
 # true: before an exec run, sync the dataset (or src/build_stream/input when
 # dataset is empty) to the OIM build_stream input directory.
 sync_build_stream_input: false
-
-# =============================================================================
-# 0. DOMAIN INSTALL  (fvt/domain_install, explicit)
-# =============================================================================
-# Runs ./omnia.sh --setup-venv from src/main and checks every domain was
-# initialized. Setup keeps an existing /etc/omnia/omnia.env; set force_env
-# true on an OIM that was set up before so src/main/omnia.env replaces it.
-# =============================================================================
-domain_install:
-  force_env: false
 
 # =============================================================================
 # 1. PREPARE BASE  (fvt/prepare_base)
@@ -202,7 +192,7 @@ pipeline:
 debug_mode: true
 
 # =============================================================================
-# 9. CLEANUP  (fvt/cleanup; build_stream.yml --tags cleanup, destructive)
+# 5. CLEANUP  (fvt/cleanup; build_stream.yml --tags cleanup, destructive)
 # =============================================================================
 # Passed to the playbook as -e <flag>=<value>; the verification checks the
 # matching outcome.
@@ -211,52 +201,6 @@ cleanup:
   # false (default): delete the Postgres data directory and the omnia_postgres volumes. true: keep them (the database is reused by the next install).
   cleanup_credentials: false
   # true (default): delete the BuildStream credential files and keys. false: keep them, so the next install runs without prompting.
-
-# =============================================================================
-# 10. DOMAIN CLEANUP  (fvt/domain_cleanup, destructive, explicit only)
-# =============================================================================
-# Cleans the other domains after the build_stream cleanup above, in the order
-# orchestrator -> image_build_manager -> repo_manager (the reverse of
-# ./omnia.sh --prepare-base), then the optional main block. Each cleanup is
-# verified in the verify phase against the flags it received.
-#   ./run_validation.sh fvt_build_stream domain_cleanup test
-# Every block has:
-#   enabled: true cleans the domain; false skips its cleanup and verification.
-#   flags:   passed to that domain's cleanup (cleanup_credentials: false keeps the
-#            credential store; on image_build_manager it becomes --skip-tags).
-# =============================================================================
-domain_cleanup:
-  fail_fast: true
-  # true stops at the first block whose cleanup fails (the rest are not run).
-  # orchestrator.yml --tags cleanup: OpenCHAMI, OpenLDAP, Slurm and K8s.
-  # Runs unattended (skip_approval=true is always passed).
-  cleanup_orchestrator:
-    enabled: true
-    cleanup_credentials: true
-    cleanup_slurm: true
-    cleanup_k8s: true
-    # true deletes the orchestrator credentials; false keeps them.
-    # -e cleanup_slurm / cleanup_k8s approve the shared-data step of the Slurm and Kubernetes components (services stopped, share unmounted, fstab entry removed). The product no longer deletes the NFS data automatically (cleanup_nfs_server: false in the component specs; do that by hand), so these flags do not change whether the shared data survives.
-  # image_build_manager.yml --tags cleanup: MinIO, registry (data, OCI and work
-  # directories) and the build status. Logs and output are preserved.
-  cleanup_image_build_manager:
-    enabled: true
-    cleanup_credentials: true
-    # true deletes the image_build_manager credentials; false keeps them.
-  # repo_manager.yml --tags cleanup_pulp: Pulp container, repositories and data.
-  cleanup_repo_manager:
-    enabled: true
-    cleanup_logs: true
-    cleanup_credentials: true
-    # true deletes the repo_manager log directory; false keeps it.
-    # true deletes the repo_manager (Pulp) credentials; false keeps them.
-  # ./omnia.sh --cleanup --skip-approval: removes the venv, /etc/omnia/omnia.env
-  # and the profile script, i.e. the setup that fvt/domain_install created.
-  # DISABLED by default so a cleanup run never undoes the setup. Runtime data under
-  # OMNIA_DATA_PATH is kept unless full_reset is true (adds --all, a guarded reset).
-  cleanup_main:
-    enabled: false
-    full_reset: false
 
 # =============================================================================
 # NON-FUNCTIONAL TESTS  (nft_build_stream: resilience and security)

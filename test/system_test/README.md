@@ -1,25 +1,33 @@
 # Omnia System Verification (SVT)
 
-`test/system_test` runs Omnia end to end on one OIM. You choose a **theme**
-(`build_stream` or `standard`) and fill **one input file per cluster**; the SVT
-then sets up the OIM from scratch and drives the existing FVT suites in
-order. It produces one report per run, with the exact commit and inputs used.
+`test/system_test` is the integration test of Omnia on one OIM. You choose a
+**theme** (today `build_stream`) and fill **one input file per cluster**; the
+SVT then removes the previous installation, sets the OIM up again and drives
+the existing FVT suites in order. It produces one report per run, with the
+exact commit and inputs used.
 
 It works in two modes that share every script:
 
 | Mode | Started by | What runs |
 |---|---|---|
-| Local | `./run_svt.sh` on the OIM | The stages below, in this checkout |
+| Local | `./run_validation.sh svt_build_stream <stage>` on the OIM | The stages below, in this checkout |
 | GitLab | Push, or **Run pipeline** in the SVT project | One job per stage; the runner drives the same stages on the cluster's OIM over SSH ([`pipelines/README.md`](pipelines/README.md)) |
 
-The SVT never copies FVT logic. Each SVT test case is a list of FVT runner
-calls (`test/<domain>/_run.py fvt_<domain> ...`) defined as data in
-[`library/vars/theme_vars.py`](library/vars/theme_vars.py).
+The SVT never copies FVT logic. Every stage step and every SVT test case is a
+list of FVT runner calls (`test/<domain>/_run.py fvt_<domain> ...`) defined as
+data in [`library/vars/theme_vars.py`](library/vars/theme_vars.py):
+
+| Owner suite | Used by the SVT for |
+|---|---|
+| `test/main` | `setup`, `init` (`omnia.sh --setup-venv`, every `domain-init.sh`) and `cleanup` (`omnia.sh --cleanup`) |
+| `test/orchestrator`, `test/image_build_manager`, `test/repo_manager` | their `cleanup` tag (flags in their own `test_config.yml`) |
+| `test/build_stream` | `prepare_base`, `precheck`, `prepare`, `execute` and `cleanup` |
 
 ## Safety model
 
-- **Destructive stages:** `cleanup` deletes the previous installation, as the
-  build_stream `test_config.yml` enables. `system_verification` deploys,
+- **Destructive stages:** `cleanup` deletes the previous installation: BuildStream
+  and GitLab, orchestrator, image_build_manager, repo_manager, then the Omnia
+  setup itself (venv, `/etc/omnia/omnia.env`). `system_verification` deploys,
   commits to GitLab, PXE-boots nodes and deletes image groups. Run them only on
   a lab OIM you own.
 - **Run guard:** `cleanup`, `environment_setup` and `system_verification` refuse
@@ -49,10 +57,10 @@ calls (`test/<domain>/_run.py fvt_<domain> ...`) defined as data in
 ```bash
 cd test/system_test
 ${EDITOR:-vi} user_inputs/user_inputs.yml          # cluster values (MANDATORY ones marked)
-${EDITOR:-vi} ../build_stream/test_config.yml      # FVT settings: cleanup flags, catalogs ...
-./setup_env.sh --venv                              # optional: run_svt.sh does it when needed
+${EDITOR:-vi} ../build_stream/test_config.yml      # BuildStream FVT settings: catalogs, pipelines ...
+./setup_env.sh --venv                              # optional: run_validation.sh does it when needed
 
-./run_svt.sh all --theme build_stream              # every stage, then summary
+./run_validation.sh svt_build_stream all           # every stage, then summary
 ```
 
 When `environment_setup` finishes, before `system_verification`, save the
@@ -66,12 +74,13 @@ cd test/build_stream && source "$(sed -n 's/^OMNIA_VENV_PATH=//p' /etc/omnia/omn
 Or run the stages one at a time:
 
 ```bash
-./run_svt.sh initialization --theme build_stream
-./run_svt.sh cleanup
-./run_svt.sh environment_setup
-./run_svt.sh system_verification                    # or --case cadence
-./run_svt.sh summary
-./run_svt.sh all --start-stage system_verification  # re-run from a stage
+./run_validation.sh svt_build_stream list                 # stages and cases
+./run_validation.sh svt_build_stream initialization
+./run_validation.sh svt_build_stream cleanup
+./run_validation.sh svt_build_stream environment_setup
+./run_validation.sh svt_build_stream system_verification  # or --case cadence
+./run_validation.sh svt_build_stream summary
+./run_validation.sh svt_build_stream all --start-stage system_verification  # re-run from a stage
 ```
 
 ## Themes and SVT test cases
@@ -81,10 +90,6 @@ Or run the stages one at a time:
 | `build_stream` | `build_deploy` | `SVT_BUILD_STREAM_001` | `fvt_build_stream`: `prepare_base test`, `precheck test`, `prepare test`, `execute exec`, `execute verify` for `gitlab_server`, `gitlab_runner`, `gitlab_project`, then `execute verify --marker automatic_execution` (build and deploy in one process) |
 | `build_stream` | `cadence` | `SVT_BUILD_STREAM_002` | `fvt_build_stream execute verify --suite cadence` (builds its own image, records it for the cleanup) |
 | `build_stream` | `automatic_cleanup` | `SVT_BUILD_STREAM_003` | `fvt_build_stream execute verify --suite auto_cleanup` (deletes the cadence image; skips when that build failed) |
-| `standard` | `prepare_base` | `SVT_STANDARD_001` | `fvt_build_stream prepare_base test` |
-| `standard` | `repo_manager` | `SVT_STANDARD_002` | `fvt_repo_manager test` |
-| `standard` | `image_build_manager` | `SVT_STANDARD_003` | `fvt_image_build_manager`: `precheck`, `validate`, `prepare`, `build` (each `test`) |
-| `standard` | `orchestrator` | `SVT_STANDARD_004` | `fvt_orchestrator test` |
 
 - **Ordering:** a case stops at its first failed FVT step. Cases run in ID
   order.
@@ -93,32 +98,39 @@ Or run the stages one at a time:
 - **FVT reports:** the FVT HTML/JSON reports go to the FVT `report_path`; the
   SVT result names it.
 
-```bash
-./run_validation.sh --help
-./run_validation.sh svt_build_stream list
-./run_validation.sh svt_build_stream test                  # all cases
-./run_validation.sh svt_build_stream test --case cadence   # one case
-```
-
 ## Stages
 
 | Stage | What it does on the OIM | Skips / fails when |
 |---|---|---|
 | `initialization` | Validates `--inputs` / `--test-config` as YAML mappings *before* copying anything. Places them in `user_inputs/user_inputs.yml` and `test/<domain>/test_config.yml`. Runs the dataset generator (fills `src/<domain>/input` and `src/main/omnia.env`). Starts the run manifest (commit, theme, input checksums) | Fails on invalid inputs, a mandatory value left empty, or a generator error |
-| `cleanup` | Installs the FVT test requirements into the Omnia venv, then runs the theme cleanups: build_stream `fvt_build_stream cleanup test` (only when BuildStream is installed) and `domain_cleanup test`, both per `test_config.yml` | Skipped when there is no previous setup (no `/etc/omnia/omnia.env` or Omnia venv). Fails at the first failed cleanup |
-| `environment_setup` | `test/build_stream/setup_env.sh --venv` (bootstrap venv), then `fvt_build_stream domain_install test` (`./omnia.sh --setup-venv` and one check per domain), then `setup_env.sh` of every theme domain in the new Omnia venv | Fails when a step fails or the Omnia venv is missing |
-| `system_verification` | `./run_validation.sh svt_<theme> test [--case]` | Fails when a case fails |
+| `cleanup` | Installs the test requirements of the cleaning suites into the Omnia venv, then runs, in order: `fvt_build_stream cleanup test` (only when BuildStream is installed), `fvt_orchestrator cleanup test`, `fvt_image_build_manager cleanup test`, `fvt_repo_manager cleanup test --marker destructive`, and last `fvt_main cleanup exec` (`omnia.sh --cleanup`) from `test/main/.venv` | Skipped when there is no previous setup (no `/etc/omnia/omnia.env`). Without the Omnia venv only the `test/main` cleanup runs. Fails at the first failed cleanup |
+| `environment_setup` | `test/main/setup_env.sh --venv`, then `fvt_main setup test` (`omnia.sh --setup-venv --deps-only`) and `fvt_main init test` (every `domain-init.sh`), then `setup_env.sh` of build_stream, orchestrator, image_build_manager and repo_manager in the new Omnia venv | Fails when a step fails or the Omnia venv is missing |
+| `system_verification` | The SVT cases (pytest on `svt/<theme>/`, `--case` for one) | Fails when a case fails |
 | `summary` | Prints the manifest: commit, checksums, every stage outcome and duration, every SVT case result, report directory | Fails when a recorded stage failed |
 
-On a re-used OIM, set `domain_install.force_env: true` in the build_stream
-`test_config.yml`, so `src/main/omnia.env` replaces `/etc/omnia/omnia.env`.
+Because `cleanup` ends with `omnia.sh --cleanup`, `environment_setup` always
+starts from an OIM without the Omnia setup, so `src/main/omnia.env` (filled by
+the generator) becomes `/etc/omnia/omnia.env`.
 
-### `run_svt.sh` options
+**Cleanup flags** come from each suite's own `test_config.yml`:
+
+| Suite | Keys |
+|---|---|
+| build_stream | `cleanup.postgres_backup`, `cleanup.cleanup_credentials` |
+| orchestrator | `cleanup_credentials`, `cleanup_slurm`, `cleanup_k8s` |
+| image_build_manager | `cleanup_credentials` (`false` runs `-e cleanup_credentials=false`) |
+| repo_manager | `cleanup_credentials` (`false` runs `-e cleanup_credentials=false`) |
+
+With `cleanup_credentials: false` the credential stores survive, so a local
+re-run needs no `--set-domain-creds`; the pipeline pipes them from OpenBao
+after `environment_setup` anyway.
+
+### Options (`./run_validation.sh svt_<theme> <stage>|all ...`)
 
 | Option | Default | Effect |
 |---|---|---|
+| `svt_<theme>` | required | Theme (`svt_build_stream`); `list` prints its stages and cases |
 | `<stage>` / `all` | required | One stage, or every stage from `--start-stage`, then `summary` |
-| `--theme` | from the run manifest | `build_stream` or `standard`; required for `initialization` and `all` |
 | `--inputs` | `user_inputs/user_inputs.yml` | Cluster input file placed before the generator |
 | `--test-config` | the suite's own file | FVT `test_config.yml` of the theme suite (build_stream) |
 | `--run-id` | new for `initialization` / `all`, else the latest run | Run identifier (`[A-Za-z0-9._-]`, 64 max) |
@@ -184,8 +196,7 @@ test/system_test/
 ├── README.md                    this file
 ├── setup_env.sh                 SVT requirements (.venv, active venv or --user); no credentials
 ├── requirements.txt             pytest, pytest-order, PyYAML, ruamel.yaml, omnia_auto wheel
-├── run_svt.sh, _svt.py          stage driver (local and pipeline)
-├── run_validation.sh, _run.py   SVT runner: svt_<theme> list|test [--case]
+├── run_validation.sh, _run.py   SVT runner: svt_<theme> list | <stage> | all (local and pipeline)
 ├── conftest.py, pytest.ini      markers (theme and case), results for summary
 ├── user_inputs/user_inputs.yml  the cluster values (template)
 ├── dataset_generator/           fills src inputs from user_inputs.yml (profiles/build_stream.yml)
@@ -195,7 +206,7 @@ test/system_test/
 │   ├── messages/svt_msgs.py     log, assertion and stage text with HOW TO FIX
 │   └── functions/               fvt_func (FVT bridge), stage_func (stages, manifest,
 │                                run guard), case_func, process_func (no-shell runner)
-├── svt/build_stream/, svt/standard/   one test file per SVT case
+├── svt/build_stream/            one test file per SVT case
 ├── pipelines/                   GitLab project: setup, OpenBao, CI templates
 └── reports/                     run files (gitignored)
 ```
@@ -203,7 +214,8 @@ test/system_test/
 ## Adding a theme or a case
 
 1. **Theme data:** add the theme or case to `library/vars/theme_vars.py`:
-   description, setup domains, cleanup steps and the FVT steps of each case.
+   description, cleanup and setup steps, FVT suites to install, and the FVT
+   steps of each case.
 2. **Test case:** add its ID, title and order to
    `library/vars/test_case_vars.py`, and its test file under `svt/<theme>/`.
 3. **Pipeline:** add `pipelines/project_template/ci/themes/<theme>.yml`

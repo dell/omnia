@@ -15,14 +15,8 @@
 """test_config.yml validation and plan resolution."""
 
 import posixpath
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable
 
-from ..vars.common_vars import (
-    DOMAIN_CLEANUP_DOMAINS,
-    DOMAIN_CLEANUP_ORDER,
-    OMNIA_SH_FORCE_ENV_ARG,
-    OMNIA_SH_SETUP_ARGS,
-)
 from ..vars.execute_vars import (
     DEFAULT_POLL_INTERVAL,
     IMAGE_GROUP_ID_RE,
@@ -145,26 +139,6 @@ def _validate_cleanup(cleanup: Any) -> None:
         _boolean(value, f"cleanup.{key}")
 
 
-def _validate_domain_install(block: Any) -> None:
-    """Validate the domain_install block (force_env)."""
-    block = _mapping(block, "domain_install")
-    _no_unknown(block, {"force_env"}, "domain_install")
-    _boolean(block.get("force_env", False), "domain_install.force_env")
-
-
-def _validate_domain_cleanup(block: Any) -> None:
-    """Validate the domain_cleanup block: fail_fast and one block per domain."""
-    block = _mapping(block, "domain_cleanup")
-    _no_unknown(block, {"fail_fast", *DOMAIN_CLEANUP_ORDER}, "domain_cleanup")
-    _boolean(block.get("fail_fast", True), "domain_cleanup.fail_fast")
-    for name in DOMAIN_CLEANUP_ORDER:
-        field = f"domain_cleanup.{name}"
-        entry = _mapping(block.get(name), field)
-        _no_unknown(entry, {"enabled", *DOMAIN_CLEANUP_DOMAINS[name]["config_flags"]}, field)
-        for key, value in entry.items():
-            _boolean(value, f"{field}.{key}")
-
-
 def validate_test_config(config: Dict[str, Any]) -> None:
     """Validate the suite configuration.
 
@@ -188,8 +162,6 @@ def validate_test_config(config: Dict[str, Any]) -> None:
     _validate_installation(config.get("installation"))
     _validate_pipeline(config.get("pipeline"))
     _validate_cleanup(config.get("cleanup"))
-    _validate_domain_install(config.get("domain_install"))
-    _validate_domain_cleanup(config.get("domain_cleanup"))
 
 
 def installation_settings(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -237,17 +209,6 @@ def cleanup_settings(config: Dict[str, Any]) -> Dict[str, bool]:
     return {key: cleanup.get(key, default) for key, default in CLEANUP_FLAGS.items()}
 
 
-def omnia_setup_arguments(config: Dict[str, Any]) -> str:
-    """Return the ``omnia.sh`` arguments of the domain_install setup.
-
-    ``domain_install.force_env: true`` adds ``--force-env`` so an OIM that was
-    set up before receives the current ``src/main/omnia.env``.
-    """
-    block = config.get("domain_install") or {}
-    force = block.get("force_env", False) is True
-    return f"{OMNIA_SH_SETUP_ARGS} {OMNIA_SH_FORCE_ENV_ARG}" if force else OMNIA_SH_SETUP_ARGS
-
-
 def continue_on_failure(config: Dict[str, Any]) -> bool:
     """Return whether independent tests keep running after a failure (default false)."""
     return config.get("continue_on_failure", False) is True
@@ -259,39 +220,3 @@ def to_ansible_extra_vars(extra_vars: Dict[str, Any]) -> Dict[str, str]:
         key: (str(value).lower() if isinstance(value, bool) else str(value))
         for key, value in extra_vars.items()
     }
-
-
-def domain_cleanup_fail_fast(config: Dict[str, Any]) -> bool:
-    """Return whether the domain cleanup stops at the first failed domain."""
-    return (config.get("domain_cleanup") or {}).get("fail_fast", True)
-
-
-def domain_cleanup_plan(config: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Resolve the per-domain cleanup plan in the fixed DOMAIN_CLEANUP_ORDER.
-
-    Each entry contains: name (block name), enabled (the main block defaults to
-    false), extra_vars (flags and fixed vars passed with ``-e``), skip_tags (tags
-    skipped because a tag-gated flag is false), effective_vars (playbook defaults
-    overlaid with the flags; verification reads these) and spec.
-    """
-    blocks = config.get("domain_cleanup") or {}
-    plan = []
-    for name in DOMAIN_CLEANUP_ORDER:
-        block = blocks.get(name) or {}
-        spec = DOMAIN_CLEANUP_DOMAINS[name]
-        flags = {key: block.get(key, default) for key, default in spec["config_flags"].items()}
-        passed = {**flags, **spec["fixed_vars"]}
-        effective = {key: value for key, value in spec["supported_vars"].items()
-                     if value is not None}
-        effective.update(passed)
-        plan.append({
-            "name": name,
-            "enabled": block.get("enabled", spec["default_enabled"]),
-            "extra_vars": {key: value for key, value in passed.items()
-                           if key not in spec["skip_tag_vars"]},
-            "skip_tags": [tag for key, tag in spec["skip_tag_vars"].items()
-                          if passed.get(key) is False],
-            "effective_vars": effective,
-            "spec": spec,
-        })
-    return plan

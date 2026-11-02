@@ -25,7 +25,7 @@
 #      oim_host_key is set
 #   2. initialization only: clone/fetch clone_url, check out clone_ref (the
 #      resolved commit is printed), upload user_inputs.yml and test_config.yml
-#   3. start "run_svt.sh <stage> --quiet" as a transient systemd unit (it
+#   3. start "run_validation.sh svt_<theme> <stage> --quiet" as a transient systemd unit (it
 #      survives SSH drops; RuntimeMaxSec = the job timeout)
 #   4. follow it: one progress line per minute, or the complete log when
 #      SVT_FULL_LOG=true; on failure print the last lines and the log paths
@@ -177,7 +177,7 @@ fi
 # ---------------------------------------------------------------- start stage
 seconds="${CI_JOB_TIMEOUT:-14400}"
 [[ "$seconds" =~ ^[0-9]+$ ]] || seconds=14400
-command_line="/usr/bin/bash $(q "${SVT_DIR}/run_svt.sh") $(q "$SVT_STAGE") --run-id $(q "$SVT_RUN_ID") --theme $(q "$SVT_THEME") --quiet"
+command_line="/usr/bin/bash $(q "${SVT_DIR}/run_validation.sh") $(q "svt_${SVT_THEME}") $(q "$SVT_STAGE") --run-id $(q "$SVT_RUN_ID") --quiet"
 for arg in "${STAGE_ARGS[@]}"; do
     command_line+=" $(q "$arg")"
 done
