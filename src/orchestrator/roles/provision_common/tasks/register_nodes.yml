@@ -13,8 +13,10 @@
 # limitations under the License.
 ---
 # Add nodes from the target category to SMD.
-# Global stale-data cleanup is performed once by provision_preamble.yml. This
-# file must remain additive so later categories cannot remove earlier ones.
+# Global stale-data cleanup (cleanup_orphan_smd_entries) is performed once by
+# provision_preamble.yml to remove SMD entries for nodes no longer in the PXE
+# mapping. This file must remain additive so later categories cannot remove
+# earlier ones.
 
 - name: Check if openchami configs_vars.yaml exists
   ansible.builtin.stat:
