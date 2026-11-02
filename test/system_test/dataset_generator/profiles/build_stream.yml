@@ -1,0 +1,85 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ==============================================================================
+# Profile: build_stream
+# ==============================================================================
+# targets    one entry per input file filled from user_inputs.yml
+#   section  <module>.<file block> in user_inputs.yml
+#   file     the shipped input file, relative to the repository root
+#   format   yaml (merged key by key) | env (KEY=value lines) | csv (rows replaced)
+#   out      file name inside an output folder (./generate_dataset.py /abc)
+#   vast     mount | reference - the VAST switch (see dataset_merge.py)
+# input_dirs copied as a whole into an output folder (credential files excluded)
+# mandatory  user_inputs.yml keys that must not be empty; [x] selects the list
+#            item that has key x, or whose name / cluster_name is x
+# ==============================================================================
+name: build_stream
+description: >-
+  Inputs of the build_stream system test: omnia.env, repo_manager,
+  image_build_manager, orchestrator and build_stream.
+
+targets:
+  - section: main.omnia_env
+    file: src/main/omnia.env
+    format: env
+    out: main/omnia.env
+  - section: repo_manager.repo_manager_config
+    file: src/repo_manager/input/repo_manager_config.yml
+    format: yaml
+    out: repo_manager/input/repo_manager_config.yml
+  - section: image_build_manager.image_build_config
+    file: src/image_build_manager/input/image_build_config.yml
+    format: yaml
+    out: image_build_manager/input/image_build_config.yml
+  - section: orchestrator.network_spec
+    file: src/orchestrator/input/network_spec.yml
+    format: yaml
+    out: orchestrator/input/network_spec.yml
+  - section: orchestrator.storage_config
+    file: src/orchestrator/input/storage_config.yml
+    format: yaml
+    out: orchestrator/input/storage_config.yml
+    vast: mount
+  - section: orchestrator.omnia_config
+    file: src/orchestrator/input/omnia_config.yml
+    format: yaml
+    out: orchestrator/input/omnia_config.yml
+    vast: reference
+  - section: orchestrator.pxe_mapping_file
+    file: src/orchestrator/input/pxe_mapping_file.csv
+    format: csv
+    out: orchestrator/input/pxe_mapping_file.csv
+  - section: build_stream.build_stream_config
+    file: src/build_stream/input/build_stream_config.yml
+    format: yaml
+    out: build_stream/input/build_stream_config.yml
+
+input_dirs:
+  - src/repo_manager/input
+  - src/image_build_manager/input
+  - src/orchestrator/input
+  - src/build_stream/input
+
+mandatory:
+  - main.omnia_env.SYSTEM_ADMIN_NIC_IPV4
+  - main.omnia_env.SYSTEM_HOSTNAME
+  - main.omnia_env.SYSTEM_DOMAIN_NAME
+  - orchestrator.network_spec.Networks[admin_network].oim_nic_name
+  - orchestrator.network_spec.Networks[admin_network].subnet
+  - orchestrator.network_spec.Networks[admin_network].netmask_bits
+  - orchestrator.network_spec.Networks[admin_network].primary_oim_admin_ip
+  - orchestrator.network_spec.Networks[admin_network].dynamic_range
+  - build_stream.build_stream_config.build_stream_host_ip
+  - build_stream.build_stream_config.gitlab_host

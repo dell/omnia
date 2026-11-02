@@ -19,7 +19,8 @@ omnia_build_stream.container) against accidental regression to
 world-readable modes.
 """
 
-from typing import Any, Dict
+import shlex
+from typing import Any, Dict, Optional
 
 
 def check_file_permissions(
@@ -42,52 +43,32 @@ def check_file_permissions(
         Dict with ``success``, ``path``, ``mode``, ``owner``, ``group``,
         ``details``.
     """
-    cmd = host.run(
-        "stat -c '%a %U %G' {path} 2>/dev/null".format(path=path)
-    )
-    if cmd.rc != 0 or not cmd.stdout.strip():
-        return {
-            "success": False,
-            "path": path,
-            "mode": None,
-            "owner": None,
-            "group": None,
-            "details": (
-                f"File not found or unreadable: {path} "
-                f"(rc={cmd.rc}, stderr={cmd.stderr.strip()})"
-            ),
-        }
-
-    parts = cmd.stdout.strip().split()
+    cmd = host.run(f"stat -c '%a %U %G' {shlex.quote(path)} 2>/dev/null")
+    parts = cmd.stdout.strip().split() if cmd.rc == 0 else []
     if len(parts) != 3:
-        return {
-            "success": False,
-            "path": path,
-            "mode": None,
-            "owner": None,
-            "group": None,
-            "details": f"Unexpected stat output for {path}: {cmd.stdout!r}",
-        }
+        details = (f"Unexpected stat output for {path}: {cmd.stdout!r}" if cmd.rc == 0
+                   and cmd.stdout.strip() else
+                   f"File not found or unreadable: {path} "
+                   f"(rc={cmd.rc}, stderr={cmd.stderr.strip()})")
+        return _permission_result(path, None, details)
 
-    actual_mode, actual_owner, actual_group = parts
-    expected_normalised = expected_mode.lstrip("0") or "0"
-    actual_normalised = actual_mode.lstrip("0") or "0"
-    mode_ok = actual_normalised == expected_normalised
-    owner_ok = actual_owner == expected_owner
-    group_ok = actual_group == expected_group
-    success = mode_ok and owner_ok and group_ok
+    actual = dict(zip(("mode", "owner", "group"), parts))
+    success = ((actual["mode"].lstrip("0") or "0") == (expected_mode.lstrip("0") or "0")
+               and actual["owner"] == expected_owner and actual["group"] == expected_group)
+    details = (f"{path}: mode={actual['mode']} owner={actual['owner']}:{actual['group']} "
+               f"(expected {expected_mode} {expected_owner}:{expected_group})")
+    return _permission_result(path, actual, details, success)
 
+
+def _permission_result(path: str, actual: Optional[Dict[str, str]], details: str,
+                       success: bool = False) -> Dict[str, Any]:
+    """Return the check_file_permissions result dict."""
+    actual = actual or {}
     return {
         "success": success,
         "path": path,
-        "mode": actual_mode,
-        "owner": actual_owner,
-        "group": actual_group,
-        "details": (
-            f"{path}: mode={actual_mode} owner={actual_owner}:{actual_group} "
-            f"(expected {expected_mode} {expected_owner}:{expected_group})"
-        ),
+        "mode": actual.get("mode"),
+        "owner": actual.get("owner"),
+        "group": actual.get("group"),
+        "details": details,
     }
-
-
-

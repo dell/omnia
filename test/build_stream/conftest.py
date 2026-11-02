@@ -17,35 +17,22 @@ Pytest configuration for build_stream FVT.
 
 Provides:
 - host fixture (testinfra connection to target)
-- Custom markers: sanity, deploy, nft, resilience, security, disruptive
+- Custom markers: library.vars.domain_vars.MARKERS (registered below)
 - Marker expression: '+' for AND, ',' for OR
 - Test ordering via @pytest.mark.order(n)
+- precheck gates: prepare_base, domain_install and domain_cleanup entry points are
+  skipped after their precheck fails
 - Credential auto-encryption
 - Remote clone and dataset sync on session startup
 """
 
-import sys
 import os
 from datetime import datetime
 
 import pytest
 
-_TEST_DIR = os.path.dirname(os.path.abspath(__file__))
-if _TEST_DIR not in sys.path:
-    sys.path.insert(0, _TEST_DIR)
-
-# --- Initialize omnia_auto BEFORE any imports that use it ---
-import omnia_auto  # noqa: E402 - configured after module path setup
-
-omnia_auto.configure(
-    module_root=_TEST_DIR,
-    config_file="test_config.yml",
-    credentials_file="test_creds.yml",
-    credentials_key=".test_creds.key",
-)
-
-# --- Common functions from omnia_auto ---
-from omnia_auto import (  # noqa: E402 - configure before consumers
+import omnia_auto
+from omnia_auto import (
     get_testinfra_host,
     is_local_execution,
     load_test_config,
@@ -62,58 +49,72 @@ from omnia_auto import (  # noqa: E402 - configure before consumers
     print_summary_table,
 )
 
-# --- Module-specific functions ---
-from library.functions.host_func import (  # noqa: E402
+from library.functions.host_func import (
     check_target_connectivity,
     sync_project_to_remote,
     sync_build_stream_input,
 )
-from library.functions.validation_func import (  # noqa: E402
+from library.functions.validation_func import (
     validate_all,
     ConfigValidationError,
 )
-from library.functions.build_stream_func import (  # noqa: E402
-    check_build_stream_enabled,
-    check_build_stream_health,
-    check_postgres_tables,
+from library.messages import TEST_LOG_MSGS as LOG
+from library.vars import TEST_CASES
+
+# pytest puts this directory on sys.path (rootdir conftest, prepend import
+# mode). No library module uses omnia_auto at import time, so configuring it
+# here, before any hook or fixture runs, is early enough.
+_TEST_DIR = os.path.dirname(os.path.abspath(__file__))
+omnia_auto.configure(
+    module_root=_TEST_DIR,
+    config_file="test_config.yml",
+    credentials_file="test_creds.yml",
+    credentials_key=".test_creds.key",
 )
-from library.functions.gitlab_func import (  # noqa: E402
-    check_gitlab_runner_container,
-    check_gitlab_url_accessible,
+
+# Path parts that name the report module (scenario folders and NFT).
+_REPORT_SCENARIOS = frozenset(
+    {"domain_install", "prepare_base", "precheck", "prepare", "execute", "cleanup",
+     "domain_cleanup", "nft"}
 )
-from library.functions.pipeline_func import (  # noqa: E402
-    check_server_credentials,
-)
-from library.vars import TEST_CASES  # noqa: E402
 
 _FVT_SCENARIO_ORDER = {
-    "buildstream_install": 0,
-    "build_pipeline": 1,
-    "deploy_pipeline": 2,
-    "cadence_pipeline": 3,
-    "automatic_cleanup": 4,
-    "buildstream_cleanup": 5,
+    "domain_install": 0,
+    "prepare_base": 1,
+    "precheck": 2,
+    "prepare": 3,
+    "execute": 4,
+    "cleanup": 5,
+    "domain_cleanup": 6,
 }
 
 _FVT_SUITE_ORDER = {
-    "buildstream_install": {
-        "": 0,
-        "health": 1,
-        "buildstream_install": 2,
+    "domain_install": {"": 0, "initialization": 1},
+    "domain_cleanup": {"": 0, "postconditions": 1},
+    "prepare_base": {"": 0, "readiness": 1},
+    "precheck": {"": 0, "environment": 1, "containers": 2, "credentials": 3},
+    "prepare": {"": 0, "build_stream": 1},
+    "execute": {
+        "": 0, "gitlab_server": 1, "gitlab_runner": 2, "gitlab_project": 3,
+        "build_automatic": 4, "build_manual": 5, "deploy_automatic": 6,
+        "deploy_manual": 7, "cadence": 8, "auto_cleanup": 9, "pipeline_cleanup": 10,
     },
-    "build_pipeline": {"": 0, "build_pipeline": 1},
-    "buildstream_cleanup": {
-        "": 0,
-        "gitlab_cleanup": 1,
-        "buildstream_cleanup": 2,
-    },
-    "deploy_pipeline": {"": 0, "deploy_pipeline": 1},
-    "cadence_pipeline": {"": 0, "cadence_pipeline": 1},
-    "automatic_cleanup": {"": 0, "automatic_cleanup": 1},
+    "cleanup": {"": 0, "gitlab": 1, "build_stream": 2},
 }
 
 # Build test-function-name → TC ID map for summary table fallback.
 _TC_ID_MAP = {f"test_{key}": tc["id"] for key, tc in TEST_CASES.items()}
+
+# Long or destructive entry points are skipped when their read-only precheck
+# failed in the same session: precheck test -> (gated test, skip message key).
+_PRECHECK_GATES = {
+    "test_precheck_prepare_base": ("test_deploy_prepare_base", "prepare_base_precheck_skip"),
+    "test_precheck_domain_install": ("test_deploy_domain_install",
+                                     "domain_install_precheck_skip"),
+    "test_precheck_domain_cleanup": ("test_deploy_domain_cleanup",
+                                     "domain_cleanup_precheck_skip"),
+}
+_PRECHECKS_FAILED = pytest.StashKey[set]()
 
 
 # =============================================================================
@@ -146,8 +147,15 @@ def pytest_configure(config):
     markers = {
         "order(n)": "Specify test execution order (lower first)",
         "sanity": "Baseline verification (must-pass)",
-        "manual": "Manually-triggered pipeline verification",
-        "deploy": "Playbook deployment tests",
+        "deploy": "Runs a build_stream.yml tag or omnia.sh (test_playbook.py)",
+        "pipeline": "Triggers or verifies a real BuildStream pipeline",
+        "build_pipeline": "Build pipeline (build_automatic, build_manual)",
+        "deploy_pipeline": "Deploy pipeline (deploy_automatic, deploy_manual)",
+        "cadence": "Cadence cycle, cadence pipeline and cadence enable/disable",
+        "cleanup_pipeline": "PIPELINE_TYPE=cleanup pipeline (pipeline_cleanup)",
+        "automatic_cleanup": "Automated cleanup pass on the cadence build image (auto_cleanup)",
+        "automatic_execution": "Commit-triggered build and deploy pipelines",
+        "manual_execution": "API-triggered (PIPELINE_TYPE) build and deploy pipelines",
         "nft": "BuildStream non-functional test",
         "resilience": "Service and pipeline recovery test",
         "security": "Authentication, authorization, and input security test",
@@ -187,7 +195,7 @@ def _item_has_marker(item, marker_name):
 
 
 @pytest.hookimpl(trylast=True)
-def pytest_collection_modifyitems(session, config, items):
+def pytest_collection_modifyitems(config, items):
     """Filter by --marker expression and sort by order marker."""
     marker_expr = config.getoption("--marker", default="")
     mode, markers = _parse_marker_expression(marker_expr)
@@ -268,6 +276,53 @@ def _apply_dataset_overrides(config):
     return config
 
 
+def _exit_on_failure(result, label):
+    """Log a sync/connectivity result, or stop the session when it failed."""
+    if result["success"]:
+        log(result["details"], "OK")
+        return
+    message = f"{label}: {result['error']}"
+    log(message, "FAIL")
+    pytest.exit(message, returncode=1)
+
+
+def _prepare_target(config):
+    """Check the target and run the selected project/input synchronization."""
+    target = get_testinfra_host()
+    execution_phase = os.environ.get("OMNIA_COMMAND_TYPE", "") == "exec"
+    if not is_local_execution():
+        _exit_on_failure(check_target_connectivity(target), "Target unreachable")
+        if execution_phase:
+            _exit_on_failure(sync_project_to_remote(target), "Project sync failed")
+    if execution_phase and config.get("sync_build_stream_input", False):
+        _exit_on_failure(sync_build_stream_input(target), "Input sync failed")
+
+
+def _init_report(session, config):
+    """Create the session TestReport named after the selected scenario."""
+    module_name = "build_stream"
+    test_paths = session.config.args if hasattr(session.config, "args") else []
+    for path in test_paths:
+        for part in path.replace("\\", "/").split("/"):
+            if part in _REPORT_SCENARIOS:
+                module_name = part
+                break
+
+    configured_id = str(config.get("run_id") or "").strip()
+    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.environ["RUN_ID"] = run_id
+    report = TestReport(
+        module_name=module_name,
+        report_path=os.path.expandvars(str(config["report_path"])),
+        report_name=build_report_name(
+            base_name=str(config.get("report_name", "build_stream_test_report")),
+        ),
+        server_ip=str(config.get("oim_server_ip", "localhost")),
+        run_id=run_id,
+    )
+    set_current_report(report)
+
+
 def pytest_sessionstart(session):
     """Session startup: validate config, encrypt creds, sync files, init report."""
     # Validate config first — fail fast with clear errors
@@ -284,77 +339,14 @@ def pytest_sessionstart(session):
     except (ValueError, OSError):
         pass
 
-    config = load_test_config()
-
     # Apply dataset/sync overrides from env vars (set by --config mode)
-    config = _apply_dataset_overrides(config)
-
-    host = get_testinfra_host()
-    execution_phase = os.environ.get("OMNIA_COMMAND_TYPE", "") == "exec"
-
-    if not is_local_execution():
-        connectivity = check_target_connectivity(host)
-        if not connectivity["success"]:
-            message = f"Target unreachable: {connectivity['error']}"
-            log(message, "FAIL")
-            pytest.exit(message, returncode=1)
-        log(connectivity["details"], "OK")
-
-        if execution_phase:
-            sync_result = sync_project_to_remote(host)
-            if sync_result["success"]:
-                log(sync_result["details"], "OK")
-            else:
-                message = f"Project sync failed: {sync_result['error']}"
-                log(message, "FAIL")
-                pytest.exit(message, returncode=1)
-
-    if execution_phase and config.get("sync_build_stream_input", False):
-        sync_result = sync_build_stream_input(host)
-        if sync_result["success"]:
-            log(sync_result["details"], "OK")
-        else:
-            message = f"Input sync failed: {sync_result['error']}"
-            log(message, "FAIL")
-            pytest.exit(message, returncode=1)
-
-    # Initialize test report
-    valid_scenarios = {
-        "buildstream_install", "buildstream_cleanup", "health",
-        "build_pipeline", "deploy_pipeline", "cadence_pipeline",
-        "automatic_cleanup", "nft",
-    }
-    module_name = "build_stream"
-    test_paths = (
-        session.config.args if hasattr(session.config, "args") else []
-    )
-    for path in test_paths:
-        for part in path.replace("\\", "/").split("/"):
-            if part in valid_scenarios:
-                module_name = part
-                break
-
-    configured_id = str(config.get("run_id") or "").strip()
-    run_id = configured_id or datetime.now().strftime("%Y%m%d_%H%M%S")
-    os.environ["RUN_ID"] = run_id
-    base_name = str(
-        config.get("report_name", "build_stream_test_report")
-    )
-    report_name = build_report_name(
-        base_name=base_name,
-    )
-    report = TestReport(
-        module_name=module_name,
-        report_path=os.path.expandvars(str(config["report_path"])),
-        report_name=report_name,
-        server_ip=str(config.get("oim_server_ip", "localhost")),
-        run_id=run_id,
-    )
-    set_current_report(report)
+    config = _apply_dataset_overrides(load_test_config())
+    _prepare_target(config)
+    _init_report(session, config)
 
 
 @pytest.hookimpl(trylast=True)
-def pytest_terminal_summary(terminalreporter, exitstatus, config):
+def pytest_terminal_summary():
     """Print report saved box and summary table AFTER pytest failure output."""
     report = get_current_report()
     if report and report.results:
@@ -368,10 +360,14 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_makereport(item, call):
+def pytest_runtest_makereport(item):
     """Capture test results and output for the HTML report + summary."""
     outcome = yield
     result = outcome.get_result()
+
+    if item.name in _PRECHECK_GATES and result.when == "call" and result.failed:
+        failed_prechecks = item.session.stash.get(_PRECHECKS_FAILED, set())
+        item.session.stash[_PRECHECKS_FAILED] = failed_prechecks | {item.name}
 
     if result.when not in {"call", "setup"}:
         return
@@ -406,18 +402,7 @@ def pytest_runtest_makereport(item, call):
     # Prefer the stable function-name registry. TestLogger state is process
     # global and can otherwise leak the preceding ID into a marker-filtered
     # test that was skipped before its logger was constructed.
-    # Cleanup-pipeline coverage keeps the historical function names (for example
-    # ``test_gitlab_server_running``), which also exist in the installation
-    # health suite. Prefer the cleanup-pipeline registry entry for that suite
-    # so reports retain the correct test-case ID.
-    cleanup_key = f"cleanup_{item.name.removeprefix('test_')}"
-    cleanup_tc_id = TEST_CASES.get(cleanup_key, {}).get("id", "")
-    in_cleanup_pipeline = "cleanup_pipeline" in item.nodeid.replace("\\", "/").split("/")
-    tc_id = (
-        cleanup_tc_id
-        if in_cleanup_pipeline and cleanup_tc_id
-        else _TC_ID_MAP.get(item.name, "") or get_last_tc_id()
-    )
+    tc_id = _TC_ID_MAP.get(item.name, "") or get_last_tc_id()
 
     # Accumulate for summary table (shared via omnia_auto)
     add_session_result(
@@ -443,11 +428,19 @@ def pytest_runtest_makereport(item, call):
         report.add_result(report_payload)
 
 
+def pytest_runtest_setup(item):
+    """Skip an entry point whose read-only precheck failed in this session."""
+    failed = item.session.stash.get(_PRECHECKS_FAILED, set())
+    for precheck, (gated, message) in _PRECHECK_GATES.items():
+        if item.name == gated and precheck in failed:
+            pytest.skip(LOG[message])
+
+
 # =============================================================================
 # SUPPRESS PYTEST DOT OUTPUT (TestLogger already provides detail)
 # =============================================================================
 
-def pytest_report_teststatus(report, config):
+def pytest_report_teststatus(report):
     """Replace pytest's default . s F characters with empty strings."""
     if report.when == "call":
         if report.passed:
@@ -467,26 +460,3 @@ def pytest_report_teststatus(report, config):
 def host():
     """Testinfra host connected to the target server."""
     return get_testinfra_host()
-
-
-@pytest.fixture(scope="session")
-def manual_pipeline_prerequisites(host):
-    """Fail closed unless the installed BuildStream stack is operational."""
-    checks = (
-        ("BuildStream enabled", check_build_stream_enabled(host)),
-        ("BuildStream API healthy", check_build_stream_health(host)),
-        ("PostgreSQL schema ready", check_postgres_tables(host)),
-        ("GitLab accessible", check_gitlab_url_accessible(host)),
-        ("GitLab runner running", check_gitlab_runner_container(host)),
-        ("BuildStream credentials configured", check_server_credentials(host)),
-    )
-    failures = [
-        f"{name}: {result.get('error') or result.get('details') or 'failed'}"
-        for name, result in checks
-        if not result.get("success")
-    ]
-    assert not failures, (
-        "BuildStream installation prerequisite check failed:\n- "
-        + "\n- ".join(failures)
-    )
-    return [name for name, _result in checks]

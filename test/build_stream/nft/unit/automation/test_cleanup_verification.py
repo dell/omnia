@@ -46,7 +46,7 @@ def test_classify_path_probe(return_code, output, expected):
 
 @pytest.mark.parametrize(
     ("return_code", "status"),
-    [(3, "inactive"), (3, "failed"), (4, "unknown"), (4, "not-found")],
+    [(3, "inactive"), (3, "failed"), (4, "inactive"), (4, "unknown"), (4, "not-found")],
 )
 def test_expected_stopped_states(return_code, status):
     """Known systemctl inactive/not-found states confirm shutdown."""

@@ -157,7 +157,7 @@ class TestNfsPlaybookQueueResultRepository:
 
         result = repo.read_result(file_path)
         assert result.job_id == "job-1"
-        assert result.status == "success"
+        assert result.is_success is True
 
     def test_read_result_invalid_json(self, tmp_path):
         """Should raise ValueError for invalid JSON."""
@@ -248,6 +248,14 @@ class TestNfsPlaybookQueueResultRepository:
 class TestNfsInputRepository:
     """Tests for NfsInputRepository."""
 
+    def test_get_source_path(self):
+        """Should return correct source path for job."""
+        repo = NfsInputRepository(
+            build_stream_base="/opt/omnia/build_stream"
+        )
+        path = repo.get_source_input_repository_path("job-123")
+        assert path == Path("/opt/omnia/build_stream/job-123/input")
+
     def test_get_destination_path(self):
         """Should return correct destination path."""
         repo = NfsInputRepository(
@@ -262,7 +270,9 @@ class TestNfsInputRepository:
         input_dir.mkdir()
         (input_dir / "config.json").write_text("{}")
 
-        repo = NfsInputRepository()
+        repo = NfsInputRepository(
+            build_stream_base=str(tmp_path)
+        )
         assert repo.validate_input_directory(input_dir) is True
 
     def test_validate_nonexistent_directory(self):

@@ -236,33 +236,32 @@ class TestDesignRules:
             )
 
 
-class TestDependencyInjectionPatterns:
-    """Test that dependency injection is used correctly."""
+# --- Dependency injection patterns ---
 
-    def test_routes_use_depends_for_use_cases(self):
-        """Routes should use Depends() to inject use cases, not instantiate them.
+def test_routes_use_depends_for_use_cases():
+    """Routes should use Depends() to inject use cases, not instantiate them.
 
-        This is a positive test - we check that routes follow the correct pattern.
-        """
-        api_dir = Path(__file__).parent.parent.parent / "api"
-        route_files = get_python_files(str(api_dir), "routes.py")
+    This is a positive test - we check that routes follow the correct pattern.
+    """
+    api_dir = Path(__file__).parent.parent.parent / "api"
+    route_files = get_python_files(str(api_dir), "routes.py")
 
-        routes_with_di = []
-        for route_file in route_files:
-            try:
-                with open(route_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    # Check for Depends() pattern
-                    if "Depends(get_" in content and "use_case" in content:
-                        routes_with_di.append(route_file.name)
-            except (UnicodeDecodeError, IOError):
-                continue
+    routes_with_di = []
+    for route_file in route_files:
+        try:
+            with open(route_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+                # Check for Depends() pattern
+                if "Depends(get_" in content and "use_case" in content:
+                    routes_with_di.append(route_file.name)
+        except (UnicodeDecodeError, IOError):
+            continue
 
-        # At least some routes should use DI (we know build_image does)
-        assert len(routes_with_di) > 0, (
-            "No routes found using Depends() for use case injection. "
-            "This might indicate a test setup issue."
-        )
+    # At least some routes should use DI (we know build_image does)
+    assert len(routes_with_di) > 0, (
+        "No routes found using Depends() for use case injection. "
+        "This might indicate a test setup issue."
+    )
 
 
 if __name__ == "__main__":

@@ -213,6 +213,3 @@ def test_build_stream_quadlet_permissions(host):
     else:
         logger.failed(result["details"])
     assert result["success"], result["details"]
-
-
-

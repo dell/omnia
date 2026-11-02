@@ -1,0 +1,5 @@
+pytest>=7.0
+pytest-order>=1.1.0
+pyyaml>=6.0
+ruamel.yaml>=0.18
+../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl

@@ -37,6 +37,8 @@ if str(_BUILD_STREAM_APP) not in sys.path:
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 if os.environ.get("OMNIA_COMMAND_TYPE") == "nft":
+    from library.functions import cancel_nft_pipeline
+
     # The shared validation runner selects only registered NFT cases. Retained
     # source-level tests are not part of this category.
     collect_ignore = ["unit", "others"]
@@ -60,9 +62,7 @@ if os.environ.get("OMNIA_COMMAND_TYPE") == "nft":
         yield
         pipeline_id = int(session_state.get("active_pipeline_id", 0) or 0)
         if pipeline_id:
-            from library.functions import cancel_pipeline  # pylint: disable=import-outside-toplevel
-
-            cancel_pipeline(host, pipeline_id)
+            cancel_nft_pipeline(host, pipeline_id)
 else:
     # Compatibility shim for developers running the retained source tests
     # directly with their full development dependencies installed.

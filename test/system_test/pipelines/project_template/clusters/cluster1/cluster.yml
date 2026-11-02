@@ -1,0 +1,56 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# Cluster connection - non-secret settings of one cluster (one folder each)
+# =============================================================================
+# Next to this file:
+#   user_inputs.yml  the cluster values (test/system_test/user_inputs)
+#   test_config.yml  the BuildStream FVT settings (test/build_stream)
+# Secrets are never written here: they live in OpenBao under
+#   <openbao_kv_mount>/<openbao_path>/{oim,repo_manager,image_build_manager,
+#                                       orchestrator,build_stream}
+# (store them with pipelines/openbao_secrets.py).
+# =============================================================================
+
+# ------------------------------------------------------------------- OIM access
+oim_host: ""                 # MANDATORY  IP or host name of the OIM
+oim_user: "root"
+oim_port: 22
+# Recommended: pin the OIM SSH host key (one known_hosts line, for example the
+# output of: ssh-keyscan -t ed25519 <oim_host>). Empty = trust on first use.
+oim_host_key: ""
+
+# ------------------------------------------------------------------ Omnia code
+clone_url: "https://github.com/dell/omnia.git"   # MANDATORY
+clone_ref: "main"                                 # branch, tag or commit
+clone_path: "/root/omnia-svt"                     # MANDATORY absolute path on the OIM
+
+# --------------------------------------------------------------------- OpenBao
+openbao_addr: ""             # MANDATORY  https://<openbao>:8200
+openbao_role: "omnia-svt"    # JWT role bound to this project and branch
+openbao_auth_mount: "jwt"
+openbao_kv_mount: "secret"   # KV version 2 mount
+openbao_path: ""             # default omnia/<cluster>
+openbao_audience: ""         # id_token aud; default openbao_addr
+openbao_cacert: ""           # CA file on the runner; empty = system trust
+
+# --------------------------------------------------------------------- runners
+runner_tag: ""               # runner tag for all jobs (empty = any runner)
+full_log_runner_tag: ""      # runner with a large output_limit for system_verification
+
+# ------------------------------------------------------- per-stage timeouts
+# Override the theme default for this cluster, for example:
+#   system_verification: 16h
+timeouts: {}

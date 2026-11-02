@@ -25,9 +25,14 @@ class TestCreateLocalRepoSuccess:
     def test_returns_202_with_valid_request(
         self, client, auth_headers, created_job, nfs_queue_dir, input_dir
     ):
+        """A valid request is accepted with HTTP 202."""
         setup_input_files(input_dir, created_job)
 
         with patch(
+            "infra.repositories.nfs_input_repository"
+            ".NfsInputRepository.get_source_input_repository_path",
+            return_value=input_dir / created_job / "input",
+        ), patch(
             "infra.repositories.nfs_input_repository"
             ".NfsInputRepository.get_destination_input_repository_path",
             return_value=nfs_queue_dir / "dest_input",
@@ -63,6 +68,7 @@ class TestCreateLocalRepoSuccess:
         self, client, created_job, unique_correlation_id,
         nfs_queue_dir, input_dir
     ):
+        """The response echoes the request correlation ID."""
         setup_input_files(input_dir, created_job)
         headers = {
             "Authorization": "Bearer test-client-123",
@@ -70,6 +76,10 @@ class TestCreateLocalRepoSuccess:
         }
 
         with patch(
+            "infra.repositories.nfs_input_repository"
+            ".NfsInputRepository.get_source_input_repository_path",
+            return_value=input_dir / created_job / "input",
+        ), patch(
             "infra.repositories.nfs_input_repository"
             ".NfsInputRepository.get_destination_input_repository_path",
             return_value=nfs_queue_dir / "dest_input",
@@ -101,6 +111,7 @@ class TestCreateLocalRepoValidation:
     """Validation scenarios for create local repository."""
 
     def test_invalid_job_id_returns_400(self, client, auth_headers):
+        """A malformed job ID is rejected with HTTP 400."""
         response = client.post(
             "/api/v1/jobs/invalid-uuid/stages/create-local-repository",
             headers=auth_headers,
@@ -110,6 +121,7 @@ class TestCreateLocalRepoValidation:
         assert detail["error"] == "INVALID_JOB_ID"
 
     def test_nonexistent_job_returns_404(self, client, auth_headers):
+        """An unknown job ID returns HTTP 404."""
         fake_job_id = "018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a11"
         response = client.post(
             f"/api/v1/jobs/{fake_job_id}/stages/create-local-repository",
@@ -124,6 +136,7 @@ class TestCreateLocalRepoAuthentication:
     """Authentication header tests."""
 
     def test_missing_authorization_returns_422(self, unauth_client):
+        """A request without Authorization is rejected with HTTP 422."""
         headers = {
             "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
         }
@@ -134,6 +147,7 @@ class TestCreateLocalRepoAuthentication:
         assert response.status_code == 401
 
     def test_invalid_authorization_format_returns_401(self, unauth_client):
+        """A non-Bearer Authorization header returns HTTP 401."""
         headers = {
             "Authorization": "InvalidFormat test-token",
             "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
@@ -145,6 +159,7 @@ class TestCreateLocalRepoAuthentication:
         assert response.status_code == 401
 
     def test_empty_bearer_token_returns_401(self, unauth_client):
+        """An empty bearer token returns HTTP 401."""
         headers = {
             "Authorization": "Bearer ",
             "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
@@ -160,6 +175,7 @@ class TestCreateLocalRepoInputValidation:
     """Input file validation tests."""
 
     def test_missing_input_files_returns_400(self, client, auth_headers, created_job):
+        """Missing input files return HTTP 400."""
         with patch(
             "infra.repositories.nfs_input_repository"
             ".NfsInputRepository.validate_input_directory",

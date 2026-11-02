@@ -34,6 +34,7 @@ def is_expected_stopped_state(return_code, status):
     return (return_code, status) in {
         (3, "inactive"),
         (3, "failed"),
+        (4, "inactive"),
         (4, "unknown"),
         (4, "not-found"),
     }
