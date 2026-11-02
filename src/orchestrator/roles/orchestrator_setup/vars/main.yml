@@ -162,6 +162,10 @@ catalog_invalid_fail_msg: >-
   catalog.groups, catalog.functionallayer, catalog.packages, and a baseos
   group with non-empty os and os_version values.
 # Centralized failure messages
+domain_name_regex: '^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\Z'
+domain_name_invalid_fail_msg: >-
+  SYSTEM_DOMAIN_NAME '{{ domain_name }}' is not a valid DNS domain name.
+  Use letters, digits, hyphens and dots only, then re-run the playbook.
 unsupported_tag_fail_msg: >-
   Unsupported tag '{{ item }}' specified.
   Supported tags: {{ supported_tags | join(', ') }}

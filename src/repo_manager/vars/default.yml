@@ -212,7 +212,7 @@ pulp_resolved_storage_paths: >-
 
 pulp_deployment_defaults:
   container_name: "pulp"
-  image: "docker.io/pulp/pulp:3.114.2"
+  image: "docker.io/pulp/pulp:3.123.1"
 
   # REQUIRED CONTAINER PATHS - DO NOT MODIFY.
   # The Pulp image and services expect these exact destinations. Customize only

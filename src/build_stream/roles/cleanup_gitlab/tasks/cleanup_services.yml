@@ -15,7 +15,7 @@
 ---
 
 - name: Stop GitLab services
-  ansible.builtin.command: "{{ gitlab_ctl_command }} stop"
+  ansible.builtin.command: "{{ gitlab_ctl_command | quote }} stop"
   register: gitlab_stop_result
   when: gitlab_status_check.rc == 0
   retries: "{{ gitlab_cleanup_service_retries }}"
@@ -26,8 +26,8 @@
 
 - name: Force stop sidekiq if graceful stop timed out
   ansible.builtin.shell: |
-    {{ gitlab_ctl_command }} stop sidekiq || true
-    {{ gitlab_ctl_command }} kill sidekiq || true
+    {{ gitlab_ctl_command | quote }} stop sidekiq || true
+    {{ gitlab_ctl_command | quote }} kill sidekiq || true
     pkill -f sidekiq || true
   when:
     - gitlab_status_check.rc == 0
@@ -53,9 +53,9 @@
 
 - name: Clean GitLab directories (preserve structure)
   ansible.builtin.shell: |
-    if [ -d "{{ item }}" ]; then
-      find "{{ item }}" -type f -delete 2>/dev/null || true
-      find "{{ item }}" -type d -empty -delete 2>/dev/null || true
+    if [ -d {{ item | quote }} ]; then
+      find {{ item | quote }} -type f -delete 2>/dev/null || true
+      find {{ item | quote }} -type d -empty -delete 2>/dev/null || true
     fi
   loop: "{{ gitlab_cleanup_preserve_structure_directories }}"
   failed_when: false
@@ -93,7 +93,7 @@
 
 - name: Clean any remaining GitLab files (excluding system and user files)
   ansible.builtin.shell: >-
-    find {{ gitlab_cleanup_find_roots | join(' ') }} -name '*gitlab*' -type f -delete 2>/dev/null || true
+    find {{ gitlab_cleanup_find_roots | map('quote') | join(' ') }} -name '*gitlab*' -type f -delete 2>/dev/null || true
   register: gitlab_file_cleanup
   changed_when: false
 

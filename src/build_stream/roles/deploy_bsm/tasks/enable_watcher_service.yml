@@ -65,12 +65,12 @@
     state: restarted
 
 - name: Check watcher service status
-  ansible.builtin.command: "systemctl status {{ watcher_service_name | regex_replace('\\.service$', '') }} --no-pager"
+  ansible.builtin.command: "systemctl status {{ watcher_service_name | regex_replace('\\.service$', '') | quote }} --no-pager"
   register: watcher_status
   changed_when: false
 
 - name: Show recent watcher logs
-  ansible.builtin.command: "journalctl -u {{ watcher_service_name | regex_replace('\\.service$', '') }} -n 10 --no-pager"
+  ansible.builtin.command: "journalctl -u {{ watcher_service_name | regex_replace('\\.service$', '') | quote }} -n 10 --no-pager"
   when: watcher_status.rc == 0
   register: watcher_logs
   changed_when: false

@@ -671,10 +671,10 @@ PXEBOOT_COMMANDS: dict[str, str] = {
         "find %s -type f -exec sha256sum {} + 2>/dev/null | sort"
     ),
     "hpc_benchmarks_run_pull_script_bg": (
-        "nohup timeout %s %s %s >%s 2>&1 & echo $!"
+        "nohup bash -c 'timeout %s %s %s >%s 2>&1; echo $? >%s.exitcode' &>/dev/null & echo $!"
     ),
     "hpc_benchmarks_wait_pid": (
-        "tail --pid=%s -f /dev/null 2>/dev/null; wait %s 2>/dev/null; echo $?"
+        "tail --pid=%s -f /dev/null 2>/dev/null; cat %s.exitcode 2>/dev/null || echo 1"
     ),
     "coresmd_container_ps": (
         "podman ps --format '{{.Names}}|{{.Image}}|{{.Status}}' | "
