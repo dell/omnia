@@ -93,7 +93,10 @@ def _get_pulp_ip() -> str:
 
     pulp_ip = os.environ.get("SYSTEM_ADMIN_NIC_IPV4", "").strip()
     if not pulp_ip:
-        raise RuntimeError("Pulp IP not set: define pulp_server_ip or SYSTEM_ADMIN_NIC_IPV4")
+        raise RuntimeError(
+            "Pulp IP not set: define pulp_server_ip or SYSTEM_ADMIN_NIC_IPV4. "
+            "Source /etc/omnia/omnia.env."
+        )
     return pulp_ip
 
 
