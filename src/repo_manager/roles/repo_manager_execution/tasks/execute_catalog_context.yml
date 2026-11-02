@@ -36,7 +36,7 @@
       {%- endif -%}
     overall_status_dict: {}
     sub_final_repo_urls: {}
-    context_start_epoch: "{{ lookup('pipe', 'date +%s') | int }}"
+    context_start_epoch: "{{ now().timestamp() | int }}"
     context_log_path: >-
       {{ repo_manager_log_dir }}/{{ execution_context.os_type }}/{{ execution_context.os_version }}/standard.log
 
@@ -117,7 +117,7 @@
           architectures: "{{ selected_architectures }}"
           status: "{{ final_status | default('failed') | lower }}"
           duration_seconds: >-
-            {{ (lookup('pipe', 'date +%s') | int) -
+            {{ (now().timestamp() | int) -
                (context_start_epoch | int) }}
 
     - name: Update catalog execution summary after context success
@@ -156,7 +156,7 @@
           architectures: "{{ selected_architectures }}"
           status: failed
           duration_seconds: >-
-            {{ (lookup('pipe', 'date +%s') | int) -
+            {{ (now().timestamp() | int) -
                (context_start_epoch | int) }}
           error: >-
             {{ repository_metadata_failure_message
@@ -180,6 +180,6 @@
       - "OS: {{ cluster_os_type }} {{ cluster_os_version }}"
       - "Status: {{ final_status | upper }}"
       - >-
-        Duration: {{ (lookup('pipe', 'date +%s') | int) -
+        Duration: {{ (now().timestamp() | int) -
         (context_start_epoch | int) }} seconds
       - "=============================================="

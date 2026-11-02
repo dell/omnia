@@ -62,7 +62,7 @@
 
 - name: Check connectivity to build stream host
   when: build_stream_host_ip is defined and build_stream_host_ip | length > 0
-  ansible.builtin.command: ping -c 3 -W 2 {{ build_stream_host_ip }}
+  ansible.builtin.command: ping -c 3 -W 2 {{ build_stream_host_ip | quote }}
   register: build_stream_host_ping
   changed_when: false
   failed_when: false

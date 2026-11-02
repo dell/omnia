@@ -91,7 +91,7 @@ EXAMPLES = r'''
       {{ orchestrator_data_path }}/input/{{ project_name }}
     schema_dir: >-
       {{ role_path }}/../../plugins/module_utils/orchestrator_validation/schema
-    log_dir: "{{ omnia_data_path }}/log/core/playbooks"
+    log_dir: "{{ orchestrator_data_path }}/log"
   register: validation_result
 '''
 
@@ -538,8 +538,11 @@ def run_module() -> None:
     )
     input_project_dir = os.path.realpath(module.params["input_project_dir"])
     schema_dir = os.path.realpath(module.params["schema_dir"])
+    orchestrator_data_path = os.getenv("ORCHESTRATOR_DATA_PATH") or os.path.join(
+        os.getenv("OMNIA_DATA_PATH") or "/opt/omnia", "orchestrator"
+    )
     configured_log_dir = module.params["log_dir"] or os.path.join(
-        os.getenv("OMNIA_DATA_PATH", "/opt/omnia"), "log", "core", "playbooks"
+        orchestrator_data_path, "log"
     )
     log_dir = os.path.realpath(configured_log_dir)
     project_name = os.path.basename(input_project_dir)

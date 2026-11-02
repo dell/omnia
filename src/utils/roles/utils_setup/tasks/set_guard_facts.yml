@@ -21,7 +21,7 @@
 - name: Set utils domain ready fact
   ansible.builtin.set_fact:
     utils_domain_ready: true
-    utils_setup_timestamp: "{{ lookup('pipe', 'date -Iseconds') }}"
+    utils_setup_timestamp: "{{ now().astimezone().isoformat(timespec='seconds') }}"
   changed_when: false
 
 - name: Display setup completion message
