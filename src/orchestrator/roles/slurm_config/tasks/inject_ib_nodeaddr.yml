@@ -13,6 +13,8 @@
 # limitations under the License.
 ---
 # Inject NodeAddr from IPoIB allocation into Slurm node_params.
+# Also sets SlurmctldHost address so nodes communicate with the
+# controller over IB when the controller has an IB address.
 #
 # Source: PXE mapping file (IB_IPV6 / IB_IPV4 columns)
 #   Address selection respects ib_addr_mode from network_spec:
@@ -21,6 +23,11 @@
 #     dual-stack: uses IB_IPV6 per FR-7 (falls back to IB_IPV4)
 #
 # For dual-stack and ipv6-only, CommunicationParameters gets EnableIPv6.
+#
+# Outputs consumed by confs.yml / create_slurm_dir.yml:
+#   _ctld_ib_list  – ['hostname(addr)', ...] for SlurmctldHost
+#   _ctld_ib_addrs – ['addr', ...]           for --conf-server
+#   (IPv6 addresses are bracketed: [addr])
 #
 # Prerequisites:
 #   - node_params must be populated (runs after hardware discovery)
@@ -134,6 +141,31 @@
         - hostvars['localhost']['ib_network_addr_mode'] | default('') != 'ipv4-only'
         - _pxe_ib_has_ipv6 | default(false) | bool
         - _pxe_ib_nodeaddr_map | default({}) | length > 0
+
+    - name: Build SlurmctldHost entries with IB address for controller nodes
+      ansible.builtin.set_fact:
+        _ctld_ib_list: "{{ _ctld_ib_list | default([]) + [_ctld_entry] }}"
+        _ctld_ib_addrs: "{{ _ctld_ib_addrs | default([]) + [_ctld_addr] }}"
+      vars:
+        _raw_addr: "{{ _pxe_ib_nodeaddr_map[item] | default('') }}"
+        _bracketed: "{{ '[' ~ _raw_addr ~ ']' if ':' in _raw_addr else _raw_addr }}"
+        _ctld_entry: >-
+          {{ (item ~ '(' ~ _bracketed ~ ')')
+             if item in _pxe_ib_nodeaddr_map
+             else item }}
+        _ctld_addr: >-
+          {{ _bracketed
+             if item in _pxe_ib_nodeaddr_map
+             else item }}
+      loop: "{{ ctld_list }}"
+      when:
+        - _pxe_ib_nodeaddr_map | default({}) | length > 0
+        - ctld_list | length > 0
+
+    - name: Display SlurmctldHost IB address mapping
+      ansible.builtin.debug:
+        msg: "[IB-Slurm] SlurmctldHost with IB: {{ _ctld_ib_list | default([]) }}"
+      when: _ctld_ib_list | default([]) | length > 0
 
 - name: Skip IB NodeAddr injection (no PXE mapping file)
   ansible.builtin.debug:
