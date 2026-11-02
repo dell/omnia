@@ -35,9 +35,9 @@
   when: _pkg_source == 'config'
   block:
     - name: Load package_groups.yml
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/package_groups.yml"
-        name: _fg_pkg_mapping
+      ansible.builtin.include_tasks: load_package_groups.yml
+      vars:
+        package_groups_fact_name: _fg_pkg_mapping
 
     - name: Set base_image_packages from mapping
       ansible.builtin.set_fact:
