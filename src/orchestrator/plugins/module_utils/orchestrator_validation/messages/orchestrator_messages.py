@@ -339,6 +339,14 @@ def pxe_mapping_ib_pair_msg(row: int) -> str:
     )
 
 
+def pxe_mapping_ib_ipv6_pair_msg(row: int) -> str:
+    """Return an incomplete InfiniBand IPv6 mapping pair error message."""
+    return (
+        f"orchestrator_config: Mapping row {row} must set both IB_NIC_NAME "
+        "and IB_IPV6 when ib_addr_mode is ipv6-only, or leave both empty."
+    )
+
+
 def pxe_mapping_invalid_ib_nic_name_msg(value: str, row: int) -> str:
     """Return an unsupported InfiniBand NIC-name format message."""
     return (

@@ -117,6 +117,24 @@ def _canonical_csv_row_ipv4_only() -> list[str]:
     ]
 
 
+def _canonical_csv_row_ipv6_only() -> list[str]:
+    """Return a valid 12-column IPv6-only row (IB_IPV6 set, IB_IPV4 empty)."""
+    return [
+        "slurm_node_rhel_10_0_x86_64",
+        "grp1",
+        "ABCD03",
+        "",
+        "node003",
+        "aa:bb:cc:dd:ee:03",
+        "172.16.107.43",
+        "aa:bb:cc:dd:ff:03",
+        "172.17.107.43",
+        "InfiniBand.Slot.7-1",           # IB_NIC_NAME
+        "",                              # IB_IPV4 (empty for ipv6-only)
+        "fd00:1b::43",                   # IB_IPV6
+    ]
+
+
 def _canonical_csv_row_dual_stack() -> list[str]:
     """Return a valid 12-column dual-stack row (IB_IPV4 + IB_IPV6)."""
     return [
@@ -661,3 +679,124 @@ class TestIbAddrModeSchemaValidation:
                 # The field is optional for backward compat
                 assert True  # Presence alone is sufficient; required-ness
                 # is tested by the schema validator accepting specs without it
+
+
+# ===========================================================================
+# TC-UT-006: IB pair validation respects ib_addr_mode
+# (ER-ORCH-005 FR-1 AC-001: IPv6-only mode accepted without IB_IPV4)
+# ===========================================================================
+
+class TestIbPairValidationAddrMode:
+    """Verify _validate_ib_pair respects ib_addr_mode from network_spec."""
+
+    def _network_spec(self, ib_addr_mode: str) -> dict:
+        """Return a network_spec dict with the given ib_addr_mode."""
+        return {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                        "ipv6_subnet": "fd00:1b::",
+                        "ipv6_netmask_bits": "64",
+                        "ib_addr_mode": ib_addr_mode,
+                    },
+                },
+            ],
+        }
+
+    def test_ipv6_only_accepts_empty_ib_ipv4(self, tmp_path):
+        """ORCH_UT_BC_040: ipv6-only mode accepts IB_NIC_NAME + IB_IPV6 without IB_IPV4."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_ipv6_only()],
+            network_spec=self._network_spec("ipv6-only"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV4" in e]
+        assert ib_pair_errors == [], (
+            f"ipv6-only should accept empty IB_IPV4, but got: {ib_pair_errors}"
+        )
+
+    def test_ipv4_only_rejects_empty_ib_ipv4(self, tmp_path):
+        """ORCH_UT_BC_041: ipv4-only mode rejects IB_NIC_NAME without IB_IPV4."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_ipv6_only()],
+            network_spec=self._network_spec("ipv4-only"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV4" in e]
+        assert len(ib_pair_errors) > 0, (
+            "ipv4-only should reject rows with IB_NIC_NAME but no IB_IPV4"
+        )
+
+    def test_dual_stack_rejects_empty_ib_ipv4(self, tmp_path):
+        """ORCH_UT_BC_042: dual-stack mode rejects IB_NIC_NAME without IB_IPV4."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_ipv6_only()],
+            network_spec=self._network_spec("dual-stack"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV4" in e]
+        assert len(ib_pair_errors) > 0, (
+            "dual-stack should reject rows with IB_NIC_NAME but no IB_IPV4"
+        )
+
+    def test_ipv6_only_rejects_empty_ib_ipv6(self, tmp_path):
+        """ORCH_UT_BC_043: ipv6-only mode rejects IB_NIC_NAME without IB_IPV6."""
+        row_no_ipv6 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD04", "",
+            "node004", "aa:bb:cc:dd:ee:04", "172.16.107.44",
+            "aa:bb:cc:dd:ff:04", "172.17.107.44",
+            "InfiniBand.Slot.7-1", "", "",  # IB_NIC_NAME set, both IPs empty
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_no_ipv6],
+            network_spec=self._network_spec("ipv6-only"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV6" in e]
+        assert len(ib_pair_errors) > 0, (
+            "ipv6-only should reject rows with IB_NIC_NAME but no IB_IPV6"
+        )
+
+    def test_no_ib_network_uses_default_validation(self, tmp_path):
+        """ORCH_UT_BC_044: Without ib_network, IB_NIC_NAME + IB_IPV4 pair required."""
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[_canonical_csv_row_ipv6_only()],
+            network_spec={
+                "Networks": [
+                    {
+                        "admin_network": {
+                            "subnet": "172.16.107.0",
+                            "netmask_bits": "24",
+                        },
+                    },
+                ],
+            },
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        ib_pair_errors = [e for e in errors if "IB_NIC_NAME" in e and "IB_IPV4" in e]
+        assert len(ib_pair_errors) > 0, (
+            "Without ib_network, default validation should require IB_IPV4 with IB_NIC_NAME"
+        )
