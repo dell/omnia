@@ -34,8 +34,21 @@
   ansible.builtin.import_tasks: cleanup_s3cmd.yml
   tags: s3cmd
 
+- name: Set credential cleanup decision
+  ansible.builtin.set_fact:
+    image_build_cleanup_credentials: >-
+      {{ (cleanup_credentials | default(true) | string | lower) not in ['false', 'no', '0'] }}
+  tags: cleanup_credentials
+
 - name: Cleanup image_build_manager credentials
   ansible.builtin.import_tasks: cleanup_credentials.yml
+  when: image_build_cleanup_credentials | bool
+  tags: cleanup_credentials
+
+- name: Display credential preservation
+  ansible.builtin.debug:
+    msg: "{{ cleanup_credentials_preserved_msg }}"
+  when: not (image_build_cleanup_credentials | bool)
   tags: cleanup_credentials
 
 - name: Cleanup domain data directories

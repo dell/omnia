@@ -16,11 +16,17 @@
 Image Build Cleanup — Deploy.
 
 Deploy image_build_manager --tags cleanup
+(-e cleanup_credentials=false when test_config.yml sets cleanup_credentials: false)
 """
 
 import pytest
 
-from library.functions import TestLogger, run_playbook, load_test_config
+from library.functions import (
+    TestLogger,
+    cleanup_credentials_enabled,
+    load_test_config,
+    run_playbook,
+)
 from library.vars import TEST_CASES as TC
 from library.vars.common_vars import (
     PLAYBOOK_ENTRY_POINT,
@@ -40,7 +46,8 @@ def test_deploy_cleanup(host):
     """Deploy image_build_manager --tags cleanup."""
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = run_playbook(playbook=PLAYBOOK_ENTRY_POINT, tag="cleanup")
+    extra_vars = None if cleanup_credentials_enabled() else {"cleanup_credentials": "false"}
+    result = run_playbook(playbook=PLAYBOOK_ENTRY_POINT, tag="cleanup", extra_vars=extra_vars)
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(
