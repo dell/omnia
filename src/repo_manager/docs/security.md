@@ -56,6 +56,8 @@ Credential collection, Vault operations and authenticated Pulp commands use
 Ansible `no_log` or redacted command handling. Troubleshooting output should show
 only key names, presence, type and file permissions.
 
+Failure behavior per operation: [failure-modes.md](failure-modes.md).
+
 ---
 
 ## Private Registry TLS
