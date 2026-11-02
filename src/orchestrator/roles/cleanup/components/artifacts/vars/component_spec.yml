@@ -21,7 +21,6 @@ artifacts_config:
   deployment_outputs:
     - "{{ orchestrator_output_dir }}"
   orchestrator_log_artifacts:
-    - "{{ orchestrator_data_path }}/log/orchestrator_validation_{{ project_name }}.log"
     - "{{ orchestrator_data_path }}/log/{{ project_name }}"
   cleanup_framework_artifacts:
     - "{{ orchestrator_data_path }}/log/cleanup"
