@@ -22,7 +22,7 @@ from typing import Any
 from ..vars.ipoib_vars import (
     AUTONOMOUS_IPV6_FLAGS,
     IB_MODE_DUAL_STACK,
-    IB_MODE_IPV4_ONLY,
+    IB_MODE_FAMILIES,
     IPOIB_COMMANDS,
     IPV6_MODES,
     NETWORK_SPEC_FILE,
@@ -33,6 +33,7 @@ from ..vars.ipoib_vars import (
     SAFE_IFACE,
     SLURM_CONFIG_SOURCE,
     SLURM_CONFIG_SOURCES_KEY,
+    SLURM_ENABLE_IPV6,
     SLURM_STATE_FLAG_SUFFIXES,
     SLURM_UNRESPONSIVE_STATES,
     UNHEALTHY_IPV6_FLAGS,
@@ -59,26 +60,34 @@ from .project_func import resolve_target_input_project_path
 _ERRORS = (OSError, RuntimeError, TypeError, ValueError, KeyError)
 
 
+def _default_prefix(value) -> int | None:
+    bits = str(value or "").strip()
+    return int(bits) if bits.isdigit() else None
+
+
 def _ipoib_nodes(host):
-    """Return (mode, nodes); each node carries row, ipv4, ipv6, and prefix6."""
+    """Return (mode, nodes); each node carries row, ipv4/ipv6, and prefix4/prefix6."""
     context = load_context(host)
     input_dir = resolve_target_input_project_path(host)
     block = ib_network_block(
         read_yaml_mapping(host, os.path.join(input_dir, NETWORK_SPEC_FILE))
     )
-    bits = str(block.get("ipv6_netmask_bits") or "").strip()
-    default_prefix = int(bits) if bits.isdigit() else None
+    default_prefix6 = _default_prefix(block.get("ipv6_netmask_bits"))
+    default_prefix4 = _default_prefix(
+        block.get("ipv4_netmask_bits", block.get("netmask_bits"))
+    )
     nodes = []
     for row in context["rows"]:
         if not str(row.get("IB_NIC_NAME") or "").strip():
             continue
-        raw6 = row_address(row, 6)
+        raw4, raw6 = row_address(row, 4), row_address(row, 6)
         nodes.append(
             {
                 "row": row,
-                "ipv4": canonical_ip(row_address(row, 4)),
+                "ipv4": canonical_ip(raw4),
                 "ipv6": canonical_ip(raw6),
-                "prefix6": prefix_length(raw6) or default_prefix,
+                "prefix4": prefix_length(raw4) or default_prefix4,
+                "prefix6": prefix_length(raw6) or default_prefix6,
             }
         )
     return ib_addr_mode(block), nodes
@@ -175,6 +184,83 @@ def check_ipoib_ipv6_address_state(host) -> dict[str, Any]:
                 )
             )
         return _finish(summary, results, "IPv6 address state failed on")
+    except _ERRORS as exc:
+        return runtime_exception(summary, exc)
+
+
+def _global_addresses(iface, family: int) -> list[str]:
+    kind = "inet6" if family == 6 else "inet"
+    return [
+        canonical_ip(entry.get("local"))
+        for entry in iface.get("addr_info", [])
+        if entry.get("family") == kind and entry.get("scope") == "global"
+    ]
+
+
+def _assignment_problems(node, families, payload) -> tuple[list[str], list[str]]:
+    """Compare a node's live addresses with the families its mode assigns."""
+    problems = []
+    located = []
+    for family in families:
+        address = node[f"ipv{family}"]
+        if not address:
+            problems.append(f"mapping has no IB IPv{family}")
+            continue
+        iface, info = _locate(payload, address)
+        if iface is None:
+            problems.append(f"IB IPv{family} {address} not assigned")
+            continue
+        located.append(iface)
+        prefix = node[f"prefix{family}"]
+        if prefix and info.get("prefixlen") != prefix:
+            problems.append(f"IPv{family} prefix /{info.get('prefixlen')} != /{prefix}")
+    names = sorted({str(iface.get("ifname", "")) for iface in located})
+    if len(names) > 1:
+        problems.append("IB IPv4 and IPv6 are on different interfaces")
+    for family in sorted({4, 6} - set(families)):
+        mapped = node[f"ipv{family}"]
+        if mapped and _locate(payload, mapped)[0] is not None:
+            problems.append(f"mapped IPv{family} {mapped} assigned although the mode excludes it")
+        extras = sorted({a for iface in located for a in _global_addresses(iface, family)})
+        if extras:
+            problems.append(f"unexpected IPv{family} on IB interface: " + ", ".join(extras))
+    return problems, names
+
+
+def check_ipoib_mode_address_assignment(host) -> dict[str, Any]:
+    """Each IB node carries exactly the IB addresses its ib_addr_mode selects.
+
+    ipv4-only: IB IPv4 only; ipv6-only: IB IPv6 only; dual-stack: both on the
+    same interface. A mapped address of an excluded family must not be assigned.
+    """
+    summary = "IPoIB mode address assignment"
+    try:
+        mode, nodes = _ipoib_nodes(host)
+        families = IB_MODE_FAMILIES.get(mode)
+        if families is None:
+            return runtime_result(
+                False, summary, [("IB mode", mode)], f"Unsupported ib_addr_mode {mode}"
+            )
+        if not nodes:
+            return optional_skip(summary, "No mapped node has IB_NIC_NAME")
+        results = []
+        for node in nodes:
+            payload = remote_json(host, node["row"], IPOIB_COMMANDS["ip_addresses"])
+            problems, names = _assignment_problems(node, families, payload)
+            expected = ", ".join(node[f"ipv{f}"] or f"<no IB IPv{f}>" for f in families)
+            results.append(
+                (
+                    node,
+                    not problems,
+                    [
+                        ("Mode", mode),
+                        ("Expected", expected),
+                        ("Interface", ", ".join(names) or "not found"),
+                        ("Result", "matches mode" if not problems else "; ".join(problems)),
+                    ],
+                )
+            )
+        return _finish(summary, results, "IB address assignment does not match mode on")
     except _ERRORS as exc:
         return runtime_exception(summary, exc)
 
@@ -374,21 +460,46 @@ def _scontrol_nodeaddr(stdout: str) -> dict[str, str]:
 
 
 def _expected_nodeaddr(mode: str, row) -> tuple[set[str], str]:
-    has_ib = bool(str(row.get("IB_NIC_NAME") or "").strip())
-    ipv6 = canonical_ip(row_address(row, 6)) if has_ib else ""
-    ipv4 = canonical_ip(row_address(row, 4)) if has_ib else ""
-    hostname = row["HOSTNAME"]
-    if mode in IPV6_MODES and ipv6:
-        return {ipv6}, "approved IB IPv6"
-    if mode == IB_MODE_IPV4_ONLY and ipv4:
-        return {ipv4, hostname}, "IB IPv4 or unset (existing behavior)"
-    if ipv4:
-        return {ipv4}, "approved IB IPv4"
-    return {hostname}, "unset (no IB columns)"
+    """Return the NodeAddr the mode selects.
+
+    ipv6-only and dual-stack use the IB IPv6; ipv4-only uses the IB IPv4 even
+    when IB_IPV6 is populated. Rows without IB columns keep the hostname.
+    """
+    if not str(row.get("IB_NIC_NAME") or "").strip():
+        return {row["HOSTNAME"]}, "unset (no IB columns)"
+    family = 6 if mode in IPV6_MODES else 4
+    address = canonical_ip(row_address(row, family))
+    return ({address} if address else set()), f"approved IB IPv{family} ({mode})"
+
+
+def _communication_parameters(stdout: str) -> set[str]:
+    for line in stdout.splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key.strip() == "CommunicationParameters":
+            return {item.strip() for item in value.split(",") if item.strip() not in {"", "(null)"}}
+    return set()
+
+
+def _enable_ipv6_result(host, control, mode):
+    """Controller row: EnableIPv6 must be set whenever the mode selects IPv6."""
+    out = remote_command(host, control, IPOIB_COMMANDS["slurm_show_config"])
+    if out.rc != 0:
+        return ({"row": control}, False, [("CommunicationParameters", "scontrol show config failed")])
+    params = _communication_parameters(out.stdout)
+    required = mode in IPV6_MODES
+    success = SLURM_ENABLE_IPV6 in params or not required
+    return (
+        {"row": control},
+        success,
+        [
+            ("CommunicationParameters", ",".join(sorted(params)) or "<unset>"),
+            ("Expected", f"{SLURM_ENABLE_IPV6} ({mode})" if required else f"not required ({mode})"),
+        ],
+    )
 
 
 def check_ipoib_slurm_nodeaddr(host) -> dict[str, Any]:
-    """TC-FVT-019/031: NodeAddr follows the approved IB address or stays unset."""
+    """TC-FVT-019/031: NodeAddr follows the mode's IB address; EnableIPv6 for IPv6 modes."""
     summary = "Slurm IPoIB NodeAddr"
     try:
         context, rows, control, _config = slurm_context(host)
@@ -415,12 +526,13 @@ def check_ipoib_slurm_nodeaddr(host) -> dict[str, Any]:
                     {"row": row},
                     success,
                     [
-                        ("Expected", f"{label}: {', '.join(sorted(expected))}"),
+                        ("Expected", f"{label}: {', '.join(sorted(expected)) or '<missing in mapping>'}"),
                         ("NodeAddr", value or "node not in scontrol"),
                     ],
                 )
             )
-        return _finish(summary, results, "Unexpected Slurm NodeAddr for")
+        results.append(_enable_ipv6_result(host, control, mode))
+        return _finish(summary, results, "Unexpected Slurm NodeAddr or CommunicationParameters for")
     except _ERRORS as exc:
         return runtime_exception(summary, exc)
 

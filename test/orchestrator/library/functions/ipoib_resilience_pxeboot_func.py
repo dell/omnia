@@ -814,7 +814,7 @@ def check_ipoib_compute_reboot_recovery(host) -> dict[str, Any]:
             fields += check[1]
         states = remote_command(host, control, PXEBOOT_COMMANDS["slurm_partitions"]).stdout
         node_states = {
-            line.split("|")[0]: line.split("|")[2].lower().rstrip("*~#$@!%^-")
+            line.split("|")[0]: line.split("|")[2].lower().rstrip("*~#!$@^-")
             for line in states.splitlines() if line.count("|") >= 3
         }
         for node in others:

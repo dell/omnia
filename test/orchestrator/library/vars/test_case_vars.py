@@ -1685,6 +1685,16 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify simultaneous compute reboot restores the IPoIB mesh and MPI",
         "component": "Simultaneous compute reboot with IPoIB mesh recovery",
     },
+    "ipoib_slurm_comm_path": {
+        "id": "ORCH_FVT_PXEBOOT_V818",
+        "title": "Verify Slurm job traffic uses IPoIB IPv6 not Ethernet IPv4",
+        "component": "Slurm IPoIB communication path verification",
+    },
+    "ipoib_mode_address_assignment": {
+        "id": "ORCH_FVT_PXEBOOT_V819",
+        "title": "Verify IB addresses assigned on each node match ib_addr_mode",
+        "component": "IPoIB mode address assignment",
+    },
 }
 
 VALIDATE_TEST_CASES: dict[str, dict[str, str]] = {

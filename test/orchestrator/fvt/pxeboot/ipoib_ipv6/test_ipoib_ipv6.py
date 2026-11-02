@@ -18,6 +18,7 @@
 import pytest
 from library.functions import (
     TestLogger,
+    check_ipoib_mode_address_assignment,
     check_ipoib_ipv6_address_state,
     check_ipoib_ipv6_nm_profile,
     check_ipoib_ipv6_routes,
@@ -29,6 +30,16 @@ from library.functions import (
 from library.vars import TEST_CASES as TC
 
 from fvt.result import verify_pxeboot
+
+
+@pytest.mark.ipoib
+@pytest.mark.non_disruptive
+@pytest.mark.order(42500)
+def test_ipoib_mode_address_assignment(host):
+    """Each node carries exactly the IB addresses ib_addr_mode selects."""
+    tc = TC["ipoib_mode_address_assignment"]
+    test_log = TestLogger(tc["title"], tc["id"])
+    verify_pxeboot(test_log, tc, host, check_ipoib_mode_address_assignment)
 
 
 @pytest.mark.ipoib

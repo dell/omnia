@@ -102,6 +102,7 @@ from .coredns_pxeboot_func import (
 )
 from .ipoib_inputs_validate_func import check_ipoib_input_case
 from .ipoib_ipv6_pxeboot_func import (
+    check_ipoib_mode_address_assignment,
     check_ipoib_ipv6_address_state,
     check_ipoib_ipv6_nm_profile,
     check_ipoib_ipv6_routes,
@@ -116,6 +117,9 @@ from .ipoib_powervault_pxeboot_func import (
     check_ipoib_powervault_ib_reprovision,
     check_ipoib_powervault_iscsi_path,
     check_ipoib_powervault_nfs_coexistence,
+)
+from .ipoib_comm_path_pxeboot_func import (
+    check_ipoib_slurm_comm_path,
 )
 from .ipoib_resilience_pxeboot_func import (
     check_ipoib_compute_multi_reboot_recovery,
@@ -434,6 +438,7 @@ def run_playbook(tag: str | None = None, **kwargs):
 __all__ = [
     "TestLogger",
     "check_ipoib_input_case",
+    "check_ipoib_mode_address_assignment",
     "check_ipoib_ipv6_address_state",
     "check_ipoib_ipv6_nm_profile",
     "check_ipoib_ipv6_routes",

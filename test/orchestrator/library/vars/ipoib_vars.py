@@ -21,6 +21,13 @@ IB_MODE_DUAL_STACK = "dual-stack"
 IB_MODE_IPV6_ONLY = "ipv6-only"
 IB_MODE_IPV4_ONLY = "ipv4-only"
 IPV6_MODES: frozenset[str] = frozenset({IB_MODE_DUAL_STACK, IB_MODE_IPV6_ONLY})
+# Address families each ib_addr_mode assigns on the IB interface.
+IB_MODE_FAMILIES: dict[str, tuple[int, ...]] = {
+    IB_MODE_IPV4_ONLY: (4,),
+    IB_MODE_IPV6_ONLY: (6,),
+    IB_MODE_DUAL_STACK: (4, 6),
+}
+SLURM_ENABLE_IPV6 = "EnableIPv6"
 
 NETWORK_SPEC_FILE = "network_spec.yml"
 ORCHESTRATOR_CONFIG_FILE = "orchestrator_config.yml"
@@ -223,6 +230,7 @@ IPOIB_COMMANDS: dict[str, str] = {
     "ipv6_route_get": "ip -j -6 route get %s",
     "ping_from_iface": "ping -%s -c 1 -W %s -I %s %s",
     "ping": "ping -%s -c 1 -W %s %s",
+    "slurm_show_config": "scontrol show config",
 }
 NM_PROFILE_FIELDS: tuple[str, ...] = (
     "ipv4.method",
@@ -244,7 +252,7 @@ PING_TIMEOUT_SECONDS = 2
 SLURM_UNRESPONSIVE_STATES: frozenset[str] = frozenset(
     {"down", "fail", "unknown", "future"}
 )
-SLURM_STATE_FLAG_SUFFIXES = "*~#!%$@^-"
+SLURM_STATE_FLAG_SUFFIXES = "*~#!$@^-"
 SLURM_CONFIG_SOURCES_KEY = "config_sources"
 SLURM_CONFIG_SOURCE = "slurm"
 
@@ -340,3 +348,40 @@ STAGE_ADDRESS_STATE = "address_state"
 STAGE_AUTONOMOUS_ADDRESS = "autonomous_address"
 # TC-FVT-016: a recovery record must carry these fields.
 RECOVERY_RECORD_FIELDS: tuple[str, ...] = ("retryable", "corrective_action")
+
+# ---------------------------------------------------------------------------
+# Slurm communication path verification (TC-FVT-023 extension)
+# ---------------------------------------------------------------------------
+IPOIB_COMM_PATH_COMMANDS: dict[str, str] = {
+    "tcpdump_check": "which tcpdump",
+    "tcpdump_start": (
+        "rm -f %s %s; "
+        "timeout %s tcpdump -nn -i any -w %s "
+        "'ip and (tcp port 6817 or tcp port 6818 or tcp port 6819 "
+        "or tcp portrange 60001-63000)' "
+        ">/dev/null 2>&1 & "
+        "timeout %s tcpdump -nn -i any -w %s "
+        "'ip6 and (tcp port 6817 or tcp port 6818 or tcp port 6819 "
+        "or tcp portrange 60001-63000)' "
+        ">/dev/null 2>&1 & "
+        "echo started"
+    ),
+    "tcpdump_read": "tcpdump -nn -r %s 2>/dev/null",
+    "tcpdump_cleanup": "rm -f %s %s",
+    "srun_2node": (
+        "timeout 30 srun -N2 -w %s,%s --mem=10M "
+        "bash -c 'hostname; sleep %s'"
+    ),
+    "getent_ahosts": "getent ahosts %s",
+    "ss_listen": "ss -tlnp",
+}
+IPOIB_COMM_CAPTURE_TIMEOUT = 25
+IPOIB_COMM_JOB_SLEEP = 5
+IPOIB_COMM_SETTLE_SECONDS = 3
+IPOIB_COMM_V4_PCAP = "/tmp/omnia_fvt_comm_v4.pcap"
+IPOIB_COMM_V6_PCAP = "/tmp/omnia_fvt_comm_v6.pcap"
+# Slurm port classification
+IPOIB_SLURM_PORT_SLURMCTLD = 6817
+IPOIB_SLURM_PORT_SLURMD = 6818
+IPOIB_SLURM_PORT_SLURMDBD = 6819
+IPOIB_SLURM_SRUN_PORT_RANGE = (60001, 63000)

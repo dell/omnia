@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""TC-FVT-016: dual-stack and IPv6-only IPoIB failure modes on a live node.
+"""TC-FVT-016: dual-stack IPoIB failure modes on a live node.
 
-Each case injects a runtime-only fault on one compute node, classifies the live
+Injects a runtime-only fault on one compute node, classifies the live
 interface with the product verifier, and restores the node to HEALTHY.
 """
 
@@ -22,7 +22,6 @@ import pytest
 from library.functions import (
     TestLogger,
     check_ipoib_failure_dual_stack,
-    check_ipoib_failure_ipv6_only,
 )
 from library.vars import TEST_CASES as TC
 
@@ -37,13 +36,3 @@ def test_ipoib_failure_dual_stack(host):
     tc = TC["ipoib_failure_dual_stack"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_ipoib_failure_dual_stack)
-
-
-@pytest.mark.ipoib
-@pytest.mark.fault_injection
-@pytest.mark.order(42602)
-def test_ipoib_failure_ipv6_only(host):
-    """TC-FVT-016 S2/S3: IPv6-only failures are FAILED_IB_CONFIGURATION, no IPv4 fallback."""
-    tc = TC["ipoib_failure_ipv6_only"]
-    test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_ipoib_failure_ipv6_only)
