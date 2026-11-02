@@ -72,7 +72,10 @@
     remote_src: false
 
 - name: Check processes using GitLab HTTPS port
-  ansible.builtin.command: "{{ check_gitlab_port_script }} {{ gitlab_https_port }}"
+  ansible.builtin.command:
+    argv:
+      - "{{ check_gitlab_port_script }}"
+      - "{{ gitlab_https_port | string }}"
   register: https_port_check
   changed_when: false
   failed_when: false

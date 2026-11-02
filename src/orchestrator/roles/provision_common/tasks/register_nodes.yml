@@ -39,6 +39,7 @@
 - name: Ensure read_mapping_file is available
   ansible.builtin.set_fact:
     read_mapping_file: "{{ hostvars['localhost']['read_mapping_file'] }}"
+  no_log: true
   when: hostvars['localhost']['read_mapping_file'] is defined
 
 - name: Re-read mapping file if not available
@@ -46,11 +47,13 @@
     path: "{{ hostvars['localhost']['pxe_mapping_file_path'] }}"
     key: ADMIN_MAC
   register: _mapping_file_result
+  no_log: true
   when: hostvars['localhost']['read_mapping_file'] is not defined
 
 - name: Set read_mapping_file from re-read result
   ansible.builtin.set_fact:
     read_mapping_file: "{{ _mapping_file_result }}"
+  no_log: true
   when: hostvars['localhost']['read_mapping_file'] is not defined
 
 - name: Create ochami nodes directory
@@ -153,6 +156,7 @@
            }) }}
   delegate_to: localhost
   delegate_facts: true
+  no_log: true
 
 - name: Reset stale OpenCHAMI data for {{ target_category }}
   ansible.builtin.include_tasks: delete_smd_endpoints.yml

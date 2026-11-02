@@ -75,7 +75,7 @@
 - name: Create temp mapping file from source
   ansible.builtin.shell: |
     set -o pipefail
-    sed 's/^[[:space:]]*//g' "{{ pxe_mapping_file_path }}" | sed 's/[[:space:]]*$//g' > /tmp/omnia_validate_mapping.csv
+    sed 's/^[[:space:]]*//g' {{ pxe_mapping_file_path | quote }} | sed 's/[[:space:]]*$//g' > /tmp/omnia_validate_mapping.csv
   changed_when: false
   when:
     - read_mapping_file is not defined
@@ -105,6 +105,7 @@
     path: /tmp/omnia_validate_mapping.csv
     key: ADMIN_MAC
   register: _validate_csv_result
+  no_log: true
   when:
     - read_mapping_file is not defined
     - pxe_mapping_file_path | default('') | length > 0
@@ -112,6 +113,7 @@
 - name: Promote CSV result to read_mapping_file fact
   ansible.builtin.set_fact:
     read_mapping_file: "{{ _validate_csv_result }}"
+  no_log: true
   when: read_mapping_file is not defined and _validate_csv_result is defined and _validate_csv_result is not skipped
 
 - name: Clean up temp mapping file

@@ -562,6 +562,8 @@ def command_argv(command, executable=None):
 
 def ensure_pulp_command(arguments):
     """Return argv with the configured Pulp executable exactly once."""
+    if isinstance(arguments, str):
+        raise TypeError("Pulp commands must be argument lists, not strings")
     command = [str(argument) for argument in arguments]
     if command and command[0] == PULP_CLI_EXECUTABLE:
         return command
