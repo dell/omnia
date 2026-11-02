@@ -194,7 +194,8 @@ def check_postgres_tables(host) -> Dict[str, Any]:
     }
 
     # The deployed database user comes from the BuildStream credential store.
-    user = load_server_credentials(host).get("postgres_user", "") or POSTGRES_USER
+    credentials = load_server_credentials(host)
+    user = credentials.get("postgres_user", "") or POSTGRES_USER
     cmd = CMDS["psql_list_tables"].format(
         container=POSTGRES_CONTAINER_NAME,
         user=user,
@@ -209,6 +210,7 @@ def check_postgres_tables(host) -> Dict[str, Any]:
             f"Container '{POSTGRES_CONTAINER_NAME}' may not be running. "
             f"Check: podman ps --filter name={POSTGRES_CONTAINER_NAME}"
             + (f" | stderr: {stderr}" if stderr else "")
+            + (f" | credentials: {credentials['_error']}" if credentials.get("_error") else "")
         )
         return result
 

@@ -45,4 +45,5 @@ def is_expected_disabled_state(return_code, status):
     return (return_code, status) in {
         (1, "disabled"),
         (1, "not-found"),
+        (4, "not-found"),
     }

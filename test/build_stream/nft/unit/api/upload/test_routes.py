@@ -36,6 +36,7 @@ def _uuid():
 
 
 VALID_JOB_ID = "018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10"
+MAX_FILE_SIZE = 1024 * 1024
 
 
 def _make_result(job_id=VALID_JOB_ID):
@@ -92,6 +93,7 @@ class TestUploadFilesRoute:
             token_data=token_data,
             correlation_id=corr,
             use_case=use_case,
+            max_file_size=MAX_FILE_SIZE,
         )
 
         assert result.job_id == VALID_JOB_ID
@@ -117,6 +119,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 400
         assert exc_info.value.detail["error_code"] == "INVALID_JOB_ID"
@@ -140,6 +143,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 404
         assert exc_info.value.detail["error_code"] == "JOB_NOT_FOUND"
@@ -163,9 +167,35 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 400
         assert exc_info.value.detail["error_code"] == "INVALID_FILENAME"
+
+    @pytest.mark.asyncio
+    async def test_unknown_filename_rejected_before_read_without_echo(self):
+        """An unlisted filename is rejected first and never echoed back."""
+        from fastapi import HTTPException
+
+        use_case = MagicMock()
+        raw_name = "../../etc/passwd\r\nINJECTED"
+        upload = _make_upload_file(filename=raw_name)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await upload_files(
+                job_id=VALID_JOB_ID,
+                files=[upload],
+                token_data={"client_id": "test-client"},
+                correlation_id=CorrelationId(_uuid()),
+                use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
+            )
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail["error_code"] == "INVALID_FILENAME"
+        assert raw_name not in str(exc_info.value.detail)
+        assert "INJECTED" not in str(exc_info.value.detail)
+        upload.read.assert_not_called()
+        use_case.execute.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_file_size_exceeded_returns_400(self):
@@ -186,6 +216,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 400
         assert exc_info.value.detail["error_code"] == "FILE_SIZE_EXCEEDED"
@@ -214,6 +245,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 409
         assert exc_info.value.detail["error_code"] == "JOB_IN_TERMINAL_STATE"
@@ -235,6 +267,7 @@ class TestUploadFilesRoute:
                 token_data=token_data,
                 correlation_id=corr,
                 use_case=use_case,
+                max_file_size=MAX_FILE_SIZE,
             )
         assert exc_info.value.status_code == 500
         assert exc_info.value.detail["error_code"] == "INTERNAL_ERROR"

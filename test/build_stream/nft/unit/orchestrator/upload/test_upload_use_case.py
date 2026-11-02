@@ -214,6 +214,20 @@ class TestUploadFilesJobValidation(_TmpRootMixin):
         with pytest.raises(JobNotFoundError):
             use_case.execute(command)
 
+    def test_job_owned_by_another_client_raises_not_found(self):
+        """A job created by a different client is reported as not found (F48)."""
+        job = self._create_job(JobState.CREATED)
+        job.client_id = ClientId("other-client")
+        use_case = self._create_use_case_with_job(job)
+        command = _create_upload_command(
+            job_id=JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10"),
+            files=[("network_spec.yml", b"key: value")],
+            client_id=ClientId("test-client"),
+        )
+
+        with pytest.raises(JobNotFoundError):
+            use_case.execute(command)
+
     def test_job_in_created_state_allows_upload(self):
         """Job in CREATED state should allow upload."""
         job = self._create_job(JobState.CREATED)
@@ -270,6 +284,7 @@ class TestUploadFilesJobValidation(_TmpRootMixin):
     def _create_job(self, status: JobState):
         """Create mock job with given status."""
         job = Mock(spec=Job)
+        job.client_id = ClientId("test-client")
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = status
 
@@ -403,6 +418,7 @@ class TestUploadFilesChangeDetection(_TmpRootMixin):
     def _create_job(self):
         """Create mock job."""
         job = Mock(spec=Job)
+        job.client_id = ClientId("test-client")
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = JobState.CREATED
         job.is_in_terminal_state = Mock(return_value=False)
@@ -533,6 +549,7 @@ class TestUploadFilesStorageIntegration(_TmpRootMixin):
     def _create_job(self):
         """Create mock job."""
         job = Mock(spec=Job)
+        job.client_id = ClientId("test-client")
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = JobState.CREATED
         job.is_in_terminal_state = Mock(return_value=False)
@@ -675,6 +692,7 @@ class TestUploadFilesMultiFileUpload(_TmpRootMixin):
     def _create_job(self):
         """Create mock job."""
         job = Mock(spec=Job)
+        job.client_id = ClientId("test-client")
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = JobState.CREATED
         job.is_in_terminal_state = Mock(return_value=False)
@@ -882,6 +900,7 @@ class TestUploadFilesAuditEvents(_TmpRootMixin):
     def _create_job(self):
         """Create mock job."""
         job = Mock(spec=Job)
+        job.client_id = ClientId("test-client")
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = JobState.CREATED
         job.is_in_terminal_state = Mock(return_value=False)
@@ -1097,6 +1116,7 @@ class TestDomainFileRouting:
 
     def _create_job(self):
         job = Mock(spec=Job)
+        job.client_id = ClientId("test-client")
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = JobState.CREATED
         job.is_completed = Mock(return_value=False)

@@ -36,9 +36,13 @@ Verify-only mode (pipeline.cadence_job_id set): nothing is triggered.
 Then one test case per stage: upload -> parse-catalog ->
 create-local-repository -> build-image -> deploy -> restart -> validate,
 and the GitLab pipeline result, image group PASSED and API job.
+After the disable / re-enable tests, two artifact checks of the cadence job:
+the registry image and S3 boot files of every role it built, and the restart
+node-results and failed-nodes artifacts the API serves for it.
 The cadence catalog is installation.cadence_catalog (empty = the build
 catalog installation.catalog).
-Markers: pipeline, cadence, sanity.
+Markers: pipeline, cadence, sanity (the two artifact checks carry pipeline
+and cadence only).
 """
 
 import pytest
@@ -48,6 +52,8 @@ from library.functions import (
     run_step,
     start_cadence_pipeline,
     verify_cadence_result,
+    verify_image_build_artifacts,
+    verify_restart_node_results,
 )
 from library.vars import TEST_CASES as TC
 
@@ -140,3 +146,21 @@ def test_cadence_pipeline_records(host):
     """Verify the GitLab pipeline result, image group PASSED and API job."""
     run_step(TC["cadence_pipeline_records"], "Cadence pipeline result", verify_cadence_result,
              host)
+
+
+@pytest.mark.pipeline
+@pytest.mark.cadence
+@pytest.mark.order(40812)
+def test_cadence_pipeline_artifacts(host):
+    """Verify the registry image and S3 boot files of the cadence image."""
+    run_step(TC["cadence_pipeline_artifacts"], "Cadence image artifacts",
+             verify_image_build_artifacts, host, "cadence")
+
+
+@pytest.mark.pipeline
+@pytest.mark.cadence
+@pytest.mark.order(40813)
+def test_cadence_pipeline_restart_node_results(host):
+    """Verify the restart node-results and failed-nodes artifacts of the cadence job."""
+    run_step(TC["cadence_pipeline_restart_node_results"], "Cadence restart node results",
+             verify_restart_node_results, host, "cadence")

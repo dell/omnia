@@ -14,7 +14,7 @@
 
 """Mock implementation of VaultClient for testing."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from api.auth.password_handler import hash_password
 
@@ -120,6 +120,7 @@ class MockVaultClient:
         client_id: str = "bld_test_client_id",
         client_name: str = "test-client",
         is_active: bool = True,
+        allowed_scopes: Optional[List[str]] = None,
     ) -> None:
         """Add a test client for testing scenarios.
 
@@ -127,12 +128,13 @@ class MockVaultClient:
             client_id: Client ID to use.
             client_name: Client name to use.
             is_active: Whether the client is active.
+            allowed_scopes: Stored scopes (default ``["catalog:read"]``).
         """
         self._oauth_clients[client_id] = {
             "client_name": client_name,
             "client_secret_hash": hash_password("test_secret"),
             "description": "Test client",
-            "allowed_scopes": ["catalog:read"],
+            "allowed_scopes": allowed_scopes or ["catalog:read"],
             "created_at": "2026-01-27T00:00:00Z",
             "is_active": is_active,
         }

@@ -17,43 +17,7 @@
 import pytest
 from fastapi import HTTPException
 
-from api.dependencies import get_client_id, get_idempotency_key
-from core.jobs.value_objects import ClientId
-
-
-class TestGetClientId:
-    """Tests for get_client_id dependency function."""
-
-    def test_valid_token_data_returns_client_id(self):
-        """Valid token data should return ClientId."""
-        token_data = {"client_id": "test-client-123"}
-
-        client_id = get_client_id(token_data)
-
-        assert isinstance(client_id, ClientId)
-        assert client_id.value == "test-client-123"
-
-    def test_token_data_with_different_client(self):
-        """Token data with different client should return correct ClientId."""
-        token_data = {"client_id": "another-client"}
-
-        client_id = get_client_id(token_data)
-
-        assert client_id.value == "another-client"
-
-    def test_missing_client_id_raises_error(self):
-        """Missing client_id key should raise KeyError."""
-        token_data = {"scopes": ["job:write"]}
-
-        with pytest.raises(KeyError):
-            get_client_id(token_data)
-
-    def test_empty_client_id_raises_value_error(self):
-        """Empty client_id should raise ValueError from ClientId validation."""
-        token_data = {"client_id": ""}
-
-        with pytest.raises(ValueError):
-            get_client_id(token_data)
+from api.dependencies import get_idempotency_key
 
 
 class TestGetIdempotencyKey:

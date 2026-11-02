@@ -516,6 +516,7 @@ CMDS: Dict[str, str] = {
 
     # --- SystemD ---
     "systemctl_is_active": "systemctl is-active {service} 2>/dev/null",
+    "systemctl_is_enabled": "systemctl is-enabled {service} 2>/dev/null",
 
     # --- Database ---
     "psql_list_tables": (
@@ -585,8 +586,9 @@ CMDS: Dict[str, str] = {
 
     # --- Vault decrypt ---
     "vault_decrypt_creds": (
-        "ansible-vault decrypt --vault-password-file {key_path} "
-        "--output - {creds_path} 2>/dev/null"
+        "set -a && . {env_file} && set +a && "
+        "\"${{OMNIA_VENV_PATH:+$OMNIA_VENV_PATH/bin/}}ansible-vault\" decrypt "
+        "--vault-password-file {key_path} --output - {creds_path} 2>/dev/null"
     ),
 
     # --- Prepare base ---

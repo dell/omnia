@@ -36,8 +36,10 @@ class MockListImagesUseCase:
         self._error = error
         self.calls = []
 
-    def execute(self, status, limit, offset):
-        self.calls.append({"status": status, "limit": limit, "offset": offset})
+    def execute(self, status, limit, offset, client_id=None):
+        self.calls.append(
+            {"status": status, "limit": limit, "offset": offset, "client_id": client_id}
+        )
         if self._error:
             raise self._error
         return self._result or ListImagesResponse(
@@ -96,6 +98,19 @@ class TestListImagesRoute:
         assert use_case.calls[0]["status"] == ImageGroupStatus.DEPLOYED
         assert use_case.calls[0]["limit"] == 50
         assert use_case.calls[0]["offset"] == 10
+
+    def test_scopes_listing_to_caller_client(self):
+        """The caller's client_id is always passed to the use case (F73)."""
+        use_case = MockListImagesUseCase()
+        list_images(
+            status_filter="DEPLOYED",
+            limit=50,
+            offset=0,
+            token_data={"client_id": "client-a", "scopes": ["catalog:read"]},
+            _={"client_id": "client-a", "scopes": ["catalog:read"]},
+            use_case=use_case,
+        )
+        assert use_case.calls[0]["client_id"] == "client-a"
 
     def test_internal_error_returns_500(self):
         """Returns 500 when use case raises unexpected exception."""

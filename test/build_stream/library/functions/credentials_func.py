@@ -29,6 +29,7 @@ from library.vars.common_vars import (
     BUILD_STREAM_CREDENTIALS_KEY,
     CMDS,
 )
+from library.vars.execute_vars import OMNIA_ENV_FILE
 from ._config_helpers import resolve_build_stream_input_path
 
 
@@ -68,12 +69,16 @@ def load_server_credentials(host) -> Dict[str, str]:
     # If vault-encrypted, decrypt
     if content.startswith("$ANSIBLE_VAULT"):
         decrypt_cmd = CMDS["vault_decrypt_creds"].format(
-            key_path=key_path, creds_path=creds_path,
+            env_file=OMNIA_ENV_FILE, key_path=key_path, creds_path=creds_path,
         )
         decrypt_result = run_on_host(host, decrypt_cmd)
         if decrypt_result.rc == 0 and decrypt_result.stdout.strip():
             content = decrypt_result.stdout.strip()
         else:
+            creds["_error"] = (
+                f"cannot decrypt {creds_path} with the venv's ansible-vault "
+                f"(OMNIA_VENV_PATH in {OMNIA_ENV_FILE}) and {key_path}"
+            )
             return creds
 
     # Parse YAML key-value pairs

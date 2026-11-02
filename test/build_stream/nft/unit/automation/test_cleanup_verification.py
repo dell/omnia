@@ -64,7 +64,7 @@ def test_stopped_state_rejects_inspection_failures(return_code, status):
 
 @pytest.mark.parametrize(
     ("return_code", "status"),
-    [(1, "disabled"), (1, "not-found")],
+    [(1, "disabled"), (1, "not-found"), (4, "not-found")],
 )
 def test_expected_disabled_states(return_code, status):
     """Known systemctl disabled/not-found states confirm disablement."""
@@ -73,7 +73,7 @@ def test_expected_disabled_states(return_code, status):
 
 @pytest.mark.parametrize(
     ("return_code", "status"),
-    [(127, "unknown"), (255, "unknown"), (0, "disabled"), (1, "")],
+    [(127, "unknown"), (255, "unknown"), (0, "disabled"), (0, "enabled"), (1, ""), (4, "")],
 )
 def test_disabled_state_rejects_inspection_failures(return_code, status):
     """Command and transport failures must not be reported as disablement."""

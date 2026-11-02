@@ -16,8 +16,8 @@
 Cleanup BuildStream — BuildStream removed by build_stream.yml --tags cleanup.
 
 Containers (omnia_build_stream and omnia_postgres no longer running, then
-removed), quadlet files, services, playbook-watcher (stopped, unit file
-removed), runtime directories and caches, and the API port. Every checked
+removed), quadlet files, services, playbook-watcher (stopped, disabled, unit
+file removed), runtime directories and caches, and the API port. Every checked
 file, unit and directory is printed on its own line with a check mark.
 The Postgres data follows cleanup.postgres_backup (false: data directory
 and volumes deleted; true: preserved) and the
@@ -37,6 +37,7 @@ from library.functions import (
     check_buildstream_runtime_caches_removed,
     check_buildstream_services_stopped,
     check_credentials_per_flag,
+    check_playbook_watcher_service_disabled,
     check_playbook_watcher_service_file_removed,
     check_playbook_watcher_service_stopped,
     check_postgres_container_removed,
@@ -115,6 +116,19 @@ def test_playbook_watcher_service_stopped(host):
     report_check(tl, result)
     assert result["success"], ASSERT["cleanup_check_failed"].format(
         component="playbook-watcher.service", error=result["error"],
+    )
+
+
+@pytest.mark.sanity
+@pytest.mark.order(90206)
+def test_playbook_watcher_service_disabled(host):
+    """Verify playbook-watcher service is disabled."""
+    tc = TC["playbook_watcher_service_disabled"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_playbook_watcher_service_disabled(host)
+    report_check(tl, result)
+    assert result["success"], ASSERT["cleanup_check_failed"].format(
+        component="playbook-watcher.service (enabled at boot)", error=result["error"],
     )
 
 

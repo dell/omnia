@@ -28,6 +28,7 @@ from library.cleanup_inspection import (
     PATH_ABSENT,
     PATH_EXISTS,
     classify_path_probe,
+    is_expected_disabled_state,
     is_expected_stopped_state,
 )
 # GitLab cleanup checks live in gitlab_cleanup_func; they are re-exported
@@ -79,6 +80,7 @@ __all__ = [
     "check_gitlab_runner_services_stopped",
     "check_gitlab_services_stopped",
     "check_gitlab_url_not_accessible",
+    "check_playbook_watcher_service_disabled",
     "check_playbook_watcher_service_file_removed",
     "check_playbook_watcher_service_stopped",
     "check_postgres_container_removed",
@@ -196,6 +198,28 @@ def check_playbook_watcher_service_stopped(host) -> Dict[str, Any]:
         Dict with keys: name, success, fields, failures, error.
     """
     return summarize_probes("watcher", [unit_stopped(host, PLAYBOOK_WATCHER_SERVICE_NAME)])
+
+
+def check_playbook_watcher_service_disabled(host) -> Dict[str, Any]:
+    """Verify playbook-watcher.service is no longer enabled at boot.
+
+    ``systemctl is-enabled`` reports ``disabled`` (rc 1) while the unit file
+    exists and ``not-found`` (rc 1 or 4, by systemd version) once cleanup
+    removed it; both pass. ``enabled`` fails.
+
+    Returns:
+        Dict with keys: name, success, fields, failures, error.
+    """
+    state = run_cmd(host, "systemctl_is_enabled", service=PLAYBOOK_WATCHER_SERVICE_NAME)
+    status = state.stdout.strip() or "unknown"
+    label = f"Unit {PLAYBOOK_WATCHER_SERVICE_NAME}"
+    if status == "enabled":
+        probe = (label, "STILL ENABLED", False)
+    elif is_expected_disabled_state(state.rc, status):
+        probe = (label, status, True)
+    else:
+        probe = (label, f"INSPECTION FAILED (rc={state.rc}, status={status})", False)
+    return summarize_probes("watcher_disabled", [probe])
 
 
 def check_playbook_watcher_service_file_removed(host) -> Dict[str, Any]:

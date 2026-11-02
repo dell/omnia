@@ -216,6 +216,10 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "id": "BSM_FVT_CLEANUP_V013",
         "title": "Verify playbook-watcher stopped",
     },
+    "playbook_watcher_service_disabled": {
+        "id": "BSM_FVT_CLEANUP_V029",
+        "title": "Verify playbook-watcher disabled",
+    },
     "playbook_watcher_service_file_removed": {
         "id": "BSM_FVT_CLEANUP_V015",
         "title": "Verify playbook-watcher file removed",
@@ -593,6 +597,15 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     "cadence_pipeline_records": {
         "id": "BSM_FVT_EXECUTE_V064",
         "title": "Cadence: verify GitLab pipeline result, image group PASSED and API job",
+    },
+    "cadence_pipeline_artifacts": {
+        "id": "BSM_FVT_EXECUTE_V081",
+        "title": ("Cadence: verify registry image and S3 boot files for every role "
+                  "of the cadence image"),
+    },
+    "cadence_pipeline_restart_node_results": {
+        "id": "BSM_FVT_EXECUTE_V082",
+        "title": "Cadence: verify restart node-results and failed-nodes artifacts",
     },
     "cadence_disable_takes_effect_live": {
         "id": "BSM_FVT_EXECUTE_V065",

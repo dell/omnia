@@ -570,7 +570,8 @@ def _check_image_group(host: Any, group: Optional[Dict[str, Any]], job_id: str,
     """Check the job's image_groups row and its images rows.
 
     ``expected`` holds group_statuses, group_id ("" = any) and
-    min_deploy_count.
+    min_deploy_count. A group that was deployed (min_deploy_count >= 1) must
+    also have last_deployed_at set.
 
     Returns:
         Dict with keys: fields, failures.
@@ -584,10 +585,13 @@ def _check_image_group(host: Any, group: Optional[Dict[str, Any]], job_id: str,
     status_ok = group["status"] in statuses
     id_ok = not group_id or group["id"] == group_id
     count_ok = int(group["deploy_count"] or 0) >= min_count
+    deployed_at_ok = min_count < 1 or bool((group.get("last_deployed_at") or "").strip())
     fields = [
         (mark(id_ok, "DB image_group"), group["id"]),
         (mark(status_ok, "DB image_group.status"), group["status"]),
         (mark(count_ok, "DB image_group.deploy_count"), group["deploy_count"]),
+        (mark(deployed_at_ok, "DB image_group.last_deployed_at"),
+         group.get("last_deployed_at") or "not set"),
         (mark(images > 0, "DB images"), images),
     ]
     checks = [
@@ -595,6 +599,8 @@ def _check_image_group(host: Any, group: Optional[Dict[str, Any]], job_id: str,
         (id_ok, f"image group {group['id']} != expected {group_id}"),
         (images > 0, f"no images recorded for {group['id']}"),
         (count_ok, f"deploy_count {group['deploy_count']} < {min_count}"),
+        (deployed_at_ok,
+         f"last_deployed_at not set although deploy_count is {group['deploy_count']}"),
     ]
     return {"fields": fields, "failures": [message for ok, message in checks if not ok]}
 
