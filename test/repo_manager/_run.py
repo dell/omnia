@@ -34,10 +34,24 @@ import os
 import sys
 
 
+def _load_omnia_env(path="/etc/omnia/omnia.env"):
+    """Load Omnia KEY=VALUE settings into the environment without overriding existing values."""
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as env_file:
+        for line in env_file:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
 def main():
     """Load domain config and run ValidationRunner."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, script_dir)
+    _load_omnia_env()
 
     from library.vars.domain_vars import (
         DOMAIN_NAME,
