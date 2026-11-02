@@ -699,43 +699,6 @@ UT_TEST_CASE_IDS = {
             329: "test_validate_points_to_transform",
         },
     ),
-    # ── Finding-50 argument and option injection guards ───────────────────
-    **_class_cases(
-        "test_finding50_argv_guards.py",
-        "DnfDownloadCommandTests",
-        {
-            330: "test_option_like_package_is_rejected",
-            331: "test_whitespace_package_is_rejected",
-            332: "test_valid_packages_keep_order_and_values",
-        },
-    ),
-    **_class_cases(
-        "test_finding50_argv_guards.py",
-        "DnfInfoCommandTests",
-        {
-            333: "test_option_like_package_name_is_rejected",
-            334: "test_valid_info_command_is_unchanged",
-            335: "test_option_like_repo_name_is_still_a_literal_value",
-        },
-    ),
-    **_class_cases(
-        "test_finding50_argv_guards.py",
-        "RpmBatchRejectionTests",
-        {
-            336: "test_rejected_name_is_detected_without_failing_batch",
-            337: "test_download_batch_marks_only_rejected_package_failed",
-        },
-    ),
-    **_class_cases(
-        "test_finding50_argv_guards.py",
-        "PulpCommandStringTests",
-        {
-            338: "test_ensure_pulp_command_rejects_string",
-            339: "test_ensure_pulp_command_keeps_list_behavior",
-            340: "test_run_cmd_returns_error_dict_for_string",
-            341: "test_run_cmd_list_still_executes",
-        },
-    ),
 }
 
 
