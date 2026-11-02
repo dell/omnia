@@ -573,9 +573,11 @@ def parse_fg_identity(
 def resolve_ib_addr_family(context: Mapping[str, Any]) -> str:
     """Determine the preferred IB address family from network_spec.
 
-    Uses ``ib_addr_mode`` and ``slurm_preferred_addr_family`` from the
-    ``ib_network`` block in ``network_spec.yml`` to decide whether tests
-    should verify IPv4 or IPv6 IB connectivity.
+    Uses ``ib_addr_mode`` from the ``ib_network`` block in
+    ``network_spec.yml`` to decide whether tests should verify IPv4 or
+    IPv6 IB connectivity.
+
+    Per FR-7, dual-stack mode automatically uses IPv6.
 
     Returns ``'ipv6'`` or ``'ipv4'``.
     """
@@ -588,11 +590,8 @@ def resolve_ib_addr_family(context: Mapping[str, Any]) -> str:
             break
 
     addr_mode = str(ib_block.get("ib_addr_mode") or "").strip()
-    pref_af = str(ib_block.get("slurm_preferred_addr_family") or "").strip()
 
-    if addr_mode == "ipv6-only":
-        return "ipv6"
-    if addr_mode == "dual-stack" and pref_af == "ipv6":
+    if addr_mode in ("ipv6-only", "dual-stack"):
         return "ipv6"
     return "ipv4"
 

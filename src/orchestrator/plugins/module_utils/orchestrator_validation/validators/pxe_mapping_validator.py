@@ -341,12 +341,34 @@ def _validate_ib_pair(
     row: dict[str, str],
     errors: list[str],
     logger: Logger | None,
+    ib_addr_mode: str = "",
 ) -> None:
-    """Require the optional InfiniBand NIC name and IP as a pair."""
-    if bool(row.get("IB_NIC_NAME", "")) != bool(row.get("IB_IPV4", "")):
-        record_error(errors, logger, msg.pxe_mapping_ib_pair_msg(row_number))
+    """Require the optional InfiniBand NIC name and IP as a pair.
 
-    if row.get("IB_IPV6", "") and not row.get("IB_NIC_NAME", ""):
+    Validation rules depend on ib_addr_mode from network_spec:
+    - ipv6-only: IB_NIC_NAME and IB_IPV6 must both be set or both empty;
+      IB_IPV4 may be empty.
+    - ipv4-only or dual-stack (default): IB_NIC_NAME and IB_IPV4 must both
+      be set or both empty.
+    """
+    has_nic = bool(row.get("IB_NIC_NAME", ""))
+    has_ipv4 = bool(row.get("IB_IPV4", ""))
+    has_ipv6 = bool(row.get("IB_IPV6", ""))
+
+    if ib_addr_mode == "ipv6-only":
+        if has_nic != has_ipv6:
+            record_error(
+                errors, logger,
+                msg.pxe_mapping_ib_ipv6_pair_msg(row_number),
+            )
+    else:
+        if has_nic != has_ipv4:
+            record_error(
+                errors, logger,
+                msg.pxe_mapping_ib_pair_msg(row_number),
+            )
+
+    if has_ipv6 and not has_nic:
         record_error(
             errors, logger,
             msg.pxe_mapping_ib_ipv6_without_nic_msg(row_number),
@@ -577,6 +599,29 @@ def _validate_catalog_functional_groups(
             )
 
 
+def _load_ib_addr_mode(input_project_dir: str) -> str:
+    """Load ib_addr_mode from network_spec.yml, defaulting to empty string."""
+    network_spec_path = os.path.realpath(
+        os.path.join(input_project_dir, "network_spec.yml")
+    )
+    if not os.path.isfile(network_spec_path):
+        return ""
+    try:
+        with open(network_spec_path, "r", encoding="utf-8") as network_file:
+            network_data = yaml.safe_load(network_file)
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return ""
+    if not isinstance(network_data, dict):
+        return ""
+    for entry in network_data.get("Networks", []):
+        if not isinstance(entry, dict):
+            continue
+        ib_config = entry.get("ib_network")
+        if isinstance(ib_config, dict):
+            return ib_config.get("ib_addr_mode", "")
+    return ""
+
+
 def _load_admin_networks(
     input_project_dir: str,
 ) -> list[ipaddress.IPv4Network]:
@@ -691,6 +736,7 @@ def validate(
         record_error(errors, logger, msg.pxe_mapping_empty_msg(path))
         return errors
 
+    ib_addr_mode = _load_ib_addr_mode(input_project_dir)
     rows = _mapping_rows(header, raw_rows, path, errors, logger)
     for row_number, row in rows:
         _validate_required_values(row_number, row, errors, logger)
@@ -703,7 +749,7 @@ def validate(
             errors,
             logger,
         )
-        _validate_ib_pair(row_number, row, errors, logger)
+        _validate_ib_pair(row_number, row, errors, logger, ib_addr_mode)
         _validate_ib_nic_name(row_number, row, errors, logger)
 
     _validate_unique_values(rows, errors, logger)

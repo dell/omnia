@@ -16,6 +16,7 @@ modprobe ib_uverbs || true
 
 NETMASK_BITS="{{ hostvars['localhost']['ib_network_ipv4_netmask_bits'] | default('') }}"
 IPV6_NETMASK_BITS="{{ hostvars['localhost']['ib_network_ipv6_netmask_bits'] | default('') }}"
+IB_ADDR_MODE="{{ hostvars['localhost']['ib_network_addr_mode'] | default('') }}"
 
 # Get current node's IP from cloud-init metadata
 ADMIN_NIC_IP="{{ "{{" }} ds.meta_data.instance_data.v1.local_ipv4 {{ "}}" }}"
@@ -331,9 +332,10 @@ echo "Interface    : $IB_INTERFACE"
 echo "============================================="
 echo
 
+echo "INFO: IP CONFIGURATION: IB address mode: '${IB_ADDR_MODE:-not set}'"
+
 if command -v nmcli >/dev/null 2>&1; then
   echo "INFO: IP CONFIGURATION: Using NetworkManager to configure IB interface"
-  echo "DEBUG: IP CONFIGURATION: Target IPv4 $IB_IPV4/$NETMASK_BITS on interface $IB_INTERFACE"
 
   echo "DEBUG: IP CONFIGURATION: Removing existing NetworkManager connection for $IB_INTERFACE"
   nmcli con delete "$IB_INTERFACE" &>/dev/null || true
@@ -341,55 +343,71 @@ if command -v nmcli >/dev/null 2>&1; then
   echo "DEBUG: IP CONFIGURATION: Creating new NetworkManager connection for $IB_INTERFACE"
   nmcli con add type infiniband ifname "$IB_INTERFACE" con-name "$IB_INTERFACE"
 
-  echo "DEBUG: IP CONFIGURATION: Setting IPv4 address $IB_IPV4/$NETMASK_BITS on $IB_INTERFACE"
-  nmcli con modify "$IB_INTERFACE" ipv4.method manual ipv4.addresses "$IB_IPV4/$NETMASK_BITS"
+  # Configure IPv4 based on ib_addr_mode
+  if [ "$IB_ADDR_MODE" = "ipv6-only" ]; then
+    echo "INFO: IP CONFIGURATION: IPv6-only mode — disabling IPv4 on $IB_INTERFACE"
+    nmcli con modify "$IB_INTERFACE" ipv4.method disabled
+  else
+    echo "DEBUG: IP CONFIGURATION: Setting IPv4 address $IB_IPV4/$NETMASK_BITS on $IB_INTERFACE"
+    nmcli con modify "$IB_INTERFACE" ipv4.method manual ipv4.addresses "$IB_IPV4/$NETMASK_BITS"
+  fi
 
-  # IPv6 dual-stack configuration (ER-ORCH-005)
-  if [ -n "$IB_IPV6" ] && [ -n "$IPV6_NETMASK_BITS" ]; then
-    echo "INFO: IP CONFIGURATION: Configuring dual-stack IPv6 on $IB_INTERFACE"
+  # Configure IPv6 based on ib_addr_mode
+  if [ "$IB_ADDR_MODE" = "ipv4-only" ] || { [ -z "$IB_ADDR_MODE" ] && [ -z "$IB_IPV6" ]; }; then
+    echo "INFO: IP CONFIGURATION: No IPv6 address configured for this node (IPv4-only mode)"
+  elif [ -n "$IB_IPV6" ] && [ -n "$IPV6_NETMASK_BITS" ]; then
+    echo "INFO: IP CONFIGURATION: Configuring IPv6 on $IB_INTERFACE"
     echo "DEBUG: IP CONFIGURATION: Target IPv6 $IB_IPV6/$IPV6_NETMASK_BITS on $IB_INTERFACE"
     nmcli con modify "$IB_INTERFACE" ipv6.method manual ipv6.addresses "$IB_IPV6/$IPV6_NETMASK_BITS"
     # Disable IPv6 privacy extensions for deterministic IPoIB addressing
     nmcli con modify "$IB_INTERFACE" ipv6.ip6-privacy 0
     echo "SUCCESS: IP CONFIGURATION: IPv6 address $IB_IPV6/$IPV6_NETMASK_BITS configured on $IB_INTERFACE"
   else
-    echo "INFO: IP CONFIGURATION: No IPv6 address configured for this node (IPv4-only mode)"
+    echo "WARNING: IP CONFIGURATION: ib_addr_mode requires IPv6 but IB_IPV6 is empty"
   fi
 
   echo "DEBUG: IP CONFIGURATION: Bringing up NetworkManager connection for $IB_INTERFACE"
   nmcli con up "$IB_INTERFACE"
 
-  echo "SUCCESS: IP CONFIGURATION: NetworkManager successfully configured $IB_INTERFACE with IPv4 $IB_IPV4/$NETMASK_BITS"
+  echo "SUCCESS: IP CONFIGURATION: NetworkManager successfully configured $IB_INTERFACE (mode: ${IB_ADDR_MODE:-auto})"
 else
   echo "INFO: IP CONFIGURATION: Using iproute2 to configure IB interface (NetworkManager not available)"
-  echo "DEBUG: IP CONFIGURATION: Target IPv4 $IB_IPV4/$NETMASK_BITS on interface $IB_INTERFACE"
 
   echo "DEBUG: IP CONFIGURATION: Flushing existing IP addresses from $IB_INTERFACE"
   ip addr flush dev "$IB_INTERFACE"
 
-  echo "DEBUG: IP CONFIGURATION: Adding IPv4 address $IB_IPV4/$NETMASK_BITS to $IB_INTERFACE"
-  ip addr add "$IB_IPV4/$NETMASK_BITS" dev "$IB_INTERFACE"
+  # Configure IPv4 based on ib_addr_mode
+  if [ "$IB_ADDR_MODE" = "ipv6-only" ]; then
+    echo "INFO: IP CONFIGURATION: IPv6-only mode — skipping IPv4 on $IB_INTERFACE"
+  else
+    echo "DEBUG: IP CONFIGURATION: Adding IPv4 address $IB_IPV4/$NETMASK_BITS to $IB_INTERFACE"
+    ip addr add "$IB_IPV4/$NETMASK_BITS" dev "$IB_INTERFACE"
+  fi
 
-  # IPv6 dual-stack configuration (ER-ORCH-005)
-  if [ -n "$IB_IPV6" ] && [ -n "$IPV6_NETMASK_BITS" ]; then
-    echo "INFO: IP CONFIGURATION: Configuring dual-stack IPv6 on $IB_INTERFACE"
+  # Configure IPv6 based on ib_addr_mode
+  if [ "$IB_ADDR_MODE" = "ipv4-only" ] || { [ -z "$IB_ADDR_MODE" ] && [ -z "$IB_IPV6" ]; }; then
+    echo "INFO: IP CONFIGURATION: No IPv6 address configured for this node (IPv4-only mode)"
+  elif [ -n "$IB_IPV6" ] && [ -n "$IPV6_NETMASK_BITS" ]; then
+    echo "INFO: IP CONFIGURATION: Configuring IPv6 on $IB_INTERFACE"
     echo "DEBUG: IP CONFIGURATION: Adding IPv6 address $IB_IPV6/$IPV6_NETMASK_BITS to $IB_INTERFACE"
     ip addr add "$IB_IPV6/$IPV6_NETMASK_BITS" dev "$IB_INTERFACE"
     # Disable IPv6 privacy extensions for deterministic IPoIB addressing
     sysctl -w "net.ipv6.conf.$IB_INTERFACE.use_tempaddr=0" 2>/dev/null || true
     echo "SUCCESS: IP CONFIGURATION: IPv6 address $IB_IPV6/$IPV6_NETMASK_BITS configured on $IB_INTERFACE"
   else
-    echo "INFO: IP CONFIGURATION: No IPv6 address configured for this node (IPv4-only mode)"
+    echo "WARNING: IP CONFIGURATION: ib_addr_mode requires IPv6 but IB_IPV6 is empty"
   fi
 
   echo "DEBUG: IP CONFIGURATION: Bringing up interface $IB_INTERFACE"
   ip link set "$IB_INTERFACE" up
 
-  echo "SUCCESS: IP CONFIGURATION: iproute2 successfully configured $IB_INTERFACE with IPv4 $IB_IPV4/$NETMASK_BITS"
+  echo "SUCCESS: IP CONFIGURATION: iproute2 successfully configured $IB_INTERFACE (mode: ${IB_ADDR_MODE:-auto})"
 fi
 
-echo "SUCCESS: FINAL IP ASSIGNMENT: Successfully assigned $IB_IPV4/$NETMASK_BITS (IPv4) to IB interface $IB_INTERFACE"
-if [ -n "$IB_IPV6" ]; then
+if [ "$IB_ADDR_MODE" != "ipv6-only" ] && [ -n "$IB_IPV4" ]; then
+  echo "SUCCESS: FINAL IP ASSIGNMENT: Successfully assigned $IB_IPV4/$NETMASK_BITS (IPv4) to IB interface $IB_INTERFACE"
+fi
+if [ "$IB_ADDR_MODE" != "ipv4-only" ] && [ -n "$IB_IPV6" ]; then
   echo "SUCCESS: FINAL IP ASSIGNMENT: Successfully assigned $IB_IPV6/$IPV6_NETMASK_BITS (IPv6) to IB interface $IB_INTERFACE"
 fi
 
