@@ -201,6 +201,40 @@
       with_items: "{{ functional_groups | map(attribute='name') | list }}"
       when: validated_images is not defined
 
+    # Step 7: Global orphan cleanup — remove SMD entries for nodes no longer
+    # in the PXE mapping. This prevents resolve_identities and
+    # prune_metadata_groups from failing when all physical servers are replaced.
+    - name: Build current PXE mapping service tags and MACs
+      ansible.builtin.set_fact:
+        _pxe_service_tags: >-
+          {{ hostvars['localhost']['read_mapping_file']['dict'].values()
+             | map(attribute='SERVICE_TAG') | select('string') | list }}
+        _pxe_all_macs: >-
+          {{ (hostvars['localhost']['read_mapping_file']['dict'].values()
+              | map(attribute='ADMIN_MAC') | select('string') | list)
+             + (hostvars['localhost']['read_mapping_file']['dict'].values()
+                | map(attribute='BMC_MAC') | select('string') | list) }}
+
+    - name: Clean up orphaned SMD entries from previous deployments
+      openchami_reconcile:
+        action: cleanup_orphan_smd_entries
+        cluster_uri: "https://{{ hostvars['localhost']['oim_node_name'] }}.{{ hostvars['localhost']['domain_name'] }}:8443"
+        access_token: "{{ openchami_access_token }}"
+        ca_cert: "{{ hostvars['localhost']['openchami_ca_cert_path'] }}"
+        current_service_tags: "{{ _pxe_service_tags }}"
+        current_macs: "{{ _pxe_all_macs }}"
+      register: _orphan_cleanup_result
+      no_log: true
+
+    - name: Report orphan cleanup results
+      ansible.builtin.debug:
+        msg: >-
+          Cleaned {{ _orphan_cleanup_result.orphan_xnames | default([]) | length }}
+          orphaned SMD entries from previous deployment:
+          {{ _orphan_cleanup_result.orphan_xnames | default([]) | join(', ') }}
+      when:
+        - _orphan_cleanup_result.orphan_xnames | default([]) | length > 0
+
     # Common-group membership accumulates as each category is provisioned.
     - name: Initialize cross-category provisioning state
       ansible.builtin.set_fact:

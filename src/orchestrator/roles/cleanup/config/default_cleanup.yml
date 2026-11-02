@@ -92,7 +92,8 @@ cleanup_components:
     preserve: []
     cleanup_paths:
       - "{{ orchestrator_output_dir }}"
-    description: "Orchestrator artifacts, state files, and output directories"
+      - "{{ orchestrator_data_path }}/log/{{ project_name }}"
+    description: "Orchestrator artifacts, state files, output directories, and runtime logs"
 
   credentials:
     enabled: true
