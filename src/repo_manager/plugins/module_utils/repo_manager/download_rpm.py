@@ -39,6 +39,10 @@ from ansible.module_utils.repo_manager.parse_and_download import (
     _prefix_repo_name_with_arch,
     write_status_to_file,
 )
+from ansible.module_utils.repo_manager.security_utils import (
+    validate_cli_argument,
+    validate_positional_argument,
+)
 
 file_lock = Lock()
 
@@ -136,7 +140,7 @@ def _check_repo_exists_in_pulp(repo_name, logger):
     try:
         result = subprocess.run(
             pulp_rpm_commands["show_repository"] % repo_name,
-            capture_output=True, text=True, check=False
+            capture_output=True, text=True, check=False, shell=False
         )
         exists = result.returncode == 0
         _repo_exists_cache[repo_name] = exists
@@ -185,6 +189,7 @@ def _catalog_repo_priority_option(pkg_name, repo_mapping, status_file_path, logg
     prefixed_repo_name = _prefix_repo_name_with_arch(
         repo_name, status_file_path, logger
     )
+    validate_cli_argument(prefixed_repo_name, "repository name")
     return f"--setopt={prefixed_repo_name}.priority=1"
 
 
@@ -234,6 +239,16 @@ def _write_rpm_status(status_file_path, package_name, status, logger,
     )
 
 
+def _is_rejected_package_name(pkg, logger):
+    """Return True when a catalog package name cannot be passed to DNF safely."""
+    try:
+        validate_positional_argument(pkg, "package name")
+        return False
+    except ValueError as error:
+        logger.error("Package '%s' rejected: %s", pkg, error)
+        return True
+
+
 def _download_rpm_packages(
         rpm_list, repo_store_path, status_file_path, cluster_os_type,
         cluster_os_version, arc, logger, repo_mapping, rpm_type_mapping,
@@ -253,6 +268,13 @@ def _download_rpm_packages(
 
     for pkg in rpm_list:
         pkg_repo_name = repo_mapping.get(pkg, "")
+        if _is_rejected_package_name(pkg, logger):
+            failed.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Failed", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            continue
         if require_mapped_repo and not pkg_repo_name:
             failed.append(pkg)
             _write_rpm_status(
@@ -386,6 +408,13 @@ def _validate_rpm_packages(
 
     for pkg in rpm_list:
         pkg_repo_name = repo_mapping.get(pkg, "")
+        if _is_rejected_package_name(pkg, logger):
+            invalid_packages.append(pkg)
+            _write_rpm_status(
+                status_file_path, pkg, "Failed", logger,
+                repo_mapping, rpm_type_mapping
+            )
+            continue
         if not pkg_repo_name:
             invalid_packages.append(pkg)
             _write_rpm_status(

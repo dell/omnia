@@ -19,6 +19,7 @@ Validates that --tags cleanup removed all Pulp artifacts:
   Pulp container removed
   Managed Pulp CLI preserved
   Pulp directories removed
+  Credential store removed or preserved (cleanup_credentials)
 """
 
 import pytest
@@ -28,6 +29,7 @@ from library.functions import (
     check_pulp_container_removed,
     check_pulp_cli_preserved,
     check_pulp_directories_removed,
+    check_credentials_per_flag,
 )
 from library.vars import TEST_CASES as TC
 from library.messages import (
@@ -87,3 +89,22 @@ def test_pulp_directories_removed(host):
         tl.failed(LOG["pulp_dirs_still_exist"], result["details"])
 
     assert result["success"], ASSERT["pulp_dirs_still_exist"]
+
+
+@pytest.mark.sanity
+@pytest.mark.positive
+@pytest.mark.order(104)
+def test_credentials_per_flag(host):
+    """Verify the credential store follows cleanup_credentials."""
+    tc = TC["credentials_per_flag"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_credentials_per_flag(host)
+
+    if result["success"]:
+        tl.passed(LOG["credentials_per_flag_ok"], result["details"])
+    else:
+        tl.failed(LOG["credentials_per_flag_failed"], result["details"])
+
+    assert result["success"], ASSERT["credentials_per_flag_failed"].format(
+        error=result["error"]
+    )

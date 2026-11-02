@@ -21,9 +21,11 @@ from ..vars.common_vars import (
     PLAYBOOK_ENTRY_POINT,
     PLAYBOOK_WORKDIR,
     CMDS,
+    CREDENTIALS_KEY_FILE,
     INPUT_FILES,
     OUTPUT_FILES,
     PULP_CONTAINER_NAME,
+    PULP_IP,
     PULP_PORT,
     PULP_CLI_SYMLINK,
     _get_input_path,
@@ -378,10 +380,10 @@ def check_pulp_status_healthy(host) -> Dict[str, Any]:
 
 def check_pulp_endpoint_reachable(host) -> Dict[str, Any]:
     """Verify Pulp endpoint responds with HTTP 200."""
-    # Use 127.0.0.1 for local Pulp endpoint health check
+    # Use PULP_IP from endpoint config or environment
     cmd = (
         f"curl -k -s -o /dev/null -w '%{{http_code}}' "
-        f"https://127.0.0.1:{PULP_PORT}/pulp/api/v3/status/ "
+        f"https://{PULP_IP}:{PULP_PORT}/pulp/api/v3/status/ "
         f"|| echo '000'"
     )
     result = run_on_host(host, cmd)
@@ -702,6 +704,40 @@ def check_pulp_directories_removed(host) -> Dict[str, Any]:
         "success": True,
         "details": f"Pulp directories removed: {', '.join(dirs)}",
         "error": "",
+    }
+
+
+def cleanup_credentials_enabled() -> bool:
+    """Return ``cleanup_credentials`` from test_config.yml (default true).
+
+    ``false`` is passed to ``--tags cleanup_pulp`` as
+    ``-e cleanup_credentials=false`` so the credential store is preserved.
+    """
+    return load_test_config().get("cleanup_credentials", True) is not False
+
+
+def check_credentials_per_flag(host) -> Dict[str, Any]:
+    """Verify the credential file and vault key match ``cleanup_credentials``.
+
+    ``true`` expects both removed by the cleanup, ``false`` both preserved.
+    """
+    remove = cleanup_credentials_enabled()
+    input_path = _get_credentials_path()
+    unexpected = []
+    states = []
+    for name in (INPUT_FILES["repo_manager_credentials"], CREDENTIALS_KEY_FILE):
+        path = f"{input_path}/{name}"
+        exists = "exists" in _cmd_file_exists(host, path).stdout
+        states.append(f"{path}: {'present' if exists else 'removed'}")
+        if exists == remove:
+            unexpected.append(path)
+    expected = "removed" if remove else "preserved"
+    return {
+        "success": not unexpected,
+        "remove": remove,
+        "details": f"cleanup_credentials: {str(remove).lower()}; " + "; ".join(states),
+        "error": (f"Credential files not {expected}: {', '.join(unexpected)}"
+                  if unexpected else ""),
     }
 
 
