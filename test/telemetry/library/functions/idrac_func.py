@@ -630,7 +630,7 @@ def _expected_idle_pods(host):
 
 
 def evaluate_idrac_mysql_parity(  # pylint: disable=too-many-locals
-        pod_inventory, pod_mysql, reported_unsupported=()):
+        pod_inventory, pod_mysql, reported_unsupported=(), allow_no_active=False):
     """Compare each pod's MySQL ``services`` rows with the BMC inventory.
 
     Args:
@@ -640,6 +640,8 @@ def evaluate_idrac_mysql_parity(  # pylint: disable=too-many-locals
         reported_unsupported: "Telemetry not supported IPs List" from
             idrac_telemetry_report.yml. Missing BMCs in this list are warnings;
             any other missing BMC is an error.
+        allow_no_active: When True, zero registered BMCs is a warning instead
+            of an error (e.g. after deleting the only supported BMC).
 
     Returns:
         dict with ``success``, ``pod_results``, ``errors`` and ``warnings``.
@@ -701,7 +703,7 @@ def evaluate_idrac_mysql_parity(  # pylint: disable=too-many-locals
         })
 
     if total_active == 0:
-        errors.append(
+        (warnings if allow_no_active else errors).append(
             "No BMC from bmc_group_data.csv is registered in MySQL in any iDRAC pod; "
             "iDRAC telemetry is not collecting from any node"
         )
@@ -862,16 +864,17 @@ def get_mysql_ips_by_pod(host, pods=None):
     return {pod: get_mysql_ips_from_pod(host, pod) for pod in sorted(pods)}
 
 
-def verify_mysql_data_in_pods(host):
+def verify_mysql_data_in_pods(host, allow_no_active=False):
     """Verify every pod's MySQL rows exactly match bmc_group_data.csv.
 
     Fails when a CSV BMC is missing from its pod's MySQL and is not in the
     report's "Telemetry not supported IPs List" (those only warn), when MySQL
     holds a BMC that is not in the CSV or sits in the wrong pod, when rows are
-    duplicated, or when no BMC is registered at all.
+    duplicated, or when no BMC is registered at all (unless allow_no_active).
 
     Args:
         host: Testinfra host (OIM).
+        allow_no_active: Treat zero registered BMCs as a warning.
 
     Returns:
         dict with success, pod_results, errors, total_pods.
@@ -903,6 +906,7 @@ def verify_mysql_data_in_pods(host):
         pod_inventory,
         get_mysql_ips_by_pod(host, pods),
         get_idrac_report_ips(host)["unsupported"],
+        allow_no_active=allow_no_active,
     )
     result["total_pods"] = len(pods)
     return result

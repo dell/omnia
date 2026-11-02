@@ -50,6 +50,31 @@ def test_telemetry_credential_tasks_declare_no_log():
     assert _load_scanner().check_tasks(TELEMETRY_ROOT) == []
 
 
+def test_credential_checker_fails_closed(tmp_path):
+    """Templated no_log values and unparseable files are violations, not passes."""
+    scanner = _load_scanner()
+    tasks_dir = tmp_path / "roles/demo/tasks"
+    tasks_dir.mkdir(parents=True)
+    task = "  debug:\n    msg: \"{{ telemetry_credentials.bmc_password }}\"\n"
+    (tasks_dir / "safe.yml").write_text(f"- name: safe\n{task}  no_log: true\n", encoding="utf-8")
+    (tasks_dir / "templated.yml").write_text(
+        f"- name: templated\n{task}  no_log: \"{{{{ false }}}}\"\n", encoding="utf-8",
+    )
+    (tasks_dir / "broken.yml").write_text("- name: broken\n  debug: [unclosed\n", encoding="utf-8")
+    modules_dir = tmp_path / "plugins/modules"
+    modules_dir.mkdir(parents=True)
+    (modules_dir / "broken.py").write_text("def broken(:\n", encoding="utf-8")
+
+    task_violations = scanner.check_tasks(tmp_path)
+    module_violations = scanner.check_modules(modules_dir)
+
+    assert len(task_violations) == 2
+    assert any("templated" in v for v in task_violations)
+    assert any("broken.yml" in v and "cannot parse YAML" in v for v in task_violations)
+    assert not any("safe.yml" in v for v in task_violations)
+    assert len(module_violations) == 1 and "cannot parse module" in module_violations[0]
+
+
 def test_telemetry_log_dir_and_files_are_restricted():
     """Ansible log dir/files must not be world-readable and must be rotated."""
     setup_vars = yaml.safe_load(_read(SETUP_ROLE / "vars/main.yml"))

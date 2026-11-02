@@ -20,7 +20,9 @@ Checks performed under each domain root (default: src/telemetry):
      name looks like a credential must declare ``no_log: True``.
   2. Role/playbook tasks (*.yml): every task that references a credential
      variable (e.g. ``telemetry_credentials.*``) must set task-level
-     ``no_log``.
+     ``no_log: true`` (templated or conditional values are rejected).
+
+Files that cannot be parsed are reported as violations (fail closed).
 
 Usage:
   python3 .github/scripts/check_credential_no_log.py [DOMAIN_ROOT ...]
@@ -81,7 +83,13 @@ def check_modules(modules_dir):
     """Return violations for credential arguments without no_log=True."""
     violations = []
     for path in sorted(Path(modules_dir).glob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except SyntaxError as exc:
+            violations.append(
+                f"{path}: cannot parse module, credential arguments not validated: {exc}"
+            )
+            continue
         for name, opts, lineno in _spec_entries(tree):
             if not CREDENTIAL_ARG_RE.search(name):
                 continue
@@ -108,7 +116,9 @@ def _references_credentials(task):
 
 
 def _no_log_enabled(value):
-    return value is True or (isinstance(value, str) and "{{" in value)
+    # Only a literal YAML boolean true is safe; templated or conditional
+    # values (e.g. "{{ false }}") cannot be proven to suppress output.
+    return value is True
 
 
 def check_tasks(domain_root):
@@ -119,7 +129,8 @@ def check_tasks(domain_root):
             continue
         try:
             data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        except yaml.YAMLError:
+        except yaml.YAMLError as exc:
+            violations.append(f"{path}: cannot parse YAML, credential tasks not validated: {exc}")
             continue
         if not isinstance(data, list):
             continue

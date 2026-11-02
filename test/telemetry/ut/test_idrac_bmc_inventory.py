@@ -105,6 +105,12 @@ def test_nothing_registered_fails_even_when_all_reported_unsupported():
     assert not result["success"]
     assert any("No BMC" in err for err in result["errors"])
 
+    allowed = idrac_func.evaluate_idrac_mysql_parity(
+        inventory, mysql, ["10.0.0.1"], allow_no_active=True,
+    )
+    assert allowed["success"], allowed["errors"]
+    assert any("No BMC" in w for w in allowed["warnings"])
+
 
 def test_duplicates_query_failures_and_missing_pods_fail():
     """Duplicate rows, failed MySQL queries, and non-running pods are failures."""

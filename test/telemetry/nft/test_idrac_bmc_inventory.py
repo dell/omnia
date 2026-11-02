@@ -102,9 +102,9 @@ def _skip_with_warning(tl, reason):
     pytest.skip(message)
 
 
-def _assert_parity(host, phase):
+def _assert_parity(host, phase, allow_no_active=False):
     """Assert MySQL matches bmc_group_data.csv exactly (V013 rules)."""
-    parity = verify_mysql_data_in_pods(host)
+    parity = verify_mysql_data_in_pods(host, allow_no_active=allow_no_active)
     assert parity["success"], (
         f"MySQL does not match bmc_group_data.csv {phase}: "
         + "; ".join(parity.get("errors", []))
@@ -184,7 +184,15 @@ def test_idrac_bmc_delete_and_readd(host):  # pylint: disable=too-many-locals,to
         assert bmc_ip in get_idrac_report_ips(host)["removed"], (
             f"{bmc_ip} not listed under 'Removed IPs List' in idrac_telemetry_report.yml"
         )
-        _assert_parity(host, "after deletion")
+        only_registered_bmc = not any(expected_after_delete.values())
+        if only_registered_bmc:
+            message = (
+                f"{bmc_ip} was the only BMC registered in MySQL; no iDRAC is "
+                "collecting telemetry until it is re-added"
+            )
+            tl.check(message)
+            warnings.warn(f"TEL_NFT_026: {message}", UserWarning, stacklevel=2)
+        _assert_parity(host, "after deletion", allow_no_active=only_registered_bmc)
 
         tl.check(f"Add node: re-adding BMC {bmc_ip} by restoring bmc_group_data.csv")
         restore = run_on_host(  # pylint: disable=too-many-function-args
