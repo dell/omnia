@@ -33,41 +33,62 @@
 # --- Copy isilon-creds secret to telemetry namespace ---
 
 - name: Check if isilon-creds exists in isilon namespace
-  ansible.builtin.command: kubectl get secret isilon-creds -n isilon -o name
-  register: _isilon_creds_check
-  changed_when: false
-  failed_when: false
-  no_log: true
+  block:
+    - name: Check if isilon-creds exists in isilon namespace
+      ansible.builtin.command: kubectl get secret isilon-creds -n isilon -o name
+      register: _isilon_creds_check
+      changed_when: false
+      failed_when: false
+      no_log: true
+  rescue:
+    - name: Check if isilon-creds exists in isilon namespace | Report failure
+      ansible.builtin.fail:
+        msg: "Failed to check for the isilon-creds secret in namespace 'isilon'. Likely causes: kubeconfig missing or expired, cluster unreachable, or the user lacks RBAC to read secrets in 'isilon'. Check: 'kubectl config current-context', 'kubectl cluster-info', and 'kubectl auth can-i get secrets -n isilon'. Error details suppressed (no_log)."
+      no_log: true
 
 - name: Copy isilon-creds secret to telemetry namespace  # noqa: risky-shell-pipe
-  ansible.builtin.shell: |
-    kubectl delete secret isilon-creds -n {{ csm_observability_namespace | quote }} --ignore-not-found=true 2>/dev/null
-    kubectl get secret isilon-creds -n isilon -o json \
-      | jq 'del(.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.managedFields)' \
-      | jq --arg ns {{ csm_observability_namespace | quote }} '.metadata.namespace = $ns' \
-      | kubectl create -f -
-  when: _isilon_creds_check.rc == 0
-  changed_when: false
-  failed_when: false
-  no_log: true
+  block:
+    - name: Copy isilon-creds secret to telemetry namespace  # noqa: risky-shell-pipe
+      ansible.builtin.shell: |
+        kubectl delete secret isilon-creds -n {{ csm_observability_namespace | quote }} --ignore-not-found=true 2>/dev/null
+        kubectl get secret isilon-creds -n isilon -o json \
+          | jq 'del(.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.managedFields)' \
+          | jq --arg ns {{ csm_observability_namespace | quote }} '.metadata.namespace = $ns' \
+          | kubectl create -f -
+      when: _isilon_creds_check.rc == 0
+      changed_when: false
+      failed_when: false
+      no_log: true
+  rescue:
+    - name: Copy isilon-creds secret to telemetry namespace | Report failure
+      ansible.builtin.fail:
+        msg: "Failed to copy the isilon-creds secret to the telemetry namespace. Likely causes: the source secret is missing in 'isilon' (see the previous check), the target namespace does not exist, 'jq' is not installed on the host, or the user lacks RBAC to delete/create secrets. Check: 'kubectl get secret isilon-creds -n isilon', 'kubectl get ns', 'which jq', and 'kubectl auth can-i create secrets -n <csm_observability_namespace>'. Error details suppressed (no_log)."
+      no_log: true
 
 # --- Copy Karavi Authorization resources if enabled ---
 
 - name: Copy Karavi Authorization resources (Mode B)  # noqa: risky-shell-pipe
-  ansible.builtin.shell: |
-    _NS={{ csm_observability_namespace | quote }}
-    kubectl get configmap isilon-config-params -n isilon -o yaml \
-      | sed "s/namespace: isilon/namespace: ${_NS}/" \
-      | kubectl apply -f - 2>/dev/null || true
-    kubectl get secret proxy-server-root-certificate proxy-authz-tokens -n isilon -o yaml \
-      | sed "s/namespace: isilon/namespace: ${_NS}/" \
-      | sed 's/name: proxy-server-root-certificate/name: isilon-proxy-server-root-certificate/' \
-      | sed 's/name: proxy-authz-tokens/name: isilon-proxy-authz-tokens/' \
-      | kubectl apply -f - 2>/dev/null || true
-  when: karavi_enabled | bool
-  changed_when: false
-  failed_when: false
-  no_log: true
+  block:
+    - name: Copy Karavi Authorization resources (Mode B)  # noqa: risky-shell-pipe
+      ansible.builtin.shell: |
+        _NS={{ csm_observability_namespace | quote }}
+        kubectl get configmap isilon-config-params -n isilon -o yaml \
+          | sed "s/namespace: isilon/namespace: ${_NS}/" \
+          | kubectl apply -f - 2>/dev/null || true
+        kubectl get secret proxy-server-root-certificate proxy-authz-tokens -n isilon -o yaml \
+          | sed "s/namespace: isilon/namespace: ${_NS}/" \
+          | sed 's/name: proxy-server-root-certificate/name: isilon-proxy-server-root-certificate/' \
+          | sed 's/name: proxy-authz-tokens/name: isilon-proxy-authz-tokens/' \
+          | kubectl apply -f - 2>/dev/null || true
+      when: karavi_enabled | bool
+      changed_when: false
+      failed_when: false
+      no_log: true
+  rescue:
+    - name: Copy Karavi Authorization resources (Mode B) | Report failure
+      ansible.builtin.fail:
+        msg: "Failed to copy the Karavi Authorization resources (Mode B). Likely causes: 'isilon-config-params', 'proxy-server-root-certificate', or 'proxy-authz-tokens' are missing in 'isilon' (Karavi Authorization not deployed on PowerScale), 'sed' or 'kubectl' unavailable on the host, or the user lacks RBAC to read or apply these resources. Check: 'kubectl get configmap isilon-config-params -n isilon', 'kubectl get secret proxy-server-root-certificate proxy-authz-tokens -n isilon', and 'kubectl auth can-i apply secrets -n <csm_observability_namespace>'. Error details suppressed (no_log)."
+      no_log: true
 
 # --- Helm install/upgrade karavi-observability ---
 

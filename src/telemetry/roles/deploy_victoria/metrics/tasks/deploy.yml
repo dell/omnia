@@ -167,13 +167,20 @@
     _vm_manifests: "{{ dict(manifest_stats.results | map(attribute='item') | zip(manifest_stats.results | map(attribute='stat') | map(attribute='exists'))) }}"
 
 - name: Apply VictoriaMetrics TLS secret
-  ansible.builtin.command: >
-    kubectl apply -f {{ telemetry_deployments_dir | quote }}/victoria-tls-secret.yaml
-  register: tls_apply
-  changed_when: "'created' in tls_apply.stdout or 'configured' in tls_apply.stdout"
-  when: _vm_manifests['victoria-tls-secret.yaml'] | default(false)
-  failed_when: false
-  no_log: true
+  block:
+    - name: Apply VictoriaMetrics TLS secret
+      ansible.builtin.command: >
+        kubectl apply -f {{ telemetry_deployments_dir | quote }}/victoria-tls-secret.yaml
+      register: tls_apply
+      changed_when: "'created' in tls_apply.stdout or 'configured' in tls_apply.stdout"
+      when: _vm_manifests['victoria-tls-secret.yaml'] | default(false)
+      failed_when: false
+      no_log: true
+  rescue:
+    - name: Apply VictoriaMetrics TLS secret | Report failure
+      ansible.builtin.fail:
+        msg: "Failed to apply the VictoriaMetrics TLS secret. Likely causes: the Kubernetes cluster is unreachable, the victoria-tls-secret.yaml manifest is missing or malformed (certificate generation may have failed), the target namespace does not exist, or the user lacks RBAC to create secrets. Check: 'kubectl cluster-info', 'kubectl auth can-i create secrets -n <namespace>', and that 'victoria-tls-secret.yaml' exists in the telemetry deployments directory and is non-empty. Error details suppressed (no_log)."
+      no_log: true
 
 - name: Apply VictoriaMetrics RBAC
   ansible.builtin.command: >
