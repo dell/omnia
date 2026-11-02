@@ -117,6 +117,22 @@ sync_output: false
 sync_image_build_input: false
 
 # =============================================================================
+# CLEANUP CONFIGURATION
+# =============================================================================
+# Cleanup FVT invokes the supported cleanup entry point:
+#
+#   ansible-playbook image_build_manager.yml --tags cleanup
+#
+# Remove the image_build_manager credential artifacts from the active project's
+# input directory. Supported values:
+#   true  - remove image_build_credentials.yml and its vault key
+#   false - preserve both; the cleanup runs with -e cleanup_credentials=false so
+#           the next deployment does not prompt for credentials
+# The cleanup verification (IMGBM_FVT_CLEANUP_V008) checks the selected outcome.
+# Default: true
+cleanup_credentials: true
+
+# =============================================================================
 # REPORT CONFIGURATION
 # =============================================================================
 # Directory where test reports (JSON + HTML) are saved.
@@ -137,11 +153,3 @@ report_name: image_test_report
 # Leave empty to auto-generate from timestamp.
 # No spaces allowed. Only letters, numbers, underscores, hyphens.
 run_id: ""
-
-# =============================================================================
-# CLEANUP CONFIGURATION (fvt cleanup: image_build_manager.yml --tags cleanup)
-# =============================================================================
-# true (default): the cleanup removes image_build_credentials.yml and its vault
-# key. false: passed as -e cleanup_credentials=false so both are preserved and
-# the next deployment does not prompt; the cleanup verification checks either.
-cleanup_credentials: true
