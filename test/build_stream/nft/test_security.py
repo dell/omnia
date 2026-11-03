@@ -19,6 +19,7 @@ import pytest
 
 from library.functions import (
     TestLogger,
+    skip_test,
     artifact_path_absent,
     bsm_request,
     check_file_permissions,
@@ -48,10 +49,9 @@ def _case(name):
 
 def _mutation_enabled(config, logger):
     if not config.get("nft_allow_security_mutation", False):
-        logger.skipped(
-            "Set nft_allow_security_mutation: true to create one disposable test job"
-        )
-        pytest.skip("nft_allow_security_mutation is false")
+        pytest.skip(skip_test(
+            logger, "nft_allow_security_mutation is false: set "
+            "nft_allow_security_mutation: true to create one disposable test job"))
 
 
 @pytest.mark.nft
@@ -213,6 +213,3 @@ def test_build_stream_quadlet_permissions(host):
     else:
         logger.failed(result["details"])
     assert result["success"], result["details"]
-
-
-
