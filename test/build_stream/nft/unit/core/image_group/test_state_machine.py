@@ -51,8 +51,8 @@ def _make_ig(status: ImageGroupStatus, ig_id: str = "test-group") -> ImageGroup:
 class TestAllowedTransitions:
     """Tests for ALLOWED_TRANSITIONS mapping."""
 
-    def test_deploy_accepts_all_retryable_statuses(self):
-        """Deploy stage accepts BUILT and all intermediate/failed statuses for retry."""
+    def test_deploy_accepts_all_retryable_and_passed_statuses(self):
+        """Deploy stage accepts BUILT, PASSED, and all intermediate/failed statuses."""
         expected = {
             ImageGroupStatus.BUILT,
             ImageGroupStatus.DEPLOYING,
@@ -61,12 +61,12 @@ class TestAllowedTransitions:
             ImageGroupStatus.RESTARTED,
             ImageGroupStatus.VALIDATING,
             ImageGroupStatus.FAILED,
+            ImageGroupStatus.PASSED,
         }
         assert ALLOWED_TRANSITIONS["deploy"] == expected
 
-    def test_deploy_excludes_passed_and_cleaned(self):
-        """Deploy stage must NOT accept PASSED or CLEANED (require fresh build)."""
-        assert ImageGroupStatus.PASSED not in ALLOWED_TRANSITIONS["deploy"]
+    def test_deploy_excludes_cleaned(self):
+        """Deploy stage must NOT accept CLEANED (requires fresh build)."""
         assert ImageGroupStatus.CLEANED not in ALLOWED_TRANSITIONS["deploy"]
 
     def test_restart_requires_deployed(self):
@@ -133,12 +133,17 @@ class TestGuardCheck:
         assert exc_info.value.supplied == "wrong-id"
         assert exc_info.value.expected == "expected-id"
 
-    def test_deploy_with_wrong_status_raises_invalid_transition(self):
-        """Deploy guard should raise InvalidStateTransitionError for PASSED status."""
-        ig = _make_ig(ImageGroupStatus.PASSED)
+    def test_deploy_with_passed_status_passes(self):
+        """Deploy guard should pass for PASSED (repeated deployment with updated PXE mapping)."""
+        ig = _make_ig(ImageGroupStatus.PASSED, ig_id="my-group")
+        guard_check(ig, "deploy", requested_image_group_id="my-group")
+
+    def test_deploy_with_cleaned_status_raises_invalid_transition(self):
+        """Deploy guard should raise InvalidStateTransitionError for CLEANED status."""
+        ig = _make_ig(ImageGroupStatus.CLEANED)
         with pytest.raises(InvalidStateTransitionError) as exc_info:
             guard_check(ig, "deploy", requested_image_group_id=str(ig.id))
-        assert exc_info.value.current == "PASSED"
+        assert exc_info.value.current == "CLEANED"
 
     def test_deploy_with_deploying_status_passes(self):
         """Deploy guard should pass for DEPLOYING (retry interrupted deploy)."""

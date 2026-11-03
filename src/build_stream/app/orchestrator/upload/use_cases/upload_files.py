@@ -288,7 +288,7 @@ class UploadFilesUseCase:
         if job is None or job.client_id != client_id:
             raise JobNotFoundError(f"Job not found: {job_id}")
 
-        if job.is_completed() or job.is_cancelled():
+        if job.is_cancelled():
             raise TerminalStateViolationError(
                 entity_type="Job",
                 entity_id=str(job_id),
