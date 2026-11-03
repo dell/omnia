@@ -349,6 +349,8 @@ def pytest_configure(config):
         "source": "Source (iDRAC/LDMS/OME/SFM/UFM/VAST) tests",
         "ome": "OME (OpenManage Enterprise) specific tests",
         "ldms": "LDMS (Lightweight Distributed Metric Service) specific tests",
+        "idrac": "iDRAC (Integrated Dell Remote Access Controller) specific tests",
+        "powerscale": "PowerScale-specific tests",
         "vast": "VAST Data storage telemetry specific tests",
         "sfm": "SFM (SmartFabric Manager) specific tests",
         "ufm": "UFM (Unified Fabric Manager) specific tests",

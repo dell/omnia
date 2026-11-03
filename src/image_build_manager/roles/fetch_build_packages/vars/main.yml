@@ -21,6 +21,11 @@ build_image_completion_msg: |
   The playbook build_image_{{ build_arch }}.yml has been completed successfully.
   To boot {{ build_arch }} nodes execute provision/provision.yml playbook.
 
+package_groups_invalid_msg: >-
+  package_groups.yml at {{ input_project_dir }} is invalid or contains
+  prohibited Jinja template syntax. Package definitions must contain
+  literal YAML values only.
+
 functional_group_absent_msg: |
   Failure: No {{ build_arch }} functional groups found.
   Config mode: Ensure package_groups.yml has functional groups with _{{ build_arch }} suffix.

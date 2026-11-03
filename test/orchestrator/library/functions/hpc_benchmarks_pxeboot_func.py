@@ -22,6 +22,7 @@ never installed at runtime.
 """
 
 import time
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
     HPC_BENCHMARKS_CONTAINER_IMAGE_LIST,
@@ -84,7 +85,7 @@ from ._workload_helpers import optional_skip
 # ---------------------------------------------------------------------------
 # TC-00: RUN STAGING (setup — executes pull_benchmarks.sh)
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_run_staging(host):
+def check_hpc_benchmarks_run_staging(host) -> Dict[str, Any]:
     """Execute pull_benchmarks.sh on the first compute node to populate artifacts.
 
     This is a setup step that runs before the artifact-verification TCs
@@ -130,7 +131,7 @@ def check_hpc_benchmarks_run_staging(host):
 # ---------------------------------------------------------------------------
 # TC-00b: CLEANUP STAGED BENCHMARK TOOLS
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_cleanup_staging(host):
+def check_hpc_benchmarks_cleanup_staging(host) -> Dict[str, Any]:
     """Remove tool directories downloaded by pull_benchmarks.sh.
 
     Controlled by ``cleanup_benchmark_tools`` in ``test_config.yml``
@@ -225,7 +226,7 @@ def check_hpc_benchmarks_cleanup_staging(host):
 # ---------------------------------------------------------------------------
 # V095: BENCHMARK PREREQUISITES
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_prerequisites(host):
+def check_hpc_benchmarks_prerequisites(host) -> Dict[str, Any]:
     """Verify every prerequisite is in place before staging begins.
 
     Checks in one pass:
@@ -313,7 +314,7 @@ def check_hpc_benchmarks_prerequisites(host):
 # ---------------------------------------------------------------------------
 # V096: STAGING FINGERPRINT IDEMPOTENCY
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_staging_fingerprint_idempotency(host):
+def check_hpc_benchmarks_staging_fingerprint_idempotency(host) -> Dict[str, Any]:
     """Pull tools, fingerprint every file, rerun, and confirm nothing changed.
 
     Goes beyond the directory-level V218 idempotency check by recording
@@ -418,7 +419,7 @@ def check_hpc_benchmarks_staging_fingerprint_idempotency(host):
 # ---------------------------------------------------------------------------
 # V097: CONCURRENT STAGING
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_concurrent_staging(host):
+def check_hpc_benchmarks_concurrent_staging(host) -> Dict[str, Any]:
     """Start two same-platform pulls simultaneously on shared storage.
 
     Launches ``pull_benchmarks.sh`` in the background on two compute
@@ -469,8 +470,8 @@ def check_hpc_benchmarks_concurrent_staging(host):
         )
 
         # Wait for both
-        rc_a = wait_for_pid(host, node_a, pid_a, log_path=log_a)
-        rc_b = wait_for_pid(host, node_b, pid_b, log_path=log_b)
+        rc_a = wait_for_pid(host, node_a, pid_a, log_a)
+        rc_b = wait_for_pid(host, node_b, pid_b, log_b)
 
         # Fingerprint from both nodes
         fp_a = snapshot_tool_fingerprints(host, node_a, platform_a)
@@ -522,7 +523,7 @@ def check_hpc_benchmarks_concurrent_staging(host):
 # ---------------------------------------------------------------------------
 # TC-01: BENCHMARK TOOL DECLARATION
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_json_declaration(host):
+def check_hpc_benchmarks_json_declaration(host) -> Dict[str, Any]:
     """Verify benchmark_tools.list is deployed and lists at least one tool.
 
     2.3 replaces the 2.2 slurm_custom.json parse with a compute-side read of
@@ -571,7 +572,7 @@ def check_hpc_benchmarks_json_declaration(host):
 # ---------------------------------------------------------------------------
 # TC-02: PULP OFFLINE REPO SYNC (compute-side HTTP probe)
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_local_repo_sync(host):
+def check_hpc_benchmarks_local_repo_sync(host) -> Dict[str, Any]:
     """Verify each declared tool has a non-empty Pulp tarball directory.
 
     Replays the exact Pulp URL the deployed ``pull_benchmarks.sh`` builds
@@ -636,7 +637,7 @@ def check_hpc_benchmarks_local_repo_sync(host):
 # ---------------------------------------------------------------------------
 # TC-03: /hpc_tools LAYOUT
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_tools_dir_creation(host):
+def check_hpc_benchmarks_tools_dir_creation(host) -> Dict[str, Any]:
     """Verify /hpc_tools and required subdirectories exist with mode 0755."""
     summary = "HPC benchmarks /hpc_tools layout"
     try:
@@ -680,7 +681,7 @@ def check_hpc_benchmarks_tools_dir_creation(host):
 # ---------------------------------------------------------------------------
 # TC-04: ARTIFACT STAGING (post-run)
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_artifact_copy(host):
+def check_hpc_benchmarks_artifact_copy(host) -> Dict[str, Any]:
     """Verify each declared tool has a non-empty ``/hpc_tools/platforms/<os>/<ver>/<arch>/<tool>`` dir.
 
     ``hpc_tools.yml`` only deploys ``pull_benchmarks.sh``; artifacts are
@@ -767,7 +768,7 @@ def check_hpc_benchmarks_artifact_copy(host):
 # ---------------------------------------------------------------------------
 # TC-05: msr-safe ARCHITECTURE BOUNDARY
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_msr_safe_arch_boundary(host):
+def check_hpc_benchmarks_msr_safe_arch_boundary(host) -> Dict[str, Any]:
     """Verify msr-safe is declared and honoured only on x86_64 nodes.
 
     The deployed ``pull_benchmarks.sh`` hard-codes
@@ -864,7 +865,7 @@ def check_hpc_benchmarks_msr_safe_arch_boundary(host):
 # ---------------------------------------------------------------------------
 # TC-06a: PLATFORM SCRIPT DEPLOYMENT
 #---------------------------------------------------------------------------
-def check_hpc_benchmarks_platform_script(host):
+def check_hpc_benchmarks_platform_script(host) -> Dict[str, Any]:
     """Verify omnia_platform.sh is deployed and can detect platform variables.
 
     This script is critical for platform detection and path resolution used by
@@ -924,7 +925,7 @@ def check_hpc_benchmarks_platform_script(host):
 # ---------------------------------------------------------------------------
 # TC-06b: CONTAINER IMAGE LIST DEPLOYMENT
 #---------------------------------------------------------------------------
-def check_hpc_benchmarks_container_image_list(host):
+def check_hpc_benchmarks_container_image_list(host) -> Dict[str, Any]:
     """Verify container_image.list is deployed and contains valid image URIs.
 
     This file is required for container image downloads via download_container_image.sh.
@@ -1005,7 +1006,7 @@ def check_hpc_benchmarks_container_image_list(host):
 # ---------------------------------------------------------------------------
 # TC-06c: PLATFORM DIRECTORY STRUCTURE
 #---------------------------------------------------------------------------
-def check_hpc_benchmarks_platform_directory_structure(host):
+def check_hpc_benchmarks_platform_directory_structure(host) -> Dict[str, Any]:
     """Verify platform-specific directory structure exists for each architecture.
 
     The /hpc_tools/platforms directory is created by hpc_tools.yml, but the
@@ -1063,7 +1064,7 @@ def check_hpc_benchmarks_platform_directory_structure(host):
 # ---------------------------------------------------------------------------
 # TC-06d: OFFLINE PACKAGE COPY VERIFICATION
 #---------------------------------------------------------------------------
-def check_hpc_benchmarks_offline_package_copy(host):
+def check_hpc_benchmarks_offline_package_copy(host) -> Dict[str, Any]:
     """Verify offline packages are copied to slurm_config_path/packages/{arch}/.
 
     The hpc_tools.yml task copies offline packages (e.g., CUDA) from source to
@@ -1158,7 +1159,7 @@ def check_hpc_benchmarks_offline_package_copy(host):
 # ---------------------------------------------------------------------------
 # TC-06: DEPLOYMENT CONTRACT (narrowed)
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_container_first_guidance(host):
+def check_hpc_benchmarks_container_first_guidance(host) -> Dict[str, Any]:
     """Verify ``pull_benchmarks.sh`` and ``benchmark_tools.list`` are deployed.
 
     The 2.2 container-first guidance test (HPL / HPL-MxP / STREAM declared
@@ -1209,7 +1210,7 @@ def check_hpc_benchmarks_container_first_guidance(host):
 # ---------------------------------------------------------------------------
 # TC-07: SOURCE-ONLY DELIVERY
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_source_only_delivery(host):
+def check_hpc_benchmarks_source_only_delivery(host) -> Dict[str, Any]:
     """Verify no compile commands ship with the script or the staged artifacts.
 
     Scans only benchmark tool subdirectories — the framework-owned dirs
@@ -1263,7 +1264,7 @@ def check_hpc_benchmarks_source_only_delivery(host):
 # ---------------------------------------------------------------------------
 # TC-09: END-TO-END PROVISIONING (composite)
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_e2e_provisioning(host):
+def check_hpc_benchmarks_e2e_provisioning(host) -> Dict[str, Any]:
     """Combine tool-declaration, offline sync, layout, artifacts, and NFS.
 
     Mandatory stages (tool_list, tools_dirs, artifacts, nfs) must not be
@@ -1342,7 +1343,7 @@ def check_hpc_benchmarks_e2e_provisioning(host):
 # ---------------------------------------------------------------------------
 # TC-10: NFS ACCESSIBILITY
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_nfs_accessibility(host):
+def check_hpc_benchmarks_nfs_accessibility(host) -> Dict[str, Any]:
     """Verify /hpc_tools is mounted and readable on every compute node."""
     summary = "HPC benchmarks /hpc_tools NFS accessibility"
     try:
@@ -1382,7 +1383,7 @@ def check_hpc_benchmarks_nfs_accessibility(host):
 # ---------------------------------------------------------------------------
 # TC-11: AIR-GAPPED STAGING (destructive)
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_airgapped_staging(host):
+def check_hpc_benchmarks_airgapped_staging(host) -> Dict[str, Any]:
     """Verify egress probe confirms air-gap, then staging still succeeds via Pulp."""
     summary = "HPC benchmarks air-gapped staging"
     try:
@@ -1426,7 +1427,7 @@ def check_hpc_benchmarks_airgapped_staging(host):
 # ---------------------------------------------------------------------------
 # TC-12: POST-STAGING VALIDATION
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_post_staging_validation(host):
+def check_hpc_benchmarks_post_staging_validation(host) -> Dict[str, Any]:
     """Verify tool subdirectories are present per benchmark_tools.list.
 
     Uses the same "staging not yet executed" skip contract as TC-04.
@@ -1508,7 +1509,7 @@ def check_hpc_benchmarks_post_staging_validation(host):
 # ---------------------------------------------------------------------------
 # TC-13: RHEL COMPATIBILITY
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_rhel_compatibility(host):
+def check_hpc_benchmarks_rhel_compatibility(host) -> Dict[str, Any]:
     """Verify every compute node runs the RHEL major this suite targets."""
     summary = "HPC benchmarks RHEL compatibility"
     try:
@@ -1600,7 +1601,7 @@ def _invariance_check(host, path: str, summary: str):
 # ---------------------------------------------------------------------------
 # TC-14: CUDA INVARIANCE
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_cuda_flow_unaffected(host):
+def check_hpc_benchmarks_cuda_flow_unaffected(host) -> Dict[str, Any]:
     """Verify /hpc_tools/cuda is present and unchanged after staging."""
     summary = "HPC benchmarks CUDA flow invariance"
     try:
@@ -1612,7 +1613,7 @@ def check_hpc_benchmarks_cuda_flow_unaffected(host):
 # ---------------------------------------------------------------------------
 # TC-15: NVIDIA SDK INVARIANCE
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_nvhpc_flow_unaffected(host):
+def check_hpc_benchmarks_nvhpc_flow_unaffected(host) -> Dict[str, Any]:
     """Verify /hpc_tools/nvidia_sdk is present and unchanged after staging."""
     summary = "HPC benchmarks NVIDIA SDK invariance"
     try:
@@ -1624,7 +1625,7 @@ def check_hpc_benchmarks_nvhpc_flow_unaffected(host):
 # ---------------------------------------------------------------------------
 # TC-16: CONTAINER IMAGE INVARIANCE
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_container_image_unaffected(host):
+def check_hpc_benchmarks_container_image_unaffected(host) -> Dict[str, Any]:
     """Verify /hpc_tools/container_images is unchanged after staging."""
     summary = "HPC benchmarks container image invariance"
     try:
@@ -1638,7 +1639,7 @@ def check_hpc_benchmarks_container_image_unaffected(host):
 # ---------------------------------------------------------------------------
 # TC-17: OpenMPI / UCX INVARIANCE
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_openmpi_unaffected(host):
+def check_hpc_benchmarks_openmpi_unaffected(host) -> Dict[str, Any]:
     """Verify OpenMPI/UCX discovery output is stable across a staging run."""
     summary = "HPC benchmarks OpenMPI invariance"
     try:
@@ -1733,7 +1734,7 @@ def check_hpc_benchmarks_openmpi_unaffected(host):
 # ---------------------------------------------------------------------------
 # TC-18: EXISTING DIRS PRESERVED (destructive)
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_existing_dirs_preserved(host):
+def check_hpc_benchmarks_existing_dirs_preserved(host) -> Dict[str, Any]:
     """Verify pre-existing /hpc_tools subdirectories survive a staging run."""
     summary = "HPC benchmarks existing directory preservation"
     try:
@@ -1789,7 +1790,7 @@ def check_hpc_benchmarks_existing_dirs_preserved(host):
 # ---------------------------------------------------------------------------
 # TC-19: STAGING IDEMPOTENCY (destructive)
 # ---------------------------------------------------------------------------
-def check_hpc_benchmarks_staging_idempotency(host):
+def check_hpc_benchmarks_staging_idempotency(host) -> Dict[str, Any]:
     """Rerun the staging script and verify the directory snapshot is stable.
 
     The deployed script emits ``[WARN] $tool already present ... Skipping``

@@ -160,7 +160,8 @@
   # Note: sinfo must be available on the control node's PATH.
   # If Slurm binaries are only available via login shell profile scripts,
   # ensure they are added to the system PATH or use a login shell wrapper.
-  ansible.builtin.command: "{{ ldms_sinfo_command }}"
+  ansible.builtin.command:
+    argv: "{{ ldms_sinfo_command }}"
   delegate_to: "{{ (groups['slurm_control_node'] | default([])) | first }}"
   register: _ldms_sinfo_output
   changed_when: false
@@ -267,8 +268,11 @@
       }}
     _ldms_deploy_reachable_hosts: >-
       {{
-        _ldms_deploy_reachable_hosts
-        | difference(_ldms_deploy_control_unreachable_hosts) | sort
+        (
+          _ldms_deploy_reachable_hosts
+          | difference(_ldms_deploy_control_unreachable_hosts)
+          | union(_ldms_deploy_reachable_control_hosts)
+        ) | unique | sort
       }}
     _ldms_deploy_reachable_control_hosts: >-
       {{
@@ -334,7 +338,11 @@
     fail_msg: >-
       Node {{ item }} is not in healthy state according to Slurm sinfo.
       Current sinfo status: {{ _ldms_sinfo_output.stdout }}
-  loop: "{{ _ldms_deploy_reachable_hosts | default([]) }}"
+  loop: >-
+    {{
+      (_ldms_deploy_reachable_hosts | default([]))
+      | difference(_ldms_deploy_reachable_control_hosts | default([]))
+    }}
   loop_control:
     label: "{{ item }}"
 

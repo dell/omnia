@@ -19,7 +19,7 @@ import re
 import shlex
 import time
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Dict, Tuple
 
 from ..vars.pxeboot_vars import (
     APPTAINER_IMAGE_DIRECTORY,
@@ -38,7 +38,7 @@ _SAFE_NODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,254}")
 _SAFE_USERNAME = re.compile(r"[A-Za-z_][A-Za-z0-9_.-]{0,63}")
 
 
-def apptainer_context(host):
+def apptainer_context(host) -> Tuple[Any, Any, Any, Any, Any]:
     """Return workload context, Slurm rows, controller, and compute rows."""
     context, rows, control, config = slurm_context(host)
     return context, rows, control, slurm_compute_rows(rows), config
@@ -229,7 +229,7 @@ def _wait_for_array_accounting(host, control, job_id, expected_tasks):
     }
 
 
-def run_targeted_container(host, control, compute, image_path: str, username=""):
+def run_targeted_container(host, control, compute, image_path: str, username="") -> Dict[str, Any]:
     """Run one synchronous Apptainer job on an exact mapped compute node."""
     node = safe_node_name(compute["HOSTNAME"])
     image = quoted_image(image_path)
@@ -273,7 +273,7 @@ def run_targeted_container(host, control, compute, image_path: str, username="")
     }
 
 
-def grouped_node_fields(rows, outcomes: Mapping[str, tuple[bool, str]]):
+def grouped_node_fields(rows, outcomes: Mapping[str, tuple[bool, str]]) -> list[tuple[str, str]]:
     """Render Apptainer outcomes using the standard functional-group layout."""
     fields = []
     groups: dict[str, list[dict[str, str]]] = {}

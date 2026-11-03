@@ -15,6 +15,7 @@
 """Apptainer runtime, shared-image, and download contracts after PXE."""
 
 import re
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
     APPTAINER_DOWNLOAD_MAX_RSS_KIB,
@@ -84,26 +85,26 @@ def _node_command_check(host, summary, command_key):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_runtime(host):
+def check_apptainer_runtime(host) -> Dict[str, Any]:
     """Verify the runtime and version command on every mapped compute."""
     return _node_command_check(host, "Apptainer runtime", "apptainer_runtime")
 
 
-def check_apptainer_shared_artifacts(host):
+def check_apptainer_shared_artifacts(host) -> Dict[str, Any]:
     """Verify the deployed download script, image list, and shared directories."""
     return _node_command_check(
         host, "Apptainer shared artifacts", "apptainer_shared_artifacts"
     )
 
 
-def check_apptainer_pulp_policy(host):
+def check_apptainer_pulp_policy(host) -> Dict[str, Any]:
     """Verify the deployed downloader has exactly one Pulp-only pull path."""
     return _node_command_check(
         host, "Apptainer Pulp download policy", "apptainer_pulp_policy"
     )
 
 
-def check_apptainer_shared_storage(host):
+def check_apptainer_shared_storage(host) -> Dict[str, Any]:
     """Verify /hpc_tools is a mounted shared filesystem on every compute."""
     summary = "Apptainer shared storage"
     try:
@@ -134,7 +135,7 @@ def check_apptainer_shared_storage(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_image_inventory(host):
+def check_apptainer_image_inventory(host) -> Dict[str, Any]:
     """Verify every compute sees the same non-empty SIF inventory."""
     summary = "Apptainer SIF inventory"
     try:
@@ -210,7 +211,7 @@ def _check_each_image(host, summary, probe):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_sif_format(host):
+def check_apptainer_sif_format(host) -> Dict[str, Any]:
     """Run apptainer inspect against every discovered SIF on every compute."""
     return _check_each_image(
         host,
@@ -226,7 +227,7 @@ def check_apptainer_sif_format(host):
     )
 
 
-def check_apptainer_sif_permissions(host):
+def check_apptainer_sif_permissions(host) -> Dict[str, Any]:
     """Verify every shared SIF is non-empty and world-readable."""
     return _check_each_image(
         host,
@@ -237,7 +238,7 @@ def check_apptainer_sif_permissions(host):
     )
 
 
-def check_apptainer_sif_integrity(host):
+def check_apptainer_sif_integrity(host) -> Dict[str, Any]:
     """Verify the selected shared SIF has one stable checksum on every compute."""
     summary = "Apptainer SIF checksum consistency"
     try:
@@ -283,7 +284,7 @@ def check_apptainer_sif_integrity(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_ldap_readability(host):
+def check_apptainer_ldap_readability(host) -> Dict[str, Any]:
     """Verify the configured LDAP test identity can read the selected SIF."""
     summary = "Apptainer LDAP SIF readability"
     try:
@@ -322,7 +323,7 @@ def check_apptainer_ldap_readability(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_non_root_execution(host):
+def check_apptainer_non_root_execution(host) -> Dict[str, Any]:
     """Execute one selected image as the configured unprivileged LDAP account."""
     summary = "Apptainer unprivileged execution"
     try:
@@ -381,7 +382,7 @@ def _require_image_download(summary):
     return None
 
 
-def check_apptainer_download(host):
+def check_apptainer_download(host) -> Dict[str, Any]:
     """Run the deployed Pulp-only downloader and verify a usable image exists."""
     summary = "Apptainer image download"
     try:
@@ -416,7 +417,7 @@ def check_apptainer_download(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_download_idempotency(host):
+def check_apptainer_download_idempotency(host) -> Dict[str, Any]:
     """Rerun the downloader and prove existing SIF files were not replaced."""
     summary = "Apptainer image download idempotency"
     try:
@@ -465,7 +466,7 @@ def check_apptainer_download_idempotency(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_download_memory(host):
+def check_apptainer_download_memory(host) -> Dict[str, Any]:
     """Run the downloader with peak-RSS accounting and enforce a safe bound."""
     summary = "Apptainer image download memory"
     try:
@@ -508,7 +509,7 @@ def check_apptainer_download_memory(host):
         return runtime_exception(summary, exc)
 
 
-def check_apptainer_missing_image_contract(host):
+def check_apptainer_missing_image_contract(host) -> Dict[str, Any]:
     """Verify the downloader counts failures and exits non-zero when pulls fail."""
     return _node_command_check(
         host,

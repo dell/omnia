@@ -99,6 +99,13 @@ TEST_NAMES = {
     "user_registry_tls_pair_consistent": "Verify client cert and key are configured together",
     "user_registry_auth_type_valid": "Verify registry auth type is valid",
     "user_registry_credentials_present": "Verify registry credentials are configured",
+    "user_registry_auth_credentials_valid": "Verify registry authenticates with vault credentials",
+    "user_registry_no_duplicate_hosts": "Verify no duplicate registry host entries",
+    "user_registry_https_cert_cn_valid": "Verify HTTPS certificates have valid CN/SAN",
+    "user_registry_distributions": "Verify Pulp container distributions exist for user registries",
+    "user_registry_remotes_in_pulp": (
+        "Verify Pulp container remotes are created for user registries"
+    ),
 }
 
 TEST_LOG_MSGS = {
@@ -160,6 +167,8 @@ TEST_LOG_MSGS = {
     "pulp_cli_missing": "Managed Pulp CLI launcher missing or unusable",
     "pulp_dirs_removed": "Pulp directories removed",
     "pulp_dirs_still_exist": "Pulp directories still exist",
+    "credentials_per_flag_ok": "Credential store matches cleanup_credentials",
+    "credentials_per_flag_failed": "Credential store does not match cleanup_credentials",
     # Policy Override Tests
     "global_config_failed": "Cannot read global configuration",
     "global_caching_failed": "Cannot read global caching configuration",
@@ -239,6 +248,24 @@ TEST_LOG_MSGS = {
     "user_registry_auth_type_invalid": "Auth type is unsupported",
     "user_registry_credentials_ok": "Registry credentials are present",
     "user_registry_credentials_missing": "Registry credentials are missing",
+    "user_registry_auth_credentials_ok": (
+        "Registry authenticated successfully with vault credentials"
+    ),
+    "user_registry_auth_credentials_fail": (
+        "Registry authentication failed with vault credentials"
+    ),
+    "user_registry_no_duplicate_hosts_ok": "No duplicate registry host entries found",
+    "user_registry_duplicate_hosts_found": "Duplicate registry host entries found",
+    "user_registry_cert_cn_ok": "All HTTPS certificates have valid CN/SAN",
+    "user_registry_cert_cn_invalid": "HTTPS certificates missing CN/SAN",
+    "user_registry_distributions_ok": (
+        "Pulp container distributions exist for user registries"
+    ),
+    "user_registry_distributions_missing": (
+        "Pulp container distributions missing for user registries"
+    ),
+    "user_registry_remotes_ok": "Pulp container remotes exist for user registries",
+    "user_registry_remotes_missing": "Pulp container remotes missing for user registries",
 }
 
 TEST_ASSERT_MSGS = {
@@ -271,6 +298,12 @@ TEST_ASSERT_MSGS = {
     "pulp_container_still_exists": "Pulp container must be removed after cleanup",
     "pulp_cli_missing": "Managed Pulp CLI must remain usable after cleanup",
     "pulp_dirs_still_exist": "Pulp directories must be removed after cleanup",
+    "credentials_per_flag_failed": (
+        "Credential store does not match cleanup_credentials: {error}\n"
+        "HOW TO FIX:\n"
+        "  1. true: the cleanup must remove repo_manager_config_credentials.yml and its key\n"
+        "  2. false: the cleanup runs with -e cleanup_credentials=false and must keep both"
+    ),
     # Policy Override Tests
     "per_repo_policy_must_override": "Per-repo policy must override global repo_config",
     "per_repo_caching_must_override": "Per-repo caching must override global caching_policy",
@@ -319,4 +352,19 @@ TEST_ASSERT_MSGS = {
     "user_registry_tls_pair_must_be_consistent": "Client cert and key must be configured together",
     "user_registry_auth_type_must_be_valid": "Registry auth type must be none or basic",
     "user_registry_credentials_must_exist": "Registry credentials must be present for basic auth",
+    "user_registry_auth_credentials_must_pass": (
+        "Registry must authenticate with vault credentials"
+    ),
+    "user_registry_no_duplicate_hosts_must_pass": (
+        "No duplicate registry host entries must exist"
+    ),
+    "user_registry_cert_cn_must_be_valid": (
+        "HTTPS certificates must have valid CN/SAN"
+    ),
+    "user_registry_distributions_must_exist": (
+        "Pulp container distributions must exist for user registries"
+    ),
+    "user_registry_remotes_must_exist": (
+        "Pulp container remotes must be created for user registries"
+    ),
 }

@@ -38,6 +38,17 @@
 #   ansible-playbook telemetry.yml --tags validation
 # =============================================================================
 
+- name: Standalone setup for validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Run telemetry_setup role (standalone only)
+      ansible.builtin.include_role:
+        name: telemetry_setup
+      when: not (telemetry_setup_done | default(false) | bool)
+
 - name: "Telemetry Input Validation | L1 + L2 for all telemetry input files"
   hosts: localhost
   connection: local

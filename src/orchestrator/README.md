@@ -186,7 +186,6 @@ src/orchestrator/
 | `omnia.orchestrator.node_boot_status` | Verify fresh boot and cloud-init completion on a provisioned node |
 | `omnia.orchestrator.openchami_reconcile` | Resolve persistent SMD identities and reconcile OpenCHAMI state through verified APIs |
 | `omnia.orchestrator.slurm_conf` | Parse, merge, and render Slurm configuration |
-| `omnia.orchestrator.generate_argon2_password` | Generate Argon2 password hashes |
 | `omnia.orchestrator.validate_system_environment` | Validate the OIM system environment |
 
 ### Action Plugins

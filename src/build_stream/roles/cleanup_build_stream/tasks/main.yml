@@ -16,6 +16,13 @@
 # Runs on OIM host (hosts: oim) — all systemd/podman operations
 # execute on the OIM where containers actually run.
 
+- name: Validate credential cleanup selection
+  ansible.builtin.assert:
+    that:
+      - cleanup_credentials is not defined or (cleanup_credentials | string | trim | lower) in ['true', 'false']
+    fail_msg: "{{ cleanup_credentials_invalid_msg }}"
+    quiet: true
+
 - name: Cleanup omnia_build_stream container and playbook watcher
   ansible.builtin.import_tasks: cleanup_build_stream_container.yml
   tags: build_stream
@@ -26,6 +33,7 @@
 
 - name: Cleanup build_stream credentials
   ansible.builtin.import_tasks: cleanup_credentials.yml
+  when: cleanup_credentials | default(true) | bool
   tags: credentials
 
 - name: Remove BuildStream host playbook logs after successful cleanup

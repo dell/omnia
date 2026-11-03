@@ -67,7 +67,7 @@ DEFAULT_PLAYBOOK_INPUT_DIR = os.path.join(
 # Restart state directory where the playbook reads failed_nodes.json for retry logic.
 # Derived from NFS_ARTIFACT_BASE (set in container env) or OMNIA_DATA_PATH.
 RESTART_STATE_DIR = os.path.join(
-    os.getenv("NFS_ARTIFACT_BASE", os.path.join(_OMNIA_DATA_PATH, "build_stream_root")),
+    os.getenv("NFS_ARTIFACT_BASE", os.path.join(_OMNIA_DATA_PATH, "build_stream", "build_stream_root")),
     "restart_state",
 )
 

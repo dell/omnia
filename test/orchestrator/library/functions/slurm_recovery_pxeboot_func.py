@@ -16,6 +16,7 @@
 
 import re
 import time
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
     PXEBOOT_COMMANDS,
@@ -94,7 +95,7 @@ def _wait_for_slurm_state(host, control, node_name, desired="idle"):
     return False, state
 
 
-def check_slurm_cluster_recovery(host):
+def check_slurm_cluster_recovery(host) -> Dict[str, Any]:
     """Reboot mapped Slurm nodes and verify boot, cloud-init, services, and accounting.
 
     Recovery verification proceeds in phases, each reported per node:

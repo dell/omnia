@@ -57,6 +57,7 @@ _SAFE_CONTAINER_DIGEST_PATTERN = re.compile(
     r"[A-Za-z0-9=_-]{32,}$"
 )
 _CONTROL_OR_WHITESPACE_PATTERN = re.compile(r"[\x00-\x20\x7f]")
+_CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _MALFORMED_PERCENT_ESCAPE_PATTERN = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _CATALOG_PLACEHOLDER_PATTERN = re.compile(
     r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}"
@@ -80,6 +81,82 @@ _SENSITIVE_QUERY_KEYS = frozenset({
     "xgoogcredential",
     "xgoogsignature",
 })
+
+
+def validate_cli_argument(value, field_name="value"):
+    """Validate a CLI argument for whitespace and control characters.
+
+    Any value interpolated into a subprocess argv must not contain whitespace
+    or control characters, which could be interpreted as additional CLI tokens
+    or options by the target program.  Call this helper before embedding
+    catalog-derived or user-supplied values in command lists.
+
+    Args:
+        value: The argument value to validate.
+        field_name: Human-readable field name for error messages.
+
+    Returns:
+        str: The validated value.
+
+    Raises:
+        ValueError: When the value is not a non-empty string or contains
+            whitespace / control characters.
+    """
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+    if _CONTROL_OR_WHITESPACE_PATTERN.search(value):
+        raise ValueError(
+            f"{field_name} cannot contain whitespace or control characters"
+        )
+    return value
+
+
+def validate_cli_path(value, field_name="path"):
+    """Validate a file-system path used as a single subprocess argv element.
+
+    Unlike :func:`validate_cli_argument`, this helper **allows spaces** in
+    the value because a path passed as a distinct argv element with
+    ``shell=False`` is not split on whitespace by the OS.  It still rejects
+    control characters (NUL, tabs, newlines, etc.) that could corrupt
+    command output or trick log parsers.
+
+    Use ``validate_cli_argument`` for catalog-derived *identifiers* (package
+    names, repo names, CLI option values) where whitespace is never legitimate.
+    Use ``validate_cli_path`` for *file-system paths* that may legitimately
+    contain spaces when the deployment root is configured with spaces.
+
+    Args:
+        value: The path value to validate.
+        field_name: Human-readable field name for error messages.
+
+    Returns:
+        str: The validated value.
+
+    Raises:
+        ValueError: When the value is not a non-empty string or contains
+            control characters (excluding ordinary space 0x20).
+    """
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+    if _CONTROL_CHAR_PATTERN.search(value):
+        raise ValueError(
+            f"{field_name} cannot contain control characters"
+        )
+    return value
+
+
+def validate_positional_argument(value, field_name="value"):
+    """Validate a positional CLI value that must not be parsed as an option.
+
+    Applies :func:`validate_cli_argument` and also rejects a leading ``-``,
+    so a value placed in a positional slot (for example a Git ref passed to
+    ``--branch`` or a pip requirement) cannot be read as a flag such as
+    ``--upload-pack=...`` or ``--index-url=...``.
+    """
+    validate_cli_argument(value, field_name)
+    if value.startswith("-"):
+        raise ValueError(f"{field_name} cannot start with '-'")
+    return value
 
 
 class ArtifactUrlValidationError(ValueError):
@@ -357,13 +434,13 @@ def normalize_managed_python_distribution_url(
 
 def validate_repository_id(repository_id):
     """Return a repository identifier safe for an INI section header."""
-    if (
-            not isinstance(repository_id, str)
-            or not repository_id
-            or not _SAFE_REPOSITORY_ID_PATTERN.fullmatch(repository_id)
-    ):
+    match = (
+        _SAFE_REPOSITORY_ID_PATTERN.fullmatch(repository_id)
+        if isinstance(repository_id, str) else None
+    )
+    if not match:
         raise ValueError("Repository identifier contains unsupported characters")
-    return repository_id
+    return shlex.quote(match.group(0))
 
 
 def validate_python_package_name(package_name):
@@ -596,7 +673,13 @@ def redact_sensitive_value(value, key_name=""):
 
 
 def _as_command_args(command):
-    """Return command arguments when they can be parsed without execution."""
+    """Return command arguments when they can be parsed without execution.
+
+    This helper is used **only for log masking and output redaction** — never
+    for building an argv that is passed to ``subprocess``.  The ``shlex.split``
+    fallback exists solely to tokenise legacy string-form commands that appear
+    in log lines; it must not be used to construct executable command lists.
+    """
     if isinstance(command, (list, tuple)):
         return [str(value) for value in command]
     try:

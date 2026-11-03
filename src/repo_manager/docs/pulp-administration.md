@@ -30,7 +30,7 @@ Other plugins present in the Pulp image are not enabled Repo Manager backends.
 
 | Item | Current contract |
 |------|------------------|
-| Pulp image default | `docker.io/pulp/pulp:3.114.2` |
+| Pulp image default | `docker.io/pulp/pulp:3.123.1` |
 | Service | `pulp.service` |
 | Container | `pulp` |
 | External protocol | HTTPS only |

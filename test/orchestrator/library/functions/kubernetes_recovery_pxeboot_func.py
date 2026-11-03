@@ -16,6 +16,7 @@
 
 import ipaddress
 import time
+from typing import Any, Dict
 
 from ..vars.pxeboot_vars import (
     ETCD_HEALTH_WAIT_TIMEOUT_SECONDS,
@@ -147,7 +148,7 @@ def _cluster_node_name(host, control, row) -> str:
     return name
 
 
-def check_kubernetes_control_plane_recovery(host):
+def check_kubernetes_control_plane_recovery(host) -> Dict[str, Any]:
     """Reboot the VIP owner and verify failover, cloud-init, and node recovery."""
     summary = "Kubernetes control-plane recovery"
     try:
@@ -285,7 +286,7 @@ def check_kubernetes_control_plane_recovery(host):
         return runtime_exception(summary, exc)
 
 
-def check_kubernetes_local_etcd_recovery(host):
+def check_kubernetes_local_etcd_recovery(host) -> Dict[str, Any]:
     """Reboot one control plane and prove local-etcd identity is preserved."""
     summary = "Kubernetes local-etcd reboot persistence"
     try:
