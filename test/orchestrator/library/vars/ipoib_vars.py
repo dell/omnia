@@ -14,7 +14,9 @@
 
 """Immutable contracts for ER-ORCH-005 IPoIB input and post-boot checks."""
 
+import os
 import re
+import tempfile
 
 IB_NETWORK_KEY = "ib_network"
 IB_MODE_DUAL_STACK = "dual-stack"
@@ -371,8 +373,8 @@ IPOIB_COMM_PATH_COMMANDS: dict[str, str] = {
 IPOIB_COMM_CAPTURE_TIMEOUT = 25
 IPOIB_COMM_JOB_SLEEP = 5
 IPOIB_COMM_SETTLE_SECONDS = 3
-IPOIB_COMM_V4_PCAP = "/tmp/omnia_fvt_comm_v4.pcap"
-IPOIB_COMM_V6_PCAP = "/tmp/omnia_fvt_comm_v6.pcap"
+IPOIB_COMM_V4_PCAP = os.path.join(tempfile.gettempdir(), "omnia_fvt_comm_v4.pcap")
+IPOIB_COMM_V6_PCAP = os.path.join(tempfile.gettempdir(), "omnia_fvt_comm_v6.pcap")
 # Slurm port classification
 IPOIB_SLURM_PORT_SLURMCTLD = 6817
 IPOIB_SLURM_PORT_SLURMD = 6818
