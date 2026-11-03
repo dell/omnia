@@ -237,6 +237,7 @@ def main():
                     "remove_group_memberships",
                     "delete_groups",
                     "cleanup_smd",
+                    "cleanup_orphan_smd_entries",
                     "discover_static",
                     "verify_components",
                     "list_boot_configurations",
@@ -283,6 +284,16 @@ def main():
                 "default": [],
             },
             "interface_macs": {
+                "type": "list",
+                "elements": "str",
+                "default": [],
+            },
+            "current_service_tags": {
+                "type": "list",
+                "elements": "str",
+                "default": [],
+            },
+            "current_macs": {
                 "type": "list",
                 "elements": "str",
                 "default": [],
@@ -379,6 +390,12 @@ def main():
                 component_endpoint_xnames=module.params["component_endpoint_xnames"],
                 redfish_endpoint_xnames=module.params["redfish_endpoint_xnames"],
                 interface_macs=module.params["interface_macs"],
+                check_mode=module.check_mode,
+            )
+        elif action == "cleanup_orphan_smd_entries":
+            result = reconciler.cleanup_orphan_smd_entries(
+                current_service_tags=_required(module, "current_service_tags"),
+                current_macs=_required(module, "current_macs"),
                 check_mode=module.check_mode,
             )
         elif action == "discover_static":
