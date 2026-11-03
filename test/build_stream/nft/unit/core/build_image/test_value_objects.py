@@ -137,6 +137,7 @@ class TestFunctionalGroups:
         with pytest.raises(ValueError, match="Invalid functional group name"):
             FunctionalGroups(["valid_group", "invalid@group"])
 
+
 class TestInventoryHost:
     """Test cases for InventoryHost value object."""
 

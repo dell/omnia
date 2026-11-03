@@ -56,7 +56,11 @@ class TestGetJobSuccess:
 
         assert get_response.status_code == 200
         stages = get_response.json()["stages"]
-        assert len(stages) == 6  # Omnia 2.3+: 6 active stages (domain-segregated)
+        # create_job seeds every build and deploy pipeline stage (Omnia 2.3+).
+        assert sorted(stage["stage_name"] for stage in stages) == sorted([
+            "parse-catalog", "create-local-repository", "build-image",
+            "validate", "restart", "upload", "deploy",
+        ])
 
     def test_get_job_returns_correlation_id(self, client, auth_headers, unique_correlation_id):
         """Get job should return correlation ID from headers."""

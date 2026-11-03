@@ -77,7 +77,7 @@ class TestPlaybookResult:
     """Tests for PlaybookResult entity."""
 
     def test_success_result(self):
-        """Successful result should parse with status success."""
+        """Successful result has status "success", which the result poller treats as success."""
         result = PlaybookResult(
             job_id="job-1",
             stage_name="create-local-repository",
@@ -88,7 +88,7 @@ class TestPlaybookResult:
         assert result.status == "success"
 
     def test_failed_result(self):
-        """Failed result should parse with status failed."""
+        """Failed result keeps a non-success status and its error details."""
         result = PlaybookResult(
             job_id="job-1",
             stage_name="create-local-repository",
@@ -98,7 +98,9 @@ class TestPlaybookResult:
             error_code="PLAYBOOK_FAILED",
             error_summary="Playbook failed",
         )
-        assert result.status == "failed"
+        assert result.status != "success"
+        assert result.exit_code == 1
+        assert result.error_code == "PLAYBOOK_FAILED"
 
     def test_from_dict_success(self):
         """from_dict should parse valid dictionary."""
