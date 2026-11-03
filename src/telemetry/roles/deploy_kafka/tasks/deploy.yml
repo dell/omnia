@@ -51,9 +51,9 @@
       {% set _bridge_img = telemetry_registry.images.strimzi.kafka_bridge | default('quay.io/strimzi/kafka-bridge:1.2.0') %}
       {% set _br_tag = _bridge_img.split(':')[-1] %}
       {% if telemetry_registry.host | default('') %}
-      --set defaultImageRegistry={{ telemetry_registry.host }}
-      --set image.tag={{ _op_tag }}
-      --set kafkaBridge.image.tag={{ _br_tag }}
+      --set defaultImageRegistry={{ telemetry_registry.host | quote }}
+      --set image.tag={{ _op_tag | quote }}
+      --set kafkaBridge.image.tag={{ _br_tag | quote }}
       {% endif %}
 
 - name: Install or upgrade Strimzi Kafka operator
