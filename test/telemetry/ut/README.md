@@ -7,7 +7,7 @@ UT IDs use `TEL_UT_<SEQ>`: `TEL` is the stable Telemetry domain code, `UT` ident
 UT IDs also use `TEL_UT_CLEANUP_V<SEQ>` for cleanup sink tests: `TEL` is the stable Telemetry domain code, `UT` identifies the test level, `CLEANUP` identifies the subsystem, and `V<SEQ>` is a stable three-digit sequence.
 
 Every registered unit-test function has a stable ID in the range `TEL_UT_001`
-through `TEL_UT_080` and `TEL_UT_CLEANUP_V019` through `TEL_UT_CLEANUP_V062`. The centralized mapping is maintained in
+through `TEL_UT_077` and `TEL_UT_CLEANUP_V019` through `TEL_UT_CLEANUP_V062`. The centralized mapping is maintained in
 `library/vars/test_case_vars.py`; descriptive pytest function names remain
 unchanged.
 
@@ -21,8 +21,8 @@ unchanged.
 | `TEL_UT_047`–`TEL_UT_049` | `test_kafka_topic_lifecycle.py` | Non-destructive topic-manifest cleanup, enabled-source application, and readiness gating |
 | `TEL_UT_050`–`TEL_UT_056` | `test_disabled_state_fvt.py` | Disabled workload detection, required shared-sink health, and PowerScale quiet-window probes |
 | `TEL_UT_062`–`TEL_UT_066` | `test_input_validation_fail_closed.py` | Telemetry `validate_input` fails closed on unknown or empty tags |
-| `TEL_UT_067`–`TEL_UT_070` | `test_credential_no_log.py` | Credential `no_log` coverage, fail-closed checker, and restricted log permissions (CWE-532) |
-| `TEL_UT_071`–`TEL_UT_080` | `test_idrac_bmc_inventory.py` | iDRAC MySQL ↔ `bmc_group_data.csv` parity (missing, stale, wrong-pod, duplicate rows), CSV parsing, safe lifecycle BMC selection, and MySQL-only node deletion |
+| `TEL_UT_067` | `test_log_permissions.py` | Restricted Ansible log directory/file permissions (CWE-532) |
+| `TEL_UT_068`–`TEL_UT_077` | `test_idrac_bmc_inventory.py` | iDRAC MySQL ↔ `bmc_group_data.csv` parity (missing, stale, wrong-pod, duplicate rows), CSV parsing, safe lifecycle BMC selection, and MySQL-only node deletion |
 | `TEL_UT_CLEANUP_V019`–`TEL_UT_CLEANUP_V035` | `cleanup_sinks/test_cleanup_sinks_deps.py` | Cleanup sink dependency checking for Kafka, VictoriaMetrics, and VictoriaLogs |
 | `TEL_UT_CLEANUP_V036`–`TEL_UT_CLEANUP_V045` | `cleanup_sinks/test_cleanup_sinks_shortform.py` | Cleanup sink short-form parameter syntax and normalization |
 | `TEL_UT_CLEANUP_V046`–`TEL_UT_CLEANUP_V062` | `test_cleanup_sinks_parameter_normalization.py` | Parameter normalization logic for short-form sink arguments |
@@ -146,29 +146,30 @@ unchanged.
 | TEL_UT_065 | Valid tag reaches file validation | ut |
 | TEL_UT_066 | Supported tags cover public and play tags | ut |
 
-### Credential Log Hygiene (TEL_UT_067–TEL_UT_070)
+### Ansible Log Permissions (TEL_UT_067)
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TEL_UT_067 | Credential-like module arguments declare no_log | ut |
-| TEL_UT_068 | Tasks passing telemetry_credentials.* declare no_log | ut |
-| TEL_UT_069 | Checker fails closed on templated no_log and unparseable files | ut |
-| TEL_UT_070 | Ansible log dir/files are restricted and rotated | ut |
+| TEL_UT_067 | Ansible log dir/files are restricted | ut |
 
-### iDRAC BMC Inventory (TEL_UT_071–TEL_UT_080)
+The credential `no_log` checker (`.github/scripts/check_credential_no_log.py`)
+is CI tooling, so its tests live in `.github/scripts/tests/` and run in the
+`credential-no-log.yml` workflow, not in this suite.
+
+### iDRAC BMC Inventory (TEL_UT_068–TEL_UT_077)
 
 | TC ID | Test | Marker |
 |-------|------|--------|
-| TEL_UT_071 | Empty pod whose BMC is only "reported unsupported" passes with warning | ut |
-| TEL_UT_072 | CSV BMC missing from MySQL and not reported unsupported fails | ut |
-| TEL_UT_073 | BMC deleted from CSV but left in MySQL fails | ut |
-| TEL_UT_074 | BMC registered in the wrong pod fails | ut |
-| TEL_UT_075 | Zero registered BMCs fails even when all are reported unsupported | ut |
-| TEL_UT_076 | Duplicate rows, failed MySQL queries and non-running pods fail | ut |
-| TEL_UT_077 | CSV parser matches the deploy-time parser | ut |
-| TEL_UT_078 | idrac_nft_bmc_ip validation (in CSV, registered, keeps pod layout) | ut |
-| TEL_UT_079 | Node deletion only removes MySQL rows (no Redfish change) | ut |
-| TEL_UT_080 | idrac_nft_bmc_ip config parsing and IPv4 validation | ut |
+| TEL_UT_068 | Empty pod whose BMC is only "reported unsupported" passes with warning | ut |
+| TEL_UT_069 | CSV BMC missing from MySQL and not reported unsupported fails | ut |
+| TEL_UT_070 | BMC deleted from CSV but left in MySQL fails | ut |
+| TEL_UT_071 | BMC registered in the wrong pod fails | ut |
+| TEL_UT_072 | Zero registered BMCs fails even when all are reported unsupported | ut |
+| TEL_UT_073 | Duplicate rows, failed MySQL queries and non-running pods fail | ut |
+| TEL_UT_074 | CSV parser matches the deploy-time parser | ut |
+| TEL_UT_075 | idrac_nft_bmc_ip validation (in CSV, registered, keeps pod layout) | ut |
+| TEL_UT_076 | Node deletion only removes MySQL rows (no Redfish change) | ut |
+| TEL_UT_077 | idrac_nft_bmc_ip config parsing and IPv4 validation | ut |
 
 ### Cleanup Sinks Dependency Checking (TEL_UT_CLEANUP_V019–TEL_UT_CLEANUP_V035)
 
@@ -243,7 +244,7 @@ pytest ut/cleanup_sinks/test_cleanup_sinks_deps.py -v
 pytest ut/cleanup_sinks/test_cleanup_sinks_shortform.py -v
 pytest ut/test_cleanup_sinks_parameter_normalization.py -v
 pytest ut/test_input_validation_fail_closed.py -v
-pytest ut/test_credential_no_log.py -v
+pytest ut/test_log_permissions.py -v
 pytest ut/test_idrac_bmc_inventory.py -v
 
 # Run with coverage
@@ -258,8 +259,8 @@ pytest ut/ -vv -s
 All UT tests should **PASS**:
 
 ```
-Total Tests:           131
-├─ Passed:            104 (79%)
+Total Tests:           128
+├─ Passed:            101 (79%)
 ├─ Failed:              0 (0%)
 └─ Skipped:            27 (21%) — Expected behavior (cleanup_sinks tests skip when no dependencies running)
 
@@ -271,8 +272,8 @@ OME Lifecycle (TEL_UT_040–TEL_UT_046): 7/7 PASS
 Kafka Topic Lifecycle (TEL_UT_047–TEL_UT_049): 3/3 PASS
 Disabled-State FVT Helpers (TEL_UT_050–TEL_UT_056): 7/7 PASS
 Input Validation Fail-Closed (TEL_UT_062–TEL_UT_066): 5/5 PASS
-Credential Log Hygiene (TEL_UT_067–TEL_UT_070): 4/4 PASS
-iDRAC BMC Inventory (TEL_UT_071–TEL_UT_080): 10/10 PASS
+Ansible Log Permissions (TEL_UT_067): 1/1 PASS
+iDRAC BMC Inventory (TEL_UT_068–TEL_UT_077): 10/10 PASS
 Cleanup Sinks Dependency Checking (TEL_UT_CLEANUP_V019–TEL_UT_CLEANUP_V035): 1/17 PASS (16 skipped - no dependencies running)
 Cleanup Sinks Short-Form Parameters (TEL_UT_CLEANUP_V036–TEL_UT_CLEANUP_V045): 0/9 PASS (9 skipped - no dependencies running)
 Cleanup Sinks Parameter Normalization (TEL_UT_CLEANUP_V046–TEL_UT_CLEANUP_V062): 17/17 PASS

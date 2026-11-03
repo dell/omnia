@@ -76,6 +76,9 @@ The check validates:
   `no_log: true`; templated or conditional values are rejected
 - Files the checker cannot parse are reported as violations
 
+The checker's own tests live in `.github/scripts/tests/` and run in the same
+workflow: `python -m pytest .github/scripts/tests`.
+
 ## Omnia Branches and Contribution Flow
 Omnia development targets the repository's current default branch (`main`). Use
 short-lived feature or fix branches and merge changes through reviewed pull
