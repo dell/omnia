@@ -22,9 +22,17 @@
   ansible.builtin.set_fact:
     admin_subnet: "{{ (network_spec_data.Networks | selectattr('admin_network', 'defined') | first).admin_network.subnet | default('') }}"
 
-- name: Set ib_subnet from network spec
+- name: Extract ib_network from network spec
   ansible.builtin.set_fact:
-    ib_subnet: "{{ (network_spec_data.Networks | selectattr('ib_network', 'defined') | first).ib_network.subnet | default('') }}"
+    _ib_net: "{{ (network_spec_data.Networks | selectattr('ib_network', 'defined') | first).ib_network | default({}) }}"
+
+- name: Set ib_subnet from network spec (new ipv4_subnet with legacy fallback)
+  ansible.builtin.set_fact:
+    ib_subnet: "{{ _ib_net.ipv4_subnet | default(_ib_net.subnet | default('')) }}"
+
+- name: Set ipv6_subnet from network spec
+  ansible.builtin.set_fact:
+    ipv6_subnet: "{{ _ib_net.ipv6_subnet | default('') }}"
 
 - name: Set timestamp for PXE mapping file
   ansible.builtin.set_fact:
@@ -54,6 +62,7 @@
     hostname_start: "{{ hostname_start_number }}"
     hostname_padding: "{{ hostname_padding }}"
     ib_subnet: "{{ ib_subnet }}"
+    ipv6_subnet: "{{ ipv6_subnet }}"
     admin_subnet: "{{ admin_subnet }}"
   register: pxe_mapping_result
 

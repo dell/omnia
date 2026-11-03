@@ -48,7 +48,9 @@ component override is unset or empty.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `Networks[].admin_network.subnet` | string | Yes | Admin network prefix used for ADMIN_IP derivation (e.g., `172.16.107.0`) |
-| `Networks[].ib_network.subnet` | string | No | InfiniBand subnet for IB IP derivation |
+| `Networks[].ib_network.ipv4_subnet` | string | No | InfiniBand IPv4 subnet for IB_IPV4 derivation (new format) |
+| `Networks[].ib_network.ipv6_subnet` | string | No | InfiniBand IPv6 subnet for IB_IPV6 derivation (e.g., `fd00:1b::`) |
+| `Networks[].ib_network.subnet` | string | No | InfiniBand subnet for IB IP derivation (legacy format, fallback) |
 
 ### Validation Rules
 
@@ -56,9 +58,10 @@ component override is unset or empty.
   `network_spec.json` schema as Orchestrator.
 - File must exist and be valid YAML with a `Networks` array.
 - At least one `admin_network` entry is required with `subnet` and `netmask_bits`.
-- Discovery consumes `admin_network.subnet` and `ib_network.subnet` for IP
-  derivation; the mapping generator derives output addresses from the first
-  two subnet octets and the last two BMC-IP octets.
+- Discovery consumes `admin_network.subnet`, `ib_network.ipv4_subnet`
+  (or legacy `ib_network.subnet`), and `ib_network.ipv6_subnet` for IP
+  derivation; the mapping generator derives output addresses from the
+  subnet prefix and the last two BMC-IP octets.
 
 ---
 
