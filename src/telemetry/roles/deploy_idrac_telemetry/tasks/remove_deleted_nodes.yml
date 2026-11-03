@@ -50,7 +50,6 @@
         ips_to_delete: "{{ ips_to_remove }}"
         pod_to_db_idrac_ips: "{{ existing_pod_to_db_idrac_ips }}"
       register: delete_idrac_result
-      no_log: true
   rescue:
     - name: Failed to delete iDRAC IPs from MySQL database
       ansible.builtin.fail:

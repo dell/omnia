@@ -74,6 +74,11 @@ The check validates:
 - Role/playbook tasks (`*.yml`): every task that references a credential
   variable (e.g., `telemetry_credentials.*`) must set task-level
   `no_log: true`; templated or conditional values are rejected
+- Exception: a task calling a custom module (`plugins/modules/*.py`) may omit
+  task-level `no_log` when every credential is passed only to arguments that
+  the module declares `no_log: True`, so failures stay debuggable. Such
+  modules must report every error through `module.fail_json` (which masks
+  those values); an uncaught exception message is logged unmasked
 - Files the checker cannot parse are reported as violations
 
 The checker's own tests live in `.github/scripts/tests/` and run in the same

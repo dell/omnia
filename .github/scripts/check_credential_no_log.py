@@ -21,6 +21,12 @@ Checks performed under each domain root (default: src/telemetry):
   2. Role/playbook tasks (*.yml): every task that references a credential
      variable (e.g. ``telemetry_credentials.*``) must set task-level
      ``no_log: true`` (templated or conditional values are rejected).
+     Exception: a task calling a custom module from plugins/modules may omit
+     it when every credential is passed only to arguments that module
+     declares ``no_log: True``; AnsibleModule masks those values in every
+     exit_json/fail_json result. Credentials anywhere else in the task
+     (other arguments, loop, vars, environment, built-in modules) still
+     require task-level no_log.
 
 Files that cannot be parsed are reported as violations (fail closed).
 
@@ -100,6 +106,20 @@ def check_modules(modules_dir):
     return violations
 
 
+def module_no_log_args(modules_dir):
+    """Map each parseable custom module name to its arguments declared no_log: True."""
+    masked = {}
+    for path in sorted(Path(modules_dir).glob("*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except SyntaxError:
+            continue  # reported by check_modules; such modules get no exemption
+        masked[path.stem] = {
+            name for name, opts, _ in _spec_entries(tree) if _const(opts.get("no_log")) is True
+        }
+    return masked
+
+
 def _iter_tasks(items):
     for task in items or []:
         if not isinstance(task, dict):
@@ -110,9 +130,23 @@ def _iter_tasks(items):
                 yield from _iter_tasks(task[key])
 
 
-def _references_credentials(task):
-    payload = {k: v for k, v in task.items() if k not in NON_LEAKING_KEYWORDS}
-    return bool(CREDENTIAL_VAR_RE.search(yaml.safe_dump(payload, default_flow_style=True)))
+def _has_credentials(value):
+    return bool(CREDENTIAL_VAR_RE.search(yaml.safe_dump(value, default_flow_style=True)))
+
+
+def _references_credentials(task, custom_modules):
+    """True when a credential can reach task output that Ansible does not mask."""
+    for key, value in task.items():
+        if key in NON_LEAKING_KEYWORDS:
+            continue
+        masked_args = custom_modules.get(str(key).rsplit(".", 1)[-1])
+        if masked_args is not None and isinstance(value, dict):
+            if any(_has_credentials(arg_value) for arg, arg_value in value.items()
+                   if arg not in masked_args):
+                return True
+        elif _has_credentials({key: value}):
+            return True
+    return False
 
 
 def _no_log_enabled(value):
@@ -123,6 +157,7 @@ def _no_log_enabled(value):
 
 def check_tasks(domain_root):
     """Return violations for tasks referencing credentials without no_log."""
+    custom_modules = module_no_log_args(Path(domain_root) / "plugins" / "modules")
     violations = []
     for path in sorted(Path(domain_root).rglob("*.yml")):
         if not ({"tasks", "handlers", "playbooks"} & set(path.parts)):
@@ -142,7 +177,8 @@ def check_tasks(domain_root):
             else:
                 plays_or_tasks.append(item)
         for task in _iter_tasks(plays_or_tasks):
-            if _references_credentials(task) and not _no_log_enabled(task.get("no_log")):
+            if (_references_credentials(task, custom_modules)
+                    and not _no_log_enabled(task.get("no_log"))):
                 task_name = task.get("name", "<unnamed>")
                 violations.append(
                     f"{path}: task '{task_name}' references credentials without no_log"
