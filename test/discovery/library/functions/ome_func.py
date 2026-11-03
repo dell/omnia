@@ -48,7 +48,7 @@ _ome_session_cache: Dict[str, Any] = {}
 OME_SESSION_LOGOUT_ENDPOINT: str = "/api/SessionService/Sessions('current')"
 
 
-def clear_ome_cache():
+def clear_ome_cache() -> None:
     """Clear OME session cache (does not invalidate session on OME server)."""
     global _ome_session_cache
     _ome_session_cache.clear()

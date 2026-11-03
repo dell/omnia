@@ -19,6 +19,15 @@ pxe_boot_inventory_required_columns:
   - ADMIN_MAC
   - HOSTNAME
   - SERVICE_TAG
+# Security: IB_NIC_NAME allowlist — keep in sync with pxe_mapping_validator.py,
+# ome_server_inventory.py, and configure-ib-network.sh.j2.
+pxe_boot_inventory_ib_nic_name_pattern: >-
+  ^(?:(?:InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|NIC\.InfiniBand\.)[0-9A-Fa-f]+-[0-9]+|InfiniBand\.Single-[0-9]+)$
+pxe_boot_inventory_invalid_ib_nic_name_msg: >-
+  Invalid IB_NIC_NAME '{{ item.IB_NIC_NAME | default('') }}' for
+  {{ item.HOSTNAME | default('unknown host') }}. Expected formats:
+  InfiniBand.PCIe.Slot.X-Y, InfiniBand.Slot.X-Y, NIC.InfiniBand.X-Y,
+  or InfiniBand.Single-Y.
 pxe_boot_inventory_custom_inventory_msg: >-
   Using custom PXE boot inventory: {{ pxeboot_inventory_source }}
 pxe_boot_inventory_missing_file_msg: >-

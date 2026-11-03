@@ -344,6 +344,31 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify Kubernetes workload scheduling",
         "component": "Kubernetes workload scheduling",
     },
+    "kubernetes_worker_join_file_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V526",
+        "title": "Verify worker join command file permissions are 600",
+        "component": "Kubernetes worker join file permissions",
+    },
+    "kubernetes_cp_join_file_permissions": {
+        "id": "ORCH_FVT_PXEBOOT_V527",
+        "title": "Verify control-plane join command file permissions are 600",
+        "component": "Kubernetes control-plane join file permissions",
+    },
+    "kubernetes_worker_join_file_format": {
+        "id": "ORCH_FVT_PXEBOOT_V528",
+        "title": "Verify worker join file is single-line and matches worker regex",
+        "component": "Kubernetes worker join file format",
+    },
+    "kubernetes_cp_join_file_format": {
+        "id": "ORCH_FVT_PXEBOOT_V529",
+        "title": "Verify control-plane join file is single-line and matches CP regex",
+        "component": "Kubernetes control-plane join file format",
+    },
+    "kubernetes_bootstrap_token_ttl": {
+        "id": "ORCH_FVT_PXEBOOT_V530",
+        "title": "Verify refreshed bootstrap tokens carry the configured TTL",
+        "component": "Kubernetes bootstrap token TTL",
+    },
     "kubernetes_etcd_health": {
         "id": "ORCH_FVT_PXEBOOT_V012",
         "title": "Verify Kubernetes etcd endpoint health",

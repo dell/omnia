@@ -1,0 +1,41 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# utils_setup is shared by utils.yml and install_os.yml. This lists the public
+# tags documented in omnia.sh --help for the utils.yml entry playbook.
+# Playbook-specific internal tags (bundle, k8s, slurm, curated_support, prepare,
+# validate, credentials, deploy, build_iso, generate_ks) are passed via
+# additional_supported_tags in each playbook.
+supported_tags:
+  - precheck
+  - setup
+  - collect
+  - install_os
+  - backup_oim_logs
+  - slurm_config_backup
+  - slurm_config_cleanup
+  - slurm_config_rollback
+  - cleanup
+  - cleanup_logs
+  - cleanup_install_os
+  - cleanup_backup_oim_logs
+  - cleanup_slurm_config_backups
+  - upgrade
+  - rollback
+
+tag_validation_fail_msg: |
+  Invalid tag usage detected.
+  Supported tags: {{ supported_tags | join(', ') }}
+  Invalid tags provided: {{ invalid_tags | join(', ') }}
+  Please use only supported tags.

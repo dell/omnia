@@ -24,6 +24,11 @@ Validates that user registry configuration is correct:
   Client cert and key are configured together
   Registry auth type is valid (none or basic)
   Credentials are configured for basic auth registries
+  Pulp container distributions exist for user registries
+  Pulp container remotes are created for user registries
+  Registry authenticates with vault credentials
+  No duplicate registry host entries
+  HTTPS certificates have valid CN/SAN
 """
 
 import pytest
@@ -38,6 +43,11 @@ from library.functions import (
     check_user_registry_tls_pair_consistent,
     check_user_registry_auth_type,
     check_user_registry_credentials,
+    check_user_registry_distributions,
+    check_user_registry_remotes_in_pulp,
+    check_user_registry_wrong_credentials,
+    check_user_registry_duplicate_hosts,
+    check_user_registry_https_cert_no_cn,
 )
 from library.vars import TEST_CASES as TC
 from library.messages import (
@@ -250,3 +260,138 @@ def test_user_registry_credentials_present(host):
         tl.failed(LOG["user_registry_credentials_missing"], result["details"])
 
     assert result["success"], ASSERT["user_registry_credentials_must_exist"]
+
+
+@pytest.mark.functional
+@pytest.mark.positive
+@pytest.mark.order(9)
+def test_user_registry_distributions(host):
+    """Verify Pulp container distributions exist for user registries."""
+    tc = TC["user_registry_distributions"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_user_registry_distributions(host)
+
+    if result.get("skipped"):
+        tl.skipped_fields(
+            "No registries configured",
+            {
+                "Registries": 0,
+                "Configuration": "user_registry",
+            }
+        )
+        pytest.skip("No registries configured")
+
+    if result["success"]:
+        tl.passed(LOG["user_registry_distributions_ok"], result["details"])
+    else:
+        tl.failed(LOG["user_registry_distributions_missing"], result["details"])
+
+    assert result["success"], ASSERT["user_registry_distributions_must_exist"]
+
+
+@pytest.mark.functional
+@pytest.mark.positive
+@pytest.mark.order(10)
+def test_user_registry_remotes_in_pulp(host):
+    """Verify Pulp container remotes are created for user registries."""
+    tc = TC["user_registry_remotes_in_pulp"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_user_registry_remotes_in_pulp(host)
+
+    if result.get("skipped"):
+        tl.skipped_fields(
+            "No registries configured",
+            {
+                "Registries": 0,
+                "Configuration": "user_registry",
+            }
+        )
+        pytest.skip("No registries configured")
+
+    if result["success"]:
+        tl.passed(LOG["user_registry_remotes_ok"], result["details"])
+    else:
+        tl.failed(LOG["user_registry_remotes_missing"], result["details"])
+
+    assert result["success"], ASSERT["user_registry_remotes_must_exist"]
+
+
+@pytest.mark.functional
+@pytest.mark.positive
+@pytest.mark.order(11)
+def test_user_registry_auth_credentials_valid(host):
+    """Verify registry authenticates with vault credentials."""
+    tc = TC["user_registry_auth_credentials_valid"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_user_registry_wrong_credentials(host)
+
+    if result.get("skipped"):
+        tl.skipped_fields(
+            "No basic auth registries configured",
+            {
+                "Registries": 0,
+                "Configuration": "user_registry",
+            }
+        )
+        pytest.skip("No basic auth registries configured")
+
+    if result["success"]:
+        tl.passed(LOG["user_registry_auth_credentials_ok"], result["details"])
+    else:
+        tl.failed(LOG["user_registry_auth_credentials_fail"], result["details"])
+
+    assert result["success"], ASSERT["user_registry_auth_credentials_must_pass"]
+
+
+@pytest.mark.sanity
+@pytest.mark.positive
+@pytest.mark.order(12)
+def test_user_registry_no_duplicate_hosts(host):
+    """Verify no duplicate registry host entries."""
+    tc = TC["user_registry_no_duplicate_hosts"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_user_registry_duplicate_hosts(host)
+
+    if result.get("skipped"):
+        tl.skipped_fields(
+            "No registries configured",
+            {
+                "Registries": 0,
+                "Configuration": "user_registry",
+            }
+        )
+        pytest.skip("No registries configured")
+
+    if result["success"]:
+        tl.passed(LOG["user_registry_no_duplicate_hosts_ok"], result["details"])
+    else:
+        tl.failed(LOG["user_registry_duplicate_hosts_found"], result["details"])
+
+    assert result["success"], ASSERT["user_registry_no_duplicate_hosts_must_pass"]
+
+
+@pytest.mark.functional
+@pytest.mark.positive
+@pytest.mark.order(13)
+def test_user_registry_https_cert_cn_valid(host):
+    """Verify HTTPS certificates have valid CN/SAN."""
+    tc = TC["user_registry_https_cert_cn_valid"]
+    tl = TestLogger(tc["title"], tc["id"])
+    result = check_user_registry_https_cert_no_cn(host)
+
+    if result.get("skipped"):
+        tl.skipped_fields(
+            "No HTTPS registries configured",
+            {
+                "Registries": 0,
+                "Configuration": "user_registry",
+            }
+        )
+        pytest.skip("No HTTPS registries configured")
+
+    if result["success"]:
+        tl.passed(LOG["user_registry_cert_cn_ok"], result["details"])
+    else:
+        tl.failed(LOG["user_registry_cert_cn_invalid"], result["details"])
+
+    assert result["success"], ASSERT["user_registry_cert_cn_must_be_valid"]

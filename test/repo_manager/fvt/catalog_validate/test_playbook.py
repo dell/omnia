@@ -26,10 +26,7 @@ def test_deploy_catalog_validate(host):
     """Deploy repo_manager --tags catalog_validate."""
     tc = TC["deploy_catalog_validate"]
     tl = TestLogger(tc["title"], tc["id"])
-    result = run_playbook(
-        tag="catalog_validate",
-        host=host,
-    )
+    result = run_playbook(tag="catalog_validate")
 
     if result["success"]:
         tl.passed(LOG["playbook_success"].format(

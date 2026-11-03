@@ -42,6 +42,12 @@ capital_hostname_fail_msg: |
   "Failed. Invalid hostname {{ item }}. Hostname should be in lower case and should not start with numbers.
   Refer documentation for more details."
 temp_pxe_file_path: "{{ hostvars['localhost']['omnia_data_path'] }}/openchami/temp_pxe_file.csv"
+pxe_mapping_path_safe_regex: '^[a-zA-Z0-9/_.-]+$'
+pxe_mapping_path_traversal_regex: '(^|/)\.\.(/|$)'
+pxe_mapping_path_unsafe_fail_msg: |
+  Failed. pxe_mapping_file_path in orchestrator_config.yml contains unsupported characters
+  or a '..' path component. Only letters, digits, '/', '_', '.' and '-' are allowed, and
+  '..' components are not permitted. Update the path and re-run the playbook.
 file_mode: "0644"
 functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
 

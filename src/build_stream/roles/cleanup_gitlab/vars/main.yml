@@ -133,6 +133,10 @@ gitlab_api_token_files:
   - "/root/.gitlab_root_token"
 
 # Debug messages
+cleanup_credentials_invalid_msg: >-
+  cleanup_credentials accepts only true or false. Use
+  -e cleanup_credentials=false to preserve Build Stream credentials during cleanup.
+
 gitlab_cleanup_credentials_unavailable_msg: >-
   GitLab cleanup is already complete, or its host configuration or SSH
   credentials are unavailable; skipping remote GitLab cleanup and continuing

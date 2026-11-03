@@ -50,7 +50,7 @@
 - name: Check required ISO tooling
   block:
     - name: Check for required tools
-      ansible.builtin.command: "command -v {{ item.name }}"
+      ansible.builtin.command: "command -v {{ item.name | quote }}"
       loop: "{{ required_iso_tools }}"
       register: tool_check_results
       changed_when: false
@@ -72,7 +72,7 @@
       become: true
 
     - name: Verify tools after installation
-      ansible.builtin.command: "command -v {{ item.name }}"
+      ansible.builtin.command: "command -v {{ item.name | quote }}"
       loop: "{{ required_iso_tools }}"
       register: tool_verify_results
       changed_when: false

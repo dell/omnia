@@ -34,6 +34,7 @@ from library.messages.telemetry_msgs import (
 @pytest.mark.source
 @pytest.mark.sanity
 @pytest.mark.order(0)
+@pytest.mark.idrac
 def test_deploy_cleanup_idrac(host):
     """TEL_FVT_CLEANUP_IDRAC_E001: Run ``telemetry.yml --tags cleanup_idrac``."""
     tc = TC["deploy_cleanup_idrac"]

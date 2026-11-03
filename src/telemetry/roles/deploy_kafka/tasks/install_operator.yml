@@ -26,7 +26,7 @@
 
 - name: Ensure telemetry namespace exists
   ansible.builtin.command: >
-    kubectl create namespace {{ telemetry_namespace }} --dry-run=client -o yaml
+    kubectl create namespace {{ telemetry_namespace | quote }} --dry-run=client -o yaml
   register: ns_yaml
   changed_when: false
 
@@ -39,7 +39,7 @@
 
 - name: Check if Strimzi operator is installed
   ansible.builtin.command: >
-    helm status strimzi-cluster-operator -n {{ telemetry_namespace }}
+    helm status strimzi-cluster-operator -n {{ telemetry_namespace | quote }}
   register: strimzi_status
   changed_when: false
   failed_when: false
@@ -90,11 +90,11 @@
 - name: Wait for Strimzi operator deployment to be available
   ansible.builtin.command: >
     kubectl wait --for=condition=available --timeout=300s
-    deployment/strimzi-cluster-operator -n {{ telemetry_namespace }}
+    deployment/strimzi-cluster-operator -n {{ telemetry_namespace | quote }}
   changed_when: false
 
 - name: Wait for Strimzi CRDs to be registered
-  ansible.builtin.command: kubectl get crd {{ item }}
+  ansible.builtin.command: kubectl get crd {{ item | quote }}
   loop:
     - kafkas.kafka.strimzi.io
     - kafkatopics.kafka.strimzi.io

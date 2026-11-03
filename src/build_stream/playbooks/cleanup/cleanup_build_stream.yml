@@ -31,6 +31,9 @@
 #
 # To also delete postgres data (default: preserved):
 #   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e postgres_backup=false
+#
+# To preserve build_stream credential files (default: removed):
+#   ansible-playbook playbooks/cleanup/cleanup_build_stream.yml -e cleanup_credentials=false
 
 # ── Step 1: Self-contained setup (input dirs + OIM group + metadata) ─
 - name: Build Stream setup (input dirs + OIM group + metadata)

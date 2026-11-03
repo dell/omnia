@@ -89,7 +89,7 @@ def run_vault_command(command, file_path, vault_key):
         file_path,
         "--vault-password-file", vault_key
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False, shell=False)
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
 
@@ -172,6 +172,7 @@ def load_vault_yaml(file_path, vault_key):
             capture_output=True,
             text=True,
             check=True,
+            shell=False,
             env=env
         )
         return yaml.safe_load(result.stdout)

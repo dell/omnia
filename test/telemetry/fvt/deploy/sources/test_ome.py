@@ -238,6 +238,7 @@ def _ldms_uses_vector_vmagent(config):
 @pytest.mark.sanity
 @pytest.mark.ome
 @pytest.mark.order(80)
+@pytest.mark.functional
 def test_ome_vector_bridge(host):
     """Verify Vector-OME bridge deployment ready."""
     tc = TC["ome_vector_bridge"]
@@ -857,6 +858,7 @@ def test_ome_cert_verify(host):
 @pytest.mark.functional
 @pytest.mark.ome
 @pytest.mark.order(87)
+@pytest.mark.sanity
 def test_ome_kafka_topics(host):
     """Verify OME Kafka topics exist.
 
@@ -1358,8 +1360,16 @@ def test_ome_disabled_state(host):
     marker = f"ome-fvt-disabled-{uuid4().hex}"
     marker_started = time.time() - 1
     if check_metrics or check_logs:
-        published = publish_ome_lifecycle_records(host, marker)
-        if published["success"]:
+        # Publish markers ONLY to ome.* topics that already exist. With OME
+        # disabled there are no KafkaTopic CRs, so producing to a non-existent
+        # topic would auto-create an orphaned topic (broker has
+        # auto.create.topics.enable=true). only_existing=True keeps this a
+        # genuine negative check when topics exist, and a no-op (no topics
+        # created) when they do not.
+        published = publish_ome_lifecycle_records(
+            host, marker, only_existing=True,
+        )
+        if published["success"] and published["topics"]:
             time.sleep(20)
             observed = query_ome_lifecycle_data(
                 host,
@@ -1369,6 +1379,14 @@ def test_ome_disabled_state(host):
                 check_metrics=check_metrics,
                 check_logs=check_logs,
             )
+        elif published["success"]:
+            # No OME topics exist, so nothing was published or created.
+            observed = {
+                "success": True,
+                "metric_counts": {},
+                "log_counts": {},
+                "error": "",
+            }
         else:
             observed = {
                 "success": False,
@@ -1377,7 +1395,7 @@ def test_ome_disabled_state(host):
                 "error": published["error"],
             }
     else:
-        published = {"success": True, "topics": {}, "error": ""}
+        published = {"success": True, "topics": {}, "skipped": [], "error": ""}
         observed = {
             "success": True,
             "metric_counts": {},
@@ -1405,7 +1423,11 @@ def test_ome_disabled_state(host):
             f"ready={ldms_forwarder['ready_replicas']}"
         )
     detail_lines.extend([
-        f"OME Kafka marker published: {published['success']}",
+        (
+            f"OME Kafka marker published: {published['success']} "
+            f"(published_topics={sorted(published.get('topics', {}))}, "
+            f"skipped_absent_topics={sorted(published.get('skipped', []))})"
+        ),
         (
             "Disabled metrics marker counts: "
             f"{observed['metric_counts'] if check_metrics else 'not checked'}"
