@@ -36,6 +36,26 @@
     omnia_hosts_map: {}
   when: inventory_hostname == 'localhost'
 
+- name: Find PXE mapping rows with an invalid HOSTNAME or ADMIN_IP
+  ansible.builtin.set_fact:
+    pxe_invalid_host_rows: >-
+      {%- set ns = namespace(bad=[]) -%}
+      {%- for row in pxe_mapping_dict.dict.values() | list -%}
+      {%- set host = row.HOSTNAME | default('') -%}
+      {%- set ip = row.ADMIN_IP | default('') -%}
+      {%- if not ((host == '' or host is match(passwordless_ssh_hostname_regex))
+                  and (ip == '' or ip is match(passwordless_ssh_ipv4_regex))) -%}
+      {%- set ns.bad = ns.bad + [loop.index] -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ ns.bad }}
+  no_log: true
+
+- name: Fail before CSV-derived hostnames and IPs reach SSH config and /etc/hosts
+  ansible.builtin.fail:
+    msg: "{{ pxe_mapping_invalid_host_value_fail_msg }} Data rows: {{ pxe_invalid_host_rows | join(', ') }}"
+  when: pxe_invalid_host_rows | length > 0
+
 - name: Build per-stack hostname lists and IP wildcard patterns from PXE mapping
   ansible.builtin.set_fact:
     k8s_cluster_hostnames: >-
