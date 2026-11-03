@@ -51,7 +51,7 @@ CANONICAL_MAPPING_HEADERS: tuple[str, ...] = (
 )
 IB_COLUMNS: tuple[str, ...] = ("IB_NIC_NAME", "IB_IPV4", "IB_IPV6")
 MIN_IB_ROWS = 2
-NIC_NAME_CONFIG_KEY = "ipoib_validate_ib_nic_name"
+DEFAULT_IB_NIC_NAME = "InfiniBand.Slot.1-1"
 SAFE_NIC_NAME = re.compile(r"^[A-Za-z0-9.-]{1,64}$")
 
 # Every input case runs against a scratch clone of the active project input.

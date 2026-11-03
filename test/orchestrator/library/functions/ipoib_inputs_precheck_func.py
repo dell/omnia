@@ -49,7 +49,7 @@ from ..vars.ipoib_vars import (
     MAX_REPORTED_ERRORS,
     MIN_IB_ROWS,
     NETWORK_SPEC_FILE,
-    NIC_NAME_CONFIG_KEY,
+    DEFAULT_IB_NIC_NAME,
     ORCHESTRATOR_CONFIG_FILE,
     OUTSIDE_PREFIX,
     PROJECT_EXTRA_VAR,
@@ -149,15 +149,13 @@ def _network_yaml(network_spec: dict[str, Any]) -> str:
     return yaml.safe_dump(network_spec, sort_keys=False, explicit_start=True)
 
 
-def _configured_nic_name() -> str:
-    value = str(load_test_config().get(NIC_NAME_CONFIG_KEY) or "").strip()
-    if not SAFE_NIC_NAME.fullmatch(value):
-        raise ValueError(
-            f"test_config.yml {NIC_NAME_CONFIG_KEY} is missing or invalid. "
-            "HOW TO FIX: set a supported InfiniBand NIC name such as "
-            "InfiniBand.Slot.X-Y."
-        )
-    return value
+def _detect_nic_name(rows: list[dict[str, str]]) -> str:
+    """Auto-detect the IB NIC name from PXE mapping rows, fallback to default."""
+    for row in rows:
+        name = row.get("IB_NIC_NAME", "").strip()
+        if name and SAFE_NIC_NAME.fullmatch(name):
+            return name
+    return DEFAULT_IB_NIC_NAME
 
 
 def _adjacent_network(network):
@@ -188,7 +186,7 @@ def _base_inputs(live: dict[str, Any]):
         raise _NotApplicable(
             f"At least {MIN_IB_ROWS} Slurm compute rows are required in the PXE mapping"
         )
-    nic_name = _configured_nic_name()
+    nic_name = _detect_nic_name(rows)
     used = {
         canonical_ip(row[column]) for row in rows for column in ("IB_IPV4", "IB_IPV6")
     } - {""}
