@@ -224,11 +224,14 @@ IPOIB_COMMANDS: dict[str, str] = {
     "ip_addresses": "ip -j address show",
     "nm_profile": (
         "nmcli -g ipv4.method,ipv6.method,ipv6.ip6-privacy,ipv4.gateway,"
-        "ipv6.gateway,ipv6.addresses connection show %s"
+        "ipv6.gateway,ipv6.addresses,ipv4.addresses connection show %s"
     ),
     "ipv6_routes_dev": "ip -j -6 route show dev %s",
     "ipv6_default_routes": "ip -j -6 route show default",
     "ipv6_route_get": "ip -j -6 route get %s",
+    "ipv4_routes_dev": "ip -j -4 route show dev %s",
+    "ipv4_default_routes": "ip -j -4 route show default",
+    "ipv4_route_get": "ip -j -4 route get %s",
     "ping_from_iface": "ping -%s -c 1 -W %s -I %s %s",
     "ping": "ping -%s -c 1 -W %s %s",
     "slurm_show_config": "scontrol show config",
@@ -240,10 +243,12 @@ NM_PROFILE_FIELDS: tuple[str, ...] = (
     "ipv4.gateway",
     "ipv6.gateway",
     "ipv6.addresses",
+    "ipv4.addresses",
 )
 NM_EXPECTED_METHODS: dict[str, dict[str, str]] = {
     IB_MODE_DUAL_STACK: {"ipv4.method": "manual", "ipv6.method": "manual"},
     IB_MODE_IPV6_ONLY: {"ipv4.method": "disabled", "ipv6.method": "manual"},
+    IB_MODE_IPV4_ONLY: {"ipv4.method": "manual", "ipv6.method": "link-local"},
 }
 NM_PRIVACY_DISABLED: frozenset[str] = frozenset({"0", "disabled", "0 (disabled)"})
 UNHEALTHY_IPV6_FLAGS: tuple[str, ...] = ("tentative", "dadfailed", "deprecated")

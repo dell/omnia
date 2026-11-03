@@ -27,6 +27,8 @@ import time
 from typing import Any
 
 from ..vars.ipoib_vars import (
+    IB_MODE_FAMILIES,
+    IB_MODE_IPV4_ONLY,
     IPOIB_COMM_CAPTURE_TIMEOUT,
     IPOIB_COMM_JOB_SLEEP,
     IPOIB_COMM_PATH_COMMANDS,
@@ -158,36 +160,42 @@ def _ipoib_nodes(host):
 
 
 def check_ipoib_slurm_comm_path(host) -> dict[str, Any]:
-    """TC-FVT-023 ext: verify Slurm job traffic uses IPoIB IPv6.
+    """TC-FVT-023 ext: verify Slurm job traffic uses the mode's IPoIB family.
 
-    1. Select two compute nodes with IB IPv6 addresses.
+    1. Select two compute nodes with the mode's primary IB address.
     2. Start tcpdump on one compute node (split IPv4/IPv6 captures).
     3. Submit a 2-node srun job from the controller.
     4. Parse captured packets and classify by direction and family.
-    5. Assert controller-to-compute and srun traffic is IPv6 over IB.
+    5. Assert controller-to-compute and srun traffic uses the expected
+       family over IB.
     """
     summary = "Slurm IPoIB communication path"
     try:
         mode, all_nodes, compute_nodes, controller = _ipoib_nodes(host)
+        families = IB_MODE_FAMILIES.get(mode)
+        if families is None:
+            return optional_skip(summary, f"Unsupported ib_addr_mode {mode}")
+        primary = 4 if mode == IB_MODE_IPV4_ONLY else 6
+        primary_key = f"ipv{primary}"
+        expected_family = "ipv4" if primary == 4 else "ipv6"
+        unwanted_family = "ipv6" if primary == 4 else "ipv4"
+
         fields: list[tuple[str, object]] = [
+            ("Mode", mode),
             ("Controller", controller["hostname"] if controller else "none"),
         ]
-        if mode not in IPV6_MODES:
-            return optional_skip(
-                summary, f"ib_addr_mode is {mode}; IPv6 not selected"
-            )
         if controller is None:
             return optional_skip(summary, "No Slurm controller with IB_NIC_NAME is present")
-        ipv6_compute = [n for n in compute_nodes if n["ipv6"]]
-        if len(ipv6_compute) < 2:
+        eligible = [n for n in compute_nodes if n[primary_key]]
+        if len(eligible) < 2:
             return optional_skip(
                 summary,
-                "At least 2 compute nodes with IB IPv6 addresses required"
+                f"At least 2 compute nodes with IB IPv{primary} addresses required"
             )
 
         # Pick two compute nodes for the job and capture
-        capture_node = ipv6_compute[0]
-        peer_node = ipv6_compute[1]
+        capture_node = eligible[0]
+        peer_node = eligible[1]
         cap_host = capture_node["hostname"]
         peer_host = peer_node["hostname"]
         cap_row = capture_node["row"]
@@ -196,12 +204,14 @@ def check_ipoib_slurm_comm_path(host) -> dict[str, Any]:
         fields.extend([
             ("Capture node", cap_host),
             ("Peer node", peer_host),
-            ("IB addr (capture)", capture_node["ipv6"]),
-            ("IB addr (peer)", peer_node["ipv6"]),
+            (f"IB addr (capture)", capture_node[primary_key]),
+            (f"IB addr (peer)", peer_node[primary_key]),
         ])
 
         # Build address maps for classification
-        ib_addresses = {n["hostname"]: n["ipv6"] for n in all_nodes if n["ipv6"]}
+        ib_addresses = {
+            n["hostname"]: n[primary_key] for n in all_nodes if n[primary_key]
+        }
         admin_addresses = {
             n["hostname"]: str(n["row"].get("ADMIN_IP", "")).strip()
             for n in all_nodes
@@ -245,7 +255,6 @@ def check_ipoib_slurm_comm_path(host) -> dict[str, Any]:
         job_ok = job.rc == 0
         fields.append(("Job result", "PASS" if job_ok else f"FAIL rc={job.rc}"))
         if not job_ok:
-            # Cleanup pcap files
             remote_command(
                 host, cap_row,
                 IPOIB_COMM_PATH_COMMANDS["tcpdump_cleanup"] % (
@@ -278,70 +287,86 @@ def check_ipoib_slurm_comm_path(host) -> dict[str, Any]:
         categories = _classify_flows(all_flows, ib_addresses, admin_addresses)
         failures = []
 
-        # Controller -> compute (port 6818): must be IPv6 over IB
+        # Controller -> compute (port 6818): must use expected family over IB
         c2c = categories["controller_to_compute"]
         fields.append((
             "Controller->compute",
             f"{c2c['ipv6']} IPv6 / {c2c['ipv4']} IPv4 "
             f"(IB: {c2c['ib_iface']}, Eth: {c2c['eth_iface']})"
         ))
-        if c2c["ipv6"] == 0 and c2c["ipv4"] == 0:
+        if c2c[expected_family] == 0 and c2c[unwanted_family] == 0:
             fields.append(("  Warning", "No controller->compute packets captured"))
-        elif c2c["ipv4"] > 0 and c2c["ib_iface"] == 0:
+        elif c2c[unwanted_family] > 0 and c2c["ib_iface"] == 0:
             failures.append(
-                f"Controller->compute: {c2c['ipv4']} IPv4 packets "
-                f"(expected IPv6 over IB)"
+                f"Controller->compute: {c2c[unwanted_family]} {unwanted_family} packets "
+                f"(expected {expected_family} over IB)"
             )
 
-        # Compute -> controller (port 6817): known limitation, IPv4
+        # Compute -> controller (port 6817)
         c2s = categories["compute_to_controller"]
         fields.append((
             "Compute->controller",
             f"{c2s['ipv6']} IPv6 / {c2s['ipv4']} IPv4 "
             f"(IB: {c2s['ib_iface']}, Eth: {c2s['eth_iface']})"
         ))
-        if c2s["ipv4"] > 0 and c2s["ipv6"] == 0:
+        if mode in IPV6_MODES and c2s["ipv4"] > 0 and c2s["ipv6"] == 0:
             fields.append((
                 "  Info",
                 "Known limitation (BR-18602): compute->controller "
                 "uses IPv4 because SlurmctldHost has no AAAA record"
             ))
 
-        # srun traffic (ports 60001-63000): must be IPv6 over IB
+        # srun traffic (ports 60001-63000): must use expected family over IB
         srun = categories["srun_traffic"]
         fields.append((
             "srun I/O",
             f"{srun['ipv6']} IPv6 / {srun['ipv4']} IPv4 "
             f"(IB: {srun['ib_iface']}, Eth: {srun['eth_iface']})"
         ))
-        if srun["ipv4"] > 0 and srun["ib_iface"] == 0:
+        if srun[unwanted_family] > 0 and srun["ib_iface"] == 0:
             failures.append(
-                f"srun I/O: {srun['ipv4']} IPv4 packets "
-                f"(expected IPv6 over IB)"
+                f"srun I/O: {srun[unwanted_family]} {unwanted_family} packets "
+                f"(expected {expected_family} over IB)"
             )
 
-        # Cross-check: no IPv4 Slurm packets on the IB interface
-        v4_on_ib = sum(
-            1 for f in v4_flows
-            if any(f["interface"].startswith(p) for p in ("ibp", "ib"))
-        )
-        fields.append(("IPv4 on IB interface", v4_on_ib))
-        if v4_on_ib > 0:
+        # Cross-check: unwanted family on IB interface
+        if mode == IB_MODE_IPV4_ONLY:
+            unwanted_on_ib = sum(
+                1 for f in v6_flows
+                if any(f["interface"].startswith(p) for p in ("ibp", "ib"))
+            )
+            label = "IPv6 on IB interface"
+        else:
+            unwanted_on_ib = sum(
+                1 for f in v4_flows
+                if any(f["interface"].startswith(p) for p in ("ibp", "ib"))
+            )
+            label = "IPv4 on IB interface"
+        fields.append((label, unwanted_on_ib))
+        if unwanted_on_ib > 0:
             failures.append(
-                f"{v4_on_ib} IPv4 Slurm packet(s) traversed the IB interface"
+                f"{unwanted_on_ib} {unwanted_family} Slurm packet(s) traversed the IB interface"
             )
 
-        # Cross-check: no IPv6 Slurm packets on the Ethernet interface
-        v6_on_eth = sum(
-            1 for f in v6_flows
-            if not any(f["interface"].startswith(p) for p in ("ibp", "ib"))
-        )
-        fields.append(("IPv6 on Ethernet", v6_on_eth))
-        if v6_on_eth > 0:
+        # Cross-check: expected family on Ethernet (should be on IB)
+        if mode == IB_MODE_IPV4_ONLY:
+            expected_on_eth = sum(
+                1 for f in v4_flows
+                if not any(f["interface"].startswith(p) for p in ("ibp", "ib"))
+            )
+            eth_label = "IPv4 on Ethernet"
+        else:
+            expected_on_eth = sum(
+                1 for f in v6_flows
+                if not any(f["interface"].startswith(p) for p in ("ibp", "ib"))
+            )
+            eth_label = "IPv6 on Ethernet"
+        fields.append((eth_label, expected_on_eth))
+        if expected_on_eth > 0:
             fields.append((
                 "  Info",
-                "IPv6 packets on Ethernet may indicate loopback or "
-                "admin-network IPv6 (not necessarily a failure)"
+                f"{expected_family} packets on Ethernet may indicate loopback or "
+                "admin-network traffic (not necessarily a failure)"
             ))
 
         # Cleanup pcap files
