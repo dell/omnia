@@ -430,6 +430,179 @@ class TestNetworkSpecJsonSchema:
         errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
         assert not errors, f"New ib_network fields rejected: {errors}"
 
+    def test_schema_accepts_ipv6_only_empty_ipv4(self):
+        """ORCH_UT_BC_023: Schema accepts ipv6-only with empty ipv4 fields."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "",
+                        "ipv4_netmask_bits": "",
+                        "ipv6_subnet": "fd00:1b::",
+                        "ipv6_netmask_bits": "64",
+                        "ib_addr_mode": "ipv6-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv6-only with empty ipv4 rejected: {errors}"
+
+    def test_schema_accepts_ipv6_only_omitted_ipv4(self):
+        """ORCH_UT_BC_024: Schema accepts ipv6-only with ipv4 fields omitted."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv6_subnet": "fd00:1b::",
+                        "ipv6_netmask_bits": "64",
+                        "ib_addr_mode": "ipv6-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv6-only with omitted ipv4 rejected: {errors}"
+
+    def test_schema_accepts_ipv4_only_empty_ipv6(self):
+        """ORCH_UT_BC_025: Schema accepts ipv4-only with empty ipv6 fields."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                        "ipv6_subnet": "",
+                        "ipv6_netmask_bits": "",
+                        "ib_addr_mode": "ipv4-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv4-only with empty ipv6 rejected: {errors}"
+
+    def test_schema_accepts_ipv6_only_null_ipv4(self):
+        """ORCH_UT_BC_026: Schema accepts ipv6-only with null ipv4 fields (YAML no quotes)."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": None,
+                        "ipv4_netmask_bits": None,
+                        "ipv6_subnet": "fd00:1b::",
+                        "ipv6_netmask_bits": "64",
+                        "ib_addr_mode": "ipv6-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv6-only with null ipv4 rejected: {errors}"
+
+    def test_schema_accepts_ipv4_only_null_ipv6(self):
+        """ORCH_UT_BC_027: Schema accepts ipv4-only with null ipv6 fields (YAML no quotes)."""
+        try:
+            import jsonschema
+        except ImportError:
+            pytest.skip("jsonschema not installed")
+
+        schema = self._load_schema()
+        doc = {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "oim_nic_name": "eno1",
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                        "primary_oim_admin_ip": "172.16.107.1",
+                        "primary_oim_bmc_ip": "",
+                        "router": "172.16.107.254",
+                        "dynamic_range": "172.16.107.100-172.16.107.200",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                        "ipv6_subnet": None,
+                        "ipv6_netmask_bits": None,
+                        "ib_addr_mode": "ipv4-only",
+                    },
+                },
+            ],
+        }
+        errors = list(jsonschema.Draft7Validator(schema).iter_errors(doc))
+        assert not errors, f"ipv4-only with null ipv6 rejected: {errors}"
+
     def test_schema_accepts_legacy_subnet_fields(self):
         """ORCH_UT_BC_022: Schema accepts legacy subnet/netmask_bits."""
         try:
