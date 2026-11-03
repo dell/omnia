@@ -430,30 +430,32 @@ class TestCloudInitRendering:
 class TestSMDRenderer:
     """TC-UT-006: SMD Renderer — component/interface payload generation."""
 
-    def test_ipv6_only_has_ipv6_addresses(self):
-        """ORCH_UT_NM_050: IPv6-only interface produces IPV6Addresses."""
+    def test_ipv6_only_has_ip_addresses(self):
+        """ORCH_UT_NM_050: IPv6-only interface produces IPAddresses."""
         ifaces = nm_renderer.render_smd_interfaces(
             "nid0001", _ipv6_only(), LOGGER
         )
         assert len(ifaces) == 1
-        assert "IPV6Addresses" in ifaces[0]
-        assert ifaces[0]["IPV6Addresses"][0]["IPAddress"] == "fd00:1b::1"
+        assert "IPAddresses" in ifaces[0]
+        assert ifaces[0]["IPAddresses"][0]["IPAddress"] == "fd00:1b::1"
 
-    def test_ipv4_only_has_no_ipv6(self):
-        """ORCH_UT_NM_051: IPv4-only interface has no IPV6Addresses key."""
+    def test_ipv4_only_has_ip_addresses(self):
+        """ORCH_UT_NM_051: IPv4-only interface produces IPAddresses."""
         ifaces = nm_renderer.render_smd_interfaces(
             "nid0010", _ipv4_only(), LOGGER
         )
-        assert "IPV4Addresses" in ifaces[0]
-        assert "IPV6Addresses" not in ifaces[0]
+        assert "IPAddresses" in ifaces[0]
+        assert ifaces[0]["IPAddresses"][0]["IPAddress"] == "10.0.100.1"
 
-    def test_dual_stack_has_both_families(self):
-        """ORCH_UT_NM_052: Dual-stack has both IPV4 and IPV6 addresses."""
+    def test_dual_stack_has_both_addresses(self):
+        """ORCH_UT_NM_052: Dual-stack has both IPv4 and IPv6 in IPAddresses."""
         ifaces = nm_renderer.render_smd_interfaces(
             "nid0002", _dual_stack(), LOGGER
         )
-        assert "IPV4Addresses" in ifaces[0]
-        assert "IPV6Addresses" in ifaces[0]
+        assert "IPAddresses" in ifaces[0]
+        addrs = [a["IPAddress"] for a in ifaces[0]["IPAddresses"]]
+        assert "10.0.100.2" in addrs
+        assert "fd00:1b::2" in addrs
 
     def test_smd_interface_id_format(self):
         """ORCH_UT_NM_053: SMD interface ID is <node_id>-<iface_id>."""

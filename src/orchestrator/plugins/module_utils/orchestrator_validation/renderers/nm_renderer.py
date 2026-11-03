@@ -334,17 +334,10 @@ def render_smd_interfaces(
     smd_interfaces = []
     for interface_id in sorted(interfaces.keys()):
         records = interfaces[interface_id]
-        ipv4_addrs = []
-        ipv6_addrs = []
+        ip_addrs = []
         for record in records:
-            if record.get("address_family") == "ipv4":
-                ipv4_addrs.append(
-                    {"IPAddress": record["address"]}
-                )
-            else:
-                ipv6_addrs.append(
-                    {"IPAddress": record["address"]}
-                )
+            if record.get("address"):
+                ip_addrs.append({"IPAddress": record["address"]})
 
         smd_iface: dict[str, Any] = {
             "ID": f"{node_id}-{interface_id}",
@@ -352,17 +345,15 @@ def render_smd_interfaces(
             "InterfaceType": "EthernetInterface",
             "ComponentID": node_id,
         }
-        if ipv4_addrs:
-            smd_iface["IPV4Addresses"] = ipv4_addrs
-        if ipv6_addrs:
-            smd_iface["IPV6Addresses"] = ipv6_addrs
+        if ip_addrs:
+            smd_iface["IPAddresses"] = ip_addrs
 
         smd_interfaces.append(smd_iface)
 
         if logger:
             logger.info(
-                "[IB-IPv6] SMD renderer: %s/%s → %d IPv4, %d IPv6 addresses",
-                node_id, interface_id, len(ipv4_addrs), len(ipv6_addrs),
+                "[IB-IPv6] SMD renderer: %s/%s → %d addresses",
+                node_id, interface_id, len(ip_addrs),
             )
 
     return smd_interfaces

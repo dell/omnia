@@ -239,10 +239,8 @@ class TestSMDRegistration:
                 node_id, valid[node_id], LOGGER
             )
             for smd_iface in result["smd_interfaces"]:
-                assert "IPV4Addresses" in smd_iface
-                assert "IPV6Addresses" in smd_iface
-                assert len(smd_iface["IPV4Addresses"]) >= 1
-                assert len(smd_iface["IPV6Addresses"]) >= 1
+                assert "IPAddresses" in smd_iface
+                assert len(smd_iface["IPAddresses"]) >= 2
 
     def test_smd_multi_rail(self):
         """ORCH_FVT_IPV6_E035: Multi-rail node has two SMD interface entries."""
