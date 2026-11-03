@@ -1,289 +1,335 @@
 # Build Stream — FVT Test Cases
 
-## Section A: BuildStream Installation & Infrastructure (24 test cases)
+## Execution order
 
-| TC ID | Test Function | Description |
-|-------|---------------|-------------|
-| BSM_FVT_BUILDSTREAM_INSTALL_E001 | test_deploy_buildstream_install | Deploy build_stream --tags buildstream_install |
-| BSM_FVT_BUILDSTREAM_INSTALL_V001 | test_gitlab_packages_installed | Verify GitLab packages installed |
-| BSM_FVT_BUILDSTREAM_INSTALL_V002 | test_gitlab_server_reachable | Verify GitLab server reachable from OIM |
-| BSM_FVT_BUILDSTREAM_INSTALL_V003 | test_gitlab_runner_container | Verify gitlab-runner container running |
-| BSM_FVT_BUILDSTREAM_INSTALL_V004 | test_gitlab_runner_quadlet_exists | Verify gitlab-runner quadlet file exists |
-| BSM_FVT_BUILDSTREAM_INSTALL_V005 | test_gitlab_runner_services_status | Verify GitLab runner services running |
-| BSM_FVT_BUILDSTREAM_INSTALL_V006 | test_gitlab_url_accessible | Verify GitLab URL accessible from OIM |
-| BSM_FVT_BUILDSTREAM_INSTALL_V007 | test_gitlab_services_running | Verify all GitLab services running |
-| BSM_FVT_BUILDSTREAM_INSTALL_V008 | test_gitlab_resources | Verify GitLab resource requirements met |
-| BSM_FVT_BUILDSTREAM_INSTALL_V009 | test_puma_workers | Verify puma workers configured |
-| BSM_FVT_BUILDSTREAM_INSTALL_V010 | test_sidekiq_concurrency | Verify sidekiq concurrency configured |
-| BSM_FVT_BUILDSTREAM_INSTALL_V011 | test_gitlab_project_exists | Verify GitLab project exists |
-| BSM_FVT_BUILDSTREAM_INSTALL_V012 | test_gitlab_project_visibility | Verify GitLab project visibility |
-| BSM_FVT_BUILDSTREAM_INSTALL_V013 | test_gitlab_default_branch | Verify GitLab default branch |
-| BSM_FVT_BUILDSTREAM_INSTALL_V014 | test_gitlab_pipeline_file_exists | Verify .gitlab-ci.yml exists in repo |
-| BSM_FVT_BUILDSTREAM_INSTALL_V015 | test_gitlab_pipeline_variables | Verify GitLab pipeline variables |
-| BSM_FVT_BUILDSTREAM_INSTALL_V016 | test_gitlab_ci_build_file_exists | Verify .gitlab-ci-build.yml exists (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V017 | test_gitlab_ci_deploy_file_exists | Verify .gitlab-ci-deploy.yml exists (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V018 | test_gitlab_ci_cleanup_file_exists | Verify .gitlab-ci-cleanup.yml exists (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V019 | test_gitlab_deploy_child_template_exists | Verify deploy child template (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V020 | test_gitlab_cleanup_child_template_exists | Verify cleanup child template (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V021 | test_omnia_env_exists | Verify omnia.env in GitLab repo (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V022 | test_domain_input_dirs_in_repo | Verify domain input dirs in repo (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V032 | test_gitlab_ci_cadence_file_exists | Verify .gitlab-ci-cadence.yml exists (2.3) |
+Scenarios follow the `build_stream.yml` tags, numbered like the orchestrator
+suite: the scenario's entry test is `X0000`, and checks are `X` + suite
+(2 digits) + test (2 digits).
 
-## Section B: BuildStream Service Health (9 test cases)
+| Order | Scenario | Entry point | Suites |
+|---:|---|---|---|
+| 10000 | `prepare_base` | `./omnia.sh --prepare-base` | `readiness` |
+| 20000 | `precheck` | `build_stream.yml --tags precheck` | `environment`, `containers`, `credentials` |
+| 30000 | `prepare` | `build_stream.yml --tags prepare` | `build_stream` |
+| 40000 | `execute` | `build_stream.yml --tags execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup` |
+| 90000 | `cleanup` | `build_stream.yml --tags cleanup` | `gitlab`, `build_stream` |
 
-| TC ID | Test Function | Description |
-|-------|---------------|-------------|
-| BSM_FVT_BUILDSTREAM_INSTALL_V023 | test_build_stream_enabled | Verify build_stream enabled in config |
-| BSM_FVT_BUILDSTREAM_INSTALL_V024 | test_build_stream_health | Verify BSM API /health endpoint |
-| BSM_FVT_BUILDSTREAM_INSTALL_V025 | test_postgres_tables | Verify Postgres tables exist |
-| BSM_FVT_BUILDSTREAM_INSTALL_V026 | test_gitlab_server_running | Verify GitLab server running |
-| BSM_FVT_BUILDSTREAM_INSTALL_V027 | test_gitlab_runner_running | Verify GitLab runner running |
-| BSM_FVT_BUILDSTREAM_INSTALL_V028 | test_omnia_venv_exists | Verify shared venv exists (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V029 | test_bsm_tls_certificate_valid | Verify BSM TLS certificate (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V030 | test_nfs_queue_directory_accessible | Verify NFS queue dir (2.3) |
-| BSM_FVT_BUILDSTREAM_INSTALL_V031 | test_playbook_watcher_running | Verify watcher service (2.3) |
+A run without a tag follows the default lifecycle `precheck -> prepare ->
+execute`; `prepare_base` and the destructive `cleanup` run only when named.
+The Omnia setup and cleanup (`omnia.sh`) and the base domain cleanups are
+tested by their own suites (`test/main`, `test/repo_manager`,
+`test/image_build_manager`, `test/orchestrator`); the SVT chains them.
+Without `--marker` every collected test runs; `--marker sanity` narrows the run
+to the baseline checks (the manual pipeline suites carry `manual_execution`,
+not `sanity`).
 
-## Section C: Explicit cleanup suites (26 test cases)
+| Marker | Tests |
+|---|---|
+| `sanity` | Baseline positive checks (every suite except `build_manual`, `deploy_manual`) |
+| `deploy` | The `test_playbook.py` entry test of each tag |
+| `pipeline` | Every execute pipeline suite |
+| `build_pipeline` | `build_automatic`, `build_manual` |
+| `deploy_pipeline` | `deploy_automatic`, `deploy_manual` |
+| `automatic_execution` | `build_automatic`, `deploy_automatic` |
+| `manual_execution` | `build_manual`, `deploy_manual` |
+| `cadence` | `cadence` (pipeline and disable / re-enable tests) |
+| `cleanup_pipeline` | `pipeline_cleanup` |
+| `automatic_cleanup` | `auto_cleanup` |
 
-Cleanup is not part of the default lifecycle. Select exactly one suite so an
-operation cannot remove GitLab, BuildStream, and image artifacts in the same
-run accidentally.
+Every check prints each item it inspected (file, unit, container, directory,
+stage, record) on its own line with a check or cross mark.
 
-| TC ID | Test Function | Description |
-|-------|---------------|-------------|
-| BSM_FVT_BUILDSTREAM_CLEANUP_E001 | test_deploy_gitlab_cleanup | Execute GitLab cleanup |
-| BSM_FVT_BUILDSTREAM_CLEANUP_E002 | test_deploy_buildstream_cleanup | Execute BuildStream cleanup |
-| BSM_FVT_BUILDSTREAM_CLEANUP_V001–V008 | GitLab cleanup verification tests | Verify GitLab packages, runner, services, directories, URL, and port cleanup |
-| BSM_FVT_BUILDSTREAM_CLEANUP_V009–V020, V022, V024–V025 | BuildStream cleanup verification tests | Verify BSM, watcher, PostgreSQL backup preservation, runtime directory cleanup, and credential cleanup |
-| BSM_FVT_BUILDSTREAM_CLEANUP_V021 | test_buildstream_runtime_caches_removed | Verify application source and project input remain while generated Python caches are removed |
+GitLab and BuildStream API calls run in the test process over verified TLS
+(GitLab CA, `bs_cert.pem`); tokens and secrets never appear on a command line.
+SSH to the GitLab host uses the product's key (`/root/.ssh/omnia_gitlab`).
 
-## Section D: Build Pipeline (12 test cases)
+Test-case IDs are `BSM_FVT_<TAG>_<E|V><SEQ>`: `E` executes the playbook or
+trigger, `V` verifies. IDs come from `library/vars/test_case_vars.py`, are
+unique, and are never reused after they are retired.
 
-| TC ID | Test Function | Description | Mode |
-|-------|---------------|-------------|------|
-| BSM_FVT_BUILD_PIPELINE_E001 | test_deploy_build_pipeline | Push catalog, trigger pipeline, monitor stages | --test only |
-| BSM_FVT_BUILD_PIPELINE_V001 | test_build_credentials_configured | Verify server credentials configured | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V002 | test_build_bsm_health_check | Verify BSM API /health endpoint | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V003 | test_build_oauth_auth | Verify OAuth credentials registered | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V004 | test_build_job_created | Verify job created in DB | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V005 | test_build_job_accessible_via_api | Verify job accessible via BSM API | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V006 | test_build_stage_create_local_repository | Verify create-local-repository stage | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V007 | test_build_stage_build_image | Verify build-image stage completed | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V008 | test_build_repo_status | Verify repo_status.yml overall_status | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V009 | test_build_registry_images | Verify container images in registry | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V010 | test_build_s3_boot_images | Verify boot images in S3 | --test, --verify |
-| BSM_FVT_BUILD_PIPELINE_V011 | test_build_pipeline_result | Build pipeline final result (build stages only) | --test, --verify |
+With `debug_mode: true` (default) in `test_config.yml`, the pipeline suites
+stream each stage playbook log live.
 
-## Section E: Deploy Pipeline (10 test cases)
+## Prepare Base — `./omnia.sh --prepare-base` (order 10000)
 
-| TC ID | Test Function | Description | Mode |
-|-------|---------------|-------------|------|
-| BSM_FVT_DEPLOY_PIPELINE_E001 | test_execute_deploy_pipeline | Swap PXE rows, select mapped image, run deploy | --test/--exec |
-| BSM_FVT_DEPLOY_PIPELINE_V001 | test_deploy_prerequisites | Verify unique job/image-group mapping | --test/--verify |
-| BSM_FVT_DEPLOY_PIPELINE_V002 | test_deploy_gitlab_pipeline | Verify child-pipeline jobs succeeded | --test/--verify |
-| BSM_FVT_DEPLOY_PIPELINE_V003 | test_deploy_selected_image | Verify mapped image was selected | --test/--verify |
-| BSM_FVT_DEPLOY_PIPELINE_V004 | test_deploy_stage_completed | Verify deploy stage completed | --test/--verify |
-| BSM_FVT_DEPLOY_PIPELINE_V005 | test_restart_stage_completed | Verify restart stage completed | --test/--verify |
-| BSM_FVT_DEPLOY_PIPELINE_V006 | test_restart_node_results | Verify node results; missing failed-nodes is valid | --test/--verify |
-| BSM_FVT_DEPLOY_PIPELINE_V007 | test_validate_stage_completed | Verify validate stage completed | --test/--verify |
-| BSM_FVT_DEPLOY_PIPELINE_V008 | test_deploy_final_state | Verify job COMPLETED and image group PASSED | --test/--verify |
-| BSM_FVT_DEPLOY_PIPELINE_V009 | test_deploy_pipeline_summary | Verify summary reports PASSED | --test/--verify |
+Prepares the BuildStream prerequisites with `./omnia.sh --prepare-base` from
+`src/main`: `repo_manager` -> `image_build_manager` -> `orchestrator`
+(fail-fast, no timeout). The scenario is explicit only and is not part of any
+lifecycle. Save the three base domain credential stores first with
+`./setup_env.sh --set-domain-creds`, otherwise omnia.sh prompts. If the
+read-only precheck fails, the deployment is skipped.
 
-## Section E.1: Unified Cadence Pipeline (24 test cases)
-
-The cadence action signals the running watcher. The watcher runs
-`repo_sync.yml`, validates the exact-mirror result, bumps
-`cadence_catalog_rhel.json`, and pushes the commit that starts the unified
-pipeline. The action then persists its exact `job_id`. Verification never
-falls back to the latest job or image group.
-
-| TC ID | Test Function | Description | Mode |
-|-------|---------------|-------------|------|
-| BSM_FVT_CADENCE_PIPELINE_E001 | test_execute_cadence_pipeline | Trigger the watcher cadence cycle and wait for the pipeline | --test/--exec |
-| BSM_FVT_CADENCE_PIPELINE_V017 | test_cadence_gitlab_jobs | Verify all eight GitLab jobs succeeded | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V018 | test_cadence_catalog_identity | Verify job and composite image-group identity | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V019 | test_cadence_build_stages | Verify parse, repository, and build DB stages | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V020 | test_cadence_registry_artifacts | Verify registry artifacts for requested roles | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V021 | test_cadence_job_accessible | Verify BSM health and exact job access | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V022 | test_cadence_repo_resync_status | Verify pre-pipeline repo_resync_status.yml exact-mirror contract | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V023 | test_cadence_deploy_stage | Verify deploy DB stage completed | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V024 | test_cadence_restart_stage | Verify restart DB stage completed | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V025 | test_cadence_validate_stage | Verify validate DB stage completed | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V026 | test_cadence_restart_results | Verify restart node-result artifacts | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V027 | test_cadence_final_state | Verify successful job and image-group states | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V028 | test_cadence_summary | Verify DB and GitLab summary completion | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V029 | test_cadence_local_repo_status | Verify pipeline repo_status.yml matches the cadence catalog | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V030 | test_cadence_build_status | Verify versioned and latest build_status.yml contracts | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V031 | test_cadence_s3_artifacts | Verify all S3 boot artifacts for requested roles | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V032 | test_cadence_catalog_commit_integrity | Verify one catalog version increment and matching pipeline commit | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V033 | test_cadence_expected_functional_groups | Verify catalog, database, and build-status roles match | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V034 | test_cadence_artifact_identity | Verify versioned status and engine-specific artifact identity | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V035 | test_cadence_validate_report | Verify validation executed tests with no failures or errors | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V036 | test_cadence_validation_feature_selection | Verify Slurm/Kubernetes selection follows the PXE mapping | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V037 | test_cadence_restart_node_coverage | Verify every PXE node has one successful restart result | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V038 | test_cadence_uploaded_input_snapshot | Verify canonical catalog and required domain inputs | --test/--verify |
-| BSM_FVT_CADENCE_PIPELINE_V039 | test_cadence_stage_attempt_freshness | Verify stage timestamps and logs belong to the current job | --test/--verify |
-
-## Execution
-
-## Manual pipeline tests
-
-The API-triggered build and deploy cases are available under the `manual`
-marker and the `manual` suite. They do not carry the `sanity` marker and are
-therefore excluded from the default lifecycle. First confirm that BuildStream
-installation sanity passes. Set `catalog_path` in `test_config.yml`; manual
-build stages that catalog with `[skip ci]`, triggers only through
-`PIPELINE_TYPE=build`, and overwrites `job_id` with the newly created job.
-Manual deploy uses that exact `job_id` and triggers with
-`PIPELINE_TYPE=deploy`.
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 10000 | BSM_FVT_PREPARE_BASE_E001 | `test_precheck_prepare_base` | root | deploy, sanity | Reads `OMNIA_DATA_PATH`, `OMNIA_PROJECT_NAME` and `OMNIA_VENV_PATH` from `omnia.env`, then checks `<venv>/bin/activate`, `src/main/omnia.sh` and each base domain's credential file and vault key. | All three variables are set and every checked file exists, including `<domain>_credentials.yml` and its key for `repo_manager`, `image_build_manager` and `orchestrator`. |
+| 10001 | BSM_FVT_PREPARE_BASE_E002 | `test_deploy_prepare_base` | root | deploy, sanity | Runs `./omnia.sh --prepare-base` from `src/main` with no timeout, preparing `repo_manager`, `image_build_manager` and `orchestrator` in order. | `omnia.sh` exits with return code 0. |
+| 10101 | BSM_FVT_PREPARE_BASE_V001 | `test_repo_manager_ready` | readiness | sanity | Checks that `/etc/containers/systemd/pulp.container` exists, `systemctl is-active pulp.service` reports active, and `podman inspect` shows the `pulp` container running. | The quadlet file exists, `pulp.service` is `active`, and the `pulp` container runs and is healthy when it defines a healthcheck. |
+| 10102 | BSM_FVT_PREPARE_BASE_V002 | `test_image_build_manager_ready` | readiness | sanity | Checks that the `minio-server` and `registry` containers run, that `minio.service` and `registry.service` are active, and that `ss` shows TCP ports 9000, 9001 and 5000 listening. | Both containers run (healthy when a healthcheck exists), both units are `active`, and all three ports are listening. |
+| 10103 | BSM_FVT_PREPARE_BASE_V003 | `test_orchestrator_ready` | readiness | sanity | Checks every OpenCHAMI unit plus `openchami-cert-renewal.timer`, nine OpenCHAMI containers, four podman volumes, and the `omnia_auth` quadlet, unit and container when `orchestrator_state.yml` sets `openldap_support`. | All units are `active`, all containers run and are healthy, the four volumes exist, and the OpenLDAP items pass when `openldap_support` is true. |
 
 ```bash
-# Required prerequisite
-./run_validation.sh fvt_build_stream buildstream_install verify --marker sanity
-
-# Manual build: trigger only, verify only, or both
-./run_validation.sh fvt_build_stream build_pipeline exec \
-  --suite manual --marker manual
-./run_validation.sh fvt_build_stream build_pipeline verify \
-  --suite manual --marker manual
-./run_validation.sh fvt_build_stream build_pipeline test \
-  --suite manual --marker manual
-
-# Manual deploy: trigger only, verify only, or both
-./run_validation.sh fvt_build_stream deploy_pipeline exec \
-  --suite manual --marker manual
-./run_validation.sh fvt_build_stream deploy_pipeline verify \
-  --suite manual --marker manual
-./run_validation.sh fvt_build_stream deploy_pipeline test \
-  --suite manual --marker manual
+./run_validation.sh fvt_build_stream prepare_base test --marker sanity
+./run_validation.sh fvt_build_stream prepare_base verify --suite readiness
 ```
 
-## Cadence pipeline sanity suite
+## Precheck — `build_stream.yml --tags precheck` (order 20000)
 
-BuildStream installation and the cadence configuration must already be
-deployed. `exec`/`test` signals the watcher, which performs repository sync and
-commits the catalog version bump that triggers a real unified pipeline.
-`verify` is read-only and uses the exact `job_id` recorded in
-`test_config.yml`.
+Read-only. The playbook checks the OIM identity, the prerequisite containers and credential files, and the data path NFS export; each area is also verified as its own test case. The `credentials` suite also checks, per domain (repo_manager, image_build_manager, orchestrator), the credential store, its vault key and every input file `--tags execute` uploads to GitLab (the upload skips missing files silently).
 
-The action requires `cadence.enabled: true` in deployed
-`build_stream_config.yml`, plus active watcher and Pulp services, the configured
-Git worktree, and a registered `repo_sync.yml`. Every successful repository
-reconciliation triggers cadence, including syncs with no package-count delta.
-
-The cadence catalog is always `cadence_catalog_rhel.json`; `catalog_path` is
-only for the separate build-pipeline tests. Cadence `exec` and `test` save the
-new JobID automatically. Before a standalone cadence `verify`, `job_id` must
-contain the JobID from the cadence pipeline being checked.
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 20000 | BSM_FVT_PRECHECK_E001 | `test_deploy_precheck` | root | deploy, sanity | Runs `ansible-playbook build_stream.yml --tags precheck` from `src/build_stream/playbooks` with a 900-second timeout. | The playbook exits with return code 0 within the timeout. |
+| 20101 | BSM_FVT_PRECHECK_V001 | `test_precheck_environment_variables` | environment | sanity | Reads `SYSTEM_HOSTNAME`, `SYSTEM_DOMAIN_NAME`, `SYSTEM_ADMIN_NIC_IPV4`, `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` from `omnia.env` on the OIM. | `omnia.env` sets each of the five variables to a non-empty value. |
+| 20102 | BSM_FVT_PRECHECK_V002 | `test_precheck_oim_identity` | environment | sanity | Compares the output of `hostname -s` with `SYSTEM_HOSTNAME` and the output of `hostname -d` with `SYSTEM_DOMAIN_NAME` from `omnia.env`. | Both values are set in `omnia.env` and each one exactly matches the matching `hostname` output. |
+| 20103 | BSM_FVT_PRECHECK_V003 | `test_precheck_admin_ipv4` | environment | sanity | Parses `SYSTEM_ADMIN_NIC_IPV4` as an IPv4 address and compares it with the addresses listed by `ip -o -4 address show scope global`. | The configured address is a valid IPv4 address and is assigned to a global-scope interface on the OIM. |
+| 20104 | BSM_FVT_PRECHECK_V004 | `test_precheck_data_path_export` | environment | sanity | Resolves `OMNIA_DATA_PATH` with `realpath -e`, reads `exportfs -s`, and reports the filesystem type from `findmnt`. | `OMNIA_DATA_PATH` is set and no `no_root_squash` export equals the data path or is a parent or child of it; an NFS-mounted path is only reported. |
+| 20201 | BSM_FVT_PRECHECK_V005 | `test_precheck_containers` | containers | sanity | Runs `podman inspect` on the `pulp`, `minio-server` and `registry` containers to read their running and health state. | All three containers are running, and any container with a healthcheck reports `healthy`. |
+| 20301 | BSM_FVT_PRECHECK_V006 | `test_precheck_credentials` | credentials | sanity | Checks for `repo_manager_config_credentials.yml` and `image_build_credentials.yml` in each domain's `<data_path>/input/<project>` directory. | Both credential files exist as regular files. |
+| 20302 | BSM_FVT_PRECHECK_V007 | `test_precheck_repo_manager_files` | credentials | sanity | Checks the `repo_manager` input directory for `repo_manager_config_credentials.yml`, `.repo_manager_config_credentials_key`, `repo_manager_config.yml` and `repo_manager_endpoint_config.yml`. | All four files exist as regular files. |
+| 20303 | BSM_FVT_PRECHECK_V008 | `test_precheck_image_build_manager_files` | credentials | sanity | Checks the `image_build_manager` input directory for `image_build_credentials.yml`, `.image_build_credentials_key`, `image_build_config.yml` and `package_groups.yml`. | All four files exist as regular files. |
+| 20304 | BSM_FVT_PRECHECK_V009 | `test_precheck_orchestrator_files` | credentials | sanity | Checks the `orchestrator` input directory for `orchestrator_credentials.yml`, its key, and eight GitLab upload files, including `omnia_config.yml`, `network_spec.yml` and `pxe_mapping_file.csv`. | All ten files exist as regular files. |
 
 ```bash
-./run_validation.sh fvt_build_stream cadence_pipeline exec --marker sanity
-./run_validation.sh fvt_build_stream cadence_pipeline verify --marker sanity
-./run_validation.sh fvt_build_stream cadence_pipeline test --marker sanity
+./run_validation.sh fvt_build_stream precheck test --marker sanity
+./run_validation.sh fvt_build_stream precheck verify
 ```
 
-`generate-input-files` is retained as an explicit compatibility case but is
-skipped on 2.3 because that stage was retired.
+## Prepare — `build_stream.yml --tags prepare` (order 30000)
 
-## Automatic cadence timing coverage
+Deploys Postgres, the BuildStream API container and the playbook-watcher, and writes `build_stream_status.yml`.
 
-The product configuration keeps `cadence.interval_days` as an integer with a
-minimum of one day. The cadence FVT uses the supported one-shot watcher signal
-to exercise the complete repository-sync and GitLab pipeline path without a
-one-day wait. The NFT cadence timer test separately loads the integer setting,
-lets the timer wait expire without setting the manual-trigger event, and
-verifies that `interval_days: 1` produces a `86400` second timeout and one
-automatic cycle. A real wall-clock automatic FVT would necessarily take at
-least one day and is intentionally not part of sanity or either lifecycle.
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 30000 | BSM_FVT_PREPARE_E001 | `test_deploy_prepare` | root | deploy, sanity | Runs `ansible-playbook build_stream.yml --tags prepare` from `src/build_stream/playbooks` with a 3600-second timeout. | The playbook exits with return code 0 within the timeout. |
+| 30101 | BSM_FVT_PREPARE_V001 | `test_build_stream_enabled` | build_stream | sanity | Reads `enable_build_stream` from `build_stream_config.yml` in the `build_stream` input directory of the active project. | The key exists and its value is `true`, `yes` or `1`, compared case-insensitively. |
+| 30102 | BSM_FVT_PREPARE_V002 | `test_prepare_containers` | build_stream | sanity | Runs `podman inspect` on `omnia_build_stream` and `omnia_postgres`, and checks for their quadlet files under `/etc/containers/systemd/`. | Both containers run (healthy when a healthcheck exists), and `omnia_build_stream.container` and `omnia_postgres.container` both exist. |
+| 30103 | BSM_FVT_PREPARE_V003 | `test_prepare_services` | build_stream | sanity | Runs `systemctl is-active` on `omnia_postgres.service`, `omnia_build_stream.service` and `playbook-watcher.service`. | All three units report `active`. |
+| 30104 | BSM_FVT_PREPARE_V004 | `test_build_stream_health` | build_stream | sanity | Reads `build_stream_host_ip` and `build_stream_port` from `build_stream_config.yml`, then sends `curl -sk` to `https://<host>:<port>/health` from the OIM. | Both keys are set, the endpoint returns HTTP 200, and the response body contains `"healthy"`. |
+| 30105 | BSM_FVT_PREPARE_V005 | `test_postgres_tables` | build_stream | sanity | Runs `psql` inside `omnia_postgres` against `build_stream_db`, using the user from the BuildStream credentials, and lists `public` tables from `pg_tables`. | The query succeeds and all eight expected tables exist, including `alembic_version`, `jobs`, `job_stages`, `images` and `audit_events`. |
+| 30106 | BSM_FVT_PREPARE_V006 | `test_playbook_watcher_running` | build_stream | sanity | Runs `systemctl is-active playbook-watcher.service` on the OIM. | The unit reports `active`. |
+| 30107 | BSM_FVT_PREPARE_V007 | `test_omnia_venv_exists` | build_stream | sanity | Checks for `<OMNIA_VENV_PATH>/bin/ansible-playbook` with `test -f`, using the path from `omnia.env`. | `OMNIA_VENV_PATH` is a safe absolute path and `bin/ansible-playbook` exists under it. |
+| 30108 | BSM_FVT_PREPARE_V008 | `test_bsm_tls_certificate_valid` | build_stream | sanity | Runs `openssl x509 -noout -dates` on `<OMNIA_DATA_PATH>/build_stream/ssl/bs_cert.pem`. | `openssl` exits 0 and prints the certificate validity dates, so the file is a readable X.509 PEM certificate. |
+| 30109 | BSM_FVT_PREPARE_V009 | `test_nfs_queue_directory_accessible` | build_stream | sanity | Checks with `test -d` that the `<OMNIA_DATA_PATH>/build_stream/playbook_queue` directory exists. | The directory exists; the test does not check write access. |
+| 30110 | BSM_FVT_PREPARE_V010 | `test_prepare_status_file` | build_stream | sanity | Reads `build_stream_status.yml` from the `build_stream` output directory and checks `overall_status`, `build_stream_host`, `build_stream_port`, `gitlab_host`, `gitlab_url` and `bsm_api_url`. | The file is readable, `overall_status` equals `prepared`, and the other five keys have non-empty values. |
+| 30111 | BSM_FVT_PREPARE_V011 | `test_buildstream_directories_present` | build_stream | sanity | Checks with `test -d` for twelve runtime directories under `OMNIA_DATA_PATH` that prepare creates: `build_stream/log`, `build_stream/ssl`, `build_stream/build_stream_root` and its `api/.auth/keys`, `build_stream/playbook_queue` with `requests`, `results`, `processing`, `archive`, `archive/requests` and `archive/results`, and `build_stream/postgres/data`. | Every listed directory exists: `test -d` prints `exists` with exit 0; a missing directory is reported as `MISSING`. |
 
 ```bash
-./run_validation.sh nft_build_stream test --marker nft
+./run_validation.sh fvt_build_stream prepare test --marker sanity
+./run_validation.sh fvt_build_stream prepare verify
 ```
 
-## Automatic cleanup sanity suite
+## Execute — `build_stream.yml --tags execute` (order 40000)
 
-Automatic cleanup is an explicit destructive FVT and is never part of the
-default or named lifecycle. Set `automatic_cleanup_job_id` to a dedicated Job
-whose ImageGroup is `FAILED`. Execution is refused unless that Job owns the
-only `FAILED` ImageGroup, because the production cron processes every failed
-group. Set `automatic_cleanup_allow_execution: true` only after checking this
-precondition. `exec` runs the production cleanup cron, `verify` is read-only,
-and `test` runs both phases.
+Deploys GitLab CE, the project, CI/CD files, `omnia.env`, domain inputs and the gitlab-runner. All GitLab checks live here.
+
+`execute verify` then runs every pipeline suite in this order (one test case
+per step):
+
+| Suite | Trigger | Notes |
+|---|---|---|
+| `build_automatic` | commit `installation.catalog` (next unused version); the push starts build_pipeline | `build_pipeline`, `automatic_execution`, sanity |
+| `build_manual` | same commit with `[skip ci]`, then `PIPELINE_TYPE=build` through the API | `build_pipeline`, `manual_execution`; no sanity |
+| `deploy_automatic` | swap two PXE mapping rows; the push starts deploy_pipeline | `deploy_pipeline`, `automatic_execution`, sanity; deploys `build_automatic`'s group |
+| `deploy_manual` | `PIPELINE_TYPE=deploy` through the API | `deploy_pipeline`, `manual_execution`; no sanity; deploys `build_manual`'s group |
+| `cadence` | upload `installation.cadence_catalog`, cadence cycle via trigger_cadence.sh | `cadence`, sanity; fails (with the command to run) unless a build pipeline ran once |
+| `pipeline_cleanup` | `PIPELINE_TYPE=cleanup` | `cleanup_pipeline`, sanity; `pipeline.cleanup_image_group_id`, else the newest BUILT/PASSED/FAILED group; fails with "No images to clean" when no group can be cleaned |
+| `auto_cleanup` | one `cleanup_cron.main()` pass | `automatic_cleanup`, sanity; runs after `cadence` and before `pipeline_cleanup`; `pipeline.auto_cleanup_image_group_id`, else the image the cadence test built (marked FAILED in the database, then deleted); skipped with "nothing to clean" when that build failed; also deletes every other FAILED group (and retention candidates); skipped when `retention.auto_cleanup_enabled` is false |
+
+Image group a deploy suite deploys: the one the build suite built in the same
+run (`deploy_automatic` <- `build_automatic`, `deploy_manual` <-
+`build_manual`, else the other build suite). When that build failed, every
+deploy test is skipped. A deploy-only run (`--suite deploy_*` or `--marker
+deploy_pipeline`) deploys `pipeline.deploy_image_group_id`; its trigger test
+fails with "image name is not present" when the key is empty and with
+"requested image not found" when the group is not in `build_stream_db` or the
+deploy pipeline does not offer it.
+
+Automatic and manual suites share every step function; only the trigger
+differs. Before each commit or trigger, running GitLab pipelines are
+detected: with `pipeline.allow_pipeline_cancel: true` (default) they are
+listed and cancelled, with `false` the step fails and lists them. Each stage
+test waits for its stage, streams the stage playbook log live when
+`debug_mode: true` (default; otherwise it prints `tail -f <log>`), and checks
+the `job_stages` row and the API stage; the cleanup suites stream the cleanup
+playbook log the same way. With `pipeline.build_job_id`, `deploy_job_id` or `cadence_job_id` set (the manual suites share the build/deploy keys), a build,
+deploy or cadence suite only verifies that job. When a step fails, the steps
+after it are skipped with the reason.
+
+The last build step checks the OAuth client that the build initialization
+job registers: `BSM_CLIENT_ID` and `BSM_CLIENT_SECRET` exist as GitLab CI/CD
+variables (keys only; the secret is never read) and `jobs.client_id` of the
+build job is `BSM_CLIENT_ID`. The last deploy step checks that the job owns
+exactly one row in `image_groups` and that it is the deployed image group.
+
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 40000 | BSM_FVT_EXECUTE_E001 | `test_deploy_execute` | root | deploy, sanity | Runs `ansible-playbook build_stream.yml --tags execute` with a `3600` second timeout and logs the command, return code and duration. | The playbook run finishes with return code `0` within `3600` seconds. |
+| 40101 | BSM_FVT_EXECUTE_V001 | `test_gitlab_packages_installed` | gitlab_server | sanity | Runs `rpm -q gitlab-ce` on the GitLab host from `gitlab_host` in `build_stream_config.yml`, over SSH from the OIM with the key build_stream.yml installs (`/root/.ssh/omnia_gitlab`, strict host key checking). | SSH succeeds and the `rpm -q` output contains `gitlab-ce`. |
+| 40102 | BSM_FVT_EXECUTE_V002 | `test_gitlab_server_reachable` | gitlab_server | sanity | Reads `gitlab_host` from `build_stream_config.yml` and runs `echo REACHABLE` on that host over SSH from the OIM. | `gitlab_host` is set, the SSH command exits `0`, and stdout contains `REACHABLE`. |
+| 40103 | BSM_FVT_EXECUTE_V003 | `test_gitlab_url_accessible` | gitlab_server | sanity | Sends `GET https://<gitlab_host>:<gitlab_https_port>/` (default port `443`), TLS verified against the GitLab CA, without following redirects, and reads the HTTP status code. | `gitlab_host` is set and the HTTP status code is `200` or `302`. |
+| 40104 | BSM_FVT_EXECUTE_V004 | `test_gitlab_server_running` | gitlab_server | sanity | Calls the same verified URL probe as `test_gitlab_url_accessible`. | `gitlab_host` is set and the HTTP status code is `200` or `302`. |
+| 40105 | BSM_FVT_EXECUTE_V005 | `test_gitlab_services_running` | gitlab_server | sanity | Runs `gitlab-ctl status` on the GitLab host over SSH and finds the line for each of `puma`, `sidekiq`, `nginx`, `postgresql`, `redis`, `gitaly`, `gitlab-workhorse` and `logrotate`. | `gitlab-ctl status` succeeds, and every one of the eight services has a line that starts with `run:`. |
+| 40106 | BSM_FVT_EXECUTE_V006 | `test_gitlab_resources` | gitlab_server | sanity | Runs `nproc`, `free -g` and `df -BG /` on the GitLab host over SSH and parses the CPU count, total memory and available space on `/`. | The host has at least `4` CPU cores, `8` GB total memory (`free -g`) and `50` GB available on `/`. |
+| 40107 | BSM_FVT_EXECUTE_V007 | `test_puma_workers` | gitlab_server | sanity | Runs `grep worker_processes /etc/gitlab/gitlab.rb` on the GitLab host and compares the value with `puma_workers` in `build_stream_config.yml` (default `2`). | The first `worker_processes = N` line in `gitlab.rb` has `N` equal to the expected `puma_workers` value. |
+| 40108 | BSM_FVT_EXECUTE_V008 | `test_sidekiq_concurrency` | gitlab_server | sanity | Runs `grep max_concurrency /etc/gitlab/gitlab.rb` on the GitLab host and compares the value with `sidekiq_concurrency` in `build_stream_config.yml` (default `10`). | The first `max_concurrency = N` line in `gitlab.rb` has `N` equal to the expected `sidekiq_concurrency` value. |
+| 40201 | BSM_FVT_EXECUTE_V009 | `test_gitlab_runner_container` | gitlab_runner | sanity | Runs `podman ps` on the GitLab host over SSH and looks for a container named `gitlab-runner`; if absent, it checks `podman ps -a`. | The `gitlab-runner` container appears in `podman ps`, which lists running containers only. |
+| 40202 | BSM_FVT_EXECUTE_V010 | `test_gitlab_runner_quadlet_exists` | gitlab_runner | sanity | Runs `test -f /etc/containers/systemd/gitlab-runner.container` on the GitLab host over SSH. | The SSH command succeeds and reports that `/etc/containers/systemd/gitlab-runner.container` exists. |
+| 40203 | BSM_FVT_EXECUTE_V011 | `test_gitlab_runner_services_status` | gitlab_runner | sanity | Runs `systemctl is-active` on the GitLab host over SSH for `gitlab-runner.service` and `gitlab-runsvdir.service`. | Both `gitlab-runner.service` and `gitlab-runsvdir.service` return `active`. |
+| 40204 | BSM_FVT_EXECUTE_V012 | `test_gitlab_runner_running` | gitlab_runner | sanity | Calls the same check as `test_gitlab_runner_container`: runs `podman ps` on the GitLab host and looks for the `gitlab-runner` container. | The `gitlab-runner` container appears in `podman ps`, which lists running containers only. |
+| 40301 | BSM_FVT_EXECUTE_V013 | `test_gitlab_project_exists` | gitlab_project | sanity | Uses the root token in `/root/.gitlab_root_token` to call GitLab API `GET /api/v4/projects/root%2F<gitlab_project_name>` (default `omnia-catalog`). | The API returns a project JSON object with a non-empty `id`. |
+| 40302 | BSM_FVT_EXECUTE_V014 | `test_gitlab_project_visibility` | gitlab_project | sanity | Compares the `visibility` field from GitLab API `GET /api/v4/projects/root%2F<project>` with `project_visibility` in `build_stream_config.yml` (default `private`). | `project_visibility` is `private`, `internal` or `public`, and it equals the project `visibility` value from the API. |
+| 40303 | BSM_FVT_EXECUTE_V015 | `test_gitlab_default_branch` | gitlab_project | sanity | Compares the `default_branch` field from GitLab API `GET /api/v4/projects/root%2F<project>` with `default_branch` in `build_stream_config.yml` (default `main`). | The project `default_branch` value from the API equals the configured branch. |
+| 40304 | BSM_FVT_EXECUTE_V016 | `test_gitlab_pipeline_variables` | gitlab_project | sanity | Lists project CI/CD variables with GitLab API `GET /api/v4/projects/root%2F<project>/variables` and checks for `GITLAB_API_TOKEN`, `BSM_API_URL` and `BSM_API_CERT`. | The API returns valid JSON, and its variable `key` values include all three variable names. |
+| 40305 | BSM_FVT_EXECUTE_V017 | `test_gitlab_pipeline_file_exists` | gitlab_project | sanity | Requests `.gitlab-ci.yml` with GitLab API `GET /api/v4/projects/root%2F<project>/repository/files/<path>/raw?ref=<default_branch>`. | The API returns HTTP `200` for `.gitlab-ci.yml` on the configured branch. |
+| 40306 | BSM_FVT_EXECUTE_V018 | `test_gitlab_ci_build_file_exists` | gitlab_project | sanity | Requests `.gitlab-ci-build.yml` with GitLab API `GET /api/v4/projects/root%2F<project>/repository/files/<path>/raw?ref=<default_branch>`. | The API returns HTTP `200` for `.gitlab-ci-build.yml` on the configured branch. |
+| 40307 | BSM_FVT_EXECUTE_V019 | `test_gitlab_ci_deploy_file_exists` | gitlab_project | sanity | Requests `.gitlab-ci-deploy.yml` with GitLab API `GET /api/v4/projects/root%2F<project>/repository/files/<path>/raw?ref=<default_branch>`. | The API returns HTTP `200` for `.gitlab-ci-deploy.yml` on the configured branch. |
+| 40308 | BSM_FVT_EXECUTE_V020 | `test_gitlab_ci_cleanup_file_exists` | gitlab_project | sanity | Requests `.gitlab-ci-cleanup.yml` with GitLab API `GET /api/v4/projects/root%2F<project>/repository/files/<path>/raw?ref=<default_branch>`. | The API returns HTTP `200` for `.gitlab-ci-cleanup.yml` on the configured branch. |
+| 40309 | BSM_FVT_EXECUTE_V021 | `test_gitlab_ci_cadence_file_exists` | gitlab_project | sanity | Requests `.gitlab-ci-cadence.yml` with GitLab API `GET /api/v4/projects/root%2F<project>/repository/files/<path>/raw?ref=<default_branch>`. | The API returns HTTP `200` for `.gitlab-ci-cadence.yml` on the configured branch. |
+| 40310 | BSM_FVT_EXECUTE_V022 | `test_gitlab_deploy_child_template_exists` | gitlab_project | sanity | Requests `.gitlab-ci-deploy-child-template.yml` with GitLab API `GET /api/v4/projects/root%2F<project>/repository/files/<path>/raw?ref=<default_branch>`. | The API returns HTTP `200` for `.gitlab-ci-deploy-child-template.yml` on the configured branch. |
+| 40311 | BSM_FVT_EXECUTE_V023 | `test_gitlab_cleanup_child_template_exists` | gitlab_project | sanity | Requests `.gitlab-ci-cleanup-child-template.yml` with GitLab API `GET /api/v4/projects/root%2F<project>/repository/files/<path>/raw?ref=<default_branch>`. | The API returns HTTP `200` for `.gitlab-ci-cleanup-child-template.yml` on the configured branch. |
+| 40312 | BSM_FVT_EXECUTE_V024 | `test_omnia_env_exists` | gitlab_project | sanity | Requests `omnia.env` with GitLab API `GET /api/v4/projects/root%2F<project>/repository/files/omnia%2Eenv/raw?ref=<default_branch>`; it checks only that the file exists. | The API returns HTTP `200` for `omnia.env` on the configured branch. |
+| 40313 | BSM_FVT_EXECUTE_V025 | `test_domain_input_dirs_in_repo` | gitlab_project | sanity | Lists `input/repo_manager`, `input/image_build_manager` and `input/orchestrator` with GitLab API `repository/tree`, then checks each file in `GITLAB_UPLOADED_INPUT_FILES` (13 files). | Every listed directory returns valid JSON, and every expected file, such as `omnia_config.yml` and `pxe_mapping_file.csv`, is present as a blob. |
+| 40401 | BSM_FVT_EXECUTE_V026 | `test_build_trigger_pipeline` | build_automatic | pipeline, build_pipeline, automatic_execution, sanity | Cancels busy pipelines when `pipeline.allow_pipeline_cancel` is true, commits `installation.catalog` as `catalog_rhel.json` at the next unused version and waits for the auto-triggered pipeline, its `build_pipeline` child and a new `jobs` row. | The commit starts a pipeline with a `build_pipeline` child and a BuildStream job is created; verify-only mode needs `pipeline.build_job_id` in `jobs`; busy pipelines with cancel disabled fail. |
+| 40402 | BSM_FVT_EXECUTE_V027 | `test_build_upload_stage` | build_automatic | pipeline, build_pipeline, automatic_execution, sanity | Waits for the `upload` row in `job_stages` of the build job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage, then reads the catalog at `CATALOG_FILE_PATH` on the host (trigger mode only). | `upload` ends `COMPLETED` with the API stage equal to the DB state and the host catalog matches the commit, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier step of the same build failed. |
+| 40403 | BSM_FVT_EXECUTE_V028 | `test_build_parse_catalog_stage` | build_automatic | pipeline, build_pipeline, automatic_execution, sanity | Waits for the `parse-catalog` row in `job_stages` of the build job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `parse-catalog` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier step of the same build failed. |
+| 40404 | BSM_FVT_EXECUTE_V029 | `test_build_create_local_repository_stage` | build_automatic | pipeline, build_pipeline, automatic_execution, sanity | Waits for the `create-local-repository` row in `job_stages` of the build job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `create-local-repository` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier step of the same build failed. |
+| 40405 | BSM_FVT_EXECUTE_V030 | `test_build_build_image_stage` | build_automatic | pipeline, build_pipeline, automatic_execution, sanity | Waits for the `build-image` row in `job_stages` of the build job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `build-image` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier step of the same build failed. |
+| 40406 | BSM_FVT_EXECUTE_V031 | `test_build_repo_manager_status` | build_automatic | pipeline, build_pipeline, automatic_execution, sanity | Reads `repo_status.yml` under the Repo Manager `output/<project>` directory written by `create-local-repository`. | `overall_status` is `success` (case-insensitive); skipped when an earlier step of the same build failed. |
+| 40407 | BSM_FVT_EXECUTE_V032 | `test_build_image_build_manager_artifacts` | build_automatic | pipeline, build_pipeline, automatic_execution, sanity | Takes the roles from the `images` rows of the job's image group, reads `build_status.yml`, lists the registry with `regctl repo ls` and `s3://boot-images` with `s3cmd ls -r`. | Every role has its registry repository and its image, kernel and initrd keys in `s3://boot-images`, and both listings succeed; skipped when an earlier step of the same build failed. |
+| 40408 | BSM_FVT_EXECUTE_V033 | `test_build_pipeline_records` | build_automatic | pipeline, build_pipeline, automatic_execution, sanity | Waits up to 900 s for the `build_pipeline` child to finish, then reads the `jobs`, `image_groups` and `images` rows of the build job and the BuildStream API job. | GitLab pipeline is `success`, `job_state` is not `FAILED`/`CANCELLED` and equals the API state, the image group is the expected `<identifier>-v<version>` in a post-build status with images; skipped when an earlier step of the same build failed. |
+| 40409 | BSM_FVT_EXECUTE_V077 | `test_build_oauth_client_registered` | build_automatic | pipeline, build_pipeline, automatic_execution, sanity | Lists the GitLab CI/CD variable keys, reads `BSM_CLIENT_ID` (never the secret) and compares it with `jobs.client_id` of the build job. | `BSM_CLIENT_ID` and `BSM_CLIENT_SECRET` exist, `BSM_CLIENT_ID` starts with `bld_` and equals `jobs.client_id`; skipped when an earlier step of the same build failed. |
+| 40501 | BSM_FVT_EXECUTE_V034 | `test_build_manual_trigger_pipeline` | build_manual | pipeline, build_pipeline, manual_execution | Commits `installation.catalog` as `catalog_rhel.json` at the next unused version with `[skip ci]`, checks no pipeline starts, triggers `PIPELINE_TYPE=build` through the GitLab API and waits for the `build_pipeline` child and a new `jobs` row. | The `[skip ci]` commit starts no pipeline, the API pipeline gets a `build_pipeline` child and a BuildStream job is created; verify-only mode needs `pipeline.build_job_id` in `jobs`. |
+| 40502 | BSM_FVT_EXECUTE_V035 | `test_build_manual_upload_stage` | build_manual | pipeline, build_pipeline, manual_execution | Waits for the `upload` row in `job_stages` of the build job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage, then reads the catalog at `CATALOG_FILE_PATH` on the host (trigger mode only). | `upload` ends `COMPLETED` with the API stage equal to the DB state and the host catalog matches the commit, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier step of the same build failed. |
+| 40503 | BSM_FVT_EXECUTE_V036 | `test_build_manual_parse_catalog_stage` | build_manual | pipeline, build_pipeline, manual_execution | Waits for the `parse-catalog` row in `job_stages` of the build job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `parse-catalog` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier step of the same build failed. |
+| 40504 | BSM_FVT_EXECUTE_V037 | `test_build_manual_create_local_repository_stage` | build_manual | pipeline, build_pipeline, manual_execution | Waits for the `create-local-repository` row in `job_stages` of the build job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `create-local-repository` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier step of the same build failed. |
+| 40505 | BSM_FVT_EXECUTE_V038 | `test_build_manual_build_image_stage` | build_manual | pipeline, build_pipeline, manual_execution | Waits for the `build-image` row in `job_stages` of the build job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `build-image` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier step of the same build failed. |
+| 40506 | BSM_FVT_EXECUTE_V039 | `test_build_manual_repo_manager_status` | build_manual | pipeline, build_pipeline, manual_execution | Reads `repo_status.yml` under the Repo Manager `output/<project>` directory written by `create-local-repository`. | `overall_status` is `success` (case-insensitive); skipped when an earlier step of the same build failed. |
+| 40507 | BSM_FVT_EXECUTE_V040 | `test_build_manual_image_build_manager_artifacts` | build_manual | pipeline, build_pipeline, manual_execution | Takes the roles from the `images` rows of the job's image group, reads `build_status.yml`, lists the registry with `regctl repo ls` and `s3://boot-images` with `s3cmd ls -r`. | Every role has its registry repository and its image, kernel and initrd keys in `s3://boot-images`, and both listings succeed; skipped when an earlier step of the same build failed. |
+| 40508 | BSM_FVT_EXECUTE_V041 | `test_build_manual_pipeline_records` | build_manual | pipeline, build_pipeline, manual_execution | Waits up to 900 s for the `build_pipeline` child to finish, then reads the `jobs`, `image_groups` and `images` rows of the build job and the BuildStream API job. | GitLab pipeline is `success`, `job_state` is not `FAILED`/`CANCELLED` and equals the API state, the image group is the expected `<identifier>-v<version>` in a post-build status with images; skipped when an earlier step of the same build failed. |
+| 40509 | BSM_FVT_EXECUTE_V078 | `test_build_manual_oauth_client_registered` | build_manual | pipeline, build_pipeline, manual_execution | Lists the GitLab CI/CD variable keys, reads `BSM_CLIENT_ID` (never the secret) and compares it with `jobs.client_id` of the build job. | `BSM_CLIENT_ID` and `BSM_CLIENT_SECRET` exist, `BSM_CLIENT_ID` starts with `bld_` and equals `jobs.client_id`; skipped when an earlier step of the same build failed. |
+| 40601 | BSM_FVT_EXECUTE_V042 | `test_deploy_trigger_pxe_change` | deploy_automatic | pipeline, deploy_pipeline, automatic_execution, sanity | Picks the image group built by `build_automatic` (else `build_manual`) in this run, else `pipeline.deploy_image_group_id`, cancels busy pipelines when allowed, swaps two rows of `input/orchestrator/pxe_mapping_file.csv` in GitLab and waits for the `deploy_pipeline` child. | The group is in `image_groups` with status `BUILT` and a `deploy_pipeline` child starts; empty ID fails "image name is not present", unknown ID "requested image not found"; skipped when the source build failed. |
+| 40602 | BSM_FVT_EXECUTE_V043 | `test_deploy_select_image` | deploy_automatic | pipeline, deploy_pipeline, automatic_execution, sanity | Waits for the `trigger_deploy` selection pipeline, lists its `select_image` jobs, plays the job named after the image group and reads its log. | The group's job is offered (else "requested image not found"), ends `success`, and its log names the image group and build job ID; skipped in verify-only mode and skipped when the source build or an earlier deploy step failed. |
+| 40603 | BSM_FVT_EXECUTE_V044 | `test_deploy_deploy_stage` | deploy_automatic | pipeline, deploy_pipeline, automatic_execution, sanity | Plays the manual `deploy` GitLab job of the selection pipeline, then waits for a re-run `deploy` row in `job_stages`, streaming its log when `debug_mode` is true, and compares it with the API stage. | The `deploy` job exists and plays, and the `deploy` stage ends `COMPLETED` with the API stage equal to the DB state; skipped when the source build or an earlier deploy step failed. |
+| 40604 | BSM_FVT_EXECUTE_V045 | `test_deploy_restart_stage` | deploy_automatic | pipeline, deploy_pipeline, automatic_execution, sanity | Waits for the `restart` row in `job_stages` of the deployed job (newer than the pre-trigger row), streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `restart` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when the source build or an earlier deploy step failed. |
+| 40605 | BSM_FVT_EXECUTE_V046 | `test_deploy_restart_node_results` | deploy_automatic | pipeline, deploy_pipeline, automatic_execution, sanity | Fetches the `node-results` and optional `failed-nodes` artifacts of the job from the BuildStream API, plus the GitLab `input/orchestrator/pxe_mapping_file.csv` and the job's `restart_state.json`. | `node-results` exists for this job ID and every node listed in `failed-nodes`, when present, has status `failed` in `node-results`; every `BMC_IP` in the PXE mapping appears once in `node-results` (or is booted by an earlier restart attempt), with no extra node, and `total_nodes`, `success_count` and `failure_count` match the node list; skipped when the source build or an earlier deploy step failed. |
+| 40606 | BSM_FVT_EXECUTE_V047 | `test_deploy_validate_stage` | deploy_automatic | pipeline, deploy_pipeline, automatic_execution, sanity | Waits for the `validate` row in `job_stages` of the deployed job (newer than the pre-trigger row), streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage and reads `result_detail.test_summary` of the `validate` row. | `validate` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; its `test_summary` has `total` and `passed` above 0 and `failed` and `errors` at 0; skipped when the source build or an earlier deploy step failed. |
+| 40607 | BSM_FVT_EXECUTE_V048 | `test_deploy_pipeline_records` | deploy_automatic | pipeline, deploy_pipeline, automatic_execution, sanity | Waits up to 900 s for the selection pipeline, reads the `jobs`, `image_groups` and `images` rows and the API job, then reads the `summary` job log. | Pipeline is `success`, the deployed group is `PASSED` with `deploy_count` incremented, `last_deployed_at` set and images, the API matches `job_state`, and `summary` reports `RESULT:  PASSED`; skipped when the source build or an earlier deploy step failed. |
+| 40608 | BSM_FVT_EXECUTE_V079 | `test_deploy_job_image_group_mapping` | deploy_automatic | pipeline, deploy_pipeline, automatic_execution, sanity | Queries the `image_groups` rows whose `job_id` is the deployed job. | Exactly one row exists and its ID is the deployed image group; skipped when the source build or an earlier deploy step failed. |
+| 40701 | BSM_FVT_EXECUTE_V049 | `test_deploy_manual_trigger_pipeline` | deploy_manual | pipeline, deploy_pipeline, manual_execution | Picks the image group built by `build_manual` (else `build_automatic`) in this run, else `pipeline.deploy_image_group_id`, cancels busy pipelines when allowed, triggers `PIPELINE_TYPE=deploy` through the API and waits for the `deploy_pipeline` child. | The group is in `image_groups` with status `BUILT` and a `deploy_pipeline` child starts; empty ID fails "image name is not present", unknown ID "requested image not found"; skipped when the source build failed. |
+| 40702 | BSM_FVT_EXECUTE_V050 | `test_deploy_manual_select_image` | deploy_manual | pipeline, deploy_pipeline, manual_execution | Waits for the `trigger_deploy` selection pipeline, lists its `select_image` jobs, plays the job named after the image group and reads its log. | The group's job is offered (else "requested image not found"), ends `success`, and its log names the image group and build job ID; skipped in verify-only mode and skipped when the source build or an earlier deploy step failed. |
+| 40703 | BSM_FVT_EXECUTE_V051 | `test_deploy_manual_deploy_stage` | deploy_manual | pipeline, deploy_pipeline, manual_execution | Plays the manual `deploy` GitLab job of the selection pipeline, then waits for a re-run `deploy` row in `job_stages`, streaming its log when `debug_mode` is true, and compares it with the API stage. | The `deploy` job exists and plays, and the `deploy` stage ends `COMPLETED` with the API stage equal to the DB state; skipped when the source build or an earlier deploy step failed. |
+| 40704 | BSM_FVT_EXECUTE_V052 | `test_deploy_manual_restart_stage` | deploy_manual | pipeline, deploy_pipeline, manual_execution | Waits for the `restart` row in `job_stages` of the deployed job (newer than the pre-trigger row), streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `restart` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when the source build or an earlier deploy step failed. |
+| 40705 | BSM_FVT_EXECUTE_V053 | `test_deploy_manual_restart_node_results` | deploy_manual | pipeline, deploy_pipeline, manual_execution | Fetches the `node-results` and optional `failed-nodes` artifacts of the job from the BuildStream API, plus the GitLab `input/orchestrator/pxe_mapping_file.csv` and the job's `restart_state.json`. | `node-results` exists for this job ID and every node listed in `failed-nodes`, when present, has status `failed` in `node-results`; every `BMC_IP` in the PXE mapping appears once in `node-results` (or is booted by an earlier restart attempt), with no extra node, and `total_nodes`, `success_count` and `failure_count` match the node list; skipped when the source build or an earlier deploy step failed. |
+| 40706 | BSM_FVT_EXECUTE_V054 | `test_deploy_manual_validate_stage` | deploy_manual | pipeline, deploy_pipeline, manual_execution | Waits for the `validate` row in `job_stages` of the deployed job (newer than the pre-trigger row), streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage and reads `result_detail.test_summary` of the `validate` row. | `validate` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; its `test_summary` has `total` and `passed` above 0 and `failed` and `errors` at 0; skipped when the source build or an earlier deploy step failed. |
+| 40707 | BSM_FVT_EXECUTE_V055 | `test_deploy_manual_pipeline_records` | deploy_manual | pipeline, deploy_pipeline, manual_execution | Waits up to 900 s for the selection pipeline, reads the `jobs`, `image_groups` and `images` rows and the API job, then reads the `summary` job log. | Pipeline is `success`, the deployed group is `PASSED` with `deploy_count` incremented, `last_deployed_at` set and images, the API matches `job_state`, and `summary` reports `RESULT:  PASSED`; skipped when the source build or an earlier deploy step failed. |
+| 40708 | BSM_FVT_EXECUTE_V080 | `test_deploy_manual_job_image_group_mapping` | deploy_manual | pipeline, deploy_pipeline, manual_execution | Queries the `image_groups` rows whose `job_id` is the deployed job. | Exactly one row exists and its ID is the deployed image group; skipped when the source build or an earlier deploy step failed. |
+| 40801 | BSM_FVT_EXECUTE_V056 | `test_cadence_pipeline_trigger_cycle` | cadence | pipeline, cadence, sanity | First builds a new image group inside this test (next unused catalog version, stages `upload` to `build-image`, group `BUILT`; a failed build fails the test), then checks the `BSM_CLIENT_ID`/`BSM_CLIENT_SECRET` CI/CD variables, an `image_groups` row, playbook-watcher, `cadence.enabled` and the trigger script, uploads `installation.cadence_catalog` with `[skip ci]`, runs `trigger_cadence.sh` and follows the journal. | Prechecks pass, the upload starts no pipeline, the cycle commits `cadence_catalog_rhel.json` with one version in journal, GitLab and host, and the commit starts `cadence_pipeline` and a BuildStream job. |
+| 40802 | BSM_FVT_EXECUTE_V057 | `test_cadence_pipeline_upload_stage` | cadence | pipeline, cadence, sanity | Waits for the `upload` row in `job_stages` of the cadence job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `upload` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier cadence step failed. |
+| 40803 | BSM_FVT_EXECUTE_V058 | `test_cadence_pipeline_parse_catalog_stage` | cadence | pipeline, cadence, sanity | Waits for the `parse-catalog` row in `job_stages` of the cadence job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `parse-catalog` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier cadence step failed. |
+| 40804 | BSM_FVT_EXECUTE_V059 | `test_cadence_pipeline_create_local_repository_stage` | cadence | pipeline, cadence, sanity | Waits for the `create-local-repository` row in `job_stages` of the cadence job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `create-local-repository` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier cadence step failed. |
+| 40805 | BSM_FVT_EXECUTE_V060 | `test_cadence_pipeline_build_image_stage` | cadence | pipeline, cadence, sanity | Waits for the `build-image` row in `job_stages` of the cadence job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `build-image` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier cadence step failed. |
+| 40806 | BSM_FVT_EXECUTE_V061 | `test_cadence_pipeline_deploy_stage` | cadence | pipeline, cadence, sanity | Waits for the `deploy` row in `job_stages` of the cadence job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `deploy` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier cadence step failed. |
+| 40807 | BSM_FVT_EXECUTE_V062 | `test_cadence_pipeline_restart_stage` | cadence | pipeline, cadence, sanity | Waits for the `restart` row in `job_stages` of the cadence job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage. | `restart` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; skipped when an earlier cadence step failed. |
+| 40808 | BSM_FVT_EXECUTE_V063 | `test_cadence_pipeline_validate_stage` | cadence | pipeline, cadence, sanity | Waits for the `validate` row in `job_stages` of the cadence job, streaming the stage log when `debug_mode` is true, then compares the DB state with the BuildStream API stage and reads `result_detail.test_summary` of the `validate` row. | `validate` ends `COMPLETED` with the API stage equal to the DB state, and the BuildStream job and GitLab pipelines do not fail first; its `test_summary` has `total` and `passed` above 0 and `failed` and `errors` at 0; skipped when an earlier cadence step failed. |
+| 40809 | BSM_FVT_EXECUTE_V064 | `test_cadence_pipeline_records` | cadence | pipeline, cadence, sanity | Waits up to 900 s for the `cadence_pipeline` child to finish, then reads the `jobs`, `image_groups` and `images` rows of the cadence job and the BuildStream API job. | GitLab pipeline is `success`, `job_state` is not `FAILED`/`CANCELLED` and equals the API state, and the job's image group is `PASSED` with images; skipped when an earlier cadence step failed. |
+| 40810 | BSM_FVT_EXECUTE_V065 | `test_cadence_disable_takes_effect_live` | cadence | pipeline, cadence | Sets `cadence.enabled: false` in `build_stream_config.yml` without a restart, runs `trigger_cadence.sh`, follows the playbook-watcher journal, compares GitLab commits and pipelines with a baseline, then restores the value. | The cycle starts and logs "Cadence polling is disabled" with no fetch, sync or commit, and GitLab gets no new `cadence_catalog_rhel.json` commit or pipeline. |
+| 40811 | BSM_FVT_EXECUTE_V066 | `test_cadence_reenable_resumes_cycle` | cadence | pipeline, cadence | Disables cadence and proves one skipped cycle, uploads `installation.cadence_catalog`, sets `cadence.enabled: true` without a restart, triggers a cycle and follows the journal and GitLab, then restores the value. | Reload logs "enabled False -> True", the cycle syncs, completes at the expected version and commits, and the commit starts `cadence_pipeline` and a BuildStream job. |
+| 40812 | BSM_FVT_EXECUTE_V081 | `test_cadence_pipeline_artifacts` | cadence | pipeline, cadence | Reads the image group and roles of the cadence job from `build_stream_db`, then lists the registry with `regctl` and the `boot-images` bucket with `s3cmd` for each role's image, kernel and initrd named in `build_status.yml`. | Every role built by the cadence job has its registry image and its S3 image, kernel and initrd; skipped when the cadence trigger failed or an earlier cadence step failed. |
+| 40813 | BSM_FVT_EXECUTE_V082 | `test_cadence_pipeline_restart_node_results` | cadence | pipeline, cadence | Reads the `node-results` and `failed-nodes` artifacts of the cadence job from `GET /api/v1/jobs/{id}/artifacts`, plus the GitLab `input/orchestrator/pxe_mapping_file.csv` and the job's `restart_state.json`. | `node-results` exists for this job and lists its nodes; every node in `failed-nodes` is failed in `node-results`; every `BMC_IP` in the PXE mapping appears once in `node-results` (or is booted by an earlier restart attempt), with no extra node, and `total_nodes`, `success_count` and `failure_count` match the node list; skipped when the cadence trigger failed or an earlier cadence step failed. |
+| 40901 | BSM_FVT_EXECUTE_V073 | `test_auto_cleanup_precheck` | auto_cleanup | pipeline, automatic_cleanup, sanity | Validates the `retention` section of `build_stream_config.yml` against the scheduler rules and checks the `omnia_build_stream` container and the playbook-watcher unit. | `retention` is valid, the container is running and playbook-watcher is active; skipped when `retention.auto_cleanup_enabled` is false. |
+| 40902 | BSM_FVT_EXECUTE_V074 | `test_auto_cleanup_run_pass` | auto_cleanup | pipeline, automatic_cleanup, sanity | Picks `pipeline.auto_cleanup_image_group_id`, else the image group the cadence test built in this session or recorded in `reports/state/cadence_build.json` by an earlier process (skipped with "nothing to clean" when that build failed; still cleaned when only the cadence cycle failed), else the first `BUILT`/`PASSED`/`FAILED` group (none fails with `No images to clean`), records its registry tags, sets it to `FAILED` in `image_groups`, then snapshots image groups and boot-images keys, computes the expected candidates, runs `cleanup_cron.main()` in `omnia_build_stream` and polls until no submitted group is `CLEANING`, streaming the log when `debug_mode` is true. | `cleanup_cron` does not exit with fatal code 2 and every submitted group leaves `CLEANING`; skipped when the precheck failed or was skipped. |
+| 40903 | BSM_FVT_EXECUTE_V075 | `test_auto_cleanup_db_updated` | auto_cleanup | pipeline, automatic_cleanup, sanity | Compares the pass log and exit code with the expected `FAILED` and retention candidates, then reads `image_groups` status, `jobs` tombstones and `audit_events` of every group. | Exactly the expected groups were submitted and are `CLEANED`, tombstoned and audited without `JOB_CLEANUP_FAILED`, and every other group kept its status; skipped when an earlier step failed. |
+| 40904 | BSM_FVT_EXECUTE_V076 | `test_auto_cleanup_artifacts_removed` | auto_cleanup | pipeline, automatic_cleanup, sanity | Lists `s3://boot-images`, lists the registry tags of each cleaned group with `regctl repo ls` / `regctl tag ls`, and checks the NFS artifact directory of each cleaned job against the pre-pass snapshot. | Cleaned groups have no S3 objects or NFS artifact directory left and no S3 object of a kept group was deleted; skipped when an earlier step failed. |
+| 41001 | BSM_FVT_EXECUTE_V067 | `test_pipeline_cleanup_trigger_select` | pipeline_cleanup | pipeline, cleanup_pipeline, sanity | Picks `pipeline.cleanup_image_group_id` or the first (newest) `BUILT`/`PASSED`/`FAILED` group, records its S3 keys, registry tags and NFS directory, triggers `PIPELINE_TYPE=cleanup` and plays its `select_image` job. | The `trigger_cleanup` selection pipeline offers the group, its job ends `success` and its log names the group and job ID; fails with `No images to clean` when no group is cleanable. |
+| 41002 | BSM_FVT_EXECUTE_V068 | `test_pipeline_cleanup_run_cleanup_job` | pipeline_cleanup | pipeline, cleanup_pipeline, sanity | Plays the manual `cleanup` GitLab job and polls the `image_groups` status, streaming the cleanup playbook log when `debug_mode` is true, then reads the `cleanup` and `summary` jobs. | The image group reaches `CLEANED`, the `cleanup` job ends `success` and the `summary` log reports `Status: SUCCESS`; skipped when the trigger step failed or nothing is cleanable. |
+| 41003 | BSM_FVT_EXECUTE_V069 | `test_pipeline_cleanup_db_cleaned` | pipeline_cleanup | pipeline, cleanup_pipeline, sanity | Reads the image group's `image_groups` status, the job's tombstone flag in `jobs` and the `audit_events` since the trigger. | Group is `CLEANED`, job is tombstoned, and audit has `JOB_CLEANUP_SUBMITTED` and `JOB_CLEANED` without `JOB_CLEANUP_FAILED`; skipped when an earlier cleanup step failed. |
+| 41004 | BSM_FVT_EXECUTE_V070 | `test_pipeline_cleanup_s3_deleted` | pipeline_cleanup | pipeline, cleanup_pipeline, sanity | Lists `s3://boot-images` and matches the keys against the cleaned image group ID. | No boot-images object of the image group is left; skipped when an earlier cleanup step failed. |
+| 41005 | BSM_FVT_EXECUTE_V071 | `test_pipeline_cleanup_registry_deleted` | pipeline_cleanup | pipeline, cleanup_pipeline, sanity | Lists registry repositories of the image group with `regctl repo ls` and their tags with `regctl tag ls`. | No repository of the group has a tag left; skipped when an earlier cleanup step failed. |
+| 41006 | BSM_FVT_EXECUTE_V072 | `test_pipeline_cleanup_nfs_removed` | pipeline_cleanup | pipeline, cleanup_pipeline, sanity | Checks whether the job's NFS artifact directory under the BuildStream data path still exists. | The job's NFS artifact directory no longer exists; skipped when an earlier cleanup step failed. |
 
 ```bash
-./run_validation.sh fvt_build_stream automatic_cleanup exec \
-  --suite automatic_cleanup --marker sanity
-./run_validation.sh fvt_build_stream automatic_cleanup verify \
-  --suite automatic_cleanup --marker sanity
-./run_validation.sh fvt_build_stream automatic_cleanup test \
-  --suite automatic_cleanup --marker sanity
+./run_validation.sh fvt_build_stream execute verify                          # every suite in order
+./run_validation.sh fvt_build_stream execute verify --marker sanity          # without the manual suites
+./run_validation.sh fvt_build_stream execute verify --suite build_automatic
+./run_validation.sh fvt_build_stream execute verify --suite build_manual
+./run_validation.sh fvt_build_stream execute verify --suite deploy_automatic
+./run_validation.sh fvt_build_stream execute verify --suite deploy_manual
+./run_validation.sh fvt_build_stream execute verify --suite cadence
+./run_validation.sh fvt_build_stream execute verify --suite pipeline_cleanup
+./run_validation.sh fvt_build_stream execute verify --suite auto_cleanup
 ```
 
-The suite verifies integer retention settings, active BuildStream/watcher
-services, `type=auto` log evidence, the final `CLEANED` state, and removal of
-S3 and registry artifacts for the exact configured Job.
+## Cleanup — `build_stream.yml --tags cleanup` (order 90000)
 
-## Cleanup pipeline sanity suite
+Destructive and explicit only. Runs `build_stream.yml --tags cleanup -e postgres_backup=<flag> -e cleanup_credentials=<flag>` with the `cleanup` block of `test_config.yml`, then verifies GitLab and BuildStream are gone (containers no longer running and removed, services, quadlets, runtime directories, API port). The Postgres data follows `postgres_backup` (false: data directory and volumes deleted; true: kept) and the credential files follow `cleanup_credentials` (true: deleted; false: kept).
 
-The API-triggered cleanup pipeline is an explicit sanity suite. It is not part
-of the default lifecycle because it deletes the selected image group's S3 and
-registry artifacts. The seven ordered cases check GitLab prerequisites, select
-the image group for the configured `job_id`, trigger `PIPELINE_TYPE=cleanup`,
-and verify database, S3, and registry cleanup in the same pytest session.
+| Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
+|---:|---|---|---|---|---|---|
+| 90000 | BSM_FVT_CLEANUP_E001 | `test_deploy_cleanup` | root | deploy, sanity | Runs `build_stream.yml --tags cleanup` with a 1800-second timeout, passing `-e postgres_backup` and `-e cleanup_credentials` from the `cleanup` block of `test_config.yml`. | The playbook exits with return code 0 within the timeout; the flags default to `false` and `true` when not configured. |
+| 90101 | BSM_FVT_CLEANUP_V001 | `test_gitlab_packages_removed` | gitlab | sanity | Runs `rpm -q gitlab-ce` on the GitLab server over SSH from the OIM and prints the package state. | `gitlab-ce` is not reported as installed; an SSH failure also counts as removed. |
+| 90102 | BSM_FVT_CLEANUP_V002 | `test_gitlab_runner_container_removed` | gitlab | sanity | Lists all container names on the GitLab server over SSH with `podman ps -a` and looks for `gitlab-runner`. | No `gitlab-runner` container exists, or the GitLab server is not reachable over SSH. |
+| 90103 | BSM_FVT_CLEANUP_V003 | `test_gitlab_runner_quadlet_removed` | gitlab | sanity | Checks with `test -e` over SSH whether `/etc/containers/systemd/gitlab-runner.container` exists on the GitLab server. | The quadlet file is absent, or the GitLab server is not reachable over SSH. |
+| 90104 | BSM_FVT_CLEANUP_V004 | `test_gitlab_runner_services_stopped` | gitlab | sanity | Runs `systemctl is-active` over SSH on the GitLab server for `gitlab-runner.service` and `gitlab-runsvdir.service`, printing each unit's state. | Neither unit reports `active`; an SSH failure counts as `inactive`. |
+| 90105 | BSM_FVT_CLEANUP_V005 | `test_gitlab_url_not_accessible` | gitlab | sanity | Reads `gitlab_host` and `gitlab_https_port` from `build_stream_config.yml` and sends a TLS-verified `GET https://<gitlab_host>:<port>/` without following redirects. | The URL returns neither HTTP 200 nor 302, or `gitlab_host` is not set. |
+| 90106 | BSM_FVT_CLEANUP_V006 | `test_gitlab_directories_removed` | gitlab | sanity | Checks with `test -e` over SSH on the GitLab server for `/etc/gitlab`, `/var/opt/gitlab`, `/var/log/gitlab` and `/opt/gitlab`. | All four directories are absent, or the GitLab server is not reachable over SSH. |
+| 90107 | BSM_FVT_CLEANUP_V007 | `test_gitlab_services_stopped` | gitlab | sanity | Runs `gitlab-ctl status` over SSH and checks `puma`, `sidekiq`, `nginx`, `postgresql`, `redis`, `gitaly`, `gitlab-workhorse` and `logrotate`. | No listed service has a `run:` status line, or `gitlab-ctl` is unavailable or unreachable. |
+| 90108 | BSM_FVT_CLEANUP_V008 | `test_gitlab_port_free` | gitlab | sanity | Runs `ss -tlnp` over SSH on the GitLab server and searches for the `gitlab_https_port` from `build_stream_config.yml`, defaulting to 443. | No socket listens on the port, or the GitLab server is not reachable over SSH. |
+| 90201 | BSM_FVT_CLEANUP_V009 | `test_buildstream_container_stopped` | build_stream | sanity | Runs `podman ps -a --filter name=^omnia_build_stream$` on the OIM and reads the container status. | The command succeeds and the container is either absent or has a status that does not start with `Up`. |
+| 90202 | BSM_FVT_CLEANUP_V010 | `test_buildstream_container_removed` | build_stream | sanity | Runs `podman ps -a --filter name=^omnia_build_stream$` on the OIM to check whether the container still exists. | The command succeeds and returns no `omnia_build_stream` container. |
+| 90203 | BSM_FVT_CLEANUP_V011 | `test_buildstream_quadlet_files_removed` | build_stream | sanity | Searches `/etc/containers/systemd` with `find -maxdepth 1` for `omnia_build_stream*` files and prints `omnia_build_stream.container` and each match. | The `find` command succeeds and returns no `omnia_build_stream*` file. |
+| 90204 | BSM_FVT_CLEANUP_V012 | `test_buildstream_services_stopped` | build_stream | sanity | Runs `systemctl is-active` on `omnia_build_stream.service` and on every unit matching `omnia_build_stream*` in `systemctl list-units --all`. | Every unit reports rc 3 with `inactive`/`failed`, or rc 4 with `inactive`/`unknown`/`not-found`. |
+| 90205 | BSM_FVT_CLEANUP_V013 | `test_playbook_watcher_service_stopped` | build_stream | sanity | Runs `systemctl is-active playbook-watcher.service` and classifies the return code and state. | The unit reports rc 3 with `inactive` or `failed`, or rc 4 with `inactive`, `unknown` or `not-found` after the unit file is removed. |
+| 90206 | BSM_FVT_CLEANUP_V029 | `test_playbook_watcher_service_disabled` | build_stream | sanity | Runs `systemctl is-enabled playbook-watcher.service` and classifies the return code and state. | The unit reports `disabled` (rc 1) while its file exists, or `not-found` (rc 1 or 4, depending on the systemd version) once the file is removed; `enabled` or any other result fails. |
+| 90207 | BSM_FVT_CLEANUP_V015 | `test_playbook_watcher_service_file_removed` | build_stream | sanity | Checks with `test -f` whether `/etc/systemd/system/playbook-watcher.service` exists on the OIM. | The test exits 1 with no output, so the unit file is absent. |
+| 90208 | BSM_FVT_CLEANUP_V016 | `test_postgres_container_stopped` | build_stream | sanity | Runs `podman ps -a --filter name=^omnia_postgres$` on the OIM and reads the container status. | The command succeeds and the container is either absent or has a status that does not start with `Up`. |
+| 90209 | BSM_FVT_CLEANUP_V017 | `test_postgres_container_removed` | build_stream | sanity | Runs `podman ps -a --filter name=^omnia_postgres$` on the OIM to check whether the container still exists. | The command succeeds and returns no `omnia_postgres` container. |
+| 90210 | BSM_FVT_CLEANUP_V018 | `test_postgres_quadlet_files_removed` | build_stream | sanity | Searches `/etc/containers/systemd` with `find -maxdepth 1` for `omnia_postgres*` files and prints `omnia_postgres.container` and each match. | The `find` command succeeds and returns no `omnia_postgres*` file. |
+| 90211 | BSM_FVT_CLEANUP_V019 | `test_postgres_services_stopped` | build_stream | sanity | Runs `systemctl is-active` on `omnia_postgres.service` and on every unit matching `omnia_postgres*` in `systemctl list-units --all`. | Every unit reports rc 3 with `inactive`/`failed`, or rc 4 with `inactive`/`unknown`/`not-found`. |
+| 90212 | BSM_FVT_CLEANUP_V020 | `test_buildstream_directories_removed` | build_stream | sanity | Checks with `test -d` for nine runtime directories under `OMNIA_DATA_PATH`, such as `build_stream/log`, `build_stream/playbook_queue`, `build_stream/ssl` and `build_stream/build_stream_root`, plus `/var/log/omnia/build_stream`. | Every listed directory is absent: `test -d` exits 1 with no output. |
+| 90213 | BSM_FVT_CLEANUP_V021 | `test_buildstream_runtime_caches_removed` | build_stream | sanity | Checks that the `build_stream` data root, `playbook-watcher/playbook_watcher_service.py` and `build_stream_config.yml` remain, then runs `find` for Python cache files and directories. | The root and both files still exist, and `find` succeeds with no `__pycache__`, `pycache`, `*.pyc` or `*.pyo` left. |
+| 90214 | BSM_FVT_CLEANUP_V026 | `test_postgres_data_per_backup_flag` | build_stream | sanity | Checks for `<OMNIA_DATA_PATH>/build_stream/postgres` with `test -e` and lists podman volume names containing `omnia_postgres`, based on `cleanup.postgres_backup`. | When the flag is true, the data directory still exists; when it is false, both the directory and all `omnia_postgres` volumes are gone. |
+| 90215 | BSM_FVT_CLEANUP_V027 | `test_buildstream_credentials_per_flag` | build_stream | sanity | Checks with `test -e` for `build_stream_credentials.yml` and `.build_stream_credentials_key` in the `build_stream` input directory, based on `cleanup.cleanup_credentials`. | When `cleanup_credentials` is true, both files are deleted; when it is false, both files still exist. |
+| 90217 | BSM_FVT_CLEANUP_V025 | `test_buildstream_api_port_closed` | build_stream | sanity | Reads `build_stream_port` from the kept `build_stream_config.yml`, then runs `ss -Htln` for that TCP port on the OIM. | The port key is set, `ss` succeeds, and no socket listens on the port. |
 
 ```bash
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite cleanup_pipeline --marker sanity
+./run_validation.sh fvt_build_stream cleanup test --marker sanity
+./run_validation.sh fvt_build_stream cleanup verify
 ```
 
+## Running
+
 ```bash
-# Setup
-bash setup_env.sh
-source .venv/bin/activate
-
-# Configure
-vi test_config.yml    # Set catalog_path, oim_server_ip
-
-# Run buildstream install verification
-./run_validation.sh fvt_build_stream buildstream_install verify --marker sanity
-
-# Run health check verification
-./run_validation.sh fvt_build_stream buildstream_install verify --suite health
-
-# Full execution + verification
-./run_validation.sh fvt_build_stream buildstream_install test
-
-# Build pipeline — full flow (push catalog, trigger, monitor, verify)
-./run_validation.sh fvt_build_stream build_pipeline test
-
-# exec/test always replaces GitLab's canonical catalog with the catalog_path
-# selected below src/main/samples/catalogs/ and waits for the new pipeline.
-
-# Build pipeline — verify only (requires job_id in test_config.yml)
-./run_validation.sh fvt_build_stream build_pipeline verify
-
-# Build pipeline exec/test overwrites job_id with the newly created build job;
-# verify reads the existing job_id without changing it.
-
-# Default sanity lifecycle: install -> cadence
+# Default lifecycle, every test (precheck -> prepare -> execute)
+./run_validation.sh fvt_build_stream test
+# Baseline checks only
 ./run_validation.sh fvt_build_stream test --marker sanity
-
-# Alternate sanity lifecycle: install -> build -> deploy
-./run_validation.sh fvt_build_stream build_deploy_lifecycle test \
-  --marker sanity
-
-# Cleanup is explicit and requires exactly one selected suite
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite buildstream_cleanup --marker sanity
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite gitlab_cleanup --marker sanity
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite cleanup_pipeline --marker sanity
-
-# Deploy only (job_id is mandatory and resolves the image group)
-./run_validation.sh fvt_build_stream deploy_pipeline test --marker sanity
+# One execute suite, for example the manual build pipeline
+./run_validation.sh fvt_build_stream execute verify --suite build_manual
+# By marker: both manual pipelines, or the deploy pipeline only
+./run_validation.sh fvt_build_stream execute verify --marker manual_execution
+./run_validation.sh fvt_build_stream execute verify --marker deploy_pipeline
+# Explicit only
+./run_validation.sh fvt_build_stream prepare_base test
+./run_validation.sh fvt_build_stream cleanup test        # destructive
 ```
 
-The default lifecycle collects 57 sanity cases: 33 installation cases and 24
-cadence cases. The alternate lifecycle collects 55: 33 installation, 12 build,
-and 10 deploy cases. Manual, cleanup, and NFT cases are excluded from both.
+## Retired IDs
+
+These IDs are retired and must not be reused.
+
+| TC ID | Former test function | Replaced by |
+|---|---|---|
+| BSM_FVT_CLEANUP_V022 | test_postgres_volumes_preserved_with_backup | BSM_FVT_CLEANUP_V026 (test_postgres_data_per_backup_flag) |
+| BSM_FVT_CLEANUP_V023 | test_buildstream_credentials_removed | BSM_FVT_CLEANUP_V027 (test_buildstream_credentials_per_flag) |
+| BSM_FVT_CLEANUP_V024 | test_buildstream_oauth_credentials_removed | none; the OAuth credential file check was removed because OAuth clients live in `build_stream_credentials.yml`, covered by BSM_FVT_CLEANUP_V027 |
+| BSM_FVT_CLEANUP_V028 | test_buildstream_oauth_credentials_per_flag | none; removed with BSM_FVT_CLEANUP_V024 for the same reason |
+| BSM_FVT_CLEANUP_V014 | test_playbook_watcher_service_disabled | BSM_FVT_CLEANUP_V029 (test_playbook_watcher_service_disabled); V014 itself stays retired |
+
+The former `buildstream_install`, `build_pipeline`, `deploy_pipeline`,
+`cadence_pipeline`, `automatic_cleanup`, `legacy_buildstream_cleanup`,
+`catalog_versioning` and `retention_traceability` scenarios were removed with
+their ID prefixes (`BSM_FVT_BUILDSTREAM_INSTALL_*`, `BSM_FVT_BUILD_PIPELINE_*`,
+`BSM_FVT_DEPLOY_PIPELINE_*`, `BSM_FVT_CADENCE_PIPELINE_*`,
+`BSM_FVT_AUTOMATIC_CLEANUP_*`, `BSM_FVT_BUILDSTREAM_CLEANUP_*`,
+`BSM_FVT_CLEANUP_PIPELINE_*`, `BSM_FVT_RETENTION_*`); those prefixes are
+retired as well.

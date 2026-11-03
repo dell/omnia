@@ -20,7 +20,11 @@ from typing import Any, Dict, List
 
 import yaml
 
+from ._config_helpers import is_safe_dataset_name
+from .config_func import ConfigValidationError as PipelineConfigError
+from .config_func import validate_test_config as validate_pipeline_settings
 from ..vars.common_vars import (
+    BOOLEAN_CONFIG_FIELDS,
     IPV4_PATTERN,
     MODULE_ROOT,
     REQUIRED_CONFIG_FIELDS,
@@ -44,13 +48,7 @@ def _validate_dataset(dataset: str) -> List[str]:
                 errors.append(f"Required src file missing: {path}")
         return errors
 
-    if (
-        not isinstance(dataset, str)
-        or dataset in {".", "..", "generator"}
-        or os.path.isabs(dataset)
-        or os.path.basename(dataset) != dataset
-        or "\x00" in dataset
-    ):
+    if not is_safe_dataset_name(dataset):
         return [f"Unsafe dataset name: {dataset!r}"]
 
     dataset_root = os.path.realpath(os.path.join(MODULE_ROOT, "datasets"))
@@ -66,6 +64,55 @@ def _validate_dataset(dataset: str) -> List[str]:
             errors.append(
                 f"Required file missing: datasets/{dataset}/{relative_file}"
             )
+    return errors
+
+
+def _value_errors(config: Dict[str, Any]) -> List[str]:
+    """Return format errors of the OIM address, boolean flags and NFT timeout."""
+    errors: List[str] = []
+    oim_ip = config["oim_server_ip"]
+    if oim_ip and not IPV4_PATTERN.fullmatch(str(oim_ip)):
+        errors.append(f"oim_server_ip: invalid IPv4 format {oim_ip!r}")
+    errors.extend(f"{field} must be true or false (without quotes)"
+                  for field in BOOLEAN_CONFIG_FIELDS
+                  if field in config and not isinstance(config[field], bool))
+    timeout = config.get("nft_recovery_timeout_seconds", 120)
+    if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout < 10:
+        errors.append("nft_recovery_timeout_seconds must be an integer >= 10")
+    return errors
+
+
+def _report_errors(config: Dict[str, Any]) -> List[str]:
+    """Return errors of report_path and report_name."""
+    errors: List[str] = []
+    report_path = os.path.expandvars(str(config["report_path"]).strip())
+    if not report_path or "$" in report_path:
+        errors.append(
+            "report_path contains an unresolved environment variable"
+        )
+    elif not os.path.isabs(report_path):
+        errors.append("report_path must resolve to an absolute path")
+    if " " in report_path:
+        errors.append("report_path must not contain spaces")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", str(config["report_name"])):
+        errors.append(
+            "report_name must contain only letters, numbers, underscores, hyphens"
+        )
+    return errors
+
+
+def _remote_errors(config: Dict[str, Any]) -> List[str]:
+    """Return errors of the remote-execution settings (only when oim_server_ip is set)."""
+    if not config["oim_server_ip"]:
+        return []
+    errors: List[str] = []
+    clone_path = config.get("clone_path")
+    if not isinstance(clone_path, str) or not clone_path.strip():
+        errors.append("clone_path required for remote execution")
+    elif not os.path.isabs(clone_path.strip()):
+        errors.append(f"clone_path must be absolute: {clone_path}")
+    if not config.get("oim_ssh_user"):
+        errors.append("oim_ssh_user required when oim_server_ip is set")
     return errors
 
 
@@ -102,60 +149,16 @@ def validate_test_config() -> Dict[str, Any]:
     if errors:
         return {"valid": False, "errors": errors, "warnings": warnings}
 
-    oim_ip = config["oim_server_ip"]
-    if oim_ip and not IPV4_PATTERN.fullmatch(str(oim_ip)):
-        errors.append(f"oim_server_ip: invalid IPv4 format {oim_ip!r}")
-
-    boolean_fields = (
-        "sync_build_stream_input",
-        "allow_pipeline_cancel",
-        "automatic_cleanup_allow_execution",
-        "nft_allow_pipeline_cancel",
-        "nft_allow_service_restart",
-        "nft_allow_active_stage_restart",
-        "nft_allow_watcher_restart",
-        "nft_allow_security_mutation",
-    )
-    for field in boolean_fields:
-        if field in config and not isinstance(config[field], bool):
-            errors.append(f"{field} must be true or false (without quotes)")
-
-    timeout = config.get("nft_recovery_timeout_seconds", 120)
-    if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout < 10:
-        errors.append("nft_recovery_timeout_seconds must be an integer >= 10")
-    pipeline_timeout = config.get("nft_pipeline_timeout_seconds", 300)
-    if (
-        not isinstance(pipeline_timeout, int)
-        or isinstance(pipeline_timeout, bool)
-        or pipeline_timeout < 30
-    ):
-        errors.append("nft_pipeline_timeout_seconds must be an integer >= 30")
+    errors.extend(_value_errors(config))
+    try:
+        validate_pipeline_settings(config)
+    except PipelineConfigError as exc:
+        errors.append(str(exc))
 
     dataset = os.environ.get("OMNIA_DATASET_OVERRIDE", "") or config["dataset"]
     errors.extend(_validate_dataset(dataset))
-
-    report_path = os.path.expandvars(str(config["report_path"]).strip())
-    if not report_path or "$" in report_path:
-        errors.append(
-            "report_path contains an unresolved environment variable"
-        )
-    elif not os.path.isabs(report_path):
-        errors.append("report_path must resolve to an absolute path")
-    if " " in report_path:
-        errors.append("report_path must not contain spaces")
-    if not re.fullmatch(r"[A-Za-z0-9_-]+", str(config["report_name"])):
-        errors.append(
-            "report_name must contain only letters, numbers, underscores, hyphens"
-        )
-
-    if oim_ip:
-        clone_path = config.get("clone_path")
-        if not isinstance(clone_path, str) or not clone_path.strip():
-            errors.append("clone_path required for remote execution")
-        elif not os.path.isabs(clone_path.strip()):
-            errors.append(f"clone_path must be absolute: {clone_path}")
-        if not config.get("oim_ssh_user"):
-            errors.append("oim_ssh_user required when oim_server_ip is set")
+    errors.extend(_report_errors(config))
+    errors.extend(_remote_errors(config))
 
     return {
         "valid": not errors,
