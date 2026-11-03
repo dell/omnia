@@ -40,3 +40,12 @@ omnia_required_groups_from_nodes_yaml: >-
 oim_ssh_config_path: "{{ ansible_user_dir | default('/root') }}/.ssh/config"
 # Centralized failure messages
 pxe_mapping_path_fail_msg: "pxe_mapping_file_path is not defined. Check orchestrator_config.yml."
+pxe_mapping_invalid_host_value_fail_msg: >-
+  PXE mapping has a HOSTNAME or ADMIN_IP that is not a
+  valid hostname or IPv4 address. Values are written to the OIM SSH config and /etc/hosts,
+  so they must not contain whitespace, newlines or shell metacharacters.
+
+# Allowlists for CSV-derived values written to the OIM SSH config and /etc/hosts.
+# \Z (not $) so a trailing newline is not accepted.
+passwordless_ssh_hostname_regex: '^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?\Z'
+passwordless_ssh_ipv4_regex: '^([0-9]{1,3}\.){3}[0-9]{1,3}\Z'
