@@ -58,7 +58,7 @@ fvt_main:
     marker: "sanity"
   cleanup:
     run: false
-    command: "exec"
+    command: "test"
     suite: ""
     marker: "cleanup"
 

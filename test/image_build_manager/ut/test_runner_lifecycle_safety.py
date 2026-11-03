@@ -59,6 +59,33 @@ class _Item:
         self.added_markers.append(marker)
 
 
+class _PathConfig(_Config):
+    def __init__(self, args, marker_expression=""):
+        super().__init__(marker_expression)
+        self.args = args
+        self.invocation_params = SimpleNamespace(dir=MODULE_ROOT)
+
+
+class _CatalogItem(_Item):
+    def __init__(self):
+        super().__init__()
+        self.path = (
+            MODULE_ROOT / "fvt/build/catalog_reuse/test_catalog_reuse.py"
+        )
+        self.nodeid = (
+            "fvt/build/catalog_reuse/test_catalog_reuse.py"
+            "::test_catalog_first_build"
+        )
+        self._markers = {
+            "deploy": SimpleNamespace(args=()),
+            "order": SimpleNamespace(args=(1,)),
+        }
+
+
+def _is_skipped(item):
+    return any(marker.mark.name == "skip" for marker in item.added_markers)
+
+
 def test_default_nft_skips_destructive_cleanup():
     item = _Item()
 
@@ -89,3 +116,40 @@ def test_catalog_reuse_e2e_owns_execution_and_restores_state():
         TEST_CASES["catalog_suite_restores_target_state"]["id"]
         == "IMGBM_FVT_CATALOG_REUSE_V011"
     )
+
+
+def test_default_build_exec_skips_catalog_reuse_suite():
+    item = _CatalogItem()
+
+    RUNNER_HOOKS.pytest_collection_modifyitems(
+        None, _PathConfig([str(MODULE_ROOT / "fvt/build")]), [item],
+    )
+
+    assert _is_skipped(item)
+
+
+def test_explicit_catalog_reuse_suite_runs():
+    item = _CatalogItem()
+
+    RUNNER_HOOKS.pytest_collection_modifyitems(
+        None,
+        _PathConfig([str(MODULE_ROOT / "fvt/build/catalog_reuse")]),
+        [item],
+    )
+
+    assert not _is_skipped(item)
+
+
+def test_explicit_catalog_reuse_test_selector_runs():
+    item = _CatalogItem()
+
+    RUNNER_HOOKS.pytest_collection_modifyitems(
+        None,
+        _PathConfig([
+            "fvt/build/catalog_reuse/test_catalog_reuse.py"
+            "::test_catalog_first_build"
+        ]),
+        [item],
+    )
+
+    assert not _is_skipped(item)
