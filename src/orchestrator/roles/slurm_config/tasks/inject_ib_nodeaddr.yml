@@ -150,7 +150,7 @@
         _raw_addr: "{{ _pxe_ib_nodeaddr_map[item] | default('') }}"
         _bracketed: "{{ '[' ~ _raw_addr ~ ']' if ':' in _raw_addr else _raw_addr }}"
         _ctld_entry: >-
-          {{ (item ~ '(' ~ _bracketed ~ ')')
+          {{ (item ~ '(' ~ _raw_addr ~ ')')
              if item in _pxe_ib_nodeaddr_map
              else item }}
         _ctld_addr: >-

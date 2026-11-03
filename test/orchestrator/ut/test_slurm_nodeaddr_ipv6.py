@@ -149,7 +149,8 @@ def build_ctld_ib_list(
     """Build SlurmctldHost entries with IB address for controller nodes.
 
     Mirrors the 'Build SlurmctldHost entries with IB address' task in
-    inject_ib_nodeaddr.yml. IPv6 addresses are bracketed.
+    inject_ib_nodeaddr.yml. IPv6 addresses are NOT bracketed — Slurm
+    cannot parse brackets in SlurmctldHost.
 
     Args:
         ctld_list: List of controller hostnames.
@@ -162,8 +163,7 @@ def build_ctld_ib_list(
     for hostname in ctld_list:
         if hostname in nodeaddr_map:
             addr = nodeaddr_map[hostname]
-            bracketed = f"[{addr}]" if ":" in addr else addr
-            result.append(f"{hostname}({bracketed})")
+            result.append(f"{hostname}({addr})")
         else:
             result.append(hostname)
     return result
@@ -418,11 +418,11 @@ class TestSlurmctldHostIBAddr:
         result = build_ctld_ib_list(["nid001"], ib_map)
         assert result == ["nid001(192.168.1.31)"]
 
-    def test_ipv6_controller_gets_bracketed_addr(self):
-        """IPv6 controller address renders as hostname([addr])."""
+    def test_ipv6_controller_gets_raw_addr(self):
+        """IPv6 controller address renders as hostname(addr) without brackets."""
         ib_map = {"nid001": "fd00:1b::31"}
         result = build_ctld_ib_list(["nid001"], ib_map)
-        assert result == ["nid001([fd00:1b::31])"]
+        assert result == ["nid001(fd00:1b::31)"]
 
     def test_controller_not_in_map_falls_back_to_hostname(self):
         """Controller not in IB map falls back to plain hostname."""
