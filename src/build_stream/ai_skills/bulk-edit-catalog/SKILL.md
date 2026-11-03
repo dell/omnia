@@ -82,7 +82,7 @@ For each catalog the operator approved:
   skill's mechanics (`catalog_manager.py add`/`delete`) once per catalog
   file — specifying `os_version=<version>` per package line when possible and
   always passing `--default-os-version` matching each target catalog's
-  specific `base_os` OS version —
+  specific `baseos` OS version —
   each invocation reads, validates, and writes exactly one file, so one
   catalog's schema failure cannot affect another's already-completed
   write.
@@ -129,18 +129,18 @@ validation still passes:
 |---|---|
 | Functional-layer names (`<role>_rhel_10_0_<arch>`) | repo_manager: takes the OS version from the layer name (`src/repo_manager/vars/default.yml`) |
 | Every package `sources[].version` list | repo_manager: each layer needs a source for its own version, otherwise "has no source for architecture … compatible with rhel X" |
-| `base_os` group `os_version` (and its description) | image builder |
+| `baseos` group `os_version` (and its description) | image builder |
 | Catalog `name`, `identifier`, `description` | operators and diffs |
 
 ```python
 def switch_os_version(catalog, old, new):
-    """Move every layer, base_os group and package source from `old` to `new`."""
+    """Move every layer, baseos group and package source from `old` to `new`."""
     c = catalog['catalog']
     old_s, new_s = old.replace('.', '_'), new.replace('.', '_')
     for layer in c['functionallayer']:
         layer['name'] = layer['name'].replace(f'_{old_s}_', f'_{new_s}_')
     for group in c['groups'].values():
-        if group.get('type') == 'base_os' and group.get('os_version') == old:
+        if group.get('type') == 'baseos' and group.get('os_version') == old:
             group['os_version'] = new
             group['description'] = group.get('description', '').replace(old, new)
     for package in c['packages'].values():
@@ -206,8 +206,8 @@ for its own approval, as Step 2 requires.
 
 Isolation path: when one catalog in the set fails validation after the
 change (in an earlier trace, a copy of `slurm_aarch64.json` with its
-`base_os` group's `os` field removed), it is reported under **Skipped**
-with the specific errors (`'os' is a required property`, `base_os group
+`baseos` group's `os` field removed), it is reported under **Skipped**
+with the specific errors (`'os' is a required property`, `baseos group
 'baseos_group' missing 'os' field`). Its file stays byte-for-byte
 unchanged, and the other catalogs' writes are unaffected.
 

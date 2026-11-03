@@ -372,7 +372,7 @@ def transform(old_catalog: dict) -> Tuple[dict, dict, List[str]]:  # pylint: dis
     catalog_version = old_catalog.get('Version', '1.0')
     catalog_identifier = old_catalog.get('Identifier', slugify(catalog_name))
 
-    base_os_list = old_catalog.get('BaseOS', [])
+    baseos_list = old_catalog.get('BaseOS', [])
     layers = old_catalog.get('FunctionalLayer', [])
     infrastructure = old_catalog.get('Infrastructure', [])
 
@@ -433,10 +433,10 @@ def transform(old_catalog: dict) -> Tuple[dict, dict, List[str]]:  # pylint: dis
     new_groups = {}
     baseos_group_keys = []
 
-    for base_os_entry in base_os_list:
-        os_name = base_os_entry['Name'].lower()
-        os_version = base_os_entry['Version']
-        os_packages = base_os_entry.get('osPackages', [])
+    for baseos_entry in baseos_list:
+        os_name = baseos_entry['Name'].lower()
+        os_version = baseos_entry['Version']
+        os_packages = baseos_entry.get('osPackages', [])
 
         group_key = f"baseos_{os_name}_{os_version}"
 
@@ -452,7 +452,7 @@ def transform(old_catalog: dict) -> Tuple[dict, dict, List[str]]:  # pylint: dis
                 warnings.append(f"BaseOS package '{old_pkg_name}' not found in "
                                 f"Packages - added as '{slug}'")
 
-        desc = (f"Base OS packages for {base_os_entry['Name']} {os_version} - "
+        desc = (f"Base OS packages for {baseos_entry['Name']} {os_version} - "
                 "auto-generated from BaseOS")
         new_groups[group_key] = {
             "name": group_key,
