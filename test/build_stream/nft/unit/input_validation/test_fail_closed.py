@@ -15,7 +15,11 @@
 """Negative tests: Build Stream validation must not treat vault files as valid.
 
 The module runs through the ansible CLI from the collection root so it and
-its module_utils resolve exactly as in production.
+its module_utils resolve exactly as in production. The ansible tools are taken
+from PATH or, failing that, from the bin directory of the running interpreter
+(an active virtualenv does not have to be on PATH); that directory is put on PATH for
+the module, which runs ansible-vault by name. The tests are skipped when
+neither has them.
 """
 
 import json
@@ -23,27 +27,43 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-BUILD_STREAM_ROOT = Path(__file__).resolve().parents[3] / "src" / "build_stream"
+BUILD_STREAM_ROOT = Path(__file__).resolve().parents[5] / "src" / "build_stream"
 SCHEMA_DIR = BUILD_STREAM_ROOT / "plugins" / "module_utils" / "input_validation" / "schema"
 CREDENTIALS = "build_stream_credentials.yml"
 KEY = ".build_stream_credentials_key"
 RESULT_PATTERN = re.compile(r"\|\s*(\w+)!?\s*=>\s*(\{.*\})\s*$", re.DOTALL)
 
+def _tool(name):
+    """Return the path of an ansible CLI tool from PATH or the interpreter's bin directory."""
+    found = shutil.which(name) or shutil.which(name, path=str(Path(sys.executable).parent))
+    return found or ""
+
+
+ANSIBLE, ANSIBLE_VAULT = _tool("ansible"), _tool("ansible-vault")
+
 pytestmark = pytest.mark.skipif(
-    shutil.which("ansible") is None or shutil.which("ansible-vault") is None,
-    reason="ansible CLI not installed",
+    not (ANSIBLE and ANSIBLE_VAULT),
+    reason="ansible and ansible-vault not found on PATH or next to the Python interpreter",
 )
+
+
+def _module_env():
+    """Return the module environment; the module runs ansible-vault by name from PATH."""
+    tools = str(Path(ANSIBLE_VAULT).parent)
+    return dict(os.environ, ANSIBLE_LOG_PATH=os.devnull,
+                PATH=os.pathsep.join([tools, os.environ.get("PATH", "")]))
 
 
 def _encrypt(path, content, key_file):
     """Write content to path and vault-encrypt it with key_file."""
     path.write_text(content, encoding="utf-8")
     subprocess.run(
-        ["ansible-vault", "encrypt", str(path), "--vault-password-file", str(key_file)],
+        [ANSIBLE_VAULT, "encrypt", str(path), "--vault-password-file", str(key_file)],
         check=True, capture_output=True,
     )
 
@@ -56,8 +76,8 @@ def _validate(project, log_dir):
         "log_dir": str(log_dir),
     }
     proc = subprocess.run(
-        ["ansible", "localhost", "-m", "validate_build_stream_config", "-a", json.dumps(args)],
-        cwd=BUILD_STREAM_ROOT, env=dict(os.environ, ANSIBLE_LOG_PATH=os.devnull),
+        [ANSIBLE, "localhost", "-m", "validate_build_stream_config", "-a", json.dumps(args)],
+        cwd=BUILD_STREAM_ROOT, env=_module_env(),
         capture_output=True, text=True, check=False, timeout=120,
     )
     match = RESULT_PATTERN.search(proc.stdout)
