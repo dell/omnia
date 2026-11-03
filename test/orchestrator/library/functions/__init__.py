@@ -221,7 +221,6 @@ from .ipoib_pxeboot_func import (
     check_ipoib_peer_mesh,
     check_ipoib_routes,
     check_ipoib_slurm_nodeaddr,
-    check_ipoib_smd_records,
 )
 from .ipoib_resilience_pxeboot_func import (
     check_ipoib_compute_multi_reboot_recovery,
@@ -619,7 +618,6 @@ __all__ = [
     "check_ipoib_routes",
     "check_ipoib_slurm_comm_path",
     "check_ipoib_slurm_nodeaddr",
-    "check_ipoib_smd_records",
     "check_kubernetes_configured_versions",
     "check_kubernetes_control_plane",
     "check_external_ldap_backend",

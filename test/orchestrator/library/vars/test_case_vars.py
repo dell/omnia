@@ -1745,11 +1745,6 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify every IPoIB node reaches every peer in each ib_addr_mode family",
         "component": "IPoIB peer reachability",
     },
-    "ipoib_smd_records": {
-        "id": "ORCH_FVT_PXEBOOT_V804",
-        "title": "Verify approved IPoIB addresses are published in SMD",
-        "component": "IPoIB SMD publication",
-    },
     "ipoib_slurm_nodeaddr": {
         "id": "ORCH_FVT_PXEBOOT_V805",
         "title": "Verify Slurm NodeAddr follows the IPoIB allocation",

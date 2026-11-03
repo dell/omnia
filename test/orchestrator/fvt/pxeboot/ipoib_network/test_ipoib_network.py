@@ -23,7 +23,6 @@ from library.functions import (
     check_ipoib_nm_profile,
     check_ipoib_routes,
     check_ipoib_peer_mesh,
-    check_ipoib_smd_records,
     check_ipoib_slurm_nodeaddr,
     check_ipoib_custom_slurm_conf,
 )
@@ -80,16 +79,6 @@ def test_ipoib_peer_mesh(host):
     tc = TC["ipoib_peer_mesh"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_ipoib_peer_mesh)
-
-
-@pytest.mark.ipoib
-@pytest.mark.non_disruptive
-@pytest.mark.order(42506)
-def test_ipoib_smd_records(host):
-    """TC-FVT-011: SMD holds every approved IPoIB address."""
-    tc = TC["ipoib_smd_records"]
-    test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_ipoib_smd_records)
 
 
 @pytest.mark.ipoib

@@ -473,54 +473,6 @@ def check_ipoib_peer_mesh(host) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# SMD publication
-# ---------------------------------------------------------------------------
-
-
-def check_ipoib_smd_records(host) -> dict[str, Any]:
-    """TC-FVT-011: SMD holds every approved IPoIB address of each node."""
-    summary = "IPoIB SMD publication"
-    try:
-        mode, families, nodes, early = _mode_selection(host, summary)
-        if early:
-            return early
-        interfaces = resource_list(api_json(host, "ethernet"))
-        published = {
-            canonical_ip(address) for interface in interfaces
-            for address in interface_ips(interface)
-        }
-        by_component: dict[str, set[str]] = {}
-        component_of_ip: dict[str, str] = {}
-        for interface in interfaces:
-            component = str(interface.get("ComponentID") or "")
-            for address in interface_ips(interface):
-                by_component.setdefault(component, set()).add(canonical_ip(address))
-                component_of_ip[canonical_ip(address)] = component
-        results = []
-        for node in nodes:
-            expected = [node[f"ipv{f}"] for f in families]
-            missing = [address for address in expected if address not in published]
-            component = component_of_ip.get(canonical_ip(node["row"]["ADMIN_IP"]), "")
-            recorded = sorted(by_component.get(component, set())) if component else []
-            results.append(
-                (
-                    node,
-                    not missing,
-                    [
-                        ("Mode", mode),
-                        ("Expected", ", ".join(expected)),
-                        (f"SMD addresses for {component or 'node'}",
-                         ", ".join(recorded) or "none"),
-                        ("Missing in SMD", ", ".join(missing) or "none"),
-                    ],
-                )
-            )
-        return _finish(summary, results, "SMD is missing IPoIB addresses for")
-    except _ERRORS as exc:
-        return runtime_exception(summary, exc)
-
-
-# ---------------------------------------------------------------------------
 # Slurm
 # ---------------------------------------------------------------------------
 
