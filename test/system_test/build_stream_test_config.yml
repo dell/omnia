@@ -1,0 +1,126 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# build_stream_test_config.yml - settings of the SVT theme build_stream
+# =============================================================================
+# Read by ./setup_env.sh (--theme build_stream, the default) and by
+# ./run_validation.sh svt_build_stream. The cluster values (IPs, names,
+# versions) are in user_inputs.yml; credentials are never written here
+# (./setup_env.sh --set-domain-creds).
+# ./setup_env.sh --configure writes the build_stream block and the cleanup
+# flags into the FVT suites' test/<suite>/test_config.yml, so these values
+# override the suites' own ones. A change here needs ./setup_env.sh --configure
+# (a new run).
+# =============================================================================
+
+# =============================================================================
+# BUILD_STREAM  (written into test/build_stream/test_config.yml)
+# =============================================================================
+build_stream:
+  # catalog: the catalog committed to GitLab as catalog_rhel.json by the
+  #   build_deploy stage (installation.catalog of the FVT suite). A number of
+  #   ./omnia.sh --list-catalogs (for example 29 =
+  #   rhel/10.2/slurm_service_k8s_x86_64_no_vast.json) or the absolute path of
+  #   your own catalog on the OIM.
+  catalog: 29
+  # cadence_catalog: the catalog the cadence stage uploads as
+  #   cadence_catalog_rhel.json (installation.cadence_catalog). Same format;
+  #   "" = the same as catalog.
+  cadence_catalog: 29
+  # allow_pipeline_cancel: true | false (default: true).
+  #   true:  GitLab pipelines still running or pending before a commit or a
+  #          trigger are cancelled, and the test continues.
+  #   false: nothing is cancelled; the test fails and lists them.
+  allow_pipeline_cancel: true
+
+# omnia_force_env: true | false (default: true).
+#   true:  the install step adds --force-env to omnia.sh -s when
+#          src/main/omnia.env (filled from user_inputs.yml) differs from the
+#          installed /etc/omnia/omnia.env, so the loaded values are used.
+#   false: keep the installed /etc/omnia/omnia.env as it is.
+omnia_force_env: true
+
+# =============================================================================
+# CLEANUP  (./setup_env.sh --cleanup, or --force; destructive, asks 'yes'
+#           unless --yes)
+# =============================================================================
+# Removes the previous installation with each suite's own cleanup FVT, in this
+# order: build_stream, orchestrator, image_build_manager, repo_manager, then
+# main (omnia.sh --cleanup). Every flag below is written into that suite's
+# test/<suite>/test_config.yml, so each cleanup FVT runs with the value set
+# here.
+#   enabled: true | false (default: true). false skips that suite's cleanup.
+#   The other keys are the suite's own flags; see test/<suite>/test_config.yml
+#   for their meaning.
+cleanup:
+  build_stream:
+    enabled: true
+    # false: delete the Postgres data directory and volumes; true: keep them.
+    postgres_backup: false
+    # true: delete the BuildStream credential files and keys.
+    cleanup_credentials: true
+  orchestrator:
+    enabled: true
+    cleanup_credentials: true
+    # true: delete the Slurm shared data.
+    cleanup_slurm: true
+    # true: delete the Kubernetes shared data.
+    cleanup_k8s: true
+    # true: delete the benchmark tools workspace.
+    cleanup_benchmark_tools: true
+  image_build_manager:
+    enabled: true
+    cleanup_credentials: true
+  repo_manager:
+    enabled: true
+    cleanup_credentials: true
+  main:
+    enabled: true
+    # cleanup_all: true | false (default: true).
+    #   true:  a complete reset, so the next install starts from nothing (no
+    #          "overwrite existing files?" question): every src/<domain>/
+    #          domain-init.sh --cleanup (each domain's input and log
+    #          artifacts), then omnia.sh --cleanup --all --skip-approval. It
+    #          deletes the whole OMNIA_DATA_PATH (/opt/omnia), the credential
+    #          stores included (whatever cleanup_credentials says above), and
+    #          anything else kept there. omnia.sh refuses, and deletes nothing,
+    #          while a domain still holds deployed state.
+    #   false: omnia.sh --cleanup: removes the Omnia venv, /etc/omnia/omnia.env,
+    #          omnia-cli and the dependency cache; OMNIA_DATA_PATH is kept, so
+    #          the next install asks before overwriting the inputs (--yes
+    #          answers it).
+    cleanup_all: true
+
+# =============================================================================
+# REPORT  (one folder and one SVT report per run)
+# =============================================================================
+# ./setup_env.sh --configure starts a run: <report_path>/<run_id>/ holds its
+# SVT report (<report_name>.html and .json), the stage logs, run.json and the
+# FVT suites' own reports (fvt/). Every later step (cleanup, install, creds,
+# ./run_validation.sh) adds to that run. A step is refused when no run was
+# started, when the run is of another theme, or after a step of the run
+# failed: ./setup_env.sh --configure then starts a new run.
+report:
+  # report_path: parent of the run folders (default: "" =
+  #   test/system_test/reports). Absolute, or relative to test/system_test.
+  #   Keep it outside OMNIA_DATA_PATH: cleanup_all deletes that directory.
+  report_path: ""
+  # report_name: file name without extension (default: "" =
+  #   svt_build_stream_report). Letters, digits, _ and -.
+  report_name: ""
+  # run_id: (default: "" = a new svt-<UTC time> at every ./setup_env.sh
+  #   --configure). A fixed value reuses that run folder, for the same theme
+  #   only. Letters, digits, ., _ and -.
+  run_id: ""
