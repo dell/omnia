@@ -152,18 +152,6 @@ def created_job(job_id) -> Job:  # pylint: disable=redefined-outer-name
 
 
 @pytest.fixture
-def in_progress_job(job_id) -> Job:  # pylint: disable=redefined-outer-name
-    """A job in IN_PROGRESS state."""
-    job = Job(
-        job_id=job_id,
-        client_id=ClientId("test-client"),
-        request_client_id="test-client",
-    )
-    job.start()
-    return job
-
-
-@pytest.fixture
 def parse_catalog_stage(job_id) -> Stage:  # pylint: disable=redefined-outer-name
     """A parse-catalog stage in PENDING state."""
     return Stage(
@@ -171,16 +159,3 @@ def parse_catalog_stage(job_id) -> Stage:  # pylint: disable=redefined-outer-nam
         stage_name=StageName(StageType.PARSE_CATALOG.value),
         stage_state=StageState.PENDING,
     )
-
-
-@pytest.fixture
-def completed_parse_catalog_stage(job_id) -> Stage:  # pylint: disable=redefined-outer-name
-    """A parse-catalog stage in COMPLETED state."""
-    stage = Stage(
-        job_id=job_id,
-        stage_name=StageName(StageType.PARSE_CATALOG.value),
-        stage_state=StageState.PENDING,
-    )
-    stage.start()
-    stage.complete()
-    return stage
