@@ -10,6 +10,10 @@ import re
 import subprocess
 import tempfile
 
+from ansible.module_utils.repo_manager.security_utils import (
+    validate_positional_argument,
+)
+
 
 _OBJECT_ID = re.compile(r"^[0-9a-fA-F]{40,64}$")
 
@@ -66,6 +70,7 @@ def resolve_git_ref(url, version):
 
 def create_git_tarball(url, version, object_id, package_name, destination):
     """Clone the selected ref and atomically create a deterministic archive."""
+    validate_positional_argument(version, "git version")
     destination_directory = os.path.dirname(destination)
     os.makedirs(destination_directory, exist_ok=True)
     with tempfile.TemporaryDirectory(

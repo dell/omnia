@@ -123,7 +123,7 @@ def _get_system_hostname() -> str:
     try:
         result = subprocess.run(
             ["hostname", "-s"],
-            capture_output=True, text=True, timeout=10, check=False,
+            capture_output=True, text=True, timeout=10, check=False, shell=False,
         )
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
@@ -138,7 +138,7 @@ def _get_system_domain() -> str:
     try:
         result = subprocess.run(
             ["hostname", "-d"],
-            capture_output=True, text=True, timeout=10, check=False,
+            capture_output=True, text=True, timeout=10, check=False, shell=False,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -153,7 +153,7 @@ def _get_local_ips() -> list[str]:
     try:
         result = subprocess.run(
             ["ip", "-4", "-o", "addr", "show"],
-            capture_output=True, text=True, timeout=10, check=False,
+            capture_output=True, text=True, timeout=10, check=False, shell=False,
         )
         for line in result.stdout.splitlines():
             parts = line.split()
