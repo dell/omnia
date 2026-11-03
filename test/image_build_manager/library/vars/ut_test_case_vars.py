@@ -313,6 +313,9 @@ UT_TEST_CASE_IDS = {
             146: "test_destructive_nft_marker_explicitly_enables_cleanup",
             147: "test_default_fvt_verification_excludes_cleanup_flows",
             148: "test_catalog_reuse_e2e_owns_execution_and_restores_state",
+            162: "test_default_build_exec_skips_catalog_reuse_suite",
+            163: "test_explicit_catalog_reuse_suite_runs",
+            164: "test_explicit_catalog_reuse_test_selector_runs",
         },
     ),
     **_module_cases(

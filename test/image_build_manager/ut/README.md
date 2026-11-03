@@ -36,6 +36,7 @@ and unchanged.
 | `IMGBM_UT_157`–`158` | `test_input_validation_fail_closed.py` | Vault-encrypted credentials are decrypted and validated with masked errors, or reported unvalidated when no key exists |
 | `IMGBM_UT_159`–`160` | `test_input_validation_fail_closed.py` | Standalone `build_image_x86_64.yml` and `build_image_aarch64.yml` accept every tag their plays and roles define |
 | `IMGBM_UT_161` | `test_input_validation_fail_closed.py` | Empty values written by the credential template are placeholders, not validation errors |
+| `IMGBM_UT_162`–`164` | `test_runner_lifecycle_safety.py` | catalog_reuse E2E suite is skipped unless selected explicitly with `--suite catalog_reuse` |
 
 The runner resolves each ID from the test file, class, and method portion of
 the pytest node ID and displays it in the summary and generated reports.
