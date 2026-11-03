@@ -66,7 +66,9 @@
     - name: Load BuildStream credentials when they remain usable
       block:
         - name: Decrypt and include build_stream credentials
-          ansible.builtin.include_tasks: "{{ playbook_dir }}/../../roles/credential_utility/tasks/decrypt_include_encrypt.yml"
+          ansible.builtin.include_role:
+            name: credential_utility
+            tasks_from: decrypt_include_encrypt.yml
           vars:
             credential_file_path: "{{ bs_credential_file_path }}"
             vault_password_file: "{{ bs_credential_vault_path }}"
