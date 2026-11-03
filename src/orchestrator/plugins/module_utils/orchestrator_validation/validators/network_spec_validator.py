@@ -279,11 +279,22 @@ def _validate_ib_ipv6_config(
     errors: list[str],
     logger: Logger | None,
 ) -> None:
-    """Validate optional IPv6 subnet/netmask pair on an IB network entry."""
+    """Validate IPv6 subnet/netmask pair on an IB network entry.
+
+    IPv6 fields are required when ``ib_addr_mode`` is ``ipv6-only`` or
+    ``dual-stack``; otherwise they are optional.
+    """
     ipv6_subnet = str(ib_config.get("ipv6_subnet", "") or "").strip()
     ipv6_netmask = str(ib_config.get("ipv6_netmask_bits", "") or "").strip()
+    ib_addr_mode = str(ib_config.get("ib_addr_mode", "") or "").strip()
+    ipv6_required = ib_addr_mode in ("ipv6-only", "dual-stack")
 
     if not ipv6_subnet and not ipv6_netmask:
+        if ipv6_required:
+            record_error(
+                errors, logger,
+                msg.ib_ipv6_required_for_mode_msg(label, ib_addr_mode),
+            )
         return
 
     if ipv6_subnet and not ipv6_netmask:
@@ -363,15 +374,21 @@ def validate(config_data: Any, logger: Logger | None = None) -> list[str]:
         ib_config = entry.get("ib_network")
         if isinstance(ib_config, dict):
             ib_label = f"Networks[{index}].ib_network"
-            ib_network = ib_network_from_config(ib_config)
-            if ib_network is None:
-                record_error(
-                    errors,
-                    logger,
-                    msg.network_definition_invalid_msg(ib_label),
-                )
-            else:
-                ib_networks.append((ib_label, ib_network))
+            ib_addr_mode = str(
+                ib_config.get("ib_addr_mode", "") or ""
+            ).strip()
+
+            # IPv4 network validation — skip for ipv6-only mode
+            if ib_addr_mode != "ipv6-only":
+                ib_network = ib_network_from_config(ib_config)
+                if ib_network is None:
+                    record_error(
+                        errors,
+                        logger,
+                        msg.network_definition_invalid_msg(ib_label),
+                    )
+                else:
+                    ib_networks.append((ib_label, ib_network))
 
             _validate_ib_ipv6_config(ib_config, ib_label, errors, logger)
 

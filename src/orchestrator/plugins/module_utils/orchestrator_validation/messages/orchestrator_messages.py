@@ -570,6 +570,22 @@ def ib_ipv6_subnet_required_msg(label: str) -> str:
     )
 
 
+def ib_ipv6_required_for_mode_msg(label: str, mode: str) -> str:
+    """Return an error when IPv6 fields are missing for the active mode."""
+    return (
+        f"network_spec: {label}.ipv6_subnet and ipv6_netmask_bits are "
+        f"required when ib_addr_mode is '{mode}'."
+    )
+
+
+def ib_ipv4_required_for_mode_msg(label: str, mode: str) -> str:
+    """Return an error when IPv4 fields are missing for the active mode."""
+    return (
+        f"network_spec: {label}.ipv4_subnet and ipv4_netmask_bits are "
+        f"required when ib_addr_mode is '{mode}'."
+    )
+
+
 def pxe_mapping_invalid_ipv6_msg(field: str, value: str, row: int) -> str:
     """Return an invalid IPv6 address in the PXE mapping."""
     return (

@@ -164,9 +164,10 @@ def _create_project_dir(
     project_dir = str(tmp_path / "project")
     os.makedirs(project_dir, exist_ok=True)
 
-    # Write CSV
+    # Write CSV (mode 0o640 required by the PXE mapping file validator)
     csv_path = os.path.join(project_dir, "pxe_mapping_file.csv")
     _write_csv(csv_path, csv_header, csv_rows)
+    os.chmod(csv_path, 0o640)
 
     # Write network_spec.yml
     if network_spec:
@@ -852,6 +853,120 @@ class TestIbAddrModeSchemaValidation:
                 # The field is optional for backward compat
                 assert True  # Presence alone is sufficient; required-ness
                 # is tested by the schema validator accepting specs without it
+
+
+# ===========================================================================
+# TC-UT-007: L2 network_spec validator respects ib_addr_mode
+# (ER-ORCH-005: ipv6-only must not require IPv4 subnet)
+# ===========================================================================
+
+class TestNetworkSpecL2AddrMode:
+    """Verify L2 network_spec_validator respects ib_addr_mode."""
+
+    _ADMIN = {
+        "admin_network": {
+            "oim_nic_name": "eno1",
+            "subnet": "172.16.107.0",
+            "netmask_bits": "24",
+            "primary_oim_admin_ip": "172.16.107.10",
+            "primary_oim_bmc_ip": "",
+            "router": "172.16.107.1",
+            "dynamic_range": "172.16.107.100-172.16.107.200",
+            "dns": [],
+            "ntp_servers": [],
+            "additional_subnets": [],
+        },
+    }
+
+    @staticmethod
+    def _ib(mode, ipv4_subnet="", ipv4_bits="", ipv6_subnet="", ipv6_bits=""):
+        return {
+            "ib_network": {
+                "ipv4_subnet": ipv4_subnet,
+                "ipv4_netmask_bits": ipv4_bits,
+                "ipv6_subnet": ipv6_subnet,
+                "ipv6_netmask_bits": ipv6_bits,
+                "ib_addr_mode": mode,
+                "dns": [],
+            },
+        }
+
+    def _validate(self, ib_entry):
+        from orchestrator_validation.validators import network_spec_validator
+        data = {"Networks": [self._ADMIN, ib_entry]}
+        return network_spec_validator.validate(data)
+
+    def test_ipv6_only_empty_ipv4_passes(self):
+        """ORCH_UT_BC_045: ipv6-only with empty IPv4 fields passes L2."""
+        errors = self._validate(
+            self._ib("ipv6-only", ipv6_subnet="fd00:1b::", ipv6_bits="64")
+        )
+        ipv4_errors = [e for e in errors if "IPv4" in e]
+        assert ipv4_errors == [], f"ipv6-only should not require IPv4: {ipv4_errors}"
+
+    def test_ipv6_only_null_ipv4_passes(self):
+        """ORCH_UT_BC_046: ipv6-only with null IPv4 fields passes L2."""
+        ib = {
+            "ib_network": {
+                "ipv4_subnet": None, "ipv4_netmask_bits": None,
+                "ipv6_subnet": "fd00:1b::", "ipv6_netmask_bits": "64",
+                "ib_addr_mode": "ipv6-only", "dns": [],
+            },
+        }
+        errors = self._validate(ib)
+        ipv4_errors = [e for e in errors if "IPv4" in e]
+        assert ipv4_errors == [], f"ipv6-only should not require IPv4: {ipv4_errors}"
+
+    def test_ipv4_only_empty_ipv6_passes(self):
+        """ORCH_UT_BC_047: ipv4-only with empty IPv6 fields passes L2."""
+        errors = self._validate(
+            self._ib("ipv4-only", ipv4_subnet="192.168.0.0", ipv4_bits="24")
+        )
+        ipv6_errors = [e for e in errors if "ipv6" in e.lower()]
+        assert ipv6_errors == [], f"ipv4-only should not require IPv6: {ipv6_errors}"
+
+    def test_dual_stack_passes(self):
+        """ORCH_UT_BC_048: dual-stack with both IPv4 and IPv6 passes L2."""
+        errors = self._validate(
+            self._ib("dual-stack",
+                      ipv4_subnet="192.168.0.0", ipv4_bits="24",
+                      ipv6_subnet="fd00:1b::", ipv6_bits="64")
+        )
+        assert errors == [], f"dual-stack should pass: {errors}"
+
+    def test_dual_stack_missing_ipv6_fails(self):
+        """ORCH_UT_BC_049: dual-stack without IPv6 fields fails L2."""
+        errors = self._validate(
+            self._ib("dual-stack", ipv4_subnet="192.168.0.0", ipv4_bits="24")
+        )
+        ipv6_errors = [e for e in errors if "ipv6" in e.lower()]
+        assert len(ipv6_errors) > 0, "dual-stack should require IPv6"
+
+    def test_dual_stack_missing_ipv4_fails(self):
+        """ORCH_UT_BC_050: dual-stack without IPv4 fields fails L2."""
+        errors = self._validate(
+            self._ib("dual-stack", ipv6_subnet="fd00:1b::", ipv6_bits="64")
+        )
+        ipv4_errors = [e for e in errors if "IPv4" in e]
+        assert len(ipv4_errors) > 0, "dual-stack should require IPv4"
+
+    def test_ipv6_only_missing_ipv6_fails(self):
+        """ORCH_UT_BC_051: ipv6-only without IPv6 fields fails L2."""
+        errors = self._validate(self._ib("ipv6-only"))
+        ipv6_errors = [e for e in errors if "ipv6" in e.lower()]
+        assert len(ipv6_errors) > 0, "ipv6-only should require IPv6"
+
+    def test_ipv4_only_missing_ipv4_fails(self):
+        """ORCH_UT_BC_052: ipv4-only without IPv4 fields fails L2."""
+        errors = self._validate(self._ib("ipv4-only"))
+        ipv4_errors = [e for e in errors if "IPv4" in e]
+        assert len(ipv4_errors) > 0, "ipv4-only should require IPv4"
+
+    def test_legacy_format_passes(self):
+        """ORCH_UT_BC_053: Legacy subnet/netmask_bits format passes L2."""
+        ib = {"ib_network": {"subnet": "192.168.0.0", "netmask_bits": "24", "dns": []}}
+        errors = self._validate(ib)
+        assert errors == [], f"Legacy format should pass: {errors}"
 
 
 # ===========================================================================
