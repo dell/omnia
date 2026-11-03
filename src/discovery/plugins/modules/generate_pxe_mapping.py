@@ -78,7 +78,12 @@ options:
         type: int
         default: 3
     ib_subnet:
-        description: InfiniBand subnet (e.g. 192.168.2.0) used to derive IB_IP from BMC IP last two octets
+        description: InfiniBand IPv4 subnet (e.g. 192.168.2.0) used to derive IB_IPV4 from BMC IP last two octets
+        required: false
+        type: str
+        default: ""
+    ipv6_subnet:
+        description: InfiniBand IPv6 subnet (e.g. fd00:1b::) used to derive IB_IPV6 from BMC IP last two octets
         required: false
         type: str
         default: ""
@@ -102,6 +107,7 @@ EXAMPLES = r'''
     hostname_start: 1
     hostname_padding: 3
     ib_subnet: "192.168.2.0"
+    ipv6_subnet: "fd00:1b::"
 '''
 
 RETURN = r'''
@@ -262,6 +268,38 @@ def calculate_ib_ip(ib_subnet: str, bmc_ip: str) -> str:
     return candidate
 
 
+def calculate_ib_ipv6(ipv6_subnet: str, bmc_ip: str) -> str:
+    """
+    Derive IB IPv6 from ipv6_subnet and the last two octets of bmc_ip.
+    Example: ipv6_subnet=fd00:1b::, bmc_ip=10.5.3.45 -> fd00:1b::3:2d
+
+    The host portion is formed by combining the third BMC octet as the
+    penultimate 16-bit group and the fourth octet as the last group,
+    then adding to the prefix address.
+
+    Returns an empty string when the inputs are missing or when the
+    derived address is not a valid IPv6 address.
+    """
+    if not ipv6_subnet or not bmc_ip:
+        return ""
+
+    bmc_octets = bmc_ip.split('.')
+    if len(bmc_octets) != 4:
+        return ""
+
+    try:
+        prefix_addr = ipaddress.IPv6Address(ipv6_subnet)
+    except (ipaddress.AddressValueError, ValueError):
+        return ""
+
+    try:
+        host_part = int(bmc_octets[2]) * 256 + int(bmc_octets[3])
+        candidate = prefix_addr + host_part
+        return str(candidate)
+    except (ValueError, ipaddress.AddressValueError):
+        return ""
+
+
 def generate_hostname(prefix: str, number: int, padding: int) -> str:
     """Generate hostname with zero-padded number."""
     return f"{prefix}{str(number).zfill(padding)}"
@@ -278,6 +316,7 @@ def main() -> None:
         "hostname_start": {"type": "int", "required": False, "default": 1},
         "hostname_padding": {"type": "int", "required": False, "default": 3},
         "ib_subnet": {"type": "str", "required": False, "default": ""},
+        "ipv6_subnet": {"type": "str", "required": False, "default": ""},
         "admin_subnet": {"type": "str", "required": False, "default": ""},
     }
 
@@ -293,6 +332,7 @@ def main() -> None:
     hostname_start = module.params['hostname_start']
     hostname_padding = module.params['hostname_padding']
     ib_subnet = module.params['ib_subnet']
+    ipv6_subnet = module.params['ipv6_subnet']
     admin_subnet = module.params['admin_subnet']
 
     # CSV headers as specified
@@ -307,7 +347,8 @@ def main() -> None:
         "BMC_MAC",
         "BMC_IP",
         "IB_NIC_NAME",
-        "IB_IP"
+        "IB_IPV4",
+        "IB_IPV6"
     ]
 
     if module.check_mode:
@@ -328,7 +369,8 @@ def main() -> None:
             bmc_hostname = server.get('idrac_hostname', '')
             ib_nic_name = server.get('ib_nic_name', '')
             admin_ip = calculate_admin_ip(admin_subnet, bmc_ip)
-            ib_ip = calculate_ib_ip(ib_subnet, bmc_ip) if ib_nic_name else ""
+            ib_ipv4 = calculate_ib_ip(ib_subnet, bmc_ip) if ib_nic_name else ""
+            ib_ipv6 = calculate_ib_ipv6(ipv6_subnet, bmc_ip) if ib_nic_name else ""
 
             # Use group_name from OME if available, else fall back to module param default
             server_group = server.get('group_name', '').strip()
@@ -367,7 +409,8 @@ def main() -> None:
                 "BMC_MAC": _sanitize_csv_value(server.get('idrac_mac', '')),
                 "BMC_IP": _sanitize_csv_value(bmc_ip),
                 "IB_NIC_NAME": _sanitize_csv_value(ib_nic_name),
-                "IB_IP": _sanitize_csv_value(ib_ip)
+                "IB_IPV4": _sanitize_csv_value(ib_ipv4),
+                "IB_IPV6": _sanitize_csv_value(ib_ipv6)
             }
             rows.append(row)
 

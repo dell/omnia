@@ -711,7 +711,8 @@ def _get_network_spec_subnets(host) -> Dict[str, Any]:
         if "admin_network" in net:
             result["admin_subnet"] = net["admin_network"].get("subnet", "")
         if "ib_network" in net:
-            result["ib_subnet"] = net["ib_network"].get("subnet", "")
+            ib = net["ib_network"]
+            result["ib_subnet"] = ib.get("ipv4_subnet", "") or ib.get("subnet", "")
 
     result["success"] = True
     return result
