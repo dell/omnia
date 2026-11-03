@@ -16,7 +16,7 @@
 
 import pytest
 
-from library.functions import TestLogger
+from library.functions import TestLogger, load_test_config
 from library.functions.omnia_main_func import (
     is_running_from_omnia_venv,
     run_omnia_cmd,
@@ -35,17 +35,26 @@ _SKIP_VENV_MSG = (
 @pytest.mark.cleanup
 @pytest.mark.order(0)
 def test_deploy_cleanup(host):
-    """Run omnia.sh cleanup only when explicitly selected."""
+    """Run omnia.sh --cleanup (--all with cleanup_all) only when explicitly selected."""
     tc = TC["deploy_cleanup"]
     tl = TestLogger(tc["title"], tc["id"])
     if is_running_from_omnia_venv(host):
         tl.passed(_SKIP_VENV_MSG)
         pytest.skip(_SKIP_VENV_MSG)
 
-    result = run_omnia_cmd(host, "omnia_sh_cleanup_yes")
+    cleanup_all = load_test_config().get("cleanup_all", False)
+    if not isinstance(cleanup_all, bool):
+        tl.failed(LOG["exec_cleanup_invalid_flag"].format(value=cleanup_all))
+        pytest.fail(LOG["exec_cleanup_invalid_flag"].format(value=cleanup_all))
+    option = "--cleanup --all" if cleanup_all else "--cleanup"
+    result = run_omnia_cmd(
+        host,
+        "omnia_sh_cleanup_all_skip_approval" if cleanup_all else "omnia_sh_cleanup_yes",
+    )
     tl.bind_result(result)
     if result["success"]:
-        tl.passed(LOG["exec_cleanup_ok"].format(rc=result["rc"]))
+        tl.passed(LOG["exec_cleanup_ok"].format(option=option, rc=result["rc"]))
     else:
-        tl.failed(LOG["exec_cleanup_failed"].format(rc=result["rc"]))
-    assert result["success"], ASSERT["exec_cleanup_failed"].format(rc=result["rc"])
+        tl.failed(LOG["exec_cleanup_failed"].format(option=option, rc=result["rc"]))
+    assert result["success"], ASSERT["exec_cleanup_failed"].format(
+        option=option, rc=result["rc"])

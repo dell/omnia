@@ -125,7 +125,3 @@ class TestFind:
         """Test that find_by_job returns empty list for no records."""
         results = artifact_metadata_repo.find_by_job(JobId(VALID_JOB_ID))
         assert results == []
-
-
-class TestDelete:
-    """Tests for deleting artifact records."""
