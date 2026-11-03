@@ -99,6 +99,7 @@ FIREWALL_PORTS: tuple[str, ...] = (
     "67/udp",
     "68/udp",
     "69/udp",
+    "123/udp",
     "5432/tcp",
     "27778/tcp",
     "27779/tcp",
