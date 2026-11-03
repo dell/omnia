@@ -40,8 +40,8 @@ Usage:
 # Execute and verify one scenario
 ./run_validation.sh fvt_main setup test
 
-# Run cleanup explicitly (never automatic)
-./run_validation.sh fvt_main cleanup exec
+# Run cleanup explicitly (never automatic), then verify it
+./run_validation.sh fvt_main cleanup test
 ```
 
 ### Intelligent Skip Logic
@@ -193,6 +193,14 @@ through the Main `omnia.sh` entry point.
 | TC ID | Test | Suite | Markers | Description |
 |-------|------|-------|---------|-------------|
 | MAIN_FVT_CLEANUP_E001 | `test_deploy_cleanup` | cleanup/ | deploy, cleanup | Explicit omnia.sh --cleanup (excluded from aggregate runs) |
+| MAIN_FVT_CLEANUP_V001 | `test_cleanup_system_env_removed` | cleanup/ | cleanup, sanity | Verify /etc/omnia/omnia.env and /etc/profile.d/omnia-env.sh removed |
+| MAIN_FVT_CLEANUP_V002 | `test_cleanup_venv_removed` | cleanup/ | cleanup, sanity | Verify the Omnia venv (OMNIA_VENV_PATH) removed |
+| MAIN_FVT_CLEANUP_V003 | `test_cleanup_cli_removed` | cleanup/ | cleanup, sanity | Verify /usr/local/bin/omnia-cli and its Bash completion removed |
+| MAIN_FVT_CLEANUP_V004 | `test_cleanup_data_helpers_removed` | cleanup/ | cleanup, sanity | Verify activate-omnia.sh and .data/deps-cache removed |
+| MAIN_FVT_CLEANUP_V005 | `test_cleanup_data_path` | cleanup/ | cleanup, sanity | Verify OMNIA_DATA_PATH removed with cleanup_all, kept without it |
+
+`./run_validation.sh fvt_main cleanup test` runs the cleanup and then these
+checks; `cleanup verify` runs only the checks.
 
 ---
 
