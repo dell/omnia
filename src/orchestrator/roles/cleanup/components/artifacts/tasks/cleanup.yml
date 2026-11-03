@@ -32,6 +32,12 @@
     path: "{{ orchestrator_output_dir }}"
     state: absent
 
+- name: Clean orchestrator project log directory
+  tags: artifacts
+  ansible.builtin.file:
+    path: "{{ orchestrator_data_path }}/log/{{ project_name }}"
+    state: absent
+
 - name: Clean cleanup framework logs
   tags: artifacts
   ansible.builtin.file:
@@ -50,6 +56,7 @@
     msg: |
       Artifacts cleanup operations completed:
       - Orchestrator deployment outputs: cleaned
+      - Orchestrator project log directory: cleaned
       - Cleanup framework logs: cleaned
       - Cleanup framework state: cleaned
       - Functional groups config: cleaned with the Orchestrator output directory

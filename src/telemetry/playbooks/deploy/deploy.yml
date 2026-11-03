@@ -117,7 +117,7 @@
   tasks:
     - name: Wait for pods to stabilize (allow transient errors to recover)
       ansible.builtin.command: >
-        kubectl wait --for=condition=ready pods -n {{ telemetry_namespace }} --timeout=60s --all
+        kubectl wait --for=condition=ready pods -n {{ telemetry_namespace | quote }} --timeout=60s --all
       register: pod_wait
       changed_when: false
       failed_when: false
@@ -125,7 +125,7 @@
 
     - name: Collect pod status in telemetry namespace
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} --no-headers
       register: telemetry_pods
       changed_when: false
       failed_when: false
@@ -146,7 +146,7 @@
         msg: >-
           Telemetry deployment verification failed. The following pods are in error state:
           {{ failed_pods | join('\n') }}
-          Check pod logs with: kubectl logs -n {{ telemetry_namespace }} <pod-name>
+          Check pod logs with: kubectl logs -n {{ telemetry_namespace | quote }} <pod-name>
       when:
         - failed_pods | length > 0
         - not (idrac_reconcile_failed | default(false) | bool)
@@ -168,7 +168,7 @@
     # -- Sink checks ----------------------------------------------------------
     - name: Check Kafka pods
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l strimzi.io/cluster=kafka --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l strimzi.io/cluster=kafka --no-headers
       register: _kafka_pods
       changed_when: false
       failed_when: false
@@ -176,7 +176,7 @@
 
     - name: Check VictoriaMetrics pods
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=vmstorage --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l app.kubernetes.io/name=vmstorage --no-headers
       register: _vm_pods
       changed_when: false
       failed_when: false
@@ -184,7 +184,7 @@
 
     - name: Check VictoriaLogs pods
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=vlstorage --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l app.kubernetes.io/name=vlstorage --no-headers
       register: _vl_pods
       changed_when: false
       failed_when: false
@@ -193,7 +193,7 @@
     # -- Source checks --------------------------------------------------------
     - name: Check telemetry namespace for iDRAC status
       ansible.builtin.command: >
-        kubectl get namespace {{ telemetry_namespace }} --ignore-not-found
+        kubectl get namespace {{ telemetry_namespace | quote }} --ignore-not-found
         -o jsonpath='{.metadata.name}'
       register: _idrac_namespace
       changed_when: false
@@ -201,8 +201,8 @@
 
     - name: Check iDRAC StatefulSet replica state
       ansible.builtin.command: >
-        kubectl get statefulset {{ idrac_telemetry_k8s_name | default('idrac-telemetry') }}
-        -n {{ telemetry_namespace }} --ignore-not-found
+        kubectl get statefulset {{ idrac_telemetry_k8s_name | default('idrac-telemetry') | quote }}
+        -n {{ telemetry_namespace | quote }} --ignore-not-found
         -o jsonpath='{.spec.replicas} {.status.readyReplicas}'
       register: _idrac_sts
       changed_when: false
@@ -213,7 +213,7 @@
 
     - name: Check iDRAC pods
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l app=idrac-telemetry --no-headers
       register: _idrac_pods
       changed_when: false
       failed_when: false
@@ -224,7 +224,7 @@
     - name: Check LDMS aggregator StatefulSet existence
       ansible.builtin.command: >
         kubectl get statefulset nersc-ldms-aggr
-        -n {{ telemetry_namespace }}
+        -n {{ telemetry_namespace | quote }}
         -o jsonpath='{.spec.replicas}'
       register: _ldms_aggregator_sts
       changed_when: false
@@ -233,14 +233,14 @@
     - name: Check LDMS aggregator pod readiness
       ansible.builtin.command: >
         kubectl wait --for=condition=Ready pod
-        -n {{ telemetry_namespace }} -l app=nersc-ldms-aggr --timeout=1s
+        -n {{ telemetry_namespace | quote }} -l app=nersc-ldms-aggr --timeout=1s
       register: _ldms_aggregator_pods
       changed_when: false
       failed_when: false
 
     - name: Check LDMS store StatefulSet existence
       ansible.builtin.command: >
-        kubectl get statefulset -n {{ telemetry_namespace }}
+        kubectl get statefulset -n {{ telemetry_namespace | quote }}
         -l app=nersc-ldms-store
         -o jsonpath='{.items[*].metadata.name}'
       register: _ldms_store_sts
@@ -250,35 +250,35 @@
     - name: Check LDMS store pod readiness
       ansible.builtin.command: >
         kubectl wait --for=condition=Ready pod
-        -n {{ telemetry_namespace }} -l app=nersc-ldms-store --timeout=1s
+        -n {{ telemetry_namespace | quote }} -l app=nersc-ldms-store --timeout=1s
       register: _ldms_store_pods
       changed_when: false
       failed_when: false
 
     - name: Check PowerScale pods (karavi-metrics-powerscale)
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=karavi-metrics-powerscale --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l app.kubernetes.io/name=karavi-metrics-powerscale --no-headers
       register: _powerscale_pods
       changed_when: false
       failed_when: false
 
     - name: Check UFM service (ufm-external)
       ansible.builtin.command: >
-        kubectl get svc -n {{ telemetry_namespace }} ufm-external --no-headers
+        kubectl get svc -n {{ telemetry_namespace | quote }} ufm-external --no-headers
       register: _ufm_check
       changed_when: false
       failed_when: false
 
     - name: Check VAST service (vast-external)
       ansible.builtin.command: >
-        kubectl get svc -n {{ telemetry_namespace }} vast-external --no-headers
+        kubectl get svc -n {{ telemetry_namespace | quote }} vast-external --no-headers
       register: _vast_check
       changed_when: false
       failed_when: false
 
     - name: Check Vector-OME pods
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app=vector-ome --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l app=vector-ome --no-headers
       register: _vector_ome_pods
       changed_when: false
       failed_when: false
@@ -286,7 +286,7 @@
     - name: Check Vector-LDMS deployment existence
       ansible.builtin.command: >
         kubectl get deployment vector-ldms
-        -n {{ telemetry_namespace }}
+        -n {{ telemetry_namespace | quote }}
         -o jsonpath='{.spec.replicas}'
       register: _vector_ldms_deployment
       changed_when: false
@@ -294,28 +294,28 @@
 
     - name: Check OME metrics forwarding pods
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app=vmagent-vector --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l app=vmagent-vector --no-headers
       register: _vmagent_vector_pods
       changed_when: false
       failed_when: false
 
     - name: Check OME logs forwarding pods
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app=vlagent-vector --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l app=vlagent-vector --no-headers
       register: _vlagent_vector_pods
       changed_when: false
       failed_when: false
 
     - name: Check Vector-LDMS pods
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app=vector-ldms --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l app=vector-ldms --no-headers
       register: _vector_ldms_pods
       changed_when: false
       failed_when: false
 
     - name: Check VLAgent pods (for logs sinks)
       ansible.builtin.command: >
-        kubectl get pods -n {{ telemetry_namespace }} -l app.kubernetes.io/name=vlagent --no-headers
+        kubectl get pods -n {{ telemetry_namespace | quote }} -l app.kubernetes.io/name=vlagent --no-headers
       register: _vlagent_pods
       changed_when: false
       failed_when: false
