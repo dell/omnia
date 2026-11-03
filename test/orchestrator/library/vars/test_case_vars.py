@@ -1725,29 +1725,29 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
         "title": "Verify additional cloud-init integration with additional packages",
         "component": "Additional cloud-init packages integration",
     },
-    "ipoib_ipv6_address_state": {
+    "ipoib_address_state": {
         "id": "ORCH_FVT_PXEBOOT_V800",
-        "title": "Verify IPoIB IPv6 address state",
-        "component": "IPoIB IPv6 address state",
+        "title": "Verify each approved IPoIB address is static and healthy",
+        "component": "IPoIB address state",
     },
-    "ipoib_ipv6_nm_profile": {
+    "ipoib_nm_profile": {
         "id": "ORCH_FVT_PXEBOOT_V801",
-        "title": "Verify IPoIB NetworkManager profile",
+        "title": "Verify the IPoIB NetworkManager profile matches ib_addr_mode",
         "component": "IPoIB NetworkManager profile",
     },
-    "ipoib_ipv6_routes": {
+    "ipoib_routes": {
         "id": "ORCH_FVT_PXEBOOT_V802",
-        "title": "Verify IPoIB IPv6 on-link routing",
-        "component": "IPoIB IPv6 routing",
+        "title": "Verify IPoIB routing is on-link with no gateway or default route",
+        "component": "IPoIB routing",
     },
-    "ipoib_ipv6_peer_mesh": {
+    "ipoib_peer_mesh": {
         "id": "ORCH_FVT_PXEBOOT_V803",
-        "title": "Verify IPoIB peer reachability",
+        "title": "Verify every IPoIB node reaches every peer in each ib_addr_mode family",
         "component": "IPoIB peer reachability",
     },
-    "ipoib_ipv6_smd_records": {
+    "ipoib_smd_records": {
         "id": "ORCH_FVT_PXEBOOT_V804",
-        "title": "Verify IPoIB addresses published in SMD",
+        "title": "Verify approved IPoIB addresses are published in SMD",
         "component": "IPoIB SMD publication",
     },
     "ipoib_slurm_nodeaddr": {
@@ -1812,8 +1812,8 @@ PXEBOOT_TEST_CASES: dict[str, dict[str, str]] = {  # pylint: disable=syntax-erro
     },
     "ipoib_slurm_comm_path": {
         "id": "ORCH_FVT_PXEBOOT_V818",
-        "title": "Verify Slurm job traffic uses IPoIB IPv6 not Ethernet IPv4",
-        "component": "Slurm IPoIB communication path verification",
+        "title": "Verify Slurm job traffic crosses IPoIB in the ib_addr_mode family, not Ethernet",
+        "component": "Slurm IPoIB communication path",
     },
     "ipoib_mode_address_assignment": {
         "id": "ORCH_FVT_PXEBOOT_V819",
@@ -1992,7 +1992,7 @@ TEST_ORDER_BLOCKS: dict[str, dict[str, int]] = {
         "kubernetes_recovery": 42200,
         "slurm_recovery": 42300,
         "slurm_lifecycle": 42400,
-        "ipoib_ipv6": 42500,
+        "ipoib_network": 42500,
         "ipoib_resilience": 42600,
     },
     "cleanup": {

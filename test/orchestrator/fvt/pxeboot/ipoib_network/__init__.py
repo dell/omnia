@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ER-ORCH-005 post-boot IPoIB IPv6 verification."""
+"""ER-ORCH-005 post-boot IPoIB verification for the active ib_addr_mode."""

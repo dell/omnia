@@ -92,7 +92,7 @@ from ._pxeboot_helpers import (
     wait_for_remote_command,
 )
 from ._workload_helpers import optional_skip, slurm_context, slurm_shared_storage
-from .ipoib_ipv6_pxeboot_func import (
+from .ipoib_pxeboot_func import (
     _expected_nodeaddr,
     _ipoib_nodes,
     _scontrol_nodeaddr,

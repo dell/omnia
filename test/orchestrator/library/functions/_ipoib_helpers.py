@@ -22,6 +22,7 @@ from typing import Any
 from ..vars.ipoib_vars import (
     IB_MODE_IPV4_ONLY,
     IB_NETWORK_KEY,
+    IPV6_MODES,
     LEGACY_IB_COLUMN,
     VALIDATION_ERROR_LABELS,
     VALIDATION_ERROR_LINE,
@@ -42,6 +43,11 @@ def ib_network_block(network_spec: Mapping[str, Any]) -> dict[str, Any]:
 def ib_addr_mode(block: Mapping[str, Any]) -> str:
     """Return the effective IPoIB mode; the product default is ipv4-only."""
     return str(block.get("ib_addr_mode") or IB_MODE_IPV4_ONLY).strip()
+
+
+def slurm_family(mode: str) -> int:
+    """Return the IB family Slurm NodeAddr uses: IPv6 whenever the mode carries it."""
+    return 6 if mode in IPV6_MODES else 4
 
 
 def ib_subnet(block: Mapping[str, Any], family: int):

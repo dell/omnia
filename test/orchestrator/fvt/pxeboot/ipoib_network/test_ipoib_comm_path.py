@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""TC-FVT-023 extension: Slurm communication path IPv6 verification.
+"""TC-FVT-023 extension: live Slurm traffic path over IPoIB.
 
-Captures live Slurm TCP traffic during a 2-node job and verifies that
-controller-to-compute and srun I/O traffic uses IPoIB IPv6, not admin
-Ethernet IPv4.
+Captures live Slurm TCP traffic during a 2-node job and verifies that every
+Slurm packet crosses the IB interface in the address family Slurm NodeAddr
+uses for the active ib_addr_mode, never the admin Ethernet.
 """
 
 import pytest
@@ -34,7 +34,7 @@ from fvt.result import verify_pxeboot
 @pytest.mark.non_disruptive
 @pytest.mark.order(42514)
 def test_ipoib_slurm_comm_path(host):
-    """TC-FVT-023 ext: Slurm job traffic uses IPoIB IPv6, not Ethernet IPv4."""
+    """TC-FVT-023 ext: Slurm traffic uses IPoIB in the NodeAddr family, not Ethernet."""
     tc = TC["ipoib_slurm_comm_path"]
     test_log = TestLogger(tc["title"], tc["id"])
     verify_pxeboot(test_log, tc, host, check_ipoib_slurm_comm_path)

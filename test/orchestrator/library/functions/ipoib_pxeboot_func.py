@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ER-ORCH-005 post-boot IPoIB IPv6 verification on mapped nodes."""
+"""ER-ORCH-005 post-boot IPoIB verification for every ib_addr_mode.
+
+ib_addr_mode selects the address families IPoIB carries: ipv4-only assigns
+IB IPv4, ipv6-only assigns IB IPv6, and dual-stack assigns both on the same
+interface. Every check validates each family the active mode selects, so the
+same suite verifies any mode instead of skipping the ones it was not written
+for. Slurm checks use the family Slurm NodeAddr resolves to.
+"""
 
 import os
 import re
@@ -20,10 +27,8 @@ import shlex
 from typing import Any
 
 from ..vars.ipoib_vars import (
-    AUTONOMOUS_IPV6_FLAGS,
-    IB_MODE_DUAL_STACK,
+    DYNAMIC_ADDRESS_FLAGS,
     IB_MODE_FAMILIES,
-    IB_MODE_IPV4_ONLY,
     IPOIB_COMMANDS,
     IPV6_MODES,
     NETWORK_SPEC_FILE,
@@ -31,7 +36,6 @@ from ..vars.ipoib_vars import (
     NM_PRIVACY_DISABLED,
     NM_PROFILE_FIELDS,
     PING_TIMEOUT_SECONDS,
-    SAFE_IFACE,
     SLURM_CONFIG_SOURCE,
     SLURM_CONFIG_SOURCES_KEY,
     SLURM_ENABLE_IPV6,
@@ -46,6 +50,14 @@ from ._ipoib_helpers import (
     ib_network_block,
     prefix_length,
     row_address,
+    slurm_family,
+)
+from ._ipoib_runtime_helpers import (
+    full_mesh,
+    ib_interface,
+    interface_addresses,
+    interface_names,
+    mesh_failures,
 )
 from ._prepare_helpers import read_yaml_mapping
 from ._provision_helpers import api_json, interface_ips, load_context, resource_list
@@ -94,49 +106,48 @@ def _ipoib_nodes(host):
     return ib_addr_mode(block), nodes
 
 
-def _primary_family(mode: str) -> int:
-    """Return the primary address family for the given ib_addr_mode."""
-    return 4 if mode == IB_MODE_IPV4_ONLY else 6
-
-
 def _mode_selection(host, summary, minimum=1):
-    """Select nodes that have an address for the mode's primary family."""
+    """Return (mode, families, nodes, early_result) for the active ib_addr_mode.
+
+    Selects IB nodes that hold an approved address for every family the mode
+    assigns. Nodes with an incomplete allocation are reported by the mode
+    address assignment check, so they are not re-reported here.
+    """
     mode, nodes = _ipoib_nodes(host)
     families = IB_MODE_FAMILIES.get(mode)
     if families is None:
-        skip = optional_skip(summary, f"Unsupported ib_addr_mode {mode}")
-        return mode, None, skip
-    family = _primary_family(mode)
-    key = f"ipv{family}"
-    selected = [node for node in nodes if node[key]]
-    if len(selected) < minimum:
-        skip = optional_skip(
-            summary,
-            f"At least {minimum} mapped node(s) with IB_NIC_NAME and "
-            f"IB_IPV{family} are required",
+        return mode, (), [], runtime_result(
+            False, summary, [("IB mode", mode)], f"Unsupported ib_addr_mode {mode}"
         )
-        return mode, None, skip
-    return mode, selected, None
+    selected = [node for node in nodes if all(node[f"ipv{f}"] for f in families)]
+    if len(selected) < minimum:
+        wanted = " and ".join(f"IB_IPV{f}" for f in families)
+        return mode, families, [], optional_skip(
+            summary,
+            f"At least {minimum} mapped node(s) with IB_NIC_NAME and {wanted} "
+            f"are required for {mode}",
+        )
+    return mode, families, selected, None
+
+
+def _family_label(families) -> str:
+    return " + ".join(f"IPv{family}" for family in families)
+
+
+def _addr_info(iface, address: str) -> dict[str, Any] | None:
+    for info in (iface or {}).get("addr_info", []):
+        if isinstance(info, dict) and canonical_ip(info.get("local")) == address:
+            return info
+    return None
 
 
 def _locate(payload, address: str):
+    """Return (interface, addr_info) carrying *address* in an ``ip -j addr`` payload."""
     for iface in payload if isinstance(payload, list) else []:
-        for info in iface.get("addr_info", []) if isinstance(iface, dict) else []:
-            if isinstance(info, dict) and canonical_ip(info.get("local")) == address:
-                return iface, info
+        info = _addr_info(iface, address) if isinstance(iface, dict) else None
+        if info is not None:
+            return iface, info
     return None, None
-
-
-def _ib_iface(host, node, mode=None):
-    """Return the interface carrying the mode's primary address, its addr_info, and name."""
-    payload = remote_json(host, node["row"], IPOIB_COMMANDS["ip_addresses"])
-    family = _primary_family(mode) if mode else 6
-    address = node[f"ipv{family}"]
-    iface, info = _locate(payload, address)
-    name = str(iface.get("ifname", "")) if iface else ""
-    if name and not SAFE_IFACE.fullmatch(name):
-        raise ValueError(f"{node['row']['HOSTNAME']} reported an unsafe interface name")
-    return iface, info, name
 
 
 def _finish(summary, results, error_prefix):
@@ -152,70 +163,9 @@ def _finish(summary, results, error_prefix):
     return runtime_result(not failed, summary, fields, error)
 
 
-def _address_problems(node, iface, info, mode=None) -> list[str]:
-    family = _primary_family(mode) if mode else 6
-    problems = []
-    prefix_key = f"prefix{family}"
-    if node[prefix_key] and info.get("prefixlen") != node[prefix_key]:
-        problems.append(f"prefix /{info.get('prefixlen')} != /{node[prefix_key]}")
-    if family == 6:
-        problems.extend(f"flag {flag}" for flag in UNHEALTHY_IPV6_FLAGS if info.get(flag))
-        if any(info.get(flag) for flag in AUTONOMOUS_IPV6_FLAGS):
-            problems.append("approved address is not static")
-    inet_family = "inet6" if family == 6 else "inet"
-    approved = node[f"ipv{family}"]
-    extras = [
-        str(entry.get("local"))
-        for entry in iface.get("addr_info", [])
-        if entry.get("family") == inet_family
-        and entry.get("scope") == "global"
-        and canonical_ip(entry.get("local")) != approved
-    ]
-    if extras:
-        problems.append(f"unexpected global IPv{family}: " + ", ".join(extras))
-    return problems
-
-
-def check_ipoib_ipv6_address_state(host) -> dict[str, Any]:
-    """TC-FVT-015/017: approved address is static, preferred, DAD-clean, and alone."""
-    summary = "IPoIB address state"
-    try:
-        mode, nodes, skip = _mode_selection(host, summary)
-        if skip:
-            return skip
-        family = _primary_family(mode)
-        addr_key = f"ipv{family}"
-        results = []
-        for node in nodes:
-            iface, info, name = _ib_iface(host, node, mode)
-            if iface is None:
-                results.append((node, False, [("Address", f"{node[addr_key]} not configured")]))
-                continue
-            problems = _address_problems(node, iface, info, mode)
-            results.append(
-                (
-                    node,
-                    not problems,
-                    [
-                        ("Mode", mode),
-                        ("Interface", name),
-                        ("Address", f"{node[addr_key]}/{info.get('prefixlen')}"),
-                        ("Result", "HEALTHY" if not problems else "; ".join(problems)),
-                    ],
-                )
-            )
-        return _finish(summary, results, f"IPv{family} address state failed on")
-    except _ERRORS as exc:
-        return runtime_exception(summary, exc)
-
-
-def _global_addresses(iface, family: int) -> list[str]:
-    kind = "inet6" if family == 6 else "inet"
-    return [
-        canonical_ip(entry.get("local"))
-        for entry in iface.get("addr_info", [])
-        if entry.get("family") == kind and entry.get("scope") == "global"
-    ]
+# ---------------------------------------------------------------------------
+# Address assignment and address health
+# ---------------------------------------------------------------------------
 
 
 def _assignment_problems(node, families, payload) -> tuple[list[str], list[str]]:
@@ -242,7 +192,7 @@ def _assignment_problems(node, families, payload) -> tuple[list[str], list[str]]
         mapped = node[f"ipv{family}"]
         if mapped and _locate(payload, mapped)[0] is not None:
             problems.append(f"mapped IPv{family} {mapped} assigned although the mode excludes it")
-        extras = sorted({a for iface in located for a in _global_addresses(iface, family)})
+        extras = sorted({a for iface in located for a in interface_addresses(iface, family)})
         if extras:
             problems.append(f"unexpected IPv{family} on IB interface: " + ", ".join(extras))
     return problems, names
@@ -286,54 +236,118 @@ def check_ipoib_mode_address_assignment(host) -> dict[str, Any]:
         return runtime_exception(summary, exc)
 
 
+def _address_health(node, iface, family) -> tuple[str, list[str]]:
+    """Return (display, problems) for one approved address on the IB interface."""
+    approved = node[f"ipv{family}"]
+    info = _addr_info(iface, approved)
+    if info is None:
+        return f"{approved} not configured", [f"IPv{family} {approved} not configured"]
+    problems = []
+    prefix = node[f"prefix{family}"]
+    if prefix and info.get("prefixlen") != prefix:
+        problems.append(f"IPv{family} prefix /{info.get('prefixlen')} != /{prefix}")
+    if family == 6:
+        problems.extend(f"IPv6 flag {flag}" for flag in UNHEALTHY_IPV6_FLAGS if info.get(flag))
+    if any(info.get(flag) for flag in DYNAMIC_ADDRESS_FLAGS):
+        problems.append(f"IPv{family} {approved} is not static")
+    extras = sorted(interface_addresses(iface, family) - {approved})
+    if extras:
+        problems.append(f"unexpected global IPv{family}: " + ", ".join(extras))
+    return f"{approved}/{info.get('prefixlen')}", problems
+
+
+def check_ipoib_address_state(host) -> dict[str, Any]:
+    """TC-FVT-015/017: each approved IB address is static, healthy, and alone.
+
+    For every family the mode assigns: the approved address carries the
+    approved prefix, is static (not DHCP/SLAAC), is the only global address of
+    that family on the IB interface, and for IPv6 is DAD-clean and preferred.
+    """
+    summary = "IPoIB address state"
+    try:
+        mode, families, nodes, early = _mode_selection(host, summary)
+        if early:
+            return early
+        results = []
+        for node in nodes:
+            iface, name = ib_interface(host, node)
+            if iface is None:
+                results.append((node, False, [("Interface", "no interface carries an IB address")]))
+                continue
+            details = [("Mode", mode), ("Interface", name)]
+            problems = []
+            for family in families:
+                display, family_problems = _address_health(node, iface, family)
+                details.append((f"IPv{family}", display))
+                problems.extend(family_problems)
+            details.append(("Result", "HEALTHY" if not problems else "; ".join(problems)))
+            results.append((node, not problems, details))
+        return _finish(summary, results, f"IPoIB {_family_label(families)} address state failed on")
+    except _ERRORS as exc:
+        return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# NetworkManager profile
+# ---------------------------------------------------------------------------
+
+
 def _nm_values(stdout: str) -> dict[str, str]:
     lines = [line.replace("\\:", ":").strip() for line in stdout.splitlines()]
     lines += [""] * (len(NM_PROFILE_FIELDS) - len(lines))
     return dict(zip(NM_PROFILE_FIELDS, lines))
 
 
-def _nm_problems(mode, node, values) -> list[str]:
-    family = _primary_family(mode)
+def _nm_addresses(value: str) -> set[tuple[str, int | None]]:
+    return {
+        (canonical_ip(entry), prefix_length(entry))
+        for entry in value.split(",")
+        if canonical_ip(entry)
+    }
+
+
+def _nm_problems(mode, families, node, values) -> list[str]:
+    """Compare a profile with what configure-ib-network.sh sets for *mode*."""
     problems = [
         f"{key}={values[key] or '<empty>'} (expected {expected})"
         for key, expected in NM_EXPECTED_METHODS[mode].items()
         if values[key] != expected
     ]
-    if mode in IPV6_MODES or mode == IB_MODE_DUAL_STACK:
-        if values["ipv6.ip6-privacy"] not in NM_PRIVACY_DISABLED:
-            problems.append(f"ipv6.ip6-privacy={values['ipv6.ip6-privacy']}")
+    for family in (4, 6):
+        key = f"ipv{family}.addresses"
+        configured = _nm_addresses(values[key])
+        if family not in families:
+            if configured:
+                problems.append(f"{key}={values[key]} although {mode} excludes IPv{family}")
+            continue
+        approved, prefix = node[f"ipv{family}"], node[f"prefix{family}"]
+        if not any(addr == approved and (prefix is None or bits == prefix)
+                   for addr, bits in configured):
+            expected = f"{approved}/{prefix}" if prefix else approved
+            problems.append(f"{key} lacks {expected}")
+    if 6 in families and values["ipv6.ip6-privacy"] not in NM_PRIVACY_DISABLED:
+        problems.append(f"ipv6.ip6-privacy={values['ipv6.ip6-privacy'] or '<empty>'}")
     problems.extend(
         f"{key}={values[key]}" for key in ("ipv4.gateway", "ipv6.gateway") if values[key]
     )
-    if family == 6 or mode == IB_MODE_DUAL_STACK:
-        configured6 = {
-            (canonical_ip(address), prefix_length(address))
-            for address in values["ipv6.addresses"].split(",")
-            if address.strip()
-        }
-        if node["ipv6"] and (node["ipv6"], node["prefix6"]) not in configured6:
-            problems.append(f"ipv6.addresses lacks {node['ipv6']}/{node['prefix6']}")
-    if family == 4 or mode == IB_MODE_DUAL_STACK:
-        configured4 = {
-            (canonical_ip(address), prefix_length(address))
-            for address in values.get("ipv4.addresses", "").split(",")
-            if address.strip()
-        }
-        if node["ipv4"] and (node["ipv4"], node["prefix4"]) not in configured4:
-            problems.append(f"ipv4.addresses lacks {node['ipv4']}/{node['prefix4']}")
     return problems
 
 
-def check_ipoib_ipv6_nm_profile(host) -> dict[str, Any]:
-    """TC-FVT-002/009: NM profile methods, privacy, address, and no gateway."""
+def check_ipoib_nm_profile(host) -> dict[str, Any]:
+    """TC-FVT-002/009: the IB NetworkManager profile matches ib_addr_mode.
+
+    Methods follow the mode, every assigned family carries its approved
+    address, excluded families carry none, IPv6 privacy is off whenever IPv6
+    is assigned, and no gateway is configured.
+    """
     summary = "IPoIB NetworkManager profile"
     try:
-        mode, nodes, skip = _mode_selection(host, summary)
-        if skip:
-            return skip
+        mode, families, nodes, early = _mode_selection(host, summary)
+        if early:
+            return early
         results = []
         for node in nodes:
-            _iface, _info, name = _ib_iface(host, node, mode)
+            _iface, name = ib_interface(host, node)
             if not name:
                 results.append((node, False, [("Profile", "IB interface not found")]))
                 continue
@@ -344,7 +358,7 @@ def check_ipoib_ipv6_nm_profile(host) -> dict[str, Any]:
                 results.append((node, False, [("Profile", f"{name} not found")]))
                 continue
             values = _nm_values(out.stdout)
-            problems = _nm_problems(mode, node, values)
+            problems = _nm_problems(mode, families, node, values)
             results.append(
                 (
                     node,
@@ -353,131 +367,141 @@ def check_ipoib_ipv6_nm_profile(host) -> dict[str, Any]:
                         ("Mode", mode),
                         ("Profile", name),
                         *[(key, values[key] or "<empty>") for key in NM_PROFILE_FIELDS],
-                        ("Result", "matches" if not problems else "; ".join(problems)),
+                        ("Result", "matches mode" if not problems else "; ".join(problems)),
                     ],
                 )
             )
-        return _finish(summary, results, "NetworkManager profile mismatch on")
+        return _finish(summary, results, "NetworkManager profile does not match mode on")
     except _ERRORS as exc:
         return runtime_exception(summary, exc)
 
 
-def _route_problems(host, nodes, position, name, mode=None):
-    family = _primary_family(mode) if mode else 6
-    addr_key = f"ipv{family}"
-    routes_cmd = "ipv6_routes_dev" if family == 6 else "ipv4_routes_dev"
-    defaults_cmd = "ipv6_default_routes" if family == 6 else "ipv4_default_routes"
-    route_get_cmd = "ipv6_route_get" if family == 6 else "ipv4_route_get"
-    node = nodes[position]
+# ---------------------------------------------------------------------------
+# Routing and peer reachability
+# ---------------------------------------------------------------------------
+
+
+def _route_problems(host, node, name, family, peer) -> tuple[list[str], str]:
+    """Return (problems, peer-route display) for one family on the IB interface."""
+    row = node["row"]
     routes = remote_json(
-        host, node["row"], IPOIB_COMMANDS[routes_cmd] % shlex.quote(name)
+        host, row, IPOIB_COMMANDS["routes_on_dev"] % (family, shlex.quote(name))
     )
-    defaults = remote_json(host, node["row"], IPOIB_COMMANDS[defaults_cmd])
+    defaults = remote_json(host, row, IPOIB_COMMANDS["default_routes"] % family)
     problems = [
-        f"route {route.get('dst')} via {route.get('gateway')}"
-        for route in routes
-        if route.get("dst") == "default" or route.get("gateway")
+        f"IPv{family} route {route.get('dst')} via {route.get('gateway')}"
+        for route in routes or []
+        if route.get("dst") != "default" and route.get("gateway")
     ]
-    problems.extend(f"default route on {name}" for route in defaults if route.get("dev") == name)
-    details = [("Interface", name)]
-    if len(nodes) > 1:
-        peer = nodes[(position + 1) % len(nodes)]
-        peer_addr = peer[addr_key]
-        if peer_addr:
-            lookup = remote_json(
-                host, node["row"], IPOIB_COMMANDS[route_get_cmd] % shlex.quote(peer_addr)
-            )
-            entry = lookup[0] if isinstance(lookup, list) and lookup else {}
-            details.append(
-                ("Peer route", f"{peer_addr} dev {entry.get('dev')} src {entry.get('prefsrc')}")
-            )
-            if entry.get("dev") != name or canonical_ip(entry.get("prefsrc")) != node[addr_key]:
-                problems.append("peer route does not use the IB interface and approved source")
-    return problems, details
+    problems.extend(
+        f"IPv{family} default route on {name}"
+        for route in defaults or []
+        if route.get("dev") == name
+    )
+    if peer is None:
+        return problems, "no peer"
+    target, source = peer[f"ipv{family}"], node[f"ipv{family}"]
+    lookup = remote_json(host, row, IPOIB_COMMANDS["route_to"] % (family, shlex.quote(target)))
+    entry = lookup[0] if isinstance(lookup, list) and lookup else {}
+    display = f"{target} dev {entry.get('dev')} src {entry.get('prefsrc')}"
+    if entry.get("gateway"):
+        problems.append(f"IPv{family} peer {target} routed via gateway {entry['gateway']}")
+    if entry.get("dev") != name or canonical_ip(entry.get("prefsrc")) != source:
+        problems.append(f"IPv{family} peer {target} not routed via {name} from {source}")
+    return problems, display
 
 
-def check_ipoib_ipv6_routes(host) -> dict[str, Any]:
-    """TC-FVT-009/015: no IPoIB default or gateway route; peers route via IB."""
+def check_ipoib_routes(host) -> dict[str, Any]:
+    """TC-FVT-009/015: IPoIB is on-link only for every family the mode assigns.
+
+    No gateway or default route uses the IB interface, and a peer's approved
+    address is reached directly over the IB interface from the approved source.
+    """
     summary = "IPoIB routing"
     try:
-        mode, nodes, skip = _mode_selection(host, summary)
-        if skip:
-            return skip
-        family = _primary_family(mode)
+        mode, families, nodes, early = _mode_selection(host, summary)
+        if early:
+            return early
         results = []
         for position, node in enumerate(nodes):
-            _iface, _info, name = _ib_iface(host, node, mode)
+            _iface, name = ib_interface(host, node)
             if not name:
                 results.append((node, False, [("Routes", "IB interface not found")]))
                 continue
-            problems, details = _route_problems(host, nodes, position, name, mode)
-            details.insert(0, ("Mode", mode))
+            peer = nodes[(position + 1) % len(nodes)] if len(nodes) > 1 else None
+            details = [("Mode", mode), ("Interface", name)]
+            problems = []
+            for family in families:
+                family_problems, display = _route_problems(host, node, name, family, peer)
+                details.append((f"IPv{family} peer route", display))
+                problems.extend(family_problems)
             details.append(("Result", "on-link only" if not problems else "; ".join(problems)))
             results.append((node, not problems, details))
-        return _finish(summary, results, f"IPoIB IPv{family} routing violation on")
+        return _finish(summary, results, "IPoIB routing violation on")
     except _ERRORS as exc:
         return runtime_exception(summary, exc)
 
 
-def check_ipoib_ipv6_peer_mesh(host) -> dict[str, Any]:
-    """TC-FVT-023: each IB node reaches every peer over the mode's address families."""
+def check_ipoib_peer_mesh(host) -> dict[str, Any]:
+    """TC-FVT-023: every IB node reaches every peer in each family the mode assigns."""
     summary = "IPoIB peer reachability"
     try:
-        mode, nodes, skip = _mode_selection(host, summary, minimum=2)
-        if skip:
-            return skip
-        families = IB_MODE_FAMILIES[mode]
+        mode, families, nodes, early = _mode_selection(host, summary, minimum=2)
+        if early:
+            return early
+        names = interface_names(host, nodes)
+        pairs = full_mesh(nodes)
         results = []
         for source in nodes:
-            _iface, _info, name = _ib_iface(host, source, mode)
-            unreachable = []
-            for peer in nodes:
-                if peer is source:
-                    continue
-                for family in families:
-                    target = peer[f"ipv{family}"]
-                    label = f"{peer['row']['HOSTNAME']} IPv{family}"
-                    if not target or not name:
-                        unreachable.append(label)
-                        continue
-                    probe = remote_command(
-                        host,
-                        source["row"],
-                        IPOIB_COMMANDS["ping_from_iface"]
-                        % (family, PING_TIMEOUT_SECONDS, shlex.quote(name), shlex.quote(target)),
-                    )
-                    if probe.rc != 0:
-                        unreachable.append(label)
-            details = [
-                ("Mode", mode),
-                ("Interface", name or "missing"),
-                ("Unreachable", ", ".join(unreachable) or "none"),
-            ]
-            results.append((source, not unreachable, details))
+            outgoing = [(src, dst) for src, dst in pairs if src is source]
+            unreachable = mesh_failures(host, outgoing, families, names)
+            results.append(
+                (
+                    source,
+                    not unreachable,
+                    [
+                        ("Mode", mode),
+                        ("Interface", names.get(source["row"]["HOSTNAME"]) or "missing"),
+                        ("Probes", f"{len(outgoing)} peers x {_family_label(families)}"),
+                        ("Unreachable", ", ".join(unreachable) or "none"),
+                    ],
+                )
+            )
         return _finish(summary, results, "IPoIB peers unreachable from")
     except _ERRORS as exc:
         return runtime_exception(summary, exc)
 
 
-def check_ipoib_ipv6_smd_records(host) -> dict[str, Any]:
-    """TC-FVT-011: SMD holds every approved IPoIB address for each node."""
+# ---------------------------------------------------------------------------
+# SMD publication
+# ---------------------------------------------------------------------------
+
+
+def check_ipoib_smd_records(host) -> dict[str, Any]:
+    """TC-FVT-011: SMD holds every approved IPoIB address of each node."""
     summary = "IPoIB SMD publication"
     try:
-        mode, nodes, skip = _mode_selection(host, summary)
-        if skip:
-            return skip
-        families = IB_MODE_FAMILIES[mode]
+        mode, families, nodes, early = _mode_selection(host, summary)
+        if early:
+            return early
+        interfaces = resource_list(api_json(host, "ethernet"))
         published = {
-            canonical_ip(address)
-            for interface in resource_list(api_json(host, "ethernet"))
+            canonical_ip(address) for interface in interfaces
             for address in interface_ips(interface)
         }
+        by_component: dict[str, set[str]] = {}
+        component_of_ip: dict[str, str] = {}
+        for interface in interfaces:
+            component = str(interface.get("ComponentID") or "")
+            for address in interface_ips(interface):
+                by_component.setdefault(component, set()).add(canonical_ip(address))
+                component_of_ip[canonical_ip(address)] = component
         results = []
         for node in nodes:
-            expected = [
-                node[f"ipv{f}"] for f in families if node[f"ipv{f}"]
-            ]
+            expected = [node[f"ipv{f}"] for f in families]
             missing = [address for address in expected if address not in published]
+            component = component_of_ip.get(canonical_ip(node["row"]["ADMIN_IP"]), "")
+            recorded = sorted(by_component.get(component, set())) if component else []
             results.append(
                 (
                     node,
@@ -485,6 +509,8 @@ def check_ipoib_ipv6_smd_records(host) -> dict[str, Any]:
                     [
                         ("Mode", mode),
                         ("Expected", ", ".join(expected)),
+                        (f"SMD addresses for {component or 'node'}",
+                         ", ".join(recorded) or "none"),
                         ("Missing in SMD", ", ".join(missing) or "none"),
                     ],
                 )
@@ -492,6 +518,11 @@ def check_ipoib_ipv6_smd_records(host) -> dict[str, Any]:
         return _finish(summary, results, "SMD is missing IPoIB addresses for")
     except _ERRORS as exc:
         return runtime_exception(summary, exc)
+
+
+# ---------------------------------------------------------------------------
+# Slurm
+# ---------------------------------------------------------------------------
 
 
 def _scontrol_nodeaddr(stdout: str) -> dict[str, str]:
@@ -512,7 +543,7 @@ def _expected_nodeaddr(mode: str, row) -> tuple[set[str], str]:
     """
     if not str(row.get("IB_NIC_NAME") or "").strip():
         return {row["HOSTNAME"]}, "unset (no IB columns)"
-    family = 6 if mode in IPV6_MODES else 4
+    family = slurm_family(mode)
     address = canonical_ip(row_address(row, family))
     return ({address} if address else set()), f"approved IB IPv{family} ({mode})"
 
@@ -606,7 +637,7 @@ def check_ipoib_custom_slurm_conf(host) -> dict[str, Any]:
                 summary, "slurm_cluster config_sources does not provide slurm.conf"
             )
         mode = ib_addr_mode(ib_network_block(context["network_spec"]))
-        family = 6 if mode in IPV6_MODES else 4
+        family = slurm_family(mode)
         states = remote_command(host, control, PXEBOOT_COMMANDS["slurm_partitions"])
         if states.rc != 0:
             return runtime_result(False, summary, [], "sinfo failed on the Slurm controller")

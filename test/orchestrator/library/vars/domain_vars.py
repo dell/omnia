@@ -125,7 +125,7 @@ SUITES: dict[str, list[str]] = {
         "kubernetes_recovery",
         "slurm_recovery",
         "slurm_lifecycle",
-        "ipoib_ipv6",
+        "ipoib_network",
         "ipoib_resilience",
     ],
     "cleanup": [

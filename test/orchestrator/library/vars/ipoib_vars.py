@@ -23,11 +23,12 @@ IB_MODE_DUAL_STACK = "dual-stack"
 IB_MODE_IPV6_ONLY = "ipv6-only"
 IB_MODE_IPV4_ONLY = "ipv4-only"
 IPV6_MODES: frozenset[str] = frozenset({IB_MODE_DUAL_STACK, IB_MODE_IPV6_ONLY})
-# Address families each ib_addr_mode assigns on the IB interface.
+# Address families each ib_addr_mode assigns on the IB interface. Every
+# post-boot check validates each family listed for the active mode.
 IB_MODE_FAMILIES: dict[str, tuple[int, ...]] = {
     IB_MODE_IPV4_ONLY: (4,),
     IB_MODE_IPV6_ONLY: (6,),
-    IB_MODE_DUAL_STACK: (4, 6),
+    IB_MODE_DUAL_STACK: (6, 4),
 }
 SLURM_ENABLE_IPV6 = "EnableIPv6"
 
@@ -209,6 +210,15 @@ IPOIB_INPUT_CASES: dict[str, dict[str, object]] = {
     },
 }
 
+NM_PROFILE_FIELDS: tuple[str, ...] = (
+    "ipv4.method",
+    "ipv4.addresses",
+    "ipv4.gateway",
+    "ipv6.method",
+    "ipv6.addresses",
+    "ipv6.gateway",
+    "ipv6.ip6-privacy",
+)
 IPOIB_COMMANDS: dict[str, str] = {
     "path_absent": "test ! -e %s",
     "make_private_dir": "mkdir -m 0700 -- %s",
@@ -222,37 +232,28 @@ IPOIB_COMMANDS: dict[str, str] = {
     "remove_scratch": "rm -rf -- %s",
     # Node-side templates; values are validated and shlex-quoted before use.
     "ip_addresses": "ip -j address show",
-    "nm_profile": (
-        "nmcli -g ipv4.method,ipv6.method,ipv6.ip6-privacy,ipv4.gateway,"
-        "ipv6.gateway,ipv6.addresses,ipv4.addresses connection show %s"
-    ),
-    "ipv6_routes_dev": "ip -j -6 route show dev %s",
-    "ipv6_default_routes": "ip -j -6 route show default",
-    "ipv6_route_get": "ip -j -6 route get %s",
-    "ipv4_routes_dev": "ip -j -4 route show dev %s",
-    "ipv4_default_routes": "ip -j -4 route show default",
-    "ipv4_route_get": "ip -j -4 route get %s",
+    "nm_profile": "nmcli -g " + ",".join(NM_PROFILE_FIELDS) + " connection show %s",
+    # Family-generic templates: the first %s is the family (4 or 6).
+    "routes_on_dev": "ip -j -%s route show dev %s",
+    "default_routes": "ip -j -%s route show default",
+    "route_to": "ip -j -%s route get %s",
     "ping_from_iface": "ping -%s -c 1 -W %s -I %s %s",
     "ping": "ping -%s -c 1 -W %s %s",
     "slurm_show_config": "scontrol show config",
 }
-NM_PROFILE_FIELDS: tuple[str, ...] = (
-    "ipv4.method",
-    "ipv6.method",
-    "ipv6.ip6-privacy",
-    "ipv4.gateway",
-    "ipv6.gateway",
-    "ipv6.addresses",
-    "ipv4.addresses",
-)
+# NetworkManager methods configure-ib-network.sh sets for each ib_addr_mode.
+# ipv4-only leaves IPv6 unmanaged (the profile keeps the NetworkManager
+# default), so ipv6.method is not part of the ipv4-only contract; the absence
+# of any global IPv6 on the IB interface is enforced by the address checks.
 NM_EXPECTED_METHODS: dict[str, dict[str, str]] = {
     IB_MODE_DUAL_STACK: {"ipv4.method": "manual", "ipv6.method": "manual"},
     IB_MODE_IPV6_ONLY: {"ipv4.method": "disabled", "ipv6.method": "manual"},
-    IB_MODE_IPV4_ONLY: {"ipv4.method": "manual", "ipv6.method": "link-local"},
+    IB_MODE_IPV4_ONLY: {"ipv4.method": "manual"},
 }
 NM_PRIVACY_DISABLED: frozenset[str] = frozenset({"0", "disabled", "0 (disabled)"})
 UNHEALTHY_IPV6_FLAGS: tuple[str, ...] = ("tentative", "dadfailed", "deprecated")
-AUTONOMOUS_IPV6_FLAGS: tuple[str, ...] = ("dynamic", "temporary", "mngtmpaddr")
+# Flags marking an address as DHCP/SLAAC-assigned rather than static.
+DYNAMIC_ADDRESS_FLAGS: tuple[str, ...] = ("dynamic", "temporary", "mngtmpaddr")
 SAFE_IFACE = re.compile(r"^[A-Za-z0-9_.:-]{1,15}$")
 PING_TIMEOUT_SECONDS = 2
 SLURM_UNRESPONSIVE_STATES: frozenset[str] = frozenset(
@@ -372,8 +373,6 @@ IPOIB_COMM_PATH_COMMANDS: dict[str, str] = {
         "timeout 30 srun -N2 -w %s,%s --mem=10M "
         "bash -c 'hostname; sleep %s'"
     ),
-    "getent_ahosts": "getent ahosts %s",
-    "ss_listen": "ss -tlnp",
 }
 IPOIB_COMM_CAPTURE_TIMEOUT = 25
 IPOIB_COMM_JOB_SLEEP = 5

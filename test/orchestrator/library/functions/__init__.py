@@ -202,16 +202,6 @@ from .external_ldap_pxeboot_func import (
 )
 from .ipoib_comm_path_pxeboot_func import check_ipoib_slurm_comm_path
 from .ipoib_inputs_precheck_func import check_ipoib_input_case
-from .ipoib_ipv6_pxeboot_func import (
-    check_ipoib_custom_slurm_conf,
-    check_ipoib_ipv6_address_state,
-    check_ipoib_ipv6_nm_profile,
-    check_ipoib_ipv6_peer_mesh,
-    check_ipoib_ipv6_routes,
-    check_ipoib_ipv6_smd_records,
-    check_ipoib_mode_address_assignment,
-    check_ipoib_slurm_nodeaddr,
-)
 from .ipoib_nft_func import (
     check_ipoib_allocation_validation_latency,
     check_ipoib_artifact_generation_throughput,
@@ -222,6 +212,16 @@ from .ipoib_powervault_pxeboot_func import (
     check_ipoib_powervault_ib_reprovision,
     check_ipoib_powervault_iscsi_path,
     check_ipoib_powervault_nfs_coexistence,
+)
+from .ipoib_pxeboot_func import (
+    check_ipoib_address_state,
+    check_ipoib_custom_slurm_conf,
+    check_ipoib_mode_address_assignment,
+    check_ipoib_nm_profile,
+    check_ipoib_peer_mesh,
+    check_ipoib_routes,
+    check_ipoib_slurm_nodeaddr,
+    check_ipoib_smd_records,
 )
 from .ipoib_resilience_pxeboot_func import (
     check_ipoib_compute_multi_reboot_recovery,
@@ -598,6 +598,7 @@ __all__ = [
     "check_hpc_benchmarks_source_only_delivery",
     "check_hpc_benchmarks_staging_idempotency",
     "check_hpc_benchmarks_tools_dir_creation",
+    "check_ipoib_address_state",
     "check_ipoib_allocation_validation_latency",
     "check_ipoib_artifact_generation_throughput",
     "check_ipoib_compute_multi_reboot_recovery",
@@ -606,20 +607,19 @@ __all__ = [
     "check_ipoib_custom_slurm_conf",
     "check_ipoib_failure_dual_stack",
     "check_ipoib_input_case",
-    "check_ipoib_ipv6_address_state",
-    "check_ipoib_ipv6_nm_profile",
-    "check_ipoib_ipv6_peer_mesh",
-    "check_ipoib_ipv6_routes",
-    "check_ipoib_ipv6_smd_records",
     "check_ipoib_mode_address_assignment",
+    "check_ipoib_nm_profile",
     "check_ipoib_nodeaddr_reapply",
+    "check_ipoib_peer_mesh",
     "check_ipoib_powervault_coexistence",
     "check_ipoib_powervault_dns_resilience",
     "check_ipoib_powervault_ib_reprovision",
     "check_ipoib_powervault_iscsi_path",
     "check_ipoib_powervault_nfs_coexistence",
+    "check_ipoib_routes",
     "check_ipoib_slurm_comm_path",
     "check_ipoib_slurm_nodeaddr",
+    "check_ipoib_smd_records",
     "check_kubernetes_configured_versions",
     "check_kubernetes_control_plane",
     "check_external_ldap_backend",

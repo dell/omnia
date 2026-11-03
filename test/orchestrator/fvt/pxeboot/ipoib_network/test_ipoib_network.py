@@ -13,17 +13,17 @@
 # limitations under the License.
 
 
-"""ER-ORCH-005 post-boot IPoIB IPv6 verification."""
+"""ER-ORCH-005 post-boot IPoIB verification for the active ib_addr_mode."""
 
 import pytest
 from library.functions import (
     TestLogger,
     check_ipoib_mode_address_assignment,
-    check_ipoib_ipv6_address_state,
-    check_ipoib_ipv6_nm_profile,
-    check_ipoib_ipv6_routes,
-    check_ipoib_ipv6_peer_mesh,
-    check_ipoib_ipv6_smd_records,
+    check_ipoib_address_state,
+    check_ipoib_nm_profile,
+    check_ipoib_routes,
+    check_ipoib_peer_mesh,
+    check_ipoib_smd_records,
     check_ipoib_slurm_nodeaddr,
     check_ipoib_custom_slurm_conf,
 )
@@ -45,51 +45,51 @@ def test_ipoib_mode_address_assignment(host):
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42502)
-def test_ipoib_ipv6_address_state(host):
-    """TC-FVT-015/017: approved IPv6 is static, DAD-clean, and alone."""
-    tc = TC["ipoib_ipv6_address_state"]
+def test_ipoib_address_state(host):
+    """TC-FVT-015/017: each approved IB address is static, healthy, and alone."""
+    tc = TC["ipoib_address_state"]
     test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_ipoib_ipv6_address_state)
+    verify_pxeboot(test_log, tc, host, check_ipoib_address_state)
 
 
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42503)
-def test_ipoib_ipv6_nm_profile(host):
+def test_ipoib_nm_profile(host):
     """TC-FVT-002/009: NetworkManager profile matches the IPoIB mode."""
-    tc = TC["ipoib_ipv6_nm_profile"]
+    tc = TC["ipoib_nm_profile"]
     test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_ipoib_ipv6_nm_profile)
+    verify_pxeboot(test_log, tc, host, check_ipoib_nm_profile)
 
 
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42504)
-def test_ipoib_ipv6_routes(host):
-    """TC-FVT-009/015: no IPoIB default route; peers route via IB."""
-    tc = TC["ipoib_ipv6_routes"]
+def test_ipoib_routes(host):
+    """TC-FVT-009/015: IPoIB is on-link only; peers route directly via IB."""
+    tc = TC["ipoib_routes"]
     test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_ipoib_ipv6_routes)
+    verify_pxeboot(test_log, tc, host, check_ipoib_routes)
 
 
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42505)
-def test_ipoib_ipv6_peer_mesh(host):
-    """TC-FVT-023: every IB node reaches every IB peer."""
-    tc = TC["ipoib_ipv6_peer_mesh"]
+def test_ipoib_peer_mesh(host):
+    """TC-FVT-023: every IB node reaches every peer in each mode family."""
+    tc = TC["ipoib_peer_mesh"]
     test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_ipoib_ipv6_peer_mesh)
+    verify_pxeboot(test_log, tc, host, check_ipoib_peer_mesh)
 
 
 @pytest.mark.ipoib
 @pytest.mark.non_disruptive
 @pytest.mark.order(42506)
-def test_ipoib_ipv6_smd_records(host):
+def test_ipoib_smd_records(host):
     """TC-FVT-011: SMD holds every approved IPoIB address."""
-    tc = TC["ipoib_ipv6_smd_records"]
+    tc = TC["ipoib_smd_records"]
     test_log = TestLogger(tc["title"], tc["id"])
-    verify_pxeboot(test_log, tc, host, check_ipoib_ipv6_smd_records)
+    verify_pxeboot(test_log, tc, host, check_ipoib_smd_records)
 
 
 @pytest.mark.ipoib

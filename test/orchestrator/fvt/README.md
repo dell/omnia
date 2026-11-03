@@ -740,27 +740,34 @@ Node removal and re-addition use `slurm_lifecycle_remove_add_nodes` from
 Removal skips when the PXE mapping has fewer than two `slurm_node_*` entries,
 and re-addition then skips because no backup is left.
 
-### IPoIB IPv6 (`ipoib_ipv6`)
+### IPoIB network (`ipoib_network`)
 
 | Order | TC ID | Test | Suite | Markers | Validation | Pass criteria |
 |---:|---|---|---|---|---|---|
-| 42501 | `ORCH_FVT_PXEBOOT_V819` | `test_ipoib_mode_address_assignment` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IB addresses assigned on each node match ib_addr_mode. | Each node carries exactly the IB addresses ib_addr_mode selects. |
-| 42502 | `ORCH_FVT_PXEBOOT_V800` | `test_ipoib_ipv6_address_state` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB IPv6 address state. | TC-FVT-015/017: approved IPv6 is static, DAD-clean, and alone. |
-| 42503 | `ORCH_FVT_PXEBOOT_V801` | `test_ipoib_ipv6_nm_profile` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB NetworkManager profile. | TC-FVT-002/009: NetworkManager profile matches the IPoIB mode. |
-| 42504 | `ORCH_FVT_PXEBOOT_V802` | `test_ipoib_ipv6_routes` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB IPv6 on-link routing. | TC-FVT-009/015: no IPoIB default route; peers route via IB. |
-| 42505 | `ORCH_FVT_PXEBOOT_V803` | `test_ipoib_ipv6_peer_mesh` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB peer reachability. | TC-FVT-023: every IB node reaches every IB peer. |
-| 42506 | `ORCH_FVT_PXEBOOT_V804` | `test_ipoib_ipv6_smd_records` | `ipoib_ipv6` | `ipoib`, `non_disruptive` | Verify IPoIB addresses published in SMD. | TC-FVT-011: SMD holds every approved IPoIB address. |
-| 42507 | `ORCH_FVT_PXEBOOT_V805` | `test_ipoib_slurm_nodeaddr` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify Slurm NodeAddr follows the IPoIB allocation. | TC-FVT-019/031: Slurm NodeAddr follows the IB allocation. |
-| 42508 | `ORCH_FVT_PXEBOOT_V806` | `test_ipoib_custom_slurm_conf` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify custom slurm.conf nodes respond over IPoIB. | TC-FVT-027: custom slurm.conf nodes respond over IB. |
-| 42509 | `ORCH_FVT_PXEBOOT_V807` | `test_ipoib_powervault_coexistence` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify IPoIB and PowerVault iSCSI are both operational on the controller. | TC-FVT-024 S1: IB UP with approved address and PowerVault mounted together. |
-| 42510 | `ORCH_FVT_PXEBOOT_V808` | `test_ipoib_powervault_iscsi_path` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify PowerVault iSCSI traffic routes via Ethernet, not IPoIB. | TC-FVT-024 S2: iSCSI routes via Ethernet; no IB route captures the portals. |
-| 42511 | `ORCH_FVT_PXEBOOT_V809` | `test_ipoib_powervault_dns_resilience` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify IPoIB DNS injection does not break iSCSI target resolution. | TC-FVT-024 S4: IB DNS injection does not break iSCSI target discovery. |
-| 42512 | `ORCH_FVT_PXEBOOT_V810` | `test_ipoib_powervault_nfs_coexistence` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify controller NFS, PowerVault, and IPoIB coexist. | TC-FVT-024 S5: NFS (TCP, Ethernet), PowerVault, and IB coexist without conflict. |
-| 42513 | `ORCH_FVT_PXEBOOT_V811` | `test_ipoib_powervault_ib_reprovision` | `ipoib_ipv6` | `fault_injection`, `ipoib`, `slurm` | Verify PowerVault binds and Slurm state survive IPoIB re-provisioning. | TC-FVT-024 S3: PowerVault binds and Slurm state survive IB re-provisioning. |
-| 42514 | `ORCH_FVT_PXEBOOT_V818` | `test_ipoib_slurm_comm_path` | `ipoib_ipv6` | `ipoib`, `non_disruptive`, `slurm` | Verify Slurm job traffic uses IPoIB IPv6 not Ethernet IPv4. | TC-FVT-023 ext: Slurm job traffic uses IPoIB IPv6, not Ethernet IPv4. |
+| 42501 | `ORCH_FVT_PXEBOOT_V819` | `test_ipoib_mode_address_assignment` | `ipoib_network` | `ipoib`, `non_disruptive` | Verify IB addresses assigned on each node match ib_addr_mode. | Each node carries exactly the IB addresses ib_addr_mode selects. |
+| 42502 | `ORCH_FVT_PXEBOOT_V800` | `test_ipoib_address_state` | `ipoib_network` | `ipoib`, `non_disruptive` | Verify each approved IPoIB address is static and healthy. | TC-FVT-015/017: every mode family's approved address has its prefix, is static, is the only global address of its family, and (IPv6) is DAD-clean. |
+| 42503 | `ORCH_FVT_PXEBOOT_V801` | `test_ipoib_nm_profile` | `ipoib_network` | `ipoib`, `non_disruptive` | Verify the IPoIB NetworkManager profile matches ib_addr_mode. | TC-FVT-002/009: methods follow the mode, assigned families carry the approved address, excluded families carry none, IPv6 privacy is off when IPv6 is assigned, no gateway. |
+| 42504 | `ORCH_FVT_PXEBOOT_V802` | `test_ipoib_routes` | `ipoib_network` | `ipoib`, `non_disruptive` | Verify IPoIB routing is on-link with no gateway or default route. | TC-FVT-009/015: per mode family, no gateway/default route on IB; peers route directly via IB from the approved source. |
+| 42505 | `ORCH_FVT_PXEBOOT_V803` | `test_ipoib_peer_mesh` | `ipoib_network` | `ipoib`, `non_disruptive` | Verify every IPoIB node reaches every peer in each ib_addr_mode family. | TC-FVT-023: every IB node reaches every IB peer over each mode family. |
+| 42506 | `ORCH_FVT_PXEBOOT_V804` | `test_ipoib_smd_records` | `ipoib_network` | `ipoib`, `non_disruptive` | Verify approved IPoIB addresses are published in SMD. | TC-FVT-011: SMD holds every approved IPoIB address of each mode family. |
+| 42507 | `ORCH_FVT_PXEBOOT_V805` | `test_ipoib_slurm_nodeaddr` | `ipoib_network` | `ipoib`, `non_disruptive`, `slurm` | Verify Slurm NodeAddr follows the IPoIB allocation. | TC-FVT-019/031: Slurm NodeAddr follows the IB allocation. |
+| 42508 | `ORCH_FVT_PXEBOOT_V806` | `test_ipoib_custom_slurm_conf` | `ipoib_network` | `ipoib`, `non_disruptive`, `slurm` | Verify custom slurm.conf nodes respond over IPoIB. | TC-FVT-027: custom slurm.conf nodes respond over IB. |
+| 42509 | `ORCH_FVT_PXEBOOT_V807` | `test_ipoib_powervault_coexistence` | `ipoib_network` | `ipoib`, `non_disruptive`, `slurm` | Verify IPoIB and PowerVault iSCSI are both operational on the controller. | TC-FVT-024 S1: IB UP with approved address and PowerVault mounted together. |
+| 42510 | `ORCH_FVT_PXEBOOT_V808` | `test_ipoib_powervault_iscsi_path` | `ipoib_network` | `ipoib`, `non_disruptive`, `slurm` | Verify PowerVault iSCSI traffic routes via Ethernet, not IPoIB. | TC-FVT-024 S2: iSCSI routes via Ethernet; no IB route captures the portals. |
+| 42511 | `ORCH_FVT_PXEBOOT_V809` | `test_ipoib_powervault_dns_resilience` | `ipoib_network` | `ipoib`, `non_disruptive`, `slurm` | Verify IPoIB DNS injection does not break iSCSI target resolution. | TC-FVT-024 S4: IB DNS injection does not break iSCSI target discovery. |
+| 42512 | `ORCH_FVT_PXEBOOT_V810` | `test_ipoib_powervault_nfs_coexistence` | `ipoib_network` | `ipoib`, `non_disruptive`, `slurm` | Verify controller NFS, PowerVault, and IPoIB coexist. | TC-FVT-024 S5: NFS (TCP, Ethernet), PowerVault, and IB coexist without conflict. |
+| 42513 | `ORCH_FVT_PXEBOOT_V811` | `test_ipoib_powervault_ib_reprovision` | `ipoib_network` | `fault_injection`, `ipoib`, `slurm` | Verify PowerVault binds and Slurm state survive IPoIB re-provisioning. | TC-FVT-024 S3: PowerVault binds and Slurm state survive IB re-provisioning. |
+| 42514 | `ORCH_FVT_PXEBOOT_V818` | `test_ipoib_slurm_comm_path` | `ipoib_network` | `ipoib`, `non_disruptive`, `slurm` | Verify Slurm job traffic crosses IPoIB in the ib_addr_mode family, not Ethernet. | TC-FVT-023 ext: every captured slurmd, srun I/O, and slurmctld packet uses the IB interface in the NodeAddr family (IPv4 for ipv4-only, IPv6 otherwise). |
 
-`ipoib_ipv6` (42500) intentionally follows `slurm_lifecycle`, so its NodeAddr
+`ipoib_network` (42500) intentionally follows `slurm_lifecycle`, so its NodeAddr
 check also covers nodes re-added by that suite (TC-FVT-031).
+
+Every `ipoib_network` check verifies the active `ib_addr_mode` instead of
+skipping other modes: ipv4-only validates IB IPv4, ipv6-only validates IB IPv6,
+and dual-stack validates both. Slurm checks use the NodeAddr family (IPv4 for
+ipv4-only, IPv6 otherwise). In ipv4-only the product leaves the profile's
+`ipv6.method` unmanaged, so V801 does not assert it; V819 still fails on any
+global IPv6 address on the IB interface.
 
 ### IPoIB resilience (`ipoib_resilience`)
 
@@ -873,7 +880,7 @@ class, while `slurm+non_disruptive` selects tests carrying both markers.
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite kubernetes_storage
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_cluster
 ./run_validation.sh fvt_orchestrator precheck verify --suite ipoib_inputs
-./run_validation.sh fvt_orchestrator pxeboot verify --suite ipoib_ipv6
+./run_validation.sh fvt_orchestrator pxeboot verify --suite ipoib_network
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite ipoib_resilience --marker fault_injection,reprovision,reboot
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_ldap
 ./run_validation.sh fvt_orchestrator pxeboot verify --suite slurm_apptainer

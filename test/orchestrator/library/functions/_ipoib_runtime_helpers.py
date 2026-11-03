@@ -29,7 +29,7 @@ from typing import Any
 
 from ..vars.ipoib_vars import (
     ADDRESS_VERIFIER_PATH,
-    IB_MODE_DUAL_STACK,
+    IB_MODE_FAMILIES,
     IB_MODE_IPV4_ONLY,
     IB_MODE_IPV6_ONLY,
     IPOIB_COMMANDS,
@@ -48,11 +48,7 @@ from ._pxeboot_helpers import remote_command, remote_json, report_poll_progress
 
 def families_for(mode: str) -> tuple[int, ...]:
     """Return the IP families IPoIB must carry for *mode*."""
-    if mode == IB_MODE_DUAL_STACK:
-        return (6, 4)
-    if mode == IB_MODE_IPV6_ONLY:
-        return (6,)
-    return (4,)
+    return IB_MODE_FAMILIES.get(mode, IB_MODE_FAMILIES[IB_MODE_IPV4_ONLY])
 
 
 def is_compute(node: dict[str, Any]) -> bool:

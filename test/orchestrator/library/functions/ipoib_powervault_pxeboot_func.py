@@ -58,7 +58,7 @@ from ._pxeboot_helpers import (
     runtime_exception,
 )
 from ._workload_helpers import optional_skip
-from .ipoib_ipv6_pxeboot_func import _finish, _ipoib_nodes
+from .ipoib_pxeboot_func import _finish, _ipoib_nodes
 from .project_func import resolve_target_input_project_path
 
 _ERRORS = (OSError, RuntimeError, TypeError, ValueError, KeyError, TimeoutError)
