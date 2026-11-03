@@ -493,7 +493,7 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file) -> dict[
         is_infra = bool(bundles & _INFRA_BUNDLES)
         is_misc = _MISC_BUNDLE in bundles
         is_os_layer_bundle = _OS_LAYER_BUNDLE in bundles
-        has_base_os_bundle = bool(bundles & _BASE_OS_BUNDLES)
+        has_baseos_bundle = bool(bundles & _BASE_OS_BUNDLES)
 
         # --- Infrastructure ---
         if is_infra:
@@ -516,7 +516,7 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file) -> dict[
         if is_os_layer_bundle and has_os_roles and key in package_id_map:
             func_pkg_id = package_id_map[key]
             functional_packages[func_pkg_id] = create_package_entry(pkg_data)
-            # Also add to OS so adapter_policy can generate ldms.json from base_os.json
+            # Also add to OS so adapter_policy can generate ldms.json from baseos.json
             pkg_name = pkg_data['name']
             pkg_type = pkg_data['type']
             pkg_version = pkg_data.get('version') or pkg_data.get('tag')
@@ -528,7 +528,7 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file) -> dict[
         # A package goes to BaseOS if:
         #   (a) it belongs to at least one non-functional, non-infra bundle, OR
         #   (b) it does not belong to any functional or infra bundle at all
-        if has_base_os_bundle or (not is_functional and not is_infra):
+        if has_baseos_bundle or (not is_functional and not is_infra):
             pkg_name = pkg_data['name']
             pkg_type = pkg_data['type']
             pkg_version = pkg_data.get('version') or pkg_data.get('tag')
