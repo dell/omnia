@@ -207,7 +207,10 @@
 
 - name: Generate slurmd opts for Configless
   ansible.builtin.set_fact:
-    conf_server: "--conf-server {{ ctld_list | map('regex_replace', '$', ':' ~ (apply_config['slurm']['SlurmctldPort'] | string)) | join(',') }}"
+    conf_server: >-
+      --conf-server {{ (_ctld_ib_addrs | default(ctld_list))
+      | map('regex_replace', '$', ':' ~ (apply_config['slurm']['SlurmctldPort'] | string))
+      | join(',') }}
 
 - name: Create epilog.sh and slurmd.service
   ansible.builtin.template:

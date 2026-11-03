@@ -132,7 +132,6 @@
 - name: Set node_params from bulk group discovery
   ansible.builtin.set_fact:
     node_params: "{{ node_params + bulk_discovery.node_params }}"
-    gpu_params: "{{ gpu_params | default({}) | combine(bulk_discovery.gpu_params) }}"
   when:
     - discovery_mode == 'homogeneous'
     - bulk_discovery is defined
@@ -200,7 +199,6 @@
 - name: Set node_params from bulk per-node discovery
   ansible.builtin.set_fact:
     node_params: "{{ node_params + bulk_discovery.node_params }}"
-    gpu_params: "{{ gpu_params | default({}) | combine(bulk_discovery.gpu_params) }}"
   when:
     - discovery_mode == 'heterogeneous'
     - bulk_discovery is not skipped
@@ -230,6 +228,12 @@
     msg:
       - "Total node_params entries: {{ node_params | length }}"
       - "node_params: {{ node_params }}"
+
+- name: Inject IB NodeAddr into node_params (if IPoIB allocation or PXE mapping exists)
+  ansible.builtin.include_tasks: inject_ib_nodeaddr.yml
+  when:
+    - node_params | length > 0
+    - "'slurm' in conf_files"
 
 - name: Build slurm.conf
   ansible.builtin.include_tasks: build_slurm_conf.yml
@@ -314,7 +318,7 @@
              'slurm': [{
                'ClusterName': slurm_cluster_name,
                'AccountingStorageHost': dbd_list[0],
-               'SlurmctldHost': ctld_list
+               'SlurmctldHost': _ctld_ib_list | default(ctld_list)
              }] + conf_merge_dict['slurm']
            }) }}
   when: "'slurm' in conf_merge_dict"
@@ -363,7 +367,10 @@
 
 - name: Generate slurmd opts for Configless # TODO: Move to $SLURMD_OPTIONS /etc/default/slurmd
   ansible.builtin.set_fact:
-    conf_server: "--conf-server {{ ctld_list | map('regex_replace', '$', ':' ~ (slurm_conf_dict.get('SlurmctldPort', '6817') | string)) | join(',') }}"
+    conf_server: >-
+      --conf-server {{ (_ctld_ib_addrs | default(ctld_list))
+      | map('regex_replace', '$', ':' ~ (slurm_conf_dict.get('SlurmctldPort', '6817') | string))
+      | join(',') }}
   when: slurm_conf_dict is defined
 
 - name: Backup Slurm configuration files before writing new config

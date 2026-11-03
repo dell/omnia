@@ -14,9 +14,9 @@
 ---
 
 - name: Load package_groups.yml for functional group check
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/package_groups.yml"
-    name: _fg_check_mapping
+  ansible.builtin.include_tasks: load_package_groups.yml
+  vars:
+    package_groups_fact_name: _fg_check_mapping
 
 - name: Check for functional groups - {{ build_arch }}
   ansible.builtin.set_fact:

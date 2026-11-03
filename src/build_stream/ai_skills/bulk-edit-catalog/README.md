@@ -28,8 +28,8 @@ Pin RHEL from 10.0 to 10.2 for slurm_x86_64, slurm_aarch64 and service_k8s_x86_6
 ```
 
 A RHEL version change renames every functional layer and updates every
-package source version, the `base_os` group and the catalog name together
-(see `switch_os_version()` in `SKILL.md`). Changing only the `base_os`
+package source version, the `baseos` group and the catalog name together
+(see `switch_os_version()` in `SKILL.md`). Changing only the `baseos`
 group's `os_version` leaves repo_manager on the old version.
 
 ### Bulk package add

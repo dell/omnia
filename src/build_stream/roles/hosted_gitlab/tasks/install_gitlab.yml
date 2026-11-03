@@ -32,7 +32,69 @@
     metadata_expire: "300"
     enabled: true
 
-- name: Install GitLab CE package
+- name: Gather installed package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Set installed and target GitLab version facts
+  ansible.builtin.set_fact:
+    _gitlab_installed_version: "{{ ansible_facts.packages['gitlab-ce'][0].version | default('') }}"
+    _gitlab_target_version: "{{ gitlab_package_name | regex_replace('^gitlab-ce-', '') }}"
+  when: "'gitlab-ce' in ansible_facts.packages"
+
+- name: Set major.minor version comparison facts
+  ansible.builtin.set_fact:
+    _gitlab_installed_major_minor: "{{ _gitlab_installed_version.split('.')[:2] | join('.') }}"
+    _gitlab_target_major_minor: "{{ _gitlab_target_version.split('.')[:2] | join('.') }}"
+  when: _gitlab_installed_version | default('') | length > 0
+
+# Major version change (e.g. 18.8 -> 19.5): full removal and fresh install
+# GitLab RPM pre-install rejects version jumps that skip required intermediate versions
+- name: Remove incompatible GitLab CE version for fresh install
+  when:
+    - _gitlab_installed_version | default('') | length > 0
+    - _gitlab_installed_version not in gitlab_package_name
+    - _gitlab_installed_major_minor != _gitlab_target_major_minor
+  block:
+    - name: Stop GitLab services before removal
+      ansible.builtin.command: gitlab-ctl stop
+      changed_when: true
+      failed_when: false
+
+    - name: Remove existing GitLab CE package
+      ansible.builtin.package:
+        name: gitlab-ce
+        state: absent
+
+    - name: Remove GitLab data directories for clean install
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/opt/gitlab
+        - /etc/gitlab
+        - /opt/gitlab
+        - /var/log/gitlab
+
+# Any version change (major or patch): unregister old runner and remove config
+# so deploy_runner.yml does a fresh registration with a valid token
+- name: Re-register runner on any GitLab version change
+  when:
+    - _gitlab_installed_version | default('') | length > 0
+    - _gitlab_installed_version not in gitlab_package_name
+  block:
+    - name: Stop GitLab runner container for re-registration
+      containers.podman.podman_container:
+        name: "{{ gitlab_runner_container_name }}"
+        state: absent
+      failed_when: false
+
+    - name: Remove GitLab runner configuration for fresh registration
+      ansible.builtin.file:
+        path: "{{ gitlab_runner_config_path }}"
+        state: absent
+
+- name: Install or upgrade GitLab CE package
   ansible.builtin.package:
     name: "{{ gitlab_package_name }}"
-    state: "{{ gitlab_package_state }}"
+    state: present

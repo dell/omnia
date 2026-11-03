@@ -72,7 +72,7 @@ to the matching catalog under `src/main/samples/catalogs/` instead.
 
 ### Step 1 — Resolve the request to a concrete edit
 
-Identify: the target catalog file, the catalog's target OS version (inspect `catalog.groups` for the `base_os` group's `os_version` field, e.g., `10.2`; in hybrid catalogs spanning multiple OS versions such as `baseos_group_10.2` and `baseos_group_10.0`, trace the consuming functional layers to determine which OS version applies to the target group, or include multiple OS versions in the package sources if the package is intended for both OS tracks), the operation (add / remove / change a package; pin/change a version; correct a metadata field), and the specific package/group/field affected. If the operator's request is
+Identify: the target catalog file, the catalog's target OS version (inspect `catalog.groups` for the `baseos` group's `os_version` field, e.g., `10.2`; in hybrid catalogs spanning multiple OS versions such as `baseos_group_10.2` and `baseos_group_10.0`, trace the consuming functional layers to determine which OS version applies to the target group, or include multiple OS versions in the package sources if the package is intended for both OS tracks), the operation (add / remove / change a package; pin/change a version; correct a metadata field), and the specific package/group/field affected. If the operator's request is
 ambiguous about which catalog or which package key, ask rather than
 guess — per the no-fabrication rule, do not silently pick one candidate
 among several plausible package keys.
@@ -137,7 +137,7 @@ the JSON or write a new mutation script:**
   case in the gate findings before applying.
 - **Adding a package to every functional layer** means adding it to a
   group that every layer includes. In a single-version catalog that is
-  the `base_os` group. A hybrid catalog has one `base_os` group per OS
+  the `baseos` group. A hybrid catalog has one `baseos` group per OS
   version (e.g. `baseos_group_10.2` and `baseos_group_10.0`), so add the
   package to each, with a source for every architecture and version
   those layers use. After the edit, confirm that every layer reaches

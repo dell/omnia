@@ -125,20 +125,20 @@ the current provisioning boot should use PXE.
 ### pxe_mapping_file.csv Format
 
 ```csv
-FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
-slurm_control_node_x86_64,grp0,ABCD12,,node1,aa:bb:cc:dd:ee:ff,172.16.1.10,xx:yy:zz:aa:bb:cc,172.17.1.10,,
-slurm_node_x86_64,grp1,ABCD34,,node2,aa:bb:cc:dd:ee:gg,172.16.1.11,xx:yy:zz:aa:bb:dd,172.17.1.11,,
+FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IPV4,IB_IPV6
+slurm_control_node_x86_64,grp0,ABCD12,,node1,aa:bb:cc:dd:ee:ff,172.16.1.10,xx:yy:zz:aa:bb:cc,172.17.1.10,,,
+slurm_node_x86_64,grp1,ABCD34,,node2,aa:bb:cc:dd:ee:gg,172.16.1.11,xx:yy:zz:aa:bb:dd,172.17.1.11,InfiniBand.Slot.7-1,192.168.0.11,fd00:1b::11
 ```
 
 **Required header order:**
 
 `FUNCTIONAL_GROUP_NAME`, `GROUP_NAME`, `SERVICE_TAG`, `PARENT_SERVICE_TAG`,
 `HOSTNAME`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, `BMC_IP`, `IB_NIC_NAME`,
-`IB_IP`.
+`IB_IPV4`, `IB_IPV6`.
 
-All headers must be present. `PARENT_SERVICE_TAG`, `IB_NIC_NAME`, and `IB_IP`
-may be empty. `SERVICE_TAG`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`, and `BMC_IP`
-must be populated and unique.
+All headers must be present. `PARENT_SERVICE_TAG`, `IB_NIC_NAME`, `IB_IPV4`,
+and `IB_IPV6` may be empty. `SERVICE_TAG`, `ADMIN_MAC`, `ADMIN_IP`, `BMC_MAC`,
+and `BMC_IP` must be populated and unique.
 
 The parser follows CSV quoting rules. Invalid or duplicate BMC/admin addresses
 fail before any Redfish operation is attempted.
