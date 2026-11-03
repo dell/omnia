@@ -225,8 +225,8 @@ def main() -> None:
     idrac_podnames = module.params["idrac_podnames"]
     mysqldb_container_port = module.params["mysqldb_container_port"]
     mysqldb_name = module.params["mysqldb_name"]
-    mysql_user = module.params["mysqldb_user"]
-    mysql_password = module.params["mysqldb_password"]
+    mysql_user = module.params["mysql_user"]
+    mysql_password = module.params["mysql_password"]
     ips_to_delete = module.params["ips_to_delete"]
     pod_to_db_idrac_ips = module.params["pod_to_db_idrac_ips"]
 
