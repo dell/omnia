@@ -175,7 +175,7 @@ def get_report_definitions(
         response = session.get(
             url,
             auth=(user, password),
-            verify=False,
+            verify=False,  # nosec B501 - iDRAC BMC uses self-signed certificates
             timeout=timeout,
         )
         if response.status_code == 200:
@@ -184,8 +184,8 @@ def get_report_definitions(
                 member['@odata.id'].split('/')[-1]
                 for member in data.get('Members', [])
             ]
-    except (requests.exceptions.RequestException, ValueError, KeyError):
-        pass
+    except (requests.exceptions.RequestException, ValueError, KeyError) as exc:
+        logging.warning("Failed to fetch report definitions from %s: %s", ip_address, exc)
     return None
 
 
@@ -206,11 +206,12 @@ def enable_report(
             url,
             json=data,
             auth=(user, password),
-            verify=False,
+            verify=False,  # nosec B501 - iDRAC BMC uses self-signed certificates
             timeout=timeout,
         )
         return response.status_code in [200, 202, 204]
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as exc:
+        logging.warning("Failed to enable report at %s: %s", url, exc)
         return False
 
 
@@ -256,7 +257,7 @@ def configure_server(
 ) -> Dict[str, Any]:
     """Configure telemetry for a single server."""
     session = requests.Session()
-    session.verify = False
+    session.verify = False  # nosec B501 - iDRAC BMC uses self-signed certificates
     exclude_reports = exclude_reports or []
 
     try:

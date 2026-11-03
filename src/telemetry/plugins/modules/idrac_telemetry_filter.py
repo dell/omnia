@@ -271,7 +271,8 @@ def main() -> None:
                     result["failed_idrac"].append(bmc_ip)
                     result["failed_idrac_count"] += 1
 
-            except Exception:
+            except Exception as exc:
+                module.warn(f"BMC {bmc_ip} encountered an unexpected error: {exc}")
                 result["failed_idrac"].append(bmc_ip)
                 result["failed_idrac_count"] += 1
                 continue
