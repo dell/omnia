@@ -62,30 +62,6 @@
     label: "{{ item.path }}"
   become: true
 
-- name: Check whether logrotate configuration directory exists
-  ansible.builtin.stat:
-    path: "{{ telemetry_logrotate_dir }}"
-  register: _telemetry_logrotate_dir
-
-- name: Configure log rotation for Ansible log files
-  ansible.builtin.copy:
-    dest: "{{ telemetry_logrotate_dir }}/omnia-telemetry"
-    content: |
-      {{ telemetry_log_dir }}/*.log {
-          weekly
-          rotate {{ telemetry_logrotate_count }}
-          compress
-          delaycompress
-          missingok
-          notifempty
-          create {{ telemetry_log_file_mode }}
-      }
-    owner: root
-    group: root
-    mode: '0644'
-  when: _telemetry_logrotate_dir.stat.isdir | default(false)
-  become: true
-
 - name: Validate runtime directories were created
   ansible.builtin.stat:
     path: "{{ item }}"
