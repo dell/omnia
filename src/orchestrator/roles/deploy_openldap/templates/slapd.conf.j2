@@ -24,6 +24,7 @@ TLSCACertificateFile  /etc/openldap/certs/{{ tls_cert_file }}
 TLSCertificateFile    /etc/openldap/certs/{{ tls_cert_file }}
 TLSCertificateKeyFile /etc/openldap/certs/{{ tls_key_file }}
 {% endif %}
+security simple_bind=128
 
 # MDB backend
 database    mdb
