@@ -80,6 +80,7 @@
     content: "{{ node_results_report | to_nice_json }}"
     dest: "{{ node_results_dir }}/node_results.json"
     mode: "0644"
+    setype: container_file_t
   vars:
     success_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'success') | list }}"
     failed_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | list }}"
@@ -103,4 +104,5 @@
     dest: "{{ node_results_dir }}/failed_nodes.json"
     remote_src: true
     mode: "0644"
+    setype: container_file_t
   when: _orch_failed_nodes_stat.stat.exists
