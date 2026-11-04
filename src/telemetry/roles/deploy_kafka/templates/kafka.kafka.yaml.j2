@@ -9,6 +9,12 @@ spec:
   replicas: 3
   roles:
     - controller
+  template:
+    pod:
+      securityContext:
+        # PowerScale CSI driver rejects fsGroup 0; use a positive GID so the
+        # export-backed persistent volume can have ownership applied.
+        fsGroup: {{ kafka_pod_fs_group }}
   storage:
     type: jbod
     volumes:
@@ -30,6 +36,12 @@ spec:
   replicas: 3
   roles:
     - broker
+  template:
+    pod:
+      securityContext:
+        # PowerScale CSI driver rejects fsGroup 0; use a positive GID so the
+        # export-backed persistent volume can have ownership applied.
+        fsGroup: {{ kafka_pod_fs_group }}
   storage:
     type: jbod
     volumes:
