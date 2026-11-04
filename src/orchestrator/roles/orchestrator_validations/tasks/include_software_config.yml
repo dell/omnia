@@ -45,5 +45,5 @@
 
 - name: Set dns_enabled default when not defined
   ansible.builtin.set_fact:
-    dns_enabled: false
+    dns_enabled: true
   when: dns_enabled is not defined
