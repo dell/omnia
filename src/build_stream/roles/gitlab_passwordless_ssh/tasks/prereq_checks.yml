@@ -64,24 +64,35 @@
   delegate_to: localhost
   run_once: true
 
-- name: Copy port check script to GitLab host
-  ansible.builtin.copy:
-    src: files/check_gitlab_port.sh
-    dest: "{{ check_gitlab_port_script }}"
-    mode: '0755'
-    remote_src: false
+- name: Create secure temporary directory for port check script
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: _gitlab_port_check
+  register: _secure_port_check_dir
 
-- name: Check processes using GitLab HTTPS port
-  ansible.builtin.command:
-    argv:
-      - "{{ check_gitlab_port_script }}"
-      - "{{ gitlab_https_port | string }}"
-  register: https_port_check
-  changed_when: false
-  failed_when: false
+- name: Run port check and clean up securely
+  block:
+    - name: Copy port check script to GitLab host
+      ansible.builtin.copy:
+        src: files/check_gitlab_port.sh
+        dest: "{{ _secure_port_check_dir.path }}/check_gitlab_port.sh"
+        mode: '0700'
+        remote_src: false
 
-- name: Validate GitLab HTTPS port availability
-  ansible.builtin.assert:
-    that:
-      - https_port_check.rc != 1
-    fail_msg: "{{ gitlab_https_port_in_use_msg }}"
+    - name: Check processes using GitLab HTTPS port
+      ansible.builtin.command: "{{ _secure_port_check_dir.path }}/check_gitlab_port.sh {{ gitlab_https_port }}"
+      register: https_port_check
+      changed_when: false
+      failed_when: false
+
+    - name: Validate GitLab HTTPS port availability
+      ansible.builtin.assert:
+        that:
+          - https_port_check.rc != 1
+        fail_msg: "{{ gitlab_https_port_in_use_msg }}"
+  always:
+    - name: Remove temporary port check directory
+      ansible.builtin.file:
+        path: "{{ _secure_port_check_dir.path }}"
+        state: absent
+      when: _secure_port_check_dir.path is defined
