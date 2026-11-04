@@ -344,7 +344,7 @@
 
             echo "[INFO] ===== Completed firewall and service configuration (aarch64) ====="
 
-{% if dns_enabled | default(false) | bool %}
+{% if dns_enabled | default(true) | bool %}
         - path: /etc/resolv.conf
           owner: root:root
           permissions: '0644'
@@ -411,7 +411,7 @@
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-{% if dns_enabled | default(false) | bool %}
+{% if dns_enabled | default(true) | bool %}
         - |
           # Restore CoreDNS resolv.conf after set-ssh.sh (nmcli con up may overwrite it)
           resolv_target=$(readlink -f /etc/resolv.conf 2>/dev/null || true)

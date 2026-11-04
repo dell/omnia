@@ -21,633 +21,236 @@ Keys match test function names without the ``test_`` prefix.
 
 from typing import Dict
 
-# =============================================================================
-# SECTION A: GitLab Installation & Infrastructure
-# =============================================================================
-
 TEST_CASES: Dict[str, Dict[str, str]] = {
-    # --- Deploy (BSM_FVT_BUILDSTREAM_INSTALL_E001) ---
-    "deploy_buildstream_install": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_E001",
-        "title": "Deploy build_stream --tags buildstream_install",
-    },
-
-    # --- GitLab installation verification ---
+    # =================================================================
+    # Execute: GitLab server, runner and project
+    # =================================================================
     "gitlab_packages_installed": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V001",
+        "id": "BSM_FVT_EXECUTE_V001",
         "title": "Verify GitLab packages installed",
     },
     "gitlab_server_reachable": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V002",
+        "id": "BSM_FVT_EXECUTE_V002",
         "title": "Verify GitLab server reachable from OIM",
     },
     "gitlab_runner_container": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V003",
+        "id": "BSM_FVT_EXECUTE_V009",
         "title": "Verify gitlab-runner container running",
     },
     "gitlab_runner_quadlet_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V004",
+        "id": "BSM_FVT_EXECUTE_V010",
         "title": "Verify gitlab-runner quadlet file exists",
     },
     "gitlab_runner_services_status": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V005",
+        "id": "BSM_FVT_EXECUTE_V011",
         "title": "Verify GitLab runner services running",
     },
     "gitlab_url_accessible": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V006",
+        "id": "BSM_FVT_EXECUTE_V003",
         "title": "Verify GitLab URL accessible from OIM",
     },
     "gitlab_services_running": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V007",
+        "id": "BSM_FVT_EXECUTE_V005",
         "title": "Verify all GitLab services running",
     },
     "gitlab_resources": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V008",
+        "id": "BSM_FVT_EXECUTE_V006",
         "title": "Verify GitLab resource requirements met",
     },
     "puma_workers": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V009",
+        "id": "BSM_FVT_EXECUTE_V007",
         "title": "Verify puma workers configured",
     },
     "sidekiq_concurrency": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V010",
+        "id": "BSM_FVT_EXECUTE_V008",
         "title": "Verify sidekiq concurrency configured",
     },
     "gitlab_project_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V011",
+        "id": "BSM_FVT_EXECUTE_V013",
         "title": "Verify GitLab project exists",
     },
     "gitlab_project_visibility": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V012",
+        "id": "BSM_FVT_EXECUTE_V014",
         "title": "Verify GitLab project visibility",
     },
     "gitlab_default_branch": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V013",
+        "id": "BSM_FVT_EXECUTE_V015",
         "title": "Verify GitLab default branch",
     },
     "gitlab_pipeline_file_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V014",
+        "id": "BSM_FVT_EXECUTE_V017",
         "title": "Verify .gitlab-ci.yml exists in repo",
     },
     "gitlab_pipeline_variables": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V015",
+        "id": "BSM_FVT_EXECUTE_V016",
         "title": "Verify GitLab pipeline variables configured",
     },
     "gitlab_ci_build_file_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V016",
+        "id": "BSM_FVT_EXECUTE_V018",
         "title": "Verify .gitlab-ci-build.yml exists",
     },
     "gitlab_ci_deploy_file_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V017",
+        "id": "BSM_FVT_EXECUTE_V019",
         "title": "Verify .gitlab-ci-deploy.yml exists",
     },
     "gitlab_ci_cleanup_file_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V018",
+        "id": "BSM_FVT_EXECUTE_V020",
         "title": "Verify .gitlab-ci-cleanup.yml exists",
     },
     "gitlab_deploy_child_template_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V019",
+        "id": "BSM_FVT_EXECUTE_V022",
         "title": "Verify deploy child template exists",
     },
     "gitlab_cleanup_child_template_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V020",
+        "id": "BSM_FVT_EXECUTE_V023",
         "title": "Verify cleanup child template exists",
     },
     "omnia_env_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V021",
+        "id": "BSM_FVT_EXECUTE_V024",
         "title": "Verify omnia.env exists in GitLab repo",
     },
     "domain_input_dirs_in_repo": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V022",
-        "title": "Verify domain input directories in repo",
+        "id": "BSM_FVT_EXECUTE_V025",
+        "title": ("Verify domain input files in repo: repo_manager, "
+                  "image_build_manager, orchestrator"),
     },
 
-    # --- BuildStream health verification ---
+    # --- Prepare: BuildStream service health ---
     "build_stream_enabled": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V023",
+        "id": "BSM_FVT_PREPARE_V001",
         "title": "Verify build_stream enabled in config",
     },
     "build_stream_health": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V024",
+        "id": "BSM_FVT_PREPARE_V004",
         "title": "Verify BSM API /health endpoint",
     },
     "postgres_tables": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V025",
+        "id": "BSM_FVT_PREPARE_V005",
         "title": "Verify Postgres tables exist",
     },
     "gitlab_server_running": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V026",
+        "id": "BSM_FVT_EXECUTE_V004",
         "title": "Verify GitLab server running",
     },
     "gitlab_runner_running": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V027",
+        "id": "BSM_FVT_EXECUTE_V012",
         "title": "Verify GitLab runner running",
     },
     "omnia_venv_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V028",
+        "id": "BSM_FVT_PREPARE_V007",
         "title": "Verify shared Python venv exists",
     },
     "bsm_tls_certificate_valid": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V029",
+        "id": "BSM_FVT_PREPARE_V008",
         "title": "Verify BSM TLS certificate valid",
     },
     "nfs_queue_directory_accessible": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V030",
+        "id": "BSM_FVT_PREPARE_V009",
         "title": "Verify NFS queue directory accessible",
     },
     "playbook_watcher_running": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V031",
+        "id": "BSM_FVT_PREPARE_V006",
         "title": "Verify playbook watcher running",
     },
     "gitlab_ci_cadence_file_exists": {
-        "id": "BSM_FVT_BUILDSTREAM_INSTALL_V032",
+        "id": "BSM_FVT_EXECUTE_V021",
         "title": "Verify .gitlab-ci-cadence.yml exists",
     },
 
     # =================================================================
-    # SECTION C: Combined BuildStream Cleanup
+    # Cleanup: GitLab
     # =================================================================
-
-    "deploy_gitlab_cleanup": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_E001",
-        "title": "Deploy build_stream --tags gitlab_cleanup",
-    },
     "gitlab_packages_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V001",
+        "id": "BSM_FVT_CLEANUP_V001",
         "title": "Verify GitLab packages removed",
     },
     "gitlab_runner_container_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V002",
+        "id": "BSM_FVT_CLEANUP_V002",
         "title": "Verify gitlab-runner container removed",
     },
     "gitlab_runner_quadlet_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V003",
+        "id": "BSM_FVT_CLEANUP_V003",
         "title": "Verify gitlab-runner quadlet removed",
     },
     "gitlab_runner_services_stopped": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V004",
+        "id": "BSM_FVT_CLEANUP_V004",
         "title": "Verify GitLab runner services stopped",
     },
     "gitlab_url_not_accessible": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V005",
+        "id": "BSM_FVT_CLEANUP_V005",
         "title": "Verify GitLab URL not accessible",
     },
     "gitlab_directories_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V006",
+        "id": "BSM_FVT_CLEANUP_V006",
         "title": "Verify GitLab directories removed",
     },
     "gitlab_services_stopped": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V007",
+        "id": "BSM_FVT_CLEANUP_V007",
         "title": "Verify all GitLab services stopped",
     },
     "gitlab_port_free": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V008",
+        "id": "BSM_FVT_CLEANUP_V008",
         "title": "Verify GitLab HTTPS port free",
     },
 
     # =================================================================
-    # SECTION C.1: BuildStream service and data cleanup
+    # Cleanup: BuildStream service and data
     # =================================================================
-
-    "deploy_buildstream_cleanup": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_E002",
-        "title": "Deploy cleanup_build_stream playbook",
-    },
     "buildstream_container_stopped": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V009",
+        "id": "BSM_FVT_CLEANUP_V009",
         "title": "Verify omnia_build_stream container stopped",
     },
     "buildstream_container_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V010",
+        "id": "BSM_FVT_CLEANUP_V010",
         "title": "Verify omnia_build_stream container removed",
     },
     "buildstream_quadlet_files_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V011",
-        "title": "Verify omnia_build_stream quadlet removed",
+        "id": "BSM_FVT_CLEANUP_V011",
+        "title": "Verify omnia_build_stream quadlet files removed",
     },
     "buildstream_services_stopped": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V012",
+        "id": "BSM_FVT_CLEANUP_V012",
         "title": "Verify omnia_build_stream services stopped",
     },
     "playbook_watcher_service_stopped": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V013",
+        "id": "BSM_FVT_CLEANUP_V013",
         "title": "Verify playbook-watcher stopped",
     },
     "playbook_watcher_service_disabled": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V014",
+        "id": "BSM_FVT_CLEANUP_V029",
         "title": "Verify playbook-watcher disabled",
     },
     "playbook_watcher_service_file_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V015",
+        "id": "BSM_FVT_CLEANUP_V015",
         "title": "Verify playbook-watcher file removed",
     },
     "postgres_container_stopped": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V016",
+        "id": "BSM_FVT_CLEANUP_V016",
         "title": "Verify omnia_postgres container stopped",
     },
     "postgres_container_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V017",
+        "id": "BSM_FVT_CLEANUP_V017",
         "title": "Verify omnia_postgres container removed",
     },
     "postgres_quadlet_files_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V018",
-        "title": "Verify omnia_postgres quadlet removed",
+        "id": "BSM_FVT_CLEANUP_V018",
+        "title": "Verify omnia_postgres quadlet files removed",
     },
     "postgres_services_stopped": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V019",
+        "id": "BSM_FVT_CLEANUP_V019",
         "title": "Verify omnia_postgres services stopped",
     },
     "buildstream_directories_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V020",
+        "id": "BSM_FVT_CLEANUP_V020",
         "title": "Verify BuildStream runtime directories removed",
     },
     "buildstream_runtime_caches_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V021",
+        "id": "BSM_FVT_CLEANUP_V021",
         "title": "Verify runtime preserved and Python caches removed",
     },
-    "postgres_volumes_preserved_with_backup": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V022",
-        "title": "Verify Postgres volumes preserved (backup)",
-    },
-    "buildstream_credentials_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V024",
-        "title": "Verify build_stream credentials removed",
-    },
-    "buildstream_oauth_credentials_removed": {
-        "id": "BSM_FVT_BUILDSTREAM_CLEANUP_V025",
-        "title": "Verify OAuth credentials removed",
-    },
 
     # =================================================================
-    # SECTION D: Build Pipeline
-    #
-    # Stage names match the BSM StageType enum in
-    # src/build_stream/app/core/jobs/value_objects.py:
-    #   create-local-repository, build-image, upload   (build pipeline)
-    #   validate, restart, deploy                      (deploy pipeline)
-    #
-    # test_playbook.py  (deploy marker — runs with --test only)
-    #   BSM_FVT_BUILD_PIPELINE_E001  Push catalog and trigger pipeline
-    #
-    # build_pipeline/   (verify tests — runs with --test and --verify)
-    #   BSM_FVT_BUILD_PIPELINE_V001        Credentials pre-check
-    #   BSM_FVT_BUILD_PIPELINE_V002 – 012  Post-execution verification
-    # =================================================================
-
-    # --- test_playbook.py (deploy) ---
-    "deploy_build_pipeline": {
-        "id": "BSM_FVT_BUILD_PIPELINE_E001",
-        "title": "Push catalog, trigger pipeline, monitor stages",
-    },
-
-    # --- build_pipeline/ (verify) --- credentials gate ---
-    "build_credentials_configured": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V001",
-        "title": "Verify build_stream credentials configured",
-    },
-
-    # --- build_pipeline/ (verify) ---
-    "build_bsm_health_check": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V002",
-        "title": "Verify BSM API /health endpoint",
-    },
-    "build_oauth_auth": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V003",
-        "title": "Verify OAuth credentials registered",
-    },
-    "build_job_created": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V004",
-        "title": "Verify job created in DB",
-    },
-    "build_job_accessible_via_api": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V005",
-        "title": "Verify job accessible via BSM API",
-    },
-    "build_stage_create_local_repository": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V006",
-        "title": "Verify create-local-repository stage completed",
-    },
-    "build_stage_build_image": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V007",
-        "title": "Verify build-image stage completed",
-    },
-    "build_repo_status": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V008",
-        "title": "Verify repo_status.yml overall_status success",
-    },
-    "build_registry_images": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V009",
-        "title": "Verify container images in registry",
-    },
-    "build_s3_boot_images": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V010",
-        "title": "Verify boot images in S3",
-    },
-    "build_pipeline_result": {
-        "id": "BSM_FVT_BUILD_PIPELINE_V011",
-        "title": "Build pipeline final result",
-    },
-
-    # --- Manual build pipeline (manual marker; opt-in) ---
-    "manual_trigger_build_pipeline": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_E001",
-        "title": "Trigger build pipeline using PIPELINE_TYPE=build",
-    },
-    "manual_build_stage_upload_monitor": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V001",
-        "title": "Monitor upload stage until completion",
-    },
-    "manual_build_stage_upload_db_verify": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V002",
-        "title": "Verify upload stage status in database",
-    },
-    "manual_build_stage_parse_catalog_monitor": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V003",
-        "title": "Monitor parse-catalog stage until completion",
-    },
-    "manual_build_stage_parse_catalog_db_verify": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V004",
-        "title": "Verify parse-catalog stage status in database",
-    },
-    "manual_build_stage_create_local_repository_monitor": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V007",
-        "title": "Monitor create-local-repository stage until completion",
-    },
-    "manual_build_stage_create_local_repository_db_verify": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V008",
-        "title": "Verify create-local-repository stage in database",
-    },
-    "manual_build_stage_build_image_x86_64_monitor": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V009",
-        "title": "Monitor build-image-x86_64 stage until completion",
-    },
-    "manual_build_stage_build_image_x86_64_db_verify": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V010",
-        "title": "Verify build-image-x86_64 stage in database",
-    },
-    "manual_build_stage_build_image_aarch64_monitor": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V011",
-        "title": "Monitor optional build-image-aarch64 stage",
-    },
-    "manual_build_stage_build_image_aarch64_db_verify": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V012",
-        "title": "Verify optional build-image-aarch64 stage in database",
-    },
-    "manual_build_image_groups_created": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V013",
-        "title": "Verify image groups were created for the job",
-    },
-    "manual_build_images_created": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V014",
-        "title": "Verify images were created for the job",
-    },
-    "manual_build_registry_images": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V015",
-        "title": "Verify container images exist in registry for all roles",
-    },
-    "manual_build_s3_boot_images": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V016",
-        "title": "Verify S3 boot images exist for all roles",
-    },
-    "manual_build_pipeline_result": {
-        "id": "BSM_FVT_BUILD_PIPELINE_MANUAL_V017",
-        "title": "Summarize manual build pipeline result",
-    },
-
-    # =================================================================
-    # SECTION E: Deploy Pipeline
-    # =================================================================
-
-    "execute_deploy_pipeline": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_E001",
-        "title": "Trigger and automate deploy pipeline",
-    },
-    "deploy_prerequisites": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_V001",
-        "title": "Verify mandatory job and image-group mapping",
-    },
-    "deploy_gitlab_pipeline": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_V002",
-        "title": "Verify deploy child-pipeline jobs",
-    },
-    "deploy_selected_image": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_V003",
-        "title": "Verify mapped image group selected",
-    },
-    "deploy_stage_completed": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_V004",
-        "title": "Verify deploy stage completed",
-    },
-    "restart_stage_completed": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_V005",
-        "title": "Verify restart stage completed",
-    },
-    "restart_node_results": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_V006",
-        "title": "Verify restart node-result artifacts",
-    },
-    "validate_stage_completed": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_V007",
-        "title": "Verify validate stage completed",
-    },
-    "deploy_final_state": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_V008",
-        "title": "Verify deploy final job and image-group state",
-    },
-    "deploy_pipeline_summary": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_V009",
-        "title": "Verify deploy pipeline summary passed",
-    },
-
-    # --- Manual deploy pipeline (manual marker; opt-in) ---
-    "manual_trigger_deploy_pipeline": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_E001",
-        "title": "Trigger deploy pipeline using PIPELINE_TYPE=deploy",
-    },
-    "manual_deploy_stage_deploy_monitor": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V001",
-        "title": "Monitor deploy stage until completion",
-    },
-    "manual_deploy_stage_deploy_db_verify": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V002",
-        "title": "Verify deploy stage status in database",
-    },
-    "manual_deploy_stage_restart_monitor": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V003",
-        "title": "Monitor restart stage until completion",
-    },
-    "manual_deploy_stage_restart_db_verify": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V004",
-        "title": "Verify restart stage status in database",
-    },
-    "manual_deploy_stage_validate_monitor": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V005",
-        "title": "Monitor validate stage until completion",
-    },
-    "manual_deploy_stage_validate_db_verify": {
-        "id": "BSM_FVT_DEPLOY_PIPELINE_MANUAL_V006",
-        "title": "Verify validate stage status in database",
-    },
-
-    # =================================================================
-    # SECTION E.1: Unified Cadence Pipeline
-    # =================================================================
-
-    "execute_cadence_pipeline": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_E001",
-        "title": "Trigger watcher cadence cycle and unified pipeline",
-    },
-    "cadence_gitlab_jobs": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V017",
-        "title": "Verify all eight cadence GitLab jobs succeeded",
-    },
-    "cadence_catalog_identity": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V018",
-        "title": "Verify job and image-group identity match cadence catalog",
-    },
-    "cadence_build_stages": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V019",
-        "title": "Verify parse, repository, and build DB stages completed",
-    },
-    "cadence_registry_artifacts": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V020",
-        "title": "Verify registry artifacts for requested roles",
-    },
-    "cadence_job_accessible": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V021",
-        "title": "Verify cadence job is healthy and API-accessible",
-    },
-    "cadence_repo_resync_status": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V022",
-        "title": "Verify exact-mirror Repo Manager output contract",
-    },
-    "cadence_deploy_stage": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V023",
-        "title": "Verify cadence deploy DB stage completed",
-    },
-    "cadence_restart_stage": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V024",
-        "title": "Verify cadence restart DB stage completed",
-    },
-    "cadence_validate_stage": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V025",
-        "title": "Verify cadence validate DB stage completed",
-    },
-    "cadence_restart_results": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V026",
-        "title": "Verify cadence restart node-result artifacts",
-    },
-    "cadence_final_state": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V027",
-        "title": "Verify cadence job and image group reached success",
-    },
-    "cadence_summary": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V028",
-        "title": "Verify cadence summary reports completion",
-    },
-    "cadence_local_repo_status": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V029",
-        "title": "Verify local repository status for cadence catalog",
-    },
-    "cadence_build_status": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V030",
-        "title": "Verify Image Build Manager output contract",
-    },
-    "cadence_s3_artifacts": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V031",
-        "title": "Verify S3 boot artifacts for requested roles",
-    },
-    "cadence_catalog_commit_integrity": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V032",
-        "title": "Verify cadence catalog commit integrity",
-    },
-    "cadence_expected_functional_groups": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V033",
-        "title": "Verify expected functional-group coverage",
-    },
-    "cadence_artifact_identity": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V034",
-        "title": "Verify current catalog artifact identity",
-    },
-    "cadence_validate_report": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V035",
-        "title": "Verify cadence validation report",
-    },
-    "cadence_validation_feature_selection": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V036",
-        "title": "Verify Slurm and Kubernetes validation selection",
-    },
-    "cadence_restart_node_coverage": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V037",
-        "title": "Verify restart coverage for every PXE node",
-    },
-    "cadence_uploaded_input_snapshot": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V038",
-        "title": "Verify cadence uploaded input snapshot",
-    },
-    "cadence_stage_attempt_freshness": {
-        "id": "BSM_FVT_CADENCE_PIPELINE_V039",
-        "title": "Verify current job stage and log freshness",
-    },
-
-    # --- Automatic cleanup (sanity marker; explicit destructive suite) ---
-    "execute_automatic_cleanup": {
-        "id": "BSM_FVT_AUTOMATIC_CLEANUP_E001",
-        "title": "Execute automatic cleanup for the sole FAILED ImageGroup",
-    },
-    "automatic_cleanup_runtime": {
-        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V001",
-        "title": "Verify automatic-cleanup integer configuration and services",
-    },
-    "automatic_cleanup_completed": {
-        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V002",
-        "title": "Verify automatic cleanup finalized the target to CLEANED",
-    },
-    "automatic_cleanup_nfs_absent": {
-        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V003",
-        "title": "Verify automatic cleanup removed target NFS artifacts",
-    },
-    "automatic_cleanup_s3_absent": {
-        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V004",
-        "title": "Verify automatic cleanup removed target S3 artifacts",
-    },
-    "automatic_cleanup_registry_absent": {
-        "id": "BSM_FVT_AUTOMATIC_CLEANUP_V005",
-        "title": "Verify automatic cleanup removed target registry artifacts",
-    },
-
-    # --- Cleanup pipeline (sanity marker; explicit suite only) ---
-    "cleanup_gitlab_server_running": {
-        "id": "BSM_FVT_CLEANUP_PIPELINE_V001",
-        "title": "Verify GitLab server is running and accessible",
-    },
-    "cleanup_gitlab_runner_running": {
-        "id": "BSM_FVT_CLEANUP_PIPELINE_V002",
-        "title": "Verify GitLab runner container is running",
-    },
-    "cleanup_image_groups_for_cleanup": {
-        "id": "BSM_FVT_CLEANUP_PIPELINE_V003",
-        "title": "Verify image groups exist that can be cleaned up",
-    },
-    "cleanup_trigger_cleanup_pipeline": {
-        "id": "BSM_FVT_CLEANUP_PIPELINE_E001",
-        "title": "Trigger cleanup pipeline with PIPELINE_TYPE=cleanup",
-    },
-    "cleanup_image_groups_cleaned": {
-        "id": "BSM_FVT_CLEANUP_PIPELINE_V004",
-        "title": "Verify image groups have CLEANED status after cleanup",
-    },
-    "cleanup_s3_images_deleted": {
-        "id": "BSM_FVT_CLEANUP_PIPELINE_V005",
-        "title": "Verify S3 boot images are deleted after cleanup",
-    },
-    "cleanup_registry_images_deleted": {
-        "id": "BSM_FVT_CLEANUP_PIPELINE_V006",
-        "title": "Verify registry images are deleted after cleanup",
-    },
-
-    # =================================================================
-    # SECTION F: Non-functional resilience and security
+    # NFT: resilience and security
     # =================================================================
     "gitlab_cancel_then_create_new_job": {
         "id": "BSM_NFT_RESILIENCE_001",
@@ -694,37 +297,395 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": "Verify omnia_build_stream quadlet is 0600 root:root",
     },
 
-    # =================================================================
-    # SECTION G: Retention & Traceability (ER-BSM-002 Story 4)
-    # =================================================================
+    # =========================================================================
+    # Prepare Base (./omnia.sh --prepare-base prerequisites)
+    # =========================================================================
+    "precheck_prepare_base": {
+        "id": "BSM_FVT_PREPARE_BASE_E001",
+        "title": "Precheck: omnia.env, venv, omnia.sh and base domain credentials",
+    },
+    "deploy_prepare_base": {
+        "id": "BSM_FVT_PREPARE_BASE_E002",
+        "title": "Deploy ./omnia.sh --prepare-base",
+    },
+    "repo_manager_ready": {
+        "id": "BSM_FVT_PREPARE_BASE_V001",
+        "title": "Verify repo_manager ready: Pulp quadlet, service and container",
+    },
+    "image_build_manager_ready": {
+        "id": "BSM_FVT_PREPARE_BASE_V002",
+        "title": "Verify image_build_manager ready: MinIO and registry serving",
+    },
+    "orchestrator_ready": {
+        "id": "BSM_FVT_PREPARE_BASE_V003",
+        "title": "Verify orchestrator ready: OpenCHAMI units, containers, volumes, OpenLDAP",
+    },
 
-    "retention_deploy_count_incremented": {
-        "id": "BSM_FVT_RETENTION_V001",
-        "title": "Verify deploy_count incremented after successful deploy",
+    # =========================================================================
+    # Precheck (build_stream.yml --tags precheck)
+    # =========================================================================
+    "deploy_precheck": {
+        "id": "BSM_FVT_PRECHECK_E001",
+        "title": "Deploy build_stream.yml --tags precheck",
     },
-    "retention_last_deployed_at_set": {
-        "id": "BSM_FVT_RETENTION_V002",
-        "title": "Verify last_deployed_at timestamp set after deploy",
+    "precheck_environment_variables": {
+        "id": "BSM_FVT_PRECHECK_V001",
+        "title": "Verify omnia.env sets SYSTEM_*, OMNIA_DATA_PATH and OMNIA_PROJECT_NAME",
     },
-    "retention_undeployed_image_group_zero_count": {
-        "id": "BSM_FVT_RETENTION_V003",
-        "title": "Verify undeployed image group has deploy_count=0",
+    "precheck_oim_identity": {
+        "id": "BSM_FVT_PRECHECK_V002",
+        "title": "Verify hostname -s and hostname -d match omnia.env",
     },
-    "retention_deployed_image_protected_from_cleanup": {
-        "id": "BSM_FVT_RETENTION_V004",
-        "title": "Verify deployed image group is protected from retention cleanup",
+    "precheck_admin_ipv4": {
+        "id": "BSM_FVT_PRECHECK_V003",
+        "title": "Verify SYSTEM_ADMIN_NIC_IPV4 is assigned to an OIM interface",
     },
-    "retention_audit_event_exists": {
-        "id": "BSM_FVT_RETENTION_V005",
-        "title": "Verify RETENTION_DELETED audit event recorded for aged images",
+    "precheck_data_path_export": {
+        "id": "BSM_FVT_PRECHECK_V004",
+        "title": "Verify no NFS export lets remote root write OMNIA_DATA_PATH",
     },
-    "retention_config_loaded": {
-        "id": "BSM_FVT_RETENTION_V006",
-        "title": "Verify retention config (age, min_keep_count) loaded from config",
+    "precheck_containers": {
+        "id": "BSM_FVT_PRECHECK_V005",
+        "title": "Verify pulp, minio-server and registry containers are running",
     },
-    "retention_sidecar_manifest_present": {
-        "id": "BSM_FVT_RETENTION_V007",
-        "title": "Verify sidecar manifest uploaded for build artifacts",
+    "precheck_credentials": {
+        "id": "BSM_FVT_PRECHECK_V006",
+        "title": "Verify repo_manager and image_build_manager credential stores exist",
+    },
+    "precheck_repo_manager_files": {
+        "id": "BSM_FVT_PRECHECK_V007",
+        "title": "Verify repo_manager credential store, vault key and GitLab input files",
+    },
+    "precheck_image_build_manager_files": {
+        "id": "BSM_FVT_PRECHECK_V008",
+        "title": "Verify image_build_manager credential store, vault key and GitLab input files",
+    },
+    "precheck_orchestrator_files": {
+        "id": "BSM_FVT_PRECHECK_V009",
+        "title": "Verify orchestrator credential store, vault key and GitLab input files",
+    },
+
+    # =========================================================================
+    # Prepare (build_stream.yml --tags prepare)
+    # =========================================================================
+    "deploy_prepare": {
+        "id": "BSM_FVT_PREPARE_E001",
+        "title": "Deploy build_stream.yml --tags prepare",
+    },
+    "prepare_containers": {
+        "id": "BSM_FVT_PREPARE_V002",
+        "title": "Verify omnia_build_stream and omnia_postgres containers and quadlets",
+    },
+    "prepare_services": {
+        "id": "BSM_FVT_PREPARE_V003",
+        "title": "Verify omnia_postgres, omnia_build_stream and playbook-watcher services",
+    },
+    "prepare_status_file": {
+        "id": "BSM_FVT_PREPARE_V010",
+        "title": "Verify build_stream_status.yml reports prepared with all endpoints",
+    },
+    "buildstream_directories_present": {
+        "id": "BSM_FVT_PREPARE_V011",
+        "title": "Verify BuildStream runtime directories exist (ssl, build_stream_root, "
+                 "playbook_queue, postgres)",
+    },
+
+    # =========================================================================
+    # Execute (build_stream.yml --tags execute)
+    # =========================================================================
+    "deploy_execute": {
+        "id": "BSM_FVT_EXECUTE_E001",
+        "title": "Deploy build_stream.yml --tags execute",
+    },
+    # --- Execute: build/deploy (automatic + manual), cadence, image cleanup ---
+    "build_trigger_pipeline": {
+        "id": "BSM_FVT_EXECUTE_V026",
+        "title": ("Automatic build: commit the selected catalog (next unused version); "
+                  "verify the push started build_pipeline and a job"),
+    },
+    "build_upload_stage": {
+        "id": "BSM_FVT_EXECUTE_V027",
+        "title": ("Automatic build: verify upload stage (DB, API) and the committed "
+                  "catalog on the host"),
+    },
+    "build_parse_catalog_stage": {
+        "id": "BSM_FVT_EXECUTE_V028",
+        "title": "Automatic build: verify parse-catalog stage (DB, API, stage log)",
+    },
+    "build_create_local_repository_stage": {
+        "id": "BSM_FVT_EXECUTE_V029",
+        "title": ("Automatic build: verify create-local-repository stage (DB, API, "
+                  "stage log)"),
+    },
+    "build_build_image_stage": {
+        "id": "BSM_FVT_EXECUTE_V030",
+        "title": "Automatic build: verify build-image stage (DB, API, stage log)",
+    },
+    "build_repo_manager_status": {
+        "id": "BSM_FVT_EXECUTE_V031",
+        "title": ("Automatic build: verify Repo Manager repo_status.yml overall_status "
+                  "success"),
+    },
+    "build_image_build_manager_artifacts": {
+        "id": "BSM_FVT_EXECUTE_V032",
+        "title": ("Automatic build: verify registry image (regctl) and S3 boot files "
+                  "for every role"),
+    },
+    "build_pipeline_records": {
+        "id": "BSM_FVT_EXECUTE_V033",
+        "title": ("Automatic build: verify GitLab pipeline result and jobs, "
+                  "image_groups, images rows"),
+    },
+    "build_oauth_client_registered": {
+        "id": "BSM_FVT_EXECUTE_V077",
+        "title": ("Automatic build: verify the OAuth client is registered (BSM_CLIENT_ID, "
+                  "BSM_CLIENT_SECRET in GitLab) and created the job"),
+    },
+    "build_manual_trigger_pipeline": {
+        "id": "BSM_FVT_EXECUTE_V034",
+        "title": ("Manual build: commit the selected catalog with [skip ci], trigger "
+                  "PIPELINE_TYPE=build through the API; verify the pipeline and job "
+                  "started"),
+    },
+    "build_manual_upload_stage": {
+        "id": "BSM_FVT_EXECUTE_V035",
+        "title": ("Manual build: verify upload stage (DB, API) and the committed "
+                  "catalog on the host"),
+    },
+    "build_manual_parse_catalog_stage": {
+        "id": "BSM_FVT_EXECUTE_V036",
+        "title": "Manual build: verify parse-catalog stage (DB, API, stage log)",
+    },
+    "build_manual_create_local_repository_stage": {
+        "id": "BSM_FVT_EXECUTE_V037",
+        "title": ("Manual build: verify create-local-repository stage (DB, API, stage "
+                  "log)"),
+    },
+    "build_manual_build_image_stage": {
+        "id": "BSM_FVT_EXECUTE_V038",
+        "title": "Manual build: verify build-image stage (DB, API, stage log)",
+    },
+    "build_manual_repo_manager_status": {
+        "id": "BSM_FVT_EXECUTE_V039",
+        "title": ("Manual build: verify Repo Manager repo_status.yml overall_status "
+                  "success"),
+    },
+    "build_manual_image_build_manager_artifacts": {
+        "id": "BSM_FVT_EXECUTE_V040",
+        "title": ("Manual build: verify registry image (regctl) and S3 boot files for "
+                  "every role"),
+    },
+    "build_manual_pipeline_records": {
+        "id": "BSM_FVT_EXECUTE_V041",
+        "title": ("Manual build: verify GitLab pipeline result and jobs, image_groups, "
+                  "images rows"),
+    },
+    "build_manual_oauth_client_registered": {
+        "id": "BSM_FVT_EXECUTE_V078",
+        "title": ("Manual build: verify the OAuth client is registered (BSM_CLIENT_ID, "
+                  "BSM_CLIENT_SECRET in GitLab) and created the job"),
+    },
+    "deploy_trigger_pxe_change": {
+        "id": "BSM_FVT_EXECUTE_V042",
+        "title": ("Automatic deploy: swap PXE mapping rows in GitLab; verify the push "
+                  "started deploy_pipeline"),
+    },
+    "deploy_select_image": {
+        "id": "BSM_FVT_EXECUTE_V043",
+        "title": ("Automatic deploy: select the image group; verify the select_image "
+                  "job chose it"),
+    },
+    "deploy_deploy_stage": {
+        "id": "BSM_FVT_EXECUTE_V044",
+        "title": ("Automatic deploy: play the deploy job; verify deploy stage (DB, API, "
+                  "stage log)"),
+    },
+    "deploy_restart_stage": {
+        "id": "BSM_FVT_EXECUTE_V045",
+        "title": "Automatic deploy: verify restart stage (DB, API, stage log)",
+    },
+    "deploy_restart_node_results": {
+        "id": "BSM_FVT_EXECUTE_V046",
+        "title": ("Automatic deploy: verify restart node-results and failed-nodes "
+                  "artifacts"),
+    },
+    "deploy_validate_stage": {
+        "id": "BSM_FVT_EXECUTE_V047",
+        "title": "Automatic deploy: verify validate stage (DB, API, stage log)",
+    },
+    "deploy_pipeline_records": {
+        "id": "BSM_FVT_EXECUTE_V048",
+        "title": ("Automatic deploy: verify pipeline result, summary PASSED, image "
+                  "group PASSED, deploy_count"),
+    },
+    "deploy_job_image_group_mapping": {
+        "id": "BSM_FVT_EXECUTE_V079",
+        "title": ("Automatic deploy: verify the job maps to exactly one image group, the "
+                  "deployed one"),
+    },
+    "deploy_manual_trigger_pipeline": {
+        "id": "BSM_FVT_EXECUTE_V049",
+        "title": ("Manual deploy: trigger PIPELINE_TYPE=deploy through the API for the "
+                  "image group; verify the deploy pipeline started"),
+    },
+    "deploy_manual_select_image": {
+        "id": "BSM_FVT_EXECUTE_V050",
+        "title": ("Manual deploy: select the image group; verify the select_image job "
+                  "chose it"),
+    },
+    "deploy_manual_deploy_stage": {
+        "id": "BSM_FVT_EXECUTE_V051",
+        "title": ("Manual deploy: play the deploy job; verify deploy stage (DB, API, "
+                  "stage log)"),
+    },
+    "deploy_manual_restart_stage": {
+        "id": "BSM_FVT_EXECUTE_V052",
+        "title": "Manual deploy: verify restart stage (DB, API, stage log)",
+    },
+    "deploy_manual_restart_node_results": {
+        "id": "BSM_FVT_EXECUTE_V053",
+        "title": "Manual deploy: verify restart node-results and failed-nodes artifacts",
+    },
+    "deploy_manual_validate_stage": {
+        "id": "BSM_FVT_EXECUTE_V054",
+        "title": "Manual deploy: verify validate stage (DB, API, stage log)",
+    },
+    "deploy_manual_pipeline_records": {
+        "id": "BSM_FVT_EXECUTE_V055",
+        "title": ("Manual deploy: verify pipeline result, summary PASSED, image group "
+                  "PASSED, deploy_count"),
+    },
+    "deploy_manual_job_image_group_mapping": {
+        "id": "BSM_FVT_EXECUTE_V080",
+        "title": ("Manual deploy: verify the job maps to exactly one image group, the "
+                  "deployed one"),
+    },
+    "cadence_pipeline_trigger_cycle": {
+        "id": "BSM_FVT_EXECUTE_V056",
+        "title": ("Cadence: build a new image first, upload the selected catalog ([skip "
+                  "ci]), trigger a cycle; verify repo sync, bump, commit, pipeline and "
+                  "job"),
+    },
+    "cadence_pipeline_upload_stage": {
+        "id": "BSM_FVT_EXECUTE_V057",
+        "title": "Cadence: verify upload stage (DB, API, stage log)",
+    },
+    "cadence_pipeline_parse_catalog_stage": {
+        "id": "BSM_FVT_EXECUTE_V058",
+        "title": "Cadence: verify parse-catalog stage (DB, API, stage log)",
+    },
+    "cadence_pipeline_create_local_repository_stage": {
+        "id": "BSM_FVT_EXECUTE_V059",
+        "title": "Cadence: verify create-local-repository stage (DB, API, stage log)",
+    },
+    "cadence_pipeline_build_image_stage": {
+        "id": "BSM_FVT_EXECUTE_V060",
+        "title": "Cadence: verify build-image stage (DB, API, stage log)",
+    },
+    "cadence_pipeline_deploy_stage": {
+        "id": "BSM_FVT_EXECUTE_V061",
+        "title": "Cadence: verify deploy stage (DB, API, stage log)",
+    },
+    "cadence_pipeline_restart_stage": {
+        "id": "BSM_FVT_EXECUTE_V062",
+        "title": "Cadence: verify restart stage (DB, API, stage log)",
+    },
+    "cadence_pipeline_validate_stage": {
+        "id": "BSM_FVT_EXECUTE_V063",
+        "title": "Cadence: verify validate stage (DB, API, stage log)",
+    },
+    "cadence_pipeline_records": {
+        "id": "BSM_FVT_EXECUTE_V064",
+        "title": "Cadence: verify GitLab pipeline result, image group PASSED and API job",
+    },
+    "cadence_pipeline_artifacts": {
+        "id": "BSM_FVT_EXECUTE_V081",
+        "title": ("Cadence: verify registry image and S3 boot files for every role "
+                  "of the cadence image"),
+    },
+    "cadence_pipeline_restart_node_results": {
+        "id": "BSM_FVT_EXECUTE_V082",
+        "title": "Cadence: verify restart node-results and failed-nodes artifacts",
+    },
+    "cadence_disable_takes_effect_live": {
+        "id": "BSM_FVT_EXECUTE_V065",
+        "title": ("Disable cadence (no restart); trigger a cycle; verify it is skipped "
+                  "and no cadence commit or pipeline reaches GitLab"),
+    },
+    "cadence_reenable_resumes_cycle": {
+        "id": "BSM_FVT_EXECUTE_V066",
+        "title": ("Re-enable cadence (no restart); trigger a cycle; verify it completes "
+                  "and starts the cadence pipeline and a BuildStream job"),
+    },
+    "pipeline_cleanup_trigger_select": {
+        "id": "BSM_FVT_EXECUTE_V067",
+        "title": ("Cleanup pipeline: pick the image group (config or newest), trigger "
+                  "PIPELINE_TYPE=cleanup; verify the select_image job chose it"),
+    },
+    "pipeline_cleanup_run_cleanup_job": {
+        "id": "BSM_FVT_EXECUTE_V068",
+        "title": ("Cleanup pipeline: play the cleanup job; verify the image group goes "
+                  "CLEANING -> CLEANED and the summary reports SUCCESS"),
+    },
+    "pipeline_cleanup_db_cleaned": {
+        "id": "BSM_FVT_EXECUTE_V069",
+        "title": ("Cleanup pipeline: verify image_groups CLEANED, job tombstoned and "
+                  "cleanup audit events"),
+    },
+    "pipeline_cleanup_s3_deleted": {
+        "id": "BSM_FVT_EXECUTE_V070",
+        "title": ("Cleanup pipeline: verify no s3://boot-images object of the image "
+                  "group is left"),
+    },
+    "pipeline_cleanup_registry_deleted": {
+        "id": "BSM_FVT_EXECUTE_V071",
+        "title": "Cleanup pipeline: verify no registry tag of the image group is left",
+    },
+    "pipeline_cleanup_nfs_removed": {
+        "id": "BSM_FVT_EXECUTE_V072",
+        "title": "Cleanup pipeline: verify the job's NFS artifact directory is removed",
+    },
+    "auto_cleanup_precheck": {
+        "id": "BSM_FVT_EXECUTE_V073",
+        "title": ("Automated cleanup: verify retention settings, BuildStream container "
+                  "and playbook-watcher"),
+    },
+    "auto_cleanup_run_pass": {
+        "id": "BSM_FVT_EXECUTE_V074",
+        "title": ("Automated cleanup: mark the cadence build image FAILED, run one "
+                  "cleanup_cron pass; wait until none is CLEANING"),
+    },
+    "auto_cleanup_db_updated": {
+        "id": "BSM_FVT_EXECUTE_V075",
+        "title": ("Automated cleanup: verify build_stream_db (cleaned groups CLEANED, "
+                  "tombstoned, audited; others kept)"),
+    },
+    "auto_cleanup_artifacts_removed": {
+        "id": "BSM_FVT_EXECUTE_V076",
+        "title": ("Automated cleanup: verify S3 objects, registry tags (regctl) and NFS "
+                  "artifacts of cleaned groups removed, others untouched"),
+    },
+
+    # =========================================================================
+    # Cleanup (build_stream.yml --tags cleanup)
+    # =========================================================================
+    "deploy_cleanup": {
+        "id": "BSM_FVT_CLEANUP_E001",
+        "title": "Deploy build_stream.yml --tags cleanup",
+    },
+    "buildstream_api_port_closed": {
+        "id": "BSM_FVT_CLEANUP_V025",
+        "title": "Verify nothing listens on the BuildStream API port after cleanup",
+    },
+    "postgres_data_per_backup_flag": {
+        "id": "BSM_FVT_CLEANUP_V026",
+        "title": "Verify Postgres data and volumes deleted (postgres_backup: false) or "
+                 "preserved (true)",
+    },
+    "buildstream_credentials_per_flag": {
+        "id": "BSM_FVT_CLEANUP_V027",
+        "title": "Verify build_stream credentials deleted (cleanup_credentials: true) or "
+                 "kept (false)",
     },
 
 }

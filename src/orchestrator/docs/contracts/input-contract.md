@@ -23,7 +23,7 @@ When `ORCHESTRATOR_DATA_PATH` is unset, it resolves to
 | `image_build_manager_output_path` | string | No | `$IMAGE_BUILD_MANAGER_DATA_PATH/output/$OMNIA_PROJECT_NAME/build_status.yml` | Path to `build_status.yml` |
 | `language` | string | Yes | `"en_US.UTF-8"` | Supported locale for provisioned nodes |
 | `default_lease_time` | string or int | Yes | `86400` | Positive DHCP lease time in seconds |
-| `dns_enabled` | bool | No | `false` | Enable CoreDNS configuration |
+| `dns_enabled` | bool | No | `true` | Enable CoreDNS configuration |
 | `additional_cloud_init_config_file` | string | No | `""` | Extra cloud-init config path |
 | `boot_kernel_params` | string | No | `""` | Additional kernel command-line parameters applied to every functional group |
 | `catalog_file_path` | string | No | `$CATALOG_FILE_PATH`, then `$OMNIA_DATA_PATH/catalog/catalog_rhel.json` | Catalog JSON path override |
@@ -67,7 +67,7 @@ the feature flags derived by the latest catalog-backed lifecycle phase.
 | `GROUP_NAME` | string | Yes | Scalable Unit / logical group |
 | `SERVICE_TAG` | string | Yes | Unique physical-server identity persisted against its permanent XNAME in SMD Hardware Inventory |
 | `PARENT_SERVICE_TAG` | string | No | Parent service tag used by associated-node workflows; Discovery populates it for Slurm compute nodes when a service worker is available |
-| `HOSTNAME` | string | Yes | Assigned hostname |
+| `HOSTNAME` | string | Yes | Assigned hostname; must match `nid001`-`nid999` when `dns_enabled` is `true` (default) |
 | `ADMIN_MAC` | string | Yes | Unique admin NIC MAC address |
 | `ADMIN_IP` | string | Yes | Admin network IP |
 | `BMC_MAC` | string | Yes | Unique BMC/iDRAC MAC address used for existing-node identity evidence and discovery |
