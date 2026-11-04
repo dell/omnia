@@ -24,8 +24,8 @@ for f in /etc/openldap/slapd.conf /container-init/bootstrap.ldif; do
 done
 
 # --- Initialize data directory (needed when volume is mounted) ---
-mkdir -p /var/lib/openldap/openldap-data
-chown ldap:ldap /var/lib/openldap/openldap-data
+mkdir -p /var/lib/openldap/openldap-data /run/openldap
+chown ldap:ldap /var/lib/openldap/openldap-data /run/openldap
 
 # --- Bootstrap LDAP database on first run ---
 if [ ! -f /var/lib/openldap/openldap-data/__initialized ]; then
@@ -75,6 +75,5 @@ if [ -f "$TLS_CERT" ]; then
   fi
 fi
 
-# --- Start slapd, dropping privileges to ldap user ---
-exec /usr/sbin/slapd -f /etc/openldap/slapd.conf \
-  -u ldap -g ldap -h 'ldap:/// ldaps:///' -d 0
+# --- Start slapd ---
+exec /usr/sbin/slapd -f /etc/openldap/slapd.conf -h 'ldap:/// ldaps:///' -d 0
