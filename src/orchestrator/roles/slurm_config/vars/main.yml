@@ -159,6 +159,9 @@ nvhpc_nfs_rel_dir: "hpc_tools/nvidia_sdk"
 pull_benchmarks_script_path: "{{ hpc_tools_path }}/scripts/pull_benchmarks.sh"
 benchmark_tools_list_path: "{{ hpc_tools_path }}/scripts/benchmark_tools.list"
 
+# Slurm node names must match this allowlist before they are passed to scontrol
+slurm_node_name_pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$'
+
 backup_dir: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"
 # Centralized failure messages
 controller_reachability_fail_msg: "Failed to connect to {{ ctld }}."
