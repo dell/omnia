@@ -170,7 +170,7 @@ def render_nmcli_commands(
     # Step 4: IPv6 method
     if mode == "ipv4-only":
         create_parts.append("ipv6.method link-local")
-    else:
+    elif ipv6_records:
         v6_addrs = [
             f"{r['address']}/{r['prefix_length']}" for r in ipv6_records
         ]
@@ -180,6 +180,9 @@ def render_nmcli_commands(
         create_parts.append("ipv6.ip6-privacy 0")
         # No gateway, no default route, no RA
         create_parts.append("ipv6.never-default yes")
+    else:
+        # dual-stack/ipv6-only mode but no IPv6 records available — fall back
+        create_parts.append("ipv6.method link-local")
 
     # Step 5: MTU (infiniband type uses infiniband.mtu, not 802-3-ethernet.mtu)
     create_parts.append(f"infiniband.mtu {mtu}")

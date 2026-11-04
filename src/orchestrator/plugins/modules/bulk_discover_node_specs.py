@@ -359,8 +359,10 @@ def _discover_single_node(hostname, bmc_ip, username, password,
     if ok:
         members = proc_data.get("Members", [])
         cpus = [m for m in members if m.get("ProcessorType") == "CPU"]
+        gpus = [m for m in members if m.get("ProcessorType") == "GPU"]
     else:
         cpus = []
+        gpus = []
 
     # ── Step 2: Read System info for memory ──
     ok, sys_data = _redfish_get(
@@ -544,7 +546,7 @@ def _discover_group(group_name, group_nodes, bmc_ip_map, username,
                 "RealMemory": validated_memory,
             })
 
-    return (group_name, node_params_list, gpu_dict, sample_hostname,
+    return (group_name, node_params_list, sample_gpus, sample_hostname,
             all_failed)
 
 
@@ -647,7 +649,7 @@ def _run_node_discovery(module, nodes, bmc_ip_map, bmc_username,
         for future in as_completed(futures):
             hostname = futures[future]
             try:
-                _, node_params, error = future.result()
+                _, node_params, _gpus, error = future.result()
                 if error:
                     result["failed_nodes"].append(hostname)
                     result["node_params"].append(node_params)
@@ -660,8 +662,17 @@ def _run_node_discovery(module, nodes, bmc_ip_map, bmc_username,
                     result["discovered_count"] += 1
             except Exception as exc:  # pylint: disable=broad-except
                 result["failed_nodes"].append(hostname)
+                # Still append default node_params so the node appears in slurm.conf
+                result["node_params"].append({
+                    "NodeName": hostname,
+                    "Sockets": defaults.get("sockets", 2),
+                    "CoresPerSocket": defaults.get("corespersocket", 72),
+                    "ThreadsPerCore": defaults.get("threadspercore", 1),
+                    "RealMemory": defaults.get("real_memory", 884736),
+                })
                 module.warn(
-                    f"iDRAC discovery exception for {hostname}: {exc}"
+                    f"iDRAC discovery exception for {hostname}: {exc} "
+                    f"— falling back to default values"
                 )
 
     if result["failed_nodes"]:
@@ -713,7 +724,7 @@ def _run_group_discovery(module, groups, bmc_ip_map, bmc_username,
         for future in as_completed(futures):
             group_name = futures[future]
             try:
-                (_, node_params_list, sample_node,
+                (_, node_params_list, _gpu_dict, sample_node,
                  failed) = future.result()
                 result["node_params"].extend(node_params_list)
                 if sample_node:
@@ -731,9 +742,19 @@ def _run_group_discovery(module, groups, bmc_ip_map, bmc_username,
                     )
             except Exception as exc:  # pylint: disable=broad-except
                 result["failed_groups"].append(group_name)
+                # Still append default node_params for all nodes in the group
+                for node_hostname in groups[group_name]:
+                    result["node_params"].append({
+                        "NodeName": node_hostname,
+                        "Sockets": defaults.get("sockets", 2),
+                        "CoresPerSocket": defaults.get("corespersocket", 72),
+                        "ThreadsPerCore": defaults.get("threadspercore", 1),
+                        "RealMemory": defaults.get("real_memory", 884736),
+                    })
                 module.warn(
                     f"Group discovery exception for '{group_name}': "
-                    f"{exc}"
+                    f"{exc} — falling back to default values for "
+                    f"{len(groups[group_name])} node(s)"
                 )
 
     if result["failed_groups"]:
