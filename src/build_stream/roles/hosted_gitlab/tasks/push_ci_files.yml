@@ -15,8 +15,8 @@
 ---
 - name: Set hosted GitLab payload defaults
   ansible.builtin.set_fact:
-    gitlab_hosted_payload_dir: "{{ gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads') }}"
-    gitlab_hosted_ci_pipeline_path: "{{ gitlab_hosted_ci_pipeline_path | default((gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads')) + '/.gitlab-ci.yml') }}"  # noqa: yaml[line-length]
+    gitlab_hosted_payload_dir: "{{ gitlab_hosted_payload_dir | default('/run/omnia/gitlab_payloads') }}"
+    gitlab_hosted_ci_pipeline_path: "{{ gitlab_hosted_ci_pipeline_path | default((gitlab_hosted_payload_dir | default('/run/omnia/gitlab_payloads')) + '/.gitlab-ci.yml') }}"  # noqa: yaml[line-length]
 
 - name: Set catalog payload path
   ansible.builtin.set_fact:
@@ -59,23 +59,51 @@
   register: ci_file_check
   no_log: true
 
+- name: Ensure secure payload parent directory exists on GitLab host
+  ansible.builtin.file:
+    path: /run/omnia
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Check if payload directory is a symlink
+  ansible.builtin.stat:
+    path: "{{ gitlab_hosted_payload_dir }}"
+  register: _gitlab_payload_stat
+
+- name: Fail if payload directory is a symlink or not root-owned
+  ansible.builtin.fail:
+    msg: >-
+      Security violation: {{ gitlab_hosted_payload_dir }} exists but is a symlink
+      or not owned by root. This may indicate a symlink attack (CWE-59).
+  when:
+    - _gitlab_payload_stat.stat.exists
+    - _gitlab_payload_stat.stat.islnk or _gitlab_payload_stat.stat.uid != 0
+
 - name: Ensure payload directory exists on GitLab host
   ansible.builtin.file:
     path: "{{ gitlab_hosted_payload_dir }}"
     state: directory
-    mode: '0755'
+    owner: root
+    group: root
+    mode: '0700'
 
 - name: Ensure input directory exists on GitLab host
   ansible.builtin.file:
     path: "{{ gitlab_hosted_payload_dir }}/{{ gitlab_input_repo_dir }}"
     state: directory
-    mode: '0755'
+    owner: root
+    group: root
+    mode: '0700'
 
 - name: Ensure domain input subdirectories exist on GitLab host
   ansible.builtin.file:
     path: "{{ gitlab_hosted_payload_dir }}/{{ gitlab_input_repo_dir }}/{{ item }}"
     state: directory
-    mode: '0755'
+    owner: root
+    group: root
+    mode: '0700'
   loop:
     - repo_manager
     - image_build_manager
