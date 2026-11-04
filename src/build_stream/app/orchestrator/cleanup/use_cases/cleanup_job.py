@@ -352,6 +352,11 @@ class CleanupJobUseCase:
                 },
             )
             self._audit_repo.save(event)
+            # save() only flushes. The cron shares one session and closes it
+            # without a commit when no retention candidate is found, which
+            # rolled this event back.
+            if hasattr(self._audit_repo, "session"):
+                self._audit_repo.session.commit()
         except Exception:  # pylint: disable=broad-except
             log_secure_info(
                 "warning",

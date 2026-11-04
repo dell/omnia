@@ -353,6 +353,7 @@ All Ansible playbook execution logs are flat (no subfolders) under a single dire
 | `docs/architecture.md` | Execution flow, tag reference, role dependency |
 | `docs/package-mapping-guide.md` | RPM package customization guide |
 | `docs/troubleshooting.md` | Common issues and fixes |
+| `docs/security.md` | Security considerations |
 | `docs/contracts/input-contract.md` | Input file specifications |
 | `docs/contracts/output-contract.md` | Output file specifications |
 
