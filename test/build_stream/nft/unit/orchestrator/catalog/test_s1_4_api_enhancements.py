@@ -227,6 +227,43 @@ class TestExtractCatalogMetadata:
         assert meta["roles"] == ["valid_role"]
         assert meta["role_images"] == {"valid_role": "valid_role.img"}
 
+    def test_adds_synthetic_first_kube_control_plane_role(self):
+        """A kube control plane role also gets its synthetic _first variant."""
+        uc = self._get_use_case()
+        catalog = {
+            "Catalog": {
+                "Identifier": "my-group",
+                "FunctionalLayer": [
+                    {"Name": "service_kube_control_plane_x86_64", "FunctionalPackages": []},
+                    {"Name": "service_kube_node_x86_64", "FunctionalPackages": []},
+                ],
+            }
+        }
+        meta = uc._extract_catalog_metadata(catalog)
+        assert meta["roles"] == [
+            "service_kube_control_plane_first_x86_64",
+            "service_kube_control_plane_x86_64",
+            "service_kube_node_x86_64",
+        ]
+        assert (meta["role_images"]["service_kube_control_plane_first_x86_64"]
+                == "service_kube_control_plane_first_x86_64.img")
+
+    def test_synthetic_first_role_not_duplicated(self):
+        """An explicit _first role in the catalog is not added a second time."""
+        uc = self._get_use_case()
+        catalog = {
+            "Catalog": {
+                "Identifier": "my-group",
+                "FunctionalLayer": [
+                    {"Name": "service_kube_control_plane_x86_64", "FunctionalPackages": []},
+                    {"Name": "service_kube_control_plane_first_x86_64",
+                     "FunctionalPackages": []},
+                ],
+            }
+        }
+        meta = uc._extract_catalog_metadata(catalog)
+        assert meta["roles"].count("service_kube_control_plane_first_x86_64") == 1
+
     @pytest.mark.parametrize(
         "identifier",
         [

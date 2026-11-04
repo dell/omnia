@@ -396,7 +396,7 @@ def collect_warnings(current_body: dict, future_body: dict, forward_diff: list) 
     return warnings
 
 
-def _base_os_notes(summary: dict) -> list:
+def _baseos_notes(summary: dict) -> list:
     """Extract base-OS group changes (os/os_version) from a groups summary."""
     notes = []
     for item in summary["groups"]["changed"]:
@@ -538,9 +538,9 @@ def _render_keyed_section(title: str, bucket: dict) -> list:
 
 def _render_impact_section(summary: dict, cutover: dict = None) -> list:
     """Render the base-OS/architecture/catalog-metadata impact section's lines."""
-    base_os_notes = _base_os_notes(summary)
+    baseos_notes = _baseos_notes(summary)
     arch_notes = _architecture_notes(summary)
-    if not (base_os_notes or arch_notes or summary["catalog_fields"] or cutover):
+    if not (baseos_notes or arch_notes or summary["catalog_fields"] or cutover):
         return []
     lines = ["## Base OS, Architecture, and Catalog Metadata Impact"]
     if cutover:
@@ -551,7 +551,7 @@ def _render_impact_section(summary: dict, cutover: dict = None) -> list:
         )
         for old_name, new_name in cutover["renamed_layers"]:
             lines.append(f"  - {old_name} -> {new_name}")
-    for note in base_os_notes + arch_notes:
+    for note in baseos_notes + arch_notes:
         lines.append(f"- {note}")
     for item in summary["catalog_fields"]:
         lines.append(f"- {item['field']}: {item['old']} -> {item['new']}")
@@ -635,7 +635,7 @@ def render_html(  # pylint: disable=too-many-arguments,too-many-positional-argum
         schema_version=schema_version,
         summary=summary,
         warnings=warnings,
-        base_os_notes=_base_os_notes(summary),
+        baseos_notes=_baseos_notes(summary),
         architecture_notes=_architecture_notes(summary),
         package_label=_package_label,
         cutover=cutover,

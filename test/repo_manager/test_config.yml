@@ -30,6 +30,11 @@ report_path: "/opt/omnia/reports"
 # Report name.
 report_name: "repo_manager_test_report"
 
+# Run ID (optional). Results of runs with the same ID are grouped under one
+# report entry (the system test sets one ID for every suite). Empty: a
+# timestamp (YYYYMMDD_HHMMSS).
+run_id: ""
+
 # Dataset name selects the local folder under test/repo_manager/datasets/.
 # Empty dataset uses the target's $OMNIA_DATA_PATH/repo_manager/input/<project>/
 # as the input source. No local dataset is synced.
