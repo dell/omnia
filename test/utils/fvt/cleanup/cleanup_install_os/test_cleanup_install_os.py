@@ -17,7 +17,7 @@ Cleanup Install OS Scenario - Test Automation.
 
 Tests for utils.yml --tags cleanup_install_os functionality.
 Validates that the cleanup_install_os tag properly cleans OS installation artifacts:
-- Removes /tmp/install_os temporary directory
+- Removes legacy /tmp/install_os directory left by earlier runs (if present)
 - Unmounts and removes /run/omnia/mnt/install_os_nfs
 - Optionally removes credential files (when cleanup_credentials=true)
 """
@@ -87,7 +87,7 @@ def test_deploy_cleanup_install_os(host):
 @pytest.mark.cleanup_install_os
 @pytest.mark.order(1)
 def test_cleanup_install_os_temp_iso_removed(host):
-    """Verify /tmp/install_os directory is removed."""
+    """Verify legacy /tmp/install_os directory is removed (if present)."""
     tc = TC["cleanup_install_os_temp_iso_removed"]
     tl = TestLogger(tc["title"], tc["id"])
 

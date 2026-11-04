@@ -189,7 +189,7 @@ def check_temp_log_dirs_cleaned(host, output_path):
 
 
 def check_install_os_temp_dir_removed(host):
-    """Check if /tmp/install_os directory is removed.
+    """Check if legacy /tmp/install_os directory is removed.
 
     Args:
         host: Testinfra host fixture.

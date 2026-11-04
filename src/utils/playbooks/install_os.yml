@@ -223,6 +223,17 @@
       ansible.builtin.command:
         cmd: umount /run/omnia/mnt/install_os_nfs
       when: _nfs_auto_mounted | default(false) | bool
+      register: _nfs_auto_umount
+      changed_when: _nfs_auto_umount.rc == 0
+      failed_when: false
+
+    - name: Lazy-unmount auto-mounted NFS if still busy
+      ansible.builtin.command:
+        cmd: umount -l /run/omnia/mnt/install_os_nfs
+      when:
+        - _nfs_auto_mounted | default(false) | bool
+        - _nfs_auto_umount.rc is defined
+        - _nfs_auto_umount.rc != 0
       changed_when: true
       failed_when: false
 
