@@ -38,6 +38,7 @@ must be supplied before running `build_stream.yml`.
 | `gitlab_min_cpu_cores` | int | Optional | `2` | Minimum CPU cores. |
 | `gitlab_puma_workers` | int | Optional | `2` | Puma web worker count (1-2 per core). |
 | `gitlab_sidekiq_concurrency` | int | Optional | `10` | Sidekiq background job concurrency. |
+| `gitlab_project_ci_timeout` | int (>= 600) | Optional | `9000` | Maximum runtime (seconds) for a GitLab CI/CD pipeline job before timeout. Default is 2.5 hours; increase for long-running image builds. |
 
 ---
 
