@@ -160,3 +160,11 @@ Correct SELinux labels and mounts instead.
 5. Back up Vault credentials and their matching key together.
 6. Rotate Pulp and registry credentials after suspected disclosure.
 7. Inspect logs for secrets before sharing them externally.
+
+---
+
+## S3 Bucket Access in Airgap Deployments
+
+The `efi` and `boot-images` S3 buckets are configured with public-read access to enable PXE boot clients to fetch kernel, initramfs, and EFI artifacts without authentication. Boot images contain OS packages and configurations but are not sensitive data.
+
+In air-gapped deployments, the OIM (Omnia Infrastructure Manager) environment is isolated from external networks, and the S3 service is accessible only within the internal provisioning network. Access control is enforced through network segmentation, which restricts connectivity to authorized provisioning subnets and systems. As a result, the security boundary is established at the network layer rather than through object-level authentication. This approach enables seamless PXE boot functionality while ensuring that boot artifacts remain protected from unauthorized external access.
