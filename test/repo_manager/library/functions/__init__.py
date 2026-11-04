@@ -47,6 +47,8 @@ from .repo_manager_func import (
     check_pulp_cli_removed,
     check_pulp_cli_preserved,
     check_pulp_directories_removed,
+    check_credentials_per_flag,
+    cleanup_credentials_enabled,
     check_repo_policy,
     check_repo_caching,
     check_pulp_mode,

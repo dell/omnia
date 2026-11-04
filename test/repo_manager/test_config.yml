@@ -8,11 +8,32 @@ oim_server_ip: ""
 # Path on the remote server where the project repo is synced (remote mode only).
 clone_path: "/root/omnia"
 
+# =============================================================================
+# CLEANUP CONFIGURATION
+# =============================================================================
+# Cleanup FVT invokes the supported cleanup entry point:
+#
+#   ansible-playbook repo_manager.yml --tags cleanup_pulp
+#
+# Remove the repo_manager credential artifacts from the active project's input
+# directory. Supported values:
+#   true  - remove repo_manager_config_credentials.yml and its vault key
+#   false - preserve both; the cleanup runs with -e cleanup_credentials=false so
+#           the next deployment does not prompt for credentials
+# The cleanup verification (RM_FVT_CLEANUP_V004) checks the selected outcome.
+# Default: true
+cleanup_credentials: true
+
 # Report output path.
 report_path: "/opt/omnia/reports"
 
 # Report name.
 report_name: "repo_manager_test_report"
+
+# Run ID (optional). Results of runs with the same ID are grouped under one
+# report entry (the system test sets one ID for every suite). Empty: a
+# timestamp (YYYYMMDD_HHMMSS).
+run_id: ""
 
 # Dataset name selects the local folder under test/repo_manager/datasets/.
 # Empty dataset uses the target's $OMNIA_DATA_PATH/repo_manager/input/<project>/

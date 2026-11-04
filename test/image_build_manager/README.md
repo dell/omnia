@@ -228,7 +228,7 @@ ARM-host readiness and tooling checks before artifact and package validation.
 | `validate` | `--tags validate` | Configuration, credentials, package/catalog input, effective `repo_ssl_verify`, and template wiring; does not consume `repo_status.yml` |
 | `prepare` | `--tags prepare` | MinIO, registry, systemd, S3 buckets |
 | `build` | `--tags build` | Build-only repo-status contract validation, S3 images, registry images, build_status, and **naming convention** |
-| `cleanup` | `--tags cleanup` | Remove local MinIO/registry data and services, build output/logs, MinIO s3cmd config, and domain credentials; external PowerScale storage and s3cmd config are retained |
+| `cleanup` | `--tags cleanup` | Remove local MinIO/registry data and services, build output/logs, MinIO s3cmd config, and domain credentials (kept with `cleanup_credentials: false` in `test_config.yml`); external PowerScale storage and s3cmd config are retained |
 | `cleanup_images` | `--tags cleanup_images` | Delete S3 + registry images |
 | *(none)* | *(no tag)* | Full end-to-end (prepare + build) |
 
@@ -266,6 +266,10 @@ and immediately validates the result. Run all eleven scenarios with either:
 ./run_validation.sh fvt_image_build_manager build test \
   --suite catalog_reuse
 ```
+
+The suite is opt-in: the default `fvt_image_build_manager test`/`exec` flow
+and `build test`/`build exec` without `--suite` report these cases as skipped,
+so they do not block the default lifecycle verification.
 
 All eleven tests are deploy-marked. Consequently, standalone `verify` selects
 only `not deploy` tests and has no catalog-reuse cases to execute. Do not use
@@ -440,8 +444,10 @@ the MinIO/registry infrastructure and the S3 buckets.
 This runs the `cleanup` playbook tag, which also removes build logs and domain
 credentials. The post-cleanup FVT cases verify local MinIO/registry services
 and data, listening ports, S3 state, s3cmd configuration, build output, and
-registry state. They also verify that the credential file and vault key were
-removed without reading or displaying their contents.
+registry state. They also verify, without reading or displaying their contents,
+that the credential file and vault key were removed, or preserved when
+`cleanup_credentials: false` is set in `test_config.yml` (the cleanup then runs
+with `-e cleanup_credentials=false`).
 
 With PowerScale, the product intentionally retains the external buckets and
 `/root/.s3cfg`. The MinIO-specific `IMGBM_FVT_CLEANUP_V004` and

@@ -54,6 +54,11 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+if [[ -z "${OMNIA_PROJECT_NAME:-}" ]]; then
+    echo "[FAIL] OMNIA_PROJECT_NAME is required. Source /etc/omnia/omnia.env (set -a; source /etc/omnia/omnia.env; set +a)."
+    exit 1
+fi
+
 if "$FORCE" && "$USE_VENV"; then
     rm -rf "${SCRIPT_DIR}/.venv"
 fi

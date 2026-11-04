@@ -14,6 +14,7 @@
 """
 This module contains utility functions for input validation in the telemetry domain.
 """
+import logging
 import os
 import yaml
 import subprocess
@@ -115,7 +116,8 @@ def is_file_encrypted(file_path) -> bool:
         with open(file_path, 'r', encoding='utf-8') as file:
             first_line = file.readline().strip()
             return first_line.startswith('$ANSIBLE_VAULT')
-    except (IOError, OSError):
+    except (IOError, OSError) as exc:
+        logging.warning("Could not read file %s to check encryption status: %s", file_path, exc)
         return False
 
 class VaultError(RuntimeError):

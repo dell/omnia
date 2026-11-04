@@ -16,6 +16,10 @@ import os
 import re
 import tempfile
 
+from ansible.module_utils.repo_manager.security_utils import (
+    validate_positional_argument,
+)
+
 
 _PYTHON_VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+$")
 _PYTHON_DISTRIBUTION_SUFFIXES = (
@@ -64,6 +68,7 @@ def build_target_wheel_command(
         package_spec, destination, target_python, architecture,
         platform_map, logger):
     """Build an explicit wheel command for the target interpreter/platform."""
+    validate_positional_argument(package_spec, "pip package specifier")
     return [
         "pip", "download", "-d", destination,
         *build_pip_platform_args(
@@ -80,6 +85,7 @@ def build_source_distribution_command(package_spec, destination):
     would reintroduce the cross-target bug; dependencies must already be
     available as target-compatible wheels or explicit catalog selections.
     """
+    validate_positional_argument(package_spec, "pip package specifier")
     return [
         "pip", "download", "-d", destination,
         "--no-deps", "--no-binary=:all:", package_spec,

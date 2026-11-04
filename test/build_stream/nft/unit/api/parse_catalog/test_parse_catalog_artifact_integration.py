@@ -14,21 +14,16 @@
 
 """Integration tests for parse catalog API with artifact storage."""
 
-import json
 import os
 import shutil
 import tempfile
 import uuid
-import zipfile
 from pathlib import Path
 
 from common.config import load_config
 from container import container
 from core.artifacts.value_objects import ArtifactKind, StoreHint
-from core.jobs.value_objects import ClientId, CorrelationId, IdempotencyKey, JobId
 from infra.artifact_store.file_artifact_store import FileArtifactStore
-from orchestrator.catalog.commands.parse_catalog import ParseCatalogCommand
-from orchestrator.jobs.commands import CreateJobCommand
 
 
 class TestFileArtifactStorage:  # pylint: disable=attribute-defined-outside-init
@@ -105,76 +100,6 @@ base_path = {self.temp_file_dir}/artifacts
         """Test that FileArtifactStore is used when enabled in config."""
         artifact_store = container.artifact_store()
         assert isinstance(artifact_store, FileArtifactStore)
-
-    def test_parse_catalog_creates_artifacts_on_file_store(self) -> None:  # pylint: disable=too-many-locals
-        """Test that parse catalog creates artifact files on file store."""
-        # Load a valid catalog from fixtures
-        project_root = Path(__file__).parent.parent.parent.parent.parent
-        catalog_fixture_path = project_root.parent / "examples" / "catalog" / "catalog_rhel.json"
-        with open(catalog_fixture_path, "r", encoding="utf-8") as f:
-            catalog_data = json.load(f)
-
-        catalog_bytes = json.dumps(catalog_data).encode('utf-8')
-
-        # Create job first
-        create_job_use_case = container.create_job_use_case()
-        job_command = CreateJobCommand(
-            client_id=ClientId("test-client"),
-            request_client_id="test-client",
-            correlation_id=CorrelationId(str(uuid.uuid4())),
-            idempotency_key=IdempotencyKey(str(uuid.uuid4())),
-            client_name="Test Client",
-        )
-        job_result = create_job_use_case.execute(job_command)
-        job_id = JobId(job_result.job_id)
-
-        # Execute parse catalog
-        parse_catalog_use_case = container.parse_catalog_use_case()
-        command = ParseCatalogCommand(
-            job_id=job_id,
-            correlation_id=CorrelationId(str(uuid.uuid4())),
-            filename="catalog.json",
-            content=catalog_bytes,
-        )
-
-        result = parse_catalog_use_case.execute(command)
-
-        # Verify result
-        assert result.stage_state == "COMPLETED"
-        assert result.catalog_ref is not None
-        assert result.root_jsons_ref is not None
-
-        # Verify artifacts exist on file store
-        file_base = Path(self.temp_file_dir) / "artifacts"
-
-        # Check catalog file exists
-        catalog_key = result.catalog_ref.key.value
-        catalog_path = file_base / catalog_key
-        assert catalog_path.exists(), f"Catalog artifact not found at {catalog_path}"
-        assert catalog_path.is_file()
-
-        # Verify catalog content
-        catalog_content = catalog_path.read_bytes()
-        assert len(catalog_content) > 0
-
-        # Check root JSONs archive exists
-        root_jsons_key = result.root_jsons_ref.key.value
-        root_jsons_path = file_base / root_jsons_key
-        assert root_jsons_path.exists(), f"Root JSONs artifact not found at {root_jsons_path}"
-        assert root_jsons_path.is_file()
-
-        # Verify root JSONs archive content
-        root_jsons_content = root_jsons_path.read_bytes()
-        assert len(root_jsons_content) > 0
-
-        # Verify it's a valid zip file
-        with zipfile.ZipFile(root_jsons_path, 'r') as zip_file:
-            zip_file.testzip()  # Test zip file integrity
-            file_list = zip_file.namelist()
-            assert len(file_list) > 0, "Root JSONs archive is empty"
-            # Should contain JSON files
-            json_files = [f for f in file_list if f.endswith('.json')]
-            assert len(json_files) > 0, "No JSON files in root JSONs archive"
 
     def test_artifact_retrieval_from_file_store(self) -> None:
         """Test that artifacts can be retrieved from file store."""

@@ -70,6 +70,22 @@ victoria_cluster:
     replicas: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmagent.replicas | default(2) }}"
     resources: "{{ hostvars['localhost']['telemetry_storage_config'].victoria_cluster_storage.vmagent.resources }}"
 
+# Rescue failure messages for VictoriaMetrics TLS secret tasks (no_log tasks, details suppressed)
+victoria_tls_secret_apply_fail_msg: >-
+  Failed to apply the VictoriaMetrics TLS secret.
+  Likely causes: the Kubernetes cluster is unreachable, the victoria-tls-secret.yaml manifest is missing or malformed
+  (certificate generation may have failed), the target namespace does not exist, or the user lacks RBAC to create secrets.
+  Check: 'kubectl cluster-info', 'kubectl auth can-i create secrets -n <namespace>', and that 'victoria-tls-secret.yaml'
+  exists in the telemetry deployments directory and is non-empty. Error details suppressed (no_log).
+
+victoria_tls_secret_manifest_fail_msg: >-
+  Failed to generate the VictoriaMetrics TLS secret manifest.
+  Likely causes: the server certificate, server key, or CA certificate could not be read from the victoria cert directory
+  (gen_victoria_certs.sh may have failed or not run), a template variable is undefined, or the deployments directory is not writable.
+  Check: that 'server.crt', 'server.key', and 'ca.crt' exist and are non-empty in the victoria cert directory,
+  that gen_victoria_certs.sh completed successfully, and the write permissions on the telemetry deployments directory.
+  Error details suppressed (no_log).
+
 # VictoriaLogs Cluster configuration
 victoria_logs_cluster:
   tls_enabled: true

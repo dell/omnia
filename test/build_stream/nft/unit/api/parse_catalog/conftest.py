@@ -205,26 +205,3 @@ def created_job(client, auth_headers) -> str:  # pylint: disable=redefined-outer
     response = client.post("/api/v1/jobs", json=payload, headers=auth_headers)
     assert response.status_code == 201
     return response.json()["job_id"]
-
-
-@pytest.fixture
-def mock_jwt_validation() -> Generator[None, None, None]:
-    """Mock JWT validation for tests that use TestClient(app) directly.
-
-    This fixture bypasses JWT validation to allow testing of API endpoints
-    without requiring actual JWT keys.
-    """
-    with patch("api.auth.jwt_handler.JWTHandler.validate_token") as mock_validate:
-        # Mock successful token validation
-        from api.auth.jwt_handler import TokenData  # pylint: disable=import-outside-toplevel
-
-        now = datetime.now(timezone.utc)
-        mock_validate.return_value = TokenData(
-            client_id="test-client",
-            client_name="test-client",
-            scopes=["catalog:read", "catalog:write"],
-            issued_at=now,
-            expires_at=now + timedelta(hours=1),
-            token_id="test-token-id",
-        )
-        yield

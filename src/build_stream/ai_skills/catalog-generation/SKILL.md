@@ -562,7 +562,7 @@ does **not** enforce all of the following; this is a separate model-performed re
      for architecture … compatible with rhel X").
 
    repo_manager reads the OS version from the layer name and the image
-   builder reads the `base_os` group's `os_version`, so the two must agree
+   builder reads the `baseos` group's `os_version`, so the two must agree
    for every layer.
 
 Report schema-validation results separately from this selection review. Do not
