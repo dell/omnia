@@ -54,8 +54,9 @@
   gather_facts: false
   tasks:
     - name: Load image_build_config.yml
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/image_build_config.yml"
+      ansible.builtin.include_role:
+        name: image_build_setup
+        tasks_from: load_image_build_config.yml
 
     - name: Set job_id from extra vars
       ansible.builtin.set_fact:
