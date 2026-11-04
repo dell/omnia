@@ -691,3 +691,8 @@ class TestRetentionEvaluationFailures:
         assert (deleted, errors) == (1, 1)
         assert session.rollbacks == 1
         assert session.commits == 1
+
+
+# =========================================================================
+# Test Class: Retention Config Loading
+# =========================================================================

@@ -17,8 +17,6 @@ Pytest configuration and fixtures for cadence unit tests.
 """
 
 import importlib.util
-import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -95,53 +93,6 @@ def sample_cadence_config(tmp_path):  # pylint: disable=redefined-outer-name
         "emit_audit_events": True,
         "log_level": "info"
     }
-
-
-@pytest.fixture
-def mock_omnia_data_path(tmp_path):  # pylint: disable=redefined-outer-name
-    """Mock OMNIA_DATA_PATH environment variable."""
-    original = os.environ.get("OMNIA_DATA_PATH")
-    os.environ["OMNIA_DATA_PATH"] = str(tmp_path)
-    yield tmp_path
-    if original:
-        os.environ["OMNIA_DATA_PATH"] = original
-    else:
-        os.environ.pop("OMNIA_DATA_PATH", None)
-
-
-@pytest.fixture
-def mock_queue_dirs(tmp_path):  # pylint: disable=redefined-outer-name
-    """Create mock queue directory structure."""
-    queue_dir = tmp_path / "build_stream" / "cadence_queue"
-    for subdir in ["pending", "processing", "completed", "failed"]:
-        (queue_dir / subdir).mkdir(parents=True, exist_ok=True)
-    return queue_dir
-
-
-@pytest.fixture
-def mock_git_repo(tmp_path):  # pylint: disable=redefined-outer-name
-    """Create a mock Git repository."""
-    repo_dir = tmp_path / "test_repo"
-    repo_dir.mkdir()
-    subprocess.run(
-        ["git", "init"],
-        cwd=repo_dir,
-        check=True,
-        capture_output=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test User"],
-        cwd=repo_dir,
-        check=True,
-        capture_output=True
-    )
-    subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
-        cwd=repo_dir,
-        check=True,
-        capture_output=True
-    )
-    return repo_dir
 
 
 @pytest.fixture

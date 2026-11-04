@@ -267,6 +267,10 @@ and immediately validates the result. Run all eleven scenarios with either:
   --suite catalog_reuse
 ```
 
+The suite is opt-in: the default `fvt_image_build_manager test`/`exec` flow
+and `build test`/`build exec` without `--suite` report these cases as skipped,
+so they do not block the default lifecycle verification.
+
 All eleven tests are deploy-marked. Consequently, standalone `verify` selects
 only `not deploy` tests and has no catalog-reuse cases to execute. Do not use
 the following command to validate a previous catalog-reuse run:

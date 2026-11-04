@@ -33,6 +33,13 @@ from core.artifacts.exceptions import (
 )
 from infra.artifact_store.file_artifact_store import FileArtifactStore
 
+# The container's fallback follows OMNIA_DATA_PATH (the NFT conftest points
+# it at a temporary directory).
+_DEFAULT_ARTIFACTS = str(
+    Path(os.environ.get("OMNIA_DATA_PATH", "/opt/omnia"))
+    / "build_stream" / "build_stream_root" / "artifacts"
+)
+
 
 class TestFileArtifactStoreIntegration:
     """Integration tests for FileArtifactStore with real filesystem."""
@@ -380,7 +387,9 @@ class TestFileArtifactStoreConfiguration:
             # Should fall back to defaults
             artifact_store = container.artifact_store()
             assert isinstance(artifact_store, FileArtifactStore)
-            assert str(artifact_store._base_path) == "/opt/omnia/build_stream_root/artifacts"
+            assert str(artifact_store._base_path) == (
+                _DEFAULT_ARTIFACTS
+            )
         finally:
             # Restore config
             if original_config:
@@ -410,7 +419,9 @@ working_dir = /tmp/test
                 artifact_store = container.artifact_store()
                 assert isinstance(artifact_store, FileArtifactStore)
                 # Should use fallback path
-                assert str(artifact_store._base_path) == "/opt/omnia/build_stream_root/artifacts"
+                assert str(artifact_store._base_path) == (
+                    _DEFAULT_ARTIFACTS
+                )
             finally:
                 if original_config:
                     os.environ["BUILD_STREAM_CONFIG_PATH"] = original_config
