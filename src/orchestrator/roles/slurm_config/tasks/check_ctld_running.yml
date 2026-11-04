@@ -78,7 +78,7 @@
         ssh_max_parallel: "{{ bulk_ssh_max_parallel }}"
         ssh_connect_timeout: "{{ bulk_ssh_connect_timeout }}"
       register: bulk_update_result
-      when: not (dns_enabled | default(false) | bool)
+      when: not (dns_enabled | default(true) | bool)
 
     - name: Warn about failed hosts
       ansible.builtin.debug:
@@ -96,18 +96,49 @@
       when:
         - ctld_state[ctld] | bool
 
-    - name: Undrain if any nodes are drain
+    - name: Get drained or down Slurm nodes
       ansible.builtin.command:
-        cmd: |
-          for drained_node in $(sinfo --states=drain,draining,down --noheader -o "%N"); do
-              scontrol update NodeName=$drained_node State=RESUME
-          done
+        argv:
+          - sinfo
+          - --Node
+          - --states=drain,draining,down
+          - --noheader
+          - --format=%N
+      changed_when: false
+      failed_when: false
+      register: slurm_drained_nodes
+      delegate_to: "{{ ctld }}"
+      when:
+        - ctld_state[ctld] | bool
+
+    - name: Undrain drained or down Slurm nodes
+      ansible.builtin.command:
+        argv:
+          - scontrol
+          - update
+          - "NodeName={{ item }}"
+          - State=RESUME
+      loop: "{{ slurm_drained_nodes.stdout_lines | default([]) | map('trim') | select('match', slurm_node_name_pattern) | unique | list }}"
       changed_when: scontrol_node_resume.rc == 0
       failed_when: false
       register: scontrol_node_resume
       delegate_to: "{{ ctld }}"
       when:
         - ctld_state[ctld] | bool
+
+    - name: Warn about Slurm nodes that were not resumed
+      ansible.builtin.debug:
+        msg: "Slurm node(s) not resumed on {{ ctld }}: {{ (resume_failed + resume_rejected) | join(', ') }}"
+      vars:
+        resume_failed: >-
+          {{ scontrol_node_resume.results | default([]) | selectattr('rc', 'defined')
+          | rejectattr('rc', 'equalto', 0) | map(attribute='item') | list }}
+        resume_rejected: >-
+          {{ slurm_drained_nodes.stdout_lines | default([]) | map('trim')
+          | reject('match', slurm_node_name_pattern) | reject('equalto', '') | list }}
+      when:
+        - ctld_state[ctld] | bool
+        - (resume_failed + resume_rejected) | length > 0
 
   rescue:
     - name: Fail if slurmctld is not running on any host

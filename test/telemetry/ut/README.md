@@ -7,7 +7,7 @@ UT IDs use `TEL_UT_<SEQ>`: `TEL` is the stable Telemetry domain code, `UT` ident
 UT IDs also use `TEL_UT_CLEANUP_V<SEQ>` for cleanup sink tests: `TEL` is the stable Telemetry domain code, `UT` identifies the test level, `CLEANUP` identifies the subsystem, and `V<SEQ>` is a stable three-digit sequence.
 
 Every registered unit-test function has a stable ID in the range `TEL_UT_001`
-through `TEL_UT_056` and `TEL_UT_CLEANUP_V019` through `TEL_UT_CLEANUP_V062`. The centralized mapping is maintained in
+through `TEL_UT_077` and `TEL_UT_CLEANUP_V019` through `TEL_UT_CLEANUP_V062`. The centralized mapping is maintained in
 `library/vars/test_case_vars.py`; descriptive pytest function names remain
 unchanged.
 
@@ -20,6 +20,9 @@ unchanged.
 | `TEL_UT_040`–`TEL_UT_046` | `test_ome_lifecycle.py` | OME independent metrics/logs reconciliation, dependency validation, retained-state restore, isolation, and status contracts |
 | `TEL_UT_047`–`TEL_UT_049` | `test_kafka_topic_lifecycle.py` | Non-destructive topic-manifest cleanup, enabled-source application, and readiness gating |
 | `TEL_UT_050`–`TEL_UT_056` | `test_disabled_state_fvt.py` | Disabled workload detection, required shared-sink health, and PowerScale quiet-window probes |
+| `TEL_UT_062`–`TEL_UT_066` | `test_input_validation_fail_closed.py` | Telemetry `validate_input` fails closed on unknown or empty tags |
+| `TEL_UT_067` | `test_log_permissions.py` | Restricted Ansible log directory/file permissions (CWE-532) |
+| `TEL_UT_068`–`TEL_UT_077` | `test_idrac_bmc_inventory.py` | iDRAC MySQL ↔ `bmc_group_data.csv` parity (missing, stale, wrong-pod, duplicate rows), CSV parsing, safe lifecycle BMC selection, and MySQL-only node deletion |
 | `TEL_UT_CLEANUP_V019`–`TEL_UT_CLEANUP_V035` | `cleanup_sinks/test_cleanup_sinks_deps.py` | Cleanup sink dependency checking for Kafka, VictoriaMetrics, and VictoriaLogs |
 | `TEL_UT_CLEANUP_V036`–`TEL_UT_CLEANUP_V045` | `cleanup_sinks/test_cleanup_sinks_shortform.py` | Cleanup sink short-form parameter syntax and normalization |
 | `TEL_UT_CLEANUP_V046`–`TEL_UT_CLEANUP_V062` | `test_cleanup_sinks_parameter_normalization.py` | Parameter normalization logic for short-form sink arguments |
@@ -33,6 +36,9 @@ unchanged.
 | Sink Enablement | Direct source targets and Vector-OME/Vector-LDMS derived sink enablement | ut |
 | Cleanup Sinks | Cleanup sink dependency checking, short-form parameter syntax, and parameter normalization | ut |
 | Disabled-State FVT Helpers | Stopped workloads and required shared-sink health | ut |
+| Input Validation Fail-Closed | Unknown, mixed, and empty tag rejection | ut |
+| Credential Log Hygiene | Credential `no_log` coverage, fail-closed checker, and log permissions | ut |
+| iDRAC BMC Inventory | MySQL ↔ CSV parity, CSV parsing, lifecycle BMC selection, MySQL-only deletion | ut |
 
 ## Test Case Registry
 
@@ -130,6 +136,41 @@ unchanged.
 | TEL_UT_055 | PowerScale test event carries a unique marker | ut |
 | TEL_UT_056 | PowerScale VL query matches only its marker | ut |
 
+### Input Validation Fail-Closed (TEL_UT_062–TEL_UT_066)
+
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TEL_UT_062 | Unknown tag alone is rejected | ut |
+| TEL_UT_063 | Known tag with unknown tag is rejected | ut |
+| TEL_UT_064 | Empty tag list is rejected | ut |
+| TEL_UT_065 | Valid tag reaches file validation | ut |
+| TEL_UT_066 | Supported tags cover public and play tags | ut |
+
+### Ansible Log Permissions (TEL_UT_067)
+
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TEL_UT_067 | Ansible log dir/files are restricted | ut |
+
+The credential `no_log` checker (`.github/scripts/check_credential_no_log.py`)
+is CI tooling, so its tests live in `.github/scripts/tests/` and run in the
+`credential-no-log.yml` workflow, not in this suite.
+
+### iDRAC BMC Inventory (TEL_UT_068–TEL_UT_077)
+
+| TC ID | Test | Marker |
+|-------|------|--------|
+| TEL_UT_068 | Empty pod whose BMC is only "reported unsupported" passes with warning | ut |
+| TEL_UT_069 | CSV BMC missing from MySQL and not reported unsupported fails | ut |
+| TEL_UT_070 | BMC deleted from CSV but left in MySQL fails | ut |
+| TEL_UT_071 | BMC registered in the wrong pod fails | ut |
+| TEL_UT_072 | Zero registered BMCs fails even when all are reported unsupported | ut |
+| TEL_UT_073 | Duplicate rows, failed MySQL queries and non-running pods fail | ut |
+| TEL_UT_074 | CSV parser matches the deploy-time parser | ut |
+| TEL_UT_075 | idrac_nft_bmc_ip validation (in CSV, registered, keeps pod layout) | ut |
+| TEL_UT_076 | Node deletion only removes MySQL rows (no Redfish change) | ut |
+| TEL_UT_077 | idrac_nft_bmc_ip config parsing and IPv4 validation | ut |
+
 ### Cleanup Sinks Dependency Checking (TEL_UT_CLEANUP_V019–TEL_UT_CLEANUP_V035)
 
 | TC ID | Test | Marker |
@@ -187,16 +228,6 @@ unchanged.
 | TEL_UT_CLEANUP_V061 | Marker variable null default | ut |
 | TEL_UT_CLEANUP_V062 | Short-form detection logic | ut |
 
-### Input Validation Fail-Closed (TEL_UT_062–TEL_UT_066)
-
-| TC ID | Test | Marker |
-|-------|------|--------|
-| TEL_UT_062 | Unknown tag alone is rejected | ut |
-| TEL_UT_063 | Known tag with unknown tag is rejected | ut |
-| TEL_UT_064 | Empty tag list is rejected | ut |
-| TEL_UT_065 | Valid tag reaches file validation | ut |
-| TEL_UT_066 | Supported tags cover public and play tags | ut |
-
 ## Execution
 
 ```bash
@@ -212,6 +243,9 @@ pytest ut/test_sink_enablement.py -v
 pytest ut/cleanup_sinks/test_cleanup_sinks_deps.py -v
 pytest ut/cleanup_sinks/test_cleanup_sinks_shortform.py -v
 pytest ut/test_cleanup_sinks_parameter_normalization.py -v
+pytest ut/test_input_validation_fail_closed.py -v
+pytest ut/test_log_permissions.py -v
+pytest ut/test_idrac_bmc_inventory.py -v
 
 # Run with coverage
 pytest ut/ --cov=src/telemetry --cov-report=html
@@ -225,10 +259,10 @@ pytest ut/ -vv -s
 All UT tests should **PASS**:
 
 ```
-Total Tests:           117
-├─ Passed:             90 (77%)
+Total Tests:           128
+├─ Passed:            101 (79%)
 ├─ Failed:              0 (0%)
-└─ Skipped:            27 (23%) — Expected behavior (cleanup_sinks tests skip when no dependencies running)
+└─ Skipped:            27 (21%) — Expected behavior (cleanup_sinks tests skip when no dependencies running)
 
 OME Functions (TEL_UT_001–TEL_UT_022): 22/22 PASS
 OME Victoria (TEL_UT_023–TEL_UT_028): 6/6 PASS
@@ -238,6 +272,8 @@ OME Lifecycle (TEL_UT_040–TEL_UT_046): 7/7 PASS
 Kafka Topic Lifecycle (TEL_UT_047–TEL_UT_049): 3/3 PASS
 Disabled-State FVT Helpers (TEL_UT_050–TEL_UT_056): 7/7 PASS
 Input Validation Fail-Closed (TEL_UT_062–TEL_UT_066): 5/5 PASS
+Ansible Log Permissions (TEL_UT_067): 1/1 PASS
+iDRAC BMC Inventory (TEL_UT_068–TEL_UT_077): 10/10 PASS
 Cleanup Sinks Dependency Checking (TEL_UT_CLEANUP_V019–TEL_UT_CLEANUP_V035): 1/17 PASS (16 skipped - no dependencies running)
 Cleanup Sinks Short-Form Parameters (TEL_UT_CLEANUP_V036–TEL_UT_CLEANUP_V045): 0/9 PASS (9 skipped - no dependencies running)
 Cleanup Sinks Parameter Normalization (TEL_UT_CLEANUP_V046–TEL_UT_CLEANUP_V062): 17/17 PASS

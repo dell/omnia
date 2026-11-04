@@ -68,9 +68,13 @@
 - name: Cleanup passwords and credentials
   ansible.builtin.include_tasks: cleanup_credentials.yml
 
+# Always runs, whatever cleanup_credentials says: the registered client's
+# secret lives only in the GitLab project's CI variables, which this cleanup
+# deletes. A client kept in build_stream_credentials.yml can never be used
+# again and blocks the next pipeline's registration (409 max_clients_reached,
+# the API allows one client). The other credentials follow cleanup_credentials.
 - name: Cleanup build stream OAuth credentials on OIM
   ansible.builtin.include_tasks: cleanup_build_stream_oauth.yml
-  when: cleanup_credentials | default(true) | bool
 
 - name: Display cleanup summary and checklist
   ansible.builtin.include_tasks: cleanup_summary.yml
