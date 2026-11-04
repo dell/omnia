@@ -134,6 +134,7 @@ udp_ports:
   - 67      # CoreDHCP server
   - 68      # CoreDHCP client replies
   - 69      # TFTP for PXE boot
+  - 123     # NTP — cluster nodes sync time from the OIM
 
 # Podman bridge interfaces assigned to the dedicated "podman" zone.
 # These interfaces MUST NOT be placed in the "trusted" zone, which
@@ -219,3 +220,8 @@ cert_renewal_health_fail_msg: >-
   {{ openchami_cert_renewal_timer }}, and the certificate at
   {{ _openchami_haproxy_cert_path }}.
 image_pull_fail_msg: "Failed to pull OpenCHAMI image: {{ item.item }}. Error: {{ item.stderr }}"
+
+# NTP server configuration
+# The OIM serves as the NTP server (cluster_boot_ip) for all cluster nodes.
+# chrony_conf_path is the chrony configuration file on the OIM host.
+chrony_conf_path: /etc/chrony.conf
