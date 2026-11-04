@@ -1,6 +1,8 @@
 """Target-side path resolution for Build Stream automation."""
 
+import os
 from pathlib import PurePosixPath
+from typing import Any
 
 from omnia_auto import (
     read_remote_env,
@@ -66,4 +68,15 @@ def resolve_build_stream_input_path(host) -> str:
         DOMAIN_NAME,
         ENV_OMNIA_DATA_PATH,
         ENV_OMNIA_PROJECT_NAME,
+    )
+
+
+def is_safe_dataset_name(dataset: Any) -> bool:
+    """Return True for a plain dataset folder name (no path, traversal or NUL)."""
+    return (
+        isinstance(dataset, str)
+        and dataset not in {".", "..", "generator"}
+        and not os.path.isabs(dataset)
+        and os.path.basename(dataset) == dataset
+        and "\x00" not in dataset
     )

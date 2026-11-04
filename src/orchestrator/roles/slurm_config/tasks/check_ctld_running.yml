@@ -78,7 +78,7 @@
         ssh_max_parallel: "{{ bulk_ssh_max_parallel }}"
         ssh_connect_timeout: "{{ bulk_ssh_connect_timeout }}"
       register: bulk_update_result
-      when: not (dns_enabled | default(false) | bool)
+      when: not (dns_enabled | default(true) | bool)
 
     - name: Warn about failed hosts
       ansible.builtin.debug:

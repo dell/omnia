@@ -282,7 +282,7 @@
     language: >-
       {{ _orch_config.language | default('') }}
     dns_enabled: >-
-      {{ _orch_config.dns_enabled | default(false) | bool }}
+      {{ _orch_config.dns_enabled | default(true) | bool }}
     nvidia_driver_version_x86_64: >-
       {{ _configured_slurm_cluster.nvidia_driver_version_x86_64
          | default('580.159.04', true) }}
@@ -597,7 +597,7 @@
       service_k8s_support: {{ service_k8s_support | default(false) }}
       enable_powerscale_csi: {{ enable_powerscale_csi | default(false) }}
       openldap_support: {{ openldap_support | default(false) }}
-      dns_enabled: {{ dns_enabled | default(false) }}
+      dns_enabled: {{ dns_enabled | default(true) }}
       boot_kernel_params: {{ boot_kernel_params | default('') | to_json }}
       cluster_os_type: "{{ cluster_os_type | default('') }}"
       cluster_os_version: "{{ cluster_os_version | default('') }}"

@@ -181,12 +181,6 @@ telemetry_report: |
         - {{ item }}
       {% endfor %}
       {% endif %}
-      {% if disabled_telemetry_ips is defined and disabled_telemetry_ips | length > 0 %}
-      IPs with telemetry disabled via Redfish:
-      {% for item in disabled_telemetry_ips %}
-        - {{ item }}
-      {% endfor %}
-      {% endif %}
 
 # Error messages
 mysqldb_insert_fail_msg: |
@@ -223,9 +217,6 @@ no_idracips_to_remove_msg: "No iDRAC IPs to remove. All DB entries are present i
 idrac_telemetry_statefulset_restart_failure_msg: |
   Failed to restart the {{ idrac_telemetry_k8s_name }} StatefulSet.
   Please check the logs using the command kubectl logs -n {{ telemetry_namespace }} {{ idrac_telemetry_k8s_name }}-<pod-index> and try again.
-
-# Remove deleted nodes
-redfish_timeout: 30
 
 # Disable-specific messages
 idrac_telemetry_statefulset_scale_down_msg: "Scaling down iDRAC telemetry StatefulSet to 0 replicas"

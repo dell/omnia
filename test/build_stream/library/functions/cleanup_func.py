@@ -20,1146 +20,376 @@ Checks that containers, services, directories, credentials, and
 volumes are properly removed after running cleanup playbooks.
 """
 
-import shlex
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-from omnia_auto import run_on_host
+from omnia_auto import read_remote_yaml
 
 from library.cleanup_inspection import (
-    INSPECTION_ERROR,
     PATH_ABSENT,
     PATH_EXISTS,
     classify_path_probe,
     is_expected_disabled_state,
     is_expected_stopped_state,
 )
+# GitLab cleanup checks live in gitlab_cleanup_func; they are re-exported
+# here so existing ``cleanup_func`` imports keep working.
+from library.functions.gitlab_cleanup_func import (
+    check_gitlab_directories_removed,
+    check_gitlab_packages_removed,
+    check_gitlab_port_free,
+    check_gitlab_runner_container_removed,
+    check_gitlab_runner_quadlet_removed,
+    check_gitlab_runner_services_stopped,
+    check_gitlab_services_stopped,
+    check_gitlab_url_not_accessible,
+)
+from library.functions.probe_func import Probe, port_closed, run_cmd, summarize_probes
+from library.vars.common_vars import (
+    BSM_CONTAINER_NAME,
+    BSM_PORT_KEY,
+    BUILD_STREAM_CONFIG_FILE,
+    BUILDSTREAM_CLEANUP_DIRECTORIES,
+    BUILDSTREAM_HOST_LOG_DIRECTORY,
+    BUILDSTREAM_WATCHER_SOURCE,
+    PLAYBOOK_WATCHER_SERVICE_FILE,
+    PLAYBOOK_WATCHER_SERVICE_NAME,
+    POSTGRES_CONTAINER_NAME,
+    POSTGRES_DATA_DIR,
+    QUADLET_DIR,
+)
+
 from ._config_helpers import (
     resolve_build_stream_data_path,
     resolve_build_stream_input_path,
 )
 
-from library.vars.common_vars import (
-    BSM_CONTAINER_NAME,
-    BUILDSTREAM_CREDENTIAL_FILES,
-    BUILDSTREAM_OAUTH_CREDENTIAL_FILES,
-    CMDS,
-    GITLAB_CLEANUP_DIRECTORIES,
-    GITLAB_INSTALLED_PACKAGES,
-    GITLAB_RUNNER_CONTAINER,
-    GITLAB_RUNNER_QUADLET_DIR,
-    GITLAB_RUNNER_QUADLET_FILE,
-    GITLAB_RUNNER_SERVICES,
-    GITLAB_SERVICES,
-    PLAYBOOK_WATCHER_SERVICE_FILE,
-    PLAYBOOK_WATCHER_SERVICE_NAME,
-    POSTGRES_CONTAINER_NAME,
-    QUADLET_DIR,
-)
-from library.functions.gitlab_func import _get_gitlab_config, _ssh_to_gitlab
-
-
-# =========================================================================
-# SECTION C: GitLab Cleanup Verification
-# =========================================================================
-
-def check_gitlab_packages_removed(host) -> Dict[str, Any]:
-    """Verify GitLab packages are removed from the GitLab server.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, removed, still_installed, details, error.
-    """
-    result = {
-        "success": False,
-        "removed": [],
-        "still_installed": [],
-        "details": "",
-        "error": "",
-    }
-
-    for pkg in GITLAB_INSTALLED_PACKAGES:
-        ssh_result = _ssh_to_gitlab(
-            host,
-            CMDS["rpm_check"].format(package=pkg),
-        )
-        if ssh_result["success"] and pkg in ssh_result.get("stdout", ""):
-            result["still_installed"].append(pkg)
-        else:
-            result["removed"].append(pkg)
-
-    result["success"] = len(result["still_installed"]) == 0
-    result["details"] = (
-        f"Removed: {', '.join(result['removed']) or 'none'}"
-    )
-    if result["still_installed"]:
-        result["error"] = (
-            f"Still installed: {', '.join(result['still_installed'])}"
-        )
-    return result
-
-
-def check_gitlab_runner_container_removed(host) -> Dict[str, Any]:
-    """Verify gitlab-runner container is removed from the GitLab server.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, details, error.
-    """
-    cmd = (
-        'podman ps -a --format "{{.Names}}" 2>/dev/null || true'
-    )
-    ssh_result = _ssh_to_gitlab(host, cmd)
-
-    if not ssh_result["success"]:
-        return {
-            "success": True,
-            "details": (
-                "Cannot SSH to GitLab (expected if server removed)"
-            ),
-            "error": "",
-        }
-
-    stdout = ssh_result.get("stdout", "")
-    if GITLAB_RUNNER_CONTAINER in stdout:
-        return {
-            "success": False,
-            "details": "",
-            "error": (
-                f"Container {GITLAB_RUNNER_CONTAINER} still exists"
-            ),
-        }
-    return {
-        "success": True,
-        "details": f"Container {GITLAB_RUNNER_CONTAINER} removed",
-        "error": "",
-    }
-
-
-def check_gitlab_runner_quadlet_removed(host) -> Dict[str, Any]:
-    """Verify gitlab-runner quadlet file is removed.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, path, details, error.
-    """
-    quadlet_path = (
-        f"{GITLAB_RUNNER_QUADLET_DIR}/{GITLAB_RUNNER_QUADLET_FILE}"
-    )
-    ssh_result = _ssh_to_gitlab(
-        host,
-        f"test -f {quadlet_path} && echo EXISTS || echo NOT_FOUND",
-    )
-
-    if not ssh_result["success"]:
-        return {
-            "success": True,
-            "path": quadlet_path,
-            "details": "Cannot SSH (expected if server removed)",
-            "error": "",
-        }
-
-    if "EXISTS" in ssh_result.get("stdout", ""):
-        return {
-            "success": False,
-            "path": quadlet_path,
-            "details": "",
-            "error": f"Quadlet still exists: {quadlet_path}",
-        }
-    return {
-        "success": True,
-        "path": quadlet_path,
-        "details": f"Quadlet removed: {quadlet_path}",
-        "error": "",
-    }
-
-
-def check_gitlab_runner_services_stopped(host) -> Dict[str, Any]:
-    """Verify GitLab runner services are stopped after cleanup.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, results, details, error.
-    """
-    result = {
-        "success": False,
-        "results": [],
-        "details": "",
-        "error": "",
-    }
-
-    still_active = []
-    stopped = []
-
-    for svc in GITLAB_RUNNER_SERVICES:
-        svc_name = svc["name"]
-        ssh_result = _ssh_to_gitlab(
-            host,
-            CMDS["systemctl_is_active"].format(service=svc_name),
-        )
-        status = ssh_result["stdout"].strip() if ssh_result["success"] else "inactive"
-        is_active = status == "active"
-
-        result["results"].append({
-            "name": svc_name,
-            "status": status,
-            "is_active": is_active,
-        })
-
-        if is_active:
-            still_active.append(svc_name)
-        else:
-            stopped.append(svc_name)
-
-    result["success"] = len(still_active) == 0
-    result["details"] = (
-        f"Stopped: {len(stopped)}/{len(GITLAB_RUNNER_SERVICES)}"
-    )
-    if still_active:
-        result["error"] = (
-            f"Still active: {', '.join(still_active)}"
-        )
-    return result
-
-
-def check_gitlab_url_not_accessible(host) -> Dict[str, Any]:
-    """Verify GitLab URL is NOT accessible after cleanup.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, url, http_code, details, error.
-    """
-    gitlab_config = _get_gitlab_config(host)
-    gitlab_host = gitlab_config.get("gitlab_host", "")
-    gitlab_port = gitlab_config.get("gitlab_https_port", "443")
-
-    result = {
-        "success": False,
-        "url": "",
-        "http_code": 0,
-        "details": "",
-        "error": "",
-    }
-
-    if not gitlab_host:
-        result["success"] = True
-        result["details"] = "gitlab_host not set (cleanup complete)"
-        return result
-
-    url = f"https://{gitlab_host}:{gitlab_port}/"
-    result["url"] = url
-
-    cmd = CMDS["curl_gitlab_url"].format(
-        host=gitlab_host, port=gitlab_port,
-    )
-    cmd_result = run_on_host(host, cmd)
-
-    http_code_str = cmd_result.stdout.strip() if cmd_result.stdout else "0"
-    try:
-        result["http_code"] = int(http_code_str)
-    except ValueError:
-        result["http_code"] = 0
-
-    # After cleanup, URL should NOT return 200 or 302
-    if result["http_code"] in (200, 302):
-        result["error"] = (
-            f"GitLab still accessible: HTTP {result['http_code']} "
-            f"from {url}"
-        )
-    else:
-        result["success"] = True
-        result["details"] = (
-            f"GitLab not accessible (HTTP {result['http_code']})"
-        )
-    return result
-
-
-def check_gitlab_directories_removed(host) -> Dict[str, Any]:
-    """Verify GitLab directories are removed from the GitLab server.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, removed, still_exist, details, error.
-    """
-    result = {
-        "success": False,
-        "removed": [],
-        "still_exist": [],
-        "details": "",
-        "error": "",
-    }
-
-    for dir_path in GITLAB_CLEANUP_DIRECTORIES:
-        ssh_result = _ssh_to_gitlab(
-            host,
-            CMDS["dir_exists"].format(path=dir_path),
-        )
-        if ssh_result["success"] and "exists" in ssh_result.get("stdout", ""):
-            result["still_exist"].append(dir_path)
-        else:
-            result["removed"].append(dir_path)
-
-    total = len(GITLAB_CLEANUP_DIRECTORIES)
-    result["success"] = len(result["still_exist"]) == 0
-    result["details"] = (
-        f"Removed: {len(result['removed'])}/{total}"
-    )
-    if result["still_exist"]:
-        result["error"] = (
-            f"Still exist: {', '.join(result['still_exist'])}"
-        )
-    return result
-
-
-def check_gitlab_services_stopped(host) -> Dict[str, Any]:
-    """Verify all GitLab services are stopped via gitlab-ctl status.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, still_running, details, error.
-    """
-    result = {
-        "success": False,
-        "still_running": [],
-        "details": "",
-        "error": "",
-    }
-
-    ssh_result = _ssh_to_gitlab(host, "gitlab-ctl status 2>/dev/null")
-    if not ssh_result["success"]:
-        result["success"] = True
-        result["details"] = (
-            "gitlab-ctl not available (expected after uninstall)"
-        )
-        return result
-
-    output = ssh_result.get("stdout", "")
-    if not output.strip():
-        result["success"] = True
-        result["details"] = "No GitLab services found"
-        return result
-
-    for service in GITLAB_SERVICES:
-        for line in output.split("\n"):
-            if service in line and line.startswith("run:"):
-                result["still_running"].append(service)
-                break
-
-    result["success"] = len(result["still_running"]) == 0
-    if result["still_running"]:
-        result["details"] = (
-            f"Still running: {', '.join(result['still_running'])}"
-        )
-        result["error"] = result["details"]
-    else:
-        result["details"] = "All GitLab services stopped"
-    return result
-
-
-def check_gitlab_port_free(host) -> Dict[str, Any]:
-    """Verify GitLab HTTPS port is free after cleanup.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, port, details, error.
-    """
-    gitlab_config = _get_gitlab_config(host)
-    gitlab_port = gitlab_config.get("gitlab_https_port", "443")
-
-    ssh_result = _ssh_to_gitlab(
-        host,
-        CMDS["ss_port_check"].format(port=gitlab_port),
-    )
-
-    if not ssh_result["success"]:
-        return {
-            "success": True,
-            "port": gitlab_port,
-            "details": "Cannot SSH (expected if server removed)",
-            "error": "",
-        }
-
-    output = ssh_result.get("stdout", "").strip()
-    if output:
-        return {
-            "success": False,
-            "port": gitlab_port,
-            "details": "",
-            "error": f"Port {gitlab_port} still in use: {output}",
-        }
-    return {
-        "success": True,
-        "port": gitlab_port,
-        "details": f"Port {gitlab_port} is free",
-        "error": "",
-    }
+__all__ = [
+    "check_buildstream_api_port_closed",
+    "check_buildstream_container_removed",
+    "check_buildstream_container_stopped",
+    "check_buildstream_directories_removed",
+    "check_buildstream_quadlet_files_removed",
+    "check_buildstream_runtime_caches_removed",
+    "check_buildstream_services_stopped",
+    "check_credentials_per_flag",
+    "check_gitlab_directories_removed",
+    "check_gitlab_packages_removed",
+    "check_gitlab_port_free",
+    "check_gitlab_runner_container_removed",
+    "check_gitlab_runner_quadlet_removed",
+    "check_gitlab_runner_services_stopped",
+    "check_gitlab_services_stopped",
+    "check_gitlab_url_not_accessible",
+    "check_playbook_watcher_service_disabled",
+    "check_playbook_watcher_service_file_removed",
+    "check_playbook_watcher_service_stopped",
+    "check_postgres_container_removed",
+    "check_postgres_container_stopped",
+    "check_postgres_data_per_backup",
+    "check_postgres_quadlet_files_removed",
+    "check_postgres_services_stopped",
+]
 
 
 # =========================================================================
 # SECTION C.1: BuildStream Domain Cleanup Verification
 # =========================================================================
 
-def _check_container_removed(
-    host, container: str
-) -> Dict[str, Any]:
-    """Check that a container does not exist (stopped and removed).
-
-    Args:
-        host: Testinfra host connection.
-        container: Container name to check.
-
-    Returns:
-        Dict with keys: success, container, status, details, error.
-    """
-    cmd = CMDS["podman_container_exists"].format(container=container)
-    cmd_result = run_on_host(host, cmd)
-
-    stdout = cmd_result.stdout.strip() if cmd_result.stdout else ""
-    if container in stdout:
-        # Get status
-        status_cmd = CMDS["podman_ps_all"].format(container=container)
-        status_result = run_on_host(host, status_cmd)
-        status = status_result.stdout.strip() if status_result.stdout else "exists"
-        return {
-            "success": False,
-            "container": container,
-            "status": status,
-            "details": "",
-            "error": f"{container} still exists: {status}",
-        }
-    return {
-        "success": True,
-        "container": container,
-        "status": "removed",
-        "details": f"{container} not found (removed)",
-        "error": "",
-    }
+def container_probes(host, container: str, removed: bool) -> List[Probe]:
+    """Probe that ``container`` is not running (and, when ``removed``, absent)."""
+    listing = run_cmd(host, "podman_ps_all", container=container)
+    if listing.rc != 0:
+        return [(f"Container {container}", f"INSPECTION FAILED (rc={listing.rc})", False)]
+    status = listing.stdout.strip().partition(" ")[2]
+    if not status:
+        return [(f"Container {container}", "removed", True)]
+    running = status.startswith("Up")
+    if removed:
+        return [(f"Container {container}", f"STILL EXISTS ({status})", False)]
+    return [(f"Container {container}", f"STILL RUNNING ({status})" if running
+             else f"stopped ({status})", not running)]
 
 
-def _check_container_not_running(
-    host, container: str
-) -> Dict[str, Any]:
-    """Check that a container is NOT running (stopped).
+def _quadlet_probes(host, container: str) -> List[Probe]:
+    """Probe that the quadlet unit of ``container`` and every related file are gone."""
+    expected = f"{QUADLET_DIR}/{container}.container"
+    found = run_cmd(host, "quadlet_files", dir=QUADLET_DIR, pattern=f"{container}*")
+    if found.rc != 0:
+        return [(f"Quadlet files {QUADLET_DIR}/{container}*",
+                 f"INSPECTION FAILED (rc={found.rc})", False)]
+    paths = sorted({expected, *found.stdout.split()})
+    remaining = set(found.stdout.split())
+    return [(f"Quadlet {path}", "STILL EXISTS" if path in remaining else "removed",
+             path not in remaining) for path in paths]
 
-    Args:
-        host: Testinfra host connection.
-        container: Container name to check.
 
-    Returns:
-        Dict with keys: success, container, status, details, error.
-    """
-    cmd = CMDS["podman_ps_check"].format(container=container)
-    cmd_result = run_on_host(host, cmd)
+def unit_stopped(host, unit: str) -> Probe:
+    """Probe that systemd reports ``unit`` stopped or unknown (unit file removed)."""
+    state = run_cmd(host, "systemctl_is_active", service=unit)
+    status = state.stdout.strip() or "unknown"
+    if status == "active":
+        return f"Unit {unit}", "STILL ACTIVE", False
+    if is_expected_stopped_state(state.rc, status):
+        return f"Unit {unit}", status, True
+    return f"Unit {unit}", f"INSPECTION FAILED (rc={state.rc}, status={status})", False
 
-    stdout = cmd_result.stdout.strip() if cmd_result.stdout else ""
-    if container in stdout:
-        return {
-            "success": False,
-            "container": container,
-            "status": stdout,
-            "details": "",
-            "error": f"{container} is still running: {stdout}",
-        }
-    return {
-        "success": True,
-        "container": container,
-        "status": "stopped",
-        "details": f"{container} is not running",
-        "error": "",
-    }
+
+def _service_probes(host, container: str) -> List[Probe]:
+    """Probe every systemd service of ``container`` (the quadlet one and any other)."""
+    listing = run_cmd(host, "service_units", pattern=f"{container}*")
+    units = {line.split()[0] for line in listing.stdout.splitlines() if line.strip()}
+    return [unit_stopped(host, unit) for unit in sorted({f"{container}.service", *units})]
+
+
+def directory_removed(host, path: str) -> Probe:
+    """Probe that the directory ``path`` was removed."""
+    probe = run_cmd(host, "dir_exists", path=path)
+    state = classify_path_probe(probe.rc, probe.stdout)
+    if state == PATH_EXISTS:
+        return f"Directory {path}", "STILL EXISTS", False
+    if state == PATH_ABSENT:
+        return f"Directory {path}", "removed", True
+    return f"Directory {path}", f"INSPECTION FAILED (rc={probe.rc})", False
 
 
 def check_buildstream_container_stopped(host) -> Dict[str, Any]:
-    """Verify omnia_build_stream container is stopped.
-
-    Args:
-        host: Testinfra host connection.
+    """Verify the omnia_build_stream container is not running.
 
     Returns:
-        Dict with keys: success, container, status, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    return _check_container_not_running(host, BSM_CONTAINER_NAME)
+    return summarize_probes("bsm_container", container_probes(host, BSM_CONTAINER_NAME, False))
 
 
 def check_buildstream_container_removed(host) -> Dict[str, Any]:
-    """Verify omnia_build_stream container is removed.
-
-    Args:
-        host: Testinfra host connection.
+    """Verify the omnia_build_stream container is removed.
 
     Returns:
-        Dict with keys: success, container, status, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    return _check_container_removed(host, BSM_CONTAINER_NAME)
+    return summarize_probes("bsm_container", container_probes(host, BSM_CONTAINER_NAME, True))
 
 
 def check_buildstream_quadlet_files_removed(host) -> Dict[str, Any]:
-    """Verify omnia_build_stream quadlet files are removed.
-
-    Args:
-        host: Testinfra host connection.
+    """Verify every omnia_build_stream quadlet file is removed (one line per file).
 
     Returns:
-        Dict with keys: success, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    cmd = CMDS["find_quadlet_files"].format(
-        dir=QUADLET_DIR, pattern="omnia_build_stream",
-    )
-    cmd_result = run_on_host(host, cmd)
-    found = cmd_result.stdout.strip() if cmd_result.stdout else ""
-
-    if found:
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Quadlet files still exist: {found}",
-        }
-    return {
-        "success": True,
-        "details": "No omnia_build_stream quadlet files found",
-        "error": "",
-    }
+    return summarize_probes("bsm_quadlets", _quadlet_probes(host, BSM_CONTAINER_NAME))
 
 
 def check_buildstream_services_stopped(host) -> Dict[str, Any]:
-    """Verify all omnia_build_stream systemd services are stopped.
-
-    Args:
-        host: Testinfra host connection.
+    """Verify every omnia_build_stream systemd service is stopped (one line per unit).
 
     Returns:
-        Dict with keys: success, still_active, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    cmd = CMDS["systemctl_list_units"].format(
-        pattern="omnia_build_stream",
-    )
-    cmd_result = run_on_host(host, cmd)
-    output = cmd_result.stdout.strip() if cmd_result.stdout else ""
-
-    still_active = []
-    if output:
-        for line in output.split("\n"):
-            if "active" in line and "inactive" not in line:
-                svc_name = line.strip().split()[0]
-                still_active.append(svc_name)
-
-    if still_active:
-        return {
-            "success": False,
-            "still_active": still_active,
-            "details": "",
-            "error": (
-                f"Services still active: {', '.join(still_active)}"
-            ),
-        }
-    return {
-        "success": True,
-        "still_active": [],
-        "details": "No active omnia_build_stream services",
-        "error": "",
-    }
+    return summarize_probes("bsm_services", _service_probes(host, BSM_CONTAINER_NAME))
 
 
 def check_playbook_watcher_service_stopped(host) -> Dict[str, Any]:
-    """Verify playbook-watcher service is stopped.
+    """Verify playbook-watcher.service is stopped.
 
-    Args:
-        host: Testinfra host connection.
+    systemctl reports ``inactive`` (rc 3) while the unit file exists and
+    ``inactive``/``unknown`` (rc 4) once cleanup removed it; both pass.
 
     Returns:
-        Dict with keys: success, status, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    cmd = CMDS["systemctl_is_active"].format(
-        service=PLAYBOOK_WATCHER_SERVICE_NAME,
-    )
-    cmd_result = run_on_host(host, cmd)
-    status = cmd_result.stdout.strip() if cmd_result.stdout else "unknown"
-
-    if cmd_result.rc == 0 and status == "active":
-        return {
-            "success": False,
-            "status": status,
-            "details": "",
-            "error": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: still active",
-        }
-
-    if is_expected_stopped_state(cmd_result.rc, status):
-        return {
-            "success": True,
-            "status": status,
-            "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
-            "error": "",
-        }
-
-    return {
-        "success": False,
-        "status": status,
-        "details": "",
-        "error": (
-            f"Unable to verify {PLAYBOOK_WATCHER_SERVICE_NAME} is stopped "
-            f"(rc={cmd_result.rc}, status={status})"
-        ),
-    }
+    return summarize_probes("watcher", [unit_stopped(host, PLAYBOOK_WATCHER_SERVICE_NAME)])
 
 
 def check_playbook_watcher_service_disabled(host) -> Dict[str, Any]:
-    """Verify playbook-watcher service is disabled.
+    """Verify playbook-watcher.service is no longer enabled at boot.
 
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, status, details, error.
-    """
-    cmd = CMDS["systemctl_is_enabled"].format(
-        service=PLAYBOOK_WATCHER_SERVICE_NAME,
-    )
-    cmd_result = run_on_host(host, cmd)
-    status = cmd_result.stdout.strip() if cmd_result.stdout else "unknown"
-
-    if cmd_result.rc == 0 and status == "enabled":
-        return {
-            "success": False,
-            "status": status,
-            "details": "",
-            "error": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: still enabled",
-        }
-
-    if is_expected_disabled_state(cmd_result.rc, status):
-        return {
-            "success": True,
-            "status": status,
-            "details": f"{PLAYBOOK_WATCHER_SERVICE_NAME}: {status}",
-            "error": "",
-        }
-
-    return {
-        "success": False,
-        "status": status,
-        "details": "",
-        "error": (
-            f"Unable to verify {PLAYBOOK_WATCHER_SERVICE_NAME} is disabled "
-            f"(rc={cmd_result.rc}, status={status})"
-        ),
-    }
-
-
-def check_playbook_watcher_service_file_removed(
-    host,
-) -> Dict[str, Any]:
-    """Verify playbook-watcher.service unit file is removed.
-
-    Args:
-        host: Testinfra host connection.
+    ``systemctl is-enabled`` reports ``disabled`` (rc 1) while the unit file
+    exists and ``not-found`` (rc 1 or 4, by systemd version) once cleanup
+    removed it; both pass. ``enabled`` fails.
 
     Returns:
-        Dict with keys: success, path, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    cmd = CMDS["file_exists"].format(path=PLAYBOOK_WATCHER_SERVICE_FILE)
-    cmd_result = run_on_host(host, cmd)
+    state = run_cmd(host, "systemctl_is_enabled", service=PLAYBOOK_WATCHER_SERVICE_NAME)
+    status = state.stdout.strip() or "unknown"
+    label = f"Unit {PLAYBOOK_WATCHER_SERVICE_NAME}"
+    if status == "enabled":
+        probe = (label, "STILL ENABLED", False)
+    elif is_expected_disabled_state(state.rc, status):
+        probe = (label, status, True)
+    else:
+        probe = (label, f"INSPECTION FAILED (rc={state.rc}, status={status})", False)
+    return summarize_probes("watcher_disabled", [probe])
 
-    output = cmd_result.stdout.strip() if cmd_result.stdout else ""
-    path_state = classify_path_probe(cmd_result.rc, output)
-    if path_state == PATH_EXISTS:
-        return {
-            "success": False,
-            "path": PLAYBOOK_WATCHER_SERVICE_FILE,
-            "details": "",
-            "error": (
-                f"Service file still exists: "
-                f"{PLAYBOOK_WATCHER_SERVICE_FILE}"
-            ),
-        }
-    if path_state == PATH_ABSENT:
-        return {
-            "success": True,
-            "path": PLAYBOOK_WATCHER_SERVICE_FILE,
-            "details": (
-                f"Service file removed: {PLAYBOOK_WATCHER_SERVICE_FILE}"
-            ),
-            "error": "",
-        }
-    return {
-        "success": False,
-        "path": PLAYBOOK_WATCHER_SERVICE_FILE,
-        "details": "",
-        "error": (
-            "Unable to inspect playbook-watcher service file "
-            f"(rc={cmd_result.rc}, output={output or 'empty'})"
-        ),
-    }
+
+def check_playbook_watcher_service_file_removed(host) -> Dict[str, Any]:
+    """Verify the playbook-watcher.service unit file is removed.
+
+    Returns:
+        Dict with keys: name, success, fields, failures, error.
+    """
+    probe = run_cmd(host, "file_exists", path=PLAYBOOK_WATCHER_SERVICE_FILE)
+    state = classify_path_probe(probe.rc, probe.stdout)
+    status = {PATH_EXISTS: "STILL EXISTS", PATH_ABSENT: "removed"}.get(
+        state, f"INSPECTION FAILED (rc={probe.rc})")
+    return summarize_probes("watcher_unit_file", [
+        (f"Unit file {PLAYBOOK_WATCHER_SERVICE_FILE}", status, state == PATH_ABSENT)])
 
 
 def check_postgres_container_stopped(host) -> Dict[str, Any]:
-    """Verify omnia_postgres container is stopped.
-
-    Args:
-        host: Testinfra host connection.
+    """Verify the omnia_postgres container is not running.
 
     Returns:
-        Dict with keys: success, container, status, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    return _check_container_not_running(host, POSTGRES_CONTAINER_NAME)
+    return summarize_probes("postgres_container",
+                            container_probes(host, POSTGRES_CONTAINER_NAME, False))
 
 
 def check_postgres_container_removed(host) -> Dict[str, Any]:
-    """Verify omnia_postgres container is removed.
-
-    Args:
-        host: Testinfra host connection.
+    """Verify the omnia_postgres container is removed.
 
     Returns:
-        Dict with keys: success, container, status, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    return _check_container_removed(host, POSTGRES_CONTAINER_NAME)
+    return summarize_probes("postgres_container",
+                            container_probes(host, POSTGRES_CONTAINER_NAME, True))
 
 
 def check_postgres_quadlet_files_removed(host) -> Dict[str, Any]:
-    """Verify omnia_postgres quadlet files are removed.
-
-    Args:
-        host: Testinfra host connection.
+    """Verify every omnia_postgres quadlet file is removed (one line per file).
 
     Returns:
-        Dict with keys: success, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    cmd = CMDS["find_quadlet_files"].format(
-        dir=QUADLET_DIR, pattern="omnia_postgres",
-    )
-    cmd_result = run_on_host(host, cmd)
-    found = cmd_result.stdout.strip() if cmd_result.stdout else ""
-
-    if found:
-        return {
-            "success": False,
-            "details": "",
-            "error": f"Quadlet files still exist: {found}",
-        }
-    return {
-        "success": True,
-        "details": "No omnia_postgres quadlet files found",
-        "error": "",
-    }
+    return summarize_probes("postgres_quadlets", _quadlet_probes(host, POSTGRES_CONTAINER_NAME))
 
 
 def check_postgres_services_stopped(host) -> Dict[str, Any]:
-    """Verify all omnia_postgres systemd services are stopped.
-
-    Args:
-        host: Testinfra host connection.
+    """Verify every omnia_postgres systemd service is stopped (one line per unit).
 
     Returns:
-        Dict with keys: success, still_active, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    cmd = CMDS["systemctl_list_units"].format(
-        pattern="omnia_postgres",
-    )
-    cmd_result = run_on_host(host, cmd)
-    output = cmd_result.stdout.strip() if cmd_result.stdout else ""
-
-    still_active = []
-    if output:
-        for line in output.split("\n"):
-            if "active" in line and "inactive" not in line:
-                svc_name = line.strip().split()[0]
-                still_active.append(svc_name)
-
-    if still_active:
-        return {
-            "success": False,
-            "still_active": still_active,
-            "details": "",
-            "error": (
-                f"Services still active: {', '.join(still_active)}"
-            ),
-        }
-    return {
-        "success": True,
-        "still_active": [],
-        "details": "No active omnia_postgres services",
-        "error": "",
-    }
-
-
-def check_image_groups_marked_cleaned(host) -> Dict[str, Any]:
-    """Verify all image_groups records are updated to CLEANED status.
-
-    If Postgres is not running (expected after cleanup), this test
-    is skipped as the cleanup already handled it.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, skipped, details, error.
-    """
-    # Check if postgres container is running first
-    ps_cmd = CMDS["podman_ps_check"].format(
-        container=POSTGRES_CONTAINER_NAME,
-    )
-    ps_result = run_on_host(host, ps_cmd)
-
-    if POSTGRES_CONTAINER_NAME not in (ps_result.stdout or ""):
-        return {
-            "success": True,
-            "skipped": True,
-            "details": (
-                "Postgres not running (expected after cleanup). "
-                "image_groups were marked CLEANED before container "
-                "removal."
-            ),
-            "error": "",
-        }
-
-    # If postgres is still running, check the actual records
-    cmd = (
-        f"podman exec {POSTGRES_CONTAINER_NAME} psql -U admin"
-        f" -d build_stream_db -t -c"
-        f" \"SELECT COUNT(*) FROM image_groups"
-        f" WHERE status != 'CLEANED'\" 2>/dev/null"
-    )
-    cmd_result = run_on_host(host, cmd)
-
-    if cmd_result.rc != 0:
-        return {
-            "success": True,
-            "skipped": True,
-            "details": "Cannot query database (expected after cleanup)",
-            "error": "",
-        }
-
-    count = cmd_result.stdout.strip()
-    try:
-        non_cleaned = int(count)
-    except ValueError:
-        return {
-            "success": True,
-            "skipped": True,
-            "details": f"Unexpected query result: {count}",
-            "error": "",
-        }
-
-    if non_cleaned > 0:
-        return {
-            "success": False,
-            "skipped": False,
-            "details": "",
-            "error": (
-                f"{non_cleaned} image_groups not marked CLEANED"
-            ),
-        }
-    return {
-        "success": True,
-        "skipped": False,
-        "details": "All image_groups marked CLEANED",
-        "error": "",
-    }
-
-
-def check_postgres_volumes_removed(host) -> Dict[str, Any]:
-    """Verify Postgres volumes are removed (when postgres_backup=false).
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, volumes, details, error.
-    """
-    cmd = CMDS["podman_volume_ls"].format(pattern="postgres")
-    cmd_result = run_on_host(host, cmd)
-    volumes = cmd_result.stdout.strip() if cmd_result.stdout else ""
-
-    if volumes:
-        vol_list = [v.strip() for v in volumes.split("\n") if v.strip()]
-        return {
-            "success": False,
-            "volumes": vol_list,
-            "details": "",
-            "error": (
-                f"Postgres volumes still exist: "
-                f"{', '.join(vol_list)}"
-            ),
-        }
-    return {
-        "success": True,
-        "volumes": [],
-        "details": "No Postgres volumes found",
-        "error": "",
-    }
-
-
-def check_postgres_volumes_preserved(host) -> Dict[str, Any]:
-    """Verify Postgres volumes are preserved (when postgres_backup=true).
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, volumes, details, error.
-    """
-    data_path = resolve_build_stream_data_path(host)
-    omnia_path = data_path.rsplit("/build_stream", 1)[0]
-    postgres_dir = f"{omnia_path}/postgres"
-
-    cmd = CMDS["dir_exists"].format(path=postgres_dir)
-    cmd_result = run_on_host(host, cmd)
-
-    if cmd_result.stdout.strip() == "exists":
-        return {
-            "success": True,
-            "volumes": [postgres_dir],
-            "details": f"Postgres directory preserved: {postgres_dir}",
-            "error": "",
-        }
-    return {
-        "success": False,
-        "volumes": [],
-        "details": "",
-        "error": (
-            f"Postgres directory NOT preserved: {postgres_dir}. "
-            f"Expected to be retained with postgres_backup=true."
-        ),
-    }
+    return summarize_probes("postgres_services", _service_probes(host, POSTGRES_CONTAINER_NAME))
 
 
 def check_buildstream_directories_removed(host) -> Dict[str, Any]:
-    """Verify build_stream cleanup directories are removed.
+    """Verify every BuildStream runtime directory is removed (one line per directory).
 
-    Args:
-        host: Testinfra host connection.
+    The list matches build_stream_cleanup_directory and
+    build_stream_host_log_directory of the cleanup_build_stream role.
 
     Returns:
-        Dict with keys: success, removed, still_exist, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    data_path = resolve_build_stream_data_path(host)
-    omnia_path = data_path.rsplit("/build_stream", 1)[0]
-
-    # Build dynamic list based on config
-    dirs = [
-        f"{omnia_path}/build_stream/log",
-        f"{omnia_path}/build_stream/logs",
-        f"{omnia_path}/build_stream/output",
-        f"{omnia_path}/build_stream/playbook_queue",
-        f"{omnia_path}/playbook_queue",
-        f"{omnia_path}/log/build_stream",
-        f"{omnia_path}/build_stream_ssl",
-        f"{omnia_path}/build_stream_root",
-        f"{omnia_path}/build_stream_inv",
-        f"{omnia_path}/build_stream_enabled",
-        "/var/log/omnia/build_stream",
-    ]
-
-    result = {
-        "success": False,
-        "removed": [],
-        "still_exist": [],
-        "inspection_errors": [],
-        "details": "",
-        "error": "",
-    }
-
-    for dir_path in dirs:
-        cmd = CMDS["dir_exists"].format(path=dir_path)
-        cmd_result = run_on_host(host, cmd)
-        output = cmd_result.stdout.strip() if cmd_result.stdout else ""
-        path_state = classify_path_probe(cmd_result.rc, output)
-        if path_state == PATH_EXISTS:
-            result["still_exist"].append(dir_path)
-        elif path_state == PATH_ABSENT:
-            result["removed"].append(dir_path)
-        elif path_state == INSPECTION_ERROR:
-            result["inspection_errors"].append(
-                f"{dir_path} (rc={cmd_result.rc}, "
-                f"output={output or 'empty'})"
-            )
-
-    total = len(dirs)
-    result["success"] = (
-        not result["still_exist"] and not result["inspection_errors"]
-    )
-    result["details"] = (
-        f"Removed: {len(result['removed'])}/{total}"
-    )
-    errors = []
-    if result["still_exist"]:
-        errors.append(f"Still exist: {', '.join(result['still_exist'])}")
-    if result["inspection_errors"]:
-        errors.append(
-            "Inspection failed: "
-            + ", ".join(result["inspection_errors"])
-        )
-    result["error"] = "; ".join(errors)
-    return result
+    omnia_path = resolve_build_stream_data_path(host).rsplit("/build_stream", 1)[0]
+    directories = [f"{omnia_path}/{name}" for name in BUILDSTREAM_CLEANUP_DIRECTORIES]
+    directories.append(BUILDSTREAM_HOST_LOG_DIRECTORY)
+    return summarize_probes("bsm_directories", [directory_removed(host, path) for path in directories])
 
 
 def check_buildstream_runtime_caches_removed(host) -> Dict[str, Any]:
-    """Verify runtime source/input remain while Python caches are absent."""
+    """Verify the runtime source and input remain while Python caches are removed.
+
+    Returns:
+        Dict with keys: name, success, fields, failures, error.
+    """
     data_path = resolve_build_stream_data_path(host)
-    directory_check = run_on_host(
-        host, CMDS["dir_exists"].format(path=data_path)
-    )
-    if directory_check.stdout.strip() != "exists":
-        return {
-            "success": False,
-            "remaining": [],
-            "preserved": [],
-            "details": "",
-            "error": (
-                "BuildStream runtime root was removed instead of preserving "
-                f"application source and input: {data_path}"
-            ),
-        }
-
     input_dir = resolve_build_stream_input_path(host)
-    required_paths = [
-        f"{data_path}/playbook-watcher/playbook_watcher_service.py",
-        f"{input_dir}/build_stream_config.yml",
-    ]
-    preserved = []
-    missing = []
-    for path in required_paths:
-        path_check = run_on_host(
-            host, CMDS["file_exists"].format(path=path)
-        )
-        if path_check.stdout.strip() == "exists":
-            preserved.append(path)
+    root_present = _path_state(host, data_path)
+    probes = [(f"Runtime root {data_path}", "preserved" if root_present else "REMOVED",
+               root_present)]
+    for path in (f"{data_path}/{BUILDSTREAM_WATCHER_SOURCE}",
+                 f"{input_dir}/{BUILD_STREAM_CONFIG_FILE}"):
+        present = _path_state(host, path)
+        probes.append((f"File {path}", "preserved" if present else "MISSING", present))
+    found = run_cmd(host, "python_caches", path=data_path)
+    remaining = [line.strip() for line in found.stdout.splitlines() if line.strip()]
+    if found.rc != 0:
+        probes.append((f"Python caches under {data_path}",
+                       f"INSPECTION FAILED (rc={found.rc})", False))
+    elif not remaining:
+        probes.append((f"Python caches under {data_path}", "none left", True))
+    probes.extend((f"Python cache {path}", "STILL EXISTS", False) for path in remaining)
+    return summarize_probes("bsm_runtime_caches", probes)
+
+
+def _path_state(host, path: str) -> bool:
+    """Return whether a file or directory exists on the OIM."""
+    return run_cmd(host, "path_exists", path=path).rc == 0
+
+
+def check_postgres_data_per_backup(host, postgres_backup: bool) -> Dict[str, Any]:
+    """Verify the Postgres data follows ``-e postgres_backup=<flag>``.
+
+    cleanup_postgres.yml keeps ``<OMNIA_DATA_PATH>/build_stream/postgres`` and the
+    omnia_postgres podman volumes when postgres_backup is true and deletes
+    both when it is false.
+
+    Returns:
+        Dict with keys: name, success, fields, failures, error.
+    """
+    omnia_path = resolve_build_stream_data_path(host).rsplit("/build_stream", 1)[0]
+    data_dir = f"{omnia_path}/{POSTGRES_DATA_DIR}"
+    volumes = [name for name in run_cmd(host, "podman_volume_names").stdout.split()
+               if POSTGRES_CONTAINER_NAME in name]
+    present = _path_state(host, data_dir)
+    if postgres_backup:
+        probes = [(f"postgres_backup=true: {data_dir}", "preserved" if present else "DELETED",
+                   present)]
+    else:
+        probes = [
+            (f"postgres_backup=false: {data_dir}", "STILL EXISTS" if present else "deleted",
+             not present),
+            (f"postgres_backup=false: {POSTGRES_CONTAINER_NAME} volumes",
+             f"STILL EXIST: {', '.join(volumes)}" if volumes else "deleted", not volumes),
+        ]
+    return summarize_probes("postgres_data", probes)
+
+
+def check_credentials_per_flag(host, files, cleanup_credentials: bool) -> Dict[str, Any]:
+    """Verify credential files follow ``-e cleanup_credentials=<flag>``.
+
+    true: every file is deleted. false: every file is kept.
+
+    Returns:
+        Dict with keys: name, success, fields, failures, error.
+    """
+    input_dir = resolve_build_stream_input_path(host)
+    probes = []
+    for name in files:
+        path = f"{input_dir}/{name}"
+        present = _path_state(host, path)
+        if cleanup_credentials:
+            probes.append((f"cleanup_credentials=true: {path}",
+                           "STILL EXISTS" if present else "deleted", not present))
         else:
-            missing.append(path)
-
-    if missing:
-        return {
-            "success": False,
-            "remaining": [],
-            "preserved": preserved,
-            "details": "",
-            "error": (
-                "Preserved BuildStream runtime content is missing: "
-                + ", ".join(missing)
-            ),
-        }
-
-    command = (
-        f"find -P {shlex.quote(data_path)} "
-        "\\( -type d \\( -name __pycache__ -o -name pycache \\) "
-        "-o -type f \\( -name '*.pyc' -o -name '*.pyo' \\) \\) "
-        "-print 2>/dev/null"
-    )
-    cmd_result = run_on_host(host, command)
-    remaining = [
-        path.strip()
-        for path in cmd_result.stdout.splitlines()
-        if path.strip()
-    ]
-    success = cmd_result.rc == 0 and not remaining
-    return {
-        "success": success,
-        "remaining": remaining,
-        "preserved": preserved,
-        "details": (
-            "Application source and input are preserved; no generated "
-            "Python caches remain"
-            if success else ""
-        ),
-        "error": (
-            "Generated Python caches remain: " + ", ".join(remaining)
-            if remaining
-            else f"Unable to inspect BuildStream runtime caches (rc={cmd_result.rc})"
-        ) if not success else "",
-    }
+            probes.append((f"cleanup_credentials=false: {path}",
+                           "kept" if present else "DELETED", present))
+    return summarize_probes("credentials", probes)
 
 
-def check_buildstream_credentials_removed(host) -> Dict[str, Any]:
-    """Verify build_stream_credentials.yml and vault key are removed.
+def check_buildstream_api_port_closed(host) -> Dict[str, Any]:
+    """Verify nothing listens on the BuildStream API port after cleanup.
+
+    The port is read from build_stream_config.yml, which cleanup keeps.
 
     Args:
         host: Testinfra host connection.
 
     Returns:
-        Dict with keys: success, removed, still_exist, details, error.
+        Dict with keys: name, success, fields, failures, error.
     """
-    input_dir = resolve_build_stream_input_path(host)
-
-    result = {
-        "success": False,
-        "removed": [],
-        "still_exist": [],
-        "details": "",
-        "error": "",
-    }
-
-    for fname in BUILDSTREAM_CREDENTIAL_FILES:
-        fpath = f"{input_dir}/{fname}"
-        cmd = CMDS["file_exists"].format(path=fpath)
-        cmd_result = run_on_host(host, cmd)
-        if cmd_result.stdout.strip() == "exists":
-            result["still_exist"].append(fpath)
-        else:
-            result["removed"].append(fpath)
-
-    total = len(BUILDSTREAM_CREDENTIAL_FILES)
-    result["success"] = len(result["still_exist"]) == 0
-    result["details"] = (
-        f"Removed: {len(result['removed'])}/{total}"
-    )
-    if result["still_exist"]:
-        result["error"] = (
-            f"Still exist: {', '.join(result['still_exist'])}"
-        )
-    return result
-
-
-def check_buildstream_oauth_credentials_removed(
-    host,
-) -> Dict[str, Any]:
-    """Verify build_stream_oauth_credentials.yml and key are removed.
-
-    Args:
-        host: Testinfra host connection.
-
-    Returns:
-        Dict with keys: success, removed, still_exist, details, error.
-    """
-    input_dir = resolve_build_stream_input_path(host)
-
-    result = {
-        "success": False,
-        "removed": [],
-        "still_exist": [],
-        "details": "",
-        "error": "",
-    }
-
-    for fname in BUILDSTREAM_OAUTH_CREDENTIAL_FILES:
-        fpath = f"{input_dir}/{fname}"
-        cmd = CMDS["file_exists"].format(path=fpath)
-        cmd_result = run_on_host(host, cmd)
-        if cmd_result.stdout.strip() == "exists":
-            result["still_exist"].append(fpath)
-        else:
-            result["removed"].append(fpath)
-
-    total = len(BUILDSTREAM_OAUTH_CREDENTIAL_FILES)
-    result["success"] = len(result["still_exist"]) == 0
-    result["details"] = (
-        f"Removed: {len(result['removed'])}/{total}"
-    )
-    if result["still_exist"]:
-        result["error"] = (
-            f"Still exist: {', '.join(result['still_exist'])}"
-        )
-    return result
+    config_path = f"{resolve_build_stream_input_path(host)}/{BUILD_STREAM_CONFIG_FILE}"
+    try:
+        port = (read_remote_yaml(host, config_path) or {}).get(BSM_PORT_KEY)
+    except (OSError, RuntimeError, ValueError) as exc:
+        return summarize_probes("api_port", [(BSM_PORT_KEY, f"UNREADABLE ({exc})", False)])
+    if not port:
+        return summarize_probes(
+            "api_port", [(f"{BSM_PORT_KEY} in {config_path}", "NOT SET", False)])
+    return summarize_probes("api_port", [
+        (f"{BSM_PORT_KEY} in {config_path}", str(port), True),
+        port_closed(host, int(port)),
+    ])
