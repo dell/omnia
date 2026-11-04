@@ -68,6 +68,8 @@
     --timeout={{ idrac_verify_timeout }}
   register: kafka_topic_ready
   changed_when: false
+  retries: "{{ kafka_topic_ready_retries | default(3) }}"
+  delay: "{{ kafka_topic_ready_delay | default(30) }}"
   when:
     - telemetry_config.telemetry_sources.idrac.collection_targets is defined
     - "'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"

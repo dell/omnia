@@ -301,6 +301,8 @@
       loop_control:
         label: "{{ item }}"
       changed_when: false
+      retries: "{{ kafka_topic_ready_retries | default(3) }}"
+      delay: "{{ kafka_topic_ready_delay | default(30) }}"
       when:
         - item in telemetry_config.telemetry_sources
         - telemetry_config.telemetry_sources[item].metrics_enabled | default(false) | bool
