@@ -18,8 +18,18 @@ from library.messages.build_stream_msgs import (
     TEST_LOG_MSGS,
     TEST_ASSERT_MSGS,
 )
+from library.messages.execute_msgs import (
+    PROGRESS_MSGS as EXECUTE_PROGRESS_MSGS,
+    STEP_MSGS as EXECUTE_STEP_MSGS,
+    TEST_ASSERT_MSGS as EXECUTE_TEST_ASSERT_MSGS,
+    TEST_LOG_MSGS as EXECUTE_TEST_LOG_MSGS,
+)
 
 __all__ = [
     "TEST_LOG_MSGS",
     "TEST_ASSERT_MSGS",
+    "EXECUTE_TEST_LOG_MSGS",
+    "EXECUTE_TEST_ASSERT_MSGS",
+    "EXECUTE_PROGRESS_MSGS",
+    "EXECUTE_STEP_MSGS",
 ]

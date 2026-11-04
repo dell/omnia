@@ -23,34 +23,34 @@
 #   Active venv          — Auto-detected; installs into the currently active venv
 #   New venv (--venv)    — Creates .venv/ and installs there
 #
-# TWO CREDENTIAL FILES:
-#   1. test_creds.yml                — SSH password for OIM server access (local).
-#   2. build_stream_credentials.yml   — GitLab, BSM, and Postgres credentials.
-#      Created below $OMNIA_DATA_PATH/build_stream/input/$OMNIA_PROJECT_NAME/, and
-#      encrypted with ansible-vault.
-#
-# SSH CREDENTIALS:
-#   --set-creds          Interactive prompt (2x confirmation). Asks to update if exists.
-#   --update-creds       Force-update existing SSH password (2x prompt).
-#   --creds-stdin        Read a non-interactive SSH password from stdin.
-#
-# DOMAIN CREDENTIALS:
-#   --set-domain-creds     Create credentials or fill only missing fields.
-#   --update-domain-creds  Rejected; populated fields cannot be changed here.
-#   --domain-creds-stdin   Create/fill missing fields from JSON on stdin.
+# Credential stores (all Ansible Vault encrypted, 0600):
+#   1. test_creds.yml (this directory) — OIM SSH password for remote mode.
+#   2. Domain credential stores, at <DOMAIN>_DATA_PATH (or
+#      OMNIA_DATA_PATH/<domain>)/input/<OMNIA_PROJECT_NAME>/ from omnia.env,
+#      in the order the playbooks need them:
+#        repo_manager         repo_manager_config_credentials.yml
+#        image_build_manager  image_build_credentials.yml
+#        orchestrator         orchestrator_credentials.yml
+#        build_stream         build_stream_credentials.yml
+#      The playbooks prompt when a store is missing; setting them here
+#      lets the suite run unattended.
 #
 # Usage:
-#   ./setup_env.sh                        # Baremetal or active venv
-#   ./setup_env.sh --force                # Force-reinstall all requirements
-#   ./setup_env.sh --venv                 # Create .venv/ and install there
-#   ./setup_env.sh --venv --force         # Recreate .venv/ and reinstall requirements
-#   ./setup_env.sh --set-creds            # Prompt for SSH password
-#   ./setup_env.sh --update-creds         # Update existing SSH password
+#   ./setup_env.sh                         Baremetal or active venv
+#   ./setup_env.sh --venv                  Create .venv/ and install there
+#   ./setup_env.sh --force                 Force-reinstall all requirements
+#                                          (with --venv, also recreate .venv/)
+#   ./setup_env.sh --set-creds             Prompt for the OIM SSH password
+#   ./setup_env.sh --update-creds          Update the existing SSH password
 #   approved-secret-provider | ./setup_env.sh --creds-stdin
-#   ./setup_env.sh --set-domain-creds     # Prompt for GitLab/BSM/Postgres creds
+#   ./setup_env.sh --set-domain-creds      Prompt every domain store in order
+#   ./setup_env.sh --set-domain-creds --domain build_stream
+#   ./setup_env.sh --update-domain-creds [--domain <name>]
 #   credential-json-provider | ./setup_env.sh --domain-creds-stdin
-#   ./setup_env.sh --debug                # Verbose pip output
-#   ./setup_env.sh --help                 # Show this help
+#       JSON keyed by domain, e.g. {"repo_manager": {"pulp_password": "..."},
+#       "build_stream": {...}}; only the listed domains are written.
+#   ./setup_env.sh --debug                 Verbose pip output
+#   ./setup_env.sh --help
 # =============================================================================
 
 set -euo pipefail
@@ -59,16 +59,71 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${SCRIPT_DIR}/.venv"
 REQUIREMENTS="${SCRIPT_DIR}/requirements.txt"
 WHEEL_PATH="${SCRIPT_DIR}/../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl"
+TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
+OMNIA_ENV_FILE="/etc/omnia/omnia.env"
+DOMAIN_CREDS_HELPER="${SCRIPT_DIR}/library/domain_credentials.py"
 cd "$SCRIPT_DIR"
 
 # ── SSH credentials (local) ──
 CREDS_FILE="${SCRIPT_DIR}/test_creds.yml"
 CREDS_KEY="${SCRIPT_DIR}/.test_creds.key"
 
-# ── Domain credentials (at env-var path) ──
-DOMAIN_CREDS_FILENAME="build_stream_credentials.yml"
-DOMAIN_CREDS_KEY_FILENAME=".build_stream_credentials_key"
-DOMAIN_NAME="build_stream"
+# ── Domain credentials (at env-var path), in playbook order ──
+DOMAINS=(repo_manager image_build_manager orchestrator build_stream)
+
+declare -A DOMAIN_CREDS_FILE=(
+    [repo_manager]="repo_manager_config_credentials.yml"
+    [image_build_manager]="image_build_credentials.yml"
+    [orchestrator]="orchestrator_credentials.yml"
+    [build_stream]="build_stream_credentials.yml"
+)
+declare -A DOMAIN_CREDS_KEY=(
+    [repo_manager]=".repo_manager_config_credentials_key"
+    [image_build_manager]=".image_build_credentials_key"
+    [orchestrator]=".orchestrator_credentials_key"
+    [build_stream]=".build_stream_credentials_key"
+)
+declare -A DOMAIN_TITLE=(
+    [repo_manager]="Repo Manager Credentials — Pulp, Docker Hub"
+    [image_build_manager]="Image Build Manager Credentials — S3/MinIO, aarch64 build host"
+    [orchestrator]="Orchestrator Credentials — Provision, Slurm, OpenLDAP, CSI"
+    [build_stream]="BuildStream Credentials — GitLab, BuildStream Manager, Postgres"
+)
+# Field specs match each domain's playbook and its domain test suite.
+# An entry with "value" is fixed: written without a prompt when the file does not
+# hold it yet (pulp_username is hard-coded to admin by repo_manager, and its
+# credential schema requires it).
+declare -A DOMAIN_CRED_SPEC=(
+    [repo_manager]='[
+  {"field":"pulp_username","label":"Pulp Username","value":"admin"},
+  {"field":"pulp_password","label":"Pulp Password","group":"Pulp Credentials","secret":true,"confirm":true,"min_length":1},
+  {"field":"docker_username","label":"Docker Hub Username","group":"Docker Hub (optional; set both or neither)","secret":false,"optional":true},
+  {"field":"docker_password","label":"Docker Hub Password","secret":true,"confirm":true,"optional":true}
+]'
+    [image_build_manager]='[
+  {"field":"s3_access_id","label":"S3 Access ID","group":"S3/MinIO Credentials","secret":false,"optional":true},
+  {"field":"s3_secret_key","label":"S3 Secret Key","secret":true,"confirm":true,"min_length":8},
+  {"field":"aarch64_ssh_password","label":"aarch64 SSH Password","group":"aarch64 Build Host","secret":true,"confirm":true,"optional":true}
+]'
+    [orchestrator]='[
+  {"field":"provision_password","label":"Provision Password","group":"Provision Credentials","secret":true,"confirm":true,"min_length":8},
+  {"field":"bmc_username","label":"BMC Username","group":"Provision Credentials","secret":false},
+  {"field":"bmc_password","label":"BMC Password","group":"Provision Credentials","secret":true,"confirm":true,"min_length":3},
+  {"field":"slurm_db_password","label":"Slurm Database Password","group":"Slurm Credentials (optional unless Slurm is enabled)","secret":true,"confirm":true,"min_length":8,"optional":true},
+  {"field":"openldap_db_username","label":"OpenLDAP Database Username","group":"OpenLDAP Credentials (optional unless OpenLDAP is enabled)","secret":false,"min_length":4,"optional":true},
+  {"field":"openldap_db_password","label":"OpenLDAP Database Password","group":"OpenLDAP Credentials (optional unless OpenLDAP is enabled)","secret":true,"confirm":true,"min_length":8,"optional":true},
+  {"field":"csi_username","label":"CSI Driver Username","group":"CSI Driver (optional unless PowerScale CSI is enabled)","secret":false,"min_length":4,"optional":true},
+  {"field":"csi_password","label":"CSI Driver Password","group":"CSI Driver (optional unless PowerScale CSI is enabled)","secret":true,"confirm":true,"min_length":5,"optional":true}
+]'
+    [build_stream]='[
+  {"field":"gitlab_root_password","label":"GitLab Root Password","group":"GitLab Credentials","secret":true,"confirm":true},
+  {"field":"gitlab_ssh_password","label":"GitLab SSH Password","secret":true,"confirm":true},
+  {"field":"build_stream_auth_username","label":"BuildStream Auth Username","group":"BuildStream Manager Credentials","secret":false},
+  {"field":"build_stream_auth_password","label":"BuildStream Auth Password","secret":true,"confirm":true,"min_length":8},
+  {"field":"postgres_user","label":"Postgres Username","group":"Postgres Credentials","secret":false},
+  {"field":"postgres_password","label":"Postgres Password","secret":true,"confirm":true}
+]'
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Colors & helpers
@@ -85,20 +140,8 @@ ok()    { echo -e "  ${GREEN}[OK]${NC}  $1"; }
 warn()  { echo -e "  ${YELLOW}[WARN]${NC} $1"; }
 fail()  { echo -e "  ${RED}[FAIL]${NC} $1"; exit 1; }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Resolve domain creds path from env vars
-# ─────────────────────────────────────────────────────────────────────────────
-_resolve_domain_creds_dir() {
-    local _domain_root="${OMNIA_DATA_PATH%/}/${DOMAIN_NAME}"
-    echo "${_domain_root%/}/input/${OMNIA_PROJECT_NAME}"
-}
-
-_domain_creds_path() {
-    echo "$(_resolve_domain_creds_dir)/${DOMAIN_CREDS_FILENAME}"
-}
-
-_domain_creds_key_path() {
-    echo "$(_resolve_domain_creds_dir)/${DOMAIN_CREDS_KEY_FILENAME}"
+usage() {
+    sed -n '/^# Usage:/,/^# ====/p' "${BASH_SOURCE[0]}" | sed '$d; s/^# \{0,1\}//'
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -106,7 +149,6 @@ _domain_creds_key_path() {
 # ─────────────────────────────────────────────────────────────────────────────
 USE_VENV=false
 FORCE=false
-DEBUG=false
 PIP_QUIET="--quiet"
 SET_CREDS=false
 UPDATE_CREDS=false
@@ -114,20 +156,23 @@ CREDS_FROM_STDIN=false
 SET_DOMAIN_CREDS=false
 UPDATE_DOMAIN_CREDS=false
 DOMAIN_CREDS_FROM_STDIN=false
-TEST_CONFIG="${SCRIPT_DIR}/test_config.yml"
+SELECTED_DOMAIN=""
 
-# shellcheck disable=SC2034
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --venv)              USE_VENV=true; shift ;;
-        --force|-f)          FORCE=true; shift ;;
-        --debug)             DEBUG=true; PIP_QUIET=""; shift ;;
-        --set-creds)         SET_CREDS=true; shift ;;
-        --update-creds)      UPDATE_CREDS=true; shift ;;
-        --creds-stdin)       CREDS_FROM_STDIN=true; shift ;;
+        --venv)                USE_VENV=true; shift ;;
+        --force|-f)            FORCE=true; shift ;;
+        --debug)               PIP_QUIET=""; shift ;;
+        --set-creds)           SET_CREDS=true; shift ;;
+        --update-creds)        UPDATE_CREDS=true; shift ;;
+        --creds-stdin)         CREDS_FROM_STDIN=true; shift ;;
         --set-domain-creds)    SET_DOMAIN_CREDS=true; shift ;;
         --update-domain-creds) UPDATE_DOMAIN_CREDS=true; shift ;;
-        --domain-creds-stdin) DOMAIN_CREDS_FROM_STDIN=true; shift ;;
+        --domain-creds-stdin)  DOMAIN_CREDS_FROM_STDIN=true; shift ;;
+        --domain)
+            [ $# -ge 2 ] || fail "--domain requires one of: ${DOMAINS[*]}"
+            SELECTED_DOMAIN="$2"; shift 2 ;;
+        --domain=*)            SELECTED_DOMAIN="${1#--domain=}"; shift ;;
         --creds|--creds=*|--password|--password=*|--set-password|\
         --update-password|--password-stdin)
             fail "Secret-valued command-line flags are no longer supported. Pipe the password to --creds-stdin."
@@ -135,115 +180,31 @@ while [[ $# -gt 0 ]]; do
         --domain-creds|--domain-creds=*)
             fail "Secret-valued command-line flags are no longer supported. Pipe JSON to --domain-creds-stdin."
             ;;
-        --help|-h)
-            cat <<'HELPEOF'
-
-Build Stream — Test Environment Setup
-
-Usage: ./setup_env.sh [OPTIONS]
-
-INSTALL MODES
-─────────────────────────────────────────────────────────────────
-  (no flag)       Baremetal mode (pip install --user).
-  --venv          Create .venv/ and install there.
-  --force, -f     Force-reinstall all packages from requirements.txt.
-                  With --venv, also recreate .venv/ from scratch.
-
-SSH CREDENTIALS (test_creds.yml)
-─────────────────────────────────────────────────────────────────
-  --set-creds     Interactive SSH password setup (2x confirmation).
-  --update-creds  Force-update existing SSH password (2x prompt).
-  --creds-stdin   Read an SSH password from standard input.
-DOMAIN CREDENTIALS (build_stream_credentials.yml)
-─────────────────────────────────────────────────────────────────
-  Created on this machine at:
-    $OMNIA_DATA_PATH/build_stream/input/$OMNIA_PROJECT_NAME/.
-  Fields: gitlab_root_password, gitlab_ssh_password,
-          build_stream_auth_username, build_stream_auth_password,
-          postgres_user, postgres_password.
-  For remote execution, run this command on the target OIM server.
-
-  --set-domain-creds     Create a credential store, or prompt only for fields
-                         that are missing or empty. Existing values are kept.
-  --update-domain-creds  Populated credentials cannot be changed in place.
-                         Perform a full Build Stream cleanup first.
-  --domain-creds-stdin   Create a store or fill only missing fields from JSON.
-                         A partial-store payload must contain only its missing
-                         fields. Example:
-    credential-json-provider | ./setup_env.sh --domain-creds-stdin
-
-OTHER OPTIONS
-─────────────────────────────────────────────────────────────────
-  --debug         Verbose pip output.
-  --help, -h      Show this help.
-
-HELPEOF
-            exit 0 ;;
-        *)
-            fail "Unknown option. Use --help for supported arguments." ;;
+        --help|-h)             usage; exit 0 ;;
+        *)                     usage; fail "Unknown option: $1" ;;
     esac
 done
-
-_validate_domain_environment() {
-    if [ -z "${OMNIA_PROJECT_NAME:-}" ]; then
-        fail "OMNIA_PROJECT_NAME is required. Source /etc/omnia/omnia.env."
-    fi
-    if [[ ! "$OMNIA_PROJECT_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
-        fail "OMNIA_PROJECT_NAME contains unsupported characters."
-    fi
-    if [ "$OMNIA_PROJECT_NAME" = "." ] \
-        || [ "$OMNIA_PROJECT_NAME" = ".." ]; then
-        fail "OMNIA_PROJECT_NAME must name a project directory."
-    fi
-
-    if [ -z "${OMNIA_DATA_PATH:-}" ]; then
-        fail "OMNIA_DATA_PATH is required. Source /etc/omnia/omnia.env."
-    fi
-    local _domain_root="${OMNIA_DATA_PATH%/}/${DOMAIN_NAME}"
-    case "$_domain_root" in
-        /*) ;;
-        *) fail "Resolved domain data path must be absolute." ;;
-    esac
-    if [ "${_domain_root%/}" = "" ]; then
-        fail "Resolved domain data path must not be the filesystem root."
-    fi
-}
-
-_domain_environment_is_set() {
-    [ -n "${OMNIA_PROJECT_NAME:-}" ] \
-        && [ -n "${OMNIA_DATA_PATH:-}" ] \
-        && [[ "$OMNIA_PROJECT_NAME" =~ ^[A-Za-z0-9._-]+$ ]] \
-        && [ "$OMNIA_PROJECT_NAME" != "." ] \
-        && [ "$OMNIA_PROJECT_NAME" != ".." ] \
-        && [[ "$OMNIA_DATA_PATH" = /* ]]
-}
 
 ssh_action_count=0
 for selected in "$CREDS_FROM_STDIN" "$SET_CREDS" "$UPDATE_CREDS"; do
-    if [ "$selected" = true ]; then
-        ssh_action_count=$((ssh_action_count + 1))
-    fi
+    [ "$selected" = true ] && ssh_action_count=$((ssh_action_count + 1))
 done
-if [ "$ssh_action_count" -gt 1 ]; then
-    fail "Use only one OIM SSH credential action per invocation."
-fi
-
 domain_action_count=0
 for selected in \
     "$DOMAIN_CREDS_FROM_STDIN" "$SET_DOMAIN_CREDS" "$UPDATE_DOMAIN_CREDS"; do
-    if [ "$selected" = true ]; then
-        domain_action_count=$((domain_action_count + 1))
-    fi
+    [ "$selected" = true ] && domain_action_count=$((domain_action_count + 1))
 done
-if [ "$domain_action_count" -gt 1 ]; then
-    fail "Use only one domain credential action per invocation."
-fi
-if [ "$domain_action_count" -gt 0 ]; then
-    _validate_domain_environment
-fi
-if [ "$CREDS_FROM_STDIN" = true ] \
-    && [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
+[ "$ssh_action_count" -le 1 ] || fail "Use only one OIM SSH credential action per invocation."
+[ "$domain_action_count" -le 1 ] || fail "Use only one domain credential action per invocation."
+if [ "$CREDS_FROM_STDIN" = true ] && [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
     fail "Only one credential payload can be read from stdin per invocation."
+fi
+
+SELECTED_DOMAINS=("${DOMAINS[@]}")
+if [ -n "$SELECTED_DOMAIN" ]; then
+    [ -n "${DOMAIN_CREDS_FILE[$SELECTED_DOMAIN]+set}" ] \
+        || fail "Unknown domain '$SELECTED_DOMAIN'. Use one of: ${DOMAINS[*]}"
+    SELECTED_DOMAINS=("$SELECTED_DOMAIN")
 fi
 
 echo ""
@@ -406,436 +367,99 @@ fi
 
 ok "All dependencies installed"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Step 4: Credential helpers (delegate to omnia_auto credential CLI)
-# ─────────────────────────────────────────────────────────────────────────────
+# The credential CLIs call ansible-vault from the same environment.
+PYTHON_BIN_DIR="$(dirname "$PYTHON_CMD")"
+export PATH="${PYTHON_BIN_DIR}:${HOME}/.local/bin:${PATH}"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 4: Credential helpers
+# ─────────────────────────────────────────────────────────────────────────────
 _credential_cli() {
     "$PYTHON_CMD" -m omnia_auto "$@"
 }
 
-_show_oim_server_ip() {
-    if [ ! -f "$TEST_CONFIG" ]; then
-        warn "test_config.yml not found — set oim_server_ip for remote mode."
+# omnia.env values, without overriding variables already exported.
+_omnia_env() {
+    local _name="$1" _default="$2"
+    if [ -n "${!_name:-}" ]; then
+        echo "${!_name}"
         return
     fi
-    local oim_ip
-    oim_ip=$(grep -E '^oim_server_ip:' "$TEST_CONFIG" 2>/dev/null \
-        | sed 's/^oim_server_ip:[[:space:]]*//; s/["'\''[:space:]]//g' || true)
-    if [ -n "$oim_ip" ]; then
-        ok "Target server: ${oim_ip}"
-    else
-        warn "oim_server_ip not set — credentials saved locally for later use."
+    if [ -f "$OMNIA_ENV_FILE" ]; then
+        local _value
+        # shellcheck source=/dev/null  # omnia.env is installed by omnia.sh --setup-venv
+        _value=$(set +u; set -a; . "$OMNIA_ENV_FILE" >/dev/null 2>&1; echo "${!_name:-}")
+        if [ -n "$_value" ]; then
+            echo "$_value"
+            return
+        fi
     fi
+    echo "$_default"
 }
 
-_prompt_and_write_ssh_creds() {
-    _credential_cli prompt-and-confirm --message "SSH Password" </dev/tty \
-        | _credential_cli write-field \
-        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --field oim_password --value-stdin >/dev/null
-    ok "SSH credentials saved: test_creds.yml (encrypted)"
+# No fallback values: credential stores are only written where omnia.env says.
+OMNIA_DATA_PATH_VALUE=$(_omnia_env OMNIA_DATA_PATH "")
+OMNIA_PROJECT_NAME_VALUE=$(_omnia_env OMNIA_PROJECT_NAME "")
+
+_domain_paths_known() {
+    [ -n "$OMNIA_DATA_PATH_VALUE" ] && [ -n "$OMNIA_PROJECT_NAME_VALUE" ] \
+        && [[ "$OMNIA_PROJECT_NAME_VALUE" =~ ^[A-Za-z0-9._-]+$ ]] \
+        && [ "$OMNIA_PROJECT_NAME_VALUE" != "." ] \
+        && [ "$OMNIA_PROJECT_NAME_VALUE" != ".." ]
+}
+_require_domain_paths() {
+    _domain_paths_known || fail "OMNIA_DATA_PATH and a valid OMNIA_PROJECT_NAME must be set in ${OMNIA_ENV_FILE} (run ./omnia.sh --setup-venv)"
 }
 
-_write_ssh_creds_stdin() {
-    _credential_cli write-field \
-        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
-        --field oim_password --value-stdin >/dev/null
-    ok "SSH credentials saved: test_creds.yml (encrypted)"
+_domain_creds_dir() {
+    local _domain="$1" _env_name _root
+    _env_name="$(echo "$_domain" | tr '[:lower:]' '[:upper:]')_DATA_PATH"
+    _root=$(_omnia_env "$_env_name" "${OMNIA_DATA_PATH_VALUE%/}/${_domain}")
+    case "$_root" in
+        /?*) ;;
+        *) fail "Resolved ${_domain} data path must be absolute: '${_root}'" ;;
+    esac
+    echo "${_root%/}/input/${OMNIA_PROJECT_NAME_VALUE}"
 }
+_domain_creds_path() { echo "$(_domain_creds_dir "$1")/${DOMAIN_CREDS_FILE[$1]}"; }
+_domain_creds_key_path() { echo "$(_domain_creds_dir "$1")/${DOMAIN_CREDS_KEY[$1]}"; }
 
-# Write domain creds to build_stream_credentials.yml (at env-var path)
-_write_domain_creds_stdin() {
-    local _path; _path=$(_domain_creds_path)
-    local _key;  _key=$(_domain_creds_key_path)
-    local _dir;  _dir=$(_resolve_domain_creds_dir)
-
-    mkdir -p "$_dir"
-    _credential_cli write-fields \
+# Domain stores keep nested data (build_stream oauth_clients, repo_manager
+# registry_credentials) the flat credential CLI cannot load, so they go
+# through library/domain_credentials.py, which merges top-level fields only.
+_domain_cli() {
+    local _command="$1" _domain="$2"
+    local _path _key
+    _path=$(_domain_creds_path "$_domain")
+    _key=$(_domain_creds_key_path "$_domain")
+    if [ -L "$_path" ] || [ -L "$_key" ]; then
+        fail "Credential files must not be symbolic links: ${_path}"
+    fi
+    "$PYTHON_CMD" "$DOMAIN_CREDS_HELPER" "$_command" \
         --creds-path "$_path" --key-path "$_key" \
-        --fields-stdin --spec "$DOMAIN_CRED_SPEC" \
-        --require-complete >/dev/null
-    ok "Domain credentials saved: $_path (encrypted)"
-}
-
-# Read a field from the domain creds file
-_read_domain_field() {
-    local _field="$1"
-    local _path; _path=$(_domain_creds_path)
-    local _key;  _key=$(_domain_creds_key_path)
-    _credential_cli read-field --creds-path "$_path" --key-path "$_key" \
-        --field "$_field" 2>/dev/null || true
-}
-
-# Generate the registrar hash without storing the plaintext password in a
-# shell variable or exposing it in process arguments/output.
-_write_domain_auth_password_hash() {
-    local _path; _path=$(_domain_creds_path)
-    local _key;  _key=$(_domain_creds_key_path)
-
-    _read_domain_field build_stream_auth_password \
-        | "$PYTHON_CMD" -c '
-import sys
-from argon2 import PasswordHasher, Type
-
-password = sys.stdin.read().rstrip("\n")
-if not password:
-    raise SystemExit("BuildStream Auth Password is required")
-hasher = PasswordHasher(
-    time_cost=3,
-    memory_cost=65536,
-    parallelism=4,
-    hash_len=32,
-    salt_len=16,
-    type=Type.ID,
-)
-print(hasher.hash(password))
-' \
-        | _credential_cli write-field \
-            --creds-path "$_path" --key-path "$_key" \
-            --field build_stream_auth_password_hash \
-            --value-stdin >/dev/null
-    ok "BuildStream authentication password hash generated"
+        --spec "${DOMAIN_CRED_SPEC[$_domain]}"
 }
 
 _credential_fields_are_set() {
-    local _path="$1"
-    local _key="$2"
+    local _path="$1" _key="$2" _field
     shift 2
-    if ! _credential_cli is-encrypted \
-        --creds-path "$_path" </dev/null >/dev/null 2>&1; then
-        return 1
-    fi
-    local _field
+    _credential_cli is-encrypted --creds-path "$_path" </dev/null >/dev/null 2>&1 || return 1
     for _field in "$@"; do
-        if ! _credential_cli read-field \
-            --creds-path "$_path" --key-path "$_key" \
-            --field "$_field" 2>/dev/null \
-            | grep -q '[^[:space:]]'; then
-            return 1
-        fi
+        _credential_cli read-field --creds-path "$_path" --key-path "$_key" \
+            --field "$_field" 2>/dev/null | grep -q '[^[:space:]]' || return 1
     done
 }
 
 _ssh_credentials_are_set() {
-    _credential_fields_are_set \
-        "$CREDS_FILE" "$CREDS_KEY" oim_password
-}
-
-DOMAIN_CREDENTIAL_FIELDS=(
-    gitlab_root_password
-    gitlab_ssh_password
-    build_stream_auth_username
-    build_stream_auth_password
-    postgres_user
-    postgres_password
-)
-DOMAIN_STORED_FIELDS=(
-    "${DOMAIN_CREDENTIAL_FIELDS[@]}"
-    build_stream_auth_password_hash
-)
-
-_domain_credential_file_is_encrypted() {
-    local _path; _path=$(_domain_creds_path)
-    [ -f "$_path" ] \
-        && IFS= read -r _header < "$_path" \
-        && [[ "$_header" == \$ANSIBLE_VAULT\;* ]]
-}
-
-_domain_vault() (
-    umask 077
-    local _ansible_tmp
-    _ansible_tmp=$(mktemp -d "${TMPDIR:-/tmp}/bsm-ansible.XXXXXX")
-    trap 'rm -rf -- "$_ansible_tmp"' EXIT
-    ANSIBLE_LOCAL_TEMP="$_ansible_tmp" ansible-vault "$@"
-)
-
-_domain_credentials_plaintext() {
-    local _path; _path=$(_domain_creds_path)
-    local _key;  _key=$(_domain_creds_key_path)
-
-    [ -f "$_path" ] || return 1
-    if _domain_credential_file_is_encrypted; then
-        [ -f "$_key" ] || return 1
-        _domain_vault view "$_path" --vault-password-file "$_key"
-    else
-        cat -- "$_path"
-    fi
-}
-
-# Print only field names that are absent, empty, or not scalar strings. Secret
-# values never leave the pipe and nested runtime data such as oauth_clients is
-# deliberately ignored.
-_domain_missing_fields() {
-    _domain_credentials_plaintext | "$PYTHON_CMD" -c '
-import sys
-import yaml
-
-loaded = yaml.safe_load(sys.stdin.read()) or {}
-if not isinstance(loaded, dict):
-    raise SystemExit("Build Stream credential content must be a YAML mapping")
-for field in sys.argv[1:]:
-    value = loaded.get(field)
-    if not isinstance(value, str) or not value.strip():
-        print(field)
-' "$@"
+    _credential_fields_are_set "$CREDS_FILE" "$CREDS_KEY" oim_password
 }
 
 _domain_credentials_are_set() {
-    local _missing
-    [ -f "$(_domain_creds_path)" ] \
-        && [ -f "$(_domain_creds_key_path)" ] \
-        && _domain_credential_file_is_encrypted \
-        && _missing=$(_domain_missing_fields "${DOMAIN_STORED_FIELDS[@]}" 2>/dev/null) \
-        && [ -z "$_missing" ]
+    _domain_cli status "$1" </dev/null >/dev/null 2>&1
 }
 
-_domain_credential_store_exists() {
-    local _path; _path=$(_domain_creds_path)
-    local _key;  _key=$(_domain_creds_key_path)
-    [ -e "$_path" ] || [ -L "$_path" ] \
-        || [ -e "$_key" ] || [ -L "$_key" ]
-}
-
-_print_domain_credentials_immutable() {
-    local _path; _path=$(_domain_creds_path)
-    ok "Build Stream domain credentials are already configured: $_path"
-    warn "Populated Build Stream domain credentials cannot be changed in place."
-    warn "To use different credentials, first run a full Build Stream cleanup:"
-    warn "  ./omnia.sh -r build_stream --tags cleanup"
-    warn "Then create fresh credentials and redeploy Build Stream."
-}
-
-_print_build_stream_redeploy_required() {
-    warn "Running the following command is mandatory after credential setup:"
-    warn "  ./omnia.sh -r build_stream"
-}
-
-_write_plaintext_domain_field() {
-    local _path="$1"
-    local _field="$2"
-    "$PYTHON_CMD" -c '
-import os
-import sys
-import yaml
-
-path, field = sys.argv[1:]
-value = sys.stdin.read()
-if value.endswith("\n"):
-    value = value[:-1]
-    if value.endswith("\r"):
-        value = value[:-1]
-if not value.strip():
-    raise SystemExit(f"{field} cannot be empty")
-if field == "build_stream_auth_password" and len(value) < 8:
-    raise SystemExit("build_stream_auth_password must contain at least 8 characters")
-with open(path, encoding="utf-8") as stream:
-    data = yaml.safe_load(stream) or {}
-if not isinstance(data, dict):
-    raise SystemExit("Build Stream credential content must be a YAML mapping")
-data[field] = value
-with open(path, "w", encoding="utf-8") as stream:
-    yaml.safe_dump(data, stream, default_flow_style=False, sort_keys=False)
-os.chmod(path, 0o600)
-' "$_path" "$_field"
-}
-
-_write_plaintext_domain_auth_hash() {
-    local _path="$1"
-    "$PYTHON_CMD" -c '
-import os
-import sys
-import yaml
-from argon2 import PasswordHasher, Type
-
-path = sys.argv[1]
-with open(path, encoding="utf-8") as stream:
-    data = yaml.safe_load(stream) or {}
-password = data.get("build_stream_auth_password", "")
-if not isinstance(password, str) or not password:
-    raise SystemExit("build_stream_auth_password is required to generate its hash")
-hasher = PasswordHasher(
-    time_cost=3,
-    memory_cost=65536,
-    parallelism=4,
-    hash_len=32,
-    salt_len=16,
-    type=Type.ID,
-)
-data["build_stream_auth_password_hash"] = hasher.hash(password)
-with open(path, "w", encoding="utf-8") as stream:
-    yaml.safe_dump(data, stream, default_flow_style=False, sort_keys=False)
-os.chmod(path, 0o600)
-' "$_path"
-}
-
-_domain_field_label() {
-    case "$1" in
-        gitlab_root_password) echo "GitLab Root Password" ;;
-        gitlab_ssh_password) echo "GitLab SSH Password" ;;
-        build_stream_auth_username) echo "BuildStream Auth Username" ;;
-        build_stream_auth_password) echo "BuildStream Auth Password" ;;
-        postgres_user) echo "Postgres Username" ;;
-        postgres_password) echo "Postgres Password" ;;
-        *) return 1 ;;
-    esac
-}
-
-_prepare_domain_work_file() {
-    local _work_path="$1"
-    local _path; _path=$(_domain_creds_path)
-    local _key;  _key=$(_domain_creds_key_path)
-
-    if [ ! -e "$_path" ]; then
-        : > "$_work_path"
-    elif _domain_credential_file_is_encrypted; then
-        [ -f "$_key" ] || fail "Vault key is missing for encrypted credentials: $_key"
-        _domain_vault view "$_path" --vault-password-file "$_key" > "$_work_path"
-    else
-        cp -- "$_path" "$_work_path"
-    fi
-    chmod 0600 "$_work_path"
-}
-
-_install_domain_work_file() {
-    local _work_path="$1"
-    local _path; _path=$(_domain_creds_path)
-    local _key;  _key=$(_domain_creds_key_path)
-
-    _credential_cli ensure-key --key-path "$_key" >/dev/null
-    _domain_vault encrypt "$_work_path" --vault-password-file "$_key" >/dev/null
-    chmod 0600 "$_work_path" "$_key"
-    mv -f -- "$_work_path" "$_path"
-}
-
-_fill_missing_domain_credentials_interactive() (
-    set -euo pipefail
-    local _missing="$1"
-    local _path; _path=$(_domain_creds_path)
-    local _dir;  _dir=$(_resolve_domain_creds_dir)
-    local _work=""
-    local _field _label _value
-
-    mkdir -p "$_dir"
-    _work=$(mktemp "${_dir}/.build_stream_credentials.setup.XXXXXX")
-    trap '[ -z "$_work" ] || rm -f -- "$_work"' EXIT
-    _prepare_domain_work_file "$_work"
-
-    while IFS= read -r _field; do
-        [ -n "$_field" ] || continue
-        [ "$_field" != "build_stream_auth_password_hash" ] || continue
-        _label=$(_domain_field_label "$_field")
-        case "$_field" in
-            build_stream_auth_username|postgres_user)
-                while true; do
-                    IFS= read -r -p "  ${_label}: " _value </dev/tty
-                    if [ -n "${_value//[[:space:]]/}" ]; then
-                        printf '%s' "$_value" \
-                            | _write_plaintext_domain_field "$_work" "$_field"
-                        unset _value
-                        break
-                    fi
-                    warn "${_label} cannot be empty."
-                done
-                ;;
-            *)
-                _credential_cli prompt-and-confirm --message "$_label" </dev/tty \
-                    | _write_plaintext_domain_field "$_work" "$_field"
-                ;;
-        esac
-    done <<< "$_missing"
-
-    if printf '%s\n' "$_missing" \
-        | grep -Eq '^(build_stream_auth_password|build_stream_auth_password_hash)$'; then
-        _write_plaintext_domain_auth_hash "$_work"
-        ok "BuildStream authentication password hash generated"
-    fi
-
-    _install_domain_work_file "$_work"
-    _work=""
-    ok "Missing domain credentials were added; existing values were preserved: $_path"
-)
-
-_fill_missing_domain_credentials_stdin() (
-    set -euo pipefail
-    local _dir; _dir=$(_resolve_domain_creds_dir)
-    local _path; _path=$(_domain_creds_path)
-    local _work=""
-
-    mkdir -p "$_dir"
-    _work=$(mktemp "${_dir}/.build_stream_credentials.setup.XXXXXX")
-    trap '[ -z "$_work" ] || rm -f -- "$_work"' EXIT
-    _prepare_domain_work_file "$_work"
-
-    "$PYTHON_CMD" -c '
-import json
-import os
-import sys
-import yaml
-from argon2 import PasswordHasher, Type
-
-path = sys.argv[1]
-allowed = set(sys.argv[2:])
-payload_bytes = sys.stdin.buffer.read(65537)
-if len(payload_bytes) > 65536:
-    raise SystemExit("Credential input exceeds 65536 bytes")
-try:
-    payload = json.loads(payload_bytes.decode("utf-8"))
-except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-    raise SystemExit("Credential input must be valid UTF-8 JSON") from exc
-if not isinstance(payload, dict):
-    raise SystemExit("Credential input must be a JSON object")
-with open(path, encoding="utf-8") as stream:
-    data = yaml.safe_load(stream) or {}
-if not isinstance(data, dict):
-    raise SystemExit("Build Stream credential content must be a YAML mapping")
-missing = {
-    field for field in allowed
-    if not isinstance(data.get(field), str) or not data[field].strip()
-}
-unknown = set(payload) - allowed
-if unknown:
-    raise SystemExit("Unknown credential fields: " + ", ".join(sorted(unknown)))
-protected = set(payload) - missing
-if protected:
-    raise SystemExit(
-        "Populated credential fields cannot be changed: "
-        + ", ".join(sorted(protected))
-    )
-omitted = missing - set(payload)
-if omitted:
-    raise SystemExit("Missing required credential fields: " + ", ".join(sorted(omitted)))
-for field, value in payload.items():
-    if not isinstance(value, str) or not value.strip():
-        raise SystemExit(f"{field} must contain a non-empty string")
-    if field == "build_stream_auth_password" and len(value) < 8:
-        raise SystemExit("build_stream_auth_password must contain at least 8 characters")
-    data[field] = value
-if "build_stream_auth_password" in missing or not data.get("build_stream_auth_password_hash"):
-    hasher = PasswordHasher(
-        time_cost=3,
-        memory_cost=65536,
-        parallelism=4,
-        hash_len=32,
-        salt_len=16,
-        type=Type.ID,
-    )
-    data["build_stream_auth_password_hash"] = hasher.hash(
-        data["build_stream_auth_password"]
-    )
-with open(path, "w", encoding="utf-8") as stream:
-    yaml.safe_dump(data, stream, default_flow_style=False, sort_keys=False)
-os.chmod(path, 0o600)
-' "$_work" "${DOMAIN_CREDENTIAL_FIELDS[@]}"
-
-    _install_domain_work_file "$_work"
-    _work=""
-    ok "Missing domain credentials were added; existing values were preserved: $_path"
-)
-
-# Ask yes/no
 _ask_yes_no() {
-    local prompt="$1"
+    local prompt="$1" answer
     while true; do
         read -r -p "$prompt (yes/no): " answer </dev/tty
         case "$answer" in
@@ -846,32 +470,98 @@ _ask_yes_no() {
     done
 }
 
+_show_oim_server_ip() {
+    local oim_ip=""
+    [ -f "$TEST_CONFIG" ] && oim_ip=$(grep -E '^oim_server_ip:' "$TEST_CONFIG" 2>/dev/null \
+        | sed 's/^oim_server_ip:[[:space:]]*//; s/["'\''[:space:]]//g' || true)
+    if [ -n "$oim_ip" ]; then
+        ok "Target server: ${oim_ip}"
+    else
+        warn "oim_server_ip not set — local mode; the SSH password is only used remotely."
+    fi
+}
+
+_prompt_and_write_ssh_creds() {
+    _credential_cli prompt-and-confirm --message "SSH Password" </dev/tty \
+        | _credential_cli write-field \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --field oim_password --value-stdin >/dev/null
+    chmod 0600 "$CREDS_FILE" "$CREDS_KEY"
+    ok "SSH credentials saved: test_creds.yml (encrypted)"
+}
+
+_write_ssh_creds_stdin() {
+    _credential_cli write-field \
+        --creds-path "$CREDS_FILE" --key-path "$CREDS_KEY" \
+        --field oim_password --value-stdin >/dev/null
+    chmod 0600 "$CREDS_FILE" "$CREDS_KEY"
+    ok "SSH credentials saved: test_creds.yml (encrypted)"
+}
+
+# BuildStream stores an Argon2id hash of the auth password next to it
+# (same parameters as build_stream.yml and the registrar API).
+_write_build_stream_auth_hash() {
+    _domain_cli hash-auth build_stream </dev/null
+    ok "BuildStream authentication password hash generated"
+}
+
+_after_domain_write() {
+    local _domain="$1"
+    chmod 0600 "$(_domain_creds_path "$_domain")" "$(_domain_creds_key_path "$_domain")"
+    if [ "$_domain" = build_stream ]; then
+        _write_build_stream_auth_hash
+        warn "Running the following command is mandatory after BuildStream credential changes:"
+        warn "  ./omnia.sh -r build_stream"
+    fi
+    ok "${_domain} credentials saved: $(_domain_creds_path "$_domain") (encrypted)"
+}
+
+_prompt_domain_credentials() {
+    local _domain="$1"
+    echo ""
+    echo -e "  ${CYAN}${DOMAIN_TITLE[$_domain]}${NC}"
+    echo -e "  ${CYAN}Press Enter to keep an existing value.${NC}"
+    _domain_cli prompt "$_domain" </dev/tty
+    _after_domain_write "$_domain"
+}
+
+_write_domain_credentials_stdin() {
+    local _payload _domain _fields
+    _payload=$(head -c 65537)
+    [ "${#_payload}" -le 65536 ] || fail "Credential input exceeds 65536 bytes"
+    for _domain in "${SELECTED_DOMAINS[@]}"; do
+        _fields=$(printf '%s' "$_payload" | "$PYTHON_CMD" -c '
+import json, sys
+data = json.load(sys.stdin)
+if not isinstance(data, dict):
+    raise SystemExit("Domain credential JSON must be an object keyed by domain")
+value = data.get(sys.argv[1])
+if value is not None:
+    if not isinstance(value, dict):
+        raise SystemExit(f"{sys.argv[1]} credentials must be a JSON object")
+    print(json.dumps(value))' "$_domain") || fail "Invalid domain credential JSON"
+        [ -n "$_fields" ] || continue
+        printf '%s' "$_fields" | _domain_cli write-stdin "$_domain"
+        _after_domain_write "$_domain"
+    done
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
-# SSH credential dispatch
+# Step 5: SSH credential dispatch (test_creds.yml)
 # ─────────────────────────────────────────────────────────────────────────────
 if [ "$CREDS_FROM_STDIN" = true ]; then
     _show_oim_server_ip
     info "Reading SSH password from standard input"
     _write_ssh_creds_stdin
-
 elif [ "$UPDATE_CREDS" = true ]; then
     _show_oim_server_ip
-    if ! _ssh_credentials_are_set; then
-        fail "No valid SSH credentials found. Use --set-creds first."
-    fi
+    _ssh_credentials_are_set || fail "No valid SSH credentials found. Use --set-creds first."
     echo -e "\n  ${CYAN}Update SSH password for the target OIM server.${NC}\n"
     _prompt_and_write_ssh_creds
-
 elif [ "$SET_CREDS" = true ]; then
     _show_oim_server_ip
-    if _ssh_credentials_are_set; then
-        warn "SSH password is already set."
-        if _ask_yes_no "  Do you want to update the SSH password?"; then
-            echo -e "\n  ${CYAN}Enter new SSH password for the target OIM server.${NC}\n"
-            _prompt_and_write_ssh_creds
-        else
-            ok "SSH password update skipped."
-        fi
+    if _ssh_credentials_are_set && ! _ask_yes_no "  SSH password is already set. Update it?"; then
+        ok "SSH password update skipped."
     else
         echo -e "\n  ${CYAN}Enter SSH password for the target OIM server.${NC}\n"
         _prompt_and_write_ssh_creds
@@ -879,144 +569,61 @@ elif [ "$SET_CREDS" = true ]; then
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Domain credential dispatch
+# Step 6: Domain credential dispatch (four domain stores)
 # ─────────────────────────────────────────────────────────────────────────────
-
-# Domain credentials are shared with the deployed BuildStream service. The
-# service adds runtime-owned OAuth clients to this store, while PostgreSQL uses
-# its initial password for the persistent data volume. Updating only the file
-# would create inconsistent service, database, and GitLab credentials.
-if [ "$UPDATE_DOMAIN_CREDS" = true ]; then
-    if _domain_credential_store_exists; then
-        _print_domain_credentials_immutable
-        fail "In-place Build Stream domain credential updates are not supported."
-    fi
-    fail "No domain credential store exists. Use --set-domain-creds."
+if [ "$domain_action_count" -gt 0 ]; then
+    _require_domain_paths
 fi
-
-if [ "$SET_DOMAIN_CREDS" = true ] \
-    || [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
-    _domain_path=$(_domain_creds_path)
-    _domain_key=$(_domain_creds_key_path)
-
-    if [ -L "$_domain_path" ] || [ -L "$_domain_key" ]; then
-        fail "Credential files must not be symbolic links."
-    fi
-    if [ -e "$_domain_path" ] && [ ! -f "$_domain_path" ]; then
-        fail "Credential path is not a regular file: $_domain_path"
-    fi
-    if [ -e "$_domain_key" ] && [ ! -f "$_domain_key" ]; then
-        fail "Vault key path is not a regular file: $_domain_key"
-    fi
-
-    if [ -f "$_domain_path" ]; then
-        if _domain_credential_file_is_encrypted && [ ! -f "$_domain_key" ]; then
-            fail "Vault key is missing for encrypted credentials: $_domain_key"
-        fi
-        if ! _missing_domain_fields=$( \
-            _domain_missing_fields "${DOMAIN_STORED_FIELDS[@]}"
-        ); then
-            fail "Unable to inspect the existing credential store. Check its Vault key."
-        fi
-
-        if [ -z "$_missing_domain_fields" ] \
-            && _domain_credential_file_is_encrypted; then
-            _print_domain_credentials_immutable
-        else
-            if [ -n "$_missing_domain_fields" ]; then
-                warn "Only the following missing credential fields will be added:"
-                while IFS= read -r _missing_field; do
-                    [ -z "$_missing_field" ] || warn "  $_missing_field"
-                done <<< "$_missing_domain_fields"
-            else
-                warn "Credential values are complete, but the file must be Vault-encrypted."
-            fi
-
-            _missing_user_fields=$(printf '%s\n' "$_missing_domain_fields" \
-                | grep -Fvx 'build_stream_auth_password_hash' || true)
-            if [ -z "$_missing_user_fields" ]; then
-                # A plaintext-but-complete store only needs encryption, while
-                # a missing derived hash can be regenerated from the existing
-                # password. Neither case requires new credential input.
-                _fill_missing_domain_credentials_interactive \
-                    "$_missing_domain_fields"
-            elif [ "$SET_DOMAIN_CREDS" = true ]; then
-                _fill_missing_domain_credentials_interactive \
-                    "$_missing_domain_fields"
-            else
-                info "Reading only missing domain credentials from standard input"
-                _fill_missing_domain_credentials_stdin
-            fi
-            _print_build_stream_redeploy_required
-        fi
-        SET_DOMAIN_CREDS=false
-        DOMAIN_CREDS_FROM_STDIN=false
-    fi
-fi
-
-# Domain credential field spec (JSON for prompt-fields CLI)
-DOMAIN_CRED_SPEC='[
-  {"field":"gitlab_root_password","label":"GitLab Root Password","group":"GitLab Credentials","secret":true,"confirm":true},
-  {"field":"gitlab_ssh_password","label":"GitLab SSH Password","secret":true,"confirm":true},
-  {"field":"build_stream_auth_username","label":"BuildStream Auth Username","group":"BuildStream Manager Credentials","secret":false},
-  {"field":"build_stream_auth_password","label":"BuildStream Auth Password","secret":true,"confirm":true},
-  {"field":"postgres_user","label":"Postgres Username","group":"Postgres Credentials","secret":false},
-  {"field":"postgres_password","label":"Postgres Password","secret":true,"confirm":true}
-]'
-
 if [ "$DOMAIN_CREDS_FROM_STDIN" = true ]; then
-    info "Reading domain credentials from standard input"
-    _write_domain_creds_stdin
-    _write_domain_auth_password_hash
-    _print_build_stream_redeploy_required
-
+    info "Reading domain credential JSON from standard input"
+    _write_domain_credentials_stdin
+elif [ "$UPDATE_DOMAIN_CREDS" = true ]; then
+    for domain in "${SELECTED_DOMAINS[@]}"; do
+        _domain_credentials_are_set "$domain" \
+            || fail "No valid ${domain} credentials. Use --set-domain-creds --domain ${domain} first."
+    done
+    for domain in "${SELECTED_DOMAINS[@]}"; do
+        _prompt_domain_credentials "$domain"
+    done
 elif [ "$SET_DOMAIN_CREDS" = true ]; then
-    _domain_path=$(_domain_creds_path)
-    _domain_key=$(_domain_creds_key_path)
-
-    echo ""
-    echo -e "  ${CYAN}Build Stream credentials — GitLab, BSM, and Postgres${NC}"
-
-    # Use the prompt-fields CLI to handle the one-time credential setup.
-    mkdir -p "$(_resolve_domain_creds_dir)"
-    _credential_cli prompt-fields \
-        --creds-path "$_domain_path" \
-        --key-path "$_domain_key" \
-        --spec "$DOMAIN_CRED_SPEC" --require-complete </dev/tty
-
-    _write_domain_auth_password_hash
-
-    echo ""
-    ok "Domain credentials saved: $_domain_path (encrypted)"
-    _print_build_stream_redeploy_required
+    for domain in "${SELECTED_DOMAINS[@]}"; do
+        if _domain_credentials_are_set "$domain"; then
+            warn "${domain} credentials already exist: $(_domain_creds_path "$domain")"
+            if ! _ask_yes_no "  Update ${domain} credentials?"; then
+                ok "${domain} credential update skipped."
+                continue
+            fi
+        fi
+        _prompt_domain_credentials "$domain"
+    done
 fi
 
 # ─────────────────────────────────────────────────────────────────────────────
-# No credential flags — status report
+# Step 7: Credential status (always shown)
 # ─────────────────────────────────────────────────────────────────────────────
-if [ "$CREDS_FROM_STDIN" = false ] && [ "$UPDATE_CREDS" = false ] && [ "$SET_CREDS" = false ] \
-   && [ "$DOMAIN_CREDS_FROM_STDIN" = false ] && [ "$SET_DOMAIN_CREDS" = false ] \
-   && [ "$UPDATE_DOMAIN_CREDS" = false ]; then
-    if _ssh_credentials_are_set; then
-        ok "SSH credentials: test_creds.yml (encrypted)"
-    else
-        warn "No SSH credentials (test_creds.yml)"
-        warn "  Set with: ./setup_env.sh --set-creds"
-    fi
-    if ! _domain_environment_is_set; then
-        warn "Domain credential status unavailable"
-        warn "  Source /etc/omnia/omnia.env on the execution OIM to inspect it."
-    elif _domain_credentials_are_set; then
-        ok "Domain credentials: $(_domain_creds_path) (encrypted)"
-    else
-        warn "No domain credentials: $(_domain_creds_path)"
-        warn "  Set with: ./setup_env.sh --set-domain-creds"
-    fi
+echo ""
+info "Credential status (needed for unattended runs)"
+if _ssh_credentials_are_set; then
+    ok "SSH credentials: test_creds.yml (encrypted)"
+else
+    warn "No SSH credentials (test_creds.yml): only needed when oim_server_ip is set (remote mode)"
+    warn "  Set with: ./setup_env.sh --set-creds"
 fi
+DOMAINS_TO_SHOW=()
+if _domain_paths_known; then
+    DOMAINS_TO_SHOW=("${DOMAINS[@]}")
+else
+    warn "Domain credential status unavailable: OMNIA_DATA_PATH/OMNIA_PROJECT_NAME not set in ${OMNIA_ENV_FILE}"
+fi
+for domain in "${DOMAINS_TO_SHOW[@]}"; do
+    if _domain_credentials_are_set "$domain"; then
+        ok "${domain}: $(_domain_creds_path "$domain") (encrypted)"
+    else
+        warn "No ${domain} credentials: $(_domain_creds_path "$domain")"
+        warn "  Set with: ./setup_env.sh --set-domain-creds --domain ${domain}"
+    fi
+done
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Step 5: Make scripts executable
-# ─────────────────────────────────────────────────────────────────────────────
 chmod +x "${SCRIPT_DIR}/run_validation.sh" 2>/dev/null || true
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1027,48 +634,8 @@ echo -e "${GREEN}===============================================================
 echo -e "${GREEN}  Environment Ready  (${INSTALL_MODE})${NC}"
 echo -e "${GREEN}=================================================================${NC}"
 echo ""
-
-case "$INSTALL_MODE" in
-    venv)
-        echo "  Next steps:"
-        echo "    source .venv/bin/activate"
-        echo "    ./run_validation.sh --help"
-        echo "    ./run_validation.sh fvt_build_stream list"
-        ;;
-    active-venv)
-        echo "  Next steps (venv already active):"
-        echo "    ./run_validation.sh --help"
-        echo "    ./run_validation.sh fvt_build_stream list"
-        ;;
-    baremetal)
-        echo "  Next steps:"
-        echo "    ./run_validation.sh --help"
-        echo "    ./run_validation.sh fvt_build_stream list"
-        ;;
-esac
-
-echo ""
-echo "  Credentials (two separate files):"
-echo ""
-echo "    1. SSH credentials (test_creds.yml) — for remote test execution:"
-if _ssh_credentials_are_set; then
-    echo "       test_creds.yml is readable and contains the SSH password"
-    echo "       To update:  ./setup_env.sh --update-creds"
-else
-    echo "       Not set. Create with: ./setup_env.sh --set-creds"
-fi
-echo ""
-echo "    2. Build Stream domain credentials (current machine):"
-if ! _domain_environment_is_set; then
-    echo "       Status unavailable: source /etc/omnia/omnia.env on the execution OIM"
-elif _domain_credentials_are_set; then
-    echo "       $(_domain_creds_path) contains every required credential"
-    echo "       Populated values cannot be changed in place"
-    echo "       To replace them: run full Build Stream cleanup, configure fresh"
-    echo "       credentials, then run ./omnia.sh -r build_stream"
-else
-    echo "       Missing or incomplete. Run: ./setup_env.sh --set-domain-creds"
-fi
-echo ""
-echo "================================================================="
+echo "  Next steps:"
+[ "$INSTALL_MODE" = venv ] && echo "    source .venv/bin/activate"
+echo "    ./run_validation.sh --help"
+echo "    ./run_validation.sh fvt_build_stream list"
 echo ""

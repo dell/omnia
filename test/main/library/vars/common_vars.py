@@ -67,6 +67,17 @@ PROFILE_DROP_IN = "/etc/profile.d/omnia-env.sh"
 ANSIBLE_LOG_ROOT = "/var/log/omnia"
 LEGACY_DATA_LOG_PATH = "/opt/omnia/log"
 
+# Installed by omnia.sh -s and removed by omnia.sh --cleanup ({data_path} and
+# {venv_path} are resolved from the target environment).
+CLEANUP_REMOVED_PATHS: Dict[str, List[str]] = {
+    "system_env": [SYSTEM_ENV_FILE, PROFILE_DROP_IN],
+    "venv": ["{venv_path}"],
+    "cli": ["/usr/local/bin/omnia-cli",
+            "/etc/bash_completion.d/omnia-bash-completion"],
+    "data_helpers": ["{data_path}/activate-omnia.sh",
+                     "{data_path}/.data/deps-cache"],
+}
+
 # Default data path (may be overridden by env)
 DEFAULT_DATA_PATH = "/opt/omnia"
 DEFAULT_VENV_PATH = "/opt/omnia/venv"
@@ -337,9 +348,14 @@ CMDS: Dict[str, str] = {
         "cd {clone_path} && echo yes"
         " | bash {omnia_sh} --cleanup 2>&1"
     ),
+    "omnia_sh_cleanup_all_skip_approval": (
+        "cd {clone_path} && bash {omnia_sh}"
+        " --cleanup --all --skip-approval 2>&1"
+    ),
     # --- Files ---
     "file_exists": "test -f {path} && echo exists",
     "dir_exists": "test -d {path} && echo exists",
+    "path_exists": "test -e {path} -o -L {path} && echo exists",
     "cat_file": "cat {path} 2>/dev/null",
     "file_stat": (
         "stat -c '%A %U:%G %s %n' {path} 2>/dev/null"
