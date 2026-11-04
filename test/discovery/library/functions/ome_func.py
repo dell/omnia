@@ -526,7 +526,7 @@ def get_ome_device_details(host, service_tag: str) -> Dict[str, Any]:
 
     for nic in nic_info_list:
         nic_id = nic.get("NicId", "")
-        if "iDRAC" in nic_id.upper():
+        if "iDRAC" in nic_id.upper() or "INFINIBAND" in nic_id.upper():
             continue
 
         ports = nic.get("Ports", [])

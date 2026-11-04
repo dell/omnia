@@ -169,10 +169,9 @@ def delete_idrac_from_mysql(
     Returns:
         dict: Result containing success status and message
     """
-    pod_ip = resolve_pod_ip(namespace, pod)
-
     conn = None
     try:
+        pod_ip = resolve_pod_ip(namespace, pod)
         conn = pymysql.connect(
             host=pod_ip,
             port=mysqldb_container_port,
@@ -195,11 +194,11 @@ def delete_idrac_from_mysql(
             "msg": f"Successfully deleted iDRAC IP {ip_to_delete} from MySQL.",
             "affected_rows": affected_rows
         }
-    except (pymysql.err.OperationalError, pymysql.err.MySQLError) as e:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         return {
             "success": False,
             "ip": ip_to_delete,
-            "msg": str(e)
+            "msg": f"{type(exc).__name__}: {exc}"
         }
     finally:
         if conn:
@@ -225,18 +224,18 @@ def main() -> None:
     idrac_podnames = module.params["idrac_podnames"]
     mysqldb_container_port = module.params["mysqldb_container_port"]
     mysqldb_name = module.params["mysqldb_name"]
-    mysql_user = module.params["mysqldb_user"]
-    mysql_password = module.params["mysqldb_password"]
+    mysql_user = module.params["mysql_user"]
+    mysql_password = module.params["mysql_password"]
     ips_to_delete = module.params["ips_to_delete"]
     pod_to_db_idrac_ips = module.params["pod_to_db_idrac_ips"]
-
-    load_kube_context()
 
     deleted_ips = []
     failed_ips = []
     changed = False
 
+    # Route every unexpected error through fail_json so no_log arguments are masked.
     try:
+        load_kube_context()
         for pod in idrac_podnames:
             pod_ips = pod_to_db_idrac_ips.get(pod, [])
             ips_to_delete_from_pod = list(set(pod_ips) & set(ips_to_delete))
@@ -268,19 +267,20 @@ def main() -> None:
                         "msg": result.get("msg", "Unknown error")
                     })
 
-        module.exit_json(
-            changed=changed,
-            deleted_ips=deleted_ips,
-            failed_ips=failed_ips,
-            msg=f"Deleted {len(deleted_ips)} iDRAC IPs from MySQL database."
-        )
-
-    except (OSError, ValueError) as e:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         module.fail_json(
-            msg=f"An error occurred while deleting iDRAC IPs from MySQL: {str(e)}",
+            msg=f"An error occurred while deleting iDRAC IPs from MySQL: "
+                f"{type(exc).__name__}: {exc}",
             deleted_ips=deleted_ips,
             failed_ips=failed_ips
         )
+
+    module.exit_json(
+        changed=changed,
+        deleted_ips=deleted_ips,
+        failed_ips=failed_ips,
+        msg=f"Deleted {len(deleted_ips)} iDRAC IPs from MySQL database."
+    )
 
 
 if __name__ == "__main__":

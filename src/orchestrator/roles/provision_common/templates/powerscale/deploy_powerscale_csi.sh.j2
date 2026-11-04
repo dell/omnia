@@ -80,19 +80,28 @@ else
       --from-file=config="$SECRET_FILE" >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
 
     if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
-      kubectl get secret isilon-creds -n isilon -o jsonpath='{.data.config}' | base64 -d > /tmp/decoded_config.yaml 2>/dev/null
-      awk -v user="$csi_username" -v pass="$csi_password" '
-        /^[[:space:]]*#/ {print; next}
-        /^ *username:/ {sub(/:.*/, ": " user)}
-        /^ *password:/ {sub(/:.*/, ": " pass)}
-        {print}
-      ' /tmp/decoded_config.yaml > /tmp/updated_config.yaml
-      encoded_config=$(base64 -w 0 /tmp/updated_config.yaml)
-      kubectl patch secret isilon-creds -n isilon \
-        --type merge \
-        -p "{\"data\":{\"config\":\"${encoded_config}\"}}" >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
-      rm -f /tmp/decoded_config.yaml /tmp/updated_config.yaml
-      echo "isilon-creds secret created and patched successfully."
+      _old_umask=$(umask)
+      umask 077
+      _decoded_tmp=$(mktemp /tmp/decoded_config.XXXXXXXXXX) || { echo "ERROR: mktemp failed"; POWERSCALE_DEPLOYMENT_FAILED=1; }
+      _updated_tmp=$(mktemp /tmp/updated_config.XXXXXXXXXX) || { echo "ERROR: mktemp failed"; POWERSCALE_DEPLOYMENT_FAILED=1; }
+      umask "$_old_umask"
+      trap 'rm -f "$_decoded_tmp" "$_updated_tmp"' INT TERM
+
+      if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
+        kubectl get secret isilon-creds -n isilon -o jsonpath='{.data.config}' | base64 -d > "$_decoded_tmp" 2>/dev/null
+        awk -v user="$csi_username" -v pass="$csi_password" '
+          /^[[:space:]]*#/ {print; next}
+          /^ *username:/ {sub(/:.*/, ": " user)}
+          /^ *password:/ {sub(/:.*/, ": " pass)}
+          {print}
+        ' "$_decoded_tmp" > "$_updated_tmp"
+        encoded_config=$(base64 -w 0 "$_updated_tmp")
+        kubectl patch secret isilon-creds -n isilon \
+          --type merge \
+          -p "{\"data\":{\"config\":\"${encoded_config}\"}}" >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
+        echo "isilon-creds secret created and patched successfully."
+      fi
+      rm -f "$_decoded_tmp" "$_updated_tmp"
     fi
   fi
 
