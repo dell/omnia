@@ -182,7 +182,6 @@ def get_report_definitions(
             verify=False,  # nosec B501 - iDRAC BMC uses self-signed certificates
             timeout=timeout,
         )
-<<<<<<< HEAD
         if response.status_code != 200:
             return None, f"HTTP {response.status_code}"
         data = response.json()
@@ -419,7 +418,10 @@ def main() -> None:
         duration_seconds=round(duration, 2),
         success_results=success_results,
         failed_results=failed_results,
-        msg=f"Telemetry enabled on {len(success_results)}/{len(idrac_ips)} servers ({total_enabled} reports)"
+        msg=(
+            f"Telemetry enabled on {len(success_results)}/{len(idrac_ips)} servers "
+            f"({total_enabled} reports)"
+        ),
     )
 
 if __name__ == "__main__":
