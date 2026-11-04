@@ -853,6 +853,39 @@ class ResultPoller:
     # (image_build_manager.yml --tags cleanup_images) reports back.
     # ------------------------------------------------------------------
 
+    def _tombstone_cleaned_job(self, job_id: str) -> None:
+        """Tombstone the job of a cleaned image group and commit it.
+
+        The poller's job repository has its own long-lived session, separate
+        from the image-group session that _on_cleanup_result commits. Read
+        the job fresh (never write back a stale cached state) and commit that
+        session. Without the commit the tombstone is only flushed and becomes
+        visible when a later, unrelated result commits this session
+        (JobStateHelper: job completion or stage failure). A failure is
+        logged and rolled back; the image group still finalizes.
+        """
+        job_session = getattr(self._job_repo, "session", None)
+        try:
+            if job_session is not None:
+                job_session.expire_all()
+            job = self._job_repo.find_by_id(JobId(job_id))
+            if job is not None:
+                job.tombstone()
+                self._job_repo.save(job)
+                if job_session is not None:
+                    job_session.commit()
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "warning",
+                f"Cleanup result: failed to tombstone job job_id={job_id}: {exc}",
+                job_id=str(job_id),
+            )
+            if job_session is not None:
+                try:
+                    job_session.rollback()
+                except Exception:  # pylint: disable=broad-except
+                    pass  # nosec B110 - best-effort rollback
+
     def _on_cleanup_result(self, result: PlaybookResult) -> None:
         """Finalize a hard-delete cleanup once the playbook reports back.
 
@@ -926,18 +959,7 @@ class ResultPoller:
                 image_group_id=image_group.id,
                 new_status=ImageGroupStatus.CLEANED,
             )
-            try:
-                job = self._job_repo.find_by_id(JobId(result.job_id))
-                if job is not None:
-                    job.tombstone()
-                    self._job_repo.save(job)
-            except Exception as exc:  # pylint: disable=broad-except
-                log_secure_info(
-                    "warning",
-                    f"Cleanup result: failed to tombstone job "
-                    f"job_id={result.job_id}: {exc}",
-                    job_id=str(result.job_id),
-                )
+            self._tombstone_cleaned_job(result.job_id)
             log_secure_info(
                 "info",
                 f"Cleanup completed: job_id={result.job_id} finalized to "
