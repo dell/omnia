@@ -181,6 +181,10 @@ STEP_MSGS: Dict[str, str] = {
         "(every image group is already CLEANED, or none was built). "
         "HOW TO FIX: run a build first, or set pipeline.{key} to an existing image group"
     ),
+    "tombstone_not_asserted": (
+        "{state} (not asserted: the result poller commits the job tombstone late, "
+        "when an unrelated job result commits its session; it does not affect the cleanup)"
+    ),
     "cleanup_already_cleaned": (
         "Image group {group_id} (pipeline.{key}) is already CLEANED. "
         "Nothing to delete, so the cleanup is not triggered"

@@ -36,8 +36,8 @@ on demand instead of waiting for the interval:
 
 Runs after the cadence suite and before the pipeline_cleanup suite.
 Markers: pipeline, automatic_cleanup, sanity.
-  database  exactly the expected groups CLEANED, their jobs tombstoned and
-            audited, every other group kept
+  database  exactly the expected groups CLEANED and audited (the job
+            tombstone is reported only), every other group kept
   artifacts their S3 objects and NFS artifacts removed, others untouched
 Markers: pipeline, automatic_cleanup, sanity.
 """

@@ -629,8 +629,8 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     },
     "pipeline_cleanup_db_cleaned": {
         "id": "BSM_FVT_EXECUTE_V069",
-        "title": ("Cleanup pipeline: verify image_groups CLEANED, job tombstoned and "
-                  "cleanup audit events"),
+        "title": ("Cleanup pipeline: verify image_groups CLEANED and cleanup "
+                  "audit events (tombstone reported only)"),
     },
     "pipeline_cleanup_s3_deleted": {
         "id": "BSM_FVT_EXECUTE_V070",
@@ -658,7 +658,7 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     "auto_cleanup_db_updated": {
         "id": "BSM_FVT_EXECUTE_V075",
         "title": ("Automated cleanup: verify build_stream_db (cleaned groups CLEANED, "
-                  "tombstoned, audited; others kept)"),
+                  "audited, tombstone reported only; others kept)"),
     },
     "auto_cleanup_artifacts_removed": {
         "id": "BSM_FVT_EXECUTE_V076",

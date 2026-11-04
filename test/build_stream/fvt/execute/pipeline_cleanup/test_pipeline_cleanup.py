@@ -24,9 +24,10 @@ when allowed), wait for list_images to offer the group and play its
 select_image job; play the manual cleanup job (DELETE /api/v1/jobs/<job>)
 and follow the image group CLEANING -> CLEANED with the cleanup playbook log
 streamed (debug_mode: true; else tail -f and status lines); the cleanup and
-summary jobs must succeed. Then build_stream_db (CLEANED, tombstoned, audit
-events), S3 (no boot-images object of the group), registry (no tag of the
-group) and the NFS artifact directory, each its own test case.
+summary jobs must succeed. Then build_stream_db (CLEANED, audit events;
+the job tombstone is reported only), S3 (no boot-images object of the group),
+registry (no tag of the group) and the NFS artifact directory, each its own
+test case.
 Markers: pipeline, cleanup_pipeline, sanity.
 """
 
@@ -68,7 +69,7 @@ def test_pipeline_cleanup_run_cleanup_job(host):
 @pytest.mark.sanity
 @pytest.mark.order(41003)
 def test_pipeline_cleanup_db_cleaned(host):
-    """Verify the image group is CLEANED, the job tombstoned and audited."""
+    """Verify the image group is CLEANED and audited (tombstone reported only)."""
     run_step(TC["pipeline_cleanup_db_cleaned"], "Cleanup database records",
              verify_pipeline_cleanup_db, host)
 

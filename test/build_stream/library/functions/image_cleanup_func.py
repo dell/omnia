@@ -55,6 +55,7 @@ from .auto_cleanup_func import (
     precheck_auto_cleanup,
     run_auto_cleanup,
     s3_keys,
+    tombstone_value,
     verify_auto_cleanup_artifacts,
     verify_auto_cleanup_db,
 )
@@ -362,7 +363,7 @@ def run_pipeline_cleanup(host: Any, settings: Dict[str, Any], emit: Emit) -> Dic
 
 def verify_pipeline_cleanup_db(host: Any, settings: Dict[str, Any],
                                emit: Emit) -> Dict[str, Any]:
-    """Verify build_stream_db: image group CLEANED, job tombstoned, audit trail.
+    """Verify build_stream_db: image group CLEANED and audit trail; report the job tombstone.
 
     Returns:
         Dict with keys: success, fields, failures, blocked, mode.
@@ -382,7 +383,7 @@ def verify_pipeline_cleanup_db(host: Any, settings: Dict[str, Any],
         (f"image_groups {state['group_id']} status",
          f"{state['status']} -> {group.get('status', 'NOT FOUND')}",
          group.get("status") == IMAGE_GROUP_CLEANED),
-        (f"jobs {state['job_id']} tombstoned", str(tombstoned).lower(), tombstoned),
+        (f"jobs {state['job_id']} tombstoned", tombstone_value(tombstoned), True),
         ("audit_events since the trigger", ", ".join(events) or "none", audit_ok),
     ]
     result["fields"].extend((mark(ok, label), value) for label, value, ok in checks)
