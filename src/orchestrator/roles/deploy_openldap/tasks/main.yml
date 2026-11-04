@@ -140,6 +140,12 @@
           ansible.builtin.debug:
             msg: "OpenLDAP (omnia_auth) container deployed successfully on {{ ldap_server_ip }}"
 
+    - name: Verify TLS certificate when container is already running
+      ansible.builtin.include_tasks: generate_tls_certs.yml
+      when: >-
+        (auth_container_check.containers | default([]) | length > 0) and
+        (auth_container_check.containers[0].State.Status | default('') == 'running')
+
     - name: Reconcile slapd.conf when container is already running
       ansible.builtin.include_tasks: reconcile_slapd_conf.yml
       when: >-

@@ -37,6 +37,7 @@ tls_cert_days: 3650
 tls_key_bits: 4096
 tls_cert_file: "ldapserver.crt"
 tls_key_file: "ldapserver.key"
+tls_cert_min_validity_seconds: 86400
 
 # Image pull settings
 pull_retries: 3
@@ -53,6 +54,9 @@ slapd_candidate_container_path: "/run/openldap/slapd.conf.candidate"
 # Error messages
 deploy_openldap_fail_msg: "Failed to deploy OpenLDAP container. Check the logs for details."
 credentials_missing_msg: "OpenLDAP credentials (openldap_db_username, openldap_db_password) are required. Run orchestrator.yml to be prompted for credentials."
+tls_cert_invalid_msg: >-
+  The OpenLDAP TLS certificate under auth/tls_certs is unusable: it must parse, stay valid for at least
+  24 hours, list the LDAP server IP in subjectAltName, and match ldapserver.key. Fix or replace the certificate and key, then rerun.
 slapd_conf_update_failed_msg: >-
   Updated slapd.conf could not be applied to the running omnia_auth container.
   The previous slapd.conf was kept or restored. Check slaptest output and journalctl -u omnia_auth.
