@@ -744,7 +744,7 @@
             # Patch: append nameservers after /etc/resolv.conf using Jinja list "dns"
             sed -i 's|/etc/resolv.conf|/etc/resolv.conf{% for ns in dns | default([], true) %} {{ ns }}{% endfor %}|' "$cfg"
 
-{% if dns_enabled | default(false) | bool %}
+{% if dns_enabled | default(true) | bool %}
             # Forward cluster-internal DNS domain to OIM CoreDNS
             # This allows K8s pods to resolve Slurm/MPI hostnames via CoreDNS
             python3 - "$cfg" << 'PYEOF'

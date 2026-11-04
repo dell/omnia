@@ -57,11 +57,6 @@ ENV_OMNIA_VENV_PATH = "OMNIA_VENV_PATH"
 PLAYBOOK_ENTRY_POINT = "build_stream.yml"
 PLAYBOOK_WORKDIR = "src/build_stream/playbooks"
 
-PLAYBOOK_TAGS: List[str] = [
-    "buildstream_install",
-    "gitlab_cleanup",
-    "buildstream_cleanup",
-]
 
 # =============================================================================
 # CONFIG VALIDATION
@@ -79,6 +74,16 @@ REQUIRED_CONFIG_FIELDS = [
     "report_name",
 ]
 
+# test_config.yml keys that must be unquoted true/false.
+BOOLEAN_CONFIG_FIELDS = (
+    "sync_build_stream_input",
+    "nft_allow_pipeline_cancel",
+    "nft_allow_service_restart",
+    "nft_allow_active_stage_restart",
+    "nft_allow_watcher_restart",
+    "nft_allow_security_mutation",
+)
+
 REQUIRED_DATASET_FILES = ["input/build_stream_config.yml"]
 REQUIRED_SRC_FILES = ["build_stream_config.yml"]
 
@@ -87,8 +92,6 @@ REQUIRED_SRC_FILES = ["build_stream_config.yml"]
 # =============================================================================
 
 BSM_HEALTH_PATH = "/health"
-BSM_API_VERSION = "v1"
-BSM_AUTH_TOKEN_PATH = "/api/v1/auth/token"
 
 # Keys read from build_stream_config.yml on the target host
 BSM_HOST_IP_KEY = "build_stream_host_ip"
@@ -100,6 +103,9 @@ BSM_PORT_KEY = "build_stream_port"
 
 BSM_CONTAINER_NAME = "omnia_build_stream"
 POSTGRES_CONTAINER_NAME = "omnia_postgres"
+# Postgres data directory under OMNIA_DATA_PATH (cleanup_build_stream
+# postgres_cleanup_directory); deleted only with -e postgres_backup=false.
+POSTGRES_DATA_DIR = "build_stream/postgres"
 BSM_CONTAINERS: List[str] = [
     BSM_CONTAINER_NAME,
     POSTGRES_CONTAINER_NAME,
@@ -127,12 +133,6 @@ EXPECTED_TABLES: List[str] = [
 # PLAYBOOK PATHS REGISTRY (2.3 domain-segregated)
 # =============================================================================
 
-PLAYBOOK_PATHS_YML = "src/build_stream/app/playbook_paths.yml"
-
-EXPECTED_PLAYBOOK_ENTRIES: List[str] = [
-    "repo_manager.yml",
-    "image_build_manager.yml",
-]
 
 # =============================================================================
 # SERVER CREDENTIALS (source of truth on target host)
@@ -141,14 +141,6 @@ EXPECTED_PLAYBOOK_ENTRIES: List[str] = [
 BUILD_STREAM_CREDENTIALS_FILE = "build_stream_credentials.yml"
 BUILD_STREAM_CREDENTIALS_KEY = ".build_stream_credentials_key"
 
-# Required fields that must be present in build_stream_credentials.yml
-BUILD_STREAM_REQUIRED_CREDS: List[str] = [
-    "gitlab_root_password",
-    "gitlab_ssh_password",
-    "build_stream_auth_username",
-    "build_stream_auth_password",
-    "build_stream_auth_password_hash",
-]
 
 # =============================================================================
 # GITLAB CONFIGURATION
@@ -156,6 +148,11 @@ BUILD_STREAM_REQUIRED_CREDS: List[str] = [
 
 GITLAB_API_VERSION = "v4"
 GITLAB_ROOT_TOKEN_FILE = "/root/.gitlab_root_token"
+# Product contracts of build_stream.yml: the OIM -> GitLab SSH key
+# (gitlab_passwordless_ssh ssh_key_path) and the GitLab CA on the GitLab host
+# (hosted_gitlab gitlab_cert_dir/ca.crt).
+GITLAB_SSH_KEY = "/root/.ssh/omnia_gitlab"
+GITLAB_CA_CERT = "/root/gitlab-certs/ca.crt"
 GITLAB_RUNNER_CONTAINER = "gitlab-runner"
 
 GITLAB_SERVICES: List[str] = [
@@ -208,15 +205,6 @@ GITLAB_CI_CADENCE_FILE = ".gitlab-ci-cadence.yml"
 GITLAB_CI_DEPLOY_CHILD_TEMPLATE = ".gitlab-ci-deploy-child-template.yml"
 GITLAB_CI_CLEANUP_CHILD_TEMPLATE = ".gitlab-ci-cleanup-child-template.yml"
 
-GITLAB_CI_ALL_FILES: List[str] = [
-    GITLAB_CI_PIPELINE_FILE,
-    GITLAB_CI_BUILD_FILE,
-    GITLAB_CI_DEPLOY_FILE,
-    GITLAB_CI_CLEANUP_FILE,
-    GITLAB_CI_CADENCE_FILE,
-    GITLAB_CI_DEPLOY_CHILD_TEMPLATE,
-    GITLAB_CI_CLEANUP_CHILD_TEMPLATE,
-]
 
 # Pipeline variables stored as GitLab CI/CD project variables
 GITLAB_PIPELINE_VARIABLES: List[str] = [
@@ -225,18 +213,6 @@ GITLAB_PIPELINE_VARIABLES: List[str] = [
     "BSM_API_CERT",
 ]
 
-GITLAB_RAILS_CMD_PROJECT_ID = (
-    'gitlab-rails runner "puts Project.find_by(name: '
-    '\\\"{project_name}\\\")&.id" 2>/dev/null'
-)
-GITLAB_RAILS_CMD_PROJECT_VISIBILITY = (
-    'gitlab-rails runner "puts Project.find_by(name: '
-    '\\\"{project_name}\\\")&.visibility_level" 2>/dev/null'
-)
-GITLAB_RAILS_CMD_PROJECT_DEFAULT_BRANCH = (
-    'gitlab-rails runner "puts Project.find_by(name: '
-    '\\\"{project_name}\\\")&.default_branch" 2>/dev/null'
-)
 
 # =============================================================================
 # BUILD STREAM CONFIG FILE PATH
@@ -249,8 +225,45 @@ BUILD_STREAM_CONFIG_FILE = "build_stream_config.yml"
 # =============================================================================
 
 QUADLET_DIR = "/etc/containers/systemd"
-OMNIA_TARGET_PATH = "/etc/systemd/system/omnia.target"
 PLAYBOOK_WATCHER_SERVICE_NAME = "playbook-watcher.service"
+# Directories under OMNIA_DATA_PATH that build_stream.yml --tags prepare creates
+# and --tags cleanup removes (deploy_bsm: build_stream_log_dir,
+# build_stream_ssl_dir, build_stream_root_dir,
+# build_stream_watcher_playbook_queue_base; cleanup_build_stream:
+# build_stream_cleanup_directory).
+BUILDSTREAM_SHARED_DIRECTORIES = (
+    "build_stream/log",
+    "build_stream/ssl",
+    "build_stream/build_stream_root",
+    "build_stream/playbook_queue",
+)
+# Prepare also creates the queue subdirectories (build_stream_queue_subdirs),
+# the JWT keys directory (build_stream_jwt_keys_dir) and the Postgres data
+# directory (postgres role: postgres_data_dir).
+BUILDSTREAM_RUNTIME_DIRECTORIES = BUILDSTREAM_SHARED_DIRECTORIES + (
+    "build_stream/build_stream_root/api/.auth/keys",
+    "build_stream/playbook_queue/requests",
+    "build_stream/playbook_queue/results",
+    "build_stream/playbook_queue/processing",
+    "build_stream/playbook_queue/archive",
+    "build_stream/playbook_queue/archive/requests",
+    "build_stream/playbook_queue/archive/results",
+    f"{POSTGRES_DATA_DIR}/data",
+)
+# Cleanup removes the shared directories plus the extra log, output and legacy
+# marker directories (cleanup_build_stream role: build_stream_cleanup_directory)
+# and the host log directory it removes last (build_stream_host_log_directory).
+# Postgres data is covered by its own flag-based check.
+BUILDSTREAM_CLEANUP_DIRECTORIES = BUILDSTREAM_SHARED_DIRECTORIES + (
+    "build_stream/logs",
+    "build_stream/output",
+    "log/build_stream",
+    "build_stream/build_stream_inv",
+    "build_stream/build_stream_enabled",
+)
+BUILDSTREAM_HOST_LOG_DIRECTORY = "/var/log/omnia/build_stream"
+# Application file under the BuildStream data path that cleanup preserves.
+BUILDSTREAM_WATCHER_SOURCE = "playbook-watcher/playbook_watcher_service.py"
 PLAYBOOK_WATCHER_SERVICE_FILE = (
     f"/etc/systemd/system/{PLAYBOOK_WATCHER_SERVICE_NAME}"
 )
@@ -261,139 +274,235 @@ BUILDSTREAM_CREDENTIAL_FILES: List[str] = [
     ".build_stream_credentials_key",
 ]
 
-BUILDSTREAM_OAUTH_CREDENTIAL_FILES: List[str] = [
-    "build_stream_oauth_credentials.yml",
-    ".build_stream_oauth_credentials_key",
-]
-
 # =============================================================================
 # BUILD PIPELINE STAGES (2.3 domain-segregated)
 # =============================================================================
 
-# Stage names match the BSM StageType enum in
-# src/build_stream/app/core/jobs/value_objects.py
-STAGE_CREATE_LOCAL_REPO = "create-local-repository"
-STAGE_BUILD_IMAGE = "build-image"
-STAGE_PARSE_CATALOG = "parse-catalog"
-STAGE_VALIDATE = "validate"
-STAGE_RESTART = "restart"
-STAGE_UPLOAD = "upload"
-STAGE_DEPLOY = "deploy"
-
-BUILD_PIPELINE_STAGES: List[str] = [
-    STAGE_CREATE_LOCAL_REPO,
-    STAGE_BUILD_IMAGE,
-]
-
-# Stages that belong to the BUILD pipeline only
-# (excludes deploy-pipeline stages: deploy, restart, validate)
-BUILD_PIPELINE_ONLY_STAGES: List[str] = [
-    STAGE_UPLOAD,
-    STAGE_CREATE_LOCAL_REPO,
-    STAGE_BUILD_IMAGE,
-]
-
-# GitLab CI/CD stage names (from .gitlab-ci-build.yml)
-# These are the stages in the child build pipeline, not BSM database stages.
-GITLAB_CI_BUILD_STAGES: List[str] = [
-    "initialization",
-    "copy-input-files",
-    "configure-local-repository",
-    "build-images",
-    "summary",
-]
 
 # =============================================================================
 # STAGE AND JOB STATES (from build_stream_db)
 # =============================================================================
 
-STAGE_STATE_PENDING = "PENDING"
-STAGE_STATE_RUNNING = "RUNNING"
-STAGE_STATE_COMPLETED = "COMPLETED"
-STAGE_STATE_FAILED = "FAILED"
-
-JOB_STATE_PENDING = "PENDING"
-JOB_STATE_IN_PROGRESS = "IN_PROGRESS"
-JOB_STATE_COMPLETED = "COMPLETED"
-JOB_STATE_SUCCEEDED = "SUCCEEDED"
-JOB_STATE_FAILED = "FAILED"
 
 # =============================================================================
 # IMAGE GROUP STATES
 # =============================================================================
 
-IMAGE_GROUP_STATUS_BUILT = "BUILT"
-IMAGE_GROUP_STATUS_PASSED = "PASSED"
-IMAGE_GROUP_STATUS_CLEANED = "CLEANED"
-
-GITLAB_CI_DEPLOY_STAGES: List[str] = [
-    "select_image",
-    "deploy",
-    "restart",
-    "validate",
-    "summary",
-]
-PXE_MAPPING_FILE_PATH = "input/orchestrator/pxe_mapping_file.csv"
 
 # =============================================================================
 # PIPELINE TRIGGER VARIABLES
 # =============================================================================
 
-PIPELINE_TYPE_KEY = "PIPELINE_TYPE"
-PIPELINE_TYPE_BUILD = "build"
-PIPELINE_TYPE_DEPLOY = "deploy"
-PIPELINE_TYPE_CLEANUP = "cleanup"
 
 # Catalog file path in GitLab repo (2.3)
 CATALOG_FILE_PATH = "catalog_rhel.json"
-CADENCE_CATALOG_FILE_PATH = "cadence_catalog_rhel.json"
 
-GITLAB_CI_CADENCE_JOBS: List[str] = [
-    "initialization",
-    "parse-catalog",
-    "configure-local-repository",
-    "build-images",
-    "deploy",
-    "restart",
-    "validate",
-    "summary",
-]
 
 # =============================================================================
 # POLLING CONFIGURATION
 # =============================================================================
 
-STAGE_POLL_INTERVAL: int = 30
-STAGE_POLL_TIMEOUT: int = 10800   # 3 hours
-PIPELINE_POLL_INTERVAL: int = 5
-PIPELINE_POLL_TIMEOUT: int = 180  # 3 minutes
-JOB_WAIT_TIMEOUT: int = 120
 
 # =============================================================================
 # REGISTRY AND S3 CONFIGURATION
 # =============================================================================
 
 REGISTRY_PORT: int = 5000
-REGISTRY_IMAGE_PREFIX = "rhel-"
 S3_BOOT_IMAGES_BUCKET = "s3://boot-images/"
-S3_EFI_IMAGES_PREFIX = "s3://boot-images/efi-images/"
-BOOT_IMAGE_ARTIFACTS_PER_ROLE: int = 3
+
+# =============================================================================
+# PREPARE BASE (./omnia.sh --prepare-base: BuildStream prerequisites)
+# =============================================================================
+
+OMNIA_SH_WORKDIR = "src/main"
+OMNIA_SH_FILE = "omnia.sh"
+OMNIA_SH_PREPARE_BASE_ARGS = "--prepare-base"
+PREPARE_BASE_DOMAINS: List[str] = [
+    "repo_manager",
+    "image_build_manager",
+    "orchestrator",
+]
+PREPARE_BASE_REQUIRED_ENV_VARS: List[str] = [
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+    ENV_OMNIA_VENV_PATH,
+]
+VENV_ACTIVATE_FILE = "bin/activate"
+# omnia.sh --prepare-base runs until it finishes (no timeout).
+
+# Credential store (file, vault key) each base domain playbook reads; a
+# missing store makes omnia.sh prompt, which blocks an unattended run.
+PREPARE_BASE_CREDENTIAL_FILES: Dict[str, List[str]] = {
+    "repo_manager": [
+        "repo_manager_config_credentials.yml",
+        ".repo_manager_config_credentials_key",
+    ],
+    "image_build_manager": [
+        "image_build_credentials.yml",
+        ".image_build_credentials_key",
+    ],
+    "orchestrator": [
+        "orchestrator_credentials.yml",
+        ".orchestrator_credentials_key",
+    ],
+}
+
+# Per-exec -> verify hand-off (exec and verify are separate pytest processes).
+RUN_STATE_DIR = os.path.join(MODULE_ROOT, "reports", "state")
+RUN_STATE_FILE = "{scenario}.json"
+RUN_STATE_MODE = 0o600
+
+# Base domain state verified after --prepare-base.
+# repo_manager: Pulp
+RM_PULP_CONTAINER = "pulp"
+RM_PULP_SERVICE = "pulp.service"
+RM_PULP_QUADLET = "/etc/containers/systemd/pulp.container"
+
+# image_build_manager: MinIO and the image registry
+IBM_CONTAINERS: List[str] = ["minio-server", "registry"]
+IBM_SERVICES: List[str] = ["minio.service", "registry.service"]
+IBM_PORTS: List[int] = [9000, 9001, 5000]
+
+# orchestrator: OpenCHAMI, from the product's component specification
+# (src/orchestrator/roles/cleanup/components/openchami/vars/component_spec.yml).
+# One-shot units stay "active (exited)" after prepare.
+ORCH_OPENCHAMI_UNITS: List[str] = [
+    "openchami.target",
+    "acme-deploy.service",
+    "acme-register.service",
+    "boot-service.service",
+    "coresmd-coredhcp.service",
+    "coresmd-coredns.service",
+    "haproxy.service",
+    "metadata-service.service",
+    "openchami-cert-trust.service",
+    "postgres.service",
+    "smd-init.service",
+    "smd.service",
+    "step-ca.service",
+    "tokensmith.service",
+]
+ORCH_OPENCHAMI_TIMER = "openchami-cert-renewal.timer"
+ORCH_OPENCHAMI_CONTAINERS: List[str] = [
+    "boot-service",
+    "coresmd-coredhcp",
+    "coresmd-coredns",
+    "haproxy",
+    "metadata-service",
+    "postgres",
+    "smd",
+    "step-ca",
+    "tokensmith",
+]
+ORCH_OPENCHAMI_VOLUMES: List[str] = [
+    "boot-service-data",
+    "metadata-service-data",
+    "postgres-data",
+    "haproxy-certs",
+]
+# OpenLDAP is deployed only when orchestrator_state.yml sets openldap_support.
+ORCH_STATE_FILE = "output/{project}/orchestrator_state.yml"
+ORCH_OPENLDAP_FLAG = "openldap_support"
+ORCH_OPENLDAP_CONTAINER = "omnia_auth"
+ORCH_OPENLDAP_SERVICE = "omnia_auth.service"
+ORCH_OPENLDAP_QUADLET = "/etc/containers/systemd/omnia_auth.container"
+
+# =============================================================================
+# PRECHECK (build_stream.yml --tags precheck, role precheck_build_stream)
+# =============================================================================
+
+ENV_SYSTEM_HOSTNAME = "SYSTEM_HOSTNAME"
+ENV_SYSTEM_DOMAIN_NAME = "SYSTEM_DOMAIN_NAME"
+ENV_SYSTEM_ADMIN_IPV4 = "SYSTEM_ADMIN_NIC_IPV4"
+PRECHECK_REQUIRED_ENV_VARS: List[str] = [
+    ENV_SYSTEM_HOSTNAME,
+    ENV_SYSTEM_DOMAIN_NAME,
+    ENV_SYSTEM_ADMIN_IPV4,
+    ENV_OMNIA_DATA_PATH,
+    ENV_OMNIA_PROJECT_NAME,
+]
+# Containers and credential stores the product precheck requires
+# (src/build_stream/roles/precheck_build_stream/vars/main.yml).
+PRECHECK_REQUIRED_CONTAINERS: List[str] = ["pulp", "minio-server", "registry"]
+PRECHECK_REQUIRED_CREDENTIALS: Dict[str, str] = {
+    "repo_manager": "repo_manager_config_credentials.yml",
+    "image_build_manager": "image_build_credentials.yml",
+}
+NFS_NO_ROOT_SQUASH = "no_root_squash"
+# Domain input files build_stream.yml --tags execute uploads to GitLab
+# (src/build_stream/roles/hosted_gitlab/vars/main.yml gitlab_input_files);
+# a missing file is skipped silently by the upload, so precheck requires all.
+GITLAB_INPUT_REPO_DIR = "input"
+GITLAB_UPLOADED_INPUT_FILES: Dict[str, List[str]] = {
+    "repo_manager": [
+        "repo_manager_config.yml",
+        "repo_manager_endpoint_config.yml",
+    ],
+    "image_build_manager": [
+        "image_build_config.yml",
+        "package_groups.yml",
+    ],
+    "orchestrator": [
+        "omnia_config.yml",
+        "orchestrator_config.yml",
+        "network_spec.yml",
+        "security_config.yml",
+        "storage_config.yml",
+        "additional_cloud_init.yml",
+        "pxe_mapping_file.csv",
+        "set_pxe_boot_config.yml",
+    ],
+}
+
+# =============================================================================
+# PREPARE (build_stream.yml --tags prepare: Postgres, BSM, playbook-watcher)
+# =============================================================================
+
+PREPARE_QUADLETS: List[str] = [
+    "/etc/containers/systemd/omnia_build_stream.container",
+    "/etc/containers/systemd/omnia_postgres.container",
+]
+PREPARE_SERVICES: List[str] = [
+    "omnia_postgres.service",
+    "omnia_build_stream.service",
+    "playbook-watcher.service",
+]
+BUILD_STREAM_STATUS_FILE = "build_stream_status.yml"
+BUILD_STREAM_STATUS_PREPARED = "prepared"
+BUILD_STREAM_STATUS_KEYS: List[str] = [
+    "overall_status",
+    "build_stream_host",
+    "build_stream_port",
+    "gitlab_host",
+    "gitlab_url",
+    "bsm_api_url",
+]
+
+# build_stream.yml tag runs (seconds).
+TAG_PLAYBOOK_TIMEOUTS: Dict[str, int] = {
+    "precheck": 900,
+    "prepare": 3600,
+    "execute": 3600,
+    "cleanup": 1800,
+}
+
+# Result keys left out when a single-check result is rendered as fields.
+RESULT_HIDDEN_KEYS = frozenset({"success", "error", "details"})
+# List keys whose items are failures (printed with a cross, one per line).
+RESULT_FAILED_ITEM_PREFIXES = ("still_", "missing", "failed", "not_")
 
 # =============================================================================
 # SHELL COMMANDS — all commands MUST be in this dict.
 # =============================================================================
 CMDS: Dict[str, str] = {
+    "podman_volume_names": "podman volume ls --format '{{.Name}}' 2>/dev/null",
     # --- Files ---
+    "path_exists": "test -e {path}",
     "file_exists": "test -f {path} && echo exists",
     "dir_exists": "test -d {path} && echo exists",
     "cat_file": "cat {path} 2>/dev/null",
-    "file_stat": "stat -c '%A %U:%G %s %n' {path} 2>/dev/null",
 
     # --- Podman ---
-    "podman_ps_check": (
-        "podman ps --format '{{{{.Names}}}} {{{{.Status}}}}'"
-        " --filter name=^{container}$ 2>/dev/null"
-    ),
     "podman_ps_all": (
         "podman ps -a --format '{{{{.Names}}}} {{{{.Status}}}}'"
         " --filter name=^{container}$ 2>/dev/null"
@@ -401,6 +510,7 @@ CMDS: Dict[str, str] = {
 
     # --- SystemD ---
     "systemctl_is_active": "systemctl is-active {service} 2>/dev/null",
+    "systemctl_is_enabled": "systemctl is-enabled {service} 2>/dev/null",
 
     # --- Database ---
     "psql_list_tables": (
@@ -409,52 +519,13 @@ CMDS: Dict[str, str] = {
         " WHERE schemaname='public'\" 2>/dev/null"
     ),
 
-    # --- Curl / API ---
-    "curl_health": (
-        "curl -sk -o /dev/null -w '%{{http_code}}'"
-        " https://{host}:{port}{path} 2>/dev/null"
-    ),
-    "curl_health_body": (
-        "curl -sk https://{host}:{port}{path} 2>/dev/null"
-    ),
-    "curl_gitlab_url": (
-        "curl -k -s -o /dev/null -w '%{{http_code}}'"
-        " 'https://{host}:{port}/' 2>/dev/null"
-    ),
-
-    # --- SSH to GitLab ---
-    "ssh_to_gitlab_password": (
-        "SSHPASS={ssh_password} sshpass -e ssh -o IdentitiesOnly=no"
-        " -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
-        " -o PreferredAuthentications=password"
-        " -o PubkeyAuthentication=no -o BatchMode=no"
-        " {gitlab_user}@{gitlab_host} '{cmd}' 2>/dev/null"
-    ),
-
-    # --- GitLab rails commands ---
-    "gitlab_rails_project_id": GITLAB_RAILS_CMD_PROJECT_ID,
-    "gitlab_rails_project_visibility": GITLAB_RAILS_CMD_PROJECT_VISIBILITY,
-    "gitlab_rails_project_default_branch": GITLAB_RAILS_CMD_PROJECT_DEFAULT_BRANCH,
-
-    # --- GitLab API ---
-    "gitlab_api_file_exists": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/repository/files/"
-        "{file_path}/raw?ref={branch}'"
-        " -o /dev/null -w '%{{http_code}}' 2>/dev/null"
-    ),
-    "gitlab_api_list_variables": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/variables' 2>/dev/null"
-    ),
-    "gitlab_api_tree": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/repository/tree"
-        "?path={dir_path}&ref={branch}' 2>/dev/null"
+    # --- SSH to GitLab (key and pinned host key set up by gitlab_passwordless_ssh) ---
+    "ssh_to_gitlab_key": (
+        "ssh -i {key} -o BatchMode=yes -o StrictHostKeyChecking=yes"
+        " -o ConnectTimeout=10 {gitlab_user}@{gitlab_host} {cmd} 2>/dev/null"
     ),
 
     # --- System ---
-    "hostname_cmd": "hostname 2>/dev/null",
     "nproc_cmd": "nproc 2>/dev/null",
     "free_cmd": "free -g 2>/dev/null",
     "df_cmd": "df -BG / 2>/dev/null",
@@ -464,12 +535,6 @@ CMDS: Dict[str, str] = {
     "grep_gitlab_rb": "grep {pattern} {path} 2>/dev/null",
 
     # --- Playbook paths ---
-    "yaml_parse_playbook_paths": (
-        "python3 -c \""
-        "import yaml; data=yaml.safe_load(open('{path}'));"
-        "print(list(data.get('playbook_paths',{{}}).keys()))"
-        "\" 2>/dev/null"
-    ),
 
     # --- OpenSSL ---
     "openssl_verify_cert": (
@@ -482,121 +547,29 @@ CMDS: Dict[str, str] = {
     ),
 
     # --- Cleanup verification ---
-    "podman_container_exists": (
-        "podman ps -a --format '{{{{.Names}}}}'"
-        " --filter name=^{container}$ 2>/dev/null"
-    ),
-    "systemctl_is_enabled": (
-        "systemctl is-enabled {service} 2>/dev/null"
-    ),
+    # Run on the GitLab server through ssh_to_gitlab (no single quotes).
+    "gitlab_container_names": 'podman ps -a --format "{{.Names}}" 2>/dev/null || true',
+    "gitlab_ctl_status": "gitlab-ctl status 2>/dev/null",
+    "gitlab_path_state": "test -e {path} && echo exists || echo absent",
     "ss_port_check": (
         "ss -tlnp 2>/dev/null | grep ':{port}' || true"
     ),
-    "podman_volume_ls": (
-        "podman volume ls --format '{{{{.Name}}}}' 2>/dev/null"
-        " | grep {pattern} || true"
+    "quadlet_files": "find {dir} -maxdepth 1 -type f -name {pattern} 2>/dev/null",
+    "service_units": (
+        "systemctl list-units --type=service --all --no-legend --plain {pattern} 2>/dev/null"
     ),
-    "find_quadlet_files": (
-        "find {dir} -name '{pattern}*' -type f 2>/dev/null || true"
-    ),
-    "systemctl_list_units": (
-        "systemctl list-units --type=service --all"
-        " --no-legend 2>/dev/null"
-        " | grep {pattern} || true"
+    "python_caches": (
+        "find -P {path} \\( -type d \\( -name __pycache__ -o -name pycache \\)"
+        " -o -type f \\( -name '*.pyc' -o -name '*.pyo' \\) \\) -print 2>/dev/null"
     ),
 
     # --- GitLab Pipeline API ---
-    "gitlab_api_list_pipelines": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/pipelines"
-        "?per_page={per_page}' 2>/dev/null"
-    ),
-    "gitlab_api_pipeline_status": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}'"
-        " 2>/dev/null"
-    ),
-    "gitlab_api_pipeline_jobs": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}/jobs"
-        "?per_page=100' 2>/dev/null"
-    ),
-    "gitlab_api_pipeline_bridges": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}/bridges'"
-        " 2>/dev/null"
-    ),
-    "gitlab_api_play_job": (
-        "curl -sk -X POST --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/jobs/{job_id}/play'"
-        " 2>/dev/null"
-    ),
-    "gitlab_api_job_trace": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/jobs/{job_id}/trace'"
-        " 2>/dev/null"
-    ),
-    "gitlab_api_cancel_pipeline": (
-        "curl -sk -X POST --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/pipelines/{pipeline_id}/cancel'"
-        " 2>/dev/null"
-    ),
-    "gitlab_api_trigger_pipeline": (
-        "curl -sk -X POST --header 'PRIVATE-TOKEN: {token}'"
-        " --header 'Content-Type: application/json'"
-        " -d '{json_data}'"
-        " '{api_url}/projects/{project_id}/pipeline'"
-        " 2>/dev/null"
-    ),
-    "gitlab_api_update_file": (
-        "curl -sk -X PUT --header 'PRIVATE-TOKEN: {token}'"
-        " --header 'Content-Type: application/json'"
-        " -d '{json_data}'"
-        " '{api_url}/projects/{project_id}/repository/files/{file_path}'"
-        " 2>/dev/null"
-    ),
-    "gitlab_api_get_file": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/repository/files/"
-        "{file_path}?ref={branch}' 2>/dev/null"
-    ),
-    "gitlab_api_get_commit": (
-        "curl -sk --header 'PRIVATE-TOKEN: {token}'"
-        " '{api_url}/projects/{project_id}/repository/commits/{commit_id}'"
-        " 2>/dev/null"
-    ),
 
     # --- Cadence validation artifacts ---
-    "find_latest_validate_report": (
-        "find {path} -mindepth 2 -maxdepth 2 -type f"
-        " -path '*/attempt_*/test_report.json' -printf '%T@ %p\\n'"
-        " 2>/dev/null | sort -nr | head -n 1"
-    ),
 
     # --- Database (psql via podman) ---
-    "psql_query": (
-        "podman exec {container} psql -U {user} -d {db}"
-        " -t -c \"{sql}\" 2>/dev/null"
-    ),
 
     # --- BSM API ---
-    "bsm_api_auth_token": (
-        "curl -sk -X POST 'https://{host}:{port}/api/v1/auth/token'"
-        " -H 'Content-Type: application/x-www-form-urlencoded'"
-        " -d 'grant_type=client_credentials"
-        "&client_id={client_id}&client_secret={client_secret}'"
-        " 2>/dev/null"
-    ),
-    "bsm_api_get_job": (
-        "curl -sk -H 'Authorization: Bearer {token}'"
-        " 'https://{host}:{port}/api/v1/jobs/{job_id}' 2>/dev/null"
-    ),
-    "bsm_api_get_artifact": (
-        "curl -sk -H 'Authorization: Bearer {token}'"
-        " -w '\\n%{{http_code}}'"
-        " 'https://{host}:{port}/api/v1/jobs/{job_id}/artifacts/{label}'"
-        " 2>/dev/null"
-    ),
 
     # --- Registry ---
     "regctl_repo_ls": (
@@ -604,22 +577,31 @@ CMDS: Dict[str, str] = {
     ),
 
     # --- S3 ---
-    "s3cmd_ls_recursive": (
-        "s3cmd ls -r {bucket} 2>/dev/null"
-    ),
-    "s3cmd_ls_bucket": (
-        "s3cmd ls {bucket} 2>/dev/null"
-    ),
 
     # --- Vault decrypt ---
     "vault_decrypt_creds": (
-        "ansible-vault decrypt --vault-password-file {key_path} "
-        "--output - {creds_path} 2>/dev/null"
+        "set -a && . {env_file} && set +a && "
+        "\"${{OMNIA_VENV_PATH:+$OMNIA_VENV_PATH/bin/}}ansible-vault\" decrypt "
+        "--vault-password-file {key_path} --output - {creds_path} 2>/dev/null"
     ),
 
-    # --- Registry catalog ---
-    "curl_registry_catalog": (
-        "curl -sk https://localhost:{port}/v2/_catalog 2>/dev/null"
-        " || curl -sk http://localhost:{port}/v2/_catalog 2>/dev/null"
+    # --- Prepare base ---
+    "omnia_sh": "cd {workdir} && ./omnia.sh {arguments}",
+    "podman_container_state": (
+        "podman inspect --format '{{{{.State.Running}}}} "
+        "{{{{if .State.Health}}}}{{{{.State.Health.Status}}}}{{{{end}}}}'"
+        " {container} 2>/dev/null"
     ),
+    "podman_volume_exists": "podman volume exists {volume}",
+    "port_listening": "ss -Htln 'sport = :'{port}",
+
+    # --- Precheck ---
+    "hostname_short": "hostname -s 2>/dev/null",
+    "hostname_domain": "hostname -d 2>/dev/null",
+    "local_ipv4": "ip -o -4 address show scope global",
+    "realpath": "realpath -e {path}",
+    "nfs_exports": "exportfs -s 2>/dev/null",
+    "path_fstype": "findmnt -n -o FSTYPE -T {path}",
+
+    # --- Registry catalog ---
 }

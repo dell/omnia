@@ -11,178 +11,309 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 # =============================================================================
-# Build Stream — Test Configuration
+# BuildStream FVT — Test Configuration
 # =============================================================================
-# Non-sensitive settings for FVT (Functional Verification Testing).
-#
-# Usage:
-#   - Set oim_server_ip to the target server where build_stream runs.
-#   - Leave oim_server_ip empty to run tests locally on the same machine.
-#   - Configure sync options to push input files to the target server
-#     before running tests.
-#   - Sensitive credentials (SSH password) go in test_creds.yml
-#     (auto-encrypted with Ansible Vault on first run).
+# Settings of the Build Stream FVT suite.
+# Field-by-field reference: docs/test_config.md. Scenario order:
+#   1. prepare_base   ./omnia.sh --prepare-base
+#   2. precheck       build_stream.yml --tags precheck
+#   3. prepare        build_stream.yml --tags prepare
+#   4. execute        build_stream.yml --tags execute, GitLab checks, then the
+#                     explicit build / deploy / cadence pipeline suites
+#   5. cleanup        build_stream.yml --tags cleanup (destructive, explicit)
+# Playbooks, omnia.sh and pipeline stages run without a timeout unless noted.
+# Credentials never go here: test_creds.yml (OIM SSH password) and the domain
+# credential stores (./setup_env.sh --set-domain-creds).
 # =============================================================================
-
 ---
-
 # =============================================================================
 # TARGET SERVER CONNECTION
 # =============================================================================
-# IP address of the server where build_stream playbook runs.
-# Leave empty for local mode (running directly on the target server).
-# Set to a remote IP to run all verification commands over SSH.
-#
-# When a remote IP is set, the framework will:
-#   1. Sync the local project code to clone_path on the target (rsync)
-#   2. Optionally sync build_stream input files to the target
-#   3. Run all verification tests via SSH/Testinfra
+# OIM IP address. Leave empty to run directly on the OIM; set it to run every
+# command over SSH. The SSH password (optional) goes in test_creds.yml as
+# oim_password.
 oim_server_ip: ""
-
-# SSH username for remote server (only needed for remote mode).
+# SSH user and port used when oim_server_ip is set.
 oim_ssh_user: root
-
-# SSH port for remote server (only needed for remote mode).
 oim_ssh_port: 22
-
-# =============================================================================
-# PROJECT SYNC SETTINGS (remote execution)
-# =============================================================================
-# The local omnia monorepo is synced (rsync) to clone_path on the target.
-# Playbook runs from <clone_path>/build_stream/
-#
-# clone_path:   Absolute path on the TARGET SERVER where the project code is
-#               synced.
-#               Only used in remote mode. In local mode, the playbook path is
-#               resolved automatically from the source tree.
+# Path of the omnia checkout on the remote OIM (absolute; required when
+# oim_server_ip is set). Ignored in local mode, where the checkout
+# containing this suite is used.
 clone_path: "/omnia"
 
 # =============================================================================
-# DATASET CONFIGURATION
+# BUILD STREAM INPUT
 # =============================================================================
-# Controls where input files are loaded from for test execution.
-#
-# Default (empty):
-#   Leaves target input unchanged when sync_build_stream_input is false.
-#   When input sync is enabled, src/build_stream/input/ is the source.
-#
-# Custom dataset:
-#   Set to a folder name under test/build_stream/datasets/<name>/.
-#   Each dataset folder must contain:
-#     input/build_stream_config.yml
+# Dataset under datasets/ to sync as the build_stream input. Empty = use the
+# input already on the OIM (<OMNIA_DATA_PATH>/build_stream/input/<project>/).
 dataset: ""
-
-# The target project is always read from OMNIA_PROJECT_NAME on the execution
-# OIM. It is intentionally not duplicated in this test configuration.
-
-# =============================================================================
-# SYNC — BUILD STREAM INPUT
-# =============================================================================
-# When true, pushes the local dataset input/ files to the target server.
-# A configured dataset uses datasets/<dataset>/input/. An empty dataset uses
-# src/build_stream/input/. Credentials and vault keys are always excluded.
-# Destination is resolved from OMNIA_DATA_PATH and OMNIA_PROJECT_NAME on OIM.
-#
-# This ensures the target server has the correct build_stream_config.yml
-# before running the playbook.
+# true: before an exec run, sync the dataset (or src/build_stream/input when
+# dataset is empty) to the OIM build_stream input directory.
 sync_build_stream_input: false
 
 # =============================================================================
-# REPORT CONFIGURATION
+# 1. PREPARE BASE  (fvt/prepare_base)
 # =============================================================================
-# Directory where test reports (JSON + HTML) are saved.
-# Can be:
-#   - A folder name (relative to test/): reports
-#   - An absolute path: /var/reports/build_stream
-# No spaces allowed in the path.
-report_path: /opt/omnia/reports
-
-# Base name for report files (without extension).
-# Generates: build_stream_test_report.json, build_stream_test_report.html
-# No spaces allowed. Only letters, numbers, underscores, hyphens.
-report_name: build_stream_test_report
-
-# Custom run ID (optional).
-# When set, reports use this ID instead of a timestamp (YYYYMMDD_HHMMSS).
-# This groups multiple scenario runs under the same report entry.
-# Leave empty to auto-generate from timestamp.
-# No spaces allowed. Only letters, numbers, underscores, hyphens.
-run_id: ""
+# Runs ./omnia.sh --prepare-base from src/main: repo_manager ->
+# image_build_manager -> orchestrator (fail-fast). It has no settings. Its
+# precheck fails when a base domain credential store is missing (omnia.sh
+# would prompt); save them with ./setup_env.sh --set-domain-creds.
+# =============================================================================
 
 # =============================================================================
-# BUILD PIPELINE SETTINGS
+# 2-4. PRECHECK, PREPARE, EXECUTE  (fvt/precheck, fvt/prepare, fvt/execute)
 # =============================================================================
-# Controls for build pipeline automation tests (auto-trigger and manual).
-
-# When true, automation auto-cancels running/pending pipelines before
-# triggering a new one. When false, the test fails with instructions
-# to cancel manually in GitLab.
-allow_pipeline_cancel: false
-
-# Catalog path to use for the build pipeline trigger. The value is relative to
-# src/main/samples/catalogs/ so the user can select any supported release and
-# workload without changing the automation code.
-# Build-pipeline exec/test always uploads this file and replaces the existing
-# GitLab catalog with uniquely identified content to trigger a new pipeline.
-# Required for build-pipeline exec/test. Build-pipeline verify reads the job_id
-# and does not load or upload a catalog.
-catalog_path: "rhel/10.2/slurm_x86_64_no_vast.json"
-
-# Job ID from the most recent build pipeline run.
-# Always overwritten with the newly created job during build-pipeline
-# exec/test. Verify mode only reads this value and never changes it.
-# Must be set manually before running --verify if no prior --test was run.
-# Format: UUID (e.g. 019bf590-1234-7890-abcd-ef1234567890)
-job_id: ""
-
-# Explicit target for the automatic-cleanup FVT. The selected Job must own the
-# only FAILED ImageGroup in the database because the production cleanup cron
-# processes every FAILED group. Verify is read-only; exec/test require the
-# safety flag and transition this exact target to CLEANED.
-automatic_cleanup_job_id: ""
-automatic_cleanup_allow_execution: false
-
-# Deploy pipeline always resolves the image group and prior GitLab pipeline
-# from job_id. It never falls back to the latest image.
+# build_stream.yml --tags precheck | prepare | execute and their checks. They
+# have no settings; the BuildStream inputs come from the OIM input directory.
+# execute then runs these suites in order (one test case per step); they use
+# the two blocks below. Pick one with --suite <name> or a marker (--marker):
+#   suite             trigger and markers
+#   build_automatic   catalog commit auto-triggers the build
+#                     markers: build_pipeline, automatic_execution
+#   build_manual      PIPELINE_TYPE=build through the API
+#                     markers: build_pipeline, manual_execution
+#   deploy_automatic  PXE mapping commit auto-triggers deploy
+#                     markers: deploy_pipeline, automatic_execution
+#   deploy_manual     PIPELINE_TYPE=deploy through the API
+#                     markers: deploy_pipeline, manual_execution
+#   cadence           cadence cycle + pipeline, enable/disable cadence
+#                     marker: cadence
+#   pipeline_cleanup  PIPELINE_TYPE=cleanup for one image group
+#                     marker: cleanup_pipeline
+#   auto_cleanup      one automated cleanup pass; deletes the image the
+#                     cadence test built (marked FAILED first)
+#                     marker: automatic_cleanup
+# Every pipeline suite also has "pipeline"; the manual suites have no sanity.
+# =============================================================================
+installation:
+  # catalog: catalog the build suites (and the NFT) commit to GitLab as
+  # catalog_rhel.json. cadence_catalog: catalog the cadence suite uploads as
+  # cadence_catalog_rhel.json (empty = the same as catalog). Give either:
+  #   - a number from the list below (same numbering as
+  #     ./omnia.sh --list-catalogs; files under src/main/samples), or
+  #   - the full path of your own catalog on the OIM, for example
+  #     /opt/omnia/catalog/my_catalog_rhel.json
+  # Bundled catalogs:
+  #    1) default (samples/catalog_rhel.json)
+  #    2) hybrid/slurm_hybrid_10_2_10_0_aarch64.json
+  #    3) hybrid/slurm_hybrid_10_2_10_0_aarch64_no_vast.json
+  #    4) hybrid/slurm_hybrid_10_2_10_0_x86_64_aarch64.json
+  #    5) hybrid/slurm_hybrid_10_2_10_0_x86_64_aarch64_no_vast.json
+  #    6) hybrid/slurm_hybrid_10_2_10_0_x86_64.json
+  #    7) hybrid/slurm_hybrid_10_2_10_0_x86_64_no_vast.json
+  #    8) hybrid/slurm_service_k8s_hybrid_10_2_10_0_combined.json
+  #    9) hybrid/slurm_service_k8s_hybrid_10_2_10_0_combined_no_vast.json
+  #   10) hybrid/slurm_service_k8s_hybrid_10_2_10_0_x86_64.json
+  #   11) hybrid/slurm_service_k8s_hybrid_10_2_10_0_x86_64_no_vast.json
+  #   12) rhel/10.0/service_k8s_x86_64.json
+  #   13) rhel/10.0/slurm_aarch64.json
+  #   14) rhel/10.0/slurm_aarch64_no_vast.json
+  #   15) rhel/10.0/slurm_service_k8s_combined.json
+  #   16) rhel/10.0/slurm_service_k8s_combined_no_vast.json
+  #   17) rhel/10.0/slurm_service_k8s_x86_64.json
+  #   18) rhel/10.0/slurm_service_k8s_x86_64_no_vast.json
+  #   19) rhel/10.0/slurm_x86_64_aarch64.json
+  #   20) rhel/10.0/slurm_x86_64_aarch64_no_vast.json
+  #   21) rhel/10.0/slurm_x86_64.json
+  #   22) rhel/10.0/slurm_x86_64_no_vast.json
+  #   23) rhel/10.2/service_k8s_x86_64.json
+  #   24) rhel/10.2/slurm_aarch64.json
+  #   25) rhel/10.2/slurm_aarch64_no_vast.json
+  #   26) rhel/10.2/slurm_service_k8s_combined.json
+  #   27) rhel/10.2/slurm_service_k8s_combined_no_vast.json
+  #   28) rhel/10.2/slurm_service_k8s_x86_64.json
+  #   29) rhel/10.2/slurm_service_k8s_x86_64_no_vast.json
+  #   30) rhel/10.2/slurm_x86_64_aarch64.json
+  #   31) rhel/10.2/slurm_x86_64_aarch64_no_vast.json
+  #   32) rhel/10.2/slurm_x86_64.json
+  #   33) rhel/10.2/slurm_x86_64_no_vast.json
+  # The number is resolved on the OIM at run time, so it always matches the
+  # current ./omnia.sh --list-catalogs output.
+  catalog: 29
+  cadence_catalog: 29
 
 # =============================================================================
-# NON-FUNCTIONAL TEST SAFETY CONTROLS
+# PIPELINES  (fvt/execute: build_*, deploy_*, cadence, pipeline_cleanup)
+# =============================================================================
+# Each build, deploy and cadence suite runs in one of two modes (see the
+# job ID keys below):
+#   job ID empty -> trigger mode: the suite commits/triggers and then verifies.
+#     build_automatic:  commits the installation.catalog catalog as
+#                       catalog_rhel.json with the next unused version; the
+#                       push auto-triggers the build pipeline.
+#     build_manual:     same commit with [skip ci] (no pipeline), then
+#                       PIPELINE_TYPE=build is triggered through the API.
+#     deploy_automatic: swaps two rows of
+#                       input/orchestrator/pxe_mapping_file.csv in GitLab; the
+#                       push auto-triggers the deploy pipeline.
+#     deploy_manual:    PIPELINE_TYPE=deploy is triggered through the API.
+#                       Both deploy suites deploy the image group built in
+#                       the same run (automatic <- automatic, manual <-
+#                       manual, else the other build suite). When that build
+#                       failed, every deploy test is skipped. A deploy-only
+#                       run deploys pipeline.deploy_image_group_id.
+#     cadence:          fails unless a build pipeline ran at least once, then
+#                       uploads the installation.cadence_catalog catalog as
+#                       cadence_catalog_rhel.json with [skip ci], runs
+#                       trigger_cadence.sh, follows playbook-watcher through
+#                       repo sync, catalog bump and GitLab commit, then the
+#                       cadence pipeline.
+# "Next unused version" = one minor above the highest version of the same
+# catalog identifier in the selected file, both GitLab catalogs, the active
+# catalog and image_groups, so a version already used is never re-committed.
+#   job ID set   -> verify-only mode (see build_job_id below).
+# =============================================================================
+pipeline:
+  # allow_pipeline_cancel: true | false (default: true).
+  #   Before a suite commits the catalog, changes the PXE mapping file or
+  #   triggers a pipeline through the API, it looks for GitLab pipelines that
+  #   are still running or pending (a new pipeline would queue behind them).
+  #   true:  the running pipelines are printed ("running GitLab pipeline(s)
+  #          found: #41 ... cancelling them"), cancelled, and the suite
+  #          continues with its commit or trigger.
+  #   false: nothing is cancelled; the test fails, lists the running
+  #          pipelines and asks you to cancel them in GitLab.
+  allow_pipeline_cancel: true
+
+  # build_job_id, deploy_job_id, cadence_job_id: BuildStream job UUID or ""
+  # (default: "").
+  #   ""      TRIGGER mode: the suite commits or triggers a new pipeline.
+  #   job ID  VERIFY-ONLY mode: the suite only verifies that existing job.
+  #   build_job_id    used by build_automatic and build_manual.
+  #   deploy_job_id   used by deploy_automatic and deploy_manual. Deploy
+  #                   stages are recorded on the BUILD job of the deployed
+  #                   image group, so give that build job.
+  #   cadence_job_id  used by cadence.
+  # Find job IDs on the OIM:
+  #   podman exec omnia_postgres sh -c 'psql -U "$POSTGRES_USER" \
+  #     -d build_stream_db -c "select job_id, job_state, created_at
+  #     from jobs order by created_at desc"'
+  # and the image groups:
+  #   podman exec omnia_postgres sh -c 'psql -U "$POSTGRES_USER" \
+  #     -d build_stream_db -c "select id, job_id, status
+  #     from image_groups order by created_at desc"'
+  build_job_id: ""
+  deploy_job_id: ""
+  cadence_job_id: ""
+
+  # deploy_image_group_id: image group ID or "" (default: "").
+  #   The deploy suites deploy this group when no build pipeline ran in the
+  #   same run (deploy-only run: --suite deploy_automatic | deploy_manual, or
+  #   --marker deploy_pipeline), for example
+  #   omnia-slurm-k8s-rhel-10-2-x86_64-no-vast-v1.2. Ignored when a build
+  #   suite ran in the same run: its image group is deployed.
+  #   ""          the deploy test fails: "image name is not present".
+  #   not in DB   the deploy test fails: "requested image not found".
+  #   not BUILT   the deploy test fails (the pipeline offers BUILT groups
+  #               only).
+  #   List the image groups with the second command above.
+  deploy_image_group_id: ""
+
+  # cleanup_image_group_id: image group ID or "" (default: "").
+  #   The pipeline_cleanup suite deletes this group with
+  #   PIPELINE_TYPE=cleanup (its S3 boot files, registry images and NFS
+  #   artifacts; the DB marks it CLEANED), for example
+  #   omnia-slurm-k8s-rhel-10-2-x86_64-no-vast-v1.2.
+  #   ""  the first image group the cleanup API accepts: the newest one with
+  #       status BUILT, PASSED or FAILED. If there is none, the suite fails
+  #       with "No images to clean" and triggers no pipeline.
+  #   A group that is already CLEANED is skipped.
+  #   List the image groups with the second command above.
+  cleanup_image_group_id: ""
+
+  # auto_cleanup_image_group_id: image group ID or "" (default: "").
+  #   The auto_cleanup suite deletes this group. cleanup_cron deletes FAILED
+  #   image groups, so the test first sets the group to FAILED in
+  #   build_stream_db (only BUILT, PASSED or FAILED groups can be set), runs
+  #   one cleanup_cron pass, then checks S3, the registry (regctl) and the
+  #   NFS artifacts. That pass also deletes every other FAILED group and
+  #   every retention candidate.
+  #   ""  the image the cadence test built first: it builds a NEW image group
+  #       (not the build suites' one, which the deploy suites use). If that
+  #       build failed there is nothing to clean and the test is skipped; if
+  #       only the cadence cycle failed, the image is still cleaned. When the
+  #       cadence test did not run in the session, the first BUILT, PASSED
+  #       or FAILED image group is used ("No images to clean" fails the test
+  #       when there is none).
+  auto_cleanup_image_group_id: ""
+
+  # poll_interval: seconds, positive integer (default: 30).
+  #   How often the suites re-read the GitLab pipeline, the BuildStream job
+  #   and the image group status while waiting for a stage, a cadence cycle
+  #   or a cleanup to finish. Waits have no overall timeout.
+  poll_interval: 30
+
+# =============================================================================
+# EXECUTION
+# =============================================================================
+# true (default):  every pipeline stage playbook log (create-local-repository,
+#        build-image, deploy, ...), the cadence repo sync log and the image
+#        cleanup playbook log are streamed live into the test output ("│"
+#        lines, like a playbook run): each line is printed as soon as it is
+#        written. The log of the current attempt is picked from
+#        /var/log/omnia/<domain>/.
+# false: only progress lines are printed; while a stage, the cadence sync or
+#        a cleanup runs they show "tail -f <log>" and a status line per poll.
+# The playbook-watcher journal records of a cadence cycle are always shown.
+debug_mode: true
+
+# =============================================================================
+# 5. CLEANUP  (fvt/cleanup; build_stream.yml --tags cleanup, destructive)
+# =============================================================================
+# Passed to the playbook as -e <flag>=<value>; the verification checks the
+# matching outcome.
+cleanup:
+  # postgres_backup: true | false (default: false).
+  #   false: delete the Postgres data directory and the omnia_postgres
+  #          volumes.
+  #   true:  keep them (the database is reused by the next install).
+  postgres_backup: false
+  # cleanup_credentials: true | false (default: true).
+  #   true:  delete the BuildStream credential files and keys.
+  #   false: keep them, so the next install runs without prompting.
+  cleanup_credentials: false
+
+# =============================================================================
+# NON-FUNCTIONAL TESTS  (nft_build_stream: resilience and security)
 # =============================================================================
 # Disruptive NFTs are disabled by default and operate only on the pipeline/job
 # created by the NFT session. Enable only the specific operation being tested.
-
-# Allows the resilience NFT to create a GitLab pipeline, cancel that exact
+# BuildStream job the resilience NFTs inspect when they did not create one
+# (UUID from build_stream_db table jobs; empty = only NFT-created jobs).
+job_id: ""
+# Allows the resilience NFT to commit installation.catalog (next unused
+# version, as build_automatic does), cancel that exact
 # test-created pipeline, and verify that a replacement pipeline creates a new
-# BSM job. This is equivalent to selecting Cancel for that pipeline in GitLab.
+# BSM job (like selecting Cancel for that pipeline in GitLab).
 nft_allow_pipeline_cancel: false
-
 # Allows the resilience NFT to restart omnia_build_stream.service and verify
-# that the BSM API recovers and the configured/test-created job remains
-# accessible after the restart.
+# that the BSM API recovers and the job remains accessible after the restart.
 nft_allow_service_restart: false
-
 # Allows the resilience NFT to restart omnia_build_stream.service while the
-# configured/test-created BSM job is active, then verify that its job identity
-# and stage records are preserved without duplication.
+# job is active, then verify its identity and stage records are preserved.
 nft_allow_active_stage_restart: false
-
 # Allows the resilience NFT to stop playbook-watcher.service while a request
-# for the test-created job is queued, restart the service, and verify that the
-# watcher recovers and claims that exact request.
+# for the test-created job is queued, restart it, and verify the watcher
+# recovers and claims that exact request.
 nft_allow_watcher_restart: false
-
 # Allows security NFTs to create one disposable, audit-labelled BSM job and
-# submit invalid path-traversal and oversized-file uploads. These tests verify
-# that rejected uploads leave no file or stage-state changes.
+# submit invalid path-traversal and oversized-file uploads, then verify the
+# rejected uploads leave no file or stage-state changes.
 nft_allow_security_mutation: false
-
-# Maximum time, in seconds, to wait for a service restart, GitLab cancellation,
-# queue transition, or other recovery condition used by resilience NFTs.
+# Maximum seconds to wait for a service restart, GitLab cancellation, queue
+# transition or other recovery condition (integer >= 10).
 nft_recovery_timeout_seconds: 120
 
-# Maximum time, in seconds, for each NFT-triggered GitLab pipeline to initialize
-# and create its BSM job. This includes time for GitLab to release a runner
-# after cancellation before starting the replacement pipeline.
-nft_pipeline_timeout_seconds: 300
+# =============================================================================
+# REPORT
+# =============================================================================
+# After the run, a JSON and an HTML report are written to
+# <report_path>/<report_name>.json and .html.
+# Directory on this host where the reports are written.
+report_path: /build_stream
+# Report file name without extension.
+report_name: build_stream
+# ID shown in the report to group this run. Empty = current timestamp
+# (YYYYMMDD_HHMMSS).
+run_id: ""

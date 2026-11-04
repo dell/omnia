@@ -1,29 +1,75 @@
 # Build Stream test automation
 
-Functional automation for the Omnia `build_stream` domain.
+Functional (FVT) and non-functional (NFT) automation for the Omnia
+`build_stream` domain.
 It uses the shared `omnia_auto` package for runner dispatch, target access,
 synchronization, logging, and HTML/JSON reporting.
 
-## Scope
+The Omnia setup (`./omnia.sh --setup-venv`, `--cleanup`) is tested in
+`test/main`, and each base domain's cleanup in its own suite (`test/repo_manager`,
+`test/image_build_manager`, `test/orchestrator`). The end-to-end system
+verification (SVT) chains those suites with these FVT tags, and its
+`./setup_env.sh` writes every domain credential store through this suite's
+`setup_env.sh`; see [`../system_test/README.md`](../system_test/README.md).
 
-The automation covers the complete BuildStream lifecycle:
+## Purpose and safety model
 
-| Scenario | Purpose | Selection |
+Each FVT tag follows a `build_stream.yml` tag (or `./omnia.sh --prepare-base`) and
+verifies what that step creates. The three actions:
+
+- `exec` runs the playbook or command;
+- `verify` only reads state;
+- `test` runs `exec`, then `verify` only when `exec` succeeded.
+
+| Tag | Effect | Selection |
 |---|---|---|
-| `buildstream_install` | Install and validate BuildStream, PostgreSQL, GitLab, the runner, TLS, queue access, and repository content | Default lifecycle |
-| `build_pipeline` | Upload a catalog, build images, and validate database, registry, and S3 artifacts | Build/deploy lifecycle |
-| `deploy_pipeline` | Select the image group bound to `job_id`, run deploy/restart/validate, and verify the final state | Build/deploy lifecycle |
-| `cadence_pipeline` | Trigger the cadence watcher and validate its repository sync plus unified eight-job lifecycle | Default lifecycle |
-| `automatic_cleanup` | Execute and verify automatic cleanup for one explicitly configured failed Job | Explicit destructive suite; excluded from lifecycles |
-| `buildstream_cleanup` | Remove and validate GitLab and BuildStream resources | Explicit tag |
-| `cleanup_pipeline` | Delete one built image group's database, S3, and registry artifacts through GitLab CI | Explicit suite |
-| `manual` | Trigger build or deploy with `PIPELINE_TYPE` instead of a catalog-change pipeline | Explicit suite |
+| `prepare_base` | Runs `./omnia.sh --prepare-base` (repo_manager, image_build_manager, orchestrator) | Explicit only |
+| `precheck` | Read-only `--tags precheck` | Default lifecycle |
+| `prepare` | Deploys BuildStream, Postgres and playbook-watcher | Default lifecycle |
+| `execute` | Deploys GitLab and runs real pipelines (detail below) | Default lifecycle |
+| `cleanup` | **Destructive**: removes GitLab and BuildStream. Postgres data and credentials follow `cleanup.postgres_backup` / `cleanup.cleanup_credentials` | Explicit only |
 
-The separate build/deploy lifecycle and cleanup scenario are excluded from the
-default lifecycle. Manual cases use the separate `manual` marker and therefore
-do not run with `--marker sanity`.
+`execute` runs real pipelines: it builds and deploys images, runs a cadence
+cycle, an image cleanup pipeline and an automated cleanup pass. It changes live
+state:
 
-## First use
+- it commits catalogs and PXE mapping changes to GitLab;
+- it deploys images to nodes;
+- it deletes one image group (`pipeline_cleanup`);
+- it runs the automated cleanup (`auto_cleanup`), which marks the image the
+  cadence test built FAILED in the database, then deletes every FAILED image
+  group;
+- with `pipeline.allow_pipeline_cancel: true` (default) it cancels running
+  GitLab pipelines before each commit or trigger.
+
+### Security model
+
+- **No secret on a command line.** Tokens, client secrets and passwords are
+  sent from the test process with in-memory HTTPS requests (`http_func.py`).
+  They are never a command argument, in a process listing, logged, or included
+  in a returned error.
+- **TLS is always verified:**
+  - the BuildStream API against `<OMNIA_DATA_PATH>/build_stream/ssl/bs_cert.pem`;
+  - GitLab against the CA `hosted_gitlab` creates (`/root/gitlab-certs/ca.crt`
+    on the GitLab host, read over SSH).
+- **SSH to the GitLab host** uses the key and pinned host key that
+  `build_stream.yml --tags execute` installs (`/root/.ssh/omnia_gitlab`,
+  `gitlab_passwordless_ssh`). It uses BatchMode and strict host key checking;
+  no password is involved.
+- **Credentials** live only in the encrypted stores described below.
+
+## Prerequisites
+
+- **Development host:** Python 3.12, `bash`, and this repository.
+- **Execution OIM:**
+  - an Omnia checkout;
+  - an Omnia setup (`/etc/omnia/omnia.env` and the Omnia venv; create it with
+    `./omnia.sh --setup-venv` or `test/main`: `./run_validation.sh fvt_main setup test`);
+  - for `execute`, PXE nodes listed in `input/orchestrator/pxe_mapping_file.csv`.
+- **Product credentials** saved with `./setup_env.sh --set-domain-creds` on the
+  execution OIM, so no playbook stops to prompt.
+
+## Quick start
 
 ```bash
 cd test/build_stream
@@ -31,395 +77,283 @@ cd test/build_stream
 source .venv/bin/activate
 ```
 
-For password-based SSH to a remote execution OIM, configure the local,
-gitignored transport credential:
+For password-based SSH to a remote execution OIM:
 
 ```bash
 ./setup_env.sh --set-creds
 ```
 
-Build Stream product credentials are separate from transport credentials. Run
-this command on the execution OIM after sourcing `/etc/omnia/omnia.env`:
+On the execution OIM, save the product credentials:
 
 ```bash
 ./setup_env.sh --set-domain-creds
 ```
 
-The BuildStream authentication username and password are required. The helper
-also generates the Argon2 registrar hash required by `/api/v1/auth/register`.
-
-The helper validates credential contents, not only file existence. If required
-fields are missing or empty, rerunning `--set-domain-creds` prompts only for
-those fields and preserves populated values, including runtime-managed OAuth
-clients. Populated credentials cannot be changed in place. To replace them,
-run a full BuildStream cleanup, configure fresh credentials, and then run
-`./omnia.sh -r build_stream` to redeploy the synchronized credentials.
-
-That command writes the encrypted pair below
-`$OMNIA_DATA_PATH/build_stream/input/$OMNIA_PROJECT_NAME/`:
-
-- `build_stream_credentials.yml`
-- `.build_stream_credentials_key`
-
-Review the non-sensitive settings and registered execution surface:
+Review the settings and the registered surface, check the prerequisites, then run:
 
 ```bash
 ${EDITOR:-vi} test_config.yml
 ${EDITOR:-vi} test_run_config.yml
 ./run_validation.sh --help
 ./run_validation.sh fvt_build_stream list
+./run_validation.sh fvt_build_stream precheck verify
+./run_validation.sh fvt_build_stream test        # precheck -> prepare -> execute
 ```
 
-## Execution model
+### First run on a bare OIM (no Omnia venv yet)
 
-```text
-exec    run the selected playbook or pipeline operation only
-verify  inspect existing state without executing the operation
-test    run exec, then verify only when execution succeeds
+```bash
+(cd ../main && ./setup_env.sh --venv && .venv/bin/python _run.py fvt_main setup test \
+   && .venv/bin/python _run.py fvt_main init test)        # omnia.sh setup + domain init
+source "$(sed -n 's/^OMNIA_VENV_PATH=//p' /etc/omnia/omnia.env)/bin/activate"
+./setup_env.sh                                            # test deps in the Omnia venv
+./setup_env.sh --set-domain-creds
+./run_validation.sh fvt_build_stream prepare_base test
+./run_validation.sh fvt_build_stream test
 ```
 
-Execution tests retain `@pytest.mark.deploy`; `verify` automatically excludes
-that marker.
+## Environment setup
 
-`exec` runs the `deploy`-marked action. `verify` excludes that action and runs
-the selected verification cases against existing state. The supported markers
-are:
+`./setup_env.sh` installs `requirements.txt` (including the `omnia_auto` wheel).
+It never runs a playbook or a test.
 
-| Marker | Meaning |
+| Install mode | Selected by |
 |---|---|
-| `sanity` | Installation, automatic pipeline, cleanup, and health coverage |
-| `manual` | Explicit `PIPELINE_TYPE=build` or `PIPELINE_TYPE=deploy` coverage |
-| `deploy` | Performs an infrastructure or pipeline action |
-| `security` | Security NFT coverage |
-| `resilience` | Recovery and fault-injection NFT coverage |
-| `disruptive` | Requires a matching `nft_allow_*` safety control |
+| `.venv/` | `--venv` (`--force` recreates it) |
+| Active virtualenv | `VIRTUAL_ENV` is set, for example the Omnia venv |
+| User site (`pip --user`) | Otherwise |
 
-## Cadence inputs and JobID handling
+Test (transport) credentials and product (domain) credentials are separate:
 
-Cadence automation deliberately has no separate catalog selector in
-`test_config.yml`. The GitLab cadence contract uses only
-`cadence_catalog_rhel.json`; cadence `exec` and `test` send a one-shot trigger
-to the running watcher. After `repo_sync.yml` succeeds, the watcher always
-increments the catalog version and pushes the commit that starts the pipeline.
-Package add/remove counts are informational and never suppress cadence. The
-normal `catalog_path` setting is used only by build-pipeline automation.
-
-For deterministic sanity execution, the deployed `build_stream_config.yml`
-must set `cadence.enabled: true` and a valid `cadence.interval_days`. The
-catalog (`cadence_catalog_rhel.json`) and playbook (`repo_sync.yml`) are fixed
-system contracts. The watcher and Pulp services, local cadence Git worktree,
-and `repo_sync.yml` registration are validated before the action starts.
-
-The shared `job_id` remains the single source of truth:
-
-- Cadence `exec` or `test` extracts the exact JobID from its initialization job
-  and writes it to `test_config.yml`.
-- Cadence `verify` reads that mandatory JobID and never discovers the latest
-  job as a fallback.
-- The JobID is used to resolve exactly one composite ImageGroupID and the
-  corresponding cadence child pipeline.
-
-Cadence service controls such as `enabled` and polling intervals remain product
-configuration in `build_stream_config.yml`; the test configuration does not
-duplicate them. `interval_days` remains an integer with a minimum of one day.
-The fast NFT timer test uses a controlled wait expiry (not the manual trigger)
-to prove that `interval_days: 1` becomes 86400 seconds and starts one automatic
-cycle. Real wall-clock automatic triggering requires a one-day soak and is not
-part of sanity.
-
-## FVT scenarios
-
-| Scenario | Purpose | Suites |
+| Option | Writes | Read by |
 |---|---|---|
-| `automatic_cleanup` | Run production automatic cleanup for an explicit sole failed target | `automatic_cleanup` |
-| `buildstream_cleanup` | Run one explicitly selected cleanup operation | `gitlab_cleanup`, `buildstream_cleanup`, `cleanup_pipeline` |
-| `buildstream_install` | Install and verify GitLab and BuildStream services | `health`, `buildstream_install` |
-| `build_pipeline` | Trigger and verify the image build pipeline | `build_pipeline`, `manual` |
-| `deploy_pipeline` | Deploy the image group mapped to `job_id`, restart, validate, and verify | `deploy_pipeline`, `manual` |
-| `cadence_pipeline` | Trigger and verify the unified cadence pipeline | `cadence_pipeline` |
+| `--set-creds`, `--update-creds`, `--creds-stdin` | `test_creds.yml` + `.test_creds.key` (0600, gitignored) | The test framework (OIM SSH password) |
+| `--set-domain-creds [--domain X]`, `--update-domain-creds`, `--domain-creds-stdin [--domain X]` | The domain stores below | The product playbooks |
 
-An untagged FVT command runs the default `sanity` lifecycle in this order:
-`buildstream_install`, then `cadence_pipeline`. For `test`,
-each scenario is executed and verified before the runner advances. The
-lifecycle stops at the first failure. Cleanup and automatic cleanup are
-excluded from untagged commands and require one explicit suite. This prevents
-GitLab cleanup, BuildStream cleanup, image cleanup, and the automatic cleanup
-cron from running together accidentally.
+| Domain | Store under `<DOMAIN>_DATA_PATH/input/$OMNIA_PROJECT_NAME/` |
+|---|---|
+| `repo_manager` | `repo_manager_config_credentials.yml` |
+| `image_build_manager` | `image_build_credentials.yml` |
+| `orchestrator` | `orchestrator_credentials.yml` |
+| `build_stream` | `build_stream_credentials.yml` |
 
-The named `build_deploy_lifecycle` group runs `buildstream_install`,
-`build_pipeline`, then `deploy_pipeline` through the same ordered execution,
-verification, stop-on-failure, and combined-reporting path.
+- **Encryption:** each store is Ansible Vault encrypted (0600) with its own key
+  file.
+- **Updating:** press Enter to keep a stored value. Only the listed top-level
+  fields change; other data, such as BuildStream `oauth_clients`, is kept.
+- **BuildStream:** the helper also generates the Argon2 registrar hash required
+  by `/api/v1/auth/register`. Run `./omnia.sh -r build_stream` after changing
+  BuildStream credentials.
+- **Automation:** `--domain-creds-stdin` reads one JSON object, as
+  `test/system_test/setup_env.sh --yes` does when no terminal is attached.
 
-| Lifecycle | Ordered scenarios | Sanity cases |
-|---|---|---:|
-| Default | `buildstream_install` → `cadence_pipeline` | 57 |
-| `build_deploy_lifecycle` | `buildstream_install` → `build_pipeline` → `deploy_pipeline` | 55 |
+Fields and the standard-input format: [`docs/test_creds.md`](docs/test_creds.md).
 
-The same lifecycle and explicit-only labels are displayed by both
-`./run_validation.sh --help` and
-`./run_validation.sh fvt_build_stream list`.
+## Local and remote execution, input and output
 
-```bash
-# Execute only
-./run_validation.sh fvt_build_stream buildstream_install exec --marker sanity
+Run on the execution OIM, or set `oim_server_ip` in `test_config.yml` to run
+from a development host over SSH.
 
-# Execute, then verify
-./run_validation.sh fvt_build_stream buildstream_install test --marker sanity
-
-# Re-run read-only checks against an existing installation
-./run_validation.sh fvt_build_stream buildstream_install verify --marker sanity
-
-# Trigger and verify the existing build pipeline automation
-./run_validation.sh fvt_build_stream build_pipeline test --marker sanity
-
-# Run the default installation + cadence lifecycle
-./run_validation.sh fvt_build_stream test --marker sanity
-
-# Run installation + separate build and deploy pipelines
-./run_validation.sh fvt_build_stream build_deploy_lifecycle test \
-  --marker sanity
-
-# Verify an existing build job using job_id from test_config.yml
-./run_validation.sh fvt_build_stream build_pipeline verify --marker sanity
-
-# Deploy the unique image group mapped to mandatory job_id
-./run_validation.sh fvt_build_stream deploy_pipeline test --marker sanity
-
-# Trigger watcher repo sync and verify all eight cadence jobs
-./run_validation.sh fvt_build_stream cadence_pipeline test --marker sanity
-
-# Automatic cleanup (requires explicit failed Job ID and approval in test_config.yml)
-./run_validation.sh fvt_build_stream automatic_cleanup test \
-  --suite automatic_cleanup --marker sanity
-
-# Explicit GitLab cleanup
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite gitlab_cleanup --marker sanity
-
-# Explicit BuildStream service and data cleanup
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite buildstream_cleanup --marker sanity
-
-# Explicit image cleanup pipeline
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite cleanup_pipeline --marker sanity
-```
-
-## Recommended end-to-end run
-
-Use one `run_id` in `test_config.yml` for one logical run. Cleanup must run
-first because the next step installs BuildStream again. Leave `run_id` empty
-when each command should create a separate report entry.
-
-```bash
-cd test/build_stream
-source .venv/bin/activate
-
-# 1. Clean GitLab, then clean BuildStream services and data
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite gitlab_cleanup --marker sanity
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite buildstream_cleanup --marker sanity
-
-# 2. Install BuildStream and run the complete unified cadence pipeline
-./run_validation.sh fvt_build_stream test --marker sanity
-```
-
-The separate build and deploy pipeline lifecycle can be run with:
-
-```bash
-./run_validation.sh fvt_build_stream build_deploy_lifecycle test \
-  --marker sanity
-```
-
-To generate a clean final-state report without repeating any action, set a new
-`run_id` in `test_config.yml` and run the three read-only verification phases:
-
-```bash
-./run_validation.sh fvt_build_stream verify --marker sanity
-./run_validation.sh fvt_build_stream build_deploy_lifecycle verify \
-  --marker sanity
-```
-
-Reports retain earlier failures and retries for auditability. Use a new
-`run_id` for a final-state-only report instead of deleting or manually
-editing historical results.
-
-## Explicit pipeline suites
-
-Installation sanity must pass before the manual suites. Manual build stages the
-catalog with `[skip ci]`, triggers `PIPELINE_TYPE=build`, and persists the new
-`job_id`. Manual deploy uses that same job and triggers
-`PIPELINE_TYPE=deploy`.
-
-```bash
-./run_validation.sh fvt_build_stream buildstream_install verify --marker sanity
-
-./run_validation.sh fvt_build_stream build_pipeline test \
-  --suite manual --marker manual
-./run_validation.sh fvt_build_stream deploy_pipeline test \
-  --suite manual --marker manual
-```
-
-Automatic cleanup is also destructive and explicit, but it is not a GitLab
-pipeline. Configure `automatic_cleanup_job_id` with a dedicated failed Job and
-set `automatic_cleanup_allow_execution: true`. Execution refuses to continue
-unless that Job owns the only `FAILED` ImageGroup, because the production cron
-cleans every failed group. `exec` invokes the deployed cron, `verify` only
-checks the saved target, and `test` runs both phases.
-
-```bash
-./run_validation.sh fvt_build_stream automatic_cleanup exec \
-  --suite automatic_cleanup --marker sanity
-./run_validation.sh fvt_build_stream automatic_cleanup verify \
-  --suite automatic_cleanup --marker sanity
-./run_validation.sh fvt_build_stream automatic_cleanup test \
-  --suite automatic_cleanup --marker sanity
-```
-
-The image cleanup pipeline is destructive and explicit. It resolves the image
-group from `job_id`, triggers `PIPELINE_TYPE=cleanup`, and verifies `CLEANED`
-database state plus removal of the associated S3 and registry artifacts.
-
-```bash
-./run_validation.sh fvt_build_stream buildstream_cleanup test \
-  --suite cleanup_pipeline --marker sanity
-
-# Read-only verification of an already completed cleanup
-./run_validation.sh fvt_build_stream buildstream_cleanup verify \
-  --suite cleanup_pipeline --marker sanity
-```
-
-The cleanup suite is idempotent: when the selected image group is already
-`CLEANED`, it verifies that result and does not launch a duplicate pipeline.
-
-Batch execution uses the YAML order and explicit `run` values in
-`test_run_config.yml`:
-
-```bash
-./run_validation.sh --config
-```
-
-## Inputs and datasets
-
-With `dataset: ""` and `sync_build_stream_input: false`, the target's existing
-input is untouched. When input synchronization is enabled, an empty dataset
-uses `src/build_stream/input/`; a named dataset uses
-`datasets/<dataset>/input/`.
-
-The destination is resolved from `OMNIA_DATA_PATH` and
-`OMNIA_PROJECT_NAME` on the execution OIM. Credential files, vault keys,
-backups, and symlinks are never synchronized.
-
-The runner does not assume `/opt/omnia` or `project_default` for runtime input,
-queue, artifact, or Orchestrator validation paths. A custom environment such as
-the following is supported:
-
-```text
-OMNIA_DATA_PATH=/opt/omnia_custom
-OMNIA_PROJECT_NAME=custom_project
-
-/opt/omnia_custom/build_stream/input/custom_project
-/opt/omnia_custom/orchestrator/input/custom_project
-/opt/omnia_custom/playbook_queue
-```
-
-`report_path` remains independently configurable in `test_config.yml`.
-
-Generate reproducible non-secret input with:
+- **Input sync:**
+  - with `dataset: ""` and `sync_build_stream_input: false`, the target input is
+    untouched;
+  - with input sync enabled, an empty dataset uses `src/build_stream/input/` and
+    a named dataset uses `datasets/<dataset>/input/`.
+- **Destinations** come from `OMNIA_DATA_PATH` and `OMNIA_PROJECT_NAME` on the
+  execution OIM.
+- **Never synchronized:** credential files, vault keys, backups and symlinks.
+- **`verify`** never writes input.
 
 ```bash
 cd datasets/generator
 ./generate_dataset.py create my_dataset --profile defaults
-cd ../..
 ```
 
-Run deployed-system non-functional tests with:
+## Tags and suites
+
+| Tag | Suites | Contract |
+|---|---|---|
+| `prepare_base` | `readiness` | Prerequisite domains ready for BuildStream |
+| `precheck` | `environment`, `containers`, `credentials` | Environment, prerequisite containers and credential stores |
+| `prepare` | `build_stream` | BuildStream service, API, database, venv, TLS, queue |
+| `execute` | `gitlab_server`, `gitlab_runner`, `gitlab_project`, `build_automatic`, `build_manual`, `deploy_automatic`, `deploy_manual`, `cadence`, `pipeline_cleanup`, `auto_cleanup` | GitLab, then each pipeline as one test case per step |
+| `cleanup` | `gitlab`, `build_stream` | Removed and intentionally preserved resources |
+
+Every test case, with its order, ID, markers and check, is listed in
+[`fvt/README.md`](fvt/README.md).
+
+### State shared between suites
+
+- **Build and deploy:** a deploy suite deploys the image the build suite created
+  *in the same pytest process*. Run them together, for example with
+  `--marker automatic_execution`.
+- **Cadence and automatic cleanup:** the cadence test records the outcome of its
+  own build (image group, job, success) in `reports/state/cadence_build.json`.
+  `auto_cleanup` uses it even when it runs in a later process, as the SVT does:
+  it deletes that image, or skips with "nothing to clean" when the cadence build
+  failed.
+- **Exec and verify:** `cleanup` hands its exec facts to
+  the verify phase through the same `reports/state/` directory (0600, no
+  secrets).
+
+## Options and markers
+
+| Option | Effect |
+|---|---|
+| `--suite <suite>` | Run one suite of the tag |
+| `--marker <expr>` | Marker filter; `+` = AND, `,` = OR. Without it every collected test runs |
+
+| Marker | Selects |
+|---|---|
+| `sanity` | Baseline positive checks that must pass on a healthy system; not on the manual pipeline suites |
+| `deploy` | The `test_playbook.py` entry test of each tag (runs `build_stream.yml --tags <tag>` or `omnia.sh`) |
+| `pipeline` | Every execute suite that triggers or verifies a real pipeline |
+| `build_pipeline` | Build pipeline: `build_automatic`, `build_manual` |
+| `deploy_pipeline` | Deploy pipeline: `deploy_automatic`, `deploy_manual` |
+| `automatic_execution` | Commit-triggered build and deploy: `build_automatic`, `deploy_automatic` |
+| `manual_execution` | API-triggered (`PIPELINE_TYPE=build` / `deploy`) build and deploy: `build_manual`, `deploy_manual` |
+| `cadence` | Cadence pipeline and the cadence disable / re-enable tests |
+| `cleanup_pipeline` | `PIPELINE_TYPE=cleanup` pipeline: `pipeline_cleanup` |
+| `automatic_cleanup` | Automated cleanup pass on the cadence build image: `auto_cleanup` |
+| `nft`, `resilience`, `security`, `disruptive` | NFT selection; `disruptive` also needs its `nft_allow_*` key |
+
+Combine markers with `+` (AND) and `,` (OR), for example
+`--marker build_pipeline,cadence` or `--marker deploy_pipeline+manual_execution`.
+
+## Lifecycle examples
+
+```bash
+# Default lifecycle, every test
+./run_validation.sh fvt_build_stream test
+# Baseline checks only
+./run_validation.sh fvt_build_stream test --marker sanity
+
+# prepare_base (explicit; base domain credential stores must be saved)
+./run_validation.sh fvt_build_stream prepare_base test
+
+# One tag, read-only
+./run_validation.sh fvt_build_stream prepare verify
+
+# execute suites one at a time
+./run_validation.sh fvt_build_stream execute verify --suite build_automatic
+./run_validation.sh fvt_build_stream execute verify --suite build_manual
+./run_validation.sh fvt_build_stream execute verify --suite deploy_automatic
+./run_validation.sh fvt_build_stream execute verify --suite cadence
+./run_validation.sh fvt_build_stream execute verify --suite auto_cleanup      # after cadence
+./run_validation.sh fvt_build_stream execute verify --suite pipeline_cleanup
+
+# execute suites by marker
+./run_validation.sh fvt_build_stream execute verify --marker automatic_execution  # build + deploy (commit)
+./run_validation.sh fvt_build_stream execute verify --marker manual_execution     # build + deploy (API)
+./run_validation.sh fvt_build_stream execute verify --marker build_pipeline
+./run_validation.sh fvt_build_stream execute verify --marker deploy_pipeline      # needs pipeline.deploy_image_group_id
+./run_validation.sh fvt_build_stream execute verify --marker cadence
+./run_validation.sh fvt_build_stream execute verify --marker cleanup_pipeline
+./run_validation.sh fvt_build_stream execute verify --marker automatic_cleanup
+
+# cleanup (destructive)
+./run_validation.sh fvt_build_stream cleanup test
+```
+
+`test_config.yml` keys per tag (all keys: [`docs/test_config.md`](docs/test_config.md)):
+
+| Tag | Keys |
+|---|---|
+| all | `oim_server_ip`, `oim_ssh_user`, `oim_ssh_port`, `clone_path`, `dataset`, `sync_build_stream_input`, `report_*`, `run_id` |
+| `execute` (build) | `installation.catalog` (number from `./omnia.sh --list-catalogs` or full path), `pipeline.build_job_id` (verify-only mode) |
+| `execute` (deploy) | `pipeline.deploy_image_group_id` (deploy-only runs), `pipeline.deploy_job_id` (verify-only mode) |
+| `execute` (cadence) | `installation.cadence_catalog` (empty = `installation.catalog`), `pipeline.cadence_job_id` (verify-only mode) |
+| `execute` (all pipelines) | `pipeline.allow_pipeline_cancel`, `pipeline.poll_interval`, `debug_mode` |
+| `execute` (`pipeline_cleanup`) | `pipeline.cleanup_image_group_id`. Empty = the newest BUILT/PASSED/FAILED group; when there is none the test fails with "No images to clean" |
+| `execute` (`auto_cleanup`) | `pipeline.auto_cleanup_image_group_id`. Empty = the image the cadence test built (this session or `reports/state/cadence_build.json`), else the first BUILT/PASSED/FAILED group. The group is set to FAILED in the database first |
+| `cleanup` | `cleanup.postgres_backup`, `cleanup.cleanup_credentials` |
+
+**Build:** the build suites commit `installation.catalog` with the next unused
+version.
+
+**Deploy:** the deploy suites deploy the image group the build suite created in
+the same run.
+- When that build failed, every deploy test is skipped.
+- A deploy-only run deploys `pipeline.deploy_image_group_id`. It fails with
+  "image name is not present" when that is empty, and with "requested image not
+  found" when the image group doesn't exist (or the deploy pipeline doesn't
+  offer it).
+
+**Cadence:**
+- The suite builds its own image first, then uploads
+  `installation.cadence_catalog`.
+- It fails with the command to run when no build pipeline has run yet.
+- Its disable / re-enable tests change `cadence.enabled` without restarting any
+  service, and restore it afterwards.
+
+## NFT, batch execution, reports
 
 ```bash
 ./run_validation.sh nft_build_stream list
 ./run_validation.sh nft_build_stream test --marker security
 ```
 
-Resilience tests that cancel a GitLab pipeline or restart BuildStream services
-require explicit `nft_allow_*` authorization in `test_config.yml`. See
-[`nft/README.md`](nft/README.md) for the test registry and safety controls.
+- **Disruptive NFTs:** each requires its `nft_allow_*` key in `test_config.yml`;
+  see [`nft/README.md`](nft/README.md).
+- **Batch runs:** follow `test_run_config.yml` (`./run_validation.sh --config`;
+  see [`docs/test_run_config.md`](docs/test_run_config.md)).
+- **Reports:** every run writes `<report_name>.json` and `<report_name>.html` to
+  `report_path`, and one `run_id` groups the steps of a lifecycle.
+- **UT:** there is no UT category for this domain.
 
-Datasets never contain Build Stream credentials. Configure those directly on
-the execution OIM with `./setup_env.sh --set-domain-creds`.
-
-## Configuration and reports
-
-`test_config.yml` contains only non-sensitive settings. `test_creds.yml` is
-created locally only when transport credentials are needed and is ignored by
-Git. Reports use `report_path`, `report_name`, and optional `run_id`. Every
-run writes both `<report_name>.json` and `<report_name>.html`; all steps in an
-ordered lifecycle share one report ID.
-
-Build-pipeline `exec` and `test` always replace any existing `job_id` in
-`test_config.yml` with the job created by that execution. They fail if a new
-job cannot be identified or persisted. `verify` is read-only and uses the
-existing `job_id`. Do not commit a live job UUID or environment-specific server
-values.
-
-They also always load the catalog selected by `catalog_path` below
-`src/main/samples/catalogs/`, give its catalog identifier a unique value, and
-replace the canonical `catalog_rhel.json` in GitLab. For example,
-`catalog_path: "rhel/10.2/slurm_service_k8s_x86_64_no_vast.json"` selects the
-RHEL 10.2 Slurm and Kubernetes catalog. A path under `hybrid/` selects a
-mixed-RHEL-version catalog. Only a pipeline created after that upload is
-accepted as the pipeline for the current execution.
-
-Deploy requires `job_id` and resolves exactly one associated image group. It
-never falls back to the latest image.
-
-The deploy validate stage invokes Orchestrator FVT. Test selection is based on
-the deployed configuration:
-
-- Slurm tests run only when Slurm is configured.
-- Kubernetes tests run only when Kubernetes is configured.
-- VAST, PowerVault, PowerScale CSI, GPU, LDAP, MPI, and Apptainer checks use
-  their existing feature-detection logic.
-- Feature-absent and destructive tests skip with an explicit reason.
-
-Pipeline logs and stage artifacts are written below the runtime data path:
+Pipeline logs and stage artifacts on the OIM:
 
 ```text
 $OMNIA_DATA_PATH/build_stream/log/<job_id>/
-$OMNIA_DATA_PATH/build_stream_root/artifacts/<job_id>/<stage>/attempt_<n>/
+$OMNIA_DATA_PATH/build_stream/build_stream_root/artifacts/<job_id>/<stage>/attempt_<n>/
 ```
 
-The validate artifact includes the Orchestrator test summary. Expected skips
-are not failures; evaluate `failed` and `errors` separately.
+`nft/demo/test_restart_api.sh` is a manual demo of the restart API. It asks for
+the BuildStream auth credentials with hidden prompts, verifies TLS against
+`bs_cert.pem` and keeps every secret off the command line.
 
-See `docs/test_config.md`, `docs/test_creds.md`,
-`docs/test_run_config.md`, and `fvt/README.md` for the complete contracts.
+## Directory structure
 
-## Troubleshooting
+```text
+test/build_stream/
+├── README.md        this overview
+├── conftest.py      the only FVT conftest: markers, --marker filter, order,
+│                    host fixture, reports, prepare_base precheck gate
+├── _run.py, run_validation.sh, setup_env.sh, requirements.txt, pytest.ini
+├── test_config.yml, test_run_config.yml
+├── docs/            test_config.md, test_run_config.md, test_creds.md
+├── library/
+│   ├── functions/   domain helpers, one module per capability; http_func.py is
+│   │                the shared in-process HTTPS client (verified TLS)
+│   ├── vars/        common_vars, execute_vars, domain_vars, test_case_vars
+│   ├── messages/    build_stream_msgs, execute_msgs
+│   ├── cleanup_inspection.py, domain_credentials.py
+├── fvt/             prepare_base, precheck, prepare, execute, cleanup
+│                    (README.md: every test case, what it checks, pass criteria)
+├── nft/             test_resilience.py, test_security.py (own conftest.py),
+│                    unit/ (BuildStream app unit tests), demo/
+├── reports/         run state between processes (gitignored)
+└── datasets/        generator/
+```
 
-- Missing `job_id`: run build-pipeline `exec`/`test`, or enter the exact UUID
-  before build verify, deploy, or image cleanup.
-- Wrong image selected: confirm that the job maps to exactly one image group;
-  latest-image fallback is intentionally prohibited.
-- No tests collected: verify the suite/marker pair. Manual tests require
-  `--suite manual --marker manual`; cleanup-pipeline tests require
-  `--suite cleanup_pipeline --marker sanity`.
-- Optional test skipped: confirm whether the feature is enabled in the
-  deployed configuration. Package presence alone is not feature enablement.
-- Artifact API unavailable: node-result verification can validate the
-  canonical artifact file, but the API failure should be investigated.
-- Slow GitLab checks: repository-file API checks can wait for their configured
-  remote timeout. Use `--debug` for detailed timing.
+## Local checks (same as the GitHub workflows)
 
-## Local checks
+Run from the repository root:
 
 ```bash
-python -m compileall -q test/build_stream
-python -m pylint test/build_stream
-find test/build_stream -type f -name '*.sh' -print0 \
-  | xargs -0 --no-run-if-empty shellcheck
+# pylint (.github/workflows/pylint.yml): every file must score >= 8
+find test/build_stream -name '*.py' ! -name '__init__.py' ! -path '*/.venv/*' -print0 \
+  | xargs -0 -n1 env PYTHONPATH=.:./src/build_stream pylint
+# bandit (.github/workflows/bandit.yml)
+bandit -r test/build_stream -ll -ii -x '*/.venv/*'
+# shellcheck (.github/workflows/shellcheck.yml): no error or warning
+find test/build_stream -name '*.sh' ! -path '*/.venv/*' -print0 | xargs -0 shellcheck -f gcc
+# ansible-lint on changed YAML (.github/workflows/ansible-lint.yml)
+ansible-lint --config=.config/ansible-lint.yml test/build_stream/test_config.yml
 git diff --check
 ```
 
-Live FVT requires a suitable authorized environment. A missing lab is reported
-as not run; it is not treated as a successful result.
+The hpc-compliance workflow also rejects `shell=True`, `os.system`, `eval`,
+`exec`, unsafe YAML loaders and pickle. Live FVT requires a suitable, authorized
+environment; a missing lab is reported as not run and never counted as a
+success.

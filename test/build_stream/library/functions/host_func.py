@@ -36,6 +36,7 @@ from omnia_auto import (
     run_on_host,
 )
 
+from ._config_helpers import is_safe_dataset_name
 from ..vars.common_vars import (
     DOMAIN_NAME,
     ENV_OMNIA_DATA_PATH,
@@ -69,7 +70,7 @@ _PROJECT_SYNC_EXCLUDE_PATTERNS = (
     "*_credentials.yml.*",
     "test_creds.yml.*",
 )
-_INPUT_SYNC_IGNORE = shutil.ignore_patterns(
+_input_sync_ignore = shutil.ignore_patterns(
     "build_stream_credentials.yml",
     "build_stream_credentials.yml.*",
     ".build_stream_credentials_key",
@@ -136,13 +137,7 @@ def _resolve_local_input(config: Dict[str, Any]) -> str:
     dataset = config.get("dataset", "")
     if not dataset:
         return SRC_INPUT_DIR
-    if (
-        not isinstance(dataset, str)
-        or dataset in {".", "..", "generator"}
-        or os.path.isabs(dataset)
-        or os.path.basename(dataset) != dataset
-        or "\x00" in dataset
-    ):
+    if not is_safe_dataset_name(dataset):
         raise ValueError(f"Unsafe dataset name: {dataset!r}")
 
     datasets_root = os.path.realpath(
@@ -268,7 +263,7 @@ def sync_build_stream_input(host) -> Dict[str, Any]:
             shutil.copytree(
                 src_path,
                 staged_input,
-                ignore=_INPUT_SYNC_IGNORE,
+                ignore=_input_sync_ignore,
             )
             result = sync_files(
                 mode=conn["mode"],
