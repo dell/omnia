@@ -381,10 +381,25 @@ TEST_LOG_MSGS: Dict[str, str] = {
         "--run {domain} --tags {tag} failed (rc={rc}, duration={duration:.1f}s)"
     ),
     "exec_cleanup_ok": (
-        "--cleanup completed (rc={rc})"
+        "{option} completed (rc={rc})"
     ),
     "exec_cleanup_failed": (
-        "--cleanup failed (rc={rc})"
+        "{option} failed (rc={rc})"
+    ),
+    "exec_cleanup_invalid_flag": (
+        "cleanup_all in test_config.yml must be true or false, not {value!r}"
+    ),
+    "cleanup_removed_ok": (
+        "{count} path(s) removed by omnia.sh --cleanup"
+    ),
+    "cleanup_removed_failed": (
+        "{count} path(s) still present after omnia.sh --cleanup"
+    ),
+    "cleanup_data_path_ok": (
+        "OMNIA_DATA_PATH {path} is {state} as expected ({option})"
+    ),
+    "cleanup_data_path_failed": (
+        "OMNIA_DATA_PATH {path} is {state}, expected {expected} ({option})"
     ),
 }
 
@@ -934,11 +949,36 @@ TEST_ASSERT_MSGS: Dict[str, str] = {
         "\n\u2554" + _BORDER + "\u2557\n"
         "\u2551 CLEANUP EXECUTION FAILED\n"
         "\u2560" + _BORDER + "\u2563\n"
-        "\u2551 omnia.sh --cleanup failed (rc={rc}).\n"
+        "\u2551 omnia.sh {option} failed (rc={rc}).\n"
         "\u2551\n"
         "\u2551 HOW TO FIX:\n"
         "\u2551   1. Check cleanup_omnia() in omnia.sh\n"
         "\u2551   2. Verify file permissions on /etc/omnia/, /etc/profile.d/\n"
+        "\u2551   3. With --all: the output above lists the paths that still\n"
+        "\u2551      hold domain state; run that domain's cleanup first\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "cleanup_paths_present": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 CLEANUP LEFT PATHS BEHIND\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 Still present after omnia.sh --cleanup:\n"
+        "{present_list}\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Run ./run_validation.sh fvt_main cleanup exec first\n"
+        "\u2551   2. Check cleanup_omnia() in omnia.sh for these paths\n"
+        "\u255a" + _BORDER + "\u255d\n"
+    ),
+    "cleanup_data_path_state": (
+        "\n\u2554" + _BORDER + "\u2557\n"
+        "\u2551 OMNIA_DATA_PATH IN THE WRONG STATE\n"
+        "\u2560" + _BORDER + "\u2563\n"
+        "\u2551 {path} is {state}; expected {expected} after omnia.sh {option}.\n"
+        "\u2551\n"
+        "\u2551 HOW TO FIX:\n"
+        "\u2551   1. Check that cleanup_all in test_config.yml matches the run\n"
+        "\u2551   2. --all removes the whole OMNIA_DATA_PATH; --cleanup keeps it\n"
         "\u255a" + _BORDER + "\u255d\n"
     ),
 }

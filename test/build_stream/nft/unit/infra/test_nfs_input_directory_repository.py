@@ -14,11 +14,14 @@
 
 """Unit tests for NfsInputDirectoryRepository."""
 
+import os
+import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from core.jobs.value_objects import JobId
 from infra.repositories.nfs_input_repository import (
     NfsInputRepository,
 )
@@ -32,6 +35,11 @@ class TestNfsInputRepository:
         """Create repository instance."""
         return NfsInputRepository()
 
+    @pytest.fixture
+    def job_id(self):
+        """Provide a valid job ID."""
+        return JobId(str(uuid.uuid4()))
+
     def test_get_destination_input_repository_path(self, repository):
         """Test getting destination input repository path (domain-segregated).
 
@@ -39,7 +47,9 @@ class TestNfsInputRepository:
         """
         path = repository.get_destination_input_repository_path()
 
-        expected = Path("/opt/omnia/repo_manager/input/project_default/")
+        expected = Path(os.environ.get("OMNIA_DATA_PATH", "/opt/omnia")) / (
+            "repo_manager/input/project_default"
+        )
         assert path == expected
         assert isinstance(path, Path)
 
@@ -114,13 +124,22 @@ class TestNfsInputRepository:
 
         assert result is False
 
-    def test_custom_base_paths(self):
-        """Test repository with custom base paths."""
+    def test_custom_base_paths(self, tmp_path):
+        """Test repository with a custom config file and playbook input directory."""
+        custom_config = tmp_path / "build_stream_config.yml"
+        custom_config.write_text("aarch64_inventory_host_ip: 10.0.0.5\n", encoding="utf-8")
         custom_playbook_input_dir = "/custom/input"
 
         repo = NfsInputRepository(
+            config_file_path=str(custom_config),
             playbook_input_dir=custom_playbook_input_dir,
         )
+
+        job_id = JobId(str(uuid.uuid4()))
+
+        inv_host = repo.get_aarch64_inv_host(str(job_id))
+        assert inv_host is not None
+        assert str(inv_host) == "10.0.0.5"
 
         dest_path = repo.get_destination_input_repository_path()
         assert dest_path == Path(custom_playbook_input_dir)

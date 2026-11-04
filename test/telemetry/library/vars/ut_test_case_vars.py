@@ -137,6 +137,27 @@ UT_TEST_CASE_IDS = {
             66: "test_supported_tags_cover_public_and_play_tags",
         },
     ),
+    **_module_cases(
+        "test_log_permissions.py",
+        {
+            67: "test_telemetry_log_dir_and_files_are_restricted",
+        },
+    ),
+    **_module_cases(
+        "test_idrac_bmc_inventory.py",
+        {
+            68: "test_empty_pod_with_reported_unsupported_bmc_warns",
+            69: "test_missing_bmc_not_in_report_fails",
+            70: "test_deleted_bmc_left_in_mysql_fails",
+            71: "test_bmc_registered_in_wrong_pod_fails",
+            72: "test_nothing_registered_fails_even_when_all_reported_unsupported",
+            73: "test_duplicates_query_failures_and_missing_pods_fail",
+            74: "test_csv_parser_matches_deploy_parser",
+            75: "test_lifecycle_candidate_never_changes_pod_layout",
+            76: "test_node_deletion_only_removes_mysql_rows",
+            77: "test_nft_bmc_ip_config",
+        },
+    ),
 }
 
 if len(set(UT_TEST_CASE_IDS.values())) != len(UT_TEST_CASE_IDS):
