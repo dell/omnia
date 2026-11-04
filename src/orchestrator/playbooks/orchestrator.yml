@@ -257,6 +257,14 @@
     - execute
     - provision
 
+# IPoIB addressing (runs only when ib_addr_mode is set in network_spec)
+- name: Configure IPoIB addressing
+  ansible.builtin.import_playbook: provision/configure_ib_ipv6.yml
+  tags:
+    - execute
+    - provision
+    - ib_ipv6
+
 # PXE boot (execute + pxeboot tags, conditional on enable_pxe_boot)
 - name: PXE boot on iDRAC nodes
   ansible.builtin.import_playbook: pxeboot/pxeboot.yml

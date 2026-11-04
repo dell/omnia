@@ -75,7 +75,7 @@ def _expected_match(
 
 
 def check_slurm_hardware_discovery(host):
-    """Verify homogeneous and heterogeneous hardware results by mapping group."""
+    """Verify homogeneous and heterogeneous hardware results."""
     summary = "Slurm hardware discovery contract"
     try:
         _runtime, rows, control, config = _context(host)
@@ -92,6 +92,7 @@ def check_slurm_hardware_discovery(host):
         mode = str(config.get("node_discovery_mode", "heterogeneous")).lower()
         if mode not in {"homogeneous", "heterogeneous"}:
             raise ValueError(f"Unsupported node_discovery_mode: {mode}")
+
         defaults = config.get("node_hardware_defaults") or {}
         if not isinstance(defaults, dict):
             raise TypeError("node_hardware_defaults must be a mapping")
