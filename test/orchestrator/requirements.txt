@@ -1,8 +1,8 @@
-pytest>=7.0
-pytest-testinfra>=10.0
-pyyaml>=6.0
-ansible-core>=2.20
-jsonschema>=4.17
-paramiko>=3.4
-pylint>=3.0
+pytest==9.2.0
+pytest-testinfra==10.2.2
+pyyaml==6.0.3
+ansible-core==2.21.6
+jsonschema==4.26.0
+paramiko==3.5.1
+pylint==3.3.9
 ../plugins/dist/omnia_auto-1.0.0-py3-none-any.whl

@@ -357,8 +357,8 @@
           "cryptography==45_0_7",
           "omsdk==1_2_518",
           "cffi==1_17_1",
-          "prometheus_client==0_20_0",
-          "kubernetes==33_1_0",
+          "prometheus_client==0_26_0",
+          "kubernetes==37_0_1",
           "quay.io/strimzi/operator",
           "quay.io/strimzi/kafka",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
@@ -415,7 +415,7 @@
           "cryptography==45_0_7",
           "omsdk==1_2_518",
           "cffi==1_17_1",
-          "prometheus_client==0_20_0",
+          "prometheus_client==0_26_0",
           "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
           "docker.io/nginxinc/nginx-unprivileged",
           "docker.io/timberio/vector",
@@ -450,7 +450,7 @@
           "nfs_subdir_external_provisioner_4_0_18",
           "prettytable==3_14_0",
           "python3",
-          "PyMySQL==1_1_2"
+          "PyMySQL==1_2_3"
         ]
       },
       "service_kube_node_group": {
@@ -604,8 +604,8 @@
           }
         ]
       },
-      "kubernetes==33_1_0": {
-        "name": "kubernetes==33.1.0",
+      "kubernetes==37_0_1": {
+        "name": "kubernetes==37.0.1",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -1278,8 +1278,8 @@
         ],
         "tag": "1.4"
       },
-      "prometheus_client==0_20_0": {
-        "name": "prometheus_client==0.20.0",
+      "prometheus_client==0_26_0": {
+        "name": "prometheus_client==0.26.0",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -3047,7 +3047,7 @@
         "tag": "v1.153.0"
       },
       "pymysql": {
-        "name": "PyMySQL==1.1.2",
+        "name": "PyMySQL==1.2.3",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -3535,8 +3535,8 @@
         ],
         "tag": "v3.32.1"
       },
-      "PyMySQL==1_1_2": {
-        "name": "PyMySQL==1.1.2",
+      "PyMySQL==1_2_3": {
+        "name": "PyMySQL==1.2.3",
         "packagetype": "pip_module",
         "sources": [
           {

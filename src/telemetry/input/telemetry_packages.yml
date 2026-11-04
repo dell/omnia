@@ -266,6 +266,6 @@ pip_modules:
     charset_normalizer: "3.4.0"
     idna: "3.10"
     # Metrics export
-    prometheus_client: "0.20.0"
+    prometheus_client: "0.26.0"
     # YAML parsing
     pyyaml: "6.0.2"
