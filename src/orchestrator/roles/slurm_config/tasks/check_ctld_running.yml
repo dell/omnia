@@ -130,8 +130,12 @@
       ansible.builtin.debug:
         msg: "Slurm node(s) not resumed on {{ ctld }}: {{ (resume_failed + resume_rejected) | join(', ') }}"
       vars:
-        resume_failed: "{{ scontrol_node_resume.results | default([]) | selectattr('rc', 'defined') | rejectattr('rc', 'equalto', 0) | map(attribute='item') | list }}"
-        resume_rejected: "{{ slurm_drained_nodes.stdout_lines | default([]) | map('trim') | reject('match', slurm_node_name_pattern) | reject('equalto', '') | list }}"
+        resume_failed: >-
+          {{ scontrol_node_resume.results | default([]) | selectattr('rc', 'defined')
+          | rejectattr('rc', 'equalto', 0) | map(attribute='item') | list }}
+        resume_rejected: >-
+          {{ slurm_drained_nodes.stdout_lines | default([]) | map('trim')
+          | reject('match', slurm_node_name_pattern) | reject('equalto', '') | list }}
       when:
         - ctld_state[ctld] | bool
         - (resume_failed + resume_rejected) | length > 0
