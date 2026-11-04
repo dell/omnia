@@ -377,7 +377,7 @@
           "cryptography==45_0_7",
           "omsdk==1_2_518",
           "cffi==1_17_1",
-          "prometheus_client==0_20_0",
+          "prometheus_client==0_26_0",
           "kubernetes==37_0_1",
           "quay.io/strimzi/operator",
           "quay.io/strimzi/kafka",
@@ -435,7 +435,7 @@
           "cryptography==45_0_7",
           "omsdk==1_2_518",
           "cffi==1_17_1",
-          "prometheus_client==0_20_0",
+          "prometheus_client==0_26_0",
           "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
           "docker.io/nginxinc/nginx-unprivileged",
           "docker.io/timberio/vector",
@@ -984,8 +984,8 @@
           }
         ]
       },
-      "prometheus_client==0_20_0": {
-        "name": "prometheus_client==0.20.0",
+      "prometheus_client==0_26_0": {
+        "name": "prometheus_client==0.26.0",
         "packagetype": "pip_module",
         "sources": [
           {
