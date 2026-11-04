@@ -232,7 +232,7 @@
 
     - name: Configure DNS
       ansible.builtin.include_tasks: configure_dns.yml
-      when: dns_enabled | default(false) | bool
+      when: dns_enabled | default(true) | bool
 
     - name: Provisioning complete for '{{ target_category }}'
       ansible.builtin.debug:
