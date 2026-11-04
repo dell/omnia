@@ -32,6 +32,8 @@ Designed for HPC clusters with 500-2000 nodes where serial Ansible
 URI loops are prohibitively slow (50-80 min at 1000 nodes serial
 vs ~4 min at 20 parallel threads).
 
+GPU fallback detection via PCIe device enumeration is included.
+
 Usage in playbook (heterogeneous):
   bulk_discover_node_specs:
     nodes: "{{ cmpt_list }}"
@@ -168,6 +170,11 @@ node_params:
       CoresPerSocket: 32
       ThreadsPerCore: 2
       RealMemory: 524288
+      Gres: gpu:4
+gpu_params:
+  description: Mapping of hostnames to Redfish GPU records for hosts with detected GPUs.
+  type: dict
+  returned: always
 failed_nodes:
   description: Hostnames that could not be discovered in heterogeneous mode.
   type: list
@@ -311,13 +318,70 @@ def _redfish_get(bmc_ip, path, username, password, timeout):
 
 
 
+# ─── GPU detection ─────────────────────────────────────────────────────────
+
+def _detect_gpus_from_processors(proc_members):
+    """Extract NVIDIA GPUs from Processor members (primary detection)."""
+    gpus = []
+    for member in proc_members:
+        if member.get("ProcessorType") != "GPU":
+            continue
+        manufacturer = member.get("Manufacturer", "")
+        if re.search(r"nvidia", manufacturer, re.IGNORECASE):
+            gpus.append(member)
+    return gpus
+
+
+def _detect_gpus_from_pcie(bmc_ip, username, password, timeout):
+    """Fallback GPU detection via PCIe device enumeration.
+
+    Queries PCIeDevices collection, then individual devices for ClassCode
+    and manufacturer matching.
+    """
+    gpus = []
+
+    # Get PCIe device list
+    ok, data = _redfish_get(
+        bmc_ip,
+        "/redfish/v1/Chassis/System.Embedded.1/PCIeDevices",
+        username, password, timeout,
+    )
+    if not ok or "Members" not in data:
+        return gpus
+
+    device_urls = [
+        m.get("@odata.id", "") for m in data.get("Members", [])
+        if m.get("@odata.id")
+    ]
+
+    # Query each PCIe device for GPU identification
+    for dev_url in device_urls:
+        ok, dev_data = _redfish_get(bmc_ip, dev_url, username, password, timeout)
+        if not ok:
+            continue
+
+        class_code = dev_data.get("ClassCode", "")
+        vendor_id = dev_data.get("VendorId", "")
+        manufacturer = dev_data.get("Manufacturer", "")
+        name = dev_data.get("Name", "")
+
+        # ClassCode 0x0300 = VGA controller, 0x0302 = 3D controller
+        if class_code in ("0x0300", "0x0302") and vendor_id:
+            gpus.append(dev_data)
+        elif (re.search(r"nvidia", manufacturer, re.IGNORECASE)
+              and re.search(r"GPU|RTX|TESLA|A100|H100|L40|GB", name, re.IGNORECASE)):
+            gpus.append(dev_data)
+
+    return gpus
+
+
 # ─── Per-node discovery ────────────────────────────────────────────────────
 
 def _discover_single_node(hostname, bmc_ip, username, password,
                           timeout, defaults, validation_failures):
     """Discover hardware specs for a single node via iDRAC Redfish.
 
-    Returns (hostname, node_params_dict, error_string_or_None).
+    Returns (hostname, node_params_dict, gpu_list, error_string_or_None).
     """
     # Get user-provided defaults with hardcoded fallbacks (values in MB)
     user_default_memory = defaults.get("real_memory", 884736)
@@ -359,12 +423,16 @@ def _discover_single_node(hostname, bmc_ip, username, password,
     if ok:
         members = proc_data.get("Members", [])
         cpus = [m for m in members if m.get("ProcessorType") == "CPU"]
-        gpus = [m for m in members if m.get("ProcessorType") == "GPU"]
+        gpus = _detect_gpus_from_processors(members)
     else:
         cpus = []
         gpus = []
 
-    # ── Step 2: Read System info for memory ──
+    # ── Step 2: GPU fallback via PCIe devices ──
+    if not gpus:
+        gpus = _detect_gpus_from_pcie(bmc_ip, username, password, timeout)
+
+    # ── Step 3: Read System info for memory ──
     ok, sys_data = _redfish_get(
         bmc_ip,
         "/redfish/v1/Systems/System.Embedded.1",
@@ -467,7 +535,7 @@ def _discover_group(group_name, group_nodes, bmc_ip_map, username,
     Tries each node in the group sequentially until one iDRAC responds,
     then replicates the discovered specs to all nodes in the group.
 
-    Returns (group_name, node_params_list, sample_node_or_None,
+    Returns (group_name, node_params_list, gpu_dict, sample_node_or_None,
              failed_bool).
     """
     default_memory = defaults.get("real_memory", 884736)
@@ -500,12 +568,15 @@ def _discover_group(group_name, group_nodes, bmc_ip_map, username,
 
     # Replicate discovered (or default) specs to all nodes in group
     node_params_list = []
+    gpu_dict = {}
 
     if sample_params:
         for hostname in group_nodes:
             entry = dict(sample_params)
             entry["NodeName"] = hostname
             node_params_list.append(entry)
+            if sample_gpus:
+                gpu_dict[hostname] = sample_gpus
     else:
         # All iDRACs in group failed — use defaults with validation
         bounds = VALIDATION_BOUNDS
@@ -546,7 +617,7 @@ def _discover_group(group_name, group_nodes, bmc_ip_map, username,
                 "RealMemory": validated_memory,
             })
 
-    return (group_name, node_params_list, sample_gpus, sample_hostname,
+    return (group_name, node_params_list, gpu_dict, sample_hostname,
             all_failed)
 
 
@@ -612,6 +683,7 @@ def _run_node_discovery(module, nodes, bmc_ip_map, bmc_username,
     result = {
         "changed": False,
         "node_params": [],
+        "gpu_params": {},
         "failed_nodes": [],
         "total_nodes": len(nodes),
         "discovered_count": 0,
@@ -649,7 +721,7 @@ def _run_node_discovery(module, nodes, bmc_ip_map, bmc_username,
         for future in as_completed(futures):
             hostname = futures[future]
             try:
-                _, node_params, _gpus, error = future.result()
+                _, node_params, gpus, error = future.result()
                 if error:
                     result["failed_nodes"].append(hostname)
                     result["node_params"].append(node_params)
@@ -659,6 +731,8 @@ def _run_node_discovery(module, nodes, bmc_ip_map, bmc_username,
                     )
                 else:
                     result["node_params"].append(node_params)
+                    if gpus:
+                        result["gpu_params"][hostname] = gpus
                     result["discovered_count"] += 1
             except Exception as exc:  # pylint: disable=broad-except
                 result["failed_nodes"].append(hostname)
@@ -696,6 +770,7 @@ def _run_group_discovery(module, groups, bmc_ip_map, bmc_username,
     result = {
         "changed": False,
         "node_params": [],
+        "gpu_params": {},
         "failed_nodes": [],
         "failed_groups": [],
         "total_nodes": len(all_nodes),
@@ -724,9 +799,10 @@ def _run_group_discovery(module, groups, bmc_ip_map, bmc_username,
         for future in as_completed(futures):
             group_name = futures[future]
             try:
-                (_, node_params_list, _gpu_dict, sample_node,
+                (_, node_params_list, gpu_dict, sample_node,
                  failed) = future.result()
                 result["node_params"].extend(node_params_list)
+                result["gpu_params"].update(gpu_dict)
                 if sample_node:
                     result["group_sample_nodes"][group_name] = sample_node
                 if failed:

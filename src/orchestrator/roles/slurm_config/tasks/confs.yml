@@ -132,6 +132,7 @@
 - name: Set node_params from bulk group discovery
   ansible.builtin.set_fact:
     node_params: "{{ node_params + bulk_discovery.node_params }}"
+    gpu_params: "{{ gpu_params | default({}) | combine(bulk_discovery.gpu_params) }}"
   when:
     - discovery_mode == 'homogeneous'
     - bulk_discovery is defined
@@ -200,6 +201,7 @@
 - name: Set node_params from bulk per-node discovery
   ansible.builtin.set_fact:
     node_params: "{{ node_params + bulk_discovery.node_params }}"
+    gpu_params: "{{ gpu_params | default({}) | combine(bulk_discovery.gpu_params) }}"
   when:
     - discovery_mode == 'heterogeneous'
     - bulk_discovery is not skipped
