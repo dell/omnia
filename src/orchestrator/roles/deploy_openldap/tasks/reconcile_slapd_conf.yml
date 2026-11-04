@@ -1,0 +1,179 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Reconcile slapd.conf for an already-running omnia_auth container
+
+- name: Reconcile slapd.conf for running omnia_auth container
+  block:
+    - name: Create private temp file for candidate slapd.conf
+      ansible.builtin.tempfile:
+        state: file
+        path: "{{ slapd_reconcile_tmp_dir }}"
+        prefix: ".slapd_candidate_"
+        suffix: ".conf"
+      register: _slapd_candidate
+      changed_when: false
+
+    - name: Render candidate slapd.conf
+      ansible.builtin.template:
+        src: slapd.conf.j2
+        dest: "{{ _slapd_candidate.path }}"
+        owner: root
+        group: root
+        mode: "0600"
+      changed_when: false
+      no_log: true
+
+    - name: Read candidate slapd.conf checksum
+      ansible.builtin.stat:
+        path: "{{ _slapd_candidate.path }}"
+        checksum_algorithm: sha256
+      register: _slapd_candidate_stat
+
+    - name: Read slapd.conf checksum used by the running container
+      ansible.builtin.command:
+        argv:
+          - podman
+          - exec
+          - "{{ omnia_auth_container_name }}"
+          - sha256sum
+          - /etc/openldap/slapd.conf
+      register: _slapd_running_sum
+      changed_when: false
+
+    - name: Apply updated slapd.conf
+      when: _slapd_candidate_stat.stat.checksum != (_slapd_running_sum.stdout.split() | first)
+      block:
+        - name: Validate candidate slapd.conf inside the running container
+          block:
+            - name: Copy candidate slapd.conf into the container
+              ansible.builtin.command:
+                argv:
+                  - podman
+                  - cp
+                  - "{{ _slapd_candidate.path }}"
+                  - "{{ omnia_auth_container_name }}:{{ slapd_candidate_container_path }}"
+              changed_when: false
+
+            - name: Check candidate slapd.conf syntax
+              ansible.builtin.command:
+                argv:
+                  - podman
+                  - exec
+                  - "{{ omnia_auth_container_name }}"
+                  - slaptest
+                  - -u
+                  - -f
+                  - "{{ slapd_candidate_container_path }}"
+              changed_when: false
+          always:
+            - name: Remove candidate slapd.conf from the container
+              ansible.builtin.command:
+                argv:
+                  - podman
+                  - exec
+                  - "{{ omnia_auth_container_name }}"
+                  - rm
+                  - -f
+                  - "{{ slapd_candidate_container_path }}"
+              changed_when: false
+              failed_when: false
+
+        - name: Create private temp file for previous slapd.conf
+          ansible.builtin.tempfile:
+            state: file
+            path: "{{ slapd_reconcile_tmp_dir }}"
+            prefix: ".slapd_previous_"
+            suffix: ".conf"
+          register: _slapd_backup
+          changed_when: false
+
+        - name: Back up deployed slapd.conf
+          ansible.builtin.copy:
+            src: "{{ auth_config_dir }}/slapd.conf"
+            dest: "{{ _slapd_backup.path }}"
+            remote_src: true
+            owner: root
+            group: root
+            mode: "0600"
+          register: _slapd_backup_copy
+          changed_when: false
+          no_log: true
+
+        - name: Install updated slapd.conf
+          ansible.builtin.copy:
+            src: "{{ _slapd_candidate.path }}"
+            dest: "{{ auth_config_dir }}/slapd.conf"
+            remote_src: true
+            owner: root
+            group: root
+            mode: "0600"
+          register: _slapd_install
+          no_log: true
+
+        - name: Restart omnia_auth service with updated slapd.conf
+          ansible.builtin.systemd:
+            name: omnia_auth
+            state: restarted
+
+        - name: Wait for OpenLDAP to answer after restart
+          ansible.builtin.command:
+            argv:
+              - podman
+              - exec
+              - "{{ omnia_auth_container_name }}"
+              - ldapwhoami
+              - -x
+              - -H
+              - ldap://127.0.0.1:389
+          register: _slapd_ready
+          retries: "{{ healthcheck_retries }}"
+          delay: "{{ healthcheck_delay }}"
+          until: _slapd_ready.rc == 0
+          changed_when: false
+
+      rescue:
+        - name: Restore previous slapd.conf
+          ansible.builtin.copy:
+            src: "{{ _slapd_backup.path }}"
+            dest: "{{ auth_config_dir }}/slapd.conf"
+            remote_src: true
+            owner: root
+            group: root
+            mode: "0600"
+          when:
+            - _slapd_install is defined
+            - _slapd_backup_copy is succeeded
+          no_log: true
+
+        - name: Restart omnia_auth service with previous slapd.conf
+          ansible.builtin.systemd:
+            name: omnia_auth
+            state: restarted
+          when:
+            - _slapd_install is defined
+            - _slapd_backup_copy is succeeded
+
+        - name: Report slapd.conf update failure
+          ansible.builtin.fail:
+            msg: "{{ slapd_conf_update_failed_msg }}"
+
+  always:
+    - name: Remove slapd.conf reconciliation temp files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ [_slapd_candidate.path | default(''), _slapd_backup.path | default('')] | select | list }}"
+      changed_when: false

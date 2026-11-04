@@ -1,7 +1,11 @@
 # deploy_openldap
 
 Deploys the optional `omnia_auth` OpenLDAP container as a Podman Quadlet
-service on the OIM. An already-running healthy container is left in place.
+service on the OIM. When the container is already running, only `slapd.conf`
+is reconciled: a changed rendering is validated with `slaptest`, installed,
+and applied by restarting the service, with the previous file restored if the
+restarted service does not answer. An unchanged rendering leaves the running
+container untouched.
 
 ## What It Does
 

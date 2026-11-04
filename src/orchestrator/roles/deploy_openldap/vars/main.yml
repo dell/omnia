@@ -46,6 +46,13 @@ pull_delay: 10
 healthcheck_retries: 10
 healthcheck_delay: 5
 
+# slapd.conf reconciliation for a running container
+slapd_reconcile_tmp_dir: "/dev/shm"
+slapd_candidate_container_path: "/run/openldap/slapd.conf.candidate"
+
 # Error messages
 deploy_openldap_fail_msg: "Failed to deploy OpenLDAP container. Check the logs for details."
 credentials_missing_msg: "OpenLDAP credentials (openldap_db_username, openldap_db_password) are required. Run orchestrator.yml to be prompted for credentials."
+slapd_conf_update_failed_msg: >-
+  Updated slapd.conf could not be applied to the running omnia_auth container.
+  The previous slapd.conf was kept or restored. Check slaptest output and journalctl -u omnia_auth.

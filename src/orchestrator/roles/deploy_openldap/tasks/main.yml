@@ -25,36 +25,36 @@
       register: auth_container_check
       failed_when: false
 
+    - name: Load OpenLDAP credentials
+      ansible.builtin.include_role:
+        name: orchestrator_common
+        tasks_from: decrypt_include_encrypt.yml
+      vars:
+        credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/orchestrator_credentials.yml"
+        vault_password_file: "{{ hostvars['localhost']['input_project_dir'] }}/.orchestrator_credentials_key"
+
+    - name: Validate OpenLDAP credentials are available
+      ansible.builtin.assert:
+        that:
+          - openldap_db_username is defined
+          - openldap_db_username | length > 0
+          - openldap_db_password is defined
+          - openldap_db_password | length > 0
+        fail_msg: "{{ credentials_missing_msg }}"
+        quiet: true
+
+    - name: Set OpenLDAP configuration facts
+      ansible.builtin.set_fact:
+        ldap_search_base: "{{ (hostvars['localhost']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
+        ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+        ldap_connection_type: "{{ hostvars['localhost']['ldap_connection_type'] | default('TLS') }}"
+        domain_name: "{{ hostvars['localhost']['domain_name'] }}"
+
     - name: Deploy OpenLDAP when container is not running
       when: >-
         (auth_container_check.containers | default([]) | length == 0) or
         (auth_container_check.containers[0].State.Status | default('') != 'running')
       block:
-        - name: Load OpenLDAP credentials
-          ansible.builtin.include_role:
-            name: orchestrator_common
-            tasks_from: decrypt_include_encrypt.yml
-          vars:
-            credential_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/orchestrator_credentials.yml"
-            vault_password_file: "{{ hostvars['localhost']['input_project_dir'] }}/.orchestrator_credentials_key"
-
-        - name: Validate OpenLDAP credentials are available
-          ansible.builtin.assert:
-            that:
-              - openldap_db_username is defined
-              - openldap_db_username | length > 0
-              - openldap_db_password is defined
-              - openldap_db_password | length > 0
-            fail_msg: "{{ credentials_missing_msg }}"
-            quiet: true
-
-        - name: Set OpenLDAP configuration facts
-          ansible.builtin.set_fact:
-            ldap_search_base: "{{ (hostvars['localhost']['domain_name'].split('.') | map('regex_replace', '^', 'dc=') | list) | join(',') }}"
-            ldap_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
-            ldap_connection_type: "{{ hostvars['localhost']['ldap_connection_type'] | default('TLS') }}"
-            domain_name: "{{ hostvars['localhost']['domain_name'] }}"
-
         - name: Create OpenLDAP directories
           ansible.builtin.file:
             path: "{{ item.path }}"
@@ -140,9 +140,8 @@
           ansible.builtin.debug:
             msg: "OpenLDAP (omnia_auth) container deployed successfully on {{ ldap_server_ip }}"
 
-    - name: Display skip message when container is already running
-      ansible.builtin.debug:
-        msg: "OpenLDAP (omnia_auth) container is already running. Skipping deployment."
+    - name: Reconcile slapd.conf when container is already running
+      ansible.builtin.include_tasks: reconcile_slapd_conf.yml
       when: >-
         (auth_container_check.containers | default([]) | length > 0) and
         (auth_container_check.containers[0].State.Status | default('') == 'running')
