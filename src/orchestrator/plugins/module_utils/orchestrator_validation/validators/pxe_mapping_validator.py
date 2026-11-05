@@ -375,7 +375,24 @@ def _validate_ib_pair(
                 errors, logger,
                 msg.pxe_mapping_ib_ipv6_pair_msg(row_number),
             )
+    elif ib_addr_mode == "dual-stack":
+        if has_nic != has_ipv4:
+            record_error(
+                errors, logger,
+                msg.pxe_mapping_ib_pair_msg(row_number),
+            )
+        if has_nic and not has_ipv6:
+            record_error(
+                errors, logger,
+                msg.pxe_mapping_ib_dual_stack_missing_ipv6_msg(row_number),
+            )
+        if has_nic and not has_ipv4:
+            record_error(
+                errors, logger,
+                msg.pxe_mapping_ib_dual_stack_missing_ipv4_msg(row_number),
+            )
     else:
+        # ipv4-only or unset (default)
         if has_nic != has_ipv4:
             record_error(
                 errors, logger,
