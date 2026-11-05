@@ -1074,6 +1074,7 @@ class ResultPoller:
                 content_type="application/json",
             )
             self._artifact_metadata_repo.save(record)
+            self._commit_artifact_metadata()
 
             log_secure_info(
                 "info",
@@ -1114,9 +1115,7 @@ class ResultPoller:
                     content_type="application/json",
                 )
                 self._artifact_metadata_repo.save(failed_record)
-
-                if hasattr(self._artifact_metadata_repo, 'session'):
-                    self._artifact_metadata_repo.session.commit()
+                self._commit_artifact_metadata()
 
                 log_secure_info(
                     "info",
@@ -1148,6 +1147,28 @@ class ResultPoller:
                 job_id=str(result.job_id),
                 exc_info=True,
             )
+            self._rollback_artifact_metadata()
+
+    def _commit_artifact_metadata(self) -> None:
+        """Commit the artifact metadata session.
+
+        ``save()`` only adds the row, and this session is shared with the
+        image-group repositories. Without a commit the rows stay pending until
+        an unrelated result commits the session, so the artifact API answers
+        404 for artifacts the poller has already stored.
+        """
+        session = getattr(self._artifact_metadata_repo, "session", None)
+        if session is not None:
+            session.commit()
+
+    def _rollback_artifact_metadata(self) -> None:
+        """Best-effort rollback so a failed commit does not poison the shared session."""
+        session = getattr(self._artifact_metadata_repo, "session", None)
+        if session is not None:
+            try:
+                session.rollback()
+            except Exception:  # pylint: disable=broad-except
+                pass  # nosec B110 - best-effort rollback
 
     def _build_validate_result_detail(
         self, result: PlaybookResult, outcome: str

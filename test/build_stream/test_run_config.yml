@@ -45,27 +45,42 @@
 # -----------------------------------------------------------------------------
 # Marker Expression Syntax
 # -----------------------------------------------------------------------------
+#   Empty:    ""                        -- every test in the scenario (default)
 #   Single:   "sanity"                  -- tests with @pytest.mark.sanity
-#   Execution: "sanity+deploy"           -- sanity execution cases
+#   AND:      "sanity+pipeline"         -- tests with both markers
+#   OR:       "build_pipeline,cadence"  -- tests with either marker
 #
-# Available markers:
-#   Quality:       sanity
-#   Execution:     deploy
-#   NFT:           resilience, security, disruptive
+# Available markers (an empty marker runs every test of the scenario):
+#   Quality:       sanity (baseline checks; not on the manual pipeline suites)
+#   Entry test:    deploy (test_playbook.py: runs the tag playbook / omnia.sh)
+#   Pipelines:     pipeline             every execute pipeline suite
+#                  build_pipeline       build_automatic, build_manual
+#                  deploy_pipeline      deploy_automatic, deploy_manual
+#                  automatic_execution  build_automatic, deploy_automatic
+#                  manual_execution     build_manual, deploy_manual
+#                  cadence              cadence pipeline + enable/disable tests
+#                  cleanup_pipeline     pipeline_cleanup
+#                  automatic_cleanup    auto_cleanup
+#   NFT:           nft, resilience, security, disruptive
+#
+# Deploy image: a run with a build suite deploys the image group that build
+# created (a failed build skips every deploy test); a deploy-only run
+# (marker "deploy_pipeline" or suite deploy_*) deploys
+# pipeline.deploy_image_group_id from test_config.yml.
 #
 # -----------------------------------------------------------------------------
 # Available FVT Suites (subfolders under fvt/<tag>/)
 # -----------------------------------------------------------------------------
-#   buildstream_install:  health, buildstream_install
-#   buildstream_cleanup:  gitlab_cleanup, buildstream_cleanup, cleanup_pipeline
-#   build_pipeline:       build_pipeline, manual
-#   deploy_pipeline:      deploy_pipeline, manual
-#   cadence_pipeline:     cadence_pipeline
-#   automatic_cleanup:    automatic_cleanup (explicit, destructive)
+#   prepare_base:  readiness (explicit; runs ./omnia.sh --prepare-base)
+#   precheck:      environment, containers, credentials (--tags precheck)
+#   prepare:       build_stream (--tags prepare)
+#   execute:       gitlab_server, gitlab_runner, gitlab_project
+#                  (--tags execute), build_automatic, build_manual,
+#                  deploy_automatic,
+#                  deploy_manual, cadence, pipeline_cleanup, auto_cleanup
+#   cleanup:       gitlab, build_stream (--tags cleanup; explicit, destructive)
 #
-# Default lifecycle: buildstream_install -> cadence_pipeline
-# Named lifecycle:   build_deploy_lifecycle
-#                    (buildstream_install -> build_pipeline -> deploy_pipeline)
+# Default lifecycle (no tag): precheck -> prepare -> execute
 #
 # =============================================================================
 
@@ -80,46 +95,39 @@ skip_on_failure: false
 # FVT -- Functional Verification Tests
 # =============================================================================
 fvt_build_stream:
-  buildstream_install:
+  prepare_base:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
+    marker: ""
     dataset: ""
     sync_input: false
-  build_pipeline:
+  precheck:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
+    marker: ""
     dataset: ""
     sync_input: false
-  deploy_pipeline:
+  prepare:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
+    marker: ""
     dataset: ""
     sync_input: false
-  cadence_pipeline:
+  execute:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
+    marker: ""
     dataset: ""
     sync_input: false
-  automatic_cleanup:
-    run: false
-    command: "test"
-    suite: "automatic_cleanup"
-    marker: "sanity"
-    dataset: ""
-    sync_input: false
-  buildstream_cleanup:
+  cleanup:
     run: false
     command: "test"
     suite: ""
-    marker: "sanity"
+    marker: ""
     dataset: ""
     sync_input: false
 

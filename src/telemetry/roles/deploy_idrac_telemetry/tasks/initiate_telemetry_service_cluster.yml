@@ -39,8 +39,6 @@
     deleted_idrac_ips: []
     failed_delete_count: 0
     failed_delete_ips: []
-    disabled_telemetry_count: 0
-    disabled_telemetry_ips: []
 
 - name: Fetch iDRAC BMC IPs for each pod
   fetch_idrac_ips:

@@ -93,3 +93,22 @@ def test_non_mapping_root_rejected(tmp_path):
     with pytest.raises(YamlSafetyError) as err:
         load_runtime_yaml(str(path))
     assert err.value.code == "mapping_required"
+
+
+def test_sample_image_build_config_loads():
+    data, exists = load_runtime_yaml(str(SRC_DIR / "input/image_build_config.yml"))
+    assert exists
+    assert "build_image" in data
+    assert "s3_configurations" in data
+
+
+def test_jinja_in_image_build_config_rejected(tmp_path):
+    path = tmp_path / "image_build_config.yml"
+    path.write_text(
+        "s3_configurations: {provider: minio, endpoint_url: ''}\n"
+        "aarch64_ssh_user: \"{{ lookup('pipe', 'id') }}\"\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(YamlSafetyError) as err:
+        load_runtime_yaml(str(path))
+    assert err.value.code == "template_syntax_forbidden"

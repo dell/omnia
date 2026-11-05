@@ -81,6 +81,16 @@ def _create_upload_command(job_id, files, client_id=None, correlation_id=None):
     )
 
 
+class _TmpRootMixin:  # pylint: disable=too-few-public-methods
+    """Give every test a private directory for the files the use case writes."""
+
+    tmp_root = None
+
+    @pytest.fixture(autouse=True)
+    def _tmp_root(self, tmp_path):
+        self.tmp_root = tmp_path
+
+
 class TestUploadFilesValidation:
     """Test filename and file size validation."""
 
@@ -178,7 +188,7 @@ class TestUploadFilesValidation:
         )
 
 
-class TestUploadFilesJobValidation:
+class TestUploadFilesJobValidation(_TmpRootMixin):
     """Test job state validation."""
 
     def test_job_not_found_raises_error(self):
@@ -232,8 +242,8 @@ class TestUploadFilesJobValidation:
         result = use_case.execute(command)
         assert result is not None
 
-    def test_job_in_completed_state_raises_error(self):
-        """Job in COMPLETED state should raise TerminalStateViolationError."""
+    def test_job_in_completed_state_allows_upload(self):
+        """Job in COMPLETED state should allow upload to support redeployment."""
         job = self._create_job(JobState.COMPLETED)
         use_case = self._create_use_case_with_job(job)
 
@@ -242,8 +252,9 @@ class TestUploadFilesJobValidation:
             files=[("network_spec.yml", b"content")],
         )
 
-        with pytest.raises(TerminalStateViolationError):
-            use_case.execute(command)
+        # Should not raise - completed jobs allow upload for redeployment
+        result = use_case.execute(command)
+        assert result is not None
 
     def test_job_in_cancelled_state_raises_error(self):
         """Job in CANCELLED state should raise TerminalStateViolationError."""
@@ -314,13 +325,13 @@ class TestUploadFilesJobValidation:
             uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
-                file_store=Mock(base_path="/tmp/artifacts"),
-                paths=Mock(build_stream_base_path="/tmp/buildstream"),
+                file_store=Mock(base_path=str(self.tmp_root / "artifacts")),
+                paths=Mock(build_stream_base_path=str(self.tmp_root / "buildstream")),
             ),
         )
 
 
-class TestUploadFilesChangeDetection:
+class TestUploadFilesChangeDetection(_TmpRootMixin):
     """Test change detection logic."""
 
     def test_first_upload_marked_as_changed(self):
@@ -445,13 +456,13 @@ class TestUploadFilesChangeDetection:
             uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
-                file_store=Mock(base_path="/tmp/artifacts"),
-                paths=Mock(build_stream_base_path="/tmp/buildstream"),
+                file_store=Mock(base_path=str(self.tmp_root / "artifacts")),
+                paths=Mock(build_stream_base_path=str(self.tmp_root / "buildstream")),
             ),
         )
 
 
-class TestUploadFilesStorageIntegration:
+class TestUploadFilesStorageIntegration(_TmpRootMixin):
     """Test storage integration."""
 
     def test_changed_file_stored_in_artifact_store(self):
@@ -568,13 +579,13 @@ class TestUploadFilesStorageIntegration:
             uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
-                file_store=Mock(base_path="/tmp/artifacts"),
-                paths=Mock(build_stream_base_path="/tmp/buildstream"),
+                file_store=Mock(base_path=str(self.tmp_root / "artifacts")),
+                paths=Mock(build_stream_base_path=str(self.tmp_root / "buildstream")),
             ),
         )
 
 
-class TestUploadFilesMultiFileUpload:
+class TestUploadFilesMultiFileUpload(_TmpRootMixin):
     """Test multi-file upload scenarios."""
 
     def test_single_file_upload(self):
@@ -723,13 +734,13 @@ class TestUploadFilesMultiFileUpload:
             uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
-                file_store=Mock(base_path="/tmp/artifacts"),
-                paths=Mock(build_stream_base_path="/tmp/buildstream"),
+                file_store=Mock(base_path=str(self.tmp_root / "artifacts")),
+                paths=Mock(build_stream_base_path=str(self.tmp_root / "buildstream")),
             ),
         )
 
 
-class TestUploadFilesAuditEvents:
+class TestUploadFilesAuditEvents(_TmpRootMixin):
     """Test audit event emission with file details."""
 
     def test_stage_started_audit_event_includes_filenames(self):
@@ -846,8 +857,8 @@ class TestUploadFilesAuditEvents:
             uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
-                file_store=Mock(base_path="/tmp/artifacts"),
-                paths=Mock(build_stream_base_path="/tmp/buildstream"),
+                file_store=Mock(base_path=str(self.tmp_root / "artifacts")),
+                paths=Mock(build_stream_base_path=str(self.tmp_root / "buildstream")),
             ),
         )
 
@@ -934,8 +945,8 @@ class TestUploadFilesAuditEvents:
             uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
-                file_store=Mock(base_path="/tmp/artifacts"),
-                paths=Mock(build_stream_base_path="/tmp/buildstream"),
+                file_store=Mock(base_path=str(self.tmp_root / "artifacts")),
+                paths=Mock(build_stream_base_path=str(self.tmp_root / "buildstream")),
             ),
         )
 

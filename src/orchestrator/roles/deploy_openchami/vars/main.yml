@@ -94,7 +94,7 @@ ochami_base_url: "https://{{ cluster_name }}.{{ cluster_domain }}:8443"
 
 # OpenCHAMI RPM — downloaded from GitHub releases at install time
 openchami_release_repo: OpenCHAMI/release
-openchami_release_api_url: "https://api.github.com/repos/{{ openchami_release_repo }}/releases/latest"
+openchami_release_api_url: "https://api.github.com/repos/{{ openchami_release_repo }}/releases/tags/v0.2.0"
 openchami_rpm_name: openchami-0.2.0.rpm
 ochami_client_rpm_url: https://github.com/OpenCHAMI/ochami/releases/download/v0.10.2/ochami_0.10.2_linux_amd64.rpm
 ochami_client_rpm_name: ochami_0.10.2_linux_amd64.rpm

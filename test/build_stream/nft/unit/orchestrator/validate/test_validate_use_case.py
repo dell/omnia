@@ -16,6 +16,7 @@
 
 """Unit tests for ValidateUseCase — Phase 3 (spec §7)."""
 
+import os
 import uuid
 
 import pytest
@@ -266,7 +267,10 @@ class TestValidateUseCaseSuccess:
         assert submitted.test_suite == "smoke"
         assert submitted.timeout_minutes == 60
         assert submitted.job_id == str(job_id)
-        assert submitted.config_path == "/opt/omnia/build_stream/validate/config.yml"
+        assert submitted.config_path == (
+            f"{os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')}"
+            "/build_stream/validate/config.yml"
+        )
 
     def test_execute_artifact_dir_includes_attempt(
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
@@ -283,7 +287,11 @@ class TestValidateUseCaseSuccess:
         use_case.execute(command)
 
         submitted = queue_service.submitted[0]
-        expected_dir = f"/opt/omnia/build_stream_root/artifacts/{job_id}/validate/attempt_1"
+        expected_dir = (
+            f"{os.environ.get('OMNIA_DATA_PATH', '/opt/omnia')}"
+            "/build_stream/build_stream_root/artifacts/"
+            f"{job_id}/validate/attempt_1"
+        )
         assert submitted.artifact_dir == expected_dir
 
     def test_execute_request_id_format(

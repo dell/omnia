@@ -53,7 +53,7 @@ dataset: ""                # Use canonical src input when sync is enabled
 ### Per-scenario override in `test_run_config.yml`
 ```yaml
 fvt_build_stream:
-  buildstream_install:
+  execute:
     dataset: "my_custom_ds"
     sync_input: true
 ```
@@ -61,7 +61,7 @@ fvt_build_stream:
 ### Environment variable (one-off)
 ```bash
 OMNIA_DATASET_OVERRIDE=my_custom_ds \
-  ./run_validation.sh fvt_build_stream buildstream_install verify
+  ./run_validation.sh fvt_build_stream execute verify
 ```
 
 **Priority**: env var > per-scenario override > `test_config.yml` default.

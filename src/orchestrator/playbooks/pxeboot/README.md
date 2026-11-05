@@ -353,4 +353,5 @@ completed.
 
 - Orchestrator README: `src/orchestrator/README.md`
 - PXE mapping file example: `examples/pxe_mapping_file.csv`
+- PXE mapping file example (dns_enabled: false): `examples/pxe_mapping_file_dns_disabled.csv`
 - Orchestrator configuration: `src/orchestrator/input/orchestrator_config.yml`

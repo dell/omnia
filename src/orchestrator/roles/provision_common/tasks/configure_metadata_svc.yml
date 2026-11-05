@@ -148,7 +148,7 @@
 
     - name: Set dns_enabled fact
       ansible.builtin.set_fact:
-        dns_enabled: "{{ _orch_config_ms.dns_enabled | default(false) | bool }}"
+        dns_enabled: "{{ _orch_config_ms.dns_enabled | default(true) | bool }}"
 
 - name: Select deployed service Kubernetes configuration
   ansible.builtin.set_fact:
