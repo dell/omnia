@@ -434,8 +434,11 @@ def main() -> None:
             if su in su_kube_node_map:
                 row["PARENT_SERVICE_TAG"] = su_kube_node_map[su]
 
-        # Write CSV file
-        with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+        # Write CSV file with secure permissions (0640: owner rw, group r, no other)
+        # The file contains sensitive node inventory data (MAC addresses, BMC IPs,
+        # IB addresses, service tags) and must not be world-readable.
+        fd = os.open(output_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o640)
+        with os.fdopen(fd, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=headers)
             writer.writeheader()
             writer.writerows(rows)

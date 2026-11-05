@@ -237,15 +237,29 @@ copy_input_files() {
         cp -a "$src_dir"/. "$dest_dir/"
     fi
 
-    # Directories 0750; files lose group-write and all "other" access, so
-    # 0644 becomes 0640 while stricter modes such as 0600 are preserved.
-    chmod 0750 "$dest_dir"
-    find "$dest_dir" -mindepth 1 -type d -exec chmod 0750 {} +
-    find "$dest_dir" -type f -exec chmod g-w,o-rwx {} +
-
     local count
     count=$(find "$dest_dir" -type f | wc -l)
     echo -e "  ${GREEN}[${DOMAIN_NAME}] Copied ${count} file(s) → ${dest_dir}${NC}"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Harden permissions on the runtime project input directory.
+# Always runs when the directory exists, regardless of whether files were
+# copied in this invocation.  This catches files that the user replaced
+# after a previous domain-init run (e.g. copying a discovery CSV with
+# default 0644 permissions).
+#
+# Directories 0750; files lose group-write and all "other" access, so
+# 0644 becomes 0640 while stricter modes such as 0600 are preserved.
+# ─────────────────────────────────────────────────────────────────────────────
+harden_input_permissions() {
+    local dest_dir="${ORCHESTRATOR_DATA_PATH}/input/${OMNIA_PROJECT_NAME}"
+
+    [ -d "$dest_dir" ] || return 0
+
+    chmod 0750 "$dest_dir"
+    find "$dest_dir" -mindepth 1 -type d -exec chmod 0750 {} +
+    find "$dest_dir" -type f -exec chmod g-w,o-rwx {} +
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -366,6 +380,10 @@ main() {
     # 3. Copy flat input files to the runtime project directory (skip if --deps-only)
     if [ "$DEPS_ONLY" = false ]; then
         copy_input_files
+        # 4. Harden permissions on all input files — runs unconditionally so
+        #    files replaced after a previous init (e.g. discovery CSV copied
+        #    with default 0644) are corrected before orchestrator validation.
+        harden_input_permissions
     else
         echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipping input file staging (--deps-only)${NC}"
     fi
