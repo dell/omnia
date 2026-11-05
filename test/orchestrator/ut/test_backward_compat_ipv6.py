@@ -1134,6 +1134,99 @@ class TestIbPairValidationAddrMode:
 
 
 # ===================================================================
+# IB_IPV6 subnet membership validation
+# ===================================================================
+
+class TestIbIpv6SubnetMembership:
+    """Validate IB_IPV6 addresses fall within the approved prefix."""
+
+    def _network_spec(self, ipv6_subnet: str, ipv6_bits: str) -> dict:
+        return {
+            "Networks": [
+                {
+                    "admin_network": {
+                        "subnet": "172.16.107.0",
+                        "netmask_bits": "24",
+                    },
+                },
+                {
+                    "ib_network": {
+                        "ipv4_subnet": "192.168.0.0",
+                        "ipv4_netmask_bits": "24",
+                        "ipv6_subnet": ipv6_subnet,
+                        "ipv6_netmask_bits": ipv6_bits,
+                        "ib_addr_mode": "dual-stack",
+                    },
+                },
+            ],
+        }
+
+    def test_ipv6_outside_prefix_rejected(self, tmp_path):
+        """ORCH_UT_BC_060: IB_IPV6 outside the approved /64 prefix is rejected."""
+        row_outside = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD07", "",
+            "node007", "aa:bb:cc:dd:ee:07", "172.16.107.47",
+            "aa:bb:cc:dd:ff:07", "172.17.107.47",
+            "InfiniBand.Slot.7-1", "192.168.0.47", "fd00:1b:0:1::1",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_outside],
+            network_spec=self._network_spec("fd00:1b::", "64"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        prefix_errors = [e for e in errors if "approved prefix" in e]
+        assert len(prefix_errors) == 1, (
+            f"Expected 1 prefix error for fd00:1b:0:1::1 outside fd00:1b::/64, got: {prefix_errors}"
+        )
+        assert "fd00:1b:0:1::1" in prefix_errors[0]
+
+    def test_ipv6_within_prefix_accepted(self, tmp_path):
+        """ORCH_UT_BC_061: IB_IPV6 within the approved /64 prefix passes."""
+        row_inside = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD08", "",
+            "node008", "aa:bb:cc:dd:ee:08", "172.16.107.48",
+            "aa:bb:cc:dd:ff:08", "172.17.107.48",
+            "InfiniBand.Slot.7-1", "192.168.0.48", "fd00:1b::48",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row_inside],
+            network_spec=self._network_spec("fd00:1b::", "64"),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        prefix_errors = [e for e in errors if "approved prefix" in e]
+        assert prefix_errors == [], (
+            f"fd00:1b::48 should be within fd00:1b::/64, but got: {prefix_errors}"
+        )
+
+    def test_ipv6_no_prefix_configured_skips_check(self, tmp_path):
+        """ORCH_UT_BC_062: Without ipv6_subnet, prefix check is skipped."""
+        row = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD09", "",
+            "node009", "aa:bb:cc:dd:ee:09", "172.16.107.49",
+            "aa:bb:cc:dd:ff:09", "172.17.107.49",
+            "InfiniBand.Slot.7-1", "192.168.0.49", "fd00:1b:0:1::1",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row],
+            network_spec=self._network_spec("", ""),
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        prefix_errors = [e for e in errors if "approved prefix" in e]
+        assert prefix_errors == [], (
+            f"Without ipv6_subnet configured, prefix check should be skipped, got: {prefix_errors}"
+        )
+
+
+# ===================================================================
 # TC-UT-BC: PXE Mapping — Optional IB columns
 # ===================================================================
 
