@@ -59,7 +59,7 @@ LOGGER = logging.getLogger("nm-config-pub-test")
 
 # Path to the Jinja2 template for backward compatibility checks
 _TEMPLATE_PATH = (
-    _REPO_ROOT / "src" / "orchestrator" / "roles" / "configure_ochami"
+    _REPO_ROOT / "src" / "orchestrator" / "roles" / "provision_common"
     / "templates" / "doca-ofed" / "configure-ib-network.sh.j2"
 )
 

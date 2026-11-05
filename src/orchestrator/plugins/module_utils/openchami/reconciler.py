@@ -611,9 +611,8 @@ class OpenChamiReconciler:
             seen.add(name)
             current = existing_by_name.get(name)
             payload = {
-                "metadata": {"name": name},
+                "metadata": {"name": name, "labels": ownership},
                 "spec": desired_spec,
-                "labels": ownership,
             }
             if current is None:
                 if not check_mode:
@@ -724,9 +723,8 @@ class OpenChamiReconciler:
         )
         current = matches[0] if matches else None
         payload = {
-            "metadata": {"name": name},
+            "metadata": {"name": name, "labels": ownership},
             "spec": desired_spec,
-            "labels": ownership,
         }
         result = {
             "changed": False,
@@ -822,9 +820,8 @@ class OpenChamiReconciler:
                 if not check_mode:
                     self.metadata.create_instance_info(
                         {
-                            "metadata": {"name": instance_id},
+                            "metadata": {"name": instance_id, "labels": ownership},
                             "spec": desired_spec,
-                            "labels": ownership,
                         }
                     )
                 created.append(instance_id)
@@ -845,9 +842,8 @@ class OpenChamiReconciler:
                     self.metadata.update_instance_info(
                         canonical_uid,
                         {
-                            "metadata": {"name": instance_id},
+                            "metadata": {"name": instance_id, "labels": ownership},
                             "spec": merged_spec,
-                            "labels": ownership,
                         },
                     )
                 (updated if spec_changed else adopted).append(instance_id)

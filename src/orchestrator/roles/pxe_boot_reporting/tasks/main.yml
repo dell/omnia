@@ -251,9 +251,19 @@
       {{ node_registration_failed_bmc_ips | default([]) | join(', ') or 'none' }}
     cacheable: true
 
+- name: Warn about failed nodes (provisioning continues for healthy nodes)
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: {{ pxeboot_failure_message }}
+      Provisioning will continue for the remaining healthy nodes.
+      Set defer_pxe_failure=false to restore hard-fail behavior.
+  when:
+    - pxeboot_failed | bool
+    - defer_pxe_failure | default(true) | bool
+
 - name: Fail if any nodes failed PXE boot or node-registration
   ansible.builtin.fail:
     msg: "{{ pxeboot_failure_message }}"
   when:
     - pxeboot_failed | bool
-    - not (defer_pxe_failure | default(false) | bool)
+    - not (defer_pxe_failure | default(true) | bool)

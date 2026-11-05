@@ -254,7 +254,7 @@ def pxe_mapping_header_contract_msg(
         f"column(s) and does not match the required header; missing "
         f"columns: {missing or 'none (check order or extra columns)'}. "
         f"Expected exactly {expected}, in this order, including "
-        "IB_NIC_NAME and IB_IP."
+        "IB_NIC_NAME, IB_IPV4, and IB_IPV6."
     )
 
 
