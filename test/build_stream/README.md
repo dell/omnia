@@ -35,10 +35,11 @@ state:
 
 - it commits catalogs and PXE mapping changes to GitLab;
 - it deploys images to nodes;
-- it deletes one image group (`pipeline_cleanup`);
-- it runs the automated cleanup (`auto_cleanup`), which marks the image the
-  cadence test built FAILED in the database, then deletes every FAILED image
-  group;
+- it deletes one image group (`pipeline_cleanup`), which it builds first (no build
+  when `pipeline.cleanup_image_group_id` is set);
+- it runs the automated cleanup (`auto_cleanup`), which builds an image of its
+  own (no build when `pipeline.auto_cleanup_image_group_id` is set), marks it
+  FAILED in the database, then deletes every FAILED image group;
 - with `pipeline.allow_pipeline_cancel: true` (default) it cancels running
   GitLab pipelines before each commit or trigger.
 
@@ -187,11 +188,14 @@ Every test case, with its order, ID, markers and check, is listed in
 - **Build and deploy:** a deploy suite deploys the image the build suite created
   *in the same pytest process*. Run them together, for example with
   `--marker automatic_execution`.
-- **Cadence and automatic cleanup:** the cadence test records the outcome of its
-  own build (image group, job, success) in `reports/state/cadence_build.json`.
-  `auto_cleanup` uses it even when it runs in a later process, as the SVT does:
-  it deletes that image, or skips with "nothing to clean" when the cadence build
-  failed.
+- **Image builds of the cadence and the two cleanup suites:** each records the
+  outcome of its own build (image group, job, success) in
+  `reports/state/cadence_build.json`, `reports/state/auto_cleanup_build.json` and
+  `reports/state/pipeline_cleanup_build.json`. The `auto_cleanup` pass and the
+  `pipeline_cleanup` trigger use their own record even when they run in a later
+  process, as the SVT does: each deletes its own image. A failed build fails that
+  suite's image build test and blocks (`auto_cleanup`) or skips
+  (`pipeline_cleanup`) the tests that follow.
 - **Exec and verify:** `cleanup` hands its exec facts to
   the verify phase through the same `reports/state/` directory (0600, no
   secrets).
@@ -214,7 +218,7 @@ Every test case, with its order, ID, markers and check, is listed in
 | `manual_execution` | API-triggered (`PIPELINE_TYPE=build` / `deploy`) build and deploy: `build_manual`, `deploy_manual` |
 | `cadence` | Cadence pipeline and the cadence disable / re-enable tests |
 | `cleanup_pipeline` | `PIPELINE_TYPE=cleanup` pipeline: `pipeline_cleanup` |
-| `automatic_cleanup` | Automated cleanup pass on the cadence build image: `auto_cleanup` |
+| `automatic_cleanup` | Automated cleanup pass on an image the suite builds: `auto_cleanup` |
 | `nft`, `resilience`, `security`, `disruptive` | NFT selection; `disruptive` also needs its `nft_allow_*` key |
 
 Combine markers with `+` (AND) and `,` (OR), for example
@@ -264,8 +268,8 @@ Combine markers with `+` (AND) and `,` (OR), for example
 | `execute` (deploy) | `pipeline.deploy_image_group_id` (deploy-only runs), `pipeline.deploy_job_id` (verify-only mode) |
 | `execute` (cadence) | `installation.cadence_catalog` (empty = `installation.catalog`), `pipeline.cadence_job_id` (verify-only mode) |
 | `execute` (all pipelines) | `pipeline.allow_pipeline_cancel`, `pipeline.poll_interval`, `debug_mode` |
-| `execute` (`pipeline_cleanup`) | `pipeline.cleanup_image_group_id`. Empty = the newest BUILT/PASSED/FAILED group; when there is none the test fails with "No images to clean" |
-| `execute` (`auto_cleanup`) | `pipeline.auto_cleanup_image_group_id`. Empty = the image the cadence test built (this session or `reports/state/cadence_build.json`), else the first BUILT/PASSED/FAILED group. The group is set to FAILED in the database first |
+| `execute` (`pipeline_cleanup`) | `pipeline.cleanup_image_group_id`. Empty = the suite builds its own image first (this session or `reports/state/pipeline_cleanup_build.json`); an image group ID = nothing is built, that group is used |
+| `execute` (`auto_cleanup`) | `pipeline.auto_cleanup_image_group_id`. Empty = the suite builds its own image first (this session or `reports/state/auto_cleanup_build.json`); an image group ID = nothing is built, that group is used. The group is set to FAILED in the database first |
 | `cleanup` | `cleanup.postgres_backup`, `cleanup.cleanup_credentials` |
 
 **Build:** the build suites commit `installation.catalog` with the next unused
