@@ -617,10 +617,15 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": ("Re-enable cadence (no restart); trigger a cycle; verify it completes "
                   "and starts the cadence pipeline and a BuildStream job"),
     },
+    "pipeline_cleanup_build_image": {
+        "id": "BSM_FVT_EXECUTE_V084",
+        "title": ("Cleanup pipeline: build a dedicated image group for it (no build when "
+                  "pipeline.cleanup_image_group_id is set)"),
+    },
     "pipeline_cleanup_trigger_select": {
         "id": "BSM_FVT_EXECUTE_V067",
-        "title": ("Cleanup pipeline: pick the image group (config or newest), trigger "
-                  "PIPELINE_TYPE=cleanup; verify the select_image job chose it"),
+        "title": ("Cleanup pipeline: take the image group (config or the one built for it), "
+                  "trigger PIPELINE_TYPE=cleanup; verify the select_image job chose it"),
     },
     "pipeline_cleanup_run_cleanup_job": {
         "id": "BSM_FVT_EXECUTE_V068",
@@ -629,8 +634,8 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
     },
     "pipeline_cleanup_db_cleaned": {
         "id": "BSM_FVT_EXECUTE_V069",
-        "title": ("Cleanup pipeline: verify image_groups CLEANED, job tombstoned and "
-                  "cleanup audit events"),
+        "title": ("Cleanup pipeline: verify image_groups CLEANED and cleanup "
+                  "audit events (tombstone reported only)"),
     },
     "pipeline_cleanup_s3_deleted": {
         "id": "BSM_FVT_EXECUTE_V070",
@@ -650,15 +655,20 @@ TEST_CASES: Dict[str, Dict[str, str]] = {
         "title": ("Automated cleanup: verify retention settings, BuildStream container "
                   "and playbook-watcher"),
     },
+    "auto_cleanup_build_image": {
+        "id": "BSM_FVT_EXECUTE_V083",
+        "title": ("Automated cleanup: build a dedicated image group for it (no build when "
+                  "pipeline.auto_cleanup_image_group_id is set)"),
+    },
     "auto_cleanup_run_pass": {
         "id": "BSM_FVT_EXECUTE_V074",
-        "title": ("Automated cleanup: mark the cadence build image FAILED, run one "
-                  "cleanup_cron pass; wait until none is CLEANING"),
+        "title": ("Automated cleanup: mark the image FAILED, run one cleanup_cron pass; "
+                  "wait until none is CLEANING"),
     },
     "auto_cleanup_db_updated": {
         "id": "BSM_FVT_EXECUTE_V075",
         "title": ("Automated cleanup: verify build_stream_db (cleaned groups CLEANED, "
-                  "tombstoned, audited; others kept)"),
+                  "audited, tombstone reported only; others kept)"),
     },
     "auto_cleanup_artifacts_removed": {
         "id": "BSM_FVT_EXECUTE_V076",
