@@ -15,9 +15,13 @@
 """
 Execute — Image Cleanup Pipeline (one test case per step).
 
-The image group is pipeline.cleanup_image_group_id when set, else the newest
-image group the cleanup API accepts (BUILT, PASSED or FAILED). When there is
-nothing to clean the suite says so and is skipped (no pipeline is triggered).
+build     build a dedicated image group for this suite (the next unused
+          catalog version through the build pipeline, up to build-image); no
+          build when pipeline.cleanup_image_group_id names an image group,
+          which is used instead. A failed build fails this test and the
+          trigger test that follows is skipped with that reason (no pipeline
+          is triggered).
+The suite does not depend on the images other suites leave behind.
 
 Trigger PIPELINE_TYPE=cleanup through the API (running pipelines cancelled
 when allowed), wait for list_images to offer the group and play its
@@ -34,6 +38,7 @@ Markers: pipeline, cleanup_pipeline, sanity.
 import pytest
 
 from library.functions import (
+    build_pipeline_cleanup_image_step,
     run_pipeline_cleanup,
     run_step,
     start_pipeline_cleanup,
@@ -48,9 +53,19 @@ from library.vars import TEST_CASES as TC
 @pytest.mark.pipeline
 @pytest.mark.cleanup_pipeline
 @pytest.mark.sanity
+@pytest.mark.order(41000)
+def test_pipeline_cleanup_build_image(host):
+    """Build the image group the cleanup pipeline deletes, unless one is configured."""
+    run_step(TC["pipeline_cleanup_build_image"], "Cleanup pipeline image build",
+             build_pipeline_cleanup_image_step, host)
+
+
+@pytest.mark.pipeline
+@pytest.mark.cleanup_pipeline
+@pytest.mark.sanity
 @pytest.mark.order(41001)
 def test_pipeline_cleanup_trigger_select(host):
-    """Pick the image group, trigger PIPELINE_TYPE=cleanup and select the group."""
+    """Take the image group, trigger PIPELINE_TYPE=cleanup and select the group."""
     run_step(TC["pipeline_cleanup_trigger_select"], "Cleanup pipeline trigger",
              start_pipeline_cleanup, host)
 

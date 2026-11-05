@@ -79,10 +79,11 @@ sync_build_stream_input: false
 #                     markers: deploy_pipeline, manual_execution
 #   cadence           cadence cycle + pipeline, enable/disable cadence
 #                     marker: cadence
-#   pipeline_cleanup  PIPELINE_TYPE=cleanup for one image group
+#   pipeline_cleanup  PIPELINE_TYPE=cleanup for one image group; builds
+#                     its own image first and deletes it
 #                     marker: cleanup_pipeline
-#   auto_cleanup      one automated cleanup pass; deletes the image the
-#                     cadence test built (marked FAILED first)
+#   auto_cleanup      one automated cleanup pass; builds its own image
+#                     first and deletes it (marked FAILED first)
 #                     marker: automatic_cleanup
 # Every pipeline suite also has "pipeline"; the manual suites have no sanity.
 # =============================================================================
@@ -215,9 +216,13 @@ pipeline:
   #   PIPELINE_TYPE=cleanup (its S3 boot files, registry images and NFS
   #   artifacts; the DB marks it CLEANED), for example
   #   omnia-slurm-k8s-rhel-10-2-x86_64-no-vast-v1.2.
-  #   ""  the first image group the cleanup API accepts: the newest one with
-  #       status BUILT, PASSED or FAILED. If there is none, the suite fails
-  #       with "No images to clean" and triggers no pipeline.
+  #   ""  the suite builds a dedicated NEW image group first (the next unused
+  #       catalog version through the build pipeline, up to build-image; not
+  #       one of the groups other suites use), then deletes it. A failed
+  #       build fails the "image build" test and the trigger test is skipped
+  #       with that reason (no pipeline is triggered).
+  #   an image group ID  nothing is built: that group is used (it must be
+  #       BUILT, PASSED or FAILED).
   #   A group that is already CLEANED is skipped.
   #   List the image groups with the second command above.
   cleanup_image_group_id: ""
@@ -229,13 +234,12 @@ pipeline:
   #   one cleanup_cron pass, then checks S3, the registry (regctl) and the
   #   NFS artifacts. That pass also deletes every other FAILED group and
   #   every retention candidate.
-  #   ""  the image the cadence test built first: it builds a NEW image group
-  #       (not the build suites' one, which the deploy suites use). If that
-  #       build failed there is nothing to clean and the test is skipped; if
-  #       only the cadence cycle failed, the image is still cleaned. When the
-  #       cadence test did not run in the session, the first BUILT, PASSED
-  #       or FAILED image group is used ("No images to clean" fails the test
-  #       when there is none).
+  #   ""  the suite builds a dedicated NEW image group first (the next unused
+  #       catalog version through the build pipeline, up to build-image; not
+  #       the build suites' group, which the deploy suites use, and not the
+  #       cadence test's), then deletes it. A failed build fails the "image
+  #       build" test and blocks the pass.
+  #   an image group ID  nothing is built: that group is used.
   auto_cleanup_image_group_id: ""
 
   # poll_interval: seconds, positive integer (default: 30).

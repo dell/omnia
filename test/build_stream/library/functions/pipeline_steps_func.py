@@ -748,77 +748,99 @@ def build_ran_once(host: Any, context: Dict[str, Any]) -> Dict[str, Any]:
 
 
 CADENCE_BUILD = "cadence_build"
-CADENCE_BUILD_STAGES = ("upload", "parse-catalog", "create-local-repository", "build-image")
-CADENCE_BUILD_FACTS = ("attempted", "success", "group_id", "job_id")
+AUTO_CLEANUP_BUILD = "auto_cleanup_build"
+PIPELINE_CLEANUP_BUILD = "pipeline_cleanup_build"
+DEDICATED_BUILD_STAGES = ("upload", "parse-catalog", "create-local-repository", "build-image")
+DEDICATED_BUILD_FACTS = ("attempted", "success", "group_id", "job_id")
+# Dedicated build -> (label prefix of its report fields, progress message key).
+DEDICATED_BUILDS = {
+    CADENCE_BUILD: ("Cadence build", "cadence_build_started"),
+    AUTO_CLEANUP_BUILD: ("Automated cleanup build", "auto_cleanup_build_started"),
+    PIPELINE_CLEANUP_BUILD: ("Cleanup pipeline build", "pipeline_cleanup_build_started"),
+}
 
 
 def _cadence_build(host: Any, context: Dict[str, Any], settings: Dict[str, Any],
                    result: Dict[str, Any], emit: Emit) -> str:
-    """Build the cadence test's image group and record the outcome; return an error or "".
+    """Build the cadence test's image group; return an error or "" (see ``dedicated_build``)."""
+    return dedicated_build(host, context, settings, result, emit, CADENCE_BUILD)
 
-    The outcome (also a failed build) is saved as run state so an automated
-    cleanup started in another process targets this image or skips cleanly.
+
+def dedicated_build(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        host: Any, context: Dict[str, Any], settings: Dict[str, Any],
+        result: Dict[str, Any], emit: Emit, key: str) -> str:
+    """Build a new image group for suite ``key`` and record the outcome; return an error or "".
+
+    The outcome (also a failed build) is saved as run state so a test started
+    in another process finds this image or skips cleanly.
     """
-    error = _run_cadence_build(host, context, settings, result, emit)
-    _save_cadence_build()
+    error = _run_dedicated_build(host, context, settings, result, emit, key)
+    _save_dedicated_build(key)
     return error
 
 
-def _run_cadence_build(host: Any, context: Dict[str, Any], settings: Dict[str, Any],
-                       result: Dict[str, Any], emit: Emit) -> str:
-    """Build a new image group for the cadence test; return an error or "".
+def _run_dedicated_build(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        host: Any, context: Dict[str, Any], settings: Dict[str, Any],
+        result: Dict[str, Any], emit: Emit, key: str) -> str:
+    """Build a new image group for suite ``key``; return an error or "".
 
     The build suites' image group is deployed and validated by the deploy
-    suites, so the cadence test (and the automated cleanup that follows it)
-    works on its own image: the next unused catalog version is committed, the
+    suites, so the cadence test and the automated cleanup each work on an
+    image of their own: the next unused catalog version is committed, the
     build pipeline runs through ``build-image`` and the image group must be
-    BUILT. The outcome is recorded in ``STATE["cadence_build"]``.
+    BUILT. The outcome is recorded in ``STATE[key]``.
     """
-    STATE[CADENCE_BUILD] = {"attempted": True, "success": False, "group_id": "", "job_id": ""}
-    clear_run_state(CADENCE_BUILD)
+    label, started = DEDICATED_BUILDS[key]
+    STATE[key] = {"attempted": True, "success": False, "group_id": "", "job_id": ""}
+    clear_run_state(key)
     build = _result("automatic trigger")
     ids = _trigger_build(host, context, settings, build, emit)
     result["fields"].extend(build["fields"])
     if ids.get("error"):
         return ids["error"]
-    STATE[CADENCE_BUILD].update(
+    STATE[key].update(
         context=context, mode=build["mode"], job_id=ids["job_id"], group_id=ids["group_id"],
         watched=[pid for pid in (ids.get("pipeline_id"), ids.get("child_id")) if pid],
         stage_checks=ids.get("stage_checks"), failed_step="")
-    emit(PROGRESS["cadence_build_started"].format(group_id=ids["group_id"], job_id=ids["job_id"]))
-    result["fields"].extend([("Cadence build image group", ids["group_id"]),
-                             ("Cadence build job", ids["job_id"])])
-    for stage in CADENCE_BUILD_STAGES:
-        step = run_stage_step(host, CADENCE_BUILD, stage, settings, emit)
+    emit(PROGRESS[started].format(group_id=ids["group_id"], job_id=ids["job_id"]))
+    result["fields"].extend([(f"{label} image group", ids["group_id"]),
+                             (f"{label} job", ids["job_id"])])
+    for stage in DEDICATED_BUILD_STAGES:
+        step = run_stage_step(host, key, stage, settings, emit)
         result["fields"].extend(step["fields"][2:])
         if not step["success"]:
             return f"stage '{stage}': {'; '.join(step['failures'])}"
-    records = _records_step(host, CADENCE_BUILD, "build result", settings, emit)
+    records = _records_step(host, key, "build result", settings, emit)
     result["fields"].extend(records["fields"][1:])
     if not records["success"]:
         return f"build result: {'; '.join(records['failures'])}"
-    STATE[CADENCE_BUILD]["success"] = True
+    STATE[key]["success"] = True
     return ""
 
 
-def _save_cadence_build() -> None:
-    """Record the cadence build outcome for an automated cleanup in another process."""
-    build = STATE.get(CADENCE_BUILD) or {}
-    save_run_state(CADENCE_BUILD, {key: build.get(key) for key in CADENCE_BUILD_FACTS})
+def _save_dedicated_build(key: str) -> None:
+    """Record the build outcome of suite ``key`` for a test in another process."""
+    build = STATE.get(key) or {}
+    save_run_state(key, {fact: build.get(fact) for fact in DEDICATED_BUILD_FACTS})
+
+
+def dedicated_build_outcome(key: str) -> Dict[str, Any]:
+    """Return this session's build of suite ``key``, else the one a previous process recorded.
+
+    Returns:
+        Dict with keys attempted, success, group_id, job_id ({} when no build
+        of that suite is known).
+    """
+    build = STATE.get(key)
+    if build:
+        return build
+    saved = load_run_state(key)
+    return saved["data"] if saved["success"] else {}
 
 
 def cadence_build_outcome() -> Dict[str, Any]:
-    """Return this session's cadence build, else the one a previous process recorded.
-
-    Returns:
-        Dict with keys attempted, success, group_id, job_id ({} when no
-        cadence build is known).
-    """
-    build = STATE.get(CADENCE_BUILD)
-    if build:
-        return build
-    saved = load_run_state(CADENCE_BUILD)
-    return saved["data"] if saved["success"] else {}
+    """Return this session's cadence build, else the one a previous process recorded."""
+    return dedicated_build_outcome(CADENCE_BUILD)
 
 
 def start_cadence_pipeline(host: Any, settings: Dict[str, Any], emit: Emit) -> Dict[str, Any]:
