@@ -338,8 +338,14 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
     """SQL implementation of artifact metadata repository."""
 
     def __init__(self, session: Session):
-        """Initialize with a SQLAlchemy session."""
+        """Initialize with a SQLAlchemy session.
+
+        The session is also public (``session``), like on every other SQL
+        repository, so callers that own the transaction (the result poller)
+        can commit it.
+        """
         self._session = session
+        self.session = session
 
     def save(self, record: ArtifactRecord) -> None:
         """Save an artifact record to the database."""
