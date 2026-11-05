@@ -1847,38 +1847,74 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 )
 
         # Read the report from the directory configured by the Orchestrator
-        # test suite. The attempt-specific name prevents a retry from
-        # consuming a stale aggregate from an earlier attempt.
-        report_source_path = str(
-            report_dir_path
-            / (f"{report_id}_orchestrator_report.json" if report_id else "")
+        # test suite. The orchestrator test framework uses a fixed report name
+        # from test_config.yml (orchestrator_test_report.json), so we copy it
+        # to an attempt-specific name to prevent retries from consuming stale data.
+        # Use attempt number instead of report_id since the orchestrator framework
+        # doesn't use report_id in the filename.
+        report_base_name = "orchestrator_test_report"
+        report_source_path = str(report_dir_path / f"{report_base_name}.json")
+        report_html_source_path = str(report_dir_path / f"{report_base_name}.html")
+
+        # Copy report to attempt-specific artifact directory
+        attempt_report_json_path = os.path.join(
+            artifact_dir, f"{report_base_name}_attempt_{attempt}.json"
         )
+        attempt_report_html_path = os.path.join(
+            artifact_dir, f"{report_base_name}_attempt_{attempt}.html"
+        )
+
         log_secure_info(
             'info',
-            f"Attempting to extract test results from {report_source_path}",
-            job_id
-        )
-        log_secure_info(
-            'info',
-            f"Extracted report_id from log: {report_id}",
+            f"Attempting to copy test report from {report_source_path} to {attempt_report_json_path}",
             job_id
         )
 
-        if not report_id:
-            log_secure_info(
-                'warning',
-                "No report_id found in validate output log, "
-                "skipping JSON extraction",
-                job_id
-            )
-        elif not os.path.exists(report_source_path):
-            log_secure_info(
-                'warning',
-                f"test_report.json not found at {report_source_path}, "
-                f"skipping JSON extraction",
-                job_id
-            )
+        if os.path.exists(report_source_path):
+            try:
+                shutil.copy2(report_source_path, attempt_report_json_path)
+                log_secure_info(
+                    'info',
+                    f"Copied JSON report to attempt-specific path: {attempt_report_json_path}",
+                    job_id
+                )
+            except OSError as e:
+                log_secure_info(
+                    'warning',
+                    f"Failed to copy JSON report: {e}",
+                    job_id
+                )
         else:
+            log_secure_info(
+                'warning',
+                f"Report JSON not found at {report_source_path}",
+                job_id
+            )
+
+        if os.path.exists(report_html_source_path):
+            try:
+                shutil.copy2(report_html_source_path, attempt_report_html_path)
+                log_secure_info(
+                    'info',
+                    f"Copied HTML report to attempt-specific path: {attempt_report_html_path}",
+                    job_id
+                )
+            except OSError as e:
+                log_secure_info(
+                    'warning',
+                    f"Failed to copy HTML report: {e}",
+                    job_id
+                )
+        else:
+            log_secure_info(
+                'warning',
+                f"Report HTML not found at {report_html_source_path}",
+                job_id
+            )
+
+        # Use the attempt-specific copy for JSON extraction
+        if os.path.exists(attempt_report_json_path):
+            report_source_path = attempt_report_json_path
             try:
                 with open(report_source_path, 'r') as f:
                     full_report = json.load(f)
@@ -1894,28 +1930,26 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                         job_id
                     )
                 else:
+                    # Since we're using attempt-specific copies, just get the latest run
+                    # from the first server (the orchestrator framework uses a single server)
                     current_run = None
                     for server_key, server_data in full_report["servers"].items():
                         runs = server_data.get("runs", [])
-                        for run in runs:
-                            if run.get("report_id") == report_id:
-                                current_run = run
-                                log_secure_info(
-                                    'info',
-                                    f"Found matching run with report_id "
-                                    f"{report_id} under server key "
-                                    f"'{server_key}'",
-                                    job_id
-                                )
-                                break
-                        if current_run:
+                        if runs:
+                            # Get the most recent run (last in the list)
+                            current_run = runs[-1]
+                            log_secure_info(
+                                'info',
+                                f"Using latest run from server '{server_key}' "
+                                f"with {len(runs)} total runs",
+                                job_id
+                            )
                             break
 
                     if not current_run:
                         log_secure_info(
                             'warning',
-                            f"No run found with report_id {report_id} "
-                            f"in test_report.json",
+                            f"No runs found in test_report.json",
                             job_id
                         )
                     else:
@@ -1923,8 +1957,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                         if not modules:
                             log_secure_info(
                                 'warning',
-                                f"Run with report_id {report_id} has no "
-                                f"modules",
+                                f"Run has no modules",
                                 job_id
                             )
                         else:
@@ -1948,7 +1981,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
                             test_summary["scenario"] = scenario
                             test_summary["molecule_command"] = molecule_command
-                            test_summary["report_id"] = report_id
+                            test_summary["report_id"] = f"attempt_{attempt}"
                             test_summary["duration_seconds"] = test_duration
                             test_summary["tests"] = tests
 
@@ -1995,7 +2028,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                                 f"command: {molecule_command}, "
                                 f"duration: {test_duration}s, "
                                 f"tests: {len(tests)}, "
-                                f"report_id: {report_id}",
+                                f"attempt: {attempt}",
                                 job_id
                             )
 
@@ -2015,7 +2048,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                                 json.dump(filtered_report, f, indent=2)
                             log_secure_info(
                                 'info',
-                                f"Extracted report {report_id} to artifact directory",
+                                f"Extracted report for attempt {attempt} to artifact directory",
                                 job_id
                             )
 
@@ -2100,6 +2133,9 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "test_summary": test_summary,
             "artifact_dir": artifact_dir,
             "log_file_path": reported_log,
+            "report_path": str(report_dir_path),
+            "report_json_path": attempt_report_json_path,
+            "report_html_path": attempt_report_html_path,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "timestamp": completed_at.isoformat(),
