@@ -242,8 +242,8 @@ class TestUploadFilesJobValidation(_TmpRootMixin):
         result = use_case.execute(command)
         assert result is not None
 
-    def test_job_in_completed_state_raises_error(self):
-        """Job in COMPLETED state should raise TerminalStateViolationError."""
+    def test_job_in_completed_state_allows_upload(self):
+        """Job in COMPLETED state should allow upload to support redeployment."""
         job = self._create_job(JobState.COMPLETED)
         use_case = self._create_use_case_with_job(job)
 
@@ -252,8 +252,9 @@ class TestUploadFilesJobValidation(_TmpRootMixin):
             files=[("network_spec.yml", b"content")],
         )
 
-        with pytest.raises(TerminalStateViolationError):
-            use_case.execute(command)
+        # Should not raise - completed jobs allow upload for redeployment
+        result = use_case.execute(command)
+        assert result is not None
 
     def test_job_in_cancelled_state_raises_error(self):
         """Job in CANCELLED state should raise TerminalStateViolationError."""

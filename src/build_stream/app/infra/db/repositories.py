@@ -338,8 +338,13 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
     """SQL implementation of artifact metadata repository."""
 
     def __init__(self, session: Session):
-        """Initialize with a SQLAlchemy session."""
-        self._session = session
+        """Initialize with a SQLAlchemy session.
+
+        The session is public (``session``), like on every other SQL
+        repository, so callers that own the transaction (the result poller)
+        can commit it.
+        """
+        self.session = session
 
     def save(self, record: ArtifactRecord) -> None:
         """Save an artifact record to the database."""
@@ -360,7 +365,7 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
             content_type=record.content_type,
             tags=record.tags,
         )
-        self._session.add(db_record)
+        self.session.add(db_record)
 
     def find_by_job_stage_and_label(
         self,
@@ -372,7 +377,7 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
         from infra.db.models import ArtifactMetadata
 
         db_record = (
-            self._session.query(ArtifactMetadata)
+            self.session.query(ArtifactMetadata)
             .filter(
                 ArtifactMetadata.job_id == str(job_id),
                 ArtifactMetadata.stage_name == stage_name.value,
@@ -391,7 +396,7 @@ class SqlArtifactMetadataRepository(ArtifactMetadataRepository):
         from infra.db.models import ArtifactMetadata
 
         db_records = (
-            self._session.query(ArtifactMetadata)
+            self.session.query(ArtifactMetadata)
             .filter(ArtifactMetadata.job_id == str(job_id))
             .all()
         )

@@ -22,7 +22,9 @@
   ansible.builtin.file:
     path: "{{ gitlab_hosted_payload_dir }}/catalog"
     state: directory
-    mode: '0755'
+    owner: root
+    group: root
+    mode: '0700'
 
 # catalog_rhel.json and cadence_catalog_rhel.json are pushed only to the
 # repository root (push_ci_files.yml), where every pipeline reads them, so
