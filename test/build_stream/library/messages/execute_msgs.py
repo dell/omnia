@@ -122,7 +122,11 @@ PROGRESS_MSGS: Dict[str, str] = {
     "cleanup_target": "cleanup target: image group {group_id} (job {job_id}, status "
                       "{status}, {source})",
     "cadence_build_started": "cadence test: building a dedicated new image first (image group "
-                             "{group_id}, job {job_id}); the automated cleanup deletes it later",
+                             "{group_id}, job {job_id})",
+    "auto_cleanup_build_started": "automated cleanup: building a dedicated image for it (image "
+                                  "group {group_id}, job {job_id}); the cleanup pass deletes it",
+    "pipeline_cleanup_build_started": "cleanup pipeline: building a dedicated image for it (image "
+                                      "group {group_id}, job {job_id}); the pipeline deletes it",
     "auto_cleanup_marked": "marked image group {group_id} FAILED in build_stream_db "
                            "(was {previous}, {source}); the automated cleanup deletes it",
     "auto_cleanup_already_failed": "image group {group_id} is already FAILED ({source}); "
@@ -176,19 +180,43 @@ STEP_MSGS: Dict[str, str] = {
         "The new image the cadence test builds first failed ({error}), so the cadence cycle "
         "is not triggered and every cadence step is skipped"
     ),
-    "cleanup_nothing": (
-        "No images to clean: build_stream_db has no BUILT, PASSED or FAILED image group "
-        "(every image group is already CLEANED, or none was built). "
-        "HOW TO FIX: run a build first, or set pipeline.{key} to an existing image group"
+    "tombstone_not_asserted": (
+        "{state} (not asserted: the result poller commits the job tombstone late, "
+        "when an unrelated job result commits its session; it does not affect the cleanup)"
     ),
     "cleanup_already_cleaned": (
         "Image group {group_id} (pipeline.{key}) is already CLEANED. "
         "Nothing to delete, so the cleanup is not triggered"
     ),
-    "auto_cleanup_no_cadence_image": (
-        "No image to clean: the new image the cadence test builds first failed, so no image "
-        "group was created for the automated cleanup. Nothing to delete, so the automated "
-        "cleanup is skipped"
+    "pipeline_cleanup_build_not_needed": (
+        "no image is built: pipeline.{key} names the image group the cleanup pipeline deletes"
+    ),
+    "pipeline_cleanup_build_failed": (
+        "The image built for the cleanup pipeline failed ({error}), so there is nothing to "
+        "clean. HOW TO FIX: fix the build, or set pipeline.{key} to an existing BUILT, "
+        "PASSED or FAILED image group (no image is built then)"
+    ),
+    "pipeline_cleanup_build_skip": (
+        "No image to clean: the image built for the cleanup pipeline failed (see the "
+        "'image build' test of this suite), so the cleanup pipeline is not triggered"
+    ),
+    "pipeline_cleanup_no_build": (
+        "No image to clean: the image built for the cleanup pipeline is not known in this "
+        "run. HOW TO RUN IT: run the 'image build' test of the pipeline_cleanup suite first, "
+        "or set pipeline.{key} to an existing BUILT, PASSED or FAILED image group"
+    ),
+    "auto_cleanup_build_not_needed": (
+        "no image is built: pipeline.{key} names the image group the automated cleanup deletes"
+    ),
+    "auto_cleanup_build_failed": (
+        "The image built for the automated cleanup failed ({error}), so there is nothing to "
+        "clean. HOW TO FIX: fix the build, or set pipeline.{key} to an existing BUILT, "
+        "PASSED or FAILED image group (no image is built then)"
+    ),
+    "auto_cleanup_no_build": (
+        "No image to clean: the image built for the automated cleanup is not known in this "
+        "run. HOW TO RUN IT: run the 'image build' test of the auto_cleanup suite first, or "
+        "set pipeline.{key} to an existing BUILT, PASSED or FAILED image group"
     ),
     "auto_cleanup_disabled": (
         "retention.auto_cleanup_enabled is false in {path}: the AutoCleanupScheduler is idle, "

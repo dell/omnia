@@ -15,9 +15,10 @@
 """Image cleanup as one test case per step: cleanup pipeline and automated cleanup.
 
 Cleanup pipeline (``PIPELINE_TYPE=cleanup``, .gitlab-ci-cleanup.yml):
-    start      pick the image group (pipeline.cleanup_image_group_id, else the
-               first = newest BUILT/PASSED/FAILED group; none at all fails with
-               "No images to clean"), record its S3 objects, registry tags and
+    build      build a dedicated image group (no build when
+               pipeline.cleanup_image_group_id is set); a failed build fails
+               the step and the start step is skipped with that reason
+    start      take that image group, record its S3 objects, registry tags and
                NFS artifacts, trigger the pipeline through the API and play
                the image group's select_image job
     cleanup    play the manual cleanup job (DELETE /api/v1/jobs/<job>), follow
@@ -30,13 +31,12 @@ Cleanup pipeline (``PIPELINE_TYPE=cleanup``, .gitlab-ci-cleanup.yml):
 
 Automated cleanup (``cleanup_cron.main()``, run by AutoCleanupScheduler):
     precheck   retention settings valid, BuildStream container, playbook-watcher
-    run        pick the image group: pipeline.auto_cleanup_image_group_id, else the
-               image the cadence test built (skipped with "nothing to clean" when
-               that build failed; still cleaned when only the cadence cycle
-               failed), else the first BUILT/PASSED/FAILED group (none fails with
-               "No images to clean"); mark it FAILED in build_stream_db, then
-               one pass: every FAILED group (and retention candidates) is
-               submitted; wait until none is CLEANING (log streamed)
+    build      build a dedicated image group (no build when
+               pipeline.auto_cleanup_image_group_id is set); a failed build
+               fails the step and blocks the pass
+    run        mark that image group FAILED in build_stream_db, then one pass:
+               every FAILED group (and retention candidates) is submitted; wait
+               until none is CLEANING (log streamed)
     db         exactly the expected groups CLEANED, tombstoned, audited
     artifacts  their S3 objects, registry tags and NFS artifacts removed,
                others untouched
@@ -46,7 +46,7 @@ blocked (True when a previous step failed or there is nothing to do).
 """
 
 import time
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, NamedTuple
 
 from . import db_func, gitlab_api_func, pipeline_monitor_func
 from .auto_cleanup_func import (
@@ -55,14 +55,17 @@ from .auto_cleanup_func import (
     precheck_auto_cleanup,
     run_auto_cleanup,
     s3_keys,
+    tombstone_value,
     verify_auto_cleanup_artifacts,
     verify_auto_cleanup_db,
 )
 from .pipeline_trigger_func import PipelineTrigger, _context, _result, trigger_pipeline
+from .state_func import clear_run_state
 from .log_func import LogFollower, mark
 from .execute_probe_func import data_path, path_exists, run_cmd, summarize
 from .pipeline_steps_func import (
-    _blocked, _finish, _gate, cadence_build_outcome, play_and_wait, wait_jobs,
+    AUTO_CLEANUP_BUILD, PIPELINE_CLEANUP_BUILD, _blocked, _finish, _gate, dedicated_build,
+    dedicated_build_outcome, play_and_wait, wait_jobs,
 )
 from ..messages.execute_msgs import PROGRESS_MSGS as PROGRESS
 from ..messages.execute_msgs import STEP_MSGS
@@ -171,6 +174,32 @@ def _cleanup_target(host: Any, settings: Dict[str, Any],
     return {"group": group, "source": source, "error": "", "nothing": False}
 
 
+def _pipeline_cleanup_target(host: Any, settings: Dict[str, Any]) -> Dict[str, Any]:
+    """Resolve the image group the cleanup pipeline deletes.
+
+    It is ``pipeline.cleanup_image_group_id`` when set, else the group the
+    suite's image build test built (this session or a previous process).
+
+    Returns:
+        Dict with keys: target (see ``_cleanup_target``), skip (reason the suite has
+        nothing to do, else ""), error ("" when the group is usable).
+    """
+    key = "cleanup_image_group_id"
+    built = {} if settings.get(key) else dedicated_build_outcome(PIPELINE_CLEANUP_BUILD)
+    if not settings.get(key) and built.get("attempted") and not built.get("success"):
+        return {"target": None, "error": "", "skip": STEP_MSGS["pipeline_cleanup_build_skip"]}
+    if not settings.get(key) and not built.get("success"):
+        return {"target": None, "skip": "",
+                "error": STEP_MSGS["pipeline_cleanup_no_build"].format(key=key)}
+    wanted = settings.get(key) or built["group_id"]
+    target = _cleanup_target(host, {**settings, key: wanted})
+    if built:
+        target["source"] = "image built for the cleanup pipeline"
+    skip = (STEP_MSGS["cleanup_already_cleaned"].format(group_id=wanted, key=key)
+            if target["nothing"] else "")
+    return {"target": target, "skip": skip, "error": target["error"]}
+
+
 def start_pipeline_cleanup(host: Any, settings: Dict[str, Any], emit: Emit) -> Dict[str, Any]:
     """Pick the image group, trigger PIPELINE_TYPE=cleanup and select the group.
 
@@ -183,17 +212,14 @@ def start_pipeline_cleanup(host: Any, settings: Dict[str, Any], emit: Emit) -> D
     if context is None:
         result["blocked"] = False
         return result
-    target = _cleanup_target(host, settings)
-    wanted = settings.get("cleanup_image_group_id", "")
-    if target["nothing"] and wanted:
-        return _skip(_CLEANUP, "cleanup target", STEP_MSGS["cleanup_already_cleaned"].format(
-            group_id=wanted, key="cleanup_image_group_id"))
-    if target["nothing"]:
-        target["error"] = STEP_MSGS["cleanup_nothing"].format(key="cleanup_image_group_id")
-    if target["error"]:
-        result["failures"].append(target["error"])
+    pick = _pipeline_cleanup_target(host, settings)
+    if pick["skip"]:
+        return _skip(_CLEANUP, "cleanup target", pick["skip"])
+    if pick["error"]:
+        result["failures"].append(pick["error"])
         result["blocked"] = False
         return result
+    target = pick["target"]
     group = target["group"]
     emit(PROGRESS["cleanup_target"].format(group_id=group["id"], job_id=group["job_id"],
                                            status=group["status"], source=target["source"]))
@@ -362,7 +388,7 @@ def run_pipeline_cleanup(host: Any, settings: Dict[str, Any], emit: Emit) -> Dic
 
 def verify_pipeline_cleanup_db(host: Any, settings: Dict[str, Any],
                                emit: Emit) -> Dict[str, Any]:
-    """Verify build_stream_db: image group CLEANED, job tombstoned, audit trail.
+    """Verify build_stream_db: image group CLEANED and audit trail; report the job tombstone.
 
     Returns:
         Dict with keys: success, fields, failures, blocked, mode.
@@ -382,7 +408,7 @@ def verify_pipeline_cleanup_db(host: Any, settings: Dict[str, Any],
         (f"image_groups {state['group_id']} status",
          f"{state['status']} -> {group.get('status', 'NOT FOUND')}",
          group.get("status") == IMAGE_GROUP_CLEANED),
-        (f"jobs {state['job_id']} tombstoned", str(tombstoned).lower(), tombstoned),
+        (f"jobs {state['job_id']} tombstoned", tombstone_value(tombstoned), True),
         ("audit_events since the trigger", ", ".join(events) or "none", audit_ok),
     ]
     result["fields"].extend((mark(ok, label), value) for label, value, ok in checks)
@@ -501,21 +527,20 @@ def _mark_auto_target(host: Any, settings: Dict[str, Any], result: Dict[str, Any
     """Pick the image group the pass must delete and mark it FAILED; return an error or "".
 
     cleanup_cron deletes FAILED groups unconditionally, so the target
-    (pipeline.auto_cleanup_image_group_id, else the first image) is set to FAILED
-    in build_stream_db before the pass. No cleanable image group is an error.
+    (pipeline.auto_cleanup_image_group_id, else the image built for this test) is set
+    to FAILED in build_stream_db before the pass. No known image group is an error.
     """
     key = "auto_cleanup_image_group_id"
-    cadence = cadence_build_outcome()
-    use_cadence = not settings.get(key) and cadence.get("success")
-    target = _cleanup_target(host, {**settings, key: cadence["group_id"]} if use_cadence
-                             else settings, key)
-    if use_cadence:
-        target["source"] = "image built by the cadence test"
+    built = {} if settings.get(key) else dedicated_build_outcome(AUTO_CLEANUP_BUILD)
+    if not settings.get(key) and not built.get("success"):
+        return STEP_MSGS["auto_cleanup_no_build"].format(key=key)
+    wanted = settings.get(key) or built["group_id"]
+    target = _cleanup_target(host, {**settings, key: wanted}, key)
+    if built:
+        target["source"] = "image built for the automated cleanup"
     group = target["group"]
     if target["nothing"]:
-        wanted = settings.get(key, "")
-        return (STEP_MSGS["cleanup_already_cleaned"].format(group_id=wanted, key=key) if wanted
-                else STEP_MSGS["cleanup_nothing"].format(key=key))
+        return STEP_MSGS["cleanup_already_cleaned"].format(group_id=wanted, key=key)
     if target["error"]:
         return target["error"]
     previous = group["status"]
@@ -537,6 +562,83 @@ def _mark_auto_target(host: Any, settings: Dict[str, Any], result: Dict[str, Any
     return ""
 
 
+class _CleanupBuild(NamedTuple):
+    """A cleanup suite's dedicated image: its config key, build record and messages."""
+
+    config_key: str
+    build_key: str
+    not_needed: str
+    failed: str
+
+
+AUTO_BUILD = _CleanupBuild("auto_cleanup_image_group_id", AUTO_CLEANUP_BUILD,
+                           "auto_cleanup_build_not_needed", "auto_cleanup_build_failed")
+PIPELINE_BUILD = _CleanupBuild("cleanup_image_group_id", PIPELINE_CLEANUP_BUILD,
+                               "pipeline_cleanup_build_not_needed",
+                               "pipeline_cleanup_build_failed")
+
+
+def _build_cleanup_image(host: Any, settings: Dict[str, Any], emit: Emit,
+                         spec: _CleanupBuild) -> Dict[str, Any]:
+    """Build the dedicated image group of a cleanup suite, unless one is configured.
+
+    Nothing is built when ``pipeline.<config_key>`` names an image group: that
+    group is used instead. The build outcome is recorded for the suite's next
+    test, also when it runs in another process.
+
+    Returns:
+        Dict with keys: success, fields, failures, mode (``blocked`` is false).
+    """
+    configured = settings.get(spec.config_key)
+    if configured:
+        clear_run_state(spec.build_key)
+        STATE.pop(spec.build_key, None)
+        result = _result("configured image group")
+        result["fields"].extend([("Image group", configured),
+                                 ("Build", STEP_MSGS[spec.not_needed].format(
+                                     key=spec.config_key))])
+    else:
+        result = _result("automatic trigger")
+        context = _context(host, result)
+        if context is not None:
+            error = dedicated_build(host, context, settings, result, emit, spec.build_key)
+            if error:
+                result["failures"].append(STEP_MSGS[spec.failed].format(
+                    error=error, key=spec.config_key))
+    result["success"] = not result["failures"]
+    result["blocked"] = False
+    return result
+
+
+def build_auto_cleanup_image_step(host: Any, settings: Dict[str, Any],
+                                  emit: Emit) -> Dict[str, Any]:
+    """Build the image group the automated cleanup deletes.
+
+    A failed build fails this step and blocks the pass.
+
+    Returns:
+        Dict with keys: success, fields, failures, blocked, mode.
+    """
+    gate = _suite_gate(_AUTO, "image build")
+    if gate:
+        return gate
+    return _finish(_build_cleanup_image(host, settings, emit, AUTO_BUILD), STATE[_AUTO],
+                   "image build")
+
+
+def build_pipeline_cleanup_image_step(host: Any, settings: Dict[str, Any],
+                                      emit: Emit) -> Dict[str, Any]:
+    """Build the image group the cleanup pipeline deletes.
+
+    A failed build fails this step; the trigger step that follows is skipped
+    with that reason.
+
+    Returns:
+        Dict with keys: success, fields, failures, blocked, mode.
+    """
+    return _build_cleanup_image(host, settings, emit, PIPELINE_BUILD)
+
+
 def run_auto_cleanup_step(host: Any, settings: Dict[str, Any], emit: Emit) -> Dict[str, Any]:
     """Run one automated cleanup pass and wait until it is finalized.
 
@@ -549,10 +651,6 @@ def run_auto_cleanup_step(host: Any, settings: Dict[str, Any], emit: Emit) -> Di
     state = STATE[_AUTO]
     config = state["config"]
     result = _result("cleanup_cron.main()")
-    cadence = cadence_build_outcome()
-    if not settings.get("auto_cleanup_image_group_id") and cadence.get("attempted") \
-            and not cadence.get("success"):
-        return _skip(_AUTO, "cleanup pass", STEP_MSGS["auto_cleanup_no_cadence_image"])
     error = _mark_auto_target(host, settings, result, emit)
     if error:
         result["failures"].append(error)

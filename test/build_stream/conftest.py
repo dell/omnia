@@ -157,7 +157,7 @@ def pytest_configure(config):
         "deploy_pipeline": "Deploy pipeline (deploy_automatic, deploy_manual)",
         "cadence": "Cadence cycle, cadence pipeline and cadence enable/disable",
         "cleanup_pipeline": "PIPELINE_TYPE=cleanup pipeline (pipeline_cleanup)",
-        "automatic_cleanup": "Automated cleanup pass on the cadence build image (auto_cleanup)",
+        "automatic_cleanup": "Automated cleanup pass on an image the suite builds (auto_cleanup)",
         "automatic_execution": "Commit-triggered build and deploy pipelines",
         "manual_execution": "API-triggered (PIPELINE_TYPE) build and deploy pipelines",
         "nft": "BuildStream non-functional test",

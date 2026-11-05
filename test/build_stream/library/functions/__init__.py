@@ -162,6 +162,8 @@ from library.functions.cadence_toggle_func import (
 )
 from library.functions.config_func import cleanup_settings, installation_settings
 from library.functions.image_cleanup_func import (
+    build_auto_cleanup_image_step,
+    build_pipeline_cleanup_image_step,
     precheck_auto_cleanup_step,
     run_auto_cleanup_step,
     run_pipeline_cleanup,
@@ -367,6 +369,8 @@ __all__ = [
     "installation_settings",
     "skip_test",
     "cleanup_settings",
+    "build_auto_cleanup_image_step",
+    "build_pipeline_cleanup_image_step",
     "precheck_auto_cleanup_step",
     "run_auto_cleanup_step",
     "run_pipeline_cleanup",
