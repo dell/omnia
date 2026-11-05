@@ -53,7 +53,7 @@ watcher_no_new_privileges: true
 watcher_private_tmp: true
 watcher_limit_nofile: 16384
 watcher_memory_max: "2G"
-watcher_cpu_quota: "200%"
+watcher_cpu_quota: "100%"
 build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/build_stream/playbook_queue"
 build_stream_queue_subdirs:
   - requests
