@@ -258,7 +258,7 @@ def test_catalog_missing_artifact_rebuild(catalog_reuse_context):
 @pytest.mark.deploy
 @pytest.mark.functional
 @pytest.mark.x86_64
-@pytest.mark.order(8)
+@pytest.mark.order(7)
 def test_catalog_versioned_output(catalog_reuse_context):
     """A new catalog version writes a composite-identity status contract."""
     ctx = catalog_reuse_context
@@ -307,7 +307,7 @@ def test_catalog_versioned_output(catalog_reuse_context):
 @pytest.mark.deploy
 @pytest.mark.regression
 @pytest.mark.x86_64
-@pytest.mark.order(9)
+@pytest.mark.order(8)
 def test_config_mode_cache_isolation(catalog_reuse_context):
     """Config mode uses its local cache and never updates the dictionary."""
     ctx = catalog_reuse_context
@@ -350,7 +350,7 @@ def test_config_mode_cache_isolation(catalog_reuse_context):
 @pytest.mark.deploy
 @pytest.mark.regression
 @pytest.mark.x86_64
-@pytest.mark.order(10)
+@pytest.mark.order(9)
 def test_catalog_suite_restores_target_state(catalog_reuse_context):
     """The E2E suite restores every mutable target file before it exits."""
     ctx = catalog_reuse_context

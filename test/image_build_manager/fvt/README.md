@@ -151,9 +151,9 @@ suite.
 | 4 | IMGBM_FVT_CATALOG_REUSE_V004 | `test_catalog_repository_change_rebuild` | deploy, functional, x86_64 | Changes one repository URL. | Every dependent Image Thrillhouse group receives a new entry. |
 | 5 | IMGBM_FVT_CATALOG_REUSE_V005 | `test_catalog_force_rebuild` | deploy, functional, x86_64 | Enables `force_rebuild`. | Every current group receives a refreshed build timestamp. |
 | 6 | IMGBM_FVT_CATALOG_REUSE_V006 | `test_catalog_missing_artifact_rebuild` | deploy, regression, x86_64 | Temporarily removes one rootfs object before rebuilding. | The affected group is rebuilt and again has complete artifacts. |
-| 8 | IMGBM_FVT_CATALOG_REUSE_V009 | `test_catalog_versioned_output` | deploy, functional, x86_64 | Builds a unique temporary catalog version. | Latest and catalog-versioned status contracts match and report success. |
-| 9 | IMGBM_FVT_CATALOG_REUSE_V010 | `test_config_mode_cache_isolation` | deploy, regression, x86_64 | Runs config mode after catalog scenarios. | Config mode neither reads nor changes the global catalog dictionary or catalog-versioned status. |
-| 10 | IMGBM_FVT_CATALOG_REUSE_V011 | `test_catalog_suite_restores_target_state` | deploy, regression, x86_64 | Restores the target snapshots created before the suite. | Inputs, latest manifest, dictionary files, and temporary version output match the pre-suite state. |
+| 7 | IMGBM_FVT_CATALOG_REUSE_V009 | `test_catalog_versioned_output` | deploy, functional, x86_64 | Builds a unique temporary catalog version. | Latest and catalog-versioned status contracts match and report success. |
+| 8 | IMGBM_FVT_CATALOG_REUSE_V010 | `test_config_mode_cache_isolation` | deploy, regression, x86_64 | Runs config mode after catalog scenarios. | Config mode neither reads nor changes the global catalog dictionary or catalog-versioned status. |
+| 9 | IMGBM_FVT_CATALOG_REUSE_V011 | `test_catalog_suite_restores_target_state` | deploy, regression, x86_64 | Restores the target snapshots created before the suite. | Inputs, latest manifest, dictionary files, and temporary version output match the pre-suite state. |
 
 ### Naming test commands
 
