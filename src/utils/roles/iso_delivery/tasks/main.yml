@@ -38,5 +38,9 @@
     - _deploy_nfs_auto_mounted | default(false) | bool
     - _deploy_nfs_umount.rc is defined
     - _deploy_nfs_umount.rc != 0
+  register: _deploy_nfs_lazy_umount
+  until: _deploy_nfs_lazy_umount.rc == 0
+  retries: 3
+  delay: 5
   changed_when: true
   failed_when: false

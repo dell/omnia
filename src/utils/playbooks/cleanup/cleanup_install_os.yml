@@ -64,6 +64,10 @@
         - nfs_mount_check.rc == 0
         - nfs_umount.rc is defined
         - nfs_umount.rc != 0
+      register: nfs_lazy_umount
+      until: nfs_lazy_umount.rc == 0
+      retries: 3
+      delay: 5
       changed_when: true
       failed_when: false
 

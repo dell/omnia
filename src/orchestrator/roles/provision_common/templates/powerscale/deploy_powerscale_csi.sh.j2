@@ -84,21 +84,27 @@ else
       _pscale_tmpdir=$(mktemp -d /dev/shm/omnia/powerscale_csi.XXXXXX)
       chmod 700 "$_pscale_tmpdir"
       trap 'rm -rf "${_pscale_tmpdir:-}"' EXIT
-      (
+      if (
         umask 077
-        kubectl get secret isilon-creds -n isilon -o jsonpath='{.data.config}' | base64 -d > "$_pscale_tmpdir/decoded_config.yaml" 2>/dev/null
+        set -o pipefail
+        kubectl get secret isilon-creds -n isilon -o jsonpath='{.data.config}' | base64 -d > "$_pscale_tmpdir/decoded_config.yaml" 2>/dev/null || exit 1
+        [ -s "$_pscale_tmpdir/decoded_config.yaml" ] || exit 1
         awk -v user="$csi_username" -v pass="$csi_password" '
           /^[[:space:]]*#/ {print; next}
           /^ *username:/ {sub(/:.*/, ": " user)}
           /^ *password:/ {sub(/:.*/, ": " pass)}
           {print}
         ' "$_pscale_tmpdir/decoded_config.yaml" > "$_pscale_tmpdir/updated_config.yaml"
-      )
-      encoded_config=$(base64 -w 0 "$_pscale_tmpdir/updated_config.yaml")
-      kubectl patch secret isilon-creds -n isilon \
-        --type merge \
-        -p "{\"data\":{\"config\":\"${encoded_config}\"}}" >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
-      echo "isilon-creds secret created and patched successfully."
+      ); then
+        encoded_config=$(base64 -w 0 "$_pscale_tmpdir/updated_config.yaml")
+        kubectl patch secret isilon-creds -n isilon \
+          --type merge \
+          -p "{\"data\":{\"config\":\"${encoded_config}\"}}" >/dev/null 2>&1 || POWERSCALE_DEPLOYMENT_FAILED=1
+        echo "isilon-creds secret created and patched successfully."
+      else
+        echo "ERROR: Failed to decode isilon-creds secret"
+        POWERSCALE_DEPLOYMENT_FAILED=1
+      fi
     fi
   fi
 
