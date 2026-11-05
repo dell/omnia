@@ -25,6 +25,24 @@ All notable changes to the `omnia.orchestrator` collection will be documented in
 - OS-versioned FG names (e.g. `slurm_control_node_rhel_10_0_x86_64`) fail metadata-service template lookup — normalize template path.
 
 ### Added
+- **IPoIB IPv6 dual-stack support** (ER-ORCH-005): InfiniBand interfaces can
+  now be configured with both IPv4 and IPv6 addresses. Three modes are
+  supported: dual-stack, IPv4-only (legacy), and IPv6-only.
+  - PXE mapping CSV extended to 12 columns: `IB_IPV4` (renamed from `IB_IP`)
+    and `IB_IPV6` (new). Legacy 11-column CSVs with `IB_IP` are accepted
+    without migration.
+  - `network_spec.yml` gains `ipv6_subnet` and `ipv6_netmask_bits` under
+    `ib_network`. Legacy `subnet` / `netmask_bits` field names are accepted.
+  - Cloud-init `configure-ib-network.sh` configures dual-stack via
+    NetworkManager (`nmcli`) or `iproute2` fallback. IPv6 privacy extensions
+    are disabled for deterministic IPoIB addressing.
+  - Validation: IPv6 address format, uniqueness, and subnet consistency checks.
+  - New documentation: [IPoIB IPv6 Configuration Guide](docs/ipv6-infiniband-configuration.md),
+    [IPv6 Upgrade Guide](docs/ipv6-upgrade-guide.md), and troubleshooting
+    entries for DEGRADED_IPV6, DAD failures, and device selection errors.
+- Supported hardware: Mellanox ConnectX-6 (HDR) and ConnectX-7 (NDR)
+  InfiniBand adapters. Ethernet-only adapters (ConnectX-6 Dx) are automatically
+  filtered.
 - Added ownership-aware Metadata Service reconciliation and persistent
   per-node metadata application status in `orchestrator_status.yml`.
 - Added persistent Service Tag-to-XNAME identity resolution through native SMD

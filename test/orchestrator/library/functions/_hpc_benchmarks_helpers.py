@@ -558,7 +558,12 @@ def snapshot_tool_fingerprints(host, row, base: str) -> dict[str, tuple[str, int
 
 
 def run_pull_script_background(host, row, timeout_seconds: int, log_path: str):
-    """Start pull_benchmarks.sh in the background and return the PID."""
+    """Start pull_benchmarks.sh in the background and return the PID.
+
+    The wrapper saves the exit code to ``log_path.exitcode`` so that
+    :func:`wait_for_pid` can retrieve it from a separate SSH session
+    (``wait`` only works for child processes of the current shell).
+    """
     result = remote_command(
         host,
         row,
