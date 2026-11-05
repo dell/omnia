@@ -118,6 +118,7 @@
         ib_network_dns: "{{ network_data.ib_network.dns | default([]) }}"
         ib_network_addr_mode: "{{ network_data.ib_network.ib_addr_mode | default('') }}"
         dns: "{{ network_data.admin_network.dns | default([]) }}"
+        admin_additional_subnets: "{{ network_data.admin_network.additional_subnets | default([]) }}"
       when: >-
         admin_netmask_bits is not defined
         or ib_network_ipv4_netmask_bits is not defined

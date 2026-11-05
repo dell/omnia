@@ -353,8 +353,21 @@
           PXE_SUBNET="$NETWORK_IP/$NETMASK_BITS"
           echo "[INFO] Admin IP: $ADMIN_IP, Netmask: /$NETMASK_BITS, PXE Subnet: $PXE_SUBNET"
           firewall-cmd --zone=trusted --add-source="$PXE_SUBNET" --permanent
+{% for extra in hostvars['localhost']['admin_additional_subnets'] | default([]) %}
+          echo "[INFO] Adding additional admin subnet {{ extra.subnet }}/{{ extra.netmask_bits }} to trusted zone"
+          firewall-cmd --zone=trusted --add-source="{{ extra.subnet }}/{{ extra.netmask_bits }}" --permanent
+{% endfor %}
           '
-        
+
+        # Configure OpenMPI ORTE to use SrunPortRange for OOB communication
+        - mkdir -p /etc/openmpi
+        - |
+          cat > /etc/openmpi/openmpi-mca-params.conf <<'MCAEOF'
+          # Restrict ORTE OOB TCP to the Slurm SrunPortRange (firewall-allowed)
+          oob_tcp_dynamic_ipv4_ports = {{ slurm_conf_dict.SrunPortRange }}
+          MCAEOF
+        - chmod 0644 /etc/openmpi/openmpi-mca-params.conf
+
         - firewall-cmd --reload
         - systemctl enable sshd
         - systemctl start sshd
