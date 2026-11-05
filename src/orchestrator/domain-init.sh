@@ -380,13 +380,15 @@ main() {
     # 3. Copy flat input files to the runtime project directory (skip if --deps-only)
     if [ "$DEPS_ONLY" = false ]; then
         copy_input_files
-        # 4. Harden permissions on all input files — runs unconditionally so
-        #    files replaced after a previous init (e.g. discovery CSV copied
-        #    with default 0644) are corrected before orchestrator validation.
-        harden_input_permissions
     else
         echo -e "  ${YELLOW}[${DOMAIN_NAME}] Skipping input file staging (--deps-only)${NC}"
     fi
+
+    # 4. Harden permissions on all input files — runs unconditionally so
+    #    files replaced after a previous init (e.g. discovery CSV copied
+    #    with default 0644) are corrected before orchestrator validation.
+    #    Runs even with --deps-only since insecure files may already exist.
+    harden_input_permissions
 
     echo -e "${GREEN}[${DOMAIN_NAME}] Domain initialization complete.${NC}"
 }
