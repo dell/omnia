@@ -51,9 +51,9 @@ watcher_restart_sec: 10
 watcher_startup_delay_seconds: 20
 watcher_no_new_privileges: true
 watcher_private_tmp: true
-watcher_limit_nofile: 65536
-watcher_memory_max: "8G"
-watcher_cpu_quota: "400%"
+watcher_limit_nofile: 16384
+watcher_memory_max: "2G"
+watcher_cpu_quota: "200%"
 build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/build_stream/playbook_queue"
 build_stream_queue_subdirs:
   - requests
