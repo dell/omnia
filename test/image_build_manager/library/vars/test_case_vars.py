@@ -184,15 +184,15 @@ TEST_CASES = {
         "title": "Rebuild a dictionary hit with a missing S3 artifact",
     },
     "catalog_versioned_output": {
-        "id": "IMGBM_FVT_CATALOG_REUSE_V009",
+        "id": "IMGBM_FVT_CATALOG_REUSE_V007",
         "title": "Write catalog-versioned image status and identity",
     },
     "config_mode_cache_isolation": {
-        "id": "IMGBM_FVT_CATALOG_REUSE_V010",
+        "id": "IMGBM_FVT_CATALOG_REUSE_V008",
         "title": "Keep config-mode cache and backup behavior independent",
     },
     "catalog_suite_restores_target_state": {
-        "id": "IMGBM_FVT_CATALOG_REUSE_V011",
+        "id": "IMGBM_FVT_CATALOG_REUSE_V009",
         "title": "Restore target state after catalog-reuse E2E scenarios",
     },
     # ── Precheck ──────────────────────────────────────────────────────────

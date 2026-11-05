@@ -708,7 +708,7 @@ the UT ID ranges and maintenance rule.
 | validate | `IMGBM_FVT_VALIDATE_E001` | `IMGBM_FVT_VALIDATE_V001`–`004` | 5 |
 | prepare | `IMGBM_FVT_PREPARE_E001` | `IMGBM_FVT_PREPARE_V001`–`008` | 9 |
 | build | `IMGBM_FVT_BUILD_E001` | `IMGBM_FVT_BUILD_V001`–`019` | 20 |
-| catalog reuse E2E | — | `IMGBM_FVT_CATALOG_REUSE_V001`–`011` | 11 |
+| catalog reuse E2E | — | `IMGBM_FVT_CATALOG_REUSE_V001`–`009` | 9 |
 | cleanup_images | `IMGBM_FVT_CLEANUP_IMAGES_E001` | `IMGBM_FVT_CLEANUP_IMAGES_V001`–`002` | 3 |
 | cleanup | `IMGBM_FVT_CLEANUP_E001` | `IMGBM_FVT_CLEANUP_V001`–`008` | 9 |
 | full-stack alternate | `IMGBM_FVT_FULL_E001` | — | 1 reportable ID |
