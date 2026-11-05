@@ -880,9 +880,18 @@ validate:
             STAGE_COMPLETED=true
             echo ""
             echo "  [OK] Validate completed successfully"
-            REPORT_PATH=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_path // empty' status_response.json 2>/dev/null)
-            REPORT_JSON_PATH=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_json_path // empty' status_response.json 2>/dev/null)
-            REPORT_HTML_PATH=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_html_path // empty' status_response.json 2>/dev/null)
+            REPORT_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            REPORT_JSON_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_json_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            REPORT_HTML_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_html_path // empty' \
+              status_response.json 2>/dev/null
+            )
             if [ -n "${REPORT_PATH}" ]; then
               printf "  %-22s %s\n" "Report Path:" "${REPORT_PATH}"
             fi
@@ -915,9 +924,18 @@ validate:
 
             # Display log file path after test summary with verbose message
             print_stage_log_info "validate" status_response.json
-            REPORT_PATH=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_path // empty' status_response.json 2>/dev/null)
-            REPORT_JSON_PATH=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_json_path // empty' status_response.json 2>/dev/null)
-            REPORT_HTML_PATH=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_html_path // empty' status_response.json 2>/dev/null)
+            REPORT_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            REPORT_JSON_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_json_path // empty' \
+              status_response.json 2>/dev/null
+            )
+            REPORT_HTML_PATH=$(
+              jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.report_html_path // empty' \
+              status_response.json 2>/dev/null
+            )
             if [ -n "${REPORT_PATH}" ]; then
               printf "  %-22s %s\n" "Report Path:" "${REPORT_PATH}"
             fi
