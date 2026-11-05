@@ -242,6 +242,33 @@ def _resolve_orchestrator_report_dir(test_dir: Path) -> Path:
     return report_dir.resolve()
 
 
+def _collect_report_run_ids(report_json_path: str) -> set:
+    """Return the set of run_ids already present in a report JSON file.
+
+    The Orchestrator report file is cumulative: every run appends a new entry
+    keyed by ``run_id`` under ``servers[<ip>]["runs"]``. Snapshotting the
+    existing run_ids lets the caller tell which run a fresh attempt added
+    versus stale runs left over from earlier attempts or pipelines.
+
+    Returns an empty set when the file is missing or unparseable, so a brand
+    new report (every run is new) is handled naturally.
+    """
+    run_ids = set()
+    if not os.path.exists(report_json_path):
+        return run_ids
+    try:
+        with open(report_json_path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return run_ids
+    for server_data in (data.get("servers") or {}).values():
+        for run in server_data.get("runs", []):
+            run_id = run.get("run_id")
+            if run_id is not None:
+                run_ids.add(run_id)
+    return run_ids
+
+
 def _load_playbook_paths(config_path: Path) -> dict:
     """Load playbook path mapping from YAML config file.
     Relative paths are resolved against OMNIA_SRC_PATH.
@@ -1680,6 +1707,18 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
     env["MOLECULE_REPORT_DIR"] = temp_report_dir
     env["REPORT_ID"] = env_report_id
 
+    # The Orchestrator test suite writes to a fixed, shared report file
+    # (orchestrator_test_report.json) that is cumulative across attempts and
+    # even across pipelines. The framework only persists a report when the
+    # pytest session produced results, so a run that fails during setup or
+    # collection leaves the previous attempt's data in place. Snapshot the
+    # run_ids present BEFORE this attempt so we can later distinguish the run
+    # this attempt actually produced from any stale runs already on disk.
+    report_base_name = "orchestrator_test_report"
+    report_source_path = str(report_dir_path / f"{report_base_name}.json")
+    report_html_source_path = str(report_dir_path / f"{report_base_name}.html")
+    pre_run_report_run_ids = _collect_report_run_ids(report_source_path)
+
     log_secure_info("info", "Executing run_validation.sh for job", job_id)
 
     try:
@@ -1846,205 +1885,239 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                     job_id
                 )
 
-        # Read the report from the directory configured by the Orchestrator
-        # test suite. The attempt-specific name prevents a retry from
-        # consuming a stale aggregate from an earlier attempt.
-        report_source_path = str(
-            report_dir_path
-            / (f"{report_id}_orchestrator_report.json" if report_id else "")
+        # Read the report written by the Orchestrator test suite. The suite
+        # writes a fixed, shared report file (orchestrator_test_report.json)
+        # that is cumulative across attempts and pipelines, and it only
+        # persists a report when the pytest session produced results. To avoid
+        # consuming a stale run from an earlier attempt, select the run this
+        # attempt actually added (its run_id is absent from the pre-run
+        # snapshot). Report artifact paths are advertised only when a fresh
+        # report is produced and successfully copied.
+        attempt_report_json_path = os.path.join(
+            artifact_dir, f"{report_base_name}_attempt_{attempt}.json"
         )
-        log_secure_info(
-            'info',
-            f"Attempting to extract test results from {report_source_path}",
-            job_id
+        attempt_report_html_path = os.path.join(
+            artifact_dir, f"{report_base_name}_attempt_{attempt}.html"
         )
-        log_secure_info(
-            'info',
-            f"Extracted report_id from log: {report_id}",
-            job_id
-        )
+        report_json_available = False
+        report_html_available = False
 
-        if not report_id:
-            log_secure_info(
-                'warning',
-                "No report_id found in validate output log, "
-                "skipping JSON extraction",
-                job_id
-            )
-        elif not os.path.exists(report_source_path):
-            log_secure_info(
-                'warning',
-                f"test_report.json not found at {report_source_path}, "
-                f"skipping JSON extraction",
-                job_id
-            )
-        else:
+        # Identify the run produced by this attempt before copying anything.
+        current_run = None
+        full_report = None
+        if os.path.exists(report_source_path):
             try:
                 with open(report_source_path, 'r') as f:
                     full_report = json.load(f)
-
                 log_secure_info(
-                    'info', "Successfully loaded test_report.json", job_id
+                    'info', "Successfully loaded orchestrator_test_report.json",
+                    job_id
                 )
+            except (OSError, json.JSONDecodeError) as e:
+                log_secure_info(
+                    'warning',
+                    f"Failed to load report JSON: {e}",
+                    job_id
+                )
+        else:
+            log_secure_info(
+                'warning',
+                f"Report JSON not found at {report_source_path}",
+                job_id
+            )
 
-                if "servers" not in full_report:
+        if isinstance(full_report, dict) and "servers" in full_report:
+            for server_key, server_data in full_report["servers"].items():
+                for run in server_data.get("runs", []):
+                    if run.get("run_id") not in pre_run_report_run_ids:
+                        current_run = run
+                if current_run is not None:
                     log_secure_info(
-                        'warning',
-                        "test_report.json missing 'servers' key",
+                        'info',
+                        f"Selected fresh run '{current_run.get('run_id')}' "
+                        f"from server '{server_key}' produced by this attempt",
                         job_id
                     )
-                else:
-                    current_run = None
-                    for server_key, server_data in full_report["servers"].items():
-                        runs = server_data.get("runs", [])
-                        for run in runs:
-                            if run.get("report_id") == report_id:
-                                current_run = run
-                                log_secure_info(
-                                    'info',
-                                    f"Found matching run with report_id "
-                                    f"{report_id} under server key "
-                                    f"'{server_key}'",
-                                    job_id
-                                )
-                                break
-                        if current_run:
-                            break
+                    break
+        elif isinstance(full_report, dict):
+            log_secure_info(
+                'warning',
+                "orchestrator_test_report.json missing 'servers' key",
+                job_id
+            )
 
-                    if not current_run:
+        if current_run is None:
+            # No run was added by this attempt (e.g. setup/collection/dependency
+            # failure before pytest produced results). Do NOT fall back to stale
+            # data and do NOT advertise report artifacts for this attempt.
+            log_secure_info(
+                'warning',
+                "No fresh orchestrator run produced by this attempt; "
+                "skipping report extraction and artifact publication",
+                job_id
+            )
+        else:
+            # Copy the fresh report to attempt-specific artifact paths. Only
+            # advertise a path when its copy actually succeeds.
+            try:
+                shutil.copy2(report_source_path, attempt_report_json_path)
+                report_json_available = True
+                log_secure_info(
+                    'info',
+                    f"Copied JSON report to attempt-specific path: "
+                    f"{attempt_report_json_path}",
+                    job_id
+                )
+            except OSError as e:
+                log_secure_info(
+                    'warning', f"Failed to copy JSON report: {e}", job_id
+                )
+
+            if os.path.exists(report_html_source_path):
+                try:
+                    shutil.copy2(
+                        report_html_source_path, attempt_report_html_path
+                    )
+                    report_html_available = True
+                    log_secure_info(
+                        'info',
+                        f"Copied HTML report to attempt-specific path: "
+                        f"{attempt_report_html_path}",
+                        job_id
+                    )
+                except OSError as e:
+                    log_secure_info(
+                        'warning', f"Failed to copy HTML report: {e}", job_id
+                    )
+            else:
+                log_secure_info(
+                    'warning',
+                    f"Report HTML not found at {report_html_source_path}",
+                    job_id
+                )
+
+            try:
+                modules = current_run.get("modules", [])
+                if not modules:
+                    log_secure_info('warning', "Run has no modules", job_id)
+                else:
+                    module_info = modules[0]
+                    scenario = module_info.get("module", "unknown")
+                    molecule_command = module_info.get(
+                        "molecule_command", "verify"
+                    )
+                    test_duration = module_info.get("duration_seconds", 0)
+                    results = module_info.get("results", [])
+                    tests = [
+                        {
+                            "name": r.get("test_name"),
+                            "status": r.get("status")
+                        }
+                        for r in results
+                        if r.get("test_name")
+                    ]
+
+                    test_summary["scenario"] = scenario
+                    test_summary["molecule_command"] = molecule_command
+                    test_summary["report_id"] = f"attempt_{attempt}"
+                    test_summary["duration_seconds"] = test_duration
+                    test_summary["tests"] = tests
+
+                    summary_block = current_run.get("summary", {})
+                    log_secure_info(
+                        'info',
+                        f"Summary block from JSON: {summary_block}",
+                        job_id
+                    )
+
+                    if isinstance(summary_block, dict):
+                        test_summary["total"] = summary_block.get("total", 0)
+                        test_summary["passed"] = summary_block.get("passed", 0)
+                        test_summary["failed"] = summary_block.get("failed", 0)
+                        test_summary["skipped"] = summary_block.get(
+                            "skipped", 0
+                        )
+                        test_summary["errors"] = summary_block.get("errors", 0)
                         log_secure_info(
-                            'warning',
-                            f"No run found with report_id {report_id} "
-                            f"in test_report.json",
+                            'info',
+                            f"Populated test_summary from JSON: "
+                            f"{test_summary}",
                             job_id
                         )
                     else:
-                        modules = current_run.get("modules", [])
-                        if not modules:
-                            log_secure_info(
-                                'warning',
-                                f"Run with report_id {report_id} has no "
-                                f"modules",
-                                job_id
-                            )
-                        else:
-                            module_info = modules[0]
-                            scenario = module_info.get("module", "unknown")
-                            molecule_command = module_info.get(
-                                "molecule_command", "verify"
-                            )
-                            test_duration = module_info.get(
-                                "duration_seconds", 0
-                            )
-                            results = module_info.get("results", [])
-                            tests = [
-                                {
-                                    "name": r.get("test_name"),
-                                    "status": r.get("status")
-                                }
-                                for r in results
-                                if r.get("test_name")
-                            ]
+                        log_secure_info(
+                            'warning',
+                            f"Summary block is not a dict: "
+                            f"{type(summary_block)}",
+                            job_id
+                        )
 
-                            test_summary["scenario"] = scenario
-                            test_summary["molecule_command"] = molecule_command
-                            test_summary["report_id"] = report_id
-                            test_summary["duration_seconds"] = test_duration
-                            test_summary["tests"] = tests
+                    log_secure_info(
+                        'info',
+                        f"Test scenario: {scenario}, "
+                        f"command: {molecule_command}, "
+                        f"duration: {test_duration}s, "
+                        f"tests: {len(tests)}, "
+                        f"attempt: {attempt}",
+                        job_id
+                    )
 
-                            summary_block = current_run.get("summary", {})
-                            log_secure_info(
-                                'info',
-                                f"Summary block from JSON: {summary_block}",
-                                job_id
-                            )
-
-                            if isinstance(summary_block, dict):
-                                test_summary["total"] = summary_block.get(
-                                    "total", 0
-                                )
-                                test_summary["passed"] = summary_block.get(
-                                    "passed", 0
-                                )
-                                test_summary["failed"] = summary_block.get(
-                                    "failed", 0
-                                )
-                                test_summary["skipped"] = summary_block.get(
-                                    "skipped", 0
-                                )
-                                test_summary["errors"] = summary_block.get(
-                                    "errors", 0
-                                )
-                                log_secure_info(
-                                    'info',
-                                    f"Populated test_summary from JSON: "
-                                    f"{test_summary}",
-                                    job_id
-                                )
-                            else:
-                                log_secure_info(
-                                    'warning',
-                                    f"Summary block is not a dict: "
-                                    f"{type(summary_block)}",
-                                    job_id
-                                )
-
-                            log_secure_info(
-                                'info',
-                                f"Test scenario: {scenario}, "
-                                f"command: {molecule_command}, "
-                                f"duration: {test_duration}s, "
-                                f"tests: {len(tests)}, "
-                                f"report_id: {report_id}",
-                                job_id
-                            )
-
-                            # Save filtered report to artifact_dir
-                            filtered_report = {
-                                "servers": {
-                                    "": {
-                                        "runs": [current_run],
-                                        "hostname": ""
-                                    }
-                                }
+                    # Save filtered report (this attempt's run only) to
+                    # the attempt artifact directory.
+                    filtered_report = {
+                        "servers": {
+                            "": {
+                                "runs": [current_run],
+                                "hostname": ""
                             }
-                            dest_path = os.path.join(
-                                artifact_dir, "test_report.json"
-                            )
-                            with open(dest_path, 'w') as f:
-                                json.dump(filtered_report, f, indent=2)
-                            log_secure_info(
-                                'info',
-                                f"Extracted report {report_id} to artifact directory",
-                                job_id
-                            )
+                        }
+                    }
+                    dest_path = os.path.join(artifact_dir, "test_report.json")
+                    with open(dest_path, 'w') as f:
+                        json.dump(filtered_report, f, indent=2)
+                    log_secure_info(
+                        'info',
+                        f"Extracted report for attempt {attempt} "
+                        f"to artifact directory",
+                        job_id
+                    )
 
-                            # Keep a cumulative report at the validate stage level while
-                            # preserving the isolated report in every attempt directory.
-                            # Rebuild it from the shared report so retries cannot duplicate
-                            # an attempt or overwrite the result from an earlier attempt.
-                            job_report = {"servers": {}}
-                            report_id_prefix = f"{job_id}_attempt_"
-                            for source_server, source_data in full_report["servers"].items():
-                                job_runs = [
-                                    run for run in source_data.get("runs", [])
-                                    if str(run.get("report_id", "")).startswith(
-                                        report_id_prefix
-                                    )
-                                ]
-                                if job_runs:
-                                    job_report["servers"][source_server] = {
-                                        "runs": job_runs,
-                                        "hostname": source_data.get("hostname", ""),
-                                    }
-
-                            job_report_path = os.path.join(
-                                str(ARTIFACTS_DIR / job_id / "validate"),
-                                "test_report.json",
-                            )
-                            with open(job_report_path, 'w') as f:
-                                json.dump(job_report, f, indent=2)
-                            log_secure_info('info', "Updated cumulative validate report", job_id)
+                    # Keep a cumulative report at the validate stage level while
+                    # preserving the isolated report in every attempt directory.
+                    # Append this attempt's fresh run to any previously recorded
+                    # attempts so retries never duplicate or overwrite results.
+                    cumulative_runs = []
+                    job_report_path = os.path.join(
+                        str(ARTIFACTS_DIR / job_id / "validate"),
+                        "test_report.json",
+                    )
+                    existing_job_report = {}
+                    if os.path.exists(job_report_path):
+                        try:
+                            with open(job_report_path, 'r') as f:
+                                existing_job_report = json.load(f)
+                        except (OSError, json.JSONDecodeError):
+                            existing_job_report = {}
+                    for source_data in (
+                        existing_job_report.get("servers") or {}
+                    ).values():
+                        for run in source_data.get("runs", []):
+                            if run.get("run_id") != current_run.get("run_id"):
+                                cumulative_runs.append(run)
+                    cumulative_runs.append(current_run)
+                    job_report = {
+                        "servers": {
+                            "": {
+                                "runs": cumulative_runs,
+                                "hostname": "",
+                            }
+                        }
+                    }
+                    with open(job_report_path, 'w') as f:
+                        json.dump(job_report, f, indent=2)
+                    log_secure_info(
+                        'info', "Updated cumulative validate report", job_id
+                    )
             except (OSError, json.JSONDecodeError) as e:
                 log_secure_info(
                     'warning', f"Failed to extract report: {e}", job_id
@@ -2100,10 +2173,19 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "test_summary": test_summary,
             "artifact_dir": artifact_dir,
             "log_file_path": reported_log,
+            "report_path": str(report_dir_path),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "timestamp": completed_at.isoformat(),
         }
+
+        # Advertise report artifact paths only when the copy actually produced
+        # the file, so consumers (API/GitLab output) never point users at
+        # missing artifacts.
+        if report_json_available:
+            result_data["report_json_path"] = attempt_report_json_path
+        if report_html_available:
+            result_data["report_html_path"] = attempt_report_html_path
 
         # Add error details if failed
         if status == "failed":
