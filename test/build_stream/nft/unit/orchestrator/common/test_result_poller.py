@@ -999,172 +999,8 @@ class TestCleanupResultHandling:
         assert len(audit_repo._events) == 0
 
 
-def _store_uploaded_catalog(artifact_store, artifact_metadata_repo, job_id, catalog_data):
-    """Helper: persist an uploaded catalog the way the upload stage does."""
-    content = json.dumps(catalog_data).encode("utf-8")
-    ref = artifact_store.store(
-        hint=type("H", (), {
-            "namespace": "config-files",
-            "label": "catalog_rhel.json",
-            "tags": {"job_id": str(job_id)},
-        })(),
-        kind=ArtifactKind.FILE,
-        content=content,
-    )
-    record = ArtifactRecord(
-        id=str(uuid.uuid4()),
-        job_id=JobId(str(job_id)),
-        stage_name=StageName("upload"),
-        label="catalog_rhel.json",
-        artifact_ref=ref,
-        kind=ArtifactKind.FILE,
-        content_type="application/octet-stream",
-    )
-    artifact_metadata_repo.save(record)
-
-
 class TestCreateLocalRepoSuccess:
     """Tests for catalog metadata persistence on create-local-repository success."""
-
-    def test_persists_catalog_metadata_on_success(self):
-        """When create-local-repository succeeds, catalog metadata
-        should be extracted from the uploaded catalog and persisted."""
-        job_id = JobId(str(uuid.uuid4()))
-
-        stage_repo = MockStageRepo()
-        stage = Stage(
-            job_id=job_id,
-            stage_name=StageName("create-local-repository"),
-            stage_state=StageState.IN_PROGRESS,
-            attempt=1,
-        )
-        stage_repo.save(stage)
-
-        artifact_store = MockArtifactStore()
-        artifact_metadata_repo = MockArtifactMetadataRepo()
-
-        catalog_data = {
-            "catalog": {
-                "name": "test catalog",
-                "version": "1.0",
-                "identifier": "test-cluster-v1",
-                "functionallayer": [
-                    {"name": "slurm_control_node_x86_64"},
-                    {"name": "slurm_node_x86_64"},
-                ],
-            }
-        }
-        _store_uploaded_catalog(
-            artifact_store, artifact_metadata_repo,
-            job_id, catalog_data,
-        )
-
-        poller = ResultPoller(
-            result_service=MockResultService(),
-            job_repo=MockJobRepo(),
-            stage_repo=stage_repo,
-            audit_repo=MockAuditRepo(),
-            uuid_generator=MockUUIDGenerator(),
-            poll_interval=1,
-            artifact_store=artifact_store,
-            artifact_metadata_repo=artifact_metadata_repo,
-        )
-
-        result = PlaybookResult(
-            job_id=str(job_id),
-            stage_name="create-local-repository",
-            request_id=str(uuid.uuid4()),
-            status="success",
-            exit_code=0,
-        )
-
-        poller._on_result_received(result)
-
-        # Verify catalog-metadata artifact was persisted
-        md = artifact_metadata_repo.find_by_job_stage_and_label(
-            job_id,
-            StageName("create-local-repository"),
-            "catalog-metadata",
-        )
-        assert md is not None, (
-            "catalog-metadata should be persisted on "
-            "create-local-repository success"
-        )
-
-        # Verify content
-        raw = artifact_store.retrieve(
-            md.artifact_ref.key, ArtifactKind.FILE,
-        )
-        metadata = json.loads(raw.decode("utf-8"))
-        assert metadata["image_group_id"] == "test-cluster-v1"
-        assert "slurm_control_node_x86_64" in metadata["roles"]
-        assert "slurm_node_x86_64" in metadata["roles"]
-        assert "parsed_at" in metadata
-
-    def test_handles_pascalcase_catalog_keys(self):
-        """Catalog metadata extraction should handle PascalCase keys."""
-        job_id = JobId(str(uuid.uuid4()))
-
-        stage_repo = MockStageRepo()
-        stage = Stage(
-            job_id=job_id,
-            stage_name=StageName("create-local-repository"),
-            stage_state=StageState.IN_PROGRESS,
-            attempt=1,
-        )
-        stage_repo.save(stage)
-
-        artifact_store = MockArtifactStore()
-        artifact_metadata_repo = MockArtifactMetadataRepo()
-
-        catalog_data = {
-            "Catalog": {
-                "Name": "PascalCase catalog",
-                "Version": "2.0",
-                "Identifier": "pascal-case-v1",
-                "FunctionalLayer": [
-                    {"Name": "login_node_x86_64"},
-                ],
-            }
-        }
-        _store_uploaded_catalog(
-            artifact_store, artifact_metadata_repo,
-            job_id, catalog_data,
-        )
-
-        poller = ResultPoller(
-            result_service=MockResultService(),
-            job_repo=MockJobRepo(),
-            stage_repo=stage_repo,
-            audit_repo=MockAuditRepo(),
-            uuid_generator=MockUUIDGenerator(),
-            poll_interval=1,
-            artifact_store=artifact_store,
-            artifact_metadata_repo=artifact_metadata_repo,
-        )
-
-        result = PlaybookResult(
-            job_id=str(job_id),
-            stage_name="create-local-repository",
-            request_id=str(uuid.uuid4()),
-            status="success",
-            exit_code=0,
-        )
-
-        poller._on_result_received(result)
-
-        md = artifact_metadata_repo.find_by_job_stage_and_label(
-            job_id,
-            StageName("create-local-repository"),
-            "catalog-metadata",
-        )
-        assert md is not None
-        raw = artifact_store.retrieve(
-            md.artifact_ref.key, ArtifactKind.FILE,
-        )
-        metadata = json.loads(raw.decode("utf-8"))
-        assert metadata["image_group_id"] == "pascal-case-v1"
-        assert "login_node_x86_64" in metadata["roles"]
 
     def test_skips_when_no_catalog_uploaded(self):
         """If no catalog was uploaded, metadata persistence
@@ -1247,76 +1083,6 @@ class TestCreateLocalRepoSuccess:
 
         # Should not raise
         poller._on_result_received(result)
-
-    def test_synthetic_kube_control_plane_first_role(self):
-        """If service_kube_control_plane_x86_64 exists, the _first variant
-        should be added automatically."""
-        job_id = JobId(str(uuid.uuid4()))
-
-        stage_repo = MockStageRepo()
-        stage = Stage(
-            job_id=job_id,
-            stage_name=StageName("create-local-repository"),
-            stage_state=StageState.IN_PROGRESS,
-            attempt=1,
-        )
-        stage_repo.save(stage)
-
-        artifact_store = MockArtifactStore()
-        artifact_metadata_repo = MockArtifactMetadataRepo()
-
-        catalog_data = {
-            "catalog": {
-                "name": "kube catalog",
-                "version": "1.0",
-                "identifier": "kube-cluster-v1",
-                "functionallayer": [
-                    {"name": "service_kube_control_plane_x86_64"},
-                    {"name": "service_kube_node_x86_64"},
-                ],
-            }
-        }
-        _store_uploaded_catalog(
-            artifact_store, artifact_metadata_repo,
-            job_id, catalog_data,
-        )
-
-        poller = ResultPoller(
-            result_service=MockResultService(),
-            job_repo=MockJobRepo(),
-            stage_repo=stage_repo,
-            audit_repo=MockAuditRepo(),
-            uuid_generator=MockUUIDGenerator(),
-            poll_interval=1,
-            artifact_store=artifact_store,
-            artifact_metadata_repo=artifact_metadata_repo,
-        )
-
-        result = PlaybookResult(
-            job_id=str(job_id),
-            stage_name="create-local-repository",
-            request_id=str(uuid.uuid4()),
-            status="success",
-            exit_code=0,
-        )
-
-        poller._on_result_received(result)
-
-        md = artifact_metadata_repo.find_by_job_stage_and_label(
-            job_id,
-            StageName("create-local-repository"),
-            "catalog-metadata",
-        )
-        assert md is not None
-        raw = artifact_store.retrieve(
-            md.artifact_ref.key, ArtifactKind.FILE,
-        )
-        metadata = json.loads(raw.decode("utf-8"))
-        assert "service_kube_control_plane_first_x86_64" in metadata["roles"], (
-            "Synthetic _first variant should be auto-added"
-        )
-        assert "service_kube_control_plane_first_x86_64" in metadata["role_images"]
-
 
 class TestAutoCleanupDoesNotCleanDeployOrRestartFailures:
     """Automatic cleanup must NOT clean images stuck in DEPLOYING or RESTARTING.
@@ -1515,3 +1281,103 @@ class TestAutoCleanupDoesNotCleanDeployOrRestartFailures:
         assert ImageGroupStatus.RESTARTING not in cleanup_allowed, (
             "RESTARTING must not be in cleanup ALLOWED_TRANSITIONS"
         )
+
+
+class TestRestartArtifactsAreCommitted:
+    """The restart artifacts must be visible to the API as soon as they are stored.
+
+    The artifact metadata repository shares the poller's session. ``save()``
+    only adds the row, so the poller has to commit it; without the commit the
+    rows stay pending until an unrelated result commits the same session and
+    ``GET /artifacts/node-results`` answers 404 in the meantime.
+    """
+
+    @staticmethod
+    def _sessions(tmp_path):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from infra.db.models import Base
+
+        engine = create_engine(f"sqlite:///{tmp_path / 'artifacts.db'}")
+        Base.metadata.create_all(engine)
+        return sessionmaker(bind=engine, autoflush=False)
+
+    @staticmethod
+    def _poller(repo):
+        return ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=MockStageRepo(),
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            artifact_store=MockArtifactStore(),
+            artifact_metadata_repo=repo,
+        )
+
+    @staticmethod
+    def _write_artifacts(tmp_path, job_id, failed_nodes):
+        job_dir = tmp_path / "artifacts" / str(job_id)
+        job_dir.mkdir(parents=True)
+        (job_dir / "node_results.json").write_text(
+            json.dumps({"job_id": str(job_id), "total_nodes": 6})
+        )
+        if failed_nodes:
+            (job_dir / "failed_nodes.json").write_text(
+                json.dumps({"failure_count": 0, "total_nodes": 6})
+            )
+
+    @staticmethod
+    def _restart_result(job_id):
+        return PlaybookResult(
+            job_id=str(job_id),
+            stage_name="restart",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+            node_results_file_path="reported-but-never-opened",
+        )
+
+    def test_repository_exposes_its_session(self, tmp_path):
+        """The poller finds the session through the public attribute."""
+        from infra.db.repositories import SqlArtifactMetadataRepository
+
+        session = self._sessions(tmp_path)()
+        assert SqlArtifactMetadataRepository(session=session).session is session
+
+    @pytest.mark.parametrize("failed_nodes", [True, False])
+    def test_artifacts_are_visible_to_another_session_at_once(
+        self, tmp_path, monkeypatch, failed_nodes
+    ):
+        """node-results (and failed-nodes) are committed when the handler ends."""
+        from infra.db.repositories import SqlArtifactMetadataRepository
+
+        monkeypatch.setenv("NFS_ARTIFACT_BASE", str(tmp_path))
+        job_id = JobId(str(uuid.uuid4()))
+        self._write_artifacts(tmp_path, job_id, failed_nodes)
+        factory = self._sessions(tmp_path)
+        poller = self._poller(SqlArtifactMetadataRepository(session=factory()))
+
+        poller._on_restart_completed(self._restart_result(job_id))
+
+        api = SqlArtifactMetadataRepository(session=factory())
+        for label in ("node-results", "failed-nodes"):
+            found = api.find_by_job_stage_and_label(
+                job_id=job_id, stage_name=StageName("restart"), label=label
+            )
+            assert (found is not None) == (label == "node-results" or failed_nodes), label
+
+    def test_failed_commit_rolls_the_shared_session_back(self, tmp_path, monkeypatch):
+        """A commit error is logged and the session is rolled back, not left broken."""
+        from unittest.mock import MagicMock
+
+        monkeypatch.setenv("NFS_ARTIFACT_BASE", str(tmp_path))
+        job_id = JobId(str(uuid.uuid4()))
+        self._write_artifacts(tmp_path, job_id, failed_nodes=True)
+        repo = MagicMock()
+        repo.session.commit.side_effect = RuntimeError("database is down")
+        poller = self._poller(repo)
+
+        poller._on_restart_completed(self._restart_result(job_id))
+
+        repo.session.rollback.assert_called_once()

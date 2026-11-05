@@ -73,6 +73,12 @@
             "maximum": 200,
             "description": "Sidekiq background job concurrency"
         },
+        "gitlab_project_ci_timeout": {
+            "type": "integer",
+            "minimum": 600,
+            "default": 9000,
+            "description": "Maximum runtime in seconds for a GitLab CI/CD pipeline job (2.5 hours by default)"
+        },
         "cadence": {
             "type": "object",
             "description": "Cadence polling configuration for periodic package sync",

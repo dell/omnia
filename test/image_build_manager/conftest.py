@@ -227,6 +227,45 @@ def _item_has_marker(item, marker_name):
     return item.get_closest_marker(marker_name) is not None
 
 
+_CATALOG_REUSE_DIR = os.path.realpath(
+    os.path.join(_TEST_DIR, "fvt", "build", "catalog_reuse")
+)
+
+
+def _is_within(path, root):
+    """Return whether *path* equals or is below *root*."""
+    try:
+        return os.path.commonpath([path, root]) == root
+    except ValueError:
+        return False
+
+
+def _catalog_reuse_explicitly_selected(config):
+    """Return whether pytest was pointed at the catalog_reuse suite itself.
+
+    The runner passes fvt/build/catalog_reuse only for
+    ``build <command> --suite catalog_reuse``. The default lifecycle passes
+    fvt/build, which must not pull in the self-owned E2E suite.
+    """
+    invocation_params = getattr(config, "invocation_params", None)
+    invocation_dir = str(getattr(invocation_params, "dir", "") or os.getcwd())
+    for arg in getattr(config, "args", None) or []:
+        target = os.path.realpath(
+            os.path.join(invocation_dir, str(arg).split("::", 1)[0])
+        )
+        if _is_within(target, _CATALOG_REUSE_DIR):
+            return True
+    return False
+
+
+def _in_catalog_reuse_suite(item):
+    """Return whether a collected item belongs to the catalog_reuse suite."""
+    item_path = getattr(item, "path", None)
+    if item_path is None:
+        item_path = os.path.join(_TEST_DIR, item.nodeid.split("::", 1)[0])
+    return _is_within(os.path.realpath(str(item_path)), _CATALOG_REUSE_DIR)
+
+
 def pytest_collection_modifyitems(session, config, items):
     """Filter markers and sort by FVT phase plus local order marker."""
     marker_expr = config.getoption("--marker", default="")
@@ -274,6 +313,9 @@ def pytest_collection_modifyitems(session, config, items):
     # Destructive NFT cases are retained for explicit performance testing but
     # must never run as part of the default NFT suite.
     destructive_opt_in = "destructive" in markers
+    # The catalog_reuse E2E suite owns its own build lifecycle and runs only
+    # when selected explicitly with --suite catalog_reuse.
+    catalog_reuse_opt_in = _catalog_reuse_explicitly_selected(config)
     for item in items:
         node_parts = item.nodeid.replace("\\", "/").split("/")
         if (
@@ -286,6 +328,16 @@ def pytest_collection_modifyitems(session, config, items):
                     reason=(
                         "Destructive NFT cleanup is opt-in; rerun with "
                         "--marker destructive"
+                    )
+                )
+            )
+        if not catalog_reuse_opt_in and _in_catalog_reuse_suite(item):
+            item.add_marker(
+                pytest.mark.skip(
+                    reason=(
+                        "catalog_reuse E2E suite is opt-in; run "
+                        "'fvt_image_build_manager build test "
+                        "--suite catalog_reuse'"
                     )
                 )
             )

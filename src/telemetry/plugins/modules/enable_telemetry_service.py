@@ -168,8 +168,12 @@ def get_report_definitions(
     password: str,
     session: requests.Session,
     timeout: int,
-) -> Optional[List[str]]:
-    """Fetch available report definitions from iDRAC."""
+) -> Tuple[Optional[List[str]], str]:
+    """Fetch available report definitions from iDRAC.
+
+    Returns:
+        (report names or None, error reason when report names are None)
+    """
     url = f"https://{ip_address}/redfish/v1/TelemetryService/MetricReportDefinitions"
     try:
         response = session.get(
@@ -178,15 +182,15 @@ def get_report_definitions(
             verify=False,  # nosec B501 - iDRAC BMC uses self-signed certificates
             timeout=timeout,
         )
-        if response.status_code == 200:
-            data = response.json()
-            return [
-                member['@odata.id'].split('/')[-1]
-                for member in data.get('Members', [])
-            ]
+        if response.status_code != 200:
+            return None, f"HTTP {response.status_code}"
+        data = response.json()
+        return [
+            member['@odata.id'].split('/')[-1]
+            for member in data.get('Members', [])
+        ], ""
     except (requests.exceptions.RequestException, ValueError, KeyError) as exc:
-        logging.warning("Failed to fetch report definitions from %s: %s", ip_address, exc)
-    return None
+        return None, f"{type(exc).__name__}: {exc}"
 
 
 def enable_report(
@@ -279,14 +283,14 @@ def configure_server(
             }
 
         # Step 2: Get available reports
-        available_reports = get_report_definitions(
+        available_reports, reports_error = get_report_definitions(
             ip_address, user, password, session, timeout
         )
         if not available_reports:
             return {
                 "ip": ip_address,
                 "status": "failed",
-                "message": "Cannot get reports"
+                "message": f"Cannot get report definitions: {reports_error or 'none available'}"
             }
 
         # Step 3: Filter out excluded reports
@@ -312,11 +316,11 @@ def configure_server(
             "failed_reports": failed_reports,
         }
 
-    except requests.exceptions.RequestException as e:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         return {
             "ip": ip_address,
             "status": "failed",
-            "message": str(e)
+            "message": f"{type(exc).__name__}: {exc}"
         }
 
     finally:
@@ -337,23 +341,28 @@ def run_parallel(
     success_results = []
     failed_results = []
 
-    try:
-        workers = max(1, min(os.cpu_count() + 1, parallel_jobs))
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            future_to_ip = {
-                executor.submit(
-                    configure_server, ip, username, password, timeout, exclude_reports
-                ): ip for ip in idrac_ips
-            }
+    workers = max(1, min((os.cpu_count() or 1) + 1, parallel_jobs))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_ip = {
+            executor.submit(
+                configure_server, ip, username, password, timeout, exclude_reports
+            ): ip for ip in idrac_ips
+        }
 
-            for future in as_completed(future_to_ip):
+        for future in as_completed(future_to_ip):
+            # Every iDRAC must end up in success or failed with a reason.
+            try:
                 result = future.result()
-                if result.get("status") == "success":
-                    success_results.append(result)
-                else:
-                    failed_results.append(result)
-    except (OSError, ValueError, requests.exceptions.RequestException) as exc:
-        logging.warning("Error during parallel execution: %s", exc)
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                result = {
+                    "ip": future_to_ip[future],
+                    "status": "failed",
+                    "message": f"{type(exc).__name__}: {exc}",
+                }
+            if result.get("status") == "success":
+                success_results.append(result)
+            else:
+                failed_results.append(result)
 
     return success_results, failed_results
 
@@ -361,7 +370,7 @@ def main() -> None:
     """Main function for Ansible module."""
     module_args = {
         "idrac_ips": {"type": "list", "required": True, "elements": "str"},
-        "username": {"type": "str", "required": True},
+        "username": {"type": "str", "required": True, "no_log": True},
         "password": {"type": "str", "required": True, "no_log": True},
         "parallel_jobs": {"type": "int", "default": 64},
         "timeout": {"type": "int", "default": 30},
@@ -384,9 +393,13 @@ def main() -> None:
         module.exit_json(msg="No iDRAC IPs provided")
 
     start_time = time.time()
-    success_results, failed_results = run_parallel(
-        idrac_ips, username, password, parallel_jobs, timeout, exclude_reports
-    )
+    # Route every unexpected error through fail_json so no_log arguments are masked.
+    try:
+        success_results, failed_results = run_parallel(
+            idrac_ips, username, password, parallel_jobs, timeout, exclude_reports
+        )
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        module.fail_json(msg=f"Failed to enable telemetry on iDRACs: {type(exc).__name__}: {exc}")
 
     duration = time.time() - start_time
 
@@ -405,7 +418,10 @@ def main() -> None:
         duration_seconds=round(duration, 2),
         success_results=success_results,
         failed_results=failed_results,
-        msg=f"Telemetry enabled on {len(success_results)}/{len(idrac_ips)} servers ({total_enabled} reports)"
+        msg=(
+            f"Telemetry enabled on {len(success_results)}/{len(idrac_ips)} servers "
+            f"({total_enabled} reports)"
+        ),
     )
 
 if __name__ == "__main__":

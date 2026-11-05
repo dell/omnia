@@ -242,13 +242,12 @@ def main() -> None:
     db_retries = module.params["db_retries"]
     db_delay = module.params["db_delay"]
 
-    load_kube_context()
-
     services_table_exists = {}
     db_idrac_ips = {}
     mysqldb_idrac_ips = []
 
     try:
+        load_kube_context()
         for idrac_podname in idrac_podnames:
             found = None
             ip_output = None

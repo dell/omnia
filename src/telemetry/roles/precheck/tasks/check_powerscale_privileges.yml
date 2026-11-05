@@ -61,8 +61,7 @@
   ansible.builtin.command:
     argv:
       - sshpass
-      - -p
-      - "{{ ps_check_password }}"
+      - -e
       - ssh
       - -o
       - StrictHostKeyChecking=no
@@ -72,6 +71,8 @@
       - ConnectTimeout=10
       - "{{ ps_check_username }}@{{ powerscale_endpoint }}"
       - isi auth privileges
+  environment:
+    SSHPASS: "{{ ps_check_password }}"
   register: ps_privilege_check
   changed_when: false
   failed_when: false

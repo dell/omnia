@@ -306,16 +306,23 @@ def main() -> None:
     if not delete and (not bmc_creds.get('username') or not bmc_creds.get('password')):
         module.fail_json(msg="bmc_username and bmc_password are mandatory for add operation.")
 
-    existing_entries = read_entries_csv(csv_path, module)
+    # Route every unexpected error through fail_json so no_log arguments are masked.
+    try:
+        existing_entries = read_entries_csv(csv_path, module)
 
-    if delete:
-        delete_bmc_entries(nodes, existing_entries, result)
-        write_entries_csv(csv_path, existing_entries)
-    elif verify_bmc:
-        verify_bmc_entries(nodes, bmc_creds, module, result)
-    else:
-        add_bmc_entries(nodes, existing_entries, bmc_creds, module, result)
-        write_entries_csv(csv_path, existing_entries)
+        if delete:
+            delete_bmc_entries(nodes, existing_entries, result)
+            write_entries_csv(csv_path, existing_entries)
+        elif verify_bmc:
+            verify_bmc_entries(nodes, bmc_creds, module, result)
+        else:
+            add_bmc_entries(nodes, existing_entries, bmc_creds, module, result)
+            write_entries_csv(csv_path, existing_entries)
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        module.fail_json(
+            msg=f"Failed to update BMC group data in {csv_path}: {type(exc).__name__}: {exc}",
+            **result
+        )
     module.exit_json(**result)
 
 if __name__ == '__main__':

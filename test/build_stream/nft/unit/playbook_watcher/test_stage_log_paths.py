@@ -122,7 +122,7 @@ def test_log_locations():
 @pytest.mark.parametrize("playbook,domain", [
     ("/src/image_build_manager/playbooks/image_build_manager.yml", "image_build_manager"),
     ("/src/repo_manager/playbooks/repo_operations/repo_sync.yml", "repo_manager"),
-    ("/tmp/no_domain.yml", "build_stream"),
+    ("/opt/other/no_domain.yml", "build_stream"),
 ])
 def test_domain_extraction(playbook, domain):
     """The domain comes from src/<domain>/playbooks/; unknown falls back to build_stream."""

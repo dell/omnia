@@ -41,6 +41,7 @@ from ..vars.common_vars import (
     SYSTEM_ENV_FILE,
     PROFILE_DROP_IN,
     BASE_DIRS,
+    CLEANUP_REMOVED_PATHS,
     DOMAINS_WITH_INIT,
     OPTIONAL_ENV_VARS,
     RUNTIME_PATH_ENV_VARS,
@@ -518,6 +519,61 @@ def check_activate_helper(host) -> Dict[str, Any]:
         "success": False,
         "details": "",
         "error": f"activate-omnia.sh not found at {helper_path}",
+    }
+
+
+# =============================================================================
+# CLEANUP VERIFICATION
+# =============================================================================
+
+def _path_exists(host, path: str) -> bool:
+    """Return whether ``path`` exists on the target (a dangling link counts)."""
+    return "exists" in run_on_host(host, build_cmd("path_exists", path=path)).stdout
+
+
+def check_cleanup_removed(host, group: str) -> Dict[str, Any]:
+    """Verify omnia.sh --cleanup removed every path of ``group``.
+
+    Args:
+        host: Testinfra host connection.
+        group: Key of CLEANUP_REMOVED_PATHS.
+
+    Returns:
+        Dict with keys: success, details, error, paths, present.
+    """
+    runtime = resolve_runtime_paths(host)
+    paths = [tmpl.format(data_path=runtime["data_path"], venv_path=runtime["venv_path"])
+             for tmpl in CLEANUP_REMOVED_PATHS[group]]
+    present = [path for path in paths if _path_exists(host, path)]
+    return {
+        "success": not present,
+        "details": ", ".join(paths),
+        "error": f"Still present: {', '.join(present)}" if present else "",
+        "paths": paths,
+        "present": present,
+    }
+
+
+def check_cleanup_data_path(host, cleanup_all: bool) -> Dict[str, Any]:
+    """Verify OMNIA_DATA_PATH is removed with --all and preserved without it.
+
+    Args:
+        host: Testinfra host connection.
+        cleanup_all: Whether the cleanup ran with --all.
+
+    Returns:
+        Dict with keys: success, details, error, path, exists.
+    """
+    data_path = resolve_runtime_paths(host)["data_path"]
+    exists = _path_exists(host, data_path)
+    success = not exists if cleanup_all else exists
+    state = "present" if exists else "absent"
+    return {
+        "success": success,
+        "details": f"{data_path} {state}",
+        "error": "" if success else f"{data_path} is {state}",
+        "path": data_path,
+        "exists": exists,
     }
 
 

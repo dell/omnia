@@ -20,6 +20,7 @@ import pytest
 class TestRestartAPI:
     """Integration tests for restart API endpoints."""
 
+    @pytest.mark.usefixtures("stub_playbook_queue")
     def test_create_restart_success(self, client, auth_headers, job_with_pending_restart):
         """Test successful restart creation."""
         job_id = job_with_pending_restart
@@ -38,6 +39,7 @@ class TestRestartAPI:
         assert "submitted_at" in data
         assert "image_group_id" in data
 
+    @pytest.mark.usefixtures("stub_playbook_queue")
     def test_create_restart_has_links(self, client, auth_headers, job_with_pending_restart):
         """Test that restart response includes HATEOAS _links."""
         job_id = job_with_pending_restart

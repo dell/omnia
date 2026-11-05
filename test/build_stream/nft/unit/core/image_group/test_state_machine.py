@@ -91,18 +91,22 @@ class TestStatusFlow:
     """Tests for STATUS_FLOW mapping."""
 
     def test_deploy_flow(self):
-        """Deploy flow: DEPLOYING -> DEPLOYED -> FAILED."""
+        """Deploy flow: DEPLOYING -> DEPLOYED; a failure keeps the status."""
         on_start, on_success, on_failure = STATUS_FLOW["deploy"]
         assert on_start == ImageGroupStatus.DEPLOYING
         assert on_success == ImageGroupStatus.DEPLOYED
-        assert on_failure == ImageGroupStatus.FAILED
+        # A deploy failure is a job-level failure and leaves the image group
+        # status unchanged; only validate marks it FAILED (#5573).
+        assert on_failure is None
 
     def test_restart_flow(self):
-        """Restart flow: RESTARTING -> RESTARTED -> FAILED."""
+        """Restart flow: RESTARTING -> RESTARTED; a failure keeps the status."""
         on_start, on_success, on_failure = STATUS_FLOW["restart"]
         assert on_start == ImageGroupStatus.RESTARTING
         assert on_success == ImageGroupStatus.RESTARTED
-        assert on_failure == ImageGroupStatus.FAILED
+        # A restart failure is a job-level failure and leaves the image group
+        # status unchanged; only validate marks it FAILED (#5573).
+        assert on_failure is None
 
     def test_validate_flow(self):
         """Validate flow: VALIDATING -> PASSED -> FAILED."""

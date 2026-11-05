@@ -9,8 +9,7 @@
       {
         "name": "os_rhel_10_0_x86_64",
         "components": [
-          "baseos_group",
-          "ldms_group"
+          "baseos_group"
         ]
       },
       {
@@ -23,8 +22,7 @@
           "service_kube_control_plane_group",
           "powerscale_csi_group",
           "common_pks",
-          "infiniband_stack_driver_groupv1",
-          "ldms_group"
+          "infiniband_stack_driver_groupv1"
         ]
       },
       {
@@ -37,8 +35,7 @@
           "service_kube_node_group",
           "powerscale_csi_group",
           "common_pks",
-          "infiniband_stack_driver_groupv1",
-          "ldms_group"
+          "infiniband_stack_driver_groupv1"
         ]
       }
     ],
@@ -188,8 +185,8 @@
           "cryptography==45_0_7",
           "omsdk==1_2_518",
           "cffi==1_17_1",
-          "prometheus_client==0_20_0",
-          "kubernetes==33_1_0",
+          "prometheus_client==0_26_0",
+          "kubernetes==37_0_1",
           "quay.io/strimzi/operator",
           "quay.io/strimzi/kafka",
           "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
@@ -246,7 +243,7 @@
           "cryptography==45_0_7",
           "omsdk==1_2_518",
           "cffi==1_17_1",
-          "prometheus_client==0_20_0",
+          "prometheus_client==0_26_0",
           "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector",
           "docker.io/nginxinc/nginx-unprivileged",
           "docker.io/timberio/vector",
@@ -281,7 +278,7 @@
           "nfs_subdir_external_provisioner_4_0_18",
           "prettytable==3_14_0",
           "python3_3_12_9",
-          "PyMySQL==1_1_2"
+          "PyMySQL==1_2_3"
         ]
       },
       "service_kube_node_group": {
@@ -321,17 +318,6 @@
         "description": "RDMA / InfiniBand network fabric stack",
         "components": [
           "doca_ofed"
-        ]
-      },
-      "ldms_group": {
-        "name": "ldms_group",
-        "type": "group",
-        "description": "LDMS lightweight distributed metric service packages",
-        "components": [
-          "python3_devel",
-          "python3_cython",
-          "openssl_libs",
-          "ovis_ldms"
         ]
       }
     },
@@ -622,8 +608,8 @@
           }
         ]
       },
-      "prometheus_client==0_20_0": {
-        "name": "prometheus_client==0.20.0",
+      "prometheus_client==0_26_0": {
+        "name": "prometheus_client==0.26.0",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -1839,7 +1825,7 @@
         ]
       },
       "pymysql": {
-        "name": "PyMySQL==1.1.2",
+        "name": "PyMySQL==1.2.3",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -2539,8 +2525,8 @@
         ],
         "tag": "v4.0.2"
       },
-      "kubernetes==33_1_0": {
-        "name": "kubernetes==33.1.0",
+      "kubernetes==37_0_1": {
+        "name": "kubernetes==37.0.1",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -2552,8 +2538,8 @@
           }
         ]
       },
-      "PyMySQL==1_1_2": {
-        "name": "PyMySQL==1.1.2",
+      "PyMySQL==1_2_3": {
+        "name": "PyMySQL==1.2.3",
         "packagetype": "pip_module",
         "sources": [
           {
@@ -2975,62 +2961,6 @@
           {
             "architecture": "x86_64",
             "registry": "docker.io",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "python3_devel": {
-        "name": "python3-devel",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "appstream",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "python3_cython": {
-        "name": "python3-cython",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "codeready-builder",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "openssl_libs": {
-        "name": "openssl-libs",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "baseos",
-            "name": "rhel",
-            "version": [
-              "10.0"
-            ]
-          }
-        ]
-      },
-      "ovis_ldms": {
-        "name": "ovis-ldms",
-        "packagetype": "rpm",
-        "sources": [
-          {
-            "architecture": "x86_64",
-            "reponame": "ldms",
             "name": "rhel",
             "version": [
               "10.0"

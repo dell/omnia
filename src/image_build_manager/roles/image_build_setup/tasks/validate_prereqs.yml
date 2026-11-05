@@ -20,8 +20,9 @@
 # Dual-mode: "config" checks package_groups.yml, "catalog" checks CATALOG_FILE_PATH env var.
 
 - name: Load image_build_config.yml to get repo_manager_output_path
-  ansible.builtin.include_vars:
-    file: "{{ input_project_dir }}/image_build_config.yml"
+  ansible.builtin.include_tasks: load_image_build_config.yml
+  vars:
+    image_build_config_file_required: false
 
 - name: Set build config facts from config (single source of truth)
   vars:

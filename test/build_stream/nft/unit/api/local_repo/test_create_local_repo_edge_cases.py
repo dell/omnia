@@ -14,6 +14,11 @@
 
 """Integration tests for Local Repository create API edge cases."""
 
+# Several tests request nfs_queue_dir / input_dir only for their setup side
+# effects. pytest injects fixtures by exact parameter name, so they must not be
+# renamed with a leading underscore to silence this check.
+# pylint: disable=unused-argument,too-many-arguments,too-many-positional-arguments
+
 import threading
 from unittest.mock import patch
 
@@ -26,7 +31,7 @@ class TestCreateLocalRepoEdgeCases:
     """Edge case tests for create local repository API."""
 
     def test_concurrent_requests_same_job(
-        self, client, auth_headers, created_job, _nfs_queue_dir, _input_dir
+        self, client, auth_headers, created_job, nfs_queue_dir, input_dir
     ):
         """Test concurrent requests for the same job."""
         # Make multiple concurrent requests
@@ -53,7 +58,7 @@ class TestCreateLocalRepoEdgeCases:
             assert response.status_code in [202, 400, 409, 412, 500]
 
     def test_request_with_very_long_correlation_id(
-        self, client, auth_headers, created_job, _nfs_queue_dir, _input_dir
+        self, client, auth_headers, created_job, nfs_queue_dir, input_dir
     ):
         """Test request with very long correlation ID."""
         # Use a valid UUID but test that validation is working
@@ -70,10 +75,10 @@ class TestCreateLocalRepoEdgeCases:
         assert response.status_code in [202, 400, 412]
 
     def test_request_with_unicode_characters(
-        self, client, auth_headers, created_job, _nfs_queue_dir, _input_dir
+        self, client, auth_headers, created_job, nfs_queue_dir, input_dir
     ):
         """Test request with unicode characters in headers."""
-        setup_input_files(_input_dir, created_job)
+        setup_input_files(input_dir, created_job)
         unicode_correlation_id = "测试-🚀-correlation-id"
 
         # HTTP headers must be ASCII, so this should raise UnicodeEncodeError
@@ -84,7 +89,7 @@ class TestCreateLocalRepoEdgeCases:
             )
 
     def test_request_when_nfs_queue_full(
-        self, client, auth_headers, created_job, _nfs_queue_dir, _input_dir
+        self, client, auth_headers, created_job, nfs_queue_dir, input_dir
     ):
         """Test request when NFS queue is full."""
         # This test verifies the API handles errors gracefully
@@ -109,7 +114,7 @@ class TestCreateLocalRepoEdgeCases:
         assert response.status_code == 401
 
     def test_request_with_expired_job(
-        self, client, auth_headers, created_job, _nfs_queue_dir, _input_dir
+        self, client, auth_headers, created_job, nfs_queue_dir, input_dir
     ):
         """Test request with expired job."""
         response = client.post(
@@ -121,7 +126,7 @@ class TestCreateLocalRepoEdgeCases:
         assert response.status_code in [202, 400, 410, 412]
 
     def test_request_when_input_directory_has_permissions_issue(
-        self, client, auth_headers, created_job, _nfs_queue_dir, _input_dir
+        self, client, auth_headers, created_job, nfs_queue_dir, input_dir
     ):
         """Test request when input directory has permission issues."""
         # Omnia 2.3+: no upstream stage check, so request may succeed (202)
@@ -150,16 +155,16 @@ class TestCreateLocalRepoEdgeCases:
         assert response.status_code in [401, 202, 404, 400]
 
     def test_request_with_large_request_body(
-        self, client, auth_headers, created_job, _nfs_queue_dir, _input_dir
+        self, client, auth_headers, created_job, nfs_queue_dir, input_dir
     ):
         """Test request with unexpected large body."""
-        setup_input_files(_input_dir, created_job)
+        setup_input_files(input_dir, created_job)
         large_body = "x" * 10000  # 10KB of data
 
         with patch(
             "infra.repositories.nfs_input_repository"
             ".NfsInputRepository.get_destination_input_repository_path",
-            return_value=_nfs_queue_dir / "dest_input",
+            return_value=nfs_queue_dir / "dest_input",
         ), patch(
             "infra.repositories.nfs_input_repository"
             ".NfsInputRepository.validate_input_directory",

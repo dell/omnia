@@ -93,6 +93,12 @@ gitlab_puma_workers: 2
 # Default: 10
 gitlab_sidekiq_concurrency: 10
 
+# Maximum runtime (in seconds) allowed for a GitLab CI/CD pipeline job before
+# it is forcibly timed out. Increase this for long-running image builds.
+# Accepted values: integer >= 600 (10 minutes minimum)
+# Default: 9000 (2.5 hours)
+gitlab_project_ci_timeout: 9000
+
 # ==========================================================================
 # Section 3 — Cadence Polling Configuration (Operational Parameters Only)
 #   ER Reference: ER-BSM-002 — AC-008, AC-009, AC-015, AC-016

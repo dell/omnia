@@ -57,9 +57,11 @@
   tags: always
   tasks:
     - name: Load image_build_config.yml
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/image_build_config.yml"
-      failed_when: false
+      ansible.builtin.include_role:
+        name: image_build_setup
+        tasks_from: load_image_build_config.yml
+      vars:
+        image_build_config_ignore_errors: true
 
 # Execute cleanup on localhost
 - name: Cleanup image_build_manager services # noqa:role-name[path]
