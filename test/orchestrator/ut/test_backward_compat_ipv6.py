@@ -1134,6 +1134,87 @@ class TestIbPairValidationAddrMode:
 
 
 # ===================================================================
+# IPv6 duplicate detection with normalization
+# ===================================================================
+
+class TestIbIpv6DuplicateNormalization:
+    """Validate IPv6 duplicate detection normalizes compressed/expanded forms."""
+
+    def test_compressed_expanded_duplicate_detected(self, tmp_path):
+        """ORCH_UT_BC_063: Compressed and expanded IPv6 forms detected as duplicates."""
+        row1 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD10", "",
+            "node010", "aa:bb:cc:dd:ee:10", "172.16.107.50",
+            "aa:bb:cc:dd:ff:10", "172.17.107.50",
+            "InfiniBand.Slot.7-1", "192.168.0.50", "fd00:1b::33",
+        ]
+        row2 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD11", "",
+            "node011", "aa:bb:cc:dd:ee:11", "172.16.107.51",
+            "aa:bb:cc:dd:ff:11", "172.17.107.51",
+            "InfiniBand.Slot.7-1", "192.168.0.51", "fd00:001b:0000:0000:0000:0000:0000:0033",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row1, row2],
+            network_spec={
+                "Networks": [
+                    {
+                        "admin_network": {
+                            "subnet": "172.16.107.0",
+                            "netmask_bits": "24",
+                        },
+                    },
+                ],
+            },
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        duplicate_errors = [e for e in errors if "Duplicate IB_IPV6" in e]
+        assert len(duplicate_errors) == 1, (
+            f"Expected 1 duplicate error for fd00:1b::33 and expanded form, got: {duplicate_errors}"
+        )
+        assert "fd00:1b::33" in duplicate_errors[0]
+
+    def test_different_ipv6_not_flagged(self, tmp_path):
+        """ORCH_UT_BC_064: Different IPv6 addresses are not flagged as duplicates."""
+        row1 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD12", "",
+            "node012", "aa:bb:cc:dd:ee:12", "172.16.107.52",
+            "aa:bb:cc:dd:ff:12", "172.17.107.52",
+            "InfiniBand.Slot.7-1", "192.168.0.52", "fd00:1b::52",
+        ]
+        row2 = [
+            "slurm_node_rhel_10_0_x86_64", "grp1", "ABCD13", "",
+            "node013", "aa:bb:cc:dd:ee:13", "172.16.107.53",
+            "aa:bb:cc:dd:ff:13", "172.17.107.53",
+            "InfiniBand.Slot.7-1", "192.168.0.53", "fd00:1b::53",
+        ]
+        project_dir = _create_project_dir(
+            tmp_path,
+            csv_header=list(CANONICAL_HEADERS),
+            csv_rows=[row1, row2],
+            network_spec={
+                "Networks": [
+                    {
+                        "admin_network": {
+                            "subnet": "172.16.107.0",
+                            "netmask_bits": "24",
+                        },
+                    },
+                ],
+            },
+        )
+        config_data = {"pxe_mapping_file_path": ""}
+        errors = validate(config_data, project_dir)
+        duplicate_errors = [e for e in errors if "Duplicate IB_IPV6" in e]
+        assert duplicate_errors == [], (
+            f"Different IPv6 addresses should not be flagged as duplicates, got: {duplicate_errors}"
+        )
+
+
+# ===================================================================
 # IB_IPV6 subnet membership validation
 # ===================================================================
 

@@ -201,6 +201,18 @@ def _validate_unique_values(
         values = [row.get(field, "") for _, row in rows]
         if field == "ADMIN_MAC":
             values = [value.lower().replace("-", ":") for value in values]
+        elif field == "IB_IPV6":
+            # Normalize IPv6 addresses to canonical form before duplicate check
+            normalized = []
+            for value in values:
+                if value:
+                    try:
+                        normalized.append(str(ipaddress.IPv6Address(value)))
+                    except ValueError:
+                        normalized.append(value)
+                else:
+                    normalized.append(value)
+            values = normalized
         duplicate_values = _duplicates(values)
         if duplicate_values:
             record_error(
